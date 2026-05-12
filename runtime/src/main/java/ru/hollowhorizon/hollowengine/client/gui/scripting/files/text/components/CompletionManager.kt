@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
-import de.fabmax.kool.modules.ui2.LazyListState
 import de.fabmax.kool.modules.ui2.MutableStateValue
+import de.fabmax.kool.modules.ui2.ScrollState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextCaretNavigation
@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLi
 class CompletionManager(
     private val modifier: ScriptTextAreaModifier,
     private val completionIndex: () -> MutableStateValue<Int>,
-    private val completionsListState: () -> LazyListState?,
+    private val completionsListState: () -> ScrollState?,
 ) {
     private var anchorLine: Int = -1
     private var anchorFromChar: Int = -1
@@ -37,7 +37,11 @@ class CompletionManager(
     }
 
     fun scrollTo(index: Int) {
-        completionsListState()?.scrollToItem?.set(index)
+        val targetY = index * 24f
+        completionsListState()?.apply {
+            yScrollDp.set(targetY)
+            yScrollDpDesired.set(targetY)
+        }
     }
 
     fun onCompletionsOpened(lineProvider: TextLineProvider) {

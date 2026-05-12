@@ -28,7 +28,7 @@ internal val bracketPairs = mapOf(
 interface ScriptTextAreaScope : UiScope {
     override val modifier: ScriptTextAreaModifier
 
-    val linesHolder: LazyListScope
+    val linesHolder: ColumnScope
 
     fun installDefaultSelectionHandler() {
         val selStartLine = remember(-1)
@@ -67,6 +67,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     val errors by property(mutableListOf<Diagnostic>())
 
     var editorConfig: TextEditorConfig by property(TextEditorConfig())
+    var isAutoScrollToEnd: Boolean by property(false)
 }
 
 fun <T : ScriptTextAreaModifier> T.lineStartPadding(padding: Dp): T {
@@ -92,6 +93,11 @@ fun <T : ScriptTextAreaModifier> T.onSelectionChanged(block: ((Int, Int, Int, In
 
 fun <T : ScriptTextAreaModifier> T.editorHandler(handler: TextEditorHandler): T {
     editorHandler = handler; return this
+}
+
+fun <T : ScriptTextAreaModifier> T.isAutoScrollToEnd(flag: Boolean): T {
+    isAutoScrollToEnd = flag
+    return this
 }
 
 fun <T : ScriptTextAreaModifier> T.setCaretPos(line: Int, caretPos: Int): T {
@@ -123,7 +129,7 @@ fun UiScope.ScriptTextArea(
     scrollPaneModifier: ((ScrollPaneModifier) -> Unit)? = null,
     vScrollbarModifier: ((ScrollbarModifier) -> Unit)? = null,
     hScrollbarModifier: ((ScrollbarModifier) -> Unit)? = null,
-    state: LazyListState = rememberListState(),
+    state: ScrollState = rememberScrollState(),
     scopeName: String? = null,
     block: ScriptTextAreaScope.() -> Unit,
 ) {
@@ -170,7 +176,8 @@ fun UiScope.ScriptTextArea(
                         .width(Grow(1f, max = FitContent))
                         .zLayer(100_000_000)
 
-                    LazyColumn(
+                    val completionScrollState = rememberScrollState()
+                    ScrollArea(
                         withVerticalScrollbar = true,
                         withHorizontalScrollbar = false,
                         isScrollableHorizontal = true,
@@ -197,12 +204,11 @@ fun UiScope.ScriptTextArea(
                                     hoverColor = EditorTheme.Scrollbar.hoverColor,
                                 )
                         },
-                        scrollPaneModifier = {
-                            it.allowOverscrollY = false
-                        }) {
+                        state = completionScrollState,
+                    ) {
                         modifier.margin(end = Dimensions.PaddingMedium)
 
-                        textArea.completionsList = (this as LazyListNode).state
+                        textArea.completionsList = completionScrollState
 
                         val currentLine = editorState.provider[textArea.modifier.selectionCaretLine].text
                         val currentCharIdx = textArea.modifier.selectionCaretChar
@@ -213,14 +219,16 @@ fun UiScope.ScriptTextArea(
 
                         val font = textArea.modifier.editorConfig.font.derive(16f)
 
-                        itemsIndexed(completions) { index, completion ->
-                            CompletionRenderer.renderCompletion(
-                                completion = completion,
-                                isSelected = textArea.completionIndex.use() == index,
-                                typedPrefix = typedPrefix,
-                                font = font,
-                                onClick = { textArea.applyCompletion(it) }
-                            )
+                        Column(width = Grow.MinFit) {
+                            completions.forEachIndexed { index, completion ->
+                                CompletionRenderer.renderCompletion(
+                                    completion = completion,
+                                    isSelected = textArea.completionIndex.use() == index,
+                                    typedPrefix = typedPrefix,
+                                    font = font,
+                                    onClick = { textArea.applyCompletion(it) }
+                                )
+                            }
                         }
                     }
                 }
@@ -237,10 +245,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     lateinit var lineProvider: TextLineProvider
     lateinit var editorState: EditorState
-    lateinit var completionsList: LazyListState
+    lateinit var completionsList: ScrollState
 
-    lateinit var listState: LazyListState
-    override lateinit var linesHolder: LazyListNode
+    lateinit var listState: ScrollState
+    override lateinit var linesHolder: ColumnNode
 
     lateinit var completionX: MutableStateValue<Float>
     lateinit var completionY: MutableStateValue<Float>
@@ -250,7 +258,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         owner = this,
         modifier = modifier,
         lineProvider = { lineProvider },
-        linesHolder = { linesHolder },
+        scrollState = { listState },
         requestFocus = { requestFocus() },
         isFocused = { isFocused.use() }
     )
@@ -409,42 +417,42 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
         }
 
-        ScrollPane(listState) {
-            modifier.width(Grow.MinFit)
-            scrollPaneModifier?.let { it(modifier) }
+        Box {
+            modifier
+                .width(Grow.Std)
+                .height(Grow.Std)
+                .background(null)
+                .onWheelX { listState.scrollDpX(it.pointer.scroll.x * TextEditorConstants.SCROLL_WHEEL_X_MULTIPLIER) }
+                .onWheelY { listState.scrollDpY(it.pointer.scroll.y * TextEditorConstants.SCROLL_WHEEL_Y_MULTIPLIER) }
 
-            linesHolder = uiNode.createChild(null, LazyListNode::class, LazyListNode.factory)
-            linesHolder.state = listState
-            linesHolder.modifier.orientation(ListOrientation.Vertical).layout(ColumnLayout).width(Grow.MinFit)
+            ScrollPane(listState) {
+                modifier.width(Grow.MinFit)
+                scrollPaneModifier?.let { it(modifier) }
 
-            block.invoke(this@TextAreaNode)
+                linesHolder = uiNode.createChild(null, ColumnNode::class, ColumnNode.factory)
+                linesHolder.modifier.layout(ColumnLayout).width(Grow.MinFit)
 
-            setText(lineProvider)
+                block.invoke(this@TextAreaNode)
 
-            afterContent.invoke(this@TextAreaNode)
+                setText(lineProvider)
+
+                afterContent.invoke(this@TextAreaNode)
+            }
         }
 
         if (withVerticalScrollbar && modifier.editorConfig.showVerticalScrollbar) {
             VerticalScrollbar {
-                lazyListAware(
-                    listState,
-                    ScrollbarOrientation.Vertical,
-                    ListOrientation.Vertical,
-                    scrollbarColor,
-                    vScrollbarModifier
-                )
+                scrollStateAware(listState, ScrollbarOrientation.Vertical, scrollbarColor, vScrollbarModifier)
             }
         }
         if (withHorizontalScrollbar && modifier.editorConfig.showHorizontalScrollbar) {
             HorizontalScrollbar {
-                lazyListAware(
-                    listState,
-                    ScrollbarOrientation.Horizontal,
-                    ListOrientation.Vertical,
-                    scrollbarColor,
-                    hScrollbarModifier
-                )
+                scrollStateAware(listState, ScrollbarOrientation.Horizontal, scrollbarColor, hScrollbarModifier)
             }
+        }
+
+        if (modifier.isAutoScrollToEnd) {
+            listState.scrollRelativeY(1f, smooth = false)
         }
     }
 
@@ -453,14 +461,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val font = textAreaMod.editorConfig.font
 
         val indentManager = IndentStackManager()
-        for (i in 0..<linesHolder.state.itemsFrom.use().coerceAtMost(lineProvider.size)) {
-            val line = lineProvider[i]
-            val indentIndex = line.text.indexOfFirst { it != ' ' }
-            indentManager.update(indentIndex, line.length)
-        }
         selectionController.updateSelectionRange()
-        linesHolder.indices(lineProvider.size) { lineIndex ->
-            if (lineIndex >= lineProvider.size) return@indices
+        with(linesHolder) {
+            for (lineIndex in 0 until lineProvider.size) {
             val line = lineProvider[lineIndex]
             val indentIndex = line.text.indexOfFirst { it != ' ' }
             indentManager.popToIndent(indentIndex, line.length)
@@ -498,6 +501,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             }
 
             indentManager.pushIndent(indentIndex)
+            }
         }
     }
 
@@ -580,6 +584,21 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     companion object {
         val factory: (UiNode, UiSurface) -> TextAreaNode = { parent, surface -> TextAreaNode(parent, surface) }
     }
+}
+
+private fun ScrollbarScope.scrollStateAware(
+    state: ScrollState,
+    orientation: ScrollbarOrientation,
+    scrollbarColor: Color?,
+    scrollbarModifier: ((ScrollbarModifier) -> Unit)?,
+) {
+    val isVertical = orientation == ScrollbarOrientation.Vertical
+    modifier
+        .relativeBarPos(if (isVertical) state.relativeBarPosY else state.relativeBarPosX)
+        .relativeBarLen(if (isVertical) state.relativeBarLenY else state.relativeBarLenX)
+        .onChange { if (isVertical) state.scrollRelativeY(it) else state.scrollRelativeX(it) }
+    scrollbarColor?.let { modifier.colors(it) }
+    scrollbarModifier?.invoke(modifier)
 }
 
 interface TextLineProvider {

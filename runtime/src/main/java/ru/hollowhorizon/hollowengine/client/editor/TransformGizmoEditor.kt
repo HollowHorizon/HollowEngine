@@ -72,7 +72,6 @@ object TransformGizmoEditor {
     internal val SPOT_LIGHT_ICON = "hollowengine:textures/gui/icons/light_spot.svg".rl
 
     private val root = Node("transform-gizmo-root")
-    private val inputHandler = InputStack.InputHandler("transform-gizmo-editor")
     private val latePassData = PassData()
     private val pickViewData = ViewData()
 
@@ -83,9 +82,6 @@ object TransformGizmoEditor {
     private var activeKey: GizmoEntryId? = null
     private var lastFrustum: Frustum? = null
     private var isInitialized = false
-    private var isInputHandlerInstalled = false
-    private var isInputHandlerStateDirty = true
-    private var isInputHandlerPriorityDirty = true
     private var contextMenu: ContextMenuState? = null
 
     private val overlayLabelState = mutableStateOf<OverlayLabelState?>(null)
@@ -136,13 +132,11 @@ object TransformGizmoEditor {
             with(inspectorState) { RenderPanel() }
         }.apply {
             inputMode = UiSurface.InputCaptureMode.CapturePassthrough
+            inputHandler.pointerListeners += PointerRouter
         }
     }
 
     init {
-        inputHandler.pointerListeners += PointerRouter
-        InputStack.onInputStackChanged += ::maintainInputHandlerPriority
-
         enabledState.onChange { _, enabled ->
             KeyValueStore.setBoolean(ENABLED_KEY, enabled)
             if (!enabled) {
@@ -154,7 +148,7 @@ object TransformGizmoEditor {
                     it.node.isVisible = true
                 }
             }
-            requestInputHandlerStateUpdate()
+            updateInputBlockingState()
         }
         modeState.onChange { _, mode ->
             KeyValueStore.setInt(MODE_KEY, mode.ordinal)
@@ -185,7 +179,7 @@ object TransformGizmoEditor {
             )
             isInitialized = true
         }
-        applyInputHandlerStateIfNeeded()
+        updateInputBlockingState()
     }
 
     @SubscribeEvent
@@ -198,7 +192,7 @@ object TransformGizmoEditor {
     fun onRenderOverlay(event: RenderOverlayEvent.Pre) {
         if (event.overlay != GuiOverlay.HOTBAR) return
         if (!isInitialized) return
-        applyInputHandlerStateIfNeeded()
+        updateInputBlockingState()
         if (!isEditorAvailable()) return
         renderLateScene()
     }
@@ -280,49 +274,11 @@ object TransformGizmoEditor {
         return minecraft.screen is ChatScreen || !ScriptingEnvironmentOverlay.isCollapsed
     }
 
-    private fun requestInputHandlerStateUpdate() {
-        isInputHandlerStateDirty = true
-        updateInputBlockingState()
-    }
-
-    private fun applyInputHandlerStateIfNeeded() {
-        if (!isInputHandlerStateDirty && !isInputHandlerPriorityDirty) {
-            updateInputBlockingState()
-            return
-        }
-
-        val shouldInstall = isInitialized && isEnabled && isEditorAvailable()
-        when {
-            shouldInstall -> {
-                val isAlreadyTop = InputStack.handlerStack.lastOrNull() === inputHandler
-                if (!isAlreadyTop && (isInputHandlerPriorityDirty || !isInputHandlerInstalled)) {
-                    InputStack.pushTop(inputHandler)
-                }
-                isInputHandlerInstalled = true
-                isInputHandlerPriorityDirty = false
-            }
-
-            !shouldInstall -> {
-                if (isInputHandlerInstalled) {
-                    InputStack.remove(inputHandler)
-                    isInputHandlerInstalled = false
-                }
-                isInputHandlerPriorityDirty = false
-            }
-        }
-        isInputHandlerStateDirty = false
-        updateInputBlockingState()
-    }
-
-    private fun maintainInputHandlerPriority() {
-        isInputHandlerPriorityDirty = InputStack.handlerStack.lastOrNull() !== inputHandler
-    }
-
     private fun updateInputBlockingState() {
         val pointer = PointerInput.primaryPointer
         val isPointerOverDock = pointer.isValid && isMouseOverDock(pointer.pos.x, pointer.pos.y)
         val isPointerOverOverlay = pointer.isValid && isOverlayUiHit(pointer.pos.x, pointer.pos.y)
-        inputHandler.blockAllPointerInput =
+        overlaySurface.inputHandler.blockAllPointerInput =
             isWorldInputEnabled() &&
                 !isPointerOverDock &&
                 !isPointerOverOverlay &&
@@ -473,7 +429,7 @@ object TransformGizmoEditor {
 
     private fun prepareRenderSceneState(): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false
-        applyInputHandlerStateIfNeeded()
+        updateInputBlockingState()
         syncVisibleEntries()
         KoolManager.context.backend.collectScene(scene, latePassData)
         return true

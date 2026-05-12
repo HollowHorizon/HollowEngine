@@ -4,8 +4,8 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.Focusable
-import de.fabmax.kool.modules.ui2.LazyListNode
 import de.fabmax.kool.modules.ui2.PointerEvent
+import de.fabmax.kool.modules.ui2.ScrollState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import kotlin.math.max
@@ -15,7 +15,7 @@ class TextSelectionController(
     private val owner: Focusable,
     private val modifier: ScriptTextAreaModifier,
     private val lineProvider: () -> TextLineProvider,
-    private val linesHolder: () -> LazyListNode,
+    private val scrollState: () -> ScrollState,
     private val requestFocus: () -> Unit,
     private val isFocused: () -> Boolean,
 ) {
@@ -253,14 +253,14 @@ class TextSelectionController(
     fun moveCaretPageUp(select: Boolean) {
         if (modifier.editorConfig.singleLine) return
         val bottomLinePad = 2
-        val numPageLines = max(1, linesHolder().state.numVisibleItems - bottomLinePad)
+        val numPageLines = max(1, visibleLineCount() - bottomLinePad)
         moveCaretToLine(selectionCaretLine - numPageLines, select)
     }
 
     fun moveCaretPageDown(select: Boolean) {
         if (modifier.editorConfig.singleLine) return
         val bottomLinePad = 2
-        val numPageLines = max(1, linesHolder().state.numVisibleItems - bottomLinePad)
+        val numPageLines = max(1, visibleLineCount() - bottomLinePad)
         moveCaretToLine(selectionCaretLine + numPageLines, select)
     }
 
@@ -333,10 +333,20 @@ class TextSelectionController(
     }
 
     fun scrollToCaret() {
-        val scrState = linesHolder().state
-        scrState.scrollToItem.set(selectionCaretLine)
+        val scrState = scrollState()
 
         val scrollPad = 16f
+        val lineHeight = lineHeightDp()
+        val caretLineTop = selectionCaretLine * lineHeight
+        val caretLineBottom = caretLineTop + lineHeight
+        val scrTop = scrState.yScrollDp.value
+        val scrBottom = scrTop + scrState.viewHeightDp.value
+        if (caretLineTop - scrollPad < scrTop) {
+            scrState.scrollDpY(caretLineTop - scrTop - scrollPad)
+        } else if (caretLineBottom + scrollPad > scrBottom) {
+            scrState.scrollDpY(caretLineBottom - scrBottom + scrollPad)
+        }
+
         val caretX = Dp.fromPx(caretLine?.charIndexToPx(selectionCaretChar) ?: 0f).value
         val scrLt = scrState.xScrollDp.value
         val scrRt = scrState.xScrollDp.value + scrState.viewWidthDp.value
@@ -345,5 +355,13 @@ class TextSelectionController(
         } else if (caretX + scrollPad * 4 > scrRt) {
             scrState.scrollDpX(caretX - scrRt + scrollPad * 4)
         }
+    }
+
+    private fun visibleLineCount(): Int {
+        return max(1, (scrollState().viewHeightDp.value / lineHeightDp()).toInt())
+    }
+
+    private fun lineHeightDp(): Float {
+        return Dp.fromPx(modifier.editorConfig.font.lineHeight).value + Dp(4f).value
     }
 }

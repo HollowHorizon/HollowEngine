@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import de.fabmax.kool.input.CursorShape
-import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.MutableVec4f
@@ -20,96 +19,6 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.runtime.transform.kool.UiDockableAccessor
 
-fun UiScope.LazyList(
-    width: Dimension = Grow.Std,
-    height: Dimension = Grow.Std,
-    listOrientation: ListOrientation = ListOrientation.Horizontal,
-    withVerticalScrollbar: Boolean = true,
-    withHorizontalScrollbar: Boolean = false,
-    isScrollableVertical: Boolean = true,
-    isScrollableHorizontal: Boolean = true,
-    scrollbarColor: Color? = null,
-    containerModifier: ((UiModifier) -> Unit)? = null,
-    scrollPaneModifier: ((ScrollPaneModifier) -> Unit)? = null,
-    vScrollbarModifier: ((ScrollbarModifier) -> Unit)? = null,
-    hScrollbarModifier: ((ScrollbarModifier) -> Unit)? = null,
-    isScrollByDrag: Boolean = true,
-    state: LazyListState = rememberListState(),
-    scopeName: String? = null,
-    block: LazyListScope.() -> Unit,
-) {
-
-    Box {
-        modifier
-            .width(width)
-            .height(height)
-            .backgroundColor(colors.backgroundVariant)
-            .onWheelX {
-                if (isScrollableHorizontal) {
-                    state.scrollDpX(it.pointer.scroll.x * -20f)
-                }
-            }
-            .onWheelY {
-                if (isScrollableVertical && !KeyboardInput.isShiftDown) {
-                    state.scrollDpY(it.pointer.scroll.y * -50f)
-                }
-                if (isScrollableHorizontal && KeyboardInput.isShiftDown) {
-                    state.scrollDpX(it.pointer.scroll.y * -20f)
-                }
-            }
-
-        if (isScrollByDrag) {
-            modifier.onDrag {
-                val delta = it.pointer.delta
-                if (isScrollableHorizontal && delta.x != 0f) {
-                    state.scrollDpX(Dp.fromPx(-delta.x).value)
-                }
-                if (isScrollableVertical && delta.y != 0f) {
-                    state.scrollDpY(Dp.fromPx(-delta.y).value)
-                }
-            }
-        }
-
-        containerModifier?.invoke(modifier)
-
-        ScrollPane(state) {
-            // expand / grow list in cross axis direction
-            val isGrowWidth = listOrientation == ListOrientation.Vertical
-            val isGrowHeight = listOrientation == ListOrientation.Horizontal
-
-            if (isGrowWidth) modifier.width(Grow.Std)
-            if (isGrowHeight) modifier.height(Grow.Std)
-            scrollPaneModifier?.let { it(modifier) }
-
-            val lazyList = uiNode.createChild(scopeName, LazyListNode::class, LazyListNode.factory)
-            lazyList.state = state
-            lazyList.modifier
-                .orientation(listOrientation)
-                .layout(if (listOrientation == ListOrientation.Vertical) ColumnLayout else RowLayout)
-            if (isGrowWidth) lazyList.modifier.width(Grow.Std)
-            if (isGrowHeight) lazyList.modifier.height(Grow.Std)
-            lazyList.block()
-        }
-
-        if (withVerticalScrollbar) {
-            VerticalScrollbar {
-                lazyListAware(state, ScrollbarOrientation.Vertical, listOrientation, scrollbarColor, vScrollbarModifier)
-            }
-        }
-        if (withHorizontalScrollbar) {
-            HorizontalScrollbar {
-                lazyListAware(
-                    state,
-                    ScrollbarOrientation.Horizontal,
-                    listOrientation,
-                    scrollbarColor,
-                    hScrollbarModifier
-                )
-            }
-        }
-    }
-}
-
 fun UiScope.FileDockingTabsBar(
     windowDockable: UiDockable,
     isDragToUndock: Boolean = true,
@@ -123,106 +32,32 @@ fun UiScope.FileDockingTabsBar(
 
         Row(width = Grow.Std) {
             modifier.margin(vertical = sizes.smallGap)
-            LazyList(
+            val tabsScrollState = rememberScrollState()
+            val visibleDockables = dockNode.dockedItems.filter { !it.isHidden }
+            val activeDockable = dockNode.dockItemOnTop
+            ScrollArea(
                 height = FitContent,
-                isScrollByDrag = true,
+                withVerticalScrollbar = false,
                 withHorizontalScrollbar = true,
-                containerModifier = {
-                    it.background(null)
-                },
+                isScrollableVertical = false,
+                state = tabsScrollState,
+                containerModifier = { it.background(null) },
                 hScrollbarModifier = {
                     it.height(sizes.smallGap).margin(top = sizes.gap * 3f, bottom = sizes.borderWidth)
                 }) {
-                items(dockNode.dockedItems.filter { !it.isHidden }) { item ->
-                    Row {
-                        val isHovered by modifier.hoverable()
-                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
-
-                        modifier
-                            .margin(horizontal = sizes.smallGap)
-                            .alignY(AlignmentY.Top)
-                            .onClick {
-                                if (it.pointer.isMiddleButtonReleased) {
-                                    onCloseAction?.invoke(item)
-                                } else if (it.isLeftClick) {
-                                    dockNode.bringToTop(item)
-                                } else if (it.isRightClick) {
-                                    onRightClick(item, it)
-                                }
-                            }
-
-                        val bgColor = ColorTheme.UI.BackgroundSecondary.mix(ColorTheme.UI.BackgroundElements, factor)
-                        val borderColor = ColorTheme.UI.BackgroundElements.mix(ColorTheme.UI.BackgroundAccent, factor)
-
-                        modifier
-                            .background(RoundRectBackground(bgColor, sizes.smallGap))
-                            .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
-
-
-                        val itemName = IdeContent.files.values.find { it.dockable == item }?.filePath?.substringAfterLast('/') ?: item.name.lang
-
-                        Text(itemName) {
-                            modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
-                                .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
-                                .font(sizes.normalText)
-                                .textColor(ColorTheme.UI.WhiteReplacement)
-                        }
-
-                        if (isDragToUndock) {
-                            with(windowDockable) {
-                                modifier.onDragStart {
-                                    if (getResizeEdgeMask(it) != 0) {
-                                        // do not initiate move drag when pointer is on an edge, instead the drag will resize the dockItem
-                                        it.isConsumed = false
-                                    }
-                                }
-
-                                var moved by remember(false)
-
-                                modifier.onDrag {
-                                    if (it.pointer.pos.y in uiNode.topPx..uiNode.bottomPx) {
-                                        return@onDrag
-                                    }
-
-                                    if (!moved) {
-                                        moved = true
-                                        dockedTo.value?.undock(this)
-                                        val itemBounds = uiNode.undockedBounds4f(floatingWidthPx, floatingHeightPx)
-                                        moveUndockBoundsUnderPointer(itemBounds, it)
-                                        dragStartItemBounds.set(itemBounds)
-                                        floatingX.set(Dp.fromPx(it.pointer.pos.x))
-                                        floatingY.set(Dp.fromPx(it.pointer.pos.y))
-                                        dock?.dndContext?.startDrag(this, it, null)
-                                        return@onDrag
-                                    }
-
-                                    floatingX.set(floatingX.value + Dp.fromPx(it.pointer.delta.x))
-                                    floatingY.set(floatingY.value + Dp.fromPx(it.pointer.delta.y))
-                                    floatingAlignmentX.set(AlignmentX.Start)
-                                    floatingAlignmentY.set(AlignmentY.Top)
-                                    dock?.dndContext?.drag(it)
-
-                                }
-                                modifier.onDragEnd {
-                                    dock?.dndContext?.endDrag(it)
-                                    moved = false
-                                }
-                                return@with
-                                registerDragCallbacks(false)
-                            }
-                        }
-                        if (onCloseAction != null) {
-                            CloseButton(
-                                background = bgColor,
-                                backgroundHover = bgColor,
-                                foreground = colors.onBackground,
-                                buttonMod = {
-                                    it.onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
-                                        .align(AlignmentX.End, AlignmentY.Center)
-                                        .margin(end = sizes.smallGap)
-                                }
-                            ) { ev -> onCloseAction(item) }
-                        }
+                Row(height = Grow.Std) {
+                    visibleDockables.forEach { item ->
+                        FileDockingTab(
+                            item = item,
+                            isDragToUndock = isDragToUndock,
+                            isActive = item == activeDockable,
+                            onActivate = {
+                                dockNode.bringToTop(item)
+                                surface.triggerUpdate()
+                            },
+                            onCloseAction = onCloseAction,
+                            onRightClick = onRightClick,
+                        )
                     }
                 }
             }
@@ -232,6 +67,124 @@ fun UiScope.FileDockingTabsBar(
         // add an empty row to avoid a hard layout change when the tab row changes visibility
         Row { }
         return false
+    }
+}
+
+private fun UiScope.FileDockingTab(
+    item: Dockable,
+    isDragToUndock: Boolean,
+    isActive: Boolean,
+    onActivate: () -> Unit,
+    onCloseAction: ((Dockable) -> Unit)?,
+    onRightClick: (Dockable, PointerEvent) -> Unit,
+) {
+    Row {
+        val file = IdeContent.files.values.find { it.dockable == item }
+        val icon = file?.icon ?: icons.GENERAL
+        val itemName = file?.filePath?.substringAfterLast('/') ?: item.name.lang
+        val isHovered by modifier.hoverable()
+        val factor by animateFloatAsState(
+            if (isHovered || isActive) 1f else 0f,
+            tween(0.16f, Easing.easeOutQuart),
+        )
+        val bgColor = ColorTheme.UI.BackgroundSecondary.mix(ColorTheme.UI.BackgroundElements, factor)
+        val borderColor = ColorTheme.UI.BackgroundElements.mix(ColorTheme.UI.BackgroundAccent, if (isActive) 1f else factor)
+
+        modifier
+            .margin(horizontal = Dimensions.PaddingSmall)
+            .alignY(AlignmentY.Top)
+            .padding(horizontal = Dimensions.PaddingNormal, vertical = Dimensions.PaddingSmall)
+            .height(FitContent)
+            .background(RoundRectBackground(bgColor, Dimensions.PaddingNormal))
+            .border(RoundRectBorder(borderColor, Dimensions.PaddingNormal, sizes.borderWidth))
+            .onClick {
+                if (it.pointer.isMiddleButtonReleased) {
+                    closeDockable(item, onCloseAction)
+                } else if (it.isLeftClick) {
+                    onActivate()
+                } else if (it.isRightClick) {
+                    onRightClick(item, it)
+                }
+            }
+
+        val tabDockable = item as? UiDockable
+        if (isDragToUndock && tabDockable != null) {
+            with(tabDockable) {
+                modifier.onDragStart {
+                    if (getResizeEdgeMask(it) != 0) {
+                        it.isConsumed = false
+                    }
+                }
+
+                var moved by remember(false)
+
+                modifier.onDrag {
+                    if (it.pointer.pos.y in uiNode.topPx..uiNode.bottomPx) {
+                        return@onDrag
+                    }
+
+                    if (!moved) {
+                        moved = true
+                        dockedTo.value?.undock(this)
+                        val itemBounds = uiNode.undockedBounds4f(floatingWidthPx, floatingHeightPx)
+                        moveUndockBoundsUnderPointer(itemBounds, it)
+                        dragStartItemBounds.set(itemBounds)
+                        floatingX.set(Dp.fromPx(it.pointer.pos.x))
+                        floatingY.set(Dp.fromPx(it.pointer.pos.y))
+                        dock?.dndContext?.startDrag(this, it, null)
+                        return@onDrag
+                    }
+
+                    floatingX.set(floatingX.value + Dp.fromPx(it.pointer.delta.x))
+                    floatingY.set(floatingY.value + Dp.fromPx(it.pointer.delta.y))
+                    floatingAlignmentX.set(AlignmentX.Start)
+                    floatingAlignmentY.set(AlignmentY.Top)
+                    dock?.dndContext?.drag(it)
+                }
+                modifier.onDragEnd {
+                    dock?.dndContext?.endDrag(it)
+                    moved = false
+                }
+                return@with
+                registerDragCallbacks(false)
+            }
+        }
+
+        Image(icon) {
+            modifier
+                .size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
+                .alignY(AlignmentY.Center)
+        }
+
+        Text(itemName) {
+            modifier
+                .margin(horizontal = Dimensions.PaddingMedium)
+                .font(remember {
+                    MsdfFont(
+                        ColorTheme.Fonts.MONOCRAFT,
+                        Dimensions.FontNormal,
+                        MsdfFont.ITALIC_NONE,
+                        MsdfFont.WEIGHT_EXTRA_BOLD,
+                    )
+                })
+                .textColor(ColorTheme.UI.WhiteReplacement)
+                .align(AlignmentX.Start, AlignmentY.Center)
+        }
+
+        onCloseAction?.let { action ->
+            TabCloseButton(icons.CLOSE) {
+                closeDockable(item, action)
+            }
+        }
+    }
+}
+
+private fun closeDockable(item: Dockable, fallback: ((Dockable) -> Unit)?) {
+    val file = IdeContent.files.values.firstOrNull { it.dockable == item }
+    if (file != null) {
+        file.close()
+    } else {
+        fallback?.invoke(item)
     }
 }
 
@@ -281,6 +234,7 @@ private fun UiScope.FileDockingBar(
     headerRight: UiScope.(background: Color) -> Unit,
 ) {
     Row(Grow.Std) {
+        val isFocused = surface.isFocused.use()
         if (windowDockable.isDocked.use()) modifier.margin(Dimensions.PaddingNormal)
         modifier
             .onClick {
@@ -298,16 +252,21 @@ private fun UiScope.FileDockingBar(
 
         Box(Grow.Std) {
             val isHovered by modifier.hoverable()
-            val color by animateColorAsState(
-                if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+            val factor by animateFloatAsState(
+                if (isHovered || isFocused) 1f else 0f,
                 tween(0.16f, Easing.easeOutQuart),
             )
+            val color by animateColorAsState(
+                ColorTheme.UI.BackgroundSecondary.mix(ColorTheme.UI.BackgroundElements, factor),
+                tween(0.16f, Easing.easeOutQuart),
+            )
+            val borderColor = ColorTheme.UI.BackgroundElements.mix(ColorTheme.UI.BackgroundAccent, if (isFocused) 1f else factor)
 
             modifier
                 .padding(Dimensions.PaddingNormal)
                 .height(FitContent)
                 .background(RoundRectBackground(color, Dimensions.PaddingNormal))
-                .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal, sizes.borderWidth))
+                .border(RoundRectBorder(borderColor, Dimensions.PaddingNormal, sizes.borderWidth))
 
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
@@ -383,14 +342,42 @@ private fun UiScope.HeaderIconButton(icon: ResourceLocation, onClick: () -> Unit
     }
 }
 
+private fun UiScope.TabCloseButton(icon: ResourceLocation, onClick: () -> Unit) {
+    Box {
+        val isHovered by modifier.hoverable()
+        val color by animateColorAsState(
+            if (isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundElements,
+            tween(0.12f, Easing.easeOutQuart),
+        )
+        modifier
+            .alignY(AlignmentY.Center)
+            .padding(Dimensions.PaddingSmall)
+            .background(RoundRectBackground(color, Dimensions.PaddingSmall))
+            .onClick {
+                if (it.isLeftClick) onClick()
+            }
+
+        Image(icon) {
+            modifier
+                .size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
+                .align(AlignmentX.Center, AlignmentY.Center)
+        }
+    }
+}
+
+@Suppress("CAST_NEVER_SUCCEEDS")
 private fun UiDockable.moveUndockBoundsUnderPointer(itemBounds: MutableVec4f, ptrEv: PointerEvent) =
     (this as UiDockableAccessor).`hollowcore$moveUndockBoundsUnderPointer`(itemBounds, ptrEv)
 
+@Suppress("CAST_NEVER_SUCCEEDS")
 private val UiDockable.dragStartItemBounds: MutableVec4f
     get() = (this as UiDockableAccessor).`hollowcore$getDragStartItemBounds`()
 
+@Suppress("CAST_NEVER_SUCCEEDS")
 private val UiDockable.floatingWidthPx
     get() = (this as UiDockableAccessor).`hollowcore$getFloatingWidthPx`()
+
+@Suppress("CAST_NEVER_SUCCEEDS")
 private val UiDockable.floatingHeightPx
     get() = (this as UiDockableAccessor).`hollowcore$getFloatingHeightPx`()
 

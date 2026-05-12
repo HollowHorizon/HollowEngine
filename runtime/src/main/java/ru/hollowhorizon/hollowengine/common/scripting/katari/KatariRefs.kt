@@ -8,13 +8,12 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import java.util.*
 
-data class KatariChatMessage(
+@ScriptBinding
+data class KatariChatMessage @ScriptIgnore constructor(
     val player: Player,
     val message: String,
 )
