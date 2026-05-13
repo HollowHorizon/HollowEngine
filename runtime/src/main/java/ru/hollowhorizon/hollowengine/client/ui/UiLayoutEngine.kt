@@ -1,12 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import dev.vfyjxf.taffy.geometry.FloatSize
+import dev.vfyjxf.taffy.geometry.TaffyPoint
 import dev.vfyjxf.taffy.geometry.TaffyRect
 import dev.vfyjxf.taffy.geometry.TaffySize
 import dev.vfyjxf.taffy.style.AlignContent
 import dev.vfyjxf.taffy.style.AlignItems
 import dev.vfyjxf.taffy.style.AvailableSpace
 import dev.vfyjxf.taffy.style.FlexDirection
+import dev.vfyjxf.taffy.style.Overflow
 import dev.vfyjxf.taffy.style.TaffyDisplay
 import dev.vfyjxf.taffy.style.TaffyPosition
 import dev.vfyjxf.taffy.style.TaffyStyle
@@ -30,6 +32,7 @@ data class UiLayoutNode(
     val content: UiRect,
     val clip: UiRect?,
     val worldTransform: UiMatrix4,
+    val inputTransform: UiMatrix4,
     val needsFramebuffer: Boolean,
     val scrollOffset: UiScrollOffset = UiScrollOffset.Zero,
     val scrollRange: UiScrollOffset = UiScrollOffset.Zero,
@@ -48,6 +51,7 @@ class UiLayoutEngine {
         width: Float,
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
+        inputResolved: ResolvedUiTree = resolved,
     ): UiLayoutResult {
         val tree = TaffyTree()
         val ids = linkedMapOf<UiNode, NodeId>()
@@ -66,8 +70,10 @@ class UiLayoutEngine {
             true,
             null,
             UiMatrix4.identity(),
+            UiMatrix4.identity(),
             scrollState,
             layouts,
+            inputResolved,
         )
         val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState)
         return UiLayoutResult(resolved.root, rangedLayouts)
@@ -81,7 +87,7 @@ class UiLayoutEngine {
         sizeOverride: UiSize? = null,
     ): NodeId {
         val childIds = node.children.map { buildTaffyTree(it, resolved, tree, ids) }
-        val style = resolved[node].toTaffyStyle(sizeOverride)
+        val style = resolved[node].toTaffyStyle(sizeOverride, node is TextNode)
         val measure = node.measureFunc(resolved[node])
         val id = when {
             childIds.isNotEmpty() -> tree.newWithChildren(style, childIds)
@@ -101,10 +107,13 @@ class UiLayoutEngine {
         useFlowOffset: Boolean,
         parentClip: UiRect?,
         parentTransform: UiMatrix4,
+        parentInputTransform: UiMatrix4,
         scrollState: UiScrollState,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        inputResolved: ResolvedUiTree,
     ) {
         val style = resolved[node]
+        val inputStyle = inputResolved[node]
         val layout = tree.getLayout(ids.getValue(node))
         val flowX = if (useFlowOffset) layout.location().x else 0f
         val flowY = if (useFlowOffset) layout.location().y else 0f
@@ -129,7 +138,12 @@ class UiLayoutEngine {
             transformOrigin *
             style.transform.matrix() *
             transformOriginInverse
-        layouts[node] = UiLayoutNode(node, rect, content, clip, transform, style.transform.needsFramebuffer, scrollOffset)
+        val inputTransform = parentInputTransform *
+            UiMatrix4.translation(localX, localY, position.z) *
+            transformOrigin *
+            inputStyle.transform.matrix() *
+            transformOriginInverse
+        layouts[node] = UiLayoutNode(node, rect, content, clip, transform, inputTransform, style.transform.needsFramebuffer, scrollOffset)
 
         for (child in node.children) {
             val baseParentRect = if (style.layout == LayoutType.STACK || style.layout == LayoutType.FREE) content else rect
@@ -143,8 +157,26 @@ class UiLayoutEngine {
             } else {
                 transform
             }
+            val nextParentInputTransform = if (style.input.scrollable) {
+                inputTransform * UiMatrix4.translation(-scrollOffset.x, -scrollOffset.y, 0f)
+            } else {
+                inputTransform
+            }
             val childUsesFlow = style.layout != LayoutType.STACK && style.layout != LayoutType.FREE
-            collectLayouts(child, resolved, tree, ids, nextParentRect, childUsesFlow, clip, nextParentTransform, scrollState, layouts)
+            collectLayouts(
+                child,
+                resolved,
+                tree,
+                ids,
+                nextParentRect,
+                childUsesFlow,
+                clip,
+                nextParentTransform,
+                nextParentInputTransform,
+                scrollState,
+                layouts,
+                inputResolved,
+            )
         }
     }
 
@@ -177,7 +209,7 @@ class UiLayoutEngine {
         return result
     }
 
-    private fun ComputedStyle.toTaffyStyle(sizeOverride: UiSize?): TaffyStyle {
+    private fun ComputedStyle.toTaffyStyle(sizeOverride: UiSize?, textNode: Boolean): TaffyStyle {
         val style = TaffyStyle()
         val resolvedSize = sizeOverride ?: size
         style.display = when (layout) {
@@ -208,6 +240,7 @@ class UiLayoutEngine {
         style.alignSelf = alignSelf.toTaffyAlignItems()
         style.justifySelf = justifySelf.toTaffyAlignItems()
         style.justifyContent = justifyContent.toTaffyAlignContent()
+        if (textNode) style.overflow = TaffyPoint(Overflow.HIDDEN, Overflow.VISIBLE)
         return style
     }
 

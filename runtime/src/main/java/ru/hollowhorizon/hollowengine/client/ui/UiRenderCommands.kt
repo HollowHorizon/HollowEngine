@@ -258,7 +258,7 @@ class UiHitTester {
             return null
         }
         val layoutNode = layout[node]
-        val inverse = layoutNode.worldTransform.inverse() ?: return null
+        val inverse = layoutNode.inputTransform.inverse() ?: return null
         val local = inverse.transform(x, y, 0f)
         val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
         if (!rect.contains(local.x, local.y)) return null

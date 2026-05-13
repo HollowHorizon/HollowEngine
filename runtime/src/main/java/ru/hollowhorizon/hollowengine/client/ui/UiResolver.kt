@@ -67,6 +67,7 @@ class UiStyleResolver(
             UiNodeType.TEXT.typeName -> {
                 style.foreground = UiColor.White
                 style.size = UiSize(UiLength.Auto, UiLength.Auto)
+                style.minSize = UiSize(0.px, 0.px)
             }
             UiNodeType.IMAGE.typeName,
             UiNodeType.ITEM.typeName,

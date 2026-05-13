@@ -154,7 +154,7 @@ data class ComputedStyle(
 ) {
     fun interpolate(to: ComputedStyle, progress: Float): ComputedStyle {
         val clamped = progress.coerceIn(0f, 1f)
-        return copy(
+        return to.copy(
             background = background.interpolate(to.background, clamped),
             foreground = foreground.interpolate(to.foreground, clamped),
             opacity = opacity + (to.opacity - opacity) * clamped,
@@ -168,7 +168,7 @@ data class ComputedStyle(
     }
 
     fun interpolate(to: ComputedStyle, progress: TransitionProgress): ComputedStyle {
-        return copy(
+        return to.copy(
             background = background.interpolate(to.background, progress.background),
             foreground = foreground.interpolate(to.foreground, progress.foreground),
             opacity = opacity + (to.opacity - opacity) * progress.opacity,
@@ -248,27 +248,43 @@ data class UiBoundString(val template: String) {
 }
 
 class UiTransitionState {
-    private val previous = mutableMapOf<String, ComputedStyle>()
+    private val rendered = mutableMapOf<String, ComputedStyle>()
+    private val starts = mutableMapOf<String, ComputedStyle>()
+    private val targets = mutableMapOf<String, ComputedStyle>()
     private val startedAt = mutableMapOf<String, Long>()
 
     fun apply(node: UiNode, target: ComputedStyle, nowMillis: Long): ComputedStyle {
         val key = UiNodeKeys.key(node)
-        val old = previous[key]
-        if (old == null) {
-            previous[key] = target
+        val current = rendered[key]
+        if (current == null) {
+            rendered[key] = target
+            targets[key] = target
             return target
         }
-        if (old == target) return target
-        val transitions = target.transitions.filter { it.property in TransitionProperties && old.changed(it.property, target) }
+        val oldTarget = targets[key]
+        if (oldTarget != target) {
+            starts[key] = current
+            targets[key] = target
+            startedAt[key] = nowMillis
+        } else if (!startedAt.containsKey(key)) {
+            return target
+        }
+        val startStyle = starts[key] ?: current
+        val transitions = target.transitions.filter { it.property in TransitionProperties && startStyle.changed(it.property, target) }
         if (transitions.isEmpty()) return target.also {
-            previous[key] = target
+            rendered[key] = target
+            targets[key] = target
+            starts.remove(key)
             startedAt.remove(key)
         }
-        val start = startedAt.getOrPut(key) { nowMillis }
+        val start = startedAt[key] ?: nowMillis
         val progress = transitions.progress(max(0L, nowMillis - start))
-        val result = old.interpolate(target, progress)
+        val result = startStyle.interpolate(target, progress)
+        rendered[key] = result
         if (progress.complete()) {
-            previous[key] = target
+            rendered[key] = target
+            targets[key] = target
+            starts.remove(key)
             startedAt.remove(key)
         }
         return result

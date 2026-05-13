@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import kotlin.math.abs
+import kotlin.math.sign
 
 class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab = "overview"
@@ -29,38 +31,42 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         val id = node.id ?: return false
         if (!id.startsWith("tab-")) return false
         selectedTab = id.removePrefix("tab-")
-        invalidateUi()
+        invalidateUi(immediate = true)
         return true
     }
 
-    override fun onNodeDragged(node: UiNode, deltaX: Float, deltaY: Float): Boolean {
-        val index = node.id?.removePrefix("free-node-")?.toIntOrNull() ?: return false
+    override fun onNodeDragged(nodeKey: String, deltaX: Float, deltaY: Float): Boolean {
+        val index = nodeKey.removePrefix("free-node-").toIntOrNull() ?: return false
         val current = freeNodeOffsets[index] ?: DemoOffset.Zero
         freeNodeOffsets[index] = DemoOffset(current.x + deltaX, current.y + deltaY)
         return true
     }
 
-    override fun mouseMoved(mouseX: Double, mouseY: Double) {
-        super.mouseMoved(mouseX, mouseY)
-        if (selectedTab == "transforms") invalidateUi()
-    }
+    override fun rebuildEveryFrame(): Boolean = selectedTab == "transforms"
 
     private fun UiScope.tab(id: String, label: String, icon: String) {
-        val tab = Box(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
-            Image(icon, tags = listOf("tab-icon"))
-            Text(label, tags = listOf("tab-label"))
-        }
+        val tab =
+            Box(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
+                Image(icon, tags = listOf("tab-icon"))
+                Text(label, tags = listOf("tab-label"))
+            }
         if (selectedTab == id) tab.states += UiState.SELECTED
     }
 
     private fun UiScope.overview() {
         Box(tags = listOf("panel", "scroll-panel"), modifier = Modifier.input(scrollable = true)) {
             Text("Hollow UI", tags = listOf("title"))
-            Text("DSL tree -> HSS selectors -> computed style -> Taffy/free layout -> command renderer.", tags = listOf("body"))
+            Text(
+                "DSL tree -> HSS selectors -> computed style -> Taffy/free layout -> command renderer.",
+                tags = listOf("body")
+            )
             repeat(18) { index ->
                 Box(tags = listOf("row")) {
                     Image("hollowengine:textures/gui/quests/quest_icon.png", tags = listOf("small-icon"))
-                    Text("Scrollable row ${index + 1}: clipping, hover, styles and layout stay in the same pipeline.", tags = listOf("body"))
+                    Text(
+                        "Scrollable row ${index + 1}: clipping, hover, styles and layout stay in the same pipeline.",
+                        tags = listOf("body")
+                    )
                 }
             }
         }
@@ -111,18 +117,44 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
 
     private fun UiScope.transforms() {
         Box(tags = listOf("panel-grid")) {
-            val hoverRotate = if (isHovered("tilt-card")) {
-                val x = ((mouseY / height.coerceAtLeast(1)) - 0.5f) * -18f
-                val y = ((mouseX / width.coerceAtLeast(1)) - 0.5f) * 18f
-                Modifier.rotate(x = x, y = y)
+            val rect = layoutRect("tilt-card")
+            val hoverRotate = if (rect?.contains(mouseX, mouseY) == true) {
+                val centerX = rect.x + rect.width * 0.5f
+                val centerY = rect.y + rect.height * 0.5f
+                val halfWidth = rect.width * 0.5f
+                val halfHeight = rect.height * 0.5f
+                val distanceX = ((mouseX - centerX) / halfWidth.coerceAtLeast(1f)).coerceIn(-1f, 1f).easeOutSigned()
+                val distanceY = ((mouseY - centerY) / halfHeight.coerceAtLeast(1f)).coerceIn(-1f, 1f).easeOutSigned()
+                val maxTilt = 18f
+                val x = -distanceY * maxTilt
+                val y = distanceX * maxTilt
+                Modifier.then(
+                    Modifier.rotate(x = x, y = y),
+                    Modifier.transition(
+                        UiTransition("rotate", 0L, TransitionEasing.LINEAR),
+                        UiTransition("scale", 90L, TransitionEasing.EASE_OUT),
+                        UiTransition("background", 120L, TransitionEasing.EASE_OUT),
+                    ),
+                )
             } else {
                 Modifier.rotate(x = 0f, y = 0f)
             }
-            Box(id = "tilt-card", tags = listOf("card", "tilted-x"), modifier = Modifier.then(Modifier.position(20.px, 20.px), hoverRotate, Modifier.input(hoverable = true))) {
+            Box(
+                id = "tilt-card",
+                tags = listOf("card", "tilted-x"),
+                modifier = Modifier.then(Modifier.position(20.px, 20.px), hoverRotate, Modifier.input(hoverable = true))
+            ) {
                 Text("FBO X/Y", tags = listOf("card-title"))
                 Image("hollowengine:textures/gui/quests/quest.png", tags = listOf("preview-image"))
             }
-            Box(tags = listOf("card", "scaled"), modifier = Modifier.then(Modifier.position(220.px, 20.px), Modifier.scale(1.08f), Modifier.input(hoverable = true))) {
+            Box(
+                tags = listOf("card", "scaled"),
+                modifier = Modifier.then(
+                    Modifier.position(220.px, 20.px),
+                    Modifier.scale(1.08f),
+                    Modifier.input(hoverable = true)
+                )
+            ) {
                 Text("Scale", tags = listOf("card-title"))
                 Text("Hover and transforms share hit testing.", tags = listOf("body"))
             }
@@ -211,7 +243,6 @@ private val DemoStyles = compileHss(
 
     .body {
         foreground: rgba(226, 230, 238, 0.92);
-        height: 48px;
     }
 
     .row {
@@ -255,6 +286,13 @@ private val DemoStyles = compileHss(
     .card-title {
         foreground: #c8ddff;
         height: 16px;
+    }
+
+    .tilted-x {
+        transition:
+            rotate 180ms ease-out,
+            scale 90ms ease-out,
+            background 120ms ease-out;
     }
 
     .preview-image {
@@ -308,6 +346,11 @@ private val DemoStyles = compileHss(
     }
     """.trimIndent()
 )
+
+private fun Float.easeOutSigned(): Float {
+    val magnitude = abs(this)
+    return sign(this) * (1f - (1f - magnitude) * (1f - magnitude))
+}
 
 private data class DemoOffset(
     val x: Float,

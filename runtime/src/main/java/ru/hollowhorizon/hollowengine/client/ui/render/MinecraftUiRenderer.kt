@@ -7,8 +7,11 @@ import com.mojang.blaze3d.vertex.BufferUploader
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.VertexSorting
 import com.mojang.blaze3d.vertex.VertexFormat
+import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.core.registries.BuiltInRegistries
@@ -17,6 +20,7 @@ import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import org.joml.Quaternionf
+import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
@@ -39,6 +43,9 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.UiRenderCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
+import ru.hollowhorizon.hollowengine.client.utils.popPose
+import ru.hollowhorizon.hollowengine.client.utils.pushPose
+import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import java.util.ArrayDeque
 import kotlin.math.min
@@ -48,14 +55,22 @@ class MinecraftUiRenderer {
     private val framebuffers = UiFramebufferPool()
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
+    private var layerProjectionActive = false
 
     fun render(commands: List<UiRenderCommand>) {
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
         RenderSystem.disableDepthTest()
+        GL11.glDepthMask(false)
         commands.forEach(::render)
         disableScissor()
         while (layerStack.isNotEmpty()) finishLayer()
+        GL11.glDepthMask(true)
+    }
+
+    fun close() {
+        while (layerStack.isNotEmpty()) finishLayer()
+        framebuffers.close()
     }
 
     private fun render(command: UiRenderCommand) {
@@ -75,16 +90,23 @@ class MinecraftUiRenderer {
     }
 
     private fun beginLayer(command: BeginLayerCommand) {
-        val width = command.rect.width.toInt().coerceAtLeast(1)
-        val height = command.rect.height.toInt().coerceAtLeast(1)
+        val scale = Minecraft.getInstance().window.guiScale.toFloat()
+        val width = (command.rect.width * scale).toInt().coerceAtLeast(1)
+        val height = (command.rect.height * scale).toInt().coerceAtLeast(1)
         val framebuffer = framebuffers.acquire(width, height)
         val parentClips = clipStack.toList()
+        if (!layerProjectionActive) {
+            RenderSystem.backupProjectionMatrix()
+            RenderSystem.getModelViewStack().pushPose()
+            layerProjectionActive = true
+        }
         framebuffer.bind()
         GL11.glViewport(0, 0, width, height)
+        configureLayerProjection(command.rect.width, command.rect.height)
         GL11.glClearColor(0f, 0f, 0f, 0f)
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT or GL11.GL_DEPTH_BUFFER_BIT)
         RenderSystem.disableDepthTest()
-        layerStack.addLast(LayerState(command.rect, command.transform, framebuffer, parentClips))
+        layerStack.addLast(LayerState(command.rect, command.transform, framebuffer, parentClips, scale))
         clipStack.clear()
         disableScissor()
     }
@@ -96,6 +118,7 @@ class MinecraftUiRenderer {
         if (parentLayer != null) {
             parentLayer.framebuffer.bind()
             GL11.glViewport(0, 0, parentLayer.framebuffer.width, parentLayer.framebuffer.height)
+            configureLayerProjection(parentLayer.rect.width, parentLayer.rect.height)
             drawTexture(
                 layer.framebuffer.texture,
                 layer.rect.width,
@@ -108,6 +131,7 @@ class MinecraftUiRenderer {
             Minecraft.getInstance().mainRenderTarget.bindWrite(true)
             val window = Minecraft.getInstance().window
             GL11.glViewport(0, 0, window.width, window.height)
+            restoreMainProjection()
             drawTexture(layer.framebuffer.texture, layer.rect.width, layer.rect.height, layer.transform, 1f, flipY = true)
         }
         RenderSystem.disableDepthTest()
@@ -148,7 +172,7 @@ class MinecraftUiRenderer {
                 false,
                 pose.last().pose(),
                 mc.renderBuffers().bufferSource(),
-                net.minecraft.client.gui.Font.DisplayMode.NORMAL,
+                DisplayMode.SEE_THROUGH,
                 0,
                 15728880,
             )
@@ -206,7 +230,7 @@ class MinecraftUiRenderer {
         val yOffset = rect.y + rect.height
         stack.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
         val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
-        stack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180f))
+        stack.mulPose(Axis.ZP.rotationDegrees(180f))
         stack.scale(scale, scale, scale)
         stack.mulPose(Quaternionf().rotateY(25f * Mth.DEG_TO_RAD))
 
@@ -318,10 +342,10 @@ class MinecraftUiRenderer {
         if (layer != null) {
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(
-                rect.x.toInt(),
-                (layer.framebuffer.height - (rect.y + rect.height)).toInt(),
-                rect.width.toInt().coerceAtLeast(0),
-                rect.height.toInt().coerceAtLeast(0),
+                (rect.x * layer.scale).toInt(),
+                (layer.framebuffer.height - (rect.y + rect.height) * layer.scale).toInt(),
+                (rect.width * layer.scale).toInt().coerceAtLeast(0),
+                (rect.height * layer.scale).toInt().coerceAtLeast(0),
             )
             return
         }
@@ -356,6 +380,25 @@ class MinecraftUiRenderer {
         clipStack.addAll(clips)
         clipStack.lastOrNull()?.let(::applyScissor) ?: disableScissor()
     }
+
+    private fun configureLayerProjection(width: Float, height: Float) {
+        RenderSystem.setProjectionMatrix(
+            Matrix4f().setOrtho(0f, width, height, 0f, -1000f, 1000f),
+            VertexSorting.ORTHOGRAPHIC_Z,
+        )
+        val stack = RenderSystem.getModelViewStack()
+        stack.setIdentity()
+        RenderSystem.applyModelViewMatrix()
+    }
+
+    private fun restoreMainProjection() {
+        if (!layerProjectionActive || layerStack.isNotEmpty()) return
+        RenderSystem.restoreProjectionMatrix()
+        val stack = RenderSystem.getModelViewStack()
+        stack.popPose()
+        RenderSystem.applyModelViewMatrix()
+        layerProjectionActive = false
+    }
 }
 
 private data class LayerState(
@@ -363,6 +406,7 @@ private data class LayerState(
     val transform: UiMatrix4,
     val framebuffer: UiFramebuffer,
     val parentClips: List<UiRect>,
+    val scale: Float,
 )
 
 private data class ImagePlacement(
@@ -429,6 +473,11 @@ private class UiFramebufferPool {
         }
         return framebuffer
     }
+
+    fun close() {
+        framebuffers.forEach(UiFramebuffer::close)
+        framebuffers.clear()
+    }
 }
 
 private class UiFramebuffer(
@@ -454,6 +503,12 @@ private class UiFramebuffer(
 
     fun bind() {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebuffer)
+    }
+
+    fun close() {
+        GL30.glDeleteFramebuffers(framebuffer)
+        GL11.glDeleteTextures(texture)
+        GL30.glDeleteRenderbuffers(depth)
     }
 }
 

@@ -1,10 +1,12 @@
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
+import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.HollowUi
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
@@ -16,6 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class UiFrameworkTests {
     @Test
@@ -72,7 +75,7 @@ class UiFrameworkTests {
 
     @Test
     fun `free layout places children by explicit position and propagates hit testing`() {
-        lateinit var child: ru.hollowhorizon.hollowengine.client.ui.BoxNode
+        lateinit var child: BoxNode
         val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
             child = Box(
                 id = "quest",
@@ -142,8 +145,8 @@ class UiFrameworkTests {
 
     @Test
     fun `scrollable nodes emit scrollbars and offset children`() {
-        lateinit var scroller: ru.hollowhorizon.hollowengine.client.ui.BoxNode
-        lateinit var row: ru.hollowhorizon.hollowengine.client.ui.BoxNode
+        lateinit var scroller: BoxNode
+        lateinit var row: BoxNode
         val root = HollowUi(modifier = Modifier.size(120.px, 80.px)) {
             scroller = Box(
                 tags = listOf("scroll"),
@@ -169,14 +172,14 @@ class UiFrameworkTests {
     @Test
     fun `scroll state survives rebuilt ui tree by stable node id`() {
         data class ScrollTree(
-            val root: ru.hollowhorizon.hollowengine.client.ui.BoxNode,
-            val scroller: ru.hollowhorizon.hollowengine.client.ui.BoxNode,
-            val row: ru.hollowhorizon.hollowengine.client.ui.BoxNode,
+            val root: BoxNode,
+            val scroller: BoxNode,
+            val row: BoxNode,
         )
 
         fun tree(): ScrollTree {
-            lateinit var scroller: ru.hollowhorizon.hollowengine.client.ui.BoxNode
-            lateinit var row: ru.hollowhorizon.hollowengine.client.ui.BoxNode
+            lateinit var scroller: BoxNode
+            lateinit var row: BoxNode
             val root = HollowUi(modifier = Modifier.size(120.px, 80.px)) {
                 scroller = Box(
                     id = "stable-scroll",
@@ -222,5 +225,115 @@ class UiFrameworkTests {
         val half = runtime.frame(button(true), 100f, 40f, nowMillis = 100L)
 
         assertEquals(0.6f, half.resolved[half.resolved.root].opacity, 0.01f)
+    }
+
+    @Test
+    fun `transitions retarget from current rendered style`() {
+        val stylesheet = compileHss(
+            """
+            #button {
+                opacity: 0.0;
+                transition: opacity 100ms linear;
+            }
+
+            #button:hover {
+                opacity: 1.0;
+            }
+            """.trimIndent()
+        )
+        fun button(hovered: Boolean) = HollowUi(id = "button").apply {
+            if (hovered) states += UiState.HOVER
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(button(false), 100f, 40f, nowMillis = 0L)
+        runtime.frame(button(true), 100f, 40f, nowMillis = 50L)
+        val halfIn = runtime.frame(button(true), 100f, 40f, nowMillis = 100L)
+        val retargeted = runtime.frame(button(false), 100f, 40f, nowMillis = 100L)
+        val halfOut = runtime.frame(button(false), 100f, 40f, nowMillis = 150L)
+
+        assertEquals(0.5f, halfIn.resolved[halfIn.resolved.root].opacity, 0.01f)
+        assertEquals(0.5f, retargeted.resolved[retargeted.resolved.root].opacity, 0.01f)
+        assertEquals(0.25f, halfOut.resolved[halfOut.resolved.root].opacity, 0.01f)
+    }
+
+    @Test
+    fun `hit testing uses target transform instead of animated render transform`() {
+        val stylesheet = compileHss(
+            """
+            #button {
+                size: 10px 10px;
+                hoverable: true;
+                transition: scale 100ms linear;
+            }
+
+            #button:hover {
+                scale: 2.0;
+            }
+            """.trimIndent()
+        )
+        fun button(hovered: Boolean) = HollowUi(id = "button").apply {
+            if (hovered) states += UiState.HOVER
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(button(false), 40f, 40f, nowMillis = 0L)
+        val frame = runtime.frame(button(true), 40f, 40f, nowMillis = 50L)
+
+        assertNotNull(frame.hitTest(14f, 5f))
+    }
+
+    @Test
+    fun `layout position snaps while visual transform transition runs`() {
+        val stylesheet = compileHss(
+            """
+            #node {
+                size: 20px 20px;
+                transition: scale 200ms linear;
+            }
+
+            #node:hover {
+                scale: 1.2;
+            }
+            """.trimIndent()
+        )
+        fun tree(x: Int, hovered: Boolean): Pair<BoxNode, BoxNode> {
+            lateinit var node: BoxNode
+            val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+                node = Box(
+                    id = "node",
+                    modifier = Modifier.position(x.px, 0.px),
+                )
+            }
+            if (hovered) node.states += UiState.HOVER
+            return root to node
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+        val (firstRoot, _) = tree(0, hovered = false)
+        runtime.frame(firstRoot, 100f, 40f, nowMillis = 0L)
+        val (secondRoot, secondNode) = tree(40, hovered = true)
+        val frame = runtime.frame(secondRoot, 100f, 40f, nowMillis = 50L)
+
+        assertEquals(40f, frame.layout[secondNode].rect.x)
+    }
+
+    @Test
+    fun `text flex item shrinks and wraps inside rows`() {
+        lateinit var text: TextNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.ROW),
+                Modifier.size(120.px, 80.px),
+                Modifier.gap(8.px),
+            ),
+        ) {
+            Box(modifier = Modifier.size(20.px, 20.px))
+            text = Text("This text should wrap instead of forcing horizontal overflow in a row.")
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 80f)
+        val rect = frame.layout[text].rect
+
+        assertTrue(rect.x + rect.width <= 120f, "Expected wrapped text to stay inside row, got $rect")
     }
 }
