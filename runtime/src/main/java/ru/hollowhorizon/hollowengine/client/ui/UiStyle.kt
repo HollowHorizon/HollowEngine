@@ -309,6 +309,8 @@ data class UiFilterChain(
 
     fun blurRadius(): Float = effects.filterIsInstance<UiFilterEffect.Blur>().sumOf { it.radius.toDouble() }.toFloat().coerceAtLeast(0f)
 
+    fun withoutBlur(): UiFilterChain = UiFilterChain(effects.filterNot { it is UiFilterEffect.Blur })
+
     fun interpolate(to: UiFilterChain, progress: Float): UiFilterChain {
         if (effects.size != to.effects.size) return if (progress >= 1f) to else this
         return UiFilterChain(effects.zip(to.effects) { from, target -> from.interpolate(target, progress) })

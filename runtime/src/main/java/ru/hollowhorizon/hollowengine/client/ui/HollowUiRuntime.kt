@@ -29,9 +29,8 @@ class HollowUiRuntime(
     ): HollowUiFrame {
         UiNodeKeys.assign(root)
         scrollState.update(nowMillis)
-        val inputResolved = resolveInput(root, bindings, nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
-        val layout = layoutEngine.compute(resolved, width, height, scrollState, inputResolved)
+        val layout = layoutEngine.compute(resolved, width, height, scrollState)
         val commands = commandRenderer.collect(resolved, layout, bindings)
         return HollowUiFrame(resolved, layout, commands)
     }
@@ -40,28 +39,4 @@ class HollowUiRuntime(
 
     fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset = scrollState.setImmediate(node, x, y)
 
-    private fun resolveInput(root: UiNode, bindings: UiBindingContext, nowMillis: Long): ResolvedUiTree {
-        val removed = mutableListOf<Pair<UiNode, Set<UiState>>>()
-        root.forEachNode { node ->
-            val transient = node.states.filterTo(mutableSetOf()) { it in TransientInputStates }
-            if (transient.isNotEmpty()) {
-                node.states.removeAll(transient)
-                removed += node to transient
-            }
-        }
-        return try {
-            resolver.resolve(root, bindings, nowMillis, animate = false)
-        } finally {
-            removed.forEach { (node, states) -> node.states.addAll(states) }
-        }
-    }
-
-    private fun UiNode.forEachNode(action: (UiNode) -> Unit) {
-        action(this)
-        children.forEach { it.forEachNode(action) }
-    }
-
-    companion object {
-        private val TransientInputStates = setOf(UiState.HOVER, UiState.ACTIVE, UiState.DRAGGING)
-    }
 }

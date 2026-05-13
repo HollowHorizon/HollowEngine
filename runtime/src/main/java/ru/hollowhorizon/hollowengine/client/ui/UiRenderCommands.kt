@@ -7,6 +7,7 @@ sealed interface UiRenderCommand {
 data class BeginLayerCommand(
     override val node: UiNode,
     val rect: UiRect,
+    val radius: Float,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backdropFilter: UiFilterChain,
@@ -24,6 +25,17 @@ data class DrawBackdropFilterCommand(
     val filter: UiFilterChain,
     val opacity: Float,
     val transform: UiMatrix4,
+    val backfaceVisibility: UiBackfaceVisibility,
+) : UiRenderCommand
+
+data class DrawShadowCommand(
+    override val node: UiNode,
+    val rect: UiRect,
+    val radius: Float,
+    val shadows: List<UiShadow>,
+    val opacity: Float,
+    val transform: UiMatrix4,
+    val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
@@ -148,10 +160,24 @@ class UiCommandRenderer {
                 backfaceVisibility = style.backfaceVisibility,
             )
         }
+        val visibleShadows = style.shadows.filterNot { it.inset }
+        if (visibleShadows.isNotEmpty()) {
+            commands += DrawShadowCommand(
+                node = node,
+                rect = layoutNode.rect,
+                radius = style.border.radius,
+                shadows = visibleShadows,
+                opacity = style.opacity,
+                transform = layoutNode.worldTransform,
+                filter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter,
+                backfaceVisibility = style.backfaceVisibility,
+            )
+        }
         if (layoutNode.needsFramebuffer) {
             commands += BeginLayerCommand(
                 node = node,
                 rect = layoutNode.rect,
+                radius = style.border.radius,
                 transform = layoutNode.worldTransform,
                 filter = style.filter,
                 backdropFilter = style.backdropFilter,
@@ -167,7 +193,7 @@ class UiCommandRenderer {
                 rect = layoutNode.rect,
                 paint = style.background.resolve(bindings),
                 border = style.border,
-                shadows = style.shadows,
+                shadows = emptyList(),
                 opacity = style.opacity,
                 transform = layoutNode.worldTransform,
                 renderToFramebuffer = false,
@@ -319,6 +345,7 @@ class UiHitTester {
             return null
         }
         val layoutNode = layout[node]
+        if (!layoutNode.inputQuadContains(x, y)) return null
         val inverse = layoutNode.inputTransform.inverse() ?: return null
         val local = inverse.transform(x, y, 0f)
         val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
@@ -327,5 +354,32 @@ class UiHitTester {
             if (!clip.contains(x, y)) return null
         }
         return UiHit(node, local.x, local.y)
+    }
+
+    private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
+        val corners = arrayOf(
+            inputTransform.transform(0f, 0f),
+            inputTransform.transform(0f, rect.height),
+            inputTransform.transform(rect.width, rect.height),
+            inputTransform.transform(rect.width, 0f),
+        )
+        return pointInConvexPolygon(x, y, corners)
+    }
+
+    private fun pointInConvexPolygon(x: Float, y: Float, corners: Array<UiVec3>): Boolean {
+        if (corners.size < 3) return false
+        var sign = 0f
+        for (index in corners.indices) {
+            val current = corners[index]
+            val next = corners[(index + 1) % corners.size]
+            val cross = (next.x - current.x) * (y - current.y) - (next.y - current.y) * (x - current.x)
+            if (cross == 0f) continue
+            if (sign == 0f) {
+                sign = cross
+            } else if (sign * cross < 0f) {
+                return false
+            }
+        }
+        return true
     }
 }

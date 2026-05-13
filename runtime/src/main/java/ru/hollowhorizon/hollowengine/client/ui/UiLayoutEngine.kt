@@ -51,7 +51,6 @@ class UiLayoutEngine {
         width: Float,
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
-        inputResolved: ResolvedUiTree = resolved,
     ): UiLayoutResult {
         val tree = TaffyTree()
         val ids = linkedMapOf<UiNode, NodeId>()
@@ -73,7 +72,6 @@ class UiLayoutEngine {
             UiMatrix4.identity(),
             scrollState,
             layouts,
-            inputResolved,
         )
         val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState)
         return UiLayoutResult(resolved.root, rangedLayouts)
@@ -110,10 +108,8 @@ class UiLayoutEngine {
         parentInputTransform: UiMatrix4,
         scrollState: UiScrollState,
         layouts: MutableMap<UiNode, UiLayoutNode>,
-        inputResolved: ResolvedUiTree,
     ) {
         val style = resolved[node]
-        val inputStyle = inputResolved[node]
         val layout = tree.getLayout(ids.getValue(node))
         val flowX = if (useFlowOffset) layout.location().x else 0f
         val flowY = if (useFlowOffset) layout.location().y else 0f
@@ -141,7 +137,7 @@ class UiLayoutEngine {
         val inputTransform = parentInputTransform *
             UiMatrix4.translation(localX, localY, position.z) *
             transformOrigin *
-            inputStyle.transform.matrix() *
+            style.transform.matrix() *
             transformOriginInverse
         val needsFramebuffer = style.transform.needsFramebuffer ||
             style.filter.requiresLayer ||
@@ -178,7 +174,6 @@ class UiLayoutEngine {
                 nextParentInputTransform,
                 scrollState,
                 layouts,
-                inputResolved,
             )
         }
     }

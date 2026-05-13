@@ -2,6 +2,7 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.ui.BeginLayerCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawBackdropFilterCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
@@ -431,5 +432,74 @@ class UiFrameworkTests {
 
         assertEquals(6f, command.filter.blurRadius())
         assertEquals(0.2f, command.filter.grayscaleAmount())
+    }
+
+    @Test
+    fun `shadows render outside transformed element layers`() {
+        val stylesheet = compileHss(
+            """
+            .fx {
+                size: 80px 40px;
+                rotate: 0deg 20deg 0deg;
+                shadow: 0px 10px 20px 2px rgba(0, 0, 0, 0.35);
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("fx"))
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 120f, 80f)
+        val shadowIndex = frame.commands.indexOfFirst { it is DrawShadowCommand }
+        val layerIndex = frame.commands.indexOfFirst { it is BeginLayerCommand }
+
+        assertTrue(shadowIndex >= 0, "Expected a dedicated shadow command")
+        assertTrue(layerIndex >= 0, "Expected transformed element to render through a layer")
+        assertTrue(shadowIndex < layerIndex, "Shadow should be emitted before the element layer so it is not clipped by that layer")
+    }
+
+    @Test
+    fun `hit testing follows transformed visual bounds`() {
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.size(100.px, 40.px),
+                Modifier.rotate(z = 45f),
+                Modifier.input(clickable = true),
+            ),
+        )
+
+        val frame = HollowUiRuntime().frame(root, 180f, 120f)
+        val hit = frame.hitTest(70f, 55f)
+
+        assertEquals(root, hit?.node)
+    }
+
+    @Test
+    fun `transformed hit testing does not leak into neighboring widgets`() {
+        lateinit var front: BoxNode
+        lateinit var lifted: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(Modifier.layout(LayoutType.FREE), Modifier.size(320.px, 260.px)),
+        ) {
+            front = Box(
+                modifier = Modifier.then(
+                    Modifier.position(100.px, 40.px),
+                    Modifier.size(100.px, 60.px),
+                    Modifier.input(clickable = true),
+                ),
+            )
+            lifted = Box(
+                modifier = Modifier.then(
+                    Modifier.position(100.px, 160.px),
+                    Modifier.size(100.px, 60.px),
+                    Modifier.rotate(x = 51f, z = 43f),
+                    Modifier.input(clickable = true),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 320f, 260f)
+        val hit = frame.hitTest(125f, 70f)
+
+        assertEquals(front, hit?.node)
+        assertTrue(hit?.node != lifted)
     }
 }

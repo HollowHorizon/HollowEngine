@@ -6,8 +6,22 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.Tesselator
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.renderer.GameRenderer
-import ru.hollowhorizon.hollowengine.client.ui.*
-import kotlin.math.*
+import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.UiGradientStop
+import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.UiShadow
+import ru.hollowhorizon.hollowengine.client.ui.UiVec3
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 internal fun drawLocalBorder(width: Float, height: Float, radius: Float, color: UiColor, transform: UiMatrix4) {
     drawLocalBorder(width, height, radius, 1f, color, transform)
@@ -91,18 +105,31 @@ internal fun drawShadow(
     transform: UiMatrix4,
     filter: UiFilterChain,
 ) {
-    RenderSystem.enableBlend()
-    RenderSystem.defaultBlendFunc()
-    val layers = max(2, min(18, (shadow.blur / 2f).roundToInt() + 1))
-    for (index in layers downTo 1) {
-        val progress = index.toFloat() / layers.toFloat()
-        val expansion = shadow.spread + shadow.blur * progress
-        val falloff = (1f - progress).coerceIn(0f, 1f)
-        val alpha = shadow.color.alpha * opacity * falloff * falloff * 0.32f
-        val color = shadow.color.copy(alpha = alpha).filtered(filter)
-        val shadowTransform = transform * UiMatrix4.translation(shadow.offset.x - expansion, shadow.offset.y - expansion, shadow.offset.z)
-        drawLocalPaint(width + expansion * 2f, height + expansion * 2f, radius + expansion, color, shadowTransform, UiFilterChain.Empty)
-    }
+    drawProjectedShadow(width, height, radius, shadow, opacity, transform, filter)
+}
+
+internal fun drawProjectedShadow(
+    width: Float,
+    height: Float,
+    radius: Float,
+    shadow: UiShadow,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    val outline = roundedPerimeter(width, height, radius).map { (x, y) -> transform.transform(x, y) }
+    val corners = localCorners(width, height, transform)
+    val projectedScale = projectedScale(corners, width, height)
+    val facing = facingAmount(width, height, transform)
+    val elevation = corners.map { it.z }.average().toFloat().coerceAtLeast(0f) + shadow.offset.z.coerceAtLeast(0f)
+    val distanceFactor = 1f + elevation * 0.025f
+    val angleFactor = 1f + (1f - facing) * 0.45f
+    val spread = shadow.spread * projectedScale
+    val blur = shadow.blur * projectedScale * distanceFactor * angleFactor
+    val castX = shadow.offset.x
+    val castY = shadow.offset.y
+    val alpha = opacity * (0.78f + facing * 0.42f) / distanceFactor
+    drawProjectedShadowGradient(outline, spread, blur, castX, castY, shadow.color.withOpacity(alpha).filtered(filter))
 }
 
 internal fun isBackfaceHidden(
@@ -112,14 +139,15 @@ internal fun isBackfaceHidden(
     visibility: UiBackfaceVisibility,
 ): Boolean {
     if (visibility == UiBackfaceVisibility.VISIBLE) return false
-    val corners = localCorners(width, height, transform)
-    var area = 0f
-    for (index in corners.indices) {
-        val current = corners[index]
-        val next = corners[(index + 1) % corners.size]
-        area += current.x * next.y - current.y * next.x
-    }
-    return area >= 0f
+    val xAxis = transform.transform(1f, 0f, 0f)
+    val yAxis = transform.transform(0f, 1f, 0f)
+    val origin = transform.transform(0f, 0f, 0f)
+    val ax = xAxis.x - origin.x
+    val ay = xAxis.y - origin.y
+    val bx = yAxis.x - origin.x
+    val by = yAxis.y - origin.y
+    val normalZ = ax * by - ay * bx
+    return normalZ < 0f
 }
 
 internal fun localCorners(width: Float, height: Float, transform: UiMatrix4) = arrayOf(
@@ -128,6 +156,37 @@ internal fun localCorners(width: Float, height: Float, transform: UiMatrix4) = a
     transform.transform(width, height),
     transform.transform(width, 0f),
 )
+
+private fun projectedScale(corners: Array<UiVec3>, width: Float, height: Float): Float {
+    val top = distance(corners[0], corners[3]) / width.coerceAtLeast(1f)
+    val bottom = distance(corners[1], corners[2]) / width.coerceAtLeast(1f)
+    val left = distance(corners[0], corners[1]) / height.coerceAtLeast(1f)
+    val right = distance(corners[3], corners[2]) / height.coerceAtLeast(1f)
+    return ((top + bottom + left + right) * 0.25f).coerceIn(0.25f, 4f)
+}
+
+private fun distance(a: UiVec3, b: UiVec3): Float {
+    val x = a.x - b.x
+    val y = a.y - b.y
+    return sqrt(x * x + y * y)
+}
+
+private fun facingAmount(width: Float, height: Float, transform: UiMatrix4): Float {
+    val origin = transform.transform(width * 0.5f, height * 0.5f, 0f)
+    val xAxis = transform.transform(width * 0.5f + 1f, height * 0.5f, 0f)
+    val yAxis = transform.transform(width * 0.5f, height * 0.5f + 1f, 0f)
+    val ax = xAxis.x - origin.x
+    val ay = xAxis.y - origin.y
+    val az = xAxis.z - origin.z
+    val bx = yAxis.x - origin.x
+    val by = yAxis.y - origin.y
+    val bz = yAxis.z - origin.z
+    val crossX = ay * bz - az * by
+    val crossY = az * bx - ax * bz
+    val crossZ = ax * by - ay * bx
+    val length = sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ).coerceAtLeast(0.0001f)
+    return abs(crossZ / length).coerceIn(0.05f, 1f)
+}
 
 internal fun UiColor.withOpacity(opacity: Float) = copy(alpha = alpha * opacity)
 
@@ -163,6 +222,61 @@ private fun drawRoundedFan(
     BufferUploader.drawWithShader(buffer.buildOrThrow())
 }
 
+private fun drawProjectedShadowGradient(
+    outline: List<UiVec3>,
+    spread: Float,
+    blur: Float,
+    offsetX: Float,
+    offsetY: Float,
+    color: UiColor,
+) {
+    if (color.alpha <= 0f) return
+    if (outline.isEmpty()) return
+    val centerX = outline.sumOf { it.x.toDouble() }.toFloat() / outline.size.toFloat()
+    val centerY = outline.sumOf { it.y.toDouble() }.toFloat() / outline.size.toFloat()
+    val outerExpansion = blur.coerceAtLeast(1f)
+    val innerAlpha = color.alpha * 0.72f
+    configureUiBlend()
+    RenderSystem.disableCull()
+    RenderSystem.setShader(GameRenderer::getPositionColorShader)
+    val tessellator = Tesselator.getInstance()
+    val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
+    val center = UiVec3(centerX + offsetX, centerY + offsetY, 0f)
+    val inner = outline.map { expandFromCenter(it, centerX, centerY, spread) }
+    val outer = outline.map { expandFromCenter(it, centerX, centerY, spread + outerExpansion) }
+    for (index in 0 until inner.lastIndex) {
+        val currentInner = inner[index].withOffset(offsetX, offsetY)
+        val nextInner = inner[index + 1].withOffset(offsetX, offsetY)
+        val currentOuter = outer[index].withOffset(offsetX, offsetY)
+        val nextOuter = outer[index + 1].withOffset(offsetX, offsetY)
+        buffer.addVertex(center.x, center.y, center.z).setColor(color.red, color.green, color.blue, innerAlpha)
+        buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+        buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+
+        buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+        buffer.addVertex(currentOuter.x, currentOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
+        buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
+
+        buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+        buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
+        buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+    }
+    BufferUploader.drawWithShader(buffer.buildOrThrow())
+}
+
+private fun UiVec3.withOffset(x: Float, y: Float): UiVec3 = UiVec3(this.x + x, this.y + y, z)
+
+private fun expandFromCenter(point: UiVec3, centerX: Float, centerY: Float, distance: Float): UiVec3 {
+    val x = point.x - centerX
+    val y = point.y - centerY
+    val length = sqrt(x * x + y * y).coerceAtLeast(1f)
+    return UiVec3(
+        x = point.x + x / length * distance,
+        y = point.y + y / length * distance,
+        z = point.z,
+    )
+}
+
 private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickness: Float, color: UiColor, transform: UiMatrix4) {
     val inset = thickness.coerceAtLeast(1f)
     val innerWidth = width - inset * 2f
@@ -171,8 +285,9 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
         drawRoundedFan(width, height, radius, transform) { _, _ -> color }
         return
     }
-    val outer = roundedPerimeter(width, height, radius)
-    val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset)).map { (x, y) -> x + inset to y + inset }
+    val segments = roundedSegments(radius)
+    val outer = roundedPerimeter(width, height, radius, segments)
+    val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments).map { (x, y) -> x + inset to y + inset }
     RenderSystem.disableCull()
     RenderSystem.setShader(GameRenderer::getPositionColorShader)
     val tessellator = Tesselator.getInstance()
@@ -187,12 +302,12 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
     BufferUploader.drawWithShader(buffer.buildOrThrow())
 }
 
-private fun roundedPerimeter(width: Float, height: Float, radius: Float): List<Pair<Float, Float>> {
+private fun roundedPerimeter(width: Float, height: Float, radius: Float, segmentsOverride: Int? = null): List<Pair<Float, Float>> {
     val clamped = radius.coerceIn(0f, min(width, height) * 0.5f)
     if (clamped <= 0f) {
         return listOf(0f to 0f, 0f to height, width to height, width to 0f, 0f to 0f)
     }
-    val segments = max(4, min(12, (clamped / 2f).roundToInt()))
+    val segments = segmentsOverride ?: roundedSegments(clamped)
     val corners = listOf(
         Corner(clamped, clamped, PI.toFloat() * 1.5f, PI.toFloat()),
         Corner(clamped, height - clamped, PI.toFloat(), PI.toFloat() * 0.5f),
@@ -210,6 +325,8 @@ private fun roundedPerimeter(width: Float, height: Float, radius: Float): List<P
     points += points.first()
     return points
 }
+
+private fun roundedSegments(radius: Float): Int = max(4, min(12, (radius / 2f).roundToInt()))
 
 private fun gradientColorAt(x: Float, y: Float, width: Float, height: Float, angleDegrees: Float, stops: List<UiGradientStop>): UiColor {
     if (stops.isEmpty()) return UiColor.Transparent
