@@ -131,18 +131,29 @@ class MinecraftUiRenderer {
         val parentLayer = layerStack.lastOrNull()
         restoreClips(layer.parentClips)
         val blurRadius = layer.filter.blurRadius()
-        val sourceFramebuffer = if (blurRadius > 0f) blurTexture(framebuffers, layer.framebuffer.texture, layer.framebuffer.width, layer.framebuffer.height, blurRadius, layer.framebuffer) else null
+        val sourceFramebuffer = if (blurRadius > 0f) blurTexture(
+            framebuffers,
+            layer.framebuffer.texture,
+            layer.framebuffer.width,
+            layer.framebuffer.height,
+            blurRadius,
+            layer.framebuffer
+        ) else null
         val sourceTexture = sourceFramebuffer?.texture ?: layer.framebuffer.texture
         val compositeFilter = layer.filter.withoutBlur()
         if (parentLayer != null) {
             parentLayer.framebuffer.bind()
             GL11.glViewport(0, 0, parentLayer.framebuffer.width, parentLayer.framebuffer.height)
-            configureLayerProjection(parentLayer.rect.width + parentLayer.padding * 2f, parentLayer.rect.height + parentLayer.padding * 2f)
-            val parentInverse = parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
+            configureLayerProjection(
+                parentLayer.rect.width + parentLayer.padding * 2f,
+                parentLayer.rect.height + parentLayer.padding * 2f
+            )
+            val parentInverse =
+                parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
             val transform = UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
-                parentInverse *
-                layer.transform *
-                UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
+                    parentInverse *
+                    layer.transform *
+                    UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
             drawLayerTexture(layer, sourceTexture, compositeFilter, transform)
         } else {
             Minecraft.getInstance().mainRenderTarget.bindWrite(true)
@@ -157,7 +168,12 @@ class MinecraftUiRenderer {
         RenderSystem.disableDepthTest()
     }
 
-    private fun drawLayerTexture(layer: LayerState, texture: Int, filter: UiFilterChain, transform: UiMatrix4) {
+    private fun drawLayerTexture(
+        layer: LayerState,
+        texture: Int,
+        filter: UiFilterChain,
+        transform: UiMatrix4,
+    ) {
         val width = layer.rect.width + layer.padding * 2f
         val height = layer.rect.height + layer.padding * 2f
         if (isBackfaceHidden(width, height, transform, layer.backfaceVisibility)) return
@@ -202,7 +218,8 @@ class MinecraftUiRenderer {
             configureLayerProjection(target.logicalWidth, target.logicalHeight)
         }
 
-        val blurred = command.filter.blurRadius().takeIf { it > 0f }?.let { blurTexture(framebuffers, scratch.texture, target.width, target.height, it, scratch) }
+        val blurred = command.filter.blurRadius().takeIf { it > 0f }
+            ?.let { blurTexture(framebuffers, scratch.texture, target.width, target.height, it, scratch) }
         val sourceTexture = blurred?.texture ?: scratch.texture
         val compositeFilter = command.filter.withoutBlur()
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebufferId)
@@ -239,7 +256,17 @@ class MinecraftUiRenderer {
     private fun drawShadow(command: DrawShadowCommand) {
         val transform = effective(command.transform)
         if (!isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) {
-            command.shadows.forEach { drawProjectedShadow(command.rect.width, command.rect.height, command.radius, it, command.opacity, transform, command.filter) }
+            command.shadows.forEach {
+                drawProjectedShadow(
+                    command.rect.width,
+                    command.rect.height,
+                    command.radius,
+                    it,
+                    command.opacity,
+                    transform,
+                    command.filter
+                )
+            }
         }
     }
 
@@ -248,7 +275,15 @@ class MinecraftUiRenderer {
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         when (val paint = command.paint) {
             UiResolvedPaint.None -> Unit
-            is UiResolvedPaint.Color -> drawLocalPaint(command.rect.width, command.rect.height, command.border.radius, paint.color.withOpacity(command.opacity), transform, command.filter)
+            is UiResolvedPaint.Color -> drawLocalPaint(
+                command.rect.width,
+                command.rect.height,
+                command.border.radius,
+                paint.color.withOpacity(command.opacity),
+                transform,
+                command.filter
+            )
+
             is UiResolvedPaint.LinearGradient -> drawLocalGradient(
                 command.rect.width,
                 command.rect.height,
@@ -259,7 +294,16 @@ class MinecraftUiRenderer {
                 transform,
                 command.filter,
             )
-            is UiResolvedPaint.Image -> drawImage(command.rect.width, command.rect.height, paint.source, command.opacity, transform, filter = command.filter)
+
+            is UiResolvedPaint.Image -> drawImage(
+                command.rect.width,
+                command.rect.height,
+                paint.source,
+                command.opacity,
+                transform,
+                filter = command.filter
+            )
+
             is UiResolvedPaint.Shader -> drawLocalPaint(
                 command.rect.width,
                 command.rect.height,
@@ -272,7 +316,14 @@ class MinecraftUiRenderer {
         if (command.border.width.left.resolve(command.rect.width) > 0f && command.border.color.alpha > 0f) {
             val borderWidth = command.border.width.left.resolve(command.rect.width).coerceAtLeast(1f)
             val borderColor = command.border.color.withOpacity(command.opacity).filtered(command.filter)
-            drawLocalBorder(command.rect.width, command.rect.height, command.border.radius, borderWidth, borderColor, transform)
+            drawLocalBorder(
+                command.rect.width,
+                command.rect.height,
+                command.border.radius,
+                borderWidth,
+                borderColor,
+                transform
+            )
         }
     }
 
@@ -289,7 +340,11 @@ class MinecraftUiRenderer {
         val maxLines = (command.rect.height / mc.font.lineHeight).toInt().coerceAtLeast(1)
         lines.take(maxLines).forEachIndexed { index, line ->
             val pose = PoseStack()
-            pose.translate(origin.x.toDouble(), (origin.y + index * mc.font.lineHeight * scaleY).toDouble(), origin.z.toDouble())
+            pose.translate(
+                origin.x.toDouble(),
+                (origin.y + index * mc.font.lineHeight * scaleY).toDouble(),
+                origin.z.toDouble()
+            )
             pose.scale(scaleX, scaleY, 1f)
             mc.font.drawInBatch(
                 line,
@@ -310,7 +365,15 @@ class MinecraftUiRenderer {
     private fun drawImage(command: DrawImageCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        drawImage(command.rect.width, command.rect.height, command.source, command.opacity, transform, command.fit, command.filter)
+        drawImage(
+            command.rect.width,
+            command.rect.height,
+            command.source,
+            command.opacity,
+            transform,
+            command.fit,
+            command.filter
+        )
     }
 
     private fun drawImage(
@@ -324,12 +387,27 @@ class MinecraftUiRenderer {
     ) {
         val location = ResourceLocation.tryParse(source) ?: return
         RenderSystem.setShaderTexture(0, location)
-        UiTextureEffects.drawTexturedQuad(width, height, transform, opacity, flipY = false, fit = fit, texture = location, filter = filter)
+        UiTextureEffects.drawTexturedQuad(
+            width,
+            height,
+            transform,
+            opacity,
+            flipY = false,
+            fit = fit,
+            texture = location,
+            filter = filter
+        )
     }
 
     private fun drawItem(command: DrawItemCommand) {
         if (layerStack.isNotEmpty()) return
-        if (isBackfaceHidden(command.rect.width, command.rect.height, effective(command.transform), command.backfaceVisibility)) return
+        if (isBackfaceHidden(
+                command.rect.width,
+                command.rect.height,
+                effective(command.transform),
+                command.backfaceVisibility
+            )
+        ) return
         val location = ResourceLocation.tryParse(command.item) ?: return
         val item = BuiltInRegistries.ITEM.getOptional(location).orElse(null) ?: return
         ItemStack(item).render(command.rect.x, command.rect.y, command.rect.width, command.rect.height)
@@ -353,8 +431,21 @@ class MinecraftUiRenderer {
 
     private fun drawEntityPlaceholder(command: DrawEntityCommand) {
         val transform = effective(command.transform)
-        drawLocalPaint(command.rect.width, command.rect.height, 0f, UiColor(0.09f, 0.12f, 0.16f, command.opacity), transform, command.filter)
-        drawLocalBorder(command.rect.width, command.rect.height, 0f, UiColor(0.28f, 0.42f, 0.58f, command.opacity).filtered(command.filter), transform)
+        drawLocalPaint(
+            command.rect.width,
+            command.rect.height,
+            0f,
+            UiColor(0.09f, 0.12f, 0.16f, command.opacity),
+            transform,
+            command.filter
+        )
+        drawLocalBorder(
+            command.rect.width,
+            command.rect.height,
+            0f,
+            UiColor(0.28f, 0.42f, 0.58f, command.opacity).filtered(command.filter),
+            transform
+        )
     }
 
     private fun renderEntity(entity: LivingEntity, rect: UiRect) {
@@ -386,8 +477,22 @@ class MinecraftUiRenderer {
     private fun drawCanvasPlaceholder(command: DrawCanvasCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        drawLocalPaint(command.rect.width, command.rect.height, 0f, UiColor(0.08f, 0.08f, 0.1f, command.opacity), transform, command.filter)
-        drawLocalPaint(command.rect.width - 16f, 1f, 0f, UiColor(0.4f, 0.7f, 0.9f, command.opacity), transform * UiMatrix4.translation(8f, command.rect.height * 0.5f, 0f), command.filter)
+        drawLocalPaint(
+            command.rect.width,
+            command.rect.height,
+            0f,
+            UiColor(0.08f, 0.08f, 0.1f, command.opacity),
+            transform,
+            command.filter
+        )
+        drawLocalPaint(
+            command.rect.width - 16f,
+            1f,
+            0f,
+            UiColor(0.4f, 0.7f, 0.9f, command.opacity),
+            transform * UiMatrix4.translation(8f, command.rect.height * 0.5f, 0f),
+            command.filter
+        )
     }
 
     private fun drawScrollbar(command: DrawScrollbarCommand) {
@@ -438,12 +543,17 @@ class MinecraftUiRenderer {
     private fun effective(transform: UiMatrix4): UiMatrix4 {
         val layer = layerStack.lastOrNull() ?: return transform
         return UiMatrix4.translation(layer.padding, layer.padding, 0f) *
-            (layer.transform.inverse() ?: UiMatrix4.translation(-layer.rect.x, -layer.rect.y, 0f)) *
-            transform
+                (layer.transform.inverse() ?: UiMatrix4.translation(-layer.rect.x, -layer.rect.y, 0f)) *
+                transform
     }
 
     private fun localRect(rect: UiRect): UiRect = layerStack.lastOrNull()
-        ?.let { rect.copy(x = rect.x - it.rect.x + it.padding, y = rect.y - it.rect.y + it.padding) }
+        ?.let {
+            rect.copy(
+                x = rect.x - it.rect.x + it.padding,
+                y = rect.y - it.rect.y + it.padding,
+            )
+        }
         ?: rect
 
     private fun restoreClips(clips: List<UiRect>) {

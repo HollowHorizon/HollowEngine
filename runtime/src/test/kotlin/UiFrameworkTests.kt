@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
+import ru.hollowhorizon.hollowengine.client.ui.EndLayerCommand
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.HollowUi
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
@@ -454,6 +455,50 @@ class UiFrameworkTests {
         assertTrue(shadowIndex >= 0, "Expected a dedicated shadow command")
         assertTrue(layerIndex >= 0, "Expected transformed element to render through a layer")
         assertTrue(shadowIndex < layerIndex, "Shadow should be emitted before the element layer so it is not clipped by that layer")
+    }
+
+    @Test
+    fun `z rotated widgets render their text through a layer`() {
+        lateinit var text: TextNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.size(120.px, 80.px),
+                Modifier.rotate(z = 18f),
+            ),
+        ) {
+            text = Text("Rotated label")
+        }
+
+        val frame = HollowUiRuntime().frame(root, 160f, 120f)
+        val layerStart = frame.commands.indexOfFirst { it is BeginLayerCommand && it.node == root }
+        val textIndex = frame.commands.indexOfFirst { it is DrawTextCommand && it.node == text }
+        val layerEnd = frame.commands.indexOfFirst { it is EndLayerCommand && it.node == root }
+
+        assertTrue(layerStart >= 0, "Expected rotated widget to render through a layer")
+        assertTrue(textIndex in (layerStart + 1) until layerEnd, "Text should be captured inside the rotated widget layer")
+    }
+
+    @Test
+    fun `text with inherited 3d transform does not fall back to direct rendering`() {
+        lateinit var text: TextNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.size(120.px, 80.px),
+                Modifier.rotate(y = 22f),
+            ),
+        ) {
+            Box(modifier = Modifier.size(100.px, 60.px)) {
+                text = Text("3D label")
+            }
+        }
+
+        val frame = HollowUiRuntime().frame(root, 160f, 120f)
+        val layerStart = frame.commands.indexOfFirst { it is BeginLayerCommand && it.node == text }
+        val textIndex = frame.commands.indexOfFirst { it is DrawTextCommand && it.node == text }
+        val layerEnd = frame.commands.indexOfFirst { it is EndLayerCommand && it.node == text }
+
+        assertTrue(layerStart >= 0, "Expected transformed text to get its own layer when the text renderer cannot apply the full matrix")
+        assertTrue(textIndex in (layerStart + 1) until layerEnd, "Text should be drawn inside its own transform layer")
     }
 
     @Test

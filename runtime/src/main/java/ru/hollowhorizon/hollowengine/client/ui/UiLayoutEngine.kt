@@ -15,6 +15,7 @@ import dev.vfyjxf.taffy.style.TaffyStyle
 import dev.vfyjxf.taffy.tree.NodeId
 import dev.vfyjxf.taffy.tree.TaffyTree
 import dev.vfyjxf.taffy.util.MeasureFunc
+import kotlin.math.abs
 import kotlin.math.ceil
 
 data class UiRect(
@@ -44,6 +45,8 @@ data class UiLayoutResult(
 ) {
     operator fun get(node: UiNode): UiLayoutNode = nodes.getValue(node)
 }
+
+private const val DirectTextTransformEpsilon = 0.0001f
 
 class UiLayoutEngine {
     fun compute(
@@ -140,6 +143,7 @@ class UiLayoutEngine {
             style.transform.matrix() *
             transformOriginInverse
         val needsFramebuffer = style.transform.needsFramebuffer ||
+            node.requiresTextLayer(transform) ||
             style.filter.requiresLayer ||
             style.backdropFilter.requiresLayer
         layouts[node] = UiLayoutNode(node, rect, content, clip, transform, inputTransform, needsFramebuffer, scrollOffset)
@@ -176,6 +180,22 @@ class UiLayoutEngine {
                 layouts,
             )
         }
+    }
+
+    private fun UiNode.requiresTextLayer(transform: UiMatrix4): Boolean {
+        return this is TextNode && !transform.isDirectTextTransform()
+    }
+
+    private fun UiMatrix4.isDirectTextTransform(): Boolean {
+        val origin = transform(0f, 0f, 0f)
+        val xAxis = transform(1f, 0f, 0f)
+        val yAxis = transform(0f, 1f, 0f)
+        val xDelta = UiVec3(xAxis.x - origin.x, xAxis.y - origin.y, xAxis.z - origin.z)
+        val yDelta = UiVec3(yAxis.x - origin.x, yAxis.y - origin.y, yAxis.z - origin.z)
+        return abs(xDelta.y) <= DirectTextTransformEpsilon &&
+            abs(xDelta.z) <= DirectTextTransformEpsilon &&
+            abs(yDelta.x) <= DirectTextTransformEpsilon &&
+            abs(yDelta.z) <= DirectTextTransformEpsilon
     }
 
     private fun applyScrollRanges(

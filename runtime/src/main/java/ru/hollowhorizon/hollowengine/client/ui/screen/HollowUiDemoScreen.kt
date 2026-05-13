@@ -82,7 +82,10 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         Box(tags = listOf("panel-grid"), modifier = Modifier.input(scrollable = true)) {
             Box(tags = listOf("card"), modifier = Modifier.position(0.px, 0.px)) {
                 Text("Текст", tags = listOf("card-title"))
-                Text("Не ожидали? Да, это реально текст и в нём правда есть буквы! И их тут многа...", tags = listOf("body"))
+                Text(
+                    "Не ожидали? Да, это реально текст и в нём правда есть буквы! И их тут многа...",
+                    tags = listOf("body")
+                )
             }
             Box(tags = listOf("card"), modifier = Modifier.position(184.px, 0.px)) {
                 Text("Картинка", tags = listOf("card-title"))
@@ -203,7 +206,7 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
                     tags = listOf("effect-card", "flip-face", "flip-front"),
                     modifier = Modifier.then(
                         Modifier.position(0.px, 0.px),
-                        Modifier.rotate(y = frontRotation),
+                        Modifier.rotate(y = frontRotation, z = frontRotation / 4f),
                         Modifier.backfaceVisibility(UiBackfaceVisibility.HIDDEN),
                     ),
                 ) {
@@ -214,7 +217,7 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
                     tags = listOf("effect-card", "flip-face", "flip-back"),
                     modifier = Modifier.then(
                         Modifier.position(0.px, 0.px),
-                        Modifier.rotate(y = backRotation),
+                        Modifier.rotate(y = backRotation, z = frontRotation / 4f),
                         Modifier.backfaceVisibility(UiBackfaceVisibility.HIDDEN),
                     ),
                 ) {
@@ -235,7 +238,10 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
             }
             Box(tags = listOf("effect-card", "css-lift-card"), modifier = Modifier.position(420.px, 168.px)) {
                 Text("Карта Халвы", tags = listOf("card-title", "paper-title"))
-                Text("За неё ничего нельзя купить... Но зато она прикольно леветирует", tags = listOf("body", "paper-body"))
+                Text(
+                    "За неё ничего нельзя купить... Но зато она прикольно леветирует",
+                    tags = listOf("body", "paper-body")
+                )
                 Item("minecraft:diamond")
             }
             Box(

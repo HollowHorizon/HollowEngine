@@ -151,7 +151,7 @@ data class UiTransform(
     val scale: UiVec3 = UiVec3(1f, 1f, 1f),
     val perspective: Float = 0f,
 ) {
-    val needsFramebuffer: Boolean get() = rotate.x != 0f || rotate.y != 0f || perspective != 0f
+    val needsFramebuffer: Boolean get() = rotate.x != 0f || rotate.y != 0f || rotate.z != 0f || perspective != 0f
 
     fun matrix(): UiMatrix4 {
         var result = UiMatrix4.identity()
