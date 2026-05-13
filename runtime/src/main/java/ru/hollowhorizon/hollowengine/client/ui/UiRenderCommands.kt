@@ -8,10 +8,23 @@ data class BeginLayerCommand(
     override val node: UiNode,
     val rect: UiRect,
     val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backdropFilter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class EndLayerCommand(
     override val node: UiNode,
+) : UiRenderCommand
+
+data class DrawBackdropFilterCommand(
+    override val node: UiNode,
+    val rect: UiRect,
+    val radius: Float,
+    val filter: UiFilterChain,
+    val opacity: Float,
+    val transform: UiMatrix4,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class PushClipCommand(
@@ -28,9 +41,12 @@ data class DrawBoxCommand(
     val rect: UiRect,
     val paint: UiResolvedPaint,
     val border: UiBorder,
+    val shadows: List<UiShadow>,
     val opacity: Float,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class DrawTextCommand(
@@ -40,6 +56,8 @@ data class DrawTextCommand(
     val color: UiColor,
     val opacity: Float,
     val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class DrawImageCommand(
@@ -50,6 +68,8 @@ data class DrawImageCommand(
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
     val fit: UiImageFit,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class DrawItemCommand(
@@ -58,6 +78,8 @@ data class DrawItemCommand(
     val item: String,
     val opacity: Float,
     val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class DrawEntityCommand(
@@ -67,6 +89,8 @@ data class DrawEntityCommand(
     val opacity: Float,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class DrawCanvasCommand(
@@ -76,6 +100,8 @@ data class DrawCanvasCommand(
     val opacity: Float,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
 data class DrawScrollbarCommand(
@@ -111,22 +137,45 @@ class UiCommandRenderer {
     ) {
         val style = resolved[node]
         val layoutNode = layout[node]
+        if (style.backdropFilter.effects.isNotEmpty()) {
+            commands += DrawBackdropFilterCommand(
+                node = node,
+                rect = layoutNode.rect,
+                radius = style.border.radius,
+                filter = style.backdropFilter,
+                opacity = style.opacity,
+                transform = layoutNode.worldTransform,
+                backfaceVisibility = style.backfaceVisibility,
+            )
+        }
         if (layoutNode.needsFramebuffer) {
-            commands += BeginLayerCommand(node, layoutNode.rect, layoutNode.worldTransform)
+            commands += BeginLayerCommand(
+                node = node,
+                rect = layoutNode.rect,
+                transform = layoutNode.worldTransform,
+                filter = style.filter,
+                backdropFilter = style.backdropFilter,
+                backfaceVisibility = style.backfaceVisibility,
+            )
         }
         val pushedClip = style.clip || style.input.scrollable
         if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
         if (style.background != UiPaint.None || style.border.width != UiInsets.Zero) {
+            val commandFilter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter
             commands += DrawBoxCommand(
                 node = node,
                 rect = layoutNode.rect,
                 paint = style.background.resolve(bindings),
                 border = style.border,
+                shadows = style.shadows,
                 opacity = style.opacity,
                 transform = layoutNode.worldTransform,
                 renderToFramebuffer = false,
+                filter = commandFilter,
+                backfaceVisibility = style.backfaceVisibility,
             )
         }
+        val contentFilter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter
         when (node) {
             is TextNode -> commands += DrawTextCommand(
                 node,
@@ -135,6 +184,8 @@ class UiCommandRenderer {
                 style.foreground,
                 style.opacity,
                 layoutNode.worldTransform,
+                contentFilter,
+                style.backfaceVisibility,
             )
             is ImageNode -> commands += DrawImageCommand(
                 node,
@@ -144,6 +195,8 @@ class UiCommandRenderer {
                 layoutNode.worldTransform,
                 false,
                 style.imageFit,
+                contentFilter,
+                style.backfaceVisibility,
             )
             is ItemNode -> commands += DrawItemCommand(
                 node,
@@ -151,6 +204,8 @@ class UiCommandRenderer {
                 node.item.resolve(bindings),
                 style.opacity,
                 layoutNode.worldTransform,
+                contentFilter,
+                style.backfaceVisibility,
             )
             is EntityNode -> commands += DrawEntityCommand(
                 node,
@@ -159,6 +214,8 @@ class UiCommandRenderer {
                 style.opacity,
                 layoutNode.worldTransform,
                 false,
+                contentFilter,
+                style.backfaceVisibility,
             )
             is CanvasNode -> commands += DrawCanvasCommand(
                 node,
@@ -167,6 +224,8 @@ class UiCommandRenderer {
                 style.opacity,
                 layoutNode.worldTransform,
                 false,
+                contentFilter,
+                style.backfaceVisibility,
             )
         }
         node.children
@@ -219,6 +278,7 @@ class UiCommandRenderer {
 sealed interface UiResolvedPaint {
     data object None : UiResolvedPaint
     data class Color(val color: UiColor) : UiResolvedPaint
+    data class LinearGradient(val angleDegrees: Float, val stops: List<UiGradientStop>) : UiResolvedPaint
     data class Image(val source: String) : UiResolvedPaint
     data class Shader(val name: String) : UiResolvedPaint
 }
@@ -226,6 +286,7 @@ sealed interface UiResolvedPaint {
 private fun UiPaint.resolve(bindings: UiBindingContext): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None
     is UiPaint.Color -> UiResolvedPaint.Color(color)
+    is UiPaint.LinearGradient -> UiResolvedPaint.LinearGradient(angleDegrees, stops)
     is UiPaint.Image -> UiResolvedPaint.Image(source.resolve(bindings))
     is UiPaint.Shader -> UiResolvedPaint.Shader(name.resolve(bindings))
 }

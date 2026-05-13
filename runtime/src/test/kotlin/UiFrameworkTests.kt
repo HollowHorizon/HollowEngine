@@ -1,5 +1,8 @@
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.client.ui.BeginLayerCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawBackdropFilterCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.HollowUi
@@ -8,7 +11,10 @@ import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
+import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
+import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiState
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
@@ -335,5 +341,95 @@ class UiFrameworkTests {
         val rect = frame.layout[text].rect
 
         assertTrue(rect.x + rect.width <= 120f, "Expected wrapped text to stay inside row, got $rect")
+    }
+
+    @Test
+    fun `hss compiles gradients shadows filters and backface visibility`() {
+        val stylesheet = compileHss(
+            """
+            .fx {
+                size: 80px 40px;
+                background: linear-gradient(135deg, rgba(20, 40, 80, 0.9), #c8ddff 80%);
+                border-radius: 9px;
+                shadow: 0px 10px 20px 2px rgba(0, 0, 0, 0.35);
+                filter: grayscale(1) blur(2px);
+                backdrop-filter: blur(8px) grayscale(0.25);
+                backface-visibility: hidden;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("fx"))
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 60f)
+        val style = frame.resolved[root]
+        val paint = assertIs<UiPaint.LinearGradient>(style.background)
+
+        assertEquals(135f, paint.angleDegrees)
+        assertEquals(2, paint.stops.size)
+        assertEquals(9f, style.border.radius)
+        assertEquals(1, style.shadows.size)
+        assertEquals(10f, style.shadows.first().offset.y)
+        assertTrue(style.filter.effects.any { it is UiFilterEffect.Grayscale })
+        assertEquals(8f, style.backdropFilter.blurRadius())
+        assertEquals(UiBackfaceVisibility.HIDDEN, style.backfaceVisibility)
+    }
+
+    @Test
+    fun `gradient paint resolves into draw box commands`() {
+        val stylesheet = compileHss(
+            """
+            .fx {
+                size: 40px 20px;
+                background: linear-gradient(90deg, black, white);
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("fx"))
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 80f, 40f)
+        val draw = assertIs<DrawBoxCommand>(frame.commands.first { it is DrawBoxCommand })
+
+        assertIs<UiResolvedPaint.LinearGradient>(draw.paint)
+    }
+
+    @Test
+    fun `filters render the entire subtree through a layer`() {
+        val stylesheet = compileHss(
+            """
+            .fx {
+                size: 80px 40px;
+                filter: grayscale(1);
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("fx")) {
+            Text("Filtered child")
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 60f)
+        val beginLayer = assertIs<BeginLayerCommand>(frame.commands.first { it is BeginLayerCommand })
+        val text = assertIs<DrawTextCommand>(frame.commands.first { it is DrawTextCommand })
+
+        assertEquals(1f, beginLayer.filter.grayscaleAmount())
+        assertTrue(text.filter.effects.isEmpty(), "Child commands should not pre-apply parent filter before layer compositing")
+    }
+
+    @Test
+    fun `backdrop filter emits a pre render filter command`() {
+        val stylesheet = compileHss(
+            """
+            .glass {
+                size: 80px 40px;
+                backdrop-filter: blur(6px) grayscale(0.2);
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("glass"))
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 60f)
+        val command = assertIs<DrawBackdropFilterCommand>(frame.commands.first { it is DrawBackdropFilterCommand })
+
+        assertEquals(6f, command.filter.blurRadius())
+        assertEquals(0.2f, command.filter.grayscaleAmount())
     }
 }

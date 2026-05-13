@@ -50,6 +50,9 @@ sealed interface Modifier {
 
         fun background(color: UiColor) = StyleModifier { it.background = UiPaint.Color(color) }
 
+        fun background(angleDegrees: Float, stops: List<UiGradientStop>) =
+            StyleModifier { it.background = UiPaint.LinearGradient(angleDegrees, stops) }
+
         fun background(source: UiBoundString) = StyleModifier { it.background = UiPaint.Image(source) }
 
         fun foreground(color: UiColor) = StyleModifier { it.foreground = color }
@@ -60,6 +63,8 @@ sealed interface Modifier {
 
         fun border(width: UiLength, color: UiColor, radius: Float = 0f) =
             StyleModifier { it.border = UiBorder(UiInsets.all(width), color, radius) }
+
+        fun shadow(vararg shadows: UiShadow) = StyleModifier { it.shadows = shadows.toList() }
 
         fun opacity(value: Float) = StyleModifier { it.opacity = value }
 
@@ -76,6 +81,13 @@ sealed interface Modifier {
         }
 
         fun perspective(value: Float) = TransformPatch { current -> current.copy(perspective = value) }
+
+        fun filter(vararg effects: UiFilterEffect) = StyleModifier { it.filter = UiFilterChain(effects.toList()) }
+
+        fun backdropFilter(vararg effects: UiFilterEffect) =
+            StyleModifier { it.backdropFilter = UiFilterChain(effects.toList()) }
+
+        fun backfaceVisibility(value: UiBackfaceVisibility) = StyleModifier { it.backfaceVisibility = value }
 
         fun input(
             hoverable: Boolean = false,

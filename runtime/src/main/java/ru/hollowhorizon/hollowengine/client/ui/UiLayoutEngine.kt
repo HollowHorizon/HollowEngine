@@ -143,7 +143,10 @@ class UiLayoutEngine {
             transformOrigin *
             inputStyle.transform.matrix() *
             transformOriginInverse
-        layouts[node] = UiLayoutNode(node, rect, content, clip, transform, inputTransform, style.transform.needsFramebuffer, scrollOffset)
+        val needsFramebuffer = style.transform.needsFramebuffer ||
+            style.filter.requiresLayer ||
+            style.backdropFilter.requiresLayer
+        layouts[node] = UiLayoutNode(node, rect, content, clip, transform, inputTransform, needsFramebuffer, scrollOffset)
 
         for (child in node.children) {
             val baseParentRect = if (style.layout == LayoutType.STACK || style.layout == LayoutType.FREE) content else rect

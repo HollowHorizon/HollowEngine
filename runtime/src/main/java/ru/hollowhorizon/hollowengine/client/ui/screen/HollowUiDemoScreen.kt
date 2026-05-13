@@ -15,12 +15,14 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
             tab("widgets", "Widgets", "hollowengine:textures/gui/npc_menu/quests.png")
             tab("layout", "Layout", "hollowengine:textures/gui/npc_menu/trade.png")
             tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
+            tab("effects", "Effects", "hollowengine:textures/gui/npc_menu/character.png")
         }
         Box(id = "content", tags = listOf("content")) {
             when (selectedTab) {
                 "widgets" -> widgets()
                 "layout" -> layout()
                 "transforms" -> transforms()
+                "effects" -> effects()
                 else -> overview()
             }
         }
@@ -42,7 +44,7 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         return true
     }
 
-    override fun rebuildEveryFrame(): Boolean = selectedTab == "transforms"
+    override fun rebuildEveryFrame(): Boolean = selectedTab == "transforms" || selectedTab == "effects"
 
     private fun UiScope.tab(id: String, label: String, icon: String) {
         val tab =
@@ -160,6 +162,64 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
             }
         }
     }
+
+    private fun UiScope.effects() {
+        Box(tags = listOf("effects-stage"), modifier = Modifier.input(scrollable = true)) {
+            Box(tags = listOf("effect-card", "gradient-card"), modifier = Modifier.position(20.px, 18.px)) {
+                Text("Rounded Gradient", tags = listOf("card-title"))
+                Text("Rounded rect, gradient background and matching soft shadow.", tags = listOf("body"))
+            }
+            Box(
+                tags = listOf("effect-card", "grayscale-card"),
+                modifier = Modifier.then(Modifier.position(220.px, 18.px), Modifier.input(hoverable = true)),
+            ) {
+                Text("Grayscale Filter", tags = listOf("card-title"))
+                Image("hollowengine:textures/gui/npc_menu/character.png", tags = listOf("preview-image"))
+            }
+            val flipHovered = layoutRect("flip-zone")?.contains(mouseX, mouseY) == true
+            val frontRotation = if (flipHovered) 180f else 0f
+            val backRotation = if (flipHovered) 0f else -180f
+            Box(
+                id = "flip-zone",
+                tags = listOf("flip-zone"),
+                modifier = Modifier.then(Modifier.position(420.px, 18.px), Modifier.input(hoverable = true)),
+            ) {
+                Box(
+                    tags = listOf("effect-card", "flip-face", "flip-front"),
+                    modifier = Modifier.then(
+                        Modifier.position(0.px, 0.px),
+                        Modifier.rotate(y = frontRotation),
+                        Modifier.backfaceVisibility(UiBackfaceVisibility.HIDDEN),
+                    ),
+                ) {
+                    Text("Front Face", tags = listOf("card-title"))
+                    Text("Hover rotates this side away.", tags = listOf("body"))
+                }
+                Box(
+                    tags = listOf("effect-card", "flip-face", "flip-back"),
+                    modifier = Modifier.then(
+                        Modifier.position(0.px, 0.px),
+                        Modifier.rotate(y = backRotation),
+                        Modifier.backfaceVisibility(UiBackfaceVisibility.HIDDEN),
+                    ),
+                ) {
+                    Text("Back Face", tags = listOf("card-title"))
+                    Text("This is a separate node on the reverse side.", tags = listOf("body"))
+                }
+            }
+            Box(
+                tags = listOf("effect-card", "paper-card"),
+                modifier = Modifier.then(Modifier.position(20.px, 168.px), Modifier.input(hoverable = true)),
+            ) {
+                Text("Lifted Paper", tags = listOf("card-title"))
+                Text("3D transform keeps the shadow and rounded shape together.", tags = listOf("body"))
+            }
+            Box(tags = listOf("effect-card", "glass-card"), modifier = Modifier.position(220.px, 168.px)) {
+                Text("Backdrop Chain", tags = listOf("card-title"))
+                Text("Backdrop filter samples the already rendered target below.", tags = listOf("body"))
+            }
+        }
+    }
 }
 
 private val DemoStyles = compileHss(
@@ -184,8 +244,9 @@ private val DemoStyles = compileHss(
         layout: row;
         padding: 6px 10px;
         gap: 6px;
-        width: 116px;
+        width: 104px;
         background: rgba(28, 32, 42, 0.92);
+        border-radius: 8px;
         border: 1px rgba(120, 140, 170, 0.38);
         hoverable: true;
         clickable: true;
@@ -218,6 +279,7 @@ private val DemoStyles = compileHss(
         size: 100% 100%;
         min-size: 0px 0px;
         background: rgba(18, 20, 27, 0.88);
+        border-radius: 12px;
         border: 1px rgba(110, 125, 150, 0.32);
         padding: 12px;
         clip: true;
@@ -251,6 +313,7 @@ private val DemoStyles = compileHss(
         padding: 8px;
         height: 48px;
         background: rgba(32, 36, 46, 0.78);
+        border-radius: 8px;
     }
 
     .small-icon {
@@ -271,6 +334,7 @@ private val DemoStyles = compileHss(
         padding: 10px;
         size: 168px 118px;
         background: rgba(30, 34, 44, 0.9);
+        border-radius: 10px;
         border: 1px rgba(120, 140, 170, 0.35);
         transition:
             scale 140ms ease-out,
@@ -317,6 +381,7 @@ private val DemoStyles = compileHss(
         size: 100% 100%;
         min-size: 0px 0px;
         background: rgba(12, 16, 23, 0.9);
+        border-radius: 10px;
         scrollable: true;
     }
 
@@ -324,6 +389,7 @@ private val DemoStyles = compileHss(
         padding: 8px;
         size: 92px 42px;
         background: rgba(48, 62, 88, 0.95);
+        border-radius: 8px;
         border: 1px rgba(136, 174, 230, 0.65);
         transition:
             scale 180ms ease-out,
@@ -343,6 +409,96 @@ private val DemoStyles = compileHss(
     .free-label {
         foreground: white;
         height: 16px;
+    }
+
+    .effects-stage {
+        layout: free;
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+        background: linear-gradient(135deg, rgba(12, 18, 28, 0.98), rgba(28, 34, 48, 0.94), rgba(18, 42, 48, 0.92));
+        border-radius: 10px;
+    }
+
+    .effect-card {
+        layout: column;
+        gap: 8px;
+        padding: 12px;
+        size: 178px 126px;
+        border-radius: 14px;
+        border: 2px rgba(232, 238, 255, 0.34);
+        background: rgba(32, 39, 54, 0.9);
+        foreground: rgba(238, 242, 250, 0.96);
+        shadow: 0px 12px 26px 0px rgba(0, 0, 0, 0.34);
+        transition:
+            filter 180ms ease-out,
+            rotate 240ms ease-out,
+            translate 180ms ease-out,
+            shadow 180ms ease-out,
+            scale 140ms ease-out,
+            background 160ms ease-out;
+    }
+
+    .gradient-card {
+        background: linear-gradient(135deg, rgba(70, 132, 218, 0.96), rgba(142, 83, 184, 0.94), rgba(34, 172, 148, 0.9));
+        shadow: 0px 16px 34px 2px rgba(22, 54, 92, 0.38);
+    }
+
+    .grayscale-card {
+        filter: grayscale(1);
+        background: linear-gradient(145deg, rgba(86, 112, 152, 0.94), rgba(42, 52, 72, 0.96));
+        hoverable: true;
+    }
+
+    .grayscale-card:hover {
+        filter: grayscale(0);
+        scale: 1.04;
+    }
+
+    .flip-zone {
+        layout: free;
+        size: 178px 126px;
+        hoverable: true;
+        perspective: 680px;
+    }
+
+    .flip-face {
+        backface-visibility: hidden;
+        perspective: 680px;
+        transition:
+            rotate 260ms ease-out,
+            shadow 180ms ease-out;
+    }
+
+    .flip-front {
+        background: linear-gradient(135deg, rgba(58, 102, 156, 0.97), rgba(36, 48, 74, 0.97));
+    }
+
+    .flip-back {
+        background: linear-gradient(135deg, rgba(38, 154, 130, 0.96), rgba(38, 62, 78, 0.98));
+        border: 2px rgba(174, 255, 228, 0.44);
+    }
+
+    .paper-card {
+        hoverable: true;
+        perspective: 720px;
+        background: linear-gradient(180deg, rgba(242, 235, 212, 0.96), rgba(206, 218, 230, 0.94));
+        foreground: rgba(22, 28, 36, 0.98);
+        border: 2px rgba(255, 255, 255, 0.62);
+        shadow: 0px 10px 22px 1px rgba(0, 0, 0, 0.22);
+    }
+
+    .paper-card:hover {
+        rotate: -12deg 10deg 0deg;
+        translate: 0px -8px 18px;
+        shadow: 0px 22px 36px 4px rgba(0, 0, 0, 0.28);
+    }
+
+    .glass-card {
+        background: rgba(34, 42, 58, 0.42);
+        border: 2px rgba(232, 246, 255, 0.38);
+        backdrop-filter: blur(8px) grayscale(0.15);
+        shadow: 0px 16px 32px 2px rgba(0, 0, 0, 0.24);
     }
     """.trimIndent()
 )

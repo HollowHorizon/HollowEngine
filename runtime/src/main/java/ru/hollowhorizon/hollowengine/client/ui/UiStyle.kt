@@ -57,8 +57,12 @@ data class MutableUiStyle(
     var image: UiBoundString? = null,
     var shader: UiBoundString? = null,
     var border: UiBorder? = null,
+    var shadows: List<UiShadow>? = null,
     var opacity: Float? = null,
     var transform: UiTransform? = null,
+    var filter: UiFilterChain? = null,
+    var backdropFilter: UiFilterChain? = null,
+    var backfaceVisibility: UiBackfaceVisibility? = null,
     var input: UiInputStyle? = null,
     var clip: Boolean? = null,
     var layer: Int? = null,
@@ -84,8 +88,12 @@ data class MutableUiStyle(
         other.image?.let { image = it }
         other.shader?.let { shader = it }
         other.border?.let { border = it }
+        other.shadows?.let { shadows = it }
         other.opacity?.let { opacity = it }
         other.transform?.let { transform = it }
+        other.filter?.let { filter = it }
+        other.backdropFilter?.let { backdropFilter = it }
+        other.backfaceVisibility?.let { backfaceVisibility = it }
         other.input?.let { input = input?.merge(it) ?: it }
         other.clip?.let { clip = it }
         other.layer?.let { layer = it }
@@ -114,8 +122,12 @@ data class MutableUiStyle(
             image = image,
             shader = shader,
             border = border ?: UiBorder(),
+            shadows = shadows ?: emptyList(),
             opacity = opacity?.coerceIn(0f, 1f) ?: 1f,
             transform = transform ?: UiTransform(),
+            filter = filter ?: UiFilterChain.Empty,
+            backdropFilter = backdropFilter ?: UiFilterChain.Empty,
+            backfaceVisibility = backfaceVisibility ?: UiBackfaceVisibility.VISIBLE,
             input = input ?: UiInputStyle(),
             clip = clip ?: false,
             layer = layer ?: 0,
@@ -144,8 +156,12 @@ data class ComputedStyle(
     val image: UiBoundString?,
     val shader: UiBoundString?,
     val border: UiBorder,
+    val shadows: List<UiShadow>,
     val opacity: Float,
     val transform: UiTransform,
+    val filter: UiFilterChain,
+    val backdropFilter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
     val input: UiInputStyle,
     val clip: Boolean,
     val layer: Int,
@@ -157,7 +173,10 @@ data class ComputedStyle(
         return to.copy(
             background = background.interpolate(to.background, clamped),
             foreground = foreground.interpolate(to.foreground, clamped),
+            shadows = shadows.interpolate(to.shadows, clamped),
             opacity = opacity + (to.opacity - opacity) * clamped,
+            filter = filter.interpolate(to.filter, clamped),
+            backdropFilter = backdropFilter.interpolate(to.backdropFilter, clamped),
             transform = UiTransform(
                 translate = transform.translate.interpolate(to.transform.translate, clamped),
                 rotate = transform.rotate.interpolate(to.transform.rotate, clamped),
@@ -171,7 +190,10 @@ data class ComputedStyle(
         return to.copy(
             background = background.interpolate(to.background, progress.background),
             foreground = foreground.interpolate(to.foreground, progress.foreground),
+            shadows = shadows.interpolate(to.shadows, progress.shadow),
             opacity = opacity + (to.opacity - opacity) * progress.opacity,
+            filter = filter.interpolate(to.filter, progress.filter),
+            backdropFilter = backdropFilter.interpolate(to.backdropFilter, progress.backdropFilter),
             transform = UiTransform(
                 translate = transform.translate.interpolate(to.transform.translate, progress.translate),
                 rotate = transform.rotate.interpolate(to.transform.rotate, progress.rotate),
@@ -185,7 +207,10 @@ data class ComputedStyle(
 data class TransitionProgress(
     val background: Float = 1f,
     val foreground: Float = 1f,
+    val shadow: Float = 1f,
     val opacity: Float = 1f,
+    val filter: Float = 1f,
+    val backdropFilter: Float = 1f,
     val translate: Float = 1f,
     val rotate: Float = 1f,
     val scale: Float = 1f,
@@ -194,7 +219,10 @@ data class TransitionProgress(
     fun complete(): Boolean {
         return background >= 1f &&
             foreground >= 1f &&
+            shadow >= 1f &&
             opacity >= 1f &&
+            filter >= 1f &&
+            backdropFilter >= 1f &&
             translate >= 1f &&
             rotate >= 1f &&
             scale >= 1f &&
@@ -211,7 +239,23 @@ enum class UiImageFit {
 
 private fun UiPaint.interpolate(to: UiPaint, progress: Float): UiPaint {
     if (this is UiPaint.Color && to is UiPaint.Color) return UiPaint.Color(color.interpolate(to.color, progress))
+    if (this is UiPaint.LinearGradient && to is UiPaint.LinearGradient && stops.size == to.stops.size) {
+        return UiPaint.LinearGradient(
+            angleDegrees = angleDegrees + (to.angleDegrees - angleDegrees) * progress,
+            stops = stops.zip(to.stops) { from, target ->
+                UiGradientStop(
+                    offset = from.offset + (target.offset - from.offset) * progress,
+                    color = from.color.interpolate(target.color, progress),
+                )
+            },
+        )
+    }
     return if (progress >= 1f) to else this
+}
+
+private fun List<UiShadow>.interpolate(to: List<UiShadow>, progress: Float): List<UiShadow> {
+    if (size != to.size) return if (progress >= 1f) to else this
+    return zip(to) { from, target -> from.interpolate(target, progress) }
 }
 
 private fun UiVec3.interpolate(to: UiVec3, progress: Float) = UiVec3(
@@ -223,8 +267,86 @@ private fun UiVec3.interpolate(to: UiVec3, progress: Float) = UiVec3(
 sealed interface UiPaint {
     data object None : UiPaint
     data class Color(val color: UiColor) : UiPaint
+    data class LinearGradient(val angleDegrees: Float, val stops: List<UiGradientStop>) : UiPaint
     data class Image(val source: UiBoundString) : UiPaint
     data class Shader(val name: UiBoundString) : UiPaint
+}
+
+data class UiGradientStop(
+    val offset: Float,
+    val color: UiColor,
+)
+
+data class UiShadow(
+    val offset: UiVec3 = UiVec3(),
+    val blur: Float = 0f,
+    val spread: Float = 0f,
+    val color: UiColor = UiColor.Transparent,
+    val inset: Boolean = false,
+) {
+    fun interpolate(to: UiShadow, progress: Float) = UiShadow(
+        offset = offset.interpolate(to.offset, progress),
+        blur = blur + (to.blur - blur) * progress,
+        spread = spread + (to.spread - spread) * progress,
+        color = color.interpolate(to.color, progress),
+        inset = if (progress >= 1f) to.inset else inset,
+    )
+
+    fun visualOutset(): Float = if (inset || color.alpha <= 0f) 0f else max(0f, blur + spread)
+}
+
+enum class UiBackfaceVisibility {
+    VISIBLE,
+    HIDDEN
+}
+
+data class UiFilterChain(
+    val effects: List<UiFilterEffect> = emptyList(),
+) {
+    val requiresLayer: Boolean get() = effects.any { it.requiresLayer }
+
+    fun grayscaleAmount(): Float = effects.filterIsInstance<UiFilterEffect.Grayscale>().sumOf { it.amount.toDouble() }.toFloat().coerceIn(0f, 1f)
+
+    fun blurRadius(): Float = effects.filterIsInstance<UiFilterEffect.Blur>().sumOf { it.radius.toDouble() }.toFloat().coerceAtLeast(0f)
+
+    fun interpolate(to: UiFilterChain, progress: Float): UiFilterChain {
+        if (effects.size != to.effects.size) return if (progress >= 1f) to else this
+        return UiFilterChain(effects.zip(to.effects) { from, target -> from.interpolate(target, progress) })
+    }
+
+    companion object {
+        val Empty = UiFilterChain()
+    }
+}
+
+sealed interface UiFilterEffect {
+    val requiresLayer: Boolean
+
+    fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect
+
+    data class Grayscale(val amount: Float) : UiFilterEffect {
+        override val requiresLayer: Boolean get() = amount != 0f
+
+        override fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect {
+            if (to !is Grayscale) return if (progress >= 1f) to else this
+            return Grayscale(amount + (to.amount - amount) * progress)
+        }
+    }
+
+    data class Blur(val radius: Float) : UiFilterEffect {
+        override val requiresLayer: Boolean get() = radius > 0f
+
+        override fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect {
+            if (to !is Blur) return if (progress >= 1f) to else this
+            return Blur(radius + (to.radius - radius) * progress)
+        }
+    }
+
+    data class Shader(val name: UiBoundString, val arguments: Map<String, Float> = emptyMap()) : UiFilterEffect {
+        override val requiresLayer: Boolean get() = true
+
+        override fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect = if (progress >= 1f) to else this
+    }
 }
 
 data class UiInputStyle(
@@ -294,7 +416,10 @@ class UiTransitionState {
         return TransitionProgress(
             background = progress("background", elapsedMillis),
             foreground = progress("foreground", elapsedMillis),
+            shadow = progress("shadow", elapsedMillis),
             opacity = progress("opacity", elapsedMillis),
+            filter = progress("filter", elapsedMillis),
+            backdropFilter = progress("backdrop-filter", elapsedMillis),
             translate = progress("translate", elapsedMillis),
             rotate = progress("rotate", elapsedMillis),
             scale = progress("scale", elapsedMillis),
@@ -310,7 +435,10 @@ class UiTransitionState {
         return when (property) {
             "background" -> background != target.background
             "foreground" -> foreground != target.foreground
+            "shadow", "box-shadow" -> shadows != target.shadows
             "opacity" -> opacity != target.opacity
+            "filter" -> filter != target.filter
+            "backdrop-filter" -> backdropFilter != target.backdropFilter
             "translate" -> transform.translate != target.transform.translate
             "rotate" -> transform.rotate != target.transform.rotate
             "scale" -> transform.scale != target.transform.scale
@@ -320,7 +448,19 @@ class UiTransitionState {
     }
 
     companion object {
-        private val TransitionProperties = setOf("background", "foreground", "opacity", "scale", "translate", "rotate", "perspective")
+        private val TransitionProperties = setOf(
+            "background",
+            "foreground",
+            "shadow",
+            "box-shadow",
+            "opacity",
+            "filter",
+            "backdrop-filter",
+            "scale",
+            "translate",
+            "rotate",
+            "perspective",
+        )
     }
 }
 

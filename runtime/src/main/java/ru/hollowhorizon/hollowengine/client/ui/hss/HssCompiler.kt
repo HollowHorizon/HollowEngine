@@ -4,11 +4,15 @@ import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.MutableUiStyle
 import ru.hollowhorizon.hollowengine.client.ui.StyleOrigin
 import ru.hollowhorizon.hollowengine.client.ui.TransitionEasing
+import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiBorder
 import ru.hollowhorizon.hollowengine.client.ui.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
+import ru.hollowhorizon.hollowengine.client.ui.UiGradientStop
 import ru.hollowhorizon.hollowengine.client.ui.UiInsets
 import ru.hollowhorizon.hollowengine.client.ui.UiInputStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
@@ -16,6 +20,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiPosition
+import ru.hollowhorizon.hollowengine.client.ui.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.UiSize
 import ru.hollowhorizon.hollowengine.client.ui.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.UiTransform
@@ -80,11 +85,15 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "shader" -> instruction { it.shader = parseBoundFunction(value, "shader") ?: UiBoundString(unquote(value)) }
             "border" -> instruction { it.border = parseBorder(value, it.border ?: UiBorder()) }
             "border-radius" -> instruction { it.border = (it.border ?: UiBorder()).copy(radius = parseScalar(value)) }
+            "shadow", "box-shadow" -> instruction { it.shadows = parseShadows(value) }
             "opacity" -> instruction { it.opacity = value.toFloat() }
             "translate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(translate = parseVec3(value)) }
             "rotate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(rotate = parseVec3(value)) }
             "scale" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(scale = parseScale(value)) }
             "perspective" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(perspective = parseScalar(value)) }
+            "filter" -> instruction { it.filter = parseFilterChain(value) }
+            "backdrop-filter" -> instruction { it.backdropFilter = parseFilterChain(value) }
+            "backface-visibility" -> instruction { it.backfaceVisibility = parseBackfaceVisibility(value) }
             "hoverable" -> inputInstruction(value) { style, enabled -> style.copy(hoverable = enabled) }
             "clickable" -> inputInstruction(value) { style, enabled -> style.copy(clickable = enabled) }
             "focusable" -> inputInstruction(value) { style, enabled -> style.copy(focusable = enabled) }
@@ -165,7 +174,27 @@ private fun parseLength(value: String, allowAuto: Boolean = true): UiLength {
 private fun parsePaint(value: String): UiPaint {
     parseBoundFunction(value, "image")?.let { return UiPaint.Image(it) }
     parseBoundFunction(value, "shader")?.let { return UiPaint.Shader(it) }
+    parseLinearGradient(value)?.let { return it }
     return UiPaint.Color(parseColor(value))
+}
+
+private fun parseLinearGradient(value: String): UiPaint.LinearGradient? {
+    val cleaned = value.trim()
+    if (!cleaned.startsWith("linear-gradient(")) return null
+    val args = functionArgs(cleaned, "linear-gradient")
+    val first = args.firstOrNull()?.trim().orEmpty()
+    val firstIsAngle = first.endsWith("deg") || first.toFloatOrNull() != null
+    val angle = if (firstIsAngle) parseScalar(first) else 180f
+    val colorArgs = if (firstIsAngle) args.drop(1) else args
+    require(colorArgs.size >= 2) { "linear-gradient requires at least two colors" }
+    val explicitStops = colorArgs.mapIndexed { index, entry ->
+        val parts = splitTopLevelWhitespace(entry)
+        val color = parseColor(parts.first())
+        val offset = parts.getOrNull(1)?.let(::parseStopOffset)
+            ?: if (colorArgs.size == 1) 0f else index.toFloat() / (colorArgs.size - 1).toFloat()
+        UiGradientStop(offset.coerceIn(0f, 1f), color)
+    }
+    return UiPaint.LinearGradient(angle, explicitStops.sortedBy { it.offset })
 }
 
 private fun parseColor(value: String): UiColor {
@@ -201,6 +230,66 @@ private fun parseBorder(value: String, previous: UiBorder): UiBorder {
     return previous.copy(width = UiInsets.all(width), color = color)
 }
 
+private fun parseShadows(value: String): List<UiShadow> {
+    if (value.equals("none", ignoreCase = true)) return emptyList()
+    return splitTopLevel(value, ',').map { entry ->
+        val parts = splitTopLevelWhitespace(entry)
+        val inset = parts.firstOrNull()?.equals("inset", ignoreCase = true) == true
+        val values = if (inset) parts.drop(1) else parts
+        require(values.size >= 3) { "Expected shadow x y blur [spread] color, got '$entry'" }
+        val spreadIndex = values.indexOfFirst { looksLikeColor(it) }.let { colorIndex ->
+            if (colorIndex < 0) values.lastIndex else colorIndex
+        }
+        val color = values.drop(spreadIndex).joinToString(" ").takeIf { it.isNotBlank() }?.let(::parseColor)
+            ?: throw IllegalArgumentException("Expected shadow color, got '$entry'")
+        UiShadow(
+            offset = UiVec3(parseScalar(values[0]), parseScalar(values[1]), 0f),
+            blur = parseScalar(values.getOrElse(2) { "0px" }).coerceAtLeast(0f),
+            spread = values.getOrNull(3)?.takeUnless(::looksLikeColor)?.let(::parseScalar) ?: 0f,
+            color = color,
+            inset = inset,
+        )
+    }
+}
+
+private fun parseFilterChain(value: String): UiFilterChain {
+    if (value.equals("none", ignoreCase = true)) return UiFilterChain.Empty
+    val effects = mutableListOf<UiFilterEffect>()
+    var index = 0
+    while (index < value.length) {
+        while (index < value.length && value[index].isWhitespace()) index++
+        val nameStart = index
+        while (index < value.length && (value[index].isLetterOrDigit() || value[index] == '-')) index++
+        if (nameStart == index) break
+        val name = value.substring(nameStart, index).lowercase()
+        require(value.getOrNull(index) == '(') { "Expected filter function after '$name'" }
+        val argsStart = index + 1
+        var depth = 1
+        index++
+        while (index < value.length && depth > 0) {
+            when (value[index]) {
+                '(' -> depth++
+                ')' -> depth--
+            }
+            index++
+        }
+        val args = value.substring(argsStart, index - 1).trim()
+        effects += when (name) {
+            "grayscale" -> UiFilterEffect.Grayscale(parseFilterAmount(args))
+            "blur" -> UiFilterEffect.Blur(parseScalar(args).coerceAtLeast(0f))
+            "shader" -> UiFilterEffect.Shader(UiBoundString(unquote(args)))
+            else -> UiFilterEffect.Shader(UiBoundString(name))
+        }
+    }
+    return UiFilterChain(effects)
+}
+
+private fun parseBackfaceVisibility(value: String): UiBackfaceVisibility = when (value.lowercase()) {
+    "visible" -> UiBackfaceVisibility.VISIBLE
+    "hidden" -> UiBackfaceVisibility.HIDDEN
+    else -> throw IllegalArgumentException("Unknown backface-visibility '$value'")
+}
+
 private fun parseVec3(value: String): UiVec3 {
     val parts = splitWhitespace(value).map(::parseScalar)
     return UiVec3(parts.getOrElse(0) { 0f }, parts.getOrElse(1) { 0f }, parts.getOrElse(2) { 0f })
@@ -222,6 +311,28 @@ private fun parseScale(value: String): UiVec3 {
 }
 
 private fun parseScalar(value: String): Float = value.trim().removeSuffix("px").removeSuffix("deg").toFloat()
+
+private fun parseStopOffset(value: String): Float {
+    val cleaned = value.trim()
+    if (cleaned.endsWith("%")) return cleaned.dropLast(1).toFloat() / 100f
+    return parseScalar(cleaned).coerceIn(0f, 1f)
+}
+
+private fun parseFilterAmount(value: String): Float {
+    val cleaned = value.trim()
+    if (cleaned.endsWith("%")) return cleaned.dropLast(1).toFloat() / 100f
+    return cleaned.toFloat()
+}
+
+private fun looksLikeColor(value: String): Boolean {
+    val cleaned = value.trim().lowercase()
+    return cleaned.startsWith("rgba(") ||
+        cleaned.startsWith("rgb(") ||
+        cleaned.startsWith("#") ||
+        cleaned == "transparent" ||
+        cleaned == "white" ||
+        cleaned == "black"
+}
 
 private fun parseBoundFunction(value: String, name: String): UiBoundString? {
     if (!value.trim().startsWith("$name(")) return null
