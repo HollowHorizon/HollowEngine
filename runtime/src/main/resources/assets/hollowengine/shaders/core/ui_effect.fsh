@@ -24,8 +24,9 @@ float roundedMask(vec2 uv) {
     vec2 point = (uv - MaskRect.xy) * texSize;
     vec2 size = MaskRect.zw * texSize;
     vec2 halfSize = size * 0.5;
-    vec2 q = abs(point - halfSize) - (halfSize - vec2(MaskRadius));
-    float distanceToEdge = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - MaskRadius;
+    float clampedRadius = min(MaskRadius, min(halfSize.x, halfSize.y));
+    vec2 q = abs(point - halfSize) - (halfSize - vec2(clampedRadius));
+    float distanceToEdge = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - clampedRadius;
     return 1.0 - smoothstep(0.0, max(MaskSoftness, 0.001), distanceToEdge);
 }
 

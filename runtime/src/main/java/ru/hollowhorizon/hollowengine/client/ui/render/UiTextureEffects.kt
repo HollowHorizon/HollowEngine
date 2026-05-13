@@ -107,6 +107,7 @@ internal object UiTextureEffects {
         textureHeight: Int,
         maskRadius: Float = 0f,
         maskScale: Float = 0f,
+        maskPadding: Float = 0f,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -117,6 +118,7 @@ internal object UiTextureEffects {
             logicalWidth = width,
             logicalHeight = height,
             maskRadius = maskRadius,
+            maskPadding = maskPadding,
             maskScale = maskScale,
             maskU = minOf(u0, u1),
             maskV = minOf(v0, v1),
@@ -166,12 +168,13 @@ internal object UiTextureEffects {
         effectShader.getUniform("BlurDirection")?.set(blurDirectionX, blurDirectionY)
         effectShader.getUniform("TexelSize")?.set(1f / textureWidth.coerceAtLeast(1f), 1f / textureHeight.coerceAtLeast(1f))
         val radiusScale = maskScale.takeIf { it > 0f } ?: ((textureWidth / logicalWidth.coerceAtLeast(1f)) + (textureHeight / logicalHeight.coerceAtLeast(1f))) * 0.5f
-        effectShader.getUniform("MaskRect")?.set(
-            maskU ?: (maskPadding / logicalWidth.coerceAtLeast(1f)),
-            maskV ?: (maskPadding / logicalHeight.coerceAtLeast(1f)),
-            maskWidth ?: ((logicalWidth - maskPadding * 2f).coerceAtLeast(0f) / logicalWidth.coerceAtLeast(1f)),
-            maskHeight ?: ((logicalHeight - maskPadding * 2f).coerceAtLeast(0f) / logicalHeight.coerceAtLeast(1f)),
-        )
+        val padU = maskPadding / logicalWidth.coerceAtLeast(1f)
+        val padV = maskPadding / logicalHeight.coerceAtLeast(1f)
+        val finalMaskU = if (maskU != null) maskU + padU else padU
+        val finalMaskV = if (maskV != null) maskV + padV else padV
+        val finalMaskW = (if (maskWidth != null) maskWidth - padU * 2f else (1f - padU * 2f)).coerceAtLeast(0f)
+        val finalMaskH = (if (maskHeight != null) maskHeight - padV * 2f else (1f - padV * 2f)).coerceAtLeast(0f)
+        effectShader.getUniform("MaskRect")?.set(finalMaskU, finalMaskV, finalMaskW, finalMaskH)
         effectShader.getUniform("MaskRadius")?.set(maskRadius * radiusScale)
         effectShader.getUniform("MaskSoftness")?.set(1.25f * radiusScale)
     }

@@ -124,7 +124,7 @@ internal val DemoStyles = compileHss(
 
     .card:hover {
         background: rgba(42, 48, 62, 0.96);
-        scale: 1.03;
+        scale: 1.1;
     }
 
     .card-title {
@@ -233,7 +233,7 @@ internal val DemoStyles = compileHss(
         border: 2px rgba(232, 238, 255, 0.34);
         background: rgba(32, 39, 54, 0.9);
         foreground: rgba(238, 242, 250, 0.96);
-        shadow: 0px 18px 34px -4px rgba(0, 0, 0, 0.66);
+        shadow: 0px 18px 14px -4px rgba(0, 0, 0, 0.66);
         transition:
             filter 180ms ease-out,
             rotate 240ms ease-out,
@@ -273,8 +273,8 @@ internal val DemoStyles = compileHss(
         perspective: 680px;
         shadow: none;
         transition:
-            rotate 260ms ease-out,
-            shadow 180ms ease-out;
+            rotate 460ms ease-out,
+            shadow 380ms ease-out;
     }
 
     .flip-front {
@@ -292,17 +292,11 @@ internal val DemoStyles = compileHss(
         background: linear-gradient(180deg, rgba(242, 235, 212, 0.96), rgba(206, 218, 230, 0.94));
         foreground: rgba(22, 28, 36, 0.98);
         border: 2px rgba(255, 255, 255, 0.62);
-        shadow:
-            -1px 0px 30px 0px rgba(34, 33, 81, 0.14),
-            -22px -24px 30px -6px rgba(34, 33, 81, 0.52);
     }
 
     .paper-card:hover {
         rotate: -12deg 10deg 0deg;
         translate: 0px -8px 18px;
-        shadow:
-            -1px 0px 32px 0px rgba(34, 33, 81, 0.14),
-            -46px -46px 34px -8px rgba(34, 33, 81, 0.46);
     }
 
     .paper-title {
@@ -316,8 +310,7 @@ internal val DemoStyles = compileHss(
     .glass-card {
         background: rgba(34, 42, 58, 0.42);
         border: 2px rgba(232, 246, 255, 0.38);
-        backdrop-filter: blur(8px) grayscale(0.15);
-        shadow: 0px 20px 34px -6px rgba(0, 0, 0, 0.44);
+        backdrop-filter: blur(16px) grayscale(0.15);
     }
 
     .css-lift-card {
@@ -327,20 +320,13 @@ internal val DemoStyles = compileHss(
         background: rgba(248, 250, 253, 0.96);
         foreground: rgba(30, 34, 52, 0.96);
         border: 1px rgba(255, 255, 255, 0.72);
-        shadow:
-            -1px 0px 30px 0px rgba(34, 33, 81, 0.14),
-            34px 34px 34px -2px rgba(34, 33, 81, 0.5);
         transition:
             translate 240ms ease-out,
-            shadow 240ms ease-out,
             rotate 240ms ease-out;
     }
 
     .css-lift-card:hover {
         translate: 0px -16px 0px;
-        shadow:
-            -1px 0px 32px 0px rgba(34, 33, 81, 0.12),
-            58px 58px 34px -8px rgba(34, 33, 81, 0.44);
     }
 
     .soft-focus-card {
