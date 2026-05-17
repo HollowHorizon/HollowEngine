@@ -35,7 +35,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         return CompiledHss(rules)
     }
 
-    private fun compileDeclaration(declaration: HssDeclaration): StyleInstruction? {
+    internal fun compileDeclaration(declaration: HssDeclaration): StyleInstruction? {
         val property = declaration.property.lowercase()
         val value = declaration.value.trim()
         return when (property) {
@@ -99,7 +99,13 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
 fun compileHss(source: String, origin: StyleOrigin = StyleOrigin.STYLESHEET): CompiledHss =
     HssCompiler(origin).compile(parseHss(source))
 
+fun compileStyleModifier(property: String, value: String): Modifier? {
+    val instruction = HssCompiler().compileDeclaration(HssDeclaration(property, value)) ?: return null
+    return StyleModifier { style -> instruction.apply(style, UiBindingContext()) }
+}
+
 private fun parseLayout(value: String): LayoutType = when (value.lowercase()) {
+    "auto" -> LayoutType.COLUMN
     "column" -> LayoutType.COLUMN
     "row" -> LayoutType.ROW
     "grid" -> LayoutType.GRID

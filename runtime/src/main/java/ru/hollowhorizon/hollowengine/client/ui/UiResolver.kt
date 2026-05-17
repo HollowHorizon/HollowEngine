@@ -22,27 +22,39 @@ class UiStyleResolver(
         animate: Boolean = true,
     ): ResolvedUiTree {
         val styles = linkedMapOf<UiNode, ComputedStyle>()
-        resolveNode(root, null, bindings, nowMillis, animate, styles)
+        resolveNode(root, null, emptyList(), bindings, nowMillis, animate, styles)
         return ResolvedUiTree(root, styles)
     }
 
     private fun resolveNode(
         node: UiNode,
         parent: ComputedStyle?,
+        inheritedStylesheets: List<CompiledHss>,
         bindings: UiBindingContext,
         nowMillis: Long,
         animate: Boolean,
         styles: MutableMap<UiNode, ComputedStyle>,
     ) {
+        val scopedStylesheets = inheritedStylesheets + node.modifiers.flattenModifiers()
+            .filterIsInstance<StyleImportModifier>()
+            .map { it.reference.resolve() }
         val mutable = engineDefaults(node)
         applyRules(theme?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.THEME_DEFAULTS)
         applyRules(stylesheet?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.STYLESHEET)
+        scopedStylesheets.forEach { scoped ->
+            applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STYLESHEET)
+        }
         applyRules(stylesheet?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
+        scopedStylesheets.forEach { scoped ->
+            applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
+        }
         mutable.merge(node.modifiers.style())
         val computed = mutable.toComputed(parent)
         val finalStyle = if (animate) transitions.apply(node, computed, nowMillis) else computed
         styles[node] = finalStyle
-        node.children.forEach { child -> resolveNode(child, finalStyle, bindings, nowMillis, animate, styles) }
+        node.children.forEach { child ->
+            resolveNode(child, finalStyle, scopedStylesheets, bindings, nowMillis, animate, styles)
+        }
     }
 
     private fun applyRules(

@@ -15,14 +15,22 @@ import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.UiEvent
+import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
+import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
+import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
 import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.percent
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiResourceLoader
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -80,6 +88,94 @@ class UiFrameworkTests {
 
         assertEquals(0.8f, frame.resolved[root].opacity)
         assertEquals(50f, (frame.resolved[root].size.width as UiLength.Px).value)
+    }
+
+    @Test
+    fun `style modifier applies stylesheet to node and descendants`() {
+        val scoped = compileHss(
+            """
+            box {
+                padding: 7px;
+            }
+
+            text {
+                color: #000000;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(modifier = Modifier.style(scoped)) {
+            Text("Hello")
+        }
+        val child = root.children.single()
+
+        val frame = HollowUiRuntime().frame(root, 100f, 100f)
+
+        assertEquals(7f, (frame.resolved[root].padding.left as UiLength.Px).value)
+        assertEquals(0f, frame.resolved[child].foreground.red)
+    }
+
+    @Test
+    fun `event modifiers dispatch click and drag payloads`() {
+        val events = mutableListOf<CompoundTag>()
+        val root = HollowUi(
+            id = "button",
+            modifier = Modifier.then(
+                Modifier.emitOnClick(
+                    UiEventPayloadTemplate.parse("{event:\"pressed\",button:<it.button>,id:<it.id>}"),
+                    UiEventSink { events += it },
+                ),
+                Modifier.onDrag { event ->
+                    events += CompoundTag().apply {
+                        putString("event", "dragged")
+                        putFloat("dx", event.deltaX)
+                    }
+                },
+            ),
+        )
+
+        root.dispatch(UiEvent(UiEventKind.CLICK, root, button = 1))
+        root.dispatch(UiEvent(UiEventKind.DRAG, root, deltaX = 3f))
+
+        assertEquals("pressed", events[0].getString("event"))
+        assertEquals(1, events[0].getInt("button"))
+        assertEquals("button", events[0].getString("id"))
+        assertEquals("dragged", events[1].getString("event"))
+        assertEquals(3f, events[1].getFloat("dx"))
+    }
+
+    @Test
+    fun `ui xml builds builtins imports modifiers and event templates`() {
+        val emitted = mutableListOf<CompoundTag>()
+        val resources = UiResourceLoader { location ->
+            when (location) {
+                "hollowengine:ui/elements/my_custom_button.ui" -> "<button id='custom' size='40px 10px'>Custom</button>"
+                else -> error("Unexpected resource $location")
+            }
+        }
+
+        val root = parseUi(
+            """
+            <import element="hollowengine:ui/elements/my_custom_button.ui" named="custom_button" />
+            <box layout="auto" size="100% 100%">
+                <button id="hello" onClick='{event:"pressed";button:"hello";mouse:<it.button>}'>Hello</button>
+                <custom_button margin="2px" />
+            </box>
+            """.trimIndent(),
+            UiXmlOptions(resources = resources, eventSink = UiEventSink { emitted += it }),
+        )
+
+        val frame = HollowUiRuntime().frame(root, 200f, 120f)
+        val button = root.children.first { it.id == "hello" }
+        val custom = root.children.first { it.id == "custom" }
+
+        button.dispatch(UiEvent(UiEventKind.CLICK, button, button = 2))
+
+        assertEquals(LayoutType.COLUMN, frame.resolved[root].layout)
+        assertEquals(1f, (frame.resolved[root].size.width as UiLength.Percent).value)
+        assertEquals(2f, (frame.resolved[custom].margin.left as UiLength.Px).value)
+        assertEquals("pressed", emitted.single().getString("event"))
+        assertEquals("hello", emitted.single().getString("button"))
+        assertEquals(2, emitted.single().getInt("mouse"))
     }
 
     @Test

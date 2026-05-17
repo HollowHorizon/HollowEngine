@@ -1,9 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+
 sealed interface Modifier {
     fun applyTo(style: MutableUiStyle)
 
     companion object {
+        fun style(location: String, loader: HssResourceLoader = MinecraftHssResourceLoader) =
+            StyleImportModifier(UiStylesheetReference.Resource(location, loader))
+
+        fun style(stylesheet: CompiledHss) =
+            StyleImportModifier(UiStylesheetReference.Compiled(stylesheet))
+
         fun layout(type: LayoutType) = StyleModifier { it.layout = type }
 
         fun size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
@@ -113,6 +121,16 @@ sealed interface Modifier {
 
         fun transition(vararg transitions: UiTransition) = StyleModifier { it.transitions = transitions.toList() }
 
+        fun onClick(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.CLICK, handler)
+
+        fun onDrag(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.DRAG, handler)
+
+        fun emitOnClick(template: UiEventPayloadTemplate, sink: UiEventSink) =
+            onClick { sink.emit(template.resolve(it)) }
+
+        fun emitOnDrag(template: UiEventPayloadTemplate, sink: UiEventSink) =
+            onDrag { sink.emit(template.resolve(it)) }
+
         fun then(vararg modifiers: Modifier) = CompositeModifier(modifiers.toList())
     }
 }
@@ -124,6 +142,29 @@ class StyleModifier(private val writer: (MutableUiStyle) -> Unit) : Modifier {
 data class CompositeModifier(private val values: List<Modifier>) : Modifier {
     override fun applyTo(style: MutableUiStyle) {
         values.forEach { it.applyTo(style) }
+    }
+
+    fun flatten(): List<Modifier> = values.flatMap { modifier ->
+        if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
+    }
+}
+
+data class StyleImportModifier(
+    val reference: UiStylesheetReference,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) = Unit
+}
+
+data class EventModifier(
+    val kind: UiEventKind,
+    val handler: (UiEvent) -> Unit,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) {
+        val input = style.input ?: UiInputStyle()
+        style.input = when (kind) {
+            UiEventKind.CLICK -> input.copy(clickable = true, hoverable = true)
+            UiEventKind.DRAG -> input.copy(draggable = true, hoverable = true)
+        }
     }
 }
 
@@ -147,6 +188,10 @@ fun MutableList<Modifier>.style(): MutableUiStyle {
     val style = MutableUiStyle()
     forEach { it.applyTo(style) }
     return style
+}
+
+fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = flatMap { modifier ->
+    if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
 }
 
 fun String.bound() = UiBoundString(this)

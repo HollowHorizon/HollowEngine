@@ -79,6 +79,11 @@ annotation class HollowUiDsl
 
 @HollowUiDsl
 class UiScope(private val target: UiChildren) {
+    fun Node(node: UiNode): UiNode {
+        target += node
+        return node
+    }
+
     fun Box(
         id: String? = null,
         tags: Iterable<String> = emptyList(),

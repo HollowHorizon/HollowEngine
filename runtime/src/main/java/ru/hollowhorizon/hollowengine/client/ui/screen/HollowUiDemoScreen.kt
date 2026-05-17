@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import kotlin.math.abs
 import kotlin.math.sign
 
@@ -8,9 +10,11 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab = "overview"
     private val freeNodeOffsets = mutableMapOf<Int, DemoOffset>()
     private var layoutGlassOffset = DemoOffset.Zero
+    private var xmlEventText = "XML event log is empty"
 
     override fun buildUi(): UiNode = HollowUi(id = "demo-root") {
         Box(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
+            tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
             tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
             tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
             tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
@@ -23,6 +27,7 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
                 "layout" -> layout()
                 "transforms" -> transforms()
                 "effects" -> effects()
+                "xml" -> xmlDemo()
                 else -> overview()
             }
         }
@@ -252,6 +257,36 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
                 Text("А теперь её видно нормально!", tags = listOf("body", "soft-body"))
             }
         }
+    }
+
+    private fun UiScope.xmlDemo() {
+        val demo = parseUi(
+            """
+            <import element="hollowengine:ui/elements/xml_demo_badge.ui" named="demo_badge" />
+
+            <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
+                <text value="XML + HSS resource" tags="xml-title" />
+                <text value="This panel is built from XML-like markup. The root imports xml_demo.hss from assets." tags="xml-body" />
+                <button id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>Accept</button>
+                <button id="xml-demo-cancel" tags="xml-button secondary" onClick='{event:"xml_demo";button:"cancel";mouse:<it.button>}'>Cancel</button>
+                <demo_badge />
+            </box>
+            """.trimIndent(),
+            UiXmlOptions(
+                eventSink = UiEventSink { tag ->
+                    val event = tag.getString("event")
+                    val button = tag.getString("button")
+                    val mouse = tag.getInt("mouse")
+                    xmlEventText = "event=$event button=$button mouse=$mouse"
+                },
+            ),
+        )
+        demo.children += TextNode(
+            xmlEventText.bound(),
+            tags = listOf("xml-log"),
+            modifiers = listOf(Modifier.position(24.px, 186.px)),
+        )
+        Node(demo)
     }
 }
 

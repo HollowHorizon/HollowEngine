@@ -7,10 +7,13 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
+import ru.hollowhorizon.hollowengine.client.ui.UiEvent
+import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiNodeKeys
 import ru.hollowhorizon.hollowengine.client.ui.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -93,6 +96,21 @@ abstract class HollowUiScreen(
             invalidateUi(immediate = true)
             return true
         }
+        if (hit.node.dispatch(
+                UiEvent(
+                    kind = UiEventKind.CLICK,
+                    node = hit.node,
+                    button = button,
+                    x = mouseX.toFloat(),
+                    y = mouseY.toFloat(),
+                    localX = hit.localX,
+                    localY = hit.localY,
+                )
+            )
+        ) {
+            invalidateUi(immediate = true)
+            return true
+        }
         if (onNodeClicked(hit.node, button)) return true
         return super.mouseClicked(mouseX, mouseY, button)
     }
@@ -122,6 +140,21 @@ abstract class HollowUiScreen(
         val current = frame ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
         val node = current.resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
             ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
+        if (node.dispatch(
+                UiEvent(
+                    kind = UiEventKind.DRAG,
+                    node = node,
+                    button = button,
+                    x = mouseX.toFloat(),
+                    y = mouseY.toFloat(),
+                    deltaX = dx,
+                    deltaY = dy,
+                )
+            )
+        ) {
+            invalidateUi(immediate = true)
+            return true
+        }
         if (onNodeDragged(node, dx, dy)) {
             invalidateUi(immediate = true)
             return true
