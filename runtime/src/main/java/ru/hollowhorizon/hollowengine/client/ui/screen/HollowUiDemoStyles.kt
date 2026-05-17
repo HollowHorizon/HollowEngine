@@ -15,9 +15,10 @@ internal val DemoStyles = compileHss(
 
     .tabs {
         layout: row;
+        align: start;
         gap: 8px;
-        height: 34px;
-        min-size: 0px 34px;
+        height: 47px;
+        min-size: 0px 47px;
     }
 
     .tab {

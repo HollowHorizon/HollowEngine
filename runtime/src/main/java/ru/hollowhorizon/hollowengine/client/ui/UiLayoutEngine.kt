@@ -32,6 +32,7 @@ data class UiLayoutNode(
     val needsFramebuffer: Boolean,
     val scrollOffset: UiScrollOffset = UiScrollOffset.Zero,
     val scrollRange: UiScrollOffset = UiScrollOffset.Zero,
+    val scrollArea: UiRect = content,
 )
 
 data class UiLayoutResult(
@@ -44,6 +45,18 @@ data class UiLayoutResult(
 private const val DirectTextTransformEpsilon = 0.0001f
 private const val EstimatedGlyphWidth = 6f
 private const val EstimatedLineHeight = 10
+private const val ScrollOverflowEpsilon = 0.01f
+
+private data class UiScrollbarReserve(
+    val vertical: Boolean = false,
+    val horizontal: Boolean = false,
+) {
+    val active: Boolean get() = vertical || horizontal
+
+    companion object {
+        val None = UiScrollbarReserve()
+    }
+}
 
 class UiLayoutEngine {
     fun compute(
@@ -52,9 +65,27 @@ class UiLayoutEngine {
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
     ): UiLayoutResult {
+        val initialLayouts = computeLayouts(resolved, width, height, scrollState, emptyMap())
+        val scrollbarReserves = detectScrollbarReserves(resolved, initialLayouts)
+        val layouts = if (scrollbarReserves.isEmpty()) {
+            initialLayouts
+        } else {
+            computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
+        }
+        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState)
+        return UiLayoutResult(resolved.root, rangedLayouts)
+    }
+
+    private fun computeLayouts(
+        resolved: ResolvedUiTree,
+        width: Float,
+        height: Float,
+        scrollState: UiScrollState,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    ): Map<UiNode, UiLayoutNode> {
         val tree = TaffyTree()
         val ids = linkedMapOf<UiNode, NodeId>()
-        buildTaffyTree(resolved.root, resolved, tree, ids, UiSize(width.px, height.px))
+        buildTaffyTree(resolved.root, resolved, tree, ids, scrollbarReserves, UiSize(width.px, height.px))
         tree.computeLayout(
             ids.getValue(resolved.root),
             TaffySize.of(AvailableSpace.definite(width), AvailableSpace.definite(height)),
@@ -73,8 +104,7 @@ class UiLayoutEngine {
             scrollState,
             layouts,
         )
-        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState)
-        return UiLayoutResult(resolved.root, rangedLayouts)
+        return layouts
     }
 
     private fun buildTaffyTree(
@@ -82,10 +112,11 @@ class UiLayoutEngine {
         resolved: ResolvedUiTree,
         tree: TaffyTree,
         ids: MutableMap<UiNode, NodeId>,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         sizeOverride: UiSize? = null,
     ): NodeId {
-        val childIds = node.children.map { buildTaffyTree(it, resolved, tree, ids) }
-        val style = resolved[node].toTaffyStyle(sizeOverride, node is TextNode)
+        val childIds = node.children.map { buildTaffyTree(it, resolved, tree, ids, scrollbarReserves) }
+        val style = resolved[node].toTaffyStyle(sizeOverride, node is TextNode, scrollbarReserves[node] ?: UiScrollbarReserve.None)
         val measure = node.measureFunc()
         val id = when {
             childIds.isNotEmpty() -> tree.newWithChildren(style, childIds)
@@ -119,11 +150,15 @@ class UiLayoutEngine {
         val x = parentRect.x + localX
         val y = parentRect.y + localY
         val rect = UiRect(x, y, layout.size().width, layout.size().height)
-        val content = UiRect(
+        val scrollArea = UiRect(
             x + layout.border().left + layout.padding().left,
             y + layout.border().top + layout.padding().top,
             layout.contentBoxWidth(),
             layout.contentBoxHeight(),
+        )
+        val content = scrollArea.copy(
+            width = (scrollArea.width - layout.scrollbarSize().width).coerceAtLeast(0f),
+            height = (scrollArea.height - layout.scrollbarSize().height).coerceAtLeast(0f),
         )
         val scrollOffset = scrollState.offset(node)
         val clip = if (style.clip || style.input.scrollable) parentClip.intersect(content) else parentClip
@@ -142,7 +177,7 @@ class UiLayoutEngine {
         val needsFramebuffer =
             style.transform.needsFramebuffer || node.requiresTextLayer(transform) || style.filter.requiresLayer || style.backdropFilter.requiresLayer
         layouts[node] =
-            UiLayoutNode(node, rect, content, clip, transform, inputTransform, needsFramebuffer, scrollOffset)
+            UiLayoutNode(node, rect, content, clip, transform, inputTransform, needsFramebuffer, scrollOffset, scrollArea = scrollArea)
 
         for (child in node.children) {
             val baseParentRect =
@@ -213,17 +248,65 @@ class UiLayoutEngine {
                     )
                 }
             }.union() ?: layout.content
+            val viewport = layout.content
+            val hasVerticalScrollbar = layout.scrollArea.width > layout.content.width + ScrollOverflowEpsilon
+            val hasHorizontalScrollbar = layout.scrollArea.height > layout.content.height + ScrollOverflowEpsilon
             val range = UiScrollOffset(
-                x = maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)),
-                y = maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)),
+                x = if (hasHorizontalScrollbar) {
+                    maxOf(0f, childBounds.x + childBounds.width - (viewport.x + viewport.width))
+                } else {
+                    0f
+                },
+                y = if (hasVerticalScrollbar) {
+                    maxOf(0f, childBounds.y + childBounds.height - (viewport.y + viewport.height))
+                } else {
+                    0f
+                },
             )
             val clamped = scrollState.clamp(node, range)
-            result[node] = layout.copy(scrollOffset = clamped, scrollRange = range)
+            val clip = layout.clip?.let { it.intersect(viewport) } ?: viewport
+            result[node] = layout.copy(
+                content = viewport,
+                clip = clip,
+                scrollOffset = clamped,
+                scrollRange = range,
+            )
         }
         return result
     }
 
-    private fun ComputedStyle.toTaffyStyle(sizeOverride: UiSize?, textNode: Boolean): TaffyStyle {
+    private fun detectScrollbarReserves(
+        resolved: ResolvedUiTree,
+        layouts: Map<UiNode, UiLayoutNode>,
+    ): Map<UiNode, UiScrollbarReserve> {
+        val reserves = linkedMapOf<UiNode, UiScrollbarReserve>()
+        for ((node, layout) in layouts) {
+            val style = resolved[node]
+            if (!style.input.scrollable) continue
+            val childBounds = node.children.mapNotNull { child ->
+                layouts[child]?.rect?.let {
+                    UiRect(
+                        x = it.x + layout.scrollOffset.x,
+                        y = it.y + layout.scrollOffset.y,
+                        width = it.width,
+                        height = it.height,
+                    )
+                }
+            }.union() ?: layout.content
+            val reserve = UiScrollbarReserve(
+                vertical = (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
+                horizontal = (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
+            )
+            if (reserve.active) reserves[node] = reserve
+        }
+        return reserves
+    }
+
+    private fun ComputedStyle.toTaffyStyle(
+        sizeOverride: UiSize?,
+        textNode: Boolean,
+        scrollbarReserve: UiScrollbarReserve,
+    ): TaffyStyle {
         val style = TaffyStyle()
         val resolvedSize = sizeOverride ?: size
         style.display = when (layout) {
@@ -255,6 +338,13 @@ class UiLayoutEngine {
         style.justifySelf = justifySelf.toTaffyAlignItems()
         style.justifyContent = justifyContent.toTaffyAlignContent()
         if (textNode) style.overflow = TaffyPoint(Overflow.HIDDEN, Overflow.VISIBLE)
+        if (scrollbarReserve.active) {
+            style.overflow = TaffyPoint(
+                if (scrollbarReserve.horizontal) Overflow.SCROLL else Overflow.HIDDEN,
+                if (scrollbarReserve.vertical) Overflow.SCROLL else Overflow.HIDDEN,
+            )
+            style.scrollbarWidth = UiScrollbarGutter
+        }
         return style
     }
 
@@ -293,6 +383,8 @@ private fun UiRect?.intersect(other: UiRect): UiRect {
     if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
     return UiRect(left, top, right - left, bottom - top)
 }
+
+private fun Float.exceeds(limit: Float): Boolean = this - limit > ScrollOverflowEpsilon
 
 private fun List<UiRect>.union(): UiRect? {
     if (isEmpty()) return null

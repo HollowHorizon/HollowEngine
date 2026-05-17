@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUi
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
@@ -175,6 +176,56 @@ class UiFrameworkTests {
         assertEquals(true, initial.commands.any { it is DrawScrollbarCommand })
         assertEquals(initial.layout[row].rect.y - 24f, scrolled.layout[row].rect.y)
         assertEquals(scrolled.layout[row].rect.y, scrolled.layout[row].worldTransform.transform(0f, 0f).y)
+    }
+
+    @Test
+    fun `scrollbars reserve space outside content viewport`() {
+        lateinit var scroller: BoxNode
+        val root = HollowUi(modifier = Modifier.size(120.px, 80.px)) {
+            scroller = Box(
+                modifier = Modifier.then(
+                    Modifier.size(100.px, 40.px),
+                    Modifier.input(scrollable = true),
+                ),
+            ) {
+                Box(modifier = Modifier.then(Modifier.position(0.px, 90.px), Modifier.size(80.px, 30.px)))
+            }
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 80f)
+        val layout = frame.layout[scroller]
+        val scrollbar = assertIs<DrawScrollbarCommand>(frame.commands.first { it is DrawScrollbarCommand })
+
+        assertTrue(layout.content.width < layout.scrollArea.width, "Expected content viewport to reserve scrollbar space")
+        assertTrue(
+            scrollbar.track.x >= layout.content.x + layout.content.width,
+            "Expected scrollbar track to be outside content viewport",
+        )
+    }
+
+    @Test
+    fun `vertical scrollbar reserve does not force horizontal overflow`() {
+        lateinit var scroller: BoxNode
+        lateinit var row: BoxNode
+        val root = HollowUi(modifier = Modifier.size(120.px, 80.px)) {
+            scroller = Box(
+                modifier = Modifier.then(
+                    Modifier.size(100.px, 40.px),
+                    Modifier.input(scrollable = true),
+                ),
+            ) {
+                row = Box(modifier = Modifier.then(Modifier.position(0.px, 90.px), Modifier.size(100.percent, 30.px)))
+            }
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 80f)
+        val layout = frame.layout[scroller]
+        val scrollbars = frame.commands.filterIsInstance<DrawScrollbarCommand>()
+
+        assertEquals(listOf(ScrollbarOrientation.VERTICAL), scrollbars.map { it.orientation })
+        assertTrue(layout.content.width < layout.scrollArea.width, "Expected vertical scrollbar to reserve content width")
+        assertEquals(layout.content.width, frame.layout[row].rect.width, 0.01f)
+        assertEquals(0f, layout.scrollRange.x)
     }
 
     @Test

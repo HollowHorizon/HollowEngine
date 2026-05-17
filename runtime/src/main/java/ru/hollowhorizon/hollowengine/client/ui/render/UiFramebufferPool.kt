@@ -288,8 +288,9 @@ private data class UiAtlasSize(
 )
 
 private fun reserveAtlasAxis(value: Int, maxTextureSize: Int): Int =
-    min(max(value + value / 2, value + UiAtlasGrowthReservePixels), maxTextureSize)
+    min(max(value * UiAtlasGrowthMultiplier, value + UiAtlasGrowthReservePixels), maxTextureSize)
 
 private const val UiAtlasGuardPixels = 2
-private const val UiAtlasGrowthReservePixels = 256
+private const val UiAtlasGrowthMultiplier = 2
+private const val UiAtlasGrowthReservePixels = 512
 private const val RetiredAtlasFrames = 3

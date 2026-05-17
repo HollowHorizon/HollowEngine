@@ -128,6 +128,10 @@ enum class ScrollbarOrientation {
     VERTICAL, HORIZONTAL
 }
 
+internal const val UiScrollbarThickness = 7f
+internal const val UiScrollbarMargin = 3f
+internal const val UiScrollbarGutter = UiScrollbarThickness + UiScrollbarMargin * 2f
+
 class UiCommandRenderer {
     fun collect(
         resolved: ResolvedUiTree,
@@ -273,19 +277,17 @@ class UiCommandRenderer {
         style: ComputedStyle,
         commands: MutableList<UiRenderCommand>,
     ) {
-        val thickness = 7f
-        val margin = 3f
         val minimumThumb = 18f
-        val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.content.height > thickness + margin * 2f
-        val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.content.width > thickness + margin * 2f
+        val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.scrollArea.height > UiScrollbarGutter
+        val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.scrollArea.width > UiScrollbarGutter
         if (hasVerticalScrollbar) {
-            val horizontalReserve = if (hasHorizontalScrollbar) thickness + margin else 0f
-            val trackHeight = layoutNode.content.height - margin * 2f - horizontalReserve
+            val horizontalReserve = if (hasHorizontalScrollbar) UiScrollbarGutter else 0f
+            val trackHeight = layoutNode.scrollArea.height - UiScrollbarMargin * 2f - horizontalReserve
             if (trackHeight > 0f) {
                 val track = UiRect(
-                    x = layoutNode.content.x + layoutNode.content.width - thickness - margin,
-                    y = layoutNode.content.y + margin,
-                    width = thickness,
+                    x = layoutNode.scrollArea.x + layoutNode.scrollArea.width - UiScrollbarThickness - UiScrollbarMargin,
+                    y = layoutNode.scrollArea.y + UiScrollbarMargin,
+                    width = UiScrollbarThickness,
                     height = trackHeight,
                 )
                 val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
@@ -301,14 +303,14 @@ class UiCommandRenderer {
             }
         }
         if (hasHorizontalScrollbar) {
-            val verticalReserve = if (hasVerticalScrollbar) thickness + margin else 0f
-            val trackWidth = layoutNode.content.width - margin * 2f - verticalReserve
+            val verticalReserve = if (hasVerticalScrollbar) UiScrollbarGutter else 0f
+            val trackWidth = layoutNode.scrollArea.width - UiScrollbarMargin * 2f - verticalReserve
             if (trackWidth > 0f) {
                 val track = UiRect(
-                    x = layoutNode.content.x + margin,
-                    y = layoutNode.content.y + layoutNode.content.height - thickness - margin,
+                    x = layoutNode.scrollArea.x + UiScrollbarMargin,
+                    y = layoutNode.scrollArea.y + layoutNode.scrollArea.height - UiScrollbarThickness - UiScrollbarMargin,
                     width = trackWidth,
-                    height = thickness,
+                    height = UiScrollbarThickness,
                 )
                 val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
                 val thumbWidth = maxOf(minimumThumb, track.width * layoutNode.content.width / contentWidth)
