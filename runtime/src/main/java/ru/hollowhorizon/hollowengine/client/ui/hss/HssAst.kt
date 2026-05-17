@@ -22,7 +22,8 @@ data class HssSelector(
     val tags: Set<String> = emptySet(),
     val states: Set<UiState> = emptySet(),
 ) {
-    val specificity: Int = (if (id != null) 100 else 0) + tags.size * 10 + states.size * 10 + (if (type != null) 1 else 0)
+    val specificity: Int =
+        (if (id != null) 100 else 0) + tags.size * 10 + states.size * 10 + (if (type != null) 1 else 0)
 
     fun matches(node: UiNode): Boolean {
         if (type != null && node.type != type) return false

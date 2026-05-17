@@ -66,7 +66,8 @@ class UiScrollState {
         val current = offset(node)
         val clamped = UiScrollOffset(current.x.coerceIn(0f, range.x), current.y.coerceIn(0f, range.y))
         offsets[key] = clamped
-        targets[key] = (targets[key] ?: clamped).let { UiScrollOffset(it.x.coerceIn(0f, range.x), it.y.coerceIn(0f, range.y)) }
+        targets[key] =
+            (targets[key] ?: clamped).let { UiScrollOffset(it.x.coerceIn(0f, range.x), it.y.coerceIn(0f, range.y)) }
         return clamped
     }
 

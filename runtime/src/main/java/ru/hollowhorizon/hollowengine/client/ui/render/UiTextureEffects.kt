@@ -2,11 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.render
 
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.BufferBuilder
-import com.mojang.blaze3d.vertex.BufferUploader
-import com.mojang.blaze3d.vertex.DefaultVertexFormat
-import com.mojang.blaze3d.vertex.Tesselator
-import com.mojang.blaze3d.vertex.VertexFormat
+import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
@@ -69,7 +65,17 @@ internal object UiTextureEffects {
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
     ) {
-        setTextureShader(filter, textureWidth, textureHeight, width, height, maskRadius, maskPadding, blurDirectionX, blurDirectionY)
+        setTextureShader(
+            filter,
+            textureWidth,
+            textureHeight,
+            width,
+            height,
+            maskRadius,
+            maskPadding,
+            blurDirectionX,
+            blurDirectionY
+        )
         val tessellator = Tesselator.getInstance()
         val segments = subdivisions.coerceAtLeast(1)
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -82,10 +88,62 @@ internal object UiTextureEffects {
             for (xIndex in 0 until segments) {
                 val x0 = xIndex.toFloat() / segments.toFloat()
                 val x1 = (xIndex + 1).toFloat() / segments.toFloat()
-                addTexturedVertex(buffer, quadTransform, placement.width, placement.height, x0, y0, placement.u0, placement.v0, placement.u1, placement.v1, flipY, tint)
-                addTexturedVertex(buffer, quadTransform, placement.width, placement.height, x0, y1, placement.u0, placement.v0, placement.u1, placement.v1, flipY, tint)
-                addTexturedVertex(buffer, quadTransform, placement.width, placement.height, x1, y1, placement.u0, placement.v0, placement.u1, placement.v1, flipY, tint)
-                addTexturedVertex(buffer, quadTransform, placement.width, placement.height, x1, y0, placement.u0, placement.v0, placement.u1, placement.v1, flipY, tint)
+                addTexturedVertex(
+                    buffer,
+                    quadTransform,
+                    placement.width,
+                    placement.height,
+                    x0,
+                    y0,
+                    placement.u0,
+                    placement.v0,
+                    placement.u1,
+                    placement.v1,
+                    flipY,
+                    tint
+                )
+                addTexturedVertex(
+                    buffer,
+                    quadTransform,
+                    placement.width,
+                    placement.height,
+                    x0,
+                    y1,
+                    placement.u0,
+                    placement.v0,
+                    placement.u1,
+                    placement.v1,
+                    flipY,
+                    tint
+                )
+                addTexturedVertex(
+                    buffer,
+                    quadTransform,
+                    placement.width,
+                    placement.height,
+                    x1,
+                    y1,
+                    placement.u0,
+                    placement.v0,
+                    placement.u1,
+                    placement.v1,
+                    flipY,
+                    tint
+                )
+                addTexturedVertex(
+                    buffer,
+                    quadTransform,
+                    placement.width,
+                    placement.height,
+                    x1,
+                    y0,
+                    placement.u0,
+                    placement.v0,
+                    placement.u1,
+                    placement.v1,
+                    flipY,
+                    tint
+                )
             }
         }
         BufferUploader.drawWithShader(buffer.buildOrThrow())
@@ -131,10 +189,14 @@ internal object UiTextureEffects {
         val top = if (flipY) v1 else v0
         val bottom = if (flipY) v0 else v1
         val tint = UiColor.White.withOpacity(opacity)
-        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setUv(u0, top).setColor(tint.red, tint.green, tint.blue, tint.alpha)
-        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setUv(u0, bottom).setColor(tint.red, tint.green, tint.blue, tint.alpha)
-        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setUv(u1, bottom).setColor(tint.red, tint.green, tint.blue, tint.alpha)
-        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setUv(u1, top).setColor(tint.red, tint.green, tint.blue, tint.alpha)
+        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setUv(u0, top)
+            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
+        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setUv(u0, bottom)
+            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
+        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setUv(u1, bottom)
+            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
+        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setUv(u1, top)
+            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 
@@ -166,8 +228,11 @@ internal object UiTextureEffects {
         effectShader.getUniform("Grayscale")?.set(filter.grayscaleAmount())
         effectShader.getUniform("BlurRadius")?.set(filter.blurRadius())
         effectShader.getUniform("BlurDirection")?.set(blurDirectionX, blurDirectionY)
-        effectShader.getUniform("TexelSize")?.set(1f / textureWidth.coerceAtLeast(1f), 1f / textureHeight.coerceAtLeast(1f))
-        val radiusScale = maskScale.takeIf { it > 0f } ?: ((textureWidth / logicalWidth.coerceAtLeast(1f)) + (textureHeight / logicalHeight.coerceAtLeast(1f))) * 0.5f
+        effectShader.getUniform("TexelSize")
+            ?.set(1f / textureWidth.coerceAtLeast(1f), 1f / textureHeight.coerceAtLeast(1f))
+        val radiusScale = maskScale.takeIf { it > 0f }
+            ?: (((textureWidth / logicalWidth.coerceAtLeast(1f)) +
+                    (textureHeight / logicalHeight.coerceAtLeast(1f))) * 0.5f)
         val padU = maskPadding / logicalWidth.coerceAtLeast(1f)
         val padV = maskPadding / logicalHeight.coerceAtLeast(1f)
         val finalMaskU = if (maskU != null) maskU + padU else padU

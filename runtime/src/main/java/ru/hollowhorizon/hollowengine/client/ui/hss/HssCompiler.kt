@@ -1,31 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.hss
 
-import ru.hollowhorizon.hollowengine.client.ui.LayoutType
-import ru.hollowhorizon.hollowengine.client.ui.MutableUiStyle
-import ru.hollowhorizon.hollowengine.client.ui.StyleOrigin
-import ru.hollowhorizon.hollowengine.client.ui.TransitionEasing
-import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
-import ru.hollowhorizon.hollowengine.client.ui.UiBorder
-import ru.hollowhorizon.hollowengine.client.ui.UiBoundString
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
-import ru.hollowhorizon.hollowengine.client.ui.UiGradientStop
-import ru.hollowhorizon.hollowengine.client.ui.UiInsets
-import ru.hollowhorizon.hollowengine.client.ui.UiInputStyle
-import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
-import ru.hollowhorizon.hollowengine.client.ui.UiLength
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.UiPosition
-import ru.hollowhorizon.hollowengine.client.ui.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.UiSize
-import ru.hollowhorizon.hollowengine.client.ui.UiTransition
-import ru.hollowhorizon.hollowengine.client.ui.UiTransform
-import ru.hollowhorizon.hollowengine.client.ui.UiVec3
-import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.*
 
 data class CompiledHss(val rules: List<StyleRule>)
 
@@ -87,10 +62,16 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "border-radius" -> instruction { it.border = (it.border ?: UiBorder()).copy(radius = parseScalar(value)) }
             "shadow", "box-shadow" -> instruction { it.shadows = parseShadows(value) }
             "opacity" -> instruction { it.opacity = value.toFloat() }
-            "translate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(translate = parseVec3(value)) }
+            "translate" -> instruction {
+                it.transform = (it.transform ?: UiTransform()).copy(translate = parseVec3(value))
+            }
+
             "rotate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(rotate = parseVec3(value)) }
             "scale" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(scale = parseScale(value)) }
-            "perspective" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(perspective = parseScalar(value)) }
+            "perspective" -> instruction {
+                it.transform = (it.transform ?: UiTransform()).copy(perspective = parseScalar(value))
+            }
+
             "filter" -> instruction { it.filter = parseFilterChain(value) }
             "backdrop-filter" -> instruction { it.backdropFilter = parseFilterChain(value) }
             "backface-visibility" -> instruction { it.backfaceVisibility = parseBackfaceVisibility(value) }
@@ -327,11 +308,11 @@ private fun parseFilterAmount(value: String): Float {
 private fun looksLikeColor(value: String): Boolean {
     val cleaned = value.trim().lowercase()
     return cleaned.startsWith("rgba(") ||
-        cleaned.startsWith("rgb(") ||
-        cleaned.startsWith("#") ||
-        cleaned == "transparent" ||
-        cleaned == "white" ||
-        cleaned == "black"
+            cleaned.startsWith("rgb(") ||
+            cleaned.startsWith("#") ||
+            cleaned == "transparent" ||
+            cleaned == "white" ||
+            cleaned == "black"
 }
 
 private fun parseBoundFunction(value: String, name: String): UiBoundString? {
@@ -389,6 +370,7 @@ private fun splitTopLevelWhitespace(value: String): List<String> {
                     inString = true
                     quote = char
                 }
+
                 char == '(' -> depth++
                 char == ')' -> depth--
                 char.isWhitespace() && depth == 0 -> {
@@ -424,6 +406,7 @@ private fun splitTopLevel(value: String, delimiter: Char): List<String> {
                     inString = true
                     quote = char
                 }
+
                 '(' -> depth++
                 ')' -> depth--
                 delimiter -> if (depth == 0) {

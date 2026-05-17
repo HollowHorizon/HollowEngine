@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import kotlin.math.max
-import kotlin.math.min
 
 enum class StyleOrigin(val priority: Int) {
     ENGINE_DEFAULTS(0),
@@ -168,23 +167,6 @@ data class ComputedStyle(
     val imageFit: UiImageFit,
     val transitions: List<UiTransition>,
 ) {
-    fun interpolate(to: ComputedStyle, progress: Float): ComputedStyle {
-        val clamped = progress.coerceIn(0f, 1f)
-        return to.copy(
-            background = background.interpolate(to.background, clamped),
-            foreground = foreground.interpolate(to.foreground, clamped),
-            shadows = shadows.interpolate(to.shadows, clamped),
-            opacity = opacity + (to.opacity - opacity) * clamped,
-            filter = filter.interpolate(to.filter, clamped),
-            backdropFilter = backdropFilter.interpolate(to.backdropFilter, clamped),
-            transform = UiTransform(
-                translate = transform.translate.interpolate(to.transform.translate, clamped),
-                rotate = transform.rotate.interpolate(to.transform.rotate, clamped),
-                scale = transform.scale.interpolate(to.transform.scale, clamped),
-                perspective = transform.perspective + (to.transform.perspective - transform.perspective) * clamped,
-            ),
-        )
-    }
 
     fun interpolate(to: ComputedStyle, progress: TransitionProgress): ComputedStyle {
         return to.copy(
@@ -218,15 +200,15 @@ data class TransitionProgress(
 ) {
     fun complete(): Boolean {
         return background >= 1f &&
-            foreground >= 1f &&
-            shadow >= 1f &&
-            opacity >= 1f &&
-            filter >= 1f &&
-            backdropFilter >= 1f &&
-            translate >= 1f &&
-            rotate >= 1f &&
-            scale >= 1f &&
-            perspective >= 1f
+                foreground >= 1f &&
+                shadow >= 1f &&
+                opacity >= 1f &&
+                filter >= 1f &&
+                backdropFilter >= 1f &&
+                translate >= 1f &&
+                rotate >= 1f &&
+                scale >= 1f &&
+                perspective >= 1f
     }
 }
 
@@ -292,7 +274,6 @@ data class UiShadow(
         inset = if (progress >= 1f) to.inset else inset,
     )
 
-    fun visualOutset(): Float = if (inset || color.alpha <= 0f) 0f else max(0f, blur + spread)
 }
 
 enum class UiBackfaceVisibility {
@@ -305,9 +286,11 @@ data class UiFilterChain(
 ) {
     val requiresLayer: Boolean get() = effects.any { it.requiresLayer }
 
-    fun grayscaleAmount(): Float = effects.filterIsInstance<UiFilterEffect.Grayscale>().sumOf { it.amount.toDouble() }.toFloat().coerceIn(0f, 1f)
+    fun grayscaleAmount(): Float =
+        effects.filterIsInstance<UiFilterEffect.Grayscale>().sumOf { it.amount.toDouble() }.toFloat().coerceIn(0f, 1f)
 
-    fun blurRadius(): Float = effects.filterIsInstance<UiFilterEffect.Blur>().sumOf { it.radius.toDouble() }.toFloat().coerceAtLeast(0f)
+    fun blurRadius(): Float =
+        effects.filterIsInstance<UiFilterEffect.Blur>().sumOf { it.radius.toDouble() }.toFloat().coerceAtLeast(0f)
 
     fun withoutBlur(): UiFilterChain = UiFilterChain(effects.filterNot { it is UiFilterEffect.Blur })
 
@@ -394,7 +377,8 @@ class UiTransitionState {
             return target
         }
         val startStyle = starts[key] ?: current
-        val transitions = target.transitions.filter { it.property in TransitionProperties && startStyle.changed(it.property, target) }
+        val transitions =
+            target.transitions.filter { it.property in TransitionProperties && startStyle.changed(it.property, target) }
         if (transitions.isEmpty()) return target.also {
             rendered[key] = target
             targets[key] = target
@@ -466,4 +450,3 @@ class UiTransitionState {
     }
 }
 
-fun clampToByte(value: Float): Int = min(255, max(0, (value * 255f).toInt()))

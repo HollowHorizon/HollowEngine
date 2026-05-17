@@ -155,12 +155,12 @@ data class UiTransform(
 
     fun matrix(): UiMatrix4 {
         var result = UiMatrix4.identity()
-        if (perspective != 0f) result = result * UiMatrix4.perspective(perspective)
-        result = result * UiMatrix4.translation(translate.x, translate.y, translate.z)
-        result = result * UiMatrix4.rotationX(rotate.x.degreesToRadians())
-        result = result * UiMatrix4.rotationY(rotate.y.degreesToRadians())
-        result = result * UiMatrix4.rotationZ(rotate.z.degreesToRadians())
-        result = result * UiMatrix4.scale(scale.x, scale.y, scale.z)
+        if (perspective != 0f) result *= UiMatrix4.perspective(perspective)
+        result *= UiMatrix4.translation(translate.x, translate.y, translate.z)
+        result *= UiMatrix4.rotationX(rotate.x.degreesToRadians())
+        result *= UiMatrix4.rotationY(rotate.y.degreesToRadians())
+        result *= UiMatrix4.rotationZ(rotate.z.degreesToRadians())
+        result *= UiMatrix4.scale(scale.x, scale.y, scale.z)
         return result
     }
 }

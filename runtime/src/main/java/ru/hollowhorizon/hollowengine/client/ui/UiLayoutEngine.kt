@@ -4,14 +4,7 @@ import dev.vfyjxf.taffy.geometry.FloatSize
 import dev.vfyjxf.taffy.geometry.TaffyPoint
 import dev.vfyjxf.taffy.geometry.TaffyRect
 import dev.vfyjxf.taffy.geometry.TaffySize
-import dev.vfyjxf.taffy.style.AlignContent
-import dev.vfyjxf.taffy.style.AlignItems
-import dev.vfyjxf.taffy.style.AvailableSpace
-import dev.vfyjxf.taffy.style.FlexDirection
-import dev.vfyjxf.taffy.style.Overflow
-import dev.vfyjxf.taffy.style.TaffyDisplay
-import dev.vfyjxf.taffy.style.TaffyPosition
-import dev.vfyjxf.taffy.style.TaffyStyle
+import dev.vfyjxf.taffy.style.*
 import dev.vfyjxf.taffy.tree.NodeId
 import dev.vfyjxf.taffy.tree.TaffyTree
 import dev.vfyjxf.taffy.util.MeasureFunc
@@ -89,7 +82,7 @@ class UiLayoutEngine {
     ): NodeId {
         val childIds = node.children.map { buildTaffyTree(it, resolved, tree, ids) }
         val style = resolved[node].toTaffyStyle(sizeOverride, node is TextNode)
-        val measure = node.measureFunc(resolved[node])
+        val measure = node.measureFunc()
         val id = when {
             childIds.isNotEmpty() -> tree.newWithChildren(style, childIds)
             measure != null -> tree.newLeafWithMeasure(style, measure)
@@ -132,24 +125,24 @@ class UiLayoutEngine {
         val clip = if (style.clip || style.input.scrollable) parentClip.intersect(content) else parentClip
         val transformOrigin = UiMatrix4.translation(rect.width * 0.5f, rect.height * 0.5f, 0f)
         val transformOriginInverse = UiMatrix4.translation(-rect.width * 0.5f, -rect.height * 0.5f, 0f)
-        val transform = parentTransform *
-            UiMatrix4.translation(localX, localY, position.z) *
-            transformOrigin *
-            style.transform.matrix() *
-            transformOriginInverse
-        val inputTransform = parentInputTransform *
-            UiMatrix4.translation(localX, localY, position.z) *
-            transformOrigin *
-            style.transform.matrix() *
-            transformOriginInverse
-        val needsFramebuffer = style.transform.needsFramebuffer ||
-            node.requiresTextLayer(transform) ||
-            style.filter.requiresLayer ||
-            style.backdropFilter.requiresLayer
-        layouts[node] = UiLayoutNode(node, rect, content, clip, transform, inputTransform, needsFramebuffer, scrollOffset)
+        val transform = parentTransform * UiMatrix4.translation(
+            localX,
+            localY,
+            position.z
+        ) * transformOrigin * style.transform.matrix() * transformOriginInverse
+        val inputTransform = parentInputTransform * UiMatrix4.translation(
+            localX,
+            localY,
+            position.z
+        ) * transformOrigin * style.transform.matrix() * transformOriginInverse
+        val needsFramebuffer =
+            style.transform.needsFramebuffer || node.requiresTextLayer(transform) || style.filter.requiresLayer || style.backdropFilter.requiresLayer
+        layouts[node] =
+            UiLayoutNode(node, rect, content, clip, transform, inputTransform, needsFramebuffer, scrollOffset)
 
         for (child in node.children) {
-            val baseParentRect = if (style.layout == LayoutType.STACK || style.layout == LayoutType.FREE) content else rect
+            val baseParentRect =
+                if (style.layout == LayoutType.STACK || style.layout == LayoutType.FREE) content else rect
             val nextParentRect = if (style.input.scrollable) {
                 baseParentRect.copy(x = baseParentRect.x - scrollOffset.x, y = baseParentRect.y - scrollOffset.y)
             } else {
@@ -192,10 +185,9 @@ class UiLayoutEngine {
         val yAxis = transform(0f, 1f, 0f)
         val xDelta = UiVec3(xAxis.x - origin.x, xAxis.y - origin.y, xAxis.z - origin.z)
         val yDelta = UiVec3(yAxis.x - origin.x, yAxis.y - origin.y, yAxis.z - origin.z)
-        return abs(xDelta.y) <= DirectTextTransformEpsilon &&
-            abs(xDelta.z) <= DirectTextTransformEpsilon &&
-            abs(yDelta.x) <= DirectTextTransformEpsilon &&
-            abs(yDelta.z) <= DirectTextTransformEpsilon
+        return abs(xDelta.y) <= DirectTextTransformEpsilon && abs(xDelta.z) <= DirectTextTransformEpsilon && abs(yDelta.x) <= DirectTextTransformEpsilon && abs(
+            yDelta.z
+        ) <= DirectTextTransformEpsilon
     }
 
     private fun applyScrollRanges(
@@ -262,20 +254,20 @@ class UiLayoutEngine {
         return style
     }
 
-    private fun UiNode.measureFunc(style: ComputedStyle): MeasureFunc? {
+    private fun UiNode.measureFunc(): MeasureFunc? {
         if (this !is TextNode) return null
         return MeasureFunc { known: FloatSize, available: TaffySize<AvailableSpace> ->
             val availableWidth = available.width.intoOption().takeIf { !it.isNaN() }
-            val width = known.width.takeIf { !it.isNaN() } ?: availableWidth ?: text.template.length * 6f
+            val width = known.width.takeIf { !it.isNaN() } ?: availableWidth ?: (text.template.length * 6f)
             val lines = maxOf(1, ceil(text.template.length * 6f / width.coerceAtLeast(1f)).toInt())
-            val height = known.height.takeIf { !it.isNaN() } ?: lines * 10f
+            val height = known.height.takeIf { !it.isNaN() } ?: (lines * 10f)
             FloatSize(width, height)
         }
     }
 
 }
 
-private fun UiRect?.intersect(other: UiRect): UiRect? {
+private fun UiRect?.intersect(other: UiRect): UiRect {
     if (this == null) return other
     val left = maxOf(x, other.x)
     val top = maxOf(y, other.y)
@@ -308,7 +300,8 @@ private fun UiAlign.toTaffyAlignItems(): AlignItems = when (this) {
     UiAlign.STRETCH -> AlignItems.STRETCH
     UiAlign.SPACE_BETWEEN,
     UiAlign.SPACE_AROUND,
-    UiAlign.SPACE_EVENLY -> AlignItems.AUTO
+    UiAlign.SPACE_EVENLY,
+        -> AlignItems.AUTO
 }
 
 private fun UiAlign.toTaffyAlignContent(): AlignContent = when (this) {

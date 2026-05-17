@@ -125,8 +125,7 @@ data class DrawScrollbarCommand(
 ) : UiRenderCommand
 
 enum class ScrollbarOrientation {
-    VERTICAL,
-    HORIZONTAL
+    VERTICAL, HORIZONTAL
 }
 
 class UiCommandRenderer {
@@ -213,6 +212,7 @@ class UiCommandRenderer {
                 contentFilter,
                 style.backfaceVisibility,
             )
+
             is ImageNode -> commands += DrawImageCommand(
                 node,
                 layoutNode.content,
@@ -224,6 +224,7 @@ class UiCommandRenderer {
                 contentFilter,
                 style.backfaceVisibility,
             )
+
             is ItemNode -> commands += DrawItemCommand(
                 node,
                 layoutNode.content,
@@ -233,6 +234,7 @@ class UiCommandRenderer {
                 contentFilter,
                 style.backfaceVisibility,
             )
+
             is EntityNode -> commands += DrawEntityCommand(
                 node,
                 layoutNode.content,
@@ -243,6 +245,7 @@ class UiCommandRenderer {
                 contentFilter,
                 style.backfaceVisibility,
             )
+
             is CanvasNode -> commands += DrawCanvasCommand(
                 node,
                 layoutNode.content,
@@ -254,9 +257,7 @@ class UiCommandRenderer {
                 style.backfaceVisibility,
             )
         }
-        node.children
-            .sortedBy { resolved[it].layer }
-            .forEach { collectNode(it, resolved, layout, bindings, commands) }
+        node.children.sortedBy { resolved[it].layer }.forEach { collectNode(it, resolved, layout, bindings, commands) }
         if (pushedClip) commands += PopClipCommand(node)
         if (style.input.scrollable) {
             appendScrollbars(node, layoutNode, style, commands)
@@ -284,7 +285,13 @@ class UiCommandRenderer {
             val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
             val thumbHeight = maxOf(minimumThumb, track.height * layoutNode.content.height / contentHeight)
             val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
-            commands += DrawScrollbarCommand(node, track, track.copy(y = thumbY, height = thumbHeight), ScrollbarOrientation.VERTICAL, style.opacity)
+            commands += DrawScrollbarCommand(
+                node,
+                track,
+                track.copy(y = thumbY, height = thumbHeight),
+                ScrollbarOrientation.VERTICAL,
+                style.opacity
+            )
         }
         if (layoutNode.scrollRange.x > 0f && layoutNode.content.width > thickness) {
             val track = UiRect(
@@ -296,7 +303,13 @@ class UiCommandRenderer {
             val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
             val thumbWidth = maxOf(minimumThumb, track.width * layoutNode.content.width / contentWidth)
             val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
-            commands += DrawScrollbarCommand(node, track, track.copy(x = thumbX, width = thumbWidth), ScrollbarOrientation.HORIZONTAL, style.opacity)
+            commands += DrawScrollbarCommand(
+                node,
+                track,
+                track.copy(x = thumbX, width = thumbWidth),
+                ScrollbarOrientation.HORIZONTAL,
+                style.opacity
+            )
         }
     }
 }

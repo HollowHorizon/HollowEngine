@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import java.util.WeakHashMap
+import java.util.*
 
 object UiNodeKeys {
     private val keys = WeakHashMap<UiNode, String>()

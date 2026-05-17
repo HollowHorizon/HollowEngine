@@ -52,8 +52,7 @@ class UiStyleResolver(
         target: MutableUiStyle,
         origin: StyleOrigin,
     ) {
-        rules.asSequence()
-            .filter { it.origin == origin && it.matches(node) }
+        rules.asSequence().filter { it.origin == origin && it.matches(node) }
             .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
             .forEach { it.patch.apply(target, bindings) }
     }
@@ -69,10 +68,12 @@ class UiStyleResolver(
                 style.size = UiSize(UiLength.Auto, UiLength.Auto)
                 style.minSize = UiSize(0.px, 0.px)
             }
+
             UiNodeType.IMAGE.typeName,
             UiNodeType.ITEM.typeName,
             UiNodeType.ENTITY.typeName,
-            UiNodeType.CANVAS.typeName -> {
+            UiNodeType.CANVAS.typeName,
+                -> {
                 style.size = UiSize(16.px, 16.px)
             }
         }

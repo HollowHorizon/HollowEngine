@@ -37,6 +37,7 @@ class HollowUiRuntime(
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset = scrollState.scroll(node, deltaX, deltaY)
 
-    fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset = scrollState.setImmediate(node, x, y)
+    fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset =
+        scrollState.setImmediate(node, x, y)
 
 }

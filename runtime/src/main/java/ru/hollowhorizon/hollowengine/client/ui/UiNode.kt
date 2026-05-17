@@ -11,7 +11,9 @@ interface UiNode {
     val children: UiChildren
 }
 
-class UiChildren : MutableList<UiNode> by mutableListOf()
+typealias UiChildren = MutableList<UiNode>
+
+fun UiChildren(): UiChildren = mutableListOf()
 
 open class BaseUiNode(
     final override val type: String,
