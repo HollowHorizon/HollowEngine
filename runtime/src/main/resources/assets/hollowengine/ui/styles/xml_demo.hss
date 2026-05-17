@@ -23,8 +23,7 @@
 .xml-button {
     position: 24px 108px;
     layout: column;
-    align: center;
-    justify: center;
+    align-items: center center;
     size: 104px 34px;
     padding: 8px;
     background: rgba(72, 150, 142, 0.96);

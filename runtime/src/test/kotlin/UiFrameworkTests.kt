@@ -15,11 +15,13 @@ import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
 import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
 import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
 import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
+import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
@@ -33,11 +35,85 @@ import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class UiFrameworkTests {
+    @Test
+    fun `align positions element inside parent on both axes`() {
+        lateinit var child: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(40.px, 20.px),
+            ),
+        ) {
+            child = Box(
+                modifier = Modifier.then(
+                    Modifier.size(10.px, 6.px),
+                    Modifier.align(UiAlign.CENTER, UiAlign.CENTER),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 40f, 20f)
+        val rect = frame.layout[child].rect
+
+        assertEquals(15f, rect.x)
+        assertEquals(7f, rect.y)
+    }
+
+    @Test
+    fun `align keeps margin as visual offset from aligned edge`() {
+        lateinit var child: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(40.px, 20.px),
+            ),
+        ) {
+            child = Box(
+                modifier = Modifier.then(
+                    Modifier.size(10.px, 6.px),
+                    Modifier.margin(5.px, 0.px, 0.px, 0.px),
+                    Modifier.align(UiAlign.START, UiAlign.CENTER),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 40f, 20f)
+        val rect = frame.layout[child].rect
+
+        assertEquals(5f, rect.x)
+        assertEquals(7f, rect.y)
+    }
+
+    @Test
+    fun `aspect ratio resolves auto side from proportional height`() {
+        lateinit var avatar: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(200.px, 100.px),
+            ),
+        ) {
+            avatar = Box(
+                modifier = Modifier.then(
+                    Modifier.size(UiLength.Auto, 80.percent),
+                    Modifier.aspectRatio(1f),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 200f, 100f)
+        val rect = frame.layout[avatar].rect
+
+        assertEquals(80f, rect.width)
+        assertEquals(80f, rect.height)
+    }
+
     @Test
     fun `hss selectors resolve state rules over base rules`() {
         val stylesheet = compileHss(
@@ -542,6 +618,46 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `background images pass fit mode into draw box commands`() {
+        val stylesheet = compileHss(
+            """
+            .avatar {
+                size: 40px 40px;
+                background: image("hollowengine:textures/gui/icons/logo.png");
+                fit: contain;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("avatar"))
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 80f, 80f)
+        val draw = assertIs<DrawBoxCommand>(frame.commands.first { it is DrawBoxCommand })
+
+        assertIs<UiResolvedPaint.Image>(draw.paint)
+        assertEquals(UiImageFit.CONTAIN, draw.fit)
+    }
+
+    @Test
+    fun `text wrap style is passed into draw text commands`() {
+        val stylesheet = compileHss(
+            """
+            .label {
+                width: 40px;
+                text-wrap: nowrap;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi {
+            Text("Long label value", tags = listOf("label"))
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 40f)
+        val text = assertIs<DrawTextCommand>(frame.commands.first { it is DrawTextCommand })
+
+        assertFalse(text.wrap)
+    }
+
+    @Test
     fun `filters render the entire subtree through a layer`() {
         val stylesheet = compileHss(
             """
@@ -659,7 +775,7 @@ class UiFrameworkTests {
         )
 
         val frame = HollowUiRuntime().frame(root, 180f, 120f)
-        val hit = frame.hitTest(70f, 55f)
+        val hit = frame.hitTest(20f, 30f)
 
         assertEquals(root, hit?.node)
     }

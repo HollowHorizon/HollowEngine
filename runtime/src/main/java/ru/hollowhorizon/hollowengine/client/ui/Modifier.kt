@@ -23,6 +23,8 @@ sealed interface Modifier {
         fun maxSize(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
             StyleModifier { it.maxSize = UiSize(width, height) }
 
+        fun aspectRatio(value: Float) = StyleModifier { it.aspectRatio = value }
+
         fun padding(value: UiLength) = StyleModifier { it.padding = UiInsets.all(value) }
 
         fun padding(horizontal: UiLength, vertical: UiLength) =
@@ -41,15 +43,19 @@ sealed interface Modifier {
 
         fun gap(value: UiLength) = StyleModifier { it.gap = value }
 
-        fun align(self: UiAlign = UiAlign.AUTO, children: UiAlign = UiAlign.AUTO, content: UiAlign = UiAlign.AUTO) = StyleModifier {
-            it.alignSelf = self
-            it.alignItems = children
-            it.justifyContent = content
+        fun align(horizontal: UiAlign = UiAlign.AUTO, vertical: UiAlign = UiAlign.AUTO) = StyleModifier {
+            it.alignHorizontal = horizontal
+            it.alignVertical = vertical
+        }
+
+        fun alignItems(horizontal: UiAlign = UiAlign.AUTO, vertical: UiAlign = UiAlign.AUTO) = StyleModifier {
+            it.alignItemsHorizontal = horizontal
+            it.alignItemsVertical = vertical
         }
 
         fun alignChildren(items: UiAlign = UiAlign.AUTO, content: UiAlign = UiAlign.AUTO) = StyleModifier {
-            it.alignItems = items
-            it.justifyContent = content
+            it.alignItemsHorizontal = items
+            it.alignItemsVertical = content
         }
 
         fun grow(value: Float = 1f) = StyleModifier { it.grow = value }
@@ -118,6 +124,8 @@ sealed interface Modifier {
         fun clip(enabled: Boolean = true) = StyleModifier { it.clip = enabled }
 
         fun layer(value: Int) = StyleModifier { it.layer = value }
+
+        fun textWrap(enabled: Boolean = true) = StyleModifier { it.textWrap = enabled }
 
         fun transition(vararg transitions: UiTransition) = StyleModifier { it.transitions = transitions.toList() }
 

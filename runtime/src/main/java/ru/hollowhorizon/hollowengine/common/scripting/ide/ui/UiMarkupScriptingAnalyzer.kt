@@ -34,6 +34,7 @@ object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
         return when (context.kind) {
             UiCompletionKind.ELEMENT -> elementCompletions(text, context.prefix)
             UiCompletionKind.ATTRIBUTE -> attributeCompletions(context.elementName, context.prefix)
+            UiCompletionKind.ATTRIBUTE_VALUE -> valueCompletions(context.attributeName, context.prefix)
             UiCompletionKind.CLOSING_ELEMENT -> closingElementCompletion(text, offset, context.prefix)
         }
     }
@@ -141,6 +142,24 @@ object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
         return listOf(elementCompletion(tag, "$tag>"))
     }
 
+    private fun valueCompletions(attributeName: String, prefix: String): List<CompletionItem> {
+        return UiLanguageCatalog.valuesFor(attributeName)
+            .asSequence()
+            .filter { it.startsWith(prefix, ignoreCase = true) }
+            .map { value ->
+                declarationCompletionItem {
+                    show = value
+                    insert = value
+                    name = value
+                    tag = CompletionItemTag.PROPERTY
+                    fqName = null
+                    tail = "value"
+                    middle = null
+                }
+            }
+            .toList()
+    }
+
     private fun elementCompletion(show: String, insert: String): CompletionItem {
         return declarationCompletionItem {
             this.show = show
@@ -208,6 +227,7 @@ object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
 private enum class UiCompletionKind {
     ELEMENT,
     ATTRIBUTE,
+    ATTRIBUTE_VALUE,
     CLOSING_ELEMENT,
 }
 
@@ -215,6 +235,7 @@ private data class UiCompletionContext(
     val kind: UiCompletionKind,
     val elementName: String,
     val prefix: String,
+    val attributeName: String = "",
 ) {
     companion object {
         fun from(text: String, offset: Int): UiCompletionContext? {
@@ -225,7 +246,9 @@ private data class UiCompletionContext(
             if (tagEnd > tagStart) return null
 
             val tagText = text.substring(tagStart + 1, safeOffset)
-            if (isInsideQuotedAttribute(tagText)) return null
+            if (isInsideQuotedAttribute(tagText)) {
+                return quotedAttributeContext(tagText)
+            }
             if (tagText.startsWith("/")) {
                 val prefix = tagText.drop(1).takeLastWhile(::isNameChar)
                 return UiCompletionContext(UiCompletionKind.CLOSING_ELEMENT, "", prefix)
@@ -238,7 +261,21 @@ private data class UiCompletionContext(
             }
             val currentToken = trimmed.substringAfterLast(' ').substringAfterLast('\t')
             if ('=' in currentToken || currentToken.startsWith("/")) return null
+            if (prefix.isEmpty()) return null
             return UiCompletionContext(UiCompletionKind.ATTRIBUTE, elementName, prefix)
+        }
+
+        private fun quotedAttributeContext(tagText: String): UiCompletionContext? {
+            val quoteIndex = tagText.indexOfLast { it == '"' || it == '\'' }
+            if (quoteIndex < 0) return null
+            val beforeQuote = tagText.substring(0, quoteIndex)
+            val equals = beforeQuote.lastIndexOf('=')
+            if (equals < 0) return null
+            val attribute = beforeQuote.substring(0, equals).trimEnd().takeLastWhile(::isNameChar)
+            if (attribute.isEmpty()) return null
+            val prefix = tagText.substring(quoteIndex + 1).takeLastWhile { isValuePrefixChar(it) }
+            if (UiLanguageCatalog.valuesFor(attribute).isEmpty()) return null
+            return UiCompletionContext(UiCompletionKind.ATTRIBUTE_VALUE, "", prefix, attribute)
         }
 
         private fun isInsideQuotedAttribute(tagText: String): Boolean {
@@ -260,5 +297,9 @@ private data class UiCompletionContext(
         }
 
         private fun isNameChar(char: Char): Boolean = char.isLetterOrDigit() || char == '_' || char == '-' || char == ':' || char == '.'
+
+        private fun isValuePrefixChar(char: Char): Boolean {
+            return char.isLetterOrDigit() || char in "-_#.%/"
+        }
     }
 }

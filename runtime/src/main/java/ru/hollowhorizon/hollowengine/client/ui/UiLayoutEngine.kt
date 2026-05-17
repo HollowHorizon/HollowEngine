@@ -85,7 +85,7 @@ class UiLayoutEngine {
     ): Map<UiNode, UiLayoutNode> {
         val tree = TaffyTree()
         val ids = linkedMapOf<UiNode, NodeId>()
-        buildTaffyTree(resolved.root, resolved, tree, ids, scrollbarReserves, UiSize(width.px, height.px))
+        buildTaffyTree(resolved.root, resolved, tree, ids, scrollbarReserves, null, UiSize(width.px, height.px))
         tree.computeLayout(
             ids.getValue(resolved.root),
             TaffySize.of(AvailableSpace.definite(width), AvailableSpace.definite(height)),
@@ -102,6 +102,7 @@ class UiLayoutEngine {
             UiMatrix4.identity(),
             UiMatrix4.identity(),
             scrollState,
+            null,
             layouts,
         )
         return layouts
@@ -113,11 +114,18 @@ class UiLayoutEngine {
         tree: TaffyTree,
         ids: MutableMap<UiNode, NodeId>,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        parentLayout: LayoutType?,
         sizeOverride: UiSize? = null,
     ): NodeId {
-        val childIds = node.children.map { buildTaffyTree(it, resolved, tree, ids, scrollbarReserves) }
-        val style = resolved[node].toTaffyStyle(sizeOverride, node is TextNode, scrollbarReserves[node] ?: UiScrollbarReserve.None)
-        val measure = node.measureFunc()
+        val nodeStyle = resolved[node]
+        val childIds = node.children.map { buildTaffyTree(it, resolved, tree, ids, scrollbarReserves, nodeStyle.layout) }
+        val style = nodeStyle.toTaffyStyle(
+            sizeOverride,
+            node is TextNode,
+            scrollbarReserves[node] ?: UiScrollbarReserve.None,
+            parentLayout,
+        )
+        val measure = node.measureFunc(resolved)
         val id = when {
             childIds.isNotEmpty() -> tree.newWithChildren(style, childIds)
             measure != null -> tree.newLeafWithMeasure(style, measure)
@@ -138,6 +146,7 @@ class UiLayoutEngine {
         parentTransform: UiMatrix4,
         parentInputTransform: UiMatrix4,
         scrollState: UiScrollState,
+        parentStyle: ComputedStyle?,
         layouts: MutableMap<UiNode, UiLayoutNode>,
     ) {
         val style = resolved[node]
@@ -145,11 +154,20 @@ class UiLayoutEngine {
         val flowX = if (useFlowOffset) layout.location().x else 0f
         val flowY = if (useFlowOffset) layout.location().y else 0f
         val position = style.position.resolve(parentRect.width, parentRect.height)
-        val localX = flowX + position.x
-        val localY = flowY + position.y
+        val width = layout.size().width
+        val height = layout.size().height
+        val margin = style.margin.resolve(parentRect.width, parentRect.height)
+        val alignedX = style.effectiveAlignHorizontal(parentStyle)
+            ?.let { margin.left + (parentRect.width - width - margin.left - margin.right) * it.originFactor() }
+            ?: flowX
+        val alignedY = style.effectiveAlignVertical(parentStyle)
+            ?.let { margin.top + (parentRect.height - height - margin.top - margin.bottom) * it.originFactor() }
+            ?: flowY
+        val localX = alignedX + position.x
+        val localY = alignedY + position.y
         val x = parentRect.x + localX
         val y = parentRect.y + localY
-        val rect = UiRect(x, y, layout.size().width, layout.size().height)
+        val rect = UiRect(x, y, width, height)
         val scrollArea = UiRect(
             x + layout.border().left + layout.padding().left,
             y + layout.border().top + layout.padding().top,
@@ -162,8 +180,9 @@ class UiLayoutEngine {
         )
         val scrollOffset = scrollState.offset(node)
         val clip = if (style.clip || style.input.scrollable) parentClip.intersect(content) else parentClip
-        val transformOrigin = UiMatrix4.translation(rect.width * 0.5f, rect.height * 0.5f, 0f)
-        val transformOriginInverse = UiMatrix4.translation(-rect.width * 0.5f, -rect.height * 0.5f, 0f)
+        val origin = style.transformOrigin(parentStyle, rect.width, rect.height)
+        val transformOrigin = UiMatrix4.translation(origin.x, origin.y, 0f)
+        val transformOriginInverse = UiMatrix4.translation(-origin.x, -origin.y, 0f)
         val transform = parentTransform * UiMatrix4.translation(
             localX,
             localY,
@@ -209,6 +228,7 @@ class UiLayoutEngine {
                 nextParentTransform,
                 nextParentInputTransform,
                 scrollState,
+                style,
                 layouts,
             )
         }
@@ -306,6 +326,7 @@ class UiLayoutEngine {
         sizeOverride: UiSize?,
         textNode: Boolean,
         scrollbarReserve: UiScrollbarReserve,
+        parentLayout: LayoutType?,
     ): TaffyStyle {
         val style = TaffyStyle()
         val resolvedSize = sizeOverride ?: size
@@ -317,6 +338,7 @@ class UiLayoutEngine {
         style.flexDirection = if (layout == LayoutType.ROW) FlexDirection.ROW else FlexDirection.COLUMN
         style.position = TaffyPosition.RELATIVE
         style.size = TaffySize.of(resolvedSize.width.toTaffyDimension(), resolvedSize.height.toTaffyDimension())
+        aspectRatio?.let { style.aspectRatio = it }
         style.minSize = TaffySize.of(minSize.width.toTaffyDimension(), minSize.height.toTaffyDimension())
         style.maxSize = TaffySize.of(maxSize.width.toTaffyDimension(), maxSize.height.toTaffyDimension())
         style.padding = TaffyRect.of(
@@ -333,10 +355,11 @@ class UiLayoutEngine {
         )
         style.gap = TaffySize.of(gap.toLengthPercentage(), gap.toLengthPercentage())
         style.flexGrow = grow
-        style.alignItems = alignItems.toTaffyAlignItems()
-        style.alignSelf = alignSelf.toTaffyAlignItems()
+        val axisAlignment = resolveChildAlignment()
+        style.alignItems = axisAlignment.items.toTaffyAlignItems()
+        style.alignSelf = crossAxisSelfAlignment(parentLayout).toTaffyAlignItems()
         style.justifySelf = justifySelf.toTaffyAlignItems()
-        style.justifyContent = justifyContent.toTaffyAlignContent()
+        style.justifyContent = axisAlignment.content.toTaffyAlignContent()
         if (textNode) style.overflow = TaffyPoint(Overflow.HIDDEN, Overflow.VISIBLE)
         if (scrollbarReserve.active) {
             style.overflow = TaffyPoint(
@@ -348,20 +371,26 @@ class UiLayoutEngine {
         return style
     }
 
-    private fun UiNode.measureFunc(): MeasureFunc? {
+    private fun UiNode.measureFunc(resolved: ResolvedUiTree): MeasureFunc? {
         if (this !is TextNode) return null
         val textNode = this
         return MeasureFunc { known: FloatSize, available: TaffySize<AvailableSpace> ->
+            val style = resolved[textNode]
             val availableWidth = available.width.intoOption().takeIf { !it.isNaN() }
             val font = Minecraft.getInstance()?.font
             val naturalWidth = font?.width(textNode.text.template)?.toFloat() ?: estimateTextWidth(textNode.text.template)
             val width = known.width.takeIf { !it.isNaN() }
-                ?: availableWidth?.let { minOf(naturalWidth, it) }
+                ?: availableWidth?.takeIf { style.textWrap }?.let { minOf(naturalWidth, it) }
                 ?: naturalWidth
-            val wrapWidth = ceil(width).toInt().coerceAtLeast(1)
-            val lines = font?.split(textNode.text.template.literal, wrapWidth)?.size
-                ?: estimateLineCount(textNode.text.template, wrapWidth)
-            val lineHeight = font?.lineHeight ?: EstimatedLineHeight
+            val wrapWidth = ceil(width / style.transform.scale.x).toInt().coerceAtLeast(1)
+            val lines = if (style.textWrap) {
+                font?.split(textNode.text.template.literal, wrapWidth)?.size
+                    ?: estimateLineCount(textNode.text.template, wrapWidth)
+            } else {
+                1
+            }
+            var lineHeight = font?.lineHeight ?: EstimatedLineHeight
+            lineHeight = (lineHeight + style.transform.scale.y).toInt()
             val height = known.height.takeIf { !it.isNaN() } ?: (lines.coerceAtLeast(1) * lineHeight).toFloat()
             FloatSize(width, height)
         }
@@ -369,10 +398,99 @@ class UiLayoutEngine {
 
 }
 
+private data class UiAxisAlignment(
+    val items: UiAlign,
+    val content: UiAlign,
+)
+
+private fun ComputedStyle.resolveChildAlignment(): UiAxisAlignment {
+    val horizontal = childAlignHorizontal()
+    val vertical = childAlignVertical()
+    return if (layout == LayoutType.ROW) {
+        UiAxisAlignment(
+            items = vertical ?: alignItems,
+            content = horizontal ?: justifyContent,
+        )
+    } else {
+        UiAxisAlignment(
+            items = horizontal ?: alignItems,
+            content = vertical ?: justifyContent,
+        )
+    }
+}
+
+private fun ComputedStyle.crossAxisSelfAlignment(parentLayout: LayoutType?): UiAlign {
+    val explicit = when (parentLayout) {
+        LayoutType.ROW -> alignVertical
+        LayoutType.COLUMN, LayoutType.GRID, LayoutType.STACK, LayoutType.FREE -> alignHorizontal
+        null -> UiAlign.AUTO
+    }.takeUnless { it == UiAlign.AUTO }
+    return explicit ?: alignSelf
+}
+
+private fun ComputedStyle.transformOrigin(parent: ComputedStyle?, width: Float, height: Float): UiVec3 {
+    val horizontal = effectiveAlignHorizontal(parent)
+        ?: UiAlign.START
+    val vertical = effectiveAlignVertical(parent)
+        ?: UiAlign.START
+    return UiVec3(width * horizontal.originFactor(), height * vertical.originFactor(), 0f)
+}
+
+private fun ComputedStyle.effectiveAlignHorizontal(parent: ComputedStyle?): UiAlign? {
+    return alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignHorizontal()
+}
+
+private fun ComputedStyle.effectiveAlignVertical(parent: ComputedStyle?): UiAlign? {
+    return alignVertical.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignVertical()
+}
+
+private fun ComputedStyle.childAlignHorizontal(): UiAlign? {
+    return alignItemsHorizontal.takeUnless { it == UiAlign.AUTO }
+        ?: if (layout == LayoutType.ROW) justifyContent.takeUnless { it == UiAlign.AUTO }
+        else alignItems.takeUnless { it == UiAlign.AUTO }
+}
+
+private fun ComputedStyle.childAlignVertical(): UiAlign? {
+    return alignItemsVertical.takeUnless { it == UiAlign.AUTO }
+        ?: if (layout == LayoutType.ROW) alignItems.takeUnless { it == UiAlign.AUTO }
+        else justifyContent.takeUnless { it == UiAlign.AUTO }
+}
+
+private fun UiAlign.originFactor(): Float = when (this) {
+    UiAlign.START,
+    UiAlign.AUTO,
+        -> 0f
+
+    UiAlign.CENTER,
+    UiAlign.STRETCH,
+    UiAlign.SPACE_BETWEEN,
+    UiAlign.SPACE_AROUND,
+    UiAlign.SPACE_EVENLY,
+        -> 0.5f
+
+    UiAlign.END -> 1f
+}
+
 private fun estimateTextWidth(text: String): Float = text.length * EstimatedGlyphWidth
 
 private fun estimateLineCount(text: String, width: Int): Int =
     ceil(estimateTextWidth(text) / width.coerceAtLeast(1)).toInt().coerceAtLeast(1)
+
+private fun UiInsets.resolve(parentWidth: Float, parentHeight: Float): ResolvedUiInsets {
+    return ResolvedUiInsets(
+        left = left.resolve(parentWidth),
+        top = top.resolve(parentHeight),
+        right = right.resolve(parentWidth),
+        bottom = bottom.resolve(parentHeight),
+    )
+}
+
+private data class ResolvedUiInsets(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+)
 
 private fun UiRect?.intersect(other: UiRect): UiRect {
     if (this == null) return other

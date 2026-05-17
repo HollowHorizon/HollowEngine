@@ -19,32 +19,12 @@ import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.render.render
-import ru.hollowhorizon.hollowengine.client.ui.BeginLayerCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawBackdropFilterCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawCanvasCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawEntityCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawImageCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawItemCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
-import ru.hollowhorizon.hollowengine.client.ui.EndLayerCommand
-import ru.hollowhorizon.hollowengine.client.ui.PopClipCommand
-import ru.hollowhorizon.hollowengine.client.ui.PushClipCommand
-import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
-import ru.hollowhorizon.hollowengine.client.ui.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.UiRenderCommand
-import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.utils.literal
-import java.util.ArrayDeque
+import java.util.*
 import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -65,6 +45,10 @@ class MinecraftUiRenderer {
             configureUiBlend()
             RenderSystem.disableDepthTest()
             GL11.glDepthMask(false)
+            renderTarget?.let {
+                bindTarget(it.toState())
+                configureLayerProjection(it.logicalWidth, it.logicalHeight)
+            }
             commands.forEach(::render)
             disableScissor()
             while (layerStack.isNotEmpty()) finishLayer()
@@ -384,6 +368,7 @@ class MinecraftUiRenderer {
                 paint.source,
                 command.opacity,
                 transform,
+                fit = command.fit,
                 filter = command.filter
             )
 
@@ -419,8 +404,12 @@ class MinecraftUiRenderer {
         val yAxis = transform.transform(0f, 1f)
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
-        val textWidth = ceil(command.rect.width).toInt().coerceAtLeast(1)
-        val lines = mc.font.split(command.text.literal, textWidth)
+        val textWidth = ceil(command.rect.width  / command.scale.x).toInt().coerceAtLeast(1)
+        val lines = if (command.wrap) {
+            mc.font.split(command.text.literal, textWidth)
+        } else {
+            listOf(command.text.literal.visualOrderText)
+        }
         val maxLines = (command.rect.height / mc.font.lineHeight).toInt().coerceAtLeast(1)
         lines.take(maxLines).forEachIndexed { index, line ->
             val pose = PoseStack()

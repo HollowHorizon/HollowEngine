@@ -45,16 +45,21 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "height" -> instruction { it.size = (it.size ?: UiSize()).copy(height = parseLength(value)) }
             "min-size" -> instruction { it.minSize = parseSize(value) }
             "max-size" -> instruction { it.maxSize = parseSize(value) }
+            "aspect-ratio" -> instruction { it.aspectRatio = parseAspectRatio(value) }
             "padding" -> instruction { it.padding = parseInsets(value, allowAuto = false) }
             "margin" -> instruction { it.margin = parseInsets(value, allowAuto = true) }
             "gap" -> instruction { it.gap = parseLength(value) }
-            "align" -> instruction { it.alignItems = parseAlign(value) }
+            "align" -> instruction { applySelfAlignment(it, value) }
+            "align-items" -> instruction { applyChildAlignment(it, value) }
+            "align-x", "align-horizontal" -> instruction { it.alignHorizontal = parseAlign(value) }
+            "align-y", "align-vertical" -> instruction { it.alignVertical = parseAlign(value) }
             "align-self" -> instruction { it.alignSelf = parseAlign(value) }
             "justify-self" -> instruction { it.justifySelf = parseAlign(value) }
-            "justify" -> instruction { it.justifyContent = parseAlign(value) }
+            "justify", "justify-content" -> instruction { it.justifyContent = parseAlign(value) }
             "grow" -> instruction { it.grow = value.toFloat() }
             "position" -> instruction { it.position = parsePosition(value) }
             "background" -> instruction { it.background = parsePaint(value) }
+            "background-image" -> instruction { it.background = UiPaint.Image(parseImageSource(value)) }
             "foreground", "color" -> instruction { it.foreground = parseColor(value) }
             "image" -> instruction { it.image = parseBoundFunction(value, "image") ?: UiBoundString(unquote(value)) }
             "shader" -> instruction { it.shader = parseBoundFunction(value, "shader") ?: UiBoundString(unquote(value)) }
@@ -83,6 +88,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "clip" -> instruction { it.clip = parseBoolean(value) }
             "layer" -> instruction { it.layer = value.toInt() }
             "image-fit", "fit" -> instruction { it.imageFit = parseImageFit(value) }
+            "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "transition" -> instruction { it.transitions = parseTransitions(value) }
             else -> null
         }
@@ -126,12 +132,43 @@ private fun parseAlign(value: String): UiAlign = when (value.lowercase()) {
     else -> throw IllegalArgumentException("Unknown align '$value'")
 }
 
+private fun applySelfAlignment(style: MutableUiStyle, value: String) {
+    val parts = splitWhitespace(value)
+    val horizontal = parseAlign(parts.first())
+    val vertical = parseAlign(parts.getOrElse(1) { parts.first() })
+    style.alignHorizontal = horizontal
+    style.alignVertical = vertical
+}
+
+private fun applyChildAlignment(style: MutableUiStyle, value: String) {
+    val parts = splitWhitespace(value)
+    val horizontal = parseAlign(parts.first())
+    val vertical = parseAlign(parts.getOrElse(1) { parts.first() })
+    style.alignItemsHorizontal = horizontal
+    style.alignItemsVertical = vertical
+}
+
 private fun parseImageFit(value: String): UiImageFit = when (value.lowercase()) {
     "stretch", "strench" -> UiImageFit.STRETCH
     "contain", "fit" -> UiImageFit.CONTAIN
     "cover", "zoom" -> UiImageFit.COVER
     "none" -> UiImageFit.NONE
     else -> throw IllegalArgumentException("Unknown image fit '$value'")
+}
+
+private fun parseTextWrap(value: String): Boolean = when (value.lowercase()) {
+    "wrap", "true", "yes", "1", "enabled" -> true
+    "nowrap", "no-wrap", "false", "no", "0", "disabled" -> false
+    else -> throw IllegalArgumentException("Unknown text wrap '$value'")
+}
+
+private fun parseAspectRatio(value: String): Float {
+    val parts = value.split('/').map { it.trim() }.filter { it.isNotBlank() }
+    return when (parts.size) {
+        1 -> parts.single().toFloat()
+        2 -> parts[0].toFloat() / parts[1].toFloat()
+        else -> throw IllegalArgumentException("Unknown aspect ratio '$value'")
+    }.coerceAtLeast(0.0001f)
 }
 
 private fun parseSize(value: String): UiSize {
@@ -160,9 +197,17 @@ private fun parseLength(value: String, allowAuto: Boolean = true): UiLength {
 
 private fun parsePaint(value: String): UiPaint {
     parseBoundFunction(value, "image")?.let { return UiPaint.Image(it) }
+    parseBoundFunction(value, "url")?.let { return UiPaint.Image(it) }
     parseBoundFunction(value, "shader")?.let { return UiPaint.Shader(it) }
     parseLinearGradient(value)?.let { return it }
+    if (looksLikeImageSource(value)) return UiPaint.Image(parseImageSource(value))
     return UiPaint.Color(parseColor(value))
+}
+
+private fun parseImageSource(value: String): UiBoundString {
+    return parseBoundFunction(value, "image")
+        ?: parseBoundFunction(value, "url")
+        ?: UiBoundString(unquote(value))
 }
 
 private fun parseLinearGradient(value: String): UiPaint.LinearGradient? {
@@ -319,6 +364,11 @@ private fun looksLikeColor(value: String): Boolean {
             cleaned == "transparent" ||
             cleaned == "white" ||
             cleaned == "black"
+}
+
+private fun looksLikeImageSource(value: String): Boolean {
+    val cleaned = unquote(value).lowercase()
+    return ":" in cleaned || cleaned.endsWith(".png") || cleaned.endsWith(".jpg") || cleaned.endsWith(".jpeg")
 }
 
 private fun parseBoundFunction(value: String, name: String): UiBoundString? {

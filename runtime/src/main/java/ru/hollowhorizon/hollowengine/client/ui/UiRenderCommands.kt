@@ -57,6 +57,7 @@ data class DrawBoxCommand(
     val opacity: Float,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
+    val fit: UiImageFit,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
@@ -69,6 +70,8 @@ data class DrawTextCommand(
     val opacity: Float,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
+    val wrap: Boolean,
+    val scale: UiVec3,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
@@ -200,6 +203,7 @@ class UiCommandRenderer {
                 opacity = style.opacity,
                 transform = layoutNode.worldTransform,
                 renderToFramebuffer = false,
+                fit = style.imageFit,
                 filter = commandFilter,
                 backfaceVisibility = style.backfaceVisibility,
             )
@@ -214,6 +218,7 @@ class UiCommandRenderer {
                 style.opacity,
                 layoutNode.worldTransform,
                 contentFilter,
+                style.textWrap, style.transform.scale,
                 style.backfaceVisibility,
             )
 

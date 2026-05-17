@@ -42,9 +42,14 @@ data class MutableUiStyle(
     var size: UiSize? = null,
     var minSize: UiSize? = null,
     var maxSize: UiSize? = null,
+    var aspectRatio: Float? = null,
     var padding: UiInsets? = null,
     var margin: UiInsets? = null,
     var gap: UiLength? = null,
+    var alignHorizontal: UiAlign? = null,
+    var alignVertical: UiAlign? = null,
+    var alignItemsHorizontal: UiAlign? = null,
+    var alignItemsVertical: UiAlign? = null,
     var alignItems: UiAlign? = null,
     var alignSelf: UiAlign? = null,
     var justifySelf: UiAlign? = null,
@@ -66,6 +71,7 @@ data class MutableUiStyle(
     var clip: Boolean? = null,
     var layer: Int? = null,
     var imageFit: UiImageFit? = null,
+    var textWrap: Boolean? = null,
     var transitions: List<UiTransition>? = null,
 ) {
     fun merge(other: MutableUiStyle) {
@@ -73,9 +79,14 @@ data class MutableUiStyle(
         other.size?.let { size = it }
         other.minSize?.let { minSize = it }
         other.maxSize?.let { maxSize = it }
+        other.aspectRatio?.let { aspectRatio = it }
         other.padding?.let { padding = it }
         other.margin?.let { margin = it }
         other.gap?.let { gap = it }
+        other.alignHorizontal?.let { alignHorizontal = it }
+        other.alignVertical?.let { alignVertical = it }
+        other.alignItemsHorizontal?.let { alignItemsHorizontal = it }
+        other.alignItemsVertical?.let { alignItemsVertical = it }
         other.alignItems?.let { alignItems = it }
         other.alignSelf?.let { alignSelf = it }
         other.justifySelf?.let { justifySelf = it }
@@ -97,6 +108,7 @@ data class MutableUiStyle(
         other.clip?.let { clip = it }
         other.layer?.let { layer = it }
         other.imageFit?.let { imageFit = it }
+        other.textWrap?.let { textWrap = it }
         other.transitions?.let { transitions = it }
     }
 
@@ -107,9 +119,14 @@ data class MutableUiStyle(
             size = size ?: UiSize(),
             minSize = minSize ?: UiSize(),
             maxSize = maxSize ?: UiSize(),
+            aspectRatio = aspectRatio,
             padding = padding ?: UiInsets.Zero,
             margin = margin ?: UiInsets.Zero,
             gap = gap ?: 0.px,
+            alignHorizontal = alignHorizontal ?: UiAlign.AUTO,
+            alignVertical = alignVertical ?: UiAlign.AUTO,
+            alignItemsHorizontal = alignItemsHorizontal ?: UiAlign.AUTO,
+            alignItemsVertical = alignItemsVertical ?: UiAlign.AUTO,
             alignItems = alignItems ?: UiAlign.AUTO,
             alignSelf = alignSelf ?: UiAlign.AUTO,
             justifySelf = justifySelf ?: UiAlign.AUTO,
@@ -131,6 +148,7 @@ data class MutableUiStyle(
             clip = clip ?: false,
             layer = layer ?: 0,
             imageFit = imageFit ?: UiImageFit.STRETCH,
+            textWrap = textWrap ?: true,
             transitions = transitions ?: emptyList(),
         )
     }
@@ -141,9 +159,14 @@ data class ComputedStyle(
     val size: UiSize,
     val minSize: UiSize,
     val maxSize: UiSize,
+    val aspectRatio: Float?,
     val padding: UiInsets,
     val margin: UiInsets,
     val gap: UiLength,
+    val alignHorizontal: UiAlign,
+    val alignVertical: UiAlign,
+    val alignItemsHorizontal: UiAlign,
+    val alignItemsVertical: UiAlign,
     val alignItems: UiAlign,
     val alignSelf: UiAlign,
     val justifySelf: UiAlign,
@@ -165,6 +188,7 @@ data class ComputedStyle(
     val clip: Boolean,
     val layer: Int,
     val imageFit: UiImageFit,
+    val textWrap: Boolean,
     val transitions: List<UiTransition>,
 ) {
 
@@ -449,4 +473,3 @@ class UiTransitionState {
         )
     }
 }
-

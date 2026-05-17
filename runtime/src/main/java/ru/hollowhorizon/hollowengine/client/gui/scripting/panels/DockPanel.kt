@@ -58,6 +58,10 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
     }
 
     override fun open() {
+        if (dockable.dockedTo.value != null) {
+            surface.lastInputTime = Time.gameTime
+            return
+        }
         InputStack.pushBottom(inputListener)
         dock.addDockableSurface(dockable, surface)
         surface.lastInputTime = Time.gameTime

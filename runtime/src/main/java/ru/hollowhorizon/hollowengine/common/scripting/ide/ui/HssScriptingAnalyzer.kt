@@ -41,10 +41,11 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
             HssCompletionKind.SELECTOR_TYPE -> UiLanguageCatalog.elementTypes
             HssCompletionKind.STATE -> UiLanguageCatalog.states
             HssCompletionKind.PROPERTY -> UiLanguageCatalog.hssProperties
+            HssCompletionKind.VALUE -> UiLanguageCatalog.valuesFor(context.property)
         }
         return values.asSequence()
             .filter { it.startsWith(context.prefix, ignoreCase = true) }
-            .map { completion(it, if (context.kind == HssCompletionKind.PROPERTY) "$it: " else it) }
+            .map { completion(it, if (context.kind == HssCompletionKind.PROPERTY) "$it: " else it, context.kind) }
             .toList()
     }
 
@@ -115,14 +116,14 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
         return HssLineTokens(spans, inBlock)
     }
 
-    private fun completion(show: String, insert: String): CompletionItem {
+    private fun completion(show: String, insert: String, kind: HssCompletionKind): CompletionItem {
         return declarationCompletionItem {
             this.show = show
             this.insert = insert
             name = show
             tag = CompletionItemTag.PROPERTY
             fqName = null
-            tail = null
+            tail = if (kind == HssCompletionKind.VALUE) "value" else null
             middle = null
         }
     }
@@ -166,11 +167,13 @@ private enum class HssCompletionKind {
     SELECTOR_TYPE,
     STATE,
     PROPERTY,
+    VALUE,
 }
 
 private data class HssCompletionContext(
     val kind: HssCompletionKind,
     val prefix: String,
+    val property: String = "",
 ) {
     companion object {
         fun from(text: String, offset: Int): HssCompletionContext? {
@@ -184,13 +187,24 @@ private data class HssCompletionContext(
                 val lastSemicolon = before.lastIndexOf(';')
                 val lastNewLine = before.lastIndexOf('\n')
                 val declarationStart = maxOf(lastOpen, lastSemicolon, lastNewLine)
-                if (lastColon > declarationStart) return null
+                if (lastColon > declarationStart) {
+                    val property = before.substring(declarationStart + 1, lastColon).trim()
+                    val valuePrefix = before.substring(lastColon + 1).takeLastWhile { isValuePrefixChar(it) }
+                    if (UiLanguageCatalog.valuesFor(property).isEmpty()) return null
+                    return HssCompletionContext(HssCompletionKind.VALUE, valuePrefix, property)
+                }
+                if (prefix.isEmpty()) return null
                 return HssCompletionContext(HssCompletionKind.PROPERTY, prefix)
             }
             if (before.endsWith(":$prefix")) return HssCompletionContext(HssCompletionKind.STATE, prefix)
+            if (prefix.isEmpty()) return null
             if (before.takeLast(prefix.length + 1).startsWith(".")) return null
             if (before.takeLast(prefix.length + 1).startsWith("#")) return null
             return HssCompletionContext(HssCompletionKind.SELECTOR_TYPE, prefix)
+        }
+
+        private fun isValuePrefixChar(char: Char): Boolean {
+            return char.isLetterOrDigit() || char in "-_#.%/"
         }
     }
 }
