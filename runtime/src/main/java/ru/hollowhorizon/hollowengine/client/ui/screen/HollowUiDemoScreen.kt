@@ -10,7 +10,7 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
     private var layoutGlassOffset = DemoOffset.Zero
 
     override fun buildUi(): UiNode = HollowUi(id = "demo-root") {
-        Box(id = "tabs", tags = listOf("tabs")) {
+        Box(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
             tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
             tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
             tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")

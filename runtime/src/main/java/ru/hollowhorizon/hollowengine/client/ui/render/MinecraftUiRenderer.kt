@@ -45,6 +45,7 @@ import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import java.util.ArrayDeque
+import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -55,6 +56,7 @@ class MinecraftUiRenderer {
     private var layerProjectionActive = false
 
     fun render(commands: List<UiRenderCommand>) {
+        prepareFramebuffers(commands)
         RenderSystem.enableBlend()
         configureUiBlend()
         RenderSystem.disableDepthTest()
@@ -88,27 +90,37 @@ class MinecraftUiRenderer {
         }
     }
 
+    private fun prepareFramebuffers(commands: List<UiRenderCommand>) {
+        val window = Minecraft.getInstance().window
+        val scale = layerScale()
+        val requests = commands.mapNotNull { command ->
+            if (command !is BeginLayerCommand) return@mapNotNull null
+            val padding = layerPadding(command)
+            val width = ceil((command.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
+            val height = ceil((command.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
+            UiLayerRequest(width, height)
+        }
+        framebuffers.beginFrame(requests, window.width, window.height)
+    }
+
     private fun beginLayer(command: BeginLayerCommand) {
-        val scale = Minecraft.getInstance().window.guiScale.toFloat() * LayerSupersampling
+        val scale = layerScale()
         val padding = layerPadding(command)
         val logicalWidth = command.rect.width + padding * 2f
         val logicalHeight = command.rect.height + padding * 2f
-        val width = (logicalWidth * scale).toInt().coerceAtLeast(1)
-        val height = (logicalHeight * scale).toInt().coerceAtLeast(1)
-        val framebuffer = framebuffers.acquire(width, height)
+        val width = ceil(logicalWidth * scale).toInt().coerceAtLeast(1)
+        val height = ceil(logicalHeight * scale).toInt().coerceAtLeast(1)
+        val framebuffer = framebuffers.acquireLayer(width, height)
         val parentClips = clipStack.toList()
         if (!layerProjectionActive) {
             RenderSystem.backupProjectionMatrix()
             RenderSystem.getModelViewStack().pushPose()
             layerProjectionActive = true
         }
+        framebuffer.clear()
         framebuffer.bind()
-        GL11.glViewport(0, 0, width, height)
         configureLayerProjection(logicalWidth, logicalHeight)
         configureUiBlend()
-        disableScissor()
-        GL11.glClearColor(0f, 0f, 0f, 0f)
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT or GL11.GL_DEPTH_BUFFER_BIT)
         RenderSystem.disableDepthTest()
         layerStack.addLast(
             LayerState(
@@ -131,66 +143,127 @@ class MinecraftUiRenderer {
         val parentLayer = layerStack.lastOrNull()
         restoreClips(layer.parentClips)
         val blurRadius = layer.filter.blurRadius()
-        val sourceFramebuffer = if (blurRadius > 0f) blurTexture(
+        val copiedSource = if (parentLayer != null || blurRadius > 0f) copyLayerToScratch(layer) else null
+        val blurredSource = if (blurRadius > 0f && copiedSource != null) blurTexture(
             framebuffers,
-            layer.framebuffer.texture,
-            layer.framebuffer.width,
-            layer.framebuffer.height,
+            copiedSource.texture,
+            copiedSource.width,
+            copiedSource.height,
             blurRadius,
-            layer.framebuffer
+            copiedSource
         ) else null
-        val sourceTexture = sourceFramebuffer?.texture ?: layer.framebuffer.texture
+        val sourceTexture = blurredSource?.texture ?: copiedSource?.texture ?: layer.framebuffer.texture
+        val sourceWidth = blurredSource?.width ?: copiedSource?.width ?: layer.framebuffer.atlas.width
+        val sourceHeight = blurredSource?.height ?: copiedSource?.height ?: layer.framebuffer.atlas.height
+        val sourceU0 = if (copiedSource == null && blurredSource == null) layer.framebuffer.u0() else 0f
+        val sourceV0 = if (copiedSource == null && blurredSource == null) layer.framebuffer.v0() else 0f
+        val sourceU1 = if (copiedSource == null && blurredSource == null) layer.framebuffer.u1() else 1f
+        val sourceV1 = if (copiedSource == null && blurredSource == null) layer.framebuffer.v1() else 1f
         val compositeFilter = layer.filter.withoutBlur()
         if (parentLayer != null) {
             parentLayer.framebuffer.bind()
-            GL11.glViewport(0, 0, parentLayer.framebuffer.width, parentLayer.framebuffer.height)
             configureLayerProjection(
                 parentLayer.rect.width + parentLayer.padding * 2f,
                 parentLayer.rect.height + parentLayer.padding * 2f
             )
+            restoreActiveClip()
             val parentInverse =
                 parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
             val transform = UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
                     parentInverse *
                     layer.transform *
                     UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
-            drawLayerTexture(layer, sourceTexture, compositeFilter, transform)
+            drawLayerTexture(
+                layer,
+                sourceTexture,
+                sourceWidth,
+                sourceHeight,
+                sourceU0,
+                sourceV0,
+                sourceU1,
+                sourceV1,
+                compositeFilter,
+                transform,
+            )
         } else {
             Minecraft.getInstance().mainRenderTarget.bindWrite(true)
             val window = Minecraft.getInstance().window
             GL11.glViewport(0, 0, window.width, window.height)
             restoreMainProjection()
+            restoreActiveClip()
             val transform = layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
-            drawLayerTexture(layer, sourceTexture, compositeFilter, transform)
+            drawLayerTexture(
+                layer,
+                sourceTexture,
+                sourceWidth,
+                sourceHeight,
+                sourceU0,
+                sourceV0,
+                sourceU1,
+                sourceV1,
+                compositeFilter,
+                transform,
+            )
         }
-        sourceFramebuffer?.let(framebuffers::release)
-        framebuffers.release(layer.framebuffer)
+        blurredSource?.let(framebuffers::release)
+        copiedSource?.let(framebuffers::release)
         RenderSystem.disableDepthTest()
     }
 
     private fun drawLayerTexture(
         layer: LayerState,
         texture: Int,
+        textureWidth: Int,
+        textureHeight: Int,
+        u0: Float,
+        v0: Float,
+        u1: Float,
+        v1: Float,
         filter: UiFilterChain,
         transform: UiMatrix4,
     ) {
         val width = layer.rect.width + layer.padding * 2f
         val height = layer.rect.height + layer.padding * 2f
         if (isBackfaceHidden(width, height, transform, layer.backfaceVisibility)) return
-        UiTextureEffects.drawTexture(
-            texture,
-            width,
-            height,
-            transform,
-            1f,
+        UiTextureEffects.drawTexturedRegion(
+            texture = texture,
+            width = width,
+            height = height,
+            transform = transform,
+            opacity = 1f,
+            u0 = u0,
+            v0 = v0,
+            u1 = u1,
+            v1 = v1,
             flipY = true,
             filter = filter,
-            textureWidth = layer.framebuffer.width.toFloat(),
-            textureHeight = layer.framebuffer.height.toFloat(),
+            textureWidth = textureWidth,
+            textureHeight = textureHeight,
             subdivisions = LayerTextureSubdivisions,
             maskRadius = layer.radius,
             maskPadding = layer.padding,
+            maskScale = layer.scale,
         )
+    }
+
+    private fun copyLayerToScratch(layer: LayerState): UiFramebuffer {
+        val scratch = framebuffers.acquire(layer.framebuffer.width, layer.framebuffer.height)
+        disableScissor()
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, layer.framebuffer.framebuffer)
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scratch.framebuffer)
+        GL30.glBlitFramebuffer(
+            layer.framebuffer.region.x,
+            layer.framebuffer.region.y,
+            layer.framebuffer.region.x + layer.framebuffer.width,
+            layer.framebuffer.region.y + layer.framebuffer.height,
+            0,
+            0,
+            scratch.width,
+            scratch.height,
+            GL11.GL_COLOR_BUFFER_BIT,
+            GL11.GL_NEAREST,
+        )
+        return scratch
     }
 
     private fun drawBackdropFilter(command: DrawBackdropFilterCommand) {
@@ -198,13 +271,14 @@ class MinecraftUiRenderer {
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val target = currentTarget()
         val scratch = framebuffers.acquire(target.width, target.height, exclude = target.framebuffer)
+        disableScissor()
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, target.framebufferId)
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scratch.framebuffer)
         GL30.glBlitFramebuffer(
-            0,
-            0,
-            target.width,
-            target.height,
+            target.x,
+            target.y,
+            target.x + target.width,
+            target.y + target.height,
             0,
             0,
             target.width,
@@ -212,8 +286,7 @@ class MinecraftUiRenderer {
             GL11.GL_COLOR_BUFFER_BIT,
             GL11.GL_NEAREST,
         )
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebufferId)
-        GL11.glViewport(0, 0, target.width, target.height)
+        bindTarget(target)
         if (target.logicalWidth > 0f && target.logicalHeight > 0f) {
             configureLayerProjection(target.logicalWidth, target.logicalHeight)
         }
@@ -222,11 +295,11 @@ class MinecraftUiRenderer {
             ?.let { blurTexture(framebuffers, scratch.texture, target.width, target.height, it, scratch) }
         val sourceTexture = blurred?.texture ?: scratch.texture
         val compositeFilter = command.filter.withoutBlur()
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebufferId)
-        GL11.glViewport(0, 0, target.width, target.height)
+        bindTarget(target)
         if (target.logicalWidth > 0f && target.logicalHeight > 0f) {
             configureLayerProjection(target.logicalWidth, target.logicalHeight)
         }
+        restoreActiveClip()
         val local = localRect(command.rect)
         val u0 = (local.x * target.scale / target.width.toFloat()).coerceIn(0f, 1f)
         val u1 = ((local.x + local.width) * target.scale / target.width.toFloat()).coerceIn(0f, 1f)
@@ -336,7 +409,8 @@ class MinecraftUiRenderer {
         val yAxis = transform.transform(0f, 1f)
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
-        val lines = mc.font.split(command.text.literal, command.rect.width.toInt().coerceAtLeast(1))
+        val textWidth = ceil(command.rect.width).toInt().coerceAtLeast(1)
+        val lines = mc.font.split(command.text.literal, textWidth)
         val maxLines = (command.rect.height / mc.font.lineHeight).toInt().coerceAtLeast(1)
         lines.take(maxLines).forEachIndexed { index, line ->
             val pose = PoseStack()
@@ -521,8 +595,8 @@ class MinecraftUiRenderer {
         if (layer != null) {
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(
-                (rect.x * layer.scale).toInt(),
-                (layer.framebuffer.height - (rect.y + rect.height) * layer.scale).toInt(),
+                layer.framebuffer.region.x + (rect.x * layer.scale).toInt(),
+                layer.framebuffer.region.y + (layer.framebuffer.height - (rect.y + rect.height) * layer.scale).toInt(),
                 (rect.width * layer.scale).toInt().coerceAtLeast(0),
                 (rect.height * layer.scale).toInt().coerceAtLeast(0),
             )
@@ -556,10 +630,21 @@ class MinecraftUiRenderer {
         }
         ?: rect
 
+    private fun layerScale(): Float = Minecraft.getInstance().window.guiScale.toFloat() * LayerSupersampling
+
     private fun restoreClips(clips: List<UiRect>) {
         clipStack.clear()
         clipStack.addAll(clips)
+        restoreActiveClip()
+    }
+
+    private fun restoreActiveClip() {
         clipStack.lastOrNull()?.let(::applyScissor) ?: disableScissor()
+    }
+
+    private fun bindTarget(target: RenderTargetState) {
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebufferId)
+        GL11.glViewport(target.x, target.y, target.width, target.height)
     }
 
     private fun configureLayerProjection(width: Float, height: Float) {
@@ -586,7 +671,9 @@ class MinecraftUiRenderer {
         if (layer != null) {
             return RenderTargetState(
                 framebufferId = layer.framebuffer.framebuffer,
-                framebuffer = layer.framebuffer,
+                framebuffer = layer.framebuffer.atlas,
+                x = layer.framebuffer.region.x,
+                y = layer.framebuffer.region.y,
                 width = layer.framebuffer.width,
                 height = layer.framebuffer.height,
                 logicalWidth = layer.rect.width + layer.padding * 2f,
@@ -599,6 +686,8 @@ class MinecraftUiRenderer {
         return RenderTargetState(
             framebufferId = target.frameBufferId,
             framebuffer = null,
+            x = 0,
+            y = 0,
             width = window.width,
             height = window.height,
             logicalWidth = window.guiScaledWidth.toFloat(),

@@ -163,6 +163,7 @@ internal object UiTextureEffects {
         filter: UiFilterChain,
         textureWidth: Int,
         textureHeight: Int,
+        subdivisions: Int = 1,
         maskRadius: Float = 0f,
         maskScale: Float = 0f,
         maskPadding: Float = 0f,
@@ -182,21 +183,27 @@ internal object UiTextureEffects {
             maskV = minOf(v0, v1),
             maskWidth = abs(u1 - u0),
             maskHeight = abs(v1 - v0),
+            sampleU = minOf(u0, u1),
+            sampleV = minOf(v0, v1),
+            sampleWidth = abs(u1 - u0),
+            sampleHeight = abs(v1 - v0),
         )
         val tessellator = Tesselator.getInstance()
+        val segments = subdivisions.coerceAtLeast(1)
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
-        val corners = localCorners(width, height, transform)
-        val top = if (flipY) v1 else v0
-        val bottom = if (flipY) v0 else v1
         val tint = UiColor.White.withOpacity(opacity)
-        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setUv(u0, top)
-            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
-        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setUv(u0, bottom)
-            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
-        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setUv(u1, bottom)
-            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
-        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setUv(u1, top)
-            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
+        for (yIndex in 0 until segments) {
+            val y0 = yIndex.toFloat() / segments.toFloat()
+            val y1 = (yIndex + 1).toFloat() / segments.toFloat()
+            for (xIndex in 0 until segments) {
+                val x0 = xIndex.toFloat() / segments.toFloat()
+                val x1 = (xIndex + 1).toFloat() / segments.toFloat()
+                addTexturedVertex(buffer, transform, width, height, x0, y0, u0, v0, u1, v1, flipY, tint)
+                addTexturedVertex(buffer, transform, width, height, x0, y1, u0, v0, u1, v1, flipY, tint)
+                addTexturedVertex(buffer, transform, width, height, x1, y1, u0, v0, u1, v1, flipY, tint)
+                addTexturedVertex(buffer, transform, width, height, x1, y0, u0, v0, u1, v1, flipY, tint)
+            }
+        }
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 
@@ -213,6 +220,10 @@ internal object UiTextureEffects {
         maskV: Float? = null,
         maskWidth: Float? = null,
         maskHeight: Float? = null,
+        sampleU: Float? = null,
+        sampleV: Float? = null,
+        sampleWidth: Float? = null,
+        sampleHeight: Float? = null,
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
     ) {
@@ -233,12 +244,17 @@ internal object UiTextureEffects {
         val radiusScale = maskScale.takeIf { it > 0f }
             ?: (((textureWidth / logicalWidth.coerceAtLeast(1f)) +
                     (textureHeight / logicalHeight.coerceAtLeast(1f))) * 0.5f)
-        val padU = maskPadding / logicalWidth.coerceAtLeast(1f)
-        val padV = maskPadding / logicalHeight.coerceAtLeast(1f)
+        val padU = maskPadding * radiusScale / textureWidth.coerceAtLeast(1f)
+        val padV = maskPadding * radiusScale / textureHeight.coerceAtLeast(1f)
         val finalMaskU = if (maskU != null) maskU + padU else padU
         val finalMaskV = if (maskV != null) maskV + padV else padV
         val finalMaskW = (if (maskWidth != null) maskWidth - padU * 2f else (1f - padU * 2f)).coerceAtLeast(0f)
         val finalMaskH = (if (maskHeight != null) maskHeight - padV * 2f else (1f - padV * 2f)).coerceAtLeast(0f)
+        val finalSampleU = sampleU ?: 0f
+        val finalSampleV = sampleV ?: 0f
+        val finalSampleW = sampleWidth ?: 1f
+        val finalSampleH = sampleHeight ?: 1f
+        effectShader.getUniform("SampleRect")?.set(finalSampleU, finalSampleV, finalSampleW, finalSampleH)
         effectShader.getUniform("MaskRect")?.set(finalMaskU, finalMaskV, finalMaskW, finalMaskH)
         effectShader.getUniform("MaskRadius")?.set(maskRadius * radiusScale)
         effectShader.getUniform("MaskSoftness")?.set(1.25f * radiusScale)

@@ -13,6 +13,8 @@ import kotlin.math.ceil
 internal data class RenderTargetState(
     val framebufferId: Int,
     val framebuffer: UiFramebuffer?,
+    val x: Int,
+    val y: Int,
     val width: Int,
     val height: Int,
     val logicalWidth: Float,
@@ -24,7 +26,7 @@ internal data class LayerState(
     val rect: UiRect,
     val radius: Float,
     val transform: UiMatrix4,
-    val framebuffer: UiFramebuffer,
+    val framebuffer: UiLayerFramebuffer,
     val parentClips: List<UiRect>,
     val scale: Float,
     val filter: UiFilterChain,

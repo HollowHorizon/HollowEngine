@@ -8,6 +8,8 @@ import dev.vfyjxf.taffy.style.*
 import dev.vfyjxf.taffy.tree.NodeId
 import dev.vfyjxf.taffy.tree.TaffyTree
 import dev.vfyjxf.taffy.util.MeasureFunc
+import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.common.utils.literal
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -40,6 +42,8 @@ data class UiLayoutResult(
 }
 
 private const val DirectTextTransformEpsilon = 0.0001f
+private const val EstimatedGlyphWidth = 6f
+private const val EstimatedLineHeight = 10
 
 class UiLayoutEngine {
     fun compute(
@@ -256,16 +260,29 @@ class UiLayoutEngine {
 
     private fun UiNode.measureFunc(): MeasureFunc? {
         if (this !is TextNode) return null
+        val textNode = this
         return MeasureFunc { known: FloatSize, available: TaffySize<AvailableSpace> ->
             val availableWidth = available.width.intoOption().takeIf { !it.isNaN() }
-            val width = known.width.takeIf { !it.isNaN() } ?: availableWidth ?: (text.template.length * 6f)
-            val lines = maxOf(1, ceil(text.template.length * 6f / width.coerceAtLeast(1f)).toInt())
-            val height = known.height.takeIf { !it.isNaN() } ?: (lines * 10f)
+            val font = Minecraft.getInstance()?.font
+            val naturalWidth = font?.width(textNode.text.template)?.toFloat() ?: estimateTextWidth(textNode.text.template)
+            val width = known.width.takeIf { !it.isNaN() }
+                ?: availableWidth?.let { minOf(naturalWidth, it) }
+                ?: naturalWidth
+            val wrapWidth = ceil(width).toInt().coerceAtLeast(1)
+            val lines = font?.split(textNode.text.template.literal, wrapWidth)?.size
+                ?: estimateLineCount(textNode.text.template, wrapWidth)
+            val lineHeight = font?.lineHeight ?: EstimatedLineHeight
+            val height = known.height.takeIf { !it.isNaN() } ?: (lines.coerceAtLeast(1) * lineHeight).toFloat()
             FloatSize(width, height)
         }
     }
 
 }
+
+private fun estimateTextWidth(text: String): Float = text.length * EstimatedGlyphWidth
+
+private fun estimateLineCount(text: String, width: Int): Int =
+    ceil(estimateTextWidth(text) / width.coerceAtLeast(1)).toInt().coerceAtLeast(1)
 
 private fun UiRect?.intersect(other: UiRect): UiRect {
     if (this == null) return other

@@ -6,6 +6,7 @@ uniform float Grayscale;
 uniform float BlurRadius;
 uniform vec2 BlurDirection;
 uniform vec2 TexelSize;
+uniform vec4 SampleRect;
 uniform vec4 MaskRect;
 uniform float MaskRadius;
 uniform float MaskSoftness;
@@ -14,6 +15,12 @@ in vec2 texCoord0;
 in vec4 vertexColor;
 
 out vec4 fragColor;
+
+vec2 clampSampleUv(vec2 uv) {
+    vec2 minUv = SampleRect.xy + TexelSize * 0.5;
+    vec2 maxUv = SampleRect.xy + SampleRect.zw - TexelSize * 0.5;
+    return clamp(uv, minUv, maxUv);
+}
 
 float roundedMask(vec2 uv) {
     if (MaskRadius <= 0.001) {
@@ -32,7 +39,7 @@ float roundedMask(vec2 uv) {
 
 vec4 sampleBlurred(vec2 uv) {
     if (BlurRadius <= 0.001) {
-        vec4 color = texture(Sampler0, uv);
+        vec4 color = texture(Sampler0, clampSampleUv(uv));
         if (color.a > 0.0001) {
             color.rgb /= color.a;
         }
@@ -50,7 +57,7 @@ vec4 sampleBlurred(vec2 uv) {
         float offsetIndex = float(i);
         float weight = exp(-(offsetIndex * offsetIndex) / (2.0 * sigma * sigma));
         vec2 offset = direction * TexelSize * offsetIndex;
-        vec4 sample0 = texture(Sampler0, uv + offset);
+        vec4 sample0 = texture(Sampler0, clampSampleUv(uv + offset));
         sample0.rgb *= sample0.a;
         color += sample0 * weight;
         total += weight;

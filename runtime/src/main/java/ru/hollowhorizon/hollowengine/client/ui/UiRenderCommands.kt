@@ -274,42 +274,53 @@ class UiCommandRenderer {
         commands: MutableList<UiRenderCommand>,
     ) {
         val thickness = 7f
+        val margin = 3f
         val minimumThumb = 18f
-        if (layoutNode.scrollRange.y > 0f && layoutNode.content.height > thickness) {
-            val track = UiRect(
-                x = layoutNode.content.x + layoutNode.content.width - thickness,
-                y = layoutNode.content.y,
-                width = thickness,
-                height = layoutNode.content.height,
-            )
-            val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
-            val thumbHeight = maxOf(minimumThumb, track.height * layoutNode.content.height / contentHeight)
-            val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
-            commands += DrawScrollbarCommand(
-                node,
-                track,
-                track.copy(y = thumbY, height = thumbHeight),
-                ScrollbarOrientation.VERTICAL,
-                style.opacity
-            )
+        val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.content.height > thickness + margin * 2f
+        val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.content.width > thickness + margin * 2f
+        if (hasVerticalScrollbar) {
+            val horizontalReserve = if (hasHorizontalScrollbar) thickness + margin else 0f
+            val trackHeight = layoutNode.content.height - margin * 2f - horizontalReserve
+            if (trackHeight > 0f) {
+                val track = UiRect(
+                    x = layoutNode.content.x + layoutNode.content.width - thickness - margin,
+                    y = layoutNode.content.y + margin,
+                    width = thickness,
+                    height = trackHeight,
+                )
+                val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
+                val thumbHeight = maxOf(minimumThumb, track.height * layoutNode.content.height / contentHeight)
+                val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
+                commands += DrawScrollbarCommand(
+                    node,
+                    track,
+                    track.copy(y = thumbY, height = thumbHeight),
+                    ScrollbarOrientation.VERTICAL,
+                    style.opacity
+                )
+            }
         }
-        if (layoutNode.scrollRange.x > 0f && layoutNode.content.width > thickness) {
-            val track = UiRect(
-                x = layoutNode.content.x,
-                y = layoutNode.content.y + layoutNode.content.height - thickness,
-                width = layoutNode.content.width,
-                height = thickness,
-            )
-            val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
-            val thumbWidth = maxOf(minimumThumb, track.width * layoutNode.content.width / contentWidth)
-            val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
-            commands += DrawScrollbarCommand(
-                node,
-                track,
-                track.copy(x = thumbX, width = thumbWidth),
-                ScrollbarOrientation.HORIZONTAL,
-                style.opacity
-            )
+        if (hasHorizontalScrollbar) {
+            val verticalReserve = if (hasVerticalScrollbar) thickness + margin else 0f
+            val trackWidth = layoutNode.content.width - margin * 2f - verticalReserve
+            if (trackWidth > 0f) {
+                val track = UiRect(
+                    x = layoutNode.content.x + margin,
+                    y = layoutNode.content.y + layoutNode.content.height - thickness - margin,
+                    width = trackWidth,
+                    height = thickness,
+                )
+                val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
+                val thumbWidth = maxOf(minimumThumb, track.width * layoutNode.content.width / contentWidth)
+                val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
+                commands += DrawScrollbarCommand(
+                    node,
+                    track,
+                    track.copy(x = thumbX, width = thumbWidth),
+                    ScrollbarOrientation.HORIZONTAL,
+                    style.opacity
+                )
+            }
         }
     }
 }
