@@ -17,6 +17,6 @@ data class UiMarkupText(
 ) : UiMarkupNode
 
 class UiMarkupParseException(
-    message: String,
-    position: Int,
-) : IllegalArgumentException("$message at $position")
+    val messageText: String,
+    val position: Int,
+) : IllegalArgumentException("$messageText at $position")

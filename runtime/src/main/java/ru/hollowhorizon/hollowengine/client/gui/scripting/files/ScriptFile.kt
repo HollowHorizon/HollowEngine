@@ -5,11 +5,14 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.UiPreviewState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.StartScriptPacket
@@ -125,6 +128,15 @@ class ScriptFile(path: String) : EditorFile(path) {
     }
 
     override fun UiScope.drawHeaderRight(color: Color) {
+        if (filePath.endsWith(".ui")) {
+            HeaderActionButton(Assets.Hollowengine.Textures.Gui.Icons.CODE_EDITOR) {
+                save()
+                UiPreviewState.previewPath.set(filePath)
+                LayoutLoader.LAYOUTS["hollowengine.gui.ide.ui_preview"]?.open()
+            }
+            return
+        }
+
         Box {
             val isHovered by modifier.hoverable()
             val color by animateColorAsState(
@@ -140,6 +152,25 @@ class ScriptFile(path: String) : EditorFile(path) {
                 }
 
             Image(Assets.Hollowengine.Textures.Gui.Icons.PLAY) {
+                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).alignY(AlignmentY.Center)
+            }
+        }
+    }
+
+    private fun UiScope.HeaderActionButton(icon: ResourceLocation, action: () -> Unit) {
+        Box {
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(
+                if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+                tween(easing = Easing.easeOutQuart)
+            )
+
+            modifier.padding(Dimensions.PaddingNormal)
+                .margin(end = Dimensions.PaddingNormal)
+                .background(RoundRectBackground(color, Dimensions.PaddingSmall))
+                .onClick { action() }
+
+            Image(icon) {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).alignY(AlignmentY.Center)
             }
         }

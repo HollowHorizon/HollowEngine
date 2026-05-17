@@ -297,8 +297,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
 
         private fun renderIndentGuides() {
-            val textNode = children.getOrNull(2)
-            if (indents.isEmpty() || textNode == null) return
+            val textNode = textNode() ?: return
+            if (indents.isEmpty()) return
 
             val spaceWidth = font.charWidth(' ').dp.px
             val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
@@ -318,12 +318,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
 
         fun setupContent() {
-            val maxWidth =
-                if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
-                    font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingNormal * 2f
-                } else {
-                    Dp(0f)
-                }
             val handler = this@TextAreaNode.modifier.editorHandler
             val provider = handler as? CompiledFileProvider
             val errors = provider?.analysisState?.diagnostics ?: this@TextAreaNode.modifier.errors
@@ -334,6 +328,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 .filter { lineIndex in it.range.start.line..it.range.end.line }
                 .forEach { error ->
                     val text = lineProvider[lineIndex].text
+                    val textNode = textNode() ?: return@forEach
+                    val textStart = textNode.leftPx - leftPx + textNode.paddingStartPx
                     val (startPos, endPos) = if (text.isEmpty()) {
                         0f to widthPx
                     } else {
@@ -349,10 +345,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         else HighlightTheme.KEYWORD.mix(HighlightTheme.ANNOTATION, 0.5f)
 
                     getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color, clipped = false) {
-                        val leftPos = maxWidth.px + Dimensions.PaddingHuge.px
-
                         val rangeEnd = clipBoundsPx.z - leftPx - TextEditorConstants.SQUIGGLY_AMPLITUDE.toFloat()
-                        for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(rangeEnd)
+                        for (i in ((textStart + startPos).toInt()..(textStart + endPos).coerceAtMost(rangeEnd)
                             .toInt()).step(
                             TextEditorConstants.SQUIGGLY_STEP
                         )) {
@@ -369,8 +363,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         }
 
                         val mouse = PointerInput.primaryPointer
-                        val fromX = leftPx + leftPos + startPos
-                        val toX = leftPx + leftPos + endPos
+                        val fromX = leftPx + textStart + startPos
+                        val toX = leftPx + textStart + endPos
                         if (mouse.pos.x in fromX..toX && mouse.pos.y in topPx..bottomPx) {
                             hoveredMessage = error.message
                         }
@@ -394,6 +388,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     }
                 }
             }
+        }
+
+        private fun textNode(): AttributedTextNode? {
+            return children.asSequence().filterIsInstance<AttributedTextNode>().firstOrNull()
         }
     }
 

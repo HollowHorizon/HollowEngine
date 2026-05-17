@@ -3,8 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
-import ru.hollowhorizon.hollowengine.common.utils.HollowJavaUtils
-import java.io.InputStreamReader
 
 fun interface HssResourceLoader {
     fun load(location: String): CompiledHss
@@ -21,19 +19,12 @@ sealed interface UiStylesheetReference {
         private val location: String,
         private val loader: HssResourceLoader,
     ) : UiStylesheetReference {
-        private val stylesheet: CompiledHss by lazy { loader.load(location) }
-
-        override fun resolve(): CompiledHss = stylesheet
+        override fun resolve(): CompiledHss = loader.load(location)
     }
 }
 
 object MinecraftHssResourceLoader : HssResourceLoader {
     override fun load(location: String): CompiledHss {
-        val resource = ResourceLocation.parse(location)
-        return HollowJavaUtils.getResource(resource).use { stream ->
-            InputStreamReader(stream, Charsets.UTF_8).use { reader ->
-                compileHss(reader.readText())
-            }
-        }
+        return compileHss(HollowUiResourceAccess.readText(ResourceLocation.parse(location)))
     }
 }

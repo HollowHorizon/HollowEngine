@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.xml
 
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.CanvasNode
@@ -15,8 +16,6 @@ import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
 import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
 import ru.hollowhorizon.hollowengine.client.ui.bound
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
-import ru.hollowhorizon.hollowengine.common.utils.HollowJavaUtils
-import java.io.InputStreamReader
 
 fun interface UiResourceLoader {
     fun readText(location: String): String
@@ -24,10 +23,7 @@ fun interface UiResourceLoader {
 
 object MinecraftUiResourceLoader : UiResourceLoader {
     override fun readText(location: String): String {
-        val resource = ResourceLocation.parse(location)
-        return HollowJavaUtils.getResource(resource).use { stream ->
-            InputStreamReader(stream, Charsets.UTF_8).use { it.readText() }
-        }
+        return HollowUiResourceAccess.readText(ResourceLocation.parse(location))
     }
 }
 

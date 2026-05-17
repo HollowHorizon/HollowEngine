@@ -17,6 +17,7 @@ fun loadLayouts(event: LoadLayoutEvent) {
     event.provide("hollowengine.gui.ide.markdown", ::MarkdownEditorPanel)
     event.provide("hollowengine.gui.ide.tags", ::TagEditorPanel)
     event.provide("hollowengine.gui.ide.viewport", ::GameViewportPanel)
+    event.provide("hollowengine.gui.ide.ui_preview", ::UiPreviewPanel)
     event.provide(MAIN_PANEL_ID, ::CutsceneEditorPanel)
     event.provide(PROPERTIES_PANEL_ID, ::CutscenePropertiesPanel)
 }

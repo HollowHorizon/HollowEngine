@@ -10,6 +10,17 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiRect
 import kotlin.math.ceil
 
+data class UiRenderTarget(
+    val framebufferId: Int,
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+    val logicalWidth: Float,
+    val logicalHeight: Float,
+    val scale: Float,
+)
+
 internal data class RenderTargetState(
     val framebufferId: Int,
     val framebuffer: UiFramebuffer?,

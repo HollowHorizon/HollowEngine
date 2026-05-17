@@ -54,17 +54,24 @@ class MinecraftUiRenderer {
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
     private var layerProjectionActive = false
+    private var renderTarget: UiRenderTarget? = null
 
-    fun render(commands: List<UiRenderCommand>) {
-        prepareFramebuffers(commands)
-        RenderSystem.enableBlend()
-        configureUiBlend()
-        RenderSystem.disableDepthTest()
-        GL11.glDepthMask(false)
-        commands.forEach(::render)
-        disableScissor()
-        while (layerStack.isNotEmpty()) finishLayer()
-        GL11.glDepthMask(true)
+    fun render(commands: List<UiRenderCommand>, target: UiRenderTarget? = null) {
+        val previousTarget = renderTarget
+        renderTarget = target
+        try {
+            prepareFramebuffers(commands)
+            RenderSystem.enableBlend()
+            configureUiBlend()
+            RenderSystem.disableDepthTest()
+            GL11.glDepthMask(false)
+            commands.forEach(::render)
+            disableScissor()
+            while (layerStack.isNotEmpty()) finishLayer()
+            GL11.glDepthMask(true)
+        } finally {
+            renderTarget = previousTarget
+        }
     }
 
     fun close() {
@@ -100,7 +107,12 @@ class MinecraftUiRenderer {
             val height = ceil((command.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
             UiLayerRequest(width, height)
         }
-        framebuffers.beginFrame(requests, window.width, window.height)
+        val target = renderTarget
+        framebuffers.beginFrame(
+            requests,
+            target?.width ?: window.width,
+            target?.height ?: window.height,
+        )
     }
 
     private fun beginLayer(command: BeginLayerCommand) {
@@ -186,10 +198,7 @@ class MinecraftUiRenderer {
                 transform,
             )
         } else {
-            Minecraft.getInstance().mainRenderTarget.bindWrite(true)
-            val window = Minecraft.getInstance().window
-            GL11.glViewport(0, 0, window.width, window.height)
-            restoreMainProjection()
+            bindRootTarget()
             restoreActiveClip()
             val transform = layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
             drawLayerTexture(
@@ -204,6 +213,7 @@ class MinecraftUiRenderer {
                 compositeFilter,
                 transform,
             )
+            restoreMainProjection()
         }
         blurredSource?.let(framebuffers::release)
         copiedSource?.let(framebuffers::release)
@@ -602,6 +612,19 @@ class MinecraftUiRenderer {
             )
             return
         }
+        val target = renderTarget
+        if (target != null) {
+            val scaleX = target.width / target.logicalWidth.coerceAtLeast(1f)
+            val scaleY = target.height / target.logicalHeight.coerceAtLeast(1f)
+            GL11.glEnable(GL11.GL_SCISSOR_TEST)
+            GL11.glScissor(
+                target.x + (rect.x * scaleX).toInt(),
+                target.y + target.height - ((rect.y + rect.height) * scaleY).toInt(),
+                (rect.width * scaleX).toInt().coerceAtLeast(0),
+                (rect.height * scaleY).toInt().coerceAtLeast(0),
+            )
+            return
+        }
         val window = Minecraft.getInstance().window
         val scaleX = window.width / window.guiScaledWidth.toFloat()
         val scaleY = window.height / window.guiScaledHeight.toFloat()
@@ -612,6 +635,20 @@ class MinecraftUiRenderer {
             (rect.width * scaleX).toInt().coerceAtLeast(0),
             (rect.height * scaleY).toInt().coerceAtLeast(0),
         )
+    }
+
+    private fun bindRootTarget() {
+        val target = renderTarget
+        if (target == null) {
+            Minecraft.getInstance().mainRenderTarget.bindWrite(true)
+            val window = Minecraft.getInstance().window
+            GL11.glViewport(0, 0, window.width, window.height)
+            restoreMainProjection()
+            return
+        }
+
+        bindTarget(target.toState())
+        configureLayerProjection(target.logicalWidth, target.logicalHeight)
     }
 
     private fun effective(transform: UiMatrix4): UiMatrix4 {
@@ -630,7 +667,9 @@ class MinecraftUiRenderer {
         }
         ?: rect
 
-    private fun layerScale(): Float = Minecraft.getInstance().window.guiScale.toFloat() * LayerSupersampling
+    private fun layerScale(): Float {
+        return (renderTarget?.scale ?: Minecraft.getInstance().window.guiScale.toFloat()) * LayerSupersampling
+    }
 
     private fun restoreClips(clips: List<UiRect>) {
         clipStack.clear()
@@ -681,6 +720,7 @@ class MinecraftUiRenderer {
                 scale = layer.scale,
             )
         }
+        renderTarget?.let { return it.toState() }
         val window = Minecraft.getInstance().window
         val target = Minecraft.getInstance().mainRenderTarget
         return RenderTargetState(
@@ -693,6 +733,20 @@ class MinecraftUiRenderer {
             logicalWidth = window.guiScaledWidth.toFloat(),
             logicalHeight = window.guiScaledHeight.toFloat(),
             scale = window.width / window.guiScaledWidth.toFloat(),
+        )
+    }
+
+    private fun UiRenderTarget.toState(): RenderTargetState {
+        return RenderTargetState(
+            framebufferId = framebufferId,
+            framebuffer = null,
+            x = x,
+            y = y,
+            width = width,
+            height = height,
+            logicalWidth = logicalWidth,
+            logicalHeight = logicalHeight,
+            scale = scale,
         )
     }
 

@@ -49,6 +49,9 @@ data class DrawContext(
     val y1: Float,
     val x2: Float,
     val y2: Float,
+    val framebufferId: Int = 0,
+    val framebufferWidth: Int = 1,
+    val framebufferHeight: Int = 1,
 ) {
     inline val x get() = x1
     inline val y get() = y1
@@ -254,7 +257,20 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
         RenderSystem.enableDepthTest()
         RenderSystem.depthFunc(GL33.GL_LEQUAL)
         val mouse = PointerInput.primaryPointer.pos
-        modifier.drawer(DrawContext(mouse.x, mouse.y, x1, y1, x2, y2), modifier)
+        modifier.drawer(
+            DrawContext(
+                mouseX = mouse.x,
+                mouseY = mouse.y,
+                x1 = x1,
+                y1 = y1,
+                x2 = x2,
+                y2 = y2,
+                framebufferId = buffer.frameBufferId,
+                framebufferWidth = buffer.width,
+                framebufferHeight = buffer.height,
+            ),
+            modifier
+        )
         RenderSystem.disableDepthTest()
 
         // Возвращаем параметры
