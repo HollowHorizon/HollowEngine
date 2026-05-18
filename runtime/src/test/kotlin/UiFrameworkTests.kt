@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
 import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
@@ -24,6 +25,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
+import ru.hollowhorizon.hollowengine.client.ui.PushClipCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiState
 import ru.hollowhorizon.hollowengine.client.ui.dispatch
@@ -1116,7 +1118,7 @@ class UiFrameworkTests {
     }
 
     @Test
-    fun `text with inherited 3d transform does not fall back to direct rendering`() {
+    fun `text with inherited 3d transform is captured by ancestor layer`() {
         lateinit var text: TextNode
         val root = HollowUi(
             modifier = Modifier.then(
@@ -1130,12 +1132,62 @@ class UiFrameworkTests {
         }
 
         val frame = HollowUiRuntime().frame(root, 160f, 120f)
-        val layerStart = frame.commands.indexOfFirst { it is BeginLayerCommand && it.node == text }
+        val ownLayerStart = frame.commands.indexOfFirst { it is BeginLayerCommand && it.node == text }
+        val layerStart = frame.commands.indexOfFirst { it is BeginLayerCommand && it.node == root }
         val textIndex = frame.commands.indexOfFirst { it is DrawTextCommand && it.node == text }
-        val layerEnd = frame.commands.indexOfFirst { it is EndLayerCommand && it.node == text }
+        val layerEnd = frame.commands.indexOfFirst { it is EndLayerCommand && it.node == root }
 
-        assertTrue(layerStart >= 0, "Expected transformed text to get its own layer when the text renderer cannot apply the full matrix")
-        assertTrue(textIndex in (layerStart + 1) until layerEnd, "Text should be drawn inside its own transform layer")
+        assertEquals(-1, ownLayerStart, "Text inside an existing transformed layer should not allocate another layer")
+        assertTrue(layerStart >= 0, "Expected transformed ancestor to render through a layer")
+        assertTrue(textIndex in (layerStart + 1) until layerEnd, "Text should be captured by the ancestor transform layer")
+    }
+
+    @Test
+    fun `scrollable node draws own border before clipping content`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text(
+                (1..4).joinToString("\n") { "line $it" },
+                modifier = Modifier.then(
+                    Modifier.size(80.px, 20.px),
+                    Modifier.border(1.px, UiColor.White),
+                    Modifier.input(scrollable = true),
+                ),
+            )
+        }
+
+        val commands = HollowUiRuntime().frame(root, 120f, 80f).commands
+        val boxIndex = commands.indexOfFirst { it is DrawBoxCommand && it.node == text }
+        val clipIndex = commands.indexOfFirst { it is PushClipCommand && it.node == text }
+        val textIndex = commands.indexOfFirst { it is DrawTextCommand && it.node == text }
+
+        assertTrue(boxIndex >= 0)
+        assertTrue(clipIndex > boxIndex)
+        assertTrue(textIndex > clipIndex)
+    }
+
+    @Test
+    fun `text content transform starts after border and padding`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text(
+                "line",
+                modifier = Modifier.then(
+                    Modifier.size(100.px, 40.px),
+                    Modifier.border(1.px, UiColor.White),
+                    Modifier.padding(4.px),
+                ),
+            )
+        }
+
+        val command = HollowUiRuntime().frame(root, 140f, 80f)
+            .commands
+            .filterIsInstance<DrawTextCommand>()
+            .single { it.node == text }
+        val origin = command.transform.transform(0f, 0f)
+
+        assertEquals(5f, origin.x, 0.01f)
+        assertEquals(5f, origin.y, 0.01f)
     }
 
     @Test

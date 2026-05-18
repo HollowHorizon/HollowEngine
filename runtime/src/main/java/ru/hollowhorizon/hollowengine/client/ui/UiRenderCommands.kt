@@ -74,6 +74,8 @@ data class DrawTextCommand(
     val align: UiTextAlign,
     val fontSize: Float,
     val layout: UiTextLayout,
+    val scrollOffset: UiScrollOffset,
+    val hoveredLink: String?,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
@@ -192,8 +194,6 @@ class UiCommandRenderer {
                 backfaceVisibility = style.backfaceVisibility,
             )
         }
-        val pushedClip = style.clip || style.input.scrollable
-        if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
         if (style.background != UiPaint.None || style.border.width != UiInsets.Zero) {
             val commandFilter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter
             commands += DrawBoxCommand(
@@ -210,7 +210,14 @@ class UiCommandRenderer {
                 backfaceVisibility = style.backfaceVisibility,
             )
         }
+        val pushedClip = style.clip || style.input.scrollable
+        if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
         val contentFilter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter
+        val contentTransform = layoutNode.worldTransform * UiMatrix4.translation(
+            layoutNode.content.x - layoutNode.rect.x,
+            layoutNode.content.y - layoutNode.rect.y,
+            0f,
+        )
         when (node) {
             is TextNode -> commands += DrawTextCommand(
                 node,
@@ -218,7 +225,7 @@ class UiCommandRenderer {
                 node.text.resolve(bindings),
                 style.foreground,
                 style.opacity,
-                layoutNode.worldTransform,
+                contentTransform,
                 contentFilter,
                 style.textWrap,
                 style.textAlign,
@@ -226,11 +233,13 @@ class UiCommandRenderer {
                 UiTextLayouter.layout(
                     node.text.resolve(bindings),
                     layoutNode.content.width,
-                    layoutNode.content.height,
+                    if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height,
                     style.textWrap,
                     style.textAlign,
                     style.fontSize,
                 ),
+                layoutNode.scrollOffset,
+                node.hoveredLink,
                 style.backfaceVisibility,
             )
 
@@ -239,7 +248,7 @@ class UiCommandRenderer {
                 layoutNode.content,
                 node.source.resolve(bindings),
                 style.opacity,
-                layoutNode.worldTransform,
+                contentTransform,
                 false,
                 style.imageFit,
                 contentFilter,
@@ -251,7 +260,7 @@ class UiCommandRenderer {
                 layoutNode.content,
                 node.item.resolve(bindings),
                 style.opacity,
-                layoutNode.worldTransform,
+                contentTransform,
                 contentFilter,
                 style.backfaceVisibility,
             )
@@ -261,7 +270,7 @@ class UiCommandRenderer {
                 layoutNode.content,
                 node.entity.resolve(bindings),
                 style.opacity,
-                layoutNode.worldTransform,
+                contentTransform,
                 false,
                 contentFilter,
                 style.backfaceVisibility,
@@ -272,7 +281,7 @@ class UiCommandRenderer {
                 layoutNode.content,
                 node.renderer,
                 style.opacity,
-                layoutNode.worldTransform,
+                contentTransform,
                 false,
                 contentFilter,
                 style.backfaceVisibility,
@@ -364,6 +373,7 @@ data class UiHit(
     val node: UiNode,
     val localX: Float,
     val localY: Float,
+    val link: String? = null,
 )
 
 class UiHitTester {

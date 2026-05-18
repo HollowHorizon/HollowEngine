@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
+import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
@@ -17,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 abstract class HollowUiScreen(
     title: String,
@@ -30,6 +32,7 @@ abstract class HollowUiScreen(
     private var lastWidth = -1
     private var lastHeight = -1
     private var hoveredKey: String? = null
+    private var hoveredLink: String? = null
     private var activeKey: String? = null
     private var draggingNodeKey: String? = null
     private var scrollbarDrag: ScrollbarDrag? = null
@@ -87,6 +90,10 @@ abstract class HollowUiScreen(
             return true
         }
         val hit = frame?.hitTest(mouseX.toFloat(), mouseY.toFloat()) ?: return super.mouseClicked(mouseX, mouseY, button)
+        if (button == 0 && hit.link != null) {
+            openUrl(hit.link)
+            return true
+        }
         activeKey = UiNodeKeys.key(hit.node)
         if (frame?.resolved?.get(hit.node)?.input?.draggable == true && button == 0) {
             draggingNodeKey = activeKey
@@ -181,7 +188,9 @@ abstract class HollowUiScreen(
     }
 
     private fun updateHover(mouseX: Float, mouseY: Float) {
-        hoveredKey = frame?.hitTest(mouseX, mouseY)?.node?.let(UiNodeKeys::key)
+        val hit = frame?.hitTest(mouseX, mouseY)
+        hoveredKey = hit?.node?.let(UiNodeKeys::key)
+        hoveredLink = hit?.link
     }
 
     protected fun isHovered(id: String): Boolean = hoveredKey == id
@@ -191,7 +200,10 @@ abstract class HollowUiScreen(
         node.states -= UiState.HOVER
         node.states -= UiState.ACTIVE
         node.states -= UiState.DRAGGING
-        if (key == hoveredKey) node.states += UiState.HOVER
+        if (node is TextNode) {
+            node.hoveredLink = if (key == hoveredKey) hoveredLink else null
+        }
+        if (key == hoveredKey || node.containsNodeKey(hoveredKey)) node.states += UiState.HOVER
         if (key == activeKey) node.states += UiState.ACTIVE
         if (key == draggingNodeKey) node.states += UiState.DRAGGING
         node.children.forEach(::applyRuntimeStates)
@@ -264,6 +276,11 @@ abstract class HollowUiScreen(
     }
 
     override fun isPauseScreen(): Boolean = false
+}
+
+private fun UiNode.containsNodeKey(key: String?): Boolean {
+    if (key == null) return false
+    return children.any { UiNodeKeys.key(it) == key || it.containsNodeKey(key) }
 }
 
 private data class ScrollbarDrag(

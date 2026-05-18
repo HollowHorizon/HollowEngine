@@ -21,6 +21,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.DrawContext
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvas
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.TextNode as HollowTextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
@@ -32,6 +33,7 @@ import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryWatcher
+import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.generated.Assets
 import java.nio.ByteBuffer
@@ -71,6 +73,9 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
 
             GlCanvas("Hollow UI Preview", glCanvas = { drawPreview(path, scale); surface.triggerUpdate() }) {
                 modifier.size(Grow.Std, Grow.Std)
+                modifier.onClick { UiPreviewRenderer.click(it.screenPosition.x, it.screenPosition.y) }
+                modifier.onWheelX { UiPreviewRenderer.scroll(it.screenPosition.x, it.screenPosition.y, it.pointer.scroll.x, 0f) }
+                modifier.onWheelY { UiPreviewRenderer.scroll(it.screenPosition.x, it.screenPosition.y, 0f, it.pointer.scroll.y) }
             }
 
             UiPreviewState.errorText.use()?.let { error ->
@@ -122,23 +127,32 @@ private object UiPreviewRenderer {
     private val runtime = HollowUiRuntime()
     private val renderer = MinecraftUiRenderer()
     private var hoveredKey: String? = null
+    private var hoveredLink: String? = null
+    private var lastFrame: HollowUiFrame? = null
+    private var lastContext: DrawContext? = null
+    private var lastTarget: UiRenderTarget? = null
 
     fun render(path: String, context: DrawContext, scale: Float) {
         try {
             val target = context.toRenderTarget(scale)
+            lastContext = context
+            lastTarget = target
             val source = path.fromReadablePath().readText()
             val parsed = parseUi(source, UiXmlOptions(resources = PreviewUiResourceLoader))
-            val root = buildRoot(parsed, context, target)
+            val root = buildRoot(parsed, target)
             UiNodeKeys.assign(root)
             applyHoverState(root)
             val now = System.currentTimeMillis()
             var frame = runtime.frame(root, target.logicalWidth, target.logicalHeight, nowMillis = now)
-            val nextHovered = context.hoveredNodeKey(frame, target)
-            if (nextHovered != hoveredKey) {
+            val hit = context.hoveredHit(frame, target)
+            val nextHovered = hit?.node?.let(UiNodeKeys::key)
+            if (nextHovered != hoveredKey || hit?.link != hoveredLink) {
                 hoveredKey = nextHovered
+                hoveredLink = hit?.link
                 applyHoverState(root)
                 frame = runtime.frame(root, target.logicalWidth, target.logicalHeight, nowMillis = now)
             }
+            lastFrame = frame
             PreviewCheckerboard.draw(context)
             renderer.render(frame.commands, target)
             UiPreviewState.errorText.set(null)
@@ -147,51 +161,75 @@ private object UiPreviewRenderer {
         }
     }
 
-    private fun buildRoot(content: UiNode, context: DrawContext, target: UiRenderTarget): UiNode {
-        val scale = target.scale.coerceAtLeast(PreviewScaleMin)
+    fun scroll(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float) {
+        val frame = lastFrame ?: return
+        val context = lastContext ?: return
+        val target = lastTarget ?: return
+        if (mouseX < context.x1 || mouseX > context.x2 || mouseY < context.y1 || mouseY > context.y2) return
+        val localX = (mouseX - context.x) / target.scale
+        val localY = (mouseY - context.y) / target.scale
+        val node = frame.resolved.styles.entries
+            .asSequence()
+            .filter { it.value.input.scrollable }
+            .map { it.key to frame.layout[it.key] }
+            .filter { (_, layout) -> layout.scrollRange.x > 0f || layout.scrollRange.y > 0f }
+            .filter { (_, layout) -> layout.content.contains(localX, localY) }
+            .maxByOrNull { (_, layout) -> layout.rect.x + layout.rect.y }
+            ?.first
+            ?: return
+        runtime.scroll(node, -scrollX * 32f, -scrollY * 32f)
+    }
+
+    fun click(mouseX: Float, mouseY: Float) {
+        val frame = lastFrame ?: return
+        val context = lastContext ?: return
+        val target = lastTarget ?: return
+        if (mouseX < context.x1 || mouseX > context.x2 || mouseY < context.y1 || mouseY > context.y2) return
+        val hit = frame.hitTest((mouseX - context.x) / target.scale, (mouseY - context.y) / target.scale)
+        hit?.link?.let(::openUrl)
+    }
+
+    private fun buildRoot(content: UiNode, target: UiRenderTarget): UiNode {
         return HollowUi(
             modifier = Modifier.then(
                 Modifier.layout(LayoutType.FREE),
                 Modifier.size(target.logicalWidth.px, target.logicalHeight.px),
             ),
         ) {
-            Box(
-                modifier = Modifier.then(
-                    Modifier.layout(LayoutType.FREE),
-                    Modifier.position((context.x / scale).px, (context.y / scale).px),
-                    Modifier.size((context.width / scale).px, (context.height / scale).px),
-                    Modifier.clip(),
-                ),
-            ) {
-                Node(content)
-            }
+            Node(content)
         }
     }
 
     private fun applyHoverState(node: UiNode) {
         val key = UiNodeKeys.key(node)
         node.states -= UiState.HOVER
-        if (key == hoveredKey) node.states += UiState.HOVER
+        if (node is HollowTextNode) node.hoveredLink = if (key == hoveredKey) hoveredLink else null
+        if (key == hoveredKey || node.containsNodeKey(hoveredKey)) node.states += UiState.HOVER
         node.children.forEach(::applyHoverState)
     }
 
-    private fun DrawContext.hoveredNodeKey(frame: HollowUiFrame, target: UiRenderTarget): String? {
+    private fun DrawContext.hoveredHit(frame: HollowUiFrame, target: UiRenderTarget): UiHit? {
         if (mouseX < x1 || mouseX > x2 || mouseY < y1 || mouseY > y2) return null
-        return frame.hitTest(mouseX / target.scale, mouseY / target.scale)?.node?.let(UiNodeKeys::key)
+        return frame.hitTest((mouseX - x) / target.scale, (mouseY - y) / target.scale)
     }
 
+}
+
+private fun UiNode.containsNodeKey(key: String?): Boolean {
+    if (key == null) return false
+    return children.any { UiNodeKeys.key(it) == key || it.containsNodeKey(key) }
 }
 
 private fun DrawContext.toRenderTarget(scale: Float): UiRenderTarget {
     val targetScale = scale.coerceIn(PreviewScaleMin, PreviewScaleMax)
     return UiRenderTarget(
         framebufferId = framebufferId,
-        x = 0,
-        y = 0,
-        width = framebufferWidth,
-        height = framebufferHeight,
-        logicalWidth = framebufferWidth / targetScale,
-        logicalHeight = framebufferHeight / targetScale,
+        x = x.toInt(),
+        y = framebufferHeight - y2.toInt(),
+        width = width.toInt().coerceAtLeast(1),
+        height = height.toInt().coerceAtLeast(1),
+        logicalWidth = width / targetScale,
+        logicalHeight = height / targetScale,
         scale = targetScale,
     )
 }

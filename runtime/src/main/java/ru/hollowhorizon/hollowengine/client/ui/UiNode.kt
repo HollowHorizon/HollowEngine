@@ -44,7 +44,9 @@ class TextNode(
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
+) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers) {
+    var hoveredLink: String? = null
+}
 
 class ImageNode(
     var source: UiBoundString,
@@ -178,8 +180,13 @@ data class UiBindingContext(val root: CompoundTag = CompoundTag()) {
                 result.append(template.substring(index))
                 break
             }
+            val content = template.substring(open + 1, close)
             result.append(template.substring(index, open))
-            result.append(readPath(template.substring(open + 1, close)))
+            if (content.isInlineImageDimension()) {
+                result.append(template.substring(open, close + 1))
+            } else {
+                result.append(readPath(content))
+            }
             index = close + 1
         }
         return result.toString()
@@ -196,6 +203,16 @@ data class UiBindingContext(val root: CompoundTag = CompoundTag()) {
         val key = parts.last()
         if (!tag.contains(key)) return ""
         return tag.getString(key)
+    }
+
+    private fun String.isInlineImageDimension(): Boolean {
+        val parts = split(',').map { it.trim() }
+        val size = parts.firstOrNull() ?: return false
+        val dimensions = size.split('x', 'X').map { it.trim().removeSuffix("px") }
+        if (dimensions.size !in 1..2) return false
+        if (dimensions.any { it.toFloatOrNull() == null }) return false
+        val align = parts.getOrNull(1) ?: return true
+        return align in setOf("baseline", "middle", "top", "bottom")
     }
 }
 

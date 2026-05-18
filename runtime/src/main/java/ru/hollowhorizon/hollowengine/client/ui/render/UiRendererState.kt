@@ -41,7 +41,7 @@ internal data class LayerState(
     val padding: Float,
 )
 
-internal const val LayerSupersampling = 2f
+internal const val LayerSupersampling = 1f
 internal const val LayerTextureSubdivisions = 12
 
 internal fun layerPadding(command: BeginLayerCommand): Float {

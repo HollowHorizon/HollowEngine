@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.HollowUi
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
+import ru.hollowhorizon.hollowengine.client.ui.UiInlineImageRun
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
@@ -16,6 +17,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.UiScope
 import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.UiTransformPivot
 import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.percent
@@ -810,6 +812,154 @@ class UiLayoutContractTests {
 
         assertTrue(largeFrame[large].height > normalFrame[normal].height)
         assertTrue(largeFrame[largeSibling].y > normalFrame[normalSibling].y)
+    }
+
+    @Test
+    fun `RT-01 styled spans survive wrapping and nested formatting`() {
+        lateinit var wrapped: TextNode
+        lateinit var nested: TextNode
+        val root = HollowUi {
+            wrapped = Text("**aa bb cc dd**", modifier = Modifier.size(18.px, UiLength.Auto))
+            nested = Text("<b><i>both</i></b> [link](https://example.com)", modifier = Modifier.size(200.px, UiLength.Auto))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 220f, 120f)
+        val wrappedRuns = frame.textCommand(wrapped).layout.lines.flatMap { it.fragments }.filterIsInstance<UiTextRun>()
+        val nestedRuns = frame.textCommand(nested).layout.lines.flatMap { it.fragments }.filterIsInstance<UiTextRun>()
+
+        assertTrue(frame.textCommand(wrapped).layout.lines.size > 1)
+        assertTrue(wrappedRuns.all { it.style.bold })
+        assertTrue(nestedRuns.first { it.text == "both" }.style.bold)
+        assertTrue(nestedRuns.first { it.text == "both" }.style.italic)
+        assertEquals("https://example.com", nestedRuns.first { it.text == "link" }.style.link)
+        assertTrue(nestedRuns.first { it.text == "link" }.style.underline)
+    }
+
+    @Test
+    fun `RT-02 inline image participates in line height and can overflow on its own line`() {
+        lateinit var inline: TextNode
+        lateinit var wide: TextNode
+        val root = HollowUi {
+            inline = Text("aa ![logo](hollowengine:textures/gui/icons/logo.png){40x20} bb", modifier = Modifier.size(200.px, UiLength.Auto))
+            wide = Text("aa ![wide](hollowengine:textures/gui/icons/logo.png){120x20} bb", modifier = Modifier.size(50.px, UiLength.Auto))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 220f, 140f)
+        val inlineLine = frame.textCommand(inline).layout.lines.single()
+        val inlineImages = inlineLine.fragments.filterIsInstance<UiInlineImageRun>()
+        assertEquals(1, inlineImages.size, "Expected one inline image in $inlineLine")
+        val image = inlineImages.single()
+        val wideImageLine = frame.textCommand(wide).layout.lines.single { line ->
+            line.fragments.singleOrNull() is UiInlineImageRun
+        }
+
+        assertEquals(40f, image.width, 0.01f)
+        assertEquals(20f, image.height, 0.01f)
+        assertTrue(inlineLine.height >= 20f)
+        assertEquals(120f, wideImageLine.naturalWidth, 0.01f)
+        assertTrue(wideImageLine.naturalWidth > frame[wide].width)
+    }
+
+    @Test
+    fun `RT-03 size span affects only its own line`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text("aa\n<size=24px>big</size>\naa", modifier = Modifier.size(200.px, UiLength.Auto))
+        }
+
+        val lines = HollowUiRuntime().frame(root, 220f, 120f).textCommand(text).layout.lines
+
+        assertEquals(10f, lines[0].height, 0.01f)
+        assertEquals(24f, lines[1].height, 0.01f)
+        assertEquals(10f, lines[2].height, 0.01f)
+    }
+
+    @Test
+    fun `RT-04 rich text layout is scale independent`() {
+        lateinit var normal: TextNode
+        lateinit var scaled: TextNode
+        val content = "aa ![logo](hollowengine:textures/gui/icons/logo.png){40x20} **bb cc dd**"
+        val root = HollowUi {
+            normal = Text(content, modifier = Modifier.size(48.px, UiLength.Auto))
+            scaled = Text(content, modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.scale(2f)))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 160f)
+        val normalLayout = frame.textCommand(normal).layout
+        val scaledLayout = frame.textCommand(scaled).layout
+
+        assertRect(frame[normal], width = 48f, height = frame[scaled].height)
+        assertEquals(normalLayout.lines.map { it.text }, scaledLayout.lines.map { it.text })
+        assertEquals(
+            normalLayout.lines.map { it.fragments.map { fragment -> fragment::class } },
+            scaledLayout.lines.map { it.fragments.map { fragment -> fragment::class } },
+        )
+    }
+
+    @Test
+    fun `RT-05 bold advance is included before following words`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text("**aa** bb", modifier = Modifier.size(200.px, UiLength.Auto))
+        }
+
+        val runs = HollowUiRuntime().frame(root, 220f, 80f)
+            .textCommand(text)
+            .layout
+            .lines
+            .single()
+            .fragments
+            .filterIsInstance<UiTextRun>()
+
+        assertTrue(runs[0].style.bold)
+        assertTrue(runs[0].width > 2 * Glyph)
+        assertTrue(runs[1].x >= runs[0].x + runs[0].width + Glyph)
+    }
+
+    @Test
+    fun `RT-06 links are hit tested as inline fragments`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text("[docs](https://example.com)", modifier = Modifier.size(200.px, UiLength.Auto))
+        }
+
+        val hit = HollowUiRuntime().frame(root, 220f, 80f).hitTest(3f, 5f)
+
+        assertEquals(text, hit?.node)
+        assertEquals("https://example.com", hit?.link)
+    }
+
+    @Test
+    fun `RT-07 scrollable text creates scroll range and scrollbar without child nodes`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text(
+                (1..10).joinToString("\n") { "line $it" },
+                modifier = Modifier.then(Modifier.size(100.px, 20.px), Modifier.input(scrollable = true)),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 140f, 80f)
+
+        assertTrue(frame.layout[text].scrollRange.y > 0f)
+        assertTrue(frame.commands.any { it is DrawScrollbarCommand && it.node == text })
+    }
+
+    @Test
+    fun `RT-08 mixed font sizes are centered in the line box without extra line gap`() {
+        lateinit var text: TextNode
+        val root = HollowUi {
+            text = Text("small <size=24px>big</size> small", modifier = Modifier.size(300.px, UiLength.Auto))
+        }
+
+        val line = HollowUiRuntime().frame(root, 320f, 80f).textCommand(text).layout.lines.single()
+        val runs = line.fragments.filterIsInstance<UiTextRun>()
+        val small = runs.first { it.text == "small" }
+        val big = runs.first { it.text == "big" }
+
+        assertEquals(24f, line.height, 0.01f)
+        assertEquals(0f, big.y, 0.01f)
+        assertEquals(7f, small.y, 0.01f)
     }
 }
 

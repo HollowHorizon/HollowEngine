@@ -9,6 +9,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
@@ -23,7 +25,6 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
-import ru.hollowhorizon.hollowengine.common.utils.literal
 import java.util.*
 import kotlin.math.ceil
 import kotlin.math.min
@@ -82,7 +83,6 @@ class MinecraftUiRenderer {
     }
 
     private fun prepareFramebuffers(commands: List<UiRenderCommand>) {
-        val window = Minecraft.getInstance().window
         val scale = layerScale()
         val requests = commands.mapNotNull { command ->
             if (command !is BeginLayerCommand) return@mapNotNull null
@@ -91,11 +91,10 @@ class MinecraftUiRenderer {
             val height = ceil((command.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
             UiLayerRequest(width, height)
         }
-        val target = renderTarget
         framebuffers.beginFrame(
             requests,
-            target?.width ?: window.width,
-            target?.height ?: window.height,
+            1,
+            1,
         )
     }
 
@@ -405,9 +404,8 @@ class MinecraftUiRenderer {
         val yAxis = transform.transform(0f, 1f)
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
-        val fontScale = command.fontSize / mc.font.lineHeight.toFloat()
         command.layout.lines.forEach { line ->
-            drawTextLine(command, line, transform, scaleX, scaleY, fontScale)
+            drawTextLine(command, line, transform, scaleX, scaleY)
         }
         mc.renderBuffers().bufferSource().endBatch()
     }
@@ -418,31 +416,41 @@ class MinecraftUiRenderer {
         transform: UiMatrix4,
         scaleX: Float,
         scaleY: Float,
-        fontScale: Float,
     ) {
-        if (line.justify) {
-            var x = line.x
-            line.text.split(' ').filter { it.isNotEmpty() }.forEach { word ->
-                drawTextRun(command, word, transform, x, line.y, scaleX, scaleY, fontScale)
-                x += UiTextLayouter.measureTextWidth(word, command.fontSize) + UiTextLayouter.measureTextWidth(" ", command.fontSize) + line.extraSpace
+        if (line.fragments.isNotEmpty()) {
+            line.fragments.forEach { fragment ->
+                when (fragment) {
+                    is UiInlineImageRun -> drawInlineImage(command, fragment, line, transform)
+                    is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY)
+                }
             }
         } else {
-            drawTextRun(command, line.text, transform, line.x, line.y, scaleX, scaleY, fontScale)
+            val fragment = UiTextRun(
+                text = line.text,
+                style = UiInlineStyle(),
+                x = line.x,
+                y = 0f,
+                width = line.naturalWidth,
+                height = command.fontSize,
+            )
+            drawTextRun(command, fragment, line, transform, scaleX, scaleY)
         }
     }
 
     private fun drawTextRun(
         command: DrawTextCommand,
-        text: String,
+        fragment: UiTextRun,
+        line: UiTextLine,
         transform: UiMatrix4,
-        x: Float,
-        y: Float,
         scaleX: Float,
         scaleY: Float,
-        fontScale: Float,
     ) {
         val mc = Minecraft.getInstance()
-        val origin = transform.transform(x, y)
+        val fontSize = fragment.style.resolvedFontSize(command.fontSize)
+        val fontScale = fontSize / mc.font.lineHeight.toFloat()
+        val localX = fragment.x - command.scrollOffset.x
+        val localY = line.y + fragment.y - command.scrollOffset.y
+        val origin = transform.transform(localX, localY)
         val pose = PoseStack()
         pose.translate(
             origin.x.toDouble(),
@@ -450,17 +458,63 @@ class MinecraftUiRenderer {
             origin.z.toDouble()
         )
         pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
+        if (fragment.style.code) {
+            drawLocalPaint(
+                fragment.width,
+                fragment.height,
+                2f,
+                UiColor(0f, 0f, 0f, 0.28f * command.opacity),
+                transform * UiMatrix4.translation(localX, localY, 0f),
+                command.filter,
+            )
+        }
+        val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+        val color = fragment.style.color
+            ?: if (fragment.style.link != null) {
+                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            } else {
+                command.color
+            }
+        val component = Component.literal(fragment.text).withStyle { style ->
+            style
+                .withBold(fragment.style.bold)
+                .withItalic(fragment.style.italic)
+                .withUnderlined(fragment.style.underline || fragment.style.link != null)
+                .withStrikethrough(fragment.style.strikethrough)
+                .withColor(TextColor.fromRgb(color.argb() and 0xFFFFFF))
+        }
         mc.font.drawInBatch(
-            text.literal.visualOrderText,
+            component.visualOrderText,
             0f,
             0f,
-            command.color.withOpacity(command.opacity).filtered(command.filter).argb(),
+            color.withOpacity(command.opacity).filtered(command.filter).argb(),
             false,
             pose.last().pose(),
             mc.renderBuffers().bufferSource(),
             DisplayMode.SEE_THROUGH,
             0,
             15728880,
+        )
+    }
+
+    private fun drawInlineImage(
+        command: DrawTextCommand,
+        fragment: UiInlineImageRun,
+        line: UiTextLine,
+        transform: UiMatrix4,
+    ) {
+        drawImage(
+            fragment.width,
+            fragment.height,
+            fragment.image.source,
+            command.opacity,
+            transform * UiMatrix4.translation(
+                fragment.x - command.scrollOffset.x,
+                line.y + fragment.y - command.scrollOffset.y,
+                0f
+            ),
+            UiImageFit.CONTAIN,
+            command.filter,
         )
     }
 

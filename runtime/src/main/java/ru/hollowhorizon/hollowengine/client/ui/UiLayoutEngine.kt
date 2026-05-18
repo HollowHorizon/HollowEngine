@@ -96,6 +96,7 @@ class UiLayoutEngine {
             parentClip = null,
             parentTransform = UiMatrix4.identity(),
             parentInputTransform = UiMatrix4.identity(),
+            insideFramebuffer = false,
             scrollState = scrollState,
             scrollbarReserves = scrollbarReserves,
             layouts = layouts,
@@ -136,6 +137,7 @@ class UiLayoutEngine {
         parentClip: UiRect?,
         parentTransform: UiMatrix4,
         parentInputTransform: UiMatrix4,
+        insideFramebuffer: Boolean,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
@@ -152,7 +154,10 @@ class UiLayoutEngine {
         val inputTransform = parentInputTransform * UiMatrix4.translation(localX, localY, style.position.z) *
                 style.transform.matrix(pivot)
         val needsFramebuffer =
-            style.transform.needsFramebuffer || node.requiresTextLayer(transform) || style.filter.requiresLayer || style.backdropFilter.requiresLayer
+            style.transform.needsFramebuffer ||
+                    (!insideFramebuffer && node.requiresTextLayer(transform)) ||
+                    style.filter.requiresLayer ||
+                    style.backdropFilter.requiresLayer
 
         layouts[node] = UiLayoutNode(
             node = node,
@@ -166,7 +171,7 @@ class UiLayoutEngine {
             scrollArea = boxes.scrollArea,
         )
 
-        placeChildren(node, resolved, style, boxes.content, rect, transform, inputTransform, clip, scrollState, scrollbarReserves, layouts)
+        placeChildren(node, resolved, style, boxes.content, rect, transform, inputTransform, clip, insideFramebuffer || needsFramebuffer, scrollState, scrollbarReserves, layouts)
     }
 
     private fun placeChildren(
@@ -178,6 +183,7 @@ class UiLayoutEngine {
         transform: UiMatrix4,
         inputTransform: UiMatrix4,
         clip: UiRect?,
+        insideFramebuffer: Boolean,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
@@ -189,10 +195,10 @@ class UiLayoutEngine {
             content
         }
         when (style.layout) {
-            LayoutType.ROW -> placeRowChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, scrollState, scrollbarReserves, layouts)
-            LayoutType.COLUMN -> placeColumnChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, scrollState, scrollbarReserves, layouts)
-            LayoutType.GRID -> placeGridChildren(node, resolved, viewport, parentRect, transform, inputTransform, clip, scrollState, scrollbarReserves, layouts)
-            LayoutType.STACK, LayoutType.FREE -> placeFreeChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, scrollState, scrollbarReserves, layouts)
+            LayoutType.ROW -> placeRowChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            LayoutType.COLUMN -> placeColumnChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            LayoutType.GRID -> placeGridChildren(node, resolved, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            LayoutType.STACK, LayoutType.FREE -> placeFreeChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
         }
     }
 
@@ -205,6 +211,7 @@ class UiLayoutEngine {
         transform: UiMatrix4,
         inputTransform: UiMatrix4,
         clip: UiRect?,
+        insideFramebuffer: Boolean,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
@@ -234,7 +241,7 @@ class UiLayoutEngine {
             }
             val y = content.y + align.crossOffset(content.height, childHeight, child.margin.top, child.margin.bottom)
             val rect = UiRect(x + child.margin.left + position.x, y + position.y, child.size.width, childHeight)
-            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
             x += child.margin.left + child.size.width + child.margin.right + actualGap
         }
     }
@@ -248,6 +255,7 @@ class UiLayoutEngine {
         transform: UiMatrix4,
         inputTransform: UiMatrix4,
         clip: UiRect?,
+        insideFramebuffer: Boolean,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
@@ -277,7 +285,7 @@ class UiLayoutEngine {
             }
             val x = content.x + align.crossOffset(content.width, childWidth, child.margin.left, child.margin.right)
             val rect = UiRect(x + position.x, y + child.margin.top + position.y, childWidth, child.size.height)
-            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
             y += child.margin.top + child.size.height + child.margin.bottom + actualGap
         }
     }
@@ -290,6 +298,7 @@ class UiLayoutEngine {
         transform: UiMatrix4,
         inputTransform: UiMatrix4,
         clip: UiRect?,
+        insideFramebuffer: Boolean,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
@@ -306,7 +315,7 @@ class UiLayoutEngine {
             }
             val position = child.style.position.resolve(content.width, content.height)
             val rect = UiRect(x + child.margin.left + position.x, y + child.margin.top + position.y, child.size.width, child.size.height)
-            placeNode(child.node, resolved, rect, parentRect, resolved[node], clip, transform, inputTransform, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, resolved[node], clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
             x += outerWidth
             rowHeight = maxOf(rowHeight, child.margin.top + child.size.height + child.margin.bottom)
         }
@@ -321,6 +330,7 @@ class UiLayoutEngine {
         transform: UiMatrix4,
         inputTransform: UiMatrix4,
         clip: UiRect?,
+        insideFramebuffer: Boolean,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
@@ -332,7 +342,7 @@ class UiLayoutEngine {
             val x = content.x + alignX.crossOffset(content.width, child.size.width, child.margin.left, child.margin.right)
             val y = content.y + alignY.crossOffset(content.height, child.size.height, child.margin.top, child.margin.bottom)
             val rect = UiRect(x + position.x, y + position.y, child.size.width, child.size.height)
-            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
         }
     }
 
@@ -587,7 +597,7 @@ private fun applyScrollRanges(
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = node.children.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
+        val childBounds = scrollableContentBounds(node, style, layout, layouts)
         val range = UiScrollOffset(
             x = maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)),
             y = maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)),
@@ -607,7 +617,7 @@ private fun detectScrollbarReserves(
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = node.children.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
+        val childBounds = scrollableContentBounds(node, style, layout, layouts)
         val reserve = UiScrollbarReserve(
             vertical = (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
             horizontal = (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
@@ -615,6 +625,31 @@ private fun detectScrollbarReserves(
         if (reserve.active) reserves[node] = reserve
     }
     return reserves
+}
+
+private fun scrollableContentBounds(
+    node: UiNode,
+    style: ComputedStyle,
+    layout: UiLayoutNode,
+    layouts: Map<UiNode, UiLayoutNode>,
+): UiRect {
+    if (node is TextNode) {
+        val textLayout = UiTextLayouter.layout(
+            node.text.template,
+            layout.content.width,
+            Float.POSITIVE_INFINITY,
+            style.textWrap,
+            style.textAlign,
+            style.fontSize,
+        )
+        return UiRect(
+            layout.content.x,
+            layout.content.y,
+            maxOf(layout.content.width, textLayout.width),
+            maxOf(layout.content.height, textLayout.height),
+        )
+    }
+    return node.children.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
 }
 
 private fun List<MeasuredChild>.sumOfOuterWidth(): Float = sumOf { (it.margin.left + it.size.width + it.margin.right).toDouble() }.toFloat()
