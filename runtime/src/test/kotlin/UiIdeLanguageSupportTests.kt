@@ -2,6 +2,8 @@ import ru.hollowhorizon.hollowengine.client.ui.MutableUiStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
+import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiTransformPivot
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiMarkupScriptingAnalyzer
@@ -145,9 +147,13 @@ class UiIdeLanguageSupportTests {
 
         compileStyleModifier("aspect-ratio", "16/9")!!.applyTo(style)
         compileStyleModifier("text-wrap", "nowrap")!!.applyTo(style)
+        compileStyleModifier("text-align", "justify")!!.applyTo(style)
+        compileStyleModifier("font-size", "16px")!!.applyTo(style)
 
         assertEquals(16f / 9f, style.aspectRatio)
         assertEquals(false, style.textWrap)
+        assertEquals(UiTextAlign.JUSTIFY, style.textAlign)
+        assertEquals(16f, style.fontSize)
     }
 
     @Test
@@ -158,5 +164,38 @@ class UiIdeLanguageSupportTests {
 
         assertEquals(UiLength.Auto, style.size?.width)
         assertEquals(UiLength.Fill, style.size?.height)
+    }
+
+    @Test
+    fun `hss compiles pivot shortcuts and numeric pivots`() {
+        val shortcut = MutableUiStyle()
+        val numeric = MutableUiStyle()
+
+        compileStyleModifier("pivot", "bottom-right")!!.applyTo(shortcut)
+        compileStyleModifier("transform-origin", "-50px -25px 0px")!!.applyTo(numeric)
+
+        assertEquals(UiTransformPivot.BottomRight, shortcut.transform?.pivot)
+        assertEquals(UiLength.Px(-50f), numeric.transform?.pivot?.x)
+        assertEquals(UiLength.Px(-25f), numeric.transform?.pivot?.y)
+    }
+
+    @Test
+    fun `hss completion suggests pivot and text values`() {
+        val pivotText = """
+            .card {
+                pivot: bott
+            }
+        """.trimIndent()
+        val alignText = """
+            .label {
+                text-align: ju
+            }
+        """.trimIndent()
+
+        val pivotCompletions = HssScriptingAnalyzer.completions("style.hss", pivotText, pivotText.indexOf("bott") + 4).map { it.show }
+        val alignCompletions = HssScriptingAnalyzer.completions("style.hss", alignText, alignText.indexOf("ju") + 2).map { it.show }
+
+        assertTrue("bottom-right" in pivotCompletions)
+        assertTrue("justify" in alignCompletions)
     }
 }

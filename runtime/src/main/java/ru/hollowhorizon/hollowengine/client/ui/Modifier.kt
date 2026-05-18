@@ -96,6 +96,11 @@ sealed interface Modifier {
 
         fun perspective(value: Float) = TransformPatch { current -> current.copy(perspective = value) }
 
+        fun pivot(value: UiTransformPivot) = TransformPatch { current -> current.copy(pivot = value) }
+
+        fun pivot(x: UiLength, y: UiLength, z: UiLength = 0.px) =
+            TransformPatch { current -> current.copy(pivot = UiTransformPivot(x, y, z)) }
+
         fun filter(vararg effects: UiFilterEffect) = StyleModifier { it.filter = UiFilterChain(effects.toList()) }
 
         fun backdropFilter(vararg effects: UiFilterEffect) =
@@ -126,6 +131,10 @@ sealed interface Modifier {
         fun layer(value: Int) = StyleModifier { it.layer = value }
 
         fun textWrap(enabled: Boolean = true) = StyleModifier { it.textWrap = enabled }
+
+        fun textAlign(value: UiTextAlign) = StyleModifier { it.textAlign = value }
+
+        fun fontSize(value: Float) = StyleModifier { it.fontSize = value.coerceAtLeast(0.0001f) }
 
         fun transition(vararg transitions: UiTransition) = StyleModifier { it.transitions = transitions.toList() }
 

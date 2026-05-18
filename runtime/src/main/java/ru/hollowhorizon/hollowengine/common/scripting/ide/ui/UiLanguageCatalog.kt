@@ -36,6 +36,7 @@ object UiLanguageCatalog {
         UiAttribute("translate"),
         UiAttribute("rotate"),
         UiAttribute("scale"),
+        UiAttribute("pivot", "center"),
         UiAttribute("perspective"),
         UiAttribute("filter"),
         UiAttribute("backdrop-filter"),
@@ -48,6 +49,8 @@ object UiLanguageCatalog {
         UiAttribute("clip", "true"),
         UiAttribute("layer"),
         UiAttribute("text-wrap"),
+        UiAttribute("text-align"),
+        UiAttribute("font-size"),
         UiAttribute("transition"),
         UiAttribute("onClick", "{event:\"\"}"),
         UiAttribute("onDrag", "{event:\"\"}"),
@@ -92,6 +95,8 @@ object UiLanguageCatalog {
         "translate",
         "rotate",
         "scale",
+        "pivot",
+        "transform-origin",
         "perspective",
         "filter",
         "backdrop-filter",
@@ -106,6 +111,8 @@ object UiLanguageCatalog {
         "image-fit",
         "fit",
         "text-wrap",
+        "text-align",
+        "font-size",
         "wrap",
         "transition",
     )
@@ -132,6 +139,8 @@ object UiLanguageCatalog {
         "opacity" to listOf("1", "0.5", "0"),
         "rotate" to listOf("0", "10", "0 0 10"),
         "scale" to listOf("1", "1.05", "1 1"),
+        "pivot" to pivotValues(),
+        "transform-origin" to pivotValues(),
         "perspective" to listOf("300px", "0"),
         "filter" to listOf("none", "blur(4px)", "grayscale(1)"),
         "backdrop-filter" to listOf("none", "blur(8px)", "grayscale(1)"),
@@ -145,6 +154,8 @@ object UiLanguageCatalog {
         "image-fit" to imageFitValues(),
         "fit" to imageFitValues(),
         "text-wrap" to listOf("wrap", "nowrap"),
+        "text-align" to listOf("left", "center", "right", "justify"),
+        "font-size" to listOf("10px", "12px", "16px", "24px"),
         "wrap" to listOf("wrap", "nowrap"),
     )
 
@@ -162,6 +173,19 @@ object UiLanguageCatalog {
     private fun booleanValues(): List<String> = listOf("true", "false")
 
     private fun imageFitValues(): List<String> = listOf("stretch", "contain", "cover", "none")
+
+    private fun pivotValues(): List<String> = listOf(
+        "center",
+        "top-left",
+        "top-center",
+        "top-right",
+        "center-left",
+        "center-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right",
+        "0px 0px 0px",
+    )
 }
 
 data class UiAttribute(

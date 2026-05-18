@@ -72,6 +72,8 @@ data class MutableUiStyle(
     var layer: Int? = null,
     var imageFit: UiImageFit? = null,
     var textWrap: Boolean? = null,
+    var textAlign: UiTextAlign? = null,
+    var fontSize: Float? = null,
     var transitions: List<UiTransition>? = null,
 ) {
     fun merge(other: MutableUiStyle) {
@@ -109,11 +111,15 @@ data class MutableUiStyle(
         other.layer?.let { layer = it }
         other.imageFit?.let { imageFit = it }
         other.textWrap?.let { textWrap = it }
+        other.textAlign?.let { textAlign = it }
+        other.fontSize?.let { fontSize = it }
         other.transitions?.let { transitions = it }
     }
 
     fun toComputed(parent: ComputedStyle? = null): ComputedStyle {
         val inheritedForeground = parent?.foreground ?: UiColor.White
+        val inheritedTextAlign = parent?.textAlign ?: UiTextAlign.LEFT
+        val inheritedFontSize = parent?.fontSize ?: DefaultUiFontSize
         return ComputedStyle(
             layout = layout ?: LayoutType.COLUMN,
             size = size ?: UiSize(),
@@ -149,6 +155,8 @@ data class MutableUiStyle(
             layer = layer ?: 0,
             imageFit = imageFit ?: UiImageFit.STRETCH,
             textWrap = textWrap ?: true,
+            textAlign = textAlign ?: inheritedTextAlign,
+            fontSize = fontSize ?: inheritedFontSize,
             transitions = transitions ?: emptyList(),
         )
     }
@@ -189,6 +197,8 @@ data class ComputedStyle(
     val layer: Int,
     val imageFit: UiImageFit,
     val textWrap: Boolean,
+    val textAlign: UiTextAlign,
+    val fontSize: Float,
     val transitions: List<UiTransition>,
 ) {
 
@@ -204,11 +214,14 @@ data class ComputedStyle(
                 translate = transform.translate.interpolate(to.transform.translate, progress.translate),
                 rotate = transform.rotate.interpolate(to.transform.rotate, progress.rotate),
                 scale = transform.scale.interpolate(to.transform.scale, progress.scale),
+                pivot = to.transform.pivot,
                 perspective = transform.perspective + (to.transform.perspective - transform.perspective) * progress.perspective,
             ),
         )
     }
 }
+
+const val DefaultUiFontSize = 10f
 
 data class TransitionProgress(
     val background: Float = 1f,
@@ -452,6 +465,7 @@ class UiTransitionState {
             "translate" -> transform.translate != target.transform.translate
             "rotate" -> transform.rotate != target.transform.rotate
             "scale" -> transform.scale != target.transform.scale
+            "pivot", "transform-origin" -> transform.pivot != target.transform.pivot
             "perspective" -> transform.perspective != target.transform.perspective
             else -> false
         }
@@ -469,6 +483,8 @@ class UiTransitionState {
             "scale",
             "translate",
             "rotate",
+            "pivot",
+            "transform-origin",
             "perspective",
         )
     }

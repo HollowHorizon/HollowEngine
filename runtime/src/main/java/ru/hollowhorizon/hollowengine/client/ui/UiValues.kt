@@ -45,6 +45,13 @@ enum class UiAlign {
     SPACE_EVENLY
 }
 
+enum class UiTextAlign {
+    LEFT,
+    RIGHT,
+    CENTER,
+    JUSTIFY
+}
+
 sealed interface UiLength {
     data object Auto : UiLength
     data object Fill : UiLength
@@ -100,6 +107,30 @@ data class UiPosition(
     )
 }
 
+data class UiTransformPivot(
+    val x: UiLength = 50.percent,
+    val y: UiLength = 50.percent,
+    val z: UiLength = 0.px,
+) {
+    fun resolve(width: Float, height: Float, depth: Float = 0f): UiVec3 = UiVec3(
+        x = x.resolve(width),
+        y = y.resolve(height),
+        z = z.resolve(depth),
+    )
+
+    companion object {
+        val Center = UiTransformPivot()
+        val TopLeft = UiTransformPivot(0.px, 0.px, 0.px)
+        val TopCenter = UiTransformPivot(50.percent, 0.px, 0.px)
+        val TopRight = UiTransformPivot(100.percent, 0.px, 0.px)
+        val CenterLeft = UiTransformPivot(0.px, 50.percent, 0.px)
+        val CenterRight = UiTransformPivot(100.percent, 50.percent, 0.px)
+        val BottomLeft = UiTransformPivot(0.px, 100.percent, 0.px)
+        val BottomCenter = UiTransformPivot(50.percent, 100.percent, 0.px)
+        val BottomRight = UiTransformPivot(100.percent, 100.percent, 0.px)
+    }
+}
+
 data class UiColor(
     val red: Float,
     val green: Float,
@@ -130,18 +161,21 @@ data class UiTransform(
     val translate: UiVec3 = UiVec3(),
     val rotate: UiVec3 = UiVec3(),
     val scale: UiVec3 = UiVec3(1f, 1f, 1f),
+    val pivot: UiTransformPivot = UiTransformPivot.Center,
     val perspective: Float = 0f,
 ) {
     val needsFramebuffer: Boolean get() = rotate.x != 0f || rotate.y != 0f || rotate.z != 0f || perspective != 0f
 
-    fun matrix(): UiMatrix4 {
+    fun matrix(pivotPoint: UiVec3 = pivot.resolve(0f, 0f)): UiMatrix4 {
         var result = UiMatrix4.identity()
-        if (perspective != 0f) result *= UiMatrix4.perspective(perspective)
         result *= UiMatrix4.translation(translate.x, translate.y, translate.z)
+        result *= UiMatrix4.translation(pivotPoint.x, pivotPoint.y, pivotPoint.z)
+        if (perspective != 0f) result *= UiMatrix4.perspective(perspective)
         result *= UiMatrix4.rotationX(rotate.x.degreesToRadians())
         result *= UiMatrix4.rotationY(rotate.y.degreesToRadians())
         result *= UiMatrix4.rotationZ(rotate.z.degreesToRadians())
         result *= UiMatrix4.scale(scale.x, scale.y, scale.z)
+        result *= UiMatrix4.translation(-pivotPoint.x, -pivotPoint.y, -pivotPoint.z)
         return result
     }
 }

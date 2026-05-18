@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.common.utils.literal
 import kotlin.math.abs
-import kotlin.math.ceil
 
 data class UiRect(
     val x: Float,
@@ -35,8 +32,6 @@ data class UiLayoutResult(
 }
 
 private const val DirectTextTransformEpsilon = 0.0001f
-private const val EstimatedGlyphWidth = 6f
-private const val EstimatedLineHeight = 10
 private const val ScrollOverflowEpsilon = 0.01f
 
 private data class UiScrollbarReserve(
@@ -50,7 +45,7 @@ private data class UiScrollbarReserve(
     }
 }
 
-private data class LayoutSize(val width: Float, val height: Float)
+internal data class LayoutSize(val width: Float, val height: Float)
 
 private data class MeasuredChild(
     val node: UiNode,
@@ -125,13 +120,11 @@ class UiLayoutEngine {
         val clip = if (style.clip || style.input.scrollable) parentClip.intersect(boxes.content) else parentClip
         val localX = rect.x - parentRect.x
         val localY = rect.y - parentRect.y
-        val origin = style.transformOrigin(parentStyle, rect.width, rect.height)
-        val transformOrigin = UiMatrix4.translation(origin.x, origin.y, 0f)
-        val transformOriginInverse = UiMatrix4.translation(-origin.x, -origin.y, 0f)
+        val pivot = style.transform.pivot.resolve(rect.width, rect.height)
         val transform = parentTransform * UiMatrix4.translation(localX, localY, style.position.z) *
-                transformOrigin * style.transform.matrix() * transformOriginInverse
+                style.transform.matrix(pivot)
         val inputTransform = parentInputTransform * UiMatrix4.translation(localX, localY, style.position.z) *
-                transformOrigin * style.transform.matrix() * transformOriginInverse
+                style.transform.matrix(pivot)
         val needsFramebuffer =
             style.transform.needsFramebuffer || node.requiresTextLayer(transform) || style.filter.requiresLayer || style.backdropFilter.requiresLayer
 
@@ -483,7 +476,13 @@ class UiLayoutEngine {
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         knownContentWidth: Float? = null,
     ): LayoutSize {
-        if (node is TextNode) return measureText(node, style, availableWidth, knownContentWidth)
+        if (node is TextNode) return UiTextLayouter.measure(
+            text = node.text.template,
+            availableWidth = availableWidth,
+            knownWidth = knownContentWidth,
+            wrap = style.textWrap,
+            fontSize = style.fontSize,
+        )
         if (node.children.isEmpty()) return replacedIntrinsicSize(node, style)
         val children = measureFlowChildren(
             node.children,
@@ -506,26 +505,6 @@ class UiLayoutEngine {
             )
             LayoutType.GRID, LayoutType.STACK, LayoutType.FREE -> LayoutSize(children.maxOfOuterWidth(), children.maxOfOuterHeight())
         }
-    }
-
-    private fun measureText(node: TextNode, style: ComputedStyle, availableWidth: Float, knownWidth: Float?): LayoutSize {
-        val font = Minecraft.getInstance()?.font
-        val naturalWidth = font?.width(node.text.template)?.toFloat() ?: estimateTextWidth(node.text.template)
-        val width = knownWidth
-            ?: style.size.width.resolveOrNull(availableWidth)
-            ?: availableWidth.takeIf { style.textWrap && it > 0f }?.let { minOf(naturalWidth, it) }
-            ?: naturalWidth
-        val wrapWidth = ceil(width / style.transform.scale.x.coerceAtLeast(0.0001f)).toInt().coerceAtLeast(1)
-        val lines = if (style.textWrap) {
-            font?.split(node.text.template.literal, wrapWidth)?.size
-                ?: estimateLineCount(node.text.template, wrapWidth)
-        } else {
-            1
-        }
-        val lineHeight = font?.lineHeight ?: EstimatedLineHeight
-        val height = style.size.height.resolveOrNull(0f)
-            ?: lines.coerceAtLeast(1) * lineHeight * style.transform.scale.y.coerceAtLeast(0.0001f)
-        return LayoutSize(width, height)
     }
 
     private fun nodeBoxes(rect: UiRect, style: ComputedStyle, reserve: UiScrollbarReserve): NodeBoxes {
@@ -701,12 +680,6 @@ private fun UiAlign.crossOffset(available: Float, size: Float, startMargin: Floa
     }.coerceAtLeast(startMargin)
 }
 
-private fun ComputedStyle.transformOrigin(parent: ComputedStyle?, width: Float, height: Float): UiVec3 {
-    val horizontal = effectiveAlignHorizontal(parent) ?: UiAlign.CENTER
-    val vertical = effectiveAlignVertical(parent) ?: UiAlign.CENTER
-    return UiVec3(width * horizontal.originFactor(), height * vertical.originFactor(), 0f)
-}
-
 private fun ComputedStyle.effectiveAlignHorizontal(parent: ComputedStyle?): UiAlign? {
     return alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignHorizontal()
 }
@@ -725,12 +698,6 @@ private fun ComputedStyle.childAlignVertical(): UiAlign? {
     return alignItemsVertical.takeUnless { it == UiAlign.AUTO }
         ?: if (layout == LayoutType.ROW) alignItems.takeUnless { it == UiAlign.AUTO }
         else justifyContent.takeUnless { it == UiAlign.AUTO }
-}
-
-private fun UiAlign.originFactor(): Float = when (this) {
-    UiAlign.START, UiAlign.AUTO -> 0f
-    UiAlign.CENTER, UiAlign.STRETCH, UiAlign.SPACE_BETWEEN, UiAlign.SPACE_AROUND, UiAlign.SPACE_EVENLY -> 0.5f
-    UiAlign.END -> 1f
 }
 
 private fun UiInsets.resolve(parentWidth: Float, parentHeight: Float): ResolvedUiInsets {
@@ -782,8 +749,3 @@ private fun List<UiRect>.union(): UiRect? {
     }
     return UiRect(left, top, right - left, bottom - top)
 }
-
-private fun estimateTextWidth(text: String): Float = text.length * EstimatedGlyphWidth
-
-private fun estimateLineCount(text: String, width: Int): Int =
-    ceil(estimateTextWidth(text) / width.coerceAtLeast(1)).toInt().coerceAtLeast(1)

@@ -73,6 +73,9 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
 
             "rotate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(rotate = parseVec3(value)) }
             "scale" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(scale = parseScale(value)) }
+            "pivot", "transform-origin" -> instruction {
+                it.transform = (it.transform ?: UiTransform()).copy(pivot = parsePivot(value))
+            }
             "perspective" -> instruction {
                 it.transform = (it.transform ?: UiTransform()).copy(perspective = parseScalar(value))
             }
@@ -89,6 +92,8 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "layer" -> instruction { it.layer = value.toInt() }
             "image-fit", "fit" -> instruction { it.imageFit = parseImageFit(value) }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
+            "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
+            "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
             "transition" -> instruction { it.transitions = parseTransitions(value) }
             else -> null
         }
@@ -160,6 +165,14 @@ private fun parseTextWrap(value: String): Boolean = when (value.lowercase()) {
     "wrap", "true", "yes", "1", "enabled" -> true
     "nowrap", "no-wrap", "false", "no", "0", "disabled" -> false
     else -> throw IllegalArgumentException("Unknown text wrap '$value'")
+}
+
+private fun parseTextAlign(value: String): UiTextAlign = when (value.lowercase()) {
+    "left", "start" -> UiTextAlign.LEFT
+    "right", "end" -> UiTextAlign.RIGHT
+    "center" -> UiTextAlign.CENTER
+    "justify" -> UiTextAlign.JUSTIFY
+    else -> throw IllegalArgumentException("Unknown text-align '$value'")
 }
 
 private fun parseAspectRatio(value: String): Float {
@@ -335,6 +348,38 @@ private fun parsePosition(value: String): UiPosition {
         y = parseLength(parts.getOrElse(1) { "0px" }),
         z = parts.getOrNull(2)?.let(::parseScalar) ?: 0f,
     )
+}
+
+private fun parsePivot(value: String): UiTransformPivot {
+    val cleaned = value.trim().lowercase()
+    namedPivot(cleaned)?.let { return it }
+    val parts = splitWhitespace(value)
+    if (parts.size == 1) namedPivot(parts[0].lowercase())?.let { return it }
+    return UiTransformPivot(
+        x = parsePivotLength(parts.getOrElse(0) { "50%" }),
+        y = parsePivotLength(parts.getOrElse(1) { "50%" }),
+        z = parts.getOrNull(2)?.let(::parsePivotLength) ?: 0.px,
+    )
+}
+
+private fun namedPivot(value: String): UiTransformPivot? = when (value) {
+    "top-left" -> UiTransformPivot.TopLeft
+    "top-center" -> UiTransformPivot.TopCenter
+    "top-right" -> UiTransformPivot.TopRight
+    "center-left" -> UiTransformPivot.CenterLeft
+    "center" -> UiTransformPivot.Center
+    "center-right" -> UiTransformPivot.CenterRight
+    "bottom-left" -> UiTransformPivot.BottomLeft
+    "bottom-center" -> UiTransformPivot.BottomCenter
+    "bottom-right" -> UiTransformPivot.BottomRight
+    else -> null
+}
+
+private fun parsePivotLength(value: String): UiLength {
+    val cleaned = value.trim().lowercase()
+    if (cleaned.endsWith("%")) return UiLength.Percent(cleaned.dropLast(1).toFloat() / 100f)
+    if (cleaned.endsWith("px")) return cleaned.dropLast(2).toFloat().px
+    return cleaned.toFloat().px
 }
 
 private fun parseScale(value: String): UiVec3 {

@@ -399,40 +399,68 @@ class MinecraftUiRenderer {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val mc = Minecraft.getInstance()
-        val origin = transform.transform(0f, 0f)
         val xAxis = transform.transform(1f, 0f)
+        val origin = transform.transform(0f, 0f)
         val yAxis = transform.transform(0f, 1f)
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
-        val textWidth = ceil(command.rect.width  / command.scale.x).toInt().coerceAtLeast(1)
-        val lines = if (command.wrap) {
-            mc.font.split(command.text.literal, textWidth)
-        } else {
-            listOf(command.text.literal.visualOrderText)
-        }
-        val maxLines = (command.rect.height / (mc.font.lineHeight * command.scale.y.coerceAtLeast(0.0001f))).toInt().coerceAtLeast(1)
-        lines.take(maxLines).forEachIndexed { index, line ->
-            val pose = PoseStack()
-            pose.translate(
-                origin.x.toDouble(),
-                (origin.y + index * mc.font.lineHeight * scaleY).toDouble(),
-                origin.z.toDouble()
-            )
-            pose.scale(scaleX, scaleY, 1f)
-            mc.font.drawInBatch(
-                line,
-                0f,
-                0f,
-                command.color.withOpacity(command.opacity).filtered(command.filter).argb(),
-                false,
-                pose.last().pose(),
-                mc.renderBuffers().bufferSource(),
-                DisplayMode.SEE_THROUGH,
-                0,
-                15728880,
-            )
+        val fontScale = command.fontSize / mc.font.lineHeight.toFloat()
+        command.layout.lines.forEach { line ->
+            drawTextLine(command, line, transform, scaleX, scaleY, fontScale)
         }
         mc.renderBuffers().bufferSource().endBatch()
+    }
+
+    private fun drawTextLine(
+        command: DrawTextCommand,
+        line: UiTextLine,
+        transform: UiMatrix4,
+        scaleX: Float,
+        scaleY: Float,
+        fontScale: Float,
+    ) {
+        if (line.justify) {
+            var x = line.x
+            line.text.split(' ').filter { it.isNotEmpty() }.forEach { word ->
+                drawTextRun(command, word, transform, x, line.y, scaleX, scaleY, fontScale)
+                x += UiTextLayouter.measureTextWidth(word, command.fontSize) + UiTextLayouter.measureTextWidth(" ", command.fontSize) + line.extraSpace
+            }
+        } else {
+            drawTextRun(command, line.text, transform, line.x, line.y, scaleX, scaleY, fontScale)
+        }
+    }
+
+    private fun drawTextRun(
+        command: DrawTextCommand,
+        text: String,
+        transform: UiMatrix4,
+        x: Float,
+        y: Float,
+        scaleX: Float,
+        scaleY: Float,
+        fontScale: Float,
+    ) {
+        val mc = Minecraft.getInstance()
+        val origin = transform.transform(x, y)
+        val pose = PoseStack()
+        pose.translate(
+            origin.x.toDouble(),
+            origin.y.toDouble(),
+            origin.z.toDouble()
+        )
+        pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
+        mc.font.drawInBatch(
+            text.literal.visualOrderText,
+            0f,
+            0f,
+            command.color.withOpacity(command.opacity).filtered(command.filter).argb(),
+            false,
+            pose.last().pose(),
+            mc.renderBuffers().bufferSource(),
+            DisplayMode.SEE_THROUGH,
+            0,
+            15728880,
+        )
     }
 
     private fun drawImage(command: DrawImageCommand) {

@@ -71,7 +71,9 @@ data class DrawTextCommand(
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val wrap: Boolean,
-    val scale: UiVec3,
+    val align: UiTextAlign,
+    val fontSize: Float,
+    val layout: UiTextLayout,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
@@ -218,7 +220,17 @@ class UiCommandRenderer {
                 style.opacity,
                 layoutNode.worldTransform,
                 contentFilter,
-                style.textWrap, style.transform.scale,
+                style.textWrap,
+                style.textAlign,
+                style.fontSize,
+                UiTextLayouter.layout(
+                    node.text.resolve(bindings),
+                    layoutNode.content.width,
+                    layoutNode.content.height,
+                    style.textWrap,
+                    style.textAlign,
+                    style.fontSize,
+                ),
                 style.backfaceVisibility,
             )
 

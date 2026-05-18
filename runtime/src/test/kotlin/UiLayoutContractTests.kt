@@ -1,5 +1,6 @@
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.HollowUi
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
@@ -14,6 +15,9 @@ import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.UiScope
+import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiTransformPivot
+import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.percent
 import ru.hollowhorizon.hollowengine.client.ui.px
 import kotlin.test.Test
@@ -579,6 +583,194 @@ class UiLayoutContractTests {
         assertRect(frame[row], height = 58f)
         children.forEach { assertRect(frame[it], height = 58f) }
     }
+
+    @Test
+    fun `TR-P1 scale uses explicit pivot point`() {
+        listOf(
+            UiTransformPivot.Center to UiVec3(-50f, -50f, 0f),
+            UiTransformPivot.TopLeft to UiVec3(0f, 0f, 0f),
+            UiTransformPivot.BottomRight to UiVec3(-100f, -100f, 0f),
+        ).forEach { (pivot, expectedTopLeft) ->
+            lateinit var child: BoxNode
+            val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+                child = Box(modifier = Modifier.then(Modifier.size(100.px, 100.px), Modifier.pivot(pivot), Modifier.scale(2f)))
+            }
+
+            val frame = HollowUiRuntime().frame(root, 200f, 200f)
+
+            assertVec(frame.layout[child].worldTransform.transform(0f, 0f), expectedTopLeft)
+        }
+    }
+
+    @Test
+    fun `TR-P2 rotation keeps the chosen pivot fixed`() {
+        listOf(
+            UiTransformPivot.Center to UiVec3(50f, 50f, 0f),
+            UiTransformPivot.TopLeft to UiVec3(0f, 0f, 0f),
+            UiTransformPivot.BottomRight to UiVec3(100f, 100f, 0f),
+        ).forEach { (pivot, fixedPoint) ->
+            lateinit var child: BoxNode
+            val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+                child = Box(modifier = Modifier.then(Modifier.size(100.px, 100.px), Modifier.pivot(pivot), Modifier.rotate(z = 45f)))
+            }
+
+            val frame = HollowUiRuntime().frame(root, 200f, 200f)
+
+            assertVec(frame.layout[child].worldTransform.transform(fixedPoint.x, fixedPoint.y), fixedPoint)
+        }
+    }
+
+    @Test
+    fun `TR-P3 translate is independent from pivot`() {
+        listOf(UiTransformPivot.TopLeft, UiTransformPivot.Center, UiTransformPivot.BottomRight).forEach { pivot ->
+            lateinit var child: BoxNode
+            val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+                child = Box(modifier = Modifier.then(Modifier.size(100.px, 100.px), Modifier.pivot(pivot), Modifier.translate(x = 100f)))
+            }
+
+            val frame = HollowUiRuntime().frame(root, 200f, 200f)
+
+            assertVec(frame.layout[child].worldTransform.transform(0f, 0f), UiVec3(100f, 0f, 0f))
+        }
+    }
+
+    @Test
+    fun `TR-P4 numeric pivot matches equivalent named shorthand and outside pivot orbits`() {
+        lateinit var named: BoxNode
+        lateinit var numeric: BoxNode
+        lateinit var outside: BoxNode
+        val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            named = Box(modifier = Modifier.then(Modifier.size(100.px, 100.px), Modifier.pivot(UiTransformPivot.TopLeft), Modifier.rotate(z = 45f)))
+            numeric = Box(modifier = Modifier.then(Modifier.size(100.px, 100.px), Modifier.pivot(0.px, 0.px), Modifier.rotate(z = 45f)))
+            outside = Box(modifier = Modifier.then(Modifier.size(100.px, 100.px), Modifier.pivot((-50).px, (-50).px), Modifier.rotate(z = 90f)))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 300f, 300f)
+
+        assertVec(frame.layout[named].worldTransform.transform(100f, 0f), frame.layout[numeric].worldTransform.transform(100f, 0f))
+        assertVec(frame.layout[outside].worldTransform.transform(0f, 0f), UiVec3(-100f, 0f, 0f))
+    }
+
+    @Test
+    fun `TX-01 text align positions lines inside text box`() {
+        listOf(
+            UiTextAlign.LEFT to 0f,
+            UiTextAlign.CENTER to 35f,
+            UiTextAlign.RIGHT to 70f,
+        ).forEach { (align, x) ->
+            lateinit var text: TextNode
+            val root = HollowUi {
+                text = Text("Hello", modifier = Modifier.then(Modifier.size(100.px, UiLength.Auto), Modifier.textAlign(align)))
+            }
+
+            val command = HollowUiRuntime().frame(root, 100f, 50f).textCommand(text)
+
+            assertEquals(x, command.layout.lines.single().x, 0.01f)
+            assertEquals(30f, command.layout.lines.single().naturalWidth, 0.01f)
+        }
+    }
+
+    @Test
+    fun `TX-02 justify excludes last one-word and explicit-break lines`() {
+        lateinit var justified: TextNode
+        lateinit var oneWord: TextNode
+        lateinit var forced: TextNode
+        val root = HollowUi {
+            justified = Text("aa bb cc dd ee", modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.textAlign(UiTextAlign.JUSTIFY)))
+            oneWord = Text("longword", modifier = Modifier.then(Modifier.size(20.px, UiLength.Auto), Modifier.textAlign(UiTextAlign.JUSTIFY)))
+            forced = Text("aa bb\ncc dd", modifier = Modifier.then(Modifier.size(100.px, UiLength.Auto), Modifier.textAlign(UiTextAlign.JUSTIFY)))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 120f)
+
+        assertTrue(frame.textCommand(justified).layout.lines.first().justify)
+        assertTrue(frame.textCommand(justified).layout.lines.last().justify.not())
+        assertTrue(frame.textCommand(oneWord).layout.lines.all { !it.justify && it.x == 0f })
+        assertTrue(frame.textCommand(forced).layout.lines.all { !it.justify && it.x == 0f })
+    }
+
+    @Test
+    fun `TX-03 alignment does not change line breaks and inherits from container`() {
+        val content = "aa bb cc dd ee"
+        val lineSets = UiTextAlign.entries.map { align ->
+            lateinit var text: TextNode
+            val root = HollowUi {
+                text = Text(content, modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.textAlign(align)))
+            }
+            HollowUiRuntime().frame(root, 100f, 100f).textCommand(text).layout.lines.map { it.text }
+        }
+        lateinit var inherited: TextNode
+        val inheritedRoot = HollowUi(modifier = Modifier.textAlign(UiTextAlign.RIGHT)) {
+            inherited = Text("Hello", modifier = Modifier.size(100.px, UiLength.Auto))
+        }
+
+        assertEquals(1, lineSets.distinct().size)
+        assertEquals(70f, HollowUiRuntime().frame(inheritedRoot, 100f, 50f).textCommand(inherited).layout.lines.single().x, 0.01f)
+    }
+
+    @Test
+    fun `TX-04 right aligned text respects padding right`() {
+        lateinit var text: TextNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.size(100.px, 40.px),
+                Modifier.padding(0.px, 0.px, 20.px, 0.px),
+                Modifier.textAlign(UiTextAlign.RIGHT),
+            ),
+        ) {
+            text = Text("Hello", modifier = Modifier.size(UiLength.Fill, UiLength.Auto))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 40f)
+        val line = frame.textCommand(text).layout.lines.single()
+
+        assertEquals(80f, frame[text].x + line.x + line.naturalWidth, 0.01f)
+    }
+
+    @Test
+    fun `SC-01 transform scale never changes text layout snapshot`() {
+        val content = "aa bb cc dd ee"
+        lateinit var normal: TextNode
+        lateinit var scaledUp: TextNode
+        lateinit var scaledDown: TextNode
+        val root = HollowUi {
+            normal = Text(content, modifier = Modifier.size(48.px, UiLength.Auto))
+            scaledUp = Text(content, modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.scale(2f)))
+            scaledDown = Text(content, modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.scale(0.5f)))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 120f)
+        val expectedLines = frame.textCommand(normal).layout.lines.map { it.text }
+
+        assertRect(frame[normal], width = 48f, height = 20f)
+        assertRect(frame[scaledUp], width = 48f, height = 20f)
+        assertRect(frame[scaledDown], width = 48f, height = 20f)
+        assertEquals(expectedLines, frame.textCommand(scaledUp).layout.lines.map { it.text })
+        assertEquals(expectedLines, frame.textCommand(scaledDown).layout.lines.map { it.text })
+    }
+
+    @Test
+    fun `SC-02 font size changes reflow and sibling position while scale does not`() {
+        lateinit var normal: TextNode
+        lateinit var normalSibling: BoxNode
+        lateinit var large: TextNode
+        lateinit var largeSibling: BoxNode
+        val content = "aa bb cc dd"
+        val normalRoot = HollowUi {
+            normal = Text(content, modifier = Modifier.size(48.px, UiLength.Auto))
+            normalSibling = Box(modifier = Modifier.size(10.px, 10.px))
+        }
+        val largeRoot = HollowUi {
+            large = Text(content, modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.fontSize(20f)))
+            largeSibling = Box(modifier = Modifier.size(10.px, 10.px))
+        }
+
+        val normalFrame = HollowUiRuntime().frame(normalRoot, 100f, 120f)
+        val largeFrame = HollowUiRuntime().frame(largeRoot, 100f, 160f)
+
+        assertTrue(largeFrame[large].height > normalFrame[normal].height)
+        assertTrue(largeFrame[largeSibling].y > normalFrame[normalSibling].y)
+    }
 }
 
 private operator fun HollowUiFrame.get(node: ru.hollowhorizon.hollowengine.client.ui.UiNode): UiRect = layout[node].rect
@@ -602,4 +794,14 @@ private fun assertChildInside(parent: UiRect, child: UiRect) {
     assertTrue(child.y >= parent.y, "Child starts above parent: child=$child parent=$parent")
     assertTrue(child.x + child.width <= parent.x + parent.width, "Child overflows parent horizontally: child=$child parent=$parent")
     assertTrue(child.y + child.height <= parent.y + parent.height, "Child overflows parent vertically: child=$child parent=$parent")
+}
+
+private fun HollowUiFrame.textCommand(node: TextNode): DrawTextCommand {
+    return assertIs(commands.first { it.node == node && it is DrawTextCommand })
+}
+
+private fun assertVec(actual: UiVec3, expected: UiVec3, tolerance: Float = 0.01f) {
+    assertEquals(expected.x, actual.x, tolerance, "x mismatch for $actual")
+    assertEquals(expected.y, actual.y, tolerance, "y mismatch for $actual")
+    assertEquals(expected.z, actual.z, tolerance, "z mismatch for $actual")
 }
