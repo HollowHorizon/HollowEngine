@@ -112,9 +112,9 @@ object UiLanguageCatalog {
 
     val valueCompletions = mapOf(
         "layout" to listOf("row", "column", "grid", "stack", "free"),
-        "size" to listOf("100% 100%", "80% 80%", "auto auto", "64px 64px"),
-        "width" to listOf("100%", "80%", "auto", "64px"),
-        "height" to listOf("100%", "80%", "auto", "64px"),
+        "size" to listOf("fill fill", "fit fit", "100% 100%", "80% 80%", "64px 64px"),
+        "width" to listOf("fill", "fit", "100%", "80%", "64px"),
+        "height" to listOf("fill", "fit", "100%", "80%", "64px"),
         "min-size" to listOf("0px 0px", "64px 64px"),
         "max-size" to listOf("100% 100%", "auto auto"),
         "aspect-ratio" to listOf("1", "16/9", "4/3"),

@@ -188,8 +188,9 @@ private fun parseInsets(value: String, allowAuto: Boolean): UiInsets {
 }
 
 private fun parseLength(value: String, allowAuto: Boolean = true): UiLength {
-    val cleaned = value.trim()
-    if (cleaned == "auto" && allowAuto) return UiLength.Auto
+    val cleaned = value.trim().lowercase()
+    if ((cleaned == "auto" || cleaned == "fit") && allowAuto) return UiLength.Auto
+    if (cleaned == "fill") return UiLength.Fill
     if (cleaned.endsWith("px")) return cleaned.dropLast(2).toFloat().px
     if (cleaned.endsWith("%")) return UiLength.Percent(cleaned.dropLast(1).toFloat() / 100f)
     return cleaned.toFloat().px

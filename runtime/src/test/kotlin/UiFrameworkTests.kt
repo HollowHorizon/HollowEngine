@@ -115,6 +115,368 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `row layout keeps flow positions when align items and margins are combined`() {
+        lateinit var first: BoxNode
+        lateinit var second: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.ROW),
+                Modifier.size(120.px, 50.px),
+                Modifier.padding(10.px),
+                Modifier.gap(6.px),
+                Modifier.alignItems(UiAlign.CENTER, UiAlign.CENTER),
+            ),
+        ) {
+            first = Box(
+                modifier = Modifier.then(
+                    Modifier.size(20.px, 10.px),
+                    Modifier.margin(4.px, 0.px, 2.px, 0.px),
+                ),
+            )
+            second = Box(modifier = Modifier.size(20.px, 10.px))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 50f)
+        val firstRect = frame.layout[first].rect
+        val secondRect = frame.layout[second].rect
+
+        assertEquals(38f, firstRect.x)
+        assertEquals(20f, firstRect.y)
+        assertTrue(firstRect.x + firstRect.width <= secondRect.x, "Row children should not overlap")
+    }
+
+    @Test
+    fun `column layout keeps flow positions when align items and padding are combined`() {
+        lateinit var first: BoxNode
+        lateinit var second: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.COLUMN),
+                Modifier.size(80.px, 100.px),
+                Modifier.padding(10.px),
+                Modifier.gap(4.px),
+                Modifier.alignItems(UiAlign.END, UiAlign.CENTER),
+            ),
+        ) {
+            first = Box(modifier = Modifier.size(20.px, 10.px))
+            second = Box(modifier = Modifier.size(20.px, 10.px))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 80f, 100f)
+        val firstRect = frame.layout[first].rect
+        val secondRect = frame.layout[second].rect
+
+        assertEquals(50f, firstRect.x)
+        assertEquals(38f, firstRect.y)
+        assertEquals(firstRect.x, secondRect.x)
+        assertTrue(firstRect.y + firstRect.height <= secondRect.y, "Column children should not overlap")
+    }
+
+    @Test
+    fun `child align overrides align items on flex cross axis without breaking main axis flow`() {
+        lateinit var first: BoxNode
+        lateinit var second: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.ROW),
+                Modifier.size(80.px, 40.px),
+                Modifier.alignItems(UiAlign.CENTER, UiAlign.CENTER),
+            ),
+        ) {
+            first = Box(
+                modifier = Modifier.then(
+                    Modifier.size(20.px, 10.px),
+                    Modifier.align(UiAlign.AUTO, UiAlign.END),
+                ),
+            )
+            second = Box(modifier = Modifier.size(20.px, 10.px))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 80f, 40f)
+        val firstRect = frame.layout[first].rect
+        val secondRect = frame.layout[second].rect
+
+        assertEquals(20f, firstRect.x)
+        assertEquals(40f, secondRect.x)
+        assertTrue(firstRect.y > secondRect.y, "Child align should override parent cross-axis alignment")
+    }
+
+    @Test
+    fun `column child align overrides align items on cross axis without breaking main axis flow`() {
+        lateinit var first: BoxNode
+        lateinit var second: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.COLUMN),
+                Modifier.size(80.px, 60.px),
+                Modifier.alignItems(UiAlign.CENTER, UiAlign.START),
+            ),
+        ) {
+            first = Box(
+                modifier = Modifier.then(
+                    Modifier.size(20.px, 10.px),
+                    Modifier.align(UiAlign.END, UiAlign.AUTO),
+                ),
+            )
+            second = Box(modifier = Modifier.size(20.px, 10.px))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 80f, 60f)
+        val firstRect = frame.layout[first].rect
+        val secondRect = frame.layout[second].rect
+
+        assertEquals(60f, firstRect.x)
+        assertEquals(0f, firstRect.y)
+        assertEquals(10f, secondRect.y)
+        assertTrue(firstRect.x > secondRect.x, "Child align should override parent cross-axis alignment")
+    }
+
+    @Test
+    fun `row grow distributes remaining content width after fixed siblings and gaps`() {
+        lateinit var fixed: BoxNode
+        lateinit var grown: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.ROW),
+                Modifier.size(100.px, 30.px),
+                Modifier.padding(5.px),
+                Modifier.gap(10.px),
+            ),
+        ) {
+            fixed = Box(modifier = Modifier.size(20.px, 10.px))
+            grown = Box(
+                modifier = Modifier.then(
+                    Modifier.size(UiLength.Auto, 10.px),
+                    Modifier.grow(1f),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 30f)
+
+        assertEquals(5f, frame.layout[fixed].rect.x)
+        assertEquals(35f, frame.layout[grown].rect.x)
+        assertEquals(60f, frame.layout[grown].rect.width)
+    }
+
+    @Test
+    fun `column grow with percent size uses remaining height once`() {
+        lateinit var tabs: BoxNode
+        lateinit var content: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.COLUMN),
+                Modifier.size(300.px, 200.px),
+                Modifier.padding(14.px),
+                Modifier.gap(10.px),
+            ),
+        ) {
+            tabs = Box(modifier = Modifier.size(UiLength.Auto, 47.px))
+            content = Box(
+                modifier = Modifier.then(
+                    Modifier.size(100.percent, 100.percent),
+                    Modifier.grow(1f),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 300f, 200f)
+
+        assertEquals(14f, frame.layout[tabs].rect.y)
+        assertEquals(71f, frame.layout[content].rect.y)
+        assertEquals(115f, frame.layout[content].rect.height)
+    }
+
+    @Test
+    fun `row percentage child shrinks to remaining width after fixed siblings`() {
+        lateinit var fixed: BoxNode
+        lateinit var percent: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.ROW),
+                Modifier.size(100.px, 30.px),
+            ),
+        ) {
+            fixed = Box(modifier = Modifier.size(20.px, 10.px))
+            percent = Box(modifier = Modifier.size(100.percent, 10.px))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 30f)
+
+        assertEquals(0f, frame.layout[fixed].rect.x)
+        assertEquals(20f, frame.layout[percent].rect.x)
+        assertEquals(80f, frame.layout[percent].rect.width)
+    }
+
+    @Test
+    fun `column flow stretches auto-width children by default`() {
+        lateinit var child: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.COLUMN),
+                Modifier.size(120.px, 50.px),
+                Modifier.padding(10.px),
+            ),
+        ) {
+            child = Box(modifier = Modifier.size(UiLength.Auto, 10.px))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 120f, 50f)
+
+        assertEquals(10f, frame.layout[child].rect.x)
+        assertEquals(100f, frame.layout[child].rect.width)
+    }
+
+    @Test
+    fun `default transform origin is the element center`() {
+        lateinit var child: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(100.px, 100.px),
+            ),
+        ) {
+            child = Box(
+                modifier = Modifier.then(
+                    Modifier.size(20.px, 20.px),
+                    Modifier.scale(2f),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 100f)
+        val origin = frame.layout[child].worldTransform.transform(0f, 0f)
+
+        assertEquals(-10f, origin.x)
+        assertEquals(-10f, origin.y)
+    }
+
+    @Test
+    fun `free scrollable container emits horizontal scrollbar for positioned overflow`() {
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(100.px, 60.px),
+                Modifier.input(scrollable = true),
+            ),
+        ) {
+            Box(modifier = Modifier.then(Modifier.position(120.px, 0.px), Modifier.size(30.px, 20.px)))
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 60f)
+        val scrollbar = assertIs<DrawScrollbarCommand>(
+            frame.commands.first { it is DrawScrollbarCommand && it.orientation == ScrollbarOrientation.HORIZONTAL }
+        )
+
+        assertEquals(root, scrollbar.node)
+        assertTrue(frame.layout[root].scrollRange.x > 0f)
+    }
+
+    @Test
+    fun `dialogue style lays out fit profile and wrapped message exactly`() {
+        lateinit var dialogue: BoxNode
+        lateinit var profile: BoxNode
+        lateinit var nick: TextNode
+        lateinit var character: BoxNode
+        lateinit var message: TextNode
+        val stylesheet = compileHss(
+            """
+            .root {
+                layout: row;
+                size: 80% 78px;
+                border: 2px #FFFFFF;
+                margin: 2%;
+                align: center center;
+            }
+
+            .character {
+                size: 100% 100%;
+                background: image("hollowengine:textures/gui/icons/logo.png");
+                fit: contain;
+                margin: 10px 0px 0px 6px;
+            }
+
+            .message {
+                scale: 1.5;
+                margin: 10px;
+                align: end center;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(200.px, 100.px),
+            ),
+        ) {
+            dialogue = Box(tags = listOf("root")) {
+                profile = Box(
+                    modifier = Modifier.then(
+                        Modifier.layout(LayoutType.COLUMN),
+                        Modifier.size(UiLength.Auto, UiLength.Auto),
+                    ),
+                ) {
+                    nick = Text("Hollow")
+                    character = Box(tags = listOf("character"))
+                }
+                message = Text("Привет, теперь можно делать диалоговые окна!", tags = listOf("message"))
+            }
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 200f, 100f)
+        val dialogueRect = frame.layout[dialogue].rect
+        val profileRect = frame.layout[profile].rect
+        val nickRect = frame.layout[nick].rect
+        val characterRect = frame.layout[character].rect
+        val messageRect = frame.layout[message].rect
+
+        assertEquals(20f, dialogueRect.x)
+        assertEquals(11f, dialogueRect.y)
+        assertEquals(160f, dialogueRect.width)
+        assertEquals(78f, dialogueRect.height)
+        assertEquals(22f, profileRect.x)
+        assertEquals(13f, profileRect.y)
+        assertEquals(38f, profileRect.width)
+        assertEquals(52f, profileRect.height)
+        assertEquals(profileRect.x, nickRect.x)
+        assertEquals(38f, nickRect.width)
+        assertEquals(profileRect.x + 6f, characterRect.x)
+        assertEquals(profileRect.y + 20f, characterRect.y)
+        assertEquals(32f, characterRect.width)
+        assertEquals(32f, characterRect.height)
+        assertEquals(70f, messageRect.x)
+        assertEquals(98f, messageRect.width)
+        assertTrue(messageRect.y >= dialogueRect.y + 2f, "Message should stay inside root content vertically")
+        assertTrue(messageRect.x + messageRect.width <= dialogueRect.x + dialogueRect.width - 2f)
+    }
+
+    @Test
+    fun `free layout aligns children inside padded content and respects margins`() {
+        lateinit var child: BoxNode
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.layout(LayoutType.FREE),
+                Modifier.size(100.px, 80.px),
+                Modifier.padding(10.px),
+                Modifier.alignItems(UiAlign.END, UiAlign.END),
+            ),
+        ) {
+            child = Box(
+                modifier = Modifier.then(
+                    Modifier.size(20.px, 10.px),
+                    Modifier.margin(0.px, 0.px, 5.px, 7.px),
+                ),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 80f)
+        val rect = frame.layout[child].rect
+
+        assertEquals(65f, rect.x)
+        assertEquals(53f, rect.y)
+    }
+
+    @Test
     fun `hss selectors resolve state rules over base rules`() {
         val stylesheet = compileHss(
             """

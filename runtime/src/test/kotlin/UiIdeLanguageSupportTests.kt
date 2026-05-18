@@ -1,5 +1,6 @@
 import ru.hollowhorizon.hollowengine.client.ui.MutableUiStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
@@ -147,5 +148,15 @@ class UiIdeLanguageSupportTests {
 
         assertEquals(16f / 9f, style.aspectRatio)
         assertEquals(false, style.textWrap)
+    }
+
+    @Test
+    fun `hss compiles fit and fill sizing keywords`() {
+        val style = MutableUiStyle()
+
+        compileStyleModifier("size", "fit fill")!!.applyTo(style)
+
+        assertEquals(UiLength.Auto, style.size?.width)
+        assertEquals(UiLength.Fill, style.size?.height)
     }
 }

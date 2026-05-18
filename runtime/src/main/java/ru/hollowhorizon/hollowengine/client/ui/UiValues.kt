@@ -1,8 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import dev.vfyjxf.taffy.style.LengthPercentage
-import dev.vfyjxf.taffy.style.LengthPercentageAuto
-import dev.vfyjxf.taffy.style.TaffyDimension
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -50,29 +47,13 @@ enum class UiAlign {
 
 sealed interface UiLength {
     data object Auto : UiLength
+    data object Fill : UiLength
     data class Px(val value: Float) : UiLength
     data class Percent(val value: Float) : UiLength
 
-    fun toTaffyDimension(): TaffyDimension = when (this) {
-        Auto -> TaffyDimension.AUTO
-        is Px -> TaffyDimension.length(value)
-        is Percent -> TaffyDimension.percent(value)
-    }
-
-    fun toLengthPercentage(): LengthPercentage = when (this) {
-        Auto -> LengthPercentage.ZERO
-        is Px -> LengthPercentage.length(value)
-        is Percent -> LengthPercentage.percent(value)
-    }
-
-    fun toLengthPercentageAuto(): LengthPercentageAuto = when (this) {
-        Auto -> LengthPercentageAuto.AUTO
-        is Px -> LengthPercentageAuto.length(value)
-        is Percent -> LengthPercentageAuto.percent(value)
-    }
-
     fun resolve(reference: Float, autoValue: Float = 0f): Float = when (this) {
         Auto -> autoValue
+        Fill -> reference
         is Px -> value
         is Percent -> reference * value
     }

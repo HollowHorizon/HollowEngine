@@ -410,7 +410,7 @@ class MinecraftUiRenderer {
         } else {
             listOf(command.text.literal.visualOrderText)
         }
-        val maxLines = (command.rect.height / mc.font.lineHeight).toInt().coerceAtLeast(1)
+        val maxLines = (command.rect.height / (mc.font.lineHeight * command.scale.y.coerceAtLeast(0.0001f))).toInt().coerceAtLeast(1)
         lines.take(maxLines).forEachIndexed { index, line ->
             val pose = PoseStack()
             pose.translate(
