@@ -71,6 +71,8 @@ data class MutableUiStyle(
     var clip: Boolean? = null,
     var layer: Int? = null,
     var imageFit: UiImageFit? = null,
+    var imageSlice: UiInsets? = null,
+    var scrollbar: UiScrollbarStyle? = null,
     var textWrap: Boolean? = null,
     var textAlign: UiTextAlign? = null,
     var fontSize: Float? = null,
@@ -110,6 +112,8 @@ data class MutableUiStyle(
         other.clip?.let { clip = it }
         other.layer?.let { layer = it }
         other.imageFit?.let { imageFit = it }
+        other.imageSlice?.let { imageSlice = it }
+        other.scrollbar?.let { scrollbar = scrollbar?.merge(it) ?: it }
         other.textWrap?.let { textWrap = it }
         other.textAlign?.let { textAlign = it }
         other.fontSize?.let { fontSize = it }
@@ -154,6 +158,8 @@ data class MutableUiStyle(
             clip = clip ?: false,
             layer = layer ?: 0,
             imageFit = imageFit ?: UiImageFit.STRETCH,
+            imageSlice = imageSlice ?: UiInsets.all(4.px),
+            scrollbar = scrollbar ?: UiScrollbarStyle(),
             textWrap = textWrap ?: true,
             textAlign = textAlign ?: inheritedTextAlign,
             fontSize = fontSize ?: inheritedFontSize,
@@ -196,6 +202,8 @@ data class ComputedStyle(
     val clip: Boolean,
     val layer: Int,
     val imageFit: UiImageFit,
+    val imageSlice: UiInsets,
+    val scrollbar: UiScrollbarStyle,
     val textWrap: Boolean,
     val textAlign: UiTextAlign,
     val fontSize: Float,
@@ -253,7 +261,70 @@ enum class UiImageFit {
     STRETCH,
     CONTAIN,
     COVER,
-    NONE
+    NONE,
+    NINE_SLICE,
+    THREE_SLICE_VERTICAL,
+    THREE_SLICE_HORIZONTAL
+}
+
+data class UiScrollbarStyle(
+    val thickness: UiLength? = null,
+    val margin: UiLength? = null,
+    val minThumbSize: UiLength? = null,
+    val track: UiScrollbarPartStyle = UiScrollbarPartStyle(),
+    val thumb: UiScrollbarPartStyle = UiScrollbarPartStyle(),
+) {
+    fun merge(other: UiScrollbarStyle): UiScrollbarStyle = UiScrollbarStyle(
+        thickness = other.thickness ?: thickness,
+        margin = other.margin ?: margin,
+        minThumbSize = other.minThumbSize ?: minThumbSize,
+        track = track.merge(other.track),
+        thumb = thumb.merge(other.thumb),
+    )
+
+    fun resolved(reference: Float): ResolvedUiScrollbarStyle {
+        val resolvedThickness = (thickness ?: DefaultThickness).resolve(reference).coerceAtLeast(0f)
+        val resolvedMargin = (margin ?: DefaultMargin).resolve(reference).coerceAtLeast(0f)
+        return ResolvedUiScrollbarStyle(
+            thickness = resolvedThickness,
+            margin = resolvedMargin,
+            minThumbSize = (minThumbSize ?: DefaultMinThumbSize).resolve(reference).coerceAtLeast(1f),
+            track = track,
+            thumb = thumb,
+        )
+    }
+
+    companion object {
+        val DefaultThickness: UiLength = 7.px
+        val DefaultMargin: UiLength = 3.px
+        val DefaultMinThumbSize: UiLength = 18.px
+    }
+}
+
+data class UiScrollbarPartStyle(
+    val paint: UiPaint? = null,
+    val border: UiBorder? = null,
+    val radius: Float? = null,
+    val fit: UiImageFit? = null,
+    val slice: UiInsets? = null,
+) {
+    fun merge(other: UiScrollbarPartStyle): UiScrollbarPartStyle = UiScrollbarPartStyle(
+        paint = other.paint ?: paint,
+        border = other.border ?: border,
+        radius = other.radius ?: radius,
+        fit = other.fit ?: fit,
+        slice = other.slice ?: slice,
+    )
+}
+
+data class ResolvedUiScrollbarStyle(
+    val thickness: Float,
+    val margin: Float,
+    val minThumbSize: Float,
+    val track: UiScrollbarPartStyle,
+    val thumb: UiScrollbarPartStyle,
+) {
+    val gutter: Float get() = thickness + margin * 2f
 }
 
 private fun UiPaint.interpolate(to: UiPaint, progress: Float): UiPaint {

@@ -369,6 +369,7 @@ class MinecraftUiRenderer {
                 command.opacity,
                 transform,
                 fit = command.fit,
+                slice = command.slice,
                 filter = command.filter
             )
 
@@ -528,7 +529,8 @@ class MinecraftUiRenderer {
             command.opacity,
             transform,
             command.fit,
-            command.filter
+            command.filter,
+            command.slice,
         )
     }
 
@@ -540,6 +542,7 @@ class MinecraftUiRenderer {
         transform: UiMatrix4,
         fit: UiImageFit = UiImageFit.STRETCH,
         filter: UiFilterChain = UiFilterChain.Empty,
+        slice: UiInsets = UiInsets.Zero,
     ) {
         val location = ResourceLocation.tryParse(source) ?: return
         RenderSystem.setShaderTexture(0, location)
@@ -551,7 +554,8 @@ class MinecraftUiRenderer {
             flipY = false,
             fit = fit,
             texture = location,
-            filter = filter
+            filter = filter,
+            slice = slice,
         )
     }
 
@@ -652,13 +656,85 @@ class MinecraftUiRenderer {
     }
 
     private fun drawScrollbar(command: DrawScrollbarCommand) {
-        val trackColor = UiColor(0f, 0f, 0f, 0.42f * command.opacity)
-        val thumbColor = when (command.orientation) {
-            ScrollbarOrientation.VERTICAL -> UiColor(0.78f, 0.84f, 0.94f, 0.9f * command.opacity)
-            ScrollbarOrientation.HORIZONTAL -> UiColor(0.78f, 0.84f, 0.94f, 0.82f * command.opacity)
+        drawScrollbarPart(
+            localRect(command.track),
+            command.trackPaint,
+            command.trackBorder,
+            command.trackFit,
+            command.trackSlice,
+            command.opacity,
+        )
+        drawScrollbarPart(
+            localRect(command.thumb),
+            command.thumbPaint,
+            command.thumbBorder,
+            command.thumbFit,
+            command.thumbSlice,
+            command.opacity,
+        )
+    }
+
+    private fun drawScrollbarPart(
+        rect: UiRect,
+        paint: UiResolvedPaint,
+        border: UiBorder,
+        fit: UiImageFit,
+        slice: UiInsets,
+        opacity: Float,
+    ) {
+        val transform = UiMatrix4.translation(rect.x, rect.y, 0f)
+        when (paint) {
+            UiResolvedPaint.None -> Unit
+            is UiResolvedPaint.Color -> drawLocalPaint(
+                rect.width,
+                rect.height,
+                border.radius,
+                paint.color.withOpacity(opacity),
+                transform,
+                UiFilterChain.Empty,
+            )
+
+            is UiResolvedPaint.LinearGradient -> drawLocalGradient(
+                rect.width,
+                rect.height,
+                border.radius,
+                paint.angleDegrees,
+                paint.stops,
+                opacity,
+                transform,
+                UiFilterChain.Empty,
+            )
+
+            is UiResolvedPaint.Image -> drawImage(
+                rect.width,
+                rect.height,
+                paint.source,
+                opacity,
+                transform,
+                fit = fit,
+                slice = slice,
+            )
+
+            is UiResolvedPaint.Shader -> drawLocalPaint(
+                rect.width,
+                rect.height,
+                border.radius,
+                UiColor(0.2f, 0.2f, 0.24f, opacity),
+                transform,
+                UiFilterChain.Empty,
+            )
         }
-        drawSolid(localRect(command.track), trackColor, UiMatrix4.identity(), radius = 3.5f)
-        drawSolid(localRect(command.thumb), thumbColor, UiMatrix4.identity(), radius = 3.5f)
+        val borderWidth = border.width.left.resolve(rect.width)
+        if (borderWidth > 0f && border.color.alpha > 0f) {
+            drawLocalBorder(
+                rect.width,
+                rect.height,
+                border.radius,
+                borderWidth.coerceAtLeast(1f),
+                border.color.withOpacity(opacity),
+                transform,
+            )
+        }
     }
 
     private fun pushClip(rect: UiRect) {

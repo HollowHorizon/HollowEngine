@@ -58,6 +58,7 @@ data class DrawBoxCommand(
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
     val fit: UiImageFit,
+    val slice: UiInsets,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
@@ -87,6 +88,7 @@ data class DrawImageCommand(
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
     val fit: UiImageFit,
+    val slice: UiInsets,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
@@ -128,16 +130,20 @@ data class DrawScrollbarCommand(
     val track: UiRect,
     val thumb: UiRect,
     val orientation: ScrollbarOrientation,
+    val trackPaint: UiResolvedPaint,
+    val trackBorder: UiBorder,
+    val trackFit: UiImageFit,
+    val trackSlice: UiInsets,
+    val thumbPaint: UiResolvedPaint,
+    val thumbBorder: UiBorder,
+    val thumbFit: UiImageFit,
+    val thumbSlice: UiInsets,
     val opacity: Float,
 ) : UiRenderCommand
 
 enum class ScrollbarOrientation {
     VERTICAL, HORIZONTAL
 }
-
-internal const val UiScrollbarThickness = 7f
-internal const val UiScrollbarMargin = 3f
-internal const val UiScrollbarGutter = UiScrollbarThickness + UiScrollbarMargin * 2f
 
 class UiCommandRenderer {
     fun collect(
@@ -206,6 +212,7 @@ class UiCommandRenderer {
                 transform = layoutNode.worldTransform,
                 renderToFramebuffer = false,
                 fit = style.imageFit,
+                slice = style.imageSlice,
                 filter = commandFilter,
                 backfaceVisibility = style.backfaceVisibility,
             )
@@ -251,6 +258,7 @@ class UiCommandRenderer {
                 contentTransform,
                 false,
                 style.imageFit,
+                style.imageSlice,
                 contentFilter,
                 style.backfaceVisibility,
             )
@@ -290,7 +298,7 @@ class UiCommandRenderer {
         node.children.sortedBy { resolved[it].layer }.forEach { collectNode(it, resolved, layout, bindings, commands) }
         if (pushedClip) commands += PopClipCommand(node)
         if (style.input.scrollable) {
-            appendScrollbars(node, layoutNode, style, commands)
+            appendScrollbars(node, layoutNode, style, bindings, commands)
         }
         if (layoutNode.needsFramebuffer) {
             commands += EndLayerCommand(node)
@@ -301,52 +309,70 @@ class UiCommandRenderer {
         node: UiNode,
         layoutNode: UiLayoutNode,
         style: ComputedStyle,
+        bindings: UiBindingContext,
         commands: MutableList<UiRenderCommand>,
     ) {
-        val minimumThumb = 18f
-        val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.scrollArea.height > UiScrollbarGutter
-        val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.scrollArea.width > UiScrollbarGutter
+        val verticalStyle = style.scrollbar.resolved(layoutNode.scrollArea.width)
+        val horizontalStyle = style.scrollbar.resolved(layoutNode.scrollArea.height)
+        val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.scrollArea.height > verticalStyle.gutter
+        val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.scrollArea.width > horizontalStyle.gutter
         if (hasVerticalScrollbar) {
-            val horizontalReserve = if (hasHorizontalScrollbar) UiScrollbarGutter else 0f
-            val trackHeight = layoutNode.scrollArea.height - UiScrollbarMargin * 2f - horizontalReserve
+            val horizontalReserve = if (hasHorizontalScrollbar) horizontalStyle.gutter else 0f
+            val trackHeight = layoutNode.scrollArea.height - verticalStyle.margin * 2f - horizontalReserve
             if (trackHeight > 0f) {
                 val track = UiRect(
-                    x = layoutNode.scrollArea.x + layoutNode.scrollArea.width - UiScrollbarThickness - UiScrollbarMargin,
-                    y = layoutNode.scrollArea.y + UiScrollbarMargin,
-                    width = UiScrollbarThickness,
+                    x = layoutNode.scrollArea.x + layoutNode.scrollArea.width - verticalStyle.thickness - verticalStyle.margin,
+                    y = layoutNode.scrollArea.y + verticalStyle.margin,
+                    width = verticalStyle.thickness,
                     height = trackHeight,
                 )
                 val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
-                val thumbHeight = maxOf(minimumThumb, track.height * layoutNode.content.height / contentHeight)
+                val thumbHeight = maxOf(verticalStyle.minThumbSize, track.height * layoutNode.content.height / contentHeight)
                 val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
                 commands += DrawScrollbarCommand(
-                    node,
-                    track,
-                    track.copy(y = thumbY, height = thumbHeight),
-                    ScrollbarOrientation.VERTICAL,
-                    style.opacity
+                    node = node,
+                    track = track,
+                    thumb = track.copy(y = thumbY, height = thumbHeight),
+                    orientation = ScrollbarOrientation.VERTICAL,
+                    trackPaint = verticalStyle.track.paint.resolve(bindings, UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
+                    trackBorder = verticalStyle.track.border ?: UiBorder(radius = verticalStyle.track.radius ?: 3.5f),
+                    trackFit = verticalStyle.track.fit ?: UiImageFit.STRETCH,
+                    trackSlice = verticalStyle.track.slice ?: UiInsets.all(4.px),
+                    thumbPaint = verticalStyle.thumb.paint.resolve(bindings, UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.9f))),
+                    thumbBorder = verticalStyle.thumb.border ?: UiBorder(radius = verticalStyle.thumb.radius ?: 3.5f),
+                    thumbFit = verticalStyle.thumb.fit ?: UiImageFit.STRETCH,
+                    thumbSlice = verticalStyle.thumb.slice ?: UiInsets.all(4.px),
+                    opacity = style.opacity,
                 )
             }
         }
         if (hasHorizontalScrollbar) {
-            val verticalReserve = if (hasVerticalScrollbar) UiScrollbarGutter else 0f
-            val trackWidth = layoutNode.scrollArea.width - UiScrollbarMargin * 2f - verticalReserve
+            val verticalReserve = if (hasVerticalScrollbar) verticalStyle.gutter else 0f
+            val trackWidth = layoutNode.scrollArea.width - horizontalStyle.margin * 2f - verticalReserve
             if (trackWidth > 0f) {
                 val track = UiRect(
-                    x = layoutNode.scrollArea.x + UiScrollbarMargin,
-                    y = layoutNode.scrollArea.y + layoutNode.scrollArea.height - UiScrollbarThickness - UiScrollbarMargin,
+                    x = layoutNode.scrollArea.x + horizontalStyle.margin,
+                    y = layoutNode.scrollArea.y + layoutNode.scrollArea.height - horizontalStyle.thickness - horizontalStyle.margin,
                     width = trackWidth,
-                    height = UiScrollbarThickness,
+                    height = horizontalStyle.thickness,
                 )
                 val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
-                val thumbWidth = maxOf(minimumThumb, track.width * layoutNode.content.width / contentWidth)
+                val thumbWidth = maxOf(horizontalStyle.minThumbSize, track.width * layoutNode.content.width / contentWidth)
                 val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
                 commands += DrawScrollbarCommand(
-                    node,
-                    track,
-                    track.copy(x = thumbX, width = thumbWidth),
-                    ScrollbarOrientation.HORIZONTAL,
-                    style.opacity
+                    node = node,
+                    track = track,
+                    thumb = track.copy(x = thumbX, width = thumbWidth),
+                    orientation = ScrollbarOrientation.HORIZONTAL,
+                    trackPaint = horizontalStyle.track.paint.resolve(bindings, UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
+                    trackBorder = horizontalStyle.track.border ?: UiBorder(radius = horizontalStyle.track.radius ?: 3.5f),
+                    trackFit = horizontalStyle.track.fit ?: UiImageFit.STRETCH,
+                    trackSlice = horizontalStyle.track.slice ?: UiInsets.all(4.px),
+                    thumbPaint = horizontalStyle.thumb.paint.resolve(bindings, UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.82f))),
+                    thumbBorder = horizontalStyle.thumb.border ?: UiBorder(radius = horizontalStyle.thumb.radius ?: 3.5f),
+                    thumbFit = horizontalStyle.thumb.fit ?: UiImageFit.STRETCH,
+                    thumbSlice = horizontalStyle.thumb.slice ?: UiInsets.all(4.px),
+                    opacity = style.opacity,
                 )
             }
         }
@@ -368,6 +394,9 @@ private fun UiPaint.resolve(bindings: UiBindingContext): UiResolvedPaint = when 
     is UiPaint.Image -> UiResolvedPaint.Image(source.resolve(bindings))
     is UiPaint.Shader -> UiResolvedPaint.Shader(name.resolve(bindings))
 }
+
+private fun UiPaint?.resolve(bindings: UiBindingContext, fallback: UiPaint): UiResolvedPaint =
+    (this ?: fallback).resolve(bindings)
 
 data class UiHit(
     val node: UiNode,

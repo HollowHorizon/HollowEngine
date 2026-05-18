@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.EndLayerCommand
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.HollowUi
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
@@ -1014,6 +1015,110 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `sliced image fit stores slice settings in draw box commands`() {
+        val stylesheet = compileHss(
+            """
+            .panel {
+                size: 80px 40px;
+                background: image("hollowengine:textures/gui/panel.png");
+                fit: 9-slice 4px 8px;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("panel"))
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 60f)
+        val draw = assertIs<DrawBoxCommand>(frame.commands.first { it is DrawBoxCommand })
+
+        assertEquals(UiImageFit.NINE_SLICE, draw.fit)
+        assertEquals(8f, (draw.slice.right as UiLength.Px).value)
+        assertEquals(4f, (draw.slice.top as UiLength.Px).value)
+    }
+
+    @Test
+    fun `scrollable auto text in row gets viewport scrollbar and wheel range`() {
+        val stylesheet = compileHss(
+            """
+            .root {
+                layout: row;
+                size: 240px 78px;
+            }
+            .character {
+                size: 44px 44px;
+            }
+            .message {
+                font-size: 12px;
+                text-wrap: wrap;
+                align: start center;
+                margin: 4px;
+                border: 1px #FF0000;
+                scrollable: true;
+            }
+            """.trimIndent()
+        )
+        lateinit var message: TextNode
+        val root = HollowUi(tags = listOf("root")) {
+            Box(modifier = Modifier.layout(LayoutType.COLUMN)) {
+                Text("[HollowHorizon]")
+                Box(tags = listOf("character"))
+            }
+            message = Text(
+                "Это **тестовый** диалог для *проверки* разных <color=#FFFF00>штук</color>, " +
+                        "в особенности `переноса` [текста](https://t.me/hollowengine) и паддингов, " +
+                        "чтобы при переносе всё было <size=24px>верно</size> :) " +
+                        "Ну и ещё давай попробуем добавить картинку: ![alt](hollowengine:textures/gui/icons/logo.png)",
+                tags = listOf("message"),
+            )
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        val frame = runtime.frame(root, 260f, 100f)
+        val layout = frame.layout[message]
+        runtime.setScrollImmediate(message, y = 24f)
+        val scrolled = runtime.frame(root, 260f, 100f)
+
+        assertTrue(layout.scrollRange.y > 0f)
+        assertTrue(layout.content.height < frame.textCommand(message).layout.height)
+        assertTrue(frame.commands.any { it is DrawScrollbarCommand && it.node == message && it.orientation == ScrollbarOrientation.VERTICAL })
+        assertTrue(scrolled.layout[message].scrollOffset.y > 0f)
+    }
+
+    @Test
+    fun `scrollbar hss style is emitted into scrollbar command`() {
+        val stylesheet = compileHss(
+            """
+            .scroll {
+                size: 100px 32px;
+                scrollable: true;
+                scrollbar-width: 12px;
+                scrollbar-margin: 2px;
+                scrollbar-min-thumb: 20px;
+                scrollbar-track: #112233;
+                scrollbar-thumb: linear-gradient(90deg, #FFFFFF, #000000);
+                scrollbar-thumb-radius: 6px;
+                scrollbar-thumb-fit: 3-slice-vertical 3px;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi {
+            Text((1..8).joinToString("\n") { "line $it" }, tags = listOf("scroll"))
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 140f, 80f)
+        val scrollbar = assertIs<DrawScrollbarCommand>(
+            frame.commands.first { it is DrawScrollbarCommand && it.orientation == ScrollbarOrientation.VERTICAL }
+        )
+        val track = assertIs<UiResolvedPaint.Color>(scrollbar.trackPaint)
+
+        assertEquals(12f, scrollbar.track.width)
+        assertEquals(0x11 / 255f, track.color.red, 0.01f)
+        assertIs<UiResolvedPaint.LinearGradient>(scrollbar.thumbPaint)
+        assertEquals(6f, scrollbar.thumbBorder.radius)
+        assertEquals(UiImageFit.THREE_SLICE_VERTICAL, scrollbar.thumbFit)
+        assertEquals(3f, (scrollbar.thumbSlice.left as UiLength.Px).value)
+    }
+
+    @Test
     fun `text wrap style is passed into draw text commands`() {
         val stylesheet = compileHss(
             """
@@ -1239,4 +1344,8 @@ class UiFrameworkTests {
         assertEquals(front, hit?.node)
         assertTrue(hit?.node != lifted)
     }
+}
+
+private fun HollowUiFrame.textCommand(node: TextNode): DrawTextCommand {
+    return assertIs(commands.first { it.node == node && it is DrawTextCommand })
 }

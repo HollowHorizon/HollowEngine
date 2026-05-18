@@ -8,6 +8,8 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.UiInsets
+import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import kotlin.math.abs
@@ -57,6 +59,7 @@ internal object UiTextureEffects {
         fit: UiImageFit = UiImageFit.STRETCH,
         texture: ResourceLocation? = null,
         filter: UiFilterChain = UiFilterChain.Empty,
+        slice: UiInsets = UiInsets.Zero,
         textureWidth: Float = width,
         textureHeight: Float = height,
         subdivisions: Int = 1,
@@ -77,11 +80,16 @@ internal object UiTextureEffects {
             blurDirectionY
         )
         val tessellator = Tesselator.getInstance()
-        val segments = subdivisions.coerceAtLeast(1)
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         val placement = imagePlacement(width, height, fit, texture)
         val tint = UiColor.White.withOpacity(opacity).filtered(filter)
         val quadTransform = transform * UiMatrix4.translation(placement.x, placement.y, 0f)
+        if (fit.isSliced) {
+            addSlicedTexturedQuad(buffer, quadTransform, placement, texture, fit, slice, flipY, tint)
+            BufferUploader.drawWithShader(buffer.buildOrThrow())
+            return
+        }
+        val segments = subdivisions.coerceAtLeast(1)
         for (yIndex in 0 until segments) {
             val y0 = yIndex.toFloat() / segments.toFloat()
             val y1 = (yIndex + 1).toFloat() / segments.toFloat()
@@ -281,4 +289,134 @@ internal object UiTextureEffects {
         val v = if (flipY) flippedV else baseV
         buffer.addVertex(point.x, point.y, point.z).setUv(u, v).setColor(tint.red, tint.green, tint.blue, tint.alpha)
     }
+
+    private fun addSlicedTexturedQuad(
+        buffer: BufferBuilder,
+        transform: UiMatrix4,
+        placement: ImagePlacement,
+        texture: ResourceLocation?,
+        fit: UiImageFit,
+        slice: UiInsets,
+        flipY: Boolean,
+        tint: UiColor,
+    ) {
+        val textureSize = texture?.let(::textureSize) ?: (placement.width to placement.height)
+        val slices = slice.resolve(placement.width, placement.height).clamp(placement.width, placement.height, textureSize)
+        val horizontal = when (fit) {
+            UiImageFit.THREE_SLICE_VERTICAL -> listOf(SliceSpan(0f, placement.width, 0f, 1f))
+            else -> sliceSpans(placement.width, textureSize.first, slices.left, slices.right)
+        }
+        val vertical = when (fit) {
+            UiImageFit.THREE_SLICE_HORIZONTAL -> listOf(SliceSpan(0f, placement.height, 0f, 1f))
+            else -> sliceSpans(placement.height, textureSize.second, slices.top, slices.bottom)
+        }
+        for (y in vertical) {
+            if (y.destinationEnd <= y.destinationStart) continue
+            for (x in horizontal) {
+                if (x.destinationEnd <= x.destinationStart) continue
+                addTexturedPatch(
+                    buffer,
+                    transform,
+                    x.destinationStart,
+                    y.destinationStart,
+                    x.destinationEnd,
+                    y.destinationEnd,
+                    x.sourceStart,
+                    y.sourceStart,
+                    x.sourceEnd,
+                    y.sourceEnd,
+                    flipY,
+                    tint,
+                )
+            }
+        }
+    }
+
+    private fun addTexturedPatch(
+        buffer: BufferBuilder,
+        transform: UiMatrix4,
+        x0: Float,
+        y0: Float,
+        x1: Float,
+        y1: Float,
+        u0: Float,
+        v0: Float,
+        u1: Float,
+        v1: Float,
+        flipY: Boolean,
+        tint: UiColor,
+    ) {
+        addTexturedPatchVertex(buffer, transform, x0, y0, u0, if (flipY) v1 else v0, tint)
+        addTexturedPatchVertex(buffer, transform, x0, y1, u0, if (flipY) v0 else v1, tint)
+        addTexturedPatchVertex(buffer, transform, x1, y1, u1, if (flipY) v0 else v1, tint)
+        addTexturedPatchVertex(buffer, transform, x1, y0, u1, if (flipY) v1 else v0, tint)
+    }
+
+    private fun addTexturedPatchVertex(
+        buffer: BufferBuilder,
+        transform: UiMatrix4,
+        x: Float,
+        y: Float,
+        u: Float,
+        v: Float,
+        tint: UiColor,
+    ) {
+        val point = transform.transform(x, y)
+        buffer.addVertex(point.x, point.y, point.z).setUv(u, v).setColor(tint.red, tint.green, tint.blue, tint.alpha)
+    }
+}
+
+private val UiImageFit.isSliced: Boolean
+    get() = this == UiImageFit.NINE_SLICE ||
+            this == UiImageFit.THREE_SLICE_VERTICAL ||
+            this == UiImageFit.THREE_SLICE_HORIZONTAL
+
+private data class SliceSpan(
+    val destinationStart: Float,
+    val destinationEnd: Float,
+    val sourceStart: Float,
+    val sourceEnd: Float,
+)
+
+private data class TextureSlices(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+) {
+    fun clamp(width: Float, height: Float, textureSize: Pair<Float, Float>): TextureSlices {
+        val horizontalSlices = (left + right).coerceAtLeast(1f)
+        val verticalSlices = (top + bottom).coerceAtLeast(1f)
+        val horizontalScale = minOf(1f, width / horizontalSlices, textureSize.first / horizontalSlices)
+        val verticalScale = minOf(1f, height / verticalSlices, textureSize.second / verticalSlices)
+        return TextureSlices(
+            left = left * horizontalScale,
+            top = top * verticalScale,
+            right = right * horizontalScale,
+            bottom = bottom * verticalScale,
+        )
+    }
+}
+
+private fun UiInsets.resolve(width: Float, height: Float): TextureSlices = TextureSlices(
+    left = left.resolve(width),
+    top = top.resolve(height),
+    right = right.resolve(width),
+    bottom = bottom.resolve(height),
+)
+
+private fun UiLength.resolve(reference: Float): Float = when (this) {
+    UiLength.Auto -> 0f
+    UiLength.Fill -> reference
+    is UiLength.Percent -> reference * value
+    is UiLength.Px -> value
+}
+
+private fun sliceSpans(size: Float, sourceSize: Float, startSlice: Float, endSlice: Float): List<SliceSpan> {
+    val source = sourceSize.coerceAtLeast(1f)
+    return listOf(
+        SliceSpan(0f, startSlice, 0f, startSlice / source),
+        SliceSpan(startSlice, size - endSlice, startSlice / source, 1f - endSlice / source),
+        SliceSpan(size - endSlice, size, 1f - endSlice / source, 1f),
+    )
 }

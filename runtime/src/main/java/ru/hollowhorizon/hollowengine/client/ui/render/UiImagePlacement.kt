@@ -22,7 +22,10 @@ internal fun imagePlacement(width: Float, height: Float, fit: UiImageFit, textur
     val sourceAspect = size.first / size.second
     val targetAspect = width / height
     return when (fit) {
-        UiImageFit.STRETCH -> ImagePlacement(0f, 0f, width, height)
+        UiImageFit.STRETCH,
+        UiImageFit.NINE_SLICE,
+        UiImageFit.THREE_SLICE_VERTICAL,
+        UiImageFit.THREE_SLICE_HORIZONTAL -> ImagePlacement(0f, 0f, width, height)
         UiImageFit.NONE -> ImagePlacement((width - size.first) * 0.5f, (height - size.second) * 0.5f, size.first, size.second)
         UiImageFit.CONTAIN -> containPlacement(width, height, sourceAspect, targetAspect)
         UiImageFit.COVER -> coverPlacement(width, height, sourceAspect, targetAspect)
@@ -55,7 +58,7 @@ private fun coverPlacement(width: Float, height: Float, sourceAspect: Float, tar
     return ImagePlacement(0f, 0f, width, height, cropX, cropY, 1f - cropX, 1f - cropY)
 }
 
-private fun textureSize(location: ResourceLocation): Pair<Float, Float>? {
+internal fun textureSize(location: ResourceLocation): Pair<Float, Float>? {
     val texture = Minecraft.getInstance().textureManager.getTexture(location)
     val id = texture.id
     GlStateManager._bindTexture(id)

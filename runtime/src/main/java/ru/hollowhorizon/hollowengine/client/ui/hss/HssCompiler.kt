@@ -90,7 +90,62 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "scrollable" -> inputInstruction(value) { style, enabled -> style.copy(scrollable = enabled) }
             "clip" -> instruction { it.clip = parseBoolean(value) }
             "layer" -> instruction { it.layer = value.toInt() }
-            "image-fit", "fit" -> instruction { it.imageFit = parseImageFit(value) }
+            "image-fit", "fit" -> instruction {
+                it.imageFit = parseImageFit(value)
+                parseImageFitSlice(value)?.let { slice -> it.imageSlice = slice }
+            }
+            "image-slice", "slice" -> instruction { it.imageSlice = parseInsets(value, allowAuto = false) }
+            "scrollbar", "scrollbar-width", "scrollbar-thickness" -> instruction {
+                it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(thickness = parseLength(value))
+            }
+            "scrollbar-margin" -> instruction {
+                it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(margin = parseLength(value))
+            }
+            "scrollbar-min-thumb", "scrollbar-min-thumb-size" -> instruction {
+                it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(minThumbSize = parseLength(value))
+            }
+            "scrollbar-track" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(paint = parsePaint(value)) }
+            }
+            "scrollbar-thumb" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb { it.copy(paint = parsePaint(value)) }
+            }
+            "scrollbar-track-border" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack {
+                    it.copy(border = parseBorder(value, it.border ?: UiBorder()))
+                }
+            }
+            "scrollbar-thumb-border" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb {
+                    it.copy(border = parseBorder(value, it.border ?: UiBorder()))
+                }
+            }
+            "scrollbar-track-radius" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(radius = parseScalar(value)) }
+            }
+            "scrollbar-thumb-radius" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb { it.copy(radius = parseScalar(value)) }
+            }
+            "scrollbar-track-fit" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack {
+                    it.copy(fit = parseImageFit(value), slice = parseImageFitSlice(value) ?: it.slice)
+                }
+            }
+            "scrollbar-thumb-fit" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb {
+                    it.copy(fit = parseImageFit(value), slice = parseImageFitSlice(value) ?: it.slice)
+                }
+            }
+            "scrollbar-track-slice" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack {
+                    it.copy(slice = parseInsets(value, allowAuto = false))
+                }
+            }
+            "scrollbar-thumb-slice" -> instruction { style ->
+                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb {
+                    it.copy(slice = parseInsets(value, allowAuto = false))
+                }
+            }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
@@ -153,13 +208,27 @@ private fun applyChildAlignment(style: MutableUiStyle, value: String) {
     style.alignItemsVertical = vertical
 }
 
-private fun parseImageFit(value: String): UiImageFit = when (value.lowercase()) {
+private fun parseImageFit(value: String): UiImageFit = when (splitWhitespace(value).first().lowercase()) {
     "stretch", "strench" -> UiImageFit.STRETCH
     "contain", "fit" -> UiImageFit.CONTAIN
     "cover", "zoom" -> UiImageFit.COVER
     "none" -> UiImageFit.NONE
+    "9-slice", "nine-slice" -> UiImageFit.NINE_SLICE
+    "3-slice-vertical", "three-slice-vertical" -> UiImageFit.THREE_SLICE_VERTICAL
+    "3-slice-horizontal", "three-slice-horizontal" -> UiImageFit.THREE_SLICE_HORIZONTAL
     else -> throw IllegalArgumentException("Unknown image fit '$value'")
 }
+
+private fun parseImageFitSlice(value: String): UiInsets? {
+    val parts = splitWhitespace(value)
+    return parts.drop(1).takeIf { it.isNotEmpty() }?.joinToString(" ")?.let { parseInsets(it, allowAuto = false) }
+}
+
+private fun UiScrollbarStyle.patchTrack(patch: (UiScrollbarPartStyle) -> UiScrollbarPartStyle): UiScrollbarStyle =
+    copy(track = patch(track))
+
+private fun UiScrollbarStyle.patchThumb(patch: (UiScrollbarPartStyle) -> UiScrollbarPartStyle): UiScrollbarStyle =
+    copy(thumb = patch(thumb))
 
 private fun parseTextWrap(value: String): Boolean = when (value.lowercase()) {
     "wrap", "true", "yes", "1", "enabled" -> true

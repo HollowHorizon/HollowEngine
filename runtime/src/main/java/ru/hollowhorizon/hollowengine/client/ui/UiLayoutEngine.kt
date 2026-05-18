@@ -227,7 +227,7 @@ class UiLayoutEngine {
             val position = childStyle.position.resolve(content.width, content.height)
             val align = childStyle.alignVertical.takeUnless { it == UiAlign.AUTO } ?: style.childAlignVertical() ?: UiAlign.START
             val childHeight = when (val height = childStyle.size.height) {
-                UiLength.Auto -> if (align == UiAlign.STRETCH) {
+                UiLength.Auto -> if (align == UiAlign.STRETCH || childStyle.input.scrollable && child.node is TextNode) {
                     (content.height - child.margin.top - child.margin.bottom).coerceAtLeast(0f)
                         .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)
                 } else {
@@ -546,6 +546,8 @@ class UiLayoutEngine {
     private fun nodeBoxes(rect: UiRect, style: ComputedStyle, reserve: UiScrollbarReserve): NodeBoxes {
         val border = style.border.width.resolve(rect.width, rect.height)
         val padding = style.padding.resolve(rect.width, rect.height)
+        val verticalScrollbar = style.scrollbar.resolved(rect.width)
+        val horizontalScrollbar = style.scrollbar.resolved(rect.height)
         val scrollArea = UiRect(
             rect.x + border.left + padding.left,
             rect.y + border.top + padding.top,
@@ -555,8 +557,8 @@ class UiLayoutEngine {
         return NodeBoxes(
             scrollArea = scrollArea,
             content = scrollArea.copy(
-                width = (scrollArea.width - if (reserve.vertical) UiScrollbarGutter else 0f).coerceAtLeast(0f),
-                height = (scrollArea.height - if (reserve.horizontal) UiScrollbarGutter else 0f).coerceAtLeast(0f),
+                width = (scrollArea.width - if (reserve.vertical) verticalScrollbar.gutter else 0f).coerceAtLeast(0f),
+                height = (scrollArea.height - if (reserve.horizontal) horizontalScrollbar.gutter else 0f).coerceAtLeast(0f),
             )
         )
     }
@@ -580,11 +582,13 @@ private fun UiMatrix4.isDirectTextTransform(): Boolean {
 private fun ComputedStyle.outerInsets(width: Float, height: Float, reserve: UiScrollbarReserve): ResolvedUiInsets {
     val border = border.width.resolve(width, height)
     val padding = padding.resolve(width, height)
+    val verticalScrollbar = scrollbar.resolved(width)
+    val horizontalScrollbar = scrollbar.resolved(height)
     return ResolvedUiInsets(
         left = border.left + padding.left,
         top = border.top + padding.top,
-        right = border.right + padding.right + if (reserve.vertical) UiScrollbarGutter else 0f,
-        bottom = border.bottom + padding.bottom + if (reserve.horizontal) UiScrollbarGutter else 0f,
+        right = border.right + padding.right + if (reserve.vertical) verticalScrollbar.gutter else 0f,
+        bottom = border.bottom + padding.bottom + if (reserve.horizontal) horizontalScrollbar.gutter else 0f,
     )
 }
 
@@ -667,7 +671,10 @@ private val MeasuredChild.isRowFlexible: Boolean
             node is TextNode && style.textWrap && style.size.width is UiLength.Auto
 
 private val MeasuredChild.isColumnFlexible: Boolean
-    get() = style.size.height is UiLength.Fill || style.size.height is UiLength.Percent || style.grow > 0f
+    get() = style.size.height is UiLength.Fill ||
+            style.size.height is UiLength.Percent ||
+            style.grow > 0f ||
+            node is TextNode && style.input.scrollable && style.size.height is UiLength.Auto
 
 private fun MeasuredChild.rowWeight(): Float {
     if (style.grow > 0f) return style.grow
