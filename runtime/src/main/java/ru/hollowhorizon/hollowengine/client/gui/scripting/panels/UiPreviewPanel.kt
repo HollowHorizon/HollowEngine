@@ -157,6 +157,7 @@ private object UiPreviewRenderer {
         ) {
             Box(
                 modifier = Modifier.then(
+                    Modifier.layout(LayoutType.FREE),
                     Modifier.position((context.x / scale).px, (context.y / scale).px),
                     Modifier.size((context.width / scale).px, (context.height / scale).px),
                     Modifier.clip(),

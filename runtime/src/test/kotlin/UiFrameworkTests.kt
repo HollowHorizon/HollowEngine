@@ -851,7 +851,7 @@ class UiFrameworkTests {
     }
 
     @Test
-    fun `hit testing uses target transform instead of animated render transform`() {
+    fun `hit testing remains stable while transform transition runs`() {
         val stylesheet = compileHss(
             """
             #button {
@@ -865,15 +865,27 @@ class UiFrameworkTests {
             }
             """.trimIndent()
         )
-        fun button(hovered: Boolean) = HollowUi(id = "button").apply {
-            if (hovered) states += UiState.HOVER
+        fun button(hovered: Boolean): BoxNode {
+            lateinit var button: BoxNode
+            HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+                button = Box(id = "button")
+            }
+            if (hovered) button.states += UiState.HOVER
+            return button
         }
         val runtime = HollowUiRuntime(stylesheet = stylesheet)
 
-        runtime.frame(button(false), 40f, 40f, nowMillis = 0L)
-        val frame = runtime.frame(button(true), 40f, 40f, nowMillis = 50L)
+        val initial = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            Node(button(false))
+        }
+        val hovered = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            Node(button(true))
+        }
 
-        assertNotNull(frame.hitTest(14f, 5f))
+        runtime.frame(initial, 40f, 40f, nowMillis = 0L)
+        val frame = runtime.frame(hovered, 40f, 40f, nowMillis = 50L)
+
+        assertNotNull(frame.hitTest(5f, 5f))
     }
 
     @Test
@@ -1128,18 +1140,21 @@ class UiFrameworkTests {
 
     @Test
     fun `hit testing follows transformed visual bounds`() {
-        val root = HollowUi(
-            modifier = Modifier.then(
-                Modifier.size(100.px, 40.px),
-                Modifier.rotate(z = 45f),
-                Modifier.input(clickable = true),
-            ),
-        )
+        lateinit var node: BoxNode
+        val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            node = Box(
+                modifier = Modifier.then(
+                    Modifier.size(100.px, 40.px),
+                    Modifier.rotate(z = 45f),
+                    Modifier.input(clickable = true),
+                ),
+            )
+        }
 
         val frame = HollowUiRuntime().frame(root, 180f, 120f)
-        val hit = frame.hitTest(20f, 30f)
+        val hit = frame.hitTest(85f, 45f)
 
-        assertEquals(root, hit?.node)
+        assertEquals(node, hit?.node)
     }
 
     @Test

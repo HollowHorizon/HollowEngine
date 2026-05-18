@@ -85,11 +85,13 @@ class UiLayoutEngine {
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     ): Map<UiNode, UiLayoutNode> {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
+        val viewport = UiRect(0f, 0f, width, height)
+        val rootRect = rootRect(resolved, width, height, scrollbarReserves)
         placeNode(
             node = resolved.root,
             resolved = resolved,
-            rect = UiRect(0f, 0f, width, height),
-            parentRect = UiRect(0f, 0f, width, height),
+            rect = rootRect,
+            parentRect = viewport,
             parentStyle = null,
             parentClip = null,
             parentTransform = UiMatrix4.identity(),
@@ -99,6 +101,30 @@ class UiLayoutEngine {
             layouts = layouts,
         )
         return layouts
+    }
+
+    private fun rootRect(
+        resolved: ResolvedUiTree,
+        width: Float,
+        height: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    ): UiRect {
+        val node = resolved.root
+        val style = resolved[node]
+        val margin = style.margin.resolve(width, height)
+        val availableWidth = (width - margin.left - margin.right).coerceAtLeast(0f)
+        val availableHeight = (height - margin.top - margin.bottom).coerceAtLeast(0f)
+        val measured = measureNode(node, resolved, availableWidth, availableHeight, scrollbarReserves)
+        val rootWidth = if (style.size.width is UiLength.Auto) availableWidth else measured.width
+        val rootHeight = if (style.size.height is UiLength.Auto) availableHeight else measured.height
+        val alignX = style.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: UiAlign.START
+        val alignY = style.alignVertical.takeUnless { it == UiAlign.AUTO } ?: UiAlign.START
+        return UiRect(
+            x = alignX.crossOffset(width, rootWidth, margin.left, margin.right),
+            y = alignY.crossOffset(height, rootHeight, margin.top, margin.bottom),
+            width = rootWidth.coerceIn(style.minSize.width, style.maxSize.width, width),
+            height = rootHeight.coerceIn(style.minSize.height, style.maxSize.height, height),
+        )
     }
 
     private fun placeNode(

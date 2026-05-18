@@ -313,6 +313,7 @@ class MinecraftUiRenderer {
             filter = compositeFilter,
             textureWidth = target.width,
             textureHeight = target.height,
+            subdivisions = LayerTextureSubdivisions,
             maskRadius = command.radius,
             maskScale = target.scale,
         )

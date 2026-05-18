@@ -370,6 +370,20 @@ class UiLayoutContractTests {
     }
 
     @Test
+    fun `AL-10 root align positions styled root inside viewport`() {
+        val root = HollowUi(
+            modifier = Modifier.then(
+                Modifier.size(200.px, 100.px),
+                Modifier.align(UiAlign.CENTER, UiAlign.CENTER),
+            ),
+        )
+
+        val frame = HollowUiRuntime().frame(root, 600f, 400f)
+
+        assertRect(frame[root], x = 200f, y = 150f, width = 200f, height = 100f)
+    }
+
+    @Test
     fun `SP-01 padding reduces content area without changing border-box size`() {
         lateinit var child: BoxNode
         val root = HollowUi(
@@ -649,6 +663,32 @@ class UiLayoutContractTests {
 
         assertVec(frame.layout[named].worldTransform.transform(100f, 0f), frame.layout[numeric].worldTransform.transform(100f, 0f))
         assertVec(frame.layout[outside].worldTransform.transform(0f, 0f), UiVec3(-100f, 0f, 0f))
+    }
+
+    @Test
+    fun `TR-P5 rotateX with perspective remains horizontally symmetric`() {
+        lateinit var child: BoxNode
+        val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            child = Box(
+                modifier = Modifier.then(
+                    Modifier.size(200.px, 100.px),
+                    Modifier.pivot(UiTransformPivot.Center),
+                    Modifier.rotate(x = 25f),
+                    Modifier.perspective(300f),
+                ),
+            )
+        }
+
+        val transform = HollowUiRuntime().frame(root, 300f, 200f).layout[child].worldTransform
+        val topLeft = transform.transform(0f, 0f)
+        val topRight = transform.transform(200f, 0f)
+        val bottomLeft = transform.transform(0f, 100f)
+        val bottomRight = transform.transform(200f, 100f)
+
+        assertEquals(topLeft.y, topRight.y, 0.01f)
+        assertEquals(bottomLeft.y, bottomRight.y, 0.01f)
+        assertEquals(100f, (topLeft.x + topRight.x) / 2f, 0.01f)
+        assertEquals(100f, (bottomLeft.x + bottomRight.x) / 2f, 0.01f)
     }
 
     @Test
