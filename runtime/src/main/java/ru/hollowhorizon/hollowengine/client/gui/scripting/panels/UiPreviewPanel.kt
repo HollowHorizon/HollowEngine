@@ -21,7 +21,6 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.DrawContext
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvas
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.TextNode as HollowTextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
@@ -42,6 +41,7 @@ import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
 import java.util.*
 import kotlin.math.roundToInt
+import ru.hollowhorizon.hollowengine.client.ui.TextNode as HollowTextNode
 
 object UiPreviewState {
     val previewPath = mutableStateOf<String?>(null)
@@ -243,12 +243,12 @@ private fun setPreviewScale(value: Float) {
     UiPreviewState.previewScale.set(rounded.coerceIn(PreviewScaleMin, PreviewScaleMax))
 }
 
-private object PreviewCheckerboard {
+internal object PreviewCheckerboard {
     private var texture = 0
 
     fun draw(context: DrawContext) {
         if (context.width <= 0f || context.height <= 0f) return
-        ensureTexture()
+        initTexture()
         RenderSystem.setShader { GameRenderer.getPositionTexColorShader() }
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -269,7 +269,7 @@ private object PreviewCheckerboard {
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 
-    private fun ensureTexture() {
+    fun initTexture() {
         if (texture != 0) return
         texture = GL11.glGenTextures()
         GlStateManager._bindTexture(texture)
