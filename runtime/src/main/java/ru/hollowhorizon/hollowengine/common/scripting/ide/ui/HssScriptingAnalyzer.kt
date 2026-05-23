@@ -50,7 +50,7 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
             listOf(diagnosticAt(text, 0, exception.message ?: "Invalid HSS"))
         }
     }
-    
+
     private fun tokenizeLine(line: String, initialBlock: Boolean): HssLineTokens {
         val spans = mutableListOf<Pair<String, SpanStyle>>()
         var index = 0

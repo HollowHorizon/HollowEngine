@@ -133,111 +133,100 @@ class MinecraftUiRenderer {
         clipStack.clear()
     }
 
+    private class RenderSource(
+        val texture: Int,
+        val width: Int,
+        val height: Int,
+        val u0: Float, val v0: Float,
+        val u1: Float, val v1: Float
+    )
+
     private fun finishLayer() {
         val layer = layerStack.removeLast()
         val parentLayer = layerStack.lastOrNull()
+
         restoreClips(layer.parentClips)
-        val blurRadius = layer.filter.blurRadius()
-        val copiedSource = if (parentLayer != null || blurRadius > 0f) copyLayerToScratch(layer) else null
-        val blurredSource = if (blurRadius > 0f && copiedSource != null) blurTexture(
-            framebuffers,
-            copiedSource.texture,
-            copiedSource.width,
-            copiedSource.height,
-            blurRadius,
-            copiedSource
-        ) else null
-        val sourceTexture = blurredSource?.texture ?: copiedSource?.texture ?: layer.framebuffer.texture
-        val sourceWidth = blurredSource?.width ?: copiedSource?.width ?: layer.framebuffer.atlas.width
-        val sourceHeight = blurredSource?.height ?: copiedSource?.height ?: layer.framebuffer.atlas.height
-        val sourceU0 = if (copiedSource == null) layer.framebuffer.u0() else 0f
-        val sourceV0 = if (copiedSource == null) layer.framebuffer.v0() else 0f
-        val sourceU1 = if (copiedSource == null) layer.framebuffer.u1() else 1f
-        val sourceV1 = if (copiedSource == null) layer.framebuffer.v1() else 1f
+
+        val copiedSource = if (parentLayer != null || layer.filter.blurRadius() > 0f) copyLayerToScratch(layer) else null
+        val blurredSource = blurIfNeeded(copiedSource, layer.filter.blurRadius())
+
+        val source = resolveRenderSource(layer, copiedSource, blurredSource)
         val compositeFilter = layer.filter.withoutBlur()
-        if (parentLayer != null) {
-            finishWithParent(
-                parentLayer, layer,
-                sourceTexture, sourceWidth, sourceHeight,
-                sourceU0, sourceV0, sourceU1, sourceV1,
-                compositeFilter
-            )
+
+        val transform = if (parentLayer != null) {
+            setupParentLayerContext(parentLayer)
+            calculateParentTransform(parentLayer, layer)
         } else {
-            finishWithoutParent(
-                layer, sourceTexture, sourceWidth, sourceHeight,
-                sourceU0, sourceV0, sourceU1, sourceV1, compositeFilter
-            )
+            setupRootLayerContext()
+            calculateRootTransform(layer)
         }
+
+        drawLayerTexture(
+            layer, source.texture, source.width, source.height,
+            source.u0, source.v0, source.u1, source.v1,
+            compositeFilter, transform
+        )
+
+        if (parentLayer == null) restoreMainProjection()
+
         blurredSource?.let(framebuffers::release)
         copiedSource?.let(framebuffers::release)
         RenderSystem.disableDepthTest()
     }
 
-    private fun finishWithoutParent(
-        layer: LayerState,
-        sourceTexture: Int,
-        sourceWidth: Int,
-        sourceHeight: Int,
-        sourceU0: Float,
-        sourceV0: Float,
-        sourceU1: Float,
-        sourceV1: Float,
-        compositeFilter: UiFilterChain,
-    ) {
-        bindRootTarget()
-        restoreActiveClip()
-        val transform = layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
-        drawLayerTexture(
-            layer,
-            sourceTexture,
-            sourceWidth,
-            sourceHeight,
-            sourceU0,
-            sourceV0,
-            sourceU1,
-            sourceV1,
-            compositeFilter,
-            transform,
-        )
-        restoreMainProjection()
+
+    private fun blurIfNeeded(copiedSource: UiFramebuffer?, blurRadius: Float): UiFramebuffer? {
+        if (blurRadius <= 0f || copiedSource == null) return null
+        return blurTexture(framebuffers, copiedSource.texture, copiedSource.width, copiedSource.height, blurRadius, copiedSource)
     }
 
-    private fun finishWithParent(
-        parentLayer: LayerState,
-        layer: LayerState,
-        sourceTexture: Int,
-        sourceWidth: Int,
-        sourceHeight: Int,
-        sourceU0: Float,
-        sourceV0: Float,
-        sourceU1: Float,
-        sourceV1: Float,
-        compositeFilter: UiFilterChain,
-    ) {
+    private fun resolveRenderSource(layer: LayerState, copied: UiFramebuffer?, blurred: UiFramebuffer?): RenderSource {
+        val activeBuffer = blurred ?: copied
+
+        return if (activeBuffer != null) {
+            RenderSource(
+                texture = activeBuffer.texture,
+                width = activeBuffer.width,
+                height = activeBuffer.height,
+                u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f
+            )
+        } else {
+            RenderSource(
+                texture = layer.framebuffer.texture,
+                width = layer.framebuffer.atlas.width,
+                height = layer.framebuffer.atlas.height,
+                u0 = layer.framebuffer.u0(), v0 = layer.framebuffer.v0(),
+                u1 = layer.framebuffer.u1(), v1 = layer.framebuffer.v1()
+            )
+        }
+    }
+
+    private fun setupParentLayerContext(parentLayer: LayerState) {
         parentLayer.framebuffer.bind()
         configureLayerProjection(
             parentLayer.rect.width + parentLayer.padding * 2f,
             parentLayer.rect.height + parentLayer.padding * 2f
         )
         restoreActiveClip()
-        val parentInverse =
-            parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
-        val transform = UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
+    }
+
+    private fun setupRootLayerContext() {
+        bindRootTarget()
+        restoreActiveClip()
+    }
+
+    private fun calculateParentTransform(parentLayer: LayerState, layer: LayerState): UiMatrix4 {
+        val parentInverse = parentLayer.transform.inverse()
+            ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
+
+        return UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
                 parentInverse *
                 layer.transform *
                 UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
-        drawLayerTexture(
-            layer,
-            sourceTexture,
-            sourceWidth,
-            sourceHeight,
-            sourceU0,
-            sourceV0,
-            sourceU1,
-            sourceV1,
-            compositeFilter,
-            transform,
-        )
+    }
+
+    private fun calculateRootTransform(layer: LayerState): UiMatrix4 {
+        return layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
     }
 
     private fun drawLayerTexture(
