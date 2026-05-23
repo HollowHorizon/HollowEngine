@@ -40,9 +40,9 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         val value = declaration.value.trim()
         return when (property) {
             "layout" -> instruction { it.layout = parseLayout(value) }
-            "size" -> instruction { it.size = parseSize(value) }
-            "width" -> instruction { it.size = (it.size ?: UiSize()).copy(width = parseLength(value)) }
-            "height" -> instruction { it.size = (it.size ?: UiSize()).copy(height = parseLength(value)) }
+            "size" -> instruction(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT) { it.size = parseSize(value) }
+            "width" -> instruction(UiStyleProperty.WIDTH) { it.size = (it.size ?: UiSize()).copy(width = parseLength(value)) }
+            "height" -> instruction(UiStyleProperty.HEIGHT) { it.size = (it.size ?: UiSize()).copy(height = parseLength(value)) }
             "min-size" -> instruction { it.minSize = parseSize(value) }
             "max-size" -> instruction { it.maxSize = parseSize(value) }
             "aspect-ratio" -> instruction { it.aspectRatio = parseAspectRatio(value) }
@@ -156,6 +156,12 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
 
     private fun instruction(writer: (MutableUiStyle) -> Unit) = StyleInstruction { style, _ -> writer(style) }
 
+    private fun instruction(vararg properties: UiStyleProperty, writer: (MutableUiStyle) -> Unit) =
+        StyleInstruction { style, _ ->
+            writer(style)
+            style.explicitProperties = style.explicitProperties.orEmpty() + properties
+        }
+
     private fun inputInstruction(value: String, patch: (UiInputStyle, Boolean) -> UiInputStyle) =
         instruction { style ->
             style.input = patch(style.input ?: UiInputStyle(), parseBoolean(value))
@@ -167,7 +173,14 @@ fun compileHss(source: String, origin: StyleOrigin = StyleOrigin.STYLESHEET): Co
 
 fun compileStyleModifier(property: String, value: String): Modifier? {
     val instruction = HssCompiler().compileDeclaration(HssDeclaration(property, value)) ?: return null
-    return StyleModifier { style -> instruction.apply(style, UiBindingContext()) }
+    return StyleModifier(property.explicitStyleProperties()) { style -> instruction.apply(style, UiBindingContext()) }
+}
+
+private fun String.explicitStyleProperties(): Set<UiStyleProperty> = when (lowercase()) {
+    "size" -> setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT)
+    "width" -> setOf(UiStyleProperty.WIDTH)
+    "height" -> setOf(UiStyleProperty.HEIGHT)
+    else -> emptySet()
 }
 
 private fun parseLayout(value: String): LayoutType = when (value.lowercase()) {

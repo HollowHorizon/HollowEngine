@@ -77,6 +77,7 @@ data class MutableUiStyle(
     var textAlign: UiTextAlign? = null,
     var fontSize: Float? = null,
     var transitions: List<UiTransition>? = null,
+    var explicitProperties: Set<UiStyleProperty>? = null,
 ) {
     fun merge(other: MutableUiStyle) {
         other.layout?.let { layout = it }
@@ -118,6 +119,7 @@ data class MutableUiStyle(
         other.textAlign?.let { textAlign = it }
         other.fontSize?.let { fontSize = it }
         other.transitions?.let { transitions = it }
+        other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
     }
 
     fun toComputed(parent: ComputedStyle? = null): ComputedStyle {
@@ -164,6 +166,7 @@ data class MutableUiStyle(
             textAlign = textAlign ?: inheritedTextAlign,
             fontSize = fontSize ?: inheritedFontSize,
             transitions = transitions ?: emptyList(),
+            explicitProperties = explicitProperties ?: emptySet(),
         )
     }
 }
@@ -208,6 +211,7 @@ data class ComputedStyle(
     val textAlign: UiTextAlign,
     val fontSize: Float,
     val transitions: List<UiTransition>,
+    val explicitProperties: Set<UiStyleProperty>,
 ) {
 
     fun interpolate(to: ComputedStyle, progress: TransitionProgress): ComputedStyle {

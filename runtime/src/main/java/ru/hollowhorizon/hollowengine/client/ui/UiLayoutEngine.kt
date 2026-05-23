@@ -116,8 +116,16 @@ class UiLayoutEngine {
         val availableWidth = (width - margin.left - margin.right).coerceAtLeast(0f)
         val availableHeight = (height - margin.top - margin.bottom).coerceAtLeast(0f)
         val measured = measureNode(node, resolved, availableWidth, availableHeight, scrollbarReserves)
-        val rootWidth = if (style.size.width is UiLength.Auto) availableWidth else measured.width
-        val rootHeight = if (style.size.height is UiLength.Auto) availableHeight else measured.height
+        val rootWidth = if (style.size.width is UiLength.Auto && UiStyleProperty.WIDTH !in style.explicitProperties) {
+            availableWidth
+        } else {
+            measured.width
+        }
+        val rootHeight = if (style.size.height is UiLength.Auto && UiStyleProperty.HEIGHT !in style.explicitProperties) {
+            availableHeight
+        } else {
+            measured.height
+        }
         val alignX = style.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: UiAlign.START
         val alignY = style.alignVertical.takeUnless { it == UiAlign.AUTO } ?: UiAlign.START
         return UiRect(
@@ -220,8 +228,9 @@ class UiLayoutEngine {
         val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves)
         val grown = growRowChildren(measured, content.width, gap, resolved, scrollbarReserves)
         val totalWidth = grown.sumOfOuterWidth() + gap * (grown.size - 1).coerceAtLeast(0)
-        var x = content.x + style.childAlignHorizontal().mainStartOffset(content.width, totalWidth, grown.size, gap)
-        val actualGap = style.childAlignHorizontal().mainGap(content.width, totalWidth, grown.size, gap)
+        val mainAlign = grown.singleChildMainAxisAlign { it.alignHorizontal } ?: style.childAlignHorizontal()
+        var x = content.x + mainAlign.mainStartOffset(content.width, totalWidth, grown.size, gap)
+        val actualGap = mainAlign.mainGap(content.width, totalWidth, grown.size, gap)
         for (child in grown) {
             val childStyle = child.style
             val position = childStyle.position.resolve(content.width, content.height)
@@ -264,8 +273,9 @@ class UiLayoutEngine {
         val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves)
         val grown = growColumnChildren(measured, content.height, gap, resolved, scrollbarReserves)
         val totalHeight = grown.sumOfOuterHeight() + gap * (grown.size - 1).coerceAtLeast(0)
-        var y = content.y + style.childAlignVertical().mainStartOffset(content.height, totalHeight, grown.size, gap)
-        val actualGap = style.childAlignVertical().mainGap(content.height, totalHeight, grown.size, gap)
+        val mainAlign = grown.singleChildMainAxisAlign { it.alignVertical } ?: style.childAlignVertical()
+        var y = content.y + mainAlign.mainStartOffset(content.height, totalHeight, grown.size, gap)
+        val actualGap = mainAlign.mainGap(content.height, totalHeight, grown.size, gap)
         for (child in grown) {
             val childStyle = child.style
             val position = childStyle.position.resolve(content.width, content.height)
@@ -663,6 +673,11 @@ private fun List<MeasuredChild>.sumOfOuterHeight(): Float = sumOf { (it.margin.t
 private fun List<MeasuredChild>.maxOfOuterWidth(): Float = maxOfOrNull { it.margin.left + it.size.width + it.margin.right } ?: 0f
 
 private fun List<MeasuredChild>.maxOfOuterHeight(): Float = maxOfOrNull { it.margin.top + it.size.height + it.margin.bottom } ?: 0f
+
+private inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (ComputedStyle) -> UiAlign): UiAlign? {
+    if (size != 1) return null
+    return selector(first().style).takeUnless { it == UiAlign.AUTO }
+}
 
 private val MeasuredChild.isRowFlexible: Boolean
     get() = style.size.width is UiLength.Fill ||

@@ -20,8 +20,10 @@ import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.UiTransformPivot
 import ru.hollowhorizon.hollowengine.client.ui.UiVec3
+import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.percent
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -96,6 +98,44 @@ class UiLayoutContractTests {
             assertRect(frame[container], width = 200f, height = count * Line)
             container.children.forEach { child -> assertChildInside(frame[container], frame[child]) }
         }
+    }
+
+    @Test
+    fun `SZ-11 root fit height uses children instead of viewport height`() {
+        val root = parseUi(
+            """
+            <box align="center center" layout="column" size="180px fit" padding="8px" gap="6px">
+                <box size="100% 24px" />
+                <box size="100% 24px" />
+                <box size="100% 24px" />
+            </box>
+            """.trimIndent(),
+        )
+
+        val frame = HollowUiRuntime().frame(root, 400f, 300f)
+
+        assertRect(frame[root], x = 110f, y = 100f, width = 180f, height = 100f)
+    }
+
+    @Test
+    fun `SZ-12 stylesheet root fit height uses children instead of viewport height`() {
+        val stylesheet = compileHss(
+            """
+            .root {
+                align: center center;
+                size: 180px fit;
+                padding: 8px;
+                gap: 6px;
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("root"), modifier = Modifier.style(stylesheet)) {
+            repeat(3) { Box(modifier = Modifier.size(100.percent, 24.px)) }
+        }
+
+        val frame = HollowUiRuntime().frame(root, 400f, 300f)
+
+        assertRect(frame[root], x = 110f, y = 100f, width = 180f, height = 100f)
     }
 
     @Test
@@ -369,6 +409,21 @@ class UiLayoutContractTests {
         val frame = HollowUiRuntime().frame(root, 400f, 400f)
 
         assertRect(frame[child], x = 150f, y = 150f, width = 100f, height = 100f)
+    }
+
+    @Test
+    fun `AL-05 single child align self centers on column main axis`() {
+        lateinit var text: TextNode
+        val root = HollowUi(modifier = Modifier.size(100.px, 24.px)) {
+            text = Text(
+                "Continue",
+                modifier = Modifier.then(Modifier.align(UiAlign.CENTER, UiAlign.CENTER), Modifier.textWrap(false)),
+            )
+        }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 24f)
+
+        assertRect(frame[text], x = 26f, y = 7f, width = 8 * Glyph, height = Line)
     }
 
     @Test

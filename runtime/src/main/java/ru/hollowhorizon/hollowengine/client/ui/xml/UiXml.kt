@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.xml
 
+import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
+import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
+import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
@@ -32,16 +35,33 @@ data class UiXmlOptions(
     val eventSink: UiEventSink = UiEventSink.None,
 )
 
+@Serializable
+data class UiXmlTree(
+    val name: String,
+    val attributes: Map<String, String> = emptyMap(),
+    val children: List<UiXmlTree> = emptyList(),
+) {
+    companion object
+}
+
 fun parseUi(source: String, options: UiXmlOptions = UiXmlOptions()): BoxNode {
-    return UiXmlBuilder(options).build(parseUiMarkup(source))
+    return UiXmlBuilder(options).build(UiXmlTree.from(parseUiMarkup(source)))
+}
+
+fun buildUi(xml: XmlValue, options: UiXmlOptions = UiXmlOptions()): BoxNode {
+    return UiXmlBuilder(options).build(UiXmlTree.from(xml))
 }
 
 class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
     fun build(document: UiMarkupDocument): BoxNode {
-        val imports = linkedMapOf<String, UiMarkupElement>()
-        val roots = mutableListOf<UiMarkupElement>()
-        for (node in document.nodes) {
-            val element = node as? UiMarkupElement ?: continue
+        return build(UiXmlTree.from(document))
+    }
+
+    fun build(root: UiXmlTree): BoxNode {
+        val imports = linkedMapOf<String, UiXmlTree>()
+        val roots = mutableListOf<UiXmlTree>()
+        val documents = if (root.name == DocumentElementName) root.children else listOf(root)
+        for (element in documents) {
             if (element.name.equals("import", ignoreCase = true)) {
                 val name = element.attributes["named"] ?: element.attributes["name"]
                     ?: throw IllegalArgumentException("UI import requires 'named'")
@@ -57,14 +77,14 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         return root as? BoxNode ?: BoxNode().also { it.children += root }
     }
 
-    private fun loadImportedElement(location: String): UiMarkupElement {
+    private fun loadImportedElement(location: String): UiXmlTree {
         val document = parseUiMarkup(options.resources.readText(location))
         val elements = document.nodes.filterIsInstance<UiMarkupElement>().filterNot { it.name.equals("import", true) }
         require(elements.size == 1) { "Imported UI '$location' must contain exactly one element root" }
-        return elements.single()
+        return UiXmlTree.from(elements.single())
     }
 
-    private fun buildElement(element: UiMarkupElement, imports: Map<String, UiMarkupElement>): BaseUiNode {
+    private fun buildElement(element: UiXmlTree, imports: Map<String, UiXmlTree>): BaseUiNode {
         imports[element.name]?.let { imported ->
             val merged = imported.copy(
                 attributes = imported.attributes + element.attributes,
@@ -79,21 +99,21 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         val tags = attributes.tags(element.name)
         val node = when (element.name.lowercase()) {
             "box" -> BoxNode(id, tags, modifiers)
-            "text" -> TextNode(attributes["value"].orText(element).bound(), id, tags, modifiers)
+            "text" -> TextNode(attributes.firstValue("text", "value").bound(), id, tags, modifiers)
             "image" -> ImageNode(attributes.firstValue("source", "src", "image").bound(), id, tags, modifiers)
             "item" -> ItemNode(attributes.firstValue("item", "value").bound(), id, tags, modifiers)
             "entity" -> EntityNode(attributes.firstValue("entity", "value").bound(), id, tags, modifiers)
             "canvas" -> CanvasNode(attributes["renderer"], id, tags, modifiers)
             "button" -> BaseUiNode("button", id, tags, modifiers).also { node ->
-                appendTextIfPresent(node.children, element)
+                appendTextIfPresent(node.children, attributes.firstValue("text", "value"))
             }
 
             else -> BaseUiNode(element.name.lowercase(), id, tags, modifiers).also { node ->
-                appendTextIfPresent(node.children, element)
+                appendTextIfPresent(node.children, attributes.firstValue("text", "value"))
             }
         }
 
-        element.children.filterIsInstance<UiMarkupElement>().forEach { child ->
+        element.children.forEach { child ->
             node.children += buildElement(child, imports)
         }
         return node
@@ -122,16 +142,10 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         return modifiers
     }
 
-    private fun appendTextIfPresent(target: UiChildren, element: UiMarkupElement) {
-        val text = element.textContent().trim()
+    private fun appendTextIfPresent(target: UiChildren, text: String) {
+        val text = text.trim()
         if (text.isNotEmpty()) target += TextNode(UiBoundString(text))
     }
-
-    private fun UiMarkupElement.textContent(): String {
-        return children.filterIsInstance<UiMarkupText>().joinToString("") { it.value }
-    }
-
-    private fun String?.orText(element: UiMarkupElement): String = this ?: element.textContent().trim()
 
     private fun Map<String, String>.firstValue(vararg names: String): String =
         names.firstNotNullOfOrNull { this[it] } ?: ""
@@ -166,9 +180,40 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
             "source",
             "src",
             "image",
+            "text",
             "item",
             "entity",
             "renderer",
         )
+
+        private const val DocumentElementName = "__document"
     }
 }
+
+fun UiXmlTree.Companion.from(document: UiMarkupDocument): UiXmlTree {
+    val elements = document.nodes.filterIsInstance<UiMarkupElement>().map { UiXmlTree.from(it) }
+    return UiXmlTree("__document", children = elements)
+}
+
+fun UiXmlTree.Companion.from(element: UiMarkupElement): UiXmlTree {
+    val attributes = element.attributes.toMutableMap()
+    val text = element.children.filterIsInstance<UiMarkupText>().joinToString("") { it.value }.trim()
+    if (text.isNotEmpty() && "text" !in attributes && "value" !in attributes) {
+        attributes["text"] = text
+    }
+    return UiXmlTree(
+        name = element.name,
+        attributes = attributes,
+        children = element.children.filterIsInstance<UiMarkupElement>().map { UiXmlTree.from(it) },
+    )
+}
+
+fun UiXmlTree.Companion.from(value: XmlValue): UiXmlTree {
+    return UiXmlTree(
+        name = value.name,
+        attributes = value.attributes.associate { it.name to it.value.asUiAttributeString() },
+        children = value.children.map { UiXmlTree.from(it) },
+    )
+}
+
+private fun RuntimeValue.asUiAttributeString(): String = convertToString()

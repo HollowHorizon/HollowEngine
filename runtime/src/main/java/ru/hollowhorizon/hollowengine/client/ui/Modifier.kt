@@ -15,7 +15,7 @@ sealed interface Modifier {
         fun layout(type: LayoutType) = StyleModifier { it.layout = type }
 
         fun size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
-            StyleModifier { it.size = UiSize(width, height) }
+            StyleModifier(setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT)) { it.size = UiSize(width, height) }
 
         fun minSize(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
             StyleModifier { it.minSize = UiSize(width, height) }
@@ -152,8 +152,19 @@ sealed interface Modifier {
     }
 }
 
-class StyleModifier(private val writer: (MutableUiStyle) -> Unit) : Modifier {
-    override fun applyTo(style: MutableUiStyle) = writer(style)
+enum class UiStyleProperty {
+    WIDTH,
+    HEIGHT
+}
+
+class StyleModifier(
+    val properties: Set<UiStyleProperty> = emptySet(),
+    private val writer: (MutableUiStyle) -> Unit,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) {
+        writer(style)
+        if (properties.isNotEmpty()) style.explicitProperties = style.explicitProperties.orEmpty() + properties
+    }
 }
 
 data class CompositeModifier(private val values: List<Modifier>) : Modifier {

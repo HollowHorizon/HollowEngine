@@ -18,6 +18,7 @@ import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
 import com.sunnychung.lib.multiplatform.kotlite.model.ShortValue
 import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
 import com.sunnychung.lib.multiplatform.kotlite.model.SymbolTable
+import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.collections.MapValue
 import kotlin.reflect.KClass
 
@@ -134,6 +135,10 @@ object KatariGeneratedBindingRuntime {
             is KotlinValueHolder<*> -> value.value
             else -> error("$name has unsupported generic runtime value `${value::class.qualifiedName}`")
         }
+    }
+
+    fun asXml(value: RuntimeValue?, name: String): XmlValue {
+        return value as? XmlValue ?: error("$name expects XmlValue")
     }
 
     fun <T> asList(
