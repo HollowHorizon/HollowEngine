@@ -1,0 +1,78 @@
+#xml-demo {
+    layout: free;
+    size: 100% 100%;
+    min-size: 0px 0px;
+    background: linear-gradient(135deg, rgba(18, 26, 38, 0.98), rgba(34, 72, 82, 0.92), rgba(54, 48, 86, 0.9));
+    border-radius: 10px;
+    padding: 18px;
+    clip: true;
+}
+
+.xml-title {
+    position: 24px 20px;
+    foreground: #d8f7ff;
+    height: 18px;
+}
+
+.xml-body {
+    position: 24px 48px;
+    foreground: rgba(236, 242, 248, 0.92);
+    size: 420px 34px;
+}
+
+.xml-button {
+    position: 24px 108px;
+    layout: column;
+    align-items: center center;
+    size: 104px 34px;
+    padding: 8px;
+    background: rgba(72, 150, 142, 0.96);
+    foreground: white;
+    border-radius: 7px;
+    border: 1px rgba(184, 255, 244, 0.68);
+    transition:
+        scale 140ms ease-out,
+        background 140ms ease-out;
+}
+
+.xml-button:hover {
+    scale: 1.04;
+    background: rgba(86, 174, 164, 1);
+}
+
+.xml-button.secondary {
+    position: 142px 108px;
+    background: rgba(72, 82, 108, 0.94);
+    border: 1px rgba(196, 210, 238, 0.48);
+}
+
+.xml-button.secondary:hover {
+    background: rgba(92, 104, 136, 0.98);
+}
+
+.xml-badge {
+    position: 284px 100px;
+    layout: column;
+    gap: 7px;
+    size: 248px 78px;
+    padding: 12px;
+    background: rgba(246, 250, 254, 0.94);
+    foreground: rgba(30, 36, 50, 0.98);
+    border-radius: 8px;
+    border: 1px rgba(255, 255, 255, 0.7);
+    shadow: 0px 14px 26px -8px rgba(0, 0, 0, 0.55);
+}
+
+.xml-badge-title {
+    foreground: rgba(24, 38, 58, 0.98);
+    height: 16px;
+}
+
+.xml-badge-body {
+    foreground: rgba(58, 68, 84, 0.92);
+}
+
+.xml-log {
+    foreground: rgba(210, 246, 226, 0.96);
+    height: 16px;
+}

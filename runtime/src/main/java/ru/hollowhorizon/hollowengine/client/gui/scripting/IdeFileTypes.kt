@@ -26,6 +26,11 @@ fun registerDefaultFileTypes(event: RegisterFileTypeEvent) {
         ".json",
         { path, bytes -> ScriptFile(path) }
     )
+
+    event.register(
+        listOf(".ui", ".hss"),
+        { path, bytes -> ScriptFile(path) }
+    )
     
     event.register(".bc", { path, bytes -> CodeBlocksFile(path, bytes) })
     event.register(".txt", { path, bytes -> TextFile(path, bytes) })

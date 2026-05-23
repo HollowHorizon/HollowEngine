@@ -80,6 +80,44 @@ class KatariScriptingAnalyzerTests {
     }
 
     @Test
+    fun `highlight marks embedded ui markup inside katari`() {
+        val lines = KatariScriptingAnalyzer.highlight(
+            "ui.ktr",
+            """
+                val gui = ui(
+                    <box tags="dialog">
+                        <button text="Accept" />
+                    </box>
+                )
+            """.trimIndent(),
+            0,
+        )
+        val tokens = lines.flatMap { line -> line.spans.map { it.first to it.second.color } }
+
+        assertTrue(tokens.any { it.first.contains("<box") && it.second == TokenType.KEYWORD })
+        assertTrue(tokens.any { it.first == "\"dialog\"" && it.second == TokenType.STRING })
+    }
+
+    @Test
+    fun `highlight marks json like struct literal keys inside katari`() {
+        val lines = KatariScriptingAnalyzer.highlight(
+            "event.ktr",
+            """
+                emit(struct {
+                    event: "clicked",
+                    count: 2
+                })
+            """.trimIndent(),
+            0,
+        )
+        val tokens = lines.flatMap { line -> line.spans.map { it.first to it.second.color } }
+
+        assertTrue(tokens.any { it.first == "event" && it.second == TokenType.PROPERTY_IDENTIFIER })
+        assertTrue(tokens.any { it.first == "count" && it.second == TokenType.PROPERTY_IDENTIFIER })
+        assertTrue(tokens.any { it.first == "2" && it.second == TokenType.NUMERIC_LITERAL })
+    }
+
+    @Test
     fun `highlight marks named arguments`() {
         val line = KatariScriptingAnalyzer.highlight("test.ktr", "waitTime(timeOfDay = 1000)", 0).single()
         val tokens = line.spans.map { it.first to it.second.color }

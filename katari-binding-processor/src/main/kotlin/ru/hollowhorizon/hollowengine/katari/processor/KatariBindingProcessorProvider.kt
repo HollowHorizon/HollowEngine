@@ -426,6 +426,12 @@ private class KatariBindingProcessor(
             "kotlin.Double" -> TypeModel.primitive("Double", "Double", "asDouble", nullable)
             "kotlin.Float" -> TypeModel.primitive("Float", "Double", "asFloat", nullable)
             "kotlin.String" -> TypeModel.primitive("String", "String", "asString", nullable)
+            "com.sunnychung.lib.multiplatform.kotlite.model.XmlValue" -> TypeModel.primitive(
+                "XmlValue",
+                "XmlValue",
+                "asXml",
+                nullable,
+            )
             "kotlin.collections.List", "kotlin.collections.MutableList" -> collectionTypeModel(
                 type = type,
                 scriptTypes = scriptTypes,

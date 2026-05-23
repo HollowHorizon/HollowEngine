@@ -116,6 +116,7 @@ fun createHollowKatariBindings(
         registerBuiltinFunctions(host)
         registerSavedVariableBindings(savedVariables)
         registerGeneratedKatariBindings(server)
+        registerKatariUiStructBindings()
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
     }
     savedVariables.snapshotCodec = bindings.snapshotCodec
@@ -139,6 +140,7 @@ fun createHollowKatariEditorBindings(): KatariBindings {
         registerBuiltinFunctions(NarrativeNoOpHost)
         registerSavedVariableBindings(null)
         registerGeneratedKatariBindings()
+        registerKatariUiStructBindings()
         registerContextGlobalTypes()
     }
 }

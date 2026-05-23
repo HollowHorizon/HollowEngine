@@ -19,6 +19,7 @@ import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.TagParser
 import net.minecraft.nbt.Tag
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
@@ -57,7 +58,11 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
+import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
+import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiDocument
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariRunStatus
+import ru.hollowhorizon.hollowengine.common.scripting.katari.katariUi
 import ru.hollowhorizon.hollowengine.common.scripting.katari.getAvailableKatariScripts
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
@@ -76,6 +81,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerUtilityCommands()
             registerCodeBlocksCommands()
             registerKatariCommands()
+            registerUiCommands()
         }
     }
 }
@@ -864,6 +870,66 @@ private fun CommandExtension.registerKatariCommands() {
             }
         }
     }
+}
+
+private fun CommandExtension.registerUiCommands() {
+    "ui" {
+        requires { hasPermission(2) }
+
+        "open"(
+            arg("path", StringArgumentType.string()),
+            arg("variables", StringArgumentType.greedyString())
+        ) {
+            executes {
+                val path = StringArgumentType.getString(this, "path")
+                val variablesRaw = StringArgumentType.getString(this, "variables")
+                val player = source.playerOrException
+                val variables = parseUiVariables(variablesRaw)
+                runCatching {
+                    katariUi(path).openScreenFromCommand(player, variables)
+                }.onSuccess {
+                    sendSuccess { "UI opened: $path".literal }
+                }.onFailure { error ->
+                    HollowEngine.LOGGER.error("UI open failed", error)
+                    sendFailure("UI open failed: ${error.message ?: "Unknown error"}".literal)
+                }
+                SUCCESS
+            }
+        }
+
+        "open"(arg("path", StringArgumentType.string())) {
+            executes {
+                val path = StringArgumentType.getString(this, "path")
+                val player = source.playerOrException
+                runCatching {
+                    katariUi(path).openScreenFromCommand(player, CompoundTag())
+                }.onSuccess {
+                    sendSuccess { "UI opened: $path".literal }
+                }.onFailure { error ->
+                    HollowEngine.LOGGER.error("UI open failed", error)
+                    sendFailure("UI open failed: ${error.message ?: "Unknown error"}".literal)
+                }
+                SUCCESS
+            }
+        }
+    }
+}
+
+private fun KatariUiDocument.openScreenFromCommand(
+    player: ServerPlayer,
+    variables: CompoundTag,
+) {
+    ShowKatariUiPacket(
+        id = id,
+        root = root,
+        mode = KatariUiDisplayMode.SCREEN,
+        variables = variables,
+    ).send(player)
+}
+
+private fun parseUiVariables(raw: String): CompoundTag {
+    if (raw.isBlank()) return CompoundTag()
+    return TagParser.parseTag(raw)
 }
 
 private fun getAvailableScripts(): Collection<String> {

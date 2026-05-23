@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 object ModShaders {
     lateinit var GLTF_ENTITY: ShaderInstance
     lateinit var GLTF_ENTITY_INSTANCED: ShaderInstance
+    var UI_EFFECT: ShaderInstance? = null
 
     @SubscribeEvent
     fun onShaderRegistry(event: RegisterShadersEvent) {
@@ -26,6 +27,12 @@ object ModShaders {
             DefaultVertexFormat.NEW_ENTITY
         ) {
             GLTF_ENTITY_INSTANCED = it
+        }
+        event.register(
+            "$MODID:ui_effect".rl,
+            DefaultVertexFormat.POSITION_TEX_COLOR
+        ) {
+            UI_EFFECT = it
         }
     }
 }

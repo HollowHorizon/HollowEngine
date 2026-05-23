@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
+import java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
@@ -27,7 +28,7 @@ class DirectoryWatcher(private val directory: Path, private val callback: (Path,
 
         registerDirectories(directory)
 
-        Thread {
+        Thread({
             try {
                 while (isRunning) {
                     val key = watchService.take() ?: continue
@@ -58,7 +59,10 @@ class DirectoryWatcher(private val directory: Path, private val callback: (Path,
             } catch (e: IOException) {
                 HollowEngine.LOGGER.error(e)
             }
-        }.start()
+        }, "HollowEngine Directory Watcher").apply {
+            isDaemon = true
+            start()
+        }
     }
 
     fun stop() {
@@ -71,14 +75,14 @@ class DirectoryWatcher(private val directory: Path, private val callback: (Path,
 
     private fun registerDirectories(dir: Path) {
         try {
-            val key = dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+            val key = dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
             keyMap[key] = dir
 
             Files.walk(dir)
                 .filter { Files.isDirectory(it) }
                 .forEach { subDir ->
                     try {
-                        val subKey = subDir.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+                    val subKey = subDir.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
                         keyMap[subKey] = subDir
                     } catch (e: IOException) {
                         e.printStackTrace()

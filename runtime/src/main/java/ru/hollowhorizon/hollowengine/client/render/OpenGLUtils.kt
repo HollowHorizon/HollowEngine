@@ -20,6 +20,7 @@ import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3d
 import org.joml.Vector3f
+import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.EntityModifier
 import ru.hollowhorizon.hollowengine.client.utils.color
@@ -186,7 +187,7 @@ fun ItemStack.render(
     val yOffset = y + height / 2
     stack.translate(xOffset, yOffset, 0f)
 
-    stack.mulPoseMatrix(Matrix4f().scaling(1f, -1f, 1f))
+    stack.mulPose(Matrix4f().scaling(1f, -1f, 1f))
 
     val newScale = min(width, height) * 0.95f * scale
     stack.scale(newScale, newScale, newScale)
@@ -197,17 +198,29 @@ fun ItemStack.render(
     val model = Minecraft.getInstance().itemRenderer.getModel(this, Minecraft.getInstance().level, null, 0)
 
     val flat = !model.usesBlockLight()
+    val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
+    val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
 
-    if (flat) Lighting.setupForFlatItems()
-    Minecraft.getInstance().itemRenderer.render(
-        this,
-        ItemDisplayContext.GUI,
-        false,
-        stack, src, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, model
-    )
-
-    src.endBatch()
-    if (flat) Lighting.setupFor3DItems()
+    if (flat) {
+        Lighting.setupForFlatItems()
+    } else {
+        Lighting.setupFor3DItems()
+    }
+    RenderSystem.enableDepthTest()
+    GL11.glDepthMask(true)
+    try {
+        Minecraft.getInstance().itemRenderer.render(
+            this,
+            ItemDisplayContext.GUI,
+            false,
+            stack, src, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, model
+        )
+    } finally {
+        src.endBatch()
+        Lighting.setupFor3DItems()
+        if (!depthEnabled) RenderSystem.disableDepthTest()
+        GL11.glDepthMask(depthMask)
+    }
 }
 
 fun renderItemDecorations(stack: ItemStack, poseStack: PoseStack, x: Int, y: Int, width: Float, height: Float) {
