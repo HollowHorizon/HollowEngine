@@ -129,9 +129,8 @@ public class NeoForgeClientEvents {
     private record NeoForgeShaders(RegisterShadersEvent event) implements EventBridge.ShaderRegistration {
         @Override
         public void register(ResourceLocation id, VertexFormat vertexFormat, Consumer<ShaderInstance> loadCallback) throws IOException {
-            try (var shader = new ShaderInstance(event.getResourceProvider(), id, vertexFormat)) {
-                event.registerShader(shader, loadCallback);
-            }
+            var shader = new ShaderInstance(event.getResourceProvider(), id, vertexFormat);
+            event.registerShader(shader, loadCallback);
         }
     }
 }
