@@ -2,25 +2,12 @@
 
 package ru.hollowhorizon.hollowengine.client.keys
 
-import net.minecraft.client.KeyMapping
-import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiDemoScreen
-import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsEvent
-import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 
-val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine.menu", GLFW.GLFW_KEY_F10, "key.hollowengine")
 
 @SubscribeEvent
 fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
-    event.registerKeyMapping(HOLLOW_ENGINE_KEY)
-}
 
-@SubscribeEvent
-fun onTick(event: TickEvent.Client) {
-    while (HOLLOW_ENGINE_KEY.consumeClick()) {
-        HollowUiDemoScreen().open()
-    }
 }
