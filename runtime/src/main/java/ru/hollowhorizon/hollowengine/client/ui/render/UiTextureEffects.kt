@@ -5,12 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
-import ru.hollowhorizon.hollowengine.client.ui.UiInsets
-import ru.hollowhorizon.hollowengine.client.ui.UiLength
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import kotlin.math.abs
 
@@ -256,8 +251,8 @@ internal object UiTextureEffects {
         val padV = maskPadding * radiusScale / textureHeight.coerceAtLeast(1f)
         val finalMaskU = if (maskU != null) maskU + padU else padU
         val finalMaskV = if (maskV != null) maskV + padV else padV
-        val finalMaskW = (if (maskWidth != null) maskWidth - padU * 2f else (1f - padU * 2f)).coerceAtLeast(0f)
-        val finalMaskH = (if (maskHeight != null) maskHeight - padV * 2f else (1f - padV * 2f)).coerceAtLeast(0f)
+        val finalMaskW = (if (maskWidth != null) maskWidth - padU * 2f else 1f - padU * 2f).coerceAtLeast(0f)
+        val finalMaskH = (if (maskHeight != null) maskHeight - padV * 2f else 1f - padV * 2f).coerceAtLeast(0f)
         val finalSampleU = sampleU ?: 0f
         val finalSampleV = sampleV ?: 0f
         val finalSampleW = sampleWidth ?: 1f

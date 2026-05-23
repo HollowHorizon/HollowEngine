@@ -119,7 +119,7 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
                     id = "free-node-$index",
                     tags = listOf("free-node"),
                     modifier = Modifier.then(
-                        Modifier.position((40 + index * 96 + offset.x).px, (40 + (index % 4) * 82 + offset.y).px),
+                        Modifier.position((40 + index * 96 + offset.x).px, (40 + index % 4 * 82 + offset.y).px),
                         Modifier.input(hoverable = true, draggable = true),
                     ),
                 ) {

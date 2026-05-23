@@ -1281,7 +1281,7 @@ class UiFrameworkTests {
         val layerEnd = frame.commands.indexOfFirst { it is EndLayerCommand && it.node == root }
 
         assertTrue(layerStart >= 0, "Expected rotated widget to render through a layer")
-        assertTrue(textIndex in (layerStart + 1) until layerEnd, "Text should be captured inside the rotated widget layer")
+        assertTrue(textIndex in layerStart + 1 until layerEnd, "Text should be captured inside the rotated widget layer")
     }
 
     @Test
@@ -1306,7 +1306,7 @@ class UiFrameworkTests {
 
         assertEquals(-1, ownLayerStart, "Text inside an existing transformed layer should not allocate another layer")
         assertTrue(layerStart >= 0, "Expected transformed ancestor to render through a layer")
-        assertTrue(textIndex in (layerStart + 1) until layerEnd, "Text should be captured by the ancestor transform layer")
+        assertTrue(textIndex in layerStart + 1 until layerEnd, "Text should be captured by the ancestor transform layer")
     }
 
     @Test

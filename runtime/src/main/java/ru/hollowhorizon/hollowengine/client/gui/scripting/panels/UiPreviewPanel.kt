@@ -74,8 +74,22 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
             GlCanvas("Hollow UI Preview", glCanvas = { drawPreview(path, scale); surface.triggerUpdate() }) {
                 modifier.size(Grow.Std, Grow.Std)
                 modifier.onClick { UiPreviewRenderer.click(it.screenPosition.x, it.screenPosition.y) }
-                modifier.onWheelX { UiPreviewRenderer.scroll(it.screenPosition.x, it.screenPosition.y, it.pointer.scroll.x, 0f) }
-                modifier.onWheelY { UiPreviewRenderer.scroll(it.screenPosition.x, it.screenPosition.y, 0f, it.pointer.scroll.y) }
+                modifier.onWheelX {
+                    UiPreviewRenderer.scroll(
+                        it.screenPosition.x,
+                        it.screenPosition.y,
+                        it.pointer.scroll.x,
+                        0f
+                    )
+                }
+                modifier.onWheelY {
+                    UiPreviewRenderer.scroll(
+                        it.screenPosition.x,
+                        it.screenPosition.y,
+                        0f,
+                        it.pointer.scroll.y
+                    )
+                }
             }
 
             UiPreviewState.errorText.use()?.let { error ->
@@ -117,7 +131,13 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
                 .alignY(AlignmentY.Center)
                 .textColor(ColorTheme.UI.WhiteReplacement)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingSmall))
-                .border(RoundRectBorder(ColorTheme.UI.BackgroundAccent, Dimensions.PaddingSmall, Dimensions.PaddingSmall))
+                .border(
+                    RoundRectBorder(
+                        ColorTheme.UI.BackgroundAccent,
+                        Dimensions.PaddingSmall,
+                        Dimensions.PaddingSmall
+                    )
+                )
             modifier.onClick { setPreviewScale(Minecraft.getInstance().window.guiScale.toFloat()) }
         }
     }
@@ -294,7 +314,7 @@ internal object PreviewCheckerboard {
         val pixels = ByteBuffer.allocateDirect(CheckerTextureSize * CheckerTextureSize * 4)
         for (y in 0 until CheckerTextureSize) {
             for (x in 0 until CheckerTextureSize) {
-                val color = if ((x < CheckerTextureSize / 2) == (y < CheckerTextureSize / 2)) {
+                val color = if (x < CheckerTextureSize / 2 == y < CheckerTextureSize / 2) {
                     CheckerDark
                 } else {
                     CheckerLight

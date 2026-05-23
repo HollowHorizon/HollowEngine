@@ -100,7 +100,7 @@ internal object UiTextLayouter {
             if (height.isFinite() && lines.isNotEmpty() && y + raw.height > height) break
             val justify = align == UiTextAlign.JUSTIFY && !raw.lastInParagraph && raw.justifyGapCount > 0
             val extra = if (justify) {
-                ((width - raw.width).coerceAtLeast(0f) / raw.justifyGapCount.coerceAtLeast(1))
+                (width - raw.width).coerceAtLeast(0f) / raw.justifyGapCount.coerceAtLeast(1)
             } else {
                 0f
             }
