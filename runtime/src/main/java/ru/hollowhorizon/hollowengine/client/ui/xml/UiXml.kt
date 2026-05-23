@@ -15,10 +15,13 @@ import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.UiChildren
+import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
 import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
 import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
+import ru.hollowhorizon.hollowengine.client.ui.UiClientScriptModifier
 import ru.hollowhorizon.hollowengine.client.ui.bound
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 
 fun interface UiResourceLoader {
     fun readText(location: String): String
@@ -33,6 +36,11 @@ object MinecraftUiResourceLoader : UiResourceLoader {
 data class UiXmlOptions(
     val resources: UiResourceLoader = MinecraftUiResourceLoader,
     val eventSink: UiEventSink = UiEventSink.None,
+)
+
+data class UiXmlBuildResult(
+    val root: BoxNode,
+    val scripts: List<UiClientScript>,
 )
 
 @Serializable
@@ -58,8 +66,13 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
     }
 
     fun build(root: UiXmlTree): BoxNode {
+        return buildDocument(root).root
+    }
+
+    fun buildDocument(root: UiXmlTree): UiXmlBuildResult {
         val imports = linkedMapOf<String, UiXmlTree>()
         val roots = mutableListOf<UiXmlTree>()
+        val scripts = mutableListOf<UiClientScript>()
         val documents = if (root.name == DocumentElementName) root.children else listOf(root)
         for (element in documents) {
             if (element.name.equals("import", ignoreCase = true)) {
@@ -68,13 +81,21 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
                 val location = element.attributes["element"]
                     ?: throw IllegalArgumentException("UI import '$name' requires 'element'")
                 imports[name] = loadImportedElement(location)
+            } else if (element.name.equals("script", ignoreCase = true)) {
+                val location = element.attributes["from"] ?: element.attributes["src"]
+                    ?: throw IllegalArgumentException("UI script requires 'from'")
+                scripts += UiClientScript.Resource(location, options.resources.readText(location))
             } else {
                 roots += element
             }
         }
         require(roots.size == 1) { "UI document must contain exactly one root element" }
         val root = buildElement(roots.single(), imports)
-        return root as? BoxNode ?: BoxNode().also { it.children += root }
+        val box = root as? BoxNode ?: BoxNode().also { it.children += root }
+        if (scripts.isNotEmpty()) {
+            box.modifiers += UiClientScriptModifier(scripts)
+        }
+        return UiXmlBuildResult(box, scripts)
     }
 
     private fun loadImportedElement(location: String): UiXmlTree {
@@ -126,20 +147,20 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
             when {
                 name in StructuralAttributes -> Unit
                 name == "style" -> modifiers += Modifier.style(rawValue)
-                name == "on-click" -> modifiers += Modifier.emitOnClick(
-                    UiEventPayloadTemplate.parse(rawValue),
-                    options.eventSink,
-                )
-
-                name == "on-drag" -> modifiers += Modifier.emitOnDrag(
-                    UiEventPayloadTemplate.parse(rawValue),
-                    options.eventSink,
-                )
+                name.toEventKind() != null -> modifiers += eventModifier(name.toEventKind()!!, rawValue)
 
                 else -> compileStyleModifier(name, rawValue)?.let { modifiers += it }
             }
         }
         return modifiers
+    }
+
+    private fun eventModifier(kind: UiEventKind, rawValue: String): Modifier {
+        val trimmed = rawValue.trim()
+        if (trimmed.startsWith("{")) {
+            return Modifier.emitOn(kind, UiEventPayloadTemplate.parse(trimmed), options.eventSink)
+        }
+        return Modifier.eventScript(kind, trimmed, options.eventSink)
     }
 
     private fun appendTextIfPresent(target: UiChildren, text: String) {
@@ -169,6 +190,8 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         }
         return result.toString()
     }
+
+    private fun String.toEventKind(): UiEventKind? = UiEventKind.fromAttribute(this)
 
     private companion object {
         val StructuralAttributes = setOf(

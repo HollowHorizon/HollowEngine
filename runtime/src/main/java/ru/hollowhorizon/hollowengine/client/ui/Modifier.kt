@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiInlineScriptRunner
 
 sealed interface Modifier {
     fun applyTo(style: MutableUiStyle)
@@ -138,15 +140,49 @@ sealed interface Modifier {
 
         fun transition(vararg transitions: UiTransition) = StyleModifier { it.transitions = transitions.toList() }
 
+        fun onInit(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.INIT, handler)
+
+        fun onUpdate(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.UPDATE, handler)
+
+        fun onClose(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.CLOSE, handler)
+
+        fun onEnter(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.ENTER, handler)
+
+        fun onExit(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.EXIT, handler)
+
+        fun onHover(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.HOVER, handler)
+
+        fun onPress(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.PRESS, handler)
+
         fun onClick(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.CLICK, handler)
+
+        fun onRelease(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.RELEASE, handler)
 
         fun onDrag(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.DRAG, handler)
 
+        fun onScroll(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.SCROLL, handler)
+
+        fun onCharTyped(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.CHAR_TYPED, handler)
+
+        fun onKeyPressed(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.KEY_PRESSED, handler)
+
+        fun onFocus(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.FOCUS, handler)
+
+        fun onUnfocus(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.UNFOCUS, handler)
+
+        fun emitOn(kind: UiEventKind, template: UiEventPayloadTemplate, sink: UiEventSink) =
+            EventModifier(kind) { sink.emit(template.resolve(it)) }
+
         fun emitOnClick(template: UiEventPayloadTemplate, sink: UiEventSink) =
-            onClick { sink.emit(template.resolve(it)) }
+            emitOn(UiEventKind.CLICK, template, sink)
 
         fun emitOnDrag(template: UiEventPayloadTemplate, sink: UiEventSink) =
-            onDrag { sink.emit(template.resolve(it)) }
+            emitOn(UiEventKind.DRAG, template, sink)
+
+        fun eventScript(kind: UiEventKind, source: String, sink: UiEventSink) =
+            EventModifier(kind) { event ->
+                UiInlineScriptRunner.run(source, event, sink)
+            }
 
         fun then(vararg modifiers: Modifier) = CompositeModifier(modifiers.toList())
     }
@@ -190,10 +226,34 @@ data class EventModifier(
     override fun applyTo(style: MutableUiStyle) {
         val input = style.input ?: UiInputStyle()
         style.input = when (kind) {
-            UiEventKind.CLICK -> input.copy(clickable = true, hoverable = true)
+            UiEventKind.ENTER,
+            UiEventKind.EXIT,
+            UiEventKind.HOVER -> input.copy(hoverable = true)
+
+            UiEventKind.PRESS,
+            UiEventKind.CLICK,
+            UiEventKind.RELEASE -> input.copy(clickable = true, hoverable = true)
+
             UiEventKind.DRAG -> input.copy(draggable = true, hoverable = true)
+
+            UiEventKind.SCROLL -> input.copy(scrollable = true, hoverable = true)
+
+            UiEventKind.CHAR_TYPED,
+            UiEventKind.KEY_PRESSED,
+            UiEventKind.FOCUS,
+            UiEventKind.UNFOCUS -> input.copy(focusable = true, hoverable = true)
+
+            UiEventKind.INIT,
+            UiEventKind.UPDATE,
+            UiEventKind.CLOSE -> input
         }
     }
+}
+
+data class UiClientScriptModifier(
+    val scripts: List<UiClientScript>,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) = Unit
 }
 
 data class PositionModifier(

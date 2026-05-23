@@ -3,8 +3,46 @@ package ru.hollowhorizon.hollowengine.client.ui
 import net.minecraft.nbt.CompoundTag
 
 enum class UiEventKind {
+    INIT,
+    UPDATE,
+    CLOSE,
+    ENTER,
+    EXIT,
+    HOVER,
+    PRESS,
     CLICK,
-    DRAG
+    RELEASE,
+    DRAG,
+    SCROLL,
+    CHAR_TYPED,
+    KEY_PRESSED,
+    FOCUS,
+    UNFOCUS;
+
+    val attributeName: String
+        get() = name.lowercase().split('_').joinToString("-")
+
+    companion object {
+        fun fromAttribute(name: String): UiEventKind? {
+            val dashed = name.replace(Regex("([a-z])([A-Z])"), "$1-$2")
+                .replace('_', '-')
+                .lowercase()
+            val normalized = when {
+                dashed.startsWith("on-") -> dashed.removePrefix("on-")
+                dashed.startsWith("on") -> dashed.removePrefix("on")
+                else -> dashed
+            }
+            val aliased = when (normalized) {
+                "pressed" -> "press"
+                "released" -> "release"
+                "char" -> "char-typed"
+                "key" -> "key-pressed"
+                "un-focus" -> "unfocus"
+                else -> normalized
+            }
+            return entries.firstOrNull { it.attributeName == aliased }
+        }
+    }
 }
 
 data class UiEvent(
@@ -17,8 +55,23 @@ data class UiEvent(
     val localY: Float = 0f,
     val deltaX: Float = 0f,
     val deltaY: Float = 0f,
+    val scrollX: Float = 0f,
+    val scrollY: Float = 0f,
+    val key: Int = 0,
+    val scanCode: Int = 0,
+    val modifiers: Int = 0,
+    val codePoint: Int = 0,
     val released: Boolean = false,
 ) {
+    var consumed: Boolean = false
+        private set
+
+    var variables: CompoundTag = CompoundTag()
+
+    fun consume() {
+        consumed = true
+    }
+
     fun read(path: String): Any? {
         val normalized = path.removePrefix("it.").removePrefix("event.")
         return when (normalized) {
@@ -36,6 +89,16 @@ data class UiEvent(
             else -> null
         }
     }
+
+    fun matches(selector: String): Boolean {
+        val clean = selector.trim()
+        return when {
+            clean.isBlank() -> true
+            clean.startsWith("#") -> node.id == clean.removePrefix("#")
+            clean.startsWith(".") -> clean.removePrefix(".") in node.tags
+            else -> node.type == clean || node.id == clean || clean in node.tags
+        }
+    }
 }
 
 fun interface UiEventSink {
@@ -50,6 +113,8 @@ fun UiNode.dispatch(event: UiEvent): Boolean {
     val handlers = modifiers.flattenModifiers()
         .filterIsInstance<EventModifier>()
         .filter { it.kind == event.kind }
-    handlers.forEach { it.handler(event) }
+    handlers.forEach {
+        if (!event.consumed) it.handler(event)
+    }
     return handlers.isNotEmpty()
 }

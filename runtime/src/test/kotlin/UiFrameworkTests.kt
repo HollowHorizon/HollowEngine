@@ -33,6 +33,8 @@ import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.percent
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiResourceLoader
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
@@ -616,6 +618,66 @@ class UiFrameworkTests {
         assertEquals(2f, (frame.resolved[custom].margin.left as UiLength.Px).value)
         assertEquals("pressed", emitted.single().getString("event"))
         assertEquals("hello", emitted.single().getString("button"))
+        assertEquals(2, emitted.single().getInt("mouse"))
+    }
+
+    @Test
+    fun `ui xml inline event handler executes katari script`() {
+        val emitted = mutableListOf<CompoundTag>()
+        val root = parseUi(
+            """
+            <box>
+                <button id="accept" onPressed='emit(struct { event: "pressed", button: it.id, mouse: it.mouseButton, value: vars.string("value") })'>Accept</button>
+            </box>
+            """.trimIndent(),
+            UiXmlOptions(eventSink = UiEventSink { emitted += it }),
+        )
+
+        val button = root.children.single { it.id == "accept" }
+
+        val event = UiEvent(UiEventKind.PRESS, button, button = 1)
+        event.variables.putString("value", "from-server")
+        button.dispatch(event)
+
+        assertEquals("pressed", emitted.single().getString("event"))
+        assertEquals("accept", emitted.single().getString("button"))
+        assertEquals(1, emitted.single().getInt("mouse"))
+        assertEquals("from-server", emitted.single().getString("value"))
+    }
+
+    @Test
+    fun `ui client script dispatches matching event declarations`() {
+        val emitted = mutableListOf<CompoundTag>()
+        val root = HollowUi {
+            Box(id = "accept", tags = listOf("primary"))
+            Box(id = "decline", tags = listOf("secondary"))
+        }
+        val accept = root.children.single { it.id == "accept" }
+        val decline = root.children.single { it.id == "decline" }
+        val script = UiClientScript.Resource(
+            "handler.ktr",
+            """
+            onClick(".primary") {
+                emit(struct { event: "clicked", button: it.id, mouse: it.mouseButton })
+            }
+            onClick(".secondary") {
+                emit(struct { event: "clicked", button: it.id, mouse: it.mouseButton })
+            }
+            onRelease {
+                emit(struct { event: "released" })
+            }
+            """.trimIndent(),
+        )
+
+        val prepared = UiClientScriptRunner.prepare(listOf(script), root, UiEventSink { emitted += it }, CompoundTag())
+        val frame = HollowUiRuntime().frame(root, 200f, 120f)
+        prepared.dispatch(UiEvent(UiEventKind.CLICK, decline, button = 2), root, CompoundTag())
+
+        assertTrue(frame.resolved[accept].input.clickable)
+        assertTrue(frame.resolved[decline].input.clickable)
+        assertEquals(1, emitted.size)
+        assertEquals("clicked", emitted.single().getString("event"))
+        assertEquals("decline", emitted.single().getString("button"))
         assertEquals(2, emitted.single().getInt("mouse"))
     }
 

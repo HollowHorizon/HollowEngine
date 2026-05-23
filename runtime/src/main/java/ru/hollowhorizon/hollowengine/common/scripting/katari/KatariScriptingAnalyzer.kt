@@ -6,6 +6,7 @@ import com.sunnychung.lib.multiplatform.kotlite.model.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiMarkupScriptingAnalyzer
 import java.util.*
 
 private val keywords = setOf(
@@ -36,8 +37,9 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val semanticRanges = analysis.result.getOrNull()?.let { semanticRanges(text, it.analysis) }.orEmpty()
         val occurrenceRanges = matchingIdentifierRanges(text, offset, semanticRanges)
         val bracketRanges = matchingBracketRanges(text, offset)
+        val embeddedRanges = embeddedMarkupRanges(text) + embeddedStructRanges(text)
         val lineHints = analysis.result.getOrNull()?.let { inlayHints(text, it.analysis) }.orEmpty()
-        return buildHighlightedLines(text, semanticRanges + occurrenceRanges + bracketRanges, lineHints)
+        return buildHighlightedLines(text, semanticRanges + embeddedRanges + occurrenceRanges + bracketRanges, lineHints)
     }
 
     override fun lightweightHighlightLine(name: String, line: String): TextLine {
@@ -359,6 +361,216 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return spans
     }
 
+    private fun embeddedMarkupRanges(text: String): List<StyledRange> {
+        return xmlLiteralRanges(text).flatMap { range ->
+            val fragment = text.substring(range.start, range.end)
+            UiMarkupScriptingAnalyzer.highlight("<katari-ui-literal>", fragment, 0)
+                .flatMapIndexed { lineIndex, line ->
+                    var column = 0
+                    line.spans.map { (token, style) ->
+                        val mapped = range.positionAt(text, lineIndex, column)
+                        column += token.length
+                        StyledRange(mapped.line, mapped.column, mapped.column + token.length, style, priority = 3)
+                    }
+                }
+        }
+    }
+
+    private fun embeddedStructRanges(text: String): List<StyledRange> {
+        return structLiteralRanges(text).flatMap { range ->
+            val result = mutableListOf<StyledRange>()
+            var index = range.start
+            while (index < range.end) {
+                val char = text[index]
+                when {
+                    char == '"' || char == '\'' -> {
+                        val end = stringEnd(text, index).coerceAtMost(range.end)
+                        val start = absolutePosition(text, index)
+                        val stop = absolutePosition(text, end)
+                        if (start.line == stop.line) {
+                            result += StyledRange(start.line, start.column, stop.column, style(TokenType.STRING), priority = 3)
+                        }
+                        index = end
+                    }
+                    char.isDigit() || char == '-' -> {
+                        val end = numericEnd(text, index).coerceAtMost(range.end)
+                        val start = absolutePosition(text, index)
+                        val stop = absolutePosition(text, end)
+                        if (start.line == stop.line) {
+                            result += StyledRange(start.line, start.column, stop.column, style(TokenType.NUMERIC_LITERAL), priority = 3)
+                        }
+                        index = end
+                    }
+                    char.isIdentifierStart() -> {
+                        val end = identifierEnd(text, index).coerceAtMost(range.end)
+                        val colon = skipWhitespace(text, end)
+                        if (colon < range.end && text[colon] == ':') {
+                            val start = absolutePosition(text, index)
+                            val stop = absolutePosition(text, end)
+                            if (start.line == stop.line) {
+                                result += StyledRange(start.line, start.column, stop.column, style(TokenType.PROPERTY_IDENTIFIER), priority = 3)
+                            }
+                        }
+                        index = end
+                    }
+                    else -> index++
+                }
+            }
+            result
+        }
+    }
+
+    private fun xmlLiteralRanges(text: String): List<TextRange> {
+        val ranges = mutableListOf<TextRange>()
+        var index = 0
+        var inLineComment = false
+        var inSingleQuote = false
+        var inDoubleQuote = false
+        var escaped = false
+        while (index < text.length) {
+            val char = text[index]
+            val next = text.getOrNull(index + 1)
+            when {
+                inLineComment && char == '\n' -> inLineComment = false
+                inLineComment -> Unit
+                inSingleQuote -> {
+                    if (!escaped && char == '\'') inSingleQuote = false
+                    escaped = !escaped && char == '\\'
+                }
+                inDoubleQuote -> {
+                    when {
+                        escaped -> escaped = false
+                        char == '\\' -> escaped = true
+                        char == '"' -> inDoubleQuote = false
+                    }
+                }
+                char == '/' && next == '/' -> {
+                    inLineComment = true
+                    index++
+                }
+                char == '\'' -> inSingleQuote = true
+                char == '"' -> inDoubleQuote = true
+                char == '<' && next.isXmlTagStart() -> {
+                    val end = findXmlLiteralEnd(text, index)
+                    if (end > index) {
+                        ranges += TextRange(index, end)
+                        index = end - 1
+                    }
+                }
+            }
+            index++
+        }
+        return ranges
+    }
+
+    private fun findXmlLiteralEnd(text: String, start: Int): Int {
+        var index = start
+        var depth = 0
+        while (index < text.length) {
+            val open = text.indexOf('<', index)
+            if (open < 0) return index
+            val close = text.indexOf('>', open + 1)
+            if (close < 0) return text.length
+            val body = text.substring(open + 1, close).trim()
+            when {
+                body.startsWith("!--") -> Unit
+                body.startsWith("/") -> {
+                    depth--
+                    if (depth <= 0) return close + 1
+                }
+                body.endsWith("/") -> {
+                    if (depth == 0) return close + 1
+                }
+                else -> depth++
+            }
+            index = close + 1
+        }
+        return text.length
+    }
+
+    private fun structLiteralRanges(text: String): List<TextRange> {
+        val ranges = mutableListOf<TextRange>()
+        var index = 0
+        while (index < text.length) {
+            val start = text.indexOf("struct", index)
+            if (start < 0) break
+            val before = text.getOrNull(start - 1)
+            val after = text.getOrNull(start + "struct".length)
+            if (before.isIdentifierPartOrNull() || after.isIdentifierPartOrNull()) {
+                index = start + 1
+                continue
+            }
+            val open = skipWhitespace(text, start + "struct".length)
+            if (open >= text.length || text[open] != '{') {
+                index = start + 1
+                continue
+            }
+            val close = matchingBrace(text, open) ?: break
+            ranges += TextRange(start, close + 1)
+            index = close + 1
+        }
+        return ranges
+    }
+
+    private fun matchingBrace(text: String, open: Int): Int? {
+        var index = open
+        var depth = 0
+        while (index < text.length) {
+            when (text[index]) {
+                '"', '\'' -> index = stringEnd(text, index) - 1
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return index
+                }
+            }
+            index++
+        }
+        return null
+    }
+
+    private fun stringEnd(text: String, start: Int): Int {
+        val quote = text[start]
+        var index = start + 1
+        while (index < text.length) {
+            if (text[index] == '\\') {
+                index += 2
+            } else if (text[index] == quote) {
+                return index + 1
+            } else {
+                index++
+            }
+        }
+        return text.length
+    }
+
+    private fun numericEnd(text: String, start: Int): Int {
+        var index = start
+        if (text.getOrNull(index) == '-') index++
+        while (index < text.length && (text[index].isDigit() || text[index] == '.')) index++
+        return index
+    }
+
+    private fun identifierEnd(text: String, start: Int): Int {
+        var index = start
+        while (index < text.length && text[index].isIdentifierPart()) index++
+        return index
+    }
+
+    private fun skipWhitespace(text: String, start: Int): Int {
+        var index = start
+        while (index < text.length && text[index].isWhitespace()) index++
+        return index
+    }
+
+    private fun Char?.isXmlTagStart(): Boolean {
+        return this != null && (isLetter() || this == '/' || this == '!' || this == '?')
+    }
+
+    private fun Char?.isIdentifierPartOrNull(): Boolean {
+        return this != null && isIdentifierPart()
+    }
+
     private fun matchingBracketRanges(text: String, offset: Int): List<StyledRange> {
         val index = listOf(offset - 1, offset).firstOrNull { it in text.indices && (text[it] in brackets.keys || text[it] in brackets.values) }
             ?: return emptyList()
@@ -480,6 +692,17 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                 val start = identifierStart(lines, position, text) ?: (position.col - 1).coerceAtLeast(0)
                 return StyledRange(line, start, start + text.length, style(token, bold = bold), priority = 2)
             }
+        }
+    }
+
+    private data class TextRange(
+        val start: Int,
+        val end: Int,
+    ) {
+        fun positionAt(text: String, lineOffset: Int, columnOffset: Int): Position {
+            val base = absolutePosition(text, start)
+            if (lineOffset == 0) return Position(base.line, base.column + columnOffset)
+            return Position(base.line + lineOffset, columnOffset)
         }
     }
 
