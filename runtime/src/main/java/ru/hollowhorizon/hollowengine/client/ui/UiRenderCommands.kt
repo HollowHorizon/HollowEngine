@@ -165,143 +165,90 @@ class UiCommandRenderer {
     ) {
         val style = resolved[node]
         val layoutNode = layout[node]
+
+        val isFramebuffer = layoutNode.needsFramebuffer
+        val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
+
         if (style.backdropFilter.effects.isNotEmpty()) {
             commands += DrawBackdropFilterCommand(
-                node = node,
-                rect = layoutNode.rect,
-                radius = style.border.radius,
-                filter = style.backdropFilter,
-                opacity = style.opacity,
-                transform = layoutNode.worldTransform,
-                backfaceVisibility = style.backfaceVisibility,
+                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                filter = style.backdropFilter, opacity = style.opacity,
+                transform = layoutNode.worldTransform, backfaceVisibility = style.backfaceVisibility
             )
         }
+
         val visibleShadows = style.shadows.filterNot { it.inset }
         if (visibleShadows.isNotEmpty()) {
             commands += DrawShadowCommand(
-                node = node,
-                rect = layoutNode.rect,
-                radius = style.border.radius,
-                shadows = visibleShadows,
-                opacity = style.opacity,
-                transform = layoutNode.worldTransform,
-                filter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter,
-                backfaceVisibility = style.backfaceVisibility,
+                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                shadows = visibleShadows, opacity = style.opacity,
+                transform = layoutNode.worldTransform, filter = baseFilter, backfaceVisibility = style.backfaceVisibility
             )
         }
-        if (layoutNode.needsFramebuffer) {
+
+        if (isFramebuffer) {
             commands += BeginLayerCommand(
-                node = node,
-                rect = layoutNode.rect,
-                radius = style.border.radius,
-                transform = layoutNode.worldTransform,
-                filter = style.filter,
-                backdropFilter = style.backdropFilter,
-                backfaceVisibility = style.backfaceVisibility,
+                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                transform = layoutNode.worldTransform, filter = style.filter,
+                backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility
             )
         }
+
         if (style.background != UiPaint.None || style.border.width != UiInsets.Zero) {
-            val commandFilter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter
             commands += DrawBoxCommand(
-                node = node,
-                rect = layoutNode.rect,
-                paint = style.background.resolve(bindings),
-                border = style.border,
-                shadows = emptyList(),
-                opacity = style.opacity,
-                transform = layoutNode.worldTransform,
-                renderToFramebuffer = false,
-                fit = style.imageFit,
-                slice = style.imageSlice,
-                filter = commandFilter,
-                backfaceVisibility = style.backfaceVisibility,
+                node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
+                border = style.border, shadows = emptyList(), opacity = style.opacity,
+                transform = layoutNode.worldTransform, renderToFramebuffer = false,
+                fit = style.imageFit, slice = style.imageSlice, filter = baseFilter, backfaceVisibility = style.backfaceVisibility
             )
         }
+
         val pushedClip = style.clip || style.input.scrollable
         if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
-        val contentFilter = if (layoutNode.needsFramebuffer) UiFilterChain.Empty else style.filter
+
+        collectNodeContent(node, style, layoutNode, baseFilter, bindings, commands)
+
+        node.children
+            .sortedBy { resolved[it].layer }
+            .forEach { collectNode(it, resolved, layout, bindings, commands) }
+
+        if (pushedClip) commands += PopClipCommand(node)
+        if (style.input.scrollable) appendScrollbars(node, layoutNode, style, bindings, commands)
+        if (isFramebuffer) commands += EndLayerCommand(node)
+    }
+
+    private fun collectNodeContent(
+        node: UiNode,
+        style: ComputedStyle,
+        layoutNode: UiLayoutNode,
+        filter: UiFilterChain,
+        bindings: UiBindingContext,
+        commands: MutableList<UiRenderCommand>
+    ) {
         val contentTransform = layoutNode.worldTransform * UiMatrix4.translation(
             layoutNode.content.x - layoutNode.rect.x,
             layoutNode.content.y - layoutNode.rect.y,
-            0f,
+            0f
         )
+        val opacity = style.opacity
+        val backface = style.backfaceVisibility
+
         when (node) {
-            is TextNode -> commands += DrawTextCommand(
-                node,
-                layoutNode.content,
-                node.text.resolve(bindings),
-                style.foreground,
-                style.opacity,
-                contentTransform,
-                contentFilter,
-                style.textWrap,
-                style.textAlign,
-                style.fontSize,
-                UiTextLayouter.layout(
-                    node.text.resolve(bindings),
-                    layoutNode.content.width,
-                    if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height,
-                    style.textWrap,
-                    style.textAlign,
-                    style.fontSize,
-                ),
-                layoutNode.scrollOffset,
-                node.hoveredLink,
-                style.backfaceVisibility,
-            )
+            is TextNode -> {
+                val textString = node.text.resolve(bindings)
+                val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
+                val textLayout = UiTextLayouter.layout(textString, layoutNode.content.width, textHeight, style.textWrap, style.textAlign, style.fontSize)
 
-            is ImageNode -> commands += DrawImageCommand(
-                node,
-                layoutNode.content,
-                node.source.resolve(bindings),
-                style.opacity,
-                contentTransform,
-                false,
-                style.imageFit,
-                style.imageSlice,
-                contentFilter,
-                style.backfaceVisibility,
-            )
-
-            is ItemNode -> commands += DrawItemCommand(
-                node,
-                layoutNode.content,
-                node.item.resolve(bindings),
-                style.opacity,
-                contentTransform,
-                contentFilter,
-                style.backfaceVisibility,
-            )
-
-            is EntityNode -> commands += DrawEntityCommand(
-                node,
-                layoutNode.content,
-                node.entity.resolve(bindings),
-                style.opacity,
-                contentTransform,
-                false,
-                contentFilter,
-                style.backfaceVisibility,
-            )
-
-            is CanvasNode -> commands += DrawCanvasCommand(
-                node,
-                layoutNode.content,
-                node.renderer,
-                style.opacity,
-                contentTransform,
-                false,
-                contentFilter,
-                style.backfaceVisibility,
-            )
-        }
-        node.children.sortedBy { resolved[it].layer }.forEach { collectNode(it, resolved, layout, bindings, commands) }
-        if (pushedClip) commands += PopClipCommand(node)
-        if (style.input.scrollable) {
-            appendScrollbars(node, layoutNode, style, bindings, commands)
-        }
-        if (layoutNode.needsFramebuffer) {
-            commands += EndLayerCommand(node)
+                commands += DrawTextCommand(
+                    node, layoutNode.content, textString, style.foreground, opacity, contentTransform,
+                    filter, style.textWrap, style.textAlign, style.fontSize, textLayout,
+                    layoutNode.scrollOffset, node.hoveredLink, backface
+                )
+            }
+            is ImageNode -> commands += DrawImageCommand(node, layoutNode.content, node.source.resolve(bindings), opacity, contentTransform, false, style.imageFit, style.imageSlice, filter, backface)
+            is ItemNode -> commands += DrawItemCommand(node, layoutNode.content, node.item.resolve(bindings), opacity, contentTransform, filter, backface)
+            is EntityNode -> commands += DrawEntityCommand(node, layoutNode.content, node.entity.resolve(bindings), opacity, contentTransform, false, filter, backface)
+            is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
         }
     }
 

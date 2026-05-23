@@ -2,17 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiMarkupParseException
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiMarkup
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Position
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Range
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 
 object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
     private val defaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
@@ -53,43 +43,70 @@ object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
     private fun tokenizeLine(line: String): List<Pair<String, SpanStyle>> {
         val spans = mutableListOf<Pair<String, SpanStyle>>()
         var index = 0
-        var inTag = false
+
+        while (index < line.length) {
+            if (line.startsWith("<!--", index)) {
+                spans += line.substring(index) to commentStyle
+                break
+            }
+
+            index = tokenizeTextAndTagStart(line, index, spans)
+        }
+        return spans
+    }
+
+    private fun tokenizeTextAndTagStart(
+        line: String,
+        startIndex: Int,
+        spans: MutableList<Pair<String, SpanStyle>>,
+    ): Int {
+        var index = startIndex
+
+        while (index < line.length && !line.startsWith("<", index)) {
+            index++
+        }
+
+        if (index > startIndex) {
+            spans += line.substring(startIndex, index) to defaultStyle
+        }
+
+        if (index < line.length && line[index] == '<') {
+            index = tokenizeTagBody(line, index, spans)
+        }
+
+        return index
+    }
+
+    private fun tokenizeTagBody(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
+        var index = startIndex
+
+        val nameStart = index++
+        if (index < line.length && line[index] == '/') index++
+        while (index < line.length && isNameChar(line[index])) index++
+
+        spans += line.substring(nameStart, index) to tagStyle
+
         while (index < line.length) {
             when {
-                line.startsWith("<!--", index) -> {
-                    spans += line.substring(index) to commentStyle
-                    index = line.length
+                line[index] == '>' -> {
+                    spans += ">" to tagStyle
+                    return index + 1
                 }
 
-                line[index] == '<' -> {
-                    val start = index++
-                    if (index < line.length && line[index] == '/') index++
-                    while (index < line.length && isNameChar(line[index])) index++
-                    spans += line.substring(start, index) to tagStyle
-                    inTag = true
-                }
-
-                inTag && line[index] == '>' -> {
-                    spans += line[index].toString() to tagStyle
-                    index++
-                    inTag = false
-                }
-
-                inTag && line.startsWith("/>", index) -> {
+                line.startsWith("/>", index) -> {
                     spans += "/>" to tagStyle
-                    index += 2
-                    inTag = false
+                    return index + 2
                 }
 
-                inTag && (line[index] == '"' || line[index] == '\'') -> {
-                    val quote = line[index++]
-                    val start = index - 1
+                line[index] == '"' || line[index] == '\'' -> {
+                    val quote = line[index]
+                    val start = index++
                     while (index < line.length && line[index] != quote) index++
                     if (index < line.length) index++
                     spans += line.substring(start, index) to stringStyle
                 }
 
-                inTag && isNameStart(line[index]) -> {
+                isNameStart(line[index]) -> {
                     val start = index++
                     while (index < line.length && isNameChar(line[index])) index++
                     spans += line.substring(start, index) to attrStyle
@@ -97,12 +114,18 @@ object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
 
                 else -> {
                     val start = index++
-                    while (index < line.length && line[index] != '<' && (!inTag || line[index] !in "\">'")) index++
+                    while (index < line.length && line[index] != '>' && !line.startsWith(
+                            "/>",
+                            index
+                        ) && line[index] != '"' && line[index] != '\'' && !isNameStart(line[index])
+                    ) {
+                        index++
+                    }
                     spans += line.substring(start, index) to defaultStyle
                 }
             }
         }
-        return spans
+        return index
     }
 
     private fun elementCompletions(text: String, prefix: String): List<CompletionItem> {
@@ -296,7 +319,8 @@ private data class UiCompletionContext(
             return quote != '\u0000'
         }
 
-        private fun isNameChar(char: Char): Boolean = char.isLetterOrDigit() || char == '_' || char == '-' || char == ':' || char == '.'
+        private fun isNameChar(char: Char): Boolean =
+            char.isLetterOrDigit() || char == '_' || char == '-' || char == ':' || char == '.'
 
         private fun isValuePrefixChar(char: Char): Boolean {
             return char.isLetterOrDigit() || char in "-_#.%/"

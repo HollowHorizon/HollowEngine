@@ -150,57 +150,94 @@ class MinecraftUiRenderer {
         val sourceTexture = blurredSource?.texture ?: copiedSource?.texture ?: layer.framebuffer.texture
         val sourceWidth = blurredSource?.width ?: copiedSource?.width ?: layer.framebuffer.atlas.width
         val sourceHeight = blurredSource?.height ?: copiedSource?.height ?: layer.framebuffer.atlas.height
-        val sourceU0 = if (copiedSource == null && blurredSource == null) layer.framebuffer.u0() else 0f
-        val sourceV0 = if (copiedSource == null && blurredSource == null) layer.framebuffer.v0() else 0f
-        val sourceU1 = if (copiedSource == null && blurredSource == null) layer.framebuffer.u1() else 1f
-        val sourceV1 = if (copiedSource == null && blurredSource == null) layer.framebuffer.v1() else 1f
+        val sourceU0 = if (copiedSource == null) layer.framebuffer.u0() else 0f
+        val sourceV0 = if (copiedSource == null) layer.framebuffer.v0() else 0f
+        val sourceU1 = if (copiedSource == null) layer.framebuffer.u1() else 1f
+        val sourceV1 = if (copiedSource == null) layer.framebuffer.v1() else 1f
         val compositeFilter = layer.filter.withoutBlur()
         if (parentLayer != null) {
-            parentLayer.framebuffer.bind()
-            configureLayerProjection(
-                parentLayer.rect.width + parentLayer.padding * 2f,
-                parentLayer.rect.height + parentLayer.padding * 2f
-            )
-            restoreActiveClip()
-            val parentInverse =
-                parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
-            val transform = UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
-                    parentInverse *
-                    layer.transform *
-                    UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
-            drawLayerTexture(
-                layer,
-                sourceTexture,
-                sourceWidth,
-                sourceHeight,
-                sourceU0,
-                sourceV0,
-                sourceU1,
-                sourceV1,
-                compositeFilter,
-                transform,
+            finishWithParent(
+                parentLayer, layer,
+                sourceTexture, sourceWidth, sourceHeight,
+                sourceU0, sourceV0, sourceU1, sourceV1,
+                compositeFilter
             )
         } else {
-            bindRootTarget()
-            restoreActiveClip()
-            val transform = layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
-            drawLayerTexture(
-                layer,
-                sourceTexture,
-                sourceWidth,
-                sourceHeight,
-                sourceU0,
-                sourceV0,
-                sourceU1,
-                sourceV1,
-                compositeFilter,
-                transform,
+            finishWithoutParent(
+                layer, sourceTexture, sourceWidth, sourceHeight,
+                sourceU0, sourceV0, sourceU1, sourceV1, compositeFilter
             )
-            restoreMainProjection()
         }
         blurredSource?.let(framebuffers::release)
         copiedSource?.let(framebuffers::release)
         RenderSystem.disableDepthTest()
+    }
+
+    private fun finishWithoutParent(
+        layer: LayerState,
+        sourceTexture: Int,
+        sourceWidth: Int,
+        sourceHeight: Int,
+        sourceU0: Float,
+        sourceV0: Float,
+        sourceU1: Float,
+        sourceV1: Float,
+        compositeFilter: UiFilterChain,
+    ) {
+        bindRootTarget()
+        restoreActiveClip()
+        val transform = layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
+        drawLayerTexture(
+            layer,
+            sourceTexture,
+            sourceWidth,
+            sourceHeight,
+            sourceU0,
+            sourceV0,
+            sourceU1,
+            sourceV1,
+            compositeFilter,
+            transform,
+        )
+        restoreMainProjection()
+    }
+
+    private fun finishWithParent(
+        parentLayer: LayerState,
+        layer: LayerState,
+        sourceTexture: Int,
+        sourceWidth: Int,
+        sourceHeight: Int,
+        sourceU0: Float,
+        sourceV0: Float,
+        sourceU1: Float,
+        sourceV1: Float,
+        compositeFilter: UiFilterChain,
+    ) {
+        parentLayer.framebuffer.bind()
+        configureLayerProjection(
+            parentLayer.rect.width + parentLayer.padding * 2f,
+            parentLayer.rect.height + parentLayer.padding * 2f
+        )
+        restoreActiveClip()
+        val parentInverse =
+            parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
+        val transform = UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
+                parentInverse *
+                layer.transform *
+                UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
+        drawLayerTexture(
+            layer,
+            sourceTexture,
+            sourceWidth,
+            sourceHeight,
+            sourceU0,
+            sourceV0,
+            sourceU1,
+            sourceV1,
+            compositeFilter,
+            transform,
+        )
     }
 
     private fun drawLayerTexture(

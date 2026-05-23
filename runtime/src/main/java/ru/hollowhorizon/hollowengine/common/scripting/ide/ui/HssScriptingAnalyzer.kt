@@ -2,22 +2,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.hss.HssParseException
 import ru.hollowhorizon.hollowengine.client.ui.hss.parseHss
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Position
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Range
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 
 object HssScriptingAnalyzer : ScriptingAnalyzer {
     private val defaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
     private val selectorStyle = SpanStyle(TokenType.CLASS, italic = false, bold = false, highlight = false)
-    private val propertyStyle = SpanStyle(TokenType.PROPERTY_IDENTIFIER, italic = false, bold = false, highlight = false)
+    private val propertyStyle =
+        SpanStyle(TokenType.PROPERTY_IDENTIFIER, italic = false, bold = false, highlight = false)
     private val stringStyle = SpanStyle(TokenType.STRING, italic = false, bold = false, highlight = false)
     private val numberStyle = SpanStyle(TokenType.NUMERIC_LITERAL, italic = false, bold = false, highlight = false)
     private val commentStyle = SpanStyle(TokenType.COMMENT, italic = true, bold = false, highlight = false)
@@ -59,11 +50,12 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
             listOf(diagnosticAt(text, 0, exception.message ?: "Invalid HSS"))
         }
     }
-
+    
     private fun tokenizeLine(line: String, initialBlock: Boolean): HssLineTokens {
         val spans = mutableListOf<Pair<String, SpanStyle>>()
         var index = 0
         var inBlock = initialBlock
+
         while (index < line.length) {
             when {
                 line.startsWith("/*", index) -> {
@@ -85,35 +77,84 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
                     inBlock = false
                 }
 
-                line[index] == '"' || line[index] == '\'' -> {
-                    val quote = line[index++]
-                    val start = index - 1
-                    while (index < line.length && line[index] != quote) index++
-                    if (index < line.length) index++
-                    spans += line.substring(start, index) to stringStyle
-                }
-
-                line[index].isDigit() || line[index] == '#' -> {
-                    val start = index++
-                    while (index < line.length && !line[index].isWhitespace() && line[index] !in ";,(){}") index++
-                    spans += line.substring(start, index) to numberStyle
-                }
-
-                isIdentifierStart(line[index]) -> {
-                    val start = index++
-                    while (index < line.length && isIdentifierPart(line[index])) index++
-                    val token = line.substring(start, index)
-                    val style = if (inBlock && nextNonWhitespace(line, index) == ':') propertyStyle else selectorStyle
-                    spans += token to style
+                inBlock -> {
+                    index = tokenizeInsideBlock(line, index, spans)
                 }
 
                 else -> {
-                    spans += line[index].toString() to defaultStyle
-                    index++
+                    index = tokenizeOutsideBlock(line, index, spans)
                 }
             }
         }
         return HssLineTokens(spans, inBlock)
+    }
+
+    private fun tokenizeInsideBlock(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
+        var index = startIndex
+        val char = line[index]
+
+        when {
+            char == '"' || char == '\'' -> {
+                index = tokenizeString(line, index, spans)
+            }
+
+            char.isDigit() || char == '#' -> {
+                index = tokenizeNumber(line, index, spans)
+            }
+
+            isIdentifierStart(char) -> {
+                val start = index++
+                while (index < line.length && isIdentifierPart(line[index])) index++
+
+                val style = if (nextNonWhitespace(line, index) == ':') propertyStyle else selectorStyle
+                spans += line.substring(start, index) to style
+            }
+
+            else -> {
+                spans += char.toString() to defaultStyle
+                index++
+            }
+        }
+        return index
+    }
+
+    private fun tokenizeOutsideBlock(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
+        var index = startIndex
+        val char = line[index]
+
+        when {
+            isIdentifierStart(char) -> {
+                val start = index++
+                while (index < line.length && isIdentifierPart(line[index])) index++
+                spans += line.substring(start, index) to selectorStyle
+            }
+
+            char == '"' || char == '\'' -> {
+                index = tokenizeString(line, index, spans)
+            }
+
+            else -> {
+                spans += char.toString() to defaultStyle
+                index++
+            }
+        }
+        return index
+    }
+
+    private fun tokenizeString(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
+        var index = startIndex
+        val quote = line[index++]
+        while (index < line.length && line[index] != quote) index++
+        if (index < line.length) index++
+        spans += line.substring(startIndex, index) to stringStyle
+        return index
+    }
+
+    private fun tokenizeNumber(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
+        var index = startIndex + 1
+        while (index < line.length && !line[index].isWhitespace() && line[index] !in ";,(){}") index++
+        spans += line.substring(startIndex, index) to numberStyle
+        return index
     }
 
     private fun completion(show: String, insert: String, kind: HssCompletionKind): CompletionItem {
