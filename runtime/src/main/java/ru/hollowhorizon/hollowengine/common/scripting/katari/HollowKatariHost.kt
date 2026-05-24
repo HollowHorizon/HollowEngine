@@ -116,6 +116,7 @@ fun createHollowKatariBindings(
         registerBuiltinFunctions(host)
         registerSavedVariableBindings(savedVariables)
         registerGeneratedKatariBindings(server)
+        registerKatariEventBindings()
         registerKatariUiStructBindings()
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
     }
@@ -140,6 +141,7 @@ fun createHollowKatariEditorBindings(): KatariBindings {
         registerBuiltinFunctions(NarrativeNoOpHost)
         registerSavedVariableBindings(null)
         registerGeneratedKatariBindings()
+        registerKatariEventBindings()
         registerKatariUiStructBindings()
         registerContextGlobalTypes()
     }
