@@ -10,12 +10,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtOps
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
-import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
-import ru.hollowhorizon.hollowengine.client.ui.UiClientScriptModifier
-import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.UiNodeKeys
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiScreen
@@ -119,7 +114,7 @@ object KatariUiOverlays {
 
     @SubscribeEvent
     fun render(event: RenderOverlayEvent.Post) {
-        if (event.overlay != GuiOverlay.CHAT_PANEL) return
+        if (event.overlay != GuiOverlay.VIGNETTE) return
         overlays.values.forEach { it.render() }
     }
 }

@@ -84,7 +84,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return synchronized(this) {
             cached?.takeIf { it.name == name && it.text == text } ?: run {
                 val result = runCatching {
-                    val analysis = analyzeKatariNarrativeScript(name, text, bindings)
+                    val analysis = analyzeKatariNarrativeScript(name, text, bindings, HollowEngineSources(CodeSource("scripts/$name", text, "")))
                     AnalysisSnapshot(analysis, KatariSymbols.from(analysis))
                 }
                 CachedAnalysis(name, text, result).also { cached = it }

@@ -39,7 +39,7 @@ class KatariScriptSystem(
         val runId = UUID.randomUUID().toString()
         val (bindings, host) = createHollowKatariBindings(server, runId, sourcePlayer, ::markDirty)
         val program = programCache.getOrPut(ProgramKey(source.path, source.hash)) {
-            KatariNarrativeProgram(source.path, source.text, bindings)
+            KatariNarrativeProgram(source.path, source.text, bindings, HollowEngineSources(source))
         }
         val initialState = KatariState(
             programVersion = program.version,

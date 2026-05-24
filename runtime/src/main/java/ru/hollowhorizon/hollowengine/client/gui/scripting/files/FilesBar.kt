@@ -4,14 +4,17 @@ import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.MutableVec4f
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.Time
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
@@ -35,20 +38,34 @@ fun UiScope.FileDockingTabsBar(
             val tabsScrollState = rememberScrollState()
             val visibleDockables = dockNode.dockedItems.filter { !it.isHidden }
             val activeDockable = dockNode.dockItemOnTop
+            val tabStripBounds = remember { MutableVec4f() }
             ScrollArea(
                 height = FitContent,
                 withVerticalScrollbar = false,
                 withHorizontalScrollbar = true,
                 isScrollableVertical = false,
                 state = tabsScrollState,
-                containerModifier = { it.background(null) },
+                containerModifier = {
+                    it.background(null)
+                        .onPositioned { node ->
+                            tabStripBounds.set(node.leftPx, node.topPx, node.rightPx, node.bottomPx)
+                        }
+                },
                 hScrollbarModifier = {
-                    it.height(sizes.smallGap).margin(top = sizes.gap * 3f, bottom = sizes.borderWidth)
+                    it.height(sizes.smallGap)
+                        .margin(top = sizes.gap * 3f, bottom = sizes.borderWidth)
+                        .colors(
+                            trackColor = EditorTheme.Scrollbar.trackColor,
+                            trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                            color = EditorTheme.Scrollbar.color,
+                            hoverColor = EditorTheme.Scrollbar.hoverColor,
+                        )
                 }) {
                 Row(height = Grow.Std) {
                     visibleDockables.forEach { item ->
                         FileDockingTab(
                             item = item,
+                            tabStripBounds = tabStripBounds,
                             isDragToUndock = isDragToUndock,
                             isActive = item == activeDockable,
                             onActivate = {
@@ -72,6 +89,7 @@ fun UiScope.FileDockingTabsBar(
 
 private fun UiScope.FileDockingTab(
     item: Dockable,
+    tabStripBounds: MutableVec4f,
     isDragToUndock: Boolean,
     isActive: Boolean,
     onActivate: () -> Unit,
@@ -119,18 +137,19 @@ private fun UiScope.FileDockingTab(
                 var moved by remember(false)
 
                 modifier.onDrag {
-                    if (it.pointer.pos.y in uiNode.topPx..uiNode.bottomPx) {
+                    if (isPointerInside(tabStripBounds, it.pointer.pos)) {
                         return@onDrag
                     }
 
                     if (!moved) {
                         moved = true
                         dockedTo.value?.undock(this)
+                        showDockableSurface()
                         val itemBounds = uiNode.undockedBounds4f(floatingWidthPx, floatingHeightPx)
                         moveUndockBoundsUnderPointer(itemBounds, it)
                         dragStartItemBounds.set(itemBounds)
-                        floatingX.set(Dp.fromPx(it.pointer.pos.x))
-                        floatingY.set(Dp.fromPx(it.pointer.pos.y))
+                        floatingX.set(Dp.fromPx(itemBounds.x))
+                        floatingY.set(Dp.fromPx(itemBounds.y))
                         dock?.dndContext?.startDrag(this, it, null)
                         return@onDrag
                     }
@@ -142,11 +161,11 @@ private fun UiScope.FileDockingTab(
                     dock?.dndContext?.drag(it)
                 }
                 modifier.onDragEnd {
-                    dock?.dndContext?.endDrag(it)
+                    if (moved) {
+                        dock?.dndContext?.endDrag(it)
+                    }
                     moved = false
                 }
-                return@with
-                registerDragCallbacks(false)
             }
         }
 
@@ -270,8 +289,12 @@ private fun UiScope.FileDockingBar(
 
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
-                with(windowDockable) {
-                    registerDragCallbacks()
+                if (windowDockable.isDocked.use()) {
+                    registerDelayedUndockCallbacks(windowDockable, uiNode)
+                } else {
+                    with(windowDockable) {
+                        registerDragCallbacks()
+                    }
                 }
             }
 
@@ -363,6 +386,71 @@ private fun UiScope.TabCloseButton(icon: ResourceLocation, onClick: () -> Unit) 
                 .align(AlignmentX.Center, AlignmentY.Center)
         }
     }
+}
+
+private fun UiScope.registerDelayedUndockCallbacks(dockable: UiDockable, dragHandleNode: UiNode) {
+    with(dockable) {
+        var moved by remember(false)
+
+        modifier
+            .onClick { it.isConsumed = true }
+            .onDragStart {
+                moved = false
+                if (getResizeEdgeMask(it) != 0) {
+                    it.isConsumed = false
+                }
+            }
+            .onDrag {
+                if (isPointerInside(dragHandleNode, it.pointer.pos)) {
+                    return@onDrag
+                }
+
+                if (!moved) {
+                    moved = true
+                    dockedTo.value?.undock(this)
+                    showDockableSurface()
+                    val itemBounds = uiNode.undockedBounds4f(floatingWidthPx, floatingHeightPx)
+                    moveUndockBoundsUnderPointer(itemBounds, it)
+                    dragStartItemBounds.set(itemBounds)
+                    floatingX.set(Dp.fromPx(itemBounds.x))
+                    floatingY.set(Dp.fromPx(itemBounds.y))
+                    floatingAlignmentX.set(AlignmentX.Start)
+                    floatingAlignmentY.set(AlignmentY.Top)
+                    dock?.dndContext?.startDrag(this, it, null)
+                    return@onDrag
+                }
+
+                floatingX.set(floatingX.value + Dp.fromPx(it.pointer.delta.x))
+                floatingY.set(floatingY.value + Dp.fromPx(it.pointer.delta.y))
+                floatingAlignmentX.set(AlignmentX.Start)
+                floatingAlignmentY.set(AlignmentY.Top)
+                dock?.dndContext?.drag(it)
+            }
+            .onDragEnd {
+                if (moved) {
+                    dock?.dndContext?.endDrag(it)
+                }
+                moved = false
+            }
+    }
+}
+
+private fun UiDockable.showDockableSurface() {
+    dock?.dockables?.entries
+        ?.firstOrNull { (_, dockable) -> dockable == this }
+        ?.key
+        ?.let { surface ->
+            surface.isVisible = true
+            surface.lastInputTime = Time.gameTime
+        }
+}
+
+private fun isPointerInside(node: UiNode, pointer: Vec2f): Boolean {
+    return pointer.x in node.leftPx..node.rightPx && pointer.y in node.topPx..node.bottomPx
+}
+
+private fun isPointerInside(bounds: MutableVec4f, pointer: Vec2f): Boolean {
+    return pointer.x in bounds.x..bounds.z && pointer.y in bounds.y..bounds.w
 }
 
 @Suppress("CAST_NEVER_SUCCEEDS")
