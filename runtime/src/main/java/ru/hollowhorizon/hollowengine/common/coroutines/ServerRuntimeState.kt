@@ -80,7 +80,7 @@ object ServerRuntimeState {
     }
 
     fun remove(server: MinecraftServer) {
-        states.remove(server)
+        states.remove(server)?.runtimeContext?.dispose()
     }
 
     fun context(server: MinecraftServer): ServerRuntimeContext = entry(server).runtimeContext

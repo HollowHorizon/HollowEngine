@@ -8,7 +8,7 @@ internal class KatariBindingCodegen(
     private val enumTypes: List<EnumTypeModel> = emptyList(),
     private val events: List<EventModel> = emptyList(),
 ) {
-    private val callableFunctions = functions + classes.flatMap { it.constructors + it.functions }
+    private val callableFunctions = functions + classes.flatMap { it.constructors + it.functions } + events.flatMap { it.functions }
     private val importAliases = callableFunctions
         .mapNotNull { function -> function.importQualifiedName?.let { function to it } }
         .withIndex()
@@ -63,7 +63,7 @@ internal class KatariBindingCodegen(
         registerTypes()
         registerEnums()
         registerFunctions(callableFunctions)
-        registerProperties(classes.flatMap { it.properties } + properties)
+        registerProperties(classes.flatMap { it.properties } + properties + events.flatMap { it.properties })
         appendLine("}")
         appendLine()
         appendLine("internal fun generatedKatariTypeSuperTypes(): Map<String, Set<String>> = mapOf(")

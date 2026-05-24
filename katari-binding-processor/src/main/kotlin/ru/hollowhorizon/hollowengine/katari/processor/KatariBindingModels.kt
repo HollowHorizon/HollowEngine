@@ -82,6 +82,7 @@ internal data class EventModel(
     val snapshotName: String,
     val serialName: String,
     val constructorParameters: List<EventFieldModel>,
+    val functions: List<FunctionModel>,
     val properties: List<PropertyModel>,
     val handlerExpression: String?,
     val source: KSFile?,

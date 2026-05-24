@@ -203,7 +203,7 @@ private class KatariBindingProcessor(
             .toList()
         val functions = annotatedClasses.flatMap { owner ->
             owner.getDeclaredFunctions()
-                .filter { it.isPublicApi() && !it.hasAnnotation(SCRIPT_IGNORE) && it.origin != Origin.SYNTHETIC }
+                .filter { it.isScriptMemberFunction() }
                 .mapNotNull {
                     callable(
                         declaration = it,
@@ -247,6 +247,7 @@ private class KatariBindingProcessor(
                     snapshotName = scriptType.snapshotType,
                     serialName = generatedEventSerialName(scriptType.typeId),
                     constructorParameters = emptyList(),
+                    functions = eventFunctionModels(resolver, declaration, scriptTypes),
                     properties = eventPropertyModels(declaration, scriptType, scriptTypes),
                     handlerExpression = declaration.eventHandlerExpression(),
                     source = declaration.containingFile,
@@ -265,10 +266,32 @@ private class KatariBindingProcessor(
             snapshotName = scriptType.snapshotType,
             serialName = generatedEventSerialName(scriptType.typeId),
             constructorParameters = constructorParameters,
+            functions = eventFunctionModels(resolver, declaration, scriptTypes),
             properties = eventPropertyModels(declaration, scriptType, scriptTypes),
             handlerExpression = declaration.eventHandlerExpression(),
             source = declaration.containingFile,
         )
+    }
+
+    private fun eventFunctionModels(
+        resolver: Resolver,
+        declaration: KSClassDeclaration,
+        scriptTypes: Map<String, ScriptTypeModel>,
+    ): List<FunctionModel> {
+        return collectAnnotatedEventParents(declaration).flatMap { owner ->
+            owner.getDeclaredFunctions()
+                .filter { it.isScriptMemberFunction() }
+                .mapNotNull {
+                    callable(
+                        declaration = it,
+                        scriptName = it.bindingName().ifBlank { it.simpleName.asString() },
+                        receiver = declaration.asStarProjectedType(),
+                        explicitReceiverExpression = null,
+                        resolver = resolver,
+                        scriptTypes = scriptTypes,
+                    )
+                }
+        }
     }
 
     private fun eventPropertyModels(
@@ -278,28 +301,29 @@ private class KatariBindingProcessor(
     ): List<PropertyModel> {
         val receiver = TypeModel.host(declaration.asStarProjectedType(), scriptType)
         val receiverKotlinType = declaration.qualifiedName?.asString() ?: return emptyList()
-        return declaration.getDeclaredProperties()
-            .filter { it.isPublicApi() && !it.hasAnnotation(SCRIPT_IGNORE) && it.origin != Origin.SYNTHETIC }
-            .mapNotNull { property ->
-                val type = typeModel(property.type.resolve(), scriptTypes, emptyMap(), reportUnsupported = false)
-                    ?: return@mapNotNull null
-                val name = property.bindingName().ifBlank { property.simpleName.asString() }
-                val kotlinName = property.simpleName.asString()
-                PropertyModel(
-                    scriptName = name,
-                    receiver = receiver,
-                    receiverKotlinType = receiverKotlinType,
-                    valueType = type,
-                    writable = property.isMutable && property.setter?.modifiers?.let {
-                        Modifier.PRIVATE !in it && Modifier.PROTECTED !in it && Modifier.INTERNAL !in it
-                    } != false,
-                    getter = "typedReceiver.$kotlinName",
-                    setter = "typedReceiver.$kotlinName",
-                    importQualifiedName = null,
-                    source = property.containingFile,
-                )
-            }
-            .toList()
+        return collectAnnotatedEventParents(declaration).flatMap { owner ->
+            owner.getDeclaredProperties()
+                .filter { it.isPublicApi() && !it.hasAnnotation(SCRIPT_IGNORE) && it.origin != Origin.SYNTHETIC }
+                .mapNotNull { property ->
+                    val type = typeModel(property.type.resolve(), scriptTypes, emptyMap(), reportUnsupported = false)
+                        ?: return@mapNotNull null
+                    val name = property.bindingName().ifBlank { property.simpleName.asString() }
+                    val kotlinName = property.simpleName.asString()
+                    PropertyModel(
+                        scriptName = name,
+                        receiver = receiver,
+                        receiverKotlinType = receiverKotlinType,
+                        valueType = type,
+                        writable = property.isMutable && property.setter?.modifiers?.let {
+                            Modifier.PRIVATE !in it && Modifier.PROTECTED !in it && Modifier.INTERNAL !in it
+                        } != false,
+                        getter = "typedReceiver.$kotlinName",
+                        setter = "typedReceiver.$kotlinName",
+                        importQualifiedName = null,
+                        source = property.containingFile,
+                    )
+                }
+        }
     }
 
     private fun eventFieldModel(
@@ -353,6 +377,22 @@ private class KatariBindingProcessor(
                 return
             }
             result[name] = type
+            type.superTypes.map { it.resolve().declaration }
+                .filterIsInstance<KSClassDeclaration>()
+                .forEach(::visit)
+        }
+        visit(declaration)
+        return result.values.toList().asReversed()
+    }
+
+    private fun collectAnnotatedEventParents(declaration: KSClassDeclaration): List<KSClassDeclaration> {
+        val result = linkedMapOf<String, KSClassDeclaration>()
+        fun visit(type: KSClassDeclaration) {
+            val name = type.qualifiedName?.asString() ?: return
+            if (name == "kotlin.Any" || name in result) return
+            if (type.hasAnnotation(SCRIPT_BINDING)) {
+                result[name] = type
+            }
             type.superTypes.map { it.resolve().declaration }
                 .filterIsInstance<KSClassDeclaration>()
                 .forEach(::visit)
@@ -684,7 +724,7 @@ private class KatariBindingProcessor(
         events: List<EventModel>,
     ) {
         val signatures = linkedSetOf<String>()
-        (functions + classes.flatMap { it.constructors + it.functions }).forEach { function ->
+        (functions + classes.flatMap { it.constructors + it.functions } + events.flatMap { it.functions }).forEach { function ->
             val key = function.signatureKey()
             if (!signatures.add(key)) {
                 logger.error("Duplicate Katari binding signature `$key`")
@@ -712,12 +752,12 @@ private class KatariBindingProcessor(
             val typeId = type.enumTypeId ?: return
             result[type.kotlinType] = EnumTypeModel(typeId, type.kotlinType, null)
         }
-        (functions + classes.flatMap { it.constructors + it.functions }).forEach { function ->
+        (functions + classes.flatMap { it.constructors + it.functions } + events.flatMap { it.functions }).forEach { function ->
             function.receiver?.let(::collect)
             function.parameters.forEach { collect(it.type) }
             collect(function.returnType)
         }
-        (properties + classes.flatMap { it.properties }).forEach { property ->
+        (properties + classes.flatMap { it.properties } + events.flatMap { it.properties }).forEach { property ->
             collect(property.receiver)
             collect(property.valueType)
         }
@@ -778,6 +818,14 @@ private class KatariBindingProcessor(
         return Modifier.PRIVATE !in modifiers &&
                 Modifier.PROTECTED !in modifiers &&
                 Modifier.INTERNAL !in modifiers
+    }
+
+    private fun KSFunctionDeclaration.isScriptMemberFunction(): Boolean {
+        return functionKind == FunctionKind.MEMBER &&
+                simpleName.asString() != "<init>" &&
+                isPublicApi() &&
+                !hasAnnotation(SCRIPT_IGNORE) &&
+                origin != Origin.SYNTHETIC
     }
 
     private fun KSType.render(): String {

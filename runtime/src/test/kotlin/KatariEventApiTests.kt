@@ -34,6 +34,7 @@ import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariEventHandler
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariEventHandlerSnapshot
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariEventSubscriptions
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariEventType
 import ru.hollowhorizon.hollowengine.common.scripting.katari.registerKatariEventBindings
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
@@ -147,6 +148,61 @@ class KatariEventApiTests {
         TestEvent.clear()
     }
 
+    @Test
+    fun `tracked event awaits unsubscribe when run is cleared`() = runTest {
+        TestEvent.clear()
+        val events = mutableListOf<String>()
+        val bindings = testBindings(events, runId = "run-1")
+        val instance = katariInstance(
+            bindings = bindings,
+            code = """
+                val event = await<TestEvent>()
+                "handled ${'$'}{event.name}"
+            """.trimIndent(),
+            scope = this,
+        )
+
+        instance.start()
+        advanceUntilIdle()
+
+        assertEquals(1, TestEvent.listeners.size)
+
+        KatariEventSubscriptions.clear("run-1", "test")
+        advanceUntilIdle()
+
+        assertEquals(0, TestEvent.listeners.size)
+
+        instance.cancel()
+        TestEvent.clear()
+    }
+
+    @Test
+    fun `await supports dotted event type arguments`() = runTest {
+        NestedTestEvent.clear()
+        val events = mutableListOf<String>()
+        val bindings = testBindings(events, includeNestedEvent = true)
+        val instance = katariInstance(
+            bindings = bindings,
+            code = """
+                val event = await<TestEvent.Nested>()
+                "handled ${'$'}{event.name}"
+            """.trimIndent(),
+            scope = this,
+        )
+
+        instance.start()
+        advanceUntilIdle()
+
+        NestedTestEvent.post(NestedTestEvent("nested"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("handled nested"), events)
+
+        instance.cancel()
+        NestedTestEvent.clear()
+    }
+
+
     private fun katariInstance(
         bindings: KatariBindings,
         code: String,
@@ -167,10 +223,20 @@ class KatariEventApiTests {
         )
     }
 
-    private fun testBindings(events: MutableList<String>, gate: GateCallable? = null) = NarrativeBindings {
+    private fun testBindings(
+        events: MutableList<String>,
+        gate: GateCallable? = null,
+        runId: String? = null,
+        includeNestedEvent: Boolean = false,
+    ) = NarrativeBindings {
         registerMinimalEventTypes()
         registerTestEventType()
-        registerKatariEventBindings(listOf(KatariEventType("TestEvent", TestEvent)))
+        if (includeNestedEvent) registerNestedTestEventType()
+        val eventTypes = buildList {
+            add(KatariEventType("TestEvent", TestEvent))
+            if (includeNestedEvent) add(KatariEventType("TestEvent.Nested", NestedTestEvent))
+        }
+        registerKatariEventBindings(eventTypes, runId = runId)
         registerBuiltinFunctions(recordingHost(events))
         gate?.let { register(it) }
     }
@@ -228,6 +294,30 @@ class KatariEventApiTests {
         KatariGeneratedBindingRuntime.registerHostType(TestEvent::class, "TestEvent", listOf("Event"))
     }
 
+    private fun NarrativeBindingsBuilder.registerNestedTestEventType() {
+        registerHostType(
+            NestedTestEvent::class,
+            "TestEvent.Nested",
+            listOf("Event"),
+            TestEventSnapshot::class,
+            TestEventSnapshot.serializer(),
+            serialize = { TestEventSnapshot(it.name) },
+            deserialize = { snapshot, _ -> NestedTestEvent(snapshot.name) },
+        )
+        registerKotliteExtensionProperty(
+            ExtensionProperty(
+                declaredName = "name",
+                receiver = "TestEvent.Nested",
+                type = "String",
+                getter = { interpreter, receiver, _ ->
+                    val event = (receiver as NarrativeHostValue).value as NestedTestEvent
+                    StringValue(event.name, interpreter.symbolTable())
+                },
+            ),
+        )
+        KatariGeneratedBindingRuntime.registerHostType(NestedTestEvent::class, "TestEvent.Nested", listOf("Event"))
+    }
+
     private fun recordingHost(events: MutableList<String>) = object : NarrativeHost {
         override fun narrate(text: String, resume: () -> Unit) {
             events += text
@@ -246,6 +336,10 @@ class KatariEventApiTests {
 
 class TestEvent(val name: String) : Event {
     companion object : EventHandler<TestEvent>()
+}
+
+class NestedTestEvent(val name: String) : Event {
+    companion object : EventHandler<NestedTestEvent>()
 }
 
 @Serializable

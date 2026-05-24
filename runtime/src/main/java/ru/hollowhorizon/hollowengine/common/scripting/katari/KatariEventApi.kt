@@ -21,6 +21,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventListener
@@ -39,6 +40,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
 @ScriptBinding("EventHandler")
@@ -99,15 +102,19 @@ var Event.scriptCanceled: Boolean
         (this as? Cancellable)?.isCanceled = value
     }
 
-fun NarrativeBindingsBuilder.registerKatariEventBindings(eventTypes: Iterable<KatariEventType<out Event>> = KatariMinecraftEventTypes) {
+fun NarrativeBindingsBuilder.registerKatariEventBindings(
+    eventTypes: Iterable<KatariEventType<out Event>> = KatariMinecraftEventTypes,
+    runId: String? = null,
+) {
     val registry = KatariEventRegistry(eventTypes)
-    register(KatariRawAwaitEventCallable(registry))
+    register(KatariRawAwaitEventCallable(registry, runId))
     register(KatariAwaitEventCallable)
     register(KatariOnEventCallable)
 }
 
 private class KatariRawAwaitEventCallable(
     private val registry: KatariEventRegistry,
+    private val runId: String?,
 ) : NarrativeCallable {
     override val id: String = "katariAwaitEvent"
     override val receiverType: String? = null
@@ -139,9 +146,11 @@ private class KatariRawAwaitEventCallable(
         val typeId = context.typeArguments["T"]?.name
             ?: return resume(GeneratedKatariErrorResponse("await cannot resolve the requested event type"))
         val binding = registry[typeId]
-            ?: return resume(GeneratedKatariErrorResponse("Unsupported Katari event type `$typeId`"))
+            ?: return resume(GeneratedKatariErrorResponse("Unsupported Katari event type `$typeId`").also {
+                HollowEngine.LOGGER.warn("Katari event await rejected: run={}, type={}, reason=unsupported", runId, typeId)
+            })
 
-        binding.registerAwait(context, resume)
+        binding.registerAwait(runId, context, resume)
     }
 }
 
@@ -276,22 +285,99 @@ private class KatariEventBinding<T : Event>(
     private val handler: EventHandler<T>,
 ) {
     fun registerAwait(
+        runId: String?,
         context: NarrativeCallDispatchContext,
         resume: (FunctionResponse?) -> Unit,
     ) {
         val isDone = AtomicBoolean(false)
+        var subscription: KatariEventSubscription? = null
         val listener = object : EventListener<T> {
             override val priority: Int = 0
 
             override fun invoke(event: T) {
                 if (isDone.compareAndSet(false, true)) {
                     handler.unregister(this)
+                    subscription?.close("matched")
                     val eventValue = event.toRuntimeValue(typeId, context)
+                    HollowEngine.LOGGER.debug("Katari event await resumed: run={}, type={}", runId, typeId)
                     resume(GeneratedRuntimeValueResponse(eventValue))
                 }
             }
         }
         handler.register(listener)
+        subscription = KatariEventSubscriptions.register(runId, typeId) {
+            isDone.set(true)
+            handler.unregister(listener)
+        }
+    }
+}
+
+internal object KatariEventSubscriptions {
+    private val subscriptions = ConcurrentHashMap<String, CopyOnWriteArrayList<KatariEventSubscription>>()
+
+    fun register(
+        runId: String?,
+        typeId: String,
+        unsubscribe: () -> Unit,
+    ): KatariEventSubscription? {
+        if (runId == null) return null
+        val subscription = KatariEventSubscription(runId, typeId, unsubscribe, ::remove)
+        val entries = subscriptions.computeIfAbsent(runId) { CopyOnWriteArrayList() }
+        entries += subscription
+        HollowEngine.LOGGER.debug(
+            "Katari event await registered: run={}, type={}, active={}",
+            runId,
+            typeId,
+            entries.size,
+        )
+        return subscription
+    }
+
+    fun clear(runId: String, reason: String): Int {
+        val entries = subscriptions.remove(runId) ?: return 0
+        var count = 0
+        entries.forEach { subscription ->
+            if (subscription.close(reason)) count++
+        }
+        if (count > 0) {
+            HollowEngine.LOGGER.info(
+                "Katari event subscriptions cleared: run={}, count={}, reason={}",
+                runId,
+                count,
+                reason,
+            )
+        }
+        return count
+    }
+
+    private fun remove(subscription: KatariEventSubscription) {
+        val entries = subscriptions[subscription.runId] ?: return
+        entries.remove(subscription)
+        if (entries.isEmpty()) {
+            subscriptions.remove(subscription.runId, entries)
+        }
+    }
+}
+
+internal class KatariEventSubscription(
+    val runId: String,
+    private val typeId: String,
+    private val unsubscribe: () -> Unit,
+    private val onClosed: (KatariEventSubscription) -> Unit,
+) {
+    private val closed = AtomicBoolean(false)
+
+    fun close(reason: String): Boolean {
+        if (!closed.compareAndSet(false, true)) return false
+        unsubscribe()
+        onClosed(this)
+        HollowEngine.LOGGER.debug(
+            "Katari event await unregistered: run={}, type={}, reason={}",
+            runId,
+            typeId,
+            reason,
+        )
+        return true
     }
 }
 

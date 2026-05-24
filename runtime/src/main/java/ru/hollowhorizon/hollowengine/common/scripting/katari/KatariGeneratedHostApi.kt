@@ -307,6 +307,13 @@ var Entity.scriptCustomName: String?
         customName = value?.takeIf(String::isNotBlank)?.literal
     }
 
+@ScriptBinding
+var Entity.isNameVisible: Boolean
+    get() = isCustomNameVisible
+    set(value) {
+        this.isCustomNameVisible = value
+    }
+
 @ScriptBinding("alive")
 val Entity.scriptAlive: Boolean get() = isAlive
 

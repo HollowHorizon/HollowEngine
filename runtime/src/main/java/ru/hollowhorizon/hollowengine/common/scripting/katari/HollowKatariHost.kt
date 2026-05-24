@@ -1,11 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.ChoiceOptionSnapshot
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariBindings
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindings
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeHost
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeNoOpHost
+import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.model.GlobalProperty
 import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
@@ -18,12 +13,13 @@ import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
 import ru.hollowhorizon.hollowengine.common.utils.onHoverText
-import java.util.UUID
+import java.util.*
 
 val KatariEditorContextGlobalTypes = linkedMapOf(
     "player" to "Player",
@@ -112,11 +108,14 @@ fun createHollowKatariBindings(
     val host = HollowKatariHost(server, runId, sourcePlayer, onDirty)
     val savedVariables = KatariSavedVariables(server)
     val bindings = NarrativeBindings {
-        install(AllStdLibModules { message -> server.playerList.players.forEach { it.sendSystemMessage(message.literal) } })
+        install(AllStdLibModules { message ->
+            HollowEngine.LOGGER.info("[Katari] $message")
+            server.playerList.players.forEach { it.sendSystemMessage(message.literal) }
+        })
         registerBuiltinFunctions(host)
         registerSavedVariableBindings(savedVariables)
         registerGeneratedKatariBindings(server)
-        registerKatariEventBindings()
+        registerKatariEventBindings(runId = runId)
         registerKatariUiStructBindings()
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
     }

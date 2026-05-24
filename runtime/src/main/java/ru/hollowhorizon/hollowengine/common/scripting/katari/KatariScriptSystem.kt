@@ -73,14 +73,14 @@ class KatariScriptSystem(
     fun stop(idOrPath: String): Int {
         if (idOrPath == "all") {
             val count = records.size
-            records.values.forEach { it.instance?.cancel() }
+            records.values.forEach { it.cancel("script stop") }
             records.clear()
             markDirty()
             return count
         }
         val matched = records.values.filter { it.id == idOrPath || it.path == idOrPath }
         matched.forEach {
-            it.instance?.cancel()
+            it.cancel("script stop")
             records.remove(it.id)
         }
         if (matched.isNotEmpty()) markDirty()
@@ -127,7 +127,7 @@ class KatariScriptSystem(
     }
 
     fun deserialize(tag: CompoundTag) {
-        records.values.forEach { it.instance?.cancel() }
+        records.values.forEach { it.cancel("runtime reload") }
         records.clear()
 
         val entries = tag.getList("katari", 10)
@@ -146,6 +146,12 @@ class KatariScriptSystem(
         }
         restoreLoadedRecords()
         startServerLoaders()
+    }
+
+    fun dispose() {
+        records.values.forEach { it.cancel("server stopped") }
+        records.clear()
+        programCache.clear()
     }
 
     fun availableScripts(): Collection<String> = getAvailableKatariScripts()
@@ -221,6 +227,7 @@ class KatariScriptSystem(
             watch(record)
         }
         result.exceptionOrNull()?.let { error ->
+            KatariEventSubscriptions.clear(record.id, "restore failed")
             record.status = KatariRunStatus.PAUSED
             record.error = error.message ?: error::class.java.simpleName
             HollowEngine.LOGGER.error("Failed to restore Katari script {}", record.path, error)
@@ -235,6 +242,7 @@ class KatariScriptSystem(
             val state = instance.currentState()
             val failed = state.tasks.firstOrNull { it.status is TaskStatus.Failed }?.status as? TaskStatus.Failed
             if (failed != null) {
+                KatariEventSubscriptions.clear(record.id, "script failed")
                 record.status = KatariRunStatus.FAILED
                 record.error = failed.message
                 record.snapshot = null
@@ -242,10 +250,18 @@ class KatariScriptSystem(
                 record.host = null
                 HollowEngine.LOGGER.error("Katari script {} failed: {}", record.path, failed.message)
             } else {
+                KatariEventSubscriptions.clear(record.id, "script completed")
                 records.remove(record.id)
             }
             markDirty()
         }
+    }
+
+    private fun KatariRunRecord.cancel(reason: String) {
+        KatariEventSubscriptions.clear(id, reason)
+        instance?.cancel()
+        instance = null
+        host = null
     }
 
     private fun KatariRunRecord.bindingsModule() =
