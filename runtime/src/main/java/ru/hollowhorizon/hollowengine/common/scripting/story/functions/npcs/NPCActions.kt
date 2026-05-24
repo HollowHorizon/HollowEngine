@@ -166,11 +166,14 @@ fun item(item: String, count: Int = 1, nbt: String) = item(item, count, TagParse
  * @return ItemStack с заданными параметрами.
  */
 @ScriptBinding
-fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
-    BuiltInRegistries.ITEM.get(item.rl),
-    count
-).apply {
+fun item(item: String, count: Int = 1, nbt: CompoundTag? = null): ItemStack {
+    assert(BuiltInRegistries.ITEM.containsKey(item.rl)) { "Item $item not found!" }
+    assert(count > 0) { "Item must be non-zero!" }
 
+    return ItemStack(
+        BuiltInRegistries.ITEM.get(item.rl),
+        count
+    )
 }
 
 /**
