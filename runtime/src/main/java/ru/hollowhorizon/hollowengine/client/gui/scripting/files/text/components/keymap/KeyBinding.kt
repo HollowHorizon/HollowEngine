@@ -12,7 +12,7 @@ data class KeyBinding(
 ) {
     fun matches(event: KeyEvent): Boolean {
         if (!trigger.matches(event)) return false
-        if (event.keyCode != keyCode) return false
+        if (event.keyCode.code != keyCode.code && event.localKeyCode.code != keyCode.code) return false
         if (event.isCtrlDown != ctrl) return false
         if (event.isShiftDown != shift) return false
         if (event.isAltDown != alt) return false

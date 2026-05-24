@@ -43,6 +43,7 @@ class TextInputController(
 
     private fun handleCharTyped(keyEvent: KeyEvent) {
         if (tryExecuteKeyBinding(keyEvent)) return
+        if (keyEvent.isCtrlDown && !keyEvent.isAltDown) return
 
         val char = keyEvent.typedChar.toString()
         val closing = if (modifier.editorConfig.enableAutoBrackets) {

@@ -1,61 +1,62 @@
-name: Telegram Notification
+name: Telegram Multi-Notification
 
 on:
   push:
+    branches: [ main, master, dev ]
+  pull_request:
+    types: [opened, closed]
+  issues:
+    types: [opened, closed]
 
 jobs:
-  notify:
+  telegram-notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Telegram Message
-        env:
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          TG_THREAD_ID: ${{ secrets.TG_THREAD_ID }}
+      - name: Generate Notification Text
+        id: format
         run: |
-          REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          REPO="${{ github.repository }}"
+          EVENT="${{ github.event_name }}"
+          ACTOR="<a href='https://github.com/${{ github.actor }}'>@${{ github.actor }}</a>"
           
-          COMMIT_COUNT=$(jq '.commits | length' "$GITHUB_EVENT_PATH")
+          if [ "$EVENT" = "push" ]; then
+            TEXT="🚀 <b>PUSH</b> в репозиторий <a href='${{ github.event.compare }}'>$REPO</a>"$'\n'
+            TEXT="$TEXT👤 Автор: $ACTOR"$'\n'
+            TEXT="$TEXT🌿 Ветка: <code>${{ github.ref_name }}</code>"$'\n'
+            TEXT="$TEXT💬 Коммит: <i>${{ github.event.head_commit.message }}</i>"
           
-          if [ "$COMMIT_COUNT" -eq "0" ]; then
-            echo "No new commits detected."
-            exit 0
+          elif [ "$EVENT" = "pull_request" ]; then
+            ACTION="${{ github.event.action }}"
+            TEXT="🔀 <b>PULL REQUEST</b> ($ACTION)"$'\n'
+            TEXT="$TEXT📁 Репозиторий: $REPO"$'\n'
+            TEXT="$TEXT🔗 <a href='${{ github.event.pull_request.html_url }}'>#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}</a>"$'\n'
+            TEXT="$TEXT👤 Инициатор: $ACTOR"
+          
+          elif [ "$EVENT" = "issues" ]; then
+            ACTION="${{ github.event.action }}"
+            TEXT="🐛 <b>ISSUE</b> ($ACTION)"$'\n'
+            TEXT="$TEXT📁 Репозиторий: $REPO"$'\n'
+            TEXT="$TEXT📌 <a href='${{ github.event.issue.html_url }}'>#${{ github.event.issue.number }} ${{ github.event.issue.title }}</a>"$'\n'
+            TEXT="$TEXT👤 Создатель: $ACTOR"
+          
+          elif [ "$EVENT" = "workflow_run" ]; then
+            STATUS="${{ github.event.workflow_run.conclusion }}"
+            ICON=$([ "$STATUS" = "success" ] && echo "✅" || echo "❌")
+            TEXT="$ICON <b>CHECK RUN:</b> ${{ github.event.workflow_run.name }}"$'\n'
+            TEXT="$TEXT📊 Результат: <b>$STATUS</b>"$'\n'
+            TEXT="$TEXT🔗 <a href='${{ github.event.workflow_run.html_url }}'>Посмотреть логи билда</a>"
           fi
           
-          HEADER="<b>⚡️<a href=\"https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH_NAME\">[$REPO_NAME:$BRANCH_NAME]</a></b> $COMMIT_COUNT new commit(s)"
-          
-          COMMITS_LIST=$(jq -r '
-            [
-              .commits[] | 
-              "<code><a href=\"\(.url)\">\(.id[0:7])</a></code> " +
-              (
-                .message 
-                | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;") 
-                | gsub("\n\n"; "\n") 
-                | split("\n") 
-                | .[0] |= . + ":" 
-                | join("\n")
-              ) +
-              "\n\nby <a href=\"https://github.com/\(.author.username)\">\(.author.name)</a>" +
-              "\n<a href=\"\(.url)\">View commit →</a>"
-            ] | join("\n\n------------------------------------------------------\n\n")
-          ' "$GITHUB_EVENT_PATH")
-          
-          FINAL_TEXT="<blockquote>$HEADER"$'\n'"$COMMITS_LIST</blockquote>"
-          
-          jq -n \
-            --arg chat_id "$TG_CHAT_ID" \
-            --arg thread_id "$TG_THREAD_ID" \
-            --arg text "$FINAL_TEXT" \
-            '{
-              chat_id: $chat_id,
-              message_thread_id: $thread_id,
-              parse_mode: "HTML",
-              disable_web_page_preview: true,
-              text: $text
-            }' > payload.json
-          
-          curl -s -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d @payload.json
+          echo "msg<<EOF" >> $GITHUB_OUTPUT
+          echo "$TEXT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send Telegram Message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TG_CHAT_ID }}
+          token: ${{ secrets.TG_BOT_TOKEN }}
+          message_thread_id: ${{ secrets.TG_THREAD_ID }}
+          format: html
+          disable_web_page_preview: true
+          message: ${{ steps.format.outputs.msg }}

@@ -462,43 +462,44 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         selectionController.updateSelectionRange()
         with(linesHolder) {
             for (lineIndex in 0 until lineProvider.size) {
-            val line = lineProvider[lineIndex]
-            val indentIndex = line.text.indexOfFirst { it != ' ' }
-            indentManager.popToIndent(indentIndex, line.length)
+                val line = lineProvider[lineIndex]
+                val indentIndex = line.text.indexOfFirst { it != ' ' }
+                indentManager.popToIndent(indentIndex, line.length)
 
-            val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
-            lineItem.setupContent()
-            lineItem.lineIndex = lineIndex
-            lineItem.indents = indentManager.getIndents()
-            lineItem.modifier.width(Grow.Std).layout(RowLayout)
-            with(lineItem) {
-                val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingHuge
+                val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
+                lineItem.lineIndex = lineIndex
+                lineItem.indents = indentManager.getIndents()
+                lineItem.modifier.width(Grow.Std).layout(RowLayout)
+                with(lineItem) {
+                    val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingHuge
 
-                if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
-                    Box(maxWidth) {
-                        modifier
-                            .height(Grow.Std)
-                            .alignY(AlignmentY.Center)
+                    if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
+                        Box(maxWidth) {
+                            modifier
+                                .height(Grow.Std)
+                                .alignY(AlignmentY.Center)
 
-                        Text((lineIndex + 1).toString()) {
-                            val textColor = if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
-                                EditorTheme.gutterText.mix(Color.WHITE, 0.75f)
-                            else
-                                EditorTheme.gutterText
+                            Text((lineIndex + 1).toString()) {
+                                val textColor = if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
+                                    EditorTheme.gutterText.mix(Color.WHITE, 0.75f)
+                                else
+                                    EditorTheme.gutterText
 
-                            modifier.font(font).textColor(textColor).align(AlignmentX.End, AlignmentY.Center)
+                                modifier.font(font).textColor(textColor).align(AlignmentX.End, AlignmentY.Center)
+                            }
                         }
+                        Box(Dimensions.PaddingHuge) {}
                     }
-                    Box(Dimensions.PaddingHuge) {}
+
+                    setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
+                        modifier.alignY(AlignmentY.Center)
+                            .padding(vertical = Dimensions.PaddingSmall)
+                    }
+
+                    setupContent()
                 }
 
-                setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
-                    modifier.alignY(AlignmentY.Center)
-                        .padding(vertical = Dimensions.PaddingSmall)
-                }
-            }
-
-            indentManager.pushIndent(indentIndex)
+                indentManager.pushIndent(indentIndex)
             }
         }
     }
