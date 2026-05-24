@@ -5,8 +5,11 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 
+@ScriptBinding
 open class ItemEntityEvent(val entity: ItemEntity) : Event {
+    @ScriptBinding
     class Toss(entity: ItemEntity, val player: Player): ItemEntityEvent(entity), Cancellable {
         companion object: EventHandler<Toss>()
         override var isCanceled: Boolean = false

@@ -6,7 +6,9 @@ import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 
+@ScriptBinding
 open class EntityEvent(val entity: Entity) : Event {
 
     class Hurt(entity: Entity, val source: DamageSource, var amount: Float) : EntityEvent(entity), Cancellable {

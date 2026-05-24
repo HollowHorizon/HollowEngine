@@ -32,6 +32,15 @@ class ServerRuntimeContext(
         dirty = false
     }
 
+    fun startLoaders() {
+        katari.startServerLoaders()
+    }
+
+    fun dispose() {
+        katari.dispose()
+        scope.cancelAll()
+    }
+
     fun isDirty(): Boolean = dirty
 
     fun clearDirty() {

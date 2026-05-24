@@ -28,6 +28,14 @@ class KatariScriptSystem(
 
     fun run(path: String, sourcePlayer: ServerPlayer? = null): Result<String> = runCatching {
         val source = loadSource(path)
+        start(source, sourcePlayer, loader = null)
+    }
+
+    private fun start(
+        source: CodeSource,
+        sourcePlayer: ServerPlayer?,
+        loader: KatariLoaderTarget?,
+    ): String {
         val runId = UUID.randomUUID().toString()
         val (bindings, host) = createHollowKatariBindings(server, runId, sourcePlayer, ::markDirty)
         val program = programCache.getOrPut(ProgramKey(source.path, source.hash)) {
@@ -53,25 +61,26 @@ class KatariScriptSystem(
             instance = instance,
             host = host,
             status = KatariRunStatus.RUNNING,
+            loader = loader,
         )
         records[runId] = record
         instance.start()
         watch(record)
         markDirty()
-        runId
+        return runId
     }
 
     fun stop(idOrPath: String): Int {
         if (idOrPath == "all") {
             val count = records.size
-            records.values.forEach { it.instance?.cancel() }
+            records.values.forEach { it.cancel("script stop") }
             records.clear()
             markDirty()
             return count
         }
         val matched = records.values.filter { it.id == idOrPath || it.path == idOrPath }
         matched.forEach {
-            it.instance?.cancel()
+            it.cancel("script stop")
             records.remove(it.id)
         }
         if (matched.isNotEmpty()) markDirty()
@@ -90,7 +99,7 @@ class KatariScriptSystem(
     }
 
     fun list(): List<KatariRunInfo> = records.values.map {
-        KatariRunInfo(it.id, it.path, it.status, it.error)
+        KatariRunInfo(it.id, it.path, it.status, it.error, it.loader)
     }
 
     fun serialize(tag: CompoundTag) {
@@ -101,6 +110,7 @@ class KatariScriptSystem(
             entry.putString("path", record.path)
             entry.putString("hash", record.hash)
             entry.putString("status", record.status.name)
+            record.loader?.let { entry.putString("loader", it.name.lowercase()) }
             record.sourcePlayer?.let { entry.putString("source_player", it) }
             record.error?.let { entry.putString("error", it) }
             val instance = record.instance
@@ -117,7 +127,7 @@ class KatariScriptSystem(
     }
 
     fun deserialize(tag: CompoundTag) {
-        records.values.forEach { it.instance?.cancel() }
+        records.values.forEach { it.cancel("runtime reload") }
         records.clear()
 
         val entries = tag.getList("katari", 10)
@@ -131,12 +141,44 @@ class KatariScriptSystem(
                 snapshot = entry.get("snapshot"),
                 status = runCatching { KatariRunStatus.valueOf(entry.getString("status")) }.getOrDefault(KatariRunStatus.PAUSED),
                 error = entry.getString("error").takeIf { it.isNotBlank() },
+                loader = KatariLoaderTarget.fromNbt(entry.getString("loader")),
             )
         }
         restoreLoadedRecords()
+        startServerLoaders()
+    }
+
+    fun dispose() {
+        records.values.forEach { it.cancel("server stopped") }
+        records.clear()
+        programCache.clear()
     }
 
     fun availableScripts(): Collection<String> = getAvailableKatariScripts()
+
+    fun startServerLoaders() {
+        val runningLoaderPaths = records.values
+            .asSequence()
+            .filter { it.loader == KatariLoaderTarget.SERVER }
+            .mapTo(linkedSetOf()) { it.path }
+
+        availableScripts().forEach { path ->
+            val source = runCatching { loadSource(path) }.getOrElse { error ->
+                HollowEngine.LOGGER.error("Failed to load Katari script metadata for {}", path, error)
+                return@forEach
+            }
+            if (KatariLoaderTarget.SERVER !in source.loaders || source.path in runningLoaderPaths) return@forEach
+
+            val started = runCatching {
+                start(source, sourcePlayer = null, loader = KatariLoaderTarget.SERVER)
+            }
+            started.onSuccess {
+                runningLoaderPaths += source.path
+            }.onFailure { error ->
+                HollowEngine.LOGGER.error("Failed to start Katari server loader {}", source.path, error)
+            }
+        }
+    }
 
     private fun restoreLoadedRecords() {
         records.values.filter { it.snapshot != null }.forEach { record ->
@@ -185,6 +227,7 @@ class KatariScriptSystem(
             watch(record)
         }
         result.exceptionOrNull()?.let { error ->
+            KatariEventSubscriptions.clear(record.id, "restore failed")
             record.status = KatariRunStatus.PAUSED
             record.error = error.message ?: error::class.java.simpleName
             HollowEngine.LOGGER.error("Failed to restore Katari script {}", record.path, error)
@@ -199,6 +242,7 @@ class KatariScriptSystem(
             val state = instance.currentState()
             val failed = state.tasks.firstOrNull { it.status is TaskStatus.Failed }?.status as? TaskStatus.Failed
             if (failed != null) {
+                KatariEventSubscriptions.clear(record.id, "script failed")
                 record.status = KatariRunStatus.FAILED
                 record.error = failed.message
                 record.snapshot = null
@@ -206,10 +250,18 @@ class KatariScriptSystem(
                 record.host = null
                 HollowEngine.LOGGER.error("Katari script {} failed: {}", record.path, failed.message)
             } else {
+                KatariEventSubscriptions.clear(record.id, "script completed")
                 records.remove(record.id)
             }
             markDirty()
         }
+    }
+
+    private fun KatariRunRecord.cancel(reason: String) {
+        KatariEventSubscriptions.clear(id, reason)
+        instance?.cancel()
+        instance = null
+        host = null
     }
 
     private fun KatariRunRecord.bindingsModule() =
@@ -232,12 +284,23 @@ data class KatariRunInfo(
     val path: String,
     val status: KatariRunStatus,
     val error: String?,
+    val loader: KatariLoaderTarget? = null,
 )
 
 enum class KatariRunStatus {
     RUNNING,
     PAUSED,
     FAILED,
+}
+
+enum class KatariLoaderTarget {
+    SERVER;
+
+    companion object {
+        fun fromNbt(value: String): KatariLoaderTarget? {
+            return entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+        }
+    }
 }
 
 private data class KatariRunRecord(
@@ -250,18 +313,31 @@ private data class KatariRunRecord(
     var host: HollowKatariHost? = null,
     var status: KatariRunStatus = KatariRunStatus.RUNNING,
     var error: String? = null,
+    val loader: KatariLoaderTarget? = null,
 )
 
 private data class ProgramKey(val path: String, val hash: String)
 
-data class CodeSource(val path: String, val text: String, val hash: String)
+data class CodeSource(
+    val path: String,
+    val text: String,
+    val hash: String,
+    val loaders: Set<KatariLoaderTarget> = emptySet(),
+)
 
 private fun loadSource(path: String): CodeSource {
     val file = path.fromReadablePath()
     require(file.exists() && file.isFile) { "Katari script not found: $path" }
     require(file.extension == "ktr") { "Katari script must use .ktr extension: $path" }
     val text = file.readText()
-    return CodeSource(file.toReadablePath(), text, text.sha256())
+    val preprocessed = preprocessKatariSource(file.toReadablePath(), text)
+    val loaders = preprocessed.instructions
+        .asSequence()
+        .filter { it.name == "loader" }
+        .flatMap { it.arguments.asSequence() }
+        .mapNotNull { KatariLoaderTarget.fromNbt(it) }
+        .toSet()
+    return CodeSource(file.toReadablePath(), text, text.sha256(), loaders)
 }
 
 fun getAvailableKatariScripts(): Collection<String> {

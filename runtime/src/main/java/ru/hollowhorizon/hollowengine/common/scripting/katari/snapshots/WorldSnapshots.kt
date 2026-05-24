@@ -35,17 +35,19 @@ class ServerSnapshot() : ValueSnapshot(), ScriptSnapshot<MinecraftServer> {
 @ScriptType("Level")
 data class LevelSnapshot(
     val dimension: @Serializable(ForResourceLocation::class) ResourceLocation,
-) : ValueSnapshot(), ScriptSnapshot<ServerLevel> {
-    override suspend fun restore(context: ValueRestoreContext): ServerLevel {
+) : ValueSnapshot(), ScriptSnapshot<Level> {
+    override suspend fun restore(context: ValueRestoreContext): Level {
         val server = (context as? KatariRestoreContext)?.server
             ?: error("Level can only be restored with KatariRestoreContext")
         return server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension))
             ?: error("Dimension `$dimension` is not loaded")
     }
 
-    companion object : ScriptSnapshotFactory<ServerLevel, LevelSnapshot> {
-        override fun capture(value: ServerLevel): LevelSnapshot {
-            return LevelSnapshot(value.dimension().location())
+    companion object : ScriptSnapshotFactory<Level, LevelSnapshot> {
+        override fun capture(value: Level): LevelSnapshot {
+            val serverLevel = value as? ServerLevel
+                ?: error("Only server levels can be captured for Katari scripts")
+            return LevelSnapshot(serverLevel.dimension().location())
         }
     }
 }

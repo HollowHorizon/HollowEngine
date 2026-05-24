@@ -33,7 +33,10 @@ object ServerRuntimeState {
 
     fun load(server: MinecraftServer) {
         val state = entry(server)
-        if (!Files.exists(state.runtimePath)) return
+        if (!Files.exists(state.runtimePath)) {
+            state.runtimeContext.startLoaders()
+            return
+        }
 
         try {
             Files.newInputStream(state.runtimePath).use { stream ->
@@ -77,7 +80,7 @@ object ServerRuntimeState {
     }
 
     fun remove(server: MinecraftServer) {
-        states.remove(server)
+        states.remove(server)?.runtimeContext?.dispose()
     }
 
     fun context(server: MinecraftServer): ServerRuntimeContext = entry(server).runtimeContext
