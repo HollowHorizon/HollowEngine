@@ -9,6 +9,8 @@ internal data class ScriptTypeModel(
     val snapshotType: String,
     val superTypes: List<String>,
     val source: KSFile?,
+    val targetKSType: KSType? = null,
+    val targetTypeDepth: Int = 0,
 )
 
 internal data class EnumTypeModel(
@@ -72,6 +74,24 @@ internal data class ClassModel(
     val functions: List<FunctionModel>,
     val properties: List<PropertyModel>,
     val source: KSFile?,
+)
+
+internal data class EventModel(
+    val type: ScriptTypeModel,
+    val className: String,
+    val snapshotName: String,
+    val serialName: String,
+    val constructorParameters: List<EventFieldModel>,
+    val properties: List<PropertyModel>,
+    val handlerExpression: String?,
+    val source: KSFile?,
+)
+
+internal data class EventFieldModel(
+    val name: String,
+    val propertyName: String,
+    val type: TypeModel,
+    val snapshotType: ScriptTypeModel?,
 )
 
 internal data class PropertyModel(

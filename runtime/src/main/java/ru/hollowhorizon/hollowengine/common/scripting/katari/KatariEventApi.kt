@@ -21,6 +21,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventListener
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
@@ -77,10 +78,6 @@ fun createKatariEventHandler(): KatariEventHandler {
 }
 
 @ScriptBinding("player")
-val PlayerEvent.scriptPlayer: Player
-    get() = player
-
-@ScriptBinding("player")
 val ServerChatEvent.scriptPlayer: Player
     get() = player
 
@@ -96,10 +93,10 @@ val ServerChatEvent.scriptUsername: String
     get() = username
 
 @ScriptBinding("canceled")
-var ServerChatEvent.scriptCanceled: Boolean
-    get() = isCanceled
+var Event.scriptCanceled: Boolean
+    get() = (this as? Cancellable)?.isCanceled ?: false
     set(value) {
-        isCanceled = value
+        (this as? Cancellable)?.isCanceled = value
     }
 
 fun NarrativeBindingsBuilder.registerKatariEventBindings(eventTypes: Iterable<KatariEventType<out Event>> = KatariMinecraftEventTypes) {
@@ -257,10 +254,8 @@ private data object KatariOnEventCallable : NarrativeCallable {
     }
 }
 
-val KatariMinecraftEventTypes = listOf(
+val KatariMinecraftEventTypes = generatedKatariEventTypes() + listOf(
     KatariEventType("ServerChatEvent", ServerChatEvent),
-    KatariEventType("PlayerEvent.Join", PlayerEvent.Join),
-    KatariEventType("PlayerEvent.Leave", PlayerEvent.Leave),
 )
 
 class KatariEventType<T : Event>(
@@ -317,57 +312,6 @@ data class EventSnapshot(
     companion object : ScriptSnapshotFactory<Event, EventSnapshot> {
         override fun capture(value: Event): EventSnapshot {
             return EventSnapshot(value::class.java.name)
-        }
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:katari/player_event")
-@ScriptType("PlayerEvent", Event::class)
-data class PlayerEventSnapshot(
-    val player: @Serializable(ForStringUUID::class) UUID,
-) : ValueSnapshot(), ScriptSnapshot<PlayerEvent> {
-    override suspend fun restore(context: ValueRestoreContext): PlayerEvent {
-        return PlayerEvent(restorePlayer(context, player))
-    }
-
-    companion object : ScriptSnapshotFactory<PlayerEvent, PlayerEventSnapshot> {
-        override fun capture(value: PlayerEvent): PlayerEventSnapshot {
-            return PlayerEventSnapshot(value.player.uuid)
-        }
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:katari/player_join_event")
-@ScriptType("PlayerEvent.Join", PlayerEvent::class)
-data class PlayerJoinEventSnapshot(
-    val player: @Serializable(ForStringUUID::class) UUID,
-) : ValueSnapshot(), ScriptSnapshot<PlayerEvent.Join> {
-    override suspend fun restore(context: ValueRestoreContext): PlayerEvent.Join {
-        return PlayerEvent.Join(restorePlayer(context, player))
-    }
-
-    companion object : ScriptSnapshotFactory<PlayerEvent.Join, PlayerJoinEventSnapshot> {
-        override fun capture(value: PlayerEvent.Join): PlayerJoinEventSnapshot {
-            return PlayerJoinEventSnapshot(value.player.uuid)
-        }
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:katari/player_leave_event")
-@ScriptType("PlayerEvent.Leave", PlayerEvent::class)
-data class PlayerLeaveEventSnapshot(
-    val player: @Serializable(ForStringUUID::class) UUID,
-) : ValueSnapshot(), ScriptSnapshot<PlayerEvent.Leave> {
-    override suspend fun restore(context: ValueRestoreContext): PlayerEvent.Leave {
-        return PlayerEvent.Leave(restorePlayer(context, player))
-    }
-
-    companion object : ScriptSnapshotFactory<PlayerEvent.Leave, PlayerLeaveEventSnapshot> {
-        override fun capture(value: PlayerEvent.Leave): PlayerLeaveEventSnapshot {
-            return PlayerLeaveEventSnapshot(value.player.uuid)
         }
     }
 }

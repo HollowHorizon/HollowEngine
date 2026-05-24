@@ -6,6 +6,7 @@ internal class KatariBindingCodegen(
     private val classes: List<ClassModel>,
     private val properties: List<PropertyModel> = emptyList(),
     private val enumTypes: List<EnumTypeModel> = emptyList(),
+    private val events: List<EventModel> = emptyList(),
 ) {
     private val callableFunctions = functions + classes.flatMap { it.constructors + it.functions }
     private val importAliases = callableFunctions
@@ -16,6 +17,7 @@ internal class KatariBindingCodegen(
         .mapNotNull { property -> property.importQualifiedName?.let { property to it } }
         .withIndex()
         .associate { (index, pair) -> pair.first to "generatedKatariProperty$index" }
+    private val eventSnapshotNames = events.associate { it.type.targetType to it.safeSnapshotName() }
 
     fun generate(): String = buildString {
         appendLine("package ru.hollowhorizon.hollowengine.common.scripting.katari")
@@ -36,17 +38,25 @@ internal class KatariBindingCodegen(
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.TypeParameter")
         appendLine("import kotlinx.coroutines.launch")
+        appendLine("import kotlinx.serialization.SerialName")
+        appendLine("import kotlinx.serialization.Serializable")
         appendLine("import net.minecraft.server.MinecraftServer")
+        appendLine("import ru.hollowhorizon.hollowengine.common.events.Event")
         appendLine("import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope")
+        appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot")
         appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedKatariErrorResponse")
         appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedRuntimeValueResponse")
         appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot")
         importAliases.forEach { (function, alias) ->
             appendLine("import ${function.importQualifiedName} as $alias")
         }
         propertyImportAliases.forEach { (property, alias) ->
             appendLine("import ${property.importQualifiedName} as $alias")
         }
+        appendLine()
+        appendGeneratedEventSnapshots()
         appendLine()
         appendLine("@Suppress(\"UNUSED_PARAMETER\")")
         appendLine("internal fun NarrativeBindingsBuilder.registerGeneratedKatariBindings(server: MinecraftServer? = null) {")
@@ -59,6 +69,83 @@ internal class KatariBindingCodegen(
         appendLine("internal fun generatedKatariTypeSuperTypes(): Map<String, Set<String>> = mapOf(")
         appendGeneratedTypeSuperTypes()
         appendLine(")")
+        appendLine()
+        appendGeneratedEventTypes()
+    }
+
+    private fun StringBuilder.appendGeneratedEventSnapshots() {
+        events.sortedBy { it.type.typeId }.forEach { event ->
+            val snapshotName = event.safeSnapshotName()
+            appendLine("@Serializable")
+            appendLine("@SerialName(\"${event.serialName}\")")
+            val classKeyword = if (event.constructorParameters.isEmpty()) "class" else "data class"
+            appendLine("private $classKeyword $snapshotName(")
+            event.constructorParameters.forEach { field ->
+                appendLine("    val ${field.name}: ${field.snapshotStorageType()},")
+            }
+            appendLine(") : ValueSnapshot(), ScriptSnapshot<${event.className}> {")
+            appendLine("    override suspend fun restore(context: ValueRestoreContext): ${event.className} {")
+            event.constructorParameters.forEach { field ->
+                appendLine("        val ${field.name}Value = ${field.restoreExpression("context")}")
+            }
+            appendLine("        return ${event.className}(")
+            event.constructorParameters.forEach { field ->
+                appendLine("            ${field.name} = ${field.name}Value,")
+            }
+            appendLine("        )")
+            appendLine("    }")
+            appendLine()
+            appendLine("    companion object {")
+            appendLine("        fun capture(value: ${event.className}): $snapshotName {")
+            appendLine("            return $snapshotName(")
+            event.constructorParameters.forEach { field ->
+                appendLine("                ${field.name} = ${field.captureExpression("value")},")
+            }
+            appendLine("            )")
+            appendLine("        }")
+            appendLine("    }")
+            appendLine("}")
+            appendLine()
+        }
+    }
+
+    private fun EventFieldModel.snapshotStorageType(): String {
+        val base = snapshotType?.safeSnapshotName() ?: type.kotlinType
+        return if (type.nullable) "$base?" else base
+    }
+
+    private fun EventFieldModel.restoreExpression(contextName: String): String {
+        val snapshot = snapshotType ?: return name
+        val restored = "$name.restore($contextName)${restoreCast(snapshot)}"
+        return if (type.nullable) "$name?.let { it.restore($contextName)${restoreCast(snapshot)} }" else restored
+    }
+
+    private fun EventFieldModel.restoreCast(snapshot: ScriptTypeModel): String {
+        val targetType = type.kotlinType.removeSuffix("?")
+        return if (snapshot.targetType == targetType) "" else " as $targetType"
+    }
+
+    private fun EventFieldModel.captureExpression(valueName: String): String {
+        val snapshot = snapshotType ?: return "$valueName.$propertyName"
+        val snapshotName = snapshot.safeSnapshotName()
+        val capture = "$snapshotName.capture($valueName.$propertyName)"
+        return if (type.nullable) "$valueName.$propertyName?.let { $snapshotName.capture(it) }" else capture
+    }
+
+    private fun EventModel.safeSnapshotName(): String {
+        return snapshotName.substringAfterLast('.').sanitizeKotlinIdentifier()
+    }
+
+    private fun ScriptTypeModel.safeSnapshotName(): String {
+        return eventSnapshotNames[targetType] ?: snapshotType
+    }
+
+    private fun String.sanitizeKotlinIdentifier(): String {
+        return replace(Regex("[^A-Za-z0-9]+"), "_")
+            .split('_')
+            .filter(String::isNotBlank)
+            .joinToString("") { part -> part.replaceFirstChar { it.uppercase() } }
+            .ifBlank { "GeneratedKatariSnapshot" }
     }
 
     private fun StringBuilder.appendGeneratedTypeSuperTypes() {
@@ -85,15 +172,16 @@ internal class KatariBindingCodegen(
             val superTypesArgument = if (superTypes.isEmpty()) {
                 "emptyList()"
             } else {
-                "listOf(${superTypes.joinToString(prefix = "\"", postfix = "\"")})"
+                "listOf(${superTypes.joinToString { "\"$it\"" }})"
             }
             appendLine("    registerHostType(")
             appendLine("        ${scriptType.targetType}::class,")
             appendLine("        \"${scriptType.typeId}\",")
             appendLine("        $superTypesArgument,")
-            appendLine("        ${scriptType.snapshotType}::class,")
-            appendLine("        ${scriptType.snapshotType}.serializer(),")
-            appendLine("        serialize = { ${scriptType.snapshotType}.capture(it) },")
+            val snapshotName = scriptType.safeSnapshotName()
+            appendLine("        $snapshotName::class,")
+            appendLine("        $snapshotName.serializer(),")
+            appendLine("        serialize = { $snapshotName.capture(it) },")
             appendLine("        deserialize = { snapshot, context -> snapshot.restore(context) },")
             appendLine("    )")
             appendLine("    KatariGeneratedBindingRuntime.registerHostType(")
@@ -102,6 +190,16 @@ internal class KatariBindingCodegen(
             appendLine("        $superTypesArgument,")
             appendLine("    )")
         }
+    }
+
+    private fun StringBuilder.appendGeneratedEventTypes() {
+        appendLine("internal fun generatedKatariEventTypes(): List<KatariEventType<out Event>> = listOf(")
+        events.sortedBy { it.type.typeId }
+            .filter { it.handlerExpression != null }
+            .forEach { event ->
+                appendLine("    KatariEventType(\"${event.type.typeId}\", ${event.handlerExpression}),")
+            }
+        appendLine(")")
     }
 
     private fun orderedScriptTypes(): List<ScriptTypeModel> {

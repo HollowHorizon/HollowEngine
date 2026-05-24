@@ -28,34 +28,69 @@ private class KatariBindingProcessor(
             .associateBy { it.targetType }
         validateScriptTypeParents(scriptTypes)
 
+        val annotatedClasses = resolver.getSymbolsWithAnnotation(SCRIPT_BINDING)
+            .filterIsInstance<KSClassDeclaration>()
+            .filter(KSAnnotated::validate)
+            .toList()
+        val eventScriptTypes = annotatedClasses
+            .filter(::isEventType)
+            .associate { declaration ->
+                val className = declaration.qualifiedName?.asString() ?: return@associate "" to null
+                val typeId = declaration.eventTypeId()
+                className to ScriptTypeModel(
+                    typeId = typeId,
+                    targetType = className,
+                    snapshotType = generatedEventSnapshotName(typeId),
+                    superTypes = declaration.eventSuperTypes(scriptTypes),
+                    source = declaration.containingFile,
+                    targetKSType = declaration.asStarProjectedType(),
+                    targetTypeDepth = declaration.typeDepth(),
+                )
+            }
+            .filterKeys { it.isNotBlank() }
+            .mapNotNull { (key, value) -> value?.let { key to it } }
+            .toMap()
+        val availableScriptTypes = scriptTypes + eventScriptTypes
+
         val topLevelFunctions = resolver.getSymbolsWithAnnotation(SCRIPT_BINDING)
             .filterIsInstance<KSFunctionDeclaration>()
             .filter(KSAnnotated::validate)
-            .mapNotNull { functionBinding(resolver, it, scriptTypes) }
+            .mapNotNull { functionBinding(resolver, it, availableScriptTypes) }
             .toList()
 
         val extensionProperties = resolver.getSymbolsWithAnnotation(SCRIPT_BINDING)
             .filterIsInstance<KSPropertyDeclaration>()
             .filter(KSAnnotated::validate)
             .filter { it.parentDeclaration == null && it.extensionReceiver != null }
-            .mapNotNull { extensionPropertyBinding(it, scriptTypes) }
+            .mapNotNull { extensionPropertyBinding(it, availableScriptTypes) }
             .toList()
 
-        val classBindings = resolver.getSymbolsWithAnnotation(SCRIPT_BINDING)
-            .filterIsInstance<KSClassDeclaration>()
-            .filter(KSAnnotated::validate)
+        val eventBindings = annotatedClasses
+            .filter(::isEventType)
+            .mapNotNull { eventBinding(resolver, it, availableScriptTypes, eventScriptTypes) }
+            .toList()
+
+        val classBindings = annotatedClasses
+            .filterNot(::isEventType)
             .mapNotNull { classBinding(resolver, it, scriptTypes) }
             .toList()
 
-        val enumTypes = collectEnumTypes(topLevelFunctions, extensionProperties, classBindings)
+        val enumTypes = collectEnumTypes(topLevelFunctions, extensionProperties, classBindings, eventBindings)
         if (scriptTypes.isEmpty() && enumTypes.isEmpty() && topLevelFunctions.isEmpty() &&
-            extensionProperties.isEmpty() && classBindings.isEmpty()
+            extensionProperties.isEmpty() && classBindings.isEmpty() && eventBindings.isEmpty()
         ) {
             generated = true
             return emptyList()
         }
-        validateDuplicates(topLevelFunctions, extensionProperties, classBindings)
-        generate(scriptTypes.values.toList(), enumTypes, topLevelFunctions, extensionProperties, classBindings)
+        validateDuplicates(topLevelFunctions, extensionProperties, classBindings, eventBindings)
+        generate(
+            scriptTypes = (scriptTypes + eventScriptTypes).values.toList(),
+            enumTypes = enumTypes,
+            functions = topLevelFunctions,
+            properties = extensionProperties,
+            classes = classBindings,
+            events = eventBindings,
+        )
         generated = true
         return emptyList()
     }
@@ -87,6 +122,8 @@ private class KatariBindingProcessor(
             snapshotType = snapshotName,
             superTypes = declaration.scriptTypeSuperTypes(),
             source = declaration.containingFile,
+            targetKSType = target,
+            targetTypeDepth = (target.declaration as? KSClassDeclaration)?.typeDepth() ?: 0,
         )
     }
 
@@ -184,6 +221,109 @@ private class KatariBindingProcessor(
                 .mapNotNull { memberPropertyModel(declaration, it, scriptType, scriptTypes) }
         }
         return ClassModel(scriptType, constructors, functions, properties, declaration.containingFile)
+    }
+
+    private fun eventBinding(
+        resolver: Resolver,
+        declaration: KSClassDeclaration,
+        scriptTypes: Map<String, ScriptTypeModel>,
+        eventScriptTypes: Map<String, ScriptTypeModel>,
+    ): EventModel? {
+        val className = declaration.qualifiedName?.asString() ?: return null
+        if (!declaration.isPublicApi()) {
+            logger.error("@ScriptBinding event class must be public", declaration)
+            return null
+        }
+        if (declaration.typeParameters.isNotEmpty()) {
+            logger.error("@ScriptBinding event class generics are not supported", declaration)
+            return null
+        }
+        val scriptType = eventScriptTypes[className] ?: return null
+        val constructor = declaration.primaryConstructor ?: run {
+            if (declaration.classKind == ClassKind.CLASS && declaration.getConstructors().count() == 0) {
+                return EventModel(
+                    type = scriptType,
+                    className = className,
+                    snapshotName = scriptType.snapshotType,
+                    serialName = generatedEventSerialName(scriptType.typeId),
+                    constructorParameters = emptyList(),
+                    properties = eventPropertyModels(declaration, scriptType, scriptTypes),
+                    handlerExpression = declaration.eventHandlerExpression(),
+                    source = declaration.containingFile,
+                )
+            }
+            logger.error("@ScriptBinding event class `$className` must have a primary constructor", declaration)
+            return null
+        }
+        if (!validateCallable(constructor)) return null
+        val constructorParameters = constructor.parameters.mapIndexed { index, parameter ->
+            eventFieldModel(resolver, parameter, "arg$index", scriptTypes) ?: return null
+        }
+        return EventModel(
+            type = scriptType,
+            className = className,
+            snapshotName = scriptType.snapshotType,
+            serialName = generatedEventSerialName(scriptType.typeId),
+            constructorParameters = constructorParameters,
+            properties = eventPropertyModels(declaration, scriptType, scriptTypes),
+            handlerExpression = declaration.eventHandlerExpression(),
+            source = declaration.containingFile,
+        )
+    }
+
+    private fun eventPropertyModels(
+        declaration: KSClassDeclaration,
+        scriptType: ScriptTypeModel,
+        scriptTypes: Map<String, ScriptTypeModel>,
+    ): List<PropertyModel> {
+        val receiver = TypeModel.host(declaration.asStarProjectedType(), scriptType)
+        val receiverKotlinType = declaration.qualifiedName?.asString() ?: return emptyList()
+        return declaration.getDeclaredProperties()
+            .filter { it.isPublicApi() && !it.hasAnnotation(SCRIPT_IGNORE) && it.origin != Origin.SYNTHETIC }
+            .mapNotNull { property ->
+                val type = typeModel(property.type.resolve(), scriptTypes, emptyMap(), reportUnsupported = false)
+                    ?: return@mapNotNull null
+                val name = property.bindingName().ifBlank { property.simpleName.asString() }
+                val kotlinName = property.simpleName.asString()
+                PropertyModel(
+                    scriptName = name,
+                    receiver = receiver,
+                    receiverKotlinType = receiverKotlinType,
+                    valueType = type,
+                    writable = property.isMutable && property.setter?.modifiers?.let {
+                        Modifier.PRIVATE !in it && Modifier.PROTECTED !in it && Modifier.INTERNAL !in it
+                    } != false,
+                    getter = "typedReceiver.$kotlinName",
+                    setter = "typedReceiver.$kotlinName",
+                    importQualifiedName = null,
+                    source = property.containingFile,
+                )
+            }
+            .toList()
+    }
+
+    private fun eventFieldModel(
+        resolver: Resolver,
+        parameter: KSValueParameter,
+        fallbackName: String,
+        scriptTypes: Map<String, ScriptTypeModel>,
+    ): EventFieldModel? {
+        val name = parameter.name?.asString() ?: fallbackName
+        val resolvedType = if (parameter.isVararg) {
+            varargElementType(resolver, parameter.type.resolve()) ?: run {
+                logger.error("Unsupported event vararg parameter type `${parameter.type.resolve().render()}`", parameter)
+                return null
+            }
+        } else {
+            parameter.type.resolve()
+        }
+        val type = typeModel(resolvedType, scriptTypes) ?: return null
+        return EventFieldModel(
+            name = name,
+            propertyName = name,
+            type = type,
+            snapshotType = type.hostTypeId?.let { typeId -> scriptTypes.values.firstOrNull { it.typeId == typeId } },
+        )
     }
 
     private fun extensionPropertyBinding(
@@ -411,6 +551,7 @@ private class KatariBindingProcessor(
         type: KSType,
         scriptTypes: Map<String, ScriptTypeModel>,
         typeParameters: Map<String, TypeParameterModel> = emptyMap(),
+        reportUnsupported: Boolean = true,
     ): TypeModel? {
         (type.declaration as? KSTypeParameter)?.let { parameter ->
             val name = parameter.name.asString()
@@ -457,15 +598,28 @@ private class KatariBindingProcessor(
                     return functionTypeModel(type, scriptTypes, typeParameters)
                 }
                 if (type.arguments.isNotEmpty()) {
-                    logger.error("Generic script binding type `${type.render()}` is not supported", type.declaration)
+                    if (reportUnsupported) {
+                        logger.error("Generic script binding type `${type.render()}` is not supported", type.declaration)
+                    }
                     return null
                 }
                 if ((type.declaration as? KSClassDeclaration)?.classKind == ClassKind.ENUM_CLASS) {
                     return TypeModel.enum(type, qualifiedName.substringAfterLast('.'), nullable)
                 }
-                val scriptType = scriptTypes[qualifiedName]
+                val scriptType = scriptTypes[qualifiedName] ?: scriptTypes.values
+                    .filter { scriptType ->
+                        scriptType.targetKSType?.let { target ->
+                            target.isAssignableFrom(type) || type.isAssignableFrom(target)
+                        } == true || type.isSameOrSubtypeOf(scriptType.targetType)
+                    }
+                    .maxByOrNull { it.targetTypeDepth }
                 if (scriptType == null) {
-                    logger.error("Unsupported script binding type `$qualifiedName`; add @ScriptType snapshot first", type.declaration)
+                    if (reportUnsupported) {
+                        logger.error(
+                            "Unsupported script binding type `$qualifiedName`; add @ScriptType snapshot first",
+                            type.declaration
+                        )
+                    }
                     return null
                 }
                 TypeModel.host(type, scriptType, nullable)
@@ -527,6 +681,7 @@ private class KatariBindingProcessor(
         functions: List<FunctionModel>,
         properties: List<PropertyModel>,
         classes: List<ClassModel>,
+        events: List<EventModel>,
     ) {
         val signatures = linkedSetOf<String>()
         (functions + classes.flatMap { it.constructors + it.functions }).forEach { function ->
@@ -536,7 +691,7 @@ private class KatariBindingProcessor(
             }
         }
         val propertySignatures = linkedSetOf<PropertySignature>()
-        (properties + classes.flatMap { it.properties }).forEach { property ->
+        (properties + classes.flatMap { it.properties } + events.flatMap { it.properties }).forEach { property ->
             val signature = PropertySignature(property.scriptName, property.receiver)
             if (!propertySignatures.add(signature)) {
                 logger.error(
@@ -550,6 +705,7 @@ private class KatariBindingProcessor(
         functions: List<FunctionModel>,
         properties: List<PropertyModel>,
         classes: List<ClassModel>,
+        events: List<EventModel>,
     ): List<EnumTypeModel> {
         val result = linkedMapOf<String, EnumTypeModel>()
         fun collect(type: TypeModel) {
@@ -565,6 +721,13 @@ private class KatariBindingProcessor(
             collect(property.receiver)
             collect(property.valueType)
         }
+        events.forEach { event ->
+            event.constructorParameters.forEach { collect(it.type) }
+            event.properties.forEach { property ->
+                collect(property.receiver)
+                collect(property.valueType)
+            }
+        }
         return result.values.toList()
     }
 
@@ -574,13 +737,15 @@ private class KatariBindingProcessor(
         functions: List<FunctionModel>,
         properties: List<PropertyModel>,
         classes: List<ClassModel>,
+        events: List<EventModel>,
     ) {
         val sources = (
                 scriptTypes.mapNotNull { it.source } +
                         enumTypes.mapNotNull { it.source } +
                         functions.mapNotNull { it.source } +
                         properties.mapNotNull { it.source } +
-                        classes.mapNotNull { it.source }
+                        classes.mapNotNull { it.source } +
+                        events.mapNotNull { it.source }
                 )
             .distinct()
             .toTypedArray()
@@ -590,7 +755,7 @@ private class KatariBindingProcessor(
             "GeneratedKatariBindings",
         )
         OutputStreamWriter(file, Charsets.UTF_8).use { writer ->
-            writer.write(KatariBindingCodegen(scriptTypes, functions, classes, properties, enumTypes).generate())
+            writer.write(KatariBindingCodegen(scriptTypes, functions, classes, properties, enumTypes, events).generate())
         }
     }
 
@@ -622,6 +787,76 @@ private class KatariBindingProcessor(
         }.orEmpty()
         return base + args + if (isMarkedNullable) "?" else ""
     }
+
+    private fun isEventType(declaration: KSClassDeclaration): Boolean {
+        return declaration.getAllSuperTypes().any {
+            it.declaration.qualifiedName?.asString() == EVENT
+        }
+    }
+
+    private fun KSClassDeclaration.eventTypeId(): String {
+        return bindingName().ifBlank {
+            val qualifiedName = qualifiedName?.asString() ?: simpleName.asString()
+            val packagePrefix = "${packageName.asString()}."
+            qualifiedName.removePrefix(packagePrefix)
+        }
+    }
+
+    private fun KSClassDeclaration.eventSuperTypes(scriptTypes: Map<String, ScriptTypeModel>): List<String> {
+        if (qualifiedName?.asString() == EVENT) return emptyList()
+        val result = linkedSetOf<String>()
+        superTypes
+            .map { it.resolve().declaration }
+            .filterIsInstance<KSClassDeclaration>()
+            .forEach { parent ->
+                val parentName = parent.qualifiedName?.asString() ?: return@forEach
+                when {
+                    parentName in scriptTypes -> result += parentName
+                    parent.hasAnnotation(SCRIPT_BINDING) && isEventType(parent) -> result += parentName
+                }
+            }
+        if (result.isEmpty()) result += EVENT
+        return result.toList()
+    }
+
+    private fun generatedEventSnapshotName(typeId: String): String {
+        return typeId
+            .replace(Regex("[^A-Za-z0-9]+"), "_")
+            .split('_')
+            .filter(String::isNotBlank)
+            .joinToString(prefix = "Generated", postfix = "Snapshot") { part ->
+                part.replaceFirstChar { it.uppercase() }
+            }
+    }
+
+    private fun generatedEventSerialName(typeId: String): String {
+        val path = typeId
+            .replace(Regex("[^A-Za-z0-9]+"), "_")
+            .lowercase()
+        return "hollowengine:katari/generated_event/$path"
+    }
+
+    private fun KSClassDeclaration.eventHandlerExpression(): String? {
+        val companion = declarations.filterIsInstance<KSClassDeclaration>()
+            .firstOrNull { it.isCompanionObject } ?: return null
+        val hasHandler = companion.getAllSuperTypes().any {
+            it.declaration.qualifiedName?.asString() == EVENT_HANDLER
+        }
+        if (!hasHandler) return null
+        return qualifiedName?.asString()
+    }
+
+    private fun KSClassDeclaration.typeDepth(): Int {
+        return getAllSuperTypes().count {
+            it.declaration.qualifiedName?.asString() != "kotlin.Any"
+        }
+    }
+
+    private fun KSType.isSameOrSubtypeOf(qualifiedName: String): Boolean {
+        if (declaration.qualifiedName?.asString() == qualifiedName) return true
+        return (declaration as? KSClassDeclaration)?.getAllSuperTypes()
+            ?.any { it.declaration.qualifiedName?.asString() == qualifiedName } == true
+    }
 }
 
 private const val GENERATED_PACKAGE = "ru.hollowhorizon.hollowengine.common.scripting.katari"
@@ -630,3 +865,5 @@ private const val SCRIPT_IGNORE = "ru.hollowhorizon.hollowengine.common.scriptin
 private const val SCRIPT_TYPE = "ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType"
 private const val SCRIPT_SNAPSHOT = "ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot"
 private const val VALUE_SNAPSHOT = "com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot"
+private const val EVENT = "ru.hollowhorizon.hollowengine.common.events.Event"
+private const val EVENT_HANDLER = "ru.hollowhorizon.hollowengine.common.events.factory.EventHandler"

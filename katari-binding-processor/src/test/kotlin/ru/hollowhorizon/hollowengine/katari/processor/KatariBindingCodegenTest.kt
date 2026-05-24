@@ -185,6 +185,104 @@ class KatariBindingCodegenTest {
     }
 
     @Test
+    fun `generated registrar wires event snapshot and event type registry`() {
+        val eventBase = ScriptTypeModel(
+            typeId = "Event",
+            targetType = "test.Event",
+            snapshotType = "test.EventSnapshot",
+            superTypes = emptyList(),
+            source = null,
+        )
+        val playerType = ScriptTypeModel(
+            typeId = "Player",
+            targetType = "test.Player",
+            snapshotType = "test.PlayerSnapshot",
+            superTypes = emptyList(),
+            source = null,
+        )
+        val playerEventType = ScriptTypeModel(
+            typeId = "PlayerEvent",
+            targetType = "test.PlayerEvent",
+            snapshotType = "GeneratedPlayerEventSnapshot",
+            superTypes = listOf("test.Event"),
+            source = null,
+        )
+        val eventType = ScriptTypeModel(
+            typeId = "PlayerEvent.Join",
+            targetType = "test.PlayerEvent.Join",
+            snapshotType = "GeneratedPlayerEvent_JoinSnapshot",
+            superTypes = listOf("test.PlayerEvent"),
+            source = null,
+        )
+        val playerModel = TypeModel(
+            kotlinType = "test.Player",
+            katariTypeExpression = "Player",
+            hostTypeId = "Player",
+            converter = null,
+            enumTypeId = null,
+            nullable = false,
+        )
+        val eventModel = EventModel(
+            type = eventType,
+            className = "test.PlayerEvent.Join",
+            snapshotName = "GeneratedPlayerEvent, JoinSnapshot",
+            serialName = "hollowengine:katari/generated_event/player_event_join",
+            constructorParameters = listOf(EventFieldModel("player", "player", playerModel, playerType)),
+            properties = emptyList(),
+            handlerExpression = "test.PlayerEvent.Join",
+            source = null,
+        )
+
+        val code = KatariBindingCodegen(
+            scriptTypes = listOf(eventBase, playerType, playerEventType, eventType),
+            functions = emptyList(),
+            classes = emptyList(),
+            events = listOf(eventModel),
+        ).generate()
+
+        assertContains(code, "private data class GeneratedPlayerEventJoinSnapshot(")
+        assertContains(code, "val player: test.PlayerSnapshot,")
+        assertContains(code, "ScriptSnapshot<test.PlayerEvent.Join>")
+        assertContains(code, "registerHostType(")
+        assertContains(code, "\"PlayerEvent.Join\"")
+        assertContains(code, "listOf(\"PlayerEvent\")")
+        assertContains(code, "GeneratedPlayerEventJoinSnapshot.serializer()")
+        assertContains(code, "KatariEventType(\"PlayerEvent.Join\", test.PlayerEvent.Join)")
+    }
+
+    @Test
+    fun `generated event snapshot supports events without constructor parameters`() {
+        val eventType = ScriptTypeModel(
+            typeId = "EmptyEvent",
+            targetType = "test.EmptyEvent",
+            snapshotType = "GeneratedEmptyEventSnapshot",
+            superTypes = emptyList(),
+            source = null,
+        )
+        val eventModel = EventModel(
+            type = eventType,
+            className = "test.EmptyEvent",
+            snapshotName = "GeneratedEmptyEventSnapshot",
+            serialName = "hollowengine:katari/generated_event/empty_event",
+            constructorParameters = emptyList(),
+            properties = emptyList(),
+            handlerExpression = "test.EmptyEvent",
+            source = null,
+        )
+
+        val code = KatariBindingCodegen(
+            scriptTypes = listOf(eventType),
+            functions = emptyList(),
+            classes = emptyList(),
+            events = listOf(eventModel),
+        ).generate()
+
+        assertContains(code, "private class GeneratedEmptyEventSnapshot(")
+        assertContains(code, "return test.EmptyEvent(")
+        assertContains(code, "return GeneratedEmptyEventSnapshot(")
+    }
+
+    @Test
     fun `generated function preserves generic collection signature`() {
         val generic = TypeModel.generic("T", TypeModel.any(nullable = false), nullable = false)
         val list = TypeModel.collection("List", "List", listOf(generic), CollectionKind.LIST, nullable = false)
