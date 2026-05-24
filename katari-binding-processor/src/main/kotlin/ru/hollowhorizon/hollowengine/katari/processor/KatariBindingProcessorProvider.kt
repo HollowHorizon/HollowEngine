@@ -587,19 +587,6 @@ private class KatariBindingProcessor(
         }
     }
 
-    private val primitiveTypes = mapOf(
-        "kotlin.Unit" to { n: Boolean -> TypeModel.unit(n) },
-        "kotlin.Any" to { n: Boolean -> TypeModel.any(n) },
-        "kotlin.Boolean" to { n: Boolean -> TypeModel.primitive("Boolean", "Boolean", "asBoolean", n) },
-        "kotlin.Int" to { n: Boolean -> TypeModel.primitive("Int", "Int", "asInt", n) },
-        "kotlin.Double" to { n: Boolean -> TypeModel.primitive("Double", "Double", "asDouble", n) },
-        "kotlin.Float" to { n: Boolean -> TypeModel.primitive("Float", "Double", "asFloat", n) },
-        "kotlin.String" to { n: Boolean -> TypeModel.primitive("String", "String", "asString", n) },
-        "com.sunnychung.lib.multiplatform.kotlite.model.XmlValue" to { n: Boolean ->
-            TypeModel.primitive("XmlValue", "XmlValue", "asXml", n)
-        }
-    )
-
     private fun typeModel(
         type: KSType,
         scriptTypes: Map<String, ScriptTypeModel>,
@@ -610,92 +597,74 @@ private class KatariBindingProcessor(
             val name = parameter.name.asString()
             return TypeModel.generic(name, typeParameters[name]?.upperBound, type.isMarkedNullable)
         }
-
         val qualifiedName = type.declaration.qualifiedName?.asString() ?: return null
         val nullable = type.isMarkedNullable
-
-        primitiveTypes[qualifiedName]?.let { return it(nullable) }
-
         return when (qualifiedName) {
-            "kotlin.collections.List", "kotlin.collections.MutableList" -> {
-                resolveCollection(type, scriptTypes, typeParameters, qualifiedName, CollectionKind.LIST, 1)
-            }
-            "kotlin.collections.Map", "kotlin.collections.MutableMap" -> {
-                resolveCollection(type, scriptTypes, typeParameters, qualifiedName, CollectionKind.MAP, 2)
-            }
+            "kotlin.Unit" -> TypeModel.unit(nullable)
+            "kotlin.Any" -> TypeModel.any(nullable)
+            "kotlin.Boolean" -> TypeModel.primitive("Boolean", "Boolean", "asBoolean", nullable)
+            "kotlin.Int" -> TypeModel.primitive("Int", "Int", "asInt", nullable)
+            "kotlin.Double" -> TypeModel.primitive("Double", "Double", "asDouble", nullable)
+            "kotlin.Float" -> TypeModel.primitive("Float", "Double", "asFloat", nullable)
+            "kotlin.String" -> TypeModel.primitive("String", "String", "asString", nullable)
+            "com.sunnychung.lib.multiplatform.kotlite.model.XmlValue" -> TypeModel.primitive(
+                "XmlValue",
+                "XmlValue",
+                "asXml",
+                nullable,
+            )
+            "kotlin.collections.List", "kotlin.collections.MutableList" -> collectionTypeModel(
+                type = type,
+                scriptTypes = scriptTypes,
+                typeParameters = typeParameters,
+                kotlinBaseType = if (qualifiedName.endsWith("MutableList")) "MutableList" else "List",
+                katariBaseType = if (qualifiedName.endsWith("MutableList")) "MutableList" else "List",
+                kind = CollectionKind.LIST,
+                expectedArguments = 1,
+            )
+
+            "kotlin.collections.Map", "kotlin.collections.MutableMap" -> collectionTypeModel(
+                type = type,
+                scriptTypes = scriptTypes,
+                typeParameters = typeParameters,
+                kotlinBaseType = if (qualifiedName.endsWith("MutableMap")) "MutableMap" else "Map",
+                katariBaseType = if (qualifiedName.endsWith("MutableMap")) "MutableMap" else "Map",
+                kind = CollectionKind.MAP,
+                expectedArguments = 2,
+            )
+
             else -> {
-                resolveCustomOrFallbackType(type, scriptTypes, typeParameters, qualifiedName, nullable, reportUnsupported)
+                if (qualifiedName.startsWith("kotlin.Function")) {
+                    return functionTypeModel(type, scriptTypes, typeParameters)
+                }
+                if (type.arguments.isNotEmpty()) {
+                    if (reportUnsupported) {
+                        logger.error("Generic script binding type `${type.render()}` is not supported", type.declaration)
+                    }
+                    return null
+                }
+                if ((type.declaration as? KSClassDeclaration)?.classKind == ClassKind.ENUM_CLASS) {
+                    return TypeModel.enum(type, qualifiedName.substringAfterLast('.'), nullable)
+                }
+                val scriptType = scriptTypes[qualifiedName] ?: scriptTypes.values
+                    .filter { scriptType ->
+                        scriptType.targetKSType?.let { target ->
+                            target.isAssignableFrom(type) || type.isAssignableFrom(target)
+                        } == true || type.isSameOrSubtypeOf(scriptType.targetType)
+                    }
+                    .maxByOrNull { it.targetTypeDepth }
+                if (scriptType == null) {
+                    if (reportUnsupported) {
+                        logger.error(
+                            "Unsupported script binding type `$qualifiedName`; add @ScriptType snapshot first",
+                            type.declaration
+                        )
+                    }
+                    return null
+                }
+                TypeModel.host(type, scriptType, nullable)
             }
         }
-    }
-
-    private fun resolveCollection(
-        type: KSType,
-        scriptTypes: Map<String, ScriptTypeModel>,
-        typeParameters: Map<String, TypeParameterModel>,
-        qualifiedName: String,
-        kind: CollectionKind,
-        expectedArguments: Int
-    ): TypeModel? {
-        val isMutable = qualifiedName.endsWith("Mutable${kind.name.lowercase().replaceFirstChar { it.uppercase() }}")
-        val baseName = if (isMutable) "Mutable${kind.name}" else kind.name
-        return collectionTypeModel(
-            type = type,
-            scriptTypes = scriptTypes,
-            typeParameters = typeParameters,
-            kotlinBaseType = baseName,
-            katariBaseType = baseName,
-            kind = kind,
-            expectedArguments = expectedArguments,
-        )
-    }
-
-    private fun resolveCustomOrFallbackType(
-        type: KSType,
-        scriptTypes: Map<String, ScriptTypeModel>,
-        typeParameters: Map<String, TypeParameterModel>,
-        qualifiedName: String,
-        nullable: Boolean,
-        reportUnsupported: Boolean
-    ): TypeModel? {
-        if (qualifiedName.startsWith("kotlin.Function")) {
-            return functionTypeModel(type, scriptTypes, typeParameters)
-        }
-
-        if (type.arguments.isNotEmpty()) {
-            if (reportUnsupported) {
-                logger.error("Generic script binding type `${type.render()}` is not supported", type.declaration)
-            }
-            return null
-        }
-
-        if ((type.declaration as? KSClassDeclaration)?.classKind == ClassKind.ENUM_CLASS) {
-            return TypeModel.enum(type, qualifiedName.substringAfterLast('.'), nullable)
-        }
-
-        val scriptType = findMatchingScriptType(type, scriptTypes, qualifiedName)
-        if (scriptType == null) {
-            if (reportUnsupported) {
-                logger.error("Unsupported script binding type `$qualifiedName`; add @ScriptType snapshot first", type.declaration)
-            }
-            return null
-        }
-
-        return TypeModel.host(type, scriptType, nullable)
-    }
-
-    private fun findMatchingScriptType(
-        type: KSType,
-        scriptTypes: Map<String, ScriptTypeModel>,
-        qualifiedName: String
-    ): ScriptTypeModel? {
-        return scriptTypes[qualifiedName] ?: scriptTypes.values
-            .filter { scriptType ->
-                scriptType.targetKSType?.let { target ->
-                    target.isAssignableFrom(type) || type.isAssignableFrom(target)
-                } == true || type.isSameOrSubtypeOf(scriptType.targetType)
-            }
-            .maxByOrNull { it.targetTypeDepth }
     }
 
     private fun collectionTypeModel(
