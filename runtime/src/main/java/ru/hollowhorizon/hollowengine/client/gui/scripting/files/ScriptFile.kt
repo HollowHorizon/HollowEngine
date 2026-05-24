@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import de.fabmax.kool.math.Easing
+import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
@@ -298,6 +299,11 @@ class ScriptFile(path: String) : EditorFile(path) {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).alignY(AlignmentY.Center)
             }
         }
+    }
+
+    override fun onKeyInput(event: KeyEvent) {
+        if (!this::modifier.isInitialized || event.isConsumed) return
+        modifier.onKeyEvent?.invoke(event)
     }
 
     private fun UiScope.HeaderActionButton(icon: ResourceLocation, action: () -> Unit) {

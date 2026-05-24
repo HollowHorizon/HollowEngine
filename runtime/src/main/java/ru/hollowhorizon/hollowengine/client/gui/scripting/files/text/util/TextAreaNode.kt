@@ -62,6 +62,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     var selectionStartChar: Int by property(0)
     var selectionCaretChar: Int by property(0)
     var onSelectionChanged: ((Int, Int, Int, Int) -> Unit)? by property(null)
+    var onKeyEvent: ((KeyEvent) -> Unit)? by property(null)
 
     val completions by property(mutableListOf<CompletionItem>())
     val errors by property(mutableListOf<Diagnostic>())
@@ -274,6 +275,14 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         requestFocusNone = { surface.requestFocus(null) },
         completionManager = completionManager,
     )
+
+    init {
+        modifier.onKeyEvent = { event ->
+            if (isFocused.value && !event.isConsumed) {
+                inputController.onKeyEvent(event)
+            }
+        }
+    }
 
     private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
         var lineIndex = -1

@@ -42,7 +42,10 @@ class TextInputController(
     }
 
     private fun handleCharTyped(keyEvent: KeyEvent) {
-        if (tryExecuteKeyBinding(keyEvent)) return
+        if (tryExecuteKeyBinding(keyEvent)) {
+            keyEvent.isConsumed = true
+            return
+        }
         if (keyEvent.isCtrlDown && !keyEvent.isAltDown) return
 
         val char = keyEvent.typedChar.toString()
@@ -57,6 +60,7 @@ class TextInputController(
         } else {
             executeBracketsCommand(char, closing)
         }
+        keyEvent.isConsumed = true
     }
 
     private fun executeBracketsCommand(char: String, closing: Char) {
@@ -69,18 +73,29 @@ class TextInputController(
     }
 
     private fun handleKeyPress(keyEvent: KeyEvent) {
-        if (tryExecuteKeyBinding(keyEvent)) return
+        if (tryExecuteKeyBinding(keyEvent)) {
+            keyEvent.isConsumed = true
+            return
+        }
 
         when (keyEvent.keyCode) {
-            KeyboardInput.KEY_BACKSPACE -> handleBackspace(keyEvent)
-            KeyboardInput.KEY_DEL -> handleDelete(keyEvent)
+            KeyboardInput.KEY_BACKSPACE -> {
+                handleBackspace(keyEvent)
+                keyEvent.isConsumed = true
+            }
+            KeyboardInput.KEY_DEL -> {
+                handleDelete(keyEvent)
+                keyEvent.isConsumed = true
+            }
             KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> if (!modifier.editorConfig.singleLine) {
                 executeNewlineCommand()
+                keyEvent.isConsumed = true
             }
             KeyboardInput.KEY_ESC -> {
                 selectionController.clearSelection()
                 requestFocusNone()
                 completionManager.close()
+                keyEvent.isConsumed = true
             }
 
             KeyboardInput.KEY_CURSOR_LEFT, KeyboardInput.KEY_CURSOR_RIGHT,
@@ -88,7 +103,10 @@ class TextInputController(
             KeyboardInput.KEY_PAGE_UP, KeyboardInput.KEY_PAGE_DOWN,
             KeyboardInput.KEY_HOME, KeyboardInput.KEY_END,
             KeyboardInput.KEY_TAB,
-                -> handleNavigation(keyEvent)
+                -> {
+                handleNavigation(keyEvent)
+                keyEvent.isConsumed = true
+            }
 
             else -> {
             }
@@ -178,7 +196,11 @@ class TextInputController(
         completionManager.close()
     }
 
-    private fun handleKeyRelease(keyEvent: KeyEvent) = tryExecuteKeyBinding(keyEvent)
+    private fun handleKeyRelease(keyEvent: KeyEvent) {
+        if (tryExecuteKeyBinding(keyEvent)) {
+            keyEvent.isConsumed = true
+        }
+    }
 
     fun editText(text: String) {
         val editor = modifier.editorHandler ?: return

@@ -12,11 +12,21 @@ data class KeyBinding(
 ) {
     fun matches(event: KeyEvent): Boolean {
         if (!trigger.matches(event)) return false
-        if (event.keyCode.code != keyCode.code && event.localKeyCode.code != keyCode.code) return false
+        if (!matchesKeyCode(event.keyCode.code) && !matchesKeyCode(event.localKeyCode.code)) return false
         if (event.isCtrlDown != ctrl) return false
         if (event.isShiftDown != shift) return false
         if (event.isAltDown != alt) return false
         return true
+    }
+
+    private fun matchesKeyCode(actual: Int): Boolean {
+        if (actual == keyCode.code) return true
+
+        val actualChar = actual.toChar()
+        val expectedChar = keyCode.code.toChar()
+        if (!actualChar.isLetter() || !expectedChar.isLetter()) return false
+
+        return actualChar.uppercaseChar() == expectedChar.uppercaseChar()
     }
 
     enum class Trigger {
