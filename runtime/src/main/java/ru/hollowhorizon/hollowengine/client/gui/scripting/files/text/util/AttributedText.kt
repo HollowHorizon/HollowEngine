@@ -250,6 +250,8 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
         val selectionMin = min(modifier.caretPos, modifier.selectionStart)
         val selectionMax = max(modifier.caretPos, modifier.selectionStart)
         val isSelectionActive = (modifier.caretPos != modifier.selectionStart) || modifier.hasSelection
+        val selectionTop = 0f
+        val selectionHeight = heightPx
 
         val hintsByIndex = modifier.text.inlayHints.groupBy { it.index }
         var globalCharIndex = 0
@@ -274,8 +276,14 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
                     val isCharSelected = (globalCharIndex in selectionMin until selectionMax)
 
                     if (isCharSelected) {
-                        val h = innerHeightPx
-                        getUiPrimitives().localRect(glyphStartDrawX, paddingTopPx, charEndDrawX - glyphStartDrawX, h, modifier.selectionColor)
+                        val charStartDrawX = textOrigin.x + layout.charPositions[globalCharIndex]
+                        getUiPrimitives().localRect(
+                            charStartDrawX,
+                            selectionTop,
+                            charEndDrawX - charStartDrawX,
+                            selectionHeight,
+                            modifier.selectionColor
+                        )
                     }
                 }
 
@@ -292,10 +300,10 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
         }
 
         if (isSelectionActive && selectionMax == modifier.text.length && (modifier.hasMultilineSelection)) {
-            val lastX = textOrigin.x + layout.glyphPositions[globalCharIndex]
+            val lastX = textOrigin.x + layout.charPositions[globalCharIndex]
             val tailWidth = widthPx - paddingEndPx - lastX
             if (tailWidth > 0) {
-                getUiPrimitives().localRect(lastX, paddingTopPx, tailWidth, innerHeightPx, modifier.selectionColor)
+                getUiPrimitives().localRect(lastX, selectionTop, tailWidth, selectionHeight, modifier.selectionColor)
             }
         }
 

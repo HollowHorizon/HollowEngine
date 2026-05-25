@@ -2,6 +2,7 @@ import com.sunnychung.lib.multiplatform.kotlite.katari.analyzeKatariNarrativePro
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptingAnalyzer
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -170,6 +171,66 @@ class KatariScriptingAnalyzerTests {
 
         assertTrue(completions.any { it.name == "getOrCreate" && it.tag == CompletionItemTag.FUNCTION })
         assertTrue(completions.any { it.name == "overworld" && it.tag == CompletionItemTag.PROPERTY })
+    }
+
+    @Test
+    fun `katari script namespace completions include imported members`() {
+        val imported = "scripts/imported_completion_test.ktr".fromReadablePath()
+        imported.parentFile.mkdirs()
+        imported.writeText(
+            """
+                val title = "Imported"
+                fun show(player: Player) {
+                    player.name
+                }
+            """.trimIndent(),
+        )
+
+        try {
+            val text = "import katari 'imported_completion_test.ktr' as overlay\noverlay."
+            val completions = KatariScriptingAnalyzer.completions("namespace_completion_test.ktr", text, text.length)
+
+            assertTrue(
+                completions.any { it.name == "show" && it.tag == CompletionItemTag.FUNCTION },
+                completions.joinToString { "${it.name}:${it.tag}" },
+            )
+            assertTrue(
+                completions.any { it.name == "title" && it.tag == CompletionItemTag.PROPERTY },
+                completions.joinToString { "${it.name}:${it.tag}" },
+            )
+        } finally {
+            imported.delete()
+        }
+    }
+
+    @Test
+    fun `katari highlight marks imported namespace receiver and member`() {
+        val imported = "scripts/imported_highlight_test.ktr".fromReadablePath()
+        imported.parentFile.mkdirs()
+        imported.writeText(
+            """
+                fun show(player: Player) {
+                    player.name
+                }
+            """.trimIndent(),
+        )
+
+        try {
+            val text = "import katari 'imported_highlight_test.ktr' as overlay\noverlay.show(player)"
+            val lines = KatariScriptingAnalyzer.highlight("namespace_highlight_test.ktr", text, text.length)
+            val tokens = lines.flatMap { line -> line.spans.map { it.first to it.second.color } }
+
+            assertTrue(
+                tokens.any { it.first == "overlay" && it.second == TokenType.VARIABLE },
+                tokens.joinToString { "${it.first}:${it.second}" },
+            )
+            assertTrue(
+                tokens.any { it.first == "show" && it.second == TokenType.FUNCTION },
+                tokens.joinToString { "${it.first}:${it.second}" },
+            )
+        } finally {
+            imported.delete()
+        }
     }
 
     @Test

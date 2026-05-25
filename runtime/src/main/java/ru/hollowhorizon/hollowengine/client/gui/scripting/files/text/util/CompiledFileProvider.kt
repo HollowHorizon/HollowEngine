@@ -23,7 +23,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import java.util.*
 
 private object AnalysisConfig {
-    const val DEBOUNCE_DELAY_MS = 300L
+    const val DEBOUNCE_DELAY_MS = 80L
     const val UNDO_DEBOUNCE_MS = 300L
     const val WRITE_DEBOUNCE_MS = 500L
 }

@@ -339,15 +339,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     val text = lineProvider[lineIndex].text
                     val textNode = textNode() ?: return@forEach
                     val textStart = textNode.leftPx - leftPx + textNode.paddingStartPx
-                    val (startPos, endPos) = if (text.isEmpty()) {
-                        0f to widthPx
-                    } else {
-                        val startIdx = error.range.start.column.coerceIn(0, text.length)
-                        val endIdx = error.range.end.column.coerceIn(0, text.length)
-                        val start = font.textDimensions(text.substring(0, startIdx)).width.dp.px
-                        val end = font.textDimensions(text.substring(0, endIdx)).width.dp.px
-                        start to end
-                    }
+                    val (startIdx, endIdx) = diagnosticRangeOnLine(error, text)
+                    val (startPos, endPos) = diagnosticPixelRange(text, startIdx, endIdx)
 
                     val color =
                         if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT
@@ -397,6 +390,65 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     }
                 }
             }
+        }
+
+        private fun diagnosticRangeOnLine(error: Diagnostic, text: String): Pair<Int, Int> {
+            var start = if (lineIndex == error.range.start.line) error.range.start.column else 0
+            var end = if (lineIndex == error.range.end.line) error.range.end.column else text.length
+
+            start = start.coerceIn(0, text.length)
+            end = end.coerceIn(0, text.length)
+
+            if (end < start) {
+                val tmp = start
+                start = end
+                end = tmp
+            }
+
+            if (end <= start + 1) {
+                return expandedDiagnosticRange(text, start)
+            }
+
+            return start to end
+        }
+
+        private fun expandedDiagnosticRange(text: String, column: Int): Pair<Int, Int> {
+            if (text.isEmpty()) return 0 to 0
+
+            val safeColumn = column.coerceIn(0, text.length)
+            val probe = when {
+                safeColumn < text.length && TextCaretNavigation.isIdentifierChar(text[safeColumn]) -> safeColumn
+                safeColumn > 0 && TextCaretNavigation.isIdentifierChar(text[safeColumn - 1]) -> safeColumn - 1
+                else -> return nonIdentifierDiagnosticRange(text, safeColumn)
+            }
+
+            var start = TextCaretNavigation.startOfIdentifier(text, probe + 1)
+            var end = TextCaretNavigation.endOfIdentifier(text, probe)
+
+            while (start >= 2 && text[start - 1] == '.' && TextCaretNavigation.isIdentifierChar(text[start - 2])) {
+                start = TextCaretNavigation.startOfIdentifier(text, start - 1)
+            }
+            while (end + 1 < text.length && text[end] == '.' && TextCaretNavigation.isIdentifierChar(text[end + 1])) {
+                end = TextCaretNavigation.endOfIdentifier(text, end + 1)
+            }
+
+            return start to end.coerceAtLeast(start + 1)
+        }
+
+        private fun nonIdentifierDiagnosticRange(text: String, column: Int): Pair<Int, Int> {
+            val start = column.coerceIn(0, text.length)
+            val end = (start + 1).coerceAtMost(text.length)
+            return start to end
+        }
+
+        private fun diagnosticPixelRange(text: String, startIdx: Int, endIdx: Int): Pair<Float, Float> {
+            if (text.isEmpty()) return 0f to widthPx
+
+            val safeStart = startIdx.coerceIn(0, text.length)
+            val safeEnd = endIdx.coerceIn(safeStart, text.length)
+            val start = font.textDimensions(text.substring(0, safeStart)).width.dp.px
+            val end = font.textDimensions(text.substring(0, safeEnd)).width.dp.px
+            return start to end.coerceAtLeast(start + TextEditorConstants.SQUIGGLY_STEP.toFloat())
         }
 
         private fun textNode(): AttributedTextNode? {

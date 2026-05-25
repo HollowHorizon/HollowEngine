@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariNarrativeAnalysis
+import com.sunnychung.lib.multiplatform.kotlite.katari.KatariSourceRequest
 import com.sunnychung.lib.multiplatform.kotlite.katari.analyzeKatariNarrativeScript
 import com.sunnychung.lib.multiplatform.kotlite.model.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
@@ -19,6 +20,7 @@ private val keywordCompletions = keywords.map { keywordCompletionItem(it) }
 private val brackets = mapOf('(' to ')', '[' to ']', '{' to '}')
 private const val MAX_COMPLETIONS = 80
 private const val MIN_TOP_LEVEL_COMPLETION_PREFIX = 2
+private val katariScriptImportRegex = Regex("""\bimport\s+katari\s+["']([^"']+)["']\s+as\s+([A-Za-z_][A-Za-z0-9_]*)""")
 private val editorSymbols: KatariSymbols by lazy {
     runCatching {
         val bindings = createHollowKatariEditorBindings()
@@ -34,7 +36,9 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
 
     override fun highlight(name: String, text: String, offset: Int): List<TextLine> {
         val analysis = analyze(name, text)
-        val semanticRanges = analysis.result.getOrNull()?.let { semanticRanges(text, it.analysis) }.orEmpty()
+        val semanticRanges = analysis.result.getOrNull()?.let {
+            semanticRanges(name, text, it.analysis) + namespaceReferenceRanges(text, it.symbols)
+        }.orEmpty()
         val occurrenceRanges = matchingIdentifierRanges(text, offset, semanticRanges)
         val bracketRanges = matchingBracketRanges(text, offset)
         val embeddedRanges = embeddedMarkupRanges(text) + embeddedStructRanges(text)
@@ -53,17 +57,23 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val candidates = if (context.receiverName == null) {
             buildList {
                 addAll(keywordCompletions)
+                addAll(symbols.namespaces.keys.map { namespaceCompletion(it) })
+                addAll(namespaceCompletionsFromImports(text))
                 addAll(symbols.globals.map { it.toCompletion(CompletionItemTag.LOCAL_VARIABLE) })
-                addAll(symbols.localsBefore(offset).map { it.toCompletion(CompletionItemTag.LOCAL_VARIABLE) })
-                addAll(symbols.functions.filter { it.receiverType == null }.map { it.toCompletion() })
+                addAll(symbols.localsBefore(offset).filterNot { it.name.isNamespaced() }.map { it.toCompletion(CompletionItemTag.LOCAL_VARIABLE) })
+                addAll(symbols.functions.filter { it.receiverType == null && !it.name.isNamespaced() }.map { it.toCompletion() })
                 addAll(symbols.classes.map { it.toCompletion(CompletionItemTag.CLASS) })
             }
         } else {
-            val receiverType = symbols.typeAt(context.receiverName, context.receiverStart)
-                ?: symbols.localType(context.receiverName, offset)
-                ?: KatariEditorContextGlobalTypes[context.receiverName]
-                ?: context.receiverName.takeIf { it in symbols.enums.keys }?.let { "$it.Companion" }
-            membersForReceiver(symbols, receiverType)
+            membersForNamespace(symbols, context.receiverName)
+                ?: namespaceMembersFromImports(name, text, context.receiverName)
+                ?: run {
+                    val receiverType = symbols.typeAt(context.receiverName, context.receiverStart)
+                        ?: symbols.localType(context.receiverName, offset)
+                        ?: KatariEditorContextGlobalTypes[context.receiverName]
+                        ?: context.receiverName.takeIf { it in symbols.enums.keys }?.let { "$it.Companion" }
+                    membersForReceiver(symbols, receiverType)
+                }
         }
         return candidates
             .filter { it.name.startsWith(context.prefix, ignoreCase = true) }
@@ -93,18 +103,24 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
     }
 
     private fun completionSymbols(name: String, text: String, offset: Int, context: CompletionContext): KatariSymbols {
-        analyze(name, text).result.getOrNull()?.let { return it.symbols }
+        val primarySymbols = analyze(name, text).result.getOrNull()?.symbols
+        if (primarySymbols != null && primarySymbols.canComplete(context, offset)) return primarySymbols
+
         completionAnalysisTexts(text, offset, context).forEach { candidate ->
-            analyze("$name<completion>", candidate).result.getOrNull()?.let { return it.symbols }
+            analyze("$name<completion>", candidate).result.getOrNull()?.symbols?.let { symbols ->
+                if (symbols.canComplete(context, offset)) return symbols
+            }
         }
-        return editorSymbols
+        return primarySymbols ?: editorSymbols
     }
 }
 
-    private fun semanticRanges(text: String, analysis: KatariNarrativeAnalysis): List<StyledRange> {
+    private fun semanticRanges(name: String, text: String, analysis: KatariNarrativeAnalysis): List<StyledRange> {
         val ranges = mutableListOf<StyledRange>()
         val lines = text.lines()
         analysis.semanticScript.walk { node, parent ->
+            if (!node.position.isInFile(name)) return@walk
+
             when (node) {
                 is PropertyDeclarationNode -> {
                     ranges += StyledRange.identifier(lines, node.position, node.name, TokenType.PROPERTY_IDENTIFIER)
@@ -146,6 +162,35 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
             }
         }
         return ranges
+    }
+
+    private fun namespaceReferenceRanges(text: String, symbols: KatariSymbols): List<StyledRange> {
+        if (symbols.namespaces.isEmpty()) return emptyList()
+
+        return text.lines().flatMapIndexed { lineIndex, line ->
+            val ranges = mutableListOf<StyledRange>()
+            symbols.namespaces.forEach { (namespace, members) ->
+                var index = line.indexOf(namespace)
+                while (index >= 0) {
+                    val namespaceEnd = index + namespace.length
+                    val isIdentifierBoundary = !line.getOrNull(index - 1).isIdentifierPartOrNull() &&
+                            !line.getOrNull(namespaceEnd).isIdentifierPartOrNull()
+                    if (isIdentifierBoundary && line.getOrNull(namespaceEnd) == '.') {
+                        val memberStart = namespaceEnd + 1
+                        val memberEnd = identifierEnd(line, memberStart)
+                        val member = line.substring(memberStart, memberEnd)
+                        if (member in members) {
+                            ranges += StyledRange(lineIndex, index, namespaceEnd, style(TokenType.VARIABLE), priority = 3)
+                            ranges += StyledRange(lineIndex, namespaceEnd, memberStart, style(TokenType.DEFAULT), priority = 5)
+                            val token = namespaceMemberToken(symbols, namespace, member)
+                            ranges += StyledRange(lineIndex, memberStart, memberEnd, style(token), priority = 3)
+                        }
+                    }
+                    index = line.indexOf(namespace, index + namespace.length)
+                }
+            }
+            ranges
+        }
     }
 
     private fun inlayHints(text: String, analysis: KatariNarrativeAnalysis): Map<Int, List<InlayHint>> {
@@ -216,6 +261,97 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     })
                 }
             }
+        }
+    }
+
+    private fun membersForNamespace(symbols: KatariSymbols, namespace: String?): List<CompletionItem>? {
+        val members = symbols.namespaces[namespace] ?: return null
+        return members.map { member ->
+            val qualifiedName = "$namespace.$member"
+            symbols.functions.firstOrNull { it.name == qualifiedName }?.toCompletion(member)
+                ?: symbols.locals.firstOrNull { it.name == qualifiedName }?.toCompletion(CompletionItemTag.PROPERTY, member)
+                ?: declarationCompletionItem {
+                    show = member
+                    insert = member
+                    name = member
+                    tag = CompletionItemTag.PROPERTY
+                }
+        }
+    }
+
+    private fun namespaceMemberToken(symbols: KatariSymbols, namespace: String, member: String): TokenType {
+        val qualifiedName = "$namespace.$member"
+        return when {
+            symbols.functions.any { it.name == qualifiedName } -> TokenType.FUNCTION
+            else -> TokenType.PROPERTY_IDENTIFIER
+        }
+    }
+
+    private fun namespaceCompletion(name: String): CompletionItem.Declaration {
+        return declarationCompletionItem {
+            show = name
+            insert = name
+            this.name = name
+            tag = CompletionItemTag.LOCAL_VARIABLE
+        }
+    }
+
+    private fun namespaceCompletionsFromImports(text: String): List<CompletionItem> {
+        return katariScriptImportRegex.findAll(text)
+            .map { it.groupValues[2] }
+            .distinct()
+            .map(::namespaceCompletion)
+            .toList()
+    }
+
+    private fun namespaceMembersFromImports(name: String, text: String, namespace: String?): List<CompletionItem>? {
+        if (namespace == null) return null
+        val path = katariScriptImportRegex.findAll(text)
+            .firstOrNull { it.groupValues[2] == namespace }
+            ?.groupValues
+            ?.getOrNull(1)
+            ?: return null
+
+        val imported = runCatching {
+            HollowEngineSources(CodeSource("scripts/$name", text, "")).readSource(
+                KatariSourceRequest(path, null, SourcePosition(name, 1, 1))
+            )
+        }.getOrNull() ?: return null
+
+        val analysis = runCatching {
+            analyzeKatariNarrativeScript(
+                imported.filename,
+                imported.code,
+                KatariScriptingAnalyzer.bindings,
+                HollowEngineSources(CodeSource("scripts/${imported.filename}", imported.code, ""))
+            )
+        }.getOrNull() ?: return null
+
+        return analysis.importedScript.nodes
+            .asSequence()
+            .filterNot { it is KatariImportNode }
+            .mapNotNull(::importMemberCompletion)
+            .toList()
+    }
+
+    private fun importMemberCompletion(node: ASTNode): CompletionItem? {
+        return when (node) {
+            is FunctionDeclarationNode -> FunctionEntry(
+                name = node.name,
+                receiverType = node.receiver?.descriptiveName(),
+                typeParameters = node.typeParameters.map { parameter ->
+                    TypeParameterEntry(parameter.name, parameter.typeUpperBound?.descriptiveName())
+                },
+                parameters = node.valueParameters.map { parameter ->
+                    ParameterEntry(parameter.name, parameter.declaredType?.descriptiveName() ?: parameter.inferredType?.descriptiveName())
+                },
+                returnType = node.declaredReturnType?.descriptiveName() ?: node.inferredReturnType?.descriptiveName(),
+            ).toCompletion()
+            is PropertyDeclarationNode -> SymbolEntry(
+                node.name,
+                runCatching { node.type.descriptiveName() }.getOrNull(),
+            ).toCompletion(CompletionItemTag.PROPERTY)
+            else -> null
         }
     }
 
@@ -653,6 +789,12 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
 
     private fun Char.isIdentifierStart() = this == '_' || isLetter()
     private fun Char.isIdentifierPart() = this == '_' || isLetterOrDigit()
+    private fun String.isNamespaced() = '.' in this
+
+    private fun SourcePosition.isInFile(name: String): Boolean {
+        if (filename.isBlank()) return true
+        return filename == name || filename.endsWith("/$name") || filename.endsWith("\\$name")
+    }
 
     private fun TokenType.isIdentifierToken(): Boolean {
         return when (this) {
@@ -711,11 +853,11 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val type: String?,
         val positionIndex: Int = Int.MIN_VALUE,
     ) {
-        fun toCompletion(tag: CompletionItemTag): CompletionItem.Declaration {
+        fun toCompletion(tag: CompletionItemTag, completionName: String = name): CompletionItem.Declaration {
             return declarationCompletionItem {
-                show = this@SymbolEntry.name
-                insert = this@SymbolEntry.name
-                this.name = this@SymbolEntry.name
+                show = completionName
+                insert = completionName
+                this.name = completionName
                 this.tag = tag
                 type?.let { tail = it }
             }
@@ -729,12 +871,12 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val parameters: List<ParameterEntry>,
         val returnType: String?,
     ) {
-        fun toCompletion(): CompletionItem.Declaration {
-            val insertText = "${this@FunctionEntry.name}()"
+        fun toCompletion(completionName: String = name): CompletionItem.Declaration {
+            val insertText = "$completionName()"
             return declarationCompletionItem {
-                show = this@FunctionEntry.name
+                show = completionName
                 insert = insertText
-                this.name = this@FunctionEntry.name
+                this.name = completionName
                 tag = CompletionItemTag.FUNCTION
                 middle = typeParameters.display() + parameters.joinToString(prefix = "(", postfix = ")") { it.display() }
                 returnType?.let { tail = it }
@@ -781,11 +923,21 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val enums: Map<String, List<String>>,
         val typedRanges: List<TypedRange>,
         val superTypes: Map<String, Set<String>>,
+        val namespaces: Map<String, Set<String>>,
     ) {
         fun localsBefore(offset: Int): List<SymbolEntry> = locals.filter { it.positionIndex < offset }
 
         fun localType(name: String, offset: Int): String? {
             return (localsBefore(offset) + globals).lastOrNull { it.name == name }?.type
+        }
+
+        fun canComplete(context: CompletionContext, offset: Int): Boolean {
+            val receiverName = context.receiverName ?: return true
+            return receiverName in namespaces ||
+                    typeAt(receiverName, context.receiverStart) != null ||
+                    localType(receiverName, offset) != null ||
+                    KatariEditorContextGlobalTypes[receiverName] != null ||
+                    receiverName in enums
         }
 
         fun typeAt(name: String, start: Int): String? {
@@ -821,6 +973,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     enums = emptyMap(),
                     typedRanges = emptyList(),
                     superTypes = emptyMap(),
+                    namespaces = emptyMap(),
                 )
             }
 
@@ -842,7 +995,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                         },
                         returnType = it.declaredReturnType?.descriptiveName(),
                     )
-                }
+                } + analysis.semanticScript.topLevelFunctions()
                 val properties = environment.getExtensionProperties(symbolTable).map {
                     PropertyEntry(it.declaredName, it.receiver, it.type)
                 }
@@ -896,6 +1049,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     enums = analysis.analysisEnumEntries(),
                     typedRanges = typedRanges,
                     superTypes = superTypes,
+                    namespaces = analysis.scriptNamespaces,
                 )
             }
         }
@@ -990,6 +1144,22 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
 
     private fun KatariNarrativeAnalysis.analysisEnumEntries(): Map<String, List<String>> {
         return enumDefinitions.mapValues { (_, definition) -> definition.entries.map { it.entryName } }
+    }
+
+    private fun ScriptNode.topLevelFunctions(): List<FunctionEntry> {
+        return nodes.filterIsInstance<FunctionDeclarationNode>().map { node ->
+            FunctionEntry(
+                name = node.name,
+                receiverType = node.receiver?.descriptiveName(),
+                typeParameters = node.typeParameters.map { parameter ->
+                    TypeParameterEntry(parameter.name, parameter.typeUpperBound?.descriptiveName())
+                },
+                parameters = node.valueParameters.map { parameter ->
+                    ParameterEntry(parameter.name, parameter.declaredType?.descriptiveName() ?: parameter.inferredType?.descriptiveName())
+                },
+                returnType = node.declaredReturnType?.descriptiveName() ?: node.inferredReturnType?.descriptiveName(),
+            )
+        }
     }
 
     private fun completionAnalysisTexts(text: String, offset: Int, context: CompletionContext): List<String> {
