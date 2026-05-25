@@ -364,6 +364,8 @@ class MinecraftUiRenderer {
     }
 
     private fun drawBox(command: DrawBoxCommand) {
+        RenderSystem.enableBlend()
+
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         when (val paint = command.paint) {
