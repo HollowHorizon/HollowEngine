@@ -2,7 +2,8 @@
 .idea/*
 !.idea/icon.svg
 .idea/liveTemplates/
-
+.codegraph
+.cursor
 mc-src/
 *.iml
 *.ipr

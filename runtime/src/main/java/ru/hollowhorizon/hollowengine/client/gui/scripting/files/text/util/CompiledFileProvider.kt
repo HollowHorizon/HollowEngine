@@ -28,6 +28,10 @@ private object AnalysisConfig {
     const val WRITE_DEBOUNCE_MS = 500L
 }
 
+private fun String.normalizeLineSeparators(): String {
+    return replace("\r\n", "\n").replace('\r', '\n')
+}
+
 class EditorAnalysisState {
     val completions: MutableList<CompletionItem> = mutableStateListOf()
     val diagnostics: MutableList<Diagnostic> = mutableStateListOf()
@@ -48,7 +52,7 @@ class CompiledFileProvider(
 
     var onTextChanged: ((String) -> Unit)? = null
 
-    var currentText: String = source.text
+    var currentText: String = source.text.normalizeLineSeparators()
         .replace("\t", " ".repeat(state.config.indentSize))
         private set(value) {
             field = value
@@ -146,16 +150,29 @@ class CompiledFileProvider(
     ): Vec2i {
         val currentTime = System.currentTimeMillis()
 
-        val safeStartLine = selectionStartLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
-        val safeEndLine = selectionEndLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
+        if (lines.isEmpty()) {
+            lines.add(ScriptTextLine(listOf("" to TextAttributes(font, Color.WHITE))))
+            currentText = ""
+        }
+
+        val editRange = normalizedEditRange(
+            selectionStartLine,
+            selectionEndLine,
+            selectionStartChar,
+            selectionEndChar,
+        )
+        val replacementText = replacement.normalizeLineSeparators()
+
+        val safeStartLine = editRange.start.line
+        val safeEndLine = editRange.end.line
+        val safeStartChar = editRange.start.char
+        val safeEndChar = editRange.end.char
         val startLineText = lines[safeStartLine].text
         val endLineText = lines[safeEndLine].text
-        val safeStartChar = selectionStartChar.coerceIn(0, startLineText.length)
-        val safeEndChar = selectionEndChar.coerceIn(0, endLineText.length)
 
         val lineBefore = startLineText.substring(0, safeStartChar)
         val lineAfter = endLineText.substring(safeEndChar)
-        val newTextFull = lineBefore + replacement + lineAfter
+        val newTextFull = lineBefore + replacementText + lineAfter
         val newLinesRaw = newTextFull.split('\n')
 
         val oldLinesList = (safeStartLine..safeEndLine).map { lines[it] }
@@ -169,7 +186,7 @@ class CompiledFileProvider(
                         oldLinesList.single().inlayHints,
                         safeStartChar,
                         safeEndChar,
-                        replacement.length,
+                        replacementText.length,
                         line.length,
                     )
                 )
@@ -180,10 +197,7 @@ class CompiledFileProvider(
 
         lines.subList(safeStartLine, safeStartLine + numLinesToRemove).clear()
         lines.addAll(safeStartLine, newTextLines)
-        val textBeforeEdit = currentText
-        val startOffset = offset(textBeforeEdit, safeStartLine, safeStartChar)
-        val endOffset = offset(textBeforeEdit, safeEndLine, safeEndChar)
-        currentText = textBeforeEdit.replaceRange(startOffset, endOffset, replacement).replace("\r\n", "\n")
+        currentText = lines.joinToString("\n") { it.text }
 
         val newCaretLine = safeStartLine + newLinesRaw.lastIndex
         val newCaretChar = newLinesRaw.last().length - lineAfter.length
@@ -192,12 +206,41 @@ class CompiledFileProvider(
             safeStartLine, safeStartChar,
             newCaretLine, newCaretChar,
             oldLinesList, newTextLines,
-            replacement, currentTime
+            replacementText, currentTime
         )
 
         requestAnalysis(newCaretLine, newCaretChar)
 
         return Vec2i(newCaretChar, newCaretLine)
+    }
+
+    private data class EditPosition(val line: Int, val char: Int)
+
+    private data class EditRange(val start: EditPosition, val end: EditPosition)
+
+    private fun normalizedEditRange(
+        startLine: Int,
+        endLine: Int,
+        startChar: Int,
+        endChar: Int,
+    ): EditRange {
+        val start = clampedEditPosition(startLine, startChar)
+        val end = clampedEditPosition(endLine, endChar)
+        return if (isBeforeOrEqual(start, end)) {
+            EditRange(start, end)
+        } else {
+            EditRange(end, start)
+        }
+    }
+
+    private fun clampedEditPosition(line: Int, char: Int): EditPosition {
+        val safeLine = line.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
+        val safeChar = char.coerceIn(0, lines[safeLine].text.length)
+        return EditPosition(safeLine, safeChar)
+    }
+
+    private fun isBeforeOrEqual(left: EditPosition, right: EditPosition): Boolean {
+        return left.line < right.line || left.line == right.line && left.char <= right.char
     }
 
     private fun handleHistoryUpdate(
