@@ -22,7 +22,13 @@ object HollowEnginePack : PathPackResources(
     private val packMetadata: String = JsonObject().apply {
         add("pack", JsonObject().apply {
             addProperty("description", "HollowEngine Folder Resources")
-            addProperty("pack_format", SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major)
+            addProperty("pack_format", SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES))
+            // in new version pack_format not supported
+            /*
+            // if version >1.21.1
+            addProperty("min_format", SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major)
+            addProperty("max_format", SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major)
+            */
         })
     }.toString()
 
