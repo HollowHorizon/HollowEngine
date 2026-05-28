@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.data
 
 import com.google.gson.JsonObject
+import net.minecraft.SharedConstants
 import net.minecraft.server.packs.PackLocationInfo
 import net.minecraft.server.packs.PathPackResources
 import net.minecraft.server.packs.repository.PackSource
@@ -21,7 +22,7 @@ object HollowEnginePack : PathPackResources(
     private val packMetadata: String = JsonObject().apply {
         add("pack", JsonObject().apply {
             addProperty("description", "HollowEngine Folder Resources")
-            addProperty("pack_format", 9)
+            addProperty("pack_format", SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major)
         })
     }.toString()
 
