@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import net.minecraft.SharedConstants
 import net.minecraft.server.packs.PackLocationInfo
 import net.minecraft.server.packs.PathPackResources
+import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.repository.PackSource
 import net.minecraft.server.packs.resources.IoSupplier
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
