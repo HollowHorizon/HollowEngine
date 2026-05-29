@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 object UiLanguageCatalog {
-    val elementTypes = listOf("box", "text", "image", "item", "entity", "canvas", "button")
+    val elementTypes = listOf("box", "text", "image", "item", "entity", "canvas")
 
     val states = listOf("hover", "active", "focus", "disabled", "selected", "dragging")
 
@@ -14,25 +14,25 @@ object UiLanguageCatalog {
         UiAttribute("size"),
         UiAttribute("width"),
         UiAttribute("height"),
-        UiAttribute("min-size"),
-        UiAttribute("max-size"),
-        UiAttribute("aspect-ratio"),
+        UiAttribute("minSize"),
+        UiAttribute("maxSize"),
+        UiAttribute("aspectRatio"),
         UiAttribute("padding"),
         UiAttribute("margin"),
         UiAttribute("gap"),
         UiAttribute("align", "start start"),
-        UiAttribute("align-items", "start start"),
+        UiAttribute("alignItems", "start start"),
         UiAttribute("grow"),
         UiAttribute("position"),
         UiAttribute("background"),
-        UiAttribute("background-image", "image(\"\")"),
-        UiAttribute("image-slice"),
+        UiAttribute("backgroundImage", "image(\"\")"),
+        UiAttribute("imageSlice"),
         UiAttribute("foreground"),
         UiAttribute("color"),
         UiAttribute("border"),
-        UiAttribute("border-radius"),
+        UiAttribute("borderRadius"),
         UiAttribute("shadow"),
-        UiAttribute("box-shadow"),
+        UiAttribute("boxShadow"),
         UiAttribute("opacity"),
         UiAttribute("translate"),
         UiAttribute("rotate"),
@@ -40,8 +40,8 @@ object UiLanguageCatalog {
         UiAttribute("pivot", "center"),
         UiAttribute("perspective"),
         UiAttribute("filter"),
-        UiAttribute("backdrop-filter"),
-        UiAttribute("backface-visibility"),
+        UiAttribute("backdropFilter"),
+        UiAttribute("backfaceVisibility"),
         UiAttribute("hoverable", "true"),
         UiAttribute("clickable", "true"),
         UiAttribute("focusable", "true"),
@@ -49,9 +49,10 @@ object UiLanguageCatalog {
         UiAttribute("scrollable", "true"),
         UiAttribute("clip", "true"),
         UiAttribute("layer"),
-        UiAttribute("text-wrap"),
-        UiAttribute("text-align"),
-        UiAttribute("font-size"),
+        UiAttribute("textWrap"),
+        UiAttribute("textAlign"),
+        UiAttribute("fontSize"),
+        UiAttribute("typing"),
         UiAttribute("transition"),
         UiAttribute("onClick", "{event:\"\"}"),
         UiAttribute("onDrag", "{event:\"\"}"),
@@ -59,12 +60,11 @@ object UiLanguageCatalog {
 
     val elementAttributes = mapOf(
         "import" to listOf(UiAttribute("element"), UiAttribute("named")),
-        "text" to listOf(UiAttribute("value")),
-        "image" to listOf(UiAttribute("source"), UiAttribute("src"), UiAttribute("image"), UiAttribute("image-fit")),
+        "text" to listOf(UiAttribute("text")),
+        "image" to listOf(UiAttribute("source"), UiAttribute("src"), UiAttribute("image"), UiAttribute("imageFit")),
         "item" to listOf(UiAttribute("item"), UiAttribute("value")),
         "entity" to listOf(UiAttribute("entity"), UiAttribute("value")),
         "canvas" to listOf(UiAttribute("renderer")),
-        "button" to listOf(UiAttribute("value")),
     )
 
     val hssProperties = listOf(
@@ -131,6 +131,7 @@ object UiLanguageCatalog {
         "text-wrap",
         "text-align",
         "font-size",
+        "typing",
         "wrap",
         "transition",
     )
@@ -191,6 +192,7 @@ object UiLanguageCatalog {
         "text-wrap" to listOf("wrap", "nowrap"),
         "text-align" to listOf("left", "center", "right", "justify"),
         "font-size" to listOf("10px", "12px", "16px", "24px"),
+        "typing" to listOf("auto linear", "auto ease-out", "5s ease-in", "none"),
         "wrap" to listOf("wrap", "nowrap"),
     )
 
@@ -199,7 +201,20 @@ object UiLanguageCatalog {
         return (specific + globalAttributes).distinctBy { it.name }
     }
 
-    fun valuesFor(property: String): List<String> = valueCompletions[property.lowercase()].orEmpty()
+    fun valuesFor(property: String): List<String> = valueCompletions[property.toStylePropertyName()].orEmpty()
+
+    private fun String.toStylePropertyName(): String {
+        val result = StringBuilder()
+        forEachIndexed { index, char ->
+            if (char.isUpperCase()) {
+                if (index > 0) result.append('-')
+                result.append(char.lowercaseChar())
+            } else {
+                result.append(char.lowercaseChar())
+            }
+        }
+        return result.toString()
+    }
 
     private fun alignValues(): List<String> = listOf("start start", "center center", "end end", "start center", "center start")
 

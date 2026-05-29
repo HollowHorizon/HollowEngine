@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.JsonScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiMarkupScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptingAnalyzer
 
 interface EditorLanguageService {
@@ -16,7 +16,7 @@ fun EditorLanguageService(extension: String): EditorLanguageService {
         "kt", "kts" -> KotlinEditorLanguageService
         "ktr" -> KatariEditorLanguageService
         "json" -> JsonEditorLanguageService
-        "ui" -> UiMarkupEditorLanguageService
+        "ui" -> UiXmlEditorLanguageService
         "hss" -> HssEditorLanguageService
         else -> error("Unsupported language: $extension")
     }
@@ -37,9 +37,9 @@ object KatariEditorLanguageService : EditorLanguageService {
         get() = KatariScriptingAnalyzer
 }
 
-object UiMarkupEditorLanguageService : EditorLanguageService {
+object UiXmlEditorLanguageService : EditorLanguageService {
     override val analyzer: ScriptingAnalyzer
-        get() = UiMarkupScriptingAnalyzer
+        get() = UiXmlScriptingAnalyzer
 }
 
 object HssEditorLanguageService : EditorLanguageService {

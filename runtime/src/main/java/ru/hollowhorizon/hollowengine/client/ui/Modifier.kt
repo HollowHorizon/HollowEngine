@@ -138,6 +138,8 @@ sealed interface Modifier {
 
         fun fontSize(value: Float) = StyleModifier { it.fontSize = value.coerceAtLeast(0.0001f) }
 
+        fun typing(value: UiTyping?) = StyleModifier { it.typing = value }
+
         fun transition(vararg transitions: UiTransition) = StyleModifier { it.transitions = transitions.toList() }
 
         fun onInit(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.INIT, handler)

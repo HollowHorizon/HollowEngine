@@ -7,7 +7,7 @@ import com.sunnychung.lib.multiplatform.kotlite.model.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiMarkupScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
 import java.util.*
 
 private val keywords = setOf(
@@ -500,7 +500,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
     private fun embeddedMarkupRanges(text: String): List<StyledRange> {
         return xmlLiteralRanges(text).flatMap { range ->
             val fragment = text.substring(range.start, range.end)
-            UiMarkupScriptingAnalyzer.highlight("<katari-ui-literal>", fragment, 0)
+            UiXmlScriptingAnalyzer.highlight("<katari-ui-literal>", fragment, 0)
                 .flatMapIndexed { lineIndex, line ->
                     var column = 0
                     line.spans.map { (token, style) ->

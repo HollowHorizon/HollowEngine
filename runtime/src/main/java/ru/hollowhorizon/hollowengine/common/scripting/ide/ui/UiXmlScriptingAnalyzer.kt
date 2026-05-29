@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.xml.UiMarkupParseException
-import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiMarkup
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlParseException
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 
-object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
+object UiXmlScriptingAnalyzer : ScriptingAnalyzer {
     private val defaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
     private val tagStyle = SpanStyle(TokenType.KEYWORD, italic = false, bold = true, highlight = false)
     private val attrStyle = SpanStyle(TokenType.PROPERTY_IDENTIFIER, italic = false, bold = false, highlight = false)
@@ -31,9 +31,9 @@ object UiMarkupScriptingAnalyzer : ScriptingAnalyzer {
 
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         return try {
-            parseUiMarkup(text)
+            parseUiXml(text, name)
             emptyList()
-        } catch (exception: UiMarkupParseException) {
+        } catch (exception: UiXmlParseException) {
             listOf(diagnosticAt(text, exception.position, exception.messageText))
         } catch (exception: IllegalArgumentException) {
             listOf(diagnosticAt(text, 0, exception.message ?: "Invalid UI markup"))

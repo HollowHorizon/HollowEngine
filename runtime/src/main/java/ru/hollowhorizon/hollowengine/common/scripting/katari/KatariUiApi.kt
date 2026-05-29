@@ -4,7 +4,12 @@ import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
 import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
 import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter
+import com.sunnychung.lib.multiplatform.kotlite.model.FunctionResponse
 import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallContext
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallDispatchContext
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallResult
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallable
 import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
 import com.sunnychung.lib.multiplatform.kotlite.model.BooleanValue
 import com.sunnychung.lib.multiplatform.kotlite.model.DoubleValue
@@ -17,6 +22,8 @@ import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
 import com.sunnychung.lib.multiplatform.kotlite.model.StructArrayValue
 import com.sunnychung.lib.multiplatform.kotlite.model.StructValue
 import com.sunnychung.lib.multiplatform.kotlite.model.STRUCT_VALUE_TYPE_ID
+import com.sunnychung.lib.multiplatform.kotlite.model.SymbolTable
+import com.sunnychung.lib.multiplatform.kotlite.model.TypeParameter
 import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.ByteTag
@@ -32,13 +39,14 @@ import net.minecraft.nbt.StringTag
 import net.minecraft.nbt.Tag
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.common.events.EventListener
 import ru.hollowhorizon.hollowengine.client.ui.scripting.CloseKatariUiScreenPacket
 import ru.hollowhorizon.hollowengine.client.ui.scripting.HideKatariUiOverlayPacket
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
 import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
 import ru.hollowhorizon.hollowengine.client.ui.xml.from
-import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiMarkup
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
@@ -46,6 +54,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnaps
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedRuntimeValueResponse
 import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.nio.file.Files
@@ -69,7 +78,7 @@ class KatariUiDocument(
 @ScriptBinding("ui")
 fun katariUi(path: String): KatariUiDocument {
     val source = readUiResourceText(ResourceLocation.parse(path))
-    return KatariUiDocument(root = UiXmlTree.from(parseUiMarkup(source)))
+    return KatariUiDocument(root = parseUiXml(source, path))
 }
 
 @ScriptBinding("ui")
@@ -88,8 +97,17 @@ fun KatariUiDocument.openScreen(player: Player) {
     send(player, KatariUiDisplayMode.SCREEN, CompoundTag())
 }
 
+@ScriptBinding
+fun KatariUiDocument.openScreen(players: List<Player>) {
+    send(players, KatariUiDisplayMode.SCREEN, CompoundTag())
+}
+
 fun KatariUiDocument.openScreen(player: Player, variables: StructValue) {
     send(player, KatariUiDisplayMode.SCREEN, variables.toCompoundTag())
+}
+
+fun KatariUiDocument.openScreen(players: List<Player>, variables: StructValue) {
+    send(players, KatariUiDisplayMode.SCREEN, variables.toCompoundTag())
 }
 
 @ScriptBinding
@@ -97,8 +115,17 @@ fun KatariUiDocument.showScreen(player: Player) {
     openScreen(player)
 }
 
+@ScriptBinding
+fun KatariUiDocument.showScreen(players: List<Player>) {
+    openScreen(players)
+}
+
 fun KatariUiDocument.showScreen(player: Player, variables: StructValue) {
     openScreen(player, variables)
+}
+
+fun KatariUiDocument.showScreen(players: List<Player>, variables: StructValue) {
+    openScreen(players, variables)
 }
 
 @ScriptBinding
@@ -106,8 +133,17 @@ fun KatariUiDocument.showOverlay(player: Player) {
     send(player, KatariUiDisplayMode.OVERLAY, CompoundTag())
 }
 
+@ScriptBinding
+fun KatariUiDocument.showOverlay(players: List<Player>) {
+    send(players, KatariUiDisplayMode.OVERLAY, CompoundTag())
+}
+
 fun KatariUiDocument.showOverlay(player: Player, variables: StructValue) {
     send(player, KatariUiDisplayMode.OVERLAY, variables.toCompoundTag())
+}
+
+fun KatariUiDocument.showOverlay(players: List<Player>, variables: StructValue) {
+    send(players, KatariUiDisplayMode.OVERLAY, variables.toCompoundTag())
 }
 
 @ScriptBinding
@@ -117,12 +153,21 @@ fun KatariUiDocument.closeScreen(player: Player) {
 }
 
 @ScriptBinding
+fun KatariUiDocument.closeScreen(players: List<Player>) {
+    players.forEach(::closeScreen)
+}
+
+@ScriptBinding
 fun KatariUiDocument.hideOverlay(player: Player) {
     val serverPlayer = player as? ServerPlayer ?: error("hideOverlay requires a server player")
     HideKatariUiOverlayPacket(id).send(serverPlayer)
 }
 
 @ScriptBinding
+fun KatariUiDocument.hideOverlay(players: List<Player>) {
+    players.forEach(::hideOverlay)
+}
+
 suspend fun KatariUiDocument.await(player: Player): CompoundTag {
     val playerId = player.uuid.toString()
     return KatariUiEvent.await { event ->
@@ -130,26 +175,41 @@ suspend fun KatariUiDocument.await(player: Player): CompoundTag {
     }.payload
 }
 
+suspend fun KatariUiDocument.await(): CompoundTag {
+    return KatariUiEvent.await { event -> event.uiId == id }.payload
+}
+
 fun NarrativeBindingsBuilder.registerKatariUiStructBindings() {
     fun screenFunction(name: String, mode: KatariUiDisplayMode) {
-        immediateFunction(
+        fun registerScreenFunction(playerType: String, sender: (KatariUiDocument, RuntimeValue, StructValue) -> Unit) = immediateFunction(
             name = name,
             receiverType = "Ui",
             valueParameters = listOf(
-                CustomFunctionParameter("player", "Player"),
+                CustomFunctionParameter("player", playerType),
                 CustomFunctionParameter("variables", STRUCT_VALUE_TYPE_ID),
             ),
         ) { arguments, _ ->
             val ui = KatariGeneratedBindingRuntime.asHost<KatariUiDocument>(arguments[0], "Ui", "receiver")
-            val player = KatariGeneratedBindingRuntime.asHost<Player>(arguments[1], "Player", "player")
             val variables = arguments[2] as? StructValue ?: error("$name variables expects StructValue")
-            ui.send(player, mode, variables.toCompoundTag())
+            sender(ui, arguments[1], variables)
             NullValue
+        }
+
+        registerScreenFunction("Player") { ui, playerValue, variables ->
+            val player = KatariGeneratedBindingRuntime.asHost<Player>(playerValue, "Player", "player")
+            ui.send(player, mode, variables.toCompoundTag())
+        }
+        registerScreenFunction("List<Player>") { ui, playersValue, variables ->
+            val players = KatariGeneratedBindingRuntime.asList(playersValue, "players") { value, index ->
+                KatariGeneratedBindingRuntime.asHost<Player>(value, "Player", "players[$index]")
+            }
+            ui.send(players, mode, variables.toCompoundTag())
         }
     }
     screenFunction("openScreen", KatariUiDisplayMode.SCREEN)
     screenFunction("showScreen", KatariUiDisplayMode.SCREEN)
     screenFunction("showOverlay", KatariUiDisplayMode.OVERLAY)
+    register(KatariUiAwaitCallable)
 }
 
 @Serializable
@@ -172,6 +232,58 @@ data class KatariUiDocumentSnapshot(
 private fun KatariUiDocument.send(player: Player, mode: KatariUiDisplayMode, variables: CompoundTag) {
     val serverPlayer = player as? ServerPlayer ?: error("$mode requires a server player")
     ShowKatariUiPacket(id, root, mode, variables).send(serverPlayer)
+}
+
+private fun KatariUiDocument.send(players: Iterable<Player>, mode: KatariUiDisplayMode, variables: CompoundTag) {
+    players.forEach { player -> send(player, mode, variables.copy()) }
+}
+
+private data object KatariUiAwaitCallable : NarrativeCallable {
+    override val id: String = "await"
+    override val receiverType: String? = "Ui"
+    override val returnType: String = STRUCT_VALUE_TYPE_ID
+    override val typeParameters: List<TypeParameter> = emptyList()
+    override val valueParameters: List<CustomFunctionParameter> = listOf(
+        CustomFunctionParameter("player", "Player?", "null"),
+    )
+
+    override suspend fun startCall(arguments: List<RuntimeValue>, context: NarrativeCallContext): NarrativeCallResult {
+        return NarrativeCallResult.Suspended
+    }
+
+    override suspend fun resumeCall(
+        arguments: List<RuntimeValue>,
+        response: FunctionResponse?,
+        context: NarrativeCallContext,
+    ): NarrativeCallResult {
+        return when (response) {
+            is GeneratedRuntimeValueResponse -> NarrativeCallResult.Returned(response.value)
+            else -> NarrativeCallResult.Returned(StructValue(emptyMap(), context.symbolTable))
+        }
+    }
+
+    override fun dispatch(
+        arguments: List<RuntimeValue>,
+        context: NarrativeCallDispatchContext,
+        resume: (FunctionResponse?) -> Unit,
+    ) {
+        val ui = KatariGeneratedBindingRuntime.asHost<KatariUiDocument>(arguments[0], "Ui", "receiver")
+        val player = arguments.getOrNull(1)
+            ?.takeUnless { it == NullValue }
+            ?.let { KatariGeneratedBindingRuntime.asHost<Player>(it, "Player", "player") }
+        val playerId = player?.uuid?.toString()
+        val listener = object : EventListener<KatariUiEvent> {
+            override val priority: Int = 0
+
+            override fun invoke(event: KatariUiEvent) {
+                if (event.uiId != ui.id) return
+                if (playerId != null && event.player.uuid.toString() != playerId) return
+                KatariUiEvent.unregister(this)
+                resume(GeneratedRuntimeValueResponse(event.payload.toStructValue(context.symbolTable)))
+            }
+        }
+        KatariUiEvent.register(listener)
+    }
 }
 
 private fun UiXmlTree.insertIntoFirst(
@@ -240,5 +352,28 @@ private fun RuntimeValue.toNbtTag(): Tag {
         is StructValue -> toCompoundTag()
         is StructArrayValue -> ListTag().also { list -> elements.forEach { list.add(it.toNbtTag()) } }
         else -> StringTag.valueOf(convertToString())
+    }
+}
+
+private fun CompoundTag.toStructValue(symbolTable: SymbolTable): StructValue {
+    return StructValue(
+        fields = allKeys.associateWith { key -> get(key).toRuntimeValue(symbolTable) },
+        symbolTable = symbolTable,
+    )
+}
+
+private fun Tag?.toRuntimeValue(symbolTable: SymbolTable): RuntimeValue {
+    return when (this) {
+        null -> NullValue
+        is ByteTag -> BooleanValue(asByte.toInt() != 0, symbolTable)
+        is ShortTag -> IntValue(asShort.toInt(), symbolTable)
+        is IntTag -> IntValue(asInt, symbolTable)
+        is LongTag -> LongValue(asLong, symbolTable)
+        is FloatTag -> FloatValue(asFloat, symbolTable)
+        is DoubleTag -> DoubleValue(asDouble, symbolTable)
+        is StringTag -> StringValue(asString, symbolTable)
+        is CompoundTag -> toStructValue(symbolTable)
+        is ListTag -> StructArrayValue(map { it.toRuntimeValue(symbolTable) }, symbolTable)
+        else -> StringValue(asString, symbolTable)
     }
 }

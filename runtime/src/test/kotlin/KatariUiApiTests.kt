@@ -1,3 +1,5 @@
+import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
+import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_VALUE_ATTRIBUTE
 import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlBuilder
@@ -11,19 +13,21 @@ import kotlin.test.assertIs
 
 class KatariUiApiTests {
     @Test
-    fun `ui xml supports button text attribute`() {
+    fun `ui xml supports boxed text composition`() {
         val root = parseUi(
             """
             <box>
-                <button text="Continue" />
+                <box id="continue">
+                    <text>Continue</text>
+                </box>
             </box>
             """.trimIndent(),
         )
 
-        val button = assertIs<BaseUiNode>(root.children.single())
-        val text = assertIs<TextNode>(button.children.single())
+        val container = assertIs<BaseUiNode>(root.children.single())
+        val text = assertIs<TextNode>(container.children.single())
 
-        assertEquals("button", button.type)
+        assertEquals("box", container.type)
         assertEquals("Continue", text.text.template)
     }
 
@@ -34,13 +38,24 @@ class KatariUiApiTests {
             root = UiXmlTree("box", mapOf("tags" to "container")),
         )
 
-        document.insertAt("container", UiXmlTree("button", mapOf("text" to "Extra")))
+        document.insertAt(
+            "container",
+            UiXmlTree(
+                "box",
+                children = listOf(
+                    UiXmlTree(
+                        "text",
+                        children = listOf(UiXmlTree(XML_TEXT_NODE_NAME, mapOf(XML_TEXT_VALUE_ATTRIBUTE to "Extra"))),
+                    ),
+                ),
+            ),
+        )
 
         val root = UiXmlBuilder().build(document.root)
-        val button = assertIs<BaseUiNode>(root.children.single())
-        val text = assertIs<TextNode>(button.children.single())
+        val container = assertIs<BaseUiNode>(root.children.single())
+        val text = assertIs<TextNode>(container.children.single())
 
-        assertEquals("button", button.type)
+        assertEquals("box", container.type)
         assertEquals("Extra", text.text.template)
     }
 
@@ -51,11 +66,27 @@ class KatariUiApiTests {
             """
             val gui = ui(
                 <box tags="container">
-                    <button text="Continue" />
-                    <button text="Cancel" />
+                    <box><text>Continue</text></box>
+                    <box><text>Cancel</text></box>
                 </box>
             )
-            gui.insertAt("container", <button text="Extra" />)
+            gui.insertAt("container", <box><text>Extra</text></box>)
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), diagnostics)
+    }
+
+    @Test
+    fun `katari analyzer accepts ui await payload as struct`() {
+        val diagnostics = KatariScriptingAnalyzer.diagnostic(
+            "ui_await.ktr",
+            """
+            val gui = ui(<box />)
+            val anyPayload = gui.await()
+            val playerPayload = gui.await(player)
+            anyPayload.getString("event")
+            playerPayload.getString("event")
             """.trimIndent(),
         )
 

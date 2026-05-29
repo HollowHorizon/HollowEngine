@@ -1,6 +1,10 @@
 <script from="hollowengine:ui/examples/client_events.ktr" />
 <box id="client-events-demo" layout="column" size="220px auto" padding="8px" gap="6px">
-    <text id="dialog-text" background="#333399" value="Client event demo" />
-    <button id="accept" tags="primary action" background="#339933" onPressed='emit(struct { event: "pressed", button: "accept", value: vars.string("value") })'>Accept</button>
-    <button id="decline" tags="secondary action" background="#993333">Decline</button>
+    <text id="dialog-text" background="#333399">Client event demo</text>
+    <box id="accept" tags="primary action" background="#339933" onPressed='emit(struct { event: "pressed", button: "accept", value: vars.string("value") })'>
+        <text>Accept</text>
+    </box>
+    <box id="decline" tags="secondary action" background="#993333">
+        <text>Decline</text>
+    </box>
 </box>

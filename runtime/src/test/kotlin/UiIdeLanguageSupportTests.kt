@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiTransformPivot
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiMarkupScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,24 +17,24 @@ class UiIdeLanguageSupportTests {
     fun `ui closing completion uses innermost open element`() {
         val text = """
             <box>
-                <button>
+                <text>
                     </
-                </button>
+                </text>
             </box>
         """.trimIndent()
         val offset = text.indexOf("</") + 2
 
-        val completions = UiMarkupScriptingAnalyzer.completions("preview.ui", text, offset)
+        val completions = UiXmlScriptingAnalyzer.completions("preview.ui", text, offset)
 
-        assertEquals(listOf("button"), completions.map { it.show })
-        assertEquals("button>", completions.single().insert)
+        assertEquals(listOf("text"), completions.map { it.show })
+        assertEquals("text>", completions.single().insert)
     }
 
     @Test
     fun `ui attribute completion depends on element type`() {
         val text = """<image s"""
 
-        val completions = UiMarkupScriptingAnalyzer.completions("preview.ui", text, text.length)
+        val completions = UiXmlScriptingAnalyzer.completions("preview.ui", text, text.length)
             .map { it.show }
 
         assertTrue("source" in completions)
@@ -47,7 +47,7 @@ class UiIdeLanguageSupportTests {
     fun `ui attribute completion does not open on empty attribute prefix`() {
         val text = """<box """
 
-        val completions = UiMarkupScriptingAnalyzer.completions("preview.ui", text, text.length)
+        val completions = UiXmlScriptingAnalyzer.completions("preview.ui", text, text.length)
 
         assertTrue(completions.isEmpty())
     }
@@ -56,7 +56,7 @@ class UiIdeLanguageSupportTests {
     fun `ui attribute value completion suggests supported values`() {
         val text = """<box align="cen"""
 
-        val completions = UiMarkupScriptingAnalyzer.completions("preview.ui", text, text.length)
+        val completions = UiXmlScriptingAnalyzer.completions("preview.ui", text, text.length)
             .map { it.show }
 
         assertTrue("center center" in completions)

@@ -150,9 +150,11 @@ class UiCommandRenderer {
         resolved: ResolvedUiTree,
         layout: UiLayoutResult,
         bindings: UiBindingContext = UiBindingContext(),
+        nowMillis: Long = 0L,
+        typingState: UiTypingState = UiTypingState(),
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        collectNode(resolved.root, resolved, layout, bindings, commands)
+        collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands)
         return commands
     }
 
@@ -161,6 +163,8 @@ class UiCommandRenderer {
         resolved: ResolvedUiTree,
         layout: UiLayoutResult,
         bindings: UiBindingContext,
+        nowMillis: Long,
+        typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>,
     ) {
         val style = resolved[node]
@@ -206,11 +210,11 @@ class UiCommandRenderer {
         val pushedClip = style.clip || style.input.scrollable
         if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
 
-        collectNodeContent(node, style, layoutNode, baseFilter, bindings, commands)
+        collectNodeContent(node, style, layoutNode, baseFilter, bindings, nowMillis, typingState, commands)
 
         node.children
             .sortedBy { resolved[it].layer }
-            .forEach { collectNode(it, resolved, layout, bindings, commands) }
+            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
 
         if (pushedClip) commands += PopClipCommand(node)
         if (style.input.scrollable) appendScrollbars(node, layoutNode, style, bindings, commands)
@@ -223,6 +227,8 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         filter: UiFilterChain,
         bindings: UiBindingContext,
+        nowMillis: Long,
+        typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>
     ) {
         val contentTransform = layoutNode.worldTransform * UiMatrix4.translation(
@@ -235,9 +241,14 @@ class UiCommandRenderer {
 
         when (node) {
             is TextNode -> {
-                val textString = node.text.resolve(bindings)
+                val fullContent = node.content.resolve(bindings)
+                val visibleContent = fullContent.visibleBy(
+                    style.typing,
+                    typingState.elapsed(node, style.typing, fullContent.text, nowMillis),
+                )
+                val textString = visibleContent.text
                 val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-                val textLayout = UiTextLayouter.layout(textString, layoutNode.content.width, textHeight, style.textWrap, style.textAlign, style.fontSize)
+                val textLayout = UiTextLayouter.layout(visibleContent.toRichText(), layoutNode.content.width, textHeight, style.textWrap, style.textAlign, style.fontSize)
 
                 commands += DrawTextCommand(
                     node, layoutNode.content, textString, style.foreground, opacity, contentTransform,
@@ -324,6 +335,35 @@ class UiCommandRenderer {
             }
         }
     }
+}
+
+class UiTypingState {
+    private val starts = linkedMapOf<String, TypingStart>()
+
+    fun elapsed(node: UiNode, typing: UiTyping?, text: String, nowMillis: Long): Long {
+        if (typing == null) {
+            starts.remove(UiNodeKeys.key(node))
+            return Long.MAX_VALUE
+        }
+        val key = UiNodeKeys.key(node)
+        val signature = TypingSignature(text, typing)
+        val current = starts[key]
+        if (current == null || current.signature != signature) {
+            starts[key] = TypingStart(signature, nowMillis)
+            return 0L
+        }
+        return (nowMillis - current.startedAtMillis).coerceAtLeast(0L)
+    }
+
+    private data class TypingStart(
+        val signature: TypingSignature,
+        val startedAtMillis: Long,
+    )
+
+    private data class TypingSignature(
+        val text: String,
+        val typing: UiTyping,
+    )
 }
 
 sealed interface UiResolvedPaint {

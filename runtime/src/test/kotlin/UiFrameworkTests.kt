@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.PushClipCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.percent
@@ -591,7 +592,7 @@ class UiFrameworkTests {
         val emitted = mutableListOf<CompoundTag>()
         val resources = UiResourceLoader { location ->
             when (location) {
-                "hollowengine:ui/elements/my_custom_button.ui" -> "<button id='custom' size='40px 10px'>Custom</button>"
+                "hollowengine:ui/elements/my_custom_button.ui" -> "<box id='custom' size='40px 10px'><text>Custom</text></box>"
                 else -> error("Unexpected resource $location")
             }
         }
@@ -600,7 +601,9 @@ class UiFrameworkTests {
             """
             <import element="hollowengine:ui/elements/my_custom_button.ui" named="custom_button" />
             <box layout="auto" size="100% 100%">
-                <button id="hello" onClick='{event:"pressed";button:"hello";mouse:<it.button>}'>Hello</button>
+                <box id="hello" onClick='{event:"pressed";button:"hello";mouse:<it.button>}'>
+                    <text>Hello</text>
+                </box>
                 <custom_button margin="2px" />
             </box>
             """.trimIndent(),
@@ -627,7 +630,9 @@ class UiFrameworkTests {
         val root = parseUi(
             """
             <box>
-                <button id="accept" onPressed='emit(struct { event: "pressed", button: it.id, mouse: it.mouseButton, value: vars.string("value") })'>Accept</button>
+                <box id="accept" onPressed='emit(struct { event: "pressed", button: it.id, mouse: it.mouseButton, value: vars.string("value") })'>
+                    <text>Accept</text>
+                </box>
             </box>
             """.trimIndent(),
             UiXmlOptions(eventSink = UiEventSink { emitted += it }),
@@ -643,6 +648,43 @@ class UiFrameworkTests {
         assertEquals("accept", emitted.single().getString("button"))
         assertEquals(1, emitted.single().getInt("mouse"))
         assertEquals("from-server", emitted.single().getString("value"))
+    }
+
+    @Test
+    fun `ui xml builds structured text children without value attribute formatting`() {
+        val root = parseUi(
+            """
+            <box>
+                <text id="dialog">This <b>text</b> has <u>formatting</u>.<pause delay="2s" /> Done.</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.children.single() as TextNode
+
+        val command = HollowUiRuntime().frame(root, 240f, 80f).textCommand(text)
+        val runs = command.layout.lines.flatMap { it.fragments }.filterIsInstance<UiTextRun>()
+
+        assertEquals("This text has formatting. Done.", command.text)
+        assertTrue(runs.first { it.text == "text" }.style.bold)
+        assertTrue(runs.first { it.text == "formatting" }.style.underline)
+    }
+
+    @Test
+    fun `typing style reveals text over time and accounts for pauses`() {
+        val root = parseUi(
+            """
+            <box>
+                <text id="dialog" typing="auto linear">ab<pause delay="100ms" />cd</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.children.single() as TextNode
+        val runtime = HollowUiRuntime()
+
+        assertEquals("", runtime.frame(root, 240f, 80f, nowMillis = 0L).textCommand(text).text)
+        assertEquals("ab", runtime.frame(root, 240f, 80f, nowMillis = 80L).textCommand(text).text)
+        assertEquals("ab", runtime.frame(root, 240f, 80f, nowMillis = 180L).textCommand(text).text)
+        assertEquals("abcd", runtime.frame(root, 240f, 80f, nowMillis = 260L).textCommand(text).text)
     }
 
     @Test

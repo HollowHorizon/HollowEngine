@@ -76,6 +76,7 @@ data class MutableUiStyle(
     var textWrap: Boolean? = null,
     var textAlign: UiTextAlign? = null,
     var fontSize: Float? = null,
+    var typing: UiTyping? = null,
     var transitions: List<UiTransition>? = null,
     var explicitProperties: Set<UiStyleProperty>? = null,
 ) {
@@ -118,6 +119,7 @@ data class MutableUiStyle(
         other.textWrap?.let { textWrap = it }
         other.textAlign?.let { textAlign = it }
         other.fontSize?.let { fontSize = it }
+        other.typing?.let { typing = it }
         other.transitions?.let { transitions = it }
         other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
     }
@@ -165,6 +167,7 @@ data class MutableUiStyle(
             textWrap = textWrap ?: true,
             textAlign = textAlign ?: inheritedTextAlign,
             fontSize = fontSize ?: inheritedFontSize,
+            typing = typing,
             transitions = transitions ?: emptyList(),
             explicitProperties = explicitProperties ?: emptySet(),
         )
@@ -210,6 +213,7 @@ data class ComputedStyle(
     val textWrap: Boolean,
     val textAlign: UiTextAlign,
     val fontSize: Float,
+    val typing: UiTyping?,
     val transitions: List<UiTransition>,
     val explicitProperties: Set<UiStyleProperty>,
 ) {

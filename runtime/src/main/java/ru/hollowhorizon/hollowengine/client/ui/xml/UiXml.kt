@@ -2,23 +2,29 @@ package ru.hollowhorizon.hollowengine.client.ui.xml
 
 import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
 import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
+import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
+import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_VALUE_ATTRIBUTE
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.CanvasNode
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.EntityNode
 import ru.hollowhorizon.hollowengine.client.ui.ImageNode
+import ru.hollowhorizon.hollowengine.client.ui.UiInlineAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.ItemNode
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
-import ru.hollowhorizon.hollowengine.client.ui.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.UiChildren
 import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
 import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
 import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
 import ru.hollowhorizon.hollowengine.client.ui.UiClientScriptModifier
+import ru.hollowhorizon.hollowengine.client.ui.UiTextContent
+import ru.hollowhorizon.hollowengine.client.ui.UiTextSegment
 import ru.hollowhorizon.hollowengine.client.ui.bound
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
@@ -53,7 +59,7 @@ data class UiXmlTree(
 }
 
 fun parseUi(source: String, options: UiXmlOptions = UiXmlOptions()): BoxNode {
-    return UiXmlBuilder(options).build(UiXmlTree.from(parseUiMarkup(source)))
+    return UiXmlBuilder(options).build(parseUiXml(source))
 }
 
 fun buildUi(xml: XmlValue, options: UiXmlOptions = UiXmlOptions()): BoxNode {
@@ -61,10 +67,6 @@ fun buildUi(xml: XmlValue, options: UiXmlOptions = UiXmlOptions()): BoxNode {
 }
 
 class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
-    fun build(document: UiMarkupDocument): BoxNode {
-        return build(UiXmlTree.from(document))
-    }
-
     fun build(root: UiXmlTree): BoxNode {
         return buildDocument(root).root
     }
@@ -99,10 +101,10 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
     }
 
     private fun loadImportedElement(location: String): UiXmlTree {
-        val document = parseUiMarkup(options.resources.readText(location))
-        val elements = document.nodes.filterIsInstance<UiMarkupElement>().filterNot { it.name.equals("import", true) }
+        val document = parseUiXml(options.resources.readText(location), location)
+        val elements = document.children.filterNot { it.name.equals("import", true) }
         require(elements.size == 1) { "Imported UI '$location' must contain exactly one element root" }
-        return UiXmlTree.from(elements.single())
+        return elements.single()
     }
 
     private fun buildElement(element: UiXmlTree, imports: Map<String, UiXmlTree>): BaseUiNode {
@@ -113,6 +115,9 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
             )
             return buildElement(merged, imports)
         }
+        require(!element.name.equals("button", ignoreCase = true)) {
+            "UI <button> was removed; use <box> with event handlers and nested <text> instead"
+        }
 
         val attributes = element.attributes
         val modifiers = attributes.toModifiers()
@@ -120,21 +125,18 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         val tags = attributes.tags(element.name)
         val node = when (element.name.lowercase()) {
             "box" -> BoxNode(id, tags, modifiers)
-            "text" -> TextNode(attributes.firstValue("text", "value").bound(), id, tags, modifiers)
+            "text" -> TextNode(element.toTextContent(), id, tags, modifiers)
             "image" -> ImageNode(attributes.firstValue("source", "src", "image").bound(), id, tags, modifiers)
             "item" -> ItemNode(attributes.firstValue("item", "value").bound(), id, tags, modifiers)
             "entity" -> EntityNode(attributes.firstValue("entity", "value").bound(), id, tags, modifiers)
             "canvas" -> CanvasNode(attributes["renderer"], id, tags, modifiers)
-            "button" -> BaseUiNode("button", id, tags, modifiers).also { node ->
-                appendTextIfPresent(node.children, attributes.firstValue("text", "value"))
-            }
-
             else -> BaseUiNode(element.name.lowercase(), id, tags, modifiers).also { node ->
-                appendTextIfPresent(node.children, attributes.firstValue("text", "value"))
+                appendInlineTextIfPresent(node.children, element)
             }
         }
 
-        element.children.forEach { child ->
+        if (node is TextNode) return node
+        element.children.filterNot { it.isTextLiteral() || it.isTextInlineElement() }.forEach { child ->
             node.children += buildElement(child, imports)
         }
         return node
@@ -163,9 +165,10 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         return Modifier.eventScript(kind, trimmed, options.eventSink)
     }
 
-    private fun appendTextIfPresent(target: UiChildren, text: String) {
-        val text = text.trim()
-        if (text.isNotEmpty()) target += TextNode(UiBoundString(text))
+    private fun appendInlineTextIfPresent(target: UiChildren, element: UiXmlTree) {
+        if (element.children.none { it.isTextLiteral() || it.isTextInlineElement() }) return
+        val content = element.toTextContent(onlyDirectText = true).trimBoundaryText()
+        if (content.asTemplate().isNotBlank()) target += TextNode(content)
     }
 
     private fun Map<String, String>.firstValue(vararg names: String): String =
@@ -200,6 +203,7 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
             "tags",
             "class",
             "value",
+            XML_TEXT_NODE_NAME,
             "source",
             "src",
             "image",
@@ -213,24 +217,6 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
     }
 }
 
-fun UiXmlTree.Companion.from(document: UiMarkupDocument): UiXmlTree {
-    val elements = document.nodes.filterIsInstance<UiMarkupElement>().map { UiXmlTree.from(it) }
-    return UiXmlTree("__document", children = elements)
-}
-
-fun UiXmlTree.Companion.from(element: UiMarkupElement): UiXmlTree {
-    val attributes = element.attributes.toMutableMap()
-    val text = element.children.filterIsInstance<UiMarkupText>().joinToString("") { it.value }.trim()
-    if (text.isNotEmpty() && "text" !in attributes && "value" !in attributes) {
-        attributes["text"] = text
-    }
-    return UiXmlTree(
-        name = element.name,
-        attributes = attributes,
-        children = element.children.filterIsInstance<UiMarkupElement>().map { UiXmlTree.from(it) },
-    )
-}
-
 fun UiXmlTree.Companion.from(value: XmlValue): UiXmlTree {
     return UiXmlTree(
         name = value.name,
@@ -240,3 +226,136 @@ fun UiXmlTree.Companion.from(value: XmlValue): UiXmlTree {
 }
 
 private fun RuntimeValue.asUiAttributeString(): String = convertToString()
+
+private fun UiXmlTree.isTextLiteral(): Boolean = name == XML_TEXT_NODE_NAME
+
+private fun UiXmlTree.toTextContent(
+    style: UiInlineStyle = UiInlineStyle(),
+    onlyDirectText: Boolean = true,
+): UiTextContent {
+    attributes["text"]?.let { return UiTextContent.plain(it) }
+    val segments = children.flatMap { child ->
+        when {
+            child.isTextLiteral() -> listOf(UiTextSegment.Text(child.attributes.firstValue(XML_TEXT_VALUE_ATTRIBUTE, "value").bound(), style))
+            onlyDirectText && !child.isTextInlineElement() -> emptyList()
+            else -> child.toInlineSegments(style)
+        }
+    }
+    return UiTextContent(segments).trimBoundaryText()
+}
+
+private fun UiXmlTree.toInlineSegments(style: UiInlineStyle): List<UiTextSegment> {
+    val name = name.lowercase()
+    return when (name) {
+        "span" -> inlineTextOrChildren(style)
+        "b", "bold" -> inlineTextOrChildren(style.copy(bold = true))
+        "i", "italic" -> inlineTextOrChildren(style.copy(italic = true))
+        "u", "underline" -> inlineTextOrChildren(style.copy(underline = true))
+        "s", "strike", "strikethrough" -> inlineTextOrChildren(style.copy(strikethrough = true))
+        "code" -> inlineTextOrChildren(style.copy(code = true))
+        "color" -> inlineTextOrChildren(
+            style.copy(color = attributes.firstValue("value", "color").takeIf { it.isNotBlank() }?.let(::parseInlineColor))
+        )
+        "size" -> inlineTextOrChildren(
+            style.copy(fontSize = attributes.firstValue("value", "fontSize", "font-size", "size").parseInlineSize())
+        )
+        "a", "link" -> inlineTextOrChildren(style.copy(link = attributes.firstValue("href", "to", "value"), underline = true))
+        "pause" -> listOf(UiTextSegment.Pause(parseInlineDuration(attributes.firstValue("delay", "duration", "value", default = "0ms"))))
+        "img", "image" -> listOf(
+            UiTextSegment.Image(
+                source = attributes.firstValue("source", "src", "image").bound(),
+                width = attributes.firstValue("width", default = "16px").parseInlineSize() ?: 16f,
+                height = attributes.firstValue("height", default = attributes.firstValue("width", default = "16px")).parseInlineSize() ?: 16f,
+                align = parseInlineAlign(attributes.firstValue("align", default = "baseline")),
+                alt = attributes.firstValue("alt"),
+            )
+        )
+
+        else -> throw IllegalArgumentException("Unsupported inline text tag '$name'")
+    }
+}
+
+private fun UiXmlTree.inlineTextOrChildren(style: UiInlineStyle): List<UiTextSegment> {
+    val text = attributes.firstValue("text").takeIf { it.isNotEmpty() }
+        ?: return inlineChildren(style)
+    return listOf(UiTextSegment.Text(text.bound(), style))
+}
+
+private fun UiXmlTree.inlineChildren(style: UiInlineStyle): List<UiTextSegment> {
+    return children.flatMap { child ->
+        if (child.isTextLiteral()) {
+            listOf(UiTextSegment.Text(child.attributes.firstValue(XML_TEXT_VALUE_ATTRIBUTE, "value").bound(), style))
+        } else {
+            child.toInlineSegments(style)
+        }
+    }
+}
+
+private fun UiXmlTree.isTextInlineElement(): Boolean {
+    return name.lowercase() in setOf(
+        "span",
+        "b",
+        "bold",
+        "i",
+        "italic",
+        "u",
+        "underline",
+        "s",
+        "strike",
+        "strikethrough",
+        "code",
+        "color",
+        "size",
+        "a",
+        "link",
+        "pause",
+        "img",
+        "image",
+    )
+}
+
+private fun UiTextContent.trimBoundaryText(): UiTextContent {
+    val next = segments.toMutableList()
+    val firstText = next.indexOfFirst { it is UiTextSegment.Text }
+    if (firstText >= 0) {
+        val segment = next[firstText] as UiTextSegment.Text
+        next[firstText] = segment.copy(value = segment.value.template.trimStart().bound())
+    }
+    val lastText = next.indexOfLast { it is UiTextSegment.Text }
+    if (lastText >= 0) {
+        val segment = next[lastText] as UiTextSegment.Text
+        next[lastText] = segment.copy(value = segment.value.template.trimEnd().bound())
+    }
+    return UiTextContent(next.filterNot { it is UiTextSegment.Text && it.value.template.isEmpty() })
+}
+
+private fun Map<String, String>.firstValue(vararg names: String, default: String = ""): String {
+    return names.firstNotNullOfOrNull { this[it] } ?: default
+}
+
+private fun String.parseInlineSize(): Float? = trim().removeSuffix("px").toFloatOrNull()
+
+private fun parseInlineDuration(value: String): Long {
+    val cleaned = value.trim()
+    if (cleaned.endsWith("ms")) return cleaned.dropLast(2).toLong()
+    if (cleaned.endsWith("s")) return (cleaned.dropLast(1).toFloat() * 1000f).toLong()
+    return cleaned.toLong()
+}
+
+private fun parseInlineAlign(value: String): UiInlineAlign = when (value.lowercase()) {
+    "middle" -> UiInlineAlign.MIDDLE
+    "top" -> UiInlineAlign.TOP
+    "bottom" -> UiInlineAlign.BOTTOM
+    else -> UiInlineAlign.BASELINE
+}
+
+private fun parseInlineColor(value: String): UiColor? {
+    val text = value.trim().removePrefix("#")
+    if (text.length != 6 && text.length != 8) return null
+    val number = text.toLongOrNull(16) ?: return null
+    val red = if (text.length == 8) (number shr 24) and 0xFF else (number shr 16) and 0xFF
+    val green = if (text.length == 8) (number shr 16) and 0xFF else (number shr 8) and 0xFF
+    val blue = if (text.length == 8) (number shr 8) and 0xFF else number and 0xFF
+    val alpha = if (text.length == 8) (number and 0xFF).toFloat() / 255f else 1f
+    return UiColor(red / 255f, green / 255f, blue / 255f, alpha)
+}

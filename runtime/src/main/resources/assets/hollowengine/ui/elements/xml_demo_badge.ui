@@ -1,4 +1,4 @@
 <box id="xml-demo-badge" tags="xml-badge">
-    <text value="Imported element" tags="xml-badge-title" />
-    <text value="Loaded from assets/hollowengine/ui/elements/xml_demo_badge.ui" tags="xml-badge-body" />
+    <text tags="xml-badge-title">Imported element</text>
+    <text tags="xml-badge-body">Loaded from assets/hollowengine/ui/elements/xml_demo_badge.ui</text>
 </box>

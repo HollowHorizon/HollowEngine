@@ -33,6 +33,7 @@ class HollowUiRuntime(
     private val scrollState: UiScrollState = UiScrollState(),
 ) {
     private val transitionState = UiTransitionState()
+    private val typingState = UiTypingState()
     private val resolver = UiStyleResolver(theme, stylesheet, transitionState)
     private val layoutEngine = UiLayoutEngine()
     private val commandRenderer = UiCommandRenderer()
@@ -48,7 +49,7 @@ class HollowUiRuntime(
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
         val layout = layoutEngine.compute(resolved, width, height, scrollState)
-        val commands = commandRenderer.collect(resolved, layout, bindings)
+        val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
         return HollowUiFrame(resolved, layout, commands)
     }
 

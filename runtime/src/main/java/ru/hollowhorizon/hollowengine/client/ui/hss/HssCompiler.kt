@@ -149,6 +149,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
+            "typing" -> instruction { it.typing = parseTyping(value) }
             "transition" -> instruction { it.transitions = parseTransitions(value) }
             else -> null
         }
@@ -510,6 +511,16 @@ private fun parseTransitions(value: String): List<UiTransition> = splitTopLevel(
         property = parts[0],
         durationMillis = parseDuration(parts.getOrElse(1) { "0ms" }),
         easing = parseEasing(parts.getOrElse(2) { "linear" }),
+    )
+}
+
+private fun parseTyping(value: String): UiTyping? {
+    val parts = splitWhitespace(value)
+    val duration = parts.firstOrNull() ?: return null
+    if (duration.equals("none", ignoreCase = true) || duration.equals("off", ignoreCase = true)) return null
+    return UiTyping(
+        durationMillis = if (duration.equals("auto", ignoreCase = true)) null else parseDuration(duration),
+        easing = parseEasing(parts.getOrElse(1) { "linear" }),
     )
 }
 

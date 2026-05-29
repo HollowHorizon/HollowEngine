@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
+import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.UiScope
@@ -871,12 +872,16 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-01 styled spans survive wrapping and nested formatting`() {
-        lateinit var wrapped: TextNode
-        lateinit var nested: TextNode
-        val root = HollowUi {
-            wrapped = Text("**aa bb cc dd**", modifier = Modifier.size(18.px, UiLength.Auto))
-            nested = Text("<b><i>both</i></b> [link](https://example.com)", modifier = Modifier.size(200.px, UiLength.Auto))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="wrapped" size="18px auto"><b>aa bb cc dd</b></text>
+                <text id="nested" size="200px auto"><b><i>both</i></b> <a href="https://example.com">link</a></text>
+            </box>
+            """.trimIndent(),
+        )
+        val wrapped = root.textById("wrapped")
+        val nested = root.textById("nested")
 
         val frame = HollowUiRuntime().frame(root, 220f, 120f)
         val wrappedRuns = frame.textCommand(wrapped).layout.lines.flatMap { it.fragments }.filterIsInstance<UiTextRun>()
@@ -892,12 +897,16 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-02 inline image participates in line height and can overflow on its own line`() {
-        lateinit var inline: TextNode
-        lateinit var wide: TextNode
-        val root = HollowUi {
-            inline = Text("aa ![logo](hollowengine:textures/gui/icons/logo.png){40x20} bb", modifier = Modifier.size(200.px, UiLength.Auto))
-            wide = Text("aa ![wide](hollowengine:textures/gui/icons/logo.png){120x20} bb", modifier = Modifier.size(50.px, UiLength.Auto))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="inline" size="200px auto">aa <image source="hollowengine:textures/gui/icons/logo.png" width="40px" height="20px" alt="logo" /> bb</text>
+                <text id="wide" size="50px auto">aa <image source="hollowengine:textures/gui/icons/logo.png" width="120px" height="20px" alt="wide" /> bb</text>
+            </box>
+            """.trimIndent(),
+        )
+        val inline = root.textById("inline")
+        val wide = root.textById("wide")
 
         val frame = HollowUiRuntime().frame(root, 220f, 140f)
         val inlineLine = frame.textCommand(inline).layout.lines.single()
@@ -917,10 +926,16 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-03 size span affects only its own line`() {
-        lateinit var text: TextNode
-        val root = HollowUi {
-            text = Text("aa\n<size=24px>big</size>\naa", modifier = Modifier.size(200.px, UiLength.Auto))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="sized" size="200px auto">aa
+<size value="24px">big</size>
+aa</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.textById("sized")
 
         val lines = HollowUiRuntime().frame(root, 220f, 120f).textCommand(text).layout.lines
 
@@ -931,13 +946,16 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-04 rich text layout is scale independent`() {
-        lateinit var normal: TextNode
-        lateinit var scaled: TextNode
-        val content = "aa ![logo](hollowengine:textures/gui/icons/logo.png){40x20} **bb cc dd**"
-        val root = HollowUi {
-            normal = Text(content, modifier = Modifier.size(48.px, UiLength.Auto))
-            scaled = Text(content, modifier = Modifier.then(Modifier.size(48.px, UiLength.Auto), Modifier.scale(2f)))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="normal" size="48px auto">aa <image source="hollowengine:textures/gui/icons/logo.png" width="40px" height="20px" alt="logo" /> <b>bb cc dd</b></text>
+                <text id="scaled" size="48px auto" scale="2">aa <image source="hollowengine:textures/gui/icons/logo.png" width="40px" height="20px" alt="logo" /> <b>bb cc dd</b></text>
+            </box>
+            """.trimIndent(),
+        )
+        val normal = root.textById("normal")
+        val scaled = root.textById("scaled")
 
         val frame = HollowUiRuntime().frame(root, 120f, 160f)
         val normalLayout = frame.textCommand(normal).layout
@@ -953,10 +971,14 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-05 bold advance is included before following words`() {
-        lateinit var text: TextNode
-        val root = HollowUi {
-            text = Text("**aa** bb", modifier = Modifier.size(200.px, UiLength.Auto))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="bold" size="200px auto"><b>aa</b> bb</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.textById("bold")
 
         val runs = HollowUiRuntime().frame(root, 220f, 80f)
             .textCommand(text)
@@ -973,10 +995,14 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-06 links are hit tested as inline fragments`() {
-        lateinit var text: TextNode
-        val root = HollowUi {
-            text = Text("[docs](https://example.com)", modifier = Modifier.size(200.px, UiLength.Auto))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="link" size="200px auto"><a href="https://example.com">docs</a></text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.textById("link")
 
         val hit = HollowUiRuntime().frame(root, 220f, 80f).hitTest(3f, 5f)
 
@@ -1002,10 +1028,14 @@ class UiLayoutContractTests {
 
     @Test
     fun `RT-08 mixed font sizes are centered in the line box without extra line gap`() {
-        lateinit var text: TextNode
-        val root = HollowUi {
-            text = Text("small <size=24px>big</size> small", modifier = Modifier.size(300.px, UiLength.Auto))
-        }
+        val root = parseUi(
+            """
+            <box>
+                <text id="mixed" size="300px auto">small <size value="24px">big</size> small</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.textById("mixed")
 
         val line = HollowUiRuntime().frame(root, 320f, 80f).textCommand(text).layout.lines.single()
         val runs = line.fragments.filterIsInstance<UiTextRun>()
@@ -1018,7 +1048,7 @@ class UiLayoutContractTests {
     }
 }
 
-private operator fun HollowUiFrame.get(node: ru.hollowhorizon.hollowengine.client.ui.UiNode): UiRect = layout[node].rect
+private operator fun HollowUiFrame.get(node: UiNode): UiRect = layout[node].rect
 
 private fun assertRect(
     actual: UiRect,
@@ -1043,6 +1073,15 @@ private fun assertChildInside(parent: UiRect, child: UiRect) {
 
 private fun HollowUiFrame.textCommand(node: TextNode): DrawTextCommand {
     return assertIs(commands.first { it.node == node && it is DrawTextCommand })
+}
+
+private fun BoxNode.textById(id: String): TextNode {
+    return findTextById(id) ?: error("Text node '$id' was not found")
+}
+
+private fun UiNode.findTextById(id: String): TextNode? {
+    if (this is TextNode && this.id == id) return this
+    return children.firstNotNullOfOrNull { it.findTextById(id) }
 }
 
 private fun assertVec(actual: UiVec3, expected: UiVec3, tolerance: Float = 0.01f) {

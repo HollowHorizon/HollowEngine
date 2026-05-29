@@ -523,7 +523,7 @@ class UiLayoutEngine {
         knownContentWidth: Float? = null,
     ): LayoutSize {
         if (node is TextNode) return UiTextLayouter.measure(
-            text = node.text.template,
+            richText = node.content.toRichText(),
             availableWidth = availableWidth,
             knownWidth = knownContentWidth,
             wrap = style.textWrap,
@@ -649,7 +649,7 @@ private fun scrollableContentBounds(
 ): UiRect {
     if (node is TextNode) {
         val textLayout = UiTextLayouter.layout(
-            node.text.template,
+            node.content.toRichText(),
             layout.content.width,
             Float.POSITIVE_INFINITY,
             style.textWrap,

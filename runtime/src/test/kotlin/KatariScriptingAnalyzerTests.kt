@@ -87,7 +87,9 @@ class KatariScriptingAnalyzerTests {
             """
                 val gui = ui(
                     <box tags="dialog">
-                        <button text="Accept" />
+                        <box>
+                            <text>Accept</text>
+                        </box>
                     </box>
                 )
             """.trimIndent(),

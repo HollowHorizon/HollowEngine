@@ -265,10 +265,14 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
             <import element="hollowengine:ui/elements/xml_demo_badge.ui" named="demo_badge" />
 
             <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
-                <text value="XML + HSS resource" tags="xml-title" />
-                <text value="This panel is built from XML-like markup. The root imports xml_demo.hss from assets." tags="xml-body" />
-                <button id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>Accept</button>
-                <button id="xml-demo-cancel" tags="xml-button secondary" onClick='{event:"xml_demo";button:"cancel";mouse:<it.button>}'>Cancel</button>
+                <text tags="xml-title">XML + HSS resource</text>
+                <text tags="xml-body">This panel is built from XML-like markup. The root imports xml_demo.hss from assets.</text>
+                <box id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>
+                    <text>Accept</text>
+                </box>
+                <box id="xml-demo-cancel" tags="xml-button secondary" onClick='{event:"xml_demo";button:"cancel";mouse:<it.button>}'>
+                    <text>Cancel</text>
+                </box>
                 <demo_badge />
             </box>
             """.trimIndent(),

@@ -58,7 +58,7 @@ internal object UiTextLayouter {
         knownWidth: Float?,
         wrap: Boolean,
         fontSize: Float,
-    ): LayoutSize = measure(UiRichTextParser.parse(text), availableWidth, knownWidth, wrap, fontSize)
+    ): LayoutSize = measure(UiRichText.plain(text), availableWidth, knownWidth, wrap, fontSize)
 
     fun measure(
         richText: UiRichText,
@@ -83,7 +83,7 @@ internal object UiTextLayouter {
         wrap: Boolean,
         align: UiTextAlign,
         fontSize: Float,
-    ): UiTextLayout = layout(UiRichTextParser.parse(text), width, height, wrap, align, fontSize)
+    ): UiTextLayout = layout(UiRichText.plain(text), width, height, wrap, align, fontSize)
 
     fun layout(
         richText: UiRichText,

@@ -40,11 +40,24 @@ class BoxNode(
 ) : BaseUiNode(UiNodeType.BOX.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
 
 class TextNode(
-    var text: UiBoundString,
+    var content: UiTextContent,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
 ) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers) {
+    constructor(
+        text: UiBoundString,
+        id: String? = null,
+        tags: Iterable<String> = emptyList(),
+        modifiers: Iterable<Modifier> = emptyList(),
+    ) : this(UiTextContent.plain(text), id, tags, modifiers)
+
+    var text: UiBoundString
+        get() = UiBoundString(content.asTemplate())
+        set(value) {
+            content = UiTextContent.plain(value)
+        }
+
     var hoveredLink: String? = null
 }
 
