@@ -35,6 +35,14 @@ fun EditPopup(labelKey: String, hintKey: String, onClick: (FileNode, String) -> 
                         lineColor = ColorTheme.UI.BackgroundElements.withAlpha(0.5f),
                         lineColorFocused = ColorTheme.UI.BackgroundAccent.withAlpha(0.5f)
                     )
+                    .onEnterPressed {
+                        item?.let { item ->
+                            onClick(item, text)
+                            surface.triggerUpdate()
+                            hide()
+                        }
+                    }
+                if (!isFocused.use()) requestFocus()
             }
             ConfirmWidget(this@apply) {
                 onClick(it, text)
