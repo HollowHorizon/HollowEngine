@@ -63,7 +63,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
     if (ScriptingEnvironmentOverlay.isCollapsed) return@append
 
-    val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
+    val overlay = remember { ItemPopupMenu<Unit>("Title-Overlay") }
     overlay()
     TextButton("hollowengine.gui.ide.file".lang) {
         overlay.hide()
@@ -79,10 +79,8 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
             }
         }, Unit)
     }
-    val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
-    windowOverlay()
     TextButton("hollowengine.gui.ide.windows".lang) {
-        windowOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
+        overlay.show(Vec2f(it.screenPosition), SubMenuItem {
             val size = LayoutLoader.LAYOUTS.size
             LayoutLoader.LAYOUTS.values.forEachIndexed { i, window ->
                 item(window.name) {
@@ -94,17 +92,13 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     }
 
     if (Minecraft.getInstance().player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true) {
-        val toolsOverlay = remember { ItemPopupMenu<Unit>("Title-Tools-Overlay") }
-        toolsOverlay()
         TextButton("hollowengine.gui.ide.tools".lang) {
-            toolsOverlay.show(Vec2f(it.screenPosition), buildToolsMenu(toolsOverlay), Unit)
+            overlay.show(Vec2f(it.screenPosition), buildToolsMenu(overlay), Unit)
         }
     }
 
-    val helpOverlay = remember { ItemPopupMenu<Unit>("Title-Help-Overlay") }
-    helpOverlay()
     TextButton("hollowengine.gui.ide.help".lang) {
-        helpOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
+        overlay.show(Vec2f(it.screenPosition), SubMenuItem {
             item("Telegram".lang, icons.DOCS_SVG) {
                 openUrl("https://t.me/hollowengine")
             }
