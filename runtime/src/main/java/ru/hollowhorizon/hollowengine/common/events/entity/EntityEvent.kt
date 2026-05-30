@@ -11,12 +11,14 @@ import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBindi
 @ScriptBinding
 open class EntityEvent(val entity: Entity) : Event {
 
+    @ScriptBinding
     class Hurt(entity: Entity, val source: DamageSource, var amount: Float) : EntityEvent(entity), Cancellable {
         companion object : EventHandler<Hurt>()
 
         override var isCanceled: Boolean = false
     }
 
+    @ScriptBinding
     class ChangeDimension(entity: Entity, val new: Entity, val from: Level, val to: Level) : EntityEvent(entity) {
         companion object : EventHandler<ChangeDimension>()
     }

@@ -24,16 +24,12 @@ import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
 import ru.hollowhorizon.hollowengine.common.geary.api.findEntityByUuid
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptIgnore
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import java.util.UUID
+import java.util.*
 
 enum class KatariWeather {
     Clear,
@@ -189,10 +185,6 @@ fun Entity.raycastKatari(distance: Double = 32.0, includeEntities: Boolean = tru
     val to = from.add(lookAngle.scale(distance))
     return level.raycast(from, to, source = this, includeEntities = includeEntities)
 }
-
-@ScriptBinding("entityType")
-val Entity.scriptEntityType: String
-    get() = BuiltInRegistries.ENTITY_TYPE.getKey(type).toString()
 
 @ScriptBinding("spawn")
 fun <T : Entity> ServerLevel.spawnKatariEntity(type: String, position: Vec3): T {

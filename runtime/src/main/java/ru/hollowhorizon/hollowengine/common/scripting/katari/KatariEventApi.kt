@@ -3,19 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
-import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionBodyFormat
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionModifier
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionResponse
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallContext
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallDispatchContext
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallResult
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallable
-import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
-import com.sunnychung.lib.multiplatform.kotlite.model.TypeParameter
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.network.chat.Component
@@ -25,21 +13,15 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventListener
+import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedKatariErrorResponse
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedRuntimeValueResponse
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptIgnore
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
@@ -79,6 +61,14 @@ data class KatariEventHandlerSnapshot(
 fun createKatariEventHandler(): KatariEventHandler {
     return KatariEventHandler()
 }
+
+// TODO: Make better check
+private val Event.isClient: Boolean
+    get() = when (this) {
+        is LivingEntityDeathEvent -> entity.level().isClientSide
+        is PlayerEvent -> player.level().isClientSide
+        else -> false
+    }
 
 @ScriptBinding("player")
 val ServerChatEvent.scriptPlayer: Player
@@ -295,6 +285,8 @@ private class KatariEventBinding<T : Event>(
             override val priority: Int = 0
 
             override fun invoke(event: T) {
+                if(event.isClient) return
+
                 if (isDone.compareAndSet(false, true)) {
                     handler.unregister(this)
                     subscription?.close("matched")
