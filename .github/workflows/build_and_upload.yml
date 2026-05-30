@@ -4,12 +4,42 @@ on:
     branches: [ "dev" ]
 
 jobs:
+  create_tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Get the mod version from gradle.properties
+        id: get_version
+        run: |
+          MOD_VERSION=$(grep '^modVersion=' gradle.properties | cut -d'=' -f2)
+          echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
+
+      - name: Delete existing tag if it exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Удаляем тег, если он уже существует
+          git tag -d "$MOD_VERSION" || true
+          git push origin --delete "$MOD_VERSION" || true
+
+      - name: Create and push new tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Создаём новый тег с версией мода
+          git tag "$MOD_VERSION"
+          git push origin "$MOD_VERSION"
+
   build:
     strategy:
       matrix:
         java: [ 21 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
+    needs: create_tag
     if: |
       !contains(github.event.head_commit.message, '[no ci]')
     steps:
@@ -18,6 +48,16 @@ jobs:
         with:
           lfs: true
           submodules: recursive
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get the mod version from gradle.properties
+        id: get_version
+        run: |
+          MOD_VERSION=$(grep '^modVersion=' gradle.properties | cut -d'=' -f2)
+          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
+          echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
 
       - name: verify bundled libraries
         run: |
@@ -57,9 +97,9 @@ jobs:
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          name: "[HollowEngine 1.21.1 | Latest Release]"
+          name: "[HollowEngine 1.21.1 | v${{ steps.get_version.outputs.mod_version }}]"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "latest-1.21.1"
+          tag: "v${{ steps.get_version.outputs.mod_version }}"
           removeArtifacts: true
           allowUpdates: true
           artifacts: "merged/*.jar"
@@ -72,9 +112,10 @@ jobs:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_THREAD_ID: ${{ secrets.TG_THREAD_ID }}
           MOD_VERSION: ${{ env.MOD_VERSION }}
+          VERSION: ${{ steps.get_version.outputs.mod_version }}
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/latest-1.21.1"
+          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$VERSION"
           
           HEADER="<b>📦 <a href=\"$RELEASE_URL\">[$REPO_NAME] Build Success</a></b>"
           
