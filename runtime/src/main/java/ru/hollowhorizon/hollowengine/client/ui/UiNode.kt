@@ -6,6 +6,7 @@ interface UiNode {
     val type: String
     val id: String?
     val tags: MutableSet<String>
+    val attributes: MutableMap<String, String>
     val states: MutableSet<UiState>
     val modifiers: MutableList<Modifier>
     val children: UiChildren
@@ -20,8 +21,10 @@ open class BaseUiNode(
     final override val id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
 ) : UiNode {
     final override val tags: MutableSet<String> = tags.toMutableSet()
+    final override val attributes: MutableMap<String, String> = attributes.toMutableMap()
     final override val states: MutableSet<UiState> = mutableSetOf()
     final override val modifiers: MutableList<Modifier> = modifiers.toMutableList()
     final override val children = UiChildren()
@@ -37,20 +40,23 @@ class BoxNode(
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.BOX.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(UiNodeType.BOX.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
 
 class TextNode(
     var content: UiTextContent,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers) {
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
     constructor(
         text: UiBoundString,
         id: String? = null,
         tags: Iterable<String> = emptyList(),
         modifiers: Iterable<Modifier> = emptyList(),
-    ) : this(UiTextContent.plain(text), id, tags, modifiers)
+        attributes: Map<String, String> = emptyMap(),
+    ) : this(UiTextContent.plain(text), id, tags, modifiers, attributes)
 
     var text: UiBoundString
         get() = UiBoundString(content.asTemplate())
@@ -66,28 +72,32 @@ class ImageNode(
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
 
 class CanvasNode(
     var renderer: String? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
 
 class ItemNode(
     var item: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
 
 class EntityNode(
     var entity: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
-) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers)
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
 
 @DslMarker
 annotation class HollowUiDsl

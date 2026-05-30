@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import net.minecraft.nbt.*
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.hss.parseHssSelector
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
 
 sealed class UiClientScript {
@@ -21,8 +22,10 @@ sealed class UiClientScript {
     data class Inline(
         val kind: UiEventKind,
         override val source: String,
+        val targetKey: String? = null,
+        val sink: UiEventSink? = null,
     ) : UiClientScript() {
-        override val name: String = "<inline:${kind.attributeName}>"
+        override val name: String = "<inline:${kind.attributeName}${targetKey?.let { ":$it" }.orEmpty()}>"
     }
 }
 
@@ -48,17 +51,19 @@ object UiClientScriptRunner {
         root: UiNode,
         sink: UiEventSink,
         variables: CompoundTag,
+        applyInputHints: Boolean = true,
     ): UiPreparedClientScripts {
         val prepared = scripts.mapNotNull { script ->
             val code = when (script) {
                 is UiClientScript.Inline -> prepareInline(script)
                 is UiClientScript.Resource -> prepareResource(script)
             }
+            val scriptSink = (script as? UiClientScript.Inline)?.sink ?: sink
             val context = UiScriptExecutionContext(
                 event = UiScriptEvent(UiEvent(UiEventKind.INIT, root)),
                 gui = UiScriptGui(root),
                 variables = UiScriptVariables(variables),
-                sink = sink,
+                sink = scriptSink,
             )
             val bindings = createBindings(context)
             val program = runCatching { KatariNarrativeProgram(script.name, code.code, bindings) }.getOrElse { error ->
@@ -68,7 +73,7 @@ object UiClientScriptRunner {
             PreparedUiClientScript(script.name, code, context, bindings, program)
         }
         val registry = UiPreparedClientScripts.create(prepared)
-        registry.applyInputHints(root)
+        if (applyInputHints) registry.applyInputHints(root)
         return registry
     }
 
@@ -104,6 +109,40 @@ object UiClientScriptRunner {
             val target = (arguments[0] as NarrativeHostValue).value as UiScriptEvent
             val selector = (arguments[1] as StringValue).value
             BooleanValue(target.matches(selector), context.symbolTable)
+        }
+        immediateFunction(
+            name = "modify",
+            valueParameters = listOf(
+                CustomFunctionParameter("selector", "String"),
+                CustomFunctionParameter("attribute", "String"),
+                CustomFunctionParameter("value", "String"),
+            ),
+            receiverType = "Ui",
+            returnType = "UiElement?",
+        ) { arguments, context ->
+            val target = (arguments[0] as NarrativeHostValue).value as UiScriptGui
+            val selector = (arguments[1] as StringValue).value
+            val attribute = (arguments[2] as StringValue).value
+            val value = (arguments[3] as StringValue).value
+            target.modify(selector, attribute, value)?.let {
+                NarrativeHostValue("UiElement", it, context.symbolTable)
+            } ?: NullValue
+        }
+        immediateFunction(
+            name = "removeAttribute",
+            valueParameters = listOf(
+                CustomFunctionParameter("selector", "String"),
+                CustomFunctionParameter("attribute", "String"),
+            ),
+            receiverType = "Ui",
+            returnType = "UiElement?",
+        ) { arguments, context ->
+            val target = (arguments[0] as NarrativeHostValue).value as UiScriptGui
+            val selector = (arguments[1] as StringValue).value
+            val attribute = (arguments[2] as StringValue).value
+            target.removeAttribute(selector, attribute)?.let {
+                NarrativeHostValue("UiElement", it, context.symbolTable)
+            } ?: NullValue
         }
         immediateFunction(
             name = "get",
@@ -155,6 +194,40 @@ object UiClientScriptRunner {
             val key = (arguments[1] as StringValue).value
             BooleanValue(target.boolean(key), context.symbolTable)
         }
+        immediateFunction(
+            name = "attribute",
+            valueParameters = listOf(CustomFunctionParameter("attribute", "String")),
+            receiverType = "UiElement",
+            returnType = "String",
+        ) { arguments, context ->
+            val target = (arguments[0] as NarrativeHostValue).value as UiScriptElement
+            val attribute = (arguments[1] as StringValue).value
+            StringValue(target.attribute(attribute), context.symbolTable)
+        }
+        immediateFunction(
+            name = "modify",
+            valueParameters = listOf(
+                CustomFunctionParameter("attribute", "String"),
+                CustomFunctionParameter("value", "String"),
+            ),
+            receiverType = "UiElement",
+            returnType = "UiElement",
+        ) { arguments, context ->
+            val target = (arguments[0] as NarrativeHostValue).value as UiScriptElement
+            val attribute = (arguments[1] as StringValue).value
+            val value = (arguments[2] as StringValue).value
+            NarrativeHostValue("UiElement", target.modify(attribute, value), context.symbolTable)
+        }
+        immediateFunction(
+            name = "removeAttribute",
+            valueParameters = listOf(CustomFunctionParameter("attribute", "String")),
+            receiverType = "UiElement",
+            returnType = "UiElement",
+        ) { arguments, context ->
+            val target = (arguments[0] as NarrativeHostValue).value as UiScriptElement
+            val attribute = (arguments[1] as StringValue).value
+            NarrativeHostValue("UiElement", target.removeAttribute(attribute), context.symbolTable)
+        }
     }
 
     private fun prepareInline(script: UiClientScript.Inline): PreparedUiScript {
@@ -168,6 +241,7 @@ object UiClientScriptRunner {
             """.trimIndent(),
             kinds = setOf(script.kind),
             handlers = listOf(HandlerDeclaration(script.kind, null, script.source)),
+            targetKey = script.targetKey,
         )
     }
 
@@ -235,6 +309,7 @@ object UiClientScriptRunner {
         }
 
         eventProperty("kind", "String") { kind }
+        eventProperty("nodeKey", "String") { nodeKey }
         eventProperty("id", "String") { id }
         eventProperty("type", "String") { type }
         eventProperty("tags", "List<String>") { tags }
@@ -286,7 +361,7 @@ class UiPreparedClientScripts private constructor(
     fun dispatch(event: UiEvent, root: UiNode, variables: CompoundTag): Boolean {
         var handled = false
         scripts.asSequence()
-            .filter { it.handles(event.kind) }
+            .filter { it.accepts(event) }
             .forEach { script ->
                 if (!event.consumed) {
                     script.run(event, root, variables)
@@ -331,6 +406,12 @@ internal class PreparedUiClientScript(
 ) {
     fun handles(kind: UiEventKind): Boolean = script.handles(kind)
 
+    fun accepts(event: UiEvent): Boolean {
+        if (!handles(event.kind)) return false
+        val targetKey = script.targetKey ?: return true
+        return UiNodeKeys.key(event.node) == targetKey
+    }
+
     fun inputHints(): List<HandlerDeclaration> = script.handlers.filter { it.kind.requiresNodeInput() }
 
     fun run(event: UiEvent, root: UiNode, variables: CompoundTag) {
@@ -367,6 +448,7 @@ internal data class UiScriptExecutionContext(
 
 class UiScriptEvent(internal var event: UiEvent) {
     val kind: String get() = event.kind.attributeName
+    val nodeKey: String get() = UiNodeKeys.key(event.node)
     val id: String get() = event.node.id.orEmpty()
     val type: String get() = event.node.type
     val tags: List<String> get() = event.node.tags.toList()
@@ -393,12 +475,36 @@ class UiScriptEvent(internal var event: UiEvent) {
 
 class UiScriptGui(internal var root: UiNode) {
     fun findNode(selector: String): UiScriptElement? = root.findNode(selector)?.let(::UiScriptElement)
+
+    fun modify(selector: String, attribute: String, value: String): UiScriptElement? {
+        val node = root.findNode(selector) ?: return null
+        node.attributes[attribute] = value
+        return UiScriptElement(node)
+    }
+
+    fun removeAttribute(selector: String, attribute: String): UiScriptElement? {
+        val node = root.findNode(selector) ?: return null
+        node.attributes.remove(attribute)
+        return UiScriptElement(node)
+    }
 }
 
 class UiScriptElement(private val node: UiNode) {
     val id: String get() = node.id.orEmpty()
     val type: String get() = node.type
     val tags: List<String> get() = node.tags.toList()
+    fun attribute(name: String): String = node.attributes[name].orEmpty()
+
+    fun modify(attribute: String, value: String): UiScriptElement {
+        node.attributes[attribute] = value
+        return this
+    }
+
+    fun removeAttribute(attribute: String): UiScriptElement {
+        node.attributes.remove(attribute)
+        return this
+    }
+
     var enabled: Boolean
         get() = UiState.DISABLED !in node.states
         set(value) {
@@ -422,6 +528,7 @@ internal data class PreparedUiScript(
     val code: String,
     val kinds: Set<UiEventKind>,
     val handlers: List<HandlerDeclaration>,
+    val targetKey: String? = null,
 ) {
     fun handles(kind: UiEventKind): Boolean = kind in kinds
 }
@@ -595,9 +702,11 @@ private fun UiNode.findNode(selector: String): UiNode? {
 
 private fun UiNode.matchesSelector(selector: String): Boolean {
     val clean = selector.trim()
-    return when {
+    if (clean.isBlank()) return true
+    return runCatching { parseHssSelector(clean).matches(this) }.getOrDefault(false) || when {
         clean.startsWith("#") -> id == clean.removePrefix("#")
         clean.startsWith(".") -> clean.removePrefix(".") in tags
+        clean.any { it in "[:#" } -> false
         else -> id == clean || type == clean || clean in tags
     }
 }

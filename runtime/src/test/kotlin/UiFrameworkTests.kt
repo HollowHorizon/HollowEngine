@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
+import ru.hollowhorizon.hollowengine.client.ui.ScriptEventModifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
@@ -25,6 +26,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
 import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
+import ru.hollowhorizon.hollowengine.client.ui.UiNodeKeys
 import ru.hollowhorizon.hollowengine.client.ui.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.PushClipCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
@@ -514,6 +516,49 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `hss attribute selector lists drive transition targets`() {
+        val stylesheet = compileHss(
+            """
+            .box {
+                transition: all 100ms linear;
+            }
+
+            .box[my-custom-state="opening"],
+            .box[my-custom-state="closing"] {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("box")).apply {
+            attributes["my-custom-state"] = "opening"
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        root.attributes["my-custom-state"] = "ready"
+        val start = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        val half = runtime.frame(root, 100f, 40f, nowMillis = 50L)
+
+        assertEquals(0f, start.resolved[root].opacity)
+        assertEquals(0.5f, half.resolved[root].opacity, 0.01f)
+        assertEquals(-10f, half.resolved[root].transform.translate.y, 0.01f)
+    }
+
+    @Test
+    fun `xml preserves custom attributes separately from styles and events`() {
+        val root = parseUi(
+            """
+            <box id="panel" tags="box" my-custom-state="opening" width="10px" onClick="consume()" />
+            """.trimIndent(),
+        )
+
+        assertEquals("opening", root.attributes["my-custom-state"])
+        assertFalse("width" in root.attributes)
+        assertFalse("onClick" in root.attributes)
+    }
+
+    @Test
     fun `inline modifiers override stylesheet rules`() {
         val stylesheet = compileHss(
             """
@@ -639,10 +684,18 @@ class UiFrameworkTests {
         )
 
         val button = root.children.single { it.id == "accept" }
-
         val event = UiEvent(UiEventKind.PRESS, button, button = 1)
         event.variables.putString("value", "from-server")
-        button.dispatch(event)
+        UiNodeKeys.assign(root)
+        val scripts = button.modifiers.filterIsInstance<ScriptEventModifier>().map { modifier ->
+            UiClientScript.Inline(
+                modifier.kind,
+                modifier.source,
+                targetKey = UiNodeKeys.key(button),
+                sink = modifier.sink,
+            )
+        }
+        UiClientScriptRunner.prepare(scripts, root, UiEventSink.None, event.variables).dispatch(event, root, event.variables)
 
         assertEquals("pressed", emitted.single().getString("event"))
         assertEquals("accept", emitted.single().getString("button"))
@@ -721,6 +774,48 @@ class UiFrameworkTests {
         assertEquals("clicked", emitted.single().getString("event"))
         assertEquals("decline", emitted.single().getString("button"))
         assertEquals(2, emitted.single().getInt("mouse"))
+    }
+
+    @Test
+    fun `prepared inline script dispatches only for its target node`() {
+        val emitted = mutableListOf<CompoundTag>()
+        val root = HollowUi {
+            Box(id = "accept")
+            Box(id = "decline")
+        }
+        UiNodeKeys.assign(root)
+        val accept = root.children.single { it.id == "accept" }
+        val decline = root.children.single { it.id == "decline" }
+        val script = UiClientScript.Inline(
+            UiEventKind.CLICK,
+            """emit(struct { event: "clicked", button: it.id })""",
+            targetKey = UiNodeKeys.key(accept),
+        )
+        val prepared = UiClientScriptRunner.prepare(listOf(script), root, UiEventSink { emitted += it }, CompoundTag())
+
+        prepared.dispatch(UiEvent(UiEventKind.CLICK, decline), root, CompoundTag())
+        prepared.dispatch(UiEvent(UiEventKind.CLICK, accept), root, CompoundTag())
+
+        assertEquals(1, emitted.size)
+        assertEquals("accept", emitted.single().getString("button"))
+    }
+
+    @Test
+    fun `ui client script can modify node attributes for hss selectors`() {
+        lateinit var panel: BoxNode
+        val root = HollowUi {
+            panel = Box(id = "panel", tags = listOf("box"))
+        }
+        panel.attributes["my-custom-state"] = "opening"
+        val script = UiClientScript.Inline(
+            UiEventKind.CLICK,
+            """gui.modify("panel", "my-custom-state", "ready")""",
+        )
+        val prepared = UiClientScriptRunner.prepare(listOf(script), root, UiEventSink.None, CompoundTag())
+
+        prepared.dispatch(UiEvent(UiEventKind.CLICK, panel), root, CompoundTag())
+
+        assertEquals("ready", panel.attributes["my-custom-state"])
     }
 
     @Test

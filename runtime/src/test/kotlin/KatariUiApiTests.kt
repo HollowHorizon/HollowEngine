@@ -60,6 +60,21 @@ class KatariUiApiTests {
     }
 
     @Test
+    fun `ui document modifies custom attributes on matching target`() {
+        val document = KatariUiDocument(
+            id = "test",
+            root = UiXmlTree(
+                "box",
+                children = listOf(UiXmlTree("box", mapOf("id" to "panel", "my-custom-state" to "opening"))),
+            ),
+        )
+
+        document.modify("panel", attribute = "my-custom-state", value = "ready")
+
+        assertEquals("ready", document.root.children.single().attributes["my-custom-state"])
+    }
+
+    @Test
     fun `katari analyzer accepts scripted ui literals and mutations`() {
         val diagnostics = KatariScriptingAnalyzer.diagnostic(
             "ui.ktr",
@@ -71,6 +86,7 @@ class KatariUiApiTests {
                 </box>
             )
             gui.insertAt("container", <box><text>Extra</text></box>)
+            gui.modify("container", attribute = "my-custom-state", value = "ready")
             """.trimIndent(),
         )
 

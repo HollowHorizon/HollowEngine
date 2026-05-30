@@ -20,7 +20,8 @@ import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
 import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_VALUE_ATTRIBUTE
 
 fun parseUiXml(source: String, filename: String = "<ui>"): UiXmlTree {
-    val wrapped = "<$DocumentElementName>\n$source\n</$DocumentElementName>"
+    val encoded = source.encodeDashedAttributeNames()
+    val wrapped = "<$DocumentElementName>\n${encoded.source}\n</$DocumentElementName>"
     val expression = try {
         KatariParser(Lexer(filename, wrapped, isParseSingleQuotedString = true)).expression()
     } catch (exception: ParseException) {
@@ -28,7 +29,7 @@ fun parseUiXml(source: String, filename: String = "<ui>"): UiXmlTree {
     }
     val root = expression as? XmlNodeLiteralNode
         ?: throw UiXmlParseException("UI source must contain XML markup", 0)
-    return root.toUiXmlTree()
+    return root.toUiXmlTree(encoded.attributeNames)
 }
 
 class UiXmlParseException(
@@ -36,17 +37,17 @@ class UiXmlParseException(
     val position: Int,
 ) : IllegalArgumentException("$messageText at $position")
 
-private fun XmlNodeLiteralNode.toUiXmlTree(): UiXmlTree {
+private fun XmlNodeLiteralNode.toUiXmlTree(attributeNames: Map<String, String>): UiXmlTree {
     return UiXmlTree(
         name = name,
-        attributes = attributes.associate { it.name to it.value.asStaticAttributeValue() },
-        children = children.map { child -> child.toUiXmlTreeChild() },
+        attributes = attributes.associate { attributeNames[it.name].orEmpty().ifEmpty { it.name } to it.value.asStaticAttributeValue() },
+        children = children.map { child -> child.toUiXmlTreeChild(attributeNames) },
     )
 }
 
-private fun ASTNode.toUiXmlTreeChild(): UiXmlTree {
+private fun ASTNode.toUiXmlTreeChild(attributeNames: Map<String, String>): UiXmlTree {
     return when (this) {
-        is XmlNodeLiteralNode -> toUiXmlTree()
+        is XmlNodeLiteralNode -> toUiXmlTree(attributeNames)
         is StringNode -> UiXmlTree(
             name = XML_TEXT_NODE_NAME,
             attributes = mapOf(XML_TEXT_VALUE_ATTRIBUTE to asStaticAttributeValue()),
@@ -83,3 +84,76 @@ private fun SourcePosition?.toUiOffset(source: String): Int {
 
 private const val DocumentElementName = "__document"
 private val DocumentPrefixLength = "<$DocumentElementName>\n".length
+
+private data class EncodedUiXml(
+    val source: String,
+    val attributeNames: Map<String, String>,
+)
+
+private fun String.encodeDashedAttributeNames(): EncodedUiXml {
+    val names = linkedMapOf<String, String>()
+    val output = StringBuilder(length)
+    var index = 0
+    while (index < length) {
+        if (this[index] != '<' || getOrNull(index + 1) in setOf('/', '!', '?')) {
+            output.append(this[index])
+            index++
+            continue
+        }
+        output.append(this[index++])
+        while (index < length && !this[index].isWhitespace() && this[index] != '>' && this[index] != '/') {
+            output.append(this[index++])
+        }
+        while (index < length && this[index] != '>') {
+            val quote = this[index].takeIf { it == '"' || it == '\'' }
+            if (quote != null) {
+                val end = stringEnd(index, quote)
+                output.append(this, index, end)
+                index = end
+                continue
+            }
+            if (!this[index].isAttributeNameStart()) {
+                output.append(this[index++])
+                continue
+            }
+            val nameStart = index
+            while (index < length && this[index].isAttributeNamePart()) index++
+            val name = substring(nameStart, index)
+            val afterName = skipWhitespace(index)
+            if (afterName < length && this[afterName] == '=' && '-' in name) {
+                val encoded = names.entries.firstOrNull { it.value == name }?.key ?: "__hollow_dash_attr_${names.size}".also {
+                    names[it] = name
+                }
+                output.append(encoded)
+            } else {
+                output.append(name)
+            }
+        }
+        if (index < length) output.append(this[index++])
+    }
+    return EncodedUiXml(output.toString(), names)
+}
+
+private fun String.stringEnd(start: Int, quote: Char): Int {
+    var index = start + 1
+    while (index < length) {
+        if (this[index] == '\\') {
+            index += 2
+        } else if (this[index] == quote) {
+            return index + 1
+        } else {
+            index++
+        }
+    }
+    return length
+}
+
+private fun String.skipWhitespace(start: Int): Int {
+    var index = start
+    while (index < length && this[index].isWhitespace()) index++
+    return index
+}
+
+private fun Char.isAttributeNameStart(): Boolean = isLetter() || this == '_'
+
+private fun Char.isAttributeNamePart(): Boolean = isLetterOrDigit() || this == '_' || this == '-' || this == ':' || this == '.'

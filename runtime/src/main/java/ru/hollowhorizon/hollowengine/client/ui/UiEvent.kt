@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.client.ui.hss.parseHssSelector
 
 enum class UiEventKind {
     INIT,
@@ -92,10 +93,11 @@ data class UiEvent(
 
     fun matches(selector: String): Boolean {
         val clean = selector.trim()
-        return when {
-            clean.isBlank() -> true
+        if (clean.isBlank()) return true
+        return runCatching { parseHssSelector(clean).matches(node) }.getOrDefault(false) || when {
             clean.startsWith("#") -> node.id == clean.removePrefix("#")
             clean.startsWith(".") -> clean.removePrefix(".") in node.tags
+            clean.any { it in "[:#" } -> false
             else -> node.type == clean || node.id == clean || clean in node.tags
         }
     }

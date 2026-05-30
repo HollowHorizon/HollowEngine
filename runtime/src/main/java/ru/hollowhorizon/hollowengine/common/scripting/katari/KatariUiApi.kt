@@ -73,6 +73,13 @@ class KatariUiDocument(
         root = root.insertIntoFirst(cleanTarget, child) { inserted = true }
         require(inserted) { "UI target `$target` was not found" }
     }
+
+    fun modify(target: String, attribute: String, value: String) {
+        val cleanTarget = target.removePrefix(".").removePrefix("#")
+        var modified = false
+        root = root.modifyFirst(cleanTarget, attribute, value) { modified = true }
+        require(modified) { "UI target `$target` was not found" }
+    }
 }
 
 @ScriptBinding("ui")
@@ -89,6 +96,12 @@ fun katariUi(xml: XmlValue): KatariUiDocument {
 @ScriptBinding
 fun KatariUiDocument.insertAt(target: String, child: XmlValue): KatariUiDocument {
     insertAt(target, UiXmlTree.from(child))
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.modify(target: String, attribute: String, value: String): KatariUiDocument {
+    modify(target, attribute, value)
     return this
 }
 
@@ -307,6 +320,30 @@ private fun UiXmlTree.insertIntoFirst(
         }
     }
     return if (inserted) copy(children = nextChildren) else this
+}
+
+private fun UiXmlTree.modifyFirst(
+    target: String,
+    attribute: String,
+    value: String,
+    markModified: () -> Unit,
+): UiXmlTree {
+    if (matchesTarget(target)) {
+        markModified()
+        return copy(attributes = attributes + (attribute to value))
+    }
+    var modified = false
+    val nextChildren = children.map { current ->
+        if (modified) {
+            current
+        } else {
+            current.modifyFirst(target, attribute, value) {
+                modified = true
+                markModified()
+            }
+        }
+    }
+    return if (modified) copy(children = nextChildren) else this
 }
 
 private fun UiXmlTree.matchesTarget(target: String): Boolean {

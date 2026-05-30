@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiInlineScriptRunner
 
 sealed interface Modifier {
     fun applyTo(style: MutableUiStyle)
@@ -182,9 +181,7 @@ sealed interface Modifier {
             emitOn(UiEventKind.DRAG, template, sink)
 
         fun eventScript(kind: UiEventKind, source: String, sink: UiEventSink) =
-            EventModifier(kind) { event ->
-                UiInlineScriptRunner.run(source, event, sink)
-            }
+            ScriptEventModifier(kind, source, sink)
 
         fun then(vararg modifiers: Modifier) = CompositeModifier(modifiers.toList())
     }
@@ -249,6 +246,16 @@ data class EventModifier(
             UiEventKind.UPDATE,
             UiEventKind.CLOSE -> input
         }
+    }
+}
+
+data class ScriptEventModifier(
+    val kind: UiEventKind,
+    val source: String,
+    val sink: UiEventSink,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) {
+        EventModifier(kind) {}.applyTo(style)
     }
 }
 

@@ -73,6 +73,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
 
             "rotate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(rotate = parseVec3(value)) }
             "scale" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(scale = parseScale(value)) }
+            "transform" -> instruction { it.transform = parseTransform(value, it.transform ?: UiTransform()) }
             "pivot", "transform-origin" -> instruction {
                 it.transform = (it.transform ?: UiTransform()).copy(pivot = parsePivot(value))
             }
@@ -471,6 +472,84 @@ private fun parseScale(value: String): UiVec3 {
     return UiVec3(x, parts.getOrElse(1) { x }, parts.getOrElse(2) { 1f })
 }
 
+private fun parseTransform(value: String, base: UiTransform): UiTransform {
+    if (value.equals("none", ignoreCase = true)) return UiTransform()
+    var transform = base
+    for ((name, args) in parseTransformFunctions(value)) {
+        transform = when (name) {
+            "translate" -> {
+                val parts = splitTransformArgs(args).map(::parseScalar)
+                transform.copy(translate = UiVec3(parts.getOrElse(0) { 0f }, parts.getOrElse(1) { 0f }, parts.getOrElse(2) { 0f }))
+            }
+            "translatex" -> transform.copy(translate = transform.translate.copy(x = parseScalar(args)))
+            "translatey" -> transform.copy(translate = transform.translate.copy(y = parseScalar(args)))
+            "translatez" -> transform.copy(translate = transform.translate.copy(z = parseScalar(args)))
+            "scale" -> {
+                val parts = splitTransformArgs(args).map(::parseScalar)
+                val x = parts.getOrElse(0) { 1f }
+                transform.copy(scale = UiVec3(x, parts.getOrElse(1) { x }, parts.getOrElse(2) { 1f }))
+            }
+            "scalex" -> transform.copy(scale = transform.scale.copy(x = parseScalar(args)))
+            "scaley" -> transform.copy(scale = transform.scale.copy(y = parseScalar(args)))
+            "scalez" -> transform.copy(scale = transform.scale.copy(z = parseScalar(args)))
+            "rotate" -> transform.copy(rotate = transform.rotate.copy(z = parseScalar(args)))
+            "rotatex" -> transform.copy(rotate = transform.rotate.copy(x = parseScalar(args)))
+            "rotatey" -> transform.copy(rotate = transform.rotate.copy(y = parseScalar(args)))
+            "rotatez" -> transform.copy(rotate = transform.rotate.copy(z = parseScalar(args)))
+            "perspective" -> transform.copy(perspective = parseScalar(args))
+            else -> transform
+        }
+    }
+    return transform
+}
+
+private fun splitTransformArgs(args: String): List<String> {
+    return if (args.contains(',')) splitTopLevel(args, ',') else splitWhitespace(args)
+}
+
+private fun parseTransformFunctions(value: String): List<Pair<String, String>> {
+    val result = mutableListOf<Pair<String, String>>()
+    var index = 0
+    while (index < value.length) {
+        while (index < value.length && value[index].isWhitespace()) index++
+        val nameStart = index
+        while (index < value.length && (value[index].isLetterOrDigit() || value[index] == '-')) index++
+        if (nameStart == index) break
+        val name = value.substring(nameStart, index).lowercase()
+        require(value.getOrNull(index) == '(') { "Expected transform function after '$name'" }
+        val argsStart = index + 1
+        val close = findFunctionClose(value, index)
+        result += name to value.substring(argsStart, close).trim()
+        index = close + 1
+    }
+    return result
+}
+
+private fun findFunctionClose(value: String, open: Int): Int {
+    var depth = 0
+    var inString = false
+    var quote = '\u0000'
+    for (index in open until value.length) {
+        val char = value[index]
+        if (inString) {
+            if (char == quote && value.getOrNull(index - 1) != '\\') inString = false
+        } else {
+            when (char) {
+                '\'', '"' -> {
+                    inString = true
+                    quote = char
+                }
+                '(' -> depth++
+                ')' -> {
+                    depth--
+                    if (depth == 0) return index
+                }
+            }
+        }
+    }
+    throw IllegalArgumentException("Unclosed transform function in '$value'")
+}
+
 private fun parseScalar(value: String): Float = value.trim().removeSuffix("px").removeSuffix("deg").toFloat()
 
 private fun parseStopOffset(value: String): Float {
@@ -533,6 +612,7 @@ private fun parseDuration(value: String): Long {
 
 private fun parseEasing(value: String): TransitionEasing = when (value.lowercase()) {
     "linear" -> TransitionEasing.LINEAR
+    "ease" -> TransitionEasing.EASE_IN_OUT
     "ease-in" -> TransitionEasing.EASE_IN
     "ease-out" -> TransitionEasing.EASE_OUT
     "ease-in-out" -> TransitionEasing.EASE_IN_OUT

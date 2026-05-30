@@ -16,6 +16,14 @@ class HssParser(private val source: String) {
         return HssDocument(rules)
     }
 
+    fun parseSelectorOnly(): HssSelector {
+        skipIgnored()
+        val selector = parseSelector()
+        skipIgnored()
+        if (!isEnd()) throw HssParseException("Unexpected selector content", index)
+        return selector
+    }
+
     private fun parseRule(): HssRule {
         val selectors = parseSelectors()
         expect('{')
@@ -41,6 +49,7 @@ class HssParser(private val source: String) {
         var id: String? = null
         val tags = mutableSetOf<String>()
         val states = mutableSetOf<UiState>()
+        val attributes = mutableSetOf<HssAttributeSelector>()
         var consumed = false
         selector@ while (!isEnd()) {
             when (peek()) {
@@ -61,6 +70,10 @@ class HssParser(private val source: String) {
                         ?: throw HssParseException("Unknown UI state ':$stateName'", index)
                     consumed = true
                 }
+                '[' -> {
+                    attributes += readAttributeSelector()
+                    consumed = true
+                }
                 '{', ',', ' ', '\n', '\r', '\t' -> break@selector
                 else -> {
                     type = readIdentifier()
@@ -69,7 +82,7 @@ class HssParser(private val source: String) {
             }
         }
         if (!consumed) throw HssParseException("Expected selector", index)
-        return HssSelector(type, id, tags, states)
+        return HssSelector(type, id, tags, states, attributes)
     }
 
     private fun parseDeclarations(): List<HssDeclaration> {
@@ -134,6 +147,47 @@ class HssParser(private val source: String) {
         return source.substring(start, index)
     }
 
+    private fun readAttributeSelector(): HssAttributeSelector {
+        expect('[')
+        skipIgnored()
+        val name = readAttributeName()
+        skipIgnored()
+        val value = if (!isEnd() && peek() == '=') {
+            index++
+            skipIgnored()
+            readAttributeValue()
+        } else {
+            null
+        }
+        skipIgnored()
+        expect(']')
+        return HssAttributeSelector(name, value)
+    }
+
+    private fun readAttributeName(): String {
+        val start = index
+        while (!isEnd() && isAttributeNameChar(peek())) index++
+        if (start == index) throw HssParseException("Expected attribute name", index)
+        return source.substring(start, index)
+    }
+
+    private fun readAttributeValue(): String {
+        val quote = peek().takeIf { it == '"' || it == '\'' }
+        if (quote != null) {
+            index++
+            val start = index
+            while (!isEnd() && (peek() != quote || previous() == '\\')) index++
+            if (isEnd()) throw HssParseException("Unclosed attribute selector string", start)
+            val value = source.substring(start, index).replace("\\$quote", quote.toString())
+            index++
+            return value
+        }
+        val start = index
+        while (!isEnd() && !peek().isWhitespace() && peek() != ']') index++
+        if (start == index) throw HssParseException("Expected attribute value", index)
+        return source.substring(start, index)
+    }
+
     private fun skipIgnored() {
         var advanced: Boolean
         do {
@@ -164,6 +218,12 @@ class HssParser(private val source: String) {
     private fun isEnd() = index >= source.length
 
     private fun peekAhead(value: String) = source.startsWith(value, index)
+
+    private fun isAttributeNameChar(char: Char): Boolean {
+        return char.isLetterOrDigit() || char == '-' || char == '_' || char == ':' || char == '.'
+    }
 }
 
 fun parseHss(source: String): HssDocument = HssParser(source).parse()
+
+fun parseHssSelector(source: String): HssSelector = HssParser(source).parseSelectorOnly()

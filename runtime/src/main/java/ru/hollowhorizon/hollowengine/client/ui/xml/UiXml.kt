@@ -121,16 +121,17 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
 
         val attributes = element.attributes
         val modifiers = attributes.toModifiers()
+        val customAttributes = attributes.customAttributes()
         val id = attributes["id"]
         val tags = attributes.tags(element.name)
         val node = when (element.name.lowercase()) {
-            "box" -> BoxNode(id, tags, modifiers)
-            "text" -> TextNode(element.toTextContent(), id, tags, modifiers)
-            "image" -> ImageNode(attributes.firstValue("source", "src", "image").bound(), id, tags, modifiers)
-            "item" -> ItemNode(attributes.firstValue("item", "value").bound(), id, tags, modifiers)
-            "entity" -> EntityNode(attributes.firstValue("entity", "value").bound(), id, tags, modifiers)
-            "canvas" -> CanvasNode(attributes["renderer"], id, tags, modifiers)
-            else -> BaseUiNode(element.name.lowercase(), id, tags, modifiers).also { node ->
+            "box" -> BoxNode(id, tags, modifiers, customAttributes)
+            "text" -> TextNode(element.toTextContent(), id, tags, modifiers, customAttributes)
+            "image" -> ImageNode(attributes.firstValue("source", "src", "image").bound(), id, tags, modifiers, customAttributes)
+            "item" -> ItemNode(attributes.firstValue("item", "value").bound(), id, tags, modifiers, customAttributes)
+            "entity" -> EntityNode(attributes.firstValue("entity", "value").bound(), id, tags, modifiers, customAttributes)
+            "canvas" -> CanvasNode(attributes["renderer"], id, tags, modifiers, customAttributes)
+            else -> BaseUiNode(element.name.lowercase(), id, tags, modifiers, customAttributes).also { node ->
                 appendInlineTextIfPresent(node.children, element)
             }
         }
@@ -155,6 +156,16 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
             }
         }
         return modifiers
+    }
+
+    private fun Map<String, String>.customAttributes(): Map<String, String> {
+        return filterKeys { rawName ->
+            val name = rawName.toModifierName()
+            name !in StructuralAttributes &&
+                    name != "style" &&
+                    name.toEventKind() == null &&
+                    compileStyleModifier(name, this.getValue(rawName)) == null
+        }
     }
 
     private fun eventModifier(kind: UiEventKind, rawValue: String): Modifier {

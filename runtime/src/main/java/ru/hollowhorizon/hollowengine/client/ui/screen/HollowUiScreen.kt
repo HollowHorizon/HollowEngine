@@ -2,10 +2,15 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
+import ru.hollowhorizon.hollowengine.client.ui.ScriptEventModifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
@@ -20,7 +25,9 @@ import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiPreparedClientScripts
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
@@ -33,6 +40,7 @@ abstract class HollowUiScreen(
     private var frame: HollowUiFrame? = null
     private var cachedRoot: UiNode? = null
     private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
+    private var prepareScriptsJob: Job? = null
     private var uiDirty = true
     private var lastWidth = -1
     private var lastHeight = -1
@@ -315,7 +323,7 @@ abstract class HollowUiScreen(
         val sizeChanged = width != lastWidth || height != lastHeight
         if (cachedRoot == null || uiDirty || sizeChanged || rebuildEveryFrame()) {
             cachedRoot = buildUi()
-            preparedScripts = prepareClientScripts(cachedRoot!!)
+            schedulePrepareClientScripts(cachedRoot!!)
             uiDirty = false
             lastWidth = width
             lastHeight = height
@@ -384,6 +392,7 @@ abstract class HollowUiScreen(
             dispatchUiEvent(UiEvent(UiEventKind.CLOSE, current.resolved.root))
         }
         renderer.close()
+        prepareScriptsJob?.cancel()
         super.removed()
     }
 
@@ -397,12 +406,25 @@ abstract class HollowUiScreen(
         return handled
     }
 
-    private fun prepareClientScripts(root: UiNode): UiPreparedClientScripts {
-        val scripts = root.modifiers
-            .filterIsInstance<UiClientScriptModifier>()
-            .flatMap { it.scripts }
-        if (scripts.isEmpty()) return UiPreparedClientScripts.Empty
-        return UiClientScriptRunner.prepare(scripts, root, eventSink(), bindings().root)
+    private fun schedulePrepareClientScripts(root: UiNode) {
+        prepareScriptsJob?.cancel()
+        UiNodeKeys.assign(root)
+        preparedScripts = UiPreparedClientScripts.Empty
+        val scripts = root.clientScripts()
+        if (scripts.isEmpty()) return
+        val sink = eventSink()
+        val variables = bindings().root
+        val minecraft = Minecraft.getInstance()
+        prepareScriptsJob = minecraft.coroutineScope.launch(Dispatchers.IO) {
+            val prepared = UiClientScriptRunner.prepare(scripts, root, sink, variables, applyInputHints = false)
+            minecraft.execute {
+                if (cachedRoot === root) {
+                    prepared.applyInputHints(root)
+                    preparedScripts = prepared
+                    if (width > 0 && height > 0) refreshFrame()
+                }
+            }
+        }
     }
 
     private fun updateFocus(node: UiNode) {
@@ -441,6 +463,23 @@ abstract class HollowUiScreen(
 
 private fun HollowUiFrame.nodeByKey(key: String): UiNode? {
     return resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
+}
+
+private fun UiNode.clientScripts(): List<UiClientScript> {
+    val ownScripts = modifiers
+        .filterIsInstance<UiClientScriptModifier>()
+        .flatMap { it.scripts } +
+            modifiers
+                .filterIsInstance<ScriptEventModifier>()
+                .map { modifier ->
+                    UiClientScript.Inline(
+                        kind = modifier.kind,
+                        source = modifier.source,
+                        targetKey = UiNodeKeys.key(this),
+                        sink = modifier.sink,
+                    )
+                }
+    return ownScripts + children.flatMap { it.clientScripts() }
 }
 
 private fun UiNode.containsNodeKey(key: String?): Boolean {

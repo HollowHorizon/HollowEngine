@@ -494,7 +494,9 @@ class UiTransitionState {
         }
         val startStyle = starts[key] ?: current
         val transitions =
-            target.transitions.filter { it.property in TransitionProperties && startStyle.changed(it.property, target) }
+            target.transitions.filter { transition ->
+                transition.property in TransitionProperties && startStyle.changed(transition.property, target)
+            }
         if (transitions.isEmpty()) return target.also {
             rendered[key] = target
             targets[key] = target
@@ -530,11 +532,15 @@ class UiTransitionState {
     }
 
     private fun List<UiTransition>.progress(property: String, elapsedMillis: Long): Float {
-        return firstOrNull { it.property == property }?.progress(elapsedMillis) ?: 1f
+        return firstOrNull { it.property == property }?.progress(elapsedMillis)
+            ?: firstOrNull { it.property == "all" }?.progress(elapsedMillis)
+            ?: 1f
     }
 
     private fun ComputedStyle.changed(property: String, target: ComputedStyle): Boolean {
         return when (property) {
+            "all" -> TransitionProperties.any { it != "all" && changed(it, target) }
+            "transform" -> transform != target.transform
             "background" -> background != target.background
             "foreground" -> foreground != target.foreground
             "shadow", "box-shadow" -> shadows != target.shadows
@@ -553,6 +559,8 @@ class UiTransitionState {
     companion object {
         private val TransitionProperties = setOf(
             "background",
+            "all",
+            "transform",
             "foreground",
             "shadow",
             "box-shadow",
