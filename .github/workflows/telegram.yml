@@ -56,7 +56,7 @@ jobs:
         with:
           to: ${{ secrets.TG_CHAT_ID }}
           token: ${{ secrets.TG_BOT_TOKEN }}
-          message_thread_id: ${{ secrets.TG_THREAD_ID }}
+          message_thread_id: 4
           format: html
           disable_web_page_preview: true
           message: ${{ steps.format.outputs.msg }}
