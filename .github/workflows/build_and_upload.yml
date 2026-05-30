@@ -109,7 +109,7 @@ jobs:
           VERSION: ${{ steps.get_version.outputs.mod_version }}
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$VERSION"
+          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/v$VERSION"
           
           HEADER="<b>📦 <a href=\"$RELEASE_URL\">[$REPO_NAME] Build Success</a></b>"
           
