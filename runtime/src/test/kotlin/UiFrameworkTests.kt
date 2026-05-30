@@ -1543,6 +1543,34 @@ class UiFrameworkTests {
         assertEquals(front, hit?.node)
         assertTrue(hit?.node != lifted)
     }
+
+    @Test
+    fun `text child without input modifiers is transparent to hit testing for parent click`() {
+        lateinit var container: BoxNode
+        lateinit var text: TextNode
+        val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            container = Box(
+                id = "clickable-box",
+                modifier = Modifier.onClick {},
+            ) {
+                text = Text("Click me",
+                    modifier = Modifier.then(
+                        Modifier.size(80.px, 20.px),
+                        Modifier.foreground(UiColor(1f, 1f, 1f, 1f)),
+                    ),
+                )
+            }
+        }
+
+        val frame = HollowUiRuntime().frame(root, 200f, 100f)
+        val containerLayout = frame.layout[container]
+        val textLayout = frame.layout[text]
+        val hitOnText = frame.hitTest(textLayout.rect.x + textLayout.rect.width / 2f, textLayout.rect.y + textLayout.rect.height / 2f)
+
+        assertNotNull(hitOnText, "Hit test should return a hit within visible area")
+        assertEquals(container, hitOnText.node, "Hit on transparent text child should reach parent box with onClick")
+        assertTrue(containerLayout.rect.contains(textLayout.rect.x + textLayout.rect.width / 2f, textLayout.rect.y + textLayout.rect.height / 2f))
+    }
 }
 
 private fun HollowUiFrame.textCommand(node: TextNode): DrawTextCommand {

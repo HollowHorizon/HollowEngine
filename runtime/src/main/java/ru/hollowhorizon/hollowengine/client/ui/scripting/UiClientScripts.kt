@@ -36,6 +36,8 @@ object UiInlineScriptRunner {
 }
 
 object UiClientScriptRunner {
+    private val programCache = mutableMapOf<String, Result<KatariProgram>>()
+
     fun run(
         script: UiClientScript,
         event: UiEvent,
@@ -66,10 +68,12 @@ object UiClientScriptRunner {
                 sink = scriptSink,
             )
             val bindings = createBindings(context)
-            val program = runCatching { KatariNarrativeProgram(script.name, code.code, bindings) }.getOrElse { error ->
-                HollowEngine.LOGGER.error("Failed to compile UI script {}", script.name, error)
-                return@mapNotNull null
-            }
+            val cacheKey = "${script.name}|${code.code}"
+            val program = programCache.getOrPut(cacheKey) {
+                runCatching { KatariNarrativeProgram(script.name, code.code, bindings) }.onFailure { error ->
+                    HollowEngine.LOGGER.error("Failed to compile UI script {}", script.name, error)
+                }
+            }.getOrElse { return@mapNotNull null }
             PreparedUiClientScript(script.name, code, context, bindings, program)
         }
         val registry = UiPreparedClientScripts.create(prepared)
@@ -240,7 +244,7 @@ object UiClientScriptRunner {
                 $functionName(__hollow_ui_event)
             """.trimIndent(),
             kinds = setOf(script.kind),
-            handlers = listOf(HandlerDeclaration(script.kind, null, script.source)),
+            handlers = listOf(HandlerDeclaration(script.kind, null, script.source, targetKey = script.targetKey)),
             targetKey = script.targetKey,
         )
     }
@@ -537,6 +541,7 @@ internal data class HandlerDeclaration(
     val kind: UiEventKind,
     val selector: String?,
     val body: String,
+    val targetKey: String? = null,
 )
 
 private class HandlerDeclarations(
@@ -549,6 +554,7 @@ private fun HandlerDeclaration.functionName(index: Int): String {
 }
 
 private fun HandlerDeclaration.matches(node: UiNode): Boolean {
+    if (targetKey != null) return UiNodeKeys.key(node) == targetKey
     return selector?.let(node::matchesSelector) ?: true
 }
 

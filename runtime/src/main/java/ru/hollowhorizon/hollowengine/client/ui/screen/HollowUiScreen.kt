@@ -41,6 +41,7 @@ abstract class HollowUiScreen(
     private var cachedRoot: UiNode? = null
     private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
     private var prepareScriptsJob: Job? = null
+    private var cachedScriptHash: Int = 0
     private var uiDirty = true
     private var lastWidth = -1
     private var lastHeight = -1
@@ -407,19 +408,30 @@ abstract class HollowUiScreen(
     }
 
     private fun schedulePrepareClientScripts(root: UiNode) {
-        prepareScriptsJob?.cancel()
         UiNodeKeys.assign(root)
-        preparedScripts = UiPreparedClientScripts.Empty
         val scripts = root.clientScripts()
-        if (scripts.isEmpty()) return
+        if (scripts.isEmpty()) {
+            preparedScripts = UiPreparedClientScripts.Empty
+            cachedScriptHash = 0
+            return
+        }
+        val scriptsHash = scripts.hashCode()
+        if (scriptsHash == cachedScriptHash) {
+            preparedScripts.applyInputHints(root)
+            return
+        }
+        cachedScriptHash = scriptsHash
+        preparedScripts = UiPreparedClientScripts.Empty
+        prepareScriptsJob?.cancel()
         val sink = eventSink()
         val variables = bindings().root
         val minecraft = Minecraft.getInstance()
         prepareScriptsJob = minecraft.coroutineScope.launch(Dispatchers.IO) {
             val prepared = UiClientScriptRunner.prepare(scripts, root, sink, variables, applyInputHints = false)
             minecraft.execute {
-                if (cachedRoot === root) {
-                    prepared.applyInputHints(root)
+                if (cachedScriptHash == scriptsHash) {
+                    val currentRoot = cachedRoot ?: return@execute
+                    prepared.applyInputHints(currentRoot)
                     preparedScripts = prepared
                     if (width > 0 && height > 0) refreshFrame()
                 }
