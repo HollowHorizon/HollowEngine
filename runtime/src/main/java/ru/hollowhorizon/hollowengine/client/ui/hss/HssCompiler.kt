@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.hss
 
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.effects.*
 
 data class CompiledHss(val rules: List<StyleRule>)
 
@@ -150,7 +151,9 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
+            "font-family" -> instruction { it.fontFamily = value.trim().removeSurrounding("\"").removeSurrounding("'") }
             "typing" -> instruction { it.typing = parseTyping(value) }
+            "text-effects", "text-effect" -> instruction { it.textEffects = parseTextEffects(value) }
             "transition" -> instruction { it.transitions = parseTransitions(value) }
             else -> null
         }
@@ -623,6 +626,106 @@ private fun parseBoolean(value: String): Boolean = when (value.lowercase()) {
     "true", "yes", "1", "enabled" -> true
     "false", "no", "0", "disabled" -> false
     else -> throw IllegalArgumentException("Expected boolean, got '$value'")
+}
+
+private fun parseTextEffects(value: String): List<UiTextEffect> {
+    if (value.equals("none", ignoreCase = true)) return emptyList()
+    return splitTopLevel(value, ',').map { entry ->
+        parseTextEffect(entry.trim())
+    }
+}
+
+private fun parseTextEffect(entry: String): UiTextEffect {
+    val nameEnd = entry.indexOf('(')
+    val name = if (nameEnd < 0) entry.trim().lowercase() else entry.substring(0, nameEnd).trim().lowercase()
+    val args = if (nameEnd < 0) emptyList() else functionArgs(entry, name)
+
+    return when (name) {
+        "bold" -> Bold
+        "italic" -> Italic
+        "underline" -> Underline
+        "strikethrough" -> Strikethrough
+        "code" -> Code
+        "link" -> Link(args.firstOrNull() ?: "")
+        "color" -> TextColor(if (args.isNotEmpty()) parseColor(args.first()) else UiColor.White)
+        "font-size", "size" -> TextSize(args.firstOrNull()?.parseScalarOrNull() ?: DefaultUiFontSize)
+        "font-family", "font" -> TextFont(args.firstOrNull() ?: "")
+        "shadow" -> parseHssShadow(args)
+        "outline" -> parseHssOutline(args)
+        "glow" -> parseHssGlow(args)
+        "gradient" -> parseHssGradient(args)
+        "rainbow" -> Rainbow()
+        "pulse" -> Pulse()
+        "wave" -> parseHssWave(args)
+        "shake" -> parseHssShake(args)
+        "wiggle" -> parseHssWiggle(args)
+        "swing" -> Swing()
+        "scroll" -> Scroll()
+        "glitch" -> Glitch()
+        else -> throw IllegalArgumentException("Unknown text effect '$name'")
+    }
+}
+
+private fun String.parseScalarOrNull(): Float = parseScalar(this)
+
+private fun parseHssShadow(args: List<String>): Shadow {
+    return Shadow(
+        offsetX = args.getOrNull(0)?.parseScalarOrNull() ?: 1.5f,
+        offsetY = args.getOrNull(1)?.parseScalarOrNull() ?: 1.5f,
+        blur = args.getOrNull(2)?.parseScalarOrNull() ?: 0f,
+        color = args.getOrNull(3)?.let(::parseColor) ?: UiColor(0f, 0f, 0f, 0.7f),
+    )
+}
+
+private fun parseHssOutline(args: List<String>): Outline {
+    return Outline(
+        width = args.getOrNull(0)?.parseScalarOrNull() ?: 1.5f,
+        color = args.getOrNull(1)?.let(::parseColor) ?: UiColor(0f, 0f, 0f, 1f),
+    )
+}
+
+private fun parseHssGlow(args: List<String>): Glow {
+    return Glow(
+        radius = args.getOrNull(0)?.parseScalarOrNull() ?: 3f,
+        color = args.getOrNull(1)?.let(::parseColor) ?: UiColor(1f, 1f, 1f, 0.8f),
+        quality = args.getOrNull(2)?.toIntOrNull() ?: 4,
+    )
+}
+
+private fun parseHssGradient(args: List<String>): Gradient {
+    val colorArgs = if (args.size >= 2) args.drop(1) else args
+    val colors = colorArgs.map { parseColor(it) }
+    return Gradient(
+        colors = if (colors.size >= 2) colors else Gradient().colors,
+        mode = when (args.firstOrNull()?.lowercase()) {
+            "vertical", "v" -> GradientMode.VERTICAL
+            else -> GradientMode.HORIZONTAL
+        },
+    )
+}
+
+private fun parseHssWave(args: List<String>): Wave {
+    return Wave(
+        amplitude = args.getOrNull(0)?.parseScalarOrNull() ?: 3f,
+        frequency = args.getOrNull(1)?.parseScalarOrNull() ?: 1.5f,
+        speed = args.getOrNull(2)?.parseScalarOrNull() ?: 2f,
+    )
+}
+
+private fun parseHssShake(args: List<String>): Shake {
+    return Shake(
+        amplitude = args.getOrNull(0)?.parseScalarOrNull() ?: 2f,
+        frequency = args.getOrNull(1)?.parseScalarOrNull() ?: 10f,
+    )
+}
+
+private fun parseHssWiggle(args: List<String>): Wiggle {
+    return Wiggle(
+        amplitude = args.getOrNull(0)?.parseScalarOrNull() ?: 2f,
+        frequency = args.getOrNull(1)?.parseScalarOrNull() ?: 2f,
+        speed = args.getOrNull(2)?.parseScalarOrNull() ?: 1.5f,
+        angleDegrees = args.getOrNull(3)?.parseScalarOrNull() ?: 0f,
+    )
 }
 
 private fun splitWhitespace(value: String): List<String> = value.trim().split(Regex("\\s+")).filter { it.isNotBlank() }

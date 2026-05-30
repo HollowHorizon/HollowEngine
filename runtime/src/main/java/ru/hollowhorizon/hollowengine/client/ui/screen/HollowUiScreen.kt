@@ -88,12 +88,13 @@ abstract class HollowUiScreen(
         super.render(graphics, mouseX, mouseY, partialTick)
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
-        var nextFrame = refreshFrame()
-        if (updateHover(nextFrame, mouseX.toFloat(), mouseY.toFloat())) {
-            nextFrame = refreshFrame()
-        }
+        val sizeChanged = width != lastWidth || height != lastHeight
+        val needsRebuild = frame == null || uiDirty || sizeChanged || rebuildEveryFrame()
+        val current = if (needsRebuild) refreshFrame() else frame!!
+        val hadHoverChange = updateHover(current, mouseX.toFloat(), mouseY.toFloat())
+        val activeFrame = if (hadHoverChange) refreshFrame() else current
         hoveredKey?.let { key ->
-            nextFrame.nodeByKey(key)?.let { node ->
+            activeFrame.nodeByKey(key)?.let { node ->
                 dispatchUiEvent(
                     UiEvent(
                         kind = UiEventKind.HOVER,
@@ -104,7 +105,7 @@ abstract class HollowUiScreen(
                 )
             }
         }
-        renderer.render(nextFrame.commands)
+        renderer.render(activeFrame.commands)
     }
 
     override fun mouseMoved(mouseX: Double, mouseY: Double) {
@@ -321,8 +322,7 @@ abstract class HollowUiScreen(
     }
 
     private fun currentRoot(): UiNode {
-        val sizeChanged = width != lastWidth || height != lastHeight
-        if (cachedRoot == null || uiDirty || sizeChanged || rebuildEveryFrame()) {
+        if (cachedRoot == null || uiDirty || rebuildEveryFrame()) {
             cachedRoot = buildUi()
             schedulePrepareClientScripts(cachedRoot!!)
             uiDirty = false
@@ -379,6 +379,8 @@ abstract class HollowUiScreen(
         applyRuntimeStates(root)
         val nextFrame = runtime.frame(root, width.toFloat(), height.toFloat(), bindings(), nowMillis)
         frame = nextFrame
+        lastWidth = width
+        lastHeight = height
         return nextFrame
     }
 

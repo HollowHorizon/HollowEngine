@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import kotlin.math.max
 
 enum class StyleOrigin(val priority: Int) {
@@ -76,6 +77,8 @@ data class MutableUiStyle(
     var textWrap: Boolean? = null,
     var textAlign: UiTextAlign? = null,
     var fontSize: Float? = null,
+    var fontFamily: String? = null,
+    var textEffects: List<UiTextEffect>? = null,
     var typing: UiTyping? = null,
     var transitions: List<UiTransition>? = null,
     var explicitProperties: Set<UiStyleProperty>? = null,
@@ -119,6 +122,8 @@ data class MutableUiStyle(
         other.textWrap?.let { textWrap = it }
         other.textAlign?.let { textAlign = it }
         other.fontSize?.let { fontSize = it }
+        other.fontFamily?.let { fontFamily = it }
+        other.textEffects?.let { textEffects = textEffects.orEmpty() + it }
         other.typing?.let { typing = it }
         other.transitions?.let { transitions = it }
         other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
@@ -167,6 +172,8 @@ data class MutableUiStyle(
             textWrap = textWrap ?: true,
             textAlign = textAlign ?: inheritedTextAlign,
             fontSize = fontSize ?: inheritedFontSize,
+            fontFamily = fontFamily,
+            textEffects = textEffects ?: emptyList(),
             typing = typing,
             transitions = transitions ?: emptyList(),
             explicitProperties = explicitProperties ?: emptySet(),
@@ -213,6 +220,8 @@ data class ComputedStyle(
     val textWrap: Boolean,
     val textAlign: UiTextAlign,
     val fontSize: Float,
+    val fontFamily: String?,
+    val textEffects: List<UiTextEffect>,
     val typing: UiTyping?,
     val transitions: List<UiTransition>,
     val explicitProperties: Set<UiStyleProperty>,

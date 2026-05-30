@@ -13,6 +13,7 @@ object ModShaders {
     lateinit var GLTF_ENTITY: ShaderInstance
     lateinit var GLTF_ENTITY_INSTANCED: ShaderInstance
     var UI_EFFECT: ShaderInstance? = null
+    var MSDF_TEXT: ShaderInstance? = null
 
     @SubscribeEvent
     fun onShaderRegistry(event: RegisterShadersEvent) {
@@ -33,6 +34,12 @@ object ModShaders {
             DefaultVertexFormat.POSITION_TEX_COLOR
         ) {
             UI_EFFECT = it
+        }
+        event.register(
+            "$MODID:msdf_text".rl,
+            DefaultVertexFormat.POSITION_TEX_COLOR
+        ) {
+            MSDF_TEXT = it
         }
     }
 }

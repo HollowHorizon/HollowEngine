@@ -41,6 +41,14 @@ import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiResourceLoader
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
+import ru.hollowhorizon.hollowengine.client.ui.bold
+import ru.hollowhorizon.hollowengine.client.ui.italic
+import ru.hollowhorizon.hollowengine.client.ui.underline
+import ru.hollowhorizon.hollowengine.client.ui.strikethrough
+import ru.hollowhorizon.hollowengine.client.ui.code
+import ru.hollowhorizon.hollowengine.client.ui.link
+import ru.hollowhorizon.hollowengine.client.ui.fontSize
+import ru.hollowhorizon.hollowengine.client.ui.fontFamily
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

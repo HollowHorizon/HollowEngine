@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 
@@ -136,6 +137,10 @@ sealed interface Modifier {
         fun textAlign(value: UiTextAlign) = StyleModifier { it.textAlign = value }
 
         fun fontSize(value: Float) = StyleModifier { it.fontSize = value.coerceAtLeast(0.0001f) }
+
+        fun fontFamily(name: String) = StyleModifier { it.fontFamily = name }
+
+        fun textEffects(vararg effects: UiTextEffect) = StyleModifier { it.textEffects = effects.toList() }
 
         fun typing(value: UiTyping?) = StyleModifier { it.typing = value }
 

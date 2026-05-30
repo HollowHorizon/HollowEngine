@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+
 sealed interface UiRenderCommand {
     val node: UiNode
 }
@@ -74,6 +76,8 @@ data class DrawTextCommand(
     val wrap: Boolean,
     val align: UiTextAlign,
     val fontSize: Float,
+    val fontFamily: String?,
+    val textEffects: List<UiTextEffect>,
     val layout: UiTextLayout,
     val scrollOffset: UiScrollOffset,
     val hoveredLink: String?,
@@ -252,7 +256,9 @@ class UiCommandRenderer {
 
                 commands += DrawTextCommand(
                     node, layoutNode.content, textString, style.foreground, opacity, contentTransform,
-                    filter, style.textWrap, style.textAlign, style.fontSize, textLayout,
+                    filter, style.textWrap, style.textAlign, style.fontSize,
+                    style.fontFamily, style.textEffects,
+                    textLayout,
                     layoutNode.scrollOffset, node.hoveredLink, backface
                 )
             }

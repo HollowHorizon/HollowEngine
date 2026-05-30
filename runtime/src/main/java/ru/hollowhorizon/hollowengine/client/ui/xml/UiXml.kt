@@ -10,22 +10,18 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.CanvasNode
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.EntityNode
-import ru.hollowhorizon.hollowengine.client.ui.ImageNode
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineAlign
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.ItemNode
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.TextNode
-import ru.hollowhorizon.hollowengine.client.ui.UiChildren
-import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
-import ru.hollowhorizon.hollowengine.client.ui.UiEventPayloadTemplate
-import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
-import ru.hollowhorizon.hollowengine.client.ui.UiClientScriptModifier
-import ru.hollowhorizon.hollowengine.client.ui.UiTextContent
-import ru.hollowhorizon.hollowengine.client.ui.UiTextSegment
-import ru.hollowhorizon.hollowengine.client.ui.bound
+import ru.hollowhorizon.hollowengine.client.ui.effects.*
+import ru.hollowhorizon.hollowengine.client.ui.withBold
+import ru.hollowhorizon.hollowengine.client.ui.withCode
+import ru.hollowhorizon.hollowengine.client.ui.withColor
+import ru.hollowhorizon.hollowengine.client.ui.withFontFamily
+import ru.hollowhorizon.hollowengine.client.ui.withFontSize
+import ru.hollowhorizon.hollowengine.client.ui.withItalic
+import ru.hollowhorizon.hollowengine.client.ui.withLink
+import ru.hollowhorizon.hollowengine.client.ui.withStrikethrough
+import ru.hollowhorizon.hollowengine.client.ui.withUnderline
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 
@@ -259,18 +255,66 @@ private fun UiXmlTree.toInlineSegments(style: UiInlineStyle): List<UiTextSegment
     val name = name.lowercase()
     return when (name) {
         "span" -> inlineTextOrChildren(style)
-        "b", "bold" -> inlineTextOrChildren(style.copy(bold = true))
-        "i", "italic" -> inlineTextOrChildren(style.copy(italic = true))
-        "u", "underline" -> inlineTextOrChildren(style.copy(underline = true))
-        "s", "strike", "strikethrough" -> inlineTextOrChildren(style.copy(strikethrough = true))
-        "code" -> inlineTextOrChildren(style.copy(code = true))
+        "b", "bold" -> inlineTextOrChildren(style.withBold())
+        "i", "italic" -> inlineTextOrChildren(style.withItalic())
+        "u", "underline" -> inlineTextOrChildren(style.withUnderline())
+        "s", "strike", "strikethrough" -> inlineTextOrChildren(style.withStrikethrough())
+        "code" -> inlineTextOrChildren(style.withCode())
         "color" -> inlineTextOrChildren(
-            style.copy(color = attributes.firstValue("value", "color").takeIf { it.isNotBlank() }?.let(::parseInlineColor))
+            attributes.firstValue("value", "color").takeIf { it.isNotBlank() }
+                ?.let(::parseInlineColor)?.let(style::withColor) ?: style
         )
         "size" -> inlineTextOrChildren(
-            style.copy(fontSize = attributes.firstValue("value", "fontSize", "font-size", "size").parseInlineSize())
+            attributes.firstValue("value", "fontSize", "font-size", "size").parseInlineSize()
+                ?.let(style::withFontSize) ?: style
         )
-        "a", "link" -> inlineTextOrChildren(style.copy(link = attributes.firstValue("href", "to", "value"), underline = true))
+        "a", "link" -> {
+            val url = attributes.firstValue("href", "to", "value")
+            inlineTextOrChildren(style.withLink(url).withUnderline())
+        }
+        "font" -> inlineTextOrChildren(
+            attributes.firstValue("family", "name", "value").takeIf { it.isNotBlank() }
+                ?.let(style::withFontFamily) ?: style
+        )
+        "typewriter", "typing" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + Typewriter)
+        )
+        "shadow" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseShadowEffect(attributes))
+        )
+        "outline" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseOutlineEffect(attributes))
+        )
+        "glow" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseGlowEffect(attributes))
+        )
+        "gradient" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseGradientEffect(attributes))
+        )
+        "rainbow" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseRainbowEffect(attributes))
+        )
+        "pulse" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parsePulseEffect(attributes))
+        )
+        "wave" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseWaveEffect(attributes))
+        )
+        "shake" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseShakeEffect(attributes))
+        )
+        "wiggle" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseWiggleEffect(attributes))
+        )
+        "swing" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseSwingEffect(attributes))
+        )
+        "scroll" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseScrollEffect(attributes))
+        )
+        "glitch" -> inlineTextOrChildren(
+            style.copy(effects = style.effects + parseGlitchEffect(attributes))
+        )
         "pause" -> listOf(UiTextSegment.Pause(parseInlineDuration(attributes.firstValue("delay", "duration", "value", default = "0ms"))))
         "img", "image" -> listOf(
             UiTextSegment.Image(
@@ -305,23 +349,22 @@ private fun UiXmlTree.inlineChildren(style: UiInlineStyle): List<UiTextSegment> 
 private fun UiXmlTree.isTextInlineElement(): Boolean {
     return name.lowercase() in setOf(
         "span",
-        "b",
-        "bold",
-        "i",
-        "italic",
-        "u",
-        "underline",
-        "s",
-        "strike",
-        "strikethrough",
+        "b", "bold",
+        "i", "italic",
+        "u", "underline",
+        "s", "strike", "strikethrough",
         "code",
         "color",
         "size",
-        "a",
-        "link",
+        "a", "link",
+        "font",
+        "typewriter", "typing",
+        "shadow", "outline", "glow",
+        "gradient", "rainbow", "pulse",
+        "wave", "shake", "wiggle", "swing",
+        "scroll", "glitch",
         "pause",
-        "img",
-        "image",
+        "img", "image",
     )
 }
 
@@ -359,6 +402,113 @@ private fun parseInlineAlign(value: String): UiInlineAlign = when (value.lowerca
     "bottom" -> UiInlineAlign.BOTTOM
     else -> UiInlineAlign.BASELINE
 }
+
+
+
+private fun parseShadowEffect(attrs: Map<String, String>): Shadow {
+    return Shadow(
+        offsetX = attrs["x"]?.parseScalarOrNull() ?: attrs["offset-x"]?.parseScalarOrNull() ?: 1.5f,
+        offsetY = attrs["y"]?.parseScalarOrNull() ?: attrs["offset-y"]?.parseScalarOrNull() ?: 1.5f,
+        blur = attrs["blur"]?.parseScalarOrNull() ?: 0f,
+        color = parseInlineColor(attrs.firstValue("color")) ?: UiColor(0f, 0f, 0f, 0.7f),
+    )
+}
+
+private fun parseOutlineEffect(attrs: Map<String, String>): Outline {
+    return Outline(
+        width = attrs.firstValue("width", "size").parseScalarOrNull() ?: 1.5f,
+        color = parseInlineColor(attrs.firstValue("color")) ?: UiColor(0f, 0f, 0f, 1f),
+    )
+}
+
+private fun parseGlowEffect(attrs: Map<String, String>): Glow {
+    return Glow(
+        radius = attrs.firstValue("radius", "size").parseScalarOrNull() ?: 3f,
+        color = parseInlineColor(attrs.firstValue("color")) ?: UiColor(1f, 1f, 1f, 0.8f),
+        quality = attrs.firstValue("quality", "rings").toIntOrNull() ?: 4,
+    )
+}
+
+private fun parseGradientEffect(attrs: Map<String, String>): Gradient {
+    val colors = attrs.firstValue("colors", "palette").split(",").mapNotNull { parseInlineColor(it.trim()) }
+    return Gradient(
+        colors = if (colors.size >= 2) colors else Gradient().colors,
+        mode = when (attrs.firstValue("mode", "direction").lowercase()) {
+            "vertical", "v" -> GradientMode.VERTICAL
+            else -> GradientMode.HORIZONTAL
+        },
+        speed = attrs["speed"]?.parseScalarOrNull() ?: 0f,
+        phaseOffset = attrs["phase"]?.parseScalarOrNull() ?: 0f,
+    )
+}
+
+private fun parseRainbowEffect(attrs: Map<String, String>): Rainbow {
+    return Rainbow(
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 0.5f,
+        saturation = attrs["saturation"]?.parseScalarOrNull() ?: 1f,
+        brightness = attrs["brightness"]?.parseScalarOrNull() ?: 1f,
+        speed = attrs["speed"]?.parseScalarOrNull() ?: 0.5f,
+        phaseOffset = attrs["phase"]?.parseScalarOrNull() ?: 0f,
+    )
+}
+
+private fun parsePulseEffect(attrs: Map<String, String>): Pulse {
+    return Pulse(
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 1.5f,
+        amplitude = attrs["amplitude"]?.parseScalarOrNull() ?: 0.4f,
+        minAlpha = attrs.firstValue("min-alpha", "minAlpha").parseScalarOrNull() ?: 0.3f,
+    )
+}
+
+private fun parseWaveEffect(attrs: Map<String, String>): Wave {
+    return Wave(
+        amplitude = attrs["amplitude"]?.parseScalarOrNull() ?: 3f,
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 1.5f,
+        speed = attrs["speed"]?.parseScalarOrNull() ?: 2f,
+        phaseOffset = attrs["phase"]?.parseScalarOrNull() ?: 0f,
+    )
+}
+
+private fun parseShakeEffect(attrs: Map<String, String>): Shake {
+    return Shake(
+        amplitude = attrs["amplitude"]?.parseScalarOrNull() ?: 2f,
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 10f,
+        seed = attrs["seed"]?.parseScalarOrNull() ?: 42f,
+    )
+}
+
+private fun parseWiggleEffect(attrs: Map<String, String>): Wiggle {
+    return Wiggle(
+        amplitude = attrs["amplitude"]?.parseScalarOrNull() ?: 2f,
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 2f,
+        speed = attrs["speed"]?.parseScalarOrNull() ?: 1.5f,
+        angleDegrees = attrs.firstValue("angle", "direction").parseScalarOrNull() ?: 0f,
+    )
+}
+
+private fun parseSwingEffect(attrs: Map<String, String>): Swing {
+    return Swing(
+        amplitude = attrs["amplitude"]?.parseScalarOrNull() ?: 5f,
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 0.8f,
+        speed = attrs["speed"]?.parseScalarOrNull() ?: 1.2f,
+    )
+}
+
+private fun parseScrollEffect(attrs: Map<String, String>): Scroll {
+    return Scroll(
+        speed = attrs["speed"]?.parseScalarOrNull() ?: 30f,
+        pauseAtEnd = attrs["pause"]?.parseScalarOrNull() ?: 1f,
+    )
+}
+
+private fun parseGlitchEffect(attrs: Map<String, String>): Glitch {
+    return Glitch(
+        frequency = attrs["frequency"]?.parseScalarOrNull() ?: 3f,
+        intensity = attrs["intensity"]?.parseScalarOrNull() ?: 2f,
+    )
+}
+
+private fun String?.parseScalarOrNull(): Float? = this?.trim()?.removeSuffix("px")?.toFloatOrNull()
 
 private fun parseInlineColor(value: String): UiColor? {
     val text = value.trim().removePrefix("#")

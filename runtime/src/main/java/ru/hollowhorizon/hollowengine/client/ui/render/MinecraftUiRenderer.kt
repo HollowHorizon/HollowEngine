@@ -2,8 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.render
 
 import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.PoseStack
-import com.mojang.blaze3d.vertex.VertexSorting
+import com.mojang.blaze3d.vertex.*
 import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
@@ -20,11 +19,14 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.render.render
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.effects.*
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
+import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import kotlin.math.ceil
 import kotlin.math.min
@@ -433,8 +435,9 @@ class MinecraftUiRenderer {
         val yAxis = transform.transform(0f, 1f)
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
+        val now = TickHandler.time / 20f
         command.layout.lines.forEach { line ->
-            drawTextLine(command, line, transform, scaleX, scaleY)
+            drawTextLine(command, line, transform, scaleX, scaleY, now)
         }
         mc.renderBuffers().bufferSource().endBatch()
     }
@@ -445,12 +448,13 @@ class MinecraftUiRenderer {
         transform: UiMatrix4,
         scaleX: Float,
         scaleY: Float,
+        now: Float,
     ) {
         if (line.fragments.isNotEmpty()) {
             line.fragments.forEach { fragment ->
                 when (fragment) {
                     is UiInlineImageRun -> drawInlineImage(command, fragment, line, transform)
-                    is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY)
+                    is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
                 }
             }
         } else {
@@ -462,7 +466,7 @@ class MinecraftUiRenderer {
                 width = line.naturalWidth,
                 height = command.fontSize,
             )
-            drawTextRun(command, fragment, line, transform, scaleX, scaleY)
+            drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
         }
     }
 
@@ -473,18 +477,92 @@ class MinecraftUiRenderer {
         transform: UiMatrix4,
         scaleX: Float,
         scaleY: Float,
+        now: Float,
     ) {
-        val mc = Minecraft.getInstance()
         val fontSize = fragment.style.resolvedFontSize(command.fontSize)
-        val fontScale = fontSize / mc.font.lineHeight.toFloat()
+        val effects = fragment.style.effects + command.textEffects
+        val fontFamily = fragment.style.fontFamily ?: command.fontFamily
+
+        if (!fontFamily.isNullOrBlank() && effects.isEmpty()) {
+            drawMsdfTextRun(command, fragment, line, transform, scaleX, scaleY, now, fontSize, fontFamily)
+            return
+        }
+
+        val hasLayer = effects.hasLayerEffects()
+        val hasAnimated = effects.hasAnimatedEffects()
+
+        if (!hasLayer && !hasAnimated) {
+            drawSingleTextRun(
+                command, fragment, transform, scaleX, scaleY,
+                fragment.x - command.scrollOffset.x,
+                line.y + fragment.y - command.scrollOffset.y,
+                fontSize,
+                fragment.style.color,
+                command.opacity,
+            )
+            return
+        }
+
+        val layerEffects = effects.filter { it.isLayer }
+        val animatedEffects = if (hasAnimated) effects.filter { it.isAnimated } else emptyList()
+
         val localX = fragment.x - command.scrollOffset.x
         val localY = line.y + fragment.y - command.scrollOffset.y
+
+        if (hasAnimated) {
+            drawAnimatedTextRun(command, fragment, transform, scaleX, scaleY, now, fontSize, localX, localY, animatedEffects, layerEffects)
+            return
+        }
+
+        val effectiveColor = fragment.style.color
+            ?: if (fragment.style.link != null) {
+                val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            } else {
+                command.color
+            }
+
+        for (layerEffect in layerEffects) {
+            val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
+            for (pass in passes) {
+                val passColor = pass.colorOverride ?: effectiveColor
+                drawSingleTextRun(
+                    command, fragment, transform, scaleX, scaleY,
+                    localX + pass.offsetX,
+                    localY + pass.offsetY,
+                    fontSize,
+                    passColor, command.opacity,
+                )
+            }
+        }
+
+        drawSingleTextRun(
+            command, fragment, transform, scaleX, scaleY,
+            localX, localY, fontSize,
+            fragment.style.color, command.opacity,
+        )
+    }
+
+    private fun drawSingleTextRun(
+        command: DrawTextCommand,
+        fragment: UiTextRun,
+        transform: UiMatrix4,
+        scaleX: Float,
+        scaleY: Float,
+        localX: Float,
+        localY: Float,
+        fontSize: Float,
+        colorOverride: UiColor?,
+        alphaMultiplier: Float,
+    ) {
+        val mc = Minecraft.getInstance()
+        val fontScale = fontSize / mc.font.lineHeight.toFloat()
         val origin = transform.transform(localX, localY)
         val pose = PoseStack()
         pose.translate(
             origin.x.toDouble(),
             origin.y.toDouble(),
-            origin.z.toDouble()
+            origin.z.toDouble() - 10
         )
         pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
         if (fragment.style.code) {
@@ -492,31 +570,34 @@ class MinecraftUiRenderer {
                 fragment.width,
                 fragment.height,
                 2f,
-                UiColor(0f, 0f, 0f, 0.28f * command.opacity),
+                UiColor(0f, 0f, 0f, 0.28f * command.opacity * alphaMultiplier),
                 transform * UiMatrix4.translation(localX, localY, 0f),
                 command.filter,
             )
         }
         val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-        val color = fragment.style.color
+        val color = colorOverride
+            ?: fragment.style.color
             ?: if (fragment.style.link != null) {
                 if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
             } else {
                 command.color
             }
+        val finalAlpha = command.opacity * alphaMultiplier * color.alpha
+        val finalColor = UiColor(color.red, color.green, color.blue, finalAlpha)
         val component = Component.literal(fragment.text).withStyle { style ->
             style
                 .withBold(fragment.style.bold)
                 .withItalic(fragment.style.italic)
                 .withUnderlined(fragment.style.underline || fragment.style.link != null)
                 .withStrikethrough(fragment.style.strikethrough)
-                .withColor(TextColor.fromRgb(color.argb() and 0xFFFFFF))
+                .withColor(TextColor.fromRgb(finalColor.argb() and 0xFFFFFF))
         }
         mc.font.drawInBatch(
             component.visualOrderText,
             0f,
             0f,
-            color.withOpacity(command.opacity).filtered(command.filter).argb(),
+            finalColor.filtered(command.filter).argb(),
             false,
             pose.last().pose(),
             mc.renderBuffers().bufferSource(),
@@ -524,6 +605,204 @@ class MinecraftUiRenderer {
             0,
             15728880,
         )
+    }
+
+    private fun drawAnimatedTextRun(
+        command: DrawTextCommand,
+        fragment: UiTextRun,
+        transform: UiMatrix4,
+        scaleX: Float,
+        scaleY: Float,
+        now: Float,
+        fontSize: Float,
+        baseLocalX: Float,
+        baseLocalY: Float,
+        animatedEffects: List<UiTextEffect>,
+        layerEffects: List<UiTextEffect>,
+    ) {
+        val mc = Minecraft.getInstance()
+        val fontScale = fontSize / mc.font.lineHeight.toFloat()
+        val totalChars = fragment.text.length
+
+        for (charIndex in fragment.text.indices) {
+            val char = fragment.text[charIndex]
+            val charWidth = mc.font.width(char.toString()).toFloat() * fontScale
+            val charPos = charIndex.toFloat() / totalChars.coerceAtLeast(1).toFloat()
+            val prefixText = fragment.text.substring(0, charIndex)
+            val prefixWidth = mc.font.width(prefixText).toFloat() * fontScale
+            val charLocalX = baseLocalX + prefixWidth
+
+            val ctx = UiEffectContext(
+                time = now,
+                charIndex = charIndex,
+                totalChars = totalChars,
+                charPos = charPos,
+                runWidth = fragment.width,
+                runHeight = fragment.height,
+                random = 0f,
+            )
+
+            var charOffsetX = 0f
+            var charOffsetY = 0f
+            var colorOverride: UiColor? = fragment.style.color
+            var alphaMul = 1f
+
+            for (effect in animatedEffects) {
+                val result = UiTextEffectApplier.apply(effect, ctx)
+                charOffsetX += result.offsetX
+                charOffsetY += result.offsetY
+                if (result.colorOverride != null) colorOverride = result.colorOverride
+                alphaMul *= result.alphaMultiplier
+            }
+
+            if (layerEffects.isNotEmpty()) {
+                val effectiveColor = colorOverride
+                    ?: if (fragment.style.link != null) {
+                        val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+                        if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+                    } else {
+                        command.color
+                    }
+                for (layerEffect in layerEffects) {
+                    val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
+                    for (pass in passes) {
+                        val passColor = pass.colorOverride ?: effectiveColor
+                        val adjustedLocalX = charLocalX + charOffsetX + pass.offsetX
+                        val adjustedLocalY = baseLocalY + charOffsetY + pass.offsetY
+                        val origin = transform.transform(adjustedLocalX, adjustedLocalY)
+                        val pose = PoseStack()
+                        pose.translate(origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble() - 1)
+                        pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
+                        val finalAlpha = command.opacity * alphaMul * passColor.alpha
+                        val finalColor = UiColor(passColor.red, passColor.green, passColor.blue, finalAlpha)
+                        mc.font.drawInBatch(
+                            Component.literal(char.toString()).visualOrderText, 0f, 0f,
+                            finalColor.filtered(command.filter).argb(), false,
+                            pose.last().pose(), mc.renderBuffers().bufferSource(),
+                            DisplayMode.SEE_THROUGH, 0, 15728880,
+                        )
+                    }
+                }
+            }
+
+            val finalLocalX = charLocalX + charOffsetX
+            val finalLocalY = baseLocalY + charOffsetY
+            val origin = transform.transform(finalLocalX, finalLocalY)
+            val pose = PoseStack()
+            pose.translate(origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble())
+            pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
+
+            val finalColor = colorOverride
+                ?: if (fragment.style.link != null) {
+                    val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+                    if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+                } else {
+                    command.color
+                }
+            val finalAlpha = command.opacity * alphaMul * finalColor.alpha
+            val color = UiColor(finalColor.red, finalColor.green, finalColor.blue, finalAlpha)
+
+            mc.font.drawInBatch(
+                Component.literal(char.toString()).visualOrderText, 0f, 0f,
+                color.filtered(command.filter).argb(), false,
+                pose.last().pose(), mc.renderBuffers().bufferSource(),
+                DisplayMode.SEE_THROUGH, 0, 15728880,
+            )
+        }
+    }
+
+    private fun drawMsdfTextRun(
+        command: DrawTextCommand,
+        fragment: UiTextRun,
+        line: UiTextLine,
+        transform: UiMatrix4,
+        scaleX: Float,
+        scaleY: Float,
+        now: Float,
+        fontSize: Float,
+        fontFamily: String,
+    ) {
+        UiMsdfFont.loadFont(fontFamily)
+        val fontData = UiMsdfFont.getFontData(fontFamily) ?: return
+        val atlasInfo = fontData.meta.atlas
+        val metrics = fontData.meta.metrics
+        val distanceRange = atlasInfo.distanceRange
+        val atlasWidth = atlasInfo.width.toFloat()
+        val atlasHeight = atlasInfo.height.toFloat()
+        val scale = fontSize / atlasInfo.size
+        val lineHeight = metrics.lineHeight * atlasInfo.size * scale
+
+        val localX = fragment.x - command.scrollOffset.x
+        val localY = line.y + fragment.y - command.scrollOffset.y
+
+        val shader = ModShaders.MSDF_TEXT ?: run {
+            drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
+            return
+        }
+
+        UiMsdfFont.bindTexture(fontFamily)
+
+        val tessellator = Tesselator.getInstance()
+        val bufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
+
+        val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+        val baseColor = fragment.style.color
+            ?: if (fragment.style.link != null) {
+                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            } else {
+                command.color
+            }
+        val alpha = command.opacity
+        val color = baseColor.withOpacity(alpha).filtered(command.filter)
+
+        var penX = 0f
+        for (char in fragment.text) {
+            val glyph = fontData.glyphMap[char] ?: continue
+
+            val ab = glyph.atlasBounds
+            val pb = glyph.planeBounds
+            val u0 = ab.left / atlasWidth
+            val v0 = ab.bottom / atlasHeight
+            val u1 = ab.right / atlasWidth
+            val v1 = ab.top / atlasHeight
+
+            val glyphWidth = (pb.right - pb.left) * scale
+            val glyphHeight = (pb.top - pb.bottom) * scale
+            val x0 = penX + pb.left * scale
+            val y0 = (lineHeight - metrics.ascender * atlasInfo.size) * scale - pb.bottom * scale
+            val x1 = x0 + glyphWidth
+            val y1 = y0 + glyphHeight
+
+            val origin = transform.transform(localX + x0, localY + y0)
+            val topLeft = transform.transform(localX + x0, localY + y1)
+            val topRight = transform.transform(localX + x1, localY + y1)
+            val bottomRight = transform.transform(localX + x1, localY + y0)
+
+            val r = color.red
+            val g = color.green
+            val b = color.blue
+            val a = color.alpha
+
+            bufferBuilder.addVertex(bottomRight.x, bottomRight.y, bottomRight.z).setColor(r, g, b, a).setUv(u1, v0)
+            bufferBuilder.addVertex(topRight.x, topRight.y, topRight.z).setColor(r, g, b, a).setUv(u1, v1)
+            bufferBuilder.addVertex(topLeft.x, topLeft.y, topLeft.z).setColor(r, g, b, a).setUv(u0, v1)
+            bufferBuilder.addVertex(origin.x, origin.y, origin.z).setColor(r, g, b, a).setUv(u0, v0)
+
+            penX += glyph.advance * scale
+        }
+
+        RenderSystem.setShader { shader }
+        shader.safeGetUniform("DistanceRange")?.set(distanceRange)
+        shader.safeGetUniform("Softness")?.set(0.15f)
+        shader.safeGetUniform("OutlineWidth")?.set(0f)
+        shader.safeGetUniform("OutlineColor")?.set(0f, 0f, 0f, 0f)
+        shader.safeGetUniform("GlowRadius")?.set(0f)
+        shader.safeGetUniform("GlowColor")?.set(0f, 0f, 0f, 0f)
+        shader.safeGetUniform("ShadowOffset")?.set(0f, 0f)
+        shader.safeGetUniform("ShadowColor")?.set(0f, 0f, 0f, 0f)
+        shader.safeGetUniform("AtlasSize")?.set(atlasWidth, atlasHeight)
+        shader.apply()
+        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
     }
 
     private fun drawInlineImage(
