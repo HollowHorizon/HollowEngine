@@ -337,4 +337,37 @@ class KatariScriptingAnalyzerTests {
 
         assertEquals(emptyList(), diagnostics)
     }
+
+    @Test
+    fun `diagnostic accepts npc item requests with multiple items`() {
+        val diagnostics = KatariScriptingAnalyzer.diagnostic(
+            "request_items.ktr",
+            """
+                val npc = npc(pos(0.0, 64.0, 0.0))
+                npc.requestItems(
+                    item("minecraft:diamond", 5),
+                    item("minecraft:emerald", 2),
+                    item("minecraft:gold_ingot", 1)
+                )
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), diagnostics)
+    }
+
+    @Test
+    fun `diagnostic accepts katari task operations`() {
+        val diagnostics = KatariScriptingAnalyzer.diagnostic(
+            "task.ktr",
+            """
+                val task = async {
+                    wait(1.sec)
+                }
+                task.start()
+                task.join()
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), diagnostics)
+    }
 }

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.model.GlobalProperty
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
 import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
@@ -15,6 +16,8 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
+import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.PlayerSnapshot
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.registerNpcRequestItemsBinding
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
@@ -115,6 +118,7 @@ fun createHollowKatariBindings(
         registerBuiltinFunctions(host)
         registerSavedVariableBindings(savedVariables)
         registerGeneratedKatariBindings(server)
+        registerNpcRequestItemsBinding(server)
         registerKatariEventBindings(runId = runId)
         registerKatariUiStructBindings()
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
@@ -129,8 +133,14 @@ fun NarrativeBindingsBuilder.registerContextGlobals(
     sourcePlayerId: String?,
 ) {
     val playerRef: Player? = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
-    playerRef?.let {
-        global("player", KatariGeneratedBindingRuntime.toRuntimeValue(it, "Player", symbolTable), persistent = true)
+    if (playerRef != null) {
+        global("player", KatariGeneratedBindingRuntime.toRuntimeValue(playerRef, "Player", symbolTable), persistent = true)
+    } else if (sourcePlayerId != null) {
+        global(
+            "player",
+            NarrativeHostValue("Player", PlayerSnapshot(UUID.fromString(sourcePlayerId)), symbolTable),
+            persistent = true,
+        )
     }
     global("server", KatariGeneratedBindingRuntime.toRuntimeValue(server, "Server", symbolTable), persistent = true)
     global("overworld", KatariGeneratedBindingRuntime.toRuntimeValue(server.overworld(), "Level", symbolTable), persistent = true)
@@ -142,6 +152,7 @@ fun createHollowKatariEditorBindings(): KatariBindings {
         registerBuiltinFunctions(NarrativeNoOpHost)
         registerSavedVariableBindings(null)
         registerGeneratedKatariBindings()
+        registerNpcRequestItemsBinding(null)
         registerKatariEventBindings()
         registerKatariUiStructBindings()
         registerContextGlobalTypes()

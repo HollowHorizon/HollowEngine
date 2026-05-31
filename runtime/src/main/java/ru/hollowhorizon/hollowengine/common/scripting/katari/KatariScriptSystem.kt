@@ -133,13 +133,27 @@ class KatariScriptSystem(
         val entries = tag.getList("katari", 10)
         entries.filterIsInstance<CompoundTag>().forEach { entry ->
             val id = entry.getString("id").takeIf { it.isNotBlank() } ?: return@forEach
+            val path = entry.getString("path")
+            val snapshot = entry.get("snapshot")
+            val savedStatus = runCatching { KatariRunStatus.valueOf(entry.getString("status")) }
+                .getOrDefault(KatariRunStatus.PAUSED)
+            val status = if (snapshot == null && savedStatus == KatariRunStatus.RUNNING) {
+                HollowEngine.LOGGER.warn(
+                    "Katari script {} ({}) was saved as RUNNING without a snapshot. It will remain paused and will not be restarted from the beginning.",
+                    path,
+                    id,
+                )
+                KatariRunStatus.PAUSED
+            } else {
+                savedStatus
+            }
             records[id] = KatariRunRecord(
                 id = id,
-                path = entry.getString("path"),
+                path = path,
                 hash = entry.getString("hash"),
                 sourcePlayer = entry.getString("source_player").takeIf { it.isNotBlank() },
-                snapshot = entry.get("snapshot"),
-                status = runCatching { KatariRunStatus.valueOf(entry.getString("status")) }.getOrDefault(KatariRunStatus.PAUSED),
+                snapshot = snapshot,
+                status = status,
                 error = entry.getString("error").takeIf { it.isNotBlank() },
                 loader = KatariLoaderTarget.fromNbt(entry.getString("loader")),
             )
@@ -230,7 +244,12 @@ class KatariScriptSystem(
             KatariEventSubscriptions.clear(record.id, "restore failed")
             record.status = KatariRunStatus.PAUSED
             record.error = error.message ?: error::class.java.simpleName
-            HollowEngine.LOGGER.error("Failed to restore Katari script {}", record.path, error)
+            HollowEngine.LOGGER.error(
+                "Failed to restore Katari script {} ({}). The saved run is kept paused and will not be restarted from the beginning.",
+                record.path,
+                record.id,
+                error,
+            )
         }
         markDirty()
     }

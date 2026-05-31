@@ -128,9 +128,7 @@ fun <A, B> ((A) -> B).memoize(): (A) -> B {
  *
  * @return A CompoundTag representing the saved ItemStack.
  */
-fun ItemStack.save() = CompoundTag().apply {
-    if (!isEmpty) save(registryAccess)
-}
+fun ItemStack.save() = save(registryAccess)
 
 /**
  * Reads an ItemStack from a CompoundTag.

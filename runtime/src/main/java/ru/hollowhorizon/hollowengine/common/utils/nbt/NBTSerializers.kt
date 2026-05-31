@@ -264,7 +264,7 @@ object ForItemStack : KSerializer<ItemStack> {
             encodeSerializableElement(
                 descriptor,
                 0,
-                ForCompoundNBT,
+                ForTag,
                 if (value.isEmpty) CompoundTag() // ЕndTag не используется поскольку ListTag не поддерживает полиморфизм для Tag, из-за этого будут проблемы при сохранении
                 else value.save()
             )
@@ -275,21 +275,21 @@ object ForItemStack : KSerializer<ItemStack> {
     override fun deserialize(decoder: Decoder): ItemStack {
         val dec = decoder.beginStructure(descriptor)
 
-        var tag: CompoundTag? = null
+        var tag: Tag? = null
         if (dec.decodeSequentially()) {
-            tag = dec.decodeSerializableElement(descriptor, 0, ForCompoundNBT)
+            tag = dec.decodeSerializableElement(descriptor, 0, ForTag)
         } else {
             loop@ while (true) {
                 when (val i = dec.decodeElementIndex(descriptor)) {
-                    0 -> tag = dec.decodeSerializableElement(descriptor, i, ForCompoundNBT)
+                    0 -> tag = dec.decodeSerializableElement(descriptor, i, ForTag)
                     CompositeDecoder.DECODE_DONE -> break@loop
                     else -> throw SerializationException("Unexpected index: $i")
                 }
             }
         }
         dec.endStructure(descriptor)
-        return if (tag?.isEmpty == true) ItemStack.EMPTY
-        else tag!!.readItem()
+        return if (tag !is CompoundTag || tag.isEmpty) ItemStack.EMPTY
+        else tag.readItem()
     }
 }
 
