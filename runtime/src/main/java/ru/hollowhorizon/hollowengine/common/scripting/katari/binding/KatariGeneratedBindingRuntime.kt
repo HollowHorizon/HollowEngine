@@ -20,6 +20,8 @@ import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
 import com.sunnychung.lib.multiplatform.kotlite.model.SymbolTable
 import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.collections.MapValue
+import kotlinx.coroutines.runBlocking
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariHostReferences
 import kotlin.reflect.KClass
 
 object KatariGeneratedBindingRuntime {
@@ -58,10 +60,10 @@ object KatariGeneratedBindingRuntime {
                 symbolTable = symbolTable
             )
 
-            else -> NarrativeHostValue(
+            else -> KatariHostReferences.capture(value, symbolTable) ?: NarrativeHostValue(
                 typeId = resolveHostTypeId(value, hostTypeId),
                 value = value,
-                symbolTable = symbolTable
+                symbolTable = symbolTable,
             )
         }
     }
@@ -169,9 +171,22 @@ object KatariGeneratedBindingRuntime {
     }
 
     inline fun <reified T : Any> asHost(value: RuntimeValue?, typeId: String, name: String): T {
+        return runBlocking { awaitHost(value, typeId, name) }
+    }
+
+    suspend inline fun <reified T : Any> awaitHost(value: RuntimeValue?, typeId: String, name: String): T {
         val host = value as? NarrativeHostValue ?: error("$name expects host value `$typeId`")
-        if (host.typeId != typeId && host.value !is T) error("$name expects `$typeId`, got `${host.typeId}`")
-        return host.value as? T ?: error("$name has unexpected host value `${host.value}`")
+        val resolved = KatariHostReferences.resolve(host.value)
+        if (host.typeId != typeId && resolved !is T) error("$name expects `$typeId`, got `${host.typeId}`")
+        return resolved as? T ?: error("$name has unexpected host value `$resolved`")
+    }
+
+    suspend inline fun <T : Any> awaitNullable(
+        value: RuntimeValue?,
+        convert: suspend (RuntimeValue) -> T,
+    ): T? {
+        if (value == null || value == NullValue) return null
+        return convert(value)
     }
 
     inline fun <reified T : Enum<T>> asEnum(value: RuntimeValue?, typeId: String, name: String): T {
@@ -205,6 +220,37 @@ object KatariGeneratedBindingRuntime {
 
         return hostTypeIdsByClass[value::class]
             ?: error("Missing Katari host type id for `${value::class.qualifiedName}`")
+    }
+
+    suspend fun <T> awaitList(
+        value: RuntimeValue?,
+        name: String,
+        convertElement: suspend (RuntimeValue, Int) -> T,
+    ): List<T> {
+        val listValue = (value as? KotlinValueHolder<*>)?.value as? List<*>
+            ?: error("$name expects List")
+        val result = ArrayList<T>(listValue.size)
+        listValue.forEachIndexed { index, item ->
+            result += convertElement(item as? RuntimeValue ?: error("$name[$index] expects runtime value"), index)
+        }
+        return result
+    }
+
+    suspend fun <K, V> awaitMap(
+        value: RuntimeValue?,
+        name: String,
+        convertKey: suspend (RuntimeValue, Int) -> K,
+        convertValue: suspend (RuntimeValue, Int) -> V,
+    ): Map<K, V> {
+        val mapValue = (value as? KotlinValueHolder<*>)?.value as? Map<*, *>
+            ?: error("$name expects Map")
+        val result = LinkedHashMap<K, V>()
+        mapValue.entries.forEachIndexed { index, entry ->
+            val key = entry.key as? RuntimeValue ?: error("$name key[$index] expects runtime value")
+            val itemValue = entry.value as? RuntimeValue ?: error("$name value[$index] expects runtime value")
+            result[convertKey(key, index)] = convertValue(itemValue, index)
+        }
+        return result
     }
 
     private fun hasSuperType(typeId: String, expectedSuperTypeId: String): Boolean {

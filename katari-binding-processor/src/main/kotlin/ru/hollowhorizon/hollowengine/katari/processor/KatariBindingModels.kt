@@ -128,46 +128,56 @@ internal data class TypeModel(
 ) {
     fun returnHostTypeExpression(): String = (hostTypeId ?: enumTypeId)?.let { "\"$it\"" } ?: "null"
 
-    fun convertExpression(valueExpression: String, name: String): String {
+    fun convertExpression(valueExpression: String, name: String, async: Boolean = false): String {
         val nonNull = when {
-            collectionKind == CollectionKind.LIST -> listConvertExpression(valueExpression, name)
-            collectionKind == CollectionKind.MAP -> mapConvertExpression(valueExpression, name)
+            collectionKind == CollectionKind.LIST -> listConvertExpression(valueExpression, name, async)
+            collectionKind == CollectionKind.MAP -> mapConvertExpression(valueExpression, name, async)
             functionParameterTypes != null -> error("Function type binding parameter `$name` is supported only by inline @ScriptBinding functions")
-            genericName != null -> genericUpperBound?.convertExpression(valueExpression, name)
+            genericName != null -> genericUpperBound?.convertExpression(valueExpression, name, async)
                 ?: "KatariGeneratedBindingRuntime.asAny($valueExpression, \"$name\")"
-            hostTypeId != null -> "KatariGeneratedBindingRuntime.asHost<$kotlinType>($valueExpression, \"$hostTypeId\", \"$name\")"
+            hostTypeId != null -> if (async) {
+                "KatariGeneratedBindingRuntime.awaitHost<$kotlinType>($valueExpression, \"$hostTypeId\", \"$name\")"
+            } else {
+                "KatariGeneratedBindingRuntime.asHost<$kotlinType>($valueExpression, \"$hostTypeId\", \"$name\")"
+            }
             enumTypeId != null -> "KatariGeneratedBindingRuntime.asEnum<$kotlinType>($valueExpression, \"$enumTypeId\", \"$name\")"
             converter != null -> "KatariGeneratedBindingRuntime.$converter($valueExpression, \"$name\")"
             kotlinType == "Unit" -> "Unit"
             else -> error("Unsupported type model `$this`")
         }
         return if (!nullable) nonNull
-        else "KatariGeneratedBindingRuntime.nullable($valueExpression) { value -> ${nonNull.replace(valueExpression, "value")} }"
+        else if (async) {
+            "KatariGeneratedBindingRuntime.awaitNullable($valueExpression) { value -> ${nonNull.replace(valueExpression, "value")} }"
+        } else {
+            "KatariGeneratedBindingRuntime.nullable($valueExpression) { value -> ${nonNull.replace(valueExpression, "value")} }"
+        }
     }
 
-    fun varargArrayExpression(valuesExpression: String, name: String): String {
+    fun varargArrayExpression(valuesExpression: String, name: String, async: Boolean = false): String {
         return when (kotlinType) {
             "Boolean" -> "BooleanArray($valuesExpression.size) { index -> KatariGeneratedBindingRuntime.asBoolean($valuesExpression[index], \"$name[\$index]\") }"
             "Int" -> "IntArray($valuesExpression.size) { index -> KatariGeneratedBindingRuntime.asInt($valuesExpression[index], \"$name[\$index]\") }"
             "Double" -> "DoubleArray($valuesExpression.size) { index -> KatariGeneratedBindingRuntime.asDouble($valuesExpression[index], \"$name[\$index]\") }"
             "Float" -> "FloatArray($valuesExpression.size) { index -> KatariGeneratedBindingRuntime.asFloat($valuesExpression[index], \"$name[\$index]\") }"
-            else -> "Array($valuesExpression.size) { index -> ${convertExpression("$valuesExpression[index]", "$name[\$index]")} }"
+            else -> "Array($valuesExpression.size) { index -> ${convertExpression("$valuesExpression[index]", "$name[\$index]", async)} }"
         }
     }
 
-    private fun listConvertExpression(valueExpression: String, name: String): String {
+    private fun listConvertExpression(valueExpression: String, name: String, async: Boolean): String {
         val element = arguments.single()
-        return "KatariGeneratedBindingRuntime.asList($valueExpression, \"$name\") { item, index -> ${
-            element.convertExpression("item", "$name[\$index]")
+        val function = if (async) "awaitList" else "asList"
+        return "KatariGeneratedBindingRuntime.$function($valueExpression, \"$name\") { item, index -> ${
+            element.convertExpression("item", "$name[\$index]", async)
         } }"
     }
 
-    private fun mapConvertExpression(valueExpression: String, name: String): String {
+    private fun mapConvertExpression(valueExpression: String, name: String, async: Boolean): String {
         val key = arguments[0]
         val value = arguments[1]
-        return "KatariGeneratedBindingRuntime.asMap($valueExpression, \"$name\", " +
-                "convertKey = { item, index -> ${key.convertExpression("item", "$name key[\$index]")} }, " +
-                "convertValue = { item, index -> ${value.convertExpression("item", "$name value[\$index]")} })"
+        val function = if (async) "awaitMap" else "asMap"
+        return "KatariGeneratedBindingRuntime.$function($valueExpression, \"$name\", " +
+                "convertKey = { item, index -> ${key.convertExpression("item", "$name key[\$index]", async)} }, " +
+                "convertValue = { item, index -> ${value.convertExpression("item", "$name value[\$index]", async)} })"
     }
 
     companion object {

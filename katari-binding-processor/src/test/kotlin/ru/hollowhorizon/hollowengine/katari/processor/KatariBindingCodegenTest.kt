@@ -65,6 +65,9 @@ class KatariBindingCodegenTest {
         assertContains(code, "receiverType = \"Example\"")
         assertContains(code, "receiver.generatedKatariFunction0(name = name)")
         assertContains(code, "registerKotliteExtensionProperty(")
+        assertContains(code, "suspendGetter = { interpreter, receiver, _ ->")
+        assertContains(code, "KatariGeneratedBindingRuntime.awaitHost<test.Example>(receiver, \"Example\", \"title receiver\")")
+        assertContains(code, "suspendSetter = { interpreter, receiver, value, _ ->")
         assertContains(code, "typedReceiver.title = KatariGeneratedBindingRuntime.asString(value, \"title\")")
     }
 
@@ -114,7 +117,9 @@ class KatariBindingCodegenTest {
 
         assertContains(code, "import test.title as generatedKatariProperty0")
         assertContains(code, "declaredName = \"displayName\"")
+        assertContains(code, "suspendGetter = { interpreter, receiver, _ ->")
         assertContains(code, "KatariGeneratedBindingRuntime.toRuntimeValue(typedReceiver.generatedKatariProperty0, null")
+        assertContains(code, "suspendSetter = { interpreter, receiver, value, _ ->")
         assertContains(code, "typedReceiver.generatedKatariProperty0 = KatariGeneratedBindingRuntime.asString(value, \"displayName\")")
     }
 
@@ -146,7 +151,7 @@ class KatariBindingCodegenTest {
 
         assertContains(code, "suspendableFunction(")
         assertContains(code, "CustomFunctionParameter(\"prefix\", \"String\", defaultValueExpression = \"\\\"system\\\"\")")
-        assertContains(code, "CustomFunctionParameter(\"lines\", \"String.repeated()\", modifiers = setOf(\"vararg\"))")
+        assertContains(code, "CustomFunctionParameter(\"lines\", \"String\", modifiers = setOf(\"vararg\"))")
         assertContains(code, "test.announce(prefix = prefix, lines = lines)")
         assertContains(code, "GeneratedRuntimeValueResponse(it)")
     }
@@ -228,6 +233,7 @@ class KatariBindingCodegenTest {
             snapshotName = "GeneratedPlayerEvent, JoinSnapshot",
             serialName = "hollowengine:katari/generated_event/player_event_join",
             constructorParameters = listOf(EventFieldModel("player", "player", playerModel, playerType)),
+            functions = emptyList(),
             properties = emptyList(),
             handlerExpression = "test.PlayerEvent.Join",
             source = null,
@@ -265,6 +271,7 @@ class KatariBindingCodegenTest {
             snapshotName = "GeneratedEmptyEventSnapshot",
             serialName = "hollowengine:katari/generated_event/empty_event",
             constructorParameters = emptyList(),
+            functions = emptyList(),
             properties = emptyList(),
             handlerExpression = "test.EmptyEvent",
             source = null,
@@ -316,8 +323,8 @@ class KatariBindingCodegenTest {
         assertContains(code, "TypeParameter(\"T\", \"Any\")")
         assertContains(code, "CustomFunctionParameter(\"items\", \"List<T>\")")
         assertContains(code, "CustomFunctionParameter(\"named\", \"Map<String, T>\")")
-        assertContains(code, "KatariGeneratedBindingRuntime.asList(itemsArgument, \"items\")")
-        assertContains(code, "KatariGeneratedBindingRuntime.asMap(namedArgument, \"named\"")
+        assertContains(code, "KatariGeneratedBindingRuntime.awaitList(itemsArgument, \"items\")")
+        assertContains(code, "KatariGeneratedBindingRuntime.awaitMap(namedArgument, \"named\"")
     }
 
     @Test

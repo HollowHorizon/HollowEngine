@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.model.GlobalProperty
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
 import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
@@ -15,11 +14,12 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
 import ru.hollowhorizon.hollowengine.common.utils.onHoverText
-import java.util.*
+import java.util.UUID
 
 val KatariEditorContextGlobalTypes = linkedMapOf(
     "player" to "Player",
@@ -129,9 +129,11 @@ fun NarrativeBindingsBuilder.registerContextGlobals(
     sourcePlayerId: String?,
 ) {
     val playerRef: Player? = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
-    playerRef?.let { global("player", NarrativeHostValue("Player", it, symbolTable), persistent = true) }
-    global("server", NarrativeHostValue("Server", server, symbolTable))
-    global("overworld", NarrativeHostValue("Level", server.overworld(), symbolTable))
+    playerRef?.let {
+        global("player", KatariGeneratedBindingRuntime.toRuntimeValue(it, "Player", symbolTable), persistent = true)
+    }
+    global("server", KatariGeneratedBindingRuntime.toRuntimeValue(server, "Server", symbolTable), persistent = true)
+    global("overworld", KatariGeneratedBindingRuntime.toRuntimeValue(server.overworld(), "Level", symbolTable), persistent = true)
 }
 
 fun createHollowKatariEditorBindings(): KatariBindings {

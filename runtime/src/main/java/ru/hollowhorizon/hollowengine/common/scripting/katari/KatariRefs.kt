@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
-import java.util.*
+import java.util.UUID
 
 @ScriptBinding
 data class KatariChatMessage @ScriptIgnore constructor(
@@ -26,6 +26,8 @@ data class ChatMessageSnapshot(
     val message: String,
 ) : ValueSnapshot(), ScriptSnapshot<KatariChatMessage> {
     override suspend fun restore(context: ValueRestoreContext): KatariChatMessage {
+        val server = (context as KatariRestoreContext).server
+        server.playerList.getPlayer(uuid)?.let { return KatariChatMessage(it, message) }
         val event = PlayerEvent.Join.await { it.player.uuid == uuid }
         return KatariChatMessage(event.player, message)
     }

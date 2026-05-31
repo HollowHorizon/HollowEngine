@@ -1,16 +1,31 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import kotlinx.coroutines.delay
-import kotlinx.serialization.Serializable
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariHostReferences
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
+import ru.hollowhorizon.hollowengine.common.utils.areStacksEqual
 
-@Serializable
-class Item(val itemStack: @Serializable(ForItemStack::class) ItemStack)
+@ScriptBinding
+suspend fun NpcEntity.requestItems(vararg items: ItemStack) {
+    val server = (level() as ServerLevel).server
+    val npcId = uuid
+    val requested = items
+        .map(ItemStack::copy)
+        .filterNot(ItemStack::isEmpty)
+        .toMutableList()
 
-private fun NpcEntity.pickupItems(list: MutableList<Item>) {
+    while (requested.isNotEmpty()) {
+        val npc = KatariHostReferences.awaitEntity(server, npcId, NpcEntity::class.java)
+        npc.pickupRequestedItems(requested)
+        delay(50)
+    }
+}
+
+private fun NpcEntity.pickupRequestedItems(list: MutableList<ItemStack>) {
     level().getEntitiesOfClass(
         ItemEntity::class.java,
         this.boundingBox.inflate(pickupDistance.x.toDouble(), pickupDistance.y.toDouble(), pickupDistance.z.toDouble())
@@ -19,12 +34,12 @@ private fun NpcEntity.pickupItems(list: MutableList<Item>) {
 
         val entityItem = item.item
 
-        list.find { it.itemStack.item == entityItem.item }?.let { requestItem ->
-            val remaining = requestItem.itemStack.count
-            requestItem.itemStack.shrink(entityItem.count)
-            entityItem.shrink(remaining)
+        list.find { requestItem -> requestItem.areStacksEqual(entityItem) }?.let { requestItem ->
+            val requestedCount = requestItem.count
+            requestItem.shrink(entityItem.count)
+            entityItem.shrink(requestedCount)
         }
 
-        list.removeIf { it.itemStack.isEmpty }
+        list.removeIf(ItemStack::isEmpty)
     }
 }

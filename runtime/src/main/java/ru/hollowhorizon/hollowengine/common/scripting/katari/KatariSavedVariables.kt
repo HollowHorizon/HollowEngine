@@ -176,14 +176,14 @@ private fun NarrativeBindingsBuilder.registerSavedVariableAccessors(
     }
 }
 
-private fun KatariSavedVariables.variables(receiver: RuntimeValue, receiverType: String): VariableMap {
+private suspend fun KatariSavedVariables.variables(receiver: RuntimeValue, receiverType: String): VariableMap {
     return when (receiverType) {
-        "Server" -> KatariGeneratedBindingRuntime.asHost<MinecraftServer>(receiver, "Server", "receiver")
+        "Server" -> KatariGeneratedBindingRuntime.awaitHost<MinecraftServer>(receiver, "Server", "receiver")
             .runtimeContext
             .scope
             .variables
         "Entity" -> {
-            val entity = KatariGeneratedBindingRuntime.asHost<Entity>(receiver, "Entity", "receiver")
+            val entity = KatariGeneratedBindingRuntime.awaitHost<Entity>(receiver, "Entity", "receiver")
             val scope = entity.coroutineScope as? OwnerScope
                 ?: error("Entity `${entity.uuid}` does not provide a persistent script scope")
             scope.variables
@@ -192,13 +192,13 @@ private fun KatariSavedVariables.variables(receiver: RuntimeValue, receiverType:
     }
 }
 
-private fun KatariSavedVariables.markDirty(receiver: RuntimeValue, receiverType: String) {
+private suspend fun KatariSavedVariables.markDirty(receiver: RuntimeValue, receiverType: String) {
     when (receiverType) {
-        "Server" -> KatariGeneratedBindingRuntime.asHost<MinecraftServer>(receiver, "Server", "receiver")
+        "Server" -> KatariGeneratedBindingRuntime.awaitHost<MinecraftServer>(receiver, "Server", "receiver")
             .runtimeContext
             .markDirty()
         "Entity" -> {
-            val entity = KatariGeneratedBindingRuntime.asHost<Entity>(receiver, "Entity", "receiver")
+            val entity = KatariGeneratedBindingRuntime.awaitHost<Entity>(receiver, "Entity", "receiver")
             (entity.coroutineScope as? OwnerScope)?.markDirty()
         }
     }

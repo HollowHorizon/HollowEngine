@@ -5,9 +5,12 @@ import com.sunnychung.lib.multiplatform.kotlite.model.DelegatedValue
 import com.sunnychung.lib.multiplatform.kotlite.model.IntValue
 import com.sunnychung.lib.multiplatform.kotlite.model.KotlinValueHolder
 import com.sunnychung.lib.multiplatform.kotlite.model.ListValue
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
 import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
 import kotlinx.coroutines.test.runTest
+import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.PlayerSnapshot
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -41,5 +44,21 @@ class KatariSavedVariablesTest {
         val restored = restoreKatariSavedRuntimeValue(tag, codec, EmptyValueRestoreContext)
 
         assertEquals(42, assertIs<IntValue>(restored).value)
+    }
+
+    @Test
+    fun `saved variable snapshot restores host references lazily`() = runTest {
+        val codec = createHollowKatariEditorBindings().snapshotCodec
+        val symbolTable = codec.symbolTable()
+        val uuid = UUID.randomUUID()
+        val original = NarrativeHostValue("Player", PlayerSnapshot(uuid), symbolTable)
+
+        val tag = serializeKatariSavedRuntimeValue(original, codec)
+        val restored = restoreKatariSavedRuntimeValue(tag, codec, EmptyValueRestoreContext)
+
+        val host = assertIs<NarrativeHostValue>(restored)
+        val snapshot = assertIs<PlayerSnapshot>(host.value)
+        assertEquals("Player", host.typeId)
+        assertEquals(uuid, snapshot.uuid)
     }
 }

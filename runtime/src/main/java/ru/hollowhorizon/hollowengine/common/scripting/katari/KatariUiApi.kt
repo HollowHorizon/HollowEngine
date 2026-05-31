@@ -55,6 +55,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnaps
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedRuntimeValueResponse
+import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.PlayerSnapshot
 import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.nio.file.Files
@@ -194,7 +195,10 @@ suspend fun KatariUiDocument.await(): CompoundTag {
 
 fun NarrativeBindingsBuilder.registerKatariUiStructBindings() {
     fun screenFunction(name: String, mode: KatariUiDisplayMode) {
-        fun registerScreenFunction(playerType: String, sender: (KatariUiDocument, RuntimeValue, StructValue) -> Unit) = immediateFunction(
+        fun registerScreenFunction(
+            playerType: String,
+            sender: suspend (KatariUiDocument, RuntimeValue, StructValue) -> Unit,
+        ) = immediateFunction(
             name = name,
             receiverType = "Ui",
             valueParameters = listOf(
@@ -202,19 +206,19 @@ fun NarrativeBindingsBuilder.registerKatariUiStructBindings() {
                 CustomFunctionParameter("variables", STRUCT_VALUE_TYPE_ID),
             ),
         ) { arguments, _ ->
-            val ui = KatariGeneratedBindingRuntime.asHost<KatariUiDocument>(arguments[0], "Ui", "receiver")
+            val ui = KatariGeneratedBindingRuntime.awaitHost<KatariUiDocument>(arguments[0], "Ui", "receiver")
             val variables = arguments[2] as? StructValue ?: error("$name variables expects StructValue")
             sender(ui, arguments[1], variables)
             NullValue
         }
 
         registerScreenFunction("Player") { ui, playerValue, variables ->
-            val player = KatariGeneratedBindingRuntime.asHost<Player>(playerValue, "Player", "player")
+            val player = KatariGeneratedBindingRuntime.awaitHost<Player>(playerValue, "Player", "player")
             ui.send(player, mode, variables.toCompoundTag())
         }
         registerScreenFunction("List<Player>") { ui, playersValue, variables ->
-            val players = KatariGeneratedBindingRuntime.asList(playersValue, "players") { value, index ->
-                KatariGeneratedBindingRuntime.asHost<Player>(value, "Player", "players[$index]")
+            val players = KatariGeneratedBindingRuntime.awaitList(playersValue, "players") { value, index ->
+                KatariGeneratedBindingRuntime.awaitHost<Player>(value, "Player", "players[$index]")
             }
             ui.send(players, mode, variables.toCompoundTag())
         }
@@ -281,10 +285,10 @@ private data object KatariUiAwaitCallable : NarrativeCallable {
         resume: (FunctionResponse?) -> Unit,
     ) {
         val ui = KatariGeneratedBindingRuntime.asHost<KatariUiDocument>(arguments[0], "Ui", "receiver")
-        val player = arguments.getOrNull(1)
+        val playerId = arguments.getOrNull(1)
             ?.takeUnless { it == NullValue }
-            ?.let { KatariGeneratedBindingRuntime.asHost<Player>(it, "Player", "player") }
-        val playerId = player?.uuid?.toString()
+            ?.playerUuid("player")
+            ?.toString()
         val listener = object : EventListener<KatariUiEvent> {
             override val priority: Int = 0
 
@@ -296,6 +300,16 @@ private data object KatariUiAwaitCallable : NarrativeCallable {
             }
         }
         KatariUiEvent.register(listener)
+    }
+}
+
+private fun RuntimeValue.playerUuid(name: String): UUID {
+    val host = this as? NarrativeHostValue ?: error("$name expects host value `Player`")
+    if (host.typeId != "Player" && host.value !is Player) error("$name expects `Player`, got `${host.typeId}`")
+    return when (val value = host.value) {
+        is Player -> value.uuid
+        is PlayerSnapshot -> value.uuid
+        else -> error("$name has unexpected host value `$value`")
     }
 }
 

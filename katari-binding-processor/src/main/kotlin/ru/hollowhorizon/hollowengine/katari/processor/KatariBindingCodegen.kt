@@ -240,11 +240,7 @@ internal class KatariBindingCodegen(
         appendLine("        override val typeParameters: List<TypeParameter> = ${function.typeParameterListExpression()}")
         appendLine("        override val valueParameters: List<CustomFunctionParameter> = listOf(")
         function.parameters.forEach { parameter ->
-            val typeExpression = if (parameter.isVararg) {
-                "${parameter.type.katariTypeExpression}.repeated()"
-            } else {
-                parameter.type.katariTypeExpression
-            }
+            val typeExpression = parameter.type.katariTypeExpression
             appendLine("            ${parameter.parameterExpression(typeExpression)},")
         }
         appendLine("        )")
@@ -322,12 +318,7 @@ internal class KatariBindingCodegen(
     private fun StringBuilder.appendSignature(function: FunctionModel) {
         appendLine("        listOf(")
         function.parameters.forEach { parameter ->
-            val typeExpression = if (parameter.isVararg) {
-                "${parameter.type.katariTypeExpression}.repeated()"
-            } else {
-                parameter.type.katariTypeExpression
-            }
-            appendLine("            ${parameter.parameterExpression(typeExpression)},")
+            appendLine("            ${parameter.parameterExpression(parameter.type.katariTypeExpression)},")
         }
         appendLine("        ),")
         appendLine("        returnType = \"${function.returnType.katariTypeExpression}\",")
@@ -355,7 +346,7 @@ internal class KatariBindingCodegen(
 
     private fun StringBuilder.appendInvocation(function: FunctionModel, indent: String) {
         function.receiver?.let {
-            appendLine("${indent}val receiver = ${it.convertExpression("arguments.getOrNull(0)", "receiver")}")
+            appendLine("${indent}val receiver = ${it.convertExpression("arguments.getOrNull(0)", "receiver", async = true)}")
         }
         val receiverOffset = if (function.receiver == null) 0 else 1
         val fixedParameters = function.parameters.filterNot { it.isVararg }
@@ -367,7 +358,8 @@ internal class KatariBindingCodegen(
                 "${indent}val ${parameter.name} = ${
                     parameter.type.convertExpression(
                         "${parameter.name}Argument",
-                        parameter.name
+                        parameter.name,
+                        async = true,
                     )
                 }"
             )
@@ -379,7 +371,8 @@ internal class KatariBindingCodegen(
                 "${indent}val ${parameter.name} = ${
                     parameter.type.varargArrayExpression(
                         "${parameter.name}Arguments",
-                        parameter.name
+                        parameter.name,
+                        async = true,
                     )
                 }"
             )
@@ -440,12 +433,13 @@ internal class KatariBindingCodegen(
             appendLine("            declaredName = \"${property.scriptName}\",")
             appendLine("            receiver = \"${property.receiver.katariTypeExpression}\",")
             appendLine("            type = \"${property.valueType.katariTypeExpression}\",")
-            appendLine("            getter = { interpreter, receiver, _ ->")
+            appendLine("            suspendGetter = { interpreter, receiver, _ ->")
             appendLine(
                 "                val typedReceiver = ${
                     property.receiver.convertExpression(
                         "receiver",
-                        "${property.scriptName} receiver"
+                        "${property.scriptName} receiver",
+                        async = true,
                     )
                 }"
             )
@@ -453,12 +447,13 @@ internal class KatariBindingCodegen(
             appendLine("            },")
             if (property.writable && property.setter != null) {
                 val setter = property.resolvedSetter()
-                appendLine("        setter = { interpreter, receiver, value, _ ->")
+                appendLine("        suspendSetter = { interpreter, receiver, value, _ ->")
                 appendLine(
                     "            val typedReceiver = ${
                         property.receiver.convertExpression(
                             "receiver",
-                            "${property.scriptName} receiver"
+                            "${property.scriptName} receiver",
+                            async = true,
                         )
                     }"
                 )
@@ -466,7 +461,8 @@ internal class KatariBindingCodegen(
                     "            $setter = ${
                         property.valueType.convertExpression(
                             "value",
-                            property.scriptName
+                            property.scriptName,
+                            async = true,
                         )
                     }"
                 )

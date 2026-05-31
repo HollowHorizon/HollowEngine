@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots
 
+import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeHostReferenceSnapshot
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
 import kotlinx.serialization.SerialName
@@ -19,11 +20,15 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 @Serializable
 @SerialName("hollowengine:katari/server")
 @ScriptType("Server")
-class ServerSnapshot() : ValueSnapshot(), ScriptSnapshot<MinecraftServer> {
+class ServerSnapshot() : ValueSnapshot(), ScriptSnapshot<MinecraftServer>, NarrativeHostReferenceSnapshot {
+    override val typeId: String = "Server"
+
     override suspend fun restore(context: ValueRestoreContext): MinecraftServer {
         return (context as? KatariRestoreContext)?.server
             ?: error("Server can only be restored with KatariRestoreContext")
     }
+
+    override suspend fun restoreReference(context: ValueRestoreContext): Any = restore(context)
 
     companion object : ScriptSnapshotFactory<MinecraftServer, ServerSnapshot> {
         override fun capture(value: MinecraftServer): ServerSnapshot = ServerSnapshot()
@@ -35,13 +40,17 @@ class ServerSnapshot() : ValueSnapshot(), ScriptSnapshot<MinecraftServer> {
 @ScriptType("Level")
 data class LevelSnapshot(
     val dimension: @Serializable(ForResourceLocation::class) ResourceLocation,
-) : ValueSnapshot(), ScriptSnapshot<Level> {
+) : ValueSnapshot(), ScriptSnapshot<Level>, NarrativeHostReferenceSnapshot {
+    override val typeId: String = "Level"
+
     override suspend fun restore(context: ValueRestoreContext): Level {
         val server = (context as? KatariRestoreContext)?.server
             ?: error("Level can only be restored with KatariRestoreContext")
         return server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension))
             ?: error("Dimension `$dimension` is not loaded")
     }
+
+    override suspend fun restoreReference(context: ValueRestoreContext): Any = restore(context)
 
     companion object : ScriptSnapshotFactory<Level, LevelSnapshot> {
         override fun capture(value: Level): LevelSnapshot {
