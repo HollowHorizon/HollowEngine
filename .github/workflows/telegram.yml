@@ -37,8 +37,8 @@ jobs:
                 | .[0] |= . + ":" 
                 | join("\n")
               ) +
-              "\n\nby <a href=\"https://github.com/\(.author.username)\">\(.author.name)</a>." +
-              "View <a href=\"\(.url)\">commit</a>."
+              " by <a href=\"https://github.com/\(.author.username)\">\(.author.name)</a>." +
+              " - view <a href=\"\(.url)\">commit</a>."
             ] | join("\n\n")
           ' "$GITHUB_EVENT_PATH")
           
