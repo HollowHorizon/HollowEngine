@@ -65,15 +65,16 @@ class UiLayoutEngine {
         width: Float,
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
+        bindings: UiBindingContext = UiBindingContext(),
     ): UiLayoutResult {
-        val initialLayouts = computeLayouts(resolved, width, height, scrollState, emptyMap())
-        val scrollbarReserves = detectScrollbarReserves(resolved, initialLayouts)
+        val initialLayouts = computeLayouts(resolved, width, height, scrollState, emptyMap(), bindings)
+        val scrollbarReserves = detectScrollbarReserves(resolved, initialLayouts, bindings)
         val layouts = if (scrollbarReserves.isEmpty()) {
             initialLayouts
         } else {
-            computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
+            computeLayouts(resolved, width, height, scrollState, scrollbarReserves, bindings)
         }
-        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState)
+        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState, bindings)
         return UiLayoutResult(resolved.root, rangedLayouts)
     }
 
@@ -83,10 +84,11 @@ class UiLayoutEngine {
         height: Float,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
     ): Map<UiNode, UiLayoutNode> {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
-        val rootRect = rootRect(resolved, width, height, scrollbarReserves)
+        val rootRect = rootRect(resolved, width, height, scrollbarReserves, bindings)
         placeNode(
             node = resolved.root,
             resolved = resolved,
@@ -100,6 +102,7 @@ class UiLayoutEngine {
             scrollState = scrollState,
             scrollbarReserves = scrollbarReserves,
             layouts = layouts,
+            bindings = bindings,
         )
         return layouts
     }
@@ -109,13 +112,14 @@ class UiLayoutEngine {
         width: Float,
         height: Float,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
     ): UiRect {
         val node = resolved.root
         val style = resolved[node]
         val margin = style.margin.resolve(width, height)
         val availableWidth = (width - margin.left - margin.right).coerceAtLeast(0f)
         val availableHeight = (height - margin.top - margin.bottom).coerceAtLeast(0f)
-        val measured = measureNode(node, resolved, availableWidth, availableHeight, scrollbarReserves)
+        val measured = measureNode(node, resolved, availableWidth, availableHeight, scrollbarReserves, bindings = bindings)
         val rootWidth = if (style.size.width is UiLength.Auto && UiStyleProperty.WIDTH !in style.explicitProperties) {
             availableWidth
         } else {
@@ -149,6 +153,7 @@ class UiLayoutEngine {
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
     ) {
         val style = resolved[node]
         val boxes = nodeBoxes(rect, style, scrollbarReserves[node] ?: UiScrollbarReserve.None)
@@ -179,7 +184,7 @@ class UiLayoutEngine {
             scrollArea = boxes.scrollArea,
         )
 
-        placeChildren(node, resolved, style, boxes.content, rect, transform, inputTransform, clip, insideFramebuffer || needsFramebuffer, scrollState, scrollbarReserves, layouts)
+        placeChildren(node, resolved, style, boxes.content, rect, transform, inputTransform, clip, insideFramebuffer || needsFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
     }
 
     private fun placeChildren(
@@ -195,6 +200,7 @@ class UiLayoutEngine {
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
     ) {
         if (node.children.isEmpty()) return
         val viewport = if (style.input.scrollable) {
@@ -203,10 +209,10 @@ class UiLayoutEngine {
             content
         }
         when (style.layout) {
-            LayoutType.ROW -> placeRowChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
-            LayoutType.COLUMN -> placeColumnChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
-            LayoutType.GRID -> placeGridChildren(node, resolved, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
-            LayoutType.STACK, LayoutType.FREE -> placeFreeChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            LayoutType.ROW -> placeRowChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
+            LayoutType.COLUMN -> placeColumnChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
+            LayoutType.GRID -> placeGridChildren(node, resolved, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
+            LayoutType.STACK, LayoutType.FREE -> placeFreeChildren(node, resolved, style, viewport, parentRect, transform, inputTransform, clip, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
         }
     }
 
@@ -223,10 +229,11 @@ class UiLayoutEngine {
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
     ) {
         val gap = style.gap.resolve(content.width)
-        val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves)
-        val grown = growRowChildren(measured, content.width, gap, resolved, scrollbarReserves)
+        val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
+        val grown = growRowChildren(measured, content.width, gap, resolved, scrollbarReserves, bindings)
         val totalWidth = grown.sumOfOuterWidth() + gap * (grown.size - 1).coerceAtLeast(0)
         val mainAlign = grown.singleChildMainAxisAlign { it.alignHorizontal } ?: style.childAlignHorizontal()
         var x = content.x + mainAlign.mainStartOffset(content.width, totalWidth, grown.size, gap)
@@ -250,7 +257,7 @@ class UiLayoutEngine {
             }
             val y = content.y + align.crossOffset(content.height, childHeight, child.margin.top, child.margin.bottom)
             val rect = UiRect(x + child.margin.left + position.x, y + position.y, child.size.width, childHeight)
-            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
             x += child.margin.left + child.size.width + child.margin.right + actualGap
         }
     }
@@ -268,10 +275,11 @@ class UiLayoutEngine {
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
     ) {
         val gap = style.gap.resolve(content.height)
-        val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves)
-        val grown = growColumnChildren(measured, content.height, gap, resolved, scrollbarReserves)
+        val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
+        val grown = growColumnChildren(measured, content.height, gap, resolved, scrollbarReserves, bindings)
         val totalHeight = grown.sumOfOuterHeight() + gap * (grown.size - 1).coerceAtLeast(0)
         val mainAlign = grown.singleChildMainAxisAlign { it.alignVertical } ?: style.childAlignVertical()
         var y = content.y + mainAlign.mainStartOffset(content.height, totalHeight, grown.size, gap)
@@ -295,7 +303,7 @@ class UiLayoutEngine {
             }
             val x = content.x + align.crossOffset(content.width, childWidth, child.margin.left, child.margin.right)
             val rect = UiRect(x + position.x, y + child.margin.top + position.y, childWidth, child.size.height)
-            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
             y += child.margin.top + child.size.height + child.margin.bottom + actualGap
         }
     }
@@ -312,11 +320,12 @@ class UiLayoutEngine {
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
     ) {
         var x = content.x
         var y = content.y
         var rowHeight = 0f
-        for (child in measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves)) {
+        for (child in measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)) {
             val outerWidth = child.margin.left + child.size.width + child.margin.right
             if (x > content.x && x + outerWidth > content.x + content.width) {
                 x = content.x
@@ -325,7 +334,7 @@ class UiLayoutEngine {
             }
             val position = child.style.position.resolve(content.width, content.height)
             val rect = UiRect(x + child.margin.left + position.x, y + child.margin.top + position.y, child.size.width, child.size.height)
-            placeNode(child.node, resolved, rect, parentRect, resolved[node], clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, resolved[node], clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
             x += outerWidth
             rowHeight = maxOf(rowHeight, child.margin.top + child.size.height + child.margin.bottom)
         }
@@ -344,15 +353,16 @@ class UiLayoutEngine {
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
     ) {
-        for (child in measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves)) {
+        for (child in measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)) {
             val position = child.style.position.resolve(content.width, content.height)
             val alignX = child.style.effectiveAlignHorizontal(style) ?: UiAlign.START
             val alignY = child.style.effectiveAlignVertical(style) ?: UiAlign.START
             val x = content.x + alignX.crossOffset(content.width, child.size.width, child.margin.left, child.margin.right)
             val y = content.y + alignY.crossOffset(content.height, child.size.height, child.margin.top, child.margin.bottom)
             val rect = UiRect(x + position.x, y + position.y, child.size.width, child.size.height)
-            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts)
+            placeNode(child.node, resolved, rect, parentRect, style, clip, transform, inputTransform, insideFramebuffer, scrollState, scrollbarReserves, layouts, bindings)
         }
     }
 
@@ -364,6 +374,7 @@ class UiLayoutEngine {
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         deferFlexibleWidth: Boolean = false,
         deferFlexibleHeight: Boolean = false,
+        bindings: UiBindingContext = UiBindingContext(),
     ): List<MeasuredChild> {
         return children.map { child ->
             val style = resolved[child]
@@ -379,6 +390,7 @@ class UiLayoutEngine {
                     scrollbarReserves,
                     deferFlexibleWidth = deferFlexibleWidth,
                     deferFlexibleHeight = deferFlexibleHeight,
+                    bindings = bindings,
                 ),
                 margin
             )
@@ -391,6 +403,7 @@ class UiLayoutEngine {
         gap: Float,
         resolved: ResolvedUiTree,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
     ): List<MeasuredChild> {
         val gapTotal = gap * (children.size - 1).coerceAtLeast(0)
         val fixedWidth = children
@@ -406,7 +419,7 @@ class UiLayoutEngine {
             else {
                 val weight = child.rowWeight()
                 val targetWidth = availableForFlexible * (weight / totalWeight)
-                child.copy(size = measureNode(child.node, resolved, targetWidth, child.size.height, scrollbarReserves, widthOverride = targetWidth))
+                child.copy(size = measureNode(child.node, resolved, targetWidth, child.size.height, scrollbarReserves, widthOverride = targetWidth, bindings = bindings))
             }
         }
         val overflow = (distributed.sumOfOuterWidth() + gapTotal - availableWidth).coerceAtLeast(0f)
@@ -418,7 +431,7 @@ class UiLayoutEngine {
             if (it.style.size.width is UiLength.Px || it.size.width <= 0f) it
             else {
                 val targetWidth = (it.size.width - overflow * (it.size.width / shrinkableWidth)).coerceAtLeast(0f)
-                it.copy(size = measureNode(it.node, resolved, targetWidth, it.size.height, scrollbarReserves, widthOverride = targetWidth))
+                it.copy(size = measureNode(it.node, resolved, targetWidth, it.size.height, scrollbarReserves, widthOverride = targetWidth, bindings = bindings))
             }
         }
     }
@@ -429,6 +442,7 @@ class UiLayoutEngine {
         gap: Float,
         resolved: ResolvedUiTree,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
     ): List<MeasuredChild> {
         val gapTotal = gap * (children.size - 1).coerceAtLeast(0)
         val fixedHeight = children
@@ -444,7 +458,7 @@ class UiLayoutEngine {
             else {
                 val weight = it.columnWeight()
                 val targetHeight = availableForFlexible * (weight / totalWeight)
-                it.copy(size = measureNode(it.node, resolved, it.size.width, targetHeight, scrollbarReserves, heightOverride = targetHeight))
+                it.copy(size = measureNode(it.node, resolved, it.size.width, targetHeight, scrollbarReserves, heightOverride = targetHeight, bindings = bindings))
             }
         }
         val overflow = (distributed.sumOfOuterHeight() + gapTotal - availableHeight).coerceAtLeast(0f)
@@ -456,7 +470,7 @@ class UiLayoutEngine {
             if (it.style.size.height is UiLength.Px || it.size.height <= 0f) it
             else {
                 val targetHeight = (it.size.height - overflow * (it.size.height / shrinkableHeight)).coerceAtLeast(0f)
-                it.copy(size = measureNode(it.node, resolved, it.size.width, targetHeight, scrollbarReserves, heightOverride = targetHeight))
+                it.copy(size = measureNode(it.node, resolved, it.size.width, targetHeight, scrollbarReserves, heightOverride = targetHeight, bindings = bindings))
             }
         }
     }
@@ -471,6 +485,7 @@ class UiLayoutEngine {
         heightOverride: Float? = null,
         deferFlexibleWidth: Boolean = false,
         deferFlexibleHeight: Boolean = false,
+        bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
         val style = resolved[node]
         val referenceWidth = availableWidth.coerceAtLeast(0f)
@@ -492,6 +507,7 @@ class UiLayoutEngine {
             childAvailableHeight,
             scrollbarReserves,
             knownContentWidth = width?.let { (it - insets.horizontal).coerceAtLeast(0f) },
+            bindings = bindings,
         )
         width = width ?: intrinsic.width + insets.horizontal
         height = height ?: intrinsic.height + insets.vertical
@@ -521,9 +537,10 @@ class UiLayoutEngine {
         availableHeight: Float,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         knownContentWidth: Float? = null,
+        bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
         if (node is TextNode) return UiTextLayouter.measure(
-            richText = node.content.toRichText(),
+            richText = node.content.resolve(bindings).toRichText(),
             availableWidth = availableWidth,
             knownWidth = knownContentWidth,
             wrap = style.textWrap,
@@ -538,6 +555,7 @@ class UiLayoutEngine {
             scrollbarReserves,
             deferFlexibleWidth = style.size.width is UiLength.Auto,
             deferFlexibleHeight = style.size.height is UiLength.Auto,
+            bindings = bindings,
         )
         val gap = style.gap.resolve(if (style.layout == LayoutType.ROW) availableWidth else availableHeight)
         return when (style.layout) {
@@ -606,12 +624,13 @@ private fun applyScrollRanges(
     resolved: ResolvedUiTree,
     layouts: Map<UiNode, UiLayoutNode>,
     scrollState: UiScrollState,
+    bindings: UiBindingContext,
 ): Map<UiNode, UiLayoutNode> {
     val result = layouts.toMutableMap()
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = scrollableContentBounds(node, style, layout, layouts)
+        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings)
         val range = UiScrollOffset(
             x = maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)),
             y = maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)),
@@ -626,12 +645,13 @@ private fun applyScrollRanges(
 private fun detectScrollbarReserves(
     resolved: ResolvedUiTree,
     layouts: Map<UiNode, UiLayoutNode>,
+    bindings: UiBindingContext,
 ): Map<UiNode, UiScrollbarReserve> {
     val reserves = linkedMapOf<UiNode, UiScrollbarReserve>()
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = scrollableContentBounds(node, style, layout, layouts)
+        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings)
         val reserve = UiScrollbarReserve(
             vertical = (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
             horizontal = (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
@@ -646,10 +666,11 @@ private fun scrollableContentBounds(
     style: ComputedStyle,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
+    bindings: UiBindingContext,
 ): UiRect {
     if (node is TextNode) {
         val textLayout = UiTextLayouter.layout(
-            node.content.toRichText(),
+            node.content.resolve(bindings).toRichText(),
             layout.content.width,
             Float.POSITIVE_INFINITY,
             style.textWrap,

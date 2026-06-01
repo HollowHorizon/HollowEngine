@@ -48,7 +48,7 @@ class HollowUiRuntime(
         UiNodeKeys.assign(root)
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
-        val layout = layoutEngine.compute(resolved, width, height, scrollState)
+        val layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
         return HollowUiFrame(resolved, layout, commands)
     }
