@@ -1,3 +1,4 @@
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
@@ -6,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUi
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineImageRun
+import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
@@ -267,6 +269,36 @@ class UiLayoutContractTests {
 
         assertRect(frame[parent], width = 300f, height = 40f)
         assertChildInside(frame[parent], frame[child])
+    }
+
+    @Test
+    fun `SZ-09 row fit height uses wrapped text after siblings consume width`() {
+        lateinit var parent: BoxNode
+        lateinit var text: TextNode
+        val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            parent = Box(
+                modifier = Modifier.then(
+                    Modifier.layout(LayoutType.ROW),
+                    Modifier.size(120.px, UiLength.Auto),
+                    Modifier.gap(8.px),
+                ),
+            ) {
+                Box(modifier = Modifier.layout(LayoutType.COLUMN)) {
+                    Text("Title")
+                    Box(modifier = Modifier.size(32.px, 32.px))
+                }
+                text = Text("{message}")
+            }
+        }
+        val bindings = UiBindingContext(CompoundTag().apply {
+            putString("message", (1..12).joinToString(" ") { "word" })
+        })
+
+        val frame = HollowUiRuntime().frame(root, 200f, 200f, bindings)
+
+        assertRect(frame[parent], width = 120f, height = 60f)
+        assertRect(frame[text], width = 80f, height = 60f)
+        assertChildInside(frame[parent], frame[text])
     }
 
     @Test

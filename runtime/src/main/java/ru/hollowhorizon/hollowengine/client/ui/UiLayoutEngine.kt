@@ -507,6 +507,7 @@ class UiLayoutEngine {
             childAvailableHeight,
             scrollbarReserves,
             knownContentWidth = width?.let { (it - insets.horizontal).coerceAtLeast(0f) },
+            knownContentHeight = height?.let { (it - insets.vertical).coerceAtLeast(0f) },
             bindings = bindings,
         )
         width = width ?: intrinsic.width + insets.horizontal
@@ -537,6 +538,7 @@ class UiLayoutEngine {
         availableHeight: Float,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         knownContentWidth: Float? = null,
+        knownContentHeight: Float? = null,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
         if (node is TextNode) return UiTextLayouter.measure(
@@ -559,14 +561,24 @@ class UiLayoutEngine {
         )
         val gap = style.gap.resolve(if (style.layout == LayoutType.ROW) availableWidth else availableHeight)
         return when (style.layout) {
-            LayoutType.ROW -> LayoutSize(
-                children.sumOfOuterWidth() + gap * (children.size - 1).coerceAtLeast(0),
-                children.maxOfOuterHeight(),
-            )
-            LayoutType.COLUMN -> LayoutSize(
-                children.maxOfOuterWidth(),
-                children.sumOfOuterHeight() + gap * (children.size - 1).coerceAtLeast(0),
-            )
+            LayoutType.ROW -> {
+                val rowChildren = knownContentWidth
+                    ?.let { growRowChildren(children, it, gap, resolved, scrollbarReserves, bindings) }
+                    ?: children
+                LayoutSize(
+                    rowChildren.sumOfOuterWidth() + gap * (rowChildren.size - 1).coerceAtLeast(0),
+                    rowChildren.maxOfOuterHeight(),
+                )
+            }
+            LayoutType.COLUMN -> {
+                val columnChildren = knownContentHeight
+                    ?.let { growColumnChildren(children, it, gap, resolved, scrollbarReserves, bindings) }
+                    ?: children
+                LayoutSize(
+                    columnChildren.maxOfOuterWidth(),
+                    columnChildren.sumOfOuterHeight() + gap * (columnChildren.size - 1).coerceAtLeast(0),
+                )
+            }
             LayoutType.GRID, LayoutType.STACK, LayoutType.FREE -> LayoutSize(children.maxOfOuterWidth(), children.maxOfOuterHeight())
         }
     }
