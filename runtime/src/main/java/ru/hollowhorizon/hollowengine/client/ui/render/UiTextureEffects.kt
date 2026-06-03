@@ -25,6 +25,7 @@ internal object UiTextureEffects {
         maskPadding: Float = 0f,
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
+        tint: UiColor = UiColor.White,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -42,6 +43,7 @@ internal object UiTextureEffects {
             maskPadding = maskPadding,
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
+            tint = tint,
         )
     }
 
@@ -62,6 +64,7 @@ internal object UiTextureEffects {
         maskPadding: Float = 0f,
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
+        tint: UiColor = UiColor.White,
     ) {
         setTextureShader(
             filter,
@@ -77,10 +80,10 @@ internal object UiTextureEffects {
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         val placement = imagePlacement(width, height, fit, texture)
-        val tint = UiColor.White.withOpacity(opacity).filtered(filter)
+        val finalTint = tint.withOpacity(opacity).filtered(filter)
         val quadTransform = transform * UiMatrix4.translation(placement.x, placement.y, 0f)
         if (fit.isSliced) {
-            addSlicedTexturedQuad(buffer, quadTransform, placement, texture, fit, slice, flipY, tint)
+            addSlicedTexturedQuad(buffer, quadTransform, placement, texture, fit, slice, flipY, finalTint)
             BufferUploader.drawWithShader(buffer.buildOrThrow())
             return
         }
@@ -103,7 +106,7 @@ internal object UiTextureEffects {
                     placement.u1,
                     placement.v1,
                     flipY,
-                    tint
+                    finalTint
                 )
                 addTexturedVertex(
                     buffer,
@@ -117,7 +120,7 @@ internal object UiTextureEffects {
                     placement.u1,
                     placement.v1,
                     flipY,
-                    tint
+                    finalTint
                 )
                 addTexturedVertex(
                     buffer,
@@ -131,7 +134,7 @@ internal object UiTextureEffects {
                     placement.u1,
                     placement.v1,
                     flipY,
-                    tint
+                    finalTint
                 )
                 addTexturedVertex(
                     buffer,
@@ -145,7 +148,7 @@ internal object UiTextureEffects {
                     placement.u1,
                     placement.v1,
                     flipY,
-                    tint
+                    finalTint
                 )
             }
         }
@@ -170,6 +173,7 @@ internal object UiTextureEffects {
         maskRadius: Float = 0f,
         maskScale: Float = 0f,
         maskPadding: Float = 0f,
+        tint: UiColor = UiColor.White,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -194,17 +198,17 @@ internal object UiTextureEffects {
         val tessellator = Tesselator.getInstance()
         val segments = subdivisions.coerceAtLeast(1)
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
-        val tint = UiColor.White.withOpacity(opacity)
+        val finalTint = tint.withOpacity(opacity)
         for (yIndex in 0 until segments) {
             val y0 = yIndex.toFloat() / segments.toFloat()
             val y1 = (yIndex + 1).toFloat() / segments.toFloat()
             for (xIndex in 0 until segments) {
                 val x0 = xIndex.toFloat() / segments.toFloat()
                 val x1 = (xIndex + 1).toFloat() / segments.toFloat()
-                addTexturedVertex(buffer, transform, width, height, x0, y0, u0, v0, u1, v1, flipY, tint)
-                addTexturedVertex(buffer, transform, width, height, x0, y1, u0, v0, u1, v1, flipY, tint)
-                addTexturedVertex(buffer, transform, width, height, x1, y1, u0, v0, u1, v1, flipY, tint)
-                addTexturedVertex(buffer, transform, width, height, x1, y0, u0, v0, u1, v1, flipY, tint)
+                addTexturedVertex(buffer, transform, width, height, x0, y0, u0, v0, u1, v1, flipY, finalTint)
+                addTexturedVertex(buffer, transform, width, height, x0, y1, u0, v0, u1, v1, flipY, finalTint)
+                addTexturedVertex(buffer, transform, width, height, x1, y1, u0, v0, u1, v1, flipY, finalTint)
+                addTexturedVertex(buffer, transform, width, height, x1, y0, u0, v0, u1, v1, flipY, finalTint)
             }
         }
         BufferUploader.drawWithShader(buffer.buildOrThrow())

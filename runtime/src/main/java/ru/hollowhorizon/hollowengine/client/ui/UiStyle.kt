@@ -64,6 +64,7 @@ data class MutableUiStyle(
     var border: UiBorder? = null,
     var shadows: List<UiShadow>? = null,
     var opacity: Float? = null,
+    var tint: UiColor? = null,
     var transform: UiTransform? = null,
     var filter: UiFilterChain? = null,
     var backdropFilter: UiFilterChain? = null,
@@ -109,6 +110,7 @@ data class MutableUiStyle(
         other.border?.let { border = it }
         other.shadows?.let { shadows = it }
         other.opacity?.let { opacity = it }
+        other.tint?.let { tint = it }
         other.transform?.let { transform = it }
         other.filter?.let { filter = it }
         other.backdropFilter?.let { backdropFilter = it }
@@ -159,6 +161,7 @@ data class MutableUiStyle(
             border = border ?: UiBorder(),
             shadows = shadows ?: emptyList(),
             opacity = opacity?.coerceIn(0f, 1f) ?: 1f,
+            tint = tint ?: UiColor.White,
             transform = transform ?: UiTransform(),
             filter = filter ?: UiFilterChain.Empty,
             backdropFilter = backdropFilter ?: UiFilterChain.Empty,
@@ -207,6 +210,7 @@ data class ComputedStyle(
     val border: UiBorder,
     val shadows: List<UiShadow>,
     val opacity: Float,
+    val tint: UiColor,
     val transform: UiTransform,
     val filter: UiFilterChain,
     val backdropFilter: UiFilterChain,
@@ -233,6 +237,7 @@ data class ComputedStyle(
             foreground = foreground.interpolate(to.foreground, progress.foreground),
             shadows = shadows.interpolate(to.shadows, progress.shadow),
             opacity = opacity + (to.opacity - opacity) * progress.opacity,
+            tint = tint.interpolate(to.tint, progress.tint),
             filter = filter.interpolate(to.filter, progress.filter),
             backdropFilter = backdropFilter.interpolate(to.backdropFilter, progress.backdropFilter),
             transform = UiTransform(
@@ -253,6 +258,7 @@ data class TransitionProgress(
     val foreground: Float = 1f,
     val shadow: Float = 1f,
     val opacity: Float = 1f,
+    val tint: Float = 1f,
     val filter: Float = 1f,
     val backdropFilter: Float = 1f,
     val translate: Float = 1f,
@@ -265,6 +271,7 @@ data class TransitionProgress(
                 foreground >= 1f &&
                 shadow >= 1f &&
                 opacity >= 1f &&
+                tint >= 1f &&
                 filter >= 1f &&
                 backdropFilter >= 1f &&
                 translate >= 1f &&
@@ -531,6 +538,7 @@ class UiTransitionState {
             foreground = progress("foreground", elapsedMillis),
             shadow = progress("shadow", elapsedMillis),
             opacity = progress("opacity", elapsedMillis),
+            tint = progress("tint", elapsedMillis),
             filter = progress("filter", elapsedMillis),
             backdropFilter = progress("backdrop-filter", elapsedMillis),
             translate = progress("translate", elapsedMillis),
@@ -554,6 +562,7 @@ class UiTransitionState {
             "foreground" -> foreground != target.foreground
             "shadow", "box-shadow" -> shadows != target.shadows
             "opacity" -> opacity != target.opacity
+            "tint" -> tint != target.tint
             "filter" -> filter != target.filter
             "backdrop-filter" -> backdropFilter != target.backdropFilter
             "translate" -> transform.translate != target.transform.translate
@@ -574,6 +583,7 @@ class UiTransitionState {
             "shadow",
             "box-shadow",
             "opacity",
+            "tint",
             "filter",
             "backdrop-filter",
             "scale",

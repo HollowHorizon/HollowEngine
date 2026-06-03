@@ -84,6 +84,8 @@ sealed interface Modifier {
 
         fun opacity(value: Float) = StyleModifier { it.opacity = value }
 
+        fun tint(color: UiColor) = StyleModifier { it.tint = color }
+
         fun translate(x: Float = 0f, y: Float = 0f, z: Float = 0f) = TransformPatch { current ->
             current.copy(translate = UiVec3(x, y, z))
         }

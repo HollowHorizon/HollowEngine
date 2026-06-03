@@ -59,7 +59,8 @@ fun createKatariNpc(
     name: String = "NPC",
     model: String = "hollowengine:models/entity/player_model.gltf",
     world: String = "minecraft:overworld",
-): NpcEntity = npc(pos = pos, name = name, model = model, world = world)
+    showName: Boolean = false,
+): NpcEntity = npc(pos = pos, name = name, model = model, world = world, showName = showName)
 
 @ScriptBinding("command")
 fun executeKatariCommand(command: String): Int = execute(command)

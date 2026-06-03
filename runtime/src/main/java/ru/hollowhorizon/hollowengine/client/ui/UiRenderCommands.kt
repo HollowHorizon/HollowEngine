@@ -14,6 +14,7 @@ data class BeginLayerCommand(
     val filter: UiFilterChain,
     val backdropFilter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val opacity: Float,
 ) : UiRenderCommand
 
 data class EndLayerCommand(
@@ -57,6 +58,7 @@ data class DrawBoxCommand(
     val border: UiBorder,
     val shadows: List<UiShadow>,
     val opacity: Float,
+    val tint: UiColor,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
     val fit: UiImageFit,
@@ -89,6 +91,7 @@ data class DrawImageCommand(
     val rect: UiRect,
     val source: String,
     val opacity: Float,
+    val tint: UiColor,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,
     val fit: UiImageFit,
@@ -176,6 +179,7 @@ class UiCommandRenderer {
 
         val isFramebuffer = layoutNode.needsFramebuffer
         val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
+        val localOpacity = if (isFramebuffer) 1f else style.opacity
 
         if (style.backdropFilter.effects.isNotEmpty()) {
             commands += DrawBackdropFilterCommand(
@@ -198,14 +202,15 @@ class UiCommandRenderer {
             commands += BeginLayerCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
                 transform = layoutNode.worldTransform, filter = style.filter,
-                backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility
+                backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility,
+                opacity = style.opacity,
             )
         }
 
         if (style.background != UiPaint.None || style.border.width != UiInsets.Zero) {
             commands += DrawBoxCommand(
                 node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
-                border = style.border, shadows = emptyList(), opacity = style.opacity,
+                border = style.border, shadows = emptyList(), opacity = localOpacity, tint = style.tint,
                 transform = layoutNode.worldTransform, renderToFramebuffer = false,
                 fit = style.imageFit, slice = style.imageSlice, filter = baseFilter, backfaceVisibility = style.backfaceVisibility
             )
@@ -214,20 +219,21 @@ class UiCommandRenderer {
         val pushedClip = style.clip || style.input.scrollable
         if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
 
-        collectNodeContent(node, style, layoutNode, baseFilter, bindings, nowMillis, typingState, commands)
+        collectNodeContent(node, style, localOpacity, layoutNode, baseFilter, bindings, nowMillis, typingState, commands)
 
         node.children
             .sortedBy { resolved[it].layer }
             .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
 
         if (pushedClip) commands += PopClipCommand(node)
-        if (style.input.scrollable) appendScrollbars(node, layoutNode, style, bindings, commands)
+        if (style.input.scrollable) appendScrollbars(node, layoutNode, style, localOpacity, bindings, commands)
         if (isFramebuffer) commands += EndLayerCommand(node)
     }
 
     private fun collectNodeContent(
         node: UiNode,
         style: ComputedStyle,
+        opacity: Float,
         layoutNode: UiLayoutNode,
         filter: UiFilterChain,
         bindings: UiBindingContext,
@@ -240,7 +246,6 @@ class UiCommandRenderer {
             layoutNode.content.y - layoutNode.rect.y,
             0f
         )
-        val opacity = style.opacity
         val backface = style.backfaceVisibility
 
         when (node) {
@@ -262,7 +267,7 @@ class UiCommandRenderer {
                     layoutNode.scrollOffset, node.hoveredLink, backface
                 )
             }
-            is ImageNode -> commands += DrawImageCommand(node, layoutNode.content, node.source.resolve(bindings), opacity, contentTransform, false, style.imageFit, style.imageSlice, filter, backface)
+            is ImageNode -> commands += DrawImageCommand(node, layoutNode.content, node.source.resolve(bindings), opacity, style.tint, contentTransform, false, style.imageFit, style.imageSlice, filter, backface)
             is ItemNode -> commands += DrawItemCommand(node, layoutNode.content, node.item.resolve(bindings), opacity, contentTransform, filter, backface)
             is EntityNode -> commands += DrawEntityCommand(node, layoutNode.content, node.entity.resolve(bindings), opacity, contentTransform, false, filter, backface)
             is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
@@ -273,6 +278,7 @@ class UiCommandRenderer {
         node: UiNode,
         layoutNode: UiLayoutNode,
         style: ComputedStyle,
+        opacity: Float,
         bindings: UiBindingContext,
         commands: MutableList<UiRenderCommand>,
     ) {
@@ -306,7 +312,7 @@ class UiCommandRenderer {
                     thumbBorder = verticalStyle.thumb.border ?: UiBorder(radius = verticalStyle.thumb.radius ?: 3.5f),
                     thumbFit = verticalStyle.thumb.fit ?: UiImageFit.STRETCH,
                     thumbSlice = verticalStyle.thumb.slice ?: UiInsets.all(4.px),
-                    opacity = style.opacity,
+                    opacity = opacity,
                 )
             }
         }
@@ -336,7 +342,7 @@ class UiCommandRenderer {
                     thumbBorder = horizontalStyle.thumb.border ?: UiBorder(radius = horizontalStyle.thumb.radius ?: 3.5f),
                     thumbFit = horizontalStyle.thumb.fit ?: UiImageFit.STRETCH,
                     thumbSlice = horizontalStyle.thumb.slice ?: UiInsets.all(4.px),
-                    opacity = style.opacity,
+                    opacity = opacity,
                 )
             }
         }

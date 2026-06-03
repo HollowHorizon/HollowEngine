@@ -68,6 +68,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "border-radius" -> instruction { it.border = (it.border ?: UiBorder()).copy(radius = parseScalar(value)) }
             "shadow", "box-shadow" -> instruction { it.shadows = parseShadows(value) }
             "opacity" -> instruction { it.opacity = value.toFloat() }
+            "tint" -> instruction { it.tint = parseColor(value) }
             "translate" -> instruction {
                 it.transform = (it.transform ?: UiTransform()).copy(translate = parseVec3(value))
             }

@@ -39,6 +39,7 @@ internal data class LayerState(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val padding: Float,
+    val opacity: Float,
 )
 
 internal const val LayerSupersampling = 1f

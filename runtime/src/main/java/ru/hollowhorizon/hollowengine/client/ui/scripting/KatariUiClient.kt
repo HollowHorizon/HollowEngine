@@ -53,10 +53,26 @@ class ShowKatariUiPacket(
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class HideKatariUiOverlayPacket(private val id: String) : HollowPacket {
+class CloseKatariUiOverlayPacket(
+    private val id: String,
+    private val root: UiXmlTree,
+) : HollowPacket {
     override fun handle(player: Player) {
         Minecraft.getInstance().execute {
-            KatariUiOverlays.hide(id)
+            KatariUiOverlays.close(id, root)
+        }
+    }
+}
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
+@Serializable
+class UpdateKatariUiOverlayPacket(
+    private val id: String,
+    private val root: UiXmlTree,
+) : HollowPacket {
+    override fun handle(player: Player) {
+        Minecraft.getInstance().execute {
+            KatariUiOverlays.update(id, root)
         }
     }
 }
@@ -104,34 +120,66 @@ object KatariUiOverlays {
     private val overlays = linkedMapOf<String, KatariUiOverlay>()
 
     fun show(id: String, root: UiXmlTree, variables: CompoundTag = CompoundTag()) {
-        overlays.remove(id)?.close()
-        overlays[id] = KatariUiOverlay(id, root, variables)
+        overlays[id]?.show(root, variables) ?: run {
+            overlays[id] = KatariUiOverlay(id, root, variables)
+        }
     }
 
-    fun hide(id: String) {
-        overlays.remove(id)?.close()
+    fun update(id: String, root: UiXmlTree) {
+        overlays[id]?.update(root)
+    }
+
+    fun close(id: String, root: UiXmlTree) {
+        overlays[id]?.close(root)
     }
 
     @SubscribeEvent
     fun render(event: RenderOverlayEvent.Post) {
-        if (event.overlay != GuiOverlay.VIGNETTE) return
-        overlays.values.forEach { it.render() }
+        if (event.overlay != GuiOverlay.CHAT_PANEL) return
+        val nowMillis = System.currentTimeMillis()
+        overlays.entries.toList().forEach { (id, overlay) ->
+            if (overlay.render(nowMillis)) {
+                overlays.remove(id)?.dispose()
+            }
+        }
     }
 }
 
 private class KatariUiOverlay(
     private val id: String,
-    private val root: UiXmlTree,
-    private val variables: CompoundTag,
+    root: UiXmlTree,
+    variables: CompoundTag,
 ) {
     private val runtime = HollowUiRuntime()
     private val renderer = MinecraftUiRenderer()
     private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
-    private val node = UiXmlBuilder(UiXmlOptions(eventSink = sink)).build(root).also {
-        UiClientScriptRunner.prepare(it.modifiers.filterIsInstance<UiClientScriptModifier>().flatMap { modifier -> modifier.scripts }, it, sink, variables)
+    private var root = root
+    private var variables = variables
+    private var node = buildNode(root, variables)
+    private var closing = false
+    private var closingStartedAt: Long? = null
+
+    fun show(root: UiXmlTree, variables: CompoundTag) {
+        this.root = root
+        this.variables = variables
+        node = buildNode(root, variables)
+        closing = false
+        closingStartedAt = null
     }
 
-    fun render() {
+    fun update(root: UiXmlTree) {
+        this.root = root
+        node = buildNode(root, variables)
+    }
+
+    fun close(root: UiXmlTree) {
+        this.root = root
+        node = buildNode(root, variables)
+        closing = true
+        closingStartedAt = null
+    }
+
+    fun render(nowMillis: Long): Boolean {
         val window = Minecraft.getInstance().window
         UiNodeKeys.assign(node)
         val frame = runtime.frame(
@@ -139,11 +187,26 @@ private class KatariUiOverlay(
             window.guiScaledWidth.toFloat(),
             window.guiScaledHeight.toFloat(),
             UiBindingContext(variables),
+            nowMillis,
         )
         renderer.render(frame.commands)
+        if (!closing) return false
+        val closeStartedAt = closingStartedAt ?: nowMillis.also { closingStartedAt = it }
+        return nowMillis - closeStartedAt >= frame.rootTransitionDurationMillis()
     }
 
-    fun close() {
+    fun dispose() {
         renderer.close()
     }
+
+    private fun buildNode(root: UiXmlTree, variables: CompoundTag): BoxNode {
+        return UiXmlBuilder(UiXmlOptions(eventSink = sink)).build(root).also {
+            val scripts = it.modifiers.filterIsInstance<UiClientScriptModifier>().flatMap { modifier -> modifier.scripts }
+            UiClientScriptRunner.prepare(scripts, it, sink, variables)
+        }
+    }
+}
+
+private fun HollowUiFrame.rootTransitionDurationMillis(): Long {
+    return resolved[resolved.root].transitions.maxOfOrNull { it.durationMillis } ?: 0L
 }

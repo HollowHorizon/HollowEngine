@@ -130,6 +130,7 @@ class MinecraftUiRenderer {
                 filter = command.filter,
                 backfaceVisibility = command.backfaceVisibility,
                 padding = padding,
+                opacity = command.opacity,
             )
         )
         clipStack.clear()
@@ -251,7 +252,7 @@ class MinecraftUiRenderer {
             width = width,
             height = height,
             transform = transform,
-            opacity = 1f,
+            opacity = layer.opacity,
             u0 = u0,
             v0 = v0,
             u1 = u1,
@@ -400,7 +401,8 @@ class MinecraftUiRenderer {
                 transform,
                 fit = command.fit,
                 slice = command.slice,
-                filter = command.filter
+                filter = command.filter,
+                tint = command.tint,
             )
 
             is UiResolvedPaint.Shader -> drawLocalPaint(
@@ -838,6 +840,7 @@ class MinecraftUiRenderer {
             command.fit,
             command.filter,
             command.slice,
+            command.tint,
         )
     }
 
@@ -850,6 +853,7 @@ class MinecraftUiRenderer {
         fit: UiImageFit = UiImageFit.STRETCH,
         filter: UiFilterChain = UiFilterChain.Empty,
         slice: UiInsets = UiInsets.Zero,
+        tint: UiColor = UiColor.White,
     ) {
         val location = ResourceLocation.tryParse(source) ?: return
         RenderSystem.setShaderTexture(0, location)
@@ -863,6 +867,7 @@ class MinecraftUiRenderer {
             texture = location,
             filter = filter,
             slice = slice,
+            tint = tint,
         )
     }
 

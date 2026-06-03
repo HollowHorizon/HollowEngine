@@ -2,6 +2,7 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.ui.BeginLayerCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawBackdropFilterCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawImageCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
@@ -1365,6 +1366,50 @@ class UiFrameworkTests {
 
         assertEquals(1f, beginLayer.filter.grayscaleAmount())
         assertTrue(text.filter.effects.isEmpty(), "Child commands should not pre-apply parent filter before layer compositing")
+    }
+
+    @Test
+    fun `container opacity renders subtree through a single layer`() {
+        val stylesheet = compileHss(
+            """
+            .fade {
+                size: 80px 40px;
+                opacity: 0.5;
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi(tags = listOf("fade")) {
+            Text("Faded child")
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 60f)
+        val beginLayer = assertIs<BeginLayerCommand>(frame.commands.first { it is BeginLayerCommand })
+        val text = assertIs<DrawTextCommand>(frame.commands.first { it is DrawTextCommand })
+
+        assertEquals(0.5f, beginLayer.opacity)
+        assertEquals(1f, text.opacity)
+    }
+
+    @Test
+    fun `image tint is passed into image draw commands`() {
+        val stylesheet = compileHss(
+            """
+            .avatar {
+                size: 40px 40px;
+                tint: rgba(128, 192, 255, 0.75);
+            }
+            """.trimIndent()
+        )
+        val root = HollowUi {
+            Image("hollowengine:textures/gui/icons/logo.png", tags = listOf("avatar"))
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 80f, 80f)
+        val draw = assertIs<DrawImageCommand>(frame.commands.first { it is DrawImageCommand })
+
+        assertEquals(128f / 255f, draw.tint.red, 0.01f)
+        assertEquals(192f / 255f, draw.tint.green, 0.01f)
+        assertEquals(0.75f, draw.tint.alpha, 0.01f)
     }
 
     @Test

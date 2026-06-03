@@ -75,6 +75,60 @@ class KatariUiApiTests {
     }
 
     @Test
+    fun `ui document replaces target contents and assigns child attributes`() {
+        val document = KatariUiDocument(
+            id = "test",
+            root = UiXmlTree(
+                "box",
+                children = listOf(
+                    UiXmlTree(
+                        "box",
+                        mapOf("id" to "dialog-message"),
+                        children = listOf(UiXmlTree("text", mapOf("text" to "Old"))),
+                    ),
+                ),
+            ),
+        )
+
+        document.replaceAt(
+            "dialog-message",
+            UiXmlTree("text", mapOf("text" to "New")),
+            mapOf("tags" to "message-text", "status" to "active"),
+        )
+
+        val message = document.root.children.single()
+        val text = message.children.single()
+
+        assertEquals("text", text.name)
+        assertEquals("New", text.attributes["text"])
+        assertEquals("message-text", text.attributes["tags"])
+        assertEquals("active", text.attributes["status"])
+    }
+
+    @Test
+    fun `ui document clears removes attributes and modifies all matches`() {
+        val document = KatariUiDocument(
+            id = "test",
+            root = UiXmlTree(
+                "box",
+                children = listOf(
+                    UiXmlTree("box", mapOf("tags" to "line", "status" to "old"), children = listOf(UiXmlTree("text"))),
+                    UiXmlTree("box", mapOf("tags" to "line", "status" to "old"), children = listOf(UiXmlTree("text"))),
+                ),
+            ),
+        )
+
+        val count = document.modifyAll("line", "status", "new")
+        document.removeAttribute("line", "status")
+        document.clear("line")
+
+        assertEquals(2, count)
+        assertEquals(null, document.root.children.first().attributes["status"])
+        assertEquals("new", document.root.children.last().attributes["status"])
+        assertEquals(emptyList(), document.root.children.first().children)
+    }
+
+    @Test
     fun `katari analyzer accepts scripted ui literals and mutations`() {
         val diagnostics = KatariScriptingAnalyzer.diagnostic(
             "ui.ktr",
@@ -87,6 +141,11 @@ class KatariUiApiTests {
             )
             gui.insertAt("container", <box><text>Extra</text></box>)
             gui.modify("container", attribute = "my-custom-state", value = "ready")
+            gui.replaceAt("container", <text>Line</text>, struct { tags: "message-text" })
+            gui.modify("container", struct { status: "show" })
+            gui.modifyAll("container", struct { status: "close" })
+            gui.updateOverlay(player)
+            gui.clear("container")
             """.trimIndent(),
         )
 

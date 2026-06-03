@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
 import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter
 import com.sunnychung.lib.multiplatform.kotlite.model.FunctionResponse
 import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
@@ -41,9 +40,10 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.EventListener
 import ru.hollowhorizon.hollowengine.client.ui.scripting.CloseKatariUiScreenPacket
-import ru.hollowhorizon.hollowengine.client.ui.scripting.HideKatariUiOverlayPacket
+import ru.hollowhorizon.hollowengine.client.ui.scripting.CloseKatariUiOverlayPacket
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
 import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UpdateKatariUiOverlayPacket
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
 import ru.hollowhorizon.hollowengine.client.ui.xml.from
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
@@ -69,16 +69,61 @@ class KatariUiDocument(
         private set
 
     fun insertAt(target: String, child: UiXmlTree) {
-        val cleanTarget = target.removePrefix(".").removePrefix("#")
+        val cleanTarget = normalizeUiTarget(target)
         var inserted = false
         root = root.insertIntoFirst(cleanTarget, child) { inserted = true }
         require(inserted) { "UI target `$target` was not found" }
     }
 
+    fun insertAt(target: String, child: UiXmlTree, attributes: Map<String, String>) {
+        insertAt(target, child.withAttributes(attributes))
+    }
+
+    fun replaceAt(target: String, child: UiXmlTree) {
+        replaceAt(target, listOf(child))
+    }
+
+    fun replaceAt(target: String, child: UiXmlTree, attributes: Map<String, String>) {
+        replaceAt(target, child.withAttributes(attributes))
+    }
+
+    fun replaceAt(target: String, children: List<UiXmlTree>) {
+        val cleanTarget = normalizeUiTarget(target)
+        var replaced = false
+        root = root.replaceChildrenFirst(cleanTarget, children) { replaced = true }
+        require(replaced) { "UI target `$target` was not found" }
+    }
+
+    fun clear(target: String) {
+        replaceAt(target, emptyList())
+    }
+
     fun modify(target: String, attribute: String, value: String) {
-        val cleanTarget = target.removePrefix(".").removePrefix("#")
+        modify(target, mapOf(attribute to value))
+    }
+
+    fun modify(target: String, attributes: Map<String, String>) {
+        val cleanTarget = normalizeUiTarget(target)
         var modified = false
-        root = root.modifyFirst(cleanTarget, attribute, value) { modified = true }
+        root = root.modifyFirst(cleanTarget, attributes) { modified = true }
+        require(modified) { "UI target `$target` was not found" }
+    }
+
+    fun modifyAll(target: String, attribute: String, value: String): Int {
+        return modifyAll(target, mapOf(attribute to value))
+    }
+
+    fun modifyAll(target: String, attributes: Map<String, String>): Int {
+        val result = root.modifyAll(normalizeUiTarget(target), attributes)
+        require(result.count > 0) { "UI target `$target` was not found" }
+        root = result.root
+        return result.count
+    }
+
+    fun removeAttribute(target: String, attribute: String) {
+        val cleanTarget = normalizeUiTarget(target)
+        var modified = false
+        root = root.removeAttributeFirst(cleanTarget, attribute) { modified = true }
         require(modified) { "UI target `$target` was not found" }
     }
 }
@@ -101,8 +146,60 @@ fun KatariUiDocument.insertAt(target: String, child: XmlValue): KatariUiDocument
 }
 
 @ScriptBinding
+fun KatariUiDocument.insertAt(target: String, child: XmlValue, attributes: Map<String, String>): KatariUiDocument {
+    insertAt(target, UiXmlTree.from(child), attributes)
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.replaceAt(target: String, child: XmlValue): KatariUiDocument {
+    replaceAt(target, UiXmlTree.from(child))
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.replaceAt(target: String, child: XmlValue, attributes: Map<String, String>): KatariUiDocument {
+    replaceAt(target, UiXmlTree.from(child), attributes)
+    return this
+}
+
+@ScriptBinding("setAt")
+fun KatariUiDocument.setAt(target: String, child: XmlValue): KatariUiDocument {
+    replaceAt(target, child)
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.clear(target: String): KatariUiDocument {
+    clear(target)
+    return this
+}
+
+@ScriptBinding
 fun KatariUiDocument.modify(target: String, attribute: String, value: String): KatariUiDocument {
     modify(target, attribute, value)
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.modify(target: String, attributes: Map<String, String>): KatariUiDocument {
+    modify(target, attributes)
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.modifyAll(target: String, attribute: String, value: String): Int {
+    return modifyAll(target, attribute, value)
+}
+
+@ScriptBinding
+fun KatariUiDocument.modifyAll(target: String, attributes: Map<String, String>): Int {
+    return modifyAll(target, attributes)
+}
+
+@ScriptBinding
+fun KatariUiDocument.removeAttribute(target: String, attribute: String): KatariUiDocument {
+    removeAttribute(target, attribute)
     return this
 }
 
@@ -144,20 +241,20 @@ fun KatariUiDocument.showScreen(players: List<Player>, variables: StructValue) {
 
 @ScriptBinding
 fun KatariUiDocument.showOverlay(player: Player) {
-    send(player, KatariUiDisplayMode.OVERLAY, CompoundTag())
+    showOverlay(player, CompoundTag())
 }
 
 @ScriptBinding
 fun KatariUiDocument.showOverlay(players: List<Player>) {
-    send(players, KatariUiDisplayMode.OVERLAY, CompoundTag())
+    showOverlay(players, CompoundTag())
 }
 
 fun KatariUiDocument.showOverlay(player: Player, variables: StructValue) {
-    send(player, KatariUiDisplayMode.OVERLAY, variables.toCompoundTag())
+    showOverlay(player, variables.toCompoundTag())
 }
 
 fun KatariUiDocument.showOverlay(players: List<Player>, variables: StructValue) {
-    send(players, KatariUiDisplayMode.OVERLAY, variables.toCompoundTag())
+    showOverlay(players, variables.toCompoundTag())
 }
 
 @ScriptBinding
@@ -174,12 +271,23 @@ fun KatariUiDocument.closeScreen(players: List<Player>) {
 @ScriptBinding
 fun KatariUiDocument.hideOverlay(player: Player) {
     val serverPlayer = player as? ServerPlayer ?: error("hideOverlay requires a server player")
-    HideKatariUiOverlayPacket(id).send(serverPlayer)
+    CloseKatariUiOverlayPacket(id, root).send(serverPlayer)
 }
 
 @ScriptBinding
 fun KatariUiDocument.hideOverlay(players: List<Player>) {
     players.forEach(::hideOverlay)
+}
+
+@ScriptBinding
+fun KatariUiDocument.updateOverlay(player: Player) {
+    val serverPlayer = player as? ServerPlayer ?: error("updateOverlay requires a server player")
+    UpdateKatariUiOverlayPacket(id, root).send(serverPlayer)
+}
+
+@ScriptBinding
+fun KatariUiDocument.updateOverlay(players: List<Player>) {
+    players.forEach(::updateOverlay)
 }
 
 suspend fun KatariUiDocument.await(player: Player): CompoundTag {
@@ -191,42 +299,6 @@ suspend fun KatariUiDocument.await(player: Player): CompoundTag {
 
 suspend fun KatariUiDocument.await(): CompoundTag {
     return KatariUiEvent.await { event -> event.uiId == id }.payload
-}
-
-fun NarrativeBindingsBuilder.registerKatariUiStructBindings() {
-    fun screenFunction(name: String, mode: KatariUiDisplayMode) {
-        fun registerScreenFunction(
-            playerType: String,
-            sender: suspend (KatariUiDocument, RuntimeValue, StructValue) -> Unit,
-        ) = immediateFunction(
-            name = name,
-            receiverType = "Ui",
-            valueParameters = listOf(
-                CustomFunctionParameter("player", playerType),
-                CustomFunctionParameter("variables", STRUCT_VALUE_TYPE_ID),
-            ),
-        ) { arguments, _ ->
-            val ui = KatariGeneratedBindingRuntime.awaitHost<KatariUiDocument>(arguments[0], "Ui", "receiver")
-            val variables = arguments[2] as? StructValue ?: error("$name variables expects StructValue")
-            sender(ui, arguments[1], variables)
-            NullValue
-        }
-
-        registerScreenFunction("Player") { ui, playerValue, variables ->
-            val player = KatariGeneratedBindingRuntime.awaitHost<Player>(playerValue, "Player", "player")
-            ui.send(player, mode, variables.toCompoundTag())
-        }
-        registerScreenFunction("List<Player>") { ui, playersValue, variables ->
-            val players = KatariGeneratedBindingRuntime.awaitList(playersValue, "players") { value, index ->
-                KatariGeneratedBindingRuntime.awaitHost<Player>(value, "Player", "players[$index]")
-            }
-            ui.send(players, mode, variables.toCompoundTag())
-        }
-    }
-    screenFunction("openScreen", KatariUiDisplayMode.SCREEN)
-    screenFunction("showScreen", KatariUiDisplayMode.SCREEN)
-    screenFunction("showOverlay", KatariUiDisplayMode.OVERLAY)
-    register(KatariUiAwaitCallable)
 }
 
 @Serializable
@@ -246,16 +318,24 @@ data class KatariUiDocumentSnapshot(
     }
 }
 
-private fun KatariUiDocument.send(player: Player, mode: KatariUiDisplayMode, variables: CompoundTag) {
+internal fun KatariUiDocument.send(player: Player, mode: KatariUiDisplayMode, variables: CompoundTag) {
     val serverPlayer = player as? ServerPlayer ?: error("$mode requires a server player")
     ShowKatariUiPacket(id, root, mode, variables).send(serverPlayer)
 }
 
-private fun KatariUiDocument.send(players: Iterable<Player>, mode: KatariUiDisplayMode, variables: CompoundTag) {
+internal fun KatariUiDocument.send(players: Iterable<Player>, mode: KatariUiDisplayMode, variables: CompoundTag) {
     players.forEach { player -> send(player, mode, variables.copy()) }
 }
 
-private data object KatariUiAwaitCallable : NarrativeCallable {
+private fun KatariUiDocument.showOverlay(player: Player, variables: CompoundTag) {
+    send(player, KatariUiDisplayMode.OVERLAY, variables)
+}
+
+private fun KatariUiDocument.showOverlay(players: Iterable<Player>, variables: CompoundTag) {
+    send(players, KatariUiDisplayMode.OVERLAY, variables)
+}
+
+internal data object KatariUiAwaitCallable : NarrativeCallable {
     override val id: String = "await"
     override val receiverType: String? = "Ui"
     override val returnType: String = STRUCT_VALUE_TYPE_ID
@@ -313,66 +393,6 @@ private fun RuntimeValue.playerUuid(name: String): UUID {
     }
 }
 
-private fun UiXmlTree.insertIntoFirst(
-    target: String,
-    child: UiXmlTree,
-    markInserted: () -> Unit,
-): UiXmlTree {
-    if (matchesTarget(target)) {
-        markInserted()
-        return copy(children = children + child)
-    }
-    var inserted = false
-    val nextChildren = children.map { current ->
-        if (inserted) {
-            current
-        } else {
-            current.insertIntoFirst(target, child) {
-                inserted = true
-                markInserted()
-            }
-        }
-    }
-    return if (inserted) copy(children = nextChildren) else this
-}
-
-private fun UiXmlTree.modifyFirst(
-    target: String,
-    attribute: String,
-    value: String,
-    markModified: () -> Unit,
-): UiXmlTree {
-    if (matchesTarget(target)) {
-        markModified()
-        return copy(attributes = attributes + (attribute to value))
-    }
-    var modified = false
-    val nextChildren = children.map { current ->
-        if (modified) {
-            current
-        } else {
-            current.modifyFirst(target, attribute, value) {
-                modified = true
-                markModified()
-            }
-        }
-    }
-    return if (modified) copy(children = nextChildren) else this
-}
-
-private fun UiXmlTree.matchesTarget(target: String): Boolean {
-    if (name.equals(target, ignoreCase = true)) return true
-    if (attributes["id"]?.removePrefix("#") == target) return true
-    return tagAttributes().any { it == target }
-}
-
-private fun UiXmlTree.tagAttributes(): List<String> {
-    return listOfNotNull(attributes["tag"], attributes["tags"], attributes["class"])
-        .flatMap { it.split(Regex("\\s+")) }
-        .map { it.removePrefix(".") }
-        .filter { it.isNotBlank() }
-}
-
 private fun readUiResourceText(location: ResourceLocation): String {
     val local = DirectoryManager.HOLLOW_ENGINE.resolve("assets").resolve(location.namespace).resolve(location.path)
     if (Files.isRegularFile(local)) {
@@ -385,7 +405,7 @@ private fun readUiResourceText(location: ResourceLocation): String {
     return stream.use { InputStreamReader(it, Charsets.UTF_8).use { reader -> reader.readText() } }
 }
 
-private fun StructValue.toCompoundTag(): CompoundTag {
+internal fun StructValue.toCompoundTag(): CompoundTag {
     return CompoundTag().apply {
         fields.forEach { (key, value) -> put(key, value.toNbtTag()) }
     }

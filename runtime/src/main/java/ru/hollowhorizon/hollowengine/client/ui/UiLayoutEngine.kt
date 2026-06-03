@@ -166,8 +166,10 @@ class UiLayoutEngine {
                 style.transform.matrix(pivot)
         val inputTransform = parentInputTransform * UiMatrix4.translation(localX, localY, style.position.z) *
                 style.transform.matrix(pivot)
+        val opacityNeedsLayer = style.opacity < 1f && node.children.isNotEmpty()
         val needsFramebuffer =
-            style.transform.needsFramebuffer ||
+            opacityNeedsLayer ||
+                    style.transform.needsFramebuffer ||
                     (!insideFramebuffer && node.requiresTextLayer(transform)) ||
                     style.filter.requiresLayer ||
                     style.backdropFilter.requiresLayer
