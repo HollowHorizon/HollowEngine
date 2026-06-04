@@ -63,6 +63,7 @@ class CutsceneEditorPanel(dock: Dock) : DockPanel(MAIN_PANEL_ID, dock) {
         trackMenu()
         fileDialog.draw()
         session.update()
+        surface.triggerUpdate()
     }
 
     override fun onKeyInput(event: KeyEvent) {
