@@ -8,12 +8,17 @@ class HssParser(private val source: String) {
 
     fun parse(): HssDocument {
         val rules = mutableListOf<HssRule>()
+        val keyframes = mutableListOf<HssKeyframes>()
         skipIgnored()
         while (!isEnd()) {
-            rules += parseRule()
+            if (peek() == '@') {
+                keyframes += parseAtRule()
+            } else {
+                rules += parseRule()
+            }
             skipIgnored()
         }
-        return HssDocument(rules)
+        return HssDocument(rules, keyframes)
     }
 
     fun parseSelectorOnly(): HssSelector {
@@ -30,6 +35,52 @@ class HssParser(private val source: String) {
         val declarations = parseDeclarations()
         expect('}')
         return HssRule(selectors, declarations, order++)
+    }
+
+    private fun parseAtRule(): HssKeyframes {
+        expect('@')
+        val name = readIdentifier()
+        if (!name.equals("keyframes", ignoreCase = true)) throw HssParseException("Unsupported at-rule '@$name'", index)
+        skipIgnored()
+        val keyframesName = readIdentifier()
+        expect('{')
+        val frames = mutableListOf<HssKeyframe>()
+        skipIgnored()
+        while (!isEnd() && peek() != '}') {
+            frames += parseKeyframe()
+            skipIgnored()
+        }
+        expect('}')
+        return HssKeyframes(keyframesName, frames)
+    }
+
+    private fun parseKeyframe(): HssKeyframe {
+        val selector = readKeyframeSelector()
+        expect('{')
+        val declarations = parseDeclarations()
+        expect('}')
+        val offsets = selector.split(',')
+            .map { parseKeyframeOffset(it.trim()) }
+            .ifEmpty { throw HssParseException("Expected keyframe selector", index) }
+        return HssKeyframe(offsets, declarations)
+    }
+
+    private fun readKeyframeSelector(): String {
+        skipIgnored()
+        val start = index
+        while (!isEnd() && peek() != '{') index++
+        val selector = source.substring(start, index).trim()
+        if (selector.isEmpty()) throw HssParseException("Expected keyframe selector", index)
+        return selector
+    }
+
+    private fun parseKeyframeOffset(value: String): Float {
+        return when {
+            value.equals("from", ignoreCase = true) -> 0f
+            value.equals("to", ignoreCase = true) -> 1f
+            value.endsWith("%") -> value.dropLast(1).toFloat() / 100f
+            else -> throw HssParseException("Expected keyframe offset, got '$value'", index)
+        }.coerceIn(0f, 1f)
     }
 
     private fun parseSelectors(): List<HssSelector> {

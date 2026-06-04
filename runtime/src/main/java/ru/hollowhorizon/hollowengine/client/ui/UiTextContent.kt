@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import kotlin.math.sqrt
-
 data class UiTextContent(
     val segments: List<UiTextSegment>,
 ) {
@@ -116,7 +114,7 @@ data class UiResolvedTextContent(
         var pausesBefore = 0L
         fun visibleAt(characterIndex: Int): Boolean {
             val progress = characterIndex.toFloat() / characterCount.toFloat()
-            val activeTime = (typing.easing.inverseProgress(progress) * activeDuration).toLong()
+            val activeTime = (typing.easing.inverse(progress) * activeDuration).toLong()
             return elapsedMillis >= activeTime + pausesBefore
         }
 
@@ -171,21 +169,5 @@ data class UiTyping(
 ) {
     companion object {
         const val AutoMillisPerCharacter = 35L
-    }
-}
-
-private fun TransitionEasing.inverseProgress(progress: Float): Float {
-    val clamped = progress.coerceIn(0f, 1f)
-    return when (this) {
-        TransitionEasing.LINEAR -> clamped
-        TransitionEasing.EASE_IN -> sqrt(clamped)
-        TransitionEasing.EASE_OUT -> 1f - sqrt(1f - clamped)
-        TransitionEasing.EASE_IN_OUT -> {
-            if (clamped < 0.5f) {
-                sqrt(clamped / 2f)
-            } else {
-                1f - sqrt((1f - clamped) / 2f)
-            }
-        }
     }
 }

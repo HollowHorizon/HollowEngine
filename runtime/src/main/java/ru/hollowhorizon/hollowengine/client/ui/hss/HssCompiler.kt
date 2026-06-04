@@ -3,7 +3,10 @@ package ru.hollowhorizon.hollowengine.client.ui.hss
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.*
 
-data class CompiledHss(val rules: List<StyleRule>)
+data class CompiledHss(
+    val rules: List<StyleRule>,
+    val keyframes: Map<String, UiKeyframes> = emptyMap(),
+)
 
 data class StyleRule(
     val selector: HssSelector,
@@ -33,7 +36,27 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 StyleRule(selector, patch, ruleOrigin, rule.order)
             }
         }
-        return CompiledHss(rules)
+        val keyframes = document.keyframes.associate { keyframes ->
+            keyframes.name to UiKeyframes(
+                keyframes.name,
+                keyframes.frames.flatMap { frame ->
+                    frame.offsets.map { offset ->
+                        UiKeyframe(offset, compileKeyframeStyle(frame.declarations), compileKeyframeProperties(frame.declarations))
+                    }
+                },
+            )
+        }
+        return CompiledHss(rules, keyframes)
+    }
+
+    private fun compileKeyframeStyle(declarations: List<HssDeclaration>): MutableUiStyle {
+        val style = MutableUiStyle()
+        declarations.mapNotNull(::compileDeclaration).forEach { it.apply(style, UiBindingContext()) }
+        return style
+    }
+
+    private fun compileKeyframeProperties(declarations: List<HssDeclaration>): Set<String> {
+        return declarations.flatMap { keyframeProperties(it.property, it.value) }.toSet()
     }
 
     internal fun compileDeclaration(declaration: HssDeclaration): StyleInstruction? {
@@ -45,10 +68,38 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "width" -> instruction(UiStyleProperty.WIDTH) { it.size = (it.size ?: UiSize()).copy(width = parseLength(value)) }
             "height" -> instruction(UiStyleProperty.HEIGHT) { it.size = (it.size ?: UiSize()).copy(height = parseLength(value)) }
             "min-size" -> instruction { it.minSize = parseSize(value) }
+            "min-width" -> instruction { it.minSize = (it.minSize ?: UiSize()).copy(width = parseLength(value)) }
+            "min-height" -> instruction { it.minSize = (it.minSize ?: UiSize()).copy(height = parseLength(value)) }
             "max-size" -> instruction { it.maxSize = parseSize(value) }
+            "max-width" -> instruction { it.maxSize = (it.maxSize ?: UiSize()).copy(width = parseLength(value)) }
+            "max-height" -> instruction { it.maxSize = (it.maxSize ?: UiSize()).copy(height = parseLength(value)) }
             "aspect-ratio" -> instruction { it.aspectRatio = parseAspectRatio(value) }
             "padding" -> instruction { it.padding = parseInsets(value, allowAuto = false) }
+            "padding-left" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = false)) }
+            "padding-top" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(top = parseLength(value, allowAuto = false)) }
+            "padding-right" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(right = parseLength(value, allowAuto = false)) }
+            "padding-bottom" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(bottom = parseLength(value, allowAuto = false)) }
+            "padding-x", "padding-horizontal", "padding-inline" -> instruction {
+                val length = parseLength(value, allowAuto = false)
+                it.padding = (it.padding ?: UiInsets.Zero).copy(left = length, right = length)
+            }
+            "padding-y", "padding-vertical", "padding-block" -> instruction {
+                val length = parseLength(value, allowAuto = false)
+                it.padding = (it.padding ?: UiInsets.Zero).copy(top = length, bottom = length)
+            }
             "margin" -> instruction { it.margin = parseInsets(value, allowAuto = true) }
+            "margin-left" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = true)) }
+            "margin-top" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(top = parseLength(value, allowAuto = true)) }
+            "margin-right" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(right = parseLength(value, allowAuto = true)) }
+            "margin-bottom" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(bottom = parseLength(value, allowAuto = true)) }
+            "margin-x", "margin-horizontal", "margin-inline" -> instruction {
+                val length = parseLength(value, allowAuto = true)
+                it.margin = (it.margin ?: UiInsets.Zero).copy(left = length, right = length)
+            }
+            "margin-y", "margin-vertical", "margin-block" -> instruction {
+                val length = parseLength(value, allowAuto = true)
+                it.margin = (it.margin ?: UiInsets.Zero).copy(top = length, bottom = length)
+            }
             "gap" -> instruction { it.gap = parseLength(value) }
             "align" -> instruction { applySelfAlignment(it, value) }
             "align-items" -> instruction { applyChildAlignment(it, value) }
@@ -155,7 +206,46 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "font-family" -> instruction { it.fontFamily = value.trim().removeSurrounding("\"").removeSurrounding("'") }
             "typing" -> instruction { it.typing = parseTyping(value) }
             "text-effects", "text-effect" -> instruction { it.textEffects = parseTextEffects(value) }
-            "transition" -> instruction { it.transitions = parseTransitions(value) }
+            "transition" -> transitionInstruction(value)
+            "animation" -> instruction { it.animations = parseAnimations(value) }
+            "animation-name" -> instruction { style ->
+                style.animations = splitTopLevel(value, ',').map { UiAnimation(unquote(it.trim())) }
+            }
+            "animation-duration" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, duration ->
+                    animation.copy(durationMillis = duration)
+                }
+            }
+            "animation-timing-function" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseEasing)) { animation, easing ->
+                    animation.copy(easing = easing)
+                }
+            }
+            "animation-delay" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, delay ->
+                    animation.copy(delayMillis = delay)
+                }
+            }
+            "animation-iteration-count" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseIterationCount)) { animation, count ->
+                    animation.copy(iterationCount = count)
+                }
+            }
+            "animation-direction" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationDirection)) { animation, direction ->
+                    animation.copy(direction = direction)
+                }
+            }
+            "animation-fill-mode" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationFillMode)) { animation, fillMode ->
+                    animation.copy(fillMode = fillMode)
+                }
+            }
+            "animation-play-state" -> instruction { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationPlayState)) { animation, playState ->
+                    animation.copy(playState = playState)
+                }
+            }
             else -> null
         }
     }
@@ -167,6 +257,16 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             writer(style)
             style.explicitProperties = style.explicitProperties.orEmpty() + properties
         }
+
+    private fun transitionInstruction(value: String) = StyleInstruction { style, _ ->
+        val parsed = parseTransitions(value)
+        style.transitions = if (UiStyleProperty.TRANSITIONS in style.explicitProperties.orEmpty()) {
+            style.transitions.mergeUiTransitions(parsed)
+        } else {
+            parsed
+        }
+        style.explicitProperties = style.explicitProperties.orEmpty() + UiStyleProperty.TRANSITIONS
+    }
 
     private fun inputInstruction(value: String, patch: (UiInputStyle, Boolean) -> UiInputStyle) =
         instruction { style ->
@@ -507,6 +607,63 @@ private fun parseTransform(value: String, base: UiTransform): UiTransform {
     return transform
 }
 
+private fun keyframeProperties(property: String, value: String): Set<String> {
+    return when (property.lowercase()) {
+        "translate" -> TransformTranslateProperties
+        "rotate" -> TransformRotateProperties
+        "scale" -> TransformScaleProperties
+        "pivot", "transform-origin" -> setOf("transform.pivot")
+        "perspective" -> setOf("transform.perspective")
+        "transform" -> transformKeyframeProperties(value)
+        else -> setOf(property.lowercase())
+    }
+}
+
+private fun transformKeyframeProperties(value: String): Set<String> {
+    if (value.equals("none", ignoreCase = true)) return TransformProperties
+    return parseTransformFunctions(value).flatMap { (name, _) ->
+        when (name) {
+            "translate" -> TransformTranslateProperties
+            "translatex" -> setOf("transform.translate.x")
+            "translatey" -> setOf("transform.translate.y")
+            "translatez" -> setOf("transform.translate.z")
+            "rotate" -> setOf("transform.rotate.z")
+            "rotatex" -> setOf("transform.rotate.x")
+            "rotatey" -> setOf("transform.rotate.y")
+            "rotatez" -> setOf("transform.rotate.z")
+            "scale" -> TransformScaleProperties
+            "scalex" -> setOf("transform.scale.x")
+            "scaley" -> setOf("transform.scale.y")
+            "scalez" -> setOf("transform.scale.z")
+            "perspective" -> setOf("transform.perspective")
+            else -> emptySet()
+        }
+    }.toSet()
+}
+
+private val TransformTranslateProperties = setOf(
+    "transform.translate.x",
+    "transform.translate.y",
+    "transform.translate.z",
+)
+
+private val TransformRotateProperties = setOf(
+    "transform.rotate.x",
+    "transform.rotate.y",
+    "transform.rotate.z",
+)
+
+private val TransformScaleProperties = setOf(
+    "transform.scale.x",
+    "transform.scale.y",
+    "transform.scale.z",
+)
+
+private val TransformProperties = TransformTranslateProperties +
+        TransformRotateProperties +
+        TransformScaleProperties +
+        setOf("transform.pivot", "transform.perspective")
+
 private fun splitTransformArgs(args: String): List<String> {
     return if (args.contains(',')) splitTopLevel(args, ',') else splitWhitespace(args)
 }
@@ -588,17 +745,65 @@ private fun parseBoundFunction(value: String, name: String): UiBoundString? {
     return UiBoundString(unquote(functionArgs(value.trim(), name).joinToString(",").trim()))
 }
 
-private fun parseTransitions(value: String): List<UiTransition> = splitTopLevel(value, ',').map { entry ->
-    val parts = splitWhitespace(entry)
-    UiTransition(
-        property = parts[0],
-        durationMillis = parseDuration(parts.getOrElse(1) { "0ms" }),
-        easing = parseEasing(parts.getOrElse(2) { "linear" }),
+private fun parseAnimations(value: String): List<UiAnimation> {
+    if (value.equals("none", ignoreCase = true)) return emptyList()
+    return splitTopLevel(value, ',').map(::parseAnimation)
+}
+
+private fun parseAnimation(value: String): UiAnimation {
+    var name: String? = null
+    var duration: Long? = null
+    var delay = 0L
+    var easing: TransitionEasing = TransitionEasing.LINEAR
+    var iterationCount = 1f
+    var direction = UiAnimationDirection.NORMAL
+    var fillMode = UiAnimationFillMode.NONE
+    var playState = UiAnimationPlayState.RUNNING
+    for (part in splitTopLevelWhitespace(value)) {
+        val cleaned = part.trim()
+        when {
+            cleaned.isDurationToken() && duration == null -> duration = parseDuration(cleaned)
+            cleaned.isDurationToken() -> delay = parseDuration(cleaned)
+            cleaned.isEasingToken() -> easing = parseEasing(cleaned)
+            cleaned.equals("infinite", ignoreCase = true) || cleaned.toFloatOrNull() != null -> iterationCount = parseIterationCount(cleaned)
+            parseAnimationDirectionOrNull(cleaned) != null -> direction = parseAnimationDirection(cleaned)
+            parseAnimationFillModeOrNull(cleaned) != null -> fillMode = parseAnimationFillMode(cleaned)
+            parseAnimationPlayStateOrNull(cleaned) != null -> playState = parseAnimationPlayState(cleaned)
+            else -> name = unquote(cleaned)
+        }
+    }
+    return UiAnimation(
+        name = name ?: "",
+        durationMillis = duration ?: 0L,
+        easing = easing,
+        delayMillis = delay,
+        iterationCount = iterationCount,
+        direction = direction,
+        fillMode = fillMode,
+        playState = playState,
     )
 }
 
+private fun <T> List<UiAnimation>?.patchAnimationValues(values: List<T>, patch: (UiAnimation, T) -> UiAnimation): List<UiAnimation> {
+    if (values.isEmpty()) return orEmpty()
+    val base = this?.takeIf { it.isNotEmpty() } ?: List(values.size) { UiAnimation("") }
+    return base.mapIndexed { index, animation -> patch(animation, values[index % values.size]) }
+}
+
+private fun parseTransitions(value: String): List<UiTransition> {
+    if (value.equals("none", ignoreCase = true)) return emptyList()
+    return splitTopLevel(value, ',').map { entry ->
+        val parts = splitTopLevelWhitespace(entry)
+        UiTransition(
+            property = parts[0],
+            durationMillis = parseDuration(parts.getOrElse(1) { "0ms" }),
+            easing = parseEasing(parts.getOrElse(2) { "linear" }),
+        )
+    }
+}
+
 private fun parseTyping(value: String): UiTyping? {
-    val parts = splitWhitespace(value)
+    val parts = splitTopLevelWhitespace(value)
     val duration = parts.firstOrNull() ?: return null
     if (duration.equals("none", ignoreCase = true) || duration.equals("off", ignoreCase = true)) return null
     return UiTyping(
@@ -614,13 +819,94 @@ private fun parseDuration(value: String): Long {
     return cleaned.toLong()
 }
 
-private fun parseEasing(value: String): TransitionEasing = when (value.lowercase()) {
-    "linear" -> TransitionEasing.LINEAR
-    "ease" -> TransitionEasing.EASE_IN_OUT
-    "ease-in" -> TransitionEasing.EASE_IN
-    "ease-out" -> TransitionEasing.EASE_OUT
-    "ease-in-out" -> TransitionEasing.EASE_IN_OUT
-    else -> TransitionEasing.LINEAR
+private fun parseIterationCount(value: String): Float {
+    return if (value.equals("infinite", ignoreCase = true)) Float.POSITIVE_INFINITY else value.toFloat().coerceAtLeast(0f)
+}
+
+private fun parseAnimationDirection(value: String): UiAnimationDirection {
+    return parseAnimationDirectionOrNull(value) ?: throw IllegalArgumentException("Unknown animation direction '$value'")
+}
+
+private fun parseAnimationDirectionOrNull(value: String): UiAnimationDirection? = when (value.lowercase()) {
+    "normal" -> UiAnimationDirection.NORMAL
+    "reverse" -> UiAnimationDirection.REVERSE
+    "alternate" -> UiAnimationDirection.ALTERNATE
+    "alternate-reverse" -> UiAnimationDirection.ALTERNATE_REVERSE
+    else -> null
+}
+
+private fun parseAnimationFillMode(value: String): UiAnimationFillMode {
+    return parseAnimationFillModeOrNull(value) ?: throw IllegalArgumentException("Unknown animation fill mode '$value'")
+}
+
+private fun parseAnimationFillModeOrNull(value: String): UiAnimationFillMode? = when (value.lowercase()) {
+    "none" -> UiAnimationFillMode.NONE
+    "forwards" -> UiAnimationFillMode.FORWARDS
+    "backwards" -> UiAnimationFillMode.BACKWARDS
+    "both" -> UiAnimationFillMode.BOTH
+    else -> null
+}
+
+private fun parseAnimationPlayState(value: String): UiAnimationPlayState {
+    return parseAnimationPlayStateOrNull(value) ?: throw IllegalArgumentException("Unknown animation play state '$value'")
+}
+
+private fun parseAnimationPlayStateOrNull(value: String): UiAnimationPlayState? = when (value.lowercase()) {
+    "running" -> UiAnimationPlayState.RUNNING
+    "paused" -> UiAnimationPlayState.PAUSED
+    else -> null
+}
+
+private fun parseEasing(value: String): TransitionEasing {
+    val cleaned = value.trim().lowercase()
+    return when {
+        cleaned == "linear" -> TransitionEasing.LINEAR
+        cleaned == "ease" -> TransitionEasing.EASE_IN_OUT
+        cleaned == "ease-in" -> TransitionEasing.EASE_IN
+        cleaned == "ease-out" -> TransitionEasing.EASE_OUT
+        cleaned == "ease-in-out" -> TransitionEasing.EASE_IN_OUT
+        cleaned == "step-start" -> TransitionEasing.Steps(1, TransitionEasing.StepPosition.START)
+        cleaned == "step-end" -> TransitionEasing.Steps(1, TransitionEasing.StepPosition.END)
+        cleaned.startsWith("steps(") -> parseSteps(cleaned)
+        cleaned.startsWith("step(") -> parseSteps(cleaned.replaceFirst("step(", "steps("))
+        cleaned.startsWith("cubic-bezier(") -> parseCubicBezier(cleaned)
+        else -> TransitionEasing.LINEAR
+    }
+}
+
+private fun parseSteps(value: String): TransitionEasing.Steps {
+    val args = functionArgs(value, "steps")
+    val count = args.firstOrNull()?.trim()?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+    val position = when (args.getOrNull(1)?.trim()?.lowercase()) {
+        "start", "jump-start" -> TransitionEasing.StepPosition.START
+        else -> TransitionEasing.StepPosition.END
+    }
+    return TransitionEasing.Steps(count, position)
+}
+
+private fun parseCubicBezier(value: String): TransitionEasing.CubicBezier {
+    val args = functionArgs(value, "cubic-bezier").map { it.trim().toFloat() }
+    require(args.size == 4) { "cubic-bezier requires four numbers" }
+    return TransitionEasing.CubicBezier(
+        x1 = args[0].coerceIn(0f, 1f),
+        y1 = args[1],
+        x2 = args[2].coerceIn(0f, 1f),
+        y2 = args[3],
+    )
+}
+
+private fun String.isDurationToken(): Boolean {
+    val cleaned = trim().lowercase()
+    return cleaned.removeSuffix("ms").toFloatOrNull() != null ||
+            cleaned.removeSuffix("s").takeIf { cleaned.endsWith("s") }?.toFloatOrNull() != null
+}
+
+private fun String.isEasingToken(): Boolean {
+    val cleaned = trim().lowercase()
+    return cleaned in setOf("linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end") ||
+            cleaned.startsWith("steps(") ||
+            cleaned.startsWith("step(") ||
+            cleaned.startsWith("cubic-bezier(")
 }
 
 private fun parseBoolean(value: String): Boolean = when (value.lowercase()) {

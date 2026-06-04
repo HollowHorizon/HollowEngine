@@ -585,6 +585,22 @@ class UiLayoutContractTests {
     }
 
     @Test
+    fun `CL-03 fit free container includes positioned child offset`() {
+        lateinit var parent: BoxNode
+        lateinit var child: BoxNode
+        val root = HollowUi(modifier = Modifier.layout(LayoutType.FREE)) {
+            parent = Box(modifier = Modifier.then(Modifier.layout(LayoutType.FREE), Modifier.size(UiLength.Auto, UiLength.Auto))) {
+                child = Box(modifier = Modifier.then(Modifier.position(12.px, 20.px), Modifier.size(40.px, 30.px)))
+            }
+        }
+
+        val frame = HollowUiRuntime().frame(root, 300f, 100f)
+
+        assertRect(frame[parent], width = 52f, height = 50f)
+        assertRect(frame[child], x = 12f, y = 20f, width = 40f, height = 30f)
+    }
+
+    @Test
     fun `CL-07 scrollable container reveals last item and bottom padding`() {
         lateinit var scrollable: BoxNode
         val items = mutableListOf<BoxNode>()
@@ -969,9 +985,7 @@ class UiLayoutContractTests {
         val root = parseUi(
             """
             <box>
-                <text id="sized" size="200px auto">aa
-<size value="24px">big</size>
-aa</text>
+                <text id="sized" size="200px auto">aa<br/><size value="24px">big</size><br/>aa</text>
             </box>
             """.trimIndent(),
         )
@@ -1085,6 +1099,121 @@ aa</text>
         assertEquals(24f, line.height, 0.01f)
         assertEquals(0f, big.y, 0.01f)
         assertEquals(7f, small.y, 0.01f)
+    }
+
+    @Test
+    fun `RT-09 inline size attribute expands parent auto height`() {
+        val root = parseUi(
+            """
+            <box id="parent" size="200px auto">
+                <text id="text" size="200px auto">small <span size="24px">big</span></text>
+            </box>
+            """.trimIndent(),
+        )
+        val parent = root
+        val text = parent.children.single { it.id == "text" } as TextNode
+
+        val frame = HollowUiRuntime().frame(root, 220f, 80f)
+
+        assertEquals(24f, frame.textCommand(text).layout.height, 0.01f)
+        assertEquals(24f, frame[parent].height, 0.01f)
+    }
+
+    @Test
+    fun `RT-10 oversized inline word is hard wrapped inside text bounds`() {
+        val root = parseUi(
+            """
+            <box>
+                <text id="text" size="48px auto">aa <size value="20px">bbbbbb</size> cc</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.textById("text")
+
+        val layout = HollowUiRuntime().frame(root, 80f, 120f).textCommand(text).layout
+
+        assertTrue(layout.lines.size >= 3)
+        assertTrue(layout.lines.all { it.naturalWidth <= 48.01f }, "Expected all lines to stay within 48px: ${layout.lines}")
+        assertTrue(layout.lines.flatMap { it.fragments }.filterIsInstance<UiTextRun>().any { it.style.fontSize == 20f })
+    }
+
+    @Test
+    fun `RT-11 fit percent box grows to wrapped rich text height`() {
+        val root = parseUi(
+            """
+            <box id="dialog" size="50% fit">
+                <text id="text">Текст, длинный текст... Чтобы проверить <size value="20">большие</size> слова. И как они выходят за границы. И выходит ли этот текст за границы вообще? А то щас он <size value="10">похоже</size> нормально вывелся без странностей.</text>
+            </box>
+            """.trimIndent(),
+        )
+        val dialog = root
+        val text = root.textById("text")
+
+        val frame = HollowUiRuntime().frame(root, 320f, 70f)
+        val textLayout = frame.textCommand(text).layout
+
+        assertTrue(textLayout.height > 70f)
+        assertEquals(textLayout.height, frame[dialog].height, 0.01f)
+    }
+
+    @Test
+    fun `RT-12 fit row grows to rich text after portrait consumes width`() {
+        val root = parseUi(
+            """
+            <box id="dialog" layout="row" size="50% fit" gap="6px">
+                <box id="portrait" size="44px 44px" />
+                <text id="text">Текст, длинный текст... Чтобы проверить <size value="20">большие</size> слова. И как они выходят за границы. И выходит ли этот текст за границы вообще? А то щас он <size value="10">похоже</size> нормально вывелся без странностей.</text>
+            </box>
+            """.trimIndent(),
+        )
+        val dialog = root
+        val text = root.textById("text")
+
+        val frame = HollowUiRuntime().frame(root, 320f, 70f)
+        val textLayout = frame.textCommand(text).layout
+
+        assertTrue(textLayout.height > 70f)
+        assertEquals(textLayout.height, frame[text].height, 0.01f)
+        assertEquals(textLayout.height, frame[dialog].height, 0.01f)
+    }
+
+    @Test
+    fun `RT-13 nested fit parent remeasures percent rich text at final width`() {
+        val root = parseUi(
+            """
+            <box id="outer" size="fit fit">
+                <box id="dialog" size="50% fit">
+                    <text id="text">Текст, длинный текст... Чтобы проверить <size value="20">большие</size> слова. И как они выходят за границы. И выходит ли этот текст за границы вообще? А то щас он <size value="10">похоже</size> нормально вывелся без странностей.</text>
+                </box>
+            </box>
+            """.trimIndent(),
+        )
+        val dialog = (root.children.single { it.id == "dialog" } as BoxNode)
+        val text = root.textById("text")
+
+        val frame = HollowUiRuntime().frame(root, 320f, 240f)
+        val textLayout = frame.textCommand(text).layout
+
+        assertEquals(textLayout.height, frame[text].height, 0.01f)
+        assertEquals(textLayout.height, frame[dialog].height, 0.01f)
+    }
+
+    @Test
+    fun `RT-14 fit free dialog includes positioned rich text bottom`() {
+        val root = parseUi(
+            """
+            <box id="dialog" layout="free" size="50% fit">
+                <text id="text" position="54px 12px">Текст, длинный текст... Чтобы проверить <size value="20">большие</size> слова. И как они выходят за границы. И выходит ли этот текст за границы вообще? А то щас он <size value="10">похоже</size> нормально вывелся без странностей.</text>
+            </box>
+            """.trimIndent(),
+        )
+        val dialog = root
+        val text = root.textById("text")
+
+        val frame = HollowUiRuntime().frame(root, 320f, 240f)
+        val textLayout = frame.textCommand(text).layout
+
+        assertEquals(12f + textLayout.height, frame[dialog].height, 0.01f)
     }
 }
 

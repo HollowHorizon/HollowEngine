@@ -3,7 +3,10 @@ package ru.hollowhorizon.hollowengine.client.ui.hss
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiState
 
-data class HssDocument(val rules: List<HssRule>)
+data class HssDocument(
+    val rules: List<HssRule>,
+    val keyframes: List<HssKeyframes> = emptyList(),
+)
 
 data class HssRule(
     val selectors: List<HssSelector>,
@@ -14,6 +17,16 @@ data class HssRule(
 data class HssDeclaration(
     val property: String,
     val value: String,
+)
+
+data class HssKeyframes(
+    val name: String,
+    val frames: List<HssKeyframe>,
+)
+
+data class HssKeyframe(
+    val offsets: List<Float>,
+    val declarations: List<HssDeclaration>,
 )
 
 data class HssSelector(

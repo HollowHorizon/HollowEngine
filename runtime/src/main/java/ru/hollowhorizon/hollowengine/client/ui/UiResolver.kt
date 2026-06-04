@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.StyleRule
+import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 
 data class ResolvedUiTree(
     val root: UiNode,
@@ -14,6 +15,7 @@ class UiStyleResolver(
     private val theme: CompiledHss? = null,
     private val stylesheet: CompiledHss? = null,
     private val transitions: UiTransitionState = UiTransitionState(),
+    private val animations: UiAnimationState = UiAnimationState(),
 ) {
     fun resolve(
         root: UiNode,
@@ -49,8 +51,15 @@ class UiStyleResolver(
             applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
         }
         mutable.merge(node.modifiers.style())
+        applyAttributeStyles(node.attributes, mutable)
         val computed = mutable.toComputed(parent)
-        val finalStyle = if (animate) transitions.apply(node, computed, nowMillis) else computed
+        val keyframes = buildMap {
+            theme?.keyframes?.let(::putAll)
+            stylesheet?.keyframes?.let(::putAll)
+            scopedStylesheets.forEach { putAll(it.keyframes) }
+        }
+        val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
+        val finalStyle = if (animate) animations.apply(node, transitioned, keyframes, nowMillis) else transitioned
         styles[node] = finalStyle
         node.children.forEach { child ->
             resolveNode(child, finalStyle, scopedStylesheets, bindings, nowMillis, animate, styles)
@@ -67,6 +76,12 @@ class UiStyleResolver(
         rules.asSequence().filter { it.origin == origin && it.matches(node) }
             .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
             .forEach { it.patch.apply(target, bindings) }
+    }
+
+    private fun applyAttributeStyles(attributes: Map<String, String>, target: MutableUiStyle) {
+        attributes.forEach { (name, value) ->
+            compileStyleModifier(name, value)?.applyTo(target)
+        }
     }
 
     private fun engineDefaults(node: UiNode): MutableUiStyle {

@@ -257,7 +257,12 @@ class UiCommandRenderer {
                 )
                 val textString = visibleContent.text
                 val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-                val textLayout = UiTextLayouter.layout(visibleContent.toRichText(), layoutNode.content.width, textHeight, style.textWrap, style.textAlign, style.fontSize)
+                val fullLayout = UiTextLayouter.layout(fullContent.toRichText(), layoutNode.content.width, textHeight, style.textWrap, style.textAlign, style.fontSize)
+                val textLayout = if (style.typing == null) {
+                    fullLayout
+                } else {
+                    UiTextLayouter.visibleTextPrefix(fullLayout, textString.length, style.fontSize)
+                }
 
                 commands += DrawTextCommand(
                     node, layoutNode.content, textString, style.foreground, opacity, contentTransform,

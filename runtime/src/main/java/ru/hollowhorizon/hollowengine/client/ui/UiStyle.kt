@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 
 enum class StyleOrigin(val priority: Int) {
@@ -12,11 +14,88 @@ enum class StyleOrigin(val priority: Int) {
     ANIMATION(5)
 }
 
-enum class TransitionEasing {
-    LINEAR,
-    EASE_IN,
-    EASE_OUT,
-    EASE_IN_OUT
+sealed class TransitionEasing {
+    abstract fun transform(progress: Float): Float
+
+    open fun inverse(progress: Float): Float {
+        val target = progress.coerceIn(0f, 1f)
+        var low = 0f
+        var high = 1f
+        repeat(16) {
+            val mid = (low + high) / 2f
+            if (transform(mid) < target) low = mid else high = mid
+        }
+        return (low + high) / 2f
+    }
+
+    data object LINEAR : TransitionEasing() {
+        override fun transform(progress: Float): Float = progress.coerceIn(0f, 1f)
+        override fun inverse(progress: Float): Float = progress.coerceIn(0f, 1f)
+    }
+
+    data object EASE_IN : TransitionEasing() {
+        override fun transform(progress: Float): Float {
+            val linear = progress.coerceIn(0f, 1f)
+            return linear * linear
+        }
+    }
+
+    data object EASE_OUT : TransitionEasing() {
+        override fun transform(progress: Float): Float {
+            val linear = progress.coerceIn(0f, 1f)
+            return 1f - (1f - linear) * (1f - linear)
+        }
+    }
+
+    data object EASE_IN_OUT : TransitionEasing() {
+        override fun transform(progress: Float): Float {
+            val linear = progress.coerceIn(0f, 1f)
+            return if (linear < 0.5f) 2f * linear * linear else 1f - 2f * (1f - linear) * (1f - linear)
+        }
+    }
+
+    data class Steps(
+        val count: Int,
+        val position: StepPosition = StepPosition.END,
+    ) : TransitionEasing() {
+        override fun transform(progress: Float): Float {
+            val linear = progress.coerceIn(0f, 1f)
+            if (linear >= 1f) return 1f
+            val steps = count.coerceAtLeast(1).toFloat()
+            return when (position) {
+                StepPosition.START -> ceil(linear * steps) / steps
+                StepPosition.END -> floor(linear * steps) / steps
+            }.coerceIn(0f, 1f)
+        }
+    }
+
+    data class CubicBezier(
+        val x1: Float,
+        val y1: Float,
+        val x2: Float,
+        val y2: Float,
+    ) : TransitionEasing() {
+        override fun transform(progress: Float): Float {
+            val targetX = progress.coerceIn(0f, 1f)
+            var low = 0f
+            var high = 1f
+            repeat(18) {
+                val mid = (low + high) / 2f
+                if (sampleCurve(mid, x1, x2) < targetX) low = mid else high = mid
+            }
+            return sampleCurve((low + high) / 2f, y1, y2).coerceIn(0f, 1f)
+        }
+
+        private fun sampleCurve(t: Float, a1: Float, a2: Float): Float {
+            val inverse = 1f - t
+            return 3f * inverse * inverse * t * a1 + 3f * inverse * t * t * a2 + t * t * t
+        }
+    }
+
+    enum class StepPosition {
+        START,
+        END
+    }
 }
 
 data class UiTransition(
@@ -27,15 +106,62 @@ data class UiTransition(
     fun progress(elapsedMillis: Long): Float {
         if (durationMillis <= 0L) return 1f
         val linear = (elapsedMillis.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
-        return when (easing) {
-            TransitionEasing.LINEAR -> linear
-            TransitionEasing.EASE_IN -> linear * linear
-            TransitionEasing.EASE_OUT -> 1f - (1f - linear) * (1f - linear)
-            TransitionEasing.EASE_IN_OUT -> {
-                if (linear < 0.5f) 2f * linear * linear else 1f - 2f * (1f - linear) * (1f - linear)
-            }
-        }
+        return easing.transform(linear)
     }
+}
+
+data class UiKeyframes(
+    val name: String,
+    val frames: List<UiKeyframe>,
+) {
+    private val sortedFrames = frames.sortedWith(compareBy<UiKeyframe> { it.offset }.thenBy { frames.indexOf(it) })
+
+    fun sample(base: ComputedStyle, progress: Float, easing: TransitionEasing): ComputedStyle {
+        if (sortedFrames.isEmpty()) return base
+        val offset = progress.coerceIn(0f, 1f)
+        val previous = sortedFrames.lastOrNull { it.offset <= offset } ?: sortedFrames.first()
+        val next = sortedFrames.firstOrNull { it.offset >= offset } ?: sortedFrames.last()
+        if (previous == next || previous.offset == next.offset) return base.withKeyframePatch(next)
+        val local = ((offset - previous.offset) / (next.offset - previous.offset)).coerceIn(0f, 1f)
+        val eased = easing.transform(local)
+        return base.withKeyframePatch(previous).interpolate(base.withKeyframePatch(next), TransitionProgress.all(eased))
+    }
+}
+
+data class UiKeyframe(
+    val offset: Float,
+    val style: MutableUiStyle,
+    val properties: Set<String> = emptySet(),
+)
+
+data class UiAnimation(
+    val name: String,
+    val durationMillis: Long = 0L,
+    val easing: TransitionEasing = TransitionEasing.LINEAR,
+    val delayMillis: Long = 0L,
+    val iterationCount: Float = 1f,
+    val direction: UiAnimationDirection = UiAnimationDirection.NORMAL,
+    val fillMode: UiAnimationFillMode = UiAnimationFillMode.NONE,
+    val playState: UiAnimationPlayState = UiAnimationPlayState.RUNNING,
+)
+
+enum class UiAnimationDirection {
+    NORMAL,
+    REVERSE,
+    ALTERNATE,
+    ALTERNATE_REVERSE
+}
+
+enum class UiAnimationFillMode {
+    NONE,
+    FORWARDS,
+    BACKWARDS,
+    BOTH
+}
+
+enum class UiAnimationPlayState {
+    RUNNING,
+    PAUSED
 }
 
 data class MutableUiStyle(
@@ -82,6 +208,7 @@ data class MutableUiStyle(
     var textEffects: List<UiTextEffect>? = null,
     var typing: UiTyping? = null,
     var transitions: List<UiTransition>? = null,
+    var animations: List<UiAnimation>? = null,
     var explicitProperties: Set<UiStyleProperty>? = null,
 ) {
     fun merge(other: MutableUiStyle) {
@@ -127,7 +254,8 @@ data class MutableUiStyle(
         other.fontFamily?.let { fontFamily = it }
         other.textEffects?.let { textEffects = textEffects.orEmpty() + it }
         other.typing?.let { typing = it }
-        other.transitions?.let { transitions = it }
+        other.transitions?.let { transitions = transitions.mergeUiTransitions(it) }
+        other.animations?.let { animations = it }
         other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
     }
 
@@ -179,6 +307,7 @@ data class MutableUiStyle(
             textEffects = textEffects ?: emptyList(),
             typing = typing,
             transitions = transitions ?: emptyList(),
+            animations = animations ?: emptyList(),
             explicitProperties = explicitProperties ?: emptySet(),
         )
     }
@@ -228,6 +357,7 @@ data class ComputedStyle(
     val textEffects: List<UiTextEffect>,
     val typing: UiTyping?,
     val transitions: List<UiTransition>,
+    val animations: List<UiAnimation>,
     val explicitProperties: Set<UiStyleProperty>,
 ) {
 
@@ -249,6 +379,93 @@ data class ComputedStyle(
             ),
         )
     }
+}
+
+internal fun List<UiTransition>?.mergeUiTransitions(other: List<UiTransition>): List<UiTransition> {
+    if (other.isEmpty()) return emptyList()
+    val merged = linkedMapOf<String, UiTransition>()
+    orEmpty().forEach { merged[it.property] = it }
+    other.forEach { merged[it.property] = it }
+    return merged.values.toList()
+}
+
+private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
+    layout = layout,
+    size = size,
+    minSize = minSize,
+    maxSize = maxSize,
+    aspectRatio = aspectRatio,
+    padding = padding,
+    margin = margin,
+    gap = gap,
+    alignHorizontal = alignHorizontal,
+    alignVertical = alignVertical,
+    alignItemsHorizontal = alignItemsHorizontal,
+    alignItemsVertical = alignItemsVertical,
+    alignItems = alignItems,
+    alignSelf = alignSelf,
+    justifySelf = justifySelf,
+    justifyContent = justifyContent,
+    grow = grow,
+    position = position,
+    background = background,
+    foreground = foreground,
+    image = image,
+    shader = shader,
+    border = border,
+    shadows = shadows,
+    opacity = opacity,
+    tint = tint,
+    transform = transform,
+    filter = filter,
+    backdropFilter = backdropFilter,
+    backfaceVisibility = backfaceVisibility,
+    input = input,
+    clip = clip,
+    layer = layer,
+    imageFit = imageFit,
+    imageSlice = imageSlice,
+    scrollbar = scrollbar,
+    textWrap = textWrap,
+    textAlign = textAlign,
+    fontSize = fontSize,
+    fontFamily = fontFamily,
+    textEffects = textEffects,
+    typing = typing,
+    transitions = transitions,
+    animations = animations,
+    explicitProperties = explicitProperties,
+)
+
+private fun ComputedStyle.withPatch(patch: MutableUiStyle): ComputedStyle {
+    return toMutable().apply { merge(patch) }.toComputed(null)
+}
+
+private fun ComputedStyle.withKeyframePatch(frame: UiKeyframe): ComputedStyle {
+    val patched = withPatch(frame.style)
+    val transform = frame.style.transform ?: return patched
+    val properties = frame.properties
+    return patched.copy(
+        transform = patched.transform.copy(
+            translate = UiVec3(
+                x = if ("transform.translate.x" in properties) transform.translate.x else this.transform.translate.x,
+                y = if ("transform.translate.y" in properties) transform.translate.y else this.transform.translate.y,
+                z = if ("transform.translate.z" in properties) transform.translate.z else this.transform.translate.z,
+            ),
+            rotate = UiVec3(
+                x = if ("transform.rotate.x" in properties) transform.rotate.x else this.transform.rotate.x,
+                y = if ("transform.rotate.y" in properties) transform.rotate.y else this.transform.rotate.y,
+                z = if ("transform.rotate.z" in properties) transform.rotate.z else this.transform.rotate.z,
+            ),
+            scale = UiVec3(
+                x = if ("transform.scale.x" in properties) transform.scale.x else this.transform.scale.x,
+                y = if ("transform.scale.y" in properties) transform.scale.y else this.transform.scale.y,
+                z = if ("transform.scale.z" in properties) transform.scale.z else this.transform.scale.z,
+            ),
+            pivot = if ("transform.pivot" in properties) transform.pivot else this.transform.pivot,
+            perspective = if ("transform.perspective" in properties) transform.perspective else this.transform.perspective,
+        ),
+    )
 }
 
 const val DefaultUiFontSize = 10f
@@ -278,6 +495,22 @@ data class TransitionProgress(
                 rotate >= 1f &&
                 scale >= 1f &&
                 perspective >= 1f
+    }
+
+    companion object {
+        fun all(progress: Float) = TransitionProgress(
+            background = progress,
+            foreground = progress,
+            shadow = progress,
+            opacity = progress,
+            tint = progress,
+            filter = progress,
+            backdropFilter = progress,
+            translate = progress,
+            rotate = progress,
+            scale = progress,
+            perspective = progress,
+        )
     }
 }
 
@@ -594,4 +827,77 @@ class UiTransitionState {
             "perspective",
         )
     }
+}
+
+class UiAnimationState {
+    private val starts = mutableMapOf<String, AnimationStart>()
+
+    fun apply(
+        node: UiNode,
+        base: ComputedStyle,
+        keyframes: Map<String, UiKeyframes>,
+        nowMillis: Long,
+    ): ComputedStyle {
+        val animations = base.animations.filter { it.playState == UiAnimationPlayState.RUNNING && it.name.isNotBlank() }
+        if (animations.isEmpty()) {
+            starts.remove(UiNodeKeys.key(node))
+            return base
+        }
+        val key = UiNodeKeys.key(node)
+        val signature = animations
+        val start = starts[key]
+        val startedAt = if (start == null || start.signature != signature) {
+            starts[key] = AnimationStart(signature, nowMillis)
+            nowMillis
+        } else {
+            start.startedAtMillis
+        }
+        return animations.fold(base) { style, animation ->
+            val frames = keyframes[animation.name] ?: return@fold style
+            val progress = animationProgress(animation, nowMillis - startedAt) ?: return@fold style
+            frames.sample(style, progress, animation.easing)
+        }
+    }
+
+    private fun animationProgress(animation: UiAnimation, elapsedMillis: Long): Float? {
+        val activeElapsed = elapsedMillis - animation.delayMillis
+        if (activeElapsed < 0L) {
+            return if (animation.fillMode == UiAnimationFillMode.BACKWARDS || animation.fillMode == UiAnimationFillMode.BOTH) {
+                directedProgress(animation, 0, 0f)
+            } else {
+                null
+            }
+        }
+        if (animation.durationMillis <= 0L) return directedProgress(animation, 0, 1f)
+        val duration = animation.durationMillis.toFloat()
+        val iterations = animation.iterationCount
+        val totalDuration = if (iterations.isInfinite()) Float.POSITIVE_INFINITY else duration * iterations.coerceAtLeast(0f)
+        if (totalDuration <= 0f) return null
+        if (activeElapsed.toFloat() >= totalDuration) {
+            return if (animation.fillMode == UiAnimationFillMode.FORWARDS || animation.fillMode == UiAnimationFillMode.BOTH) {
+                val finalIteration = floor(iterations.coerceAtLeast(1f) - 0.0001f).toInt().coerceAtLeast(0)
+                directedProgress(animation, finalIteration, 1f)
+            } else {
+                null
+            }
+        }
+        val iteration = floor(activeElapsed / duration).toInt()
+        val local = ((activeElapsed % animation.durationMillis).toFloat() / duration).coerceIn(0f, 1f)
+        return directedProgress(animation, iteration, local)
+    }
+
+    private fun directedProgress(animation: UiAnimation, iteration: Int, local: Float): Float {
+        val reverse = when (animation.direction) {
+            UiAnimationDirection.NORMAL -> false
+            UiAnimationDirection.REVERSE -> true
+            UiAnimationDirection.ALTERNATE -> iteration % 2 == 1
+            UiAnimationDirection.ALTERNATE_REVERSE -> iteration % 2 == 0
+        }
+        return if (reverse) 1f - local else local
+    }
+
+    private data class AnimationStart(
+        val signature: List<UiAnimation>,
+        val startedAtMillis: Long,
+    )
 }

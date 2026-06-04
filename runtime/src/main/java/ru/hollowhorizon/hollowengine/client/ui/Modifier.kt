@@ -196,7 +196,8 @@ sealed interface Modifier {
 
 enum class UiStyleProperty {
     WIDTH,
-    HEIGHT
+    HEIGHT,
+    TRANSITIONS
 }
 
 class StyleModifier(

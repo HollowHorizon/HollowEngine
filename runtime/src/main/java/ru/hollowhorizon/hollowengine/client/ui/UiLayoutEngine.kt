@@ -33,6 +33,7 @@ data class UiLayoutResult(
 
 private const val DirectTextTransformEpsilon = 0.0001f
 private const val ScrollOverflowEpsilon = 0.01f
+private const val ConstraintReflowEpsilon = 0.01f
 
 private data class UiScrollbarReserve(
     val vertical: Boolean = false,
@@ -526,9 +527,27 @@ class UiLayoutEngine {
         }
         val finalWidth = requireNotNull(width)
         val finalHeight = requireNotNull(height)
+        val constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, referenceWidth)
+        var constrainedHeight = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, referenceHeight)
+        if (heightOverride == null && style.size.height is UiLength.Auto && abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon) {
+            val constrainedContentWidth = (constrainedWidth - insets.horizontal).coerceAtLeast(0f)
+            val reflowed = intrinsicSize(
+                node,
+                resolved,
+                style,
+                constrainedContentWidth,
+                childAvailableHeight,
+                scrollbarReserves,
+                knownContentWidth = constrainedContentWidth,
+                knownContentHeight = null,
+                bindings = bindings,
+            )
+            constrainedHeight = (reflowed.height + insets.vertical)
+                .coerceIn(style.minSize.height, style.maxSize.height, referenceHeight)
+        }
         return LayoutSize(
-            width = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, referenceWidth),
-            height = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, referenceHeight),
+            width = constrainedWidth,
+            height = constrainedHeight,
         )
     }
 
@@ -581,7 +600,11 @@ class UiLayoutEngine {
                     columnChildren.sumOfOuterHeight() + gap * (columnChildren.size - 1).coerceAtLeast(0),
                 )
             }
-            LayoutType.GRID, LayoutType.STACK, LayoutType.FREE -> LayoutSize(children.maxOfOuterWidth(), children.maxOfOuterHeight())
+            LayoutType.GRID -> LayoutSize(children.maxOfOuterWidth(), children.maxOfOuterHeight())
+            LayoutType.STACK, LayoutType.FREE -> LayoutSize(
+                children.maxOfPositionedOuterWidth(availableWidth, availableHeight),
+                children.maxOfPositionedOuterHeight(availableWidth, availableHeight),
+            )
         }
     }
 
@@ -708,6 +731,20 @@ private fun List<MeasuredChild>.sumOfOuterHeight(): Float = sumOf { (it.margin.t
 private fun List<MeasuredChild>.maxOfOuterWidth(): Float = maxOfOrNull { it.margin.left + it.size.width + it.margin.right } ?: 0f
 
 private fun List<MeasuredChild>.maxOfOuterHeight(): Float = maxOfOrNull { it.margin.top + it.size.height + it.margin.bottom } ?: 0f
+
+private fun List<MeasuredChild>.maxOfPositionedOuterWidth(referenceWidth: Float, referenceHeight: Float): Float {
+    return maxOfOrNull { child ->
+        val position = child.style.position.resolve(referenceWidth, referenceHeight)
+        child.margin.left + position.x + child.size.width + child.margin.right
+    } ?: 0f
+}
+
+private fun List<MeasuredChild>.maxOfPositionedOuterHeight(referenceWidth: Float, referenceHeight: Float): Float {
+    return maxOfOrNull { child ->
+        val position = child.style.position.resolve(referenceWidth, referenceHeight)
+        child.margin.top + position.y + child.size.height + child.margin.bottom
+    } ?: 0f
+}
 
 private inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (ComputedStyle) -> UiAlign): UiAlign? {
     if (size != 1) return null

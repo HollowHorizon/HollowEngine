@@ -732,6 +732,24 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `ui xml ignores source newlines inside text unless br is used`() {
+        val root = parseUi(
+            """
+            <box>
+                <text id="dialog">Hello
+                    world<br/>Next</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.children.single() as TextNode
+
+        val command = HollowUiRuntime().frame(root, 240f, 80f).textCommand(text)
+
+        assertEquals("Hello world\nNext", command.text)
+        assertEquals(listOf("Hello world", "Next"), command.layout.lines.map { it.text })
+    }
+
+    @Test
     fun `typing style reveals text over time and accounts for pauses`() {
         val root = parseUi(
             """
@@ -747,6 +765,25 @@ class UiFrameworkTests {
         assertEquals("ab", runtime.frame(root, 240f, 80f, nowMillis = 80L).textCommand(text).text)
         assertEquals("ab", runtime.frame(root, 240f, 80f, nowMillis = 180L).textCommand(text).text)
         assertEquals("abcd", runtime.frame(root, 240f, 80f, nowMillis = 260L).textCommand(text).text)
+    }
+
+    @Test
+    fun `typing keeps final word wrap while revealing a partial word`() {
+        val root = parseUi(
+            """
+            <box>
+                <text id="dialog" size="24px auto" typing="700ms linear">aa bbbb</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.children.single() as TextNode
+        val runtime = HollowUiRuntime()
+
+        runtime.frame(root, 80f, 80f, nowMillis = 0L)
+        val command = runtime.frame(root, 80f, 80f, nowMillis = 400L).textCommand(text)
+
+        assertEquals("aa b", command.text)
+        assertEquals(listOf("aa", "b"), command.layout.lines.map { it.text })
     }
 
     @Test
@@ -1134,6 +1171,21 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `runtime style attributes modified by scripts participate in transform transitions`() {
+        val root = HollowUi(id = "dialog")
+        val runtime = HollowUiRuntime()
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        root.attributes["rotate"] = "0 0 90"
+        runtime.frame(root, 100f, 40f, nowMillis = 50L)
+        val frame = runtime.frame(root, 100f, 40f, nowMillis = 100L)
+        val z = frame.resolved[root].transform.rotate.z
+
+        assertTrue(z > 0f, "Expected rotate to start animating")
+        assertTrue(z < 90f, "Expected rotate transition instead of an immediate snap")
+    }
+
+    @Test
     fun `text flex item shrinks and wraps inside rows`() {
         lateinit var text: TextNode
         val root = HollowUi(
@@ -1182,6 +1234,295 @@ class UiFrameworkTests {
         assertTrue(style.filter.effects.any { it is UiFilterEffect.Grayscale })
         assertEquals(8f, style.backdropFilter.blurRadius())
         assertEquals(UiBackfaceVisibility.HIDDEN, style.backfaceVisibility)
+    }
+
+    @Test
+    fun `hss side-specific margin and padding patch individual edges`() {
+        val stylesheet = compileHss(
+            """
+            .panel {
+                margin: 1px;
+                margin-left: 6px;
+                padding: 2px;
+                padding-bottom: 8px;
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("panel"))
+
+        val style = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 60f).resolved[root]
+
+        assertEquals(6f, (style.margin.left as UiLength.Px).value)
+        assertEquals(1f, (style.margin.right as UiLength.Px).value)
+        assertEquals(8f, (style.padding.bottom as UiLength.Px).value)
+        assertEquals(2f, (style.padding.top as UiLength.Px).value)
+    }
+
+    @Test
+    fun `hss max width longhand does not constrain fit height`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                size: fit fit;
+                max-width: 50%;
+            }
+            .message {
+                size: fill fit;
+            }
+            """.trimIndent(),
+        )
+        lateinit var message: TextNode
+        val root = HollowUi(tags = listOf("dialog")) {
+            message = Text((1..20).joinToString(" ") { "word" }, tags = listOf("message"))
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 120f, 40f)
+
+        assertEquals(60f, frame.layout[root].rect.width, 0.01f)
+        assertEquals(frame.textCommand(message).layout.height, frame.layout[root].rect.height, 0.01f)
+        assertTrue(frame.layout[root].rect.height > 40f)
+    }
+
+    @Test
+    fun `fit row remeasures rich text height after max width constraint`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                layout: row;
+                size: fit fit;
+                max-width: 50%;
+                padding: 12px;
+                gap: 8px;
+            }
+            .portrait {
+                size: 32px 32px;
+            }
+            .message {
+                grow: 1;
+                size: fill fit;
+            }
+            """.trimIndent(),
+        )
+        lateinit var message: TextNode
+        val root = HollowUi(tags = listOf("dialog")) {
+            Box(tags = listOf("portrait"))
+            Box(tags = listOf("message")) {
+                message = Text(
+                    "Текст, длинный текст... Чтобы проверить большие слова. И как они выходят за границы. " +
+                            "И выходит ли этот текст за границы вообще? А то щас он похоже нормально вывелся без странностей.",
+                )
+                message.content = parseUi(
+                    """
+                    <text>Текст, длинный текст... Чтобы проверить <size value="20">большие</size> слова. И как они выходят за границы. И выходит ли этот текст за границы вообще? А то щас он <size value="10">похоже</size> нормально вывелся без странностей.</text>
+                    """.trimIndent(),
+                ).children.single().let { (it as TextNode).content }
+            }
+        }
+
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 320f, 240f)
+        val textLayout = frame.textCommand(message).layout
+        val dialogContentHeight = frame.layout[root].content.height
+
+        assertTrue(textLayout.lines.size >= 6)
+        assertTrue(dialogContentHeight >= textLayout.height, "Dialog content height $dialogContentHeight should contain text $textLayout")
+    }
+
+    @Test
+    fun `hss keyframes animation interpolates transform and opacity`() {
+        val stylesheet = compileHss(
+            """
+            @keyframes reveal {
+                from {
+                    opacity: 0.2;
+                    rotate: 0 0 0;
+                }
+                to {
+                    opacity: 1;
+                    rotate: 0 0 100;
+                }
+            }
+
+            .animated {
+                animation: reveal 100ms linear forwards;
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("animated"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        val half = runtime.frame(root, 100f, 40f, nowMillis = 50L).resolved[root]
+
+        assertEquals(0.6f, half.opacity, 0.01f)
+        assertEquals(50f, half.transform.rotate.z, 0.01f)
+    }
+
+    @Test
+    fun `keyframes do not reset hover scale when animating rotate`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                scale: 1;
+                transition: scale 200ms linear;
+                animation: sway 1000ms linear infinite;
+            }
+
+            .dialog:hover {
+                scale: 1.2;
+            }
+
+            @keyframes sway {
+                from {
+                    rotate: 0 0 -10;
+                }
+                to {
+                    rotate: 0 0 10;
+                }
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        root.states += UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        val hovered = runtime.frame(root, 100f, 40f, nowMillis = 100L).resolved[root]
+
+        assertTrue(hovered.transform.scale.x > 1f)
+        assertTrue(hovered.transform.scale.x < 1.2f)
+        assertTrue(hovered.transform.rotate.z != 0f)
+    }
+
+    @Test
+    fun `hover exit uses base transitions instead of snapping`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                scale: 1;
+                transition: scale 200ms linear;
+            }
+
+            .dialog:hover {
+                scale: 1.2;
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        root.states += UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        runtime.frame(root, 100f, 40f, nowMillis = 250L)
+        root.states -= UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 250L)
+        val exiting = runtime.frame(root, 100f, 40f, nowMillis = 350L).resolved[root]
+
+        assertTrue(exiting.transform.scale.x > 1f)
+        assertTrue(exiting.transform.scale.x < 1.2f)
+    }
+
+    @Test
+    fun `hover exit uses longer base tint transition`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                background: #FFFFFF;
+                tint: rgba(255, 255, 255, 0.75);
+                transition: tint 2000ms linear;
+            }
+
+            .dialog:hover {
+                tint: rgba(255, 255, 255, 1.0);
+                transition: tint 200ms linear;
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        root.states += UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        runtime.frame(root, 100f, 40f, nowMillis = 250L)
+        root.states -= UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 250L)
+        val frame = runtime.frame(root, 100f, 40f, nowMillis = 350L)
+        val exiting = frame.resolved[root]
+        val command = assertIs<DrawBoxCommand>(frame.commands.single { it is DrawBoxCommand })
+
+        assertTrue(exiting.tint.alpha > 0.95f, "Tint should still be close to hover value after 100ms of a 2000ms exit")
+        assertTrue(exiting.tint.alpha < 1f)
+        assertEquals(exiting.tint.alpha, command.tint.alpha, 0.01f)
+    }
+
+    @Test
+    fun `transition lists from multiple tags merge by property`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                background: #FFFFFF;
+                tint: rgba(255, 255, 255, 0.2);
+                transition: tint 2000ms linear, rotate 200ms linear;
+            }
+
+            .overlay {
+                scale: 0.97;
+                transition: opacity 180ms ease-out, scale 180ms ease-out;
+            }
+
+            .overlay[status="show"] {
+                scale: 1;
+            }
+
+            .dialog:hover {
+                tint: rgba(255, 255, 255, 1.0);
+                transition: tint 200ms linear;
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog", "overlay")).apply {
+            attributes["status"] = "show"
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        root.states += UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        runtime.frame(root, 100f, 40f, nowMillis = 250L)
+        root.states -= UiState.HOVER
+        runtime.frame(root, 100f, 40f, nowMillis = 250L)
+        val exiting = runtime.frame(root, 100f, 40f, nowMillis = 350L).resolved[root]
+
+        assertTrue(exiting.tint.alpha > 0.95f, "Dialog tint transition should survive overlay transition rules")
+        assertTrue(exiting.tint.alpha < 1f)
+    }
+
+    @Test
+    fun `step easing advances transitions in configured jumps`() {
+        val stylesheet = compileHss(
+            """
+            #button {
+                opacity: 0;
+                transition: opacity 100ms steps(2, start);
+            }
+
+            #button:hover {
+                opacity: 1;
+            }
+            """.trimIndent(),
+        )
+        fun button(hovered: Boolean) = HollowUi(id = "button").apply {
+            if (hovered) states += UiState.HOVER
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        runtime.frame(button(false), 100f, 40f, nowMillis = 0L)
+        runtime.frame(button(true), 100f, 40f, nowMillis = 0L)
+        val stepped = runtime.frame(button(true), 100f, 40f, nowMillis = 25L)
+
+        assertEquals(0.5f, stepped.resolved[stepped.resolved.root].opacity, 0.01f)
     }
 
     @Test
