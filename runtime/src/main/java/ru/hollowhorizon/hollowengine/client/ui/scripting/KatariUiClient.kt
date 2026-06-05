@@ -147,14 +147,12 @@ object KatariUiOverlays {
 
 private class KatariUiOverlay(
     private val id: String,
-    root: UiXmlTree,
-    variables: CompoundTag,
+    private var root: UiXmlTree,
+    private var variables: CompoundTag,
 ) {
     private val runtime = HollowUiRuntime()
     private val renderer = MinecraftUiRenderer()
     private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
-    private var root = root
-    private var variables = variables
     private var node = buildNode(root, variables)
     private var closing = false
     private var closingStartedAt: Long? = null
