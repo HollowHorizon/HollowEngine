@@ -84,7 +84,7 @@ class CloseKatariUiScreenPacket(private val id: String) : HollowPacket {
         Minecraft.getInstance().execute {
             val current = Minecraft.getInstance().screen
             if (current is KatariUiScreen && current.id == id) {
-                Minecraft.getInstance().setScreen(null)
+                current.startClosingAnimation()
             }
         }
     }
@@ -158,6 +158,8 @@ private class KatariUiOverlay(
     private var node = buildNode(root, variables)
     private var closing = false
     private var closingStartedAt: Long? = null
+    private var closeBaseFrame: HollowUiFrame? = null
+    private var lastFrame: HollowUiFrame? = null
 
     fun show(root: UiXmlTree, variables: CompoundTag) {
         this.root = root
@@ -165,6 +167,7 @@ private class KatariUiOverlay(
         node = buildNode(root, variables)
         closing = false
         closingStartedAt = null
+        closeBaseFrame = null
     }
 
     fun update(root: UiXmlTree) {
@@ -177,10 +180,12 @@ private class KatariUiOverlay(
         node = buildNode(root, variables)
         closing = true
         closingStartedAt = null
+        closeBaseFrame = lastFrame
     }
 
     fun render(nowMillis: Long): Boolean {
         val window = Minecraft.getInstance().window
+        node.setClosingState(closing)
         UiNodeKeys.assign(node)
         val frame = runtime.frame(
             node,
@@ -190,9 +195,10 @@ private class KatariUiOverlay(
             nowMillis,
         )
         renderer.render(frame.commands)
+        lastFrame = frame
         if (!closing) return false
         val closeStartedAt = closingStartedAt ?: nowMillis.also { closingStartedAt = it }
-        return nowMillis - closeStartedAt >= frame.rootTransitionDurationMillis()
+        return nowMillis - closeStartedAt >= frame.motionDurationMillis(closeBaseFrame)
     }
 
     fun dispose() {
@@ -205,8 +211,4 @@ private class KatariUiOverlay(
             UiClientScriptRunner.prepare(scripts, it, sink, variables)
         }
     }
-}
-
-private fun HollowUiFrame.rootTransitionDurationMillis(): Long {
-    return resolved[resolved.root].transitions.maxOfOrNull { it.durationMillis } ?: 0L
 }

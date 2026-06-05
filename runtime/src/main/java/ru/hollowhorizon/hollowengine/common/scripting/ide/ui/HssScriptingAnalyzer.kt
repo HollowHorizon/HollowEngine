@@ -14,16 +14,18 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
     private val commentStyle = SpanStyle(TokenType.COMMENT, italic = true, bold = false, highlight = false)
 
     override fun highlight(name: String, text: String, offset: Int): List<TextLine> {
-        var inBlock = false
+        var inStyleBlock = false
+        var inBlockComment = false
         return text.lines().map { line ->
-            val result = tokenizeLine(line, inBlock)
-            inBlock = result.inBlock
+            val result = tokenizeLine(line, inStyleBlock, inBlockComment)
+            inStyleBlock = result.inStyleBlock
+            inBlockComment = result.inBlockComment
             TextLine(result.spans, ArrayList())
         }
     }
 
     override fun lightweightHighlightLine(name: String, line: String): TextLine {
-        return TextLine(tokenizeLine(line, false).spans, ArrayList())
+        return TextLine(tokenizeLine(line, false, false).spans, ArrayList())
     }
 
     override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
@@ -51,33 +53,48 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
         }
     }
 
-    private fun tokenizeLine(line: String, initialBlock: Boolean): HssLineTokens {
+    private fun tokenizeLine(line: String, initialStyleBlock: Boolean, initialBlockComment: Boolean): HssLineTokens {
         val spans = mutableListOf<Pair<String, SpanStyle>>()
         var index = 0
-        var inBlock = initialBlock
+        var inStyleBlock = initialStyleBlock
+        var inBlockComment = initialBlockComment
 
         while (index < line.length) {
             when {
+                inBlockComment -> {
+                    val close = line.indexOf("*/", index)
+                    val end = if (close < 0) line.length else close + 2
+                    spans += line.substring(index, end) to commentStyle
+                    index = end
+                    inBlockComment = close < 0
+                }
+
                 line.startsWith("/*", index) -> {
                     val close = line.indexOf("*/", index + 2)
                     val end = if (close < 0) line.length else close + 2
                     spans += line.substring(index, end) to commentStyle
                     index = end
+                    inBlockComment = close < 0
+                }
+
+                line.startsWith("//", index) -> {
+                    spans += line.substring(index) to commentStyle
+                    index = line.length
                 }
 
                 line[index] == '{' -> {
                     spans += "{" to defaultStyle
                     index++
-                    inBlock = true
+                    inStyleBlock = true
                 }
 
                 line[index] == '}' -> {
                     spans += "}" to defaultStyle
                     index++
-                    inBlock = false
+                    inStyleBlock = false
                 }
 
-                inBlock -> {
+                inStyleBlock -> {
                     index = tokenizeInsideBlock(line, index, spans)
                 }
 
@@ -86,7 +103,7 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
                 }
             }
         }
-        return HssLineTokens(spans, inBlock)
+        return HssLineTokens(spans, inStyleBlock, inBlockComment)
     }
 
     private fun tokenizeInsideBlock(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
@@ -201,7 +218,8 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
 
 private data class HssLineTokens(
     val spans: List<Pair<String, SpanStyle>>,
-    val inBlock: Boolean,
+    val inStyleBlock: Boolean,
+    val inBlockComment: Boolean,
 )
 
 private enum class HssCompletionKind {

@@ -37,6 +37,7 @@ import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.percent
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.setClosingState
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiResourceLoader
@@ -1355,6 +1356,96 @@ class UiFrameworkTests {
 
         assertEquals(0.6f, half.opacity, 0.01f)
         assertEquals(50f, half.transform.rotate.z, 0.01f)
+    }
+
+    @Test
+    fun `hss comments are ignored in rules declarations and keyframes`() {
+        val stylesheet = compileHss(
+            """
+            // leading line comment
+            .dialog {
+                opacity: 1; // declaration line comment
+                background: /* inline block comment */ #FFFFFF;
+            }
+
+            .dialog:closing {
+                opacity: 0 /* trailing block comment */;
+            }
+
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                // keyframe line comment
+                to { opacity: 0; }
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+
+        val opened = runtime.frame(root, 100f, 40f, nowMillis = 0L).resolved[root]
+        root.setClosingState(true)
+        val closing = runtime.frame(root, 100f, 40f, nowMillis = 0L).resolved[root]
+
+        assertEquals(1f, opened.opacity)
+        assertEquals(0f, closing.opacity)
+    }
+
+    @Test
+    fun `closing state starts one shot keyframe animation`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                opacity: 1;
+            }
+
+            .dialog:closing {
+                animation: fadeOut 200ms linear forwards;
+            }
+
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+        val opened = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+
+        root.setClosingState(true)
+        val closingStart = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        val closingHalf = runtime.frame(root, 100f, 40f, nowMillis = 100L)
+
+        assertEquals(200L, closingStart.motionDurationMillis(opened))
+        assertEquals(0.5f, closingHalf.resolved[root].opacity, 0.01f)
+    }
+
+    @Test
+    fun `closing motion duration includes nested elements`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                opacity: 1;
+                transition: opacity 250ms linear;
+            }
+
+            .dialog:closing {
+                opacity: 0;
+            }
+            """.trimIndent(),
+        )
+        lateinit var dialog: BoxNode
+        val root = HollowUi {
+            dialog = Box(tags = listOf("dialog"))
+        }
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+        val opened = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+
+        root.setClosingState(true)
+        val closing = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+
+        assertEquals(250L, closing.motionDurationMillis(opened))
+        assertTrue(closing.resolved[dialog].opacity > 0f)
     }
 
     @Test

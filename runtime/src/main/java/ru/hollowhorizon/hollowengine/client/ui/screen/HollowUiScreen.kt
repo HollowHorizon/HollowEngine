@@ -53,6 +53,10 @@ abstract class HollowUiScreen(
     private var scrollbarDrag: ScrollbarDrag? = null
     private var lastDragX = 0.0
     private var lastDragY = 0.0
+    private var closing = false
+    private var closeCompleted = false
+    private var closeStartedAt = 0L
+    private var closeBaseFrame: HollowUiFrame? = null
     protected var mouseX: Float = 0f
         private set
     protected var mouseY: Float = 0f
@@ -84,31 +88,52 @@ abstract class HollowUiScreen(
             ?.rect
     }
 
+    fun startClosingAnimation() {
+        if (closing || closeCompleted) return
+        closing = true
+        closeStartedAt = System.currentTimeMillis()
+        closeBaseFrame = frame
+        activeKey = null
+        focusedKey = null
+        draggingNodeKey = null
+        scrollbarDrag = null
+        invalidateUi(immediate = width > 0 && height > 0)
+    }
+
     override fun render(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         super.render(graphics, mouseX, mouseY, partialTick)
+        val nowMillis = System.currentTimeMillis()
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
         val sizeChanged = width != lastWidth || height != lastHeight
         val needsRebuild = frame == null || uiDirty || sizeChanged || rebuildEveryFrame()
-        val current = if (needsRebuild) refreshFrame() else frame!!
-        val hadHoverChange = updateHover(current, mouseX.toFloat(), mouseY.toFloat())
-        val activeFrame = if (hadHoverChange) refreshFrame() else current
-        hoveredKey?.let { key ->
-            activeFrame.nodeByKey(key)?.let { node ->
-                dispatchUiEvent(
-                    UiEvent(
-                        kind = UiEventKind.HOVER,
-                        node = node,
-                        x = mouseX.toFloat(),
-                        y = mouseY.toFloat(),
+        val current = if (needsRebuild) refreshFrame(nowMillis) else frame!!
+        val activeFrame = if (closing) {
+            current
+        } else {
+            val hadHoverChange = updateHover(current, mouseX.toFloat(), mouseY.toFloat())
+            if (hadHoverChange) refreshFrame(nowMillis) else current
+        }
+        if (!closing) {
+            hoveredKey?.let { key ->
+                activeFrame.nodeByKey(key)?.let { node ->
+                    dispatchUiEvent(
+                        UiEvent(
+                            kind = UiEventKind.HOVER,
+                            node = node,
+                            x = mouseX.toFloat(),
+                            y = mouseY.toFloat(),
+                        )
                     )
-                )
+                }
             }
         }
         renderer.render(activeFrame.commands)
+        completeClosingIfReady(activeFrame, nowMillis)
     }
 
     override fun mouseMoved(mouseX: Double, mouseY: Double) {
+        if (closing) return
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
         val current = currentFrameForInput() ?: return
@@ -118,6 +143,7 @@ abstract class HollowUiScreen(
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        if (closing) return true
         val scrollbar = findScrollbar(mouseX.toFloat(), mouseY.toFloat())
         if (button == 0 && scrollbar != null) {
             scrollbarDrag = scrollbar.toDrag(mouseX.toFloat(), mouseY.toFloat(), frame ?: return false)
@@ -172,6 +198,7 @@ abstract class HollowUiScreen(
     }
 
     override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        if (closing) return true
         val current = frame
         val releaseNode = current?.hitTest(mouseX.toFloat(), mouseY.toFloat())?.node
             ?: activeKey?.let { current?.nodeByKey(it) }
@@ -195,6 +222,7 @@ abstract class HollowUiScreen(
     }
 
     override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, dragX: Double, dragY: Double): Boolean {
+        if (closing) return true
         scrollbarDrag?.let {
             updateScrollbarDrag(mouseX.toFloat(), mouseY.toFloat())
             return true
@@ -234,6 +262,7 @@ abstract class HollowUiScreen(
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
+        if (closing) return true
         val current = frame ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
         val target = current.resolved.styles.entries
             .asSequence()
@@ -265,6 +294,7 @@ abstract class HollowUiScreen(
     }
 
     override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        if (closing) return true
         val node = focusedKey?.let { frame?.nodeByKey(it) } ?: return super.charTyped(codePoint, modifiers)
         if (dispatchUiEvent(UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code))) {
             invalidateUi(immediate = true)
@@ -274,6 +304,7 @@ abstract class HollowUiScreen(
     }
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        if (closing) return true
         if (keyCode == 258 && focusNext()) {
             invalidateUi(immediate = true)
             return true
@@ -318,6 +349,11 @@ abstract class HollowUiScreen(
         if (key == activeKey) node.states += UiState.ACTIVE
         if (key == focusedKey) node.states += UiState.FOCUS
         if (key == draggingNodeKey) node.states += UiState.DRAGGING
+        if (closing) {
+            node.states += UiState.CLOSING
+        } else {
+            node.states -= UiState.CLOSING
+        }
         node.children.forEach(::applyRuntimeStates)
     }
 
@@ -397,6 +433,22 @@ abstract class HollowUiScreen(
         renderer.close()
         prepareScriptsJob?.cancel()
         super.removed()
+    }
+
+    override fun onClose() {
+        if (closeCompleted) {
+            super.onClose()
+        } else {
+            startClosingAnimation()
+        }
+    }
+
+    private fun completeClosingIfReady(current: HollowUiFrame, nowMillis: Long) {
+        if (!closing) return
+        val duration = current.motionDurationMillis(closeBaseFrame)
+        if (nowMillis - closeStartedAt < duration) return
+        closeCompleted = true
+        Minecraft.getInstance().setScreen(null)
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {

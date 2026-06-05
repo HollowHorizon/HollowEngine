@@ -381,6 +381,32 @@ data class ComputedStyle(
     }
 }
 
+fun ComputedStyle.motionDurationMillis(previous: ComputedStyle?): Long {
+    val transitionDuration = if (previous == null) {
+        0L
+    } else {
+        transitions
+            .filter { transition -> previous.changedForTransition(transition.property, this) }
+            .maxOfOrNull { it.durationMillis }
+            ?: 0L
+    }
+    val animationDuration = if (previous == null || previous.animations != animations) {
+        animations.maxOfOrNull { it.totalDurationMillis() ?: 0L } ?: 0L
+    } else {
+        0L
+    }
+    return max(transitionDuration, animationDuration)
+}
+
+fun UiAnimation.totalDurationMillis(): Long? {
+    if (playState != UiAnimationPlayState.RUNNING || name.isBlank()) return 0L
+    if (iterationCount.isInfinite()) return null
+    val iterations = iterationCount.coerceAtLeast(0f)
+    if (iterations <= 0f) return 0L
+    val activeDuration = ceil(durationMillis.toFloat() * iterations).toLong().coerceAtLeast(0L)
+    return delayMillis.coerceAtLeast(0L) + activeDuration
+}
+
 internal fun List<UiTransition>?.mergeUiTransitions(other: List<UiTransition>): List<UiTransition> {
     if (other.isEmpty()) return emptyList()
     val merged = linkedMapOf<String, UiTransition>()
@@ -388,6 +414,45 @@ internal fun List<UiTransition>?.mergeUiTransitions(other: List<UiTransition>): 
     other.forEach { merged[it.property] = it }
     return merged.values.toList()
 }
+
+private fun ComputedStyle.changedForTransition(property: String, target: ComputedStyle): Boolean {
+    return when (property) {
+        "all" -> TransitionProperties.any { it != "all" && changedForTransition(it, target) }
+        "transform" -> transform != target.transform
+        "background" -> background != target.background
+        "foreground" -> foreground != target.foreground
+        "shadow", "box-shadow" -> shadows != target.shadows
+        "opacity" -> opacity != target.opacity
+        "tint" -> tint != target.tint
+        "filter" -> filter != target.filter
+        "backdrop-filter" -> backdropFilter != target.backdropFilter
+        "translate" -> transform.translate != target.transform.translate
+        "rotate" -> transform.rotate != target.transform.rotate
+        "scale" -> transform.scale != target.transform.scale
+        "pivot", "transform-origin" -> transform.pivot != target.transform.pivot
+        "perspective" -> transform.perspective != target.transform.perspective
+        else -> false
+    }
+}
+
+private val TransitionProperties = setOf(
+    "background",
+    "all",
+    "transform",
+    "foreground",
+    "shadow",
+    "box-shadow",
+    "opacity",
+    "tint",
+    "filter",
+    "backdrop-filter",
+    "scale",
+    "translate",
+    "rotate",
+    "pivot",
+    "transform-origin",
+    "perspective",
+)
 
 private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     layout = layout,
@@ -724,6 +789,7 @@ class UiTransitionState {
     private val starts = mutableMapOf<String, ComputedStyle>()
     private val targets = mutableMapOf<String, ComputedStyle>()
     private val startedAt = mutableMapOf<String, Long>()
+    private val activeDurations = mutableMapOf<String, Long>()
 
     fun apply(node: UiNode, target: ComputedStyle, nowMillis: Long): ComputedStyle {
         val key = UiNodeKeys.key(node)
@@ -731,6 +797,7 @@ class UiTransitionState {
         if (current == null) {
             rendered[key] = target
             targets[key] = target
+            activeDurations[key] = 0L
             return target
         }
         val oldTarget = targets[key]
@@ -751,7 +818,9 @@ class UiTransitionState {
             targets[key] = target
             starts.remove(key)
             startedAt.remove(key)
+            activeDurations[key] = 0L
         }
+        activeDurations[key] = transitions.maxOfOrNull { it.durationMillis } ?: 0L
         val start = startedAt[key] ?: nowMillis
         val progress = transitions.progress(max(0L, nowMillis - start))
         val result = startStyle.interpolate(target, progress)
@@ -764,6 +833,8 @@ class UiTransitionState {
         }
         return result
     }
+
+    fun activeDurationMillis(node: UiNode): Long = activeDurations[UiNodeKeys.key(node)] ?: 0L
 
     private fun List<UiTransition>.progress(elapsedMillis: Long): TransitionProgress {
         return TransitionProgress(

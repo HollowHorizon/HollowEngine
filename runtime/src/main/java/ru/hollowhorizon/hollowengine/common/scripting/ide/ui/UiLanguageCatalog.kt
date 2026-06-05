@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 object UiLanguageCatalog {
     val elementTypes = listOf("box", "text", "image", "item", "entity", "canvas")
 
-    val states = listOf("hover", "active", "focus", "disabled", "selected", "dragging")
+    val states = listOf("hover", "active", "focus", "disabled", "selected", "dragging", "closing")
 
     val globalAttributes = listOf(
         UiAttribute("id"),
@@ -55,6 +55,7 @@ object UiLanguageCatalog {
         UiAttribute("fontSize"),
         UiAttribute("typing"),
         UiAttribute("transition"),
+        UiAttribute("animation"),
         UiAttribute("onClick", "{event:\"\"}"),
         UiAttribute("onDrag", "{event:\"\"}"),
     )
@@ -136,6 +137,15 @@ object UiLanguageCatalog {
         "typing",
         "wrap",
         "transition",
+        "animation",
+        "animation-name",
+        "animation-duration",
+        "animation-timing-function",
+        "animation-delay",
+        "animation-iteration-count",
+        "animation-direction",
+        "animation-fill-mode",
+        "animation-play-state",
     )
 
     val valueCompletions = mapOf(
@@ -197,6 +207,14 @@ object UiLanguageCatalog {
         "font-size" to listOf("10px", "12px", "16px", "24px"),
         "typing" to listOf("auto linear", "auto ease-out", "5s ease-in", "none"),
         "wrap" to listOf("wrap", "nowrap"),
+        "animation" to listOf("fade 200ms ease-out forwards", "none"),
+        "animation-duration" to listOf("200ms", "1s"),
+        "animation-timing-function" to listOf("linear", "ease-in", "ease-out", "ease-in-out"),
+        "animation-delay" to listOf("0ms", "100ms"),
+        "animation-iteration-count" to listOf("1", "2", "infinite"),
+        "animation-direction" to listOf("normal", "reverse", "alternate", "alternate-reverse"),
+        "animation-fill-mode" to listOf("none", "forwards", "backwards", "both"),
+        "animation-play-state" to listOf("running", "paused"),
     )
 
     fun attributesFor(element: String): List<UiAttribute> {

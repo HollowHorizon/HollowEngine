@@ -182,6 +182,7 @@ class HssParser(private val source: String) {
                     ')' -> depth--
                     ';' -> if (depth == 0) break@value
                     '}' -> if (depth == 0) break@value
+                    '/' -> if (depth == 0 && (peekAhead("//") || peekAhead("/*"))) break@value
                 }
             }
             index++
@@ -251,6 +252,11 @@ class HssParser(private val source: String) {
                 val close = source.indexOf("*/", index + 2)
                 if (close < 0) throw HssParseException("Unclosed block comment", index)
                 index = close + 2
+                advanced = true
+            }
+            if (peekAhead("//")) {
+                val close = source.indexOf('\n', index + 2)
+                index = if (close < 0) source.length else close
                 advanced = true
             }
         } while (advanced)

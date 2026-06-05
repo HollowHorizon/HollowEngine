@@ -6,8 +6,22 @@ data class HollowUiFrame(
     val resolved: ResolvedUiTree,
     val layout: UiLayoutResult,
     val commands: List<UiRenderCommand>,
+    private val activeTransitionDurations: Map<String, Long> = emptyMap(),
 ) {
     fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(resolved, layout, x, y)
+
+    fun motionDurationMillis(previous: HollowUiFrame?): Long {
+        val previousStyles = previous?.resolved?.styles
+            ?.mapKeys { (node, _) -> UiNodeKeys.key(node) }
+            .orEmpty()
+        return resolved.styles.maxOfOrNull { (node, style) ->
+            val key = UiNodeKeys.key(node)
+            maxOf(
+                activeTransitionDurations[key] ?: 0L,
+                style.motionDurationMillis(previousStyles[key]),
+            )
+        } ?: 0L
+    }
 
     private fun textLinkHit(x: Float, y: Float): UiHit? {
         for (command in commands.asReversed().filterIsInstance<DrawTextCommand>()) {
@@ -48,9 +62,12 @@ class HollowUiRuntime(
         UiNodeKeys.assign(root)
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
+        val activeTransitionDurations = resolved.styles.keys.associate { node ->
+            UiNodeKeys.key(node) to transitionState.activeDurationMillis(node)
+        }
         val layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
-        return HollowUiFrame(resolved, layout, commands)
+        return HollowUiFrame(resolved, layout, commands, activeTransitionDurations)
     }
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset = scrollState.scroll(node, deltaX, deltaY)

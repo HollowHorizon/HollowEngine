@@ -10,7 +10,8 @@ enum class UiState(val selectorName: String) {
     FOCUS("focus"),
     SELECTED("selected"),
     DISABLED("disabled"),
-    DRAGGING("dragging");
+    DRAGGING("dragging"),
+    CLOSING("closing");
 
     companion object {
         fun fromSelector(name: String): UiState? = entries.firstOrNull { it.selectorName == name }

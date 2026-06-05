@@ -188,6 +188,15 @@ fun HollowUi(
     return root
 }
 
+fun UiNode.setClosingState(closing: Boolean) {
+    if (closing) {
+        states += UiState.CLOSING
+    } else {
+        states -= UiState.CLOSING
+    }
+    children.forEach { it.setClosingState(closing) }
+}
+
 data class UiBindingContext(val root: CompoundTag = CompoundTag()) {
     fun resolve(template: String): String {
         val result = StringBuilder()
