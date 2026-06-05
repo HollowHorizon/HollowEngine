@@ -588,7 +588,7 @@ data class UiHit(
 
 class UiHitTester {
     fun hitTest(resolved: ResolvedUiTree, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
-        return hitNode(resolved.root, resolved, layout, x, y)
+        return hitNode(resolved.root, resolved, layout, x, y, ancestorClip = null)
     }
 
     private fun hitNode(
@@ -597,23 +597,25 @@ class UiHitTester {
         layout: UiLayoutResult,
         x: Float,
         y: Float,
+        ancestorClip: UiRect?,
     ): UiHit? {
         val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val layoutNode = layout[node]
+        val effectiveChildClip = layoutNode.clip
         for (child in children.asReversed()) {
-            hitNode(child, resolved, layout, x, y)?.let { return it }
+            hitNode(child, resolved, layout, x, y, ancestorClip = effectiveChildClip)?.let { return it }
         }
         val style = resolved[node]
         if (UiState.DISABLED in node.states) return null
         if (!style.input.hoverable && !style.input.clickable && !style.input.focusable && !style.input.draggable && !style.input.scrollable) {
             return null
         }
-        val layoutNode = layout[node]
         if (!layoutNode.inputQuadContains(x, y)) return null
         val inverse = layoutNode.inputTransform.inverse() ?: return null
         val local = inverse.transform(x, y, 0f)
         val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
         if (!rect.contains(local.x, local.y)) return null
-        layoutNode.clip?.let { clip ->
+        ancestorClip?.let { clip ->
             if (!clip.contains(x, y)) return null
         }
         return UiHit(node, local.x, local.y)

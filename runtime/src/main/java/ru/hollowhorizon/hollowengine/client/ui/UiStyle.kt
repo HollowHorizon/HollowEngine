@@ -821,6 +821,7 @@ class UiTransitionState {
             targets[key] = target
             startedAt[key] = nowMillis
         } else if (!startedAt.containsKey(key)) {
+            activeDurations[key] = 0L
             return target
         }
         val startStyle = starts[key] ?: current
@@ -845,6 +846,7 @@ class UiTransitionState {
             targets[key] = target
             starts.remove(key)
             startedAt.remove(key)
+            activeDurations[key] = 0L
         }
         return result
     }

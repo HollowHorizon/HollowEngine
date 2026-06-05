@@ -91,7 +91,8 @@ abstract class HollowUiScreen(
             current
         } else {
             val hadHoverChange = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
-            if (hadHoverChange) refreshFrame(nowMillis) else current
+            val hasActiveMotion = current.motionDurationMillis(null) > 0L || hadHoverChange
+            if (hasActiveMotion) refreshFrame(nowMillis) else current
         }
         if (!closing) {
             input.dispatchHover(activeFrame, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
@@ -105,7 +106,8 @@ abstract class HollowUiScreen(
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
         val current = currentFrameForInput() ?: return
-        if (input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)) {
+        val hoverChanged = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
+        if (hoverChanged || current.motionDurationMillis(null) > 0L) {
             refreshFrame()
         }
     }
