@@ -13,9 +13,7 @@ import net.minecraft.Util
 import net.minecraft.client.Camera
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.model.SkullModelBase
 import net.minecraft.client.model.geom.EntityModelSet
 import net.minecraft.client.model.geom.ModelLayerLocation
