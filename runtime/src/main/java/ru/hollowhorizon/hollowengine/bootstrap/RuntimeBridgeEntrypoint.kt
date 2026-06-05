@@ -70,9 +70,7 @@ import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
-import ru.hollowhorizon.hollowengine.client.gui.ImageTextButton
 import ru.hollowhorizon.hollowengine.client.gui.scripting.isAnyFocusNodeInput
-import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
@@ -836,21 +834,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         RenderOverlayEvent.Post.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, overlayKind.toOverlay()))
     }
 
-    override fun createInventoryButton(screen: InventoryScreen, x: Int, y: Int): AbstractWidget {
-        return ImageTextButton(
-            x,
-            y,
-            22,
-            24,
-            "hollowengine:textures/gui/quests/inventory_button.png",
-            "hollowengine:textures/gui/quests/inventory_button_hovered.png",
-        ) { }
-    }
-
-    override fun updateInventoryButton(widget: AbstractWidget?, x: Int, y: Int) {
-        widget?.setPosition(x, y)
-    }
-
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         val event = when (action) {
             org.lwjgl.glfw.GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN
@@ -900,9 +883,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
         KoolInputBridge.handleMouseMove(convertedX, convertedY)
         val isScreenOpen = minecraft.screen != null
-        val isOverDock = isMouseOverDock(convertedX, convertedY)
+        val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = (isOverDock || isGizmoBlocking) && isScreenOpen
+        val shouldCancel = (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
@@ -935,7 +918,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
                 )
             )
         }
-        return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
+        return isKoolPointerInputCaptured(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
     override fun onMouseScroll(
@@ -951,7 +934,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             KatariClientInputEvent.MouseScroll,
             KatariClientInputEvent.MouseScroll(x.toDouble(), y.toDouble(), xOffset, yOffset)
         )
-        return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
+        return isKoolPointerInputCaptured(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
     private fun <T : KatariClientInputEvent> postKatariInput(handler: EventHandler<T>, event: T) {

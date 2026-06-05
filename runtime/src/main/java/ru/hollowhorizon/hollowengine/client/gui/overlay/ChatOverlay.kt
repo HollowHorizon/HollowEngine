@@ -86,6 +86,7 @@ object ChatOverlay {
                     }
                 }
             }
+            surface.inputMode = UiSurface.InputCaptureMode.CaptureDisabled
         }
     }
 

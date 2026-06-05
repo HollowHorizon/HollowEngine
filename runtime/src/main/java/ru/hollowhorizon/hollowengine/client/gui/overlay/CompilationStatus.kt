@@ -41,6 +41,7 @@ object CompilationStatus {
                 }
             }
         }
+        surface.inputMode = UiSurface.InputCaptureMode.CaptureDisabled
 
         onUpdate {
             isVisible = messages.isNotEmpty()

@@ -8,9 +8,7 @@ import com.mojang.datafixers.util.Either;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.model.SkullModelBase;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -262,11 +260,6 @@ public interface RuntimeBridge extends AutoCloseable {
     boolean onRenderOverlayPre(Window window, GuiGraphics guiGraphics, float partialTick, OverlayKind overlayKind);
 
     void onRenderOverlayPost(Window window, GuiGraphics guiGraphics, float partialTick, OverlayKind overlayKind);
-
-    @Nullable AbstractWidget createInventoryButton(InventoryScreen screen, int x, int y);
-
-    void updateInventoryButton(@Nullable AbstractWidget widget, int x, int y);
-
     boolean onKeyboardKey(long windowPointer, int key, int scanCode, int action, int modifiers);
 
     boolean onKeyboardChar(long windowPointer, int codePoint, int modifiers);
