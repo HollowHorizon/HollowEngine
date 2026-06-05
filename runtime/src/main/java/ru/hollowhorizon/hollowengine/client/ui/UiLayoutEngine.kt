@@ -569,6 +569,14 @@ class UiLayoutEngine {
             wrap = style.textWrap,
             fontSize = style.fontSize,
         )
+        if (node is TextFieldNode) return UiTextLayouter.measure(
+            text = node.value.ifEmpty { node.placeholder },
+            availableWidth = availableWidth,
+            knownWidth = knownContentWidth,
+            wrap = style.textWrap && node.multiline,
+            fontSize = style.fontSize,
+            preserveWhitespace = true,
+        )
         if (node.children.isEmpty()) return replacedIntrinsicSize(node, style)
         val children = measureFlowChildren(
             node.children,
@@ -705,15 +713,28 @@ private fun scrollableContentBounds(
     layouts: Map<UiNode, UiLayoutNode>,
     bindings: UiBindingContext,
 ): UiRect {
-    if (node is TextNode) {
-        val textLayout = UiTextLayouter.layout(
-            node.content.resolve(bindings).toRichText(),
-            layout.content.width,
-            Float.POSITIVE_INFINITY,
-            style.textWrap,
-            style.textAlign,
-            style.fontSize,
-        )
+    if (node is TextNode || node is TextFieldNode) {
+        val textLayout = if (node is TextNode) {
+            UiTextLayouter.layout(
+                node.content.resolve(bindings).toRichText(),
+                layout.content.width,
+                Float.POSITIVE_INFINITY,
+                style.textWrap,
+                style.textAlign,
+                style.fontSize,
+            )
+        } else {
+            val field = node as TextFieldNode
+            UiTextLayouter.layout(
+                field.value.ifEmpty { field.placeholder },
+                layout.content.width,
+                Float.POSITIVE_INFINITY,
+                style.textWrap && field.multiline,
+                style.textAlign,
+                style.fontSize,
+                preserveWhitespace = true,
+            )
+        }
         return UiRect(
             layout.content.x,
             layout.content.y,
@@ -791,14 +812,17 @@ private fun UiLength.resolveOrNull(reference: Float, deferFlexible: Boolean = fa
 }
 
 private fun replacedIntrinsicSize(node: UiNode, style: ComputedStyle): LayoutSize {
-    return if (node is ImageNode || style.background is UiPaint.Image) {
-        LayoutSize(DefaultReplacedElementSize, DefaultReplacedElementSize)
-    } else {
-        LayoutSize(0f, 0f)
+    return when {
+        node is SliderNode -> LayoutSize(DefaultSliderWidth, DefaultWidgetHeight)
+        node is CheckboxNode -> LayoutSize(DefaultWidgetHeight, DefaultWidgetHeight)
+        node is ImageNode || style.background is UiPaint.Image -> LayoutSize(DefaultReplacedElementSize, DefaultReplacedElementSize)
+        else -> LayoutSize(0f, 0f)
     }
 }
 
 private const val DefaultReplacedElementSize = 32f
+private const val DefaultSliderWidth = 120f
+private const val DefaultWidgetHeight = 16f
 
 private fun Float.coerceIn(min: UiLength, max: UiLength, reference: Float): Float {
     val minValue = min.resolve(reference, 0f)

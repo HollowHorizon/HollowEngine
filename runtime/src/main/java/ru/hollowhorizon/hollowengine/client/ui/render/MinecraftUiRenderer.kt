@@ -34,6 +34,7 @@ import kotlin.math.sqrt
 
 class MinecraftUiRenderer {
     private val framebuffers = UiFramebufferPool()
+    private val widgets = UiWidgetRenderer(::drawImage)
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
     private var layerProjectionActive = false
@@ -80,6 +81,9 @@ class MinecraftUiRenderer {
             is DrawItemCommand -> drawItem(command)
             is DrawEntityCommand -> drawEntity(command)
             is DrawCanvasCommand -> drawCanvasPlaceholder(command)
+            is DrawSliderCommand -> drawWidget(command)
+            is DrawCheckboxCommand -> drawWidget(command)
+            is DrawTextFieldChromeCommand -> drawWidget(command)
             is DrawScrollbarCommand -> drawScrollbar(command)
         }
     }
@@ -965,6 +969,24 @@ class MinecraftUiRenderer {
             transform * UiMatrix4.translation(8f, command.rect.height * 0.5f, 0f),
             command.filter
         )
+    }
+
+    private fun drawWidget(command: DrawSliderCommand) {
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        widgets.drawSlider(command, transform)
+    }
+
+    private fun drawWidget(command: DrawCheckboxCommand) {
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        widgets.drawCheckbox(command, transform)
+    }
+
+    private fun drawWidget(command: DrawTextFieldChromeCommand) {
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        widgets.drawTextFieldChrome(command, transform)
     }
 
     private fun drawScrollbar(command: DrawScrollbarCommand) {

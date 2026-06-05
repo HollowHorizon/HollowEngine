@@ -201,6 +201,9 @@ data class MutableUiStyle(
     var imageFit: UiImageFit? = null,
     var imageSlice: UiInsets? = null,
     var scrollbar: UiScrollbarStyle? = null,
+    var slider: UiSliderStyle? = null,
+    var checkbox: UiCheckboxStyle? = null,
+    var textField: UiTextFieldStyle? = null,
     var textWrap: Boolean? = null,
     var textAlign: UiTextAlign? = null,
     var fontSize: Float? = null,
@@ -248,6 +251,9 @@ data class MutableUiStyle(
         other.imageFit?.let { imageFit = it }
         other.imageSlice?.let { imageSlice = it }
         other.scrollbar?.let { scrollbar = scrollbar?.merge(it) ?: it }
+        other.slider?.let { slider = slider?.merge(it) ?: it }
+        other.checkbox?.let { checkbox = checkbox?.merge(it) ?: it }
+        other.textField?.let { textField = textField?.merge(it) ?: it }
         other.textWrap?.let { textWrap = it }
         other.textAlign?.let { textAlign = it }
         other.fontSize?.let { fontSize = it }
@@ -300,6 +306,9 @@ data class MutableUiStyle(
             imageFit = imageFit ?: UiImageFit.STRETCH,
             imageSlice = imageSlice ?: UiInsets.all(4.px),
             scrollbar = scrollbar ?: UiScrollbarStyle(),
+            slider = slider ?: UiSliderStyle(),
+            checkbox = checkbox ?: UiCheckboxStyle(),
+            textField = textField ?: UiTextFieldStyle(),
             textWrap = textWrap ?: true,
             textAlign = textAlign ?: inheritedTextAlign,
             fontSize = fontSize ?: inheritedFontSize,
@@ -350,6 +359,9 @@ data class ComputedStyle(
     val imageFit: UiImageFit,
     val imageSlice: UiInsets,
     val scrollbar: UiScrollbarStyle,
+    val slider: UiSliderStyle,
+    val checkbox: UiCheckboxStyle,
+    val textField: UiTextFieldStyle,
     val textWrap: Boolean,
     val textAlign: UiTextAlign,
     val fontSize: Float,
@@ -491,6 +503,9 @@ private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     imageFit = imageFit,
     imageSlice = imageSlice,
     scrollbar = scrollbar,
+    slider = slider,
+    checkbox = checkbox,
+    textField = textField,
     textWrap = textWrap,
     textAlign = textAlign,
     fontSize = fontSize,

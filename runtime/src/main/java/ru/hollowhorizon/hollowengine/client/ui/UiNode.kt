@@ -154,6 +154,46 @@ class UiScope(private val target: UiChildren) {
         return node
     }
 
+    fun Slider(
+        value: Float = 0f,
+        min: Float = 0f,
+        max: Float = 1f,
+        step: Float = 0f,
+        id: String? = null,
+        tags: Iterable<String> = emptyList(),
+        modifier: Modifier? = null,
+    ): SliderNode {
+        val node = SliderNode(value, min, max, step, id, tags, modifier.asList())
+        target += node
+        return node
+    }
+
+    fun Checkbox(
+        checked: Boolean = false,
+        variant: UiCheckboxVariant = UiCheckboxVariant.CHECKBOX,
+        id: String? = null,
+        tags: Iterable<String> = emptyList(),
+        modifier: Modifier? = null,
+    ): CheckboxNode {
+        val node = CheckboxNode(checked, variant, id, tags, modifier.asList())
+        target += node
+        return node
+    }
+
+    fun TextField(
+        value: String = "",
+        mode: UiTextFieldMode = UiTextFieldMode.SINGLE_LINE,
+        filter: UiTextInputFilter = UiTextInputFilter.ANY,
+        multiCaret: Boolean = false,
+        id: String? = null,
+        tags: Iterable<String> = emptyList(),
+        modifier: Modifier? = null,
+    ): TextFieldNode {
+        val node = TextFieldNode(value, mode, filter, multiCaret, id, tags, modifier.asList())
+        target += node
+        return node
+    }
+
     fun Item(
         item: String,
         id: String? = null,

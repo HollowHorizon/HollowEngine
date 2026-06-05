@@ -1,32 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.screens.Screen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
-import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
-import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
-import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
-import ru.hollowhorizon.hollowengine.client.ui.ScriptEventModifier
-import ru.hollowhorizon.hollowengine.client.ui.TextNode
-import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
-import ru.hollowhorizon.hollowengine.client.ui.UiEvent
-import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
-import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
-import ru.hollowhorizon.hollowengine.client.ui.UiClientScriptModifier
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.UiNodeKeys
-import ru.hollowhorizon.hollowengine.client.ui.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.UiState
-import ru.hollowhorizon.hollowengine.client.ui.dispatch
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.Screen
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiPreparedClientScripts
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
+import ru.hollowhorizon.hollowengine.client.ui.scripting.UiPreparedClientScripts
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
@@ -45,11 +30,7 @@ abstract class HollowUiScreen(
     private var uiDirty = true
     private var lastWidth = -1
     private var lastHeight = -1
-    private var hoveredKey: String? = null
-    private var hoveredLink: String? = null
-    private var activeKey: String? = null
-    private var focusedKey: String? = null
-    private var draggingNodeKey: String? = null
+    private val input = HollowUiInputController()
     private var scrollbarDrag: ScrollbarDrag? = null
     private var lastDragX = 0.0
     private var lastDragY = 0.0
@@ -93,9 +74,7 @@ abstract class HollowUiScreen(
         closing = true
         closeStartedAt = System.currentTimeMillis()
         closeBaseFrame = frame
-        activeKey = null
-        focusedKey = null
-        draggingNodeKey = null
+        input.clearInteraction()
         scrollbarDrag = null
         invalidateUi(immediate = width > 0 && height > 0)
     }
@@ -111,22 +90,11 @@ abstract class HollowUiScreen(
         val activeFrame = if (closing) {
             current
         } else {
-            val hadHoverChange = updateHover(current, mouseX.toFloat(), mouseY.toFloat())
+            val hadHoverChange = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
             if (hadHoverChange) refreshFrame(nowMillis) else current
         }
         if (!closing) {
-            hoveredKey?.let { key ->
-                activeFrame.nodeByKey(key)?.let { node ->
-                    dispatchUiEvent(
-                        UiEvent(
-                            kind = UiEventKind.HOVER,
-                            node = node,
-                            x = mouseX.toFloat(),
-                            y = mouseY.toFloat(),
-                        )
-                    )
-                }
-            }
+            input.dispatchHover(activeFrame, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
         }
         renderer.render(activeFrame.commands)
         completeClosingIfReady(activeFrame, nowMillis)
@@ -137,7 +105,7 @@ abstract class HollowUiScreen(
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
         val current = currentFrameForInput() ?: return
-        if (updateHover(current, mouseX.toFloat(), mouseY.toFloat())) {
+        if (input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)) {
             refreshFrame()
         }
     }
@@ -150,72 +118,23 @@ abstract class HollowUiScreen(
             updateScrollbarDrag(mouseX.toFloat(), mouseY.toFloat())
             return true
         }
-        val hit = frame?.hitTest(mouseX.toFloat(), mouseY.toFloat()) ?: return super.mouseClicked(mouseX, mouseY, button)
-        if (button == 0 && hit.link != null) {
-            openUrl(hit.link)
-            return true
-        }
-        activeKey = UiNodeKeys.key(hit.node)
-        updateFocus(hit.node)
-        val press = UiEvent(
-            kind = UiEventKind.PRESS,
-            node = hit.node,
-            button = button,
-            x = mouseX.toFloat(),
-            y = mouseY.toFloat(),
-            localX = hit.localX,
-            localY = hit.localY,
-        )
-        if (dispatchUiEvent(press) && press.consumed) {
-            invalidateUi(immediate = true)
-            return true
-        }
-        if (frame?.resolved?.get(hit.node)?.input?.draggable == true && button == 0) {
-            draggingNodeKey = activeKey
+        val current = frame ?: return super.mouseClicked(mouseX, mouseY, button)
+        val result = input.mouseClicked(current, mouseX.toFloat(), mouseY.toFloat(), button, ::dispatchUiEvent, ::openUrl)
+        if (result.handled) {
             lastDragX = mouseX
             lastDragY = mouseY
-            hit.node.states += UiState.DRAGGING
             invalidateUi(immediate = true)
             return true
         }
-        if (dispatchUiEvent(
-                UiEvent(
-                    kind = UiEventKind.CLICK,
-                    node = hit.node,
-                    button = button,
-                    x = mouseX.toFloat(),
-                    y = mouseY.toFloat(),
-                    localX = hit.localX,
-                    localY = hit.localY,
-                )
-            )
-        ) {
-            invalidateUi(immediate = true)
-            return true
-        }
-        if (onNodeClicked(hit.node, button)) return true
+        if (result.node != null && onNodeClicked(result.node, button)) return true
         return super.mouseClicked(mouseX, mouseY, button)
     }
 
     override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean {
         if (closing) return true
-        val current = frame
-        val releaseNode = current?.hitTest(mouseX.toFloat(), mouseY.toFloat())?.node
-            ?: activeKey?.let { current?.nodeByKey(it) }
-        releaseNode?.let { node ->
-            dispatchUiEvent(
-                UiEvent(
-                    kind = UiEventKind.RELEASE,
-                    node = node,
-                    button = button,
-                    x = mouseX.toFloat(),
-                    y = mouseY.toFloat(),
-                    released = true,
-                )
-            )
+        frame?.let { current ->
+            input.mouseReleased(current, mouseX.toFloat(), mouseY.toFloat(), button, ::dispatchUiEvent)
         }
-        activeKey = null
-        draggingNodeKey = null
         scrollbarDrag = null
         invalidateUi(immediate = true)
         return super.mouseReleased(mouseX, mouseY, button)
@@ -227,7 +146,7 @@ abstract class HollowUiScreen(
             updateScrollbarDrag(mouseX.toFloat(), mouseY.toFloat())
             return true
         }
-        val key = draggingNodeKey ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
+        val key = input.draggingKey ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
         val dx = (mouseX - lastDragX).toFloat()
         val dy = (mouseY - lastDragY).toFloat()
         lastDragX = mouseX
@@ -237,24 +156,12 @@ abstract class HollowUiScreen(
             return true
         }
         val current = frame ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
-        val node = current.resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
-            ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
-        if (dispatchUiEvent(
-                UiEvent(
-                    kind = UiEventKind.DRAG,
-                    node = node,
-                    button = button,
-                    x = mouseX.toFloat(),
-                    y = mouseY.toFloat(),
-                    deltaX = dx,
-                    deltaY = dy,
-                )
-            )
-        ) {
+        val result = input.mouseDragged(current, mouseX.toFloat(), mouseY.toFloat(), button, dx, dy, ::dispatchUiEvent)
+        if (result.handled) {
             invalidateUi(immediate = true)
             return true
         }
-        if (onNodeDragged(node, dx, dy)) {
+        if (result.node != null && onNodeDragged(result.node, dx, dy)) {
             invalidateUi(immediate = true)
             return true
         }
@@ -295,8 +202,9 @@ abstract class HollowUiScreen(
 
     override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
         if (closing) return true
-        val node = focusedKey?.let { frame?.nodeByKey(it) } ?: return super.charTyped(codePoint, modifiers)
-        if (dispatchUiEvent(UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code))) {
+        val current = frame ?: return super.charTyped(codePoint, modifiers)
+        val result = input.charTyped(current, codePoint, modifiers, ::dispatchUiEvent)
+        if (result.handled) {
             invalidateUi(immediate = true)
             return true
         }
@@ -305,61 +213,21 @@ abstract class HollowUiScreen(
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         if (closing) return true
-        if (keyCode == 258 && focusNext()) {
-            invalidateUi(immediate = true)
-            return true
-        }
-        val node = focusedKey?.let { frame?.nodeByKey(it) } ?: return super.keyPressed(keyCode, scanCode, modifiers)
-        val event = UiEvent(UiEventKind.KEY_PRESSED, node, key = keyCode, scanCode = scanCode, modifiers = modifiers)
-        if (dispatchUiEvent(event)) {
+        val current = frame ?: return super.keyPressed(keyCode, scanCode, modifiers)
+        val result = input.keyPressed(current, keyCode, scanCode, modifiers, ::dispatchUiEvent)
+        if (result.handled) {
             invalidateUi(immediate = true)
             return true
         }
         return super.keyPressed(keyCode, scanCode, modifiers)
     }
 
-    private fun updateHover(currentFrame: HollowUiFrame, mouseX: Float, mouseY: Float): Boolean {
-        val hit = currentFrame.hitTest(mouseX, mouseY)
-        val previousKey = hoveredKey
-        hoveredKey = hit?.node?.let(UiNodeKeys::key)
-        hoveredLink = hit?.link
-        if (previousKey != hoveredKey) {
-            previousKey?.let { key ->
-                currentFrame.nodeByKey(key)?.let { dispatchUiEvent(UiEvent(UiEventKind.EXIT, it, x = mouseX, y = mouseY)) }
-            }
-            hoveredKey?.let { key ->
-                currentFrame.nodeByKey(key)?.let { dispatchUiEvent(UiEvent(UiEventKind.ENTER, it, x = mouseX, y = mouseY)) }
-            }
-            return true
-        }
-        return false
-    }
-
-    protected fun isHovered(id: String): Boolean = hoveredKey == id
-
-    private fun applyRuntimeStates(node: UiNode) {
-        val key = UiNodeKeys.key(node)
-        node.states -= UiState.HOVER
-        node.states -= UiState.ACTIVE
-        node.states -= UiState.DRAGGING
-        if (node is TextNode) {
-            node.hoveredLink = if (key == hoveredKey) hoveredLink else null
-        }
-        if (key == hoveredKey || node.containsNodeKey(hoveredKey)) node.states += UiState.HOVER
-        if (key == activeKey) node.states += UiState.ACTIVE
-        if (key == focusedKey) node.states += UiState.FOCUS
-        if (key == draggingNodeKey) node.states += UiState.DRAGGING
-        if (closing) {
-            node.states += UiState.CLOSING
-        } else {
-            node.states -= UiState.CLOSING
-        }
-        node.children.forEach(::applyRuntimeStates)
-    }
+    protected fun isHovered(id: String): Boolean = input.isHovered(id)
 
     private fun currentRoot(): UiNode {
         if (cachedRoot == null || uiDirty || rebuildEveryFrame()) {
             cachedRoot = buildUi()
+            input.prepareRoot(cachedRoot!!, closing)
             schedulePrepareClientScripts(cachedRoot!!)
             uiDirty = false
             lastWidth = width
@@ -411,8 +279,7 @@ abstract class HollowUiScreen(
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         val root = currentRoot()
-        UiNodeKeys.assign(root)
-        applyRuntimeStates(root)
+        input.prepareRoot(root, closing)
         val nextFrame = runtime.frame(root, width.toFloat(), height.toFloat(), bindings(), nowMillis)
         frame = nextFrame
         lastWidth = width
@@ -493,42 +360,7 @@ abstract class HollowUiScreen(
         }
     }
 
-    private fun updateFocus(node: UiNode) {
-        val current = frame ?: return
-        if (current.resolved[node].input.focusable) {
-            setFocus(UiNodeKeys.key(node))
-        } else {
-            setFocus(null)
-        }
-    }
-
-    private fun setFocus(nextKey: String?) {
-        val current = frame ?: return
-        if (focusedKey == nextKey) return
-        focusedKey?.let { key ->
-            current.nodeByKey(key)?.let { dispatchUiEvent(UiEvent(UiEventKind.UNFOCUS, it)) }
-        }
-        focusedKey = nextKey
-        focusedKey?.let { key ->
-            current.nodeByKey(key)?.let { dispatchUiEvent(UiEvent(UiEventKind.FOCUS, it)) }
-        }
-    }
-
-    private fun focusNext(): Boolean {
-        val current = frame ?: return false
-        val focusables = current.resolved.styles.keys.filter { current.resolved[it].input.focusable }
-        if (focusables.isEmpty()) return false
-        val currentIndex = focusables.indexOfFirst { UiNodeKeys.key(it) == focusedKey }
-        val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % focusables.size
-        setFocus(UiNodeKeys.key(focusables[nextIndex]))
-        return true
-    }
-
     override fun isPauseScreen(): Boolean = false
-}
-
-private fun HollowUiFrame.nodeByKey(key: String): UiNode? {
-    return resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
 }
 
 private fun UiNode.clientScripts(): List<UiClientScript> {
@@ -546,11 +378,6 @@ private fun UiNode.clientScripts(): List<UiClientScript> {
                     )
                 }
     return ownScripts + children.flatMap { it.clientScripts() }
-}
-
-private fun UiNode.containsNodeKey(key: String?): Boolean {
-    if (key == null) return false
-    return children.any { UiNodeKeys.key(it) == key || it.containsNodeKey(key) }
 }
 
 private data class ScrollbarDrag(

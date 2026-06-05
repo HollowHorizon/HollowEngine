@@ -200,6 +200,55 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                     it.copy(slice = parseInsets(value, allowAuto = false))
                 }
             }
+            "slider-track-thickness", "slider-track-width" -> instruction { style ->
+                style.slider = (style.slider ?: UiSliderStyle()).copy(trackThickness = parseLength(value))
+            }
+            "slider-track" -> instruction { style ->
+                style.slider = (style.slider ?: UiSliderStyle()).copy(trackPaint = parsePaint(value))
+            }
+            "slider-active-track", "slider-fill" -> instruction { style ->
+                style.slider = (style.slider ?: UiSliderStyle()).copy(activeTrackPaint = parsePaint(value))
+            }
+            "slider-thumb" -> instruction { style ->
+                style.slider = (style.slider ?: UiSliderStyle()).copy(thumbPaint = parsePaint(value))
+            }
+            "slider-thumb-border" -> instruction { style ->
+                val current = style.slider ?: UiSliderStyle()
+                style.slider = current.copy(thumbBorder = parseBorder(value, current.thumbBorder ?: UiBorder()))
+            }
+            "slider-thumb-size" -> instruction { style ->
+                style.slider = (style.slider ?: UiSliderStyle()).copy(thumbSize = parseSize(value))
+            }
+            "slider-radius" -> instruction { style ->
+                style.slider = (style.slider ?: UiSliderStyle()).copy(radius = parseScalar(value))
+            }
+            "checkbox-mark" -> instruction { style ->
+                style.checkbox = (style.checkbox ?: UiCheckboxStyle()).copy(markPaint = parsePaint(value))
+            }
+            "checkbox-active", "checkbox-fill" -> instruction { style ->
+                style.checkbox = (style.checkbox ?: UiCheckboxStyle()).copy(activePaint = parsePaint(value))
+            }
+            "checkbox-variant", "checkbox-style" -> instruction { style ->
+                style.checkbox = (style.checkbox ?: UiCheckboxStyle()).copy(variant = UiCheckboxVariant.from(value))
+            }
+            "caret-color", "text-field-caret" -> instruction { style ->
+                style.textField = (style.textField ?: UiTextFieldStyle()).copy(caretColor = parseColor(value))
+            }
+            "selection-color", "text-selection" -> instruction { style ->
+                style.textField = (style.textField ?: UiTextFieldStyle()).copy(selectionColor = parseColor(value))
+            }
+            "line-number-color" -> instruction { style ->
+                style.textField = (style.textField ?: UiTextFieldStyle()).copy(lineNumberColor = parseColor(value))
+            }
+            "inlay-hint-color" -> instruction { style ->
+                style.textField = (style.textField ?: UiTextFieldStyle()).copy(inlayHintColor = parseColor(value))
+            }
+            "line-numbers" -> instruction { style ->
+                style.textField = (style.textField ?: UiTextFieldStyle()).copy(lineNumbers = parseBoolean(value))
+            }
+            "inlay-hints" -> instruction { style ->
+                style.textField = (style.textField ?: UiTextFieldStyle()).copy(inlayHints = parseBoolean(value))
+            }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }

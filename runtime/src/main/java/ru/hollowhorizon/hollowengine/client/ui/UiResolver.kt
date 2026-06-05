@@ -51,7 +51,7 @@ class UiStyleResolver(
             applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
         }
         mutable.merge(node.modifiers.style())
-        applyAttributeStyles(node.attributes, mutable)
+        applyAttributeStyles(node, mutable)
         val computed = mutable.toComputed(parent)
         val keyframes = buildMap {
             theme?.keyframes?.let(::putAll)
@@ -78,9 +78,32 @@ class UiStyleResolver(
             .forEach { it.patch.apply(target, bindings) }
     }
 
-    private fun applyAttributeStyles(attributes: Map<String, String>, target: MutableUiStyle) {
-        attributes.forEach { (name, value) ->
+    private fun applyAttributeStyles(node: UiNode, target: MutableUiStyle) {
+        node.attributes.forEach { (name, value) ->
+            if (node.isWidgetConfigurationAttribute(name)) return@forEach
             compileStyleModifier(name, value)?.applyTo(target)
+        }
+    }
+
+    private fun UiNode.isWidgetConfigurationAttribute(name: String): Boolean {
+        val normalized = name.replace('_', '-')
+        return when (this) {
+            is SliderNode -> normalized in setOf("value", "min", "max", "step")
+            is CheckboxNode -> normalized in setOf("value", "checked", "variant", "style", "type")
+            is TextFieldNode -> normalized in setOf(
+                "value",
+                "text",
+                "mode",
+                "multiline",
+                "multi-line",
+                "filter",
+                "input-filter",
+                "multi-caret",
+                "multicaret",
+                "placeholder",
+                "hint",
+            )
+            else -> false
         }
     }
 
@@ -102,6 +125,27 @@ class UiStyleResolver(
             UiNodeType.CANVAS.typeName,
                 -> {
                 style.size = UiSize(16.px, 16.px)
+            }
+
+            UiNodeType.SLIDER.typeName -> {
+                style.size = UiSize(120.px, 16.px)
+                style.input = UiInputStyle(hoverable = true, clickable = true, draggable = true, focusable = true)
+                style.slider = UiSliderStyle()
+            }
+
+            UiNodeType.CHECKBOX.typeName -> {
+                style.size = UiSize(16.px, 16.px)
+                style.input = UiInputStyle(hoverable = true, clickable = true, focusable = true)
+                style.checkbox = UiCheckboxStyle()
+            }
+
+            UiNodeType.TEXT_FIELD.typeName -> {
+                style.size = UiSize(UiLength.Auto, UiLength.Auto)
+                style.minSize = UiSize(0.px, 18.px)
+                style.padding = UiInsets.hv(4.px, 3.px)
+                style.foreground = UiColor.White
+                style.input = UiInputStyle(hoverable = true, clickable = true, focusable = true)
+                style.textField = UiTextFieldStyle()
             }
         }
         return style

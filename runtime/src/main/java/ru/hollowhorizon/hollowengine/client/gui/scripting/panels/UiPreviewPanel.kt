@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.BufferUploader
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.Tesselator
 import com.mojang.blaze3d.vertex.VertexFormat
+import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.UiScope
 import de.fabmax.kool.modules.ui2.docking.Dock
@@ -14,12 +15,14 @@ import de.fabmax.kool.util.logD
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
+import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL12
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.DrawContext
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvas
+import ru.hollowhorizon.hollowengine.client.kool.KEY_CODE_MAP
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
@@ -41,7 +44,6 @@ import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
 import java.util.*
 import kotlin.math.roundToInt
-import ru.hollowhorizon.hollowengine.client.ui.TextNode as HollowTextNode
 
 object UiPreviewState {
     val previewPath = mutableStateOf<String?>(null)
@@ -74,6 +76,27 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
             GlCanvas("Hollow UI Preview", glCanvas = { drawPreview(path, scale); surface.triggerUpdate() }) {
                 modifier.size(Grow.Std, Grow.Std)
                 modifier.onClick { UiPreviewRenderer.click(it.screenPosition.x, it.screenPosition.y) }
+                modifier.onDragStart {
+                    if (it.pointer.isLeftButtonDown) {
+                        UiPreviewRenderer.press(it.screenPosition.x, it.screenPosition.y, 0)
+                    }
+                }
+                modifier.onDrag {
+                    if (it.pointer.isLeftButtonDown) {
+                        UiPreviewRenderer.drag(
+                            it.screenPosition.x,
+                            it.screenPosition.y,
+                            it.pointer.delta.x,
+                            it.pointer.delta.y,
+                            0,
+                        )
+                    }
+                }
+                modifier.onDragEnd {
+                    if (it.pointer.isLeftButtonReleased) {
+                        UiPreviewRenderer.release(it.screenPosition.x, it.screenPosition.y, 0)
+                    }
+                }
                 modifier.onWheelX {
                     UiPreviewRenderer.scroll(
                         it.screenPosition.x,
@@ -101,6 +124,12 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
                         .zLayer(1000)
                 }
             }
+        }
+    }
+
+    override fun onKeyInput(event: KeyEvent) {
+        if (UiPreviewRenderer.keyInput(event)) {
+            event.isConsumed = true
         }
     }
 
@@ -146,32 +175,33 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
 private object UiPreviewRenderer {
     private val runtime = HollowUiRuntime()
     private val renderer = MinecraftUiRenderer()
-    private var hoveredKey: String? = null
-    private var hoveredLink: String? = null
+    private val input = HollowUiInputController()
     private var lastFrame: HollowUiFrame? = null
     private var lastContext: DrawContext? = null
     private var lastTarget: UiRenderTarget? = null
+    private var lastPath: String? = null
 
     fun render(path: String, context: DrawContext, scale: Float) {
         try {
+            if (path != lastPath) {
+                input.reset()
+                lastPath = path
+            }
             val target = context.toRenderTarget(scale)
             lastContext = context
             lastTarget = target
             val source = path.fromReadablePath().readText()
             val parsed = parseUi(source, UiXmlOptions(resources = PreviewUiResourceLoader))
             val root = buildRoot(parsed, target)
-            UiNodeKeys.assign(root)
-            applyHoverState(root)
+            input.prepareRoot(root)
             val now = System.currentTimeMillis()
             var frame = runtime.frame(root, target.logicalWidth, target.logicalHeight, nowMillis = now)
-            val hit = context.hoveredHit(frame, target)
-            val nextHovered = hit?.node?.let(UiNodeKeys::key)
-            if (nextHovered != hoveredKey || hit?.link != hoveredLink) {
-                hoveredKey = nextHovered
-                hoveredLink = hit?.link
-                applyHoverState(root)
+            val localMouse = context.localMouse(target)
+            if (localMouse != null && input.updateHover(frame, localMouse.x, localMouse.y, ::dispatchPreviewEvent)) {
+                input.prepareRoot(root)
                 frame = runtime.frame(root, target.logicalWidth, target.logicalHeight, nowMillis = now)
             }
+            localMouse?.let { input.dispatchHover(frame, it.x, it.y, ::dispatchPreviewEvent) }
             lastFrame = frame
             PreviewCheckerboard.draw(context)
             renderer.render(frame.commands, target)
@@ -202,11 +232,50 @@ private object UiPreviewRenderer {
 
     fun click(mouseX: Float, mouseY: Float) {
         val frame = lastFrame ?: return
-        val context = lastContext ?: return
+        val local = localPosition(mouseX, mouseY) ?: return
+        val result = input.mouseClicked(frame, local.x, local.y, 0, ::dispatchPreviewEvent, ::openUrl)
+        if (result.handled) {
+            input.mouseReleased(frame, local.x, local.y, 0, ::dispatchPreviewEvent)
+        }
+    }
+
+    fun press(mouseX: Float, mouseY: Float, button: Int) {
+        val frame = lastFrame ?: return
+        val local = localPosition(mouseX, mouseY) ?: return
+        input.mouseClicked(frame, local.x, local.y, button, ::dispatchPreviewEvent, ::openUrl)
+    }
+
+    fun drag(mouseX: Float, mouseY: Float, deltaX: Float, deltaY: Float, button: Int) {
+        val frame = lastFrame ?: return
         val target = lastTarget ?: return
-        if (mouseX < context.x1 || mouseX > context.x2 || mouseY < context.y1 || mouseY > context.y2) return
-        val hit = frame.hitTest((mouseX - context.x) / target.scale, (mouseY - context.y) / target.scale)
-        hit?.link?.let(::openUrl)
+        val local = localPosition(mouseX, mouseY) ?: return
+        input.mouseDragged(
+            frame,
+            local.x,
+            local.y,
+            button,
+            deltaX / target.scale,
+            deltaY / target.scale,
+            ::dispatchPreviewEvent,
+        )
+    }
+
+    fun release(mouseX: Float, mouseY: Float, button: Int) {
+        val frame = lastFrame ?: return
+        val local = localPosition(mouseX, mouseY) ?: return
+        input.mouseReleased(frame, local.x, local.y, button, ::dispatchPreviewEvent)
+    }
+
+    fun keyInput(event: KeyEvent): Boolean {
+        val frame = lastFrame ?: return false
+        return when {
+            event.isCharTyped -> input.charTyped(frame, event.typedChar, event.modifiers(), ::dispatchPreviewEvent).handled
+            event.isPressed -> {
+                val keyCode = event.glfwKeyCode()
+                input.keyPressed(frame, keyCode, event.localKeyCode.code, event.modifiers(), ::dispatchPreviewEvent).handled
+            }
+            else -> false
+        }
     }
 
     private fun buildRoot(content: UiNode, target: UiRenderTarget): UiNode {
@@ -220,24 +289,46 @@ private object UiPreviewRenderer {
         }
     }
 
-    private fun applyHoverState(node: UiNode) {
-        val key = UiNodeKeys.key(node)
-        node.states -= UiState.HOVER
-        if (node is HollowTextNode) node.hoveredLink = if (key == hoveredKey) hoveredLink else null
-        if (key == hoveredKey || node.containsNodeKey(hoveredKey)) node.states += UiState.HOVER
-        node.children.forEach(::applyHoverState)
+    private fun dispatchPreviewEvent(event: UiEvent): Boolean {
+        return event.node.dispatch(event)
     }
 
-    private fun DrawContext.hoveredHit(frame: HollowUiFrame, target: UiRenderTarget): UiHit? {
-        if (mouseX < x1 || mouseX > x2 || mouseY < y1 || mouseY > y2) return null
-        return frame.hitTest((mouseX - x) / target.scale, (mouseY - y) / target.scale)
+    private fun DrawContext.localMouse(target: UiRenderTarget): UiPreviewPoint? {
+        return localPosition(mouseX, mouseY, this, target)
     }
 
+    private fun localPosition(mouseX: Float, mouseY: Float): UiPreviewPoint? {
+        val context = lastContext ?: return null
+        val target = lastTarget ?: return null
+        return localPosition(mouseX, mouseY, context, target)
+    }
+
+    private fun localPosition(
+        mouseX: Float,
+        mouseY: Float,
+        context: DrawContext,
+        target: UiRenderTarget,
+    ): UiPreviewPoint? {
+        if (mouseX < context.x1 || mouseX > context.x2 || mouseY < context.y1 || mouseY > context.y2) return null
+        return UiPreviewPoint((mouseX - context.x) / target.scale, (mouseY - context.y) / target.scale)
+    }
 }
 
-private fun UiNode.containsNodeKey(key: String?): Boolean {
-    if (key == null) return false
-    return children.any { UiNodeKeys.key(it) == key || it.containsNodeKey(key) }
+private data class UiPreviewPoint(
+    val x: Float,
+    val y: Float,
+)
+
+private fun KeyEvent.glfwKeyCode(): Int {
+    return KEY_CODE_MAP.entries.firstOrNull { it.value == keyCode }?.key ?: localKeyCode.code
+}
+
+private fun KeyEvent.modifiers(): Int {
+    var modifiers = 0
+    if (isShiftDown) modifiers = modifiers or GLFW.GLFW_MOD_SHIFT
+    if (isCtrlDown) modifiers = modifiers or GLFW.GLFW_MOD_CONTROL
+    if (isAltDown) modifiers = modifiers or GLFW.GLFW_MOD_ALT
+    return modifiers
 }
 
 private fun DrawContext.toRenderTarget(scale: Float): UiRenderTarget {

@@ -79,6 +79,9 @@ data class UiEvent(
             "kind" -> kind.name.lowercase()
             "node.id", "id" -> node.id.orEmpty()
             "node.type", "type" -> node.type
+            "node.value", "value" -> node.readWidgetValue()
+            "node.checked", "checked" -> (node as? CheckboxNode)?.checked
+            "node.text", "text" -> (node as? TextFieldNode)?.value ?: (node as? TextNode)?.text?.template
             "button" -> button
             "x" -> x
             "y" -> y
@@ -101,6 +104,14 @@ data class UiEvent(
             else -> node.type == clean || node.id == clean || clean in node.tags
         }
     }
+}
+
+private fun UiNode.readWidgetValue(): Any? = when (this) {
+    is SliderNode -> value
+    is CheckboxNode -> checked
+    is TextFieldNode -> value
+    is TextNode -> text.template
+    else -> attributes["value"]
 }
 
 fun interface UiEventSink {

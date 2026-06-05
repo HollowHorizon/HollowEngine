@@ -24,7 +24,10 @@ enum class UiNodeType(val typeName: String) {
     IMAGE("image"),
     ITEM("item"),
     ENTITY("entity"),
-    CANVAS("canvas");
+    CANVAS("canvas"),
+    SLIDER("slider"),
+    CHECKBOX("checkbox"),
+    TEXT_FIELD("text-field");
 }
 
 enum class LayoutType {

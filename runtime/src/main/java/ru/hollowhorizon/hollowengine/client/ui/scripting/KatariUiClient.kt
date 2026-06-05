@@ -152,6 +152,7 @@ private class KatariUiOverlay(
 ) {
     private val runtime = HollowUiRuntime()
     private val renderer = MinecraftUiRenderer()
+    private val input = HollowUiInputController()
     private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
     private var node = buildNode(root, variables)
     private var closing = false
@@ -166,6 +167,7 @@ private class KatariUiOverlay(
         closing = false
         closingStartedAt = null
         closeBaseFrame = null
+        input.reset()
     }
 
     fun update(root: UiXmlTree) {
@@ -183,8 +185,7 @@ private class KatariUiOverlay(
 
     fun render(nowMillis: Long): Boolean {
         val window = Minecraft.getInstance().window
-        node.setClosingState(closing)
-        UiNodeKeys.assign(node)
+        input.prepareRoot(node, closing)
         val frame = runtime.frame(
             node,
             window.guiScaledWidth.toFloat(),

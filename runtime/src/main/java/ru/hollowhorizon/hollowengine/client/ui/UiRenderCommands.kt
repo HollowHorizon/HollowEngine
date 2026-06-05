@@ -132,6 +132,61 @@ data class DrawCanvasCommand(
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
+data class DrawSliderCommand(
+    override val node: SliderNode,
+    val rect: UiRect,
+    val value: Float,
+    val fraction: Float,
+    val trackThickness: Float,
+    val trackPaint: UiResolvedPaint,
+    val activeTrackPaint: UiResolvedPaint,
+    val thumbPaint: UiResolvedPaint,
+    val thumbBorder: UiBorder,
+    val thumbWidth: Float,
+    val thumbHeight: Float,
+    val radius: Float,
+    val opacity: Float,
+    val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+) : UiRenderCommand
+
+data class DrawCheckboxCommand(
+    override val node: CheckboxNode,
+    val rect: UiRect,
+    val checked: Boolean,
+    val variant: UiCheckboxVariant,
+    val activePaint: UiResolvedPaint,
+    val markPaint: UiResolvedPaint,
+    val opacity: Float,
+    val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+) : UiRenderCommand
+
+data class DrawTextFieldChromeCommand(
+    override val node: TextFieldNode,
+    val rect: UiRect,
+    val layout: UiTextLayout,
+    val scrollOffset: UiScrollOffset,
+    val caretIndex: Int,
+    val selectionStart: Int,
+    val selectionEnd: Int,
+    val caretColor: UiColor,
+    val selectionColor: UiColor,
+    val lineNumberColor: UiColor,
+    val inlayHintColor: UiColor,
+    val showCaret: Boolean,
+    val showLineNumbers: Boolean,
+    val showInlayHints: Boolean,
+    val placeholder: String,
+    val opacity: Float,
+    val fontSize: Float,
+    val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+) : UiRenderCommand
+
 data class DrawScrollbarCommand(
     override val node: UiNode,
     val track: UiRect,
@@ -276,7 +331,129 @@ class UiCommandRenderer {
             is ItemNode -> commands += DrawItemCommand(node, layoutNode.content, node.item.resolve(bindings), opacity, contentTransform, filter, backface)
             is EntityNode -> commands += DrawEntityCommand(node, layoutNode.content, node.entity.resolve(bindings), opacity, contentTransform, false, filter, backface)
             is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
+            is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
+            is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
+            is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, commands)
         }
+    }
+
+    private fun sliderCommand(
+        node: SliderNode,
+        style: ComputedStyle,
+        opacity: Float,
+        layoutNode: UiLayoutNode,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+        bindings: UiBindingContext,
+        backface: UiBackfaceVisibility,
+    ): DrawSliderCommand {
+        val slider = style.slider
+        val thumb = slider.thumbSize ?: UiSize(12.px, 12.px)
+        return DrawSliderCommand(
+            node = node,
+            rect = layoutNode.content,
+            value = node.value,
+            fraction = node.fraction,
+            trackThickness = (slider.trackThickness ?: 4.px).resolve(layoutNode.content.height),
+            trackPaint = slider.trackPaint.resolve(bindings, UiPaint.Color(UiColor(0.24f, 0.27f, 0.32f, 1f))),
+            activeTrackPaint = slider.activeTrackPaint.resolve(bindings, UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
+            thumbPaint = slider.thumbPaint.resolve(bindings, UiPaint.Color(UiColor.White)),
+            thumbBorder = slider.thumbBorder ?: UiBorder(UiInsets.all(1.px), UiColor(0.06f, 0.07f, 0.08f, 0.45f), 6f),
+            thumbWidth = thumb.width.resolve(layoutNode.content.width, 12f),
+            thumbHeight = thumb.height.resolve(layoutNode.content.height, 12f),
+            radius = slider.radius ?: 4f,
+            opacity = opacity,
+            transform = transform,
+            filter = filter,
+            backfaceVisibility = backface,
+        )
+    }
+
+    private fun checkboxCommand(
+        node: CheckboxNode,
+        style: ComputedStyle,
+        opacity: Float,
+        layoutNode: UiLayoutNode,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+        bindings: UiBindingContext,
+        backface: UiBackfaceVisibility,
+    ): DrawCheckboxCommand {
+        val checkbox = style.checkbox
+        return DrawCheckboxCommand(
+            node = node,
+            rect = layoutNode.content,
+            checked = node.checked,
+            variant = checkbox.variant ?: node.variant,
+            activePaint = checkbox.activePaint.resolve(bindings, UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
+            markPaint = checkbox.markPaint.resolve(bindings, UiPaint.Color(UiColor.White)),
+            opacity = opacity,
+            transform = transform,
+            filter = filter,
+            backfaceVisibility = backface,
+        )
+    }
+
+    private fun appendTextFieldCommands(
+        node: TextFieldNode,
+        style: ComputedStyle,
+        opacity: Float,
+        layoutNode: UiLayoutNode,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+        backface: UiBackfaceVisibility,
+        commands: MutableList<UiRenderCommand>,
+    ) {
+        val text = node.value
+        val visible = text.ifEmpty { node.placeholder }
+        val wrap = style.textWrap && node.multiline
+        val editLayout = UiTextLayouter.layout(text, layoutNode.content.width, layoutNode.content.height, wrap, style.textAlign, style.fontSize, preserveWhitespace = true)
+        val displayLayout = if (text.isEmpty()) {
+            UiTextLayouter.layout(visible, layoutNode.content.width, layoutNode.content.height, wrap, style.textAlign, style.fontSize)
+        } else {
+            editLayout
+        }
+        val field = style.textField
+        commands += DrawTextFieldChromeCommand(
+            node = node,
+            rect = layoutNode.content,
+            layout = editLayout,
+            scrollOffset = layoutNode.scrollOffset,
+            caretIndex = node.caret,
+            selectionStart = node.selectionStart,
+            selectionEnd = node.selectionEnd,
+            caretColor = field.caretColor ?: style.foreground,
+            selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
+            lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
+            inlayHintColor = field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
+            showCaret = UiState.FOCUS in node.states,
+            showLineNumbers = field.lineNumbers == true,
+            showInlayHints = field.inlayHints == true,
+            placeholder = node.placeholder,
+            opacity = opacity,
+            fontSize = style.fontSize,
+            transform = transform,
+            filter = filter,
+            backfaceVisibility = backface,
+        )
+        commands += DrawTextCommand(
+            node = node,
+            rect = layoutNode.content,
+            text = visible,
+            color = if (text.isEmpty()) (field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.65f)) else style.foreground,
+            opacity = opacity,
+            transform = transform,
+            filter = filter,
+            wrap = wrap,
+            align = style.textAlign,
+            fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
+            textEffects = style.textEffects,
+            layout = displayLayout,
+            scrollOffset = layoutNode.scrollOffset,
+            hoveredLink = null,
+            backfaceVisibility = backface,
+        )
     }
 
     private fun appendScrollbars(

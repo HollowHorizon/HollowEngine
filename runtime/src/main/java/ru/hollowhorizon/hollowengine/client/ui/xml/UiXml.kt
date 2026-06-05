@@ -127,6 +127,34 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
             "item" -> ItemNode(attributes.firstValue("item", "value").bound(), id, tags, modifiers, customAttributes)
             "entity" -> EntityNode(attributes.firstValue("entity", "value").bound(), id, tags, modifiers, customAttributes)
             "canvas" -> CanvasNode(attributes["renderer"], id, tags, modifiers, customAttributes)
+            "slider" -> SliderNode(
+                value = attributes.readSliderValue("value", 0f),
+                min = attributes.readSliderValue("min", 0f),
+                max = attributes.readSliderValue("max", 1f),
+                step = attributes.readSliderValue("step", 0f),
+                id = id,
+                tags = tags,
+                modifiers = modifiers,
+                attributes = customAttributes + attributes.onlyWidgetAttributes(SliderAttributes),
+            )
+            "checkbox" -> CheckboxNode(
+                checked = attributes.readBoolean("checked", attributes.readBoolean("value")),
+                variant = UiCheckboxVariant.from(attributes.firstValue("variant", "style", "type")),
+                id = id,
+                tags = tags,
+                modifiers = modifiers,
+                attributes = customAttributes + attributes.onlyWidgetAttributes(CheckboxAttributes),
+            )
+            "text-field", "textfield", "input", "textarea" -> TextFieldNode(
+                value = attributes.firstValue("value", "text"),
+                mode = attributes.textFieldMode(),
+                filter = UiTextInputFilter.from(attributes.firstValue("filter", "input-filter")),
+                multiCaret = attributes.readBoolean("multi-caret", attributes.readBoolean("multiCaret")),
+                id = id,
+                tags = tags,
+                modifiers = modifiers,
+                attributes = customAttributes + attributes.onlyWidgetAttributes(TextFieldAttributes),
+            ).also { it.placeholder = attributes.firstValue("placeholder", "hint") }
             else -> BaseUiNode(element.name.lowercase(), id, tags, modifiers, customAttributes).also { node ->
                 appendInlineTextIfPresent(node.children, element)
             }
@@ -221,6 +249,22 @@ class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
         )
 
         private const val DocumentElementName = "__document"
+
+        val SliderAttributes = setOf("value", "min", "max", "step")
+        val CheckboxAttributes = setOf("checked", "value", "variant", "style", "type")
+        val TextFieldAttributes = setOf(
+            "value",
+            "text",
+            "mode",
+            "multiline",
+            "multi-line",
+            "filter",
+            "input-filter",
+            "multi-caret",
+            "multiCaret",
+            "placeholder",
+            "hint",
+        )
     }
 }
 
@@ -404,6 +448,15 @@ private fun UiTextContent.trimBoundaryText(): UiTextContent {
 
 private fun Map<String, String>.firstValue(vararg names: String, default: String = ""): String {
     return names.firstNotNullOfOrNull { this[it] } ?: default
+}
+
+private fun Map<String, String>.onlyWidgetAttributes(names: Set<String>): Map<String, String> {
+    return filterKeys { it in names }
+}
+
+private fun Map<String, String>.textFieldMode(): UiTextFieldMode {
+    if (readBoolean("multiline") || readBoolean("multi-line")) return UiTextFieldMode.MULTI_LINE
+    return UiTextFieldMode.from(firstValue("mode", "multiline", "multi-line"))
 }
 
 private fun String.parseInlineSize(): Float? = trim().removeSuffix("px").toFloatOrNull()
