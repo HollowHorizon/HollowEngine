@@ -17,6 +17,7 @@ pluginManagement {
     val architecturyLoomVersion: String by settings
     val shadowVersion: String by settings
     val yamlangVersion: String by settings
+    val modPublishPluginVersion: String by settings
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
@@ -25,6 +26,7 @@ pluginManagement {
         id("com.github.johnrengelman.shadow") version shadowVersion
         id("me.fallenbreath.yamlang") version yamlangVersion
         id("com.google.devtools.ksp") version "2.3.0"
+        id("me.modmuss50.mod-publish-plugin") version modPublishPluginVersion
     }
 }
 
