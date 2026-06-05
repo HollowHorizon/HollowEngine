@@ -55,13 +55,6 @@ fun String.isValidRL(): Boolean {
     return ResourceLocation.tryParse(this) != null
 }
 
-/**
- * Converts a string to a literal Minecraft text component.
- *
- * @return A MutableComponent representing the literal text.
- */
-@Deprecated("Use String.literal instead.", ReplaceWith("this.literal"))
-val String.mcText: MutableComponent get() = Component.literal(this)
 val String.literal: MutableComponent get() = Component.literal(this)
 val String.mcTranslate: MutableComponent get() = Component.translatable(this)
 fun String.mcTranslate(vararg args: Any) = Component.translatable(this, *args)

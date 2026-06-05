@@ -1211,20 +1211,6 @@ private fun LightVisualMesh.addConeLines(segments: Int = 72) {
     addLine(tip, Vec3f(0f, -1f, 1f))
 }
 
-private fun rotationFromForwardZ(direction: Vec3f): QuatF {
-    val normalized = MutableVec3f(direction)
-    if (normalized.length() <= 1e-5f) return QuatF.IDENTITY
-    normalized.norm()
-
-    val forward = Vec3f(0f, 0f, 1f)
-    val dot = forward.dot(normalized)
-    if (dot >= 0.9999f) return QuatF.IDENTITY
-    if (dot <= -0.9999f) return QuatF(0f, 1f, 0f, 0f)
-
-    val axis = forward.cross(normalized, MutableVec3f()).norm()
-    return QuatF(axis.x, axis.y, axis.z, 1f + dot).normed()
-}
-
 private fun inflatePickBounds(bounds: AABB, targetType: TransformGizmoTargetType?): AABB {
     val sizeX = bounds.maxX - bounds.minX
     val sizeY = bounds.maxY - bounds.minY

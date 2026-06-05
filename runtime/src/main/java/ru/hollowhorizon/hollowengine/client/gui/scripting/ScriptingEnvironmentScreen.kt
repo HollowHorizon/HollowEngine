@@ -1,15 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import de.fabmax.kool.Assets
-import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.pipeline.*
 import de.fabmax.kool.scene.Scene
-import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFontData
-import de.fabmax.kool.util.MsdfMeta
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
@@ -19,23 +14,11 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
 import ru.hollowhorizon.hollowengine.client.kool.gl.render
-import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
-import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
-import ru.hollowhorizon.hollowengine.common.utils.rl
-
-val HACK_FONT by lazy {
-    val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/hack.json".rl.stream)
-    val msdfMap = Texture2d(TexFormat.RGBA, MipMapping.Off, SamplerSettings(), "MsdfFont:${fontInfo.name}") {
-        Assets.loadImage2d("hollowengine:fonts/hack.png")
-            .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))
-    }
-    MsdfFontData(msdfMap, fontInfo)
-}
 
 object ScriptingEnvironmentOverlay {
     val dock: Dock

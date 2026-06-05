@@ -193,10 +193,6 @@ data class Controller(var layers: MutableList<Layer>) {
 }
 
 @AnimControllerDSL
-fun animationController(block: ControllerBuilder.() -> Unit): Controller =
-    ControllerBuilder().apply(block).build()
-
-@AnimControllerDSL
 class ControllerBuilder {
     private val layers = mutableListOf<Layer>()
 

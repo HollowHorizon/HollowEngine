@@ -19,8 +19,8 @@ import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.TagParser
 import net.minecraft.nbt.Tag
+import net.minecraft.nbt.TagParser
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
@@ -32,11 +32,13 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
+import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
+import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
 import ru.hollowhorizon.hollowengine.client.utils.mc
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
@@ -44,7 +46,6 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.binding.*
@@ -56,14 +57,10 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
-import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiDocument
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariRunStatus
-import ru.hollowhorizon.hollowengine.common.scripting.katari.katariUi
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiDocument
 import ru.hollowhorizon.hollowengine.common.scripting.katari.getAvailableKatariScripts
+import ru.hollowhorizon.hollowengine.common.scripting.katari.katariUi
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
@@ -930,19 +927,6 @@ private fun KatariUiDocument.openScreenFromCommand(
 private fun parseUiVariables(raw: String): CompoundTag {
     if (raw.isBlank()) return CompoundTag()
     return TagParser.parseTag(raw)
-}
-
-private fun getAvailableScripts(): Collection<String> {
-    val scriptsDir = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").toFile()
-    if (!scriptsDir.exists()) {
-        scriptsDir.mkdirs()
-        return emptyList()
-    }
-
-    return scriptsDir.walk()
-        .filter { it.isFile && it.name.endsWith(".kts") }
-        .map { it.toReadablePath() }
-        .toList()
 }
 
 private fun CommandContext<CommandSourceStack>.printVariables(header: String, map: VariableMap): Int {

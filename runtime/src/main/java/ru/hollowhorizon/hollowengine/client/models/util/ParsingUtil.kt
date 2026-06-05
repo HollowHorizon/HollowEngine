@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.models.util
 
-import org.apache.logging.log4j.LogManager
 import org.lwjgl.system.MemoryUtil
 import ru.hollowhorizon.hollowengine.HollowCore
 import java.nio.ByteBuffer
@@ -67,10 +66,8 @@ val CR = '\u000D'
 val FF = '\u000C'
 
 val Byte.isLineEnd get() = this == CR.code.toByte() || this == LF.code.toByte() || this == NUL.code.toByte() || this == FF.code.toByte()
-val Char.isLineEnd get () = this == CR || this == LF || this == NUL || this == FF
-val Byte.isSpaceOrNewLine get() = isSpace || isLineEnd
+val Char.isLineEnd get() = this == CR || this == LF || this == NUL || this == FF
 val Char.isSpaceOrNewLine get() = isSpace || isLineEnd
-val Char.isNewLine get() = this == LF
 val Byte.isSpace get() = this == SP.code.toByte() || this == HT.code.toByte()
 val Char.isSpace get() = this == SP || this == HT
 

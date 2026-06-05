@@ -7,9 +7,6 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListen
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
-import java.lang.reflect.ParameterizedType
-import kotlin.reflect.KClass
 
 // @SubscribeEvent
 fun onRegisterManagers(event: RegisterReloadListenersEvent.Server) {
@@ -32,7 +29,4 @@ object ComponentReloadManager : ResourceManagerReloadListener {
 
     }
 
-    private fun getComponentType(script: CompiledScript): KClass<Any> {
-        return (((script.type.java.genericSuperclass as Class<*>).genericSuperclass as ParameterizedType).actualTypeArguments[0] as Class<*>).kotlin as KClass<Any>
-    }
 }

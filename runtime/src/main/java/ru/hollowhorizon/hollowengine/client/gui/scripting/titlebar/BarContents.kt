@@ -8,7 +8,6 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -236,28 +235,6 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
 
     if (itemIndex.use() != -1 && items.getOrNull(itemIndex.use()) == null) {
         itemIndex.set(-1)
-    }
-}
-
-private fun UiScope.ActionButton(
-    buttonSize: Dimension,
-    icon: ResourceLocation,
-    action: () -> Unit,
-) {
-    val isHovered by modifier.hoverable()
-    val color by animateColorAsState(
-        if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
-        tween(easing = Easing.easeOutQuart)
-    )
-
-    modifier.padding(Dimensions.PaddingNormal)
-        .background(RoundRectBackground(color, sizes.smallGap))
-        .onClick {
-            action()
-        }
-
-    Image(icon) {
-        modifier.size(buttonSize, buttonSize).alignY(AlignmentY.Center)
     }
 }
 

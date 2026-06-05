@@ -11,8 +11,6 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.timeline.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox as ThemeComboBox
 
-private val playbackSpeeds = listOf(0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f)
-
 fun UiScope.Toolbar(controller: TimelineController, background: Color, extraContent: UiScope.() -> Unit = {}) {
     Row(width = Grow.Std, Grow.Std) {
         modifier

@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.render
 
 import com.mojang.blaze3d.platform.Lighting
-import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import de.fabmax.kool.math.Vec3f
@@ -21,14 +20,12 @@ import org.joml.Quaternionf
 import org.joml.Vector3d
 import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
-import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.EntityModifier
 import ru.hollowhorizon.hollowengine.client.utils.color
 import ru.hollowhorizon.hollowengine.client.utils.endVertex
 import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 import ru.hollowhorizon.hollowengine.client.utils.vertex
 
-import java.io.File
 import kotlin.math.min
 
 object OpenGLUtils {
@@ -41,13 +38,6 @@ object OpenGLUtils {
         bufferbuilder.vertex(matrix, from.x.toFloat(), from.y.toFloat() - 0.1f, from.z.toFloat())
             .color(r, g, b, a)
         bufferbuilder.vertex(matrix, to.x.toFloat(), to.y.toFloat() - 0.1f, to.z.toFloat()).color(r, g, b, a)
-    }
-
-    fun saveTexture(width: Int, height: Int, texture: Int) {
-        NativeImage(width, height, Minecraft.ON_OSX).apply {
-            RenderSystem.setShaderTexture(0, texture)
-            downloadTexture(0, false)
-        }.writeToFile(File("hollowengine/framebuffer_debug.png"))
     }
 
     fun renderGrid(stack: PoseStack, color: Color, size: Int = 10, step: Float = 1f) {
@@ -221,40 +211,6 @@ fun ItemStack.render(
         if (!depthEnabled) RenderSystem.disableDepthTest()
         GL11.glDepthMask(depthMask)
     }
-}
-
-fun renderItemDecorations(stack: ItemStack, poseStack: PoseStack, x: Int, y: Int, width: Float, height: Float) {
-    if (stack.isBarVisible) {
-        val i = stack.barWidth / 16f
-        val j = stack.barColor
-        val k = (x + width * 0.125f).toInt()
-        val l = (y + height * 0.8125f).toInt()
-        fill(
-            poseStack,
-            RenderType.guiOverlay(),
-            k,
-            l,
-            (k + width * 0.8125f).toInt(),
-            (l + height * 0.125f).toInt(),
-            0,
-            -16777216
-        )
-        fill(
-            poseStack, RenderType.guiOverlay(), k, l, (k + i * width).toInt(),
-            (l + height * 0.0625f).toInt(), 10,
-            j or -16777216
-        )
-    }
-    Minecraft.getInstance().player?.cooldowns?.getCooldownPercent(
-        stack.item, TickHandler.partialTick
-    )?.let { f ->
-        if (f > 0) {
-            val k = y + width * (Mth.floor(16.0f * (1.0f - f)) / 16f)
-            val l = k + height * Mth.ceil(16.0f * f) / 16f
-            fill(poseStack, RenderType.guiOverlay(), x, k.toInt(), (x + width).toInt(), l.toInt(), 0, Int.MAX_VALUE)
-        }
-    }
-
 }
 
 fun fill(stack: PoseStack, renderType: RenderType, minX: Int, minY: Int, maxX: Int, maxY: Int, z: Int, color: Int) {

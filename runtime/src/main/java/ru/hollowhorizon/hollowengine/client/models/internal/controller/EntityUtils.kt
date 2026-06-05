@@ -10,10 +10,7 @@ private const val TURN_ANIMATION_DEAD_ZONE = 3f
 private const val TURN_ANIMATION_FULL_ANGLE = 35f
 private const val TURN_ANIMATION_SPEED = 0.8f
 
-private val LivingEntity.animationSpeed: Float
-    get() = calculateSpeedViaDeltaMovement(this)
 const val MOVEMENT_FACTOR = (1 / 256f)
-val LivingEntity.isMoving get() = abs(animationSpeed) >= MOVEMENT_FACTOR
 
 fun calculateSpeedViaDeltaMovement(entity: LivingEntity): Float {
     val vel = entity.deltaMovement

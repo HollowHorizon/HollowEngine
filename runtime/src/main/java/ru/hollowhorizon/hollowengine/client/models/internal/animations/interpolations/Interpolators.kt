@@ -6,10 +6,8 @@ import de.fabmax.kool.math.Vec3f
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.client.utils.math.conjugate
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.cos
-import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.sin
-import kotlin.math.sqrt
 
 class Vec3Step(keys: FloatArray, values: Array<Vec3f>) : StaticInterpolator<Vec3f>(keys, values) {
     override fun compute(time: Float): Vec3f = values[time.animIndex]
@@ -164,26 +162,3 @@ class CatmullromQuat(
     }
 }
 
-fun MutableQuatF.sphericalLerp(target: QuatF, alpha: Float) {
-    val cosom = Math.fma(x, target.x, Math.fma(y, target.y, Math.fma(z, target.z, w * target.w)))
-    val absCosom = abs(cosom)
-    val scale0: Float
-    var scale1: Float
-    if (1.0f - absCosom > 1E-6f) {
-        val sinSqr = 1.0f - absCosom * absCosom
-        val sinom = 1.0f / sqrt(sinSqr)
-        val omega = atan2(sinSqr * sinom, absCosom)
-        scale0 = (sin((1.0f - alpha) * omega) * sinom)
-        scale1 = (sin(alpha * omega) * sinom)
-    } else {
-        scale0 = 1.0f - alpha
-        scale1 = alpha
-    }
-    scale1 = if (cosom >= 0.0f) scale1 else -scale1
-    set(
-        Math.fma(scale0, x, scale1 * target.w),
-        Math.fma(scale0, y, scale1 * target.z),
-        Math.fma(scale0, z, scale1 * target.y),
-        Math.fma(scale0, w, scale1 * target.x)
-    )
-}

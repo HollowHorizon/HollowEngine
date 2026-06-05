@@ -768,12 +768,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         )
     }
 
-    private fun List<CompletionItem>.filterByPrefix(text: String, offset: Int): List<CompletionItem> {
-        val prefix = CompletionContext.from(text, offset).prefix
-        return filter { it.name.startsWith(prefix, ignoreCase = true) }
-    }
-
-    private fun CompletionItem.completionIdentity(): List<String?> {
+private fun CompletionItem.completionIdentity(): List<String?> {
         return when (this) {
             is CompletionItem.Declaration -> listOf(name, show, tag.name, middle, tail)
             is CompletionItem.Keyword -> listOf(name, show, tag.name)

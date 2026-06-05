@@ -277,12 +277,6 @@ fun <T : Any?> SubMenuItem(
     return menu
 }
 
-fun loadMenu(node: Node, action: (Node) -> Unit) = SubMenuItem<Node> {
-    node.children.values.forEach {
-        loadMenu(it, action)
-    }
-}
-
 fun SubMenuItem<Node>.loadMenu(node: Node, action: (Node) -> Unit) {
     if (node.children.isNotEmpty()) {
         subMenu(node.name) {

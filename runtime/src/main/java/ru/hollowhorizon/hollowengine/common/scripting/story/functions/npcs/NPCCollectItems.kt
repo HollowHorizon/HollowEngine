@@ -5,14 +5,12 @@ import com.sunnychung.lib.multiplatform.kotlite.model.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.ServerRuntimeState
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariHostReferences
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
 import ru.hollowhorizon.hollowengine.common.utils.areStacksEqual
 
@@ -27,21 +25,6 @@ fun NarrativeBindingsBuilder.registerNpcRequestItemsBinding(server: MinecraftSer
     }
 
     register(RequestItemsCallable(server))
-}
-
-suspend fun NpcEntity.requestItems(vararg items: ItemStack) {
-    val server = (level() as ServerLevel).server
-    val npcId = uuid
-    val requested = items
-        .map(ItemStack::copy)
-        .filterNot(ItemStack::isEmpty)
-        .toMutableList()
-
-    while (requested.isNotEmpty()) {
-        val npc = KatariHostReferences.awaitEntity(server, npcId, NpcEntity::class.java)
-        npc.pickupRequestedItems(requested)
-        delay(50)
-    }
 }
 
 private class RequestItemsCallable(
