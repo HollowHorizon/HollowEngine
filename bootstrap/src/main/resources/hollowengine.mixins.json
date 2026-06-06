@@ -33,7 +33,7 @@
     "client.GameRendererMixin",
     "client.GuiMixin",
     "client.LayerDefinitionsMixin",
-    "client.LevelRendererDirtyMixin",
+    "client.iris.LevelRendererDirtyMixin",
     "client.MinecraftMixin",
     "client.MultiplayerGameModeMixin",
     "client.ParticleEngineMixin",

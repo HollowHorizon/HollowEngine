@@ -3,10 +3,8 @@ package ru.hollowhorizon.hollowengine.client.render
 import com.mojang.blaze3d.vertex.PoseStack
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
-import net.irisshaders.iris.mixin.LevelRendererAccessor
 import net.minecraft.client.CameraType
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
@@ -27,6 +25,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderCont
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
+import ru.hollowhorizon.hollowengine.common.events.RequireMod
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
@@ -43,12 +42,14 @@ object RenderManager {
     }
 
     @SubscribeEvent
+    @RequireMod("iris")
     fun onPrepareClusteredLighting(event: RenderLevelStageEvent) {
         if (event.stage != RenderStage.AFTER_SKY) return
         ClusteredLightingManager.prepareFrame(event)
     }
 
     @SubscribeEvent
+    @RequireMod("iris")
     fun onDispatchDeferredLightCulling(event: RenderLevelStageEvent) {
         ClusteredLightingManager.dispatchDeferredCulling(event)
     }
@@ -88,65 +89,6 @@ object RenderManager {
         flushNodeBatches(bufferSource, renderStats)
     }
 
-    fun renderLocalShadowCasters(
-        renderer: LevelRendererAccessor,
-        modelView: PoseStack,
-        cameraPosition: Vec3,
-        partialTick: Float,
-        frustum: Frustum?,
-    ) {
-        val minecraft = Minecraft.getInstance()
-        val level = minecraft.level ?: return
-        val bufferSource = renderer.renderBuffers.bufferSource()
-
-        renderEntities(
-            renderer = renderer,
-            entities = level.entitiesForRendering(),
-            modelView = modelView,
-            bufferSource = bufferSource,
-            cameraPosition = cameraPosition,
-            partialTick = partialTick,
-            frustum = frustum,
-        )
-        renderPlayerShadowIfNeeded(
-            renderer = renderer,
-            modelView = modelView,
-            bufferSource = bufferSource,
-            cameraPosition = cameraPosition,
-            partialTick = partialTick,
-            frustum = frustum,
-        )
-        renderNodeShadowCasters(
-            partialTick = partialTick,
-            poseStack = modelView,
-            bufferSource = bufferSource,
-            cameraPosition = cameraPosition,
-            frustum = frustum,
-            packedLight = LightTexture.FULL_BRIGHT,
-            allowInstancing = false,
-        )
-    }
-
-    fun renderIrisShadowCasters(
-        modelView: PoseStack,
-        bufferSource: MultiBufferSource,
-        partialTick: Float,
-        frustum: Frustum?,
-        cameraX: Double,
-        cameraY: Double,
-        cameraZ: Double,
-    ) {
-        renderNodeShadowCasters(
-            partialTick = partialTick,
-            poseStack = modelView,
-            bufferSource = bufferSource,
-            cameraPosition = Vec3(cameraX, cameraY, cameraZ),
-            frustum = frustum,
-            packedLight = LightTexture.FULL_BRIGHT,
-            allowInstancing = false,
-        )
-    }
-
     @SubscribeEvent
     fun onRenderParticles(event: RenderLevelStageEvent) {
         if (event.stage != RenderStage.AFTER_PARTICLES) return
@@ -176,83 +118,9 @@ object RenderManager {
         )
     }
 
-    private fun renderEntities(
-        renderer: LevelRendererAccessor,
-        entities: Iterable<Entity>,
-        modelView: PoseStack,
-        bufferSource: MultiBufferSource,
-        cameraPosition: Vec3,
-        partialTick: Float,
-        frustum: Frustum?,
-    ) {
-        val minecraft = Minecraft.getInstance()
-        val dispatcher = minecraft.entityRenderDispatcher
 
-        entities.forEach { entity ->
-            if (!entity.isAlive || entity.isSpectator) return@forEach
-            if (!dispatcher.shouldRender(
-                    entity,
-                    frustum,
-                    cameraPosition.x,
-                    cameraPosition.y,
-                    cameraPosition.z
-                )
-            ) return@forEach
-            renderer.invokeRenderEntity(
-                entity, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick,
-                modelView, bufferSource
-            )
-        }
-    }
 
-    private fun renderPlayerShadowIfNeeded(
-        renderer: LevelRendererAccessor,
-        modelView: PoseStack,
-        bufferSource: MultiBufferSource,
-        cameraPosition: Vec3,
-        partialTick: Float,
-        frustum: Frustum?,
-    ) {
-        val minecraft = Minecraft.getInstance()
-        val dispatcher = minecraft.entityRenderDispatcher
-        val player = minecraft.player ?: return
-        if (player.isSpectator) return
-        if (!dispatcher.shouldRender(player, frustum, cameraPosition.x, cameraPosition.y, cameraPosition.z)) return
-
-        player.vehicle?.let { vehicle ->
-            renderer.invokeRenderEntity(
-                vehicle,
-                cameraPosition.x,
-                cameraPosition.y,
-                cameraPosition.z,
-                partialTick,
-                modelView,
-                bufferSource
-            )
-        }
-        player.passengers.forEach { passenger ->
-            renderer.invokeRenderEntity(
-                passenger,
-                cameraPosition.x,
-                cameraPosition.y,
-                cameraPosition.z,
-                partialTick,
-                modelView,
-                bufferSource
-            )
-        }
-        renderer.invokeRenderEntity(
-            player,
-            cameraPosition.x,
-            cameraPosition.y,
-            cameraPosition.z,
-            partialTick,
-            modelView,
-            bufferSource
-        )
-    }
-
-    private fun renderNodeModels(
+    internal fun renderNodeModels(
         partialTick: Float,
         poseStack: PoseStack,
         bufferSource: MultiBufferSource,
@@ -378,28 +246,9 @@ object RenderManager {
         return AnimatorEvaluationContext(deltaTime = 0f, time = time, values = values)
     }
 
-    private fun renderNodeShadowCasters(
-        partialTick: Float,
-        poseStack: PoseStack,
-        bufferSource: MultiBufferSource,
-        cameraPosition: Vec3,
-        frustum: Frustum?,
-        packedLight: Int,
-        allowInstancing: Boolean,
-    ) {
-        val renderStats = renderNodeModels(
-            partialTick = partialTick,
-            poseStack = poseStack,
-            bufferSource = bufferSource,
-            cameraPosition = cameraPosition,
-            frustum = frustum,
-            packedLight = packedLight,
-            allowInstancing = allowInstancing,
-        )
-        flushNodeBatches(bufferSource, renderStats)
-    }
 
-    private fun flushNodeBatches(bufferSource: MultiBufferSource, renderStats: NodeRenderStats) {
+
+    internal fun flushNodeBatches(bufferSource: MultiBufferSource, renderStats: NodeRenderStats) {
         if (!renderStats.renderedAny || renderStats.openedBatchedRenderTypes.isEmpty()) return
         val flushable = bufferSource as? MultiBufferSource.BufferSource ?: return
         renderStats.openedBatchedRenderTypes.forEach(flushable::endBatch)
@@ -432,7 +281,7 @@ object RenderManager {
             horizontalSpeed
         }
 
-    private data class NodeRenderStats(
+    internal data class NodeRenderStats(
         val renderedAny: Boolean,
         val openedBatchedRenderTypes: Set<net.minecraft.client.renderer.RenderType>,
     ) {

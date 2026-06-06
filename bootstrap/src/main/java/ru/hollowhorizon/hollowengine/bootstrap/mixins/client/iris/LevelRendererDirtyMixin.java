@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.bootstrap.mixins.client;
+package ru.hollowhorizon.hollowengine.bootstrap.mixins.client.iris;
 
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;

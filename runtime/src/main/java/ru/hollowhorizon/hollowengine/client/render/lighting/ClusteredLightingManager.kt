@@ -342,7 +342,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         LocalLightShadowManager.addCustomImages(customImages)
     }
 
-    fun isLocalShadowPassActive(): Boolean = LocalLightShadowManager.isLocalShadowPassActive()
+    fun isLocalShadowPassActive(): Boolean = IrisHelper.hasIris && LocalLightShadowManager.isLocalShadowPassActive()
 
     fun getIrisLocalShadowViewMatrix(): Matrix4f = LocalLightShadowManager.currentShadowViewMatrix()
 

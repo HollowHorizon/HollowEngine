@@ -15,6 +15,6 @@ fun loadBootstrapOrRuntimeClass(className: String, fallbackClassLoader: ClassLoa
 fun RuntimeMethodRef.resolve(fallbackClassLoader: ClassLoader): Method? {
     val owner = loadBootstrapOrRuntimeClass(ownerClassName, fallbackClassLoader) ?: return null
     val method = runCatching { owner.methods.first { it.name == methodName } }
-    method.exceptionOrNull()?.let { HollowEngine.LOGGER.error("Error while loading $ownerClassName.$methodName(...)") }
+    method.exceptionOrNull()?.let { HollowEngine.LOGGER.error("Error while loading $ownerClassName.$methodName(...): ", it) }
     return method.getOrNull()
 }

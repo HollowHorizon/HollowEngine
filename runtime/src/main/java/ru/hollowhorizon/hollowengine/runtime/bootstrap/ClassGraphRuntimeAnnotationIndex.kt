@@ -3,8 +3,10 @@ package ru.hollowhorizon.hollowengine.runtime.bootstrap
 import io.github.classgraph.ClassGraph
 import io.github.classgraph.ScanResult
 import org.apache.logging.log4j.LogManager
+import ru.hollowhorizon.hollowengine.common.events.RequireMod
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeMethodRef
+import ru.hollowhorizon.hollowengine.common.utils.ModList
 import java.net.URLClassLoader
 
 class ClassGraphRuntimeAnnotationIndex(
@@ -27,8 +29,15 @@ class ClassGraphRuntimeAnnotationIndex(
                 if (!isClient && classInfo.name in clientOnlyClasses) return@flatMapTo emptyList()
 
                 classInfo.methodInfo
+                    .asSequence()
                     .filter { methodInfo -> methodInfo.hasAnnotation(annotationClassName) }
-                    .map { methodInfo -> RuntimeMethodRef(classInfo.name, methodInfo.name) }
+                    .filter { methodInfo ->
+                        if (!methodInfo.hasAnnotation(RequireMod::class.java)) return@filter true
+                        val mod =
+                            methodInfo.getAnnotationInfo(RequireMod::class.java).parameterValues[0].value as String
+                        ModList.isLoaded(mod)
+                    }
+                    .mapTo(mutableListOf()) { methodInfo -> RuntimeMethodRef(classInfo.name, methodInfo.name) }
             }
     }
 

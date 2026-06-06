@@ -74,7 +74,7 @@ import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
-import ru.hollowhorizon.hollowengine.client.render.RenderManager
+import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
@@ -796,7 +796,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         cameraY: Double,
         cameraZ: Double,
     ) {
-        RenderManager.renderIrisShadowCasters(poseStack, bufferSource, partialTick, frustum, cameraX, cameraY, cameraZ)
+        IrisRenderManager.renderIrisShadowCasters(poseStack, bufferSource, partialTick, frustum, cameraX, cameraY, cameraZ)
     }
 
     override fun onIrisShadowRenderEnd() {

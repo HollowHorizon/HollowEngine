@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsE
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.common.utils.ModList
 
 @ClientOnly
 object HollowCoreClient {
@@ -35,7 +36,7 @@ object HollowCoreClient {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
         event.register(ImageManager)
-        event.register(ClusteredLightingManager)
+        if (ModList.isLoaded("iris")) event.register(ClusteredLightingManager)
     }
 
     @SubscribeEvent

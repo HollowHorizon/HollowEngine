@@ -33,11 +33,12 @@ import org.lwjgl.opengl.GL12C
 import org.lwjgl.opengl.GL30C
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.LevelRendererInvoker
-import ru.hollowhorizon.hollowengine.client.render.RenderManager
+import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
+import ru.hollowhorizon.hollowengine.common.events.RequireMod
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -133,11 +134,13 @@ internal object LocalLightShadowManager {
     }
 
     @SubscribeEvent
+    @RequireMod("iris")
     fun onNeighborNotify(@Suppress("UNUSED_PARAMETER") event: BlockEvent.NeighborNotify) {
         worldMutationStamp++
     }
 
     @SubscribeEvent
+    @RequireMod("iris")
     fun onBlockPlaced(event: BlockEvent.Placed) {
         if (event.player.level().isClientSide) {
             worldMutationStamp++
@@ -145,6 +148,7 @@ internal object LocalLightShadowManager {
     }
 
     @SubscribeEvent
+    @RequireMod("iris")
     fun onBlockBreak(event: BlockEvent.Break) {
         if (event.level.isClientSide) {
             worldMutationStamp++
@@ -479,7 +483,7 @@ internal object LocalLightShadowManager {
                     atlas.bind()
                     GL11C.glViewport(viewport.x, viewport.y, viewport.width, viewport.height)
                     GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
-                    RenderManager.renderLocalShadowCasters(
+                    IrisRenderManager.renderLocalShadowCasters(
                         renderer = renderer,
                         modelView = PoseStack().apply { mulPose(stack) },
                         cameraPosition = lightCameraPosition,
