@@ -28,6 +28,9 @@ internal fun UiXmlTree.replaceChildrenFirst(
 ): UiXmlTree {
     if (matchesTarget(target)) {
         markReplaced()
+        children.singleOrNull()?.let {
+            return it
+        }
         return copy(children = children)
     }
     return updateFirstChild(target) { current, mark ->
