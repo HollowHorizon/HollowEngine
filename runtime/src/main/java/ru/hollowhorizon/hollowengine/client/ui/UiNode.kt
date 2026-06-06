@@ -103,6 +103,9 @@ class EntityNode(
 annotation class HollowUiDsl
 
 @HollowUiDsl
+@Deprecated(
+    message = "Use Compose UI functions with HollowUiComposition or HollowComposeUiRuntime.",
+)
 class UiScope(private val target: UiChildren) {
     fun Node(node: UiNode): UiNode {
         target += node
@@ -217,6 +220,9 @@ class UiScope(private val target: UiChildren) {
     }
 }
 
+@Deprecated(
+    message = "Use Compose UI functions with HollowUiComposition or HollowComposeUiRuntime.",
+)
 fun HollowUi(
     id: String? = null,
     tags: Iterable<String> = emptyList(),

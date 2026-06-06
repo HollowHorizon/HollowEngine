@@ -54,14 +54,23 @@ data class UiXmlTree(
     companion object
 }
 
+@Deprecated(
+    message = "Use parseUiXml with UiXmlContent inside HollowUiComposition or HollowComposeUiRuntime.",
+)
 fun parseUi(source: String, options: UiXmlOptions = UiXmlOptions()): BoxNode {
     return UiXmlBuilder(options).build(parseUiXml(source))
 }
 
+@Deprecated(
+    message = "Use UiXmlTree.from with UiXmlContent inside HollowUiComposition or HollowComposeUiRuntime.",
+)
 fun buildUi(xml: XmlValue, options: UiXmlOptions = UiXmlOptions()): BoxNode {
     return UiXmlBuilder(options).build(UiXmlTree.from(xml))
 }
 
+@Deprecated(
+    message = "Use UiXmlContent inside HollowUiComposition or HollowComposeUiRuntime.",
+)
 class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
     fun build(root: UiXmlTree): BoxNode {
         return buildDocument(root).root

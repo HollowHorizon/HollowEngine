@@ -9,11 +9,14 @@ import ru.hollowhorizon.hollowengine.client.ui.Text
 import ru.hollowhorizon.hollowengine.client.ui.TextField
 import ru.hollowhorizon.hollowengine.client.ui.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
+import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 import ru.hollowhorizon.hollowengine.client.ui.percent
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.setClosingState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -210,10 +213,73 @@ class UiComposeTests {
         }
     }
 
+    @Test
+    fun `compose closing without closing motion ignores active hover transition`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                scale: 1;
+                transition: scale 1000ms linear;
+            }
+
+            .dialog:hover {
+                scale: 1.2;
+            }
+            """.trimIndent(),
+        )
+
+        HollowComposeUiRuntime(stylesheet = stylesheet).use { runtime ->
+            runtime.setContent {
+                Box(id = "dialog", tags = listOf("dialog"))
+            }
+            runtime.frame(100f, 40f, nowMillis = 0L)
+            val dialog = runtime.root.child("dialog")
+            dialog.states += UiState.HOVER
+            val hovered = runtime.frame(100f, 40f, nowMillis = 0L)
+
+            runtime.root.setClosingState(true)
+            val closing = runtime.frame(100f, 40f, nowMillis = 0L)
+
+            assertEquals(0L, closing.motionDurationMillis(hovered))
+        }
+    }
+
+    @Test
+    fun `compose closing transition contributes close motion duration`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                opacity: 1;
+                transition: opacity 250ms linear;
+            }
+
+            .dialog:closing {
+                opacity: 0;
+            }
+            """.trimIndent(),
+        )
+
+        HollowComposeUiRuntime(stylesheet = stylesheet).use { runtime ->
+            runtime.setContent {
+                Box(id = "dialog", tags = listOf("dialog"))
+            }
+            val opened = runtime.frame(100f, 40f, nowMillis = 0L)
+
+            runtime.root.setClosingState(true)
+            val closing = runtime.frame(100f, 40f, nowMillis = 0L)
+
+            assertEquals(250L, closing.motionDurationMillis(opened))
+        }
+    }
+
     private fun BoxNode.textField(): TextFieldNode {
         return children
             .flatMap { child -> if (child is BoxNode) child.children else listOf(child) }
             .filterIsInstance<TextFieldNode>()
             .single()
+    }
+
+    private fun BoxNode.child(id: String): BoxNode {
+        return children.filterIsInstance<BoxNode>().single { it.id == id }
     }
 }

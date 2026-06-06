@@ -7,6 +7,7 @@ data class HollowUiFrame(
     val layout: UiLayoutResult,
     val commands: List<UiRenderCommand>,
     private val activeTransitionDurations: Map<String, Long> = emptyMap(),
+    private val startedTransitionDurations: Map<String, Long> = emptyMap(),
     private val activeScrollAnimation: Boolean = false,
 ) {
     fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(resolved, layout, x, y)
@@ -34,7 +35,7 @@ data class HollowUiFrame(
         return resolved.styles.maxOfOrNull { (node, style) ->
             val key = UiNodeKeys.key(node)
             maxOf(
-                activeTransitionDurations[key] ?: 0L,
+                startedTransitionDurations[key] ?: 0L,
                 style.motionDurationMillis(previousStyles[key]),
             )
         } ?: 0L
@@ -146,12 +147,22 @@ class HollowUiRuntime(
         val activeTransitionDurations = resolved.styles.keys.associate { node ->
             UiNodeKeys.key(node) to transitionState.activeDurationMillis(node)
         }
+        val startedTransitionDurations = resolved.styles.keys.associate { node ->
+            UiNodeKeys.key(node) to transitionState.startedDurationMillis(node)
+        }
         var layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
         if (ensureFocusedTextFieldsVisible(resolved, layout)) {
             layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
         }
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
-        return HollowUiFrame(resolved, layout, commands, activeTransitionDurations, scrollState.isAnimating())
+        return HollowUiFrame(
+            resolved = resolved,
+            layout = layout,
+            commands = commands,
+            activeTransitionDurations = activeTransitionDurations,
+            startedTransitionDurations = startedTransitionDurations,
+            activeScrollAnimation = scrollState.isAnimating(),
+        )
     }
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset = scrollState.scroll(node, deltaX, deltaY)

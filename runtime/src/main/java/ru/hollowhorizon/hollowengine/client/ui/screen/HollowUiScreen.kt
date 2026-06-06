@@ -37,6 +37,7 @@ abstract class HollowUiScreen(
     private var closeCompleted = false
     private var closeStartedAt = 0L
     private var closeBaseFrame: HollowUiFrame? = null
+    private var closeDurationMillis: Long? = null
     protected var mouseX: Float = 0f
         private set
     protected var mouseY: Float = 0f
@@ -73,6 +74,7 @@ abstract class HollowUiScreen(
         closing = true
         closeStartedAt = System.currentTimeMillis()
         closeBaseFrame = frame
+        closeDurationMillis = null
         input.clearInteraction()
         val current = if (width > 0 && height > 0) {
             invalidateUi(immediate = true)
@@ -80,7 +82,9 @@ abstract class HollowUiScreen(
         } else {
             null
         }
-        if (current == null || current.motionDurationMillis(closeBaseFrame) <= 0L) {
+        val duration = current?.motionDurationMillis(closeBaseFrame) ?: 0L
+        closeDurationMillis = duration
+        if (duration <= 0L) {
             closeCompleted = true
             Minecraft.getInstance().setScreen(null)
         }
@@ -282,7 +286,9 @@ abstract class HollowUiScreen(
 
     private fun completeClosingIfReady(current: HollowUiFrame, nowMillis: Long): Boolean {
         if (!closing) return false
-        val duration = current.motionDurationMillis(closeBaseFrame)
+        val duration = closeDurationMillis ?: current.motionDurationMillis(closeBaseFrame).also {
+            closeDurationMillis = it
+        }
         if (nowMillis - closeStartedAt < duration) return false
         closeCompleted = true
         Minecraft.getInstance().setScreen(null)

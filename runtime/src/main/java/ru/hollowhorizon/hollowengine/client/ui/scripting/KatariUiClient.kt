@@ -202,6 +202,7 @@ private class KatariUiOverlay(
     private var node = composeNode()
     private var closing = false
     private var closingStartedAt: Long? = null
+    private var closingDurationMillis: Long? = null
     private var closeBaseFrame: HollowUiFrame? = null
     private var lastFrame: HollowUiFrame? = null
     private var activeButton: Int? = null
@@ -214,6 +215,7 @@ private class KatariUiOverlay(
         node = composeNode()
         closing = false
         closingStartedAt = null
+        closingDurationMillis = null
         closeBaseFrame = null
         input.reset()
         activeButton = null
@@ -229,6 +231,7 @@ private class KatariUiOverlay(
         node = composeNode()
         closing = true
         closingStartedAt = null
+        closingDurationMillis = null
         closeBaseFrame = lastFrame
         activeButton = null
         input.clearInteraction()
@@ -241,7 +244,9 @@ private class KatariUiOverlay(
             return false
         }
         val closeStartedAt = closingStartedAt ?: nowMillis.also { closingStartedAt = it }
-        val duration = frame.motionDurationMillis(closeBaseFrame)
+        val duration = closingDurationMillis ?: frame.motionDurationMillis(closeBaseFrame).also {
+            closingDurationMillis = it
+        }
         if (duration <= 0L || nowMillis - closeStartedAt >= duration) return true
         renderer.render(frame.commands)
         return false

@@ -805,9 +805,11 @@ class UiTransitionState {
     private val targets = mutableMapOf<String, ComputedStyle>()
     private val startedAt = mutableMapOf<String, Long>()
     private val activeDurations = mutableMapOf<String, Long>()
+    private val startedDurations = mutableMapOf<String, Long>()
 
     fun apply(node: UiNode, target: ComputedStyle, nowMillis: Long): ComputedStyle {
         val key = UiNodeKeys.key(node)
+        startedDurations[key] = 0L
         val current = rendered[key]
         if (current == null) {
             rendered[key] = target
@@ -816,10 +818,12 @@ class UiTransitionState {
             return target
         }
         val oldTarget = targets[key]
+        var targetChanged = false
         if (oldTarget != target) {
             starts[key] = current
             targets[key] = target
             startedAt[key] = nowMillis
+            targetChanged = true
         } else if (!startedAt.containsKey(key)) {
             activeDurations[key] = 0L
             return target
@@ -835,8 +839,11 @@ class UiTransitionState {
             starts.remove(key)
             startedAt.remove(key)
             activeDurations[key] = 0L
+            startedDurations[key] = 0L
         }
-        activeDurations[key] = transitions.maxOfOrNull { it.durationMillis } ?: 0L
+        val duration = transitions.maxOfOrNull { it.durationMillis } ?: 0L
+        activeDurations[key] = duration
+        if (targetChanged) startedDurations[key] = duration
         val start = startedAt[key] ?: nowMillis
         val progress = transitions.progress(max(0L, nowMillis - start))
         val result = startStyle.interpolate(target, progress)
@@ -847,11 +854,14 @@ class UiTransitionState {
             starts.remove(key)
             startedAt.remove(key)
             activeDurations[key] = 0L
+            startedDurations[key] = 0L
         }
         return result
     }
 
     fun activeDurationMillis(node: UiNode): Long = activeDurations[UiNodeKeys.key(node)] ?: 0L
+
+    fun startedDurationMillis(node: UiNode): Long = startedDurations[UiNodeKeys.key(node)] ?: 0L
 
     private fun List<UiTransition>.progress(elapsedMillis: Long): TransitionProgress {
         return TransitionProgress(

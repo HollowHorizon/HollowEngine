@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
+import androidx.compose.runtime.mutableStateOf as composeStateOf
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.BufferUploader
@@ -23,15 +24,30 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.DrawContext
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvas
 import ru.hollowhorizon.hollowengine.client.kool.KEY_CODE_MAP
-import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.Box as ComposeBox
+import ru.hollowhorizon.hollowengine.client.ui.HollowComposeUiRuntime
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiInputController
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
+import ru.hollowhorizon.hollowengine.client.ui.HssResourceLoader
+import ru.hollowhorizon.hollowengine.client.ui.LayoutType
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.UiEvent
+import ru.hollowhorizon.hollowengine.client.ui.UiNode as HollowUiNode
+import ru.hollowhorizon.hollowengine.client.ui.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.dispatch
+import ru.hollowhorizon.hollowengine.client.ui.hasScrollableAxis
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
+import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.scrollWheelDelta
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiResourceLoader
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
-import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryWatcher
@@ -173,33 +189,43 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
 }
 
 private object UiPreviewRenderer {
-    private val runtime = HollowUiRuntime()
+    private val runtime = HollowComposeUiRuntime()
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
+    private val contentTree = composeStateOf(UiXmlTree("box"))
+    private val contentSize = composeStateOf(UiPreviewSize(1f, 1f))
     private var lastFrame: HollowUiFrame? = null
     private var lastContext: DrawContext? = null
     private var lastTarget: UiRenderTarget? = null
     private var lastPath: String? = null
+    private var lastSource: String? = null
+    private var contentInstalled = false
 
     fun render(path: String, context: DrawContext, scale: Float) {
         try {
             if (path != lastPath) {
                 input.reset()
                 lastPath = path
+                lastSource = null
             }
             val target = context.toRenderTarget(scale)
             lastContext = context
             lastTarget = target
             val source = path.fromReadablePath().readText()
-            val parsed = parseUi(source, UiXmlOptions(resources = PreviewUiResourceLoader))
-            val root = buildRoot(parsed, target)
+            if (source != lastSource) {
+                contentTree.value = parseUiXml(source, path)
+                lastSource = source
+            }
+            contentSize.value = UiPreviewSize(target.logicalWidth, target.logicalHeight)
+            ensureContentInstalled()
+            val root = runtime.root
             input.prepareRoot(root)
             val now = System.currentTimeMillis()
-            var frame = runtime.frame(root, target.logicalWidth, target.logicalHeight, nowMillis = now)
+            var frame = runtime.frame(target.logicalWidth, target.logicalHeight, nowMillis = now)
             val localMouse = context.localMouse(target)
             if (localMouse != null && input.updateHover(frame, localMouse.x, localMouse.y, ::dispatchPreviewEvent)) {
                 input.prepareRoot(root)
-                frame = runtime.frame(root, target.logicalWidth, target.logicalHeight, nowMillis = now)
+                frame = runtime.frame(target.logicalWidth, target.logicalHeight, nowMillis = now)
             }
             localMouse?.let { input.dispatchHover(frame, it.x, it.y, ::dispatchPreviewEvent) }
             lastFrame = frame
@@ -280,15 +306,20 @@ private object UiPreviewRenderer {
         }
     }
 
-    private fun buildRoot(content: UiNode, target: UiRenderTarget): UiNode {
-        return HollowUi(
-            modifier = Modifier.then(
-                Modifier.layout(LayoutType.FREE),
-                Modifier.size(target.logicalWidth.px, target.logicalHeight.px),
-            ),
-        ) {
-            Node(content)
+    private fun ensureContentInstalled() {
+        if (contentInstalled) return
+        runtime.setContent {
+            val size = contentSize.value
+            ComposeBox(
+                modifier = Modifier.then(
+                    Modifier.layout(LayoutType.FREE),
+                    Modifier.size(size.width.px, size.height.px),
+                ),
+            ) {
+                UiXmlContent(contentTree.value, UiXmlOptions(resources = PreviewUiResourceLoader))
+            }
         }
+        contentInstalled = true
     }
 
     private fun dispatchPreviewEvent(event: UiEvent): Boolean {
@@ -305,7 +336,7 @@ private object UiPreviewRenderer {
         return localPosition(mouseX, mouseY, context, target)
     }
 
-    private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
+    private fun setScrollImmediate(node: HollowUiNode, offset: UiScrollOffset) {
         runtime.setScrollImmediate(node, offset.x, offset.y)
     }
 
@@ -327,6 +358,11 @@ private object UiPreviewRenderer {
         return UiPreviewPoint((mouseX - context.x) / target.scale, (mouseY - context.y) / target.scale)
     }
 }
+
+private data class UiPreviewSize(
+    val width: Float,
+    val height: Float,
+)
 
 private data class UiPreviewPoint(
     val x: Float,
