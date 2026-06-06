@@ -2,8 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
-import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 import kotlin.math.abs
 import kotlin.math.sign
 
@@ -15,7 +16,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     override fun Content() {
-        Box(id="demo-root") {
+        Box(id = "demo-root") {
             Box(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
                 tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
@@ -271,10 +272,8 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     @Composable
     private fun xmlDemo() {
 
-        ComposeNode<BoxNode, HollowUiApplier>(
-            factory = {
-                val demo = parseUi(
-                    """
+        val demo = parseUiXml(
+            """
             <import element="hollowengine:ui/elements/xml_demo_badge.ui" named="demo_badge" />
 
             <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
@@ -288,25 +287,21 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 </box>
                 <demo_badge />
             </box>
-            """.trimIndent(),
-                    UiXmlOptions(
-                        eventSink = UiEventSink { tag ->
-                            val event = tag.getString("event")
-                            val button = tag.getString("button")
-                            val mouse = tag.getInt("mouse")
-                            xmlEventText = "event=$event button=$button mouse=$mouse"
-                        },
-                    ),
-                )
-                demo.children += TextNode(
-                    xmlEventText.bound(),
-                    tags = listOf("xml-log"),
-                    modifiers = listOf(Modifier.position(24.px, 186.px)),
-                )
-                demo
-            },
-            update = { updateCommon(emptyList(), emptyMap()) }
+            """.trimIndent()
         )
+        val options = UiXmlOptions(
+            eventSink = UiEventSink { tag ->
+                val event = tag.getString("event")
+                val button = tag.getString("button")
+                val mouse = tag.getInt("mouse")
+                xmlEventText = "event=$event button=$button mouse=$mouse"
+            },
+        )
+
+        Box(modifier = Modifier.layout(LayoutType.COLUMN)) {
+            UiXmlContent(demo, options)
+            Text(UiTextContent.plain(xmlEventText.bound()), tags = listOf("xml-log"))
+        }
     }
 }
 

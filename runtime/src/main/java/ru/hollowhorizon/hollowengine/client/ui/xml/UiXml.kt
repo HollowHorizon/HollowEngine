@@ -1,29 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.ui.xml
 
 import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
 import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
 import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_VALUE_ATTRIBUTE
+import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
-import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
-import ru.hollowhorizon.hollowengine.client.ui.BoxNode
-import ru.hollowhorizon.hollowengine.client.ui.CanvasNode
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.effects.*
-import ru.hollowhorizon.hollowengine.client.ui.withBold
-import ru.hollowhorizon.hollowengine.client.ui.withCode
-import ru.hollowhorizon.hollowengine.client.ui.withColor
-import ru.hollowhorizon.hollowengine.client.ui.withFontFamily
-import ru.hollowhorizon.hollowengine.client.ui.withFontSize
-import ru.hollowhorizon.hollowengine.client.ui.withItalic
-import ru.hollowhorizon.hollowengine.client.ui.withLink
-import ru.hollowhorizon.hollowengine.client.ui.withStrikethrough
-import ru.hollowhorizon.hollowengine.client.ui.withUnderline
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 
 fun interface UiResourceLoader {
     fun readText(location: String): String
@@ -40,11 +24,6 @@ data class UiXmlOptions(
     val eventSink: UiEventSink = UiEventSink.None,
 )
 
-data class UiXmlBuildResult(
-    val root: BoxNode,
-    val scripts: List<UiClientScript>,
-)
-
 @Serializable
 data class UiXmlTree(
     val name: String,
@@ -54,228 +33,6 @@ data class UiXmlTree(
     companion object
 }
 
-@Deprecated(
-    message = "Use parseUiXml with UiXmlContent inside HollowUiComposition or HollowComposeUiRuntime.",
-)
-fun parseUi(source: String, options: UiXmlOptions = UiXmlOptions()): BoxNode {
-    return UiXmlBuilder(options).build(parseUiXml(source))
-}
-
-@Deprecated(
-    message = "Use UiXmlTree.from with UiXmlContent inside HollowUiComposition or HollowComposeUiRuntime.",
-)
-fun buildUi(xml: XmlValue, options: UiXmlOptions = UiXmlOptions()): BoxNode {
-    return UiXmlBuilder(options).build(UiXmlTree.from(xml))
-}
-
-@Deprecated(
-    message = "Use UiXmlContent inside HollowUiComposition or HollowComposeUiRuntime.",
-)
-class UiXmlBuilder(private val options: UiXmlOptions = UiXmlOptions()) {
-    fun build(root: UiXmlTree): BoxNode {
-        return buildDocument(root).root
-    }
-
-    fun buildDocument(root: UiXmlTree): UiXmlBuildResult {
-        val imports = linkedMapOf<String, UiXmlTree>()
-        val roots = mutableListOf<UiXmlTree>()
-        val scripts = mutableListOf<UiClientScript>()
-        val documents = if (root.name == DocumentElementName) root.children else listOf(root)
-        for (element in documents) {
-            if (element.name.equals("import", ignoreCase = true)) {
-                val name = element.attributes["named"] ?: element.attributes["name"]
-                    ?: throw IllegalArgumentException("UI import requires 'named'")
-                val location = element.attributes["element"]
-                    ?: throw IllegalArgumentException("UI import '$name' requires 'element'")
-                imports[name] = loadImportedElement(location)
-            } else if (element.name.equals("script", ignoreCase = true)) {
-                val location = element.attributes["from"] ?: element.attributes["src"]
-                    ?: throw IllegalArgumentException("UI script requires 'from'")
-                scripts += UiClientScript.Resource(location, options.resources.readText(location))
-            } else {
-                roots += element
-            }
-        }
-        require(roots.size == 1) { "UI document must contain exactly one root element" }
-        val root = buildElement(roots.single(), imports)
-        val box = root as? BoxNode ?: BoxNode().also { it.children += root }
-        if (scripts.isNotEmpty()) {
-            box.modifiers += UiClientScriptModifier(scripts)
-        }
-        return UiXmlBuildResult(box, scripts)
-    }
-
-    private fun loadImportedElement(location: String): UiXmlTree {
-        val document = parseUiXml(options.resources.readText(location), location)
-        val elements = document.children.filterNot { it.name.equals("import", true) }
-        require(elements.size == 1) { "Imported UI '$location' must contain exactly one element root" }
-        return elements.single()
-    }
-
-    private fun buildElement(element: UiXmlTree, imports: Map<String, UiXmlTree>): BaseUiNode {
-        imports[element.name]?.let { imported ->
-            val merged = imported.copy(
-                attributes = imported.attributes + element.attributes,
-                children = element.children.ifEmpty { imported.children },
-            )
-            return buildElement(merged, imports)
-        }
-        require(!element.name.equals("button", ignoreCase = true)) {
-            "UI <button> was removed; use <box> with event handlers and nested <text> instead"
-        }
-
-        val attributes = element.attributes
-        val modifiers = attributes.toModifiers()
-        val customAttributes = attributes.customAttributes()
-        val id = attributes["id"]
-        val tags = attributes.tags(element.name)
-        val node = when (element.name.lowercase()) {
-            "box" -> BoxNode(id, tags, modifiers, customAttributes)
-            "text" -> TextNode(element.toTextContent(), id, tags, modifiers, customAttributes)
-            "image" -> ImageNode(attributes.firstValue("source", "src", "image").bound(), id, tags, modifiers, customAttributes)
-            "item" -> ItemNode(attributes.firstValue("item", "value").bound(), id, tags, modifiers, customAttributes)
-            "entity" -> EntityNode(attributes.firstValue("entity", "value").bound(), id, tags, modifiers, customAttributes)
-            "canvas" -> CanvasNode(attributes["renderer"], id, tags, modifiers, customAttributes)
-            "slider" -> SliderNode(
-                value = attributes.readSliderValue("value", 0f),
-                min = attributes.readSliderValue("min", 0f),
-                max = attributes.readSliderValue("max", 1f),
-                step = attributes.readSliderValue("step", 0f),
-                id = id,
-                tags = tags,
-                modifiers = modifiers,
-                attributes = customAttributes + attributes.onlyWidgetAttributes(SliderAttributes),
-            )
-            "checkbox" -> CheckboxNode(
-                checked = attributes.readBoolean("checked", attributes.readBoolean("value")),
-                variant = UiCheckboxVariant.from(attributes.firstValue("variant", "style", "type")),
-                id = id,
-                tags = tags,
-                modifiers = modifiers,
-                attributes = customAttributes + attributes.onlyWidgetAttributes(CheckboxAttributes),
-            )
-            "text-field", "textfield", "input", "textarea" -> TextFieldNode(
-                value = attributes.firstValue("value", "text"),
-                mode = attributes.textFieldMode(),
-                filter = UiTextInputFilter.from(attributes.firstValue("filter", "input-filter")),
-                multiCaret = attributes.readBoolean("multi-caret", attributes.readBoolean("multiCaret")),
-                id = id,
-                tags = tags,
-                modifiers = modifiers,
-                attributes = customAttributes + attributes.onlyWidgetAttributes(TextFieldAttributes),
-            ).also { it.placeholder = attributes.firstValue("placeholder", "hint") }
-            else -> BaseUiNode(element.name.lowercase(), id, tags, modifiers, customAttributes).also { node ->
-                appendInlineTextIfPresent(node.children, element)
-            }
-        }
-
-        if (node is TextNode) return node
-        element.children.filterNot { it.isTextLiteral() || it.isTextInlineElement() }.forEach { child ->
-            node.children += buildElement(child, imports)
-        }
-        return node
-    }
-
-    private fun Map<String, String>.toModifiers(): List<Modifier> {
-        val modifiers = mutableListOf<Modifier>()
-        for ((rawName, rawValue) in this) {
-            val name = rawName.toModifierName()
-            when {
-                name in StructuralAttributes -> Unit
-                name == "style" -> modifiers += Modifier.style(rawValue)
-                name.toEventKind() != null -> modifiers += eventModifier(name.toEventKind()!!, rawValue)
-
-                else -> compileStyleModifier(name, rawValue)?.let { modifiers += it }
-            }
-        }
-        return modifiers
-    }
-
-    private fun Map<String, String>.customAttributes(): Map<String, String> {
-        return filterKeys { rawName ->
-            val name = rawName.toModifierName()
-            name !in StructuralAttributes &&
-                    name != "style" &&
-                    name.toEventKind() == null &&
-                    compileStyleModifier(name, this.getValue(rawName)) == null
-        }
-    }
-
-    private fun eventModifier(kind: UiEventKind, rawValue: String): Modifier {
-        val trimmed = rawValue.trim()
-        if (trimmed.startsWith("{")) {
-            return Modifier.emitOn(kind, UiEventPayloadTemplate.parse(trimmed), options.eventSink)
-        }
-        return Modifier.eventScript(kind, trimmed, options.eventSink)
-    }
-
-    private fun appendInlineTextIfPresent(target: UiChildren, element: UiXmlTree) {
-        if (element.children.none { it.isTextLiteral() || it.isTextInlineElement() }) return
-        val content = element.toTextContent(onlyDirectText = true).trimBoundaryText()
-        if (content.asTemplate().isNotBlank()) target += TextNode(content)
-    }
-
-    private fun Map<String, String>.firstValue(vararg names: String): String =
-        names.firstNotNullOfOrNull { this[it] } ?: ""
-
-    private fun Map<String, String>.tags(elementName: String): List<String> {
-        val explicit = listOfNotNull(this["tag"], this["tags"], this["class"])
-            .flatMap { it.split(Regex("\\s+")) }
-            .filter { it.isNotBlank() }
-        return (explicit + elementName.lowercase()).distinct()
-    }
-
-    private fun String.toModifierName(): String {
-        val result = StringBuilder()
-        forEachIndexed { index, char ->
-            if (char.isUpperCase()) {
-                if (index > 0) result.append('-')
-                result.append(char.lowercaseChar())
-            } else {
-                result.append(char.lowercaseChar())
-            }
-        }
-        return result.toString()
-    }
-
-    private fun String.toEventKind(): UiEventKind? = UiEventKind.fromAttribute(this)
-
-    private companion object {
-        val StructuralAttributes = setOf(
-            "id",
-            "tag",
-            "tags",
-            "class",
-            "value",
-            XML_TEXT_NODE_NAME,
-            "source",
-            "src",
-            "image",
-            "text",
-            "item",
-            "entity",
-            "renderer",
-        )
-
-        private const val DocumentElementName = "__document"
-
-        val SliderAttributes = setOf("value", "min", "max", "step")
-        val CheckboxAttributes = setOf("checked", "value", "variant", "style", "type")
-        val TextFieldAttributes = setOf(
-            "value",
-            "text",
-            "mode",
-            "multiline",
-            "multi-line",
-            "filter",
-            "input-filter",
-            "multi-caret",
-            "multiCaret",
-            "placeholder",
-            "hint",
-        )
-    }
-}
 
 fun UiXmlTree.Companion.from(value: XmlValue): UiXmlTree {
     return UiXmlTree(
