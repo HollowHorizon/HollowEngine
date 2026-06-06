@@ -131,6 +131,7 @@ class HollowUiRuntime(
     private val resolver = UiStyleResolver(theme, stylesheet, transitionState)
     private val layoutEngine = UiLayoutEngine()
     private val commandRenderer = UiCommandRenderer()
+    private val ensuredTextFieldCaretRevisions = mutableMapOf<String, Long>()
 
     fun frame(
         root: UiNode,
@@ -145,7 +146,10 @@ class HollowUiRuntime(
         val activeTransitionDurations = resolved.styles.keys.associate { node ->
             UiNodeKeys.key(node) to transitionState.activeDurationMillis(node)
         }
-        val layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+        var layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+        if (ensureFocusedTextFieldsVisible(resolved, layout)) {
+            layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+        }
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
         return HollowUiFrame(resolved, layout, commands, activeTransitionDurations, scrollState.isAnimating())
     }
@@ -155,6 +159,65 @@ class HollowUiRuntime(
     fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset =
         scrollState.setImmediate(node, x, y)
 
+    private fun ensureFocusedTextFieldsVisible(resolved: ResolvedUiTree, layout: UiLayoutResult): Boolean {
+        var changed = false
+        for (node in resolved.styles.keys.filterIsInstance<TextFieldNode>()) {
+            if (UiState.FOCUS !in node.states) continue
+            val key = UiNodeKeys.key(node)
+            if (ensuredTextFieldCaretRevisions[key] == node.caretVisibilityRevision) continue
+            val style = resolved[node]
+            if (!style.input.scrollable) {
+                ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
+                continue
+            }
+            val layoutNode = layout[node]
+            if (!layoutNode.scrollRange.hasScrollableAxis()) {
+                ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
+                continue
+            }
+            val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, style.fontSize)
+            val next = layoutNode.scrollOffset.scrollCaretIntoView(
+                caretX = caret.x,
+                caretY = caret.y,
+                caretWidth = TextFieldCaretWidth,
+                caretHeight = style.fontSize,
+                viewportWidth = layoutNode.content.width,
+                viewportHeight = layoutNode.content.height,
+                range = layoutNode.scrollRange,
+            )
+            if (next != layoutNode.scrollOffset) {
+                scrollState.setImmediate(node, next.x, next.y)
+                changed = true
+            }
+            ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
+        }
+        return changed
+    }
+}
+
+private fun UiScrollOffset.scrollCaretIntoView(
+    caretX: Float,
+    caretY: Float,
+    caretWidth: Float,
+    caretHeight: Float,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    range: UiScrollOffset,
+): UiScrollOffset {
+    var nextX = x
+    var nextY = y
+    val left = x + TextFieldCaretVisibilityPadding
+    val right = x + viewportWidth - TextFieldCaretVisibilityPadding
+    val top = y + TextFieldCaretVisibilityPadding
+    val bottom = y + viewportHeight - TextFieldCaretVisibilityPadding
+    if (caretX < left) nextX = caretX - TextFieldCaretVisibilityPadding
+    if (caretX + caretWidth > right) nextX = caretX + caretWidth + TextFieldCaretVisibilityPadding - viewportWidth
+    if (caretY < top) nextY = caretY - TextFieldCaretVisibilityPadding
+    if (caretY + caretHeight > bottom) nextY = caretY + caretHeight + TextFieldCaretVisibilityPadding - viewportHeight
+    return UiScrollOffset(
+        x = nextX.coerceIn(0f, range.x),
+        y = nextY.coerceIn(0f, range.y),
+    )
 }
 
 private fun UiTextLayout.linkAt(x: Float, y: Float): String? {

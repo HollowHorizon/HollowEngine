@@ -269,6 +269,9 @@ class TextFieldNode(
 
     val carets: MutableList<Int> = mutableListOf(this.value.length)
 
+    var caretVisibilityRevision: Long = 0L
+        private set
+
     val multiline: Boolean get() = mode == UiTextFieldMode.MULTI_LINE
 
     val selectionStart: Int get() = minOf(caret, selectionAnchor ?: caret)
@@ -315,9 +318,11 @@ class TextFieldNode(
 
     fun moveCaret(position: Int, select: Boolean = false) {
         val previous = caret
+        val previousAnchor = selectionAnchor
         caret = position.coerceIn(0, value.length)
         selectionAnchor = if (select) selectionAnchor ?: previous else null
         if (carets.isEmpty()) carets += caret else carets[0] = caret
+        if (caret != previous || selectionAnchor != previousAnchor) caretVisibilityRevision++
     }
 
     fun setSelection(anchor: Int, active: Int) {
@@ -339,6 +344,7 @@ class TextFieldNode(
         caret = caret,
         selectionAnchor = selectionAnchor,
         carets = carets.toList(),
+        caretVisibilityRevision = caretVisibilityRevision,
     )
 
     override fun importState(state: UiNodePersistentState) {
@@ -349,6 +355,7 @@ class TextFieldNode(
         carets.clear()
         carets += state.carets.map { it.coerceIn(0, value.length) }
         if (carets.isEmpty()) carets += caret
+        caretVisibilityRevision = state.caretVisibilityRevision
     }
 
     private fun deleteSelection(): Boolean {

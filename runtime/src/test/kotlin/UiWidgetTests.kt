@@ -16,10 +16,13 @@ import ru.hollowhorizon.hollowengine.client.ui.UiCheckboxVariant
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
 import ru.hollowhorizon.hollowengine.client.ui.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.UiScrollbarPointerArea
+import ru.hollowhorizon.hollowengine.client.ui.UiState
 import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiTextInputFilter
 import ru.hollowhorizon.hollowengine.client.ui.UiTextFieldMode
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.TextFieldCaretVisibilityPadding
+import ru.hollowhorizon.hollowengine.client.ui.TextFieldCaretWidth
 import ru.hollowhorizon.hollowengine.client.ui.caretIndexAt
 import ru.hollowhorizon.hollowengine.client.ui.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.dragStateAt
@@ -180,6 +183,96 @@ class UiWidgetTests {
         assertEquals(2, layout.lines.single().sourceLength)
         assertTrue(layout.caretPosition(2, 10f).x > layout.caretPosition(1, 10f).x)
         assertEquals(2, layout.caretIndexAt(layout.caretPosition(2, 10f).x, 5f, 10f))
+    }
+
+    @Test
+    fun `auto sized text field reserves room for caret after last character`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(value = "abc")
+
+        val frame = runtime.frame(field, 200f, 40f)
+        val chrome = frame.commands.filterIsInstance<DrawTextFieldChromeCommand>().single()
+        val caret = chrome.layout.caretPosition(field.caret, chrome.fontSize)
+
+        assertTrue(caret.x + TextFieldCaretWidth <= frame.layout[field].content.width)
+    }
+
+    @Test
+    fun `focused scrollable text field scrolls horizontally to keep caret visible`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "abcdefghijklmnopqrstuvwxyz",
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(44.px, 20.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.textWrap(false),
+                )
+            ),
+        )
+        field.states += UiState.FOCUS
+
+        val frame = runtime.frame(field, 80f, 40f)
+        val layout = frame.layout[field]
+        val chrome = frame.commands.filterIsInstance<DrawTextFieldChromeCommand>().single()
+        val caret = chrome.layout.caretPosition(field.caret, chrome.fontSize)
+
+        assertTrue(layout.scrollOffset.x > 0f)
+        assertTrue(caret.x + TextFieldCaretWidth - layout.scrollOffset.x <= layout.content.width - TextFieldCaretVisibilityPadding + 0.001f)
+    }
+
+    @Test
+    fun `manual text field scroll is not clamped back to unchanged caret`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "abcdefghijklmnopqrstuvwxyz",
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(44.px, 20.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.textWrap(false),
+                )
+            ),
+        )
+        field.states += UiState.FOCUS
+        val initial = runtime.frame(field, 80f, 40f)
+        assertTrue(initial.layout[field].scrollOffset.x > 0f)
+
+        runtime.setScrollImmediate(field, x = 0f)
+        val manuallyScrolled = runtime.frame(field, 80f, 40f)
+        assertEquals(0f, manuallyScrolled.layout[field].scrollOffset.x)
+
+        field.moveCaret(0)
+        val caretAtStart = runtime.frame(field, 80f, 40f)
+        assertEquals(0f, caretAtStart.layout[field].scrollOffset.x)
+
+        field.moveCaret(field.value.length)
+        val caretAtEnd = runtime.frame(field, 80f, 40f)
+        assertTrue(caretAtEnd.layout[field].scrollOffset.x > 0f)
+    }
+
+    @Test
+    fun `focused multiline text field scrolls vertically to keep caret visible`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "a\nb\nc\nd\ne",
+            mode = UiTextFieldMode.MULTI_LINE,
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(80.px, 22.px),
+                    Modifier.input(scrollable = true),
+                )
+            ),
+        )
+        field.states += UiState.FOCUS
+
+        val frame = runtime.frame(field, 100f, 50f)
+        val layout = frame.layout[field]
+        val chrome = frame.commands.filterIsInstance<DrawTextFieldChromeCommand>().single()
+        val caret = chrome.layout.caretPosition(field.caret, chrome.fontSize)
+
+        assertTrue(layout.scrollOffset.y > 0f)
+        assertTrue(caret.y + chrome.fontSize - layout.scrollOffset.y <= layout.content.height - TextFieldCaretVisibilityPadding + 0.001f)
     }
 
     @Test

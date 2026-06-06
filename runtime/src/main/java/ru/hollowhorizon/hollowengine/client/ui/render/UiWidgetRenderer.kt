@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.DrawCheckboxCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawSliderCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextFieldChromeCommand
+import ru.hollowhorizon.hollowengine.client.ui.TextFieldCaretWidth
 import ru.hollowhorizon.hollowengine.client.ui.UiCheckboxVariant
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
@@ -111,7 +112,7 @@ internal class UiWidgetRenderer(
         if (command.showCaret) {
             val caret = command.layout.caretPosition(command.caretIndex, command.fontSize)
             drawLocalPaint(
-                1f,
+                TextFieldCaretWidth,
                 command.fontSize,
                 0f,
                 command.caretColor.withOpacity(command.opacity),

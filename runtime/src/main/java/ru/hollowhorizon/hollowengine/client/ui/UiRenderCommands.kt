@@ -409,7 +409,7 @@ class UiCommandRenderer {
         val visible = text.ifEmpty { node.placeholder }
         val wrap = style.textWrap && node.multiline && textFieldWidthConstrained(style, node, layoutNode.content.width)
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-        val editLayout = UiTextLayouter.layout(text, layoutNode.content.width, textHeight, wrap, style.textAlign, style.fontSize, preserveWhitespace = true)
+        val editLayout = textFieldEditLayout(node, style, layoutNode)
         val displayLayout = if (text.isEmpty()) {
             UiTextLayouter.layout(visible, layoutNode.content.width, textHeight, wrap, style.textAlign, style.fontSize)
         } else {
@@ -651,20 +651,6 @@ class UiHitTester {
         }
         return true
     }
-}
-
-private fun textFieldWidthConstrained(style: ComputedStyle, node: TextFieldNode, contentWidth: Float): Boolean {
-    if (style.size.width !is UiLength.Auto || UiStyleProperty.WIDTH in style.explicitProperties) return true
-    val text = node.value.ifEmpty { node.placeholder }
-    val naturalWidth = UiTextLayouter.measure(
-        text = text,
-        availableWidth = Float.POSITIVE_INFINITY,
-        knownWidth = null,
-        wrap = false,
-        fontSize = style.fontSize,
-        preserveWhitespace = true,
-    ).width
-    return contentWidth + 0.5f < naturalWidth
 }
 
 private fun UiRect?.intersect(other: UiRect?): UiRect? {

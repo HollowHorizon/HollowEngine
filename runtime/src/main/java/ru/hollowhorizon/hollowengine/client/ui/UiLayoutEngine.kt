@@ -617,14 +617,21 @@ class UiLayoutEngine {
             wrap = style.textWrap,
             fontSize = style.fontSize,
         )
-        if (node is TextFieldNode) return UiTextLayouter.measure(
-            text = node.value.ifEmpty { node.placeholder },
-            availableWidth = availableWidth,
-            knownWidth = knownContentWidth,
-            wrap = textFieldWrap(style, node, knownContentWidth != null),
-            fontSize = style.fontSize,
-            preserveWhitespace = true,
-        )
+        if (node is TextFieldNode) {
+            val measured = UiTextLayouter.measure(
+                text = node.value.ifEmpty { node.placeholder },
+                availableWidth = availableWidth,
+                knownWidth = knownContentWidth,
+                wrap = textFieldWrap(style, node, knownContentWidth != null),
+                fontSize = style.fontSize,
+                preserveWhitespace = true,
+            )
+            return if (knownContentWidth == null) {
+                measured.copy(width = measured.width + TextFieldCaretWidth + TextFieldCaretVisibilityPadding)
+            } else {
+                measured
+            }
+        }
         if (node.children.isEmpty()) return replacedIntrinsicSize(node, style)
         val children = measureFlowChildren(
             node.children,
@@ -788,18 +795,14 @@ private fun scrollableContentBounds(
         return UiRect(
             layout.content.x,
             layout.content.y,
-            maxOf(layout.content.width, textLayout.maxNaturalLineWidth()),
-            maxOf(layout.content.height, textLayout.height),
+            maxOf(layout.content.width, textLayout.maxNaturalLineWidth() + TextFieldCaretWidth + TextFieldCaretVisibilityPadding),
+            maxOf(layout.content.height, textLayout.height + TextFieldCaretVisibilityPadding),
         )
     }
     return node.children.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
 }
 
 private fun UiTextLayout.maxNaturalLineWidth(): Float = lines.maxOfOrNull { it.naturalWidth } ?: width
-
-private fun textFieldWrap(style: ComputedStyle, node: TextFieldNode, constrainedWidth: Boolean): Boolean {
-    return style.textWrap && node.multiline && constrainedWidth
-}
 
 private fun List<MeasuredChild>.sumOfOuterWidth(): Float = sumOf { (it.margin.left + it.size.width + it.margin.right).toDouble() }.toFloat()
 
