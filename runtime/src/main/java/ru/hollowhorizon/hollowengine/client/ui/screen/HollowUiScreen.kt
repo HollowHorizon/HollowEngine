@@ -9,9 +9,9 @@ import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
 import ru.hollowhorizon.hollowengine.client.ui.scripting.UiPreparedClientScripts
+import ru.hollowhorizon.hollowengine.client.ui.scripting.clientScripts
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
@@ -31,7 +31,6 @@ abstract class HollowUiScreen(
     private var lastWidth = -1
     private var lastHeight = -1
     private val input = HollowUiInputController()
-    private var scrollbarDrag: ScrollbarDrag? = null
     private var lastDragX = 0.0
     private var lastDragY = 0.0
     private var closing = false
@@ -75,7 +74,6 @@ abstract class HollowUiScreen(
         closeStartedAt = System.currentTimeMillis()
         closeBaseFrame = frame
         input.clearInteraction()
-        scrollbarDrag = null
         invalidateUi(immediate = width > 0 && height > 0)
     }
 
@@ -91,7 +89,7 @@ abstract class HollowUiScreen(
             current
         } else {
             val hadHoverChange = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
-            val hasActiveMotion = current.motionDurationMillis(null) > 0L || hadHoverChange
+            val hasActiveMotion = current.requiresContinuousRefresh() || hadHoverChange
             if (hasActiveMotion) refreshFrame(nowMillis) else current
         }
         if (!closing) {
@@ -107,20 +105,19 @@ abstract class HollowUiScreen(
         this.mouseY = mouseY.toFloat()
         val current = currentFrameForInput() ?: return
         val hoverChanged = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
-        if (hoverChanged || current.motionDurationMillis(null) > 0L) {
+        if (hoverChanged || current.requiresContinuousRefresh()) {
             refreshFrame()
         }
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
         if (closing) return true
-        val scrollbar = findScrollbar(mouseX.toFloat(), mouseY.toFloat())
-        if (button == 0 && scrollbar != null) {
-            scrollbarDrag = scrollbar.toDrag(mouseX.toFloat(), mouseY.toFloat(), frame ?: return false)
-            updateScrollbarDrag(mouseX.toFloat(), mouseY.toFloat())
+        val current = frame ?: return super.mouseClicked(mouseX, mouseY, button)
+        val scrollbarResult = input.scrollbarMouseClicked(current, mouseX.toFloat(), mouseY.toFloat(), button, ::setScrollImmediate)
+        if (scrollbarResult.handled) {
+            invalidateUi(immediate = true)
             return true
         }
-        val current = frame ?: return super.mouseClicked(mouseX, mouseY, button)
         val result = input.mouseClicked(current, mouseX.toFloat(), mouseY.toFloat(), button, ::dispatchUiEvent, ::openUrl)
         if (result.handled) {
             lastDragX = mouseX
@@ -137,16 +134,18 @@ abstract class HollowUiScreen(
         frame?.let { current ->
             input.mouseReleased(current, mouseX.toFloat(), mouseY.toFloat(), button, ::dispatchUiEvent)
         }
-        scrollbarDrag = null
         invalidateUi(immediate = true)
         return super.mouseReleased(mouseX, mouseY, button)
     }
 
     override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, dragX: Double, dragY: Double): Boolean {
         if (closing) return true
-        scrollbarDrag?.let {
-            updateScrollbarDrag(mouseX.toFloat(), mouseY.toFloat())
-            return true
+        frame?.let { current ->
+            val scrollbarResult = input.scrollbarMouseDragged(current, mouseX.toFloat(), mouseY.toFloat(), ::setScrollImmediate)
+            if (scrollbarResult.handled) {
+                invalidateUi(immediate = true)
+                return true
+            }
         }
         val key = input.draggingKey ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
         val dx = (mouseX - lastDragX).toFloat()
@@ -173,30 +172,27 @@ abstract class HollowUiScreen(
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         if (closing) return true
         val current = frame ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-        val target = current.resolved.styles.entries
-            .asSequence()
-            .filter { it.value.input.scrollable }
-            .map { it.key to current.layout[it.key] }
-            .filter { (_, layout) -> layout.content.contains(mouseX.toFloat(), mouseY.toFloat()) }
-            .maxByOrNull { (_, layout) -> layout.rect.x + layout.rect.y }
-            ?.first
+        val target = current.scrollTargetAt(mouseX.toFloat(), mouseY.toFloat())
+            ?: input.focusedKey
+                ?.let(current::nodeByKey)
+                ?.takeIf { current.resolved[it].input.scrollable && current.layout[it].scrollRange.hasScrollableAxis() }
         if (target != null) {
-            val emulateHorizontal = (hasShiftDown() || hasControlDown()) && scrollX == 0.0
-            val horizontal = if (emulateHorizontal) -scrollY else -scrollX
-            val vertical = if (hasShiftDown() || hasControlDown()) 0.0 else -scrollY
+            val range = current.layout[target].scrollRange
+            val delta = scrollWheelDelta(range, scrollX, scrollY, hasShiftDown() || hasControlDown())
             val event = UiEvent(
                 kind = UiEventKind.SCROLL,
                 node = target,
                 x = mouseX.toFloat(),
                 y = mouseY.toFloat(),
-                scrollX = horizontal.toFloat(),
-                scrollY = vertical.toFloat(),
+                scrollX = delta.x,
+                scrollY = delta.y,
             )
             if (dispatchUiEvent(event) && event.consumed) {
                 invalidateUi(immediate = true)
                 return true
             }
-            runtime.scroll(target, (horizontal * 32.0).toFloat(), (vertical * 32.0).toFloat())
+            runtime.scroll(target, delta.x * 32f, delta.y * 32f)
+            invalidateUi(immediate = true)
             return true
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
@@ -238,45 +234,8 @@ abstract class HollowUiScreen(
         return cachedRoot!!
     }
 
-    private fun findScrollbar(mouseX: Float, mouseY: Float): DrawScrollbarCommand? {
-        return frame?.commands
-            ?.filterIsInstance<DrawScrollbarCommand>()
-            ?.lastOrNull { it.track.contains(mouseX, mouseY) }
-    }
-
-    private fun DrawScrollbarCommand.toDrag(mouseX: Float, mouseY: Float, frame: HollowUiFrame): ScrollbarDrag {
-        val layout = frame.layout[node]
-        val offset = layout.scrollOffset
-        return ScrollbarDrag(
-            nodeKey = UiNodeKeys.key(node),
-            orientation = orientation,
-            track = track,
-            thumb = thumb,
-            startMouseX = mouseX,
-            startMouseY = mouseY,
-            startOffsetX = offset.x,
-            startOffsetY = offset.y,
-        )
-    }
-
-    private fun updateScrollbarDrag(mouseX: Float, mouseY: Float) {
-        val drag = scrollbarDrag ?: return
-        val frame = frame ?: return
-        val node = frame.resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == drag.nodeKey } ?: return
-        val layout = frame.layout[node]
-        when (drag.orientation) {
-            ScrollbarOrientation.VERTICAL -> {
-                val movable = (drag.track.height - drag.thumb.height).coerceAtLeast(1f)
-                val delta = (mouseY - drag.startMouseY) / movable * layout.scrollRange.y
-                runtime.setScrollImmediate(node, y = drag.startOffsetY + delta)
-            }
-            ScrollbarOrientation.HORIZONTAL -> {
-                val movable = (drag.track.width - drag.thumb.width).coerceAtLeast(1f)
-                val delta = (mouseX - drag.startMouseX) / movable * layout.scrollRange.x
-                runtime.setScrollImmediate(node, x = drag.startOffsetX + delta)
-            }
-        }
-        refreshFrame()
+    private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
+        runtime.setScrollImmediate(node, offset.x, offset.y)
     }
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
@@ -364,31 +323,3 @@ abstract class HollowUiScreen(
 
     override fun isPauseScreen(): Boolean = false
 }
-
-private fun UiNode.clientScripts(): List<UiClientScript> {
-    val ownScripts = modifiers
-        .filterIsInstance<UiClientScriptModifier>()
-        .flatMap { it.scripts } +
-            modifiers
-                .filterIsInstance<ScriptEventModifier>()
-                .map { modifier ->
-                    UiClientScript.Inline(
-                        kind = modifier.kind,
-                        source = modifier.source,
-                        targetKey = UiNodeKeys.key(this),
-                        sink = modifier.sink,
-                    )
-                }
-    return ownScripts + children.flatMap { it.clientScripts() }
-}
-
-private data class ScrollbarDrag(
-    val nodeKey: String,
-    val orientation: ScrollbarOrientation,
-    val track: UiRect,
-    val thumb: UiRect,
-    val startMouseX: Float,
-    val startMouseY: Float,
-    val startOffsetX: Float,
-    val startOffsetY: Float,
-)

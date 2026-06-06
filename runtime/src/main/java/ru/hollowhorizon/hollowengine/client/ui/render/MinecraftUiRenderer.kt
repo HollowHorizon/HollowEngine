@@ -990,21 +990,24 @@ class MinecraftUiRenderer {
     }
 
     private fun drawScrollbar(command: DrawScrollbarCommand) {
+        val transform = effective(command.transform)
         drawScrollbarPart(
-            localRect(command.track),
+            command.track,
             command.trackPaint,
             command.trackBorder,
             command.trackFit,
             command.trackSlice,
             command.opacity,
+            transform,
         )
         drawScrollbarPart(
-            localRect(command.thumb),
+            command.thumb,
             command.thumbPaint,
             command.thumbBorder,
             command.thumbFit,
             command.thumbSlice,
             command.opacity,
+            transform,
         )
     }
 
@@ -1015,8 +1018,9 @@ class MinecraftUiRenderer {
         fit: UiImageFit,
         slice: UiInsets,
         opacity: Float,
+        baseTransform: UiMatrix4,
     ) {
-        val transform = UiMatrix4.translation(rect.x, rect.y, 0f)
+        val transform = baseTransform * UiMatrix4.translation(rect.x, rect.y, 0f)
         when (paint) {
             UiResolvedPaint.None -> Unit
             is UiResolvedPaint.Color -> drawLocalPaint(

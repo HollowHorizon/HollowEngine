@@ -65,6 +65,19 @@ internal fun disableScissor() {
     GL11.glDisable(GL11.GL_SCISSOR_TEST)
 }
 
+internal fun <T> withCullStatePreserved(block: () -> T): T {
+    val cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE)
+    return try {
+        block()
+    } finally {
+        if (cullEnabled) {
+            RenderSystem.enableCull()
+        } else {
+            RenderSystem.disableCull()
+        }
+    }
+}
+
 internal fun UiRect.intersect(other: UiRect): UiRect {
     val left = maxOf(x, other.x)
     val top = maxOf(y, other.y)

@@ -9,6 +9,8 @@ data class UiScrollOffset(
     }
 }
 
+internal fun UiScrollOffset.hasScrollableAxis(): Boolean = x > 0f || y > 0f
+
 class UiScrollState {
     private val offsets = mutableMapOf<String, UiScrollOffset>()
     private val targets = mutableMapOf<String, UiScrollOffset>()
@@ -20,6 +22,8 @@ class UiScrollState {
     fun offset(node: UiNode): UiScrollOffset = offsets[UiNodeKeys.key(node)] ?: UiScrollOffset.Zero
 
     fun range(node: UiNode): UiScrollOffset = ranges[UiNodeKeys.key(node)] ?: UiScrollOffset.Zero
+
+    fun isAnimating(): Boolean = startedAt.isNotEmpty()
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {
         val key = UiNodeKeys.key(node)

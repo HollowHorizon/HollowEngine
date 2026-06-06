@@ -76,6 +76,7 @@ import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
+import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
 import ru.hollowhorizon.hollowengine.common.config.Config
@@ -860,12 +861,14 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             )
         }
 
-        return isAnyFocusNodeInput()
+        return KatariUiOverlays.handleKey(key, scanCode, action, modifiers) || KatariUiOverlays.hasFocusedInput() ||
+                isAnyFocusNodeInput()
     }
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
         KeyboardInput.handleCharTyped(codePoint.toChar())
-        return isAnyFocusNodeInput()
+        return KatariUiOverlays.handleChar(codePoint, modifiers) || KatariUiOverlays.hasFocusedInput() ||
+                isAnyFocusNodeInput()
     }
 
     override fun onMouseMove(
@@ -880,10 +883,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedY = (yPos * scaleFactor).toFloat()
 
         KoolInputBridge.handleMouseMove(convertedX, convertedY)
+        val isOverlayInputCaptured = KatariUiOverlays.handleMouseMove(convertedX, convertedY)
         val isScreenOpen = minecraft.screen != null
         val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
+        val shouldCancel = isOverlayInputCaptured || ((isKoolInputCaptured || isGizmoBlocking) && isScreenOpen)
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
@@ -916,7 +920,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
                 )
             )
         }
-        return isKoolPointerInputCaptured(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)
+        return KatariUiOverlays.handleMouseButton(x, y, button, action, modifiers) ||
+                isKoolPointerInputCaptured(x, y) ||
+                TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
     override fun onMouseScroll(
@@ -932,7 +938,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             KatariClientInputEvent.MouseScroll,
             KatariClientInputEvent.MouseScroll(x.toDouble(), y.toDouble(), xOffset, yOffset)
         )
-        return isKoolPointerInputCaptured(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)
+        return KatariUiOverlays.handleMouseScroll(x, y, xOffset, yOffset) ||
+                isKoolPointerInputCaptured(x, y) ||
+                TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
     private fun <T : KatariClientInputEvent> postKatariInput(handler: EventHandler<T>, event: T) {

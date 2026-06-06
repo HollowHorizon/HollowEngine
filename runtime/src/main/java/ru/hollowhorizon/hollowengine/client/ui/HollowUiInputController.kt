@@ -15,6 +15,7 @@ class HollowUiInputController {
         private set
 
     private val stateStore = UiNodeStateStore()
+    private var scrollbarDrag: UiScrollbarDragState? = null
 
     fun reset() {
         clearInteraction()
@@ -26,6 +27,7 @@ class HollowUiInputController {
         hoveredLink = null
         activeKey = null
         draggingKey = null
+        scrollbarDrag = null
         if (clearFocus) focusedKey = null
     }
 
@@ -120,6 +122,30 @@ class HollowUiInputController {
         return UiInputResult(clickHandled, hit.node, key)
     }
 
+    fun scrollbarMouseClicked(
+        frame: HollowUiFrame,
+        mouseX: Float,
+        mouseY: Float,
+        button: Int,
+        setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
+    ): UiInputResult {
+        if (button != 0) return UiInputResult(false)
+        val scrollbar = frame.scrollbarAt(mouseX, mouseY) ?: return UiInputResult(false)
+        when (scrollbar.pointerAreaAt(mouseX, mouseY)) {
+            UiScrollbarPointerArea.THUMB -> {
+                scrollbarDrag = scrollbar.dragStateAt(mouseX, mouseY)
+                return UiInputResult(true, scrollbar.node, UiNodeKeys.key(scrollbar.node))
+            }
+
+            UiScrollbarPointerArea.TRACK -> {
+                setScrollImmediate(scrollbar.node, scrollbar.trackClickOffset(frame.layout[scrollbar.node], mouseX, mouseY))
+                return UiInputResult(true, scrollbar.node, UiNodeKeys.key(scrollbar.node), changed = true)
+            }
+
+            null -> return UiInputResult(false)
+        }
+    }
+
     fun mouseDragged(
         frame: HollowUiFrame,
         mouseX: Float,
@@ -174,8 +200,23 @@ class HollowUiInputController {
         val key = releaseNode?.let(UiNodeKeys::key)
         activeKey = null
         draggingKey = null
+        scrollbarDrag = null
         return UiInputResult(handled, releaseNode, key)
     }
+
+    fun scrollbarMouseDragged(
+        frame: HollowUiFrame,
+        mouseX: Float,
+        mouseY: Float,
+        setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
+    ): UiInputResult {
+        val drag = scrollbarDrag ?: return UiInputResult(false)
+        val node = frame.nodeByKey(drag.nodeKey) ?: return UiInputResult(false)
+        setScrollImmediate(node, drag.offsetFor(frame.layout[node], mouseX, mouseY))
+        return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
+    }
+
+    fun hasScrollbarDrag(): Boolean = scrollbarDrag != null
 
     fun charTyped(
         frame: HollowUiFrame,
@@ -400,10 +441,6 @@ data class UiInputResult(
     val nodeKey: String? = null,
     val changed: Boolean = false,
 )
-
-private fun HollowUiFrame.nodeByKey(key: String): UiNode? {
-    return resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
-}
 
 private fun UiNode.containsNodeKey(key: String?): Boolean {
     if (key == null) return false

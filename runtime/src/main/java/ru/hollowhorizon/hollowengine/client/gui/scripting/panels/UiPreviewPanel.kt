@@ -213,26 +213,24 @@ private object UiPreviewRenderer {
 
     fun scroll(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float) {
         val frame = lastFrame ?: return
-        val context = lastContext ?: return
-        val target = lastTarget ?: return
-        if (mouseX < context.x1 || mouseX > context.x2 || mouseY < context.y1 || mouseY > context.y2) return
-        val localX = (mouseX - context.x) / target.scale
-        val localY = (mouseY - context.y) / target.scale
-        val node = frame.resolved.styles.entries
-            .asSequence()
-            .filter { it.value.input.scrollable }
-            .map { it.key to frame.layout[it.key] }
-            .filter { (_, layout) -> layout.scrollRange.x > 0f || layout.scrollRange.y > 0f }
-            .filter { (_, layout) -> layout.content.contains(localX, localY) }
-            .maxByOrNull { (_, layout) -> layout.rect.x + layout.rect.y }
-            ?.first
+        val local = localPosition(mouseX, mouseY) ?: return
+        val node = frame.scrollTargetAt(local.x, local.y)
+            ?: input.focusedKey
+                ?.let(frame::nodeByKey)
+                ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
             ?: return
-        runtime.scroll(node, -scrollX * 32f, -scrollY * 32f)
+        val delta = scrollWheelDelta(frame.layout[node].scrollRange, scrollX.toDouble(), scrollY.toDouble(), horizontalScrollModifierDown())
+        runtime.scroll(node, delta.x * 32f, delta.y * 32f)
     }
 
     fun click(mouseX: Float, mouseY: Float) {
         val frame = lastFrame ?: return
         val local = localPosition(mouseX, mouseY) ?: return
+        val scrollbarResult = input.scrollbarMouseClicked(frame, local.x, local.y, 0, ::setScrollImmediate)
+        if (scrollbarResult.handled) {
+            input.mouseReleased(frame, local.x, local.y, 0, ::dispatchPreviewEvent)
+            return
+        }
         val result = input.mouseClicked(frame, local.x, local.y, 0, ::dispatchPreviewEvent, ::openUrl)
         if (result.handled) {
             input.mouseReleased(frame, local.x, local.y, 0, ::dispatchPreviewEvent)
@@ -242,6 +240,8 @@ private object UiPreviewRenderer {
     fun press(mouseX: Float, mouseY: Float, button: Int) {
         val frame = lastFrame ?: return
         val local = localPosition(mouseX, mouseY) ?: return
+        val scrollbarResult = input.scrollbarMouseClicked(frame, local.x, local.y, button, ::setScrollImmediate)
+        if (scrollbarResult.handled) return
         input.mouseClicked(frame, local.x, local.y, button, ::dispatchPreviewEvent, ::openUrl)
     }
 
@@ -249,6 +249,8 @@ private object UiPreviewRenderer {
         val frame = lastFrame ?: return
         val target = lastTarget ?: return
         val local = localPosition(mouseX, mouseY) ?: return
+        val scrollbarResult = input.scrollbarMouseDragged(frame, local.x, local.y, ::setScrollImmediate)
+        if (scrollbarResult.handled) return
         input.mouseDragged(
             frame,
             local.x,
@@ -301,6 +303,18 @@ private object UiPreviewRenderer {
         val context = lastContext ?: return null
         val target = lastTarget ?: return null
         return localPosition(mouseX, mouseY, context, target)
+    }
+
+    private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
+        runtime.setScrollImmediate(node, offset.x, offset.y)
+    }
+
+    private fun horizontalScrollModifierDown(): Boolean {
+        val window = Minecraft.getInstance().window.window
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
     }
 
     private fun localPosition(

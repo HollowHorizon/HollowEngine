@@ -44,16 +44,18 @@ internal fun drawSolid(rect: UiRect, color: UiColor, transform: UiMatrix4, radiu
         drawLocalPaint(rect.width, rect.height, radius, color, transform * UiMatrix4.translation(rect.x, rect.y, 0f), UiFilterChain.Empty)
         return
     }
-    RenderSystem.disableCull()
-    RenderSystem.setShader(GameRenderer::getPositionColorShader)
-    val tessellator = Tesselator.getInstance()
-    val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
-    val corners = rect.corners(transform)
-    buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setColor(color.red, color.green, color.blue, color.alpha)
-    buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setColor(color.red, color.green, color.blue, color.alpha)
-    buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setColor(color.red, color.green, color.blue, color.alpha)
-    buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setColor(color.red, color.green, color.blue, color.alpha)
-    BufferUploader.drawWithShader(buffer.buildOrThrow())
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
+        val corners = rect.corners(transform)
+        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setColor(color.red, color.green, color.blue, color.alpha)
+        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setColor(color.red, color.green, color.blue, color.alpha)
+        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setColor(color.red, color.green, color.blue, color.alpha)
+        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setColor(color.red, color.green, color.blue, color.alpha)
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
+    }
 }
 
 internal fun drawLocalPaint(
@@ -69,16 +71,18 @@ internal fun drawLocalPaint(
         drawRoundedFan(width, height, radius, transform) { _, _ -> filtered }
         return
     }
-    RenderSystem.disableCull()
-    RenderSystem.setShader(GameRenderer::getPositionColorShader)
-    val tessellator = Tesselator.getInstance()
-    val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
-    val corners = localCorners(width, height, transform)
-    buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-    buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-    buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-    buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-    BufferUploader.drawWithShader(buffer.buildOrThrow())
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
+        val corners = localCorners(width, height, transform)
+        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
+        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
+        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
+        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
+    }
 }
 
 internal fun drawLocalGradient(
@@ -205,21 +209,23 @@ private fun drawRoundedFan(
     transform: UiMatrix4,
     colorAt: (Float, Float) -> UiColor,
 ) {
-    RenderSystem.disableCull()
-    RenderSystem.setShader(GameRenderer::getPositionColorShader)
-    val tessellator = Tesselator.getInstance()
-    val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR)
-    val centerX = width * 0.5f
-    val centerY = height * 0.5f
-    val center = transform.transform(centerX, centerY)
-    val centerColor = colorAt(centerX, centerY)
-    buffer.addVertex(center.x, center.y, center.z).setColor(centerColor.red, centerColor.green, centerColor.blue, centerColor.alpha)
-    for ((x, y) in roundedPerimeter(width, height, radius)) {
-        val point = transform.transform(x, y)
-        val color = colorAt(x, y)
-        buffer.addVertex(point.x, point.y, point.z).setColor(color.red, color.green, color.blue, color.alpha)
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR)
+        val centerX = width * 0.5f
+        val centerY = height * 0.5f
+        val center = transform.transform(centerX, centerY)
+        val centerColor = colorAt(centerX, centerY)
+        buffer.addVertex(center.x, center.y, center.z).setColor(centerColor.red, centerColor.green, centerColor.blue, centerColor.alpha)
+        for ((x, y) in roundedPerimeter(width, height, radius)) {
+            val point = transform.transform(x, y)
+            val color = colorAt(x, y)
+            buffer.addVertex(point.x, point.y, point.z).setColor(color.red, color.green, color.blue, color.alpha)
+        }
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
-    BufferUploader.drawWithShader(buffer.buildOrThrow())
 }
 
 private fun drawProjectedShadowGradient(
@@ -237,31 +243,33 @@ private fun drawProjectedShadowGradient(
     val outerExpansion = blur.coerceAtLeast(1f)
     val innerAlpha = color.alpha * 0.72f
     configureUiBlend()
-    RenderSystem.disableCull()
-    RenderSystem.setShader(GameRenderer::getPositionColorShader)
-    val tessellator = Tesselator.getInstance()
-    val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
-    val center = UiVec3(centerX + offsetX, centerY + offsetY, 0f)
-    val inner = outline.map { expandFromCenter(it, centerX, centerY, spread) }
-    val outer = outline.map { expandFromCenter(it, centerX, centerY, spread + outerExpansion) }
-    for (index in 0 until inner.lastIndex) {
-        val currentInner = inner[index].withOffset(offsetX, offsetY)
-        val nextInner = inner[index + 1].withOffset(offsetX, offsetY)
-        val currentOuter = outer[index].withOffset(offsetX, offsetY)
-        val nextOuter = outer[index + 1].withOffset(offsetX, offsetY)
-        buffer.addVertex(center.x, center.y, center.z).setColor(color.red, color.green, color.blue, innerAlpha)
-        buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
-        buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
+        val center = UiVec3(centerX + offsetX, centerY + offsetY, 0f)
+        val inner = outline.map { expandFromCenter(it, centerX, centerY, spread) }
+        val outer = outline.map { expandFromCenter(it, centerX, centerY, spread + outerExpansion) }
+        for (index in 0 until inner.lastIndex) {
+            val currentInner = inner[index].withOffset(offsetX, offsetY)
+            val nextInner = inner[index + 1].withOffset(offsetX, offsetY)
+            val currentOuter = outer[index].withOffset(offsetX, offsetY)
+            val nextOuter = outer[index + 1].withOffset(offsetX, offsetY)
+            buffer.addVertex(center.x, center.y, center.z).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
 
-        buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
-        buffer.addVertex(currentOuter.x, currentOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
-        buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
+            buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(currentOuter.x, currentOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
+            buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
 
-        buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
-        buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
-        buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
+            buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+        }
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
-    BufferUploader.drawWithShader(buffer.buildOrThrow())
 }
 
 private fun UiVec3.withOffset(x: Float, y: Float): UiVec3 = UiVec3(this.x + x, this.y + y, z)
@@ -288,18 +296,20 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
     val segments = roundedSegments(radius)
     val outer = roundedPerimeter(width, height, radius, segments)
     val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments).map { (x, y) -> x + inset to y + inset }
-    RenderSystem.disableCull()
-    RenderSystem.setShader(GameRenderer::getPositionColorShader)
-    val tessellator = Tesselator.getInstance()
-    val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR)
-    for (index in outer.indices) {
-        val innerIndex = index.coerceAtMost(inner.lastIndex)
-        val outerPoint = transform.transform(outer[index].first, outer[index].second)
-        val innerPoint = transform.transform(inner[innerIndex].first, inner[innerIndex].second)
-        buffer.addVertex(outerPoint.x, outerPoint.y, outerPoint.z).setColor(color.red, color.green, color.blue, color.alpha)
-        buffer.addVertex(innerPoint.x, innerPoint.y, innerPoint.z).setColor(color.red, color.green, color.blue, color.alpha)
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR)
+        for (index in outer.indices) {
+            val innerIndex = index.coerceAtMost(inner.lastIndex)
+            val outerPoint = transform.transform(outer[index].first, outer[index].second)
+            val innerPoint = transform.transform(inner[innerIndex].first, inner[innerIndex].second)
+            buffer.addVertex(outerPoint.x, outerPoint.y, outerPoint.z).setColor(color.red, color.green, color.blue, color.alpha)
+            buffer.addVertex(innerPoint.x, innerPoint.y, innerPoint.z).setColor(color.red, color.green, color.blue, color.alpha)
+        }
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
-    BufferUploader.drawWithShader(buffer.buildOrThrow())
 }
 
 private fun roundedPerimeter(width: Float, height: Float, radius: Float, segmentsOverride: Int? = null): List<Pair<Float, Float>> {

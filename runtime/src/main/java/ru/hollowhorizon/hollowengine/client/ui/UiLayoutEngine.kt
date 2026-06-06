@@ -235,8 +235,17 @@ class UiLayoutEngine {
         bindings: UiBindingContext,
     ) {
         val gap = style.gap.resolve(content.width)
-        val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
-        val grown = growRowChildren(measured, content.width, gap, resolved, scrollbarReserves, bindings)
+        val measured = measureFlowChildren(
+            node.children,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            allowWidthOverflow = style.input.scrollable,
+            allowHeightOverflow = style.input.scrollable,
+            bindings = bindings,
+        )
+        val grown = growRowChildren(measured, content.width, gap, resolved, scrollbarReserves, bindings, allowOverflow = style.input.scrollable)
         val totalWidth = grown.sumOfOuterWidth() + gap * (grown.size - 1).coerceAtLeast(0)
         val mainAlign = grown.singleChildMainAxisAlign { it.alignHorizontal } ?: style.childAlignHorizontal()
         var x = content.x + mainAlign.mainStartOffset(content.width, totalWidth, grown.size, gap)
@@ -281,8 +290,17 @@ class UiLayoutEngine {
         bindings: UiBindingContext,
     ) {
         val gap = style.gap.resolve(content.height)
-        val measured = measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
-        val grown = growColumnChildren(measured, content.height, gap, resolved, scrollbarReserves, bindings)
+        val measured = measureFlowChildren(
+            node.children,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            allowWidthOverflow = style.input.scrollable,
+            allowHeightOverflow = style.input.scrollable,
+            bindings = bindings,
+        )
+        val grown = growColumnChildren(measured, content.height, gap, resolved, scrollbarReserves, bindings, allowOverflow = style.input.scrollable)
         val totalHeight = grown.sumOfOuterHeight() + gap * (grown.size - 1).coerceAtLeast(0)
         val mainAlign = grown.singleChildMainAxisAlign { it.alignVertical } ?: style.childAlignVertical()
         var y = content.y + mainAlign.mainStartOffset(content.height, totalHeight, grown.size, gap)
@@ -292,7 +310,7 @@ class UiLayoutEngine {
             val position = childStyle.position.resolve(content.width, content.height)
             val align = childStyle.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: style.childAlignHorizontal() ?: UiAlign.STRETCH
             val childWidth = when (val width = childStyle.size.width) {
-                UiLength.Auto -> if (align == UiAlign.STRETCH) {
+                UiLength.Auto -> if (align == UiAlign.STRETCH && child.canStretchAutoWidth) {
                     (content.width - child.margin.left - child.margin.right).coerceAtLeast(0f)
                         .coerceIn(childStyle.minSize.width, childStyle.maxSize.width, content.width)
                 } else {
@@ -328,7 +346,16 @@ class UiLayoutEngine {
         var x = content.x
         var y = content.y
         var rowHeight = 0f
-        for (child in measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)) {
+        for (child in measureFlowChildren(
+            node.children,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            allowWidthOverflow = resolved[node].input.scrollable,
+            allowHeightOverflow = resolved[node].input.scrollable,
+            bindings = bindings,
+        )) {
             val outerWidth = child.margin.left + child.size.width + child.margin.right
             if (x > content.x && x + outerWidth > content.x + content.width) {
                 x = content.x
@@ -358,7 +385,16 @@ class UiLayoutEngine {
         layouts: MutableMap<UiNode, UiLayoutNode>,
         bindings: UiBindingContext,
     ) {
-        for (child in measureFlowChildren(node.children, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)) {
+        for (child in measureFlowChildren(
+            node.children,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            allowWidthOverflow = style.input.scrollable,
+            allowHeightOverflow = style.input.scrollable,
+            bindings = bindings,
+        )) {
             val position = child.style.position.resolve(content.width, content.height)
             val alignX = child.style.effectiveAlignHorizontal(style) ?: UiAlign.START
             val alignY = child.style.effectiveAlignVertical(style) ?: UiAlign.START
@@ -377,6 +413,8 @@ class UiLayoutEngine {
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         deferFlexibleWidth: Boolean = false,
         deferFlexibleHeight: Boolean = false,
+        allowWidthOverflow: Boolean = false,
+        allowHeightOverflow: Boolean = false,
         bindings: UiBindingContext = UiBindingContext(),
     ): List<MeasuredChild> {
         return children.map { child ->
@@ -393,6 +431,8 @@ class UiLayoutEngine {
                     scrollbarReserves,
                     deferFlexibleWidth = deferFlexibleWidth,
                     deferFlexibleHeight = deferFlexibleHeight,
+                    allowWidthOverflow = allowWidthOverflow,
+                    allowHeightOverflow = allowHeightOverflow,
                     bindings = bindings,
                 ),
                 margin
@@ -407,6 +447,7 @@ class UiLayoutEngine {
         resolved: ResolvedUiTree,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         bindings: UiBindingContext,
+        allowOverflow: Boolean = false,
     ): List<MeasuredChild> {
         val gapTotal = gap * (children.size - 1).coerceAtLeast(0)
         val fixedWidth = children
@@ -426,6 +467,7 @@ class UiLayoutEngine {
             }
         }
         val overflow = (distributed.sumOfOuterWidth() + gapTotal - availableWidth).coerceAtLeast(0f)
+        if (allowOverflow) return distributed
         if (overflow <= 0f) return distributed
         val shrinkable = distributed.filter { it.style.size.width !is UiLength.Px && it.size.width > 0f }
         val shrinkableWidth = shrinkable.sumOf { it.size.width.toDouble() }.toFloat()
@@ -446,6 +488,7 @@ class UiLayoutEngine {
         resolved: ResolvedUiTree,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         bindings: UiBindingContext,
+        allowOverflow: Boolean = false,
     ): List<MeasuredChild> {
         val gapTotal = gap * (children.size - 1).coerceAtLeast(0)
         val fixedHeight = children
@@ -465,6 +508,7 @@ class UiLayoutEngine {
             }
         }
         val overflow = (distributed.sumOfOuterHeight() + gapTotal - availableHeight).coerceAtLeast(0f)
+        if (allowOverflow) return distributed
         if (overflow <= 0f) return distributed
         val shrinkable = distributed.filter { it.style.size.height !is UiLength.Px && it.size.height > 0f }
         val shrinkableHeight = shrinkable.sumOf { it.size.height.toDouble() }.toFloat()
@@ -488,6 +532,8 @@ class UiLayoutEngine {
         heightOverride: Float? = null,
         deferFlexibleWidth: Boolean = false,
         deferFlexibleHeight: Boolean = false,
+        allowWidthOverflow: Boolean = false,
+        allowHeightOverflow: Boolean = false,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
         val style = resolved[node]
@@ -527,8 +573,10 @@ class UiLayoutEngine {
         }
         val finalWidth = requireNotNull(width)
         val finalHeight = requireNotNull(height)
-        val constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, referenceWidth)
-        var constrainedHeight = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, referenceHeight)
+        val widthReference = if (allowWidthOverflow && style.size.width is UiLength.Auto) Float.POSITIVE_INFINITY else referenceWidth
+        val heightReference = if (allowHeightOverflow && style.size.height is UiLength.Auto) Float.POSITIVE_INFINITY else referenceHeight
+        val constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, widthReference)
+        var constrainedHeight = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, heightReference)
         if (heightOverride == null && style.size.height is UiLength.Auto && abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon) {
             val constrainedContentWidth = (constrainedWidth - insets.horizontal).coerceAtLeast(0f)
             val reflowed = intrinsicSize(
@@ -543,7 +591,7 @@ class UiLayoutEngine {
                 bindings = bindings,
             )
             constrainedHeight = (reflowed.height + insets.vertical)
-                .coerceIn(style.minSize.height, style.maxSize.height, referenceHeight)
+                .coerceIn(style.minSize.height, style.maxSize.height, heightReference)
         }
         return LayoutSize(
             width = constrainedWidth,
@@ -573,7 +621,7 @@ class UiLayoutEngine {
             text = node.value.ifEmpty { node.placeholder },
             availableWidth = availableWidth,
             knownWidth = knownContentWidth,
-            wrap = style.textWrap && node.multiline,
+            wrap = textFieldWrap(style, node, knownContentWidth != null),
             fontSize = style.fontSize,
             preserveWhitespace = true,
         )
@@ -586,6 +634,8 @@ class UiLayoutEngine {
             scrollbarReserves,
             deferFlexibleWidth = style.size.width is UiLength.Auto,
             deferFlexibleHeight = style.size.height is UiLength.Auto,
+            allowWidthOverflow = style.input.scrollable,
+            allowHeightOverflow = style.input.scrollable,
             bindings = bindings,
         )
         val gap = style.gap.resolve(if (style.layout == LayoutType.ROW) availableWidth else availableHeight)
@@ -729,7 +779,7 @@ private fun scrollableContentBounds(
                 field.value.ifEmpty { field.placeholder },
                 layout.content.width,
                 Float.POSITIVE_INFINITY,
-                style.textWrap && field.multiline,
+                textFieldWrap(style, field, constrainedWidth = true),
                 style.textAlign,
                 style.fontSize,
                 preserveWhitespace = true,
@@ -738,11 +788,17 @@ private fun scrollableContentBounds(
         return UiRect(
             layout.content.x,
             layout.content.y,
-            maxOf(layout.content.width, textLayout.width),
+            maxOf(layout.content.width, textLayout.maxNaturalLineWidth()),
             maxOf(layout.content.height, textLayout.height),
         )
     }
     return node.children.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
+}
+
+private fun UiTextLayout.maxNaturalLineWidth(): Float = lines.maxOfOrNull { it.naturalWidth } ?: width
+
+private fun textFieldWrap(style: ComputedStyle, node: TextFieldNode, constrainedWidth: Boolean): Boolean {
+    return style.textWrap && node.multiline && constrainedWidth
 }
 
 private fun List<MeasuredChild>.sumOfOuterWidth(): Float = sumOf { (it.margin.left + it.size.width + it.margin.right).toDouble() }.toFloat()
@@ -783,6 +839,9 @@ private val MeasuredChild.isColumnFlexible: Boolean
             style.size.height is UiLength.Percent ||
             style.grow > 0f ||
             node is TextNode && style.input.scrollable && style.size.height is UiLength.Auto
+
+private val MeasuredChild.canStretchAutoWidth: Boolean
+    get() = node !is TextFieldNode
 
 private fun MeasuredChild.rowWeight(): Float {
     if (style.grow > 0f) return style.grow

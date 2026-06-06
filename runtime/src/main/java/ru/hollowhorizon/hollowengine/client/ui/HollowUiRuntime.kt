@@ -7,8 +7,25 @@ data class HollowUiFrame(
     val layout: UiLayoutResult,
     val commands: List<UiRenderCommand>,
     private val activeTransitionDurations: Map<String, Long> = emptyMap(),
+    private val activeScrollAnimation: Boolean = false,
 ) {
     fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(resolved, layout, x, y)
+
+    fun scrollTargetAt(x: Float, y: Float): UiNode? = scrollTargetAt(resolved.root, x, y, ancestorClip = null)
+
+    fun nodeByKey(key: String): UiNode? = resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
+
+    fun scrollbarAt(x: Float, y: Float): DrawScrollbarCommand? {
+        val scrollbars = commands.filterIsInstance<DrawScrollbarCommand>()
+        return scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.THUMB }
+            ?: scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.TRACK }
+    }
+
+    fun requiresContinuousRefresh(): Boolean {
+        return activeScrollAnimation ||
+                activeTransitionDurations.values.any { it > 0L } ||
+                resolved.styles.values.any { it.requiresContinuousRefresh() }
+    }
 
     fun motionDurationMillis(previous: HollowUiFrame?): Long {
         val previousStyles = previous?.resolved?.styles
@@ -39,6 +56,69 @@ data class HollowUiFrame(
         }
         return null
     }
+
+    private fun scrollTargetAt(node: UiNode, x: Float, y: Float, ancestorClip: UiRect?): UiNode? {
+        val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val layoutNode = layout[node]
+        val childClip = ancestorClip.intersect(layoutNode.clip)
+        for (child in children.asReversed()) {
+            scrollTargetAt(child, x, y, childClip)?.let { return it }
+        }
+        if (!resolved[node].input.scrollable) return null
+        ancestorClip?.let { clip ->
+            if (!clip.contains(x, y)) return null
+        }
+        if (!layoutNode.inputQuadContains(x, y)) return null
+        val inverse = layoutNode.inputTransform.inverse() ?: return null
+        val local = inverse.transform(x, y, 0f)
+        val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
+        return if (rect.contains(local.x, local.y)) node else null
+    }
+
+    private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
+        val corners = arrayOf(
+            inputTransform.transform(0f, 0f),
+            inputTransform.transform(0f, rect.height),
+            inputTransform.transform(rect.width, rect.height),
+            inputTransform.transform(rect.width, 0f),
+        )
+        return pointInConvexPolygon(x, y, corners)
+    }
+
+    private fun pointInConvexPolygon(x: Float, y: Float, corners: Array<UiVec3>): Boolean {
+        if (corners.size < 3) return false
+        var sign = 0f
+        for (index in corners.indices) {
+            val current = corners[index]
+            val next = corners[(index + 1) % corners.size]
+            val cross = (next.x - current.x) * (y - current.y) - (next.y - current.y) * (x - current.x)
+            if (cross == 0f) continue
+            if (sign == 0f) {
+                sign = cross
+            } else if (sign * cross < 0f) {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+private fun UiRect?.intersect(other: UiRect?): UiRect? {
+    if (this == null) return other
+    if (other == null) return this
+    val left = maxOf(x, other.x)
+    val top = maxOf(y, other.y)
+    val right = minOf(x + width, other.x + other.width)
+    val bottom = minOf(y + height, other.y + other.height)
+    if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
+    return UiRect(left, top, right - left, bottom - top)
+}
+
+private fun ComputedStyle.requiresContinuousRefresh(): Boolean {
+    if (typing != null) return true
+    return animations.any { animation ->
+        animation.totalDurationMillis()?.let { it > 0L } ?: true
+    }
 }
 
 class HollowUiRuntime(
@@ -67,7 +147,7 @@ class HollowUiRuntime(
         }
         val layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
-        return HollowUiFrame(resolved, layout, commands, activeTransitionDurations)
+        return HollowUiFrame(resolved, layout, commands, activeTransitionDurations, scrollState.isAnimating())
     }
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset = scrollState.scroll(node, deltaX, deltaY)

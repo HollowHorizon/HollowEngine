@@ -1486,6 +1486,26 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `infinite keyframe animation requests continuous frame refresh`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                animation: sway 1000ms linear infinite;
+            }
+
+            @keyframes sway {
+                from { rotate: 0 0 -10; }
+                to { rotate: 0 0 10; }
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val frame = HollowUiRuntime(stylesheet = stylesheet).frame(root, 100f, 40f, nowMillis = 0L)
+
+        assertTrue(frame.requiresContinuousRefresh())
+    }
+
+    @Test
     fun `hover exit uses base transitions instead of snapping`() {
         val stylesheet = compileHss(
             """

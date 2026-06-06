@@ -29,6 +29,23 @@ sealed class UiClientScript {
     }
 }
 
+internal fun UiNode.clientScripts(): List<UiClientScript> {
+    val ownScripts = modifiers
+        .filterIsInstance<UiClientScriptModifier>()
+        .flatMap { it.scripts } +
+            modifiers
+                .filterIsInstance<ScriptEventModifier>()
+                .map { modifier ->
+                    UiClientScript.Inline(
+                        kind = modifier.kind,
+                        source = modifier.source,
+                        targetKey = UiNodeKeys.key(this),
+                        sink = modifier.sink,
+                    )
+                }
+    return ownScripts + children.flatMap { it.clientScripts() }
+}
+
 object UiInlineScriptRunner {
     fun run(source: String, event: UiEvent, sink: UiEventSink) {
         UiClientScriptRunner.run(UiClientScript.Inline(event.kind, source), event, event.node, sink, event.variables)

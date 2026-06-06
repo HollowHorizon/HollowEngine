@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtOps
 import net.minecraft.world.entity.player.Player
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
@@ -25,6 +26,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiEventPacket
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForCompoundNBT
+import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 
 @Serializable
@@ -133,6 +135,33 @@ object KatariUiOverlays {
         overlays[id]?.close(root)
     }
 
+    fun handleMouseMove(x: Float, y: Float): Boolean {
+        val point = overlayPoint(x, y)
+        return overlays.values.toList().asReversed().any { it.mouseMoved(point.x, point.y) }
+    }
+
+    fun handleMouseButton(x: Float, y: Float, button: Int, action: Int, modifiers: Int): Boolean {
+        val point = overlayPoint(x, y)
+        return overlays.values.toList().asReversed().any { it.mouseButton(point.x, point.y, button, action, modifiers) }
+    }
+
+    fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
+        val point = overlayPoint(x, y)
+        return overlays.values.toList().asReversed().any { it.mouseScrolled(point.x, point.y, scrollX, scrollY) }
+    }
+
+    fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
+        return overlays.values.toList().asReversed().any { it.keyPressed(key, scanCode, action, modifiers) }
+    }
+
+    fun handleChar(codePoint: Int, modifiers: Int): Boolean {
+        return overlays.values.toList().asReversed().any { it.charTyped(codePoint.toChar(), modifiers) }
+    }
+
+    fun hasFocusedInput(): Boolean {
+        return overlays.values.any { it.hasFocusedInput() }
+    }
+
     @SubscribeEvent
     fun render(event: RenderOverlayEvent.Post) {
         if (event.overlay != GuiOverlay.CHAT_PANEL) return
@@ -142,6 +171,17 @@ object KatariUiOverlays {
                 overlays.remove(id)?.dispose()
             }
         }
+    }
+
+    private fun overlayPoint(x: Float, y: Float): UiOverlayPoint {
+        val minecraft = Minecraft.getInstance()
+        val window = minecraft.window
+        val sourceWidth = minecraft.mainRenderTarget.width.takeIf { it > 0 }?.toFloat() ?: window.width.toFloat()
+        val sourceHeight = minecraft.mainRenderTarget.height.takeIf { it > 0 }?.toFloat() ?: window.height.toFloat()
+        return UiOverlayPoint(
+            x = x * window.guiScaledWidth.toFloat() / sourceWidth,
+            y = y * window.guiScaledHeight.toFloat() / sourceHeight,
+        )
     }
 }
 
@@ -154,11 +194,15 @@ private class KatariUiOverlay(
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
     private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
+    private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
     private var node = buildNode(root, variables)
     private var closing = false
     private var closingStartedAt: Long? = null
     private var closeBaseFrame: HollowUiFrame? = null
     private var lastFrame: HollowUiFrame? = null
+    private var activeButton: Int? = null
+    private var lastMouseX = 0f
+    private var lastMouseY = 0f
 
     fun show(root: UiXmlTree, variables: CompoundTag) {
         this.root = root
@@ -168,6 +212,7 @@ private class KatariUiOverlay(
         closingStartedAt = null
         closeBaseFrame = null
         input.reset()
+        activeButton = null
     }
 
     fun update(root: UiXmlTree) {
@@ -181,33 +226,180 @@ private class KatariUiOverlay(
         closing = true
         closingStartedAt = null
         closeBaseFrame = lastFrame
+        activeButton = null
+        input.clearInteraction()
     }
 
     fun render(nowMillis: Long): Boolean {
-        val window = Minecraft.getInstance().window
-        input.prepareRoot(node, closing)
-        val frame = runtime.frame(
-            node,
-            window.guiScaledWidth.toFloat(),
-            window.guiScaledHeight.toFloat(),
-            UiBindingContext(variables),
-            nowMillis,
-        )
+        val frame = refreshFrame(nowMillis)
         renderer.render(frame.commands)
-        lastFrame = frame
         if (!closing) return false
         val closeStartedAt = closingStartedAt ?: nowMillis.also { closingStartedAt = it }
         return nowMillis - closeStartedAt >= frame.motionDurationMillis(closeBaseFrame)
     }
 
+    fun mouseMoved(mouseX: Float, mouseY: Float): Boolean {
+        if (closing) return true
+        val frame = lastFrame ?: return false
+        val button = activeButton
+        if (button == null) {
+            val changed = input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
+            if (changed || frame.requiresContinuousRefresh()) refreshFrame()
+            return false
+        }
+
+        val deltaX = mouseX - lastMouseX
+        val deltaY = mouseY - lastMouseY
+        lastMouseX = mouseX
+        lastMouseY = mouseY
+
+        val scrollbarResult = input.scrollbarMouseDragged(frame, mouseX, mouseY, ::setScrollImmediate)
+        if (scrollbarResult.handled) {
+            refreshFrame()
+            return true
+        }
+
+        val result = input.mouseDragged(frame, mouseX, mouseY, button, deltaX, deltaY, ::dispatchUiEvent)
+        if (result.handled) {
+            refreshFrame()
+            return true
+        }
+        return input.hasScrollbarDrag()
+    }
+
+    fun mouseButton(mouseX: Float, mouseY: Float, button: Int, action: Int, modifiers: Int): Boolean {
+        if (closing) return true
+        val frame = lastFrame ?: return false
+        return when (action) {
+            GLFW.GLFW_PRESS -> mousePressed(frame, mouseX, mouseY, button)
+            GLFW.GLFW_RELEASE -> mouseReleased(frame, mouseX, mouseY, button)
+            else -> false
+        }
+    }
+
+    fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Double, scrollY: Double): Boolean {
+        if (closing) return true
+        val frame = lastFrame ?: return false
+        val target = frame.scrollTargetAt(mouseX, mouseY)
+            ?: input.focusedKey
+                ?.let(frame::nodeByKey)
+                ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
+            ?: return false
+        val range = frame.layout[target].scrollRange
+        val delta = scrollWheelDelta(range, scrollX, scrollY, horizontalScrollModifierDown())
+        val event = UiEvent(
+            kind = UiEventKind.SCROLL,
+            node = target,
+            x = mouseX,
+            y = mouseY,
+            scrollX = delta.x,
+            scrollY = delta.y,
+        )
+        if (dispatchUiEvent(event) && event.consumed) {
+            refreshFrame()
+            return true
+        }
+        runtime.scroll(target, delta.x * 32f, delta.y * 32f)
+        refreshFrame()
+        return true
+    }
+
+    fun keyPressed(keyCode: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
+        if (closing) return true
+        if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
+        val frame = lastFrame ?: return false
+        val result = input.keyPressed(frame, keyCode, scanCode, modifiers, ::dispatchUiEvent)
+        if (result.handled) refreshFrame()
+        return result.handled
+    }
+
+    fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        if (closing) return true
+        val frame = lastFrame ?: return false
+        val result = input.charTyped(frame, codePoint, modifiers, ::dispatchUiEvent)
+        if (result.handled) refreshFrame()
+        return result.handled
+    }
+
+    fun hasFocusedInput(): Boolean = input.focusedKey != null
+
     fun dispose() {
         renderer.close()
     }
 
+    private fun mousePressed(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int): Boolean {
+        activeButton = button
+        lastMouseX = mouseX
+        lastMouseY = mouseY
+
+        val scrollbarResult = input.scrollbarMouseClicked(frame, mouseX, mouseY, button, ::setScrollImmediate)
+        if (scrollbarResult.handled) {
+            refreshFrame()
+            return true
+        }
+
+        val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl)
+        if (result.handled) {
+            refreshFrame()
+            return true
+        }
+
+        activeButton = null
+        return false
+    }
+
+    private fun mouseReleased(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int): Boolean {
+        val hadActivePointer = activeButton != null || input.hasScrollbarDrag()
+        val result = input.mouseReleased(frame, mouseX, mouseY, button, ::dispatchUiEvent)
+        activeButton = null
+        if (result.handled || hadActivePointer) refreshFrame()
+        return result.handled || hadActivePointer
+    }
+
+    private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
+        runtime.setScrollImmediate(node, offset.x, offset.y)
+    }
+
+    private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
+        val window = Minecraft.getInstance().window
+        input.prepareRoot(node, closing)
+        return runtime.frame(
+            node,
+            window.guiScaledWidth.toFloat(),
+            window.guiScaledHeight.toFloat(),
+            UiBindingContext(variables),
+            nowMillis,
+        ).also { lastFrame = it }
+    }
+
+    private fun dispatchUiEvent(event: UiEvent): Boolean {
+        val rootNode = lastFrame?.resolved?.root ?: node
+        event.variables = variables
+        var handled = false
+        if (preparedScripts.dispatch(event, rootNode, variables)) handled = true
+        if (!event.consumed && event.node.dispatch(event)) handled = true
+        return handled
+    }
+
+    private fun horizontalScrollModifierDown(): Boolean {
+        val window = Minecraft.getInstance().window.window
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
+    }
+
     private fun buildNode(root: UiXmlTree, variables: CompoundTag): BoxNode {
         return UiXmlBuilder(UiXmlOptions(eventSink = sink)).build(root).also {
-            val scripts = it.modifiers.filterIsInstance<UiClientScriptModifier>().flatMap { modifier -> modifier.scripts }
-            UiClientScriptRunner.prepare(scripts, it, sink, variables)
+            UiNodeKeys.assign(it)
+            val scripts = it.clientScripts()
+            preparedScripts = if (scripts.isEmpty()) {
+                UiPreparedClientScripts.Empty
+            } else {
+                UiClientScriptRunner.prepare(scripts, it, sink, variables)
+            }
         }
     }
 }
+
+private data class UiOverlayPoint(val x: Float, val y: Float)

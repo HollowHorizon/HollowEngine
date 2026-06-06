@@ -201,6 +201,7 @@ data class DrawScrollbarCommand(
     val thumbFit: UiImageFit,
     val thumbSlice: UiInsets,
     val opacity: Float,
+    val transform: UiMatrix4,
 ) : UiRenderCommand
 
 enum class ScrollbarOrientation {
@@ -406,10 +407,11 @@ class UiCommandRenderer {
     ) {
         val text = node.value
         val visible = text.ifEmpty { node.placeholder }
-        val wrap = style.textWrap && node.multiline
-        val editLayout = UiTextLayouter.layout(text, layoutNode.content.width, layoutNode.content.height, wrap, style.textAlign, style.fontSize, preserveWhitespace = true)
+        val wrap = style.textWrap && node.multiline && textFieldWidthConstrained(style, node, layoutNode.content.width)
+        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
+        val editLayout = UiTextLayouter.layout(text, layoutNode.content.width, textHeight, wrap, style.textAlign, style.fontSize, preserveWhitespace = true)
         val displayLayout = if (text.isEmpty()) {
-            UiTextLayouter.layout(visible, layoutNode.content.width, layoutNode.content.height, wrap, style.textAlign, style.fontSize)
+            UiTextLayouter.layout(visible, layoutNode.content.width, textHeight, wrap, style.textAlign, style.fontSize)
         } else {
             editLayout
         }
@@ -473,8 +475,8 @@ class UiCommandRenderer {
             val trackHeight = layoutNode.scrollArea.height - verticalStyle.margin * 2f - horizontalReserve
             if (trackHeight > 0f) {
                 val track = UiRect(
-                    x = layoutNode.scrollArea.x + layoutNode.scrollArea.width - verticalStyle.thickness - verticalStyle.margin,
-                    y = layoutNode.scrollArea.y + verticalStyle.margin,
+                    x = layoutNode.scrollArea.x - layoutNode.rect.x + layoutNode.scrollArea.width - verticalStyle.thickness - verticalStyle.margin,
+                    y = layoutNode.scrollArea.y - layoutNode.rect.y + verticalStyle.margin,
                     width = verticalStyle.thickness,
                     height = trackHeight,
                 )
@@ -495,6 +497,7 @@ class UiCommandRenderer {
                     thumbFit = verticalStyle.thumb.fit ?: UiImageFit.STRETCH,
                     thumbSlice = verticalStyle.thumb.slice ?: UiInsets.all(4.px),
                     opacity = opacity,
+                    transform = layoutNode.worldTransform,
                 )
             }
         }
@@ -503,8 +506,8 @@ class UiCommandRenderer {
             val trackWidth = layoutNode.scrollArea.width - horizontalStyle.margin * 2f - verticalReserve
             if (trackWidth > 0f) {
                 val track = UiRect(
-                    x = layoutNode.scrollArea.x + horizontalStyle.margin,
-                    y = layoutNode.scrollArea.y + layoutNode.scrollArea.height - horizontalStyle.thickness - horizontalStyle.margin,
+                    x = layoutNode.scrollArea.x - layoutNode.rect.x + horizontalStyle.margin,
+                    y = layoutNode.scrollArea.y - layoutNode.rect.y + layoutNode.scrollArea.height - horizontalStyle.thickness - horizontalStyle.margin,
                     width = trackWidth,
                     height = horizontalStyle.thickness,
                 )
@@ -525,6 +528,7 @@ class UiCommandRenderer {
                     thumbFit = horizontalStyle.thumb.fit ?: UiImageFit.STRETCH,
                     thumbSlice = horizontalStyle.thumb.slice ?: UiInsets.all(4.px),
                     opacity = opacity,
+                    transform = layoutNode.worldTransform,
                 )
             }
         }
@@ -601,23 +605,23 @@ class UiHitTester {
     ): UiHit? {
         val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         val layoutNode = layout[node]
-        val effectiveChildClip = layoutNode.clip
+        val effectiveClip = ancestorClip.intersect(layoutNode.clip)
         for (child in children.asReversed()) {
-            hitNode(child, resolved, layout, x, y, ancestorClip = effectiveChildClip)?.let { return it }
+            hitNode(child, resolved, layout, x, y, ancestorClip = effectiveClip)?.let { return it }
         }
         val style = resolved[node]
         if (UiState.DISABLED in node.states) return null
         if (!style.input.hoverable && !style.input.clickable && !style.input.focusable && !style.input.draggable && !style.input.scrollable) {
             return null
         }
+        ancestorClip?.let { clip ->
+            if (!clip.contains(x, y)) return null
+        }
         if (!layoutNode.inputQuadContains(x, y)) return null
         val inverse = layoutNode.inputTransform.inverse() ?: return null
         val local = inverse.transform(x, y, 0f)
         val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
         if (!rect.contains(local.x, local.y)) return null
-        ancestorClip?.let { clip ->
-            if (!clip.contains(x, y)) return null
-        }
         return UiHit(node, local.x, local.y)
     }
 
@@ -647,4 +651,29 @@ class UiHitTester {
         }
         return true
     }
+}
+
+private fun textFieldWidthConstrained(style: ComputedStyle, node: TextFieldNode, contentWidth: Float): Boolean {
+    if (style.size.width !is UiLength.Auto || UiStyleProperty.WIDTH in style.explicitProperties) return true
+    val text = node.value.ifEmpty { node.placeholder }
+    val naturalWidth = UiTextLayouter.measure(
+        text = text,
+        availableWidth = Float.POSITIVE_INFINITY,
+        knownWidth = null,
+        wrap = false,
+        fontSize = style.fontSize,
+        preserveWhitespace = true,
+    ).width
+    return contentWidth + 0.5f < naturalWidth
+}
+
+private fun UiRect?.intersect(other: UiRect?): UiRect? {
+    if (this == null) return other
+    if (other == null) return this
+    val left = maxOf(x, other.x)
+    val top = maxOf(y, other.y)
+    val right = minOf(x + width, other.x + other.width)
+    val bottom = minOf(y + height, other.y + other.height)
+    if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
+    return UiRect(left, top, right - left, bottom - top)
 }

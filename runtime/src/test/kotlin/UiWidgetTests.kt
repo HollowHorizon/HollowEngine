@@ -1,6 +1,7 @@
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.DrawCheckboxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawScrollbarCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawSliderCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextFieldChromeCommand
@@ -8,19 +9,26 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUiInputController
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.SliderNode
 import ru.hollowhorizon.hollowengine.client.ui.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.UiCheckboxVariant
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
+import ru.hollowhorizon.hollowengine.client.ui.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.UiScrollbarPointerArea
 import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiTextInputFilter
 import ru.hollowhorizon.hollowengine.client.ui.UiTextFieldMode
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.caretIndexAt
 import ru.hollowhorizon.hollowengine.client.ui.caretPosition
+import ru.hollowhorizon.hollowengine.client.ui.dragStateAt
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.pointerAreaAt
 import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.selectionRects
+import ru.hollowhorizon.hollowengine.client.ui.scrollWheelDelta
+import ru.hollowhorizon.hollowengine.client.ui.trackClickOffset
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -386,5 +394,268 @@ class UiWidgetTests {
         controller.mouseClicked(frame, content.x + caret.x - 0.1f, content.y + caret.y + 1f, 0, dispatch = { false }, openUrl = {})
 
         assertEquals(2, field.caret)
+    }
+
+    @Test
+    fun `scrollable text field without overflow does not reserve scrollbar input gutter`() {
+        val controller = HollowUiInputController()
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "abc",
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(120.px, 20.px),
+                    Modifier.input(scrollable = true),
+                )
+            ),
+        )
+        controller.prepareRoot(field)
+        val frame = runtime.frame(field, 140f, 40f)
+        val layout = frame.layout[field]
+
+        assertFalse(frame.commands.any { it is DrawScrollbarCommand })
+        controller.mouseClicked(frame, layout.rect.x + layout.rect.width - 1f, layout.rect.y + 1f, 0, dispatch = { false }, openUrl = {})
+
+        assertEquals(field.value.length, field.caret)
+    }
+
+    @Test
+    fun `auto width multiline text field does not wrap while it can fit content`() {
+        val runtime = HollowUiRuntime()
+        val root = BoxNode(modifiers = listOf(Modifier.layout(LayoutType.ROW)))
+        val field = TextFieldNode(value = "fff", mode = UiTextFieldMode.MULTI_LINE)
+        root.children += field
+
+        val frame = runtime.frame(root, 200f, 40f)
+        val chrome = frame.commands.filterIsInstance<DrawTextFieldChromeCommand>().single()
+        val text = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node === field }
+
+        assertEquals(1, chrome.layout.lines.size)
+        assertEquals("fff", text.text)
+        assertTrue(frame.layout[field].content.width >= chrome.layout.lines.single().naturalWidth)
+    }
+
+    @Test
+    fun `scrollable text field exposes horizontal range for nowrap text`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "abcdefghijklmnopqrstuvwxyz",
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(40.px, 20.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.textWrap(false),
+                )
+            ),
+        )
+
+        val frame = runtime.frame(field, 80f, 40f)
+        val scrollbar = frame.commands
+            .filterIsInstance<DrawScrollbarCommand>()
+            .single { it.orientation == ScrollbarOrientation.HORIZONTAL }
+
+        assertTrue(frame.layout[field].scrollRange.x > 0f)
+        assertEquals(field, scrollbar.node)
+    }
+
+    @Test
+    fun `scrollbar thumb starts drag while track click computes jump offset`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(120.px, 20.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.textWrap(false),
+                )
+            ),
+        )
+        val frame = runtime.frame(field, 160f, 60f)
+        val layout = frame.layout[field]
+        val scrollbar = frame.commands
+            .filterIsInstance<DrawScrollbarCommand>()
+            .single { it.orientation == ScrollbarOrientation.HORIZONTAL }
+        val thumbX = scrollbar.thumb.x + scrollbar.thumb.width * 0.5f
+        val centerY = scrollbar.thumb.y + scrollbar.thumb.height * 0.5f
+        val trackX = (scrollbar.thumb.x + scrollbar.thumb.width + 2f)
+            .coerceAtMost(scrollbar.track.x + scrollbar.track.width - 1f)
+
+        assertEquals(UiScrollbarPointerArea.THUMB, scrollbar.pointerAreaAt(thumbX, centerY))
+        assertTrue(scrollbar.dragStateAt(thumbX, centerY)!!.offsetFor(layout, scrollbar.track.x + scrollbar.track.width, centerY).x > 0f)
+        assertEquals(UiScrollbarPointerArea.TRACK, scrollbar.pointerAreaAt(trackX, centerY))
+        assertEquals(null, scrollbar.dragStateAt(trackX, centerY))
+        assertTrue(scrollbar.trackClickOffset(layout, trackX, centerY).x > 0f)
+    }
+
+    @Test
+    fun `horizontal scrollbar hit testing follows visual transform`() {
+        val runtime = HollowUiRuntime()
+        val root = BoxNode(
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(60.px, 24.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.pivot(0.px, 0.px),
+                    Modifier.scale(2f),
+                )
+            )
+        )
+        root.children += BoxNode(modifiers = listOf(Modifier.size(180.px, 24.px)))
+
+        val frame = runtime.frame(root, 200f, 80f)
+        val scrollbar = frame.commands
+            .filterIsInstance<DrawScrollbarCommand>()
+            .single { it.orientation == ScrollbarOrientation.HORIZONTAL }
+        val localX = scrollbar.thumb.x + scrollbar.thumb.width * 0.5f
+        val localY = scrollbar.thumb.y + scrollbar.thumb.height * 0.5f
+        val visual = scrollbar.transform.transform(localX, localY, 0f)
+
+        assertEquals(null, scrollbar.pointerAreaAt(visual.x, localY))
+        assertEquals(null, frame.scrollbarAt(visual.x, localY))
+        assertEquals(UiScrollbarPointerArea.THUMB, scrollbar.pointerAreaAt(visual.x, visual.y))
+        assertEquals(scrollbar, frame.scrollbarAt(visual.x, visual.y))
+        assertTrue(scrollbar.dragStateAt(visual.x, visual.y)!!.offsetFor(frame.layout[root], visual.x + 40f, visual.y).x > 0f)
+    }
+
+    @Test
+    fun `vertical scrollbar hit testing follows visual transform`() {
+        val runtime = HollowUiRuntime()
+        val root = BoxNode(
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(40.px, 32.px),
+                    Modifier.layout(LayoutType.COLUMN),
+                    Modifier.input(scrollable = true),
+                    Modifier.pivot(0.px, 0.px),
+                    Modifier.scale(2f),
+                )
+            )
+        )
+        root.children += BoxNode(modifiers = listOf(Modifier.size(40.px, 96.px)))
+
+        val frame = runtime.frame(root, 160f, 120f)
+        val scrollbar = frame.commands
+            .filterIsInstance<DrawScrollbarCommand>()
+            .single { it.orientation == ScrollbarOrientation.VERTICAL }
+        val localX = scrollbar.thumb.x + scrollbar.thumb.width * 0.5f
+        val localY = scrollbar.thumb.y + scrollbar.thumb.height * 0.5f
+        val visual = scrollbar.transform.transform(localX, localY, 0f)
+
+        assertEquals(null, scrollbar.pointerAreaAt(localX, visual.y))
+        assertEquals(null, frame.scrollbarAt(localX, visual.y))
+        assertEquals(UiScrollbarPointerArea.THUMB, scrollbar.pointerAreaAt(visual.x, visual.y))
+        assertEquals(scrollbar, frame.scrollbarAt(visual.x, visual.y))
+        assertTrue(scrollbar.dragStateAt(visual.x, visual.y)!!.offsetFor(frame.layout[root], visual.x, visual.y + 40f).y > 0f)
+    }
+
+    @Test
+    fun `shift wheel maps vertical wheel delta to horizontal scroll`() {
+        val regular = scrollWheelDelta(UiScrollOffset(x = 100f, y = 100f), scrollX = 0.0, scrollY = 1.0, horizontalModifier = false)
+        val shifted = scrollWheelDelta(UiScrollOffset(x = 100f, y = 100f), scrollX = 0.0, scrollY = 1.0, horizontalModifier = true)
+        val horizontalOnly = scrollWheelDelta(UiScrollOffset(x = 100f, y = 0f), scrollX = 0.0, scrollY = 1.0, horizontalModifier = false)
+
+        assertEquals(0f, regular.x, 0.0001f)
+        assertEquals(-1f, regular.y, 0.0001f)
+        assertEquals(-1f, shifted.x, 0.0001f)
+        assertEquals(0f, shifted.y, 0.0001f)
+        assertEquals(-1f, horizontalOnly.x, 0.0001f)
+        assertEquals(0f, horizontalOnly.y, 0.0001f)
+    }
+
+    @Test
+    fun `scrollable text field reserves gutter for vertical scrollbar`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "a\nb\nc\nd",
+            mode = UiTextFieldMode.MULTI_LINE,
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(80.px, 20.px),
+                    Modifier.input(scrollable = true),
+                )
+            ),
+        )
+
+        val frame = runtime.frame(field, 120f, 60f)
+        val layout = frame.layout[field]
+        val text = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node === field }
+        val scrollbar = frame.commands
+            .filterIsInstance<DrawScrollbarCommand>()
+            .single { it.orientation == ScrollbarOrientation.VERTICAL }
+
+        assertTrue(layout.scrollRange.y > 0f)
+        assertTrue(layout.content.width < layout.scrollArea.width)
+        assertEquals(layout.content.width, text.rect.width)
+        val trackLeft = scrollbar.transform.transform(scrollbar.track.x, scrollbar.track.y, 0f).x
+        assertTrue(trackLeft >= layout.content.x + layout.content.width)
+    }
+
+    @Test
+    fun `scrollable box allows nowrap text field to overflow horizontally`() {
+        val runtime = HollowUiRuntime()
+        val root = BoxNode(
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(40.px, 24.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.clip(),
+                )
+            )
+        )
+        val field = TextFieldNode(value = "abcdefghijklmnopqrstuvwxyz", modifiers = listOf(Modifier.textWrap(false)))
+        root.children += field
+
+        val frame = runtime.frame(root, 80f, 40f)
+        val rootLayout = frame.layout[root]
+        val fieldLayout = frame.layout[field]
+        val scrollbar = frame.commands
+            .filterIsInstance<DrawScrollbarCommand>()
+            .single { it.orientation == ScrollbarOrientation.HORIZONTAL }
+
+        assertTrue(fieldLayout.rect.width > rootLayout.content.width)
+        assertTrue(rootLayout.scrollRange.x > 0f)
+        assertEquals(root, scrollbar.node)
+    }
+
+    @Test
+    fun `animated scroll requests continuous frame refresh`() {
+        val runtime = HollowUiRuntime()
+        val field = TextFieldNode(
+            value = "abcdefghijklmnopqrstuvwxyz",
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(40.px, 20.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.textWrap(false),
+                )
+            ),
+        )
+        val initial = runtime.frame(field, 80f, 40f)
+        runtime.scroll(field, 16f, 0f)
+
+        val scrolled = runtime.frame(field, 80f, 40f, nowMillis = System.currentTimeMillis())
+
+        assertTrue(initial.layout[field].scrollRange.x > 0f)
+        assertTrue(scrolled.requiresContinuousRefresh())
+    }
+
+    @Test
+    fun `scroll target hit testing honors transforms`() {
+        val runtime = HollowUiRuntime()
+        val root = BoxNode(
+            modifiers = listOf(
+                Modifier.then(
+                    Modifier.size(40.px, 24.px),
+                    Modifier.input(scrollable = true),
+                    Modifier.scale(2f),
+                )
+            )
+        )
+        root.children += BoxNode(modifiers = listOf(Modifier.size(80.px, 24.px)))
+
+        val frame = runtime.frame(root, 120f, 80f)
+
+        assertEquals(root, frame.scrollTargetAt(55f, 10f))
     }
 }
