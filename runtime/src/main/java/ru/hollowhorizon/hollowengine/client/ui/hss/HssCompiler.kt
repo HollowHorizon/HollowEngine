@@ -254,6 +254,10 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
             "font-family" -> instruction { it.fontFamily = value.trim().removeSurrounding("\"").removeSurrounding("'") }
             "typing" -> instruction { it.typing = parseTyping(value) }
+            "typing-delay" -> instruction {
+                val delay = parseDuration(value)
+                it.typing = (it.typing ?: UiTyping()).copy(delayMillis = delay)
+            }
             "text-effects", "text-effect" -> instruction { it.textEffects = parseTextEffects(value) }
             "transition" -> transitionInstruction(value)
             "animation" -> instruction { it.animations = parseAnimations(value) }
@@ -855,9 +859,13 @@ private fun parseTyping(value: String): UiTyping? {
     val parts = splitTopLevelWhitespace(value)
     val duration = parts.firstOrNull() ?: return null
     if (duration.equals("none", ignoreCase = true) || duration.equals("off", ignoreCase = true)) return null
+    val tail = parts.drop(1)
+    val easing = tail.firstOrNull { it.isEasingToken() }?.let(::parseEasing) ?: TransitionEasing.LINEAR
+    val delay = tail.firstOrNull { it.isDurationToken() }?.let(::parseDuration) ?: 0L
     return UiTyping(
         durationMillis = if (duration.equals("auto", ignoreCase = true)) null else parseDuration(duration),
-        easing = parseEasing(parts.getOrElse(1) { "linear" }),
+        easing = easing,
+        delayMillis = delay,
     )
 }
 

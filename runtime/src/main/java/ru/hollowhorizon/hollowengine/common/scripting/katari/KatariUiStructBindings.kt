@@ -75,6 +75,16 @@ private fun NarrativeBindingsBuilder.registerXmlAttributeMutations() {
         arguments[0]
     }
     immediateFunction(
+        name = "replaceChildrenAt",
+        receiverType = "Ui",
+        returnType = "Ui",
+        valueParameters = xmlTargetChildAttributesParameters(),
+    ) { arguments, _ ->
+        val ui = arguments.uiReceiver()
+        ui.replaceChildrenAt(arguments.target(), UiXmlTree.from(arguments.child()), arguments.attributes())
+        arguments[0]
+    }
+    immediateFunction(
         name = "modify",
         receiverType = "Ui",
         returnType = "Ui",

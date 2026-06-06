@@ -75,7 +75,57 @@ class KatariUiApiTests {
     }
 
     @Test
-    fun `ui document replaces target contents and assigns child attributes`() {
+    fun `ui document replaceAt replaces matching node and assigns attributes`() {
+        val document = KatariUiDocument(
+            id = "test",
+            root = UiXmlTree(
+                "box",
+                children = listOf(
+                    UiXmlTree(
+                        "box",
+                        mapOf("id" to "message"),
+                        children = listOf(
+                            UiXmlTree("box", mapOf("tags" to "avatar-block")),
+                            UiXmlTree(
+                                "box",
+                                mapOf("tags" to "nickname-block"),
+                                children = listOf(UiXmlTree("text", mapOf("id" to "dialog-nick", "text" to "1234567"))),
+                            ),
+                            UiXmlTree(
+                                "box",
+                                mapOf("tags" to "message-block"),
+                                children = listOf(
+                                    UiXmlTree(
+                                        "text",
+                                        mapOf("id" to "dialog-message", "tags" to "message-text", "text" to "123456789"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        document.replaceAt(
+            "dialog-message",
+            UiXmlTree("text", mapOf("text" to "New")),
+            mapOf("tags" to "message-text", "status" to "active"),
+        )
+
+        val message = document.root.children.single()
+        val messageBlock = message.children.last()
+        val text = messageBlock.children.single()
+
+        assertEquals("text", text.name)
+        assertEquals("New", text.attributes["text"])
+        assertEquals("message-text", text.attributes["tags"])
+        assertEquals("active", text.attributes["status"])
+        assertEquals(emptyList(), text.children)
+    }
+
+    @Test
+    fun `ui document replaces target contents explicitly`() {
         val document = KatariUiDocument(
             id = "test",
             root = UiXmlTree(
@@ -90,7 +140,7 @@ class KatariUiApiTests {
             ),
         )
 
-        document.replaceAt(
+        document.replaceChildrenAt(
             "dialog-message",
             UiXmlTree("text", mapOf("text" to "New")),
             mapOf("tags" to "message-text", "status" to "active"),
@@ -142,6 +192,7 @@ class KatariUiApiTests {
             gui.insertAt("container", <box><text>Extra</text></box>)
             gui.modify("container", attribute = "my-custom-state", value = "ready")
             gui.replaceAt("container", <text>Line</text>, struct { tags: "message-text" })
+            gui.replaceChildrenAt("container", <text>Line</text>, struct { tags: "message-text" })
             gui.modify("container", struct { status: "show" })
             gui.modifyAll("container", struct { status: "close" })
             gui.updateOverlay(player)

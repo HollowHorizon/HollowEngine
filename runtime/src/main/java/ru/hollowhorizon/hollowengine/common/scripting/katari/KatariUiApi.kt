@@ -80,14 +80,33 @@ class KatariUiDocument(
     }
 
     fun replaceAt(target: String, child: UiXmlTree) {
-        replaceAt(target, listOf(child))
+        val cleanTarget = normalizeUiTarget(target)
+        var replaced = false
+        root = root.replaceNodeFirst(cleanTarget, child) { replaced = true }
+        require(replaced) { "UI target `$target` was not found" }
     }
 
     fun replaceAt(target: String, child: UiXmlTree, attributes: Map<String, String>) {
         replaceAt(target, child.withAttributes(attributes))
     }
 
+    fun replaceChildrenAt(target: String, child: UiXmlTree) {
+        replaceChildrenAt(target, listOf(child))
+    }
+
+    fun replaceChildrenAt(target: String, child: UiXmlTree, attributes: Map<String, String>) {
+        replaceChildrenAt(target, child.withAttributes(attributes))
+    }
+
+    @Deprecated(
+        message = "Use replaceChildrenAt when replacing target contents explicitly.",
+        replaceWith = ReplaceWith("replaceChildrenAt(target, children)"),
+    )
     fun replaceAt(target: String, children: List<UiXmlTree>) {
+        replaceChildrenAt(target, children)
+    }
+
+    fun replaceChildrenAt(target: String, children: List<UiXmlTree>) {
         val cleanTarget = normalizeUiTarget(target)
         var replaced = false
         root = root.replaceChildrenFirst(cleanTarget, children) { replaced = true }
@@ -95,7 +114,7 @@ class KatariUiDocument(
     }
 
     fun clear(target: String) {
-        replaceAt(target, emptyList())
+        replaceChildrenAt(target, emptyList())
     }
 
     fun modify(target: String, attribute: String, value: String) {
@@ -160,6 +179,18 @@ fun KatariUiDocument.replaceAt(target: String, child: XmlValue): KatariUiDocumen
 @ScriptBinding
 fun KatariUiDocument.replaceAt(target: String, child: XmlValue, attributes: Map<String, String>): KatariUiDocument {
     replaceAt(target, UiXmlTree.from(child), attributes)
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.replaceChildrenAt(target: String, child: XmlValue): KatariUiDocument {
+    replaceChildrenAt(target, UiXmlTree.from(child))
+    return this
+}
+
+@ScriptBinding
+fun KatariUiDocument.replaceChildrenAt(target: String, child: XmlValue, attributes: Map<String, String>): KatariUiDocument {
+    replaceChildrenAt(target, UiXmlTree.from(child), attributes)
     return this
 }
 

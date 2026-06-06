@@ -28,13 +28,27 @@ internal fun UiXmlTree.replaceChildrenFirst(
 ): UiXmlTree {
     if (matchesTarget(target)) {
         markReplaced()
-        children.singleOrNull()?.let {
-            return it
-        }
         return copy(children = children)
     }
     return updateFirstChild(target) { current, mark ->
         current.replaceChildrenFirst(target, children) {
+            mark()
+            markReplaced()
+        }
+    } ?: this
+}
+
+internal fun UiXmlTree.replaceNodeFirst(
+    target: String,
+    replacement: UiXmlTree,
+    markReplaced: () -> Unit,
+): UiXmlTree {
+    if (matchesTarget(target)) {
+        markReplaced()
+        return replacement
+    }
+    return updateFirstChild(target) { current, mark ->
+        current.replaceNodeFirst(target, replacement) {
             mark()
             markReplaced()
         }

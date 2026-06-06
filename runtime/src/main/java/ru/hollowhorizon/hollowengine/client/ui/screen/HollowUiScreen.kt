@@ -74,7 +74,16 @@ abstract class HollowUiScreen(
         closeStartedAt = System.currentTimeMillis()
         closeBaseFrame = frame
         input.clearInteraction()
-        invalidateUi(immediate = width > 0 && height > 0)
+        val current = if (width > 0 && height > 0) {
+            invalidateUi(immediate = true)
+            frame
+        } else {
+            null
+        }
+        if (current == null || current.motionDurationMillis(closeBaseFrame) <= 0L) {
+            closeCompleted = true
+            Minecraft.getInstance().setScreen(null)
+        }
     }
 
     override fun render(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
@@ -85,6 +94,7 @@ abstract class HollowUiScreen(
         val sizeChanged = width != lastWidth || height != lastHeight
         val needsRebuild = frame == null || uiDirty || sizeChanged || rebuildEveryFrame()
         val current = if (needsRebuild) refreshFrame(nowMillis) else frame!!
+        if (completeClosingIfReady(current, nowMillis)) return
         val activeFrame = if (closing) {
             current
         } else {
@@ -96,7 +106,6 @@ abstract class HollowUiScreen(
             input.dispatchHover(activeFrame, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
         }
         renderer.render(activeFrame.commands)
-        completeClosingIfReady(activeFrame, nowMillis)
     }
 
     override fun mouseMoved(mouseX: Double, mouseY: Double) {
@@ -105,7 +114,7 @@ abstract class HollowUiScreen(
         this.mouseY = mouseY.toFloat()
         val current = currentFrameForInput() ?: return
         val hoverChanged = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
-        if (hoverChanged || current.requiresContinuousRefresh()) {
+        if (hoverChanged) {
             refreshFrame()
         }
     }
@@ -199,7 +208,7 @@ abstract class HollowUiScreen(
     }
 
     override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
-        if (closing) return true
+        if (closing) return false
         val current = frame ?: return super.charTyped(codePoint, modifiers)
         val result = input.charTyped(current, codePoint, modifiers, ::dispatchUiEvent)
         if (result.handled) {
@@ -210,7 +219,7 @@ abstract class HollowUiScreen(
     }
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        if (closing) return true
+        if (closing) return false
         val current = frame ?: return super.keyPressed(keyCode, scanCode, modifiers)
         val result = input.keyPressed(current, keyCode, scanCode, modifiers, ::dispatchUiEvent)
         if (result.handled) {
@@ -271,12 +280,13 @@ abstract class HollowUiScreen(
         }
     }
 
-    private fun completeClosingIfReady(current: HollowUiFrame, nowMillis: Long) {
-        if (!closing) return
+    private fun completeClosingIfReady(current: HollowUiFrame, nowMillis: Long): Boolean {
+        if (!closing) return false
         val duration = current.motionDurationMillis(closeBaseFrame)
-        if (nowMillis - closeStartedAt < duration) return
+        if (nowMillis - closeStartedAt < duration) return false
         closeCompleted = true
         Minecraft.getInstance().setScreen(null)
+        return true
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {

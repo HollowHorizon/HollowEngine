@@ -769,6 +769,22 @@ class UiFrameworkTests {
     }
 
     @Test
+    fun `typing delay waits before revealing text`() {
+        val root = parseUi(
+            """
+            <box>
+                <text id="dialog" typing="100ms linear 50ms">abcd</text>
+            </box>
+            """.trimIndent(),
+        )
+        val text = root.children.single() as TextNode
+        val runtime = HollowUiRuntime()
+
+        assertEquals("", runtime.frame(root, 240f, 80f, nowMillis = 0L).textCommand(text).text)
+        assertTrue(runtime.frame(root, 240f, 80f, nowMillis = 75L).textCommand(text).text.isNotEmpty())
+    }
+
+    @Test
     fun `typing keeps final word wrap while revealing a partial word`() {
         val root = parseUi(
             """
@@ -1417,6 +1433,37 @@ class UiFrameworkTests {
         val closingHalf = runtime.frame(root, 100f, 40f, nowMillis = 100L)
 
         assertEquals(200L, closingStart.motionDurationMillis(opened))
+        assertEquals(0.5f, closingHalf.resolved[root].opacity, 0.01f)
+    }
+
+    @Test
+    fun `closing keyframe animation duration includes delay`() {
+        val stylesheet = compileHss(
+            """
+            .dialog {
+                opacity: 1;
+            }
+
+            .dialog:closing {
+                animation: fadeOut 200ms linear 100ms forwards;
+            }
+
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+            """.trimIndent(),
+        )
+        val root = HollowUi(tags = listOf("dialog"))
+        val runtime = HollowUiRuntime(stylesheet = stylesheet)
+        val opened = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+
+        root.setClosingState(true)
+        val closingDelay = runtime.frame(root, 100f, 40f, nowMillis = 0L)
+        val closingHalf = runtime.frame(root, 100f, 40f, nowMillis = 200L)
+
+        assertEquals(300L, closingDelay.motionDurationMillis(opened))
+        assertEquals(1f, closingDelay.resolved[root].opacity)
         assertEquals(0.5f, closingHalf.resolved[root].opacity, 0.01f)
     }
 

@@ -232,19 +232,24 @@ private class KatariUiOverlay(
 
     fun render(nowMillis: Long): Boolean {
         val frame = refreshFrame(nowMillis)
-        renderer.render(frame.commands)
-        if (!closing) return false
+        if (!closing) {
+            renderer.render(frame.commands)
+            return false
+        }
         val closeStartedAt = closingStartedAt ?: nowMillis.also { closingStartedAt = it }
-        return nowMillis - closeStartedAt >= frame.motionDurationMillis(closeBaseFrame)
+        val duration = frame.motionDurationMillis(closeBaseFrame)
+        if (duration <= 0L || nowMillis - closeStartedAt >= duration) return true
+        renderer.render(frame.commands)
+        return false
     }
 
     fun mouseMoved(mouseX: Float, mouseY: Float): Boolean {
-        if (closing) return true
+        if (closing) return false
         val frame = lastFrame ?: return false
         val button = activeButton
         if (button == null) {
             val changed = input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
-            if (changed || frame.requiresContinuousRefresh()) refreshFrame()
+            if (changed) refreshFrame()
             return false
         }
 
@@ -268,7 +273,7 @@ private class KatariUiOverlay(
     }
 
     fun mouseButton(mouseX: Float, mouseY: Float, button: Int, action: Int, modifiers: Int): Boolean {
-        if (closing) return true
+        if (closing) return false
         val frame = lastFrame ?: return false
         return when (action) {
             GLFW.GLFW_PRESS -> mousePressed(frame, mouseX, mouseY, button)
@@ -278,7 +283,7 @@ private class KatariUiOverlay(
     }
 
     fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Double, scrollY: Double): Boolean {
-        if (closing) return true
+        if (closing) return false
         val frame = lastFrame ?: return false
         val target = frame.scrollTargetAt(mouseX, mouseY)
             ?: input.focusedKey
@@ -305,7 +310,7 @@ private class KatariUiOverlay(
     }
 
     fun keyPressed(keyCode: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
-        if (closing) return true
+        if (closing) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
         val frame = lastFrame ?: return false
         val result = input.keyPressed(frame, keyCode, scanCode, modifiers, ::dispatchUiEvent)
@@ -314,7 +319,7 @@ private class KatariUiOverlay(
     }
 
     fun charTyped(codePoint: Char, modifiers: Int): Boolean {
-        if (closing) return true
+        if (closing) return false
         val frame = lastFrame ?: return false
         val result = input.charTyped(frame, codePoint, modifiers, ::dispatchUiEvent)
         if (result.handled) refreshFrame()

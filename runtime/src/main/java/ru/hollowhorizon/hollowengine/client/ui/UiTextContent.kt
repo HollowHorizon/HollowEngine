@@ -104,6 +104,8 @@ data class UiResolvedTextContent(
 
     fun visibleBy(typing: UiTyping?, elapsedMillis: Long): UiResolvedTextContent {
         if (typing == null) return this
+        val delayedElapsed = elapsedMillis - typing.delayMillis.coerceAtLeast(0L)
+        if (delayedElapsed < 0L) return UiResolvedTextContent(emptyList())
         val characterCount = segments.sumOf { (it as? UiResolvedTextSegment.Text)?.value?.length ?: 0 }
         if (characterCount == 0) return this
         val activeDuration = typing.durationMillis ?: (characterCount * UiTyping.AutoMillisPerCharacter)
@@ -115,7 +117,7 @@ data class UiResolvedTextContent(
         fun visibleAt(characterIndex: Int): Boolean {
             val progress = characterIndex.toFloat() / characterCount.toFloat()
             val activeTime = (typing.easing.inverse(progress) * activeDuration).toLong()
-            return elapsedMillis >= activeTime + pausesBefore
+            return delayedElapsed >= activeTime + pausesBefore
         }
 
         for (segment in segments) {
@@ -166,6 +168,7 @@ sealed interface UiResolvedTextSegment {
 data class UiTyping(
     val durationMillis: Long? = null,
     val easing: TransitionEasing = TransitionEasing.LINEAR,
+    val delayMillis: Long = 0L,
 ) {
     companion object {
         const val AutoMillisPerCharacter = 35L
