@@ -1,0 +1,219 @@
+import androidx.compose.runtime.mutableStateOf
+import ru.hollowhorizon.hollowengine.client.ui.Box
+import ru.hollowhorizon.hollowengine.client.ui.BoxNode
+import ru.hollowhorizon.hollowengine.client.ui.HollowComposeUiRuntime
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiComposition
+import ru.hollowhorizon.hollowengine.client.ui.LayoutType
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.Text
+import ru.hollowhorizon.hollowengine.client.ui.TextField
+import ru.hollowhorizon.hollowengine.client.ui.TextFieldNode
+import ru.hollowhorizon.hollowengine.client.ui.TextNode
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
+import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
+import ru.hollowhorizon.hollowengine.client.ui.percent
+import ru.hollowhorizon.hollowengine.client.ui.px
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertSame
+
+class UiComposeTests {
+    @Test
+    fun `compose updates existing ui nodes on state change`() {
+        val label = mutableStateOf("First")
+
+        HollowUiComposition().use { composition ->
+            val root = composition.setContent {
+                Box(id = "panel") {
+                    Text(label.value, id = "label")
+                }
+            }
+            val panel = root.children.single() as BoxNode
+            val text = panel.children.single() as TextNode
+
+            label.value = "Second"
+            composition.applyPendingChanges()
+
+            val recomposedPanel = root.children.single() as BoxNode
+            val recomposedText = recomposedPanel.children.single() as TextNode
+            assertSame(panel, recomposedPanel)
+            assertSame(text, recomposedText)
+            assertEquals("Second", recomposedText.text.template)
+        }
+    }
+
+    @Test
+    fun `compose preserves text field state across unrelated recomposition`() {
+        val title = mutableStateOf("Title")
+        val serverValue = mutableStateOf("server")
+
+        HollowUiComposition().use { composition ->
+            val root = composition.setContent {
+                Box {
+                    Text(title.value, id = "title")
+                    TextField(serverValue.value, id = "field")
+                }
+            }
+            val field = root.textField()
+            field.insert("!")
+
+            title.value = "Changed title"
+            composition.applyPendingChanges()
+
+            assertSame(field, root.textField())
+            assertEquals("server!", root.textField().value)
+
+            serverValue.value = "remote"
+            composition.applyPendingChanges()
+
+            assertSame(field, root.textField())
+            assertEquals("remote", root.textField().value)
+        }
+    }
+
+    @Test
+    fun `compose custom attributes do not erase widget attributes`() {
+        val status = mutableStateOf("idle")
+
+        HollowUiComposition().use { composition ->
+            val root = composition.setContent {
+                TextField(
+                    value = "value",
+                    id = "field",
+                    attributes = mapOf("status" to status.value),
+                )
+            }
+
+            status.value = "ready"
+            composition.applyPendingChanges()
+
+            val field = root.children.single() as TextFieldNode
+            assertEquals("value", field.attributes["value"])
+            assertEquals("ready", field.attributes["status"])
+        }
+    }
+
+    @Test
+    fun `compose runtime produces layout frames from composed nodes`() {
+        HollowComposeUiRuntime().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    Box(
+                        modifier = Modifier.then(
+                            Modifier.layout(LayoutType.ROW),
+                            Modifier.size(120.px, 40.px),
+                            Modifier.gap(8.px),
+                        ),
+                    ) {
+                        Box(id = "fixed", modifier = Modifier.size(20.px, 10.px))
+                        Box(id = "grown", modifier = Modifier.then(Modifier.size(100.percent, 10.px), Modifier.grow(1f)))
+                    }
+                },
+                width = 120f,
+                height = 40f,
+            )
+            val fixed = frame.resolved.styles.keys.first { it.id == "fixed" }
+            val grown = frame.resolved.styles.keys.first { it.id == "grown" }
+
+            assertEquals(0f, frame.layout[fixed].rect.x)
+            assertEquals(28f, frame.layout[grown].rect.x)
+            assertEquals(92f, frame.layout[grown].rect.width)
+        }
+    }
+
+    @Test
+    fun `compose runtime keeps scroll state across recomposition`() {
+        val label = mutableStateOf("before")
+
+        HollowComposeUiRuntime().use { runtime ->
+            runtime.setContent {
+                Box {
+                    Text(label.value)
+                    Box(
+                        id = "scroll",
+                        modifier = Modifier.then(Modifier.size(80.px, 30.px), Modifier.input(scrollable = true)),
+                    ) {
+                        Box(id = "row", modifier = Modifier.then(Modifier.position(0.px, 90.px), Modifier.size(50.px, 20.px)))
+                    }
+                }
+            }
+            val initial = runtime.frame(120f, 80f)
+            val scroller = initial.resolved.styles.keys.first { it.id == "scroll" }
+            val initialRow = initial.resolved.styles.keys.first { it.id == "row" }
+            runtime.setScrollImmediate(scroller, y = 24f)
+
+            label.value = "after"
+            val scrolled = runtime.frame(120f, 80f)
+            val row = scrolled.resolved.styles.keys.first { it.id == "row" }
+
+            assertEquals(initial.layout[initialRow].rect.y - 24f, scrolled.layout[row].rect.y)
+        }
+    }
+
+    @Test
+    fun `compose xml content produces layout frames`() {
+        val xml = parseUiXml(
+            """
+            <box layout="row" width="120px" height="40px" gap="8px">
+                <box id="fixed" width="20px" height="10px" />
+                <box id="grown" width="100%" height="10px" grow="1" />
+            </box>
+            """.trimIndent(),
+        )
+
+        HollowComposeUiRuntime().use { runtime ->
+            val frame = runtime.frame(
+                content = { UiXmlContent(xml) },
+                width = 120f,
+                height = 40f,
+            )
+            val fixed = frame.resolved.styles.keys.first { it.id == "fixed" }
+            val grown = frame.resolved.styles.keys.first { it.id == "grown" }
+
+            assertEquals(0f, frame.layout[fixed].rect.x)
+            assertEquals(28f, frame.layout[grown].rect.x)
+            assertEquals(92f, frame.layout[grown].rect.width)
+        }
+    }
+
+    @Test
+    fun `compose xml content preserves text field state across server sibling update`() {
+        fun tree(title: String, value: String) = UiXmlTree(
+            "box",
+            children = listOf(
+                UiXmlTree("text", mapOf("id" to "title", "text" to title)),
+                UiXmlTree("text-field", mapOf("id" to "field", "value" to value)),
+            ),
+        )
+
+        val serverTree = mutableStateOf(tree("Before", "server"))
+
+        HollowComposeUiRuntime().use { runtime ->
+            val root = runtime.setContent {
+                UiXmlContent(serverTree.value)
+            }
+            val field = root.textField()
+            field.insert("!")
+
+            serverTree.value = tree("After", "server")
+            runtime.frame(120f, 80f)
+
+            assertSame(field, root.textField())
+            assertEquals("server!", root.textField().value)
+
+            serverTree.value = tree("After", "remote")
+            runtime.frame(120f, 80f)
+
+            assertSame(field, root.textField())
+            assertEquals("remote", root.textField().value)
+        }
+    }
+
+    private fun BoxNode.textField(): TextFieldNode {
+        return children
+            .flatMap { child -> if (child is BoxNode) child.children else listOf(child) }
+            .filterIsInstance<TextFieldNode>()
+            .single()
+    }
+}

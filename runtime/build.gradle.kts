@@ -14,6 +14,7 @@ plugins {
     id("com.google.devtools.ksp")
     kotlin("jvm")
     kotlin("plugin.serialization")
+    kotlin("plugin.compose")
 }
 
 val modId: String by properties

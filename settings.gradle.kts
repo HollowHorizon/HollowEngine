@@ -21,6 +21,7 @@ pluginManagement {
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
+        kotlin("plugin.compose") version kotlinVersion
         id("architectury-plugin") version architecturyPluginVersion
         id("dev.architectury.loom") version architecturyLoomVersion
         id("com.github.johnrengelman.shadow") version shadowVersion

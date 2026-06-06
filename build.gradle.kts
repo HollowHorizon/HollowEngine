@@ -13,6 +13,7 @@ plugins {
     id("me.modmuss50.mod-publish-plugin")
     kotlin("jvm") apply false
     kotlin("plugin.serialization") apply false
+    kotlin("plugin.compose") apply false
 }
 
 tasks.register<Sync>("buildAndCollect") {

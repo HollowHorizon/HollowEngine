@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.scripting
 
+import androidx.compose.runtime.Composable
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -14,8 +15,8 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
-import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiScreen
-import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlBuilder
+import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
+import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
@@ -96,14 +97,15 @@ class KatariUiScreen(
     val id: String,
     private val root: UiXmlTree,
     private val variables: CompoundTag = CompoundTag(),
-) : HollowUiScreen("Katari UI", CompiledHss(emptyList())) {
+) : HollowComposeUiScreen("Katari UI", CompiledHss(emptyList())) {
     private val sink = UiEventSink { payload ->
         HollowEngine.LOGGER.info("[UI:$id]:\n ${payload.toPrettyString()}")
         KatariUiEventPacket(id, payload).send()
     }
 
-    override fun buildUi(): UiNode {
-        return UiXmlBuilder(UiXmlOptions(eventSink = sink)).build(root)
+    @Composable
+    override fun Content() {
+        UiXmlContent(root, UiXmlOptions(eventSink = sink))
     }
 
     override fun bindings(): UiBindingContext = UiBindingContext(variables)
@@ -193,9 +195,11 @@ private class KatariUiOverlay(
     private val runtime = HollowUiRuntime()
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
+    private val composition = HollowUiComposition()
     private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
     private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
-    private var node = buildNode(root, variables)
+    private var cachedScriptHash: Int = 0
+    private var node = composeNode()
     private var closing = false
     private var closingStartedAt: Long? = null
     private var closeBaseFrame: HollowUiFrame? = null
@@ -207,7 +211,7 @@ private class KatariUiOverlay(
     fun show(root: UiXmlTree, variables: CompoundTag) {
         this.root = root
         this.variables = variables
-        node = buildNode(root, variables)
+        node = composeNode()
         closing = false
         closingStartedAt = null
         closeBaseFrame = null
@@ -217,12 +221,12 @@ private class KatariUiOverlay(
 
     fun update(root: UiXmlTree) {
         this.root = root
-        node = buildNode(root, variables)
+        node = composeNode()
     }
 
     fun close(root: UiXmlTree) {
         this.root = root
-        node = buildNode(root, variables)
+        node = composeNode()
         closing = true
         closingStartedAt = null
         closeBaseFrame = lastFrame
@@ -329,6 +333,7 @@ private class KatariUiOverlay(
     fun hasFocusedInput(): Boolean = input.focusedKey != null
 
     fun dispose() {
+        composition.close()
         renderer.close()
     }
 
@@ -367,6 +372,8 @@ private class KatariUiOverlay(
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         val window = Minecraft.getInstance().window
+        node = composition.frameRoot(nowMillis * NanosPerMillisecond)
+        prepareClientScripts(node)
         input.prepareRoot(node, closing)
         return runtime.frame(
             node,
@@ -394,16 +401,31 @@ private class KatariUiOverlay(
                 GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
     }
 
-    private fun buildNode(root: UiXmlTree, variables: CompoundTag): BoxNode {
-        return UiXmlBuilder(UiXmlOptions(eventSink = sink)).build(root).also {
-            UiNodeKeys.assign(it)
-            val scripts = it.clientScripts()
-            preparedScripts = if (scripts.isEmpty()) {
-                UiPreparedClientScripts.Empty
-            } else {
-                UiClientScriptRunner.prepare(scripts, it, sink, variables)
-            }
+    private fun composeNode(): BoxNode {
+        return composition.setContent {
+            UiXmlContent(root, UiXmlOptions(eventSink = sink))
+        }.also(::prepareClientScripts)
+    }
+
+    private fun prepareClientScripts(root: UiNode) {
+        UiNodeKeys.assign(root)
+        val scripts = root.clientScripts()
+        if (scripts.isEmpty()) {
+            preparedScripts = UiPreparedClientScripts.Empty
+            cachedScriptHash = 0
+            return
         }
+        val scriptsHash = scripts.hashCode()
+        if (scriptsHash == cachedScriptHash) {
+            preparedScripts.applyInputHints(root)
+            return
+        }
+        cachedScriptHash = scriptsHash
+        preparedScripts = UiClientScriptRunner.prepare(scripts, root, sink, variables)
+    }
+
+    private companion object {
+        const val NanosPerMillisecond = 1_000_000L
     }
 }
 

@@ -278,9 +278,9 @@ fun UiXmlTree.Companion.from(value: XmlValue): UiXmlTree {
 
 private fun RuntimeValue.asUiAttributeString(): String = convertToString()
 
-private fun UiXmlTree.isTextLiteral(): Boolean = name == XML_TEXT_NODE_NAME
+internal fun UiXmlTree.isTextLiteral(): Boolean = name == XML_TEXT_NODE_NAME
 
-private fun UiXmlTree.toTextContent(
+internal fun UiXmlTree.toTextContent(
     style: UiInlineStyle = UiInlineStyle(),
     onlyDirectText: Boolean = true,
 ): UiTextContent {
@@ -404,7 +404,7 @@ private fun UiXmlTree.inlineChildren(style: UiInlineStyle): List<UiTextSegment> 
     }
 }
 
-private fun UiXmlTree.isTextInlineElement(): Boolean {
+internal fun UiXmlTree.isTextInlineElement(): Boolean {
     return name.lowercase() in setOf(
         "span",
         "b", "bold",
