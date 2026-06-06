@@ -1,34 +1,38 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
+import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUi
 import kotlin.math.abs
 import kotlin.math.sign
 
-class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
-    private var selectedTab = "overview"
-    private val freeNodeOffsets = mutableMapOf<Int, DemoOffset>()
-    private var layoutGlassOffset = DemoOffset.Zero
-    private var xmlEventText = "XML event log is empty"
+class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
+    private var selectedTab by mutableStateOf("overview")
+    private val freeNodeOffsets = mutableStateMapOf<Int, DemoOffset>()
+    private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
+    private var xmlEventText by mutableStateOf("XML event log is empty")
 
-    override fun buildUi(): UiNode = HollowUi(id = "demo-root") {
-        Box(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
-            tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
-            tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
-            tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
-            tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
-            tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
-            tab("effects", "Эффекты", "hollowengine:textures/gui/npc_menu/character.png")
-        }
-        Box(id = "content", tags = listOf("content")) {
-            when (selectedTab) {
-                "widgets" -> widgets()
-                "layout" -> layout()
-                "transforms" -> transforms()
-                "effects" -> effects()
-                "xml" -> xmlDemo()
-                else -> overview()
+    @Composable
+    override fun Content() {
+        Box(id="demo-root") {
+            Box(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
+                tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
+                tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
+                tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
+                tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
+                tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
+                tab("effects", "Эффекты", "hollowengine:textures/gui/npc_menu/character.png")
+            }
+            Box(id = "content", tags = listOf("content")) {
+                when (selectedTab) {
+                    "widgets" -> widgets()
+                    "layout" -> layout()
+                    "transforms" -> transforms()
+                    "effects" -> effects()
+                    "xml" -> xmlDemo()
+                    else -> overview()
+                }
             }
         }
     }
@@ -55,16 +59,16 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
 
     override fun rebuildEveryFrame(): Boolean = selectedTab == "transforms" || selectedTab == "effects"
 
-    private fun UiScope.tab(id: String, label: String, icon: String) {
-        val tab =
-            Box(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
-                Image(icon, tags = listOf("tab-icon"))
-                Text(label, tags = listOf("tab-label"))
-            }
-        if (selectedTab == id) tab.states += UiState.SELECTED
+    @Composable
+    private fun tab(id: String, label: String, icon: String) {
+        Box(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
+            Image(icon, tags = listOf("tab-icon"))
+            Text(label, tags = listOf("tab-label"))
+        }
     }
 
-    private fun UiScope.overview() {
+    @Composable
+    private fun overview() {
         Box(tags = listOf("panel", "scroll-panel"), modifier = Modifier.input(scrollable = true)) {
             Text("Какой-то интерфейс", tags = listOf("title"))
             Text(
@@ -83,7 +87,8 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         }
     }
 
-    private fun UiScope.widgets() {
+    @Composable
+    private fun widgets() {
         Box(tags = listOf("panel-grid"), modifier = Modifier.input(scrollable = true)) {
             Box(tags = listOf("card"), modifier = Modifier.position(0.px, 0.px)) {
                 Text("Текст", tags = listOf("card-title"))
@@ -111,7 +116,8 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         }
     }
 
-    private fun UiScope.layout() {
+    @Composable
+    private fun layout() {
         Box(tags = listOf("free-stage"), modifier = Modifier.input(scrollable = true)) {
             repeat(12) { index ->
                 val offset = freeNodeOffsets[index] ?: DemoOffset.Zero
@@ -140,8 +146,10 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         }
     }
 
-    private fun UiScope.transforms() {
+    @Composable
+    private fun transforms() {
         Box(tags = listOf("panel-grid")) {
+            // TODO: Rewrite compose-like
             val rect = layoutRect("tilt-card")
             val hoverRotate = if (rect != null && isHovered("tilt-card")) {
                 val centerX = rect.x + rect.width * 0.5f
@@ -185,7 +193,8 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         }
     }
 
-    private fun UiScope.effects() {
+    @Composable
+    private fun effects() {
         Box(tags = listOf("effects-stage"), modifier = Modifier.input(scrollable = true)) {
             Box(tags = listOf("effect-card", "gradient-card"), modifier = Modifier.position(20.px, 18.px)) {
                 Text("Градиент", tags = listOf("card-title"))
@@ -259,9 +268,13 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
         }
     }
 
-    private fun UiScope.xmlDemo() {
-        val demo = parseUi(
-            """
+    @Composable
+    private fun xmlDemo() {
+
+        ComposeNode<BoxNode, HollowUiApplier>(
+            factory = {
+                val demo = parseUi(
+                    """
             <import element="hollowengine:ui/elements/xml_demo_badge.ui" named="demo_badge" />
 
             <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
@@ -276,21 +289,24 @@ class HollowUiDemoScreen : HollowUiScreen("Hollow UI Demo", DemoStyles) {
                 <demo_badge />
             </box>
             """.trimIndent(),
-            UiXmlOptions(
-                eventSink = UiEventSink { tag ->
-                    val event = tag.getString("event")
-                    val button = tag.getString("button")
-                    val mouse = tag.getInt("mouse")
-                    xmlEventText = "event=$event button=$button mouse=$mouse"
-                },
-            ),
+                    UiXmlOptions(
+                        eventSink = UiEventSink { tag ->
+                            val event = tag.getString("event")
+                            val button = tag.getString("button")
+                            val mouse = tag.getInt("mouse")
+                            xmlEventText = "event=$event button=$button mouse=$mouse"
+                        },
+                    ),
+                )
+                demo.children += TextNode(
+                    xmlEventText.bound(),
+                    tags = listOf("xml-log"),
+                    modifiers = listOf(Modifier.position(24.px, 186.px)),
+                )
+                demo
+            },
+            update = { updateCommon(emptyList(), emptyMap()) }
         )
-        demo.children += TextNode(
-            xmlEventText.bound(),
-            tags = listOf("xml-log"),
-            modifiers = listOf(Modifier.position(24.px, 186.px)),
-        )
-        Node(demo)
     }
 }
 

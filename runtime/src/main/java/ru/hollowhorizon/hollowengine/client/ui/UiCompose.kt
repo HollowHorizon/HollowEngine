@@ -1,20 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import androidx.compose.runtime.AbstractApplier
-import androidx.compose.runtime.BroadcastFrameClock
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ComposeNode
-import androidx.compose.runtime.Composition
-import androidx.compose.runtime.Recomposer
-import androidx.compose.runtime.Updater
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
@@ -353,7 +341,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     value = values.value
 }
 
-private fun <T : BaseUiNode> Updater<T>.updateCommon(
+fun <T : BaseUiNode> Updater<T>.updateCommon(
     modifiers: List<Modifier>,
     attributes: Map<String, String>,
 ) {
