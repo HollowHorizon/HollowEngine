@@ -6,22 +6,59 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.Tesselator
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.renderer.GameRenderer
-import ru.hollowhorizon.hollowengine.client.ui.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.UiGradientStop
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
-import ru.hollowhorizon.hollowengine.client.ui.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.UiVec3
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
-import kotlin.math.sin
-import kotlin.math.sqrt
+import ru.hollowhorizon.hollowengine.client.ui.*
+import kotlin.math.*
+
+internal data class UiBatchedQuad(
+    val width: Float,
+    val height: Float,
+    val transform: UiMatrix4,
+    val colors: List<UiColor>,
+)
+
+internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
+    if (quads.isEmpty()) return
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
+        quads.forEach { quad ->
+            val corners = localCorners(quad.width, quad.height, quad.transform)
+            corners.forEachIndexed { index, corner ->
+                val color = quad.colors[index.coerceAtMost(quad.colors.lastIndex)]
+                buffer.addVertex(corner.x, corner.y, corner.z).setColor(color.red, color.green, color.blue, color.alpha)
+            }
+        }
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
+    }
+}
+
+internal fun solidQuad(width: Float, height: Float, color: UiColor, transform: UiMatrix4): UiBatchedQuad {
+    return UiBatchedQuad(width, height, transform, List(4) { color })
+}
+
+internal fun gradientQuad(
+    width: Float,
+    height: Float,
+    angleDegrees: Float,
+    stops: List<UiGradientStop>,
+    opacity: Float,
+    transform: UiMatrix4,
+): UiBatchedQuad {
+    return UiBatchedQuad(
+        width = width,
+        height = height,
+        transform = transform,
+        colors = listOf(
+            gradientColorAt(0f, 0f, width, height, angleDegrees, stops).withOpacity(opacity),
+            gradientColorAt(0f, height, width, height, angleDegrees, stops).withOpacity(opacity),
+            gradientColorAt(width, height, width, height, angleDegrees, stops).withOpacity(opacity),
+            gradientColorAt(width, 0f, width, height, angleDegrees, stops).withOpacity(opacity),
+        ),
+    )
+}
 
 internal fun drawLocalBorder(width: Float, height: Float, radius: Float, color: UiColor, transform: UiMatrix4) {
     drawLocalBorder(width, height, radius, 1f, color, transform)

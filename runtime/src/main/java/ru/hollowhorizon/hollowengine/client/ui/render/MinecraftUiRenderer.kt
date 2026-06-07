@@ -37,6 +37,7 @@ class MinecraftUiRenderer {
     private val widgets = UiWidgetRenderer(::drawImage)
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
+    private val shapeBatch = mutableListOf<UiBatchedQuad>()
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
 
@@ -53,7 +54,16 @@ class MinecraftUiRenderer {
                 bindTarget(it.toState())
                 configureLayerProjection(it.logicalWidth, it.logicalHeight)
             }
-            commands.forEach(::render)
+            commands.forEach { command ->
+                val quads = batchedQuads(command)
+                if (quads.isNotEmpty()) {
+                    shapeBatch += quads
+                } else {
+                    flushShapeBatch()
+                    render(command)
+                }
+            }
+            flushShapeBatch()
             disableScissor()
             while (layerStack.isNotEmpty()) finishLayer()
             GL11.glDepthMask(true)
@@ -86,6 +96,61 @@ class MinecraftUiRenderer {
             is DrawTextFieldChromeCommand -> drawWidget(command)
             is DrawScrollbarCommand -> drawScrollbar(command)
         }
+    }
+
+    private fun flushShapeBatch() {
+        if (shapeBatch.isEmpty()) return
+        drawBatchedQuads(shapeBatch)
+        shapeBatch.clear()
+    }
+
+    private fun batchedQuads(command: UiRenderCommand): List<UiBatchedQuad> {
+        if (command !is DrawBoxCommand) return emptyList()
+        if (command.rect.width <= 0f || command.rect.height <= 0f) return emptyList()
+        if (command.border.radius != 0f) return emptyList()
+        if (command.filter != UiFilterChain.Empty) return emptyList()
+        if (command.renderToFramebuffer) return emptyList()
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return emptyList()
+        val quads = mutableListOf<UiBatchedQuad>()
+        when (val paint = command.paint) {
+            UiResolvedPaint.None -> Unit
+            is UiResolvedPaint.Image,
+            is UiResolvedPaint.Shader -> return emptyList()
+
+            is UiResolvedPaint.Color -> quads += solidQuad(
+                width = command.rect.width,
+                height = command.rect.height,
+                color = paint.color.withOpacity(command.opacity),
+                transform = transform,
+            )
+
+            is UiResolvedPaint.LinearGradient -> quads += gradientQuad(
+                width = command.rect.width,
+                height = command.rect.height,
+                angleDegrees = paint.angleDegrees,
+                stops = paint.stops,
+                opacity = command.opacity,
+                transform = transform,
+            )
+        }
+        quads += borderQuads(command, transform)
+        return quads
+    }
+
+    private fun borderQuads(command: DrawBoxCommand, transform: UiMatrix4): List<UiBatchedQuad> {
+        val borderWidth = command.border.width.left.resolve(command.rect.width)
+        if (borderWidth <= 0f || command.border.color.alpha <= 0f) return emptyList()
+        val width = command.rect.width
+        val height = command.rect.height
+        val thickness = borderWidth.coerceAtLeast(1f).coerceAtMost(minOf(width, height) * 0.5f)
+        val color = command.border.color.withOpacity(command.opacity)
+        return listOf(
+            solidQuad(width, thickness, color, transform),
+            solidQuad(width, thickness, color, transform * UiMatrix4.translation(0f, height - thickness, 0f)),
+            solidQuad(thickness, height, color, transform),
+            solidQuad(thickness, height, color, transform * UiMatrix4.translation(width - thickness, 0f, 0f)),
+        )
     }
 
     private fun prepareFramebuffers(commands: List<UiRenderCommand>) {

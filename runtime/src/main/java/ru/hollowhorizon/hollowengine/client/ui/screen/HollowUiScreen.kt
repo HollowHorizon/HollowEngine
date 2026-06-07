@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
@@ -105,6 +106,7 @@ abstract class HollowUiScreen(
             current
         } else {
             val hadHoverChange = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
+            applyCursor(current)
             val hasActiveMotion = current.requiresContinuousRefresh() || hadHoverChange
             if (hasActiveMotion) refreshFrame(nowMillis) else current
         }
@@ -120,6 +122,7 @@ abstract class HollowUiScreen(
         this.mouseY = mouseY.toFloat()
         val current = currentFrameForInput() ?: return
         val hoverChanged = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
+        applyCursor(current)
         if (hoverChanged) {
             refreshFrame()
         }
@@ -137,6 +140,7 @@ abstract class HollowUiScreen(
         if (result.handled) {
             lastDragX = mouseX
             lastDragY = mouseY
+            applyCursor(current)
             invalidateUi(immediate = true)
             return true
         }
@@ -168,16 +172,19 @@ abstract class HollowUiScreen(
         lastDragX = mouseX
         lastDragY = mouseY
         if (onNodeDragged(key, dx, dy)) {
+            frame?.let(::applyCursor)
             invalidateUi(immediate = true)
             return true
         }
         val current = frame ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
         val result = input.mouseDragged(current, mouseX.toFloat(), mouseY.toFloat(), button, dx, dy, ::dispatchUiEvent)
         if (result.handled) {
+            applyCursor(current)
             invalidateUi(immediate = true)
             return true
         }
         if (result.node != null && onNodeDragged(result.node, dx, dy)) {
+            applyCursor(current)
             invalidateUi(immediate = true)
             return true
         }
@@ -272,12 +279,20 @@ abstract class HollowUiScreen(
     }
 
     override fun removed() {
+        UiCursorApplier.apply(UiCursorShape.DEFAULT)
         frame?.let { current ->
             dispatchUiEvent(UiEvent(UiEventKind.CLOSE, current.resolved.root))
         }
         renderer.close()
         prepareScriptsJob?.cancel()
         super.removed()
+    }
+
+    private fun applyCursor(current: HollowUiFrame) {
+        val node = input.draggingKey?.let(current::nodeByKey)
+            ?: input.hoveredKey?.let(current::nodeByKey)
+        val shape = node?.let { current.resolved[it].cursor } ?: UiCursorShape.DEFAULT
+        UiCursorApplier.apply(shape)
     }
 
     override fun onClose() {
@@ -342,4 +357,34 @@ abstract class HollowUiScreen(
     }
 
     override fun isPauseScreen(): Boolean = false
+}
+
+private object UiCursorApplier {
+    private var current = UiCursorShape.DEFAULT
+    private val cursors = mutableMapOf<UiCursorShape, Long>()
+
+    fun apply(shape: UiCursorShape) {
+        if (shape == current) return
+        current = shape
+        GLFW.glfwSetCursor(Minecraft.getInstance().window.window, cursor(shape))
+    }
+
+    private fun cursor(shape: UiCursorShape): Long {
+        if (shape == UiCursorShape.DEFAULT) return 0L
+        return cursors.getOrPut(shape) {
+            GLFW.glfwCreateStandardCursor(shape.glfw)
+        }
+    }
+
+    private val UiCursorShape.glfw: Int
+        get() = when (this) {
+            UiCursorShape.DEFAULT -> GLFW.GLFW_ARROW_CURSOR
+            UiCursorShape.HAND -> GLFW.GLFW_HAND_CURSOR
+            UiCursorShape.MOVE -> GLFW.GLFW_RESIZE_ALL_CURSOR
+            UiCursorShape.TEXT -> GLFW.GLFW_IBEAM_CURSOR
+            UiCursorShape.RESIZE_HORIZONTAL -> GLFW.GLFW_RESIZE_EW_CURSOR
+            UiCursorShape.RESIZE_VERTICAL -> GLFW.GLFW_RESIZE_NS_CURSOR
+            UiCursorShape.RESIZE_NESW -> GLFW.GLFW_RESIZE_NESW_CURSOR
+            UiCursorShape.RESIZE_NWSE -> GLFW.GLFW_RESIZE_NWSE_CURSOR
+        }
 }

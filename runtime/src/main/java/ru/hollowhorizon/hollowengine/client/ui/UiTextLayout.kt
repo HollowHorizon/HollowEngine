@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.network.chat.Component
+import java.util.LinkedHashMap
 import kotlin.math.abs
 
 data class UiTextLayout(
@@ -53,6 +54,11 @@ private val font: Font?
 
 internal object UiTextLayouter {
     private const val EstimatedGlyphWidth = 6f
+    private const val MaxCachedLayouts = 512
+    private const val MaxCachedTextWidths = 2048
+    private val lineCache = lruCache<LineCacheKey, List<RawTextLine>>(MaxCachedLayouts)
+    private val layoutCache = lruCache<LayoutCacheKey, UiTextLayout>(MaxCachedLayouts)
+    private val widthCache = lruCache<TextWidthCacheKey, Float>(MaxCachedTextWidths)
 
     fun measure(
         text: String,
@@ -71,6 +77,10 @@ internal object UiTextLayouter {
         fontSize: Float,
         preserveWhitespace: Boolean = false,
     ): LayoutSize {
+        if (knownWidth != null) {
+            val layout = layout(richText, knownWidth, Float.POSITIVE_INFINITY, wrap, UiTextAlign.LEFT, fontSize, preserveWhitespace)
+            return LayoutSize(knownWidth, layout.height)
+        }
         val naturalWidth = buildLines(richText, Float.POSITIVE_INFINITY, wrap = false, fontSize, preserveWhitespace)
             .maxOfOrNull { it.width } ?: 0f
         val width = knownWidth
@@ -99,6 +109,8 @@ internal object UiTextLayouter {
         fontSize: Float,
         preserveWhitespace: Boolean = false,
     ): UiTextLayout {
+        val key = LayoutCacheKey(richText, width.cacheValue(), height.cacheValue(), wrap, align, fontSize.cacheValue(), preserveWhitespace, fontSignature())
+        layoutCache[key]?.let { return it }
         val rawLines = buildLines(richText, width, wrap, fontSize, preserveWhitespace)
         val lines = mutableListOf<UiTextLine>()
         var y = 0f
@@ -115,7 +127,7 @@ internal object UiTextLayouter {
             y += raw.height
             if (height.isFinite() && y >= height) break
         }
-        return UiTextLayout(lines, width, y)
+        return UiTextLayout(lines, width, y).also { layoutCache[key] = it }
     }
 
     fun measureTextWidth(text: String, fontSize: Float): Float {
@@ -157,9 +169,11 @@ internal object UiTextLayouter {
     }
 
     private fun measureTextWidth(text: String, fontSize: Float, style: UiInlineStyle): Float {
+        val key = TextWidthCacheKey(text, style, fontSize.cacheValue(), fontSignature())
+        widthCache[key]?.let { return it }
         val width = font?.width(text.component(style))?.toFloat()
             ?: (text.length * (EstimatedGlyphWidth + if (style.bold) 1f else 0f))
-        return width * (fontSize / (font?.lineHeight?.toFloat() ?: DefaultUiFontSize))
+        return (width * (fontSize / (font?.lineHeight?.toFloat() ?: DefaultUiFontSize))).also { widthCache[key] = it }
     }
 
     private fun buildLines(
@@ -169,6 +183,8 @@ internal object UiTextLayouter {
         fontSize: Float,
         preserveWhitespace: Boolean,
     ): List<RawTextLine> {
+        val key = LineCacheKey(richText, width.cacheValue(), wrap, fontSize.cacheValue(), preserveWhitespace, fontSignature())
+        lineCache[key]?.let { return it }
         val units = richText.toUnits(fontSize)
         val result = mutableListOf<RawTextLine>()
         val current = mutableListOf<InlineUnit>()
@@ -249,7 +265,12 @@ internal object UiTextLayouter {
             }
         }
         if (current.isNotEmpty() || result.isEmpty() || endedWithNewline) commit(lastInParagraph = true)
-        return result
+        return result.also { lineCache[key] = it }
+    }
+
+    private fun fontSignature(): Int {
+        val activeFont = font
+        return 31 * System.identityHashCode(activeFont) + (activeFont?.lineHeight ?: DefaultUiFontSize.toInt())
     }
 
     private fun splitOversizedWord(word: InlineUnit.Word, width: Float): List<InlineUnit.Word> {
@@ -449,6 +470,44 @@ internal object UiTextLayouter {
                 .withUnderlined(style.underline || style.link != null)
                 .withStrikethrough(style.strikethrough)
         }
+    }
+
+    private data class LineCacheKey(
+        val richText: UiRichText,
+        val width: Float,
+        val wrap: Boolean,
+        val fontSize: Float,
+        val preserveWhitespace: Boolean,
+        val fontSignature: Int,
+    )
+
+    private data class LayoutCacheKey(
+        val richText: UiRichText,
+        val width: Float,
+        val height: Float,
+        val wrap: Boolean,
+        val align: UiTextAlign,
+        val fontSize: Float,
+        val preserveWhitespace: Boolean,
+        val fontSignature: Int,
+    )
+
+    private data class TextWidthCacheKey(
+        val text: String,
+        val style: UiInlineStyle,
+        val fontSize: Float,
+        val fontSignature: Int,
+    )
+}
+
+private fun Float.cacheValue(): Float {
+    if (!isFinite()) return this
+    return (this * 100f).toInt().toFloat() / 100f
+}
+
+private fun <K, V> lruCache(maxSize: Int): MutableMap<K, V> {
+    return object : LinkedHashMap<K, V>(maxSize, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, V>?): Boolean = size > maxSize
     }
 }
 

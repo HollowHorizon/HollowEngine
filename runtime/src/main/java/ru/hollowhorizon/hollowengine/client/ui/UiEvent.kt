@@ -54,6 +54,10 @@ data class UiEvent(
     val y: Float = 0f,
     val localX: Float = 0f,
     val localY: Float = 0f,
+    val parentLocalX: Float = localX,
+    val parentLocalY: Float = localY,
+    val parentWidth: Float = 0f,
+    val parentHeight: Float = 0f,
     val deltaX: Float = 0f,
     val deltaY: Float = 0f,
     val scrollX: Float = 0f,
@@ -87,6 +91,10 @@ data class UiEvent(
             "y" -> y
             "localX", "local-x" -> localX
             "localY", "local-y" -> localY
+            "parentLocalX", "parent-local-x" -> parentLocalX
+            "parentLocalY", "parent-local-y" -> parentLocalY
+            "parentWidth", "parent-width" -> parentWidth
+            "parentHeight", "parent-height" -> parentHeight
             "deltaX", "delta-x" -> deltaX
             "deltaY", "delta-y" -> deltaY
             "isReleased", "released" -> released

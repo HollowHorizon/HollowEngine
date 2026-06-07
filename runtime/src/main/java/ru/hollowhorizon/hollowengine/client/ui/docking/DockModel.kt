@@ -1,0 +1,218 @@
+package ru.hollowhorizon.hollowengine.client.ui.docking
+
+data class DockItem(
+    val id: String,
+    val title: String,
+    val icon: String? = null,
+    val closable: Boolean = true,
+    val minWidth: Float = 96f,
+    val minHeight: Float = 64f,
+)
+
+sealed interface DockNode {
+    val id: String
+
+    data class Stack(
+        override val id: String,
+        val items: List<DockItem>,
+        val selectedItemId: String = items.firstOrNull()?.id.orEmpty(),
+    ) : DockNode {
+        val selectedItem: DockItem?
+            get() = items.firstOrNull { it.id == selectedItemId } ?: items.firstOrNull()
+    }
+
+    data class Split(
+        override val id: String,
+        val orientation: DockOrientation,
+        val first: DockNode,
+        val second: DockNode,
+        val fraction: Float = 0.5f,
+    ) : DockNode
+}
+
+data class FloatingDockWindow(
+    val id: String,
+    val stack: DockNode.Stack,
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+    val dragKey: String? = null,
+)
+
+enum class DockResizeEdge {
+    LEFT,
+    RIGHT,
+    TOP,
+    BOTTOM,
+    TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT
+}
+
+internal data class DockRemoval(
+    val root: DockNode?,
+    val item: DockItem?,
+)
+
+internal fun DockNode.findNode(nodeId: String): DockNode? {
+    if (id == nodeId) return this
+    return when (this) {
+        is DockNode.Stack -> null
+        is DockNode.Split -> first.findNode(nodeId) ?: second.findNode(nodeId)
+    }
+}
+
+internal fun DockNode.findStackWithItem(itemId: String): DockNode.Stack? {
+    return when (this) {
+        is DockNode.Stack -> takeIf { stack -> stack.items.any { it.id == itemId } }
+        is DockNode.Split -> first.findStackWithItem(itemId) ?: second.findStackWithItem(itemId)
+    }
+}
+
+internal fun DockNode.containsItem(itemId: String): Boolean {
+    return findStackWithItem(itemId) != null
+}
+
+internal fun DockNode.removeItem(itemId: String): DockRemoval {
+    return when (this) {
+        is DockNode.Stack -> {
+            val removed = items.firstOrNull { it.id == itemId } ?: return DockRemoval(this, null)
+            val remaining = items.filterNot { it.id == itemId }
+            val selected = when {
+                remaining.isEmpty() -> null
+                selectedItemId != itemId -> selectedItemId
+                else -> remaining.first().id
+            }
+            DockRemoval(remaining.takeIf { it.isNotEmpty() }?.let { copy(items = it, selectedItemId = selected.orEmpty()) }, removed)
+        }
+
+        is DockNode.Split -> {
+            val firstRemoval = first.removeItem(itemId)
+            if (firstRemoval.item != null) {
+                return DockRemoval(copyWithChildren(firstRemoval.root, second), firstRemoval.item)
+            }
+            val secondRemoval = second.removeItem(itemId)
+            if (secondRemoval.item != null) {
+                return DockRemoval(copyWithChildren(first, secondRemoval.root), secondRemoval.item)
+            }
+            DockRemoval(this, null)
+        }
+    }
+}
+
+internal fun DockNode.select(itemId: String): DockNode {
+    return when (this) {
+        is DockNode.Stack -> {
+            if (items.none { it.id == itemId }) this else copy(selectedItemId = itemId)
+        }
+
+        is DockNode.Split -> copy(first = first.select(itemId), second = second.select(itemId))
+    }
+}
+
+internal fun DockNode.reorderTab(stackId: String, itemId: String, targetIndex: Int): DockNode {
+    return when (this) {
+        is DockNode.Stack -> {
+            if (id != stackId) return this
+            val currentIndex = items.indexOfFirst { it.id == itemId }
+            if (currentIndex < 0) return this
+            val reordered = items.toMutableList()
+            val item = reordered.removeAt(currentIndex)
+            reordered.add(targetIndex.coerceIn(0, reordered.size), item)
+            copy(items = reordered)
+        }
+
+        is DockNode.Split -> copy(first = first.reorderTab(stackId, itemId, targetIndex), second = second.reorderTab(stackId, itemId, targetIndex))
+    }
+}
+
+internal fun DockNode.insert(node: DockNode, target: DockTarget, ids: DockIdGenerator): DockNode {
+    if (target.anchorId == null) return insertAtRoot(node, target, ids)
+    val inserted = replace(target.anchorId) { anchor -> anchor.insertAtAnchor(node, target, ids) }
+    return inserted ?: insertAtRoot(node, target, ids)
+}
+
+private fun DockNode.insertAtRoot(node: DockNode, target: DockTarget, ids: DockIdGenerator): DockNode {
+    if (target.placement == DockPlacement.CENTER && this is DockNode.Stack && node is DockNode.Stack) {
+        return merge(node.items, target.tabIndex)
+    }
+    return splitWith(node, target.placement, ids)
+}
+
+private fun DockNode.insertAtAnchor(node: DockNode, target: DockTarget, ids: DockIdGenerator): DockNode {
+    if (target.placement == DockPlacement.CENTER && this is DockNode.Stack && node is DockNode.Stack) {
+        return merge(node.items, target.tabIndex)
+    }
+    return splitWith(node, target.placement, ids)
+}
+
+private fun DockNode.replace(nodeId: String, transform: (DockNode) -> DockNode): DockNode? {
+    if (id == nodeId) return transform(this)
+    return when (this) {
+        is DockNode.Stack -> null
+        is DockNode.Split -> {
+            val nextFirst = first.replace(nodeId, transform)
+            if (nextFirst != null) return copy(first = nextFirst)
+            val nextSecond = second.replace(nodeId, transform)
+            nextSecond?.let { copy(second = it) }
+        }
+    }
+}
+
+private fun DockNode.Stack.merge(newItems: List<DockItem>, tabIndex: Int?): DockNode.Stack {
+    val uniqueItems = newItems.filter { item -> items.none { it.id == item.id } }
+    if (uniqueItems.isEmpty()) return this
+    val insertionIndex = tabIndex?.coerceIn(0, items.size) ?: items.size
+    val merged = items.toMutableList()
+    merged.addAll(insertionIndex, uniqueItems)
+    return copy(items = merged, selectedItemId = uniqueItems.last().id)
+}
+
+private fun DockNode.splitWith(node: DockNode, placement: DockPlacement, ids: DockIdGenerator): DockNode {
+    if (placement == DockPlacement.CENTER) {
+        return when {
+            this is DockNode.Stack && node is DockNode.Stack -> merge(node.items, null)
+            else -> DockNode.Split(ids.nextSplitId(), DockOrientation.HORIZONTAL, this, node)
+        }
+    }
+    val orientation = when (placement) {
+        DockPlacement.LEFT,
+        DockPlacement.RIGHT -> DockOrientation.HORIZONTAL
+
+        DockPlacement.TOP,
+        DockPlacement.BOTTOM -> DockOrientation.VERTICAL
+
+        DockPlacement.CENTER -> DockOrientation.HORIZONTAL
+    }
+    return when (placement) {
+        DockPlacement.LEFT,
+        DockPlacement.TOP -> DockNode.Split(ids.nextSplitId(), orientation, node, this)
+
+        DockPlacement.RIGHT,
+        DockPlacement.BOTTOM -> DockNode.Split(ids.nextSplitId(), orientation, this, node)
+
+        DockPlacement.CENTER -> this
+    }
+}
+
+private fun DockNode.Split.copyWithChildren(first: DockNode?, second: DockNode?): DockNode? {
+    return when {
+        first == null -> second
+        second == null -> first
+        else -> copy(first = first, second = second)
+    }
+}
+
+internal class DockIdGenerator {
+    private var nextStack = 1
+    private var nextSplit = 1
+    private var nextWindow = 1
+
+    fun nextStackId(): String = "dock-stack-${nextStack++}"
+
+    fun nextSplitId(): String = "dock-split-${nextSplit++}"
+
+    fun nextWindowId(): String = "dock-window-${nextWindow++}"
+}

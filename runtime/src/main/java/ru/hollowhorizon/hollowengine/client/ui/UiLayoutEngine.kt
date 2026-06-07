@@ -60,7 +60,22 @@ private data class NodeBoxes(
     val content: UiRect,
 )
 
+private data class MeasureCacheKey(
+    val nodeId: Int,
+    val availableWidth: Float,
+    val availableHeight: Float,
+    val widthOverride: Float?,
+    val heightOverride: Float?,
+    val deferFlexibleWidth: Boolean,
+    val deferFlexibleHeight: Boolean,
+    val allowWidthOverflow: Boolean,
+    val allowHeightOverflow: Boolean,
+    val reserve: UiScrollbarReserve,
+)
+
 class UiLayoutEngine {
+    private val measureCache = HashMap<MeasureCacheKey, LayoutSize>()
+
     fun compute(
         resolved: ResolvedUiTree,
         width: Float,
@@ -87,6 +102,7 @@ class UiLayoutEngine {
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         bindings: UiBindingContext,
     ): Map<UiNode, UiLayoutNode> {
+        measureCache.clear()
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
         val rootRect = rootRect(resolved, width, height, scrollbarReserves, bindings)
@@ -536,6 +552,19 @@ class UiLayoutEngine {
         allowHeightOverflow: Boolean = false,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
+        val cacheKey = MeasureCacheKey(
+            nodeId = System.identityHashCode(node),
+            availableWidth = availableWidth.layoutCacheValue(),
+            availableHeight = availableHeight.layoutCacheValue(),
+            widthOverride = widthOverride?.layoutCacheValue(),
+            heightOverride = heightOverride?.layoutCacheValue(),
+            deferFlexibleWidth = deferFlexibleWidth,
+            deferFlexibleHeight = deferFlexibleHeight,
+            allowWidthOverflow = allowWidthOverflow,
+            allowHeightOverflow = allowHeightOverflow,
+            reserve = scrollbarReserves[node] ?: UiScrollbarReserve.None,
+        )
+        measureCache[cacheKey]?.let { return it }
         val style = resolved[node]
         val referenceWidth = availableWidth.coerceAtLeast(0f)
         val referenceHeight = availableHeight.coerceAtLeast(0f)
@@ -596,7 +625,7 @@ class UiLayoutEngine {
         return LayoutSize(
             width = constrainedWidth,
             height = constrainedHeight,
-        )
+        ).also { measureCache[cacheKey] = it }
     }
 
     private fun intrinsicSize(
@@ -890,6 +919,11 @@ private fun Float.coerceIn(min: UiLength, max: UiLength, reference: Float): Floa
     val minValue = min.resolve(reference, 0f)
     val maxValue = max.resolve(reference, Float.POSITIVE_INFINITY)
     return coerceIn(minValue, maxValue.coerceAtLeast(minValue))
+}
+
+private fun Float.layoutCacheValue(): Float {
+    if (!isFinite()) return this
+    return (this * 100f).toInt().toFloat() / 100f
 }
 
 private fun UiAlign?.mainStartOffset(available: Float, used: Float, count: Int, gap: Float): Float {

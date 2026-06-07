@@ -130,6 +130,8 @@ sealed interface Modifier {
             )
         }
 
+        fun cursor(shape: UiCursorShape) = StyleModifier { it.cursor = shape }
+
         fun clip(enabled: Boolean = true) = StyleModifier { it.clip = enabled }
 
         fun layer(value: Int) = StyleModifier { it.layer = value }

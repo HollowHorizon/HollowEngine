@@ -196,6 +196,7 @@ data class MutableUiStyle(
     var backdropFilter: UiFilterChain? = null,
     var backfaceVisibility: UiBackfaceVisibility? = null,
     var input: UiInputStyle? = null,
+    var cursor: UiCursorShape? = null,
     var clip: Boolean? = null,
     var layer: Int? = null,
     var imageFit: UiImageFit? = null,
@@ -246,6 +247,7 @@ data class MutableUiStyle(
         other.backdropFilter?.let { backdropFilter = it }
         other.backfaceVisibility?.let { backfaceVisibility = it }
         other.input?.let { input = input?.merge(it) ?: it }
+        other.cursor?.let { cursor = it }
         other.clip?.let { clip = it }
         other.layer?.let { layer = it }
         other.imageFit?.let { imageFit = it }
@@ -301,6 +303,7 @@ data class MutableUiStyle(
             backdropFilter = backdropFilter ?: UiFilterChain.Empty,
             backfaceVisibility = backfaceVisibility ?: UiBackfaceVisibility.VISIBLE,
             input = input ?: UiInputStyle(),
+            cursor = cursor ?: parent?.cursor ?: UiCursorShape.DEFAULT,
             clip = clip ?: false,
             layer = layer ?: 0,
             imageFit = imageFit ?: UiImageFit.STRETCH,
@@ -354,6 +357,7 @@ data class ComputedStyle(
     val backdropFilter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val input: UiInputStyle,
+    val cursor: UiCursorShape,
     val clip: Boolean,
     val layer: Int,
     val imageFit: UiImageFit,
@@ -498,6 +502,7 @@ private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     backdropFilter = backdropFilter,
     backfaceVisibility = backfaceVisibility,
     input = input,
+    cursor = cursor,
     clip = clip,
     layer = layer,
     imageFit = imageFit,

@@ -164,12 +164,22 @@ class HollowUiInputController {
         if (button == 0 && node is TextFieldNode) {
             changed = updateTextFieldSelectionFromMouse(frame, node, mouseX, mouseY)
         }
+        val local = frame.layout[node].inputTransform.inverse()?.transform(mouseX, mouseY, 0f)
+        val parent = frame.parentOf(node)
+        val parentLayout = parent?.let { frame.layout[it] }
+        val parentLocal = parentLayout?.inputTransform?.inverse()?.transform(mouseX, mouseY, 0f)
         val event = UiEvent(
             kind = UiEventKind.DRAG,
             node = node,
             button = button,
             x = mouseX,
             y = mouseY,
+            localX = local?.x ?: 0f,
+            localY = local?.y ?: 0f,
+            parentLocalX = parentLocal?.x ?: 0f,
+            parentLocalY = parentLocal?.y ?: 0f,
+            parentWidth = parentLayout?.rect?.width ?: 0f,
+            parentHeight = parentLayout?.rect?.height ?: 0f,
             deltaX = deltaX,
             deltaY = deltaY,
         )
@@ -445,4 +455,12 @@ data class UiInputResult(
 private fun UiNode.containsNodeKey(key: String?): Boolean {
     if (key == null) return false
     return children.any { UiNodeKeys.key(it) == key || it.containsNodeKey(key) }
+}
+
+private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {
+    fun find(current: UiNode): UiNode? {
+        if (current.children.any { it === node }) return current
+        return current.children.firstNotNullOfOrNull(::find)
+    }
+    return find(resolved.root)
 }

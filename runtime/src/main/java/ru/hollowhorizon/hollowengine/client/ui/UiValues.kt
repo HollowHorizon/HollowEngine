@@ -56,6 +56,17 @@ enum class UiTextAlign {
     JUSTIFY
 }
 
+enum class UiCursorShape {
+    DEFAULT,
+    HAND,
+    MOVE,
+    TEXT,
+    RESIZE_HORIZONTAL,
+    RESIZE_VERTICAL,
+    RESIZE_NESW,
+    RESIZE_NWSE
+}
+
 sealed interface UiLength {
     data object Auto : UiLength
     data object Fill : UiLength

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
@@ -13,6 +14,13 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private val freeNodeOffsets = mutableStateMapOf<Int, DemoOffset>()
     private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
     private var xmlEventText by mutableStateOf("XML event log is empty")
+    private val dockingState = DockingState().apply {
+        open(DockItem("project", "Project"))
+        open(DockItem("editor", "Editor"))
+        open(DockItem("preview", "Preview"), DockTarget(placement = DockPlacement.RIGHT))
+        open(DockItem("console", "Console"), DockTarget(placement = DockPlacement.BOTTOM))
+        openFloating(DockItem("inspector", "Inspector"), x = 430f, y = 72f, width = 260f, height = 190f)
+    }
 
     @Composable
     override fun Content() {
@@ -22,6 +30,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
                 tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
+                tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
                 tab("effects", "Эффекты", "hollowengine:textures/gui/npc_menu/character.png")
             }
@@ -29,6 +38,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 when (selectedTab) {
                     "widgets" -> widgets()
                     "layout" -> layout()
+                    "docking" -> docking()
                     "transforms" -> transforms()
                     "effects" -> effects()
                     "xml" -> xmlDemo()
@@ -144,6 +154,57 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 Text("Стекляшка", tags = listOf("card-title"))
                 Text("Ну и нафиг я это делал? Кому вообещ нужно размывать чате по центру...", tags = listOf("body"))
             }
+        }
+    }
+
+    @Composable
+    private fun docking() {
+        DockSpace(
+            state = dockingState,
+            id = "demo-dock-space",
+            modifier = Modifier.size(100.percent, 100.percent),
+        ) { item ->
+            Box(
+                id = "dock-demo-${item.id}",
+                tags = listOf("panel"),
+                modifier = Modifier.then(
+                    Modifier.layout(LayoutType.COLUMN),
+                    Modifier.padding(12.px),
+                    Modifier.gap(8.px),
+                ),
+            ) {
+                Text(item.title, tags = listOf("title"))
+                when (item.id) {
+                    "project" -> dockDemoRows("Scenes", "Scripts", "Assets", "Dialogues", "Cutscenes")
+                    "editor" -> dockDemoRows("fun main() {", "    scene(\"intro\")", "    character(\"Ada\")", "}")
+                    "preview" -> dockPreview()
+                    "console" -> dockDemoRows("[info] Runtime started", "[info] UI hot reload ready", "[warn] Missing optional icon")
+                    "inspector" -> dockDemoRows("Transform", "Position: 0, 0, 0", "Rotation: 0, 0, 0", "Scale: 1, 1, 1")
+                    else -> Text("Empty panel", tags = listOf("body"))
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun dockDemoRows(vararg rows: String) {
+        rows.forEach { row ->
+            Box(tags = listOf("row")) {
+                Text(row, tags = listOf("body"))
+            }
+        }
+    }
+
+    @Composable
+    private fun dockPreview() {
+        Box(
+            modifier = Modifier.then(
+                Modifier.size(100.percent, 100.percent),
+                Modifier.background(UiColor(0.08f, 0.1f, 0.13f, 1f)),
+                Modifier.border(1.px, UiColor(0.24f, 0.28f, 0.34f, 1f), 6f),
+            ),
+        ) {
+            Text("Viewport", tags = listOf("body"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
         }
     }
 
