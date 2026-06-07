@@ -3,13 +3,16 @@ import ru.hollowhorizon.hollowengine.client.ui.Box
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.HollowComposeUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiComposition
+import ru.hollowhorizon.hollowengine.client.ui.HssResourceLoader
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.ResolvedUiTree
 import ru.hollowhorizon.hollowengine.client.ui.Text
 import ru.hollowhorizon.hollowengine.client.ui.TextField
 import ru.hollowhorizon.hollowengine.client.ui.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
@@ -235,12 +238,14 @@ class UiComposeTests {
             runtime.frame(100f, 40f, nowMillis = 0L)
             val dialog = runtime.root.child("dialog")
             dialog.states += UiState.HOVER
-            val hovered = runtime.frame(100f, 40f, nowMillis = 0L)
+            runtime.frame(100f, 40f, nowMillis = 0L)
 
+            dialog.states -= UiState.HOVER
+            val closeBase = runtime.frame(100f, 40f, nowMillis = 0L)
             runtime.root.setClosingState(true)
             val closing = runtime.frame(100f, 40f, nowMillis = 0L)
 
-            assertEquals(0L, closing.motionDurationMillis(hovered))
+            assertEquals(0L, closing.motionDurationMillis(closeBase))
         }
     }
 
@@ -272,6 +277,41 @@ class UiComposeTests {
         }
     }
 
+    @Test
+    fun `compose resource stylesheet reloads only when loader revision changes`() {
+        val loader = VersionedHssLoader(
+            """
+            .panel {
+                opacity: 1;
+            }
+            """.trimIndent(),
+        )
+
+        HollowComposeUiRuntime().use { runtime ->
+            runtime.setContent {
+                Box(id = "panel", tags = listOf("panel"), modifier = Modifier.style("test:panel.hss", loader))
+            }
+
+            val first = runtime.frame(100f, 40f, nowMillis = 0L)
+            val second = runtime.frame(100f, 40f, nowMillis = 1L)
+            assertEquals(1f, first.resolved[first.resolved.node("panel")].opacity)
+            assertEquals(1f, second.resolved[second.resolved.node("panel")].opacity)
+            assertEquals(1, loader.loadCount)
+
+            loader.update(
+                """
+                .panel {
+                    opacity: 0.5;
+                }
+                """.trimIndent(),
+            )
+            val updated = runtime.frame(100f, 40f, nowMillis = 2L)
+
+            assertEquals(0.5f, updated.resolved[updated.resolved.node("panel")].opacity)
+            assertEquals(2, loader.loadCount)
+        }
+    }
+
     private fun BoxNode.textField(): TextFieldNode {
         return children
             .flatMap { child -> if (child is BoxNode) child.children else listOf(child) }
@@ -281,5 +321,29 @@ class UiComposeTests {
 
     private fun BoxNode.child(id: String): BoxNode {
         return children.filterIsInstance<BoxNode>().single { it.id == id }
+    }
+
+    private fun ResolvedUiTree.node(id: String): BoxNode {
+        return styles.keys.filterIsInstance<BoxNode>().single { it.id == id }
+    }
+
+    private class VersionedHssLoader(
+        private var source: String,
+    ) : HssResourceLoader {
+        var loadCount = 0
+            private set
+        private var revision = 0L
+
+        override fun load(location: String): CompiledHss {
+            loadCount += 1
+            return compileHss(source)
+        }
+
+        override fun version(location: String): Long = revision
+
+        fun update(source: String) {
+            this.source = source
+            revision += 1L
+        }
     }
 }

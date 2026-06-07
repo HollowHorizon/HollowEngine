@@ -30,6 +30,7 @@ abstract class HollowUiScreen(
     private var uiDirty = true
     private var lastWidth = -1
     private var lastHeight = -1
+    private var lastStylesheetRevision = 0L
     private val input = HollowUiInputController()
     private var lastDragX = 0.0
     private var lastDragY = 0.0
@@ -71,17 +72,17 @@ abstract class HollowUiScreen(
 
     fun startClosingAnimation() {
         if (closing || closeCompleted) return
-        closing = true
-        closeStartedAt = System.currentTimeMillis()
-        closeBaseFrame = frame
-        closeDurationMillis = null
+        val nowMillis = System.currentTimeMillis()
         input.clearInteraction()
-        val current = if (width > 0 && height > 0) {
-            invalidateUi(immediate = true)
-            frame
+        closeBaseFrame = if (width > 0 && height > 0) {
+            refreshFrame(nowMillis)
         } else {
-            null
+            frame
         }
+        closing = true
+        closeStartedAt = nowMillis
+        closeDurationMillis = null
+        val current = if (width > 0 && height > 0) refreshFrame(nowMillis) else null
         val duration = current?.motionDurationMillis(closeBaseFrame) ?: 0L
         closeDurationMillis = duration
         if (duration <= 0L) {
@@ -96,7 +97,8 @@ abstract class HollowUiScreen(
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
         val sizeChanged = width != lastWidth || height != lastHeight
-        val needsRebuild = frame == null || uiDirty || sizeChanged || rebuildEveryFrame()
+        val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
+        val needsRebuild = frame == null || uiDirty || sizeChanged || stylesheetChanged || rebuildEveryFrame()
         val current = if (needsRebuild) refreshFrame(nowMillis) else frame!!
         if (completeClosingIfReady(current, nowMillis)) return
         val activeFrame = if (closing) {
@@ -256,6 +258,7 @@ abstract class HollowUiScreen(
         input.prepareRoot(root, closing)
         val nextFrame = runtime.frame(root, width.toFloat(), height.toFloat(), bindings(), nowMillis)
         frame = nextFrame
+        lastStylesheetRevision = root.stylesheetRevision()
         lastWidth = width
         lastHeight = height
         return nextFrame
@@ -264,7 +267,8 @@ abstract class HollowUiScreen(
     private fun currentFrameForInput(): HollowUiFrame? {
         if (width <= 0 || height <= 0) return frame
         val sizeChanged = width != lastWidth || height != lastHeight
-        return if (frame == null || uiDirty || sizeChanged || rebuildEveryFrame()) refreshFrame() else frame
+        val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
+        return if (frame == null || uiDirty || sizeChanged || stylesheetChanged || rebuildEveryFrame()) refreshFrame() else frame
     }
 
     override fun removed() {

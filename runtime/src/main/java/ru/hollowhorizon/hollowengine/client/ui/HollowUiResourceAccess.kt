@@ -8,7 +8,7 @@ import java.nio.file.Files
 
 object HollowUiResourceAccess {
     fun readText(location: ResourceLocation): String {
-        val local = DirectoryManager.HOLLOW_ENGINE.resolve("assets").resolve(location.namespace).resolve(location.path)
+        val local = localPath(location)
         if (Files.isRegularFile(local)) {
             return Files.newBufferedReader(local, Charsets.UTF_8).use { it.readText() }
         }
@@ -16,4 +16,12 @@ object HollowUiResourceAccess {
             InputStreamReader(stream, Charsets.UTF_8).use { it.readText() }
         }
     }
+
+    fun version(location: ResourceLocation): Long {
+        val local = localPath(location)
+        return if (Files.isRegularFile(local)) Files.getLastModifiedTime(local).toMillis() else 0L
+    }
+
+    private fun localPath(location: ResourceLocation) =
+        DirectoryManager.HOLLOW_ENGINE.resolve("assets").resolve(location.namespace).resolve(location.path)
 }

@@ -6,20 +6,39 @@ import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 
 fun interface HssResourceLoader {
     fun load(location: String): CompiledHss
+
+    fun version(location: String): Long = 0L
 }
 
 sealed interface UiStylesheetReference {
     fun resolve(): CompiledHss
 
+    fun revision(): Long
+
     data class Compiled(private val stylesheet: CompiledHss) : UiStylesheetReference {
         override fun resolve(): CompiledHss = stylesheet
+
+        override fun revision(): Long = 0L
     }
 
     class Resource(
         private val location: String,
         private val loader: HssResourceLoader,
     ) : UiStylesheetReference {
-        override fun resolve(): CompiledHss = loader.load(location)
+        private var cachedVersion: Long? = null
+        private var cachedStylesheet: CompiledHss? = null
+
+        override fun resolve(): CompiledHss {
+            val version = revision()
+            val stylesheet = cachedStylesheet
+            if (stylesheet != null && cachedVersion == version) return stylesheet
+            return loader.load(location).also {
+                cachedStylesheet = it
+                cachedVersion = version
+            }
+        }
+
+        override fun revision(): Long = loader.version(location)
     }
 }
 
@@ -27,4 +46,23 @@ object MinecraftHssResourceLoader : HssResourceLoader {
     override fun load(location: String): CompiledHss {
         return compileHss(HollowUiResourceAccess.readText(ResourceLocation.parse(location)))
     }
+
+    override fun version(location: String): Long {
+        return HollowUiResourceAccess.version(ResourceLocation.parse(location))
+    }
+}
+
+fun UiNode.stylesheetRevision(): Long {
+    var revision = 1L
+    visitStylesheetReferences { reference ->
+        revision = revision * 31L + reference.revision()
+    }
+    return revision
+}
+
+private fun UiNode.visitStylesheetReferences(visitor: (UiStylesheetReference) -> Unit) {
+    modifiers.flattenModifiers()
+        .filterIsInstance<StyleImportModifier>()
+        .forEach { visitor(it.reference) }
+    children.forEach { it.visitStylesheetReferences(visitor) }
 }

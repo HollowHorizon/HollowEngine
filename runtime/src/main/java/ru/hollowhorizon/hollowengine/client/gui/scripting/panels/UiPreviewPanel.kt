@@ -488,6 +488,10 @@ private object PreviewUiResourceLoader : UiResourceLoader, HssResourceLoader {
         return compileHss(readLocation(ResourceLocation.parse(location)))
     }
 
+    override fun version(location: String): Long {
+        return HollowUiResourceAccess.version(ResourceLocation.parse(location))
+    }
+
     private fun readLocation(location: ResourceLocation): String {
         val local = DirectoryManager.HOLLOW_ENGINE.resolve("assets").resolve(location.namespace).resolve(location.path)
         if (Files.isRegularFile(local)) {

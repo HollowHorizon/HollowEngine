@@ -229,12 +229,13 @@ private class KatariUiOverlay(
     fun close(root: UiXmlTree) {
         this.root = root
         node = composeNode()
-        closing = true
+        closing = false
         closingStartedAt = null
         closingDurationMillis = null
-        closeBaseFrame = lastFrame
         activeButton = null
         input.clearInteraction()
+        closeBaseFrame = refreshFrame()
+        closing = true
     }
 
     fun render(nowMillis: Long): Boolean {
