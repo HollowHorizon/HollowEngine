@@ -14,6 +14,7 @@ import org.lwjgl.opengl.GL13
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.ShaderInstanceAccessor
 import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
+import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import java.util.function.Function
 
 
@@ -75,7 +76,7 @@ val batchingRenderType: Function<Material, RenderType> = Util.memoize<Material, 
 
 val SHADER
     get() =
-        if (ShadowRenderer.ACTIVE || shouldOverrideShaders()) GameRenderer.getRendertypeEntityCutoutShader()!!
+        if (IrisHelper.hasIris && (ShadowRenderer.ACTIVE || shouldOverrideShaders())) GameRenderer.getRendertypeEntityCutoutShader()!!
         else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
 
 val INSTANCED_SHADER
