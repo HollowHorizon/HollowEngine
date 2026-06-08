@@ -404,13 +404,6 @@ private fun UiInsets.resolve(width: Float, height: Float): TextureSlices = Textu
     bottom = bottom.resolve(height),
 )
 
-private fun UiLength.resolve(reference: Float): Float = when (this) {
-    UiLength.Auto -> 0f
-    UiLength.Fill -> reference
-    is UiLength.Percent -> reference * value
-    is UiLength.Px -> value
-}
-
 private fun sliceSpans(size: Float, sourceSize: Float, startSlice: Float, endSlice: Float): List<SliceSpan> {
     val source = sourceSize.coerceAtLeast(1f)
     return listOf(

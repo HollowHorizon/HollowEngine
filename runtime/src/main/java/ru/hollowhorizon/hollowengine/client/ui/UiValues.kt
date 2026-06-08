@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -72,21 +73,28 @@ sealed interface UiLength {
     data object Fill : UiLength
     data class Px(val value: Float) : UiLength
     data class Percent(val value: Float) : UiLength
+    data class Addition(val first: UiLength, val second: UiLength) : UiLength
+    data class Substraction(val first: UiLength, val second: UiLength) : UiLength
 
     fun resolve(reference: Float, autoValue: Float = 0f): Float = when (this) {
         Auto -> autoValue
         Fill -> reference
         is Px -> value
         is Percent -> reference * value
+        is Addition -> first.resolve(reference, autoValue) + second.resolve(reference, autoValue)
+        is Substraction -> first.resolve(reference, autoValue) - second.resolve(reference, autoValue)
     }
 }
 
-val Number.px: UiLength.Px get() = UiLength.Px(toFloat())
-val Number.percent: UiLength.Percent get() = UiLength.Percent(toFloat() / 100f)
+operator fun UiLength.plus(other: UiLength): UiLength = Addition(this, other)
+operator fun UiLength.minus(other: UiLength): UiLength = Substraction(this, other)
+
+val Number.px: Px get() = Px(toFloat())
+val Number.percent: Percent get() = Percent(toFloat() / 100f)
 
 data class UiSize(
-    val width: UiLength = UiLength.Auto,
-    val height: UiLength = UiLength.Auto,
+    val width: UiLength = Auto,
+    val height: UiLength = Auto,
 )
 
 data class UiInsets(
