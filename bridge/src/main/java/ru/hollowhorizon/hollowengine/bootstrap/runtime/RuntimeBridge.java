@@ -187,8 +187,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onLevelClosed(Level level);
 
-    void onEntityCreated(Entity entity);
-
     void onEntitySaved(Entity entity, CompoundTag tag);
 
     void onEntityLoaded(Entity entity, CompoundTag tag);

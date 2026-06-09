@@ -4,7 +4,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.DimensionTransition;
@@ -24,11 +23,6 @@ public abstract class EntityMixin {
     @Shadow private Level level;
     @Shadow private int id;
     @Shadow public abstract Level level();
-
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void onInit(EntityType<?> entityType, Level level, CallbackInfo ci) {
-        BootstrapRuntimeManager.bridge().onEntityCreated((Entity) (Object) this);
-    }
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void onSave(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {

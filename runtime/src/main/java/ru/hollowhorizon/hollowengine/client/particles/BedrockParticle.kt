@@ -448,7 +448,6 @@ class BedrockParticle(
                 .uv(u, v)
                 .color(color.r, color.g, color.b, color.a)
                 .uv2(light)
-                .endVertex()
         }
 
         val flip =

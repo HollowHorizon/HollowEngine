@@ -22,10 +22,8 @@ import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.kool.EntityModifier
 import ru.hollowhorizon.hollowengine.client.utils.color
-import ru.hollowhorizon.hollowengine.client.utils.endVertex
 import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 import ru.hollowhorizon.hollowengine.client.utils.vertex
-
 import kotlin.math.min
 
 object OpenGLUtils {
@@ -58,14 +56,14 @@ object OpenGLUtils {
             val (r, g, b, a) = if (i == 0) color.withAlpha(0.75f) else color.withAlpha(0.5f)
 
             buffer.vertex(matrix, -size * step, 0f, pos)
-                .color(r, g, b, a).endVertex()
+                .color(r, g, b, a)
             buffer.vertex(matrix, size * step, 0f, pos)
-                .color(r, g, b, a).endVertex()
+                .color(r, g, b, a)
 
             buffer.vertex(matrix, pos, 0f, -size * step)
-                .color(r, g, b, a).endVertex()
+                .color(r, g, b, a)
             buffer.vertex(matrix, pos, 0f, size * step)
-                .color(r, g, b, a).endVertex()
+                .color(r, g, b, a)
         }
 
         BufferUploader.drawWithShader(buffer.buildOrThrow())
@@ -87,8 +85,8 @@ object OpenGLUtils {
         val (r, g, b, a) = color
 
         fun line(x1: Float, y1: Float, z1: Float, x2: Float, y2: Float, z2: Float) {
-            buffer.vertex(matrix, x1, y1, z1).color(r, g, b, a).endVertex()
-            buffer.vertex(matrix, x2, y2, z2).color(r, g, b, a).endVertex()
+            buffer.vertex(matrix, x1, y1, z1).color(r, g, b, a)
+            buffer.vertex(matrix, x2, y2, z2).color(r, g, b, a)
         }
 
         line(min.x, min.y, min.z, max.x, min.y, min.z)

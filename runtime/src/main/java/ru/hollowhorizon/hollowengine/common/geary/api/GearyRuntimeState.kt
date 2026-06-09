@@ -84,9 +84,6 @@ object GearyRuntimeState {
         }
     }
 
-    fun initEntity(entity: MCEntity) {
-    }
-
     fun componentsById(entity: MCEntity): MutableMap<ResourceLocation, Any> =
         EntityComponentMap(state(entity))
 

@@ -16,7 +16,5 @@ class ReloadScriptContext(
     val resourceManager: ResourceManager,
     val recipeManager: RecipeManager = currentRecipeManagerOrNull()
         ?: error("RecipeManager is not initialized for reload script context"),
-) {
-
-}
+)
 

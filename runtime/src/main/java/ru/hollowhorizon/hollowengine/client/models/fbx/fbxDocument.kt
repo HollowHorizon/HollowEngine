@@ -378,7 +378,6 @@ class Model(id: Long, element: Element, doc: Document, name: String) : Object(id
             if(`continue`) continue
 
             domWarning("source object for model link is neither Material, NodeAttribute nor Geometry, ignoring", element)
-            continue
         }
     }
 }

@@ -25,7 +25,7 @@ fun VertexConsumer.normal(x: Float, y: Float, z: Float) = this.setNormal(x, y, z
 fun VertexConsumer.normal(mat: Matrix3f, x: Float, y: Float, z: Float) = with(mat.transform(Vector3f(x, y, z))) { setNormal(this.x, this.y, this.z) }
 fun VertexConsumer.color(r: Float, g: Float, b: Float, a: Float) = setColor(r, g, b, a)
 fun VertexConsumer.color(value: Int) = setColor(value)
-fun VertexConsumer.endVertex() {}
+
 
 fun PoseStack.mulPoseMatrix(matrix: Matrix4f) {
     last().pose().mul(matrix)

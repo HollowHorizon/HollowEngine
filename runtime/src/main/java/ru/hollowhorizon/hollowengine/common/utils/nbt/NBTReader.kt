@@ -135,11 +135,8 @@ private class NbtMapDecoder(json: NBTFormat, override val map: CompoundTag) : NB
     }
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
-        while (position < size - 1) {
-            position++
-            return position
-        }
-        return CompositeDecoder.DECODE_DONE
+        return if (position < size - 1) ++position
+        else CompositeDecoder.DECODE_DONE
     }
 
     override fun currentElement(tag: String): Tag {
@@ -159,11 +156,8 @@ private class NullableListDecoder(json: NBTFormat, override val map: CompoundTag
 
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
-        while (position < size - 1) {
-            position++
-            return position
-        }
-        return CompositeDecoder.DECODE_DONE
+        return if (position < size - 1) ++position
+        else CompositeDecoder.DECODE_DONE
     }
 
     override fun currentElement(tag: String): Tag {
@@ -186,11 +180,8 @@ private class TagListDecoder(json: NBTFormat, override val map: CollectionTag<*>
     }
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
-        while (currentIndex < size - 1) {
-            currentIndex++
-            return currentIndex
-        }
-        return CompositeDecoder.DECODE_DONE
+        return if (currentIndex < size - 1) ++currentIndex
+        else CompositeDecoder.DECODE_DONE
     }
 }
 
@@ -205,7 +196,7 @@ private class TagPrimitiveReader(json: NBTFormat, override val map: Tag) : Abstr
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int = 0
 
     override fun currentElement(tag: String): Tag {
-        require(tag === PRIMITIVE_TAG) { "This input can only handle primitives with '$PRIMITIVE_TAG' tag" }
+        require(tag == PRIMITIVE_TAG) { "This input can only handle primitives with '$PRIMITIVE_TAG' tag" }
         return map
     }
 }

@@ -578,10 +578,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         GearyRuntimeState.close(level)
     }
 
-    override fun onEntityCreated(entity: Entity) {
-        GearyRuntimeState.initEntity(entity)
-    }
-
     override fun onEntitySaved(entity: Entity, tag: net.minecraft.nbt.CompoundTag) {
         GearyRuntimeState.saveEntity(entity, tag)
     }
