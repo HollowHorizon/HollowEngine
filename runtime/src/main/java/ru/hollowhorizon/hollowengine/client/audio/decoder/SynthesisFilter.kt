@@ -186,9 +186,9 @@ class SynthesisFilter(channelnumber: Int, factor: Float) {
         p15 = (pp14 - pp15) * cos1_4
 
         var tmp1: Float
-        newV19 = -((p7.also { newV12 = it }) + p5).also { newV4 = it } - p6
+        newV19 = -(p7.also { newV12 = it } + p5).also { newV4 = it } - p6
         newV27 = -p6 - p7 - p4
-        newV6 = ((p15.also { newV14 = it }) + p11).also { newV10 = it } + p13
+        newV6 = (p15.also { newV14 = it } + p11).also { newV10 = it } + p13
         newV17 = -(p15 + p13 + p9).also { newV2 = it } - p14
         newV21 = (-p14 - p15 - p10 - p11).also { tmp1 = it } - p13
         newV29 = -p14 - p15 - p12 - p8
@@ -283,9 +283,9 @@ class SynthesisFilter(channelnumber: Int, factor: Float) {
         p15 = (pp14 - pp15) * cos1_4
 
         var tmp2: Float
-        newV5 = ((((p15.also { newV15 = it }) + p7).also { newV13 = it }) + p11).also { newV11 = it } + p5 + p13
+        newV5 = ((p15.also { newV15 = it } + p7).also { newV13 = it } + p11).also { newV11 = it } + p5 + p13
         newV7 = (p15 + p11 + p3).also { newV9 = it } + p13
-        newV16 = -(((p13 + p15 + p9).also { tmp1 = it }) + p1).also { newV1 = it } - p14
+        newV16 = -((p13 + p15 + p9).also { tmp1 = it } + p1).also { newV1 = it } - p14
         newV18 = -(tmp1 + p5 + p7).also { newV3 = it } - p6 - p14
 
         newV22 = (-p10 - p11 - p14 - p15).also { tmp1 = it } - p13 - p2 - p3

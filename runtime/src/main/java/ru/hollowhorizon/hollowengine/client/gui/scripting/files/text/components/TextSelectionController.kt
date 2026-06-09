@@ -100,7 +100,7 @@ class TextSelectionController(
 
         val isMultiLineSelection = from != to
         val hasSelection =
-            selStartPos != selCaretPos || lineIndex in (from + 1) until to || isMultiLineSelection && lineIndex == from
+            selStartPos != selCaretPos || lineIndex in from + 1 until to || isMultiLineSelection && lineIndex == from
 
         attributedText.modifier.selectionColor = EditorTheme.selection
         attributedText.modifier.caretColor = EditorTheme.caret

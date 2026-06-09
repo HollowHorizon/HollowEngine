@@ -71,7 +71,7 @@ class Wave(
         val srcBuffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
         val destBuffer = ByteBuffer.wrap(destData).order(ByteOrder.LITTLE_ENDIAN)
 
-        (0 until sampleCount).forEach { _ ->
+        for (i in 0 until sampleCount) {
             val pcm16: Short = when (bitsPerSample) {
                 8 -> {
                     val sample = srcBuffer.get().toInt() and 0xFF

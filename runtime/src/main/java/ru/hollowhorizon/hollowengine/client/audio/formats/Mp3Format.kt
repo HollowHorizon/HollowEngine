@@ -97,7 +97,7 @@ object Mp3Format {
         }
         bitstream.close()
 
-        val bytes = buffer.size() - buffer.size() % (if (channels > 1) 4 else 2)
+        val bytes = buffer.size() - buffer.size() % if (channels > 1) 4 else 2
         val output = MemoryUtil.memAlloc(bytes)
         output.order(ByteOrder.nativeOrder())
         output.put(buffer.toByteArray(), 0, bytes)
