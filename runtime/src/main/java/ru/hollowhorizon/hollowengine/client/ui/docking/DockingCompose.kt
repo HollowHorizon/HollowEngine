@@ -5,8 +5,8 @@ import androidx.compose.runtime.key
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 
-private const val DockTabWidth = 140f
-private const val DockTabHeight = 24f
+private const val DockTabWidth = 100f
+private const val DockTabHeight = 18f
 
 private val DockTabStyle = compileHss(
     """
@@ -14,7 +14,8 @@ private val DockTabStyle = compileHss(
         background: rgba(34, 37, 45, 1);
         border: 1px rgba(78, 84, 96, 0.9);
         border-radius: 7px;
-        shadow: 0px 5px 12px -5px rgba(0, 0, 0, 0.55);
+        shadow: 0px 3px 9px -5px rgba(0, 0, 0, 0.5);
+        align: start center;
         transition:
             background 120ms ease-out,
             translate 140ms ease-out,
@@ -23,10 +24,10 @@ private val DockTabStyle = compileHss(
 
     .dock-tab:hover {
         translate: 0px -1px 0px;
-        shadow: 0px 3px 9px -5px rgba(0, 0, 0, 0.5);
+        shadow: 0px 3px 9px -5px rgba(0.3, 0.3, 0.7, 0.25);
     }
 
-    .dock-tab.selected {
+    .dock-tab:selected {
         background: rgba(48, 54, 65, 1);
         border: 1px rgba(106, 119, 139, 1);
         shadow: 0px 7px 14px -6px rgba(0, 0, 0, 0.62);
@@ -34,7 +35,8 @@ private val DockTabStyle = compileHss(
 
     .dock-tab:dragging {
         translate: 0px -2px 10px;
-        shadow: 0px 9px 18px -7px rgba(0, 0, 0, 0.68);
+        shadow: 0px 5px 9px -5px rgba(0, 0, 0, 0.5);
+        transition: none;
     }
     """.trimIndent(),
 )
@@ -304,7 +306,9 @@ private fun DockTabBar(
     ) {
         stack.items.forEachIndexed { index, item ->
             val selected = stack.selectedItem?.id == item.id
-            DockTab(stack.id, stack.items.size, index, item, selected, state, tabContent, allowUndock)
+            key(item.id) {
+                DockTab(stack.id, stack.items.size, index, item, selected, state, tabContent, allowUndock)
+            }
         }
     }
 }
@@ -327,7 +331,8 @@ private fun DockTab(
         modifier = Modifier.then(
             Modifier.style(DockTabStyle),
             Modifier.layout(LayoutType.ROW),
-            Modifier.size(DockTabWidth.px, DockTabHeight.px),
+            Modifier.size(width = DockTabWidth.px, height = DockTabHeight.px),
+            Modifier.margin(2.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),
             Modifier.layer(if (dragOffset != null) 50 else if (selected) 1 else 0),
             if (dragOffset != null) Modifier.translate(dragOffset, -2f, 10f) else Modifier.then(),
