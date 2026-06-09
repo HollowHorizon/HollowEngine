@@ -61,5 +61,5 @@ fun Color.toIntRGB(): Int {
     val r = (this.r * 255).toInt() and 0xFF
     val g = (this.g * 255).toInt() and 0xFF
     val b = (this.b * 255).toInt() and 0xFF
-    return (r shl 16) or (g shl 8) or b
+    return r shl 16 or (g shl 8) or b
 }

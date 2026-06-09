@@ -66,7 +66,7 @@ object ComponentBlockRuntime {
         //val gearyEntity = entity.entity
 
         if (descriptor.syncPolicy.name == "SYNC") {
-          //  gearyEntity.setSyncing(value, componentClass)
+            //  gearyEntity.setSyncing(value, componentClass)
         } else {
             //gearyEntity.set(value, componentClass)
         }
@@ -647,12 +647,12 @@ private fun defaultFactory(field: ComponentFieldSchema): (() -> BlockModel)? {
 
         FieldValueKind.NUMBER -> {
             val defaultValue = (field.defaultJson as? JsonPrimitive)?.doubleOrNull ?: 0.0
-            ({ NumberBlock(defaultValue) })
+            { NumberBlock(defaultValue) }
         }
 
         FieldValueKind.BOOLEAN -> {
             val defaultValue = (field.defaultJson as? JsonPrimitive)?.booleanOrNull ?: false
-            ({ BoolBlock(defaultValue) })
+            { BoolBlock(defaultValue) }
         }
 
         FieldValueKind.ENUM -> {
@@ -717,10 +717,12 @@ private fun defaultFactory(field: ComponentFieldSchema): (() -> BlockModel)? {
 
         FieldValueKind.CLASS -> {
             val key = field.nestedSchemaKey ?: return null
-            ({ CreateComponentBlock(key) })
+            { CreateComponentBlock(key) }
         }
 
-        FieldValueKind.LIST -> ({ ListBuilderBlock(field.ownerSchemaKey, field.name) })
+        FieldValueKind.LIST -> {
+            { ListBuilderBlock(field.ownerSchemaKey, field.name) }
+        }
 
         FieldValueKind.UNSUPPORTED -> null
     }

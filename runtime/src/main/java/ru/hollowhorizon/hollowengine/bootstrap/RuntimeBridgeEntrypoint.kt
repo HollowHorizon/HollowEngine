@@ -887,7 +887,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val isScreenOpen = minecraft.screen != null
         val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || ((isKoolInputCaptured || isGizmoBlocking) && isScreenOpen)
+        val shouldCancel = isOverlayInputCaptured || (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }

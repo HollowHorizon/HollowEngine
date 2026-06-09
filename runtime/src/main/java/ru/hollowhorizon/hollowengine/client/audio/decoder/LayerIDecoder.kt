@@ -156,7 +156,7 @@ open class LayerIDecoder : FrameDecoder {
          */
         @Throws(DecoderException::class)
         override fun readAllocation(stream: Bitstream, header: Header, crc: Crc16) {
-            if ((stream.get_bits(4).also { allocation = it }) == 15)
+            if (stream.get_bits(4).also { allocation = it } == 15)
                 throw DecoderException(Mp3Format.ILLEGAL_SUBBAND_ALLOCATION, null)
 
             crc.addBits(allocation, 4)

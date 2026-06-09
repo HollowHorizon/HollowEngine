@@ -32,7 +32,7 @@ class Element(val keyToken: Token, parser: Parser) {
                 n = parser.advanceToNextToken() ?: parseError("unexpected end of file, expected bracket, comma or key", parser.lastToken)
                 val ty = n.type
                 // some exporters are missing a comma on the next line
-                if (ty == Tt.DATA && prev.type == Tt.DATA && (n.line == prev.line + 1)) {
+                if (ty == Tt.DATA && prev.type == Tt.DATA && n.line == prev.line + 1) {
                     tokens.add(n)
                     continue
                 }

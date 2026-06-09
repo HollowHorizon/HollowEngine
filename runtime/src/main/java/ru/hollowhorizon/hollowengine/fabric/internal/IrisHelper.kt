@@ -4,16 +4,16 @@ import com.mojang.blaze3d.systems.RenderSystem
 import net.irisshaders.iris.Iris
 import net.irisshaders.iris.api.v0.IrisApi
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline
-import net.irisshaders.iris.pipeline.WorldRenderingPipeline
 import net.irisshaders.iris.pipeline.ShaderRenderingPipeline
+import net.irisshaders.iris.pipeline.WorldRenderingPipeline
 import net.irisshaders.iris.shaderpack.loading.ProgramId
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties
 import net.irisshaders.iris.uniforms.CapturedRenderingState
 import org.joml.Matrix4f
-import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingSupport
-import ru.hollowhorizon.hollowengine.client.render.lighting.detectLightCullingSupport
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer
+import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingSupport
+import ru.hollowhorizon.hollowengine.client.render.lighting.detectLightCullingSupport
 import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.fabric.internal.accessors.IrisRenderingPipelineAccessor
@@ -28,7 +28,7 @@ object IrisHelper {
 
     val hasIris = ModList.isLoaded("iris") || ModList.isLoaded("oculus")
 
-    fun isShadowRendering() = (hasIris && IrisApi.getInstance().isRenderingShadowPass)
+    fun isShadowRendering() = hasIris && IrisApi.getInstance().isRenderingShadowPass
 
     fun isShaderPackInUse() = hasIris && IrisApi.getInstance().isShaderPackInUse
 

@@ -318,7 +318,7 @@ private fun ServerLevel.weatherDuration(duration: Int, provider: IntProvider): I
     return if (duration < 0) provider.sample(random) else duration
 }
 
-private fun Long.floorMod(divisor: Long): Long = ((this % divisor) + divisor) % divisor
+private fun Long.floorMod(divisor: Long): Long = (this % divisor + divisor) % divisor
 
 private data class EntityRayHit(
     val entity: Entity,

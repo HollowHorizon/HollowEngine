@@ -81,7 +81,7 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl) : GlRende
     }
 
     fun resolve(targetFbo: GlFramebuffer, blitMask: Int) {
-        if ((resolveDirect && backend.ctx.window.renderScale == 1f) || targetFbo != gl.DEFAULT_FRAMEBUFFER) {
+        if (resolveDirect && backend.ctx.window.renderScale == 1f || targetFbo != gl.DEFAULT_FRAMEBUFFER) {
             blitFramebuffers(renderFbo, targetFbo, blitMask, renderSize, renderSize)
         } else {
             // on WebGL trying to resolve a multi-sampled framebuffer into the default framebuffer fails with
@@ -126,7 +126,7 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl) : GlRende
     }
 
     fun applySize(width: Int, height: Int) {
-        if (width <= 0 || height <= 0 || (width == renderSize.x && height == renderSize.y)) {
+        if (width <= 0 || height <= 0 || width == renderSize.x && height == renderSize.y) {
             return
         }
         renderSize.set(width, height)

@@ -78,8 +78,10 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
                 val state = mob.level().getBlockState(pos)
                 val shape = state.getCollisionShape(mob.level(), pos)
 
-                val needsJump = dy > mob.maxUpStep() &&
-                        (dx * dx + dz * dz < max(sqrt(3.0), mob.bbWidth.toDouble())) // квадрат сравниваем с квадратом
+                val needsJump = dy > mob.maxUpStep() && dx * dx + dz * dz < max(
+                    sqrt(3.0),
+                    mob.bbWidth.toDouble()
+                ) // квадрат сравниваем с квадратом
 
                 // Если высота отличается больше, чем maxUpStep, а коллизии нет — прыгаем
                 if (needsJump || (!shape.isEmpty && mob.y < shape.max(Direction.Axis.Y) + pos.y

@@ -39,6 +39,7 @@ import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val DAY_TICKS = 24000L
 
@@ -265,7 +266,7 @@ suspend fun Entity.waitNpcInteract(): Player {
 
 @ScriptBinding
 suspend fun Player.waitZone(position: Vec3, radius: Double = 1.0, leave: Boolean = false): Player {
-    while ((position().distanceTo(position) <= radius) == leave) delay(50)
+    while (position().distanceTo(position) <= radius == leave) delay(50.milliseconds)
     return this
 }
 
@@ -429,7 +430,7 @@ val Vec3.blockY: Int get() = BlockPos.containing(this).y
 @ScriptBinding("blockZ")
 val Vec3.blockZ: Int get() = BlockPos.containing(this).z
 
-private fun Long.floorMod(divisor: Long): Long = ((this % divisor) + divisor) % divisor
+private fun Long.floorMod(divisor: Long): Long = (this % divisor + divisor) % divisor
 
 private fun String.attribute() =
     BuiltInRegistries.ATTRIBUTE.getHolder(rl).orElseThrow { IllegalArgumentException("Unknown attribute `$this`") }

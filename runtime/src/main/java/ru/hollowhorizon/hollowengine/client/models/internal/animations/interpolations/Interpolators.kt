@@ -133,7 +133,7 @@ class CatmullromQuat(
         val invQ1 = q1.conjugate()
         val log1 = log(invQ1 * q0)
         val log2 = log(invQ1 * q2)
-        val avg = ((log1.add(log2, MutableQuatF())) * -0.25f).exp()
+        val avg = (log1.add(log2, MutableQuatF()) * -0.25f).exp()
         return q1 * avg
     }
 

@@ -581,10 +581,10 @@ object MolangColorSerializer : KSerializer<MolangColor> {
             )
         } else {
             val v = (this as JsonPrimitive).content.substring(1).padStart(8, 'f').toLong(16)
-            val r = ((v shr 16) and 0xff) / 255f
-            val g = ((v shr 8) and 0xff) / 255f
+            val r = (v shr 16 and 0xff) / 255f
+            val g = (v shr 8 and 0xff) / 255f
             val b = (v and 0xff) / 255f
-            val a = ((v shr 24) and 0xff) / 255f
+            val a = (v shr 24 and 0xff) / 255f
             MolangColor(
                 FloatExpr.literal(r),
                 FloatExpr.literal(g),

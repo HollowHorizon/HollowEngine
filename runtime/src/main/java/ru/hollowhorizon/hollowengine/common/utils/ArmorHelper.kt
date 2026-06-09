@@ -19,7 +19,7 @@ fun ItemStack.getArmorTexture(entity: Entity, slot: EquipmentSlot): ResourceLoca
     }
     val path = String.format(
         Locale.ROOT, "%s:textures/models/armor/%s_layer_%d%s.png", domain, texture,
-        (if (slot == EquipmentSlot.LEGS) 2 else 1), ""
+        if (slot == EquipmentSlot.LEGS) 2 else 1, ""
     )
 
     return path.rl

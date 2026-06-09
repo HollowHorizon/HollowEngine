@@ -1134,7 +1134,7 @@ private fun CompletionItem.completionIdentity(): List<String?> {
             index++
         }
 
-        return inSingleQuote || (inDoubleQuote && templateDepth == 0)
+        return inSingleQuote || inDoubleQuote && templateDepth == 0
     }
 
     private fun KatariNarrativeAnalysis.analysisEnumEntries(): Map<String, List<String>> {

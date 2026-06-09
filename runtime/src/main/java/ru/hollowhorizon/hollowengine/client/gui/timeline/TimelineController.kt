@@ -149,7 +149,7 @@ class TimelineController {
 
         allTracks.forEach { track ->
             val group = findGroup(track)
-            val isLocked = (track is AnimTrack<*> && track.isLocked.value) || (group?.isLocked?.value == true)
+            val isLocked = track is AnimTrack<*> && track.isLocked.value || group?.isLocked?.value == true
 
             if (!isLocked) {
                 val trackKeys = track.getKeysAsList()

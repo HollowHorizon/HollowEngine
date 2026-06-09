@@ -70,7 +70,7 @@ class TextSelectionController(
         var selCaretPos = 0
         var selStartPos = 0
 
-        if (lineIndex in (from + 1) until to) {
+        if (lineIndex in from + 1 until to) {
             selStartPos = 0
             selCaretPos = line.length
         } else if (lineIndex == selectionStartLine && selectionStartLine == selectionCaretLine) {
@@ -99,9 +99,8 @@ class TextSelectionController(
         }
 
         val isMultiLineSelection = from != to
-        val hasSelection = (selStartPos != selCaretPos) ||
-            (lineIndex in (from + 1) until to) ||
-            (isMultiLineSelection && lineIndex == from)
+        val hasSelection =
+            selStartPos != selCaretPos || lineIndex in (from + 1) until to || isMultiLineSelection && lineIndex == from
 
         attributedText.modifier.selectionColor = EditorTheme.selection
         attributedText.modifier.caretColor = EditorTheme.caret
@@ -121,7 +120,7 @@ class TextSelectionController(
         } else {
             buildString {
                 append(lp[selectionFromLine].text.substring(selectionFromChar)).append('\n')
-                for (i in (selectionFromLine + 1) until selectionToLine) {
+                for (i in selectionFromLine + 1 until selectionToLine) {
                     append(lp[i].text).append('\n')
                 }
                 append(lp[selectionToLine].text.substring(0, selectionToChar))

@@ -1200,8 +1200,8 @@ private fun LightVisualMesh.addConeLines(segments: Int = 72) {
     for (i in 0 until segments) {
         val a0 = i / segments.toDouble() * PI * 2.0
         val a1 = (i + 1) / segments.toDouble() * PI * 2.0
-        val p0 = Vec3f((cos(a0)).toFloat(), (sin(a0)).toFloat(), 1f)
-        val p1 = Vec3f((cos(a1)).toFloat(), (sin(a1)).toFloat(), 1f)
+        val p0 = Vec3f(cos(a0).toFloat(), sin(a0).toFloat(), 1f)
+        val p1 = Vec3f(cos(a1).toFloat(), sin(a1).toFloat(), 1f)
         addLine(p0, p1)
     }
 

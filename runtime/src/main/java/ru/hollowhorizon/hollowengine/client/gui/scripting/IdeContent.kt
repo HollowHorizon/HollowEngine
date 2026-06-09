@@ -62,7 +62,7 @@ object IdeContent {
         }
         
         val threshold = sampleSize / 100
-        return nullCount > threshold || nonPrintableCount > (sampleSize / 10)
+        return nullCount > threshold || nonPrintableCount > sampleSize / 10
     }
 
     private fun tryOpenAsText(path: String, bytes: ByteArray): EditorFile? {

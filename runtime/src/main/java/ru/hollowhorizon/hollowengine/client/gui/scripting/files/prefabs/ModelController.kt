@@ -506,8 +506,8 @@ inline fun UiScope.Model(
         val centerX = x + width / 2f
         val centerY = y + height / 2f
 
-        val xPos = centerX + (modelConfig.offsetX * modelConfig.scale)
-        val yPos = centerY + (modelConfig.offsetY * modelConfig.scale)
+        val xPos = centerX + modelConfig.offsetX * modelConfig.scale
+        val yPos = centerY + modelConfig.offsetY * modelConfig.scale
 
         stack.translate(xPos, yPos, 0f)
 

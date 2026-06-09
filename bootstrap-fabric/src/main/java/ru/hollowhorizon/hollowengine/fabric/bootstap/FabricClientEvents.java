@@ -26,8 +26,8 @@ public class FabricClientEvents {
         ItemTooltipCallback.EVENT.register(events::onGetTooltip);
         events.onRegisterKeybindings(KeyBindingHelper::registerKeyBinding);
         ClientTickEvents.END_CLIENT_TICK.register(events::onClientTick);
-        ClientCommandRegistrationCallback.EVENT.register(((commandDispatcher, commandBuildContext) ->
-                events.onClientCommandRegistration((CommandDispatcher<SharedSuggestionProvider>) (Object) commandDispatcher, commandBuildContext)));
+        ClientCommandRegistrationCallback.EVENT.register((commandDispatcher, commandBuildContext) ->
+                events.onClientCommandRegistration((CommandDispatcher<SharedSuggestionProvider>) (Object) commandDispatcher, commandBuildContext));
     }
 
 

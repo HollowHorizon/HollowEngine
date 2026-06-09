@@ -221,7 +221,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             for (slice in minSlice..maxSlice) {
                 for (tileY in bounds.minTileY..bounds.maxTileY) {
                     for (tileX in bounds.minTileX..bounds.maxTileX) {
-                        val clusterIndex = ((slice * tileCountY) + tileY) * tileCountX + tileX
+                        val clusterIndex = (slice * tileCountY + tileY) * tileCountX + tileX
                         val base = clusterIndex * clusterStride
                         val currentCount = clusterList[base]
                         if (currentCount == 0) {

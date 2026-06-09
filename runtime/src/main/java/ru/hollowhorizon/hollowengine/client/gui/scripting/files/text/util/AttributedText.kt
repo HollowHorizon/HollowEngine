@@ -249,7 +249,7 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
         // Границы выделения
         val selectionMin = min(modifier.caretPos, modifier.selectionStart)
         val selectionMax = max(modifier.caretPos, modifier.selectionStart)
-        val isSelectionActive = (modifier.caretPos != modifier.selectionStart) || modifier.hasSelection
+        val isSelectionActive = modifier.caretPos != modifier.selectionStart || modifier.hasSelection
         val selectionTop = 0f
         val selectionHeight = heightPx
 
@@ -273,7 +273,7 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
                 }
 
                 if (isSelectionActive) {
-                    val isCharSelected = (globalCharIndex in selectionMin until selectionMax)
+                    val isCharSelected = globalCharIndex in selectionMin until selectionMax
 
                     if (isCharSelected) {
                         val charStartDrawX = textOrigin.x + layout.charPositions[globalCharIndex]
@@ -299,7 +299,7 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
             }
         }
 
-        if (isSelectionActive && selectionMax == modifier.text.length && (modifier.hasMultilineSelection)) {
+        if (isSelectionActive && selectionMax == modifier.text.length && modifier.hasMultilineSelection) {
             val lastX = textOrigin.x + layout.charPositions[globalCharIndex]
             val tailWidth = widthPx - paddingEndPx - lastX
             if (tailWidth > 0) {

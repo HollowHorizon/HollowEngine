@@ -331,7 +331,7 @@ class CodeBlockExecutionCoreTests {
             MathOp.ADD to 7.0,
             MathOp.SUB to 1.0,
             MathOp.MUL to 12.0,
-            MathOp.DIV to (4.0 / 3.0),
+            MathOp.DIV to 4.0 / 3.0,
         )
 
         values.forEach { (op, expected) ->

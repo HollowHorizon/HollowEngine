@@ -39,10 +39,10 @@ class NpcPathNavigation(level: Level, mob: Mob) : GroundPathNavigation(mob, leve
         val distance = sqrt(dx * dx + dz * dz)
         val gravity = 0.08
         val horizontalSpeed = mob.attributes.getValue(Attributes.MOVEMENT_SPEED)
-        val velocityX = (dx / distance) * horizontalSpeed
-        val velocityZ = (dz / distance) * horizontalSpeed
+        val velocityX = dx / distance * horizontalSpeed
+        val velocityZ = dz / distance * horizontalSpeed
         val time = distance / horizontalSpeed
-        val velocityY = (dy / time) + 0.5 * gravity * time
+        val velocityY = dy / time + 0.5 * gravity * time
 
         // Устанавливаем deltaMovement
         mob.deltaMovement = Vec3(velocityX, velocityY, velocityZ)

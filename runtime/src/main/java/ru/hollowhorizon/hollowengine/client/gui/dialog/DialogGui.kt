@@ -147,7 +147,7 @@ class DialogGui : KoolScreen() {
 
                         modifier.imageProvider?.let { (it as FlatImageProvider).mirrorX() }
 
-                        toggleAnimator.progress(Time.deltaT / (if (isHovered) 5f else 1f))
+                        toggleAnimator.progress(Time.deltaT / if (isHovered) 5f else 1f)
                         var t = toggleAnimator.use()
                         t = if (t.toInt() % 2 == 0) Interpolation.SINE_IN_OUT(1f - t % 1f)
                         else Interpolation.SINE_IN_OUT(t % 1f)

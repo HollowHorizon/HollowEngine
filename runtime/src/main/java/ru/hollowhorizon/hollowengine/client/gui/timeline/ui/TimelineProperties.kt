@@ -164,7 +164,7 @@ private fun renderEasingGraph(node: UiNode, easing: Easing.Easing, curveColor: C
         builder.configured(curveColor) {
             val steps = 64
             var prevX = x0
-            var prevY = y0 - (easing.eased(0f) * h)
+            var prevY = y0 - easing.eased(0f) * h
 
             for (i in 1..steps) {
                 val t = i / steps.toFloat()

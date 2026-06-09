@@ -148,11 +148,8 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
 
         val totalCubeCount = staticPrimitives.sumOf(Primitive::estimatedCubeCount)
         val averageCubesPerPrimitive = totalCubeCount.toFloat() / primitiveCount.toFloat()
-        val preferBatching = primitiveCount >= MODEL_BATCHING_PRIMITIVE_THRESHOLD ||
-                (primitiveCount >= MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD && averageCubesPerPrimitive <= MODEL_BATCHING_DENSE_AVERAGE_CUBES) ||
-                (primitiveCount >= MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD &&
-                        totalCubeCount >= MODEL_BATCHING_TOTAL_CUBE_THRESHOLD &&
-                        averageCubesPerPrimitive <= MODEL_BATCHING_MIXED_AVERAGE_CUBES) || true // TODO: Инстансинг не работает, починить позже
+        val preferBatching = primitiveCount >= MODEL_BATCHING_PRIMITIVE_THRESHOLD || primitiveCount >= MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD && averageCubesPerPrimitive <= MODEL_BATCHING_DENSE_AVERAGE_CUBES || primitiveCount >= MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD &&
+                totalCubeCount >= MODEL_BATCHING_TOTAL_CUBE_THRESHOLD && averageCubesPerPrimitive <= MODEL_BATCHING_MIXED_AVERAGE_CUBES || true // TODO: Инстансинг не работает, починить позже
 
         val renderPath =
             if (preferBatching) Primitive.StaticRenderPath.BATCHING else Primitive.StaticRenderPath.PIPELINE

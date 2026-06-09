@@ -6,17 +6,7 @@ import de.fabmax.kool.math.deg
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
-import ru.hollowhorizon.hollowengine.common.geary.components.ANY_STATE
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerStateSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerTransitionSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.BoneMask
-import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.MaterialOverrideLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralLayerSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 
 class AnimatorRuntime {
     private val evaluator = AnimationExpressionEvaluator()
@@ -345,7 +335,7 @@ private fun wrapTime(time: Float, duration: Float, playMode: AnimationPlayMode, 
     }
 
 private fun Float.modPositive(divisor: Float): Float =
-    ((this % divisor) + divisor) % divisor
+    (this % divisor + divisor) % divisor
 
 private fun AnimatorLayerSpec.fadeInScale(state: LayerRuntimeState): Float =
     if (fadeIn <= 0f) 1f else (state.age / fadeIn).coerceIn(0f, 1f)

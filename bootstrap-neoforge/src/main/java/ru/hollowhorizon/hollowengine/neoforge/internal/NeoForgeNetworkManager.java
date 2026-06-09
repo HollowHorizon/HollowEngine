@@ -42,7 +42,7 @@ public class NeoForgeNetworkManager implements NetworkManager {
     ) implements Registrable {
         @Override
         public void register(PayloadRegistrar registrar) {
-            registrar.playToClient(type, codec, ((packet, context) -> consumer.accept(packet, context.player())));
+            registrar.playToClient(type, codec, (packet, context) -> consumer.accept(packet, context.player()));
         }
     }
 
@@ -53,7 +53,7 @@ public class NeoForgeNetworkManager implements NetworkManager {
     ) implements Registrable {
         @Override
         public void register(PayloadRegistrar registrar) {
-            registrar.playToServer(type, codec, ((packet, context) -> consumer.accept(packet, context.player())));
+            registrar.playToServer(type, codec, (packet, context) -> consumer.accept(packet, context.player()));
         }
     }
 }

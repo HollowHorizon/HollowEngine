@@ -64,11 +64,11 @@ class ScratchBlockBackground(
             if (safeTabH > 1f) {
                 points.add(Vec3f(x, tyStart + safeTabH, 0f))
                 if (isInvertedExpression) {
-                    points.add(Vec3f(x + tabW, tyStart + safeTabH - (safeTabH * 0.2f), 0f))
-                    points.add(Vec3f(x + tabW, tyStart + (safeTabH * 0.2f), 0f))
+                    points.add(Vec3f(x + tabW, tyStart + safeTabH - safeTabH * 0.2f, 0f))
+                    points.add(Vec3f(x + tabW, tyStart + safeTabH * 0.2f, 0f))
                 } else {
-                    points.add(Vec3f(x - tabW, tyStart + safeTabH - (safeTabH * 0.2f), 0f))
-                    points.add(Vec3f(x - tabW, tyStart + (safeTabH * 0.2f), 0f))
+                    points.add(Vec3f(x - tabW, tyStart + safeTabH - safeTabH * 0.2f, 0f))
+                    points.add(Vec3f(x - tabW, tyStart + safeTabH * 0.2f, 0f))
                 }
                 points.add(Vec3f(x, tyStart, 0f))
             }

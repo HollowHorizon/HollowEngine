@@ -84,7 +84,7 @@ internal fun scrollWheelDelta(
     horizontalModifier: Boolean,
 ): UiScrollOffset {
     val horizontalOnly = scrollX == 0.0 && range.x > 0f && range.y <= 0f
-    val emulateHorizontal = (horizontalModifier && scrollX == 0.0) || horizontalOnly
+    val emulateHorizontal = horizontalModifier && scrollX == 0.0 || horizontalOnly
     return UiScrollOffset(
         x = (if (emulateHorizontal) -scrollY else -scrollX).toFloat(),
         y = (if (emulateHorizontal || horizontalModifier) 0.0 else -scrollY).toFloat(),

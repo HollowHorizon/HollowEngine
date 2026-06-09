@@ -302,9 +302,9 @@ public final class Vector3f implements Cloneable, java.io.Serializable {
         if (result == null) {
             result = new Vector3f();
         }
-        float resX = ((y * otherZ) - (z * otherY));
-        float resY = ((z * otherX) - (x * otherZ));
-        float resZ = ((x * otherY) - (y * otherX));
+        float resX = y * otherZ - z * otherY;
+        float resY = z * otherX - x * otherZ;
+        float resZ = x * otherY - y * otherX;
         result.set(resX, resY, resZ);
         return result;
     }
@@ -331,9 +331,9 @@ public final class Vector3f implements Cloneable, java.io.Serializable {
      * @return the (modified) current instance (for chaining)
      */
     public Vector3f crossLocal(float otherX, float otherY, float otherZ) {
-        float tempx = (y * otherZ) - (z * otherY);
-        float tempy = (z * otherX) - (x * otherZ);
-        z = (x * otherY) - (y * otherX);
+        float tempx = y * otherZ - z * otherY;
+        float tempy = z * otherX - x * otherZ;
+        z = x * otherY - y * otherX;
         x = tempx;
         y = tempy;
         return this;

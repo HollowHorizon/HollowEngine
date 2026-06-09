@@ -30,8 +30,8 @@ class MCInput : PlatformInput {
                 glfwGetCursorPos(windowHandle, x, y)
                 glfwSetInputMode(windowHandle, GLFW_CURSOR, cursorMode.glfwMode)
                 if (cursorMode == CursorMode.NORMAL) {
-                    val setX = ((x[0] % window.size.x) + window.size.x) % window.size.x
-                    val setY = ((y[0] % window.size.y) + window.size.y) % window.size.y
+                    val setX = (x[0] % window.size.x + window.size.x) % window.size.x
+                    val setY = (y[0] % window.size.y + window.size.y) % window.size.y
                     glfwSetCursorPos(windowHandle, setX, setY)
                 }
             }

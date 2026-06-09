@@ -129,8 +129,8 @@ class GltfViewer : KoolScreen() {
         }
         val firstIBot = firstI + cornerPts.size - 1
         for (i in 2..nCyl) {
-            geometry.addTriIndices(firstI, firstI + ((i - 1) * cornerPts.size), firstI + (i * cornerPts.size))
-            geometry.addTriIndices(firstIBot, firstIBot + (i * cornerPts.size), firstIBot + ((i - 1) * cornerPts.size))
+            geometry.addTriIndices(firstI, firstI + (i - 1) * cornerPts.size, firstI + i * cornerPts.size)
+            geometry.addTriIndices(firstIBot, firstIBot + i * cornerPts.size, firstIBot + (i - 1) * cornerPts.size)
         }
         geometry.generateNormals()
     }

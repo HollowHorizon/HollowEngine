@@ -21,7 +21,7 @@ class BabySpawnEvent(
         if (parentA is Animal)
             caused = parentA.loveCause
 
-        if ((caused as Any?) == null && parentB is Animal)
+        if (caused as Any? == null && parentB is Animal)
             caused = parentB.loveCause
 
         causedByPlayer = caused!!

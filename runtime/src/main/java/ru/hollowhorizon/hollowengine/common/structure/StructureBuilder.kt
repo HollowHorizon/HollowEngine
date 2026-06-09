@@ -105,14 +105,14 @@ class StructureBuilder(val structureType: String, val id: ResourceLocation) {
     }
 
     private fun fixBeforeBuild() {
-        if (startHeight != null && (maxInclusive != null && minInclusive != null)) startHeight = null
+        if (startHeight != null && maxInclusive != null && minInclusive != null) startHeight = null
 
-        if (startHeight != null && ((maxInclusive != null && minInclusive == null) || (maxInclusive == null && minInclusive != null))) {
+        if (startHeight != null && (maxInclusive != null || minInclusive != null)) {
             maxInclusive = null
             minInclusive = null
         }
 
-        if (startHeight == null && (maxInclusive == null && minInclusive == null)) throw IllegalStateException("Start height or min/max inclusive mustn't be null")
+        if (startHeight == null && maxInclusive == null && minInclusive == null) throw IllegalStateException("Start height or min/max inclusive mustn't be null")
     }
 }
 

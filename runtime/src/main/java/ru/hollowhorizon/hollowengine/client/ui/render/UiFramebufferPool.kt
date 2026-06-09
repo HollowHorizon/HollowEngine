@@ -121,7 +121,7 @@ internal class UiFramebufferPool {
             val canGrowWidth = width < maxTextureSize
             val canGrowHeight = height < maxTextureSize
             if (!canGrowWidth && !canGrowHeight) break
-            if ((width <= height && canGrowWidth) || !canGrowHeight) {
+            if (width <= height && canGrowWidth || !canGrowHeight) {
                 width = min(width * 2, maxTextureSize)
             } else {
                 height = min(height * 2, maxTextureSize)

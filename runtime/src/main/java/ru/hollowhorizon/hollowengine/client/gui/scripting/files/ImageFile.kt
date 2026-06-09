@@ -50,7 +50,7 @@ class ImageFile(path: String, var image: ByteArray) :
             val r = (c.r * 255f).toInt().coerceIn(0, 255)
             val g = (c.g * 255f).toInt().coerceIn(0, 255)
             val b = (c.b * 255f).toInt().coerceIn(0, 255)
-            return (a shl 24) or (r shl 16) or (g shl 8) or b
+            return a shl 24 or (r shl 16) or (g shl 8) or b
         }
 
     override fun save() {
@@ -229,9 +229,9 @@ class ImageFile(path: String, var image: ByteArray) :
 
         if (wantPick) {
             val argb = pixels[py * imgW + px]
-            val a = ((argb ushr 24) and 0xFF) / 255f
-            val r = ((argb ushr 16) and 0xFF) / 255f
-            val g = ((argb ushr 8) and 0xFF) / 255f
+            val a = (argb ushr 24 and 0xFF) / 255f
+            val r = (argb ushr 16 and 0xFF) / 255f
+            val g = (argb ushr 8 and 0xFF) / 255f
             val b = (argb and 0xFF) / 255f
             val c = Color(r, g, b, a).toHsv()
             hue.set(c.h)
@@ -307,12 +307,12 @@ class ImageFile(path: String, var image: ByteArray) :
         val buf = data.data as? Uint8BufferImpl ?: return
         buf.useRaw { bb ->
             bb.rewind()
-            for (i in 0 until (imgW * imgH)) {
+            for (i in 0 until imgW * imgH) {
                 val r = bb.get().toInt() and 0xFF
                 val g = bb.get().toInt() and 0xFF
                 val b = bb.get().toInt() and 0xFF
                 val a = bb.get().toInt() and 0xFF
-                pixels[i] = (a shl 24) or (r shl 16) or (g shl 8) or b
+                pixels[i] = a shl 24 or (r shl 16) or (g shl 8) or b
             }
         }
     }
@@ -321,11 +321,11 @@ class ImageFile(path: String, var image: ByteArray) :
         val buf = data.data as? Uint8BufferImpl ?: return
         buf.useRaw { bb ->
             bb.rewind()
-            for (i in 0 until (imgW * imgH)) {
+            for (i in 0 until imgW * imgH) {
                 val argb = pixels[i]
-                val a = (argb ushr 24) and 0xFF
-                val r = (argb ushr 16) and 0xFF
-                val g = (argb ushr 8) and 0xFF
+                val a = argb ushr 24 and 0xFF
+                val r = argb ushr 16 and 0xFF
+                val g = argb ushr 8 and 0xFF
                 val b = argb and 0xFF
                 bb.put(r.toByte())
                 bb.put(g.toByte())

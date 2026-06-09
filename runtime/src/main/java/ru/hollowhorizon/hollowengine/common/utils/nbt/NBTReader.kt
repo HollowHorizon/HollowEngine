@@ -179,7 +179,7 @@ private class TagListDecoder(json: NBTFormat, override val map: CollectionTag<*>
     private val size = map.size
     private var currentIndex = -1
 
-    override fun elementName(descriptor: SerialDescriptor, index: Int): String = (index).toString()
+    override fun elementName(descriptor: SerialDescriptor, index: Int): String = index.toString()
 
     override fun currentElement(tag: String): Tag {
         return map[tag.toInt()]

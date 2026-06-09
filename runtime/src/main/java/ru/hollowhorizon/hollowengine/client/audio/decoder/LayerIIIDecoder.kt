@@ -91,7 +91,7 @@ class LayerIIIDecoder(
 
         var mainDataEnd = br.hsstell() ushr 3
 
-        if (((br.hsstell() and 7).also { flushMain = it }) != 0) {
+        if ((br.hsstell() and 7).also { flushMain = it } != 0) {
             br.hgetbits(8 - flushMain)
             mainDataEnd++
         }
@@ -444,7 +444,7 @@ class LayerIIIDecoder(
         if (!((modeExt == 1 || modeExt == 3) && ch == 1)) if (scalefacComp < 400) {
             newSlen[0] = (scalefacComp ushr 4) / 5
             newSlen[1] = (scalefacComp ushr 4) % 5
-            newSlen[2] = (scalefacComp and 0xF) ushr 2
+            newSlen[2] = scalefacComp and 0xF ushr 2
             newSlen[3] = scalefacComp and 3
             si.ch[ch]!!.gr[gr]!!.preflag = 0
             blocknumber = 0
@@ -475,8 +475,8 @@ class LayerIIIDecoder(
                 si.ch[ch]!!.gr[gr]!!.preflag = 0
                 blocknumber = 3
             } else if (intScalefacComp < 244) {
-                newSlen[0] = (intScalefacComp - 180 and 0x3F) ushr 4
-                newSlen[1] = (intScalefacComp - 180 and 0xF) ushr 2
+                newSlen[0] = intScalefacComp - 180 and 0x3F ushr 4
+                newSlen[1] = intScalefacComp - 180 and 0xF ushr 2
                 newSlen[2] = intScalefacComp - 180 and 3
                 newSlen[3] = 0
                 si.ch[ch]!!.gr[gr]!!.preflag = 0
@@ -667,7 +667,7 @@ class LayerIIIDecoder(
         if (isPos == 0) {
             k[0][i] = 1.0f
             k[1][i] = 1.0f
-        } else if ((isPos and 1) != 0) {
+        } else if (isPos and 1 != 0) {
             k[0][i] = io[ioType][isPos + 1 ushr 1]
             k[1][i] = 1.0f
         } else {
@@ -694,12 +694,12 @@ class LayerIIIDecoder(
             }
         } else nextCbBoundary = sfBandIndex[sfreq]!!.l[1]
 
-        val gain = 2.0f.pow((0.25f * (grInfo.global_gain - 210.0f)))
+        val gain = 2.0f.pow(0.25f * (grInfo.global_gain - 210.0f))
 
         var j = 0
         while (j < nonzero[ch]) {
             val reste = j % SSLIMIT
-            val quotien = ((j - reste) / SSLIMIT)
+            val quotien = (j - reste) / SSLIMIT
             if (is1d[j] == 0) xr[quotien][reste] = 0.0f
             else {
                 val abv = is1d[j]
@@ -716,7 +716,7 @@ class LayerIIIDecoder(
         j = 0
         while (j < nonzero[ch]) {
             val reste = j % SSLIMIT
-            val quotien = ((j - reste) / SSLIMIT)
+            val quotien = (j - reste) / SSLIMIT
 
             if (index == nextCbBoundary) if (grInfo.window_switching_flag != 0 && grInfo.block_type == 2) {
                 if (grInfo.mixed_block_flag != 0) {
@@ -777,7 +777,7 @@ class LayerIIIDecoder(
         while (j < 576) {
             // Modif E.B 02/22/99
             var reste = j % SSLIMIT
-            var quotien = ((j - reste) / SSLIMIT)
+            var quotien = (j - reste) / SSLIMIT
             if (reste < 0) reste = 0
             if (quotien < 0) quotien = 0
             xr[quotien][reste] = 0.0f
@@ -809,7 +809,7 @@ class LayerIIIDecoder(
                 while (index < 36) {
                     // Modif E.B 02/22/99
                     val reste = index % SSLIMIT
-                    val quotien = ((index - reste) / SSLIMIT)
+                    val quotien = (index - reste) / SSLIMIT
                     out1d[index] = xr[quotien][reste]
                     index++
                 }
@@ -833,21 +833,21 @@ class LayerIIIDecoder(
                         srcLine = sfbStart3 + freq
                         desLine = sfbStart3 + freq3
                         var reste = srcLine % SSLIMIT
-                        var quotien = ((srcLine - reste) / SSLIMIT)
+                        var quotien = (srcLine - reste) / SSLIMIT
 
                         out1d[desLine] = xr[quotien][reste]
                         srcLine += sfbLines
                         desLine++
 
                         reste = srcLine % SSLIMIT
-                        quotien = ((srcLine - reste) / SSLIMIT)
+                        quotien = (srcLine - reste) / SSLIMIT
 
                         out1d[desLine] = xr[quotien][reste]
                         srcLine += sfbLines
                         desLine++
 
                         reste = srcLine % SSLIMIT
-                        quotien = ((srcLine - reste) / SSLIMIT)
+                        quotien = (srcLine - reste) / SSLIMIT
 
                         out1d[desLine] = xr[quotien][reste]
                         freq++
@@ -860,7 +860,7 @@ class LayerIIIDecoder(
                 while (index < 576) {
                     val j = reorderTable[sfreq]!![index]
                     val reste = j % SSLIMIT
-                    val quotien = ((j - reste) / SSLIMIT)
+                    val quotien = (j - reste) / SSLIMIT
                     out1d[index] = xr[quotien][reste]
                     index++
                 }
@@ -870,7 +870,7 @@ class LayerIIIDecoder(
             while (index < 576) {
                 // Modif E.B 02/22/99
                 val reste = index % SSLIMIT
-                val quotien = ((index - reste) / SSLIMIT)
+                val quotien = (index - reste) / SSLIMIT
                 out1d[index] = xr[quotien][reste]
                 index++
             }
@@ -905,8 +905,8 @@ class LayerIIIDecoder(
             var temp: Int
             var temp2: Int
 
-            val msStereo = header.mode() == Header.JOINT_STEREO && (modeExt and 0x2) != 0
-            val stereo = header.mode() == Header.JOINT_STEREO && (modeExt and 0x1) != 0
+            val msStereo = header.mode() == Header.JOINT_STEREO && modeExt and 0x2 != 0
+            val stereo = header.mode() == Header.JOINT_STEREO && modeExt and 0x1 != 0
             val lsf = header.version() == Header.MPEG2_LSF || header.version() == Header.MPEG25_LSF // SZD
 
             val ioType = grInfo!!.scalefac_compress and 1
@@ -1810,7 +1810,7 @@ class LayerIIIDecoder(
         maxGr = if (header.version() == Header.MPEG1) 2 else 1
 
         sfreq =
-            header.sampleFrequency() + (if (header.version() == Header.MPEG1) 3 else if (header.version() == Header.MPEG25_LSF) 6 else 0) // SZD
+            header.sampleFrequency() + if (header.version() == Header.MPEG1) 3 else if (header.version() == Header.MPEG25_LSF) 6 else 0 // SZD
 
         if (channels == 2) when (whichChannels) {
             OutputChannels.LEFT_CHANNEL, OutputChannels.DOWNMIX_CHANNELS -> {

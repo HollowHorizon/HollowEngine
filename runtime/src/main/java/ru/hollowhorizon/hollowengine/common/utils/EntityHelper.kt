@@ -15,7 +15,6 @@ import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.Shapes
 import java.util.function.Predicate
-import kotlin.math.abs
 import kotlin.random.Random
 
 tailrec fun Player.findRandomPos(radius: Int): Vec3 {
@@ -183,9 +182,9 @@ private fun rayTraceBlocks(
                 mVec1 = Vec3(mVec1.x + d6 * d5, mVec1.y + d7 * d5, d2)
             }
 
-            l = Mth.floor(mVec1.x) - (if (enumfacing === Direction.EAST) 1 else 0)
-            i1 = Mth.floor(mVec1.y) - (if (enumfacing === Direction.UP) 1 else 0)
-            j1 = Mth.floor(mVec1.z) - (if (enumfacing === Direction.SOUTH) 1 else 0)
+            l = Mth.floor(mVec1.x) - if (enumfacing === Direction.EAST) 1 else 0
+            i1 = Mth.floor(mVec1.y) - if (enumfacing === Direction.UP) 1 else 0
+            j1 = Mth.floor(mVec1.z) - if (enumfacing === Direction.SOUTH) 1 else 0
             blockpos = BlockPos(l, i1, j1)
             if (stopOn.test(blockpos)) {
                 return world.clip(

@@ -765,8 +765,8 @@ internal object LocalLightShadowManager {
         }
 
         fun viewport(slot: Int, face: Int): ShadowViewport {
-            val slotX = (slot % columns) * slotWidth
-            val slotY = (slot / columns) * slotHeight
+            val slotX = slot % columns * slotWidth
+            val slotY = slot / columns * slotHeight
             val faceX = face % columnsPerSlot
             val faceY = face / columnsPerSlot
             val x = slotX + faceX * faceWidth

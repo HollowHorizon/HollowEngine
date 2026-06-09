@@ -27,7 +27,7 @@ object RingGeometry {
         val rOuter = 1.0f
 
         for (i in 0..segments) {
-            val a = (i.toFloat() / segments) * 2f * PI_F
+            val a = i.toFloat() / segments * 2f * PI_F
             val c = cos(a)
             val s = sin(a)
 

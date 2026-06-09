@@ -253,7 +253,7 @@ class CompiledFileProvider(
                 oldLines.size == 1 &&
                 oldLines[0].text.length + 1 == newLines[0].text.length
 
-        if (undoStack.isNotEmpty() && (currentTime - lastEditTime) < AnalysisConfig.UNDO_DEBOUNCE_MS) {
+        if (undoStack.isNotEmpty() && currentTime - lastEditTime < AnalysisConfig.UNDO_DEBOUNCE_MS) {
             val lastAction = undoStack.peek()
 
             if (lastAction.canMerge && isSingleCharInsert &&

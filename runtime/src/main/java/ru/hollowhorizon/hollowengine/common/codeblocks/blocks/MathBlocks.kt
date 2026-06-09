@@ -213,7 +213,7 @@ class NotBlock : ExpressionBlock() {
     val value by inputDefault<Boolean>("value") { BoolBlock(true) }
 
     override suspend fun execute(): Any? {
-        return !(value())
+        return !value()
     }
 
     override fun InputSlotScope.composeContent() {

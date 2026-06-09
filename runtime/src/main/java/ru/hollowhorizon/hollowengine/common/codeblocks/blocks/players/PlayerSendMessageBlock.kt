@@ -37,7 +37,7 @@ class PlayerSendMessageBlock : StatementBlock() {
                 .zLayer(modifier.zLayer + 10)
                 .margin(Dimensions.PaddingSmall.scaled()).padding(Dimensions.PaddingSmall.scaled())
                 .selectedIndex(if (overlay) 1 else 0)
-                .onItemSelected { overlay = (it == 1) }
+                .onItemSelected { overlay = it == 1 }
         }
 
         Text("hollowengine.gui.codeblocks.label.player_text".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }

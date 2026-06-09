@@ -32,6 +32,6 @@ abstract class BinaryReader {
 
     companion object {
         fun b2i(b0: Byte, b1: Byte, b2: Byte, b3: Byte): Int =
-            b0.toInt() and 255 or ((b1.toInt() and 255) shl 8) or ((b2.toInt() and 255) shl 16) or ((b3.toInt() and 255) shl 24)
+            b0.toInt() and 255 or (b1.toInt() and 255 shl 8) or (b2.toInt() and 255 shl 16) or (b3.toInt() and 255 shl 24)
     }
 }

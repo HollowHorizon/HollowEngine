@@ -236,7 +236,7 @@ internal object UiTextureEffects {
     ) {
         val effectShader = ModShaders.UI_EFFECT
         val hasMask = maskRadius > 0f
-        if ((filter.effects.isEmpty() && !hasMask) || effectShader == null) {
+        if (filter.effects.isEmpty() && !hasMask || effectShader == null) {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
             configureUiBlend()
             return
@@ -248,9 +248,8 @@ internal object UiTextureEffects {
         effectShader.getUniform("BlurDirection")?.set(blurDirectionX, blurDirectionY)
         effectShader.getUniform("TexelSize")
             ?.set(1f / textureWidth.coerceAtLeast(1f), 1f / textureHeight.coerceAtLeast(1f))
-        val radiusScale = maskScale.takeIf { it > 0f }
-            ?: (((textureWidth / logicalWidth.coerceAtLeast(1f)) +
-                    (textureHeight / logicalHeight.coerceAtLeast(1f))) * 0.5f)
+        val radiusScale = maskScale.takeIf { it > 0f } ?: ((textureWidth / logicalWidth.coerceAtLeast(1f)) +
+                (textureHeight / logicalHeight.coerceAtLeast(1f))) * 0.5f
         val padU = maskPadding * radiusScale / textureWidth.coerceAtLeast(1f)
         val padV = maskPadding * radiusScale / textureHeight.coerceAtLeast(1f)
         val finalMaskU = if (maskU != null) maskU + padU else padU

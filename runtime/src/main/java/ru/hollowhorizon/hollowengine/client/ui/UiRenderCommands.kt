@@ -442,7 +442,7 @@ class UiCommandRenderer {
             node = node,
             rect = layoutNode.content,
             text = visible,
-            color = if (text.isEmpty()) (field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.65f)) else style.foreground,
+            color = if (text.isEmpty()) field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.65f) else style.foreground,
             opacity = opacity,
             transform = transform,
             filter = filter,

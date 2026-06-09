@@ -64,7 +64,7 @@ class ItemPopupMenu<T>(scopeName: String, hideOnOutsideClick: Boolean = true) :
     private fun UiScope.menuList(items: List<ContextMenuItem<T>>, contextItem: T, x: Dp, y: Dp, z: Int) {
         var subMenu by remember<SubMenuItem<T>?>(null)
         var subMenuNode by remember<UiNode?>(null)
-        val withIcons = items.any { (it is MenuItem && it.icon != null) || (it is SubMenuItem && it.icon != null) }
+        val withIcons = items.any { it is MenuItem && it.icon != null || it is SubMenuItem && it.icon != null }
 
         menuColumn(x, y, z) { opacity ->
             items.forEach { item ->

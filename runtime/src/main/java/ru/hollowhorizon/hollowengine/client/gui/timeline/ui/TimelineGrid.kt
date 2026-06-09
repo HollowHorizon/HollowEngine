@@ -39,7 +39,7 @@ fun UiScope.TimelineArea(controller: TimelineController) {
                         val currentScrollX = controller.scrollState.xScrollDp.value
 
                         val timeUnderMouse = (currentScrollX + viewX) / oldZoom
-                        val newScrollX = (timeUnderMouse * newZoom) - viewX
+                        val newScrollX = timeUnderMouse * newZoom - viewX
 
                         controller.pixelsPerSecond.set(newZoom)
                         controller.scrollState.xScrollDp.set(max(0f, newScrollX))
@@ -450,7 +450,7 @@ private fun UiScope.TimeRuler(pxPerSec: Float, maxKeyTime: Float, controller: Ti
                     if (step < 1f) {
                         val subSteps = (1f / step).toInt()
                         for (j in 1 until subSteps) {
-                            val subX = x + (j * step * pxPerSec)
+                            val subX = x + j * step * pxPerSec
                             if (subX in clipStartPx..clipEndPx) {
                                 draw.localRect(subX, 22f, 1f, 8f, colors.onBackground.withAlpha(0.3f))
                             }
@@ -559,7 +559,7 @@ private fun UiScope.PlayheadOverlay(
                 val draw = getPlainBuilder()
                 val prim = getUiPrimitives()
 
-                val xPos = (curT * pxPerSec + leftPadding.px - scrollXDp.dp.px) + paddingStartPx
+                val xPos = curT * pxPerSec + leftPadding.px - scrollXDp.dp.px + paddingStartPx
 
                 if (xPos < -20f || xPos > areaWidth + 20f) return@apply
 
@@ -579,7 +579,7 @@ private fun UiScope.PlayheadOverlay(
                     val firstEdgeIdx = geometry.numVertices
 
                     for (i in 0..stepsGlow) {
-                        val ang = (i.toFloat() / stepsGlow) * PI.toFloat()
+                        val ang = i.toFloat() / stepsGlow * PI.toFloat()
                         vertex {
                             position.set(cos(ang) * glowRadius, sin(ang) * glowRadius, 0f)
                         }

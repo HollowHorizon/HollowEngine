@@ -9,10 +9,10 @@ object VarIntSerializer {
         var size = 0
         var b: Int
         while (input.read().also { b = it } != -1) {
-            value = value or ((b and 0x7F) shl (size * 7))
+            value = value or (b and 0x7F shl size * 7)
             size++
             if (size > 5) throw RuntimeException("VarInt is too big")
-            if ((b and 0x80) == 0) break
+            if (b and 0x80 == 0) break
         }
         return value
     }

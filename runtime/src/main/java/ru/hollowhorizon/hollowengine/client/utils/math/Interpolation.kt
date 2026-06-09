@@ -4,8 +4,8 @@ import de.fabmax.kool.math.Vec3f
 import net.minecraft.util.Mth
 import kotlin.math.pow
 
-const val EL = (2 * Mth.PI) / 3
-const val EL2 = (2 * Mth.PI) / 4.5f
+const val EL = 2 * Mth.PI / 3
+const val EL2 = 2 * Mth.PI / 4.5f
 const val n1 = 7.5625f
 const val d1 = 2.75f
 
@@ -38,7 +38,7 @@ enum class Interpolation(private val function: (Float) -> Float) {
     CIRC_IN_OUT({ if (it < 0.5f) (1 - Mth.sqrt(1 - (2 * it).pow(2))) / 2 else (Mth.sqrt(1 - (-2 * it + 2).pow(2)) + 1) / 2 }),
     BACK_IN({ 2.70158f * it.pow(3) - 1.70158f * it.pow(2) }),
     BACK_OUT({ 1 + 2.70158f * (it - 1).pow(3) + 1.70158f * (it - 1).pow(2) }),
-    BACK_IN_OUT({ if (it < 0.5f) ((2 * it).pow(2) * (8.45316f * it - 3.22658f)) / 2 else ((2 * it - 2).pow(2) * (4.22658f * (it * 2 - 2) + 3.22658f) + 2) / 2 }),
+    BACK_IN_OUT({ if (it < 0.5f) (2 * it).pow(2) * (8.45316f * it - 3.22658f) / 2 else ((2 * it - 2).pow(2) * (4.22658f * (it * 2 - 2) + 3.22658f) + 2) / 2 }),
     ELASTIC_IN({ if (it == 0f) 0f else if (it == 1f) 1f else -(2f.pow(10 * it - 10)) * Mth.sin((it * 10 - 10.75f) * EL) }),
     ELASTIC_OUT({ if (it == 0f) 0f else if (it == 1f) 1f else 2f.pow(-10 * it) * Mth.sin((it * 10 - 0.75f) * EL) + 1 }),
     ELASTIC_IN_OUT({
@@ -46,7 +46,7 @@ enum class Interpolation(private val function: (Float) -> Float) {
             it == 0f -> 0f
             it == 1f -> 1f
             it < 0.5f -> -(2f.pow(20 * it - 10) * Mth.sin((20 * it - 11.125f) * EL2)) / 2f
-            else -> (2f.pow(-20 * it + 10) * Mth.sin((20 * it - 11.125f) * EL2)) / 2f + 1
+            else -> 2f.pow(-20 * it + 10) * Mth.sin((20 * it - 11.125f) * EL2) / 2f + 1
         }
     }),
     BOUNCE_IN({ bounceIn(it) }),

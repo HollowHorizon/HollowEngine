@@ -40,7 +40,7 @@ fun ItemStack.areStacksEqual(with: ItemStack): Boolean {
  */
 fun ItemStack.canCombineStacks(stack2: ItemStack): Boolean {
     if (!this.isEmpty && stack2.isEmpty) return true
-    return this.areStacksEqual(stack2) && (this.count + stack2.count) <= this.maxStackSize
+    return this.areStacksEqual(stack2) && this.count + stack2.count <= this.maxStackSize
 }
 
 /**

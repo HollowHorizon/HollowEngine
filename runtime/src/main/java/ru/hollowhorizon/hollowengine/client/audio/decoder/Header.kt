@@ -62,12 +62,12 @@ class Header internal constructor() {
             syncHeader = headerstring // E.B
             if (syncmode == Bitstream.INITIAL_SYNC) {
                 hVersion = headerstring ushr 19 and 1
-                if ((headerstring ushr 20 and 1) == 0) // SZD: MPEG2.5 detection
+                if (headerstring ushr 20 and 1 == 0) // SZD: MPEG2.5 detection
                     if (hVersion == MPEG2_LSF) hVersion = MPEG25_LSF
                     else throw stream.newBitstreamException(Bitstream.UNKNOWN_ERROR)
-                if (((headerstring ushr 10 and 3).also {
+                if ((headerstring ushr 10 and 3).also {
                         hSampleFrequency = it
-                    }) == 3) throw stream.newBitstreamException(
+                    } == 3) throw stream.newBitstreamException(
                     Bitstream.UNKNOWN_ERROR
                 )
             }
@@ -80,8 +80,8 @@ class Header internal constructor() {
             hIntensityStereoBound = if (hMode == JOINT_STEREO) (modeExtension shl 2) + 4
             else 0 // should never be used
 
-            if ((headerstring ushr 3 and 1) == 1) hCopyright = true
-            if ((headerstring ushr 2 and 1) == 1) hOriginal = true
+            if (headerstring ushr 3 and 1 == 1) hCopyright = true
+            if (headerstring ushr 2 and 1 == 1) hOriginal = true
             // calculate number of subbands:
             if (hLayer == 1) hNumberOfSubbands = 32
             else {
@@ -150,26 +150,26 @@ class Header internal constructor() {
                 System.arraycopy(firstframe, offset + length, flags, 0, flags.size)
                 length += flags.size
                 // Read number of frames (if available).
-                if ((flags[3].toInt() and 1.toByte().toInt()) != 0) {
+                if (flags[3].toInt() and 1.toByte().toInt() != 0) {
                     System.arraycopy(firstframe, offset + length, tmp, 0, tmp.size)
                     hVbrFrames =
                         tmp[0].toInt() shl 24 and -0x1000000 or (tmp[1].toInt() shl 16 and 0x00FF0000) or (tmp[2].toInt() shl 8 and 0x0000FF00) or (tmp[3].toInt() and 0x000000FF)
                     length += 4
                 }
                 // Read size (if available).
-                if ((flags[3].toInt() and (1 shl 1).toByte().toInt()) != 0) {
+                if (flags[3].toInt() and (1 shl 1).toByte().toInt() != 0) {
                     System.arraycopy(firstframe, offset + length, tmp, 0, tmp.size)
                     hVbrBytes =
                         tmp[0].toInt() shl 24 and -0x1000000 or (tmp[1].toInt() shl 16 and 0x00FF0000) or (tmp[2].toInt() shl 8 and 0x0000FF00) or (tmp[3].toInt() and 0x000000FF)
                     length += 4
                 }
                 // Read TOC (if available).
-                if ((flags[3].toInt() and (1 shl 2).toByte().toInt()) != 0) {
+                if (flags[3].toInt() and (1 shl 2).toByte().toInt() != 0) {
                     System.arraycopy(firstframe, offset + length, hVbrToc, 0, hVbrToc.size)
                     length += hVbrToc.size
                 }
                 // Read scale (if available).
-                if ((flags[3].toInt() and (1 shl 3).toByte().toInt()) != 0) {
+                if (flags[3].toInt() and (1 shl 3).toByte().toInt() != 0) {
                     System.arraycopy(firstframe, offset + length, tmp, 0, tmp.size)
                     hVbrScale =
                         tmp[0].toInt() shl 24 and -0x1000000 or (tmp[1].toInt() shl 16 and 0x00FF0000) or (tmp[2].toInt() shl 8 and 0x0000FF00) or (tmp[3].toInt() and 0x000000FF)

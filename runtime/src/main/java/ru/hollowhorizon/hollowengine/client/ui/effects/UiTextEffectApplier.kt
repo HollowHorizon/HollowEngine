@@ -93,7 +93,7 @@ object UiTextEffectApplier {
         val t = if (effect.mode == GradientMode.HORIZONTAL) {
             ctx.charPos
         } else {
-            (ctx.charIndex.toFloat() / ctx.totalChars.toFloat())
+            ctx.charIndex.toFloat() / ctx.totalChars.toFloat()
         }
         val shifted = (t + ctx.time * effect.speed + effect.phaseOffset).let { it - floor(it) }
         val segmentCount = effect.colors.size - 1

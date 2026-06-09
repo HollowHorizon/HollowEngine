@@ -122,11 +122,11 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
     }
 
     private fun FlatImageProvider.resizeImage() = apply {
-        val u0 = (leftPx) / WINDOW_BUFFER.width
-        val v0 = 1f - (topPx) / WINDOW_BUFFER.height
+        val u0 = leftPx / WINDOW_BUFFER.width
+        val v0 = 1f - topPx / WINDOW_BUFFER.height
 
-        val u1 = (rightPx) / WINDOW_BUFFER.width
-        val v1 = 1f - (bottomPx) / WINDOW_BUFFER.height
+        val u1 = rightPx / WINDOW_BUFFER.width
+        val v1 = 1f - bottomPx / WINDOW_BUFFER.height
         uvTopLeft.set(u0, v0)
         uvTopRight.set(u1, v0)
         uvBottomLeft.set(u0, v1)

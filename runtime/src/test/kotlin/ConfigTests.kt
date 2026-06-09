@@ -202,6 +202,6 @@ class ConfigAnnotationTests {
         assertTrue(0f in range)
         assertTrue(10f in range)
         assertFalse(11f in range)
-        assertFalse((-1f) in range)
+        assertFalse(-1f in range)
     }
 }

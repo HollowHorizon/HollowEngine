@@ -45,7 +45,7 @@ class Spline(private val xx: DoubleArray, private val yy: DoubleArray) {
             val array = Array(size - 2) { DoubleArray(size - 2) }
             val y = DoubleArray(size - 2)
             for (i in 0 until size - 2) {
-                y[i] = (3 * ((yy[i + 2] - yy[i + 1]) / h[i + 1] - (yy[i + 1] - yy[i]) / h[i]))
+                y[i] = 3 * ((yy[i + 2] - yy[i + 1]) / h[i + 1] - (yy[i + 1] - yy[i]) / h[i])
                 array[i][i] = 2 * (h[i] + h[i + 1])
                 if (i > 0) array[i][i - 1] = h[i]
                 if (i < size - 3) array[i][i + 1] = h[i + 1]
@@ -56,8 +56,7 @@ class Spline(private val xx: DoubleArray, private val yy: DoubleArray) {
                 b[i] = (a[i + 1] - a[i]) / h[i] - (2 * c[i] + c[i + 1]) / 3 * h[i]
                 d[i] = (c[i + 1] - c[i]) / (3 * h[i])
             }
-            b[size - 2] =
-                ((a[size - 1] - a[size - 2]) / h[size - 2] - (2 * c[size - 2] + c[size - 1]) / 3 * h[size - 2])
+            b[size - 2] = (a[size - 1] - a[size - 2]) / h[size - 2] - (2 * c[size - 2] + c[size - 1]) / 3 * h[size - 2]
             d[size - 2] = (c[size - 1] - c[size - 2]) / (3 * h[size - 2])
         }
     }
@@ -69,9 +68,9 @@ class Spline(private val xx: DoubleArray, private val yy: DoubleArray) {
         if (index > 0) return yy[index]
         index = -(index + 1) - 1
 
-        return if (index < 0) yy[0] else (a[index] + b[index] * (x - xx[index]) + c[index] * (x - xx[index]).pow(2.0) + d[index] * (x - xx[index]).pow(
+        return if (index < 0) yy[0] else a[index] + b[index] * (x - xx[index]) + c[index] * (x - xx[index]).pow(2.0) + d[index] * (x - xx[index]).pow(
             3.0
-        ))
+        )
     }
 
     fun getFastValue(x: Double): Double {

@@ -402,7 +402,7 @@ object MCGlApi: GlApi {
         val minor = match?.groups?.get(2)?.value?.toInt() ?: 3
         logI { "Detected OpenGL version $major.$minor" }
 
-        check(major > 3 || (major == 3 && minor >= 2)) {
+        check(major > 3 || major == 3 && minor >= 2) {
             "Minimum required OpenGL version is 3.2 but system version is $major.$minor (version string: $versionStr)"
         }
 

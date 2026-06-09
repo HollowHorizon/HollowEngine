@@ -147,5 +147,5 @@ class WorldNodeSavedData private constructor() : SavedData() {
 
 object ChunkKey {
     fun pack(chunkX: Int, chunkZ: Int): Long =
-        (chunkX.toLong() and 0xffffffffL) shl 32 or (chunkZ.toLong() and 0xffffffffL)
+        chunkX.toLong() and 0xffffffffL shl 32 or (chunkZ.toLong() and 0xffffffffL)
 }

@@ -29,8 +29,8 @@ class GridBackground(
                 val lineThicknessPx = lineWidth.px.coerceAtLeast(1f)
                 val halfThickness = lineThicknessPx / 2f
 
-                val gridOriginX = (widthPx / 2f) + (offsetX * currentZoom)
-                val gridOriginY = (heightPx / 2f) + (offsetY * currentZoom)
+                val gridOriginX = widthPx / 2f + offsetX * currentZoom
+                val gridOriginY = heightPx / 2f + offsetY * currentZoom
 
                 val firstLineX = kotlin.math.floor((0f - gridOriginX) / effectiveCellSize).toInt()
                 val lastLineX = kotlin.math.ceil((widthPx - gridOriginX) / effectiveCellSize).toInt()
@@ -39,12 +39,12 @@ class GridBackground(
                 val lastLineY = kotlin.math.ceil((heightPx - gridOriginY) / effectiveCellSize).toInt()
 
                 for (i in firstLineX..lastLineX) {
-                    val x = gridOriginX + (i * effectiveCellSize)
+                    val x = gridOriginX + i * effectiveCellSize
                     rect(leftPx + x - halfThickness, topPx, lineThicknessPx, heightPx, clipBoundsPx, lineColor)
                 }
 
                 for (i in firstLineY..lastLineY) {
-                    val y = gridOriginY + (i * effectiveCellSize)
+                    val y = gridOriginY + i * effectiveCellSize
                     rect(leftPx, topPx + y - halfThickness, widthPx, lineThicknessPx, clipBoundsPx, lineColor)
                 }
             }

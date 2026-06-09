@@ -28,8 +28,7 @@ class BlocksPanel(val editor: BlockEditor) {
 
             is BlockEntry<*> -> {
                 val previewName = previewItem.displayName
-                name.contains(query, ignoreCase = true) ||
-                        (previewName?.contains(query, ignoreCase = true) == true) ||
+                name.contains(query, ignoreCase = true) || previewName?.contains(query, ignoreCase = true) == true ||
                         previewItem.toString().contains(query, ignoreCase = true)
             }
         }

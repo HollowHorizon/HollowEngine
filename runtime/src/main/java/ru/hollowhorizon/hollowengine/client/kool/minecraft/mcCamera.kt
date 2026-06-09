@@ -94,8 +94,8 @@ private fun bobView(mat4f: MutableMat4f, partialTicks: Float) {
         val g = -(player.walkDist + f * partialTicks)
         val h = Mth.lerp(partialTicks, player.oBob, player.bob)
         mat4f.translate(
-            (Mth.sin(g * 3.1415927f) * h * 0.5f),
-            -abs((Mth.cos(g * 3.1415927f) * h)),
+            Mth.sin(g * 3.1415927f) * h * 0.5f,
+            -abs(Mth.cos(g * 3.1415927f) * h),
             0.0f
         )
         mat4f.rotate(QuatF((Mth.sin(g * 3.1415927f) * h * 3.0f).deg, Vec3f.Z_AXIS))

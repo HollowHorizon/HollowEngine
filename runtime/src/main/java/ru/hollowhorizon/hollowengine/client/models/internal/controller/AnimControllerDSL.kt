@@ -22,7 +22,7 @@ import java.util.*
 annotation class AnimControllerDSL
 
 private fun Float.modPositive(divisor: Float): Float =
-    ((this % divisor) + divisor) % divisor
+    (this % divisor + divisor) % divisor
 
 /**
  * Режимы воспроизведения анимации
@@ -352,7 +352,7 @@ data class Transition(
 
             if (exitTime == 0f) return true
             val rawTime = it.rawTime(query, time)
-            if (exitTime < 0f) return rawTime >= (currentState.animations[it.name]?.duration ?: 0f)
+            if (exitTime < 0f) return rawTime >= currentState.animations[it.name]?.duration ?: 0f
 
             return rawTime >= exitTime
         }
@@ -400,7 +400,7 @@ data class StateMachine(
     fun update(node: NodeDefinition, context: MolangContext, time: Float): TrsTransformF? {
         if (currentTransition == null) {
             transitions.firstOrNull {
-                (it.from == currentState?.name || (it.from == "*" && it.to != currentState?.name)) &&
+                (it.from == currentState?.name || it.from == "*" && it.to != currentState?.name) &&
                         it.condition.getBoolean(context.query, context.variables) && it.canExit(currentState, context, time)
             }?.let { transition ->
                 transition.fromRef = states.firstOrNull { it.name == transition.from } ?: currentState
@@ -536,7 +536,7 @@ data class BlendTree(
             filtered <= keys.first() || keys.size == 1 -> nodes.first().update(animations, context, node, time)
             filtered >= keys.last() -> nodes.last().update(animations, context, node, time)
             else -> {
-                val idx = Arrays.binarySearch(keys, filtered).let { if (it >= 0) it else (-it - 2) }
+                val idx = Arrays.binarySearch(keys, filtered).let { if (it >= 0) it else -it - 2 }
                 val prev = nodes[idx]
                 val next = nodes[idx + 1]
                 val local = filtered - prev.threshold
@@ -631,7 +631,7 @@ data class ClipNode(
             if (newSpeed == 0f) {
                 pausedAnimTime = currentRaw
             } else {
-                startTime = time - (currentRaw / newSpeed)
+                startTime = time - currentRaw / newSpeed
             }
 
             oldSpeed = newSpeed

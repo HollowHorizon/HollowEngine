@@ -140,8 +140,8 @@ data class UiEffectContext(
     fun seededRandom(seed: Float, index: Int = charIndex): Float {
         val value = (index * 2654435761L.toInt() + (seed * 127).toInt()) * 0x45d9f3b
         val hashed = (value xor (value ushr 16)) * 0x85ebca6b
-        val mixed = (hashed xor (hashed ushr 13))
-        return ((mixed and 0x7fffffff).toFloat() / 0x7fffffff.toFloat() * 2f - 1f)
+        val mixed = hashed xor (hashed ushr 13)
+        return (mixed and 0x7fffffff).toFloat() / 0x7fffffff.toFloat() * 2f - 1f
     }
 
     fun sineWave(amplitude: Float, frequency: Float, speed: Float, phaseOffset: Float): Float {
@@ -161,7 +161,7 @@ data class UiTextEffectResult(
 val UiTextEffect.isAnimated: Boolean
     get() = this is Rainbow || this is Pulse || this is Wave || this is Shake ||
             this is Wiggle || this is Swing || this is Scroll || this is Glitch ||
-            (this is Gradient)
+            this is Gradient
 
 val UiTextEffect.isLayer: Boolean
     get() = this is Shadow || this is Outline || this is Glow

@@ -186,16 +186,16 @@ class SynthesisFilter(channelnumber: Int, factor: Float) {
         p15 = (pp14 - pp15) * cos1_4
 
         var tmp1: Float
-        newV19 = -(((p7.also { newV12 = it }) + p5).also { newV4 = it }) - p6
+        newV19 = -((p7.also { newV12 = it }) + p5).also { newV4 = it } - p6
         newV27 = -p6 - p7 - p4
-        newV6 = (((p15.also { newV14 = it }) + p11).also { newV10 = it }) + p13
-        newV17 = -((p15 + p13 + p9).also { newV2 = it }) - p14
-        newV21 = ((-p14 - p15 - p10 - p11).also { tmp1 = it }) - p13
+        newV6 = ((p15.also { newV14 = it }) + p11).also { newV10 = it } + p13
+        newV17 = -(p15 + p13 + p9).also { newV2 = it } - p14
+        newV21 = (-p14 - p15 - p10 - p11).also { tmp1 = it } - p13
         newV29 = -p14 - p15 - p12 - p8
         newV25 = tmp1 - p12
         newV31 = -p0
         newV0 = p1
-        newV23 = -(p3.also { newV8 = it }) - p2
+        newV23 = -p3.also { newV8 = it } - p2
 
         p0 = (s0 - s31) * cos1_64
         p1 = (s1 - s30) * cos3_64
@@ -283,16 +283,16 @@ class SynthesisFilter(channelnumber: Int, factor: Float) {
         p15 = (pp14 - pp15) * cos1_4
 
         var tmp2: Float
-        newV5 = (((((p15.also { newV15 = it }) + p7).also { newV13 = it }) + p11).also { newV11 = it }) + p5 + p13
-        newV7 = ((p15 + p11 + p3).also { newV9 = it }) + p13
-        newV16 = -((((p13 + p15 + p9).also { tmp1 = it }) + p1).also { newV1 = it }) - p14
-        newV18 = -((tmp1 + p5 + p7).also { newV3 = it }) - p6 - p14
+        newV5 = ((((p15.also { newV15 = it }) + p7).also { newV13 = it }) + p11).also { newV11 = it } + p5 + p13
+        newV7 = (p15 + p11 + p3).also { newV9 = it } + p13
+        newV16 = -(((p13 + p15 + p9).also { tmp1 = it }) + p1).also { newV1 = it } - p14
+        newV18 = -(tmp1 + p5 + p7).also { newV3 = it } - p6 - p14
 
-        newV22 = ((-p10 - p11 - p14 - p15).also { tmp1 = it }) - p13 - p2 - p3
+        newV22 = (-p10 - p11 - p14 - p15).also { tmp1 = it } - p13 - p2 - p3
         newV20 = tmp1 - p13 - p5 - p6 - p7
         newV24 = tmp1 - p12 - p2 - p3
-        newV26 = tmp1 - p12 - ((p4 + p6 + p7).also { tmp2 = it })
-        newV30 = ((-p8 - p12 - p14 - p15).also { tmp1 = it }) - p0
+        newV26 = tmp1 - p12 - (p4 + p6 + p7).also { tmp2 = it }
+        newV30 = (-p8 - p12 - p14 - p15).also { tmp1 = it } - p0
         newV28 = tmp1 - tmp2
 
         var dest = actualV
@@ -377,10 +377,10 @@ class SynthesisFilter(channelnumber: Int, factor: Float) {
         for (i in 0..31) {
             val dp = d16!![i]
             _tmpOut[i] =
-                ((vp[dvp] * dp!![0] + vp[15 + dvp] * dp[1] + vp[14 + dvp] * dp[2] + vp[13 + dvp] * dp[3] + vp[12 + dvp]
+                (vp[dvp] * dp!![0] + vp[15 + dvp] * dp[1] + vp[14 + dvp] * dp[2] + vp[13 + dvp] * dp[3] + vp[12 + dvp]
                         * dp[4] + vp[11 + dvp] * dp[5] + vp[10 + dvp] * dp[6] + vp[9 + dvp] * dp[7] + vp[8 + dvp] * dp[8] + vp[7 + dvp]
                         * dp[9] + vp[6 + dvp] * dp[10] + vp[5 + dvp] * dp[11] + vp[4 + dvp] * dp[12] + vp[3 + dvp] * dp[13] + vp[2 + dvp]
-                        * dp[14] + vp[1 + dvp] * dp[15]) * scalefactor)
+                        * dp[14] + vp[1 + dvp] * dp[15]) * scalefactor
 
             dvp += 16
         }
@@ -621,10 +621,10 @@ class SynthesisFilter(channelnumber: Int, factor: Float) {
         for (i in 0..31) {
             val dp = d16!![i]
             _tmpOut[i] =
-                ((vp[15 + dvp] * dp!![0] + vp[14 + dvp] * dp[1] + vp[13 + dvp] * dp[2] + vp[12 + dvp] * dp[3] + vp[11 + dvp]
+                (vp[15 + dvp] * dp!![0] + vp[14 + dvp] * dp[1] + vp[13 + dvp] * dp[2] + vp[12 + dvp] * dp[3] + vp[11 + dvp]
                         * dp[4] + vp[10 + dvp] * dp[5] + vp[9 + dvp] * dp[6] + vp[8 + dvp] * dp[7] + vp[7 + dvp] * dp[8] + vp[6 + dvp]
                         * dp[9] + vp[5 + dvp] * dp[10] + vp[4 + dvp] * dp[11] + vp[3 + dvp] * dp[12] + vp[2 + dvp] * dp[13] + vp[1 + dvp]
-                        * dp[14] + vp[dvp] * dp[15]) * scalefactor)
+                        * dp[14] + vp[dvp] * dp[15]) * scalefactor
 
             dvp += 16
         }

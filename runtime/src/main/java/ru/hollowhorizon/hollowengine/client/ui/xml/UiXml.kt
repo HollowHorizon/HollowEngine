@@ -352,9 +352,9 @@ private fun parseInlineColor(value: String): UiColor? {
     val text = value.trim().removePrefix("#")
     if (text.length != 6 && text.length != 8) return null
     val number = text.toLongOrNull(16) ?: return null
-    val red = if (text.length == 8) (number shr 24) and 0xFF else (number shr 16) and 0xFF
-    val green = if (text.length == 8) (number shr 16) and 0xFF else (number shr 8) and 0xFF
-    val blue = if (text.length == 8) (number shr 8) and 0xFF else number and 0xFF
+    val red = if (text.length == 8) number shr 24 and 0xFF else number shr 16 and 0xFF
+    val green = if (text.length == 8) number shr 16 and 0xFF else number shr 8 and 0xFF
+    val blue = if (text.length == 8) number shr 8 and 0xFF else number and 0xFF
     val alpha = if (text.length == 8) (number and 0xFF).toFloat() / 255f else 1f
     return UiColor(red / 255f, green / 255f, blue / 255f, alpha)
 }

@@ -34,7 +34,7 @@ class LogMessage(
         get() {
             if (level.ordinal > minLevel.value.ordinal) return false
             val filter = messageFilter ?: return true
-            return filter.containsMatchIn(message) || (tag != null && filter.containsMatchIn(tag))
+            return filter.containsMatchIn(message) || tag != null && filter.containsMatchIn(tag)
         }
 
 

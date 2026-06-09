@@ -132,7 +132,7 @@ class GraphEditor {
 
                 modifier.onWheelY {
                     if (KeyboardInput.isCtrlDown) {
-                        val newScale = (scaleState.value * (if (it.pointer.scroll.y > 0) 1.1f else 0.9f))
+                        val newScale = (scaleState.value * if (it.pointer.scroll.y > 0) 1.1f else 0.9f)
                             .coerceIn(0.2f, 2.0f)
                         scaleState.set(newScale)
                     } else {
@@ -168,7 +168,7 @@ class GraphEditor {
                             val y = node.yState.value * scale
                             val w = node.widthState.value * scale
                             val h = node.heightState.value * scale
-                            lastMousePos.x in x..(x + w) && lastMousePos.y in y..(y + h)
+                            lastMousePos.x in x..x + w && lastMousePos.y in y..y + h
                         }
                         if (clickedConn == null && clickedNode == null) {
                             contextMenu.show(it.screenPosition, buildContextMenu(contextMenu), it.screenPosition)
@@ -177,7 +177,7 @@ class GraphEditor {
                 }
 
                 modifier.onDrag {
-                    if (it.pointer.isRightButtonDown || (it.pointer.isLeftButtonDown && dragNode == null)) {
+                    if (it.pointer.isRightButtonDown || it.pointer.isLeftButtonDown && dragNode == null) {
                         scrollState.scrollDpX(-it.pointer.delta.x / UiScale.measuredScale)
                         scrollState.scrollDpY(-it.pointer.delta.y / UiScale.measuredScale)
                     }
@@ -193,7 +193,7 @@ class GraphEditor {
                 }
 
                 ScrollPane(scrollState) {
-                    scrollPaneNode = uiNode.findParentOfType<ScrollPaneNode>() ?: (uiNode as? ScrollPaneNode)
+                    scrollPaneNode = uiNode.findParentOfType<ScrollPaneNode>() ?: uiNode as? ScrollPaneNode
 
                     modifier.layout(CellLayout).onClick {
                         updateMousePos(it.screenPosition)
@@ -1051,8 +1051,8 @@ class GraphEditor {
 
                         val density = UiScale.measuredScale
 
-                        val camX = (currentScrollX * density) / currentScale
-                        val camY = (currentScrollY * density) / currentScale
+                        val camX = currentScrollX * density / currentScale
+                        val camY = currentScrollY * density / currentScale
 
                         val camW = currentViewW / currentScale
                         val camH = currentViewH / currentScale
@@ -1237,7 +1237,7 @@ context(node: UiNode) fun drawDashedArrow(
         currentPos += dashLen + gapLen
     }
 
-    val arrowCenter = to - (normDir * (arrowSize))
+    val arrowCenter = to - normDir * arrowSize
     val angleRad = atan2(normDir.y, normDir.x)
     val angleDeg = Math.toDegrees(angleRad.toDouble()).toFloat()
 

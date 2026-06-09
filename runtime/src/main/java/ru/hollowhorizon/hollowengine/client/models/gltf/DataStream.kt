@@ -19,7 +19,7 @@ class DataStream(val data: Uint8Buffer, val byteOffset: Int = 0) {
 
     fun readUShort(): Int {
         var d = 0
-        for (i in 0..1) d = d or (readUByte() shl (i * 8))
+        for (i in 0..1) d = d or (readUByte() shl i * 8)
         return d
     }
 
@@ -27,7 +27,7 @@ class DataStream(val data: Uint8Buffer, val byteOffset: Int = 0) {
 
     fun readUInt(): Int {
         var d = 0
-        for (i in 0..3) d = d or (readUByte() shl (i * 8))
+        for (i in 0..3) d = d or (readUByte() shl i * 8)
         return d
     }
 

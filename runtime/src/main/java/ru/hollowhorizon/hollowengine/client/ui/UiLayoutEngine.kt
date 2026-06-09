@@ -188,8 +188,7 @@ class UiLayoutEngine {
         val opacityNeedsLayer = style.opacity < 1f && node.children.isNotEmpty()
         val needsFramebuffer =
             opacityNeedsLayer ||
-                    style.transform.needsFramebuffer ||
-                    (!insideFramebuffer && node.requiresTextLayer(transform)) ||
+                    style.transform.needsFramebuffer || !insideFramebuffer && node.requiresTextLayer(transform) ||
                     style.filter.requiresLayer ||
                     style.backdropFilter.requiresLayer
 

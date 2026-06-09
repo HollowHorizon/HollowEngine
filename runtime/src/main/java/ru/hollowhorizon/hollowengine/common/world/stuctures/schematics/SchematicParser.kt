@@ -96,6 +96,6 @@ object SchematicParser {
     }
 
     fun getIndex(x: Int, y: Int, z: Int, width: Short, length: Short): Int {
-        return x + (z * width) + (y * width * length)
+        return x + z * width + y * width * length
     }
 }
