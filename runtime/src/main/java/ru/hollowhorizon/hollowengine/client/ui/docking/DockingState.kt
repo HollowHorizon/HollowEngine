@@ -367,7 +367,7 @@ class DockingState {
     }
 
     private fun findStack(stackId: String): DockNode.Stack? {
-        return (root?.findNode(stackId) as? DockNode.Stack)
+        return root?.findNode(stackId) as? DockNode.Stack
             ?: floatingWindows.firstOrNull { it.stack.id == stackId }?.stack
     }
 }
