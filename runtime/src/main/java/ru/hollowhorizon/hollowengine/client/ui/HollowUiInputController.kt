@@ -168,6 +168,9 @@ class HollowUiInputController {
         val parent = frame.parentOf(node)
         val parentLayout = parent?.let { frame.layout[it] }
         val parentLocal = parentLayout?.inputTransform?.inverse()?.transform(mouseX, mouseY, 0f)
+        val rootLocal = frame.layout.root.let { root ->
+            frame.layout[root].inputTransform.inverse()?.transform(mouseX, mouseY, 0f)
+        }
         val event = UiEvent(
             kind = UiEventKind.DRAG,
             node = node,
@@ -180,6 +183,9 @@ class HollowUiInputController {
             parentLocalY = parentLocal?.y ?: 0f,
             parentWidth = parentLayout?.rect?.width ?: 0f,
             parentHeight = parentLayout?.rect?.height ?: 0f,
+            rootLocalX = rootLocal?.x ?: mouseX,
+            rootLocalY = rootLocal?.y ?: mouseY,
+            ancestorLocalPositions = frame.ancestorLocalPositions(node, mouseX, mouseY),
             deltaX = deltaX,
             deltaY = deltaY,
         )
@@ -463,4 +469,28 @@ private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {
         return current.children.firstNotNullOfOrNull(::find)
     }
     return find(resolved.root)
+}
+
+private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Float): Map<String, UiVec3> {
+    val ancestors = ancestorsOf(node)
+    if (ancestors.isEmpty()) return emptyMap()
+    val positions = linkedMapOf<String, UiVec3>()
+    ancestors.forEach { ancestor ->
+        val local = layout[ancestor].inputTransform.inverse()?.transform(x, y, 0f) ?: return@forEach
+        positions[UiNodeKeys.key(ancestor)] = local
+        ancestor.id?.let { positions[it] = local }
+        ancestor.tags.forEach { tag -> positions[tag] = local }
+    }
+    return positions
+}
+
+private fun HollowUiFrame.ancestorsOf(node: UiNode): List<UiNode> {
+    fun find(current: UiNode, path: List<UiNode>): List<UiNode>? {
+        if (current === node) return path
+        for (child in current.children) {
+            find(child, path + current)?.let { return it }
+        }
+        return null
+    }
+    return find(resolved.root, emptyList()).orEmpty()
 }

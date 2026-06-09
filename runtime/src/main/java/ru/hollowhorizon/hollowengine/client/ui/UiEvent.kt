@@ -58,6 +58,9 @@ data class UiEvent(
     val parentLocalY: Float = localY,
     val parentWidth: Float = 0f,
     val parentHeight: Float = 0f,
+    val rootLocalX: Float = x,
+    val rootLocalY: Float = y,
+    val ancestorLocalPositions: Map<String, UiVec3> = emptyMap(),
     val deltaX: Float = 0f,
     val deltaY: Float = 0f,
     val scrollX: Float = 0f,
@@ -77,6 +80,10 @@ data class UiEvent(
         consumed = true
     }
 
+    fun localXInAncestor(identifier: String): Float? = ancestorLocalPositions[identifier]?.x
+
+    fun localYInAncestor(identifier: String): Float? = ancestorLocalPositions[identifier]?.y
+
     fun read(path: String): Any? {
         val normalized = path.removePrefix("it.").removePrefix("event.")
         return when (normalized) {
@@ -95,6 +102,8 @@ data class UiEvent(
             "parentLocalY", "parent-local-y" -> parentLocalY
             "parentWidth", "parent-width" -> parentWidth
             "parentHeight", "parent-height" -> parentHeight
+            "rootLocalX", "root-local-x" -> rootLocalX
+            "rootLocalY", "root-local-y" -> rootLocalY
             "deltaX", "delta-x" -> deltaX
             "deltaY", "delta-y" -> deltaY
             "isReleased", "released" -> released

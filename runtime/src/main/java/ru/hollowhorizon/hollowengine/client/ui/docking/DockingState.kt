@@ -25,6 +25,11 @@ class DockingState {
     var previewTarget: DockTarget? by mutableStateOf(null)
         private set
 
+    var tabDrag: DockTabDragState? by mutableStateOf(null)
+        private set
+
+    private var tabGrab: DockTabGrabState? by mutableStateOf(null)
+
     fun open(item: DockItem, target: DockTarget = DockTarget.Root) {
         if (contains(item.id)) {
             focus(item.id)
@@ -130,11 +135,11 @@ class DockingState {
         y: Float,
         width: Float = 320f,
         height: Float = 220f,
-    ): String? {
+    ): DockWindowDragStart? {
         val existingWindow = floatingWindows.firstOrNull { window -> window.stack.items.any { it.id == itemId } }
         if (existingWindow != null) {
             draggedWindowId = existingWindow.id
-            return existingWindow.id
+            return DockWindowDragStart(existingWindow.id, created = false)
         }
         val item = removeItemForDock(itemId) ?: return null
         val window = FloatingDockWindow(
@@ -149,7 +154,7 @@ class DockingState {
         floatingWindows += window
         draggedWindowId = window.id
         focus(itemId)
-        return window.id
+        return DockWindowDragStart(window.id, created = true)
     }
 
     fun moveFloating(windowId: String, deltaX: Float, deltaY: Float): Boolean {
@@ -172,6 +177,7 @@ class DockingState {
         val windowId = draggedWindowId
         draggedWindowId = null
         previewTarget = null
+        finishTabDrag()
         if (windowId != null) {
             val index = floatingWindows.indexOfFirst { it.id == windowId }
             if (index >= 0 && floatingWindows[index].dragKey != null) {
@@ -260,6 +266,45 @@ class DockingState {
         return setSplitFraction(splitId, split.fraction + deltaFraction)
     }
 
+    fun dragTabInBar(
+        stackId: String,
+        itemId: String,
+        pointerX: Float,
+        grabX: Float,
+        tabWidth: Float,
+    ): Boolean {
+        tabDrag = DockTabDragState(stackId, itemId, pointerX, grabX, tabWidth)
+        val stack = findStack(stackId) ?: return false
+        val currentIndex = stack.items.indexOfFirst { it.id == itemId }
+        if (currentIndex < 0) return false
+        val targetIndex = tabDragTargetIndex(
+            currentIndex = currentIndex,
+            itemCount = stack.items.size,
+            draggedLeft = pointerX - grabX,
+            tabWidth = tabWidth,
+        )
+        return if (targetIndex == currentIndex) false else reorderTab(stackId, itemId, targetIndex)
+    }
+
+    fun beginTabGrab(stackId: String, itemId: String, x: Float, y: Float) {
+        tabGrab = DockTabGrabState(stackId, itemId, x, y)
+    }
+
+    fun tabGrab(stackId: String, itemId: String): DockTabGrabState? {
+        return tabGrab?.takeIf { it.stackId == stackId && it.itemId == itemId }
+    }
+
+    fun finishTabDrag() {
+        tabDrag = null
+        tabGrab = null
+    }
+
+    fun tabDragOffset(stackId: String, itemId: String, currentIndex: Int): Float? {
+        val drag = tabDrag ?: return null
+        if (drag.stackId != stackId || drag.itemId != itemId) return null
+        return drag.pointerX - drag.grabX - currentIndex * drag.tabWidth
+    }
+
     fun reorderTab(stackId: String, itemId: String, targetIndex: Int): Boolean {
         var changed = false
         root = root?.let { node ->
@@ -320,6 +365,41 @@ class DockingState {
             ?: root?.firstStackId()
         return anchor?.let { target.copy(anchorId = it) } ?: target
     }
+
+    private fun findStack(stackId: String): DockNode.Stack? {
+        return root?.findNode(stackId) as? DockNode.Stack
+            ?: floatingWindows.firstOrNull { it.stack.id == stackId }?.stack
+    }
+}
+
+private fun tabDragTargetIndex(
+    currentIndex: Int,
+    itemCount: Int,
+    draggedLeft: Float,
+    tabWidth: Float,
+): Int {
+    val currentLeft = currentIndex * tabWidth
+    val currentRight = currentLeft + tabWidth
+    val draggedRight = draggedLeft + tabWidth
+    if (draggedRight > currentRight) {
+        var targetIndex = currentIndex
+        while (targetIndex < itemCount - 1) {
+            val nextMidpoint = (targetIndex + 1) * tabWidth + tabWidth * 0.5f
+            if (draggedRight < nextMidpoint) break
+            targetIndex++
+        }
+        return targetIndex
+    }
+    if (draggedLeft < currentLeft) {
+        var targetIndex = currentIndex
+        while (targetIndex > 0) {
+            val previousMidpoint = (targetIndex - 1) * tabWidth + tabWidth * 0.5f
+            if (draggedLeft > previousMidpoint) break
+            targetIndex--
+        }
+        return targetIndex
+    }
+    return currentIndex
 }
 
 private fun DockNode.Split.withFractionPreservingChildren(nextFraction: Float): DockNode.Split {
