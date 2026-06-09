@@ -5,7 +5,7 @@ import java.security.MessageDigest
 plugins {
     id("architectury-plugin")
     id("dev.architectury.loom")
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
 }
 
 val modId: String by properties

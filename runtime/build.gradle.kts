@@ -10,7 +10,7 @@ plugins {
     `maven-publish`
     id("architectury-plugin")
     id("dev.architectury.loom")
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
     id("com.google.devtools.ksp")
     kotlin("jvm")
     kotlin("plugin.serialization")
@@ -115,9 +115,9 @@ dependencies {
     addShadow("org.jetbrains:markdown:0.7.3")
     addShadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
-    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
-    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
-    addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
@@ -126,9 +126,9 @@ dependencies {
 
     addShadow("androidx.compose.runtime:runtime:1.10.3")
     addShadow("androidx.collection:collection:1.4.0")
-    addShadow("org.jetbrains.kotlinx:atomicfu:0.32.1")
-    addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
-    addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
+    addShadow("org.jetbrains.kotlinx:atomicfu:0.33.0")
+    addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.9.0")
+    addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.9.0")
 
     addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
         exclude(group = "org.lwjgl")
@@ -140,7 +140,7 @@ dependencies {
     compileOnly("lib:bbs:1.2.6-1.20.1-deobf")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -250,7 +250,11 @@ tasks.withType<Test>().configureEach {
 
 kotlin {
     compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
-        freeCompilerArgs.add("-Xskip-prerelease-check")
+        freeCompilerArgs.addAll(
+            "-Xcollection-literals",
+            "-Xexplicit-context-arguments",
+            "-Xintrinsic-const-evaluation",
+            "-Xskip-prerelease-check",
+        )
     }
 }

@@ -18,7 +18,12 @@ dependencies {
 
 kotlin {
     compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
+        freeCompilerArgs.addAll(
+            "-Xcollection-literals",
+            "-Xexplicit-context-arguments",
+            "-Xintrinsic-const-evaluation",
+            "-Xskip-prerelease-check",
+        )
     }
 }
 

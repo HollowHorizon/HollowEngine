@@ -1,14 +1,14 @@
+
 import me.modmuss50.mpp.ReleaseType
 import net.fabricmc.loom.task.RemapJarTask
-import org.gradle.api.provider.Provider
-import java.util.Properties
+import java.util.*
 
 plugins {
     base
     idea
     id("architectury-plugin") apply false
     id("dev.architectury.loom") apply false
-    id("com.github.johnrengelman.shadow") apply false
+    id("com.gradleup.shadow") apply false
     id("com.google.devtools.ksp") apply false
     id("me.modmuss50.mod-publish-plugin")
     kotlin("jvm") apply false
