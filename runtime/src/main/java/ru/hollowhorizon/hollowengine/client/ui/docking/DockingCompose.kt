@@ -3,6 +3,41 @@ package ru.hollowhorizon.hollowengine.client.ui.docking
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+
+private const val DockTabWidth = 140f
+private const val DockTabHeight = 24f
+
+private val DockTabStyle = compileHss(
+    """
+    .dock-tab {
+        background: rgba(34, 37, 45, 1);
+        border: 1px rgba(78, 84, 96, 0.9);
+        border-radius: 7px;
+        shadow: 0px 5px 12px -5px rgba(0, 0, 0, 0.55);
+        transition:
+            background 120ms ease-out,
+            translate 140ms ease-out,
+            shadow 140ms ease-out;
+    }
+
+    .dock-tab:hover {
+        translate: 0px -1px 0px;
+        shadow: 0px 3px 9px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .dock-tab.selected {
+        background: rgba(48, 54, 65, 1);
+        border: 1px rgba(106, 119, 139, 1);
+        shadow: 0px 7px 14px -6px rgba(0, 0, 0, 0.62);
+    }
+
+    .dock-tab:dragging {
+        translate: 0px -2px 10px;
+        shadow: 0px 9px 18px -7px rgba(0, 0, 0, 0.68);
+    }
+    """.trimIndent(),
+)
 
 typealias DockItemContent = @Composable (DockItem) -> Unit
 typealias DockHeaderContent = @Composable (DockItem) -> Unit
@@ -97,7 +132,7 @@ private fun Splitter(
     state: DockingState,
     horizontal: Boolean,
 ) {
-    val size = 2.px
+    val size = 6.px
     Box(
         id = "${split.id}-splitter",
         tags = listOf(DockTags.Splitter),
@@ -108,11 +143,11 @@ private fun Splitter(
             Modifier.cursor(if (horizontal) UiCursorShape.RESIZE_HORIZONTAL else UiCursorShape.RESIZE_VERTICAL),
             Modifier.onDrag { event ->
                 val parentSize = if (horizontal) event.parentWidth else event.parentHeight
-                val parentPosition = if (horizontal) event.parentLocalX else event.parentLocalY
                 val splitterSize = size.value
                 val paneSize = parentSize - splitterSize
                 if (paneSize > 0f) {
-                    state.setSplitFraction(split.id, (parentPosition - splitterSize * 0.5f) / paneSize)
+                    val delta = if (horizontal) event.deltaX else event.deltaY
+                    state.resizeSplitByFraction(split.id, delta / paneSize)
                 }
                 event.consume()
             },
@@ -267,9 +302,9 @@ private fun DockTabBar(
             Modifier.background(DockColors.Header),
         ),
     ) {
-        stack.items.forEach { item ->
+        stack.items.forEachIndexed { index, item ->
             val selected = stack.selectedItem?.id == item.id
-            DockTab(stack.id, stack.items.size, item, selected, state, tabContent, allowUndock)
+            DockTab(stack.id, stack.items.size, index, item, selected, state, tabContent, allowUndock)
         }
     }
 }
@@ -278,40 +313,58 @@ private fun DockTabBar(
 private fun DockTab(
     stackId: String,
     tabCount: Int,
+    index: Int,
     item: DockItem,
     selected: Boolean,
     state: DockingState,
     tabContent: DockHeaderContent,
     allowUndock: Boolean,
 ) {
+    val dragOffset = state.tabDragOffset(stackId, item.id, index)
     Box(
         id = tabNodeId(item.id),
         tags = if (selected) listOf(DockTags.Tab, DockTags.Selected) else listOf(DockTags.Tab),
         modifier = Modifier.then(
+            Modifier.style(DockTabStyle),
             Modifier.layout(LayoutType.ROW),
-            Modifier.size(140.px, 100.percent),
+            Modifier.size(DockTabWidth.px, DockTabHeight.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),
-            Modifier.background(if (selected) DockColors.SelectedTab else DockColors.Tab),
+            Modifier.layer(if (dragOffset != null) 50 else if (selected) 1 else 0),
+            if (dragOffset != null) Modifier.translate(dragOffset, -2f, 10f) else Modifier.then(),
             Modifier.input(hoverable = true, clickable = true, draggable = true),
             Modifier.cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND),
             Modifier.onPress { event ->
                 state.select(item.id)
+                state.beginTabGrab(stackId, item.id, event.localX, event.localY)
             },
             Modifier.onClick { event ->
                 state.select(item.id)
                 event.consume()
             },
             Modifier.onDrag { event ->
+                val grab = state.tabGrab(stackId, item.id)
                 if (event.isInsideTabBar()) {
-                    state.reorderTab(stackId, item.id, tabIndexAt(event.parentLocalX, tabCount))
+                    state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX, DockTabWidth)
                     event.consume()
                     return@onDrag
                 }
                 if (allowUndock) {
-                    state.beginDraggingTab(item.id, event.x - event.localX, event.y - event.localY)
-                        ?.let { windowId -> state.moveFloating(windowId, event.deltaX, event.deltaY) }
+                    state.finishTabDrag()
+                    val dockSpaceLocalX = event.localXInAncestor(DockTags.Space) ?: event.rootLocalX
+                    val dockSpaceLocalY = event.localYInAncestor(DockTags.Space) ?: event.rootLocalY
+                    state.beginDraggingTab(
+                        item.id,
+                        dockSpaceLocalX - (grab?.x ?: event.localX),
+                        dockSpaceLocalY - (grab?.y ?: event.localY),
+                    )
+                        ?.let { dragStart ->
+                            if (!dragStart.created) state.moveFloating(dragStart.windowId, event.deltaX, event.deltaY)
+                        }
                     event.consume()
                 }
+            },
+            Modifier.onRelease {
+                state.finishTabDrag()
             },
         ),
     ) {
@@ -370,7 +423,7 @@ private fun UiEvent.isInsideTabBar(): Boolean {
 }
 
 private fun tabIndexAt(parentLocalX: Float, tabCount: Int): Int {
-    return (parentLocalX / 140f).toInt().coerceIn(0, tabCount - 1)
+    return (parentLocalX / DockTabWidth).toInt().coerceIn(0, tabCount - 1)
 }
 
 object DockTags {

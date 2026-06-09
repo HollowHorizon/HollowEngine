@@ -1,6 +1,8 @@
 import ru.hollowhorizon.hollowengine.client.ui.Box
 import ru.hollowhorizon.hollowengine.client.ui.HollowComposeUiRuntime
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiInputController
+import ru.hollowhorizon.hollowengine.client.ui.LayoutType
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.Text
 import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
@@ -17,8 +19,11 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.DockSpace
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockOrientation
+import ru.hollowhorizon.hollowengine.client.ui.percent
+import ru.hollowhorizon.hollowengine.client.ui.px
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -135,6 +140,22 @@ class UiDockingTests {
     }
 
     @Test
+    fun `middle split resize only moves adjacent row boundary`() {
+        val state = DockingState()
+        state.open(item("files"))
+        state.open(item("console"), DockTarget(placement = DockPlacement.RIGHT))
+        state.open(item("logs"), DockTarget(placement = DockPlacement.RIGHT))
+        state.open(item("preview"), DockTarget(placement = DockPlacement.RIGHT))
+        val before = stackBounds(state)
+
+        assertTrue(state.setSplitFraction("dock-split-2", 0.7f))
+
+        val after = stackBounds(state)
+        assertEquals(before.getValue("dock-stack-1").right, after.getValue("dock-stack-1").right)
+        assertEquals(before.getValue("dock-stack-4").x, after.getValue("dock-stack-4").x)
+    }
+
+    @Test
     fun `floating windows resize from left and top edges`() {
         val state = DockingState()
         state.openFloating(item("console"), x = 100f, y = 80f, width = 240f, height = 180f)
@@ -205,6 +226,60 @@ class UiDockingTests {
             }
 
             assertEquals(listOf("console", "files", "logs"), (state.root as DockNode.Stack).items.map { it.id })
+        }
+    }
+
+    @Test
+    fun `tab reorder waits until dragged edge reaches neighbor midpoint`() {
+        val state = DockingState()
+        state.open(item("files"))
+        state.open(item("console"))
+        state.open(item("logs"))
+        val stackId = (state.root as DockNode.Stack).id
+
+        assertFalse(state.dragTabInBar(stackId, "console", pointerX = 219f, grabX = 10f, tabWidth = 140f))
+        assertEquals(listOf("files", "console", "logs"), (state.root as DockNode.Stack).items.map { it.id })
+
+        assertTrue(state.dragTabInBar(stackId, "console", pointerX = 220f, grabX = 10f, tabWidth = 140f))
+        assertEquals(listOf("files", "logs", "console"), (state.root as DockNode.Stack).items.map { it.id })
+    }
+
+    @Test
+    fun `undocked tab starts floating in dock space coordinates`() {
+        val state = DockingState()
+        state.open(item("files"))
+        state.open(item("console"))
+        val input = HollowUiInputController()
+
+        HollowComposeUiRuntime().use { runtime ->
+            val firstFrame = runtime.frame(
+                content = {
+                    Box(
+                        modifier = Modifier.then(
+                            Modifier.layout(LayoutType.FREE),
+                            Modifier.size(100.percent, 100.percent),
+                        ),
+                    ) {
+                        DockSpace(
+                            state,
+                            modifier = Modifier.then(
+                                Modifier.position(40.px, 30.px),
+                                Modifier.size(500.px, 300.px),
+                            ),
+                        ) { Text(it.title) }
+                    }
+                },
+                width = 640f,
+                height = 360f,
+            )
+            input.mouseClicked(firstFrame, mouseX = 190f, mouseY = 42f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
+            input.mouseDragged(firstFrame, mouseX = 200f, mouseY = 90f, button = 0, deltaX = 10f, deltaY = 48f) {
+                it.node.dispatch(it)
+            }
+
+            val window = state.floatingWindows.single()
+            assertEquals(151f, window.x)
+            assertEquals(49f, window.y)
         }
     }
 

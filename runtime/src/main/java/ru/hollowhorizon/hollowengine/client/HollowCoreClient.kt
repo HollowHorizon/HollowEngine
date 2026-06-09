@@ -11,7 +11,9 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
+import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiDemoScreen
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
+import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -21,6 +23,7 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityRender
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
+import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 
@@ -54,6 +57,13 @@ object HollowCoreClient {
     @SubscribeEvent
     fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
         if (HollowEngineConfig.debugMode) event.registerKeyMapping(KEY_V)
+    }
+
+    @SubscribeEvent
+    fun onTick(event: TickEvent.Client) {
+        if (HollowEngineConfig.debugMode && KEY_V.isDown) {
+            HollowUiDemoScreen().open()
+        }
     }
 
     @SubscribeEvent

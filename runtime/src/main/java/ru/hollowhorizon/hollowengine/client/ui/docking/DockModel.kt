@@ -40,6 +40,26 @@ data class FloatingDockWindow(
     val dragKey: String? = null,
 )
 
+data class DockTabDragState(
+    val stackId: String,
+    val itemId: String,
+    val pointerX: Float,
+    val grabX: Float,
+    val tabWidth: Float,
+)
+
+data class DockTabGrabState(
+    val stackId: String,
+    val itemId: String,
+    val x: Float,
+    val y: Float,
+)
+
+data class DockWindowDragStart(
+    val windowId: String,
+    val created: Boolean,
+)
+
 enum class DockResizeEdge {
     LEFT,
     RIGHT,
