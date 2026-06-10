@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.effects
 
 import com.mojang.blaze3d.platform.NativeImage
+import com.mojang.blaze3d.platform.TextureUtil
 import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.util.MsdfGlyph
 import de.fabmax.kool.util.MsdfMeta
@@ -34,14 +35,12 @@ object UiMsdfFont {
 
         val imageStream = "$fontPath.png".rl.stream
         val nativeImage = NativeImage.read(imageStream)
+        nativeImage.flipY()
 
         val textureId = GL11.glGenTextures()
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId)
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR)
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR)
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP)
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP)
-        nativeImage.upload(0, 0, 0, false)
+        RenderSystem.bindTexture(textureId)
+        TextureUtil.prepareImage(textureId, nativeImage.width, nativeImage.height)
+        nativeImage.upload(0, 0, 0, 0, 0, nativeImage.width, nativeImage.height, true, true, false, false)
         nativeImage.close()
 
         fonts[fontPath] = UiMsdfFontData(
@@ -52,12 +51,6 @@ object UiMsdfFont {
     }
 
     fun getFontData(fontPath: String): UiMsdfFontData? = fonts[fontPath]
-
-    fun bindTexture(fontPath: String): Boolean {
-        val entry = fonts[fontPath] ?: return false
-        RenderSystem.bindTexture(entry.textureId)
-        return true
-    }
 
     fun unloadAll() {
         fonts.values.forEach { entry ->

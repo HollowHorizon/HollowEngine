@@ -801,7 +801,9 @@ class MinecraftUiRenderer {
         val atlasWidth = atlasInfo.width.toFloat()
         val atlasHeight = atlasInfo.height.toFloat()
         val scale = fontSize / atlasInfo.size
-        val lineHeight = metrics.lineHeight * atlasInfo.size * scale
+        val pxPerEm = fontSize
+        val lineHeight = metrics.lineHeight * pxPerEm
+        val baselineY = metrics.ascender * pxPerEm
 
         val localX = fragment.x - command.scrollOffset.x
         val localY = line.y + fragment.y - command.scrollOffset.y
@@ -810,8 +812,6 @@ class MinecraftUiRenderer {
             drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
             return
         }
-
-        UiMsdfFont.bindTexture(fontFamily)
 
         val tessellator = Tesselator.getInstance()
         val bufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -839,15 +839,16 @@ class MinecraftUiRenderer {
 
             val glyphWidth = (pb.right - pb.left) * scale
             val glyphHeight = (pb.top - pb.bottom) * scale
-            val x0 = penX + pb.left * scale
-            val y0 = (lineHeight - metrics.ascender * atlasInfo.size) * scale - pb.bottom * scale
-            val x1 = x0 + glyphWidth
-            val y1 = y0 + glyphHeight
+            val x0 = penX + pb.left * pxPerEm
+            val x1 = penX + pb.right * pxPerEm
 
-            val origin = transform.transform(localX + x0, localY + y0)
-            val topLeft = transform.transform(localX + x0, localY + y1)
-            val topRight = transform.transform(localX + x1, localY + y1)
-            val bottomRight = transform.transform(localX + x1, localY + y0)
+            val yTop = baselineY - pb.top * pxPerEm
+            val yBottom = baselineY - pb.bottom * pxPerEm
+
+            val bottomLeft = transform.transform(localX + x0, localY + yBottom)
+            val topLeft = transform.transform(localX + x0, localY + yTop)
+            val topRight = transform.transform(localX + x1, localY + yTop)
+            val bottomRight = transform.transform(localX + x1, localY + yBottom)
 
             val r = color.red
             val g = color.green
@@ -857,12 +858,14 @@ class MinecraftUiRenderer {
             bufferBuilder.addVertex(bottomRight.x, bottomRight.y, bottomRight.z).setColor(r, g, b, a).setUv(u1, v0)
             bufferBuilder.addVertex(topRight.x, topRight.y, topRight.z).setColor(r, g, b, a).setUv(u1, v1)
             bufferBuilder.addVertex(topLeft.x, topLeft.y, topLeft.z).setColor(r, g, b, a).setUv(u0, v1)
-            bufferBuilder.addVertex(origin.x, origin.y, origin.z).setColor(r, g, b, a).setUv(u0, v0)
+            bufferBuilder.addVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z).setColor(r, g, b, a).setUv(u0, v0)
 
-            penX += glyph.advance * scale
+            penX += glyph.advance * pxPerEm
         }
 
         RenderSystem.setShader { shader }
+        RenderSystem.setShaderTexture(0, fontData.textureId)
+
         shader.safeGetUniform("DistanceRange")?.set(distanceRange)
         shader.safeGetUniform("Softness")?.set(0.15f)
         shader.safeGetUniform("OutlineWidth")?.set(0f)
@@ -872,7 +875,6 @@ class MinecraftUiRenderer {
         shader.safeGetUniform("ShadowOffset")?.set(0f, 0f)
         shader.safeGetUniform("ShadowColor")?.set(0f, 0f, 0f, 0f)
         shader.safeGetUniform("AtlasSize")?.set(atlasWidth, atlasHeight)
-        shader.apply()
         BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
     }
 
