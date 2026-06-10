@@ -3,15 +3,8 @@ package ru.hollowhorizon.hollowengine.fabric.internal.rendering
 import ru.hollowhorizon.hollowengine.client.models.internal.SHADER
 import ru.hollowhorizon.hollowengine.client.models.internal.drawWithShader
 import ru.hollowhorizon.hollowengine.client.models.internal.opaqueShaderState
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.*
 import ru.hollowhorizon.hollowengine.client.models.internal.translucentShaderState
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstancedShaderLayoutMode
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.SubmittedInstance
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.fallbackToCapturedDraws
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.renderOpaque
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.renderTranslucent
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.withInstancingRenderState
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
 object IrisInstancingBackend : ModelInstancingBackend {

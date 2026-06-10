@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.network.send
 
 @Serializable
 @SerialName("hollowengine:npcs/play_animation")

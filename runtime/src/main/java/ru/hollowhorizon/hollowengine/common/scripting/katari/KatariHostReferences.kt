@@ -12,14 +12,9 @@ import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
-import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.LevelSnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.LivingEntitySnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.NpcEntitySnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.PlayerSnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.ServerSnapshot
+import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.*
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
-import java.util.UUID
+import java.util.*
 import kotlin.reflect.KClass
 
 object KatariHostReferences {

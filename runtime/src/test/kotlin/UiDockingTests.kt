@@ -1,31 +1,6 @@
-import ru.hollowhorizon.hollowengine.client.ui.Box
-import ru.hollowhorizon.hollowengine.client.ui.HollowComposeUiRuntime
-import ru.hollowhorizon.hollowengine.client.ui.HollowUiInputController
-import ru.hollowhorizon.hollowengine.client.ui.LayoutType
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Text
-import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
-import ru.hollowhorizon.hollowengine.client.ui.UiEvent
-import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
-import ru.hollowhorizon.hollowengine.client.ui.dispatch
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockDropResolver
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockLayoutCalculator
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockNode
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockRect
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockResizeEdge
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockSpace
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockOrientation
-import ru.hollowhorizon.hollowengine.client.ui.percent
-import ru.hollowhorizon.hollowengine.client.ui.px
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.docking.*
+import kotlin.test.*
 
 class UiDockingTests {
     @Test

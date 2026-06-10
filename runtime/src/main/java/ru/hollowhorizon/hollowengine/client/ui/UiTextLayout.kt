@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.network.chat.Component
-import java.util.LinkedHashMap
 import kotlin.math.abs
 
 data class UiTextLayout(

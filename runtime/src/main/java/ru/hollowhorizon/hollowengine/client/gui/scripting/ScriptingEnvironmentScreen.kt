@@ -3,7 +3,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
-import de.fabmax.kool.pipeline.*
+import de.fabmax.kool.pipeline.ClearColorDontCare
+import de.fabmax.kool.pipeline.ClearDepthDontCare
+import de.fabmax.kool.pipeline.DepthMode
 import de.fabmax.kool.scene.Scene
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen

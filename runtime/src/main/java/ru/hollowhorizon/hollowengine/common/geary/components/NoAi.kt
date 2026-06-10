@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.Mob
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
-import java.util.UUID
+import java.util.*
 
 @Registerable
 @Serializable

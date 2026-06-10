@@ -1,16 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.EmptyValueRestoreContext
-import com.sunnychung.lib.multiplatform.kotlite.model.DelegatedValue
-import com.sunnychung.lib.multiplatform.kotlite.model.IntValue
-import com.sunnychung.lib.multiplatform.kotlite.model.KotlinValueHolder
-import com.sunnychung.lib.multiplatform.kotlite.model.ListValue
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 import kotlinx.coroutines.test.runTest
 import ru.hollowhorizon.hollowengine.common.scripting.katari.snapshots.PlayerSnapshot
-import java.util.UUID
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

@@ -1,11 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.geary.binding.lightNodes
 import ru.hollowhorizon.hollowengine.common.geary.binding.removeComponents
 import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace

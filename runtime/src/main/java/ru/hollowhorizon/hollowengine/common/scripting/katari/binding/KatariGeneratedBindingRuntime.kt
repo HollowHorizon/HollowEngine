@@ -1,24 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari.binding
 
-import com.sunnychung.lib.multiplatform.kotlite.model.BooleanValue
-import com.sunnychung.lib.multiplatform.kotlite.model.ByteValue
-import com.sunnychung.lib.multiplatform.kotlite.model.CharValue
-import com.sunnychung.lib.multiplatform.kotlite.model.DoubleValue
-import com.sunnychung.lib.multiplatform.kotlite.model.FloatValue
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionResponse
-import com.sunnychung.lib.multiplatform.kotlite.model.IntValue
-import com.sunnychung.lib.multiplatform.kotlite.model.KotlinValueHolder
-import com.sunnychung.lib.multiplatform.kotlite.model.ListValue
-import com.sunnychung.lib.multiplatform.kotlite.model.LongValue
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeEnumValue
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
-import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeMapEntry
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.ShortValue
-import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
-import com.sunnychung.lib.multiplatform.kotlite.model.SymbolTable
-import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.collections.MapValue
 import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariHostReferences

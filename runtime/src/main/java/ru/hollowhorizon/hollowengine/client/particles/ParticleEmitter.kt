@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.client.utils.math.rotateSelfBy
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.eval
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Query
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Variables
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.VariablesMap
 
 class ParticleEmitter(

@@ -5,10 +5,10 @@ import net.minecraft.client.Minecraft
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForEntity
+import ru.hollowhorizon.hollowengine.client.gui.dialog.DialogGui
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.client.gui.dialog.DialogGui
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForEntity
 
 @Serializable
 class DialogueScene {

@@ -1,15 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hollowengine.common.utils.nbt.save
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Collections
-import java.util.WeakHashMap
+import java.util.*
 
 private const val HOLLOWENGINE_RUNTIME_FILE = "hollowengine-server-runtime.dat"
 

@@ -10,7 +10,6 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
-import org.joml.Vector4f
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle

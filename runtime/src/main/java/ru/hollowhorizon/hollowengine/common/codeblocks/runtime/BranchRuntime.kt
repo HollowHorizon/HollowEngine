@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
-import java.util.UUID
+import java.util.*
 
 @Serializable
 sealed interface OwnerKey {

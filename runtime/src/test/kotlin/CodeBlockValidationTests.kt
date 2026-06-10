@@ -4,11 +4,7 @@ import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BoolBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.StringValueBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputLocalVariableBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetGlobalVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetGlobalVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetVarBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.validation.CodeBlockValidationReporter
 import ru.hollowhorizon.hollowengine.common.codeblocks.validation.CodeBlockValidator

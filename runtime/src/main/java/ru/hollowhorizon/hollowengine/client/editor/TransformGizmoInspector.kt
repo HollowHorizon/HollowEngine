@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.editor
 
-import ru.hollowhorizon.hollowengine.common.geary.api.Component as GearyComponent
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import kotlinx.serialization.KSerializer
@@ -15,18 +14,13 @@ import ru.hollowhorizon.hollowengine.common.geary.binding.NodeSnapshotUpdatePack
 import ru.hollowhorizon.hollowengine.common.geary.binding.snapshotIdOrNull
 import ru.hollowhorizon.hollowengine.common.geary.binding.withComponents
 import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
-import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
-import ru.hollowhorizon.hollowengine.common.geary.components.SmallActionButton
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
-import ru.hollowhorizon.hollowengine.common.network.send
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
+import ru.hollowhorizon.hollowengine.common.geary.api.Component as GearyComponent
 
 private const val INSPECTOR_WIDTH = 420f
 private const val INSPECTOR_MARGIN = 16f

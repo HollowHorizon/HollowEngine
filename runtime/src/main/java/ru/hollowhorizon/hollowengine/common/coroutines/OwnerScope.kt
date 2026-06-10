@@ -8,7 +8,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import java.lang.ref.WeakReference
-import java.util.ArrayDeque
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.AbstractCoroutineContextElement

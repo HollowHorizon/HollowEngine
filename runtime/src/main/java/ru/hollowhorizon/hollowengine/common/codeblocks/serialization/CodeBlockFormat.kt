@@ -4,7 +4,6 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.serialization
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.modules.SerializersModule
@@ -15,18 +14,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategory
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenStatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.CreateComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EntityReferenceFromEntityBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EntityReferenceLiteralBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EnumLiteralBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetComponentFieldBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetEntityUuidBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.HasComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.ListBuilderBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.RemoveComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.ResourceLocationLiteralBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.SetComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.UuidLiteralBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarInlineBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel

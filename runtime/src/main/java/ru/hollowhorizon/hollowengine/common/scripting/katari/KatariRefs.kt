@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
-import java.util.UUID
+import java.util.*
 
 @ScriptBinding
 data class KatariChatMessage @ScriptIgnore constructor(

@@ -1,8 +1,8 @@
 import com.sunnychung.lib.multiplatform.kotlite.katari.analyzeKatariNarrativeProgram
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptingAnalyzer
 import kotlin.test.Test
 import kotlin.test.assertEquals

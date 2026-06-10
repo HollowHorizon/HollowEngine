@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.geary.api
 
-import com.google.common.eventbus.EventBus
 import kotlinx.coroutines.cancel
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.nbt.CompoundTag
@@ -22,10 +21,7 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ai.AIComponentSyste
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
-import java.util.AbstractMap
-import java.util.Collections
-import java.util.UUID
-import java.util.WeakHashMap
+import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
 private data class EntityState(

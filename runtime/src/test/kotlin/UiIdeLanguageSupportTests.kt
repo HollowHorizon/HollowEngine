@@ -1,9 +1,4 @@
-import ru.hollowhorizon.hollowengine.client.ui.MutableUiStyle
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiLength
-import ru.hollowhorizon.hollowengine.client.ui.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiTransformPivot
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer

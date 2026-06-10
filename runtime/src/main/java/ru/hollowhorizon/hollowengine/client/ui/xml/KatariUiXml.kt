@@ -3,21 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.xml
 import com.sunnychung.lib.multiplatform.kotlite.error.ParseException
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariParser
 import com.sunnychung.lib.multiplatform.kotlite.lexer.Lexer
-import com.sunnychung.lib.multiplatform.kotlite.model.ASTNode
-import com.sunnychung.lib.multiplatform.kotlite.model.BooleanNode
-import com.sunnychung.lib.multiplatform.kotlite.model.CharNode
-import com.sunnychung.lib.multiplatform.kotlite.model.DoubleNode
-import com.sunnychung.lib.multiplatform.kotlite.model.IntegerNode
-import com.sunnychung.lib.multiplatform.kotlite.model.LongNode
-import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
-import com.sunnychung.lib.multiplatform.kotlite.model.StringLiteralNode
-import com.sunnychung.lib.multiplatform.kotlite.model.StringNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ValueNode
-import com.sunnychung.lib.multiplatform.kotlite.model.VariableReferenceNode
-import com.sunnychung.lib.multiplatform.kotlite.model.XmlAttributeLiteralNode
-import com.sunnychung.lib.multiplatform.kotlite.model.XmlNodeLiteralNode
-import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
-import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_VALUE_ATTRIBUTE
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 
 fun parseUiXml(source: String, filename: String = "<ui>"): UiXmlTree {
     val encoded = source.encodeDashedXmlNames()

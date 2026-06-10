@@ -6,15 +6,11 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.geary.api.Component
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
-import java.util.UUID
+import java.util.*
 
 val ROOT_COMPONENT_ID: UUID = UUID(0L, 1L)
 

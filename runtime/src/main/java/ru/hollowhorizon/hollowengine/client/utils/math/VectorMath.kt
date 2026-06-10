@@ -1,12 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.utils.math
 
-import de.fabmax.kool.math.Mat3f
-import de.fabmax.kool.math.Mat4f
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec2d
-import de.fabmax.kool.math.Vec3f
-import net.minecraft.world.phys.Vec2
+import de.fabmax.kool.math.*
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix3f
 import org.joml.Matrix4f

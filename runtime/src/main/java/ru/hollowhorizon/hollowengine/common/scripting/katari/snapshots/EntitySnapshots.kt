@@ -19,7 +19,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnaps
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
-import java.util.UUID
+import java.util.*
 
 @Serializable
 @SerialName("hollowengine:katari/npc")

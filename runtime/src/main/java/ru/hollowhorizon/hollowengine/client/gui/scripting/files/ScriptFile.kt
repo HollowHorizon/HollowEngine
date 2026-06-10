@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import de.fabmax.kool.math.Easing
 import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
@@ -14,8 +14,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.UiPreviewState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.UiPreviewState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.StartScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable

@@ -1,15 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.effects.Bold
-import ru.hollowhorizon.hollowengine.client.ui.effects.Code
-import ru.hollowhorizon.hollowengine.client.ui.effects.Italic
-import ru.hollowhorizon.hollowengine.client.ui.effects.Link
-import ru.hollowhorizon.hollowengine.client.ui.effects.Strikethrough
-import ru.hollowhorizon.hollowengine.client.ui.effects.TextColor
-import ru.hollowhorizon.hollowengine.client.ui.effects.TextFont
-import ru.hollowhorizon.hollowengine.client.ui.effects.TextSize
-import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
-import ru.hollowhorizon.hollowengine.client.ui.effects.Underline
+import ru.hollowhorizon.hollowengine.client.ui.effects.*
 
 data class UiRichText(
     val items: List<UiInlineItem>,

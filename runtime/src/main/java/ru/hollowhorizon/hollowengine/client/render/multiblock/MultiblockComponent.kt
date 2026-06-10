@@ -13,8 +13,8 @@ import net.minecraft.util.Mth
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvas
-import ru.hollowhorizon.hollowengine.common.utils.RANDOM
 import ru.hollowhorizon.hollowengine.common.multiblock.Multiblock
+import ru.hollowhorizon.hollowengine.common.utils.RANDOM
 import kotlin.math.max
 
 

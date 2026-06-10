@@ -1,13 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.kool;
 
-import de.fabmax.kool.input.*;
-import org.lwjgl.glfw.*;
+import de.fabmax.kool.input.KeyboardInput;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
-import static ru.hollowhorizon.hollowengine.client.kool.HelperKt.KEY_CODE_MAP;
 
 public class PointerInputSetup {
     public static final HashMap<Integer, Integer> localCharKeyCodes = new HashMap<>();

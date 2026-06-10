@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sin
+import kotlin.math.*
 
 internal class FastAnimationExpression private constructor(
     private val root: Expr,

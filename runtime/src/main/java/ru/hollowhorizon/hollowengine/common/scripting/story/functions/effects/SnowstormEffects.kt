@@ -2,12 +2,12 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects
 
 import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.Serializable
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
-import net.minecraft.client.multiplayer.ClientLevel
 import ru.hollowhorizon.hollowengine.api.system
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect

@@ -10,7 +10,6 @@ import de.fabmax.kool.platform.imageAtlasTextureData
 import de.fabmax.kool.util.Uint8BufferImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.ByteArrayInputStream

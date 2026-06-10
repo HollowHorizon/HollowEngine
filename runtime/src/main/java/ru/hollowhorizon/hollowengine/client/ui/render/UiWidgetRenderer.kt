@@ -4,19 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hollowengine.client.ui.DrawCheckboxCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawSliderCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawTextFieldChromeCommand
-import ru.hollowhorizon.hollowengine.client.ui.TextFieldCaretWidth
-import ru.hollowhorizon.hollowengine.client.ui.UiCheckboxVariant
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
-import ru.hollowhorizon.hollowengine.client.ui.UiInsets
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
-import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
-import ru.hollowhorizon.hollowengine.client.ui.caretPosition
-import ru.hollowhorizon.hollowengine.client.ui.selectionRects
+import ru.hollowhorizon.hollowengine.client.ui.*
 import kotlin.math.min
 import kotlin.math.sqrt
 

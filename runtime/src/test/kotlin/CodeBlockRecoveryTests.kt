@@ -7,20 +7,11 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenStatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
-import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.DecodeFailureStrategy
-import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.MissingReferenceStrategy
-import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.RecoveryAction
-import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.ScriptLoadIssue
-import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.ScriptRecoveryPolicy
 import java.io.ByteArrayInputStream
 import java.util.*
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @Serializable
 @SerialName("test:stmt")

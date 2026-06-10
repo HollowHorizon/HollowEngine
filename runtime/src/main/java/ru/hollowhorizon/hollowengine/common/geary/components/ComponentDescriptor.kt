@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.registry.system.MutableRegistry
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryManager
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryState

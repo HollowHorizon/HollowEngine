@@ -2,14 +2,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.IntTag
 import net.minecraft.nbt.DoubleTag
-import kotlin.test.assertIs
+import net.minecraft.nbt.IntTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.decodeNumericTag
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 class VariableMapTests {

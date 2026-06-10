@@ -23,10 +23,8 @@ import ru.hollowhorizon.hollowengine.common.utils.molang.parser.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Query
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Variables
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.VariablesMap
 import java.beans.Introspector
 import java.beans.PropertyDescriptor
-import java.io.File
 import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass

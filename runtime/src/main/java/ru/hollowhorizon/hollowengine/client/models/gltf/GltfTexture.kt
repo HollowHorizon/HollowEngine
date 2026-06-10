@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.platform.NativeImage
+import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft

@@ -1,12 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import net.minecraft.client.Minecraft
 import net.minecraft.server.MinecraftServer
-import java.util.Collections
-import java.util.WeakHashMap
-import kotlinx.coroutines.SupervisorJob
+import java.util.*
 
 private data class DispatcherState(
     val dispatcher: SingleThreadDispatcher,

@@ -6,11 +6,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.infrastructure.S
 import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.usecase.PersistRecoveredScriptUseCase
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import kotlin.io.path.createTempDirectory
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class ScriptRecoveryTests {
     private val format = CodeBlockFormat(BlockRepository.create("Test") {})

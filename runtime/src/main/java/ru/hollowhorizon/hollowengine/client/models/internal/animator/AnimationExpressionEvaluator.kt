@@ -5,7 +5,6 @@ import com.sunnychung.lib.multiplatform.kotlite.KotliteInterpreter
 import com.sunnychung.lib.multiplatform.kotlite.model.*
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
 import de.fabmax.kool.math.Vec3f
-import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationVectorExpression

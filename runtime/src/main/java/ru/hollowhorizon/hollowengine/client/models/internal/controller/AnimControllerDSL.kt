@@ -5,14 +5,12 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.scene.TrsTransformF
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.BlendMode.Additive
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.BlendMode.Override
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.Controller.Companion.AUTOMATIC_LAYER
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.BoolExpr
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.MolangCompiler
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext

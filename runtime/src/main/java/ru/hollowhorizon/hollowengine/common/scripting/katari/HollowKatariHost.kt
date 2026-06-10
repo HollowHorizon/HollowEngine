@@ -22,7 +22,7 @@ import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
 import ru.hollowhorizon.hollowengine.common.utils.onHoverText
-import java.util.UUID
+import java.util.*
 
 val KatariEditorContextGlobalTypes = linkedMapOf(
     "player" to "Player",

@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.kool
 
-import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.util.Color
-import net.minecraft.world.entity.LivingEntity
+import de.fabmax.kool.modules.ui2.ImageScope
+import de.fabmax.kool.modules.ui2.UiScope
+import de.fabmax.kool.modules.ui2.size
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.render.render

@@ -22,7 +22,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.io.path.*
+import kotlin.io.path.readText
 
 open class Config {
     val properties = Properties { markDirty() }

@@ -1,14 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc
 
-import de.fabmax.kool.modules.ui2.AlignmentY
-import de.fabmax.kool.modules.ui2.Box
-import de.fabmax.kool.modules.ui2.Column
-import de.fabmax.kool.modules.ui2.Grow
-import de.fabmax.kool.modules.ui2.Row
-import de.fabmax.kool.modules.ui2.Text
-import de.fabmax.kool.modules.ui2.alignY
-import de.fabmax.kool.modules.ui2.margin
-import de.fabmax.kool.modules.ui2.textColor
+import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

@@ -4,11 +4,7 @@ import de.fabmax.kool.*
 import de.fabmax.kool.pipeline.GpuBuffer
 import de.fabmax.kool.pipeline.backend.BackendFeatures
 import de.fabmax.kool.pipeline.backend.DeviceCoordinates
-import de.fabmax.kool.pipeline.backend.gl.GlslGenerator
-import de.fabmax.kool.pipeline.backend.gl.GlFramebuffer
-import de.fabmax.kool.pipeline.backend.gl.GpuBufferGl
-import de.fabmax.kool.pipeline.backend.gl.RenderBackendGl
-import de.fabmax.kool.pipeline.backend.gl.TimeQuery
+import de.fabmax.kool.pipeline.backend.gl.*
 import de.fabmax.kool.pipeline.backend.stats.BackendStats
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Buffer

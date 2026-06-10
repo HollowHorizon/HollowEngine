@@ -6,7 +6,6 @@ import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromStream
-import kotlinx.serialization.modules.SerializersModule
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 
 @OptIn(ExperimentalSerializationApi::class)

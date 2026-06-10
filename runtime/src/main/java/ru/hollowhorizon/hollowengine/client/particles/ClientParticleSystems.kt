@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.particles
 
 import net.minecraft.client.multiplayer.ClientLevel
-import java.util.Collections
-import java.util.WeakHashMap
+import java.util.*
 
 object ClientParticleSystems {
     private val systems = Collections.synchronizedMap(WeakHashMap<ClientLevel, ParticleSystem>())

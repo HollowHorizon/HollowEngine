@@ -4,7 +4,7 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDefinitionId
-import java.util.UUID
+import java.util.*
 
 class ScriptInstance(
     val ownerFile: ScriptFile,

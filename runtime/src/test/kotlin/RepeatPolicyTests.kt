@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerKey
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.buildBranchKey
 import ru.hollowhorizon.hollowengine.common.coroutines.LaunchPolicy
-import java.util.UUID
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

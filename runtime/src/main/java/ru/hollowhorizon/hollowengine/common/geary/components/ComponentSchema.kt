@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
@@ -13,11 +13,10 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.KTypeExpressionType
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.EntityReference
-import java.util.UUID
+import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
-import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 
 enum class FieldValueKind {

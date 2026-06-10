@@ -2,13 +2,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.CreateComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EntityReferenceFromEntityBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetComponentFieldBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetEntityUuidBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.HasComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.RemoveComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.SetComponentBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.*
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
 import ru.hollowhorizon.hollowengine.common.utils.rl

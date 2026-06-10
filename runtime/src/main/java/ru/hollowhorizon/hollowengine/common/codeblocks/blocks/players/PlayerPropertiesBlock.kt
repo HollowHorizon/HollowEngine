@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
 
-import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
@@ -10,14 +9,9 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.api.extensions.PlayerExtension
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
-import ru.hollowhorizon.hollowengine.client.kool.Item
-import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
@@ -25,7 +19,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.block
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 @Serializable

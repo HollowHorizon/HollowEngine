@@ -1,14 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
-import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter
-import com.sunnychung.lib.multiplatform.kotlite.model.IntValue
-import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.STRUCT_VALUE_TYPE_ID
-import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
-import com.sunnychung.lib.multiplatform.kotlite.model.StructValue
-import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree

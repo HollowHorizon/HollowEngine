@@ -11,7 +11,6 @@ import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.json.*
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
@@ -26,7 +25,6 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.memberProperties
 
 object AutoEditor {
     val json = Json {

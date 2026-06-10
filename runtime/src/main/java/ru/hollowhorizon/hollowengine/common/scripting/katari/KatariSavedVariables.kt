@@ -1,11 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariState
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariStateSnapshot
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
-import com.sunnychung.lib.multiplatform.kotlite.katari.StateSnapshotCodec
-import com.sunnychung.lib.multiplatform.kotlite.katari.TaskState
-import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
+import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter
 import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
 import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
