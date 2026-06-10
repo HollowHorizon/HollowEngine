@@ -33,7 +33,7 @@ float sampleMsdf(vec2 uv) {
 float screenPxRange() {
     vec2 unitRange = vec2(DistanceRange) / AtlasSize;
     vec2 screenTexSize = vec2(1.0) / fwidth(texCoord0);
-    return max(0.5 * dot(unitRange, screenTexSize), 1.0);
+    return max(0.5 * dot(unitRange, screenTexSize), 2.0);
 }
 
 float coverage(float sdPx, float expandPx, float softnessPx) {
