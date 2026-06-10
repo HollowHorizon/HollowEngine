@@ -93,7 +93,6 @@ abstract class HollowUiScreen(
     }
 
     override fun render(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
-        super.render(graphics, mouseX, mouseY, partialTick)
         val nowMillis = System.currentTimeMillis()
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
