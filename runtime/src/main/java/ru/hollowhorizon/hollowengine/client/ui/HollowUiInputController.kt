@@ -424,9 +424,10 @@ class HollowUiInputController {
             wrap = style.textWrap && node.multiline,
             align = style.textAlign,
             fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
             preserveWhitespace = true,
         )
-        return textLayout.caretIndexAt(contentX, contentY, style.fontSize)
+        return textLayout.caretIndexAt(contentX, contentY, style.fontSize, style.fontFamily)
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {

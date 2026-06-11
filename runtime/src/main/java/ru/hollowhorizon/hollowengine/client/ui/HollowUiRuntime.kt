@@ -186,7 +186,7 @@ class HollowUiRuntime(
                 ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
                 continue
             }
-            val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, style.fontSize)
+            val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, style.fontSize, style.fontFamily)
             val next = layoutNode.scrollOffset.scrollCaretIntoView(
                 caretX = caret.x,
                 caretY = caret.y,

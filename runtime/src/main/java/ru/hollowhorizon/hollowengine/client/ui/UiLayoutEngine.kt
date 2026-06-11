@@ -611,6 +611,7 @@ class UiLayoutEngine {
             else {
                 val weight = child.rowWeight()
                 val targetWidth = availableForFlexible * (weight / totalWeight)
+                val fixedWidthOverride = targetWidth.takeUnless { child.isWrappedAutoText }
                 child.copy(
                     size = measureNode(
                         child.node,
@@ -618,7 +619,7 @@ class UiLayoutEngine {
                         targetWidth,
                         child.size.height,
                         scrollbarReserves,
-                        widthOverride = targetWidth,
+                        widthOverride = fixedWidthOverride,
                         bindings = bindings
                     )
                 )
@@ -630,18 +631,19 @@ class UiLayoutEngine {
         val shrinkable = distributed.filter { it.style.size.width !is UiLength.Px && it.size.width > 0f }
         val shrinkableWidth = shrinkable.sumOf { it.size.width.toDouble() }.toFloat()
         if (shrinkableWidth <= 0f) return distributed
-        return distributed.map {
-            if (it.style.size.width is UiLength.Px || it.size.width <= 0f) it
+        return distributed.map { child ->
+            if (child.style.size.width is UiLength.Px || child.size.width <= 0f) child
             else {
-                val targetWidth = (it.size.width - overflow * (it.size.width / shrinkableWidth)).coerceAtLeast(0f)
-                it.copy(
+                val targetWidth = (child.size.width - overflow * (child.size.width / shrinkableWidth)).coerceAtLeast(0f)
+                val fixedWidthOverride = targetWidth.takeUnless { child.isWrappedAutoText }
+                child.copy(
                     size = measureNode(
-                        it.node,
+                        child.node,
                         resolved,
                         targetWidth,
-                        it.size.height,
+                        child.size.height,
                         scrollbarReserves,
-                        widthOverride = targetWidth,
+                        widthOverride = fixedWidthOverride,
                         bindings = bindings
                     )
                 )
@@ -779,9 +781,14 @@ class UiLayoutEngine {
             if (allowWidthOverflow && style.size.width is UiLength.Auto) Float.POSITIVE_INFINITY else referenceWidth
         val heightReference =
             if (allowHeightOverflow && style.size.height is UiLength.Auto) Float.POSITIVE_INFINITY else referenceHeight
-        val constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, widthReference)
+        var constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, widthReference)
         var constrainedHeight = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, heightReference)
-        if (heightOverride == null && style.size.height is UiLength.Auto && abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon) {
+        val widthConstrained = abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon
+        val shouldReflowConstrainedWidth =
+            widthConstrained &&
+                    (heightOverride == null && style.size.height is UiLength.Auto ||
+                            widthOverride == null && style.size.width is UiLength.Auto)
+        if (shouldReflowConstrainedWidth) {
             val constrainedContentWidth = (constrainedWidth - insets.horizontal).coerceAtLeast(0f)
             val reflowed = intrinsicSize(
                 node,
@@ -794,8 +801,14 @@ class UiLayoutEngine {
                 knownContentHeight = null,
                 bindings = bindings,
             )
-            constrainedHeight = (reflowed.height + insets.vertical)
-                .coerceIn(style.minSize.height, style.maxSize.height, heightReference)
+            if (widthOverride == null && style.size.width is UiLength.Auto) {
+                constrainedWidth = (reflowed.width + insets.horizontal)
+                    .coerceIn(style.minSize.width, style.maxSize.width, widthReference)
+            }
+            if (heightOverride == null && style.size.height is UiLength.Auto) {
+                constrainedHeight = (reflowed.height + insets.vertical)
+                    .coerceIn(style.minSize.height, style.maxSize.height, heightReference)
+            }
         }
         return LayoutSize(
             width = constrainedWidth,
@@ -820,6 +833,7 @@ class UiLayoutEngine {
             knownWidth = knownContentWidth,
             wrap = style.textWrap,
             fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
         )
         if (node is TextFieldNode) {
             val measured = UiTextLayouter.measure(
@@ -828,6 +842,7 @@ class UiLayoutEngine {
                 knownWidth = knownContentWidth,
                 wrap = textFieldWrap(style, node, knownContentWidth != null),
                 fontSize = style.fontSize,
+                fontFamily = style.fontFamily,
                 preserveWhitespace = true,
             )
             return if (knownContentWidth == null) {
@@ -1061,6 +1076,7 @@ private fun scrollableContentBounds(
                 style.textWrap,
                 style.textAlign,
                 style.fontSize,
+                style.fontFamily,
             )
         } else {
             val field = node as TextFieldNode
@@ -1071,6 +1087,7 @@ private fun scrollableContentBounds(
                 textFieldWrap(style, field, constrainedWidth = true),
                 style.textAlign,
                 style.fontSize,
+                style.fontFamily,
                 preserveWhitespace = true,
             )
         }
@@ -1125,6 +1142,12 @@ private val MeasuredChild.isRowFlexible: Boolean
             style.size.width is UiLength.Percent ||
             style.grow > 0f ||
             node is TextNode && style.textWrap && style.size.width is UiLength.Auto
+
+private val MeasuredChild.isWrappedAutoText: Boolean
+    get() = node is TextNode &&
+            style.textWrap &&
+            style.size.width is UiLength.Auto &&
+            style.grow <= 0f
 
 private val MeasuredChild.isColumnFlexible: Boolean
     get() = style.size.height is UiLength.Fill ||

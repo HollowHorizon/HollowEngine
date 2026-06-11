@@ -525,6 +525,7 @@ class MinecraftUiRenderer {
             line.fragments.forEach { fragment ->
                 when (fragment) {
                     is UiInlineImageRun -> drawInlineImage(command, fragment, line, transform)
+                    is UiTextSpaceRun -> Unit
                     is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
                 }
             }
@@ -554,11 +555,6 @@ class MinecraftUiRenderer {
         val effects = fragment.style.effects + command.textEffects
         val fontFamily = fragment.style.fontFamily ?: command.fontFamily
 
-        if (!fontFamily.isNullOrBlank() && effects.isEmpty()) {
-            drawMsdfTextRun(command, fragment, line, transform, scaleX, scaleY, now, fontSize, fontFamily)
-            return
-        }
-
         val hasLayer = effects.hasLayerEffects()
         val hasAnimated = effects.hasAnimatedEffects()
 
@@ -568,6 +564,7 @@ class MinecraftUiRenderer {
                 fragment.x - command.scrollOffset.x,
                 line.y + fragment.y - command.scrollOffset.y,
                 fontSize,
+                fontFamily,
                 fragment.style.color,
                 command.opacity,
             )
@@ -581,7 +578,20 @@ class MinecraftUiRenderer {
         val localY = line.y + fragment.y - command.scrollOffset.y
 
         if (hasAnimated) {
-            drawAnimatedTextRun(command, fragment, transform, scaleX, scaleY, now, fontSize, localX, localY, animatedEffects, layerEffects)
+            drawAnimatedTextRun(
+                command,
+                fragment,
+                transform,
+                scaleX,
+                scaleY,
+                now,
+                fontSize,
+                fontFamily,
+                localX,
+                localY,
+                animatedEffects,
+                layerEffects,
+            )
             return
         }
 
@@ -598,11 +608,17 @@ class MinecraftUiRenderer {
             for (pass in passes) {
                 val passColor = pass.colorOverride ?: effectiveColor
                 drawSingleTextRun(
-                    command, fragment, transform, scaleX, scaleY,
+                    command,
+                    fragment,
+                    transform,
+                    scaleX,
+                    scaleY,
                     localX + pass.offsetX,
                     localY + pass.offsetY,
                     fontSize,
-                    passColor, command.opacity,
+                    fontFamily,
+                    passColor,
+                    command.opacity,
                 )
             }
         }
@@ -610,6 +626,7 @@ class MinecraftUiRenderer {
         drawSingleTextRun(
             command, fragment, transform, scaleX, scaleY,
             localX, localY, fontSize,
+            fontFamily,
             fragment.style.color, command.opacity,
         )
     }
@@ -623,19 +640,10 @@ class MinecraftUiRenderer {
         localX: Float,
         localY: Float,
         fontSize: Float,
+        fontFamily: String?,
         colorOverride: UiColor?,
         alphaMultiplier: Float,
     ) {
-        val mc = Minecraft.getInstance()
-        val fontScale = fontSize / mc.font.lineHeight.toFloat()
-        val origin = transform.transform(localX, localY)
-        val pose = PoseStack()
-        pose.translate(
-            origin.x.toDouble(),
-            origin.y.toDouble(),
-            origin.z.toDouble() - 10
-        )
-        pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
         if (fragment.style.code) {
             drawLocalPaint(
                 fragment.width,
@@ -646,6 +654,32 @@ class MinecraftUiRenderer {
                 command.filter,
             )
         }
+
+        if (!fontFamily.isNullOrBlank() && drawMsdfTextRun(
+                command,
+                fragment,
+                transform,
+                localX,
+                localY,
+                fontSize,
+                fontFamily,
+                colorOverride,
+                alphaMultiplier,
+            )
+        ) {
+            return
+        }
+
+        val mc = Minecraft.getInstance()
+        val fontScale = fontSize / mc.font.lineHeight.toFloat()
+        val origin = transform.transform(localX, localY)
+        val pose = PoseStack()
+        pose.translate(
+            origin.x.toDouble(),
+            origin.y.toDouble(),
+            origin.z.toDouble() - 10
+        )
+        pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
         val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
         val color = colorOverride
             ?: fragment.style.color
@@ -686,22 +720,22 @@ class MinecraftUiRenderer {
         scaleY: Float,
         now: Float,
         fontSize: Float,
+        fontFamily: String?,
         baseLocalX: Float,
         baseLocalY: Float,
         animatedEffects: List<UiTextEffect>,
         layerEffects: List<UiTextEffect>,
     ) {
-        val mc = Minecraft.getInstance()
-        val fontScale = fontSize / mc.font.lineHeight.toFloat()
         val totalChars = fragment.text.length
 
         for (charIndex in fragment.text.indices) {
             val char = fragment.text[charIndex]
-            val charWidth = mc.font.width(char.toString()).toFloat() * fontScale
+            val charWidth = UiTextLayouter.measureTextWidth(char.toString(), fontSize, fontFamily)
             val charPos = charIndex.toFloat() / totalChars.coerceAtLeast(1).toFloat()
             val prefixText = fragment.text.substring(0, charIndex)
-            val prefixWidth = mc.font.width(prefixText).toFloat() * fontScale
+            val prefixWidth = UiTextLayouter.measureTextWidth(prefixText, fontSize, fontFamily)
             val charLocalX = baseLocalX + prefixWidth
+            val charFragment = fragment.copy(text = char.toString(), x = charLocalX, width = charWidth)
 
             val ctx = UiEffectContext(
                 time = now,
@@ -738,19 +772,18 @@ class MinecraftUiRenderer {
                     val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
                     for (pass in passes) {
                         val passColor = pass.colorOverride ?: effectiveColor
-                        val adjustedLocalX = charLocalX + charOffsetX + pass.offsetX
-                        val adjustedLocalY = baseLocalY + charOffsetY + pass.offsetY
-                        val origin = transform.transform(adjustedLocalX, adjustedLocalY)
-                        val pose = PoseStack()
-                        pose.translate(origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble() - 1)
-                        pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
-                        val finalAlpha = command.opacity * alphaMul * passColor.alpha
-                        val finalColor = UiColor(passColor.red, passColor.green, passColor.blue, finalAlpha)
-                        mc.font.drawInBatch(
-                            Component.literal(char.toString()).visualOrderText, 0f, 0f,
-                            finalColor.filtered(command.filter).argb(), false,
-                            pose.last().pose(), mc.renderBuffers().bufferSource(),
-                            DisplayMode.SEE_THROUGH, 0, 15728880,
+                        drawSingleTextRun(
+                            command,
+                            charFragment,
+                            transform,
+                            scaleX,
+                            scaleY,
+                            charLocalX + charOffsetX + pass.offsetX,
+                            baseLocalY + charOffsetY + pass.offsetY,
+                            fontSize,
+                            fontFamily,
+                            passColor,
+                            command.opacity * alphaMul,
                         )
                     }
                 }
@@ -758,10 +791,6 @@ class MinecraftUiRenderer {
 
             val finalLocalX = charLocalX + charOffsetX
             val finalLocalY = baseLocalY + charOffsetY
-            val origin = transform.transform(finalLocalX, finalLocalY)
-            val pose = PoseStack()
-            pose.translate(origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble())
-            pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
 
             val finalColor = colorOverride
                 ?: if (fragment.style.link != null) {
@@ -770,14 +799,18 @@ class MinecraftUiRenderer {
                 } else {
                     command.color
                 }
-            val finalAlpha = command.opacity * alphaMul * finalColor.alpha
-            val color = UiColor(finalColor.red, finalColor.green, finalColor.blue, finalAlpha)
-
-            mc.font.drawInBatch(
-                Component.literal(char.toString()).visualOrderText, 0f, 0f,
-                color.filtered(command.filter).argb(), false,
-                pose.last().pose(), mc.renderBuffers().bufferSource(),
-                DisplayMode.SEE_THROUGH, 0, 15728880,
+            drawSingleTextRun(
+                command,
+                charFragment,
+                transform,
+                scaleX,
+                scaleY,
+                finalLocalX,
+                finalLocalY,
+                fontSize,
+                fontFamily,
+                finalColor,
+                command.opacity * alphaMul,
             )
         }
     }
@@ -785,50 +818,45 @@ class MinecraftUiRenderer {
     private fun drawMsdfTextRun(
         command: DrawTextCommand,
         fragment: UiTextRun,
-        line: UiTextLine,
         transform: UiMatrix4,
-        scaleX: Float,
-        scaleY: Float,
-        now: Float,
+        localX: Float,
+        localY: Float,
         fontSize: Float,
         fontFamily: String,
-    ) {
-        UiMsdfFont.loadFont(fontFamily)
-        val fontData = UiMsdfFont.getFontData(fontFamily) ?: return
+        colorOverride: UiColor?,
+        alphaMultiplier: Float,
+    ): Boolean {
+        val fontData = UiMsdfFont.getOrLoadFontData(fontFamily) ?: return false
+        val shader = ModShaders.MSDF_TEXT ?: return false
         val atlasInfo = fontData.meta.atlas
         val metrics = fontData.meta.metrics
         val distanceRange = atlasInfo.distanceRange
         val atlasWidth = atlasInfo.width.toFloat()
         val atlasHeight = atlasInfo.height.toFloat()
-        val scale = fontSize / atlasInfo.size
         val pxPerEm = fontSize
-        val lineHeight = metrics.lineHeight * pxPerEm
         val baselineY = metrics.ascender * pxPerEm
-
-        val localX = fragment.x - command.scrollOffset.x
-        val localY = line.y + fragment.y - command.scrollOffset.y
-
-        val shader = ModShaders.MSDF_TEXT ?: run {
-            drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
-            return
-        }
 
         val tessellator = Tesselator.getInstance()
         val bufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
 
         val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-        val baseColor = fragment.style.color
+        val baseColor = colorOverride
+            ?: fragment.style.color
             ?: if (fragment.style.link != null) {
                 if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
             } else {
                 command.color
             }
-        val alpha = command.opacity
+        val alpha = command.opacity * alphaMultiplier
         val color = baseColor.withOpacity(alpha).filtered(command.filter)
 
         var penX = 0f
         for (char in fragment.text) {
-            val glyph = fontData.glyphMap[char] ?: continue
+            val glyph = fontData.glyphMap[char]
+            if (glyph == null) {
+                penX += fontData.metrics.advance(char, fontSize)
+                continue
+            }
 
             val ab = glyph.atlasBounds
             val pb = glyph.planeBounds
@@ -837,8 +865,6 @@ class MinecraftUiRenderer {
             val u1 = ab.right / atlasWidth
             val v1 = ab.top / atlasHeight
 
-            val glyphWidth = (pb.right - pb.left) * scale
-            val glyphHeight = (pb.top - pb.bottom) * scale
             val x0 = penX + pb.left * pxPerEm
             val x1 = penX + pb.right * pxPerEm
 
@@ -876,6 +902,7 @@ class MinecraftUiRenderer {
         shader.safeGetUniform("ShadowColor")?.set(0f, 0f, 0f, 0f)
         shader.safeGetUniform("AtlasSize")?.set(atlasWidth, atlasHeight)
         BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
+        return true
     }
 
     private fun drawInlineImage(

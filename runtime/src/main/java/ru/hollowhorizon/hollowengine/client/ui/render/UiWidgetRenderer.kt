@@ -70,7 +70,12 @@ internal class UiWidgetRenderer(
     }
 
     fun drawTextFieldChrome(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        command.layout.selectionRects(command.selectionStart, command.selectionEnd, command.fontSize).forEach { rect ->
+        command.layout.selectionRects(
+            command.selectionStart,
+            command.selectionEnd,
+            command.fontSize,
+            command.fontFamily,
+        ).forEach { rect ->
             drawLocalPaint(
                 rect.width,
                 rect.height,
@@ -98,7 +103,7 @@ internal class UiWidgetRenderer(
             drawPlainText(command.placeholder, 0f, 0f, command.fontSize, command.inlayHintColor, command.opacity, transform, command.filter)
         }
         if (command.showCaret) {
-            val caret = command.layout.caretPosition(command.caretIndex, command.fontSize)
+            val caret = command.layout.caretPosition(command.caretIndex, command.fontSize, command.fontFamily)
             drawLocalPaint(
                 TextFieldCaretWidth,
                 command.fontSize,

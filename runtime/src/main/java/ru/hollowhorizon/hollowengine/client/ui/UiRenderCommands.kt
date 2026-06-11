@@ -182,6 +182,7 @@ data class DrawTextFieldChromeCommand(
     val placeholder: String,
     val opacity: Float,
     val fontSize: Float,
+    val fontFamily: String?,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
@@ -313,11 +314,19 @@ class UiCommandRenderer {
                 )
                 val textString = visibleContent.text
                 val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-                val fullLayout = UiTextLayouter.layout(fullContent.toRichText(), layoutNode.content.width, textHeight, style.textWrap, style.textAlign, style.fontSize)
+                val fullLayout = UiTextLayouter.layout(
+                    fullContent.toRichText(),
+                    layoutNode.content.width,
+                    textHeight,
+                    style.textWrap,
+                    style.textAlign,
+                    style.fontSize,
+                    style.fontFamily,
+                )
                 val textLayout = if (style.typing == null) {
                     fullLayout
                 } else {
-                    UiTextLayouter.visibleTextPrefix(fullLayout, textString.length, style.fontSize)
+                    UiTextLayouter.visibleTextPrefix(fullLayout, textString.length, style.fontSize, style.fontFamily)
                 }
 
                 commands += DrawTextCommand(
@@ -411,7 +420,15 @@ class UiCommandRenderer {
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
         val editLayout = textFieldEditLayout(node, style, layoutNode)
         val displayLayout = if (text.isEmpty()) {
-            UiTextLayouter.layout(visible, layoutNode.content.width, textHeight, wrap, style.textAlign, style.fontSize)
+            UiTextLayouter.layout(
+                visible,
+                layoutNode.content.width,
+                textHeight,
+                wrap,
+                style.textAlign,
+                style.fontSize,
+                style.fontFamily,
+            )
         } else {
             editLayout
         }
@@ -434,6 +451,7 @@ class UiCommandRenderer {
             placeholder = node.placeholder,
             opacity = opacity,
             fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
             transform = transform,
             filter = filter,
             backfaceVisibility = backface,
