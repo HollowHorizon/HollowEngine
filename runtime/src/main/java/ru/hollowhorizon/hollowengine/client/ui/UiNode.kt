@@ -5,6 +5,7 @@ import net.minecraft.nbt.CompoundTag
 interface UiNode {
     val type: String
     val id: String?
+    var layout: UiLayout
     val tags: MutableSet<String>
     val attributes: MutableMap<String, String>
     val states: MutableSet<UiState>
@@ -22,6 +23,7 @@ open class BaseUiNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
+    final override var layout: UiLayout = UiLayout.Column,
 ) : UiNode {
     final override val tags: MutableSet<String> = tags.toMutableSet()
     final override val attributes: MutableMap<String, String> = attributes.toMutableMap()
@@ -38,10 +40,18 @@ open class BaseUiNode(
 
 class BoxNode(
     id: String? = null,
+    layout: UiLayout = UiLayout.Box(),
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.BOX.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(
+    UiNodeType.BOX.typeName,
+    id?.trimIdPrefix(),
+    tags.map { it.trimTagPrefix() },
+    modifiers,
+    attributes,
+    layout,
+)
 
 class TextNode(
     var content: UiTextContent,

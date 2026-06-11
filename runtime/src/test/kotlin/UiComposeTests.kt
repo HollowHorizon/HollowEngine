@@ -16,7 +16,7 @@ class UiComposeTests {
 
         HollowUiComposition().use { composition ->
             val root = composition.setContent {
-                Box(id = "panel") {
+                Column(id = "panel") {
                     Text(label.value, id = "label")
                 }
             }
@@ -41,7 +41,7 @@ class UiComposeTests {
 
         HollowUiComposition().use { composition ->
             val root = composition.setContent {
-                Box {
+                Column {
                     Text(title.value, id = "title")
                     TextField(serverValue.value, id = "field")
                 }
@@ -90,9 +90,8 @@ class UiComposeTests {
         HollowComposeUiRuntime().use { runtime ->
             val frame = runtime.frame(
                 content = {
-                    Box(
+                    Row(
                         modifier = Modifier.then(
-                            Modifier.layout(LayoutType.ROW),
                             Modifier.size(120.px, 40.px),
                             Modifier.gap(8.px),
                         ),
@@ -114,12 +113,50 @@ class UiComposeTests {
     }
 
     @Test
+    fun `custom layout policy measures and places children explicitly`() {
+        HollowComposeUiRuntime().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    Layout(
+                        content = {
+                            Box(id = "avatar", modifier = Modifier.size(40.px, 40.px))
+                            Box(id = "text-box", modifier = Modifier.size(100.px, 30.px))
+                        },
+                    ) { measurables, constraints ->
+                        val avatar = measurables[0].measure(constraints)
+                        val overlap = 18f
+                        val topPadding = 4f
+                        val text = measurables[1].measure(
+                            constraints.copy(maxWidth = constraints.maxWidth - avatar.width + overlap)
+                        )
+                        val textWithPadding = text.height + topPadding
+                        val width = avatar.width + text.width - overlap
+                        val height = maxOf(avatar.height, textWithPadding)
+                        layout(width, height) {
+                            avatar.place(0, 0)
+                            text.place(avatar.width - overlap, topPadding)
+                        }
+                    }
+                },
+                width = 200f,
+                height = 80f,
+            )
+            val avatar = frame.resolved.styles.keys.first { it.id == "avatar" }
+            val text = frame.resolved.styles.keys.first { it.id == "text-box" }
+
+            assertEquals(0f, frame.layout[avatar].rect.x)
+            assertEquals(22f, frame.layout[text].rect.x)
+            assertEquals(4f, frame.layout[text].rect.y)
+        }
+    }
+
+    @Test
     fun `compose runtime keeps scroll state across recomposition`() {
         val label = mutableStateOf("before")
 
         HollowComposeUiRuntime().use { runtime ->
             runtime.setContent {
-                Box {
+                Column {
                     Text(label.value)
                     Box(
                         id = "scroll",
@@ -146,10 +183,10 @@ class UiComposeTests {
     fun `compose xml content produces layout frames`() {
         val xml = parseUiXml(
             """
-            <box layout="row" width="120px" height="40px" gap="8px">
+            <row width="120px" height="40px" gap="8px">
                 <box id="fixed" width="20px" height="10px" />
                 <box id="grown" width="100%" height="10px" grow="1" />
-            </box>
+            </row>
             """.trimIndent(),
         )
 
@@ -171,7 +208,7 @@ class UiComposeTests {
     @Test
     fun `compose xml content preserves text field state across server sibling update`() {
         fun tree(title: String, value: String) = UiXmlTree(
-            "box",
+            "column",
             children = listOf(
                 UiXmlTree("text", mapOf("id" to "title", "text" to title)),
                 UiXmlTree("text-field", mapOf("id" to "field", "value" to value)),

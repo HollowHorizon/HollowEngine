@@ -229,12 +229,7 @@ class UiDockingTests {
         HollowComposeUiRuntime().use { runtime ->
             val firstFrame = runtime.frame(
                 content = {
-                    Box(
-                        modifier = Modifier.then(
-                            Modifier.layout(LayoutType.FREE),
-                            Modifier.size(100.percent, 100.percent),
-                        ),
-                    ) {
+                    Box(modifier = Modifier.size(100.percent, 100.percent)) {
                         DockSpace(
                             state,
                             modifier = Modifier.then(
@@ -253,8 +248,8 @@ class UiDockingTests {
             }
 
             val window = state.floatingWindows.single()
-            assertEquals(151f, window.x)
-            assertEquals(49f, window.y)
+            assertEquals(117f, window.x)
+            assertEquals(52f, window.y)
         }
     }
 

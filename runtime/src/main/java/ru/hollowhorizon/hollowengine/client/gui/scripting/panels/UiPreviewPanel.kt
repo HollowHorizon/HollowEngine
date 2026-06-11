@@ -293,12 +293,7 @@ private object UiPreviewRenderer {
         if (contentInstalled) return
         runtime.setContent {
             val size = contentSize.value
-            ComposeBox(
-                modifier = Modifier.then(
-                    Modifier.layout(LayoutType.FREE),
-                    Modifier.size(size.width.px, size.height.px),
-                ),
-            ) {
+            ComposeBox(modifier = Modifier.size(size.width.px, size.height.px)) {
                 UiXmlContent(contentTree.value, UiXmlOptions(resources = PreviewUiResourceLoader))
             }
         }

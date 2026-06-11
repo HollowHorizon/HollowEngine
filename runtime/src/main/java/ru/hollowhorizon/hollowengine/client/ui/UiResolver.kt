@@ -108,10 +108,7 @@ class UiStyleResolver(
     }
 
     private fun engineDefaults(node: UiNode): MutableUiStyle {
-        val style = MutableUiStyle(
-            layout = LayoutType.COLUMN,
-            transitions = DefaultTransformTransitions,
-        )
+        val style = MutableUiStyle(transitions = DefaultTransformTransitions)
         when (node.type) {
             UiNodeType.TEXT.typeName -> {
                 style.foreground = UiColor.White

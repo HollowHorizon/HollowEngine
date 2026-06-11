@@ -15,10 +15,10 @@ fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {
         .takeIf { it.isNotEmpty() }
         ?.let(::UiClientScriptModifier)
     val rootElement = document.resolve(document.root)
-    if (rootElement.name.equals("box", ignoreCase = true)) {
+    if (rootElement.name.isLayoutContainer()) {
         UiXmlElement(rootElement, document, listOfNotNull(scriptModifier))
     } else {
-        Box(modifier = scriptModifier) {
+        Column(modifier = scriptModifier) {
             UiXmlElement(rootElement, document)
         }
     }
@@ -97,7 +97,15 @@ private fun UiXmlElement(
     val id = attributes["id"]
     val tags = attributes.tags(resolved.name)
     when (resolved.name.lowercase()) {
-        "box" -> Box(id, tags, modifier, customAttributes) {
+        "box" -> Box(id, attributes.boxMode(), tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "column" -> Column(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "row" -> Row(id, tags, modifier, customAttributes) {
             UiXmlChildren(resolved, document)
         }
 
@@ -223,6 +231,20 @@ private fun String.toModifierName(): String {
 
 private fun String.toEventKind(): UiEventKind? = UiEventKind.fromAttribute(this)
 
+private fun String.isLayoutContainer(): Boolean {
+    return equals("box", ignoreCase = true) ||
+            equals("column", ignoreCase = true) ||
+            equals("row", ignoreCase = true)
+}
+
+private fun Map<String, String>.boxMode(): UiBoxMode {
+    return when (firstValue("mode").lowercase()) {
+        "", "free" -> UiBoxMode.FREE
+        "stack" -> UiBoxMode.STACK
+        else -> throw IllegalArgumentException("Unknown box mode '${firstValue("mode")}'")
+    }
+}
+
 private fun List<Modifier>.asModifier(): Modifier? = when (size) {
     0 -> null
     1 -> single()
@@ -273,6 +295,7 @@ private val StructuralAttributes = setOf(
     "item",
     "entity",
     "renderer",
+    "mode",
 )
 
 private val SliderAttributes = setOf("value", "min", "max", "step")

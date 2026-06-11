@@ -13,7 +13,7 @@ class HollowUiComposition(
     private val frameClock = BroadcastFrameClock()
     private val scope = CoroutineScope(SupervisorJob() + coroutineContext + frameClock)
     private val recomposer = Recomposer(scope.coroutineContext)
-    private val rootNode = BoxNode()
+    private val rootNode = BoxNode(layout = UiLayout.Column)
     private val applier = HollowUiApplier(rootNode)
     private val composition = Composition(applier, recomposer)
     private val recomposerJob: Job = scope.launch { recomposer.runRecomposeAndApplyChanges() }
@@ -86,6 +86,27 @@ class HollowUiApplier(root: BoxNode) : AbstractApplier<UiNode>(root) {
 @Composable
 fun Box(
     id: String? = null,
+    mode: UiBoxMode = UiBoxMode.FREE,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    val layout = UiLayout.Box(mode)
+    ComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, layout, tags, modifiers, attributes) },
+        update = {
+            update(layout) { this.layout = it }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun Column(
+    id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
@@ -93,8 +114,51 @@ fun Box(
 ) {
     val modifiers = modifier.asList()
     ComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, tags, modifiers, attributes) },
-        update = { updateCommon(modifiers, attributes) },
+        factory = { BoxNode(id, UiLayout.Column, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.Column) { layout = it }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun Row(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    ComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.Row, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.Row) { layout = it }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun Layout(
+    content: HollowUiContent,
+    modifier: Modifier? = null,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
+    measurePolicy: UiMeasurePolicy,
+) {
+    val modifiers = modifier.asList()
+    val layout = UiLayout.Custom(measurePolicy)
+    ComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, layout, tags, modifiers, attributes) },
+        update = {
+            update(layout) { this.layout = it }
+            updateCommon(modifiers, attributes)
+        },
         content = content,
     )
 }

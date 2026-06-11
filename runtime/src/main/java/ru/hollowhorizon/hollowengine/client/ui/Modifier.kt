@@ -14,8 +14,6 @@ sealed interface Modifier {
         fun style(stylesheet: CompiledHss) =
             StyleImportModifier(UiStylesheetReference.Compiled(stylesheet))
 
-        fun layout(type: LayoutType) = StyleModifier { it.layout = type }
-
         fun size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
             StyleModifier(setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT)) { it.size = UiSize(width, height) }
 

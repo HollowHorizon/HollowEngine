@@ -2,12 +2,12 @@ import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.ImageNode
-import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiCommandRenderer
+import ru.hollowhorizon.hollowengine.client.ui.UiLayout
 import ru.hollowhorizon.hollowengine.client.ui.UiLayoutEngine
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineItem
@@ -104,8 +104,8 @@ class UiTextLayoutTests {
     fun `fit row with max width lays wrapped text in constrained content box`() {
         val root = BoxNode(
             id = "root",
+            layout = UiLayout.Row,
             modifiers = listOf(
-                Modifier.layout(LayoutType.ROW),
                 Modifier.size(),
                 Modifier.minSize(30.px, 16.px),
                 Modifier.maxSize(300.px),

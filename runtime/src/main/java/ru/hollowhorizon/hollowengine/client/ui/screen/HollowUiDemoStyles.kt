@@ -5,7 +5,6 @@ import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 internal val DemoStyles = compileHss(
     """
     #demo-root {
-        layout: column;
         size: 100% 100%;
         min-size: 0px 0px;
         padding: 14px;
@@ -14,7 +13,6 @@ internal val DemoStyles = compileHss(
     }
 
     .tabs {
-        layout: row;
         align: start;
         gap: 8px;
         height: 47px;
@@ -22,7 +20,6 @@ internal val DemoStyles = compileHss(
     }
 
     .tab {
-        layout: row;
         padding: 6px 10px;
         gap: 6px;
         width: 104px;
@@ -67,7 +64,6 @@ internal val DemoStyles = compileHss(
     }
 
     .panel {
-        layout: column;
         gap: 10px;
         size: 100% 100%;
         min-size: 0px 0px;
@@ -89,7 +85,6 @@ internal val DemoStyles = compileHss(
     }
 
     .row {
-        layout: row;
         gap: 8px;
         padding: 8px;
         height: 48px;
@@ -102,7 +97,6 @@ internal val DemoStyles = compileHss(
     }
 
     .panel-grid {
-        layout: free;
         size: 100% 100%;
         min-size: 0px 0px;
         gap: 10px;
@@ -110,7 +104,6 @@ internal val DemoStyles = compileHss(
     }
 
     .card {
-        layout: column;
         gap: 8px;
         padding: 10px;
         size: 168px 118px;
@@ -158,7 +151,6 @@ internal val DemoStyles = compileHss(
     }
 
     .free-stage {
-        layout: free;
         size: 100% 100%;
         min-size: 0px 0px;
         background: linear-gradient(135deg, rgba(12, 16, 23, 0.94), rgba(18, 44, 54, 0.9), rgba(38, 42, 64, 0.88));
@@ -193,7 +185,6 @@ internal val DemoStyles = compileHss(
     }
 
     .layout-glass {
-        layout: column;
         gap: 8px;
         padding: 12px;
         size: 184px 92px;
@@ -217,7 +208,6 @@ internal val DemoStyles = compileHss(
     }
 
     .effects-stage {
-        layout: free;
         size: 100% 100%;
         min-size: 0px 0px;
         scrollable: true;
@@ -226,7 +216,6 @@ internal val DemoStyles = compileHss(
     }
 
     .effect-card {
-        layout: column;
         gap: 8px;
         padding: 12px;
         size: 178px 126px;
@@ -263,7 +252,6 @@ internal val DemoStyles = compileHss(
     }
 
     .flip-zone {
-        layout: free;
         size: 178px 126px;
         hoverable: true;
         perspective: 680px;

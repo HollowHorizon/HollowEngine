@@ -24,8 +24,8 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     override fun Content() {
-        Box(id = "demo-root") {
-            Box(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
+        Column(id = "demo-root") {
+            Row(id = "tabs", tags = listOf("tabs"), modifier = Modifier.input(scrollable = true)) {
                 tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
@@ -72,7 +72,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun tab(id: String, label: String, icon: String) {
-        Box(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
+        Row(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
             Image(icon, tags = listOf("tab-icon"))
             Text(label, tags = listOf("tab-label"))
         }
@@ -80,14 +80,14 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun overview() {
-        Box(tags = listOf("panel", "scroll-panel"), modifier = Modifier.input(scrollable = true)) {
+        Column(tags = listOf("panel", "scroll-panel"), modifier = Modifier.input(scrollable = true)) {
             Text("Какой-то интерфейс", tags = listOf("title"))
             Text(
                 "Здесь могла быть ваша реклама, но у вас нет денег :)",
                 tags = listOf("body")
             )
             repeat(18) { index ->
-                Box(tags = listOf("row")) {
+                Row(tags = listOf("row")) {
                     Image("hollowengine:textures/gui/quests/quest_icon.png", tags = listOf("small-icon"))
                     Text(
                         "Какая-то фигня для прокрутки под номером ${index + 1}.",
@@ -101,26 +101,26 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     @Composable
     private fun widgets() {
         Box(tags = listOf("panel-grid"), modifier = Modifier.input(scrollable = true)) {
-            Box(tags = listOf("card"), modifier = Modifier.position(0.px, 0.px)) {
+            Column(tags = listOf("card"), modifier = Modifier.position(0.px, 0.px)) {
                 Text("Текст", tags = listOf("card-title"))
                 Text(
                     "Не ожидали? Да, это реально текст и в нём правда есть буквы! И их тут многа...",
                     tags = listOf("body")
                 )
             }
-            Box(tags = listOf("card"), modifier = Modifier.position(184.px, 0.px)) {
+            Column(tags = listOf("card"), modifier = Modifier.position(184.px, 0.px)) {
                 Text("Картинка", tags = listOf("card-title"))
                 Image("hollowengine:textures/gui/npc_menu/character.png", tags = listOf("preview-image"))
             }
-            Box(tags = listOf("card"), modifier = Modifier.position(368.px, 0.px)) {
+            Column(tags = listOf("card"), modifier = Modifier.position(368.px, 0.px)) {
                 Text("Предмет", tags = listOf("card-title"))
                 Item("minecraft:diamond_block", tags = listOf("item-preview"))
             }
-            Box(tags = listOf("card"), modifier = Modifier.position(0.px, 136.px)) {
+            Column(tags = listOf("card"), modifier = Modifier.position(0.px, 136.px)) {
                 Text("Сущность", tags = listOf("card-title"))
                 Entity("player", tags = listOf("entity-preview"))
             }
-            Box(tags = listOf("card"), modifier = Modifier.position(184.px, 136.px)) {
+            Column(tags = listOf("card"), modifier = Modifier.position(184.px, 136.px)) {
                 Text("Холст", tags = listOf("card-title"))
                 Canvas("demo-wave", tags = listOf("canvas-preview"))
             }
@@ -132,7 +132,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
         Box(tags = listOf("free-stage"), modifier = Modifier.input(scrollable = true)) {
             repeat(12) { index ->
                 val offset = freeNodeOffsets[index] ?: DemoOffset.Zero
-                Box(
+                Column(
                     id = "free-node-$index",
                     tags = listOf("free-node"),
                     modifier = Modifier.then(
@@ -143,7 +143,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     Text("Нода ${index + 1}", tags = listOf("free-label"))
                 }
             }
-            Box(
+            Column(
                 id = "layout-glass",
                 tags = listOf("layout-glass", "glass-card"),
                 modifier = Modifier.then(
@@ -164,11 +164,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             id = "demo-dock-space",
             modifier = Modifier.size(100.percent, 100.percent),
         ) { item ->
-            Box(
+            Column(
                 id = "dock-demo-${item.id}",
                 tags = listOf("panel"),
                 modifier = Modifier.then(
-                    Modifier.layout(LayoutType.COLUMN),
                     Modifier.padding(12.px),
                     Modifier.gap(8.px),
                 ),
@@ -189,7 +188,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     @Composable
     private fun dockDemoRows(vararg rows: String) {
         rows.forEach { row ->
-            Box(tags = listOf("row")) {
+            Row(tags = listOf("row")) {
                 Text(row, tags = listOf("body"))
             }
         }
@@ -234,7 +233,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             } else {
                 Modifier.rotate(x = 0f, y = 0f)
             }
-            Box(
+            Column(
                 id = "tilt-card",
                 tags = listOf("card", "tilted-x"),
                 modifier = Modifier.then(Modifier.position(20.px, 20.px), hoverRotate, Modifier.input(hoverable = true))
@@ -242,7 +241,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 Text("Фыреим буфыр гы-гы", tags = listOf("card-title"))
                 Image("hollowengine:textures/gui/quests/quest.png", tags = listOf("preview-image"))
             }
-            Box(
+            Column(
                 tags = listOf("card", "scaled"),
                 modifier = Modifier.then(
                     Modifier.position(220.px, 20.px),
@@ -258,11 +257,11 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     @Composable
     private fun effects() {
         Box(tags = listOf("effects-stage"), modifier = Modifier.input(scrollable = true)) {
-            Box(tags = listOf("effect-card", "gradient-card"), modifier = Modifier.position(20.px, 18.px)) {
+            Column(tags = listOf("effect-card", "gradient-card"), modifier = Modifier.position(20.px, 18.px)) {
                 Text("Градиент", tags = listOf("card-title"))
                 Text("Ну типа карточка, но с градиентом.", tags = listOf("body"))
             }
-            Box(
+            Column(
                 tags = listOf("effect-card", "grayscale-card"),
                 modifier = Modifier.then(Modifier.position(220.px, 18.px), Modifier.input(hoverable = true)),
             ) {
@@ -278,7 +277,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tags = listOf("flip-zone"),
                 modifier = Modifier.then(Modifier.position(420.px, 18.px), Modifier.input(hoverable = true)),
             ) {
-                Box(
+                Column(
                     tags = listOf("effect-card", "flip-face", "flip-front"),
                     modifier = Modifier.then(
                         Modifier.position(0.px, 0.px),
@@ -289,7 +288,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     Text("Лицевая сторона", tags = listOf("card-title"))
                     Text("Положи сюда курсор", tags = listOf("body"))
                 }
-                Box(
+                Column(
                     tags = listOf("effect-card", "flip-face", "flip-back"),
                     modifier = Modifier.then(
                         Modifier.position(0.px, 0.px),
@@ -301,18 +300,18 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     Text("А тут тоже чёта есть.", tags = listOf("body"))
                 }
             }
-            Box(
+            Column(
                 tags = listOf("effect-card", "paper-card"),
                 modifier = Modifier.then(Modifier.position(20.px, 168.px), Modifier.input(hoverable = true)),
             ) {
                 Text("Карточка в 3В", tags = listOf("card-title", "paper-title"))
                 Text("3D на удивление можно делать всякие интересные штуки.", tags = listOf("body", "paper-body"))
             }
-            Box(tags = listOf("effect-card", "glass-card"), modifier = Modifier.position(220.px, 168.px)) {
+            Column(tags = listOf("effect-card", "glass-card"), modifier = Modifier.position(220.px, 168.px)) {
                 Text("Размытие фона", tags = listOf("card-title"))
                 Text("Только размывать-то нечего?", tags = listOf("body"))
             }
-            Box(tags = listOf("effect-card", "css-lift-card"), modifier = Modifier.position(420.px, 168.px)) {
+            Column(tags = listOf("effect-card", "css-lift-card"), modifier = Modifier.position(420.px, 168.px)) {
                 Text("Карта Халвы", tags = listOf("card-title", "paper-title"))
                 Text(
                     "За неё ничего нельзя купить... Но зато она прикольно леветирует",
@@ -320,7 +319,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 )
                 Item("minecraft:diamond")
             }
-            Box(
+            Column(
                 tags = listOf("effect-card", "soft-focus-card"),
                 modifier = Modifier.then(Modifier.position(620.px, 168.px), Modifier.input(hoverable = true)),
             ) {
@@ -340,12 +339,12 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
                 <text tags="xml-title">XML + HSS resource</text>
                 <text tags="xml-body">This panel is built from XML-like markup. The root imports xml_demo.hss from assets.</text>
-                <box id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>
+                <column id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>
                     <text>Accept</text>
-                </box>
-                <box id="xml-demo-cancel" tags="xml-button secondary" onClick='{event:"xml_demo";button:"cancel";mouse:<it.button>}'>
+                </column>
+                <column id="xml-demo-cancel" tags="xml-button secondary" onClick='{event:"xml_demo";button:"cancel";mouse:<it.button>}'>
                     <text>Cancel</text>
-                </box>
+                </column>
                 <demo_badge />
             </box>
             """.trimIndent()
@@ -359,7 +358,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             },
         )
 
-        Box(modifier = Modifier.layout(LayoutType.COLUMN)) {
+        Column {
             UiXmlContent(demo, options)
             Text(UiTextContent.plain(xmlEventText.bound()), tags = listOf("xml-log"))
         }

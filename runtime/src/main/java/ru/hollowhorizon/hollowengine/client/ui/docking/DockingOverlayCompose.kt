@@ -28,7 +28,6 @@ internal fun DockDropOverlay(state: DockingState) {
         id = "dock-drop-overlay",
         tags = listOf(DockTags.DropOverlay),
         modifier = Modifier.then(
-            Modifier.layout(LayoutType.FREE),
             Modifier.size(100.percent, 100.percent),
             Modifier.layer(10_000),
         ),

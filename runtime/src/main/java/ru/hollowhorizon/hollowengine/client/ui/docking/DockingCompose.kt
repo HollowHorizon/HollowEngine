@@ -58,17 +58,14 @@ fun DockSpace(
         tags = listOf(DockTags.Space),
         modifier = Modifier.then(
             modifier,
-            Modifier.layout(LayoutType.FREE),
             Modifier.clip(),
         ),
     ) {
         Box(
             id = "$id-root",
+            mode = UiBoxMode.STACK,
             tags = listOf(DockTags.Root),
-            modifier = Modifier.then(
-                Modifier.layout(LayoutType.STACK),
-                Modifier.size(100.percent, 100.percent),
-            ),
+            modifier = Modifier.size(100.percent, 100.percent),
         ) {
             state.root?.let { root ->
                 key(root.id) {
@@ -110,21 +107,32 @@ private fun DockSplitView(
     content: DockItemContent,
 ) {
     val horizontal = split.orientation == DockOrientation.HORIZONTAL
-    Box(
-        id = split.id,
-        tags = listOf(DockTags.Split),
-        modifier = Modifier.then(
-            Modifier.layout(if (horizontal) LayoutType.ROW else LayoutType.COLUMN),
-            Modifier.size(100.percent, 100.percent),
-        ),
-    ) {
-        Box(modifier = splitPaneModifier(horizontal, split.fraction)) {
-            DockNodeView(split.first, state, tabContent, content)
+    val modifier = Modifier.size(100.percent, 100.percent)
+    if (horizontal) {
+        Row(id = split.id, tags = listOf(DockTags.Split), modifier = modifier) {
+            SplitContent(split, state, tabContent, content, horizontal)
         }
-        Splitter(split, state, horizontal)
-        Box(modifier = splitPaneModifier(horizontal, 1f - split.fraction)) {
-            DockNodeView(split.second, state, tabContent, content)
+    } else {
+        Column(id = split.id, tags = listOf(DockTags.Split), modifier = modifier) {
+            SplitContent(split, state, tabContent, content, horizontal)
         }
+    }
+}
+
+@Composable
+private fun SplitContent(
+    split: DockNode.Split,
+    state: DockingState,
+    tabContent: DockHeaderContent,
+    content: DockItemContent,
+    horizontal: Boolean,
+) {
+    Box(modifier = splitPaneModifier(horizontal, split.fraction)) {
+        DockNodeView(split.first, state, tabContent, content)
+    }
+    Splitter(split, state, horizontal)
+    Box(modifier = splitPaneModifier(horizontal, 1f - split.fraction)) {
+        DockNodeView(split.second, state, tabContent, content)
     }
 }
 
@@ -164,18 +172,17 @@ private fun DockStackView(
     tabContent: DockHeaderContent,
     content: DockItemContent,
 ) {
-    Box(
+    Column(
         id = stack.id,
         tags = listOf(DockTags.Stack),
         modifier = Modifier.then(
-            Modifier.layout(LayoutType.COLUMN),
             Modifier.size(100.percent, 100.percent),
             Modifier.background(DockColors.Panel),
             Modifier.border(1.px, DockColors.Border),
         ),
     ) {
         DockTabBar(stack, state, tabContent, allowUndock = true)
-        val selected = stack.selectedItem ?: return@Box
+        val selected = stack.selectedItem ?: return@Column
         Box(
             id = "${stack.id}-content",
             tags = listOf(DockTags.Content),
@@ -204,7 +211,6 @@ private fun FloatingDockWindowView(
         id = window.id,
         tags = listOf(DockTags.Window),
         modifier = Modifier.then(
-            Modifier.layout(LayoutType.FREE),
             Modifier.position(window.x.px, window.y.px),
             Modifier.size(window.width.px, window.height.px),
             Modifier.layer(100 + index),
@@ -216,12 +222,7 @@ private fun FloatingDockWindowView(
             },
         ),
     ) {
-        Box(
-            modifier = Modifier.then(
-                Modifier.layout(LayoutType.COLUMN),
-                Modifier.size(100.percent, 100.percent),
-            ),
-        ) {
+        Column(modifier = Modifier.size(100.percent, 100.percent)) {
             FloatingHeader(window, state, headerContent)
             if (window.stack.items.size > 1) DockTabBar(window.stack, state, tabContent, allowUndock = false)
             Box(
@@ -251,11 +252,10 @@ private fun FloatingHeader(
     headerContent: DockHeaderContent,
 ) {
     val selected = window.stack.selectedItem ?: return
-    Box(
+    Row(
         id = window.dragKey ?: "${window.id}-header",
         tags = listOf(DockTags.Header),
         modifier = Modifier.then(
-            Modifier.layout(LayoutType.ROW),
             Modifier.size(100.percent, 24.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),
             Modifier.background(DockColors.Header),
@@ -295,11 +295,10 @@ private fun DockTabBar(
     tabContent: DockHeaderContent,
     allowUndock: Boolean,
 ) {
-    Box(
+    Row(
         id = "${stack.id}-tabs",
         tags = listOf(DockTags.TabBar),
         modifier = Modifier.then(
-            Modifier.layout(LayoutType.ROW),
             Modifier.size(100.percent, 24.px),
             Modifier.background(DockColors.Header),
         ),
@@ -325,12 +324,11 @@ private fun DockTab(
     allowUndock: Boolean,
 ) {
     val dragOffset = state.tabDragOffset(stackId, item.id, index)
-    Box(
+    Row(
         id = tabNodeId(item.id),
         tags = if (selected) listOf(DockTags.Tab, DockTags.Selected) else listOf(DockTags.Tab),
         modifier = Modifier.then(
             Modifier.style(DockTabStyle),
-            Modifier.layout(LayoutType.ROW),
             Modifier.size(width = DockTabWidth.px, height = DockTabHeight.px),
             Modifier.margin(2.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),

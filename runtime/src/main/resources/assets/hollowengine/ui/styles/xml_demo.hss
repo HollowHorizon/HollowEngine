@@ -1,5 +1,4 @@
 #xml-demo {
-    layout: free;
     size: 100% 100%;
     min-size: 0px 0px;
     background: linear-gradient(135deg, rgba(18, 26, 38, 0.98), rgba(34, 72, 82, 0.92), rgba(54, 48, 86, 0.9));
@@ -22,7 +21,6 @@
 
 .xml-button {
     position: 24px 108px;
-    layout: column;
     align-items: center center;
     size: 104px 34px;
     padding: 8px;
@@ -52,7 +50,6 @@
 
 .xml-badge {
     position: 284px 100px;
-    layout: column;
     gap: 7px;
     size: 248px 78px;
     padding: 12px;

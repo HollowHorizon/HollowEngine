@@ -165,7 +165,6 @@ enum class UiAnimationPlayState {
 }
 
 data class MutableUiStyle(
-    var layout: LayoutType? = null,
     var size: UiSize? = null,
     var minSize: UiSize? = null,
     var maxSize: UiSize? = null,
@@ -216,7 +215,6 @@ data class MutableUiStyle(
     var explicitProperties: Set<UiStyleProperty>? = null,
 ) {
     fun merge(other: MutableUiStyle) {
-        other.layout?.let { layout = it }
         other.size?.let { size = it }
         other.minSize?.let { minSize = it }
         other.maxSize?.let { maxSize = it }
@@ -272,7 +270,6 @@ data class MutableUiStyle(
         val inheritedTextAlign = parent?.textAlign ?: UiTextAlign.LEFT
         val inheritedFontSize = parent?.fontSize ?: DefaultUiFontSize
         return ComputedStyle(
-            layout = layout ?: LayoutType.COLUMN,
             size = size ?: UiSize(),
             minSize = minSize ?: UiSize(),
             maxSize = maxSize ?: UiSize(),
@@ -326,7 +323,6 @@ data class MutableUiStyle(
 }
 
 data class ComputedStyle(
-    val layout: LayoutType,
     val size: UiSize,
     val minSize: UiSize,
     val maxSize: UiSize,
@@ -471,7 +467,6 @@ private val TransitionProperties = setOf(
 )
 
 private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
-    layout = layout,
     size = size,
     minSize = minSize,
     maxSize = maxSize,
