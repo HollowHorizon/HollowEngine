@@ -72,7 +72,7 @@ class NpcEntity : PathfinderMob {
 
 
     override fun doPush(pEntity: Entity) {
-        if (hitboxMode == HitboxMode.PULLING) super.doPush(pEntity)
+        if (hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
     }
 
     override fun isPushable(): Boolean {
