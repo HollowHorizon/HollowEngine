@@ -33,6 +33,7 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
+import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
 import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
@@ -909,7 +910,23 @@ private fun CommandExtension.registerUiCommands() {
                 SUCCESS
             }
         }
+
+        "clear-overlays"(arg("player", EntityArgument.player())) {
+            executes {
+                ClearOverlaysPacket().send(EntityArgument.getPlayer(this, "player"))
+                SUCCESS
+            }
+        }
     }
+}
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
+@Serializable
+class ClearOverlaysPacket : HollowPacket {
+    override fun handle(player: Player) {
+        KatariUiOverlays.closeAll()
+    }
+
 }
 
 private fun KatariUiDocument.openScreenFromCommand(

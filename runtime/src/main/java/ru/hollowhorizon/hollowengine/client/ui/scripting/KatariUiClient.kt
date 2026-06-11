@@ -137,6 +137,13 @@ object KatariUiOverlays {
         overlays[id]?.close(root)
     }
 
+    fun closeAll() {
+        overlays.forEach { (id, overlay) ->
+            overlay.dispose()
+        }
+        overlays.clear()
+    }
+
     fun handleMouseMove(x: Float, y: Float): Boolean {
         val point = overlayPoint(x, y)
         return overlays.values.toList().asReversed().any { it.mouseMoved(point.x, point.y) }

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 
@@ -44,7 +45,12 @@ sealed interface UiStylesheetReference {
 
 object MinecraftHssResourceLoader : HssResourceLoader {
     override fun load(location: String): CompiledHss {
-        return compileHss(HollowUiResourceAccess.readText(ResourceLocation.parse(location)))
+        return runCatching {
+            compileHss(HollowUiResourceAccess.readText(ResourceLocation.parse(location)))
+        }.getOrElse {
+            HollowEngine.LOGGER.error("Error while loading $location", it)
+            CompiledHss(emptyList())
+        }
     }
 
     override fun version(location: String): Long {
