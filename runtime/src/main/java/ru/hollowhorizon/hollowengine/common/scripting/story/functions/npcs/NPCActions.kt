@@ -13,11 +13,11 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveTowards
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Перемещает NPC к указанной сущности до тех пор, пока расстояние не станет меньше или равно заданному.
@@ -29,8 +29,8 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 @ScriptBinding
 suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceTo(entity) > dist) {
-        moveTowards(entity, speed, dist)
-        delay(50)
+        navigation.moveTo(entity.x, entity.y, entity.z, 0, speed)
+        delay(50.milliseconds)
     }
     navigation.stop()
 }
@@ -53,8 +53,8 @@ suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
 @ScriptBinding
 suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
-        moveTowards(pos, speed, dist)
-        delay(50)
+        navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
+        delay(50.milliseconds)
     }
 
     navigation.stop()

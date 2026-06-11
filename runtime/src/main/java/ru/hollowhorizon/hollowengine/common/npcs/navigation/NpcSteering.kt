@@ -1,18 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.npcs.navigation
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
-import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.phys.Vec3
-import kotlin.coroutines.coroutineContext
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.max
 import kotlin.math.sqrt
+import kotlin.time.Duration.Companion.milliseconds
 
 fun LivingEntity.faceTowards(
     target: Vec3,
@@ -57,37 +56,6 @@ fun LivingEntity.faceTowards(
     updateIntervalMs: Long = 50L,
 ): Boolean = faceTowards(target.lookTargetPosition(), maxAngularSpeed, updateIntervalMs)
 
-fun PathfinderMob.moveTowards(
-    target: Vec3,
-    speed: Double,
-    arrivalRadius: Double = 1.5,
-): Boolean {
-    if (distanceToSqr(target) <= arrivalRadius * arrivalRadius) {
-        navigation.stop()
-        zza = 0f
-        xxa = 0f
-        this.speed = 0f
-        return true
-    }
-
-    faceTowards(target)
-
-    val closeRange = max(arrivalRadius, 1.0)
-    if (distanceToSqr(target) <= closeRange * closeRange) {
-        moveControl.setWantedPosition(target.x, target.y, target.z, speed)
-        if (target.y - y > maxUpStep()) jumpControl.jump()
-    } else {
-        navigation.moveTo(target.x, target.y, target.z, speed)
-    }
-    return false
-}
-
-fun PathfinderMob.moveTowards(
-    target: Entity,
-    speed: Double,
-    arrivalRadius: Double = 1.5,
-): Boolean = moveTowards(target.lookTargetPosition(), speed, arrivalRadius)
-
 suspend fun LivingEntity.rotate(
     targetProvider: suspend () -> Vec3,
     durationMs: Long,
@@ -96,9 +64,9 @@ suspend fun LivingEntity.rotate(
 ) {
     val startTime = System.currentTimeMillis()
     val endTime = startTime + durationMs
-    while (System.currentTimeMillis() < endTime && coroutineContext.isActive) {
+    while (System.currentTimeMillis() < endTime && currentCoroutineContext().isActive) {
         faceTowards(targetProvider(), maxAngularSpeed, updateIntervalMs)
-        delay(updateIntervalMs)
+        delay(updateIntervalMs.milliseconds)
     }
     faceTowards(targetProvider(), maxAngularSpeed, updateIntervalMs)
 }

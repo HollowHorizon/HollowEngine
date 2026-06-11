@@ -10,7 +10,6 @@ import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.faceTowards
-import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveTowards
 import java.util.*
 
 private object AIRuntimeState {
@@ -80,7 +79,13 @@ object AIComponentSystems {
 
         if (distance > attack.attackRange) {
             if (distance <= attack.chaseRange) {
-                (mob as? PathfinderMob)?.moveTowards(target, 1.0, attack.attackRange.toDouble())
+                (mob as? PathfinderMob)?.navigation?.moveTo(
+                    target.x,
+                    target.y,
+                    target.z,
+                    attack.attackRange.toInt(),
+                    1.0
+                )
             } else {
                 (mob as? PathfinderMob)?.navigation?.stop()
             }
@@ -109,7 +114,13 @@ object AIComponentSystems {
         }
 
         if (distance > follow.preferredDistance) {
-            mob.moveTowards(target, follow.speed.toDouble(), follow.preferredDistance.toDouble())
+            mob.navigation.moveTo(
+                target.x,
+                target.y,
+                target.z,
+                follow.preferredDistance.toInt(),
+                follow.speed.toDouble()
+            )
         } else {
             mob.navigation.stop()
         }
@@ -118,8 +129,16 @@ object AIComponentSystems {
     private fun handleMoveTo(entity: MCEntity, move: MoveToPositionComponent?) {
         if (move?.enabled != true) return
         val mob = entity as? PathfinderMob ?: return
-        if (mob.moveTowards(move.target, move.speed.toDouble(), move.arrivalRadius.toDouble()) && move.stopOnArrival) {
-            GearyRuntimeState.componentsById(entity).remove(ComponentDescriptorRegistry.idFor(MoveToPositionComponent::class))
+        if (mob.navigation.moveTo(
+                move.target.x,
+                move.target.y,
+                move.target.z,
+                move.arrivalRadius.toInt(),
+                move.speed.toDouble()
+            ) && move.stopOnArrival
+        ) {
+            GearyRuntimeState.componentsById(entity)
+                .remove(ComponentDescriptorRegistry.idFor(MoveToPositionComponent::class))
         }
     }
 
@@ -138,9 +157,10 @@ object AIComponentSystems {
                 AIRuntimeState.patrolWaits[entityId] = waitTicks - 1
                 mob.navigation.stop()
                 if (point.lookAtNextPoint) {
-                    patrol.points.getOrNull((currentIndex + 1).coerceAtMost(patrol.points.lastIndex))?.let { nextPoint ->
-                        mob.faceTowards(nextPoint.position)
-                    }
+                    patrol.points.getOrNull((currentIndex + 1).coerceAtMost(patrol.points.lastIndex))
+                        ?.let { nextPoint ->
+                            mob.faceTowards(nextPoint.position)
+                        }
                 }
                 return
             }
@@ -158,9 +178,10 @@ object AIComponentSystems {
             }
         }
 
-        val activeIndex = AIRuntimeState.patrolIndices.getOrDefault(entityId, currentIndex).coerceIn(0, patrol.points.lastIndex)
+        val activeIndex =
+            AIRuntimeState.patrolIndices.getOrDefault(entityId, currentIndex).coerceIn(0, patrol.points.lastIndex)
         val activePoint = patrol.points[activeIndex]
-        mob.moveTowards(activePoint.position, patrol.speed.toDouble(), patrol.arrivalRadius.toDouble())
+        mob.navigation.moveTo(activePoint.position.x, activePoint.position.y, activePoint.position.z, patrol.arrivalRadius.toInt(), patrol.speed.toDouble())
     }
 
     private fun handleLookAt(entity: MCEntity, lookAt: LookAtTargetComponent?) {
@@ -194,7 +215,7 @@ object AIComponentSystems {
             .minByOrNull { it.distanceToSqr(entity) }
 
         if (item != null) {
-            pathfinder.moveTowards(item, 1.0)
+            pathfinder.navigation.moveTo(item, 1.0)
             mob.faceTowards(item)
         }
 
