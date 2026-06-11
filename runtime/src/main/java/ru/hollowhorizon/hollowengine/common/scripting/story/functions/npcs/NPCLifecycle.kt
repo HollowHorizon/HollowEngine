@@ -9,9 +9,11 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.StandardPlayerAnimatorPreset
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -73,6 +75,7 @@ fun npc(
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 
         set(Model(model))
+        set(HitboxComponent(HitboxMode.PULLING))
         set(StandardPlayerAnimatorPreset.create())
         set(TransformComponent(TrsTransformF().rotate(180f.deg, Vec3f.Y_AXIS)))
 

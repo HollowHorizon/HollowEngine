@@ -183,6 +183,10 @@ fun Entity.heal(value: Double = 1.0) {
 @ScriptBinding
 fun Entity.setModel(model: String) {
     set(Model(model = model))
+    EntitySnapshotPacket(
+        id,
+        snapshotOf(this),
+    ).sendTrackingEntityAndSelf(this)
 }
 
 @ScriptBinding
@@ -199,6 +203,10 @@ fun Entity.setTransform(
             Vec3f(scale.toFloat()),
         )
     )
+    EntitySnapshotPacket(
+        id,
+        snapshotOf(this),
+    ).sendTrackingEntityAndSelf(this)
 }
 
 @ScriptBinding

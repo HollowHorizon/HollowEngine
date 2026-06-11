@@ -17,6 +17,12 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
+import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.hitboxComponent
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
@@ -29,8 +35,6 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 class NpcEntity : PathfinderMob {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
     constructor(type: EntityType<NpcEntity>, world: Level) : super(type, world)
-
-    private var currentHitboxMode: HitboxMode = HitboxMode.PULLING
 
     init {
         moveControl = NpcMoveControl(this)
@@ -94,9 +98,13 @@ class NpcEntity : PathfinderMob {
     val pickupDistance get() = pickupReach
 
     var hitboxMode: HitboxMode
-        get() = currentHitboxMode
+        get() = hitboxComponent?.mode ?: HitboxMode.PULLING
         set(value) {
-            currentHitboxMode = value
+            set(HitboxComponent(value))
+            EntitySnapshotPacket(
+                id,
+                snapshotOf(this),
+            ).sendTrackingEntityAndSelf(this)
         }
 
     var name: String
