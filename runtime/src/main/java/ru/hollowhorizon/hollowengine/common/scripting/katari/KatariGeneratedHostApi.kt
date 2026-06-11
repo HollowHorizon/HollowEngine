@@ -39,6 +39,7 @@ import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
+import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val DAY_TICKS = 24000L
@@ -437,6 +438,16 @@ val Vec3.blockY: Int get() = BlockPos.containing(this).y
 
 @ScriptBinding("blockZ")
 val Vec3.blockZ: Int get() = BlockPos.containing(this).z
+
+@ScriptBinding("distanceTo")
+fun Vec3.scriptDistanceTo(other: Vec3): Double {
+    return distanceTo(other)
+}
+
+@ScriptBinding("distanceTo")
+fun Entity.scriptDistanceTo(other: Entity): Double {
+    return sqrt(distanceToSqr(other))
+}
 
 private fun Long.floorMod(divisor: Long): Long = (this % divisor + divisor) % divisor
 

@@ -14,6 +14,7 @@ import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.Shapes
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 import java.util.function.Predicate
 import kotlin.random.Random
 
@@ -36,6 +37,7 @@ tailrec fun Player.findRandomPos(radius: Int): Vec3 {
     } else findRandomPos(radius)
 }
 
+@ScriptBinding
 infix fun LivingEntity.canSee(other: LivingEntity): Boolean {
     if (this.viewBlocked(other)) return false
     return this angleTo other in -60f..60f
@@ -214,6 +216,7 @@ fun canSeeThrough(blockState: BlockState, world: Level, pos: BlockPos): Boolean 
     return blockState.getCollisionShape(world, pos) == Shapes.empty()
 }
 
+@ScriptBinding
 infix fun LivingEntity.bodyAngleTo(target: LivingEntity): Float {
     val dx = target.x - this.x
     val dz = target.z - this.z
@@ -224,6 +227,7 @@ infix fun LivingEntity.bodyAngleTo(target: LivingEntity): Float {
     return relativeAngle
 }
 
+@ScriptBinding
 infix fun LivingEntity.bodyAngleTo(target: BlockPos): Float {
     val dx = target.x + 0.5 - this.x
     val dz = target.z + 0.5 - this.z
@@ -234,7 +238,7 @@ infix fun LivingEntity.bodyAngleTo(target: BlockPos): Float {
     return relativeAngle
 }
 
-
+@ScriptBinding
 infix fun LivingEntity.angleTo(target: LivingEntity): Float {
     val dx = target.x - this.x
     val dz = target.z - this.z
@@ -245,6 +249,7 @@ infix fun LivingEntity.angleTo(target: LivingEntity): Float {
     return relativeAngle
 }
 
+@ScriptBinding
 infix fun LivingEntity.angleTo(target: BlockPos): Float {
     val dx = target.x + 0.5 - this.x
     val dz = target.z + 0.5 - this.z
