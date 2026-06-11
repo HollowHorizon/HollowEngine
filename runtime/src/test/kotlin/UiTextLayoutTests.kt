@@ -1,21 +1,29 @@
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
+import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.ImageNode
 import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
+import ru.hollowhorizon.hollowengine.client.ui.UiCommandRenderer
 import ru.hollowhorizon.hollowengine.client.ui.UiLayoutEngine
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineItem
+import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiRichText
+import ru.hollowhorizon.hollowengine.client.ui.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.UiStyleResolver
 import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiTextContent
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.UiTextSegment
 import ru.hollowhorizon.hollowengine.client.ui.UiTyping
+import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.bound
+import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.withColor
 import kotlin.test.Test
@@ -74,7 +82,7 @@ class UiTextLayoutTests {
         )
         val firstLineLength = fullLayout.lines.first().sourceLength
         val secondLineFirstWord = fullLayout.lines[1].fragments
-            .filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.UiTextRun>()
+            .filterIsInstance<UiTextRun>()
             .first()
             .text
 
@@ -86,7 +94,7 @@ class UiTextLayoutTests {
 
         val secondLine = visibleLayout.lines[1]
         val firstText = secondLine.fragments
-            .filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.UiTextRun>()
+            .filterIsInstance<UiTextRun>()
             .first()
         assertEquals(0f, secondLine.x)
         assertEquals(0f, firstText.x)
@@ -188,6 +196,35 @@ class UiTextLayoutTests {
         assertEquals(renderedWidth, measured.width)
     }
 
+    @Test
+    fun `text style shadow is rendered as glyph effect`() {
+        val shadow = UiShadow(
+            offset = UiVec3(2f, 3f, 0f),
+            blur = 1f,
+            spread = 4f,
+            color = UiColor(0f, 0f, 0f, 0.75f),
+        )
+        val text = TextNode(
+            text = "Shadow".bound(),
+            modifiers = listOf(
+                Modifier.fontSize(9f),
+                Modifier.shadow(shadow),
+            ),
+        )
+
+        val resolved = UiStyleResolver().resolve(text, animate = false)
+        val layout = UiLayoutEngine().compute(resolved, width = 320f, height = 180f)
+        val commands = UiCommandRenderer().collect(resolved, layout)
+        val textCommand = commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
+        val textShadow = textCommand.textEffects.filterIsInstance<Shadow>().single()
+
+        assertTrue(commands.none { it is DrawShadowCommand && it.node == text })
+        assertEquals(shadow.offset.x, textShadow.offsetX)
+        assertEquals(shadow.offset.y, textShadow.offsetY)
+        assertEquals(shadow.blur, textShadow.blur)
+        assertEquals(shadow.color, textShadow.color)
+    }
+
     private fun dialogueText(): UiRichText {
         return UiRichText(
             listOf(
@@ -210,7 +247,7 @@ class UiTextLayoutTests {
 
     private companion object {
         const val DialogueTextWidth = 271f
-        val colorStyle = ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle()
+        val colorStyle = UiInlineStyle()
             .withColor(UiColor(1f, 0.53f, 0.06f, 1f))
     }
 }

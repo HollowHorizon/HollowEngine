@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
 
 sealed interface UiRenderCommand {
     val node: UiNode
@@ -246,7 +247,7 @@ class UiCommandRenderer {
             )
         }
 
-        val visibleShadows = style.shadows.filterNot { it.inset }
+        val visibleShadows = if (node is TextNode) emptyList() else style.shadows.filterNot { it.inset }
         if (visibleShadows.isNotEmpty()) {
             commands += DrawShadowCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
@@ -332,7 +333,7 @@ class UiCommandRenderer {
                 commands += DrawTextCommand(
                     node, layoutNode.content, textString, style.foreground, opacity, contentTransform,
                     filter, style.textWrap, style.textAlign, style.fontSize,
-                    style.fontFamily, style.textEffects,
+                    style.fontFamily, style.textEffectsWithShadows(),
                     textLayout,
                     layoutNode.scrollOffset, node.hoveredLink, backface
                 )
@@ -552,6 +553,18 @@ class UiCommandRenderer {
         }
     }
 }
+
+private fun ComputedStyle.textEffectsWithShadows(): List<UiTextEffect> {
+    val textShadows = shadows.filterNot { it.inset }.map { it.toTextShadow() }
+    return if (textShadows.isEmpty()) textEffects else textEffects + textShadows
+}
+
+private fun UiShadow.toTextShadow() = TextShadow(
+    offsetX = offset.x,
+    offsetY = offset.y,
+    blur = blur,
+    color = color,
+)
 
 class UiTypingState {
     private val starts = linkedMapOf<String, TypingStart>()
