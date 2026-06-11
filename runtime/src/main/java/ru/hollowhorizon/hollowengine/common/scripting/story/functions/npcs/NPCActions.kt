@@ -85,7 +85,7 @@ suspend infix fun NpcEntity.lookAt(position: Vec3) {
  */
 @ScriptBinding
 suspend infix fun NpcEntity.lookAt(entity: Entity) {
-    rotate({ entity.position() }, 1500)
+    rotate({ entity.eyePosition }, 1500)
 }
 
 /**
