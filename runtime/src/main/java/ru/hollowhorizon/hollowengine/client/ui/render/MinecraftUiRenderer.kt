@@ -525,6 +525,7 @@ class MinecraftUiRenderer {
             line.fragments.forEach { fragment ->
                 when (fragment) {
                     is UiInlineImageRun -> drawInlineImage(command, fragment, line, transform)
+                    is UiInlineWidgetRun -> Unit
                     is UiTextSpaceRun -> Unit
                     is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
                 }
@@ -561,7 +562,7 @@ class MinecraftUiRenderer {
         if (!hasLayer && !hasAnimated) {
             drawSingleTextRun(
                 command, fragment, transform, scaleX, scaleY,
-                fragment.x - command.scrollOffset.x,
+                line.x + fragment.x - command.scrollOffset.x,
                 line.y + fragment.y - command.scrollOffset.y,
                 fontSize,
                 fontFamily,
@@ -574,7 +575,7 @@ class MinecraftUiRenderer {
         val layerEffects = effects.filter { it.isLayer }
         val animatedEffects = if (hasAnimated) effects.filter { it.isAnimated } else emptyList()
 
-        val localX = fragment.x - command.scrollOffset.x
+        val localX = line.x + fragment.x - command.scrollOffset.x
         val localY = line.y + fragment.y - command.scrollOffset.y
 
         if (hasAnimated) {
@@ -916,8 +917,8 @@ class MinecraftUiRenderer {
             fragment.height,
             fragment.image.source,
             command.opacity,
-            transform * UiMatrix4.translation(
-                fragment.x - command.scrollOffset.x,
+                transform * UiMatrix4.translation(
+                line.x + fragment.x - command.scrollOffset.x,
                 line.y + fragment.y - command.scrollOffset.y,
                 0f
             ),

@@ -109,11 +109,24 @@ private fun UiXmlElement(
             UiXmlChildren(resolved, document)
         }
 
-        "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes)
+        "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes) {
+            UiXmlInlineWidgetChildren(resolved, document)
+        }
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
         "canvas" -> Canvas(attributes["renderer"], id, tags, modifier, customAttributes)
+        "popup" -> Popup(
+            anchor = attributes.popupAnchor(),
+            alignment = attributes.popupAlignment(),
+            id = id,
+            tags = tags,
+            modifier = modifier,
+            attributes = customAttributes,
+        ) {
+            UiXmlChildren(resolved, document)
+        }
+
         "slider" -> Slider(
             value = attributes.readSliderValue("value", 0f),
             min = attributes.readSliderValue("min", 0f),
@@ -160,6 +173,17 @@ private fun UiXmlChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
         .forEachIndexed { index, child ->
             key(child.composeKey(index)) {
                 UiXmlElement(child, document)
+            }
+        }
+}
+
+@Composable
+private fun UiXmlInlineWidgetChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
+    element.children
+        .filterNot { it.isTextLiteral() || it.isTextInlineElement() }
+        .forEachIndexed { index, child ->
+            key(child.composeKey(index)) {
+                UiXmlElement(child.withInlineWidgetId(index), document)
             }
         }
 }
@@ -263,6 +287,55 @@ private fun Map<String, String>.textFieldMode(): UiTextFieldMode {
     if (readBoolean("multiline") || readBoolean("multi-line")) return UiTextFieldMode.MULTI_LINE
     return UiTextFieldMode.from(firstValue("mode", "multiline", "multi-line"))
 }
+
+private fun Map<String, String>.popupAnchor(): UiPopupAnchor {
+    val anchor = firstValue("anchor", "target", "for").ifBlank { "parent" }.trim()
+    return when {
+        anchor.equals("parent", ignoreCase = true) -> UiPopupAnchor.Parent
+        anchor.equals("cursor", ignoreCase = true) -> {
+            val x = firstValue("cursor-x", "x")
+            val y = firstValue("cursor-y", "y")
+            if (x.isBlank() && y.isBlank()) {
+                UiPopupAnchor.Cursor()
+            } else {
+                UiPopupAnchor.Cursor(x.parsePopupFloat(), y.parsePopupFloat())
+            }
+        }
+
+        else -> UiPopupAnchor.Node(anchor.removePrefix("#"))
+    }
+}
+
+private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
+    val preset = firstValue("placement", "align", "alignment").ifBlank { "below-start" }
+    val base = when (preset.lowercase()) {
+        "cursor" -> UiPopupAlignment.Cursor
+        "above-start" -> UiPopupAlignment(anchorVertical = UiAlign.START, popupVertical = UiAlign.END)
+        "above-end" -> UiPopupAlignment(
+            anchorHorizontal = UiAlign.END,
+            anchorVertical = UiAlign.START,
+            popupHorizontal = UiAlign.END,
+            popupVertical = UiAlign.END,
+        )
+
+        "below-end" -> UiPopupAlignment(anchorHorizontal = UiAlign.END, popupHorizontal = UiAlign.END)
+        "right-start" -> UiPopupAlignment(anchorHorizontal = UiAlign.END, anchorVertical = UiAlign.START)
+        "left-start" -> UiPopupAlignment(
+            anchorHorizontal = UiAlign.START,
+            anchorVertical = UiAlign.START,
+            popupHorizontal = UiAlign.END,
+            popupVertical = UiAlign.START,
+        )
+
+        else -> UiPopupAlignment.BelowStart
+    }
+    return base.copy(
+        offsetX = firstValue("offset-x", "offsetX").ifBlank { base.offsetX.toString() }.parsePopupFloat(),
+        offsetY = firstValue("offset-y", "offsetY").ifBlank { base.offsetY.toString() }.parsePopupFloat(),
+    )
+}
+
+private fun String.parsePopupFloat(): Float = trim().removeSuffix("px").toFloatOrNull() ?: 0f
 
 private fun UiTextSegment.Text.trimStart(): UiTextSegment.Text {
     return copy(value = value.template.trimStart().bound())

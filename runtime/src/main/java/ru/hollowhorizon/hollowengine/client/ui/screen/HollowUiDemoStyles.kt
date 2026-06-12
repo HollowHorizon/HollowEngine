@@ -150,6 +150,100 @@ internal val DemoStyles = compileHss(
         size: 120px 54px;
     }
 
+    .text-demo-stage {
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+    }
+
+    .text-demo-card {
+        gap: 8px;
+        padding: 12px;
+        size: 330px 140px;
+        background: rgba(30, 34, 44, 0.9);
+        border-radius: 10px;
+        border: 1px rgba(120, 140, 170, 0.35);
+    }
+
+    .text-flow-card {
+        size: 354px 140px;
+    }
+
+    .popup-demo-card {
+        size: 330px 172px;
+    }
+
+    .text-demo-copy {
+        foreground: rgba(226, 230, 238, 0.92);
+        text-wrap: true;
+        line-spacing: 3px;
+    }
+
+    .text-inline-chip {
+        padding: 2px 8px;
+        size: auto 22px;
+        background: rgba(90, 166, 154, 0.96);
+        border-radius: 6px;
+        border: 1px rgba(182, 255, 244, 0.62);
+    }
+
+    .text-inline-chip-label {
+        foreground: white;
+        font-size: 9px;
+        height: 14px;
+    }
+
+    .text-flow-note {
+        padding: 6px;
+        size: 72px 46px;
+        background: rgba(238, 244, 255, 0.94);
+        foreground: rgba(24, 32, 46, 0.98);
+        border-radius: 8px;
+        border: 1px rgba(255, 255, 255, 0.66);
+    }
+
+    .text-flow-note-label {
+        foreground: rgba(24, 32, 46, 0.98);
+        font-size: 9px;
+    }
+
+    .popup-anchor {
+        padding: 7px 12px;
+        width: 136px;
+        height: 28px;
+        background: rgba(72, 150, 142, 0.96);
+        border-radius: 7px;
+        border: 1px rgba(184, 255, 244, 0.68);
+    }
+
+    .popup-anchor-label {
+        foreground: white;
+    }
+
+    .popup-panel {
+        gap: 4px;
+        padding: 9px;
+        size: 154px auto;
+        background: rgba(244, 248, 255, 0.96);
+        foreground: rgba(26, 34, 48, 0.98);
+        border-radius: 8px;
+        border: 1px rgba(255, 255, 255, 0.7);
+        shadow: 0px 14px 26px -8px rgba(0, 0, 0, 0.52);
+    }
+
+    .cursor-popup {
+        size: 150px auto;
+    }
+
+    .popup-title {
+        foreground: rgba(24, 38, 58, 0.98);
+        height: 16px;
+    }
+
+    .popup-body {
+        foreground: rgba(58, 68, 84, 0.92);
+    }
+
     .free-stage {
         size: 100% 100%;
         min-size: 0px 0px;

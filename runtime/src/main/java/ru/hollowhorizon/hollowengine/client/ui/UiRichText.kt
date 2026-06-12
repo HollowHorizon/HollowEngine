@@ -10,6 +10,11 @@ data class UiRichText(
     }
 }
 
+data class UiInlineWidgetMetrics(
+    val width: Float,
+    val height: Float,
+)
+
 sealed interface UiInlineItem {
     data class Text(
         val value: String,
@@ -20,6 +25,15 @@ sealed interface UiInlineItem {
         val source: String,
         val width: Float,
         val height: Float,
+        val align: UiInlineAlign = UiInlineAlign.BASELINE,
+        val alt: String = "",
+    ) : UiInlineItem
+
+    data class Widget(
+        val id: String,
+        val width: Float,
+        val height: Float,
+        val flow: UiTextWidgetFlow = UiTextWidgetFlow.INLINE,
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiInlineItem

@@ -426,6 +426,8 @@ class HollowUiInputController {
             fontSize = style.fontSize,
             fontFamily = style.fontFamily,
             preserveWhitespace = true,
+            lineSpacing = style.lineSpacing,
+            spaceWidth = style.spaceWidth,
         )
         return textLayout.caretIndexAt(contentX, contentY, style.fontSize, style.fontFamily)
     }

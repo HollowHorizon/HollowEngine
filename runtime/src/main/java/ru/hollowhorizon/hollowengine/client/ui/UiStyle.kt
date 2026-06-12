@@ -206,6 +206,8 @@ data class MutableUiStyle(
     var textField: UiTextFieldStyle? = null,
     var textWrap: Boolean? = null,
     var textAlign: UiTextAlign? = null,
+    var lineSpacing: Float? = null,
+    var spaceWidth: Float? = null,
     var fontSize: Float? = null,
     var fontFamily: String? = null,
     var textEffects: List<UiTextEffect>? = null,
@@ -256,6 +258,8 @@ data class MutableUiStyle(
         other.textField?.let { textField = textField?.merge(it) ?: it }
         other.textWrap?.let { textWrap = it }
         other.textAlign?.let { textAlign = it }
+        other.lineSpacing?.let { lineSpacing = it }
+        other.spaceWidth?.let { spaceWidth = it }
         other.fontSize?.let { fontSize = it }
         other.fontFamily?.let { fontFamily = it }
         other.textEffects?.let { textEffects = textEffects.orEmpty() + it }
@@ -268,6 +272,7 @@ data class MutableUiStyle(
     fun toComputed(parent: ComputedStyle? = null): ComputedStyle {
         val inheritedForeground = parent?.foreground ?: UiColor.White
         val inheritedTextAlign = parent?.textAlign ?: UiTextAlign.LEFT
+        val inheritedLineSpacing = parent?.lineSpacing ?: 0f
         val inheritedFontSize = parent?.fontSize ?: DefaultUiFontSize
         return ComputedStyle(
             size = size ?: UiSize(),
@@ -311,6 +316,8 @@ data class MutableUiStyle(
             textField = textField ?: UiTextFieldStyle(),
             textWrap = textWrap ?: true,
             textAlign = textAlign ?: inheritedTextAlign,
+            lineSpacing = lineSpacing ?: inheritedLineSpacing,
+            spaceWidth = spaceWidth ?: parent?.spaceWidth,
             fontSize = fontSize ?: inheritedFontSize,
             fontFamily = fontFamily,
             textEffects = textEffects ?: emptyList(),
@@ -364,6 +371,8 @@ data class ComputedStyle(
     val textField: UiTextFieldStyle,
     val textWrap: Boolean,
     val textAlign: UiTextAlign,
+    val lineSpacing: Float,
+    val spaceWidth: Float?,
     val fontSize: Float,
     val fontFamily: String?,
     val textEffects: List<UiTextEffect>,
@@ -508,6 +517,8 @@ private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     textField = textField,
     textWrap = textWrap,
     textAlign = textAlign,
+    lineSpacing = lineSpacing,
+    spaceWidth = spaceWidth,
     fontSize = fontSize,
     fontFamily = fontFamily,
     textEffects = textEffects,

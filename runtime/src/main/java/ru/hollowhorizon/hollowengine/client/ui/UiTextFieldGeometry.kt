@@ -13,6 +13,8 @@ internal fun textFieldEditLayout(node: TextFieldNode, style: ComputedStyle, layo
         fontSize = style.fontSize,
         fontFamily = style.fontFamily,
         preserveWhitespace = true,
+        lineSpacing = style.lineSpacing,
+        spaceWidth = style.spaceWidth,
     )
 }
 
@@ -31,6 +33,8 @@ internal fun textFieldWidthConstrained(style: ComputedStyle, node: TextFieldNode
         fontSize = style.fontSize,
         fontFamily = style.fontFamily,
         preserveWhitespace = true,
+        lineSpacing = style.lineSpacing,
+        spaceWidth = style.spaceWidth,
     ).width
     return contentWidth + 0.5f < naturalWidth
 }

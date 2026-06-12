@@ -138,6 +138,10 @@ sealed interface Modifier {
 
         fun textAlign(value: UiTextAlign) = StyleModifier { it.textAlign = value }
 
+        fun lineSpacing(value: Float) = StyleModifier { it.lineSpacing = value.coerceAtLeast(0f) }
+
+        fun spaceWidth(value: Float?) = StyleModifier { it.spaceWidth = value?.coerceAtLeast(0f) }
+
         fun fontSize(value: Float) = StyleModifier { it.fontSize = value.coerceAtLeast(0.0001f) }
 
         fun fontFamily(name: String) = StyleModifier { it.fontFamily = name }

@@ -31,6 +31,8 @@ abstract class HollowUiScreen(
     private var uiDirty = true
     private var lastWidth = -1
     private var lastHeight = -1
+    private var lastFrameMouseX = Float.NaN
+    private var lastFrameMouseY = Float.NaN
     private var lastStylesheetRevision = 0L
     private val input = HollowUiInputController()
     private var lastDragX = 0.0
@@ -58,6 +60,8 @@ abstract class HollowUiScreen(
     protected open fun onNodeDragged(node: UiNode, deltaX: Float, deltaY: Float): Boolean = false
 
     protected open fun rebuildEveryFrame(): Boolean = false
+
+    protected open fun applyPendingUiChanges(nowNanos: Long = System.nanoTime()): Boolean = false
 
     protected fun invalidateUi(immediate: Boolean = false) {
         uiDirty = true
@@ -98,7 +102,17 @@ abstract class HollowUiScreen(
         this.mouseY = mouseY.toFloat()
         val sizeChanged = width != lastWidth || height != lastHeight
         val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
-        val needsRebuild = frame == null || uiDirty || sizeChanged || stylesheetChanged || rebuildEveryFrame()
+        val pointerChanged = mouseX.toFloat() != lastFrameMouseX || mouseY.toFloat() != lastFrameMouseY
+        val needsPointerRebuild = pointerChanged && cachedRoot?.hasLiveCursorPopup() == true
+        val uiChanged = applyPendingUiChanges()
+        if (uiChanged) uiDirty = true
+        val needsRebuild = frame == null ||
+                uiDirty ||
+                sizeChanged ||
+                stylesheetChanged ||
+                rebuildEveryFrame() ||
+                uiChanged ||
+                needsPointerRebuild
         val current = if (needsRebuild) refreshFrame(nowMillis) else frame!!
         if (completeClosingIfReady(current, nowMillis)) return
         val activeFrame = if (closing) {
@@ -241,7 +255,13 @@ abstract class HollowUiScreen(
         return super.keyPressed(keyCode, scanCode, modifiers)
     }
 
-    protected fun isHovered(id: String): Boolean = input.isHovered(id)
+    protected fun isHovered(id: String): Boolean {
+        if (input.isHovered(id)) return true
+        val current = frame ?: return false
+        val node = current.resolved.styles.keys.firstOrNull { it.id == id } ?: return false
+        val key = input.hoveredKey ?: return false
+        return UiNodeKeys.key(node) == key || node.hasDescendantKey(key)
+    }
 
     private fun currentRoot(): UiNode {
         if (cachedRoot == null || uiDirty || rebuildEveryFrame()) {
@@ -262,8 +282,10 @@ abstract class HollowUiScreen(
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         val root = currentRoot()
         input.prepareRoot(root, closing)
-        val nextFrame = runtime.frame(root, width.toFloat(), height.toFloat(), bindings(), nowMillis)
+        val nextFrame = runtime.frame(root, width.toFloat(), height.toFloat(), bindings().withPointer(mouseX, mouseY), nowMillis)
         frame = nextFrame
+        lastFrameMouseX = mouseX
+        lastFrameMouseY = mouseY
         lastStylesheetRevision = root.stylesheetRevision()
         lastWidth = width
         lastHeight = height
@@ -274,7 +296,22 @@ abstract class HollowUiScreen(
         if (width <= 0 || height <= 0) return frame
         val sizeChanged = width != lastWidth || height != lastHeight
         val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
-        return if (frame == null || uiDirty || sizeChanged || stylesheetChanged || rebuildEveryFrame()) refreshFrame() else frame
+        val pointerChanged = mouseX != lastFrameMouseX || mouseY != lastFrameMouseY
+        val needsPointerRebuild = pointerChanged && cachedRoot?.hasLiveCursorPopup() == true
+        val uiChanged = applyPendingUiChanges()
+        if (uiChanged) uiDirty = true
+        return if (frame == null ||
+            uiDirty ||
+            sizeChanged ||
+            stylesheetChanged ||
+            rebuildEveryFrame() ||
+            uiChanged ||
+            needsPointerRebuild
+        ) {
+            refreshFrame()
+        } else {
+            frame
+        }
     }
 
     override fun removed() {
@@ -356,6 +393,22 @@ abstract class HollowUiScreen(
     }
 
     override fun isPauseScreen(): Boolean = false
+}
+
+private fun UiNode.hasLiveCursorPopup(): Boolean {
+    return children.any { child ->
+        (child is PopupNode && child.anchor.isLiveCursor()) || child.hasLiveCursorPopup()
+    }
+}
+
+private fun UiNode.hasDescendantKey(key: String): Boolean {
+    return children.any { child ->
+        UiNodeKeys.key(child) == key || child.hasDescendantKey(key)
+    }
+}
+
+private fun UiPopupAnchor.isLiveCursor(): Boolean {
+    return this is UiPopupAnchor.Cursor && (!x.isFinite() || !y.isFinite())
 }
 
 private object UiCursorApplier {

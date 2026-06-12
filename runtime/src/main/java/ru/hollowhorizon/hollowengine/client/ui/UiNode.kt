@@ -109,6 +109,21 @@ class EntityNode(
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
 
+class PopupNode(
+    var anchor: UiPopupAnchor,
+    var alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifiers: Iterable<Modifier> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(
+    UiNodeType.POPUP.typeName,
+    id?.trimIdPrefix(),
+    tags.map { it.trimTagPrefix() },
+    modifiers,
+    attributes,
+    UiLayout.Column,
+)
 
 fun UiNode.setClosingState(closing: Boolean) {
     if (closing) {
@@ -168,6 +183,27 @@ data class UiBindingContext(val root: CompoundTag = CompoundTag()) {
         val align = parts.getOrNull(1) ?: return true
         return align in setOf("baseline", "middle", "top", "bottom")
     }
+}
+
+fun UiBindingContext.withPointer(x: Float, y: Float): UiBindingContext {
+    val next = root.copy()
+    val mouse = next.getCompound("mouse").copy()
+    mouse.putFloat("x", x)
+    mouse.putFloat("y", y)
+    next.put("mouse", mouse)
+    return UiBindingContext(next)
+}
+
+fun UiBindingContext.pointerX(default: Float = 0f): Float {
+    if (!root.contains("mouse")) return default
+    val mouse = root.getCompound("mouse")
+    return if (mouse.contains("x")) mouse.getFloat("x") else default
+}
+
+fun UiBindingContext.pointerY(default: Float = 0f): Float {
+    if (!root.contains("mouse")) return default
+    val mouse = root.getCompound("mouse")
+    return if (mouse.contains("y")) mouse.getFloat("y") else default
 }
 
 private fun Modifier?.asList(): List<Modifier> = if (this == null) emptyList() else listOf(this)

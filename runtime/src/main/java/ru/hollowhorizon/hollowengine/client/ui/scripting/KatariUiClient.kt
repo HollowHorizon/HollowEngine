@@ -392,7 +392,7 @@ private class KatariUiOverlay(
             node,
             window.guiScaledWidth.toFloat(),
             window.guiScaledHeight.toFloat(),
-            UiBindingContext(variables),
+            UiBindingContext(variables).withPointer(lastMouseX, lastMouseY),
             nowMillis,
         ).also { lastFrame = it }
     }

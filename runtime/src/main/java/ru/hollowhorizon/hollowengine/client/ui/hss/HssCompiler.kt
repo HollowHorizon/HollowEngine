@@ -250,6 +250,12 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
+            "line-spacing", "text-line-spacing", "leading" -> instruction {
+                it.lineSpacing = parseScalar(value).coerceAtLeast(0f)
+            }
+            "space-width", "text-space-width" -> instruction {
+                it.spaceWidth = parseScalar(value).coerceAtLeast(0f)
+            }
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
             "font-family" -> instruction { it.fontFamily = value.trim().removeSurrounding("\"").removeSurrounding("'") }
             "typing" -> instruction { it.typing = parseTyping(value) }

@@ -11,6 +11,7 @@ import kotlin.math.sign
 
 class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab by mutableStateOf("overview")
+    private var popupTooltipVisible by mutableStateOf(false)
     private val freeNodeOffsets = mutableStateMapOf<Int, DemoOffset>()
     private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
     private var xmlEventText by mutableStateOf("XML event log is empty")
@@ -29,6 +30,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
+                tab("text", "Text", "hollowengine:textures/gui/icons/docs.svg")
                 tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
@@ -37,6 +39,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             Box(id = "content", tags = listOf("content")) {
                 when (selectedTab) {
                     "widgets" -> widgets()
+                    "text" -> textAndPopupDemo()
                     "layout" -> layout()
                     "docking" -> docking()
                     "transforms" -> transforms()
@@ -53,7 +56,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
         val id = node.id ?: return false
         if (!id.startsWith("tab-")) return false
         selectedTab = id.removePrefix("tab-")
-        invalidateUi(immediate = true)
         return true
     }
 
@@ -123,6 +125,96 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             Column(tags = listOf("card"), modifier = Modifier.position(184.px, 136.px)) {
                 Text("Холст", tags = listOf("card-title"))
                 Canvas("demo-wave", tags = listOf("canvas-preview"))
+            }
+        }
+    }
+
+    @Composable
+    private fun textAndPopupDemo() {
+        val inlineContent = UiTextContent(
+            listOf(
+                UiTextSegment.Text("Inline text can host ".bound()),
+                UiTextSegment.inlineWidget("inline-chip", align = UiInlineAlign.MIDDLE),
+                UiTextSegment.Text(" measured widgets and keep wrapping/justify consistent.".bound()),
+            )
+        )
+        val flowContent = UiTextContent(
+            listOf(
+                UiTextSegment.flowWidget("flow-note", UiTextWidgetFlow.FLOAT_START),
+                UiTextSegment.Text(
+                    "Flow text reserves the measured widget rectangle first, wraps beside it while the rectangle is active, and then returns to the full text width below the widget.".bound(),
+                ),
+            )
+        )
+
+        Box(tags = listOf("text-demo-stage"), modifier = Modifier.input(scrollable = true)) {
+            Column(tags = listOf("text-demo-card"), modifier = Modifier.position(0.px, 0.px)) {
+                Text("Inline widget", tags = listOf("card-title"))
+                Text(
+                    textContent = inlineContent,
+                    tags = listOf("text-demo-copy"),
+                    modifier = Modifier.then(Modifier.size(320.px, 64.px), Modifier.textAlign(UiTextAlign.JUSTIFY)),
+                ) {
+                    InlineWidget("inline-chip", tags = listOf("text-inline-chip")) {
+                        Text(
+                            "AUTO",
+                            tags = listOf("text-inline-chip-label"),
+                            modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER),
+                        )
+                    }
+                }
+            }
+
+            Column(tags = listOf("text-demo-card", "text-flow-card"), modifier = Modifier.position(352.px, 0.px)) {
+                Text("Flow widget", tags = listOf("card-title"))
+                Text(
+                    textContent = flowContent,
+                    tags = listOf("text-demo-copy"),
+                    modifier = Modifier.size(330.px, 116.px),
+                ) {
+                    InlineWidget("flow-note", tags = listOf("text-flow-note")) {
+                        Text("Measured\nslot", tags = listOf("text-flow-note-label"))
+                    }
+                }
+            }
+
+            Column(tags = listOf("text-demo-card", "popup-demo-card"), modifier = Modifier.position(0.px, 164.px)) {
+                Text("Popups", tags = listOf("card-title"))
+                Row(
+                    id = "popup-anchor",
+                    tags = listOf("popup-anchor"),
+                    modifier = Modifier.then(
+                        Modifier.input(hoverable = true),
+                        Modifier.onEnter {
+                            popupTooltipVisible = true
+                        },
+                        Modifier.onExit {
+                            popupTooltipVisible = false
+                        },
+                    ),
+                ) {
+                    Text("Hover for tooltip", tags = listOf("popup-anchor-label"))
+                }
+                Popup(
+                    id = "popup-near-anchor",
+                    anchor = UiPopupAnchor.Node("popup-anchor"),
+                    alignment = UiPopupAlignment(offsetY = 6f),
+                    tags = listOf("popup-panel"),
+                ) {
+                    Text("Node anchored popup", tags = listOf("popup-title"))
+                    Text("Below-start with offset.", tags = listOf("popup-body"))
+                }
+                if (popupTooltipVisible) {
+                    Popup(
+                        id = "popup-near-cursor",
+                        anchor = UiPopupAnchor.Cursor(),
+                        alignment = UiPopupAlignment.Cursor,
+                        tags = listOf("popup-panel", "cursor-popup"),
+                        modifier = Modifier.layer(100),
+                    ) {
+                        Text("Tooltip follows cursor", tags = listOf("popup-title"))
+                    }
+                }
             }
         }
     }
@@ -339,6 +431,19 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
                 <text tags="xml-title">XML + HSS resource</text>
                 <text tags="xml-body">This panel is built from XML-like markup. The root imports xml_demo.hss from assets.</text>
+                <text tags="xml-rich-text">
+                    XML text with <box id="xml-inline-chip" tags="xml-inline-chip"><text>inline</text></box> measured slot.
+                </text>
+                <text tags="xml-flow-text">
+                    <box id="xml-flow-note" tags="xml-flow-note" flow="start"><text>flow</text></box>
+                    This paragraph wraps around a widget whose size comes from HSS, then uses the full line width below it.
+                </text>
+                <column id="xml-popup-anchor" tags="xml-popup-anchor">
+                    <text>Popup anchor</text>
+                </column>
+                <popup id="xml-popup" anchor="xml-popup-anchor" placement="below-end" offset-y="6px" tags="xml-popup">
+                    <text>XML popup</text>
+                </popup>
                 <column id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>
                     <text>Accept</text>
                 </column>

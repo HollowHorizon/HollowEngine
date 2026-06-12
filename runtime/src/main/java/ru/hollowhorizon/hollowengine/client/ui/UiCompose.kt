@@ -1,11 +1,25 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.AbstractApplier
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ComposeNode
+import androidx.compose.runtime.Composition
+import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.Updater
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.snapshots.Snapshot
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
+
+val LocalUiFrameTimeNanos = staticCompositionLocalOf { 0L }
 
 class HollowUiComposition(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
@@ -40,13 +54,18 @@ class HollowUiComposition(
 
     fun applyPendingChanges(nowNanos: Long = System.nanoTime()): Boolean {
         if (closed) return false
-        Snapshot.sendApplyNotifications()
-        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
-        runBlocking { recomposer.awaitIdle() }
+        pumpPendingChanges(nowNanos)
         UiNodeKeys.assign(rootNode)
         val changed = recomposer.changeCount != observedChangeCount
         observedChangeCount = recomposer.changeCount
         return changed
+    }
+
+    private fun pumpPendingChanges(nowNanos: Long) {
+        Snapshot.sendApplyNotifications()
+        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
+        Snapshot.sendApplyNotifications()
+        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
     }
 
     override fun close() {
@@ -170,6 +189,7 @@ fun Text(
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
 ) {
     val modifiers = modifier.asList()
     ComposeNode<TextNode, HollowUiApplier>(
@@ -178,25 +198,39 @@ fun Text(
             update(value) { text = it.bound() }
             updateCommon(modifiers, attributes)
         },
+        content = content,
     )
 }
 
 @Composable
 fun Text(
-    content: UiTextContent,
+    textContent: UiTextContent,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
 ) {
     val modifiers = modifier.asList()
     ComposeNode<TextNode, HollowUiApplier>(
-        factory = { TextNode(content, id, tags, modifiers, attributes) },
+        factory = { TextNode(textContent, id, tags, modifiers, attributes) },
         update = {
-            update(content) { this.content = it }
+            update(textContent) { this.content = it }
             updateCommon(modifiers, attributes)
         },
+        content = content,
     )
+}
+
+@Composable
+fun InlineWidget(
+    id: String,
+    modifier: Modifier? = null,
+    tags: Iterable<String> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    Box(id = id, tags = tags, modifier = modifier, attributes = attributes, content = content)
 }
 
 @Composable
@@ -365,6 +399,28 @@ fun Entity(
     )
 }
 
+@Composable
+fun Popup(
+    anchor: UiPopupAnchor,
+    alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    val values = PopupValues(anchor, alignment)
+    ComposeNode<PopupNode, HollowUiApplier>(
+        factory = { PopupNode(anchor, alignment, id, tags, modifiers, attributes) },
+        update = {
+            update(values) { apply(it) }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
 private data class SliderValues(
     val value: Float,
     val min: Float,
@@ -385,6 +441,11 @@ private data class TextFieldValues(
     val placeholder: String,
 )
 
+private data class PopupValues(
+    val anchor: UiPopupAnchor,
+    val alignment: UiPopupAlignment,
+)
+
 private fun SliderNode.apply(values: SliderValues) {
     min = values.min
     max = values.max
@@ -403,6 +464,11 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     multiCaret = values.multiCaret
     placeholder = values.placeholder
     value = values.value
+}
+
+private fun PopupNode.apply(values: PopupValues) {
+    anchor = values.anchor
+    alignment = values.alignment
 }
 
 fun <T : BaseUiNode> Updater<T>.updateCommon(

@@ -220,6 +220,9 @@ class UiCommandRenderer {
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
         collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands)
+        resolved.root.popupDescendants()
+            .sortedBy { resolved[it].layer }
+            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
         return commands
     }
 
@@ -277,9 +280,21 @@ class UiCommandRenderer {
         val pushedClip = style.clip || style.input.scrollable
         if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
 
-        collectNodeContent(node, style, localOpacity, layoutNode, baseFilter, bindings, nowMillis, typingState, commands)
+        collectNodeContent(
+            node,
+            style,
+            localOpacity,
+            layoutNode,
+            layout,
+            baseFilter,
+            bindings,
+            nowMillis,
+            typingState,
+            commands,
+        )
 
         node.children
+            .filterNot { it is PopupNode }
             .sortedBy { resolved[it].layer }
             .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
 
@@ -293,6 +308,7 @@ class UiCommandRenderer {
         style: ComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
+        layout: UiLayoutResult,
         filter: UiFilterChain,
         bindings: UiBindingContext,
         nowMillis: Long,
@@ -315,14 +331,17 @@ class UiCommandRenderer {
                 )
                 val textString = visibleContent.text
                 val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
+                val widgetMetrics = node.inlineWidgetMetrics(layout)
                 val fullLayout = UiTextLayouter.layout(
-                    fullContent.toRichText(),
+                    fullContent.toRichText(widgetMetrics),
                     layoutNode.content.width,
                     textHeight,
                     style.textWrap,
                     style.textAlign,
                     style.fontSize,
                     style.fontFamily,
+                    lineSpacing = style.lineSpacing,
+                    spaceWidth = style.spaceWidth,
                 )
                 val textLayout = if (style.typing == null) {
                     fullLayout
@@ -429,6 +448,8 @@ class UiCommandRenderer {
                 style.textAlign,
                 style.fontSize,
                 style.fontFamily,
+                lineSpacing = style.lineSpacing,
+                spaceWidth = style.spaceWidth,
             )
         } else {
             editLayout
@@ -554,6 +575,26 @@ class UiCommandRenderer {
     }
 }
 
+private fun UiNode.popupDescendants(): List<PopupNode> {
+    val result = mutableListOf<PopupNode>()
+    fun visit(node: UiNode) {
+        for (child in node.children) {
+            if (child is PopupNode) result += child
+            visit(child)
+        }
+    }
+    visit(this)
+    return result
+}
+
+private fun TextNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
+    return children.mapNotNull { child ->
+        val id = child.id ?: return@mapNotNull null
+        val rect = layout.nodes[child]?.rect ?: return@mapNotNull null
+        id to UiInlineWidgetMetrics(rect.width, rect.height)
+    }.toMap()
+}
+
 private fun ComputedStyle.textEffectsWithShadows(): List<UiTextEffect> {
     val textShadows = shadows.filterNot { it.inset }.map { it.toTextShadow() }
     return if (textShadows.isEmpty()) textEffects else textEffects + textShadows
@@ -623,6 +664,11 @@ data class UiHit(
 
 class UiHitTester {
     fun hitTest(resolved: ResolvedUiTree, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
+        val popups = resolved.root.popupDescendants()
+            .sortedWith(compareBy<PopupNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        for (popup in popups.asReversed()) {
+            hitNode(popup, resolved, layout, x, y, ancestorClip = null)?.let { return it }
+        }
         return hitNode(resolved.root, resolved, layout, x, y, ancestorClip = null)
     }
 
@@ -637,7 +683,10 @@ class UiHitTester {
         val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         val layoutNode = layout[node]
         val effectiveClip = ancestorClip.intersect(layoutNode.clip)
-        for (child in children.asReversed()) {
+        for (child in children.filterIsInstance<PopupNode>().asReversed()) {
+            hitNode(child, resolved, layout, x, y, ancestorClip = ancestorClip)?.let { return it }
+        }
+        for (child in children.filterNot { it is PopupNode }.asReversed()) {
             hitNode(child, resolved, layout, x, y, ancestorClip = effectiveClip)?.let { return it }
         }
         val style = resolved[node]

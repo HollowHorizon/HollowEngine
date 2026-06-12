@@ -28,7 +28,8 @@ enum class UiNodeType(val typeName: String) {
     CANVAS("canvas"),
     SLIDER("slider"),
     CHECKBOX("checkbox"),
-    TEXT_FIELD("text-field");
+    TEXT_FIELD("text-field"),
+    POPUP("popup");
 }
 
 sealed interface UiLayout {
@@ -111,6 +112,32 @@ class UiPlacementScope internal constructor() {
     fun UiPlaceable.place(x: Int, y: Int) {
         place(x.toFloat(), y.toFloat())
     }
+}
+
+sealed interface UiPopupAnchor {
+    data object Parent : UiPopupAnchor
+    data class Node(val id: String) : UiPopupAnchor
+    data class Cursor(val x: Float = Float.NaN, val y: Float = Float.NaN) : UiPopupAnchor
+}
+
+data class UiPopupAlignment(
+    val anchorHorizontal: UiAlign = UiAlign.START,
+    val anchorVertical: UiAlign = UiAlign.END,
+    val popupHorizontal: UiAlign = UiAlign.START,
+    val popupVertical: UiAlign = UiAlign.START,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+) {
+    companion object {
+        val BelowStart = UiPopupAlignment()
+        val Cursor = UiPopupAlignment(anchorVertical = UiAlign.START, offsetX = 8f, offsetY = 8f)
+    }
+}
+
+enum class UiTextWidgetFlow {
+    INLINE,
+    FLOAT_START,
+    FLOAT_END
 }
 
 enum class UiAlign {
