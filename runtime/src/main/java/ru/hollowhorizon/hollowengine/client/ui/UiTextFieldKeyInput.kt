@@ -13,6 +13,7 @@ data class UiKeyInput(
     val modifiers: Int get() = event.modifiers
     val shift: Boolean get() = modifiers and GLFW.GLFW_MOD_SHIFT != 0
     val control: Boolean get() = modifiers and GLFW.GLFW_MOD_CONTROL != 0
+    val alt: Boolean get() = modifiers and GLFW.GLFW_MOD_ALT != 0
     val command: Boolean get() = control || modifiers and GLFW.GLFW_MOD_SUPER != 0
 
     fun markChanged() {
@@ -28,9 +29,18 @@ internal data object TextFieldDefaultKeyInputModifier : Modifier {
 }
 
 internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Boolean {
+    if (completionItems.isNotEmpty()) {
+        val completionChanged = when (input.key) {
+            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion()
+            GLFW.GLFW_KEY_ESCAPE -> closeCompletions()
+            else -> false
+        }
+        if (completionChanged) input.markChanged()
+        if (completionChanged || input.key == GLFW.GLFW_KEY_ESCAPE) return completionChanged
+    }
     val changed = when (input.key) {
-        GLFW.GLFW_KEY_BACKSPACE -> backspace()
-        GLFW.GLFW_KEY_DELETE -> deleteForward()
+        GLFW.GLFW_KEY_BACKSPACE -> backspace(word = input.control)
+        GLFW.GLFW_KEY_DELETE -> deleteForward(word = input.control)
         GLFW.GLFW_KEY_A -> {
             if (!input.command) return false
             selectAll()
@@ -84,7 +94,13 @@ internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Bo
             }
             true
         }
-        GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> multiline && insert("\n")
+        GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+            if (input.alt) {
+                openCompletions()
+            } else {
+                multiline && insert("\n")
+            }
+        }
         else -> false
     }
     if (changed) input.markChanged()

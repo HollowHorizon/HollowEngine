@@ -382,6 +382,9 @@ fun TextField(
     filter: UiTextInputFilter = UiTextInputFilter.ANY,
     multiCaret: Boolean = false,
     syntaxHighlighter: UiSyntaxHighlighter? = null,
+    completionContributor: UiCompletionContributor? = null,
+    diagnostics: List<UiTextDiagnostic> = emptyList(),
+    inlayHints: List<UiInlayHint> = emptyList(),
     placeholder: String = "",
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -390,10 +393,23 @@ fun TextField(
 ) {
     val modifiers = modifier.asList()
     val textFieldModifiers = modifiers + TextFieldDefaultKeyInputModifier
-    val values = TextFieldValues(value, mode, filter, multiCaret, syntaxHighlighter, placeholder)
+    val values = TextFieldValues(value, mode, filter, multiCaret, syntaxHighlighter, completionContributor, diagnostics, inlayHints, placeholder)
     ComposeNode<TextFieldNode, HollowUiApplier>(
         factory = {
-            TextFieldNode(value, mode, filter, multiCaret, syntaxHighlighter, id, tags, textFieldModifiers, attributes)
+            TextFieldNode(
+                value,
+                mode,
+                filter,
+                multiCaret,
+                syntaxHighlighter,
+                completionContributor,
+                diagnostics,
+                inlayHints,
+                id,
+                tags,
+                textFieldModifiers,
+                attributes,
+            )
                 .also { it.placeholder = placeholder }
         },
         update = {
@@ -479,6 +495,9 @@ private data class TextFieldValues(
     val filter: UiTextInputFilter,
     val multiCaret: Boolean,
     val syntaxHighlighter: UiSyntaxHighlighter?,
+    val completionContributor: UiCompletionContributor?,
+    val diagnostics: List<UiTextDiagnostic>,
+    val inlayHints: List<UiInlayHint>,
     val placeholder: String,
 )
 
@@ -504,6 +523,9 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     filter = values.filter
     multiCaret = values.multiCaret
     syntaxHighlighter = values.syntaxHighlighter
+    completionContributor = values.completionContributor
+    diagnostics = values.diagnostics
+    inlayHints = values.inlayHints
     placeholder = values.placeholder
     value = values.value
 }

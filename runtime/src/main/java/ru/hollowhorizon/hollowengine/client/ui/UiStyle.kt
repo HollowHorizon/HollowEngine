@@ -643,7 +643,7 @@ data class UiScrollbarStyle(
     }
 
     companion object {
-        val DefaultThickness: UiLength = 7.px
+        val DefaultThickness: UiLength = 3.5.px
         val DefaultMargin: UiLength = 3.px
         val DefaultMinThumbSize: UiLength = 18.px
     }

@@ -37,6 +37,11 @@ sealed interface UiInlineItem {
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiInlineItem
+
+    data class Inlay(
+        val text: String,
+        val style: UiInlineStyle = UiInlineStyle(),
+    ) : UiInlineItem
 }
 
 data class UiInlineStyle(

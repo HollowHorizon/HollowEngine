@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.*
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -76,17 +77,17 @@ internal class UiWidgetRenderer(
                 caretRange.selectionEnd,
                 command.fontSize,
                 command.fontFamily,
+                fillLineGaps = true,
             ).forEach { rect ->
+                val clipped = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
+                    .clipHorizontally(command.textOffset, command.rect.width)
+                    ?: return@forEach
                 drawLocalPaint(
-                    rect.width,
-                    rect.height,
+                    clipped.width,
+                    clipped.height,
                     0f,
                     command.selectionColor.withOpacity(command.opacity),
-                    transform * UiMatrix4.translation(
-                        command.textOffset + rect.x - command.scrollOffset.x,
-                        rect.y - command.scrollOffset.y,
-                        0f,
-                    ),
+                    transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
                     command.filter,
                 )
             }
@@ -105,35 +106,177 @@ internal class UiWidgetRenderer(
                 )
             }
         }
-        if (command.showInlayHints && command.node.value.isEmpty() && command.placeholder.isNotBlank()) {
-            drawPlainText(
-                command.placeholder,
-                command.textOffset,
-                0f,
-                command.fontSize,
-                command.inlayHintColor,
-                command.opacity,
-                transform,
-                command.filter,
-            )
+        drawDiagnostics(command, transform)
+        if (command.showInlayHints) {
+            drawInlayHintFrames(command, transform)
         }
+        drawCompletionPopup(command, transform)
         if (command.showCaret) {
             command.carets.forEach { caretRange ->
                 val caret = command.layout.caretPosition(caretRange.position, command.fontSize, command.fontFamily)
-                drawLocalPaint(
+                val clipped = UiRect(
+                    command.textOffset + caret.x - command.scrollOffset.x,
+                    caret.y - command.scrollOffset.y,
                     TextFieldCaretWidth,
                     command.fontSize,
+                ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
+                drawLocalPaint(
+                    clipped.width,
+                    clipped.height,
                     0f,
-                    command.caretColor.withOpacity(command.opacity),
-                    transform * UiMatrix4.translation(
-                        command.textOffset + caret.x - command.scrollOffset.x,
-                        caret.y - command.scrollOffset.y,
-                        0f,
-                    ),
+                    command.caretColor.withOpacity(command.opacity * command.caretOpacity),
+                    transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
                     command.filter,
                 )
             }
         }
+    }
+
+    private fun drawDiagnostics(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
+        command.diagnostics.forEach { diagnostic ->
+            val color = when (diagnostic.severity) {
+                UiTextDiagnosticSeverity.ERROR -> command.diagnosticErrorColor
+                UiTextDiagnosticSeverity.WARNING -> command.diagnosticWarningColor
+                UiTextDiagnosticSeverity.INFO -> command.diagnosticInfoColor
+            }
+            command.layout.selectionRects(
+                diagnostic.start,
+                diagnostic.end,
+                command.fontSize,
+            command.fontFamily,
+        ).forEach { rect ->
+                val underline = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
+                    .clipHorizontally(command.textOffset, command.rect.width)
+                    ?: return@forEach
+                drawZigZagUnderline(underline, color, command, transform)
+            }
+        }
+    }
+
+    private fun drawZigZagUnderline(
+        rect: UiRect,
+        color: UiColor,
+        command: DrawTextFieldChromeCommand,
+        transform: UiMatrix4,
+    ) {
+        val step = 4f
+        val dot = 2f
+        val baseY = rect.y + rect.height - 2.5f
+        var x = rect.x
+        var index = 0
+        while (x < rect.x + rect.width) {
+            val y = baseY + if (index % 2 == 0) 0f else 1.5f
+            drawLocalPaint(
+                min(dot, rect.x + rect.width - x).coerceAtLeast(0.75f),
+                dot,
+                1f,
+                color.withOpacity(command.opacity),
+                transform * UiMatrix4.translation(x, y, 0f),
+                command.filter,
+            )
+            x += step
+            index++
+        }
+    }
+
+    private fun drawInlayHintFrames(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
+        command.layout.lines.forEach { line ->
+            line.fragments.filterIsInstance<UiInlayTextRun>().forEach { fragment ->
+                val frame = UiRect(
+                    command.textOffset + line.x + fragment.x - command.scrollOffset.x - 3f,
+                    line.y + fragment.y - command.scrollOffset.y - 1f,
+                    fragment.width + 6f,
+                    fragment.height + 2f,
+                ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
+                drawLocalPaint(
+                    frame.width,
+                    frame.height,
+                    3f,
+                    UiColor(0.18f, 0.2f, 0.24f, command.opacity * 0.16f),
+                    transform * UiMatrix4.translation(frame.x, frame.y, 0f),
+                    command.filter,
+                )
+                drawLocalBorder(
+                    frame.width,
+                    frame.height,
+                    3f,
+                    1f,
+                    command.inlayHintColor.withOpacity(command.opacity * 0.75f),
+                    transform * UiMatrix4.translation(frame.x, frame.y, 0f),
+                )
+            }
+        }
+    }
+
+    private fun drawCompletionPopup(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
+        val items = command.completionItems.take(6)
+        if (items.isEmpty()) return
+        val rowHeight = (command.fontSize + 5f).coerceAtLeast(12f)
+        val popupHeight = rowHeight * items.size + 6f
+        val labelWidth = items.maxOfOrNull { item ->
+            val detail = if (item.detail.isBlank()) "" else "  ${item.detail}"
+            (item.label.length + detail.length) * command.fontSize * 0.56f
+        } ?: 0f
+        val popupWidth = (labelWidth + 18f).coerceIn(90f, max(90f, command.rect.width - 8f))
+        val caret = command.layout.caretPosition(command.completionAnchor, command.fontSize, command.fontFamily)
+        val preferredX = command.textOffset + caret.x - command.scrollOffset.x
+        val popupX = preferredX.coerceIn(4f, (command.rect.width - popupWidth - 4f).coerceAtLeast(4f))
+        val belowY = caret.y + command.fontSize - command.scrollOffset.y + 4f
+        val aboveY = caret.y - command.scrollOffset.y - popupHeight - 4f
+        val popupY = if (belowY + popupHeight <= command.rect.height) {
+            belowY
+        } else {
+            aboveY.coerceAtLeast(4f)
+        }
+        val popupTransform = transform * UiMatrix4.translation(popupX, popupY, 30f)
+        drawLocalPaint(popupWidth, popupHeight, 3f, UiColor(0.08f, 0.09f, 0.11f, command.opacity * 0.96f), popupTransform, command.filter)
+        drawLocalBorder(popupWidth, popupHeight, 3f, 1f, UiColor(0.36f, 0.42f, 0.5f, command.opacity * 0.75f), popupTransform)
+        items.forEachIndexed { index, item ->
+            val rowY = 3f + index * rowHeight
+            if (index == 0) {
+                drawLocalPaint(
+                    popupWidth - 4f,
+                    rowHeight,
+                    2f,
+                    UiColor(0.22f, 0.32f, 0.46f, command.opacity * 0.7f),
+                    popupTransform * UiMatrix4.translation(2f, rowY, 0f),
+                    command.filter,
+                )
+            }
+            drawPlainText(
+                item.label,
+                8f,
+                rowY + 2f,
+                command.fontSize,
+                UiColor(0.9f, 0.94f, 1f, 1f),
+                command.opacity,
+                popupTransform,
+                command.filter,
+            )
+            if (item.detail.isNotBlank()) {
+                drawPlainText(
+                    item.detail,
+                    (item.label.length * command.fontSize * 0.56f + 16f).coerceAtMost(popupWidth - 42f),
+                    rowY + 2f,
+                    command.fontSize,
+                    command.inlayHintColor,
+                    command.opacity,
+                    popupTransform,
+                    command.filter,
+                )
+            }
+        }
+    }
+
+    private fun UiRect.translated(deltaX: Float, deltaY: Float): UiRect {
+        return copy(x = x + deltaX, y = y + deltaY)
+    }
+
+    private fun UiRect.clipHorizontally(left: Float, right: Float): UiRect? {
+        val clippedLeft = max(x, left)
+        val clippedRight = min(x + width, right)
+        if (clippedRight <= clippedLeft) return null
+        return copy(x = clippedLeft, width = clippedRight - clippedLeft)
     }
 
     private fun drawCheckboxBox(command: DrawCheckboxCommand, transform: UiMatrix4) {

@@ -1556,9 +1556,10 @@ private fun scrollableContentBounds(
             )
         } else {
             val field = node as TextFieldNode
+            val editWidth = textFieldTextWidth(field, style, layout)
             UiTextLayouter.layout(
                 field.value.ifEmpty { field.placeholder },
-                layout.content.width,
+                editWidth,
                 Float.POSITIVE_INFINITY,
                 textFieldWrap(style, field, constrainedWidth = true),
                 style.textAlign,
@@ -1569,12 +1570,15 @@ private fun scrollableContentBounds(
                 spaceWidth = style.spaceWidth,
             )
         }
+        val textOffset = if (node is TextFieldNode) textFieldTextOffset(node, style, layout) else 0f
+        val textViewportWidth = if (node is TextFieldNode) textFieldTextWidth(node, style, layout) else layout.content.width
+        val horizontalPadding = if (node is TextFieldNode) textFieldHorizontalScrollPadding(textViewportWidth) else TextFieldCaretVisibilityPadding
         return UiRect(
             layout.content.x,
             layout.content.y,
             maxOf(
                 layout.content.width,
-                textLayout.maxNaturalLineWidth() + TextFieldCaretWidth + TextFieldCaretVisibilityPadding
+                textOffset + textLayout.maxNaturalLineWidth() + TextFieldCaretWidth + horizontalPadding
             ),
             maxOf(layout.content.height, textLayout.height + TextFieldCaretVisibilityPadding),
         )

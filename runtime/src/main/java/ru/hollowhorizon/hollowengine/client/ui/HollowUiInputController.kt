@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
+import kotlin.math.abs
 
 class HollowUiInputController {
     var hoveredKey: String? = null
@@ -17,6 +18,9 @@ class HollowUiInputController {
 
     private val stateStore = UiNodeStateStore()
     private var scrollbarDrag: UiScrollbarDragState? = null
+    private var lastTextClickKey: String? = null
+    private var lastTextClickAtMillis: Long = 0L
+    private var lastTextClickIndex: Int = -1
 
     fun reset() {
         clearInteraction()
@@ -245,6 +249,7 @@ class HollowUiInputController {
         val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
         val handled = dispatch(event)
         if (!event.consumed && node is TextFieldNode && node.insert(codePoint.toString())) {
+            if (codePoint == '.') node.openCompletions()
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
         }
@@ -341,12 +346,21 @@ class HollowUiInputController {
             }
             is TextFieldNode -> {
                 val index = textFieldCaretIndexAt(frame, node, localX, localY)
-                val modifiers = GLFW.glfwGetKey(Minecraft.getInstance().window.window, GLFW.GLFW_KEY_LEFT_ALT)
-                if (node.multiCaret && modifiers == GLFW.GLFW_PRESS) {
+                val nodeKey = UiNodeKeys.key(node)
+                val altPressed = isAltPressed()
+                if (isTextDoubleClick(nodeKey, index)) {
+                    val range = textFieldWordRangeAt(node.value, index)
+                    if (node.multiCaret && altPressed) {
+                        node.addCaretRange(UiTextCaret(range.end, range.start))
+                    } else {
+                        node.setSelection(range.start, range.end)
+                    }
+                } else if (node.multiCaret && altPressed) {
                     node.addCaret(index)
                 } else {
                     node.moveCaret(index)
                 }
+                rememberTextClick(nodeKey, index)
                 true
             }
             else -> false
@@ -404,6 +418,25 @@ class HollowUiInputController {
         return textLayout.caretIndexAt(contentX, contentY, style.fontSize, style.fontFamily)
     }
 
+    private fun isTextDoubleClick(nodeKey: String, index: Int): Boolean {
+        val now = System.currentTimeMillis()
+        return lastTextClickKey == nodeKey &&
+                now - lastTextClickAtMillis <= TextDoubleClickMillis &&
+                abs(lastTextClickIndex - index) <= 1
+    }
+
+    private fun rememberTextClick(nodeKey: String, index: Int) {
+        lastTextClickKey = nodeKey
+        lastTextClickIndex = index
+        lastTextClickAtMillis = System.currentTimeMillis()
+    }
+
+    private fun isAltPressed(): Boolean {
+        val window = Minecraft.getInstance().window.window
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS
+    }
+
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
         val key = UiNodeKeys.key(node)
         node.states -= UiState.HOVER
@@ -425,6 +458,35 @@ class HollowUiInputController {
         node.children.forEach { applyRuntimeStates(it, closing) }
     }
 }
+
+private const val TextDoubleClickMillis = 350L
+
+private data class ClickTextRange(
+    val start: Int,
+    val end: Int,
+)
+
+private fun textFieldWordRangeAt(text: String, caretIndex: Int): ClickTextRange {
+    if (text.isEmpty()) return ClickTextRange(0, 0)
+    val index = caretIndex.coerceIn(0, text.length)
+    val characterIndex = when {
+        index < text.length -> index
+        else -> text.lastIndex
+    }
+    val character = text[characterIndex]
+    val predicate: (Char) -> Boolean = when {
+        character.isTextFieldWordChar() -> Char::isTextFieldWordChar
+        character.isWhitespace() -> Char::isWhitespace
+        else -> { candidate -> candidate == character }
+    }
+    var start = characterIndex
+    var end = characterIndex + 1
+    while (start > 0 && predicate(text[start - 1])) start--
+    while (end < text.length && predicate(text[end])) end++
+    return ClickTextRange(start, end)
+}
+
+private fun Char.isTextFieldWordChar(): Boolean = this == '_' || isLetterOrDigit()
 
 data class UiInputResult(
     val handled: Boolean,

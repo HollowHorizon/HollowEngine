@@ -77,6 +77,38 @@ class UiComposeTests {
     }
 
     @Test
+    fun `text field can delete whole words around the caret`() {
+        val field = TextFieldNode("alpha beta gamma")
+
+        field.moveCaret("alpha beta".length)
+        field.backspace(word = true)
+        assertEquals("alpha  gamma", field.value)
+
+        field.moveCaret("alpha  ".length)
+        field.deleteForward(word = true)
+        assertEquals("alpha  ", field.value)
+    }
+
+    @Test
+    fun `text selection fills line gaps and empty lines`() {
+        val layout = UiTextLayouter.layout(
+            "a\n\nb",
+            80f,
+            Float.POSITIVE_INFINITY,
+            false,
+            UiTextAlign.LEFT,
+            12f,
+            preserveWhitespace = true,
+            lineSpacing = 4f,
+        )
+
+        val rects = layout.selectionRects(0, 4, 12f, fillLineGaps = true)
+
+        assertTrue(rects.any { it.height > 12f })
+        assertTrue(rects.any { it.width == layout.width })
+    }
+
+    @Test
     fun `text field default keymap is a modifier fallback`() {
         var intercepted = false
 

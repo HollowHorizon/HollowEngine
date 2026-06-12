@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -528,6 +529,7 @@ class MinecraftUiRenderer {
                     is UiInlineWidgetRun -> Unit
                     is UiTextSpaceRun -> Unit
                     is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
+                    is UiInlayTextRun -> drawTextRun(command, fragment.toTextRun(), line, transform, scaleX, scaleY, now)
                 }
             }
         } else {
@@ -541,6 +543,10 @@ class MinecraftUiRenderer {
             )
             drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
         }
+    }
+
+    private fun UiInlayTextRun.toTextRun(): UiTextRun {
+        return UiTextRun(text, style, x, y, width, height)
     }
 
     private fun drawTextRun(
@@ -1184,12 +1190,13 @@ class MinecraftUiRenderer {
     private fun applyScissor(rect: UiRect) {
         val layer = layerStack.lastOrNull()
         if (layer != null) {
+            val bounds = rect.toScissorBounds(layer.scale, layer.scale)
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(
-                layer.framebuffer.region.x + (rect.x * layer.scale).toInt(),
-                layer.framebuffer.region.y + (layer.framebuffer.height - (rect.y + rect.height) * layer.scale).toInt(),
-                (rect.width * layer.scale).toInt().coerceAtLeast(0),
-                (rect.height * layer.scale).toInt().coerceAtLeast(0),
+                layer.framebuffer.region.x + bounds.x,
+                layer.framebuffer.region.y + layer.framebuffer.height - bounds.y - bounds.height,
+                bounds.width,
+                bounds.height,
             )
             return
         }
@@ -1197,24 +1204,39 @@ class MinecraftUiRenderer {
         if (target != null) {
             val scaleX = target.width / target.logicalWidth.coerceAtLeast(1f)
             val scaleY = target.height / target.logicalHeight.coerceAtLeast(1f)
+            val bounds = rect.toScissorBounds(scaleX, scaleY)
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(
-                target.x + (rect.x * scaleX).toInt(),
-                target.y + target.height - ((rect.y + rect.height) * scaleY).toInt(),
-                (rect.width * scaleX).toInt().coerceAtLeast(0),
-                (rect.height * scaleY).toInt().coerceAtLeast(0),
+                target.x + bounds.x,
+                target.y + target.height - bounds.y - bounds.height,
+                bounds.width,
+                bounds.height,
             )
             return
         }
         val window = Minecraft.getInstance().window
         val scaleX = window.width / window.guiScaledWidth.toFloat()
         val scaleY = window.height / window.guiScaledHeight.toFloat()
+        val bounds = rect.toScissorBounds(scaleX, scaleY)
         GL11.glEnable(GL11.GL_SCISSOR_TEST)
         GL11.glScissor(
-            (rect.x * scaleX).toInt(),
-            (window.height - (rect.y + rect.height) * scaleY).toInt(),
-            (rect.width * scaleX).toInt().coerceAtLeast(0),
-            (rect.height * scaleY).toInt().coerceAtLeast(0),
+            bounds.x,
+            window.height - bounds.y - bounds.height,
+            bounds.width,
+            bounds.height,
+        )
+    }
+
+    private fun UiRect.toScissorBounds(scaleX: Float, scaleY: Float): ScissorBounds {
+        val left = floor(x * scaleX).toInt()
+        val top = floor(y * scaleY).toInt()
+        val right = ceil((x + width) * scaleX).toInt()
+        val bottom = ceil((y + height) * scaleY).toInt()
+        return ScissorBounds(
+            x = left,
+            y = top,
+            width = (right - left).coerceAtLeast(0),
+            height = (bottom - top).coerceAtLeast(0),
         )
     }
 

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
@@ -29,6 +30,7 @@ class DockingState {
         private set
 
     private var tabGrab: DockTabGrabState? by mutableStateOf(null)
+    private val tabSwapOffsets = mutableStateMapOf<String, Float>()
 
     fun open(item: DockItem, target: DockTarget = DockTarget.Root) {
         if (contains(item.id)) {
@@ -283,7 +285,14 @@ class DockingState {
             draggedLeft = pointerX - grabX,
             tabWidth = tabWidth,
         )
-        return if (targetIndex == currentIndex) false else reorderTab(stackId, itemId, targetIndex)
+        if (targetIndex == currentIndex) return false
+        val previousOrder = stack.items.map { it.id }
+        val changed = reorderTab(stackId, itemId, targetIndex)
+        if (changed) {
+            val nextOrder = findStack(stackId)?.items?.map { it.id }.orEmpty()
+            recordTabSwapOffsets(stackId, itemId, previousOrder, nextOrder, tabWidth)
+        }
+        return changed
     }
 
     fun beginTabGrab(stackId: String, itemId: String, x: Float, y: Float) {
@@ -303,6 +312,10 @@ class DockingState {
         val drag = tabDrag ?: return null
         if (drag.stackId != stackId || drag.itemId != itemId) return null
         return drag.pointerX - drag.grabX - currentIndex * drag.tabWidth
+    }
+
+    fun consumeTabSwapOffset(stackId: String, itemId: String): Float? {
+        return tabSwapOffsets.remove(tabSwapOffsetKey(stackId, itemId))
     }
 
     fun reorderTab(stackId: String, itemId: String, targetIndex: Int): Boolean {
@@ -370,7 +383,24 @@ class DockingState {
         return root?.findNode(stackId) as? DockNode.Stack
             ?: floatingWindows.firstOrNull { it.stack.id == stackId }?.stack
     }
+
+    private fun recordTabSwapOffsets(
+        stackId: String,
+        draggedItemId: String,
+        previousOrder: List<String>,
+        nextOrder: List<String>,
+        tabWidth: Float,
+    ) {
+        nextOrder.forEachIndexed { nextIndex, itemId ->
+            if (itemId == draggedItemId) return@forEachIndexed
+            val previousIndex = previousOrder.indexOf(itemId)
+            if (previousIndex < 0 || previousIndex == nextIndex) return@forEachIndexed
+            tabSwapOffsets[tabSwapOffsetKey(stackId, itemId)] = (previousIndex - nextIndex) * tabWidth
+        }
+    }
 }
+
+private fun tabSwapOffsetKey(stackId: String, itemId: String): String = "$stackId/$itemId"
 
 private fun tabDragTargetIndex(
     currentIndex: Int,

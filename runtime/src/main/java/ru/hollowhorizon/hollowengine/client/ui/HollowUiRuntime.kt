@@ -25,6 +25,7 @@ data class HollowUiFrame(
     fun requiresContinuousRefresh(): Boolean {
         return activeScrollAnimation ||
                 activeTransitionDurations.values.any { it > 0L } ||
+                resolved.styles.keys.any { it is TextFieldNode && UiState.FOCUS in it.states } ||
                 resolved.styles.values.any { it.requiresContinuousRefresh() }
     }
 
@@ -220,12 +221,13 @@ private fun UiScrollOffset.scrollCaretIntoView(
 ): UiScrollOffset {
     var nextX = x
     var nextY = y
-    val left = x + TextFieldCaretVisibilityPadding
-    val right = x + viewportWidth - TextFieldCaretVisibilityPadding
+    val horizontalPadding = textFieldHorizontalScrollPadding(viewportWidth)
+    val left = x + horizontalPadding
+    val right = x + viewportWidth - horizontalPadding
     val top = y + TextFieldCaretVisibilityPadding
     val bottom = y + viewportHeight - TextFieldCaretVisibilityPadding
-    if (caretX < left) nextX = caretX - TextFieldCaretVisibilityPadding
-    if (caretX + caretWidth > right) nextX = caretX + caretWidth + TextFieldCaretVisibilityPadding - viewportWidth
+    if (caretX < left) nextX = caretX - horizontalPadding
+    if (caretX + caretWidth > right) nextX = caretX + caretWidth + horizontalPadding - viewportWidth
     if (caretY < top) nextY = caretY - TextFieldCaretVisibilityPadding
     if (caretY + caretHeight > bottom) nextY = caretY + caretHeight + TextFieldCaretVisibilityPadding - viewportHeight
     return UiScrollOffset(

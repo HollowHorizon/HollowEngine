@@ -7,6 +7,8 @@ import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 
 private const val DockTabWidth = 100f
 private const val DockTabHeight = 18f
+private const val DockTabMargin = 2f
+private const val DockTabStride = DockTabWidth + DockTabMargin * 2f
 
 private val DockTabStyle = compileHss(
     """
@@ -324,16 +326,19 @@ private fun DockTab(
     allowUndock: Boolean,
 ) {
     val dragOffset = state.tabDragOffset(stackId, item.id, index)
+    val swapOffset = if (dragOffset == null) state.consumeTabSwapOffset(stackId, item.id) else null
+    val tabOffset = dragOffset ?: swapOffset
     Row(
         id = tabNodeId(item.id),
         tags = if (selected) listOf(DockTags.Tab, DockTags.Selected) else listOf(DockTags.Tab),
         modifier = Modifier.then(
             Modifier.style(DockTabStyle),
             Modifier.size(width = DockTabWidth.px, height = DockTabHeight.px),
-            Modifier.margin(2.px),
+            Modifier.margin(DockTabMargin.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),
             Modifier.layer(if (dragOffset != null) 50 else if (selected) 1 else 0),
-            if (dragOffset != null) Modifier.translate(dragOffset, -2f, 10f) else Modifier.then(),
+            if (swapOffset != null) Modifier.transition() else Modifier.then(),
+            if (tabOffset != null) Modifier.translate(tabOffset, if (dragOffset != null) -2f else 0f, if (dragOffset != null) 10f else 0f) else Modifier.then(),
             Modifier.input(hoverable = true, clickable = true, draggable = true),
             Modifier.cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND),
             Modifier.onPress { event ->
@@ -347,7 +352,7 @@ private fun DockTab(
             Modifier.onDrag { event ->
                 val grab = state.tabGrab(stackId, item.id)
                 if (event.isInsideTabBar()) {
-                    state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX, DockTabWidth)
+                    state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX, DockTabStride)
                     event.consume()
                     return@onDrag
                 }
@@ -426,7 +431,7 @@ private fun UiEvent.isInsideTabBar(): Boolean {
 }
 
 private fun tabIndexAt(parentLocalX: Float, tabCount: Int): Int {
-    return (parentLocalX / DockTabWidth).toInt().coerceIn(0, tabCount - 1)
+    return (parentLocalX / DockTabStride).toInt().coerceIn(0, tabCount - 1)
 }
 
 object DockTags {

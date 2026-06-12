@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
+import kotlin.math.PI
+import kotlin.math.cos
 
 sealed interface UiRenderCommand {
     val node: UiNode
@@ -176,9 +178,17 @@ data class DrawTextFieldChromeCommand(
     val selectionColor: UiColor,
     val lineNumberColor: UiColor,
     val inlayHintColor: UiColor,
+    val diagnosticErrorColor: UiColor,
+    val diagnosticWarningColor: UiColor,
+    val diagnosticInfoColor: UiColor,
+    val caretOpacity: Float,
     val showCaret: Boolean,
     val showLineNumbers: Boolean,
     val showInlayHints: Boolean,
+    val diagnostics: List<UiTextDiagnostic>,
+    val inlayHints: List<UiInlayHint>,
+    val completionItems: List<UiTextCompletion>,
+    val completionAnchor: Int,
     val placeholder: String,
     val opacity: Float,
     val fontSize: Float,
@@ -207,6 +217,11 @@ data class DrawScrollbarCommand(
 
 enum class ScrollbarOrientation {
     VERTICAL, HORIZONTAL
+}
+
+private fun caretOpacity(nowMillis: Long): Float {
+    val phase = (nowMillis % 900L).toDouble() / 900.0
+    return (0.68f + 0.32f * cos(phase * PI * 2.0).toFloat()).coerceIn(0.36f, 1f)
 }
 
 class UiCommandRenderer {
@@ -363,7 +378,7 @@ class UiCommandRenderer {
             is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
             is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
             is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
-            is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, commands)
+            is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, nowMillis, commands)
         }
     }
 
@@ -432,6 +447,7 @@ class UiCommandRenderer {
         transform: UiMatrix4,
         filter: UiFilterChain,
         backface: UiBackfaceVisibility,
+        nowMillis: Long,
         commands: MutableList<UiRenderCommand>,
     ) {
         val text = node.value
@@ -456,27 +472,14 @@ class UiCommandRenderer {
         }
         val field = style.textField
         val textOffset = textFieldTextOffset(node, style, layoutNode)
-        commands += DrawTextFieldChromeCommand(
+        commands += PushClipCommand(
             node = node,
-            rect = layoutNode.content,
-            layout = editLayout,
-            scrollOffset = layoutNode.scrollOffset,
-            carets = node.caretRanges.toList(),
-            textOffset = textOffset,
-            caretColor = field.caretColor ?: style.foreground,
-            selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
-            lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
-            inlayHintColor = field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
-            showCaret = UiState.FOCUS in node.states,
-            showLineNumbers = field.lineNumbers == true,
-            showInlayHints = field.inlayHints == true,
-            placeholder = node.placeholder,
-            opacity = opacity,
-            fontSize = style.fontSize,
-            fontFamily = style.fontFamily,
-            transform = transform,
-            filter = filter,
-            backfaceVisibility = backface,
+            rect = UiRect(
+                layoutNode.content.x + textOffset,
+                layoutNode.content.y,
+                (layoutNode.content.width - textOffset).coerceAtLeast(0f),
+                layoutNode.content.height,
+            ),
         )
         commands += DrawTextCommand(
             node = node,
@@ -494,6 +497,37 @@ class UiCommandRenderer {
             layout = displayLayout,
             scrollOffset = layoutNode.scrollOffset,
             hoveredLink = null,
+            backfaceVisibility = backface,
+        )
+        commands += PopClipCommand(node)
+        commands += DrawTextFieldChromeCommand(
+            node = node,
+            rect = layoutNode.content,
+            layout = editLayout,
+            scrollOffset = layoutNode.scrollOffset,
+            carets = node.caretRanges.toList(),
+            textOffset = textOffset,
+            caretColor = field.caretColor ?: style.foreground,
+            selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
+            lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
+            inlayHintColor = field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
+            diagnosticErrorColor = UiColor(1f, 0.33f, 0.33f, 0.9f),
+            diagnosticWarningColor = UiColor(1f, 0.72f, 0.26f, 0.88f),
+            diagnosticInfoColor = UiColor(0.38f, 0.66f, 1f, 0.84f),
+            caretOpacity = caretOpacity(nowMillis),
+            showCaret = UiState.FOCUS in node.states,
+            showLineNumbers = field.lineNumbers == true,
+            showInlayHints = field.inlayHints == true,
+            diagnostics = node.diagnostics,
+            inlayHints = node.inlayHints,
+            completionItems = node.completionItems,
+            completionAnchor = node.completionAnchor,
+            placeholder = node.placeholder,
+            opacity = opacity,
+            fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
+            transform = transform,
+            filter = filter,
             backfaceVisibility = backface,
         )
     }

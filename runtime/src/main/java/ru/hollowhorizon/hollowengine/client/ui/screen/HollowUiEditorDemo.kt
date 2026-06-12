@@ -18,6 +18,9 @@ internal fun HollowUiEditorDemo(
                 mode = UiTextFieldMode.MULTI_LINE,
                 multiCaret = true,
                 syntaxHighlighter = highlighter,
+                completionContributor = EditorDemoCompletionContributor,
+                diagnostics = editorDemoDiagnostics(EditorDemoText),
+                inlayHints = editorDemoInlayHints(EditorDemoText),
                 placeholder = "Type code here",
                 tags = listOf("editor-text-field"),
                 modifier = Modifier.then(
@@ -82,11 +85,46 @@ internal fun highlightEditorDemoText(text: String): List<UiTextHighlight> {
     return highlights
 }
 
+private object EditorDemoCompletionContributor : UiCompletionContributor {
+    override fun complete(context: UiCompletionContext): List<UiTextCompletion> {
+        return listOf(
+            UiTextCompletion("TextField(...)", "TextField(value = \"\")", "template"),
+            UiTextCompletion("LazyColumn { ... }", "LazyColumn { }", "template"),
+            UiTextCompletion("Modifier.onKeyInput", "Modifier.onKeyInput { input -> false }", "modifier"),
+            UiTextCompletion("line-numbers: true", "line-numbers: true;", "style"),
+        )
+    }
+}
+
+private fun editorDemoDiagnostics(text: String): List<UiTextDiagnostic> {
+    val repeatIndex = text.indexOf("repeat")
+    val textIndex = text.indexOf("val text")
+    return listOfNotNull(
+        repeatIndex.takeIf { it >= 0 }?.let {
+            UiTextDiagnostic(it, it + "repeat".length, "Demo warning", UiTextDiagnosticSeverity.WARNING)
+        },
+        textIndex.takeIf { it >= 0 }?.let {
+            UiTextDiagnostic(it, it + "val text".length, "Demo info", UiTextDiagnosticSeverity.INFO)
+        },
+    )
+}
+
+private fun editorDemoInlayHints(text: String): List<UiInlayHint> {
+    val functionEnd = text.indexOf("()").takeIf { it >= 0 }?.let { it + 2 }
+    val repeatEnd = text.indexOf("repeat(3)").takeIf { it >= 0 }?.let { it + "repeat(3)".length }
+    return listOfNotNull(
+        functionEnd?.let { UiInlayHint(it, ": Unit") },
+        repeatEnd?.let { UiInlayHint(it, " times") },
+    )
+}
+
 private val EditorDemoText = """
 fun editorDemo() {
     val text = "Hollow UI editor"
     // Shift + Up/Down extends the selection.
     // Alt + click adds another caret when multiCaret is enabled.
+    // Double click selects a word; Alt + double click adds one more word selection.
+    // Type "." or press Alt+Enter to open completion templates.
     repeat(3) { index ->
         TextField(value = text + index)
     }
