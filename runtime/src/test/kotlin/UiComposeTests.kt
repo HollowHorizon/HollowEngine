@@ -90,6 +90,23 @@ class UiComposeTests {
     }
 
     @Test
+    fun `text completion replaces prefix and moves caret inside template`() {
+        val field = TextFieldNode(
+            "Text",
+            completionContributor = UiCompletionContributor {
+                listOf(UiTextCompletion("TextField", "TextField(value = \"\")", caretOffset = "TextField(value = \"".length))
+            },
+        )
+
+        field.moveCaret(4)
+        field.openCompletions()
+        field.acceptCompletion()
+
+        assertEquals("TextField(value = \"\")", field.value)
+        assertEquals("TextField(value = \"".length, field.caret)
+    }
+
+    @Test
     fun `text selection fills line gaps and empty lines`() {
         val layout = UiTextLayouter.layout(
             "a\n\nb",

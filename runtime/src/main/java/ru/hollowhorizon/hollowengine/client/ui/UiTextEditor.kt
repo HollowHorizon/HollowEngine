@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+internal const val InlayHintVisualOffsetX = 2f
+
 data class UiTextCaret(
     val position: Int,
     val selectionAnchor: Int? = null,
@@ -35,6 +37,7 @@ data class UiTextCompletion(
     val label: String,
     val insertText: String = label,
     val detail: String = "",
+    val caretOffset: Int? = null,
 )
 
 fun interface UiCompletionContributor {
@@ -58,6 +61,10 @@ data class UiInlayHint(
     val offset: Int,
     val text: String,
 )
+
+fun interface UiInlayHintsProvider {
+    fun hints(text: String): List<UiInlayHint>
+}
 
 internal fun String.toHighlightedRichText(
     highlighter: UiSyntaxHighlighter?,

@@ -21,6 +21,7 @@ class HollowUiInputController {
     private var lastTextClickKey: String? = null
     private var lastTextClickAtMillis: Long = 0L
     private var lastTextClickIndex: Int = -1
+    private var textAltSelectionAnchor: Int? = null
 
     fun reset() {
         clearInteraction()
@@ -33,6 +34,7 @@ class HollowUiInputController {
         activeKey = null
         draggingKey = null
         scrollbarDrag = null
+        textAltSelectionAnchor = null
         if (clearFocus) focusedKey = null
     }
 
@@ -248,8 +250,9 @@ class HollowUiInputController {
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
         val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
         val handled = dispatch(event)
+        val hadCompletions = node is TextFieldNode && node.completionItems.isNotEmpty()
         if (!event.consumed && node is TextFieldNode && node.insert(codePoint.toString())) {
-            if (codePoint == '.') node.openCompletions()
+            if (codePoint == '.' || hadCompletions) node.openCompletions()
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
         }
@@ -348,6 +351,7 @@ class HollowUiInputController {
                 val index = textFieldCaretIndexAt(frame, node, localX, localY)
                 val nodeKey = UiNodeKeys.key(node)
                 val altPressed = isAltPressed()
+                textAltSelectionAnchor = null
                 if (isTextDoubleClick(nodeKey, index)) {
                     val range = textFieldWordRangeAt(node.value, index)
                     if (node.multiCaret && altPressed) {
@@ -356,7 +360,10 @@ class HollowUiInputController {
                         node.setSelection(range.start, range.end)
                     }
                 } else if (node.multiCaret && altPressed) {
-                    node.addCaret(index)
+                    if (!node.removeCaretRangeAt(index)) {
+                        node.addCaret(index)
+                        textAltSelectionAnchor = index
+                    }
                 } else {
                     node.moveCaret(index)
                 }
@@ -390,7 +397,12 @@ class HollowUiInputController {
         val index = textFieldCaretIndexAt(frame, node, local.x, local.y)
         val previousStart = node.selectionStart
         val previousEnd = node.selectionEnd
-        node.setSelection(node.selectionAnchor ?: node.caret, index)
+        val altAnchor = textAltSelectionAnchor
+        if (altAnchor != null && node.multiCaret) {
+            node.updateLastCaretRange(altAnchor, index)
+        } else {
+            node.setSelection(node.selectionAnchor ?: node.caret, index)
+        }
         val changed = previousStart != node.selectionStart || previousEnd != node.selectionEnd
         if (changed) stateStore.save(node)
         return changed

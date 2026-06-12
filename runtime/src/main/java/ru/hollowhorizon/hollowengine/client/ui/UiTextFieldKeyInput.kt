@@ -31,12 +31,22 @@ internal data object TextFieldDefaultKeyInputModifier : Modifier {
 internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Boolean {
     if (completionItems.isNotEmpty()) {
         val completionChanged = when (input.key) {
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion()
+            GLFW.GLFW_KEY_UP -> moveCompletionSelection(-1)
+            GLFW.GLFW_KEY_DOWN -> moveCompletionSelection(1)
+            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion(completionSelectedIndex)
             GLFW.GLFW_KEY_ESCAPE -> closeCompletions()
             else -> false
         }
         if (completionChanged) input.markChanged()
-        if (completionChanged || input.key == GLFW.GLFW_KEY_ESCAPE) return completionChanged
+        if (completionChanged ||
+            input.key == GLFW.GLFW_KEY_UP ||
+            input.key == GLFW.GLFW_KEY_DOWN ||
+            input.key == GLFW.GLFW_KEY_ESCAPE
+        ) return true
+        if (input.key == GLFW.GLFW_KEY_LEFT || input.key == GLFW.GLFW_KEY_RIGHT) {
+            closeCompletions()
+            input.markChanged()
+        }
     }
     val changed = when (input.key) {
         GLFW.GLFW_KEY_BACKSPACE -> backspace(word = input.control)

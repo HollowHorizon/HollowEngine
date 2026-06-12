@@ -41,6 +41,9 @@ sealed interface UiInlineItem {
     data class Inlay(
         val text: String,
         val style: UiInlineStyle = UiInlineStyle(),
+        val paddingLeft: Float = 0f,
+        val paddingRight: Float = 0f,
+        val fontScale: Float = 0.86f,
     ) : UiInlineItem
 }
 

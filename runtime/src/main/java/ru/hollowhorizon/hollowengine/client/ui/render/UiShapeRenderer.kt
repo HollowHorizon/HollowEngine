@@ -21,6 +21,7 @@ internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
     withCullStatePreserved {
         RenderSystem.disableCull()
         RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
@@ -83,6 +84,8 @@ internal fun drawSolid(rect: UiRect, color: UiColor, transform: UiMatrix4, radiu
     }
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
@@ -110,6 +113,8 @@ internal fun drawLocalPaint(
     }
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
@@ -248,6 +253,8 @@ private fun drawRoundedFan(
 ) {
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR)
@@ -282,6 +289,8 @@ private fun drawProjectedShadowGradient(
     configureUiBlend()
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
@@ -335,6 +344,8 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
     val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments).map { (x, y) -> x + inset to y + inset }
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR)

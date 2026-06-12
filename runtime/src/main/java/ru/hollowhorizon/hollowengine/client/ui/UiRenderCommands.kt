@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
-import kotlin.math.PI
-import kotlin.math.cos
 
 sealed interface UiRenderCommand {
     val node: UiNode
@@ -181,7 +179,6 @@ data class DrawTextFieldChromeCommand(
     val diagnosticErrorColor: UiColor,
     val diagnosticWarningColor: UiColor,
     val diagnosticInfoColor: UiColor,
-    val caretOpacity: Float,
     val showCaret: Boolean,
     val showLineNumbers: Boolean,
     val showInlayHints: Boolean,
@@ -189,6 +186,7 @@ data class DrawTextFieldChromeCommand(
     val inlayHints: List<UiInlayHint>,
     val completionItems: List<UiTextCompletion>,
     val completionAnchor: Int,
+    val completionSelectedIndex: Int,
     val placeholder: String,
     val opacity: Float,
     val fontSize: Float,
@@ -217,11 +215,6 @@ data class DrawScrollbarCommand(
 
 enum class ScrollbarOrientation {
     VERTICAL, HORIZONTAL
-}
-
-private fun caretOpacity(nowMillis: Long): Float {
-    val phase = (nowMillis % 900L).toDouble() / 900.0
-    return (0.68f + 0.32f * cos(phase * PI * 2.0).toFloat()).coerceIn(0.36f, 1f)
 }
 
 class UiCommandRenderer {
@@ -514,14 +507,14 @@ class UiCommandRenderer {
             diagnosticErrorColor = UiColor(1f, 0.33f, 0.33f, 0.9f),
             diagnosticWarningColor = UiColor(1f, 0.72f, 0.26f, 0.88f),
             diagnosticInfoColor = UiColor(0.38f, 0.66f, 1f, 0.84f),
-            caretOpacity = caretOpacity(nowMillis),
             showCaret = UiState.FOCUS in node.states,
             showLineNumbers = field.lineNumbers == true,
             showInlayHints = field.inlayHints == true,
             diagnostics = node.diagnostics,
-            inlayHints = node.inlayHints,
+            inlayHints = node.currentInlayHints(),
             completionItems = node.completionItems,
             completionAnchor = node.completionAnchor,
+            completionSelectedIndex = node.completionSelectedIndex,
             placeholder = node.placeholder,
             opacity = opacity,
             fontSize = style.fontSize,

@@ -40,6 +40,8 @@ data class UiTextRun(
 data class UiInlayTextRun(
     val text: String,
     val style: UiInlineStyle,
+    val textX: Float,
+    val textWidth: Float,
     override val x: Float,
     override val y: Float,
     override val width: Float,
@@ -513,10 +515,18 @@ internal object UiTextLayouter {
     }
 
     private fun UiInlineItem.Inlay.toUnit(baseFontSize: Float, fontFamily: String?): InlineUnit.Inlay {
-        val size = style.resolvedFontSize(baseFontSize)
+        val size = style.resolvedFontSize(baseFontSize) * fontScale.coerceAtLeast(0.1f)
         val resolvedFamily = style.fontFamily ?: fontFamily
         val lineHeight = UiTextFonts.resolve(resolvedFamily).lineHeight(size)
-        return InlineUnit.Inlay(text, style, measureTextWidth(text, size, resolvedFamily, style), lineHeight)
+        val textWidth = measureTextWidth(text, size, resolvedFamily, style)
+        return InlineUnit.Inlay(
+            text = text,
+            style = style.withFontSize(size),
+            textX = paddingLeft.coerceAtLeast(0f),
+            textWidth = textWidth,
+            width = textWidth + paddingLeft.coerceAtLeast(0f) + paddingRight.coerceAtLeast(0f),
+            height = lineHeight,
+        )
     }
 
     private fun String.toUnits(
@@ -592,7 +602,16 @@ internal object UiTextLayouter {
                 }
 
                 is InlineUnit.Inlay -> {
-                    fragments += UiInlayTextRun(unit.text, unit.style, x, unit.y, unit.width, unit.height)
+                    fragments += UiInlayTextRun(
+                        unit.text,
+                        unit.style,
+                        unit.textX,
+                        unit.textWidth,
+                        x,
+                        unit.y,
+                        unit.width,
+                        unit.height,
+                    )
                     x += unit.width
                 }
 
@@ -754,6 +773,8 @@ internal object UiTextLayouter {
         data class Inlay(
             val text: String,
             val style: UiInlineStyle,
+            val textX: Float,
+            val textWidth: Float,
             override val width: Float,
             override val height: Float,
         ) : InlineUnit {

@@ -20,7 +20,7 @@ internal fun HollowUiEditorDemo(
                 syntaxHighlighter = highlighter,
                 completionContributor = EditorDemoCompletionContributor,
                 diagnostics = editorDemoDiagnostics(EditorDemoText),
-                inlayHints = editorDemoInlayHints(EditorDemoText),
+                inlayHintsProvider = EditorDemoInlayHintsProvider,
                 placeholder = "Type code here",
                 tags = listOf("editor-text-field"),
                 modifier = Modifier.then(
@@ -88,12 +88,16 @@ internal fun highlightEditorDemoText(text: String): List<UiTextHighlight> {
 private object EditorDemoCompletionContributor : UiCompletionContributor {
     override fun complete(context: UiCompletionContext): List<UiTextCompletion> {
         return listOf(
-            UiTextCompletion("TextField(...)", "TextField(value = \"\")", "template"),
-            UiTextCompletion("LazyColumn { ... }", "LazyColumn { }", "template"),
-            UiTextCompletion("Modifier.onKeyInput", "Modifier.onKeyInput { input -> false }", "modifier"),
+            UiTextCompletion("TextField(...)", "TextField(value = \"\")", "template", caretOffset = "TextField(value = \"".length),
+            UiTextCompletion("LazyColumn { ... }", "LazyColumn {\n    \n}", "template", caretOffset = "LazyColumn {\n    ".length),
+            UiTextCompletion("Modifier.onKeyInput", "Modifier.onKeyInput { input ->\n    false\n}", "modifier", caretOffset = "Modifier.onKeyInput { input ->\n    ".length),
             UiTextCompletion("line-numbers: true", "line-numbers: true;", "style"),
         )
     }
+}
+
+private object EditorDemoInlayHintsProvider : UiInlayHintsProvider {
+    override fun hints(text: String): List<UiInlayHint> = editorDemoInlayHints(text)
 }
 
 private fun editorDemoDiagnostics(text: String): List<UiTextDiagnostic> {

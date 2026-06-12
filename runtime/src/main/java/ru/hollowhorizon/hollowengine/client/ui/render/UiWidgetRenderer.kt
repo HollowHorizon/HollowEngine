@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.*
+import kotlin.math.atan2
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -112,6 +114,7 @@ internal class UiWidgetRenderer(
         }
         drawCompletionPopup(command, transform)
         if (command.showCaret) {
+            if (!textFieldCaretVisible()) return
             command.carets.forEach { caretRange ->
                 val caret = command.layout.caretPosition(caretRange.position, command.fontSize, command.fontFamily)
                 val clipped = UiRect(
@@ -124,7 +127,7 @@ internal class UiWidgetRenderer(
                     clipped.width,
                     clipped.height,
                     0f,
-                    command.caretColor.withOpacity(command.opacity * command.caretOpacity),
+                    command.caretColor.withOpacity(command.opacity),
                     transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
                     command.filter,
                 )
@@ -159,49 +162,76 @@ internal class UiWidgetRenderer(
         command: DrawTextFieldChromeCommand,
         transform: UiMatrix4,
     ) {
-        val step = 4f
-        val dot = 2f
-        val baseY = rect.y + rect.height - 2.5f
-        var x = rect.x
-        var index = 0
-        while (x < rect.x + rect.width) {
-            val y = baseY + if (index % 2 == 0) 0f else 1.5f
-            drawLocalPaint(
-                min(dot, rect.x + rect.width - x).coerceAtLeast(0.75f),
-                dot,
-                1f,
-                color.withOpacity(command.opacity),
-                transform * UiMatrix4.translation(x, y, 0f),
-                command.filter,
+        if (rect.width <= 1f) return
+        val step = 3f
+        val amplitude = 2f
+        val thickness = 1.25f
+        val baseY = rect.y + rect.height
+        val right = rect.x + rect.width
+        var startX = rect.x
+        var startY = baseY
+        var nextHigh = true
+        while (startX < right) {
+            val endX = min(startX + step, right)
+            val endY = baseY + if (nextHigh) -amplitude else amplitude
+            drawZigZagSegment(
+                startX = startX,
+                startY = startY,
+                endX = endX,
+                endY = endY,
+                thickness = thickness,
+                color = color.withOpacity(command.opacity),
+                transform = transform,
+                filter = command.filter,
             )
-            x += step
-            index++
+            startX = endX
+            startY = endY
+            nextHigh = !nextHigh
         }
+    }
+
+    private fun drawZigZagSegment(
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        thickness: Float,
+        color: UiColor,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+    ) {
+        val dx = endX - startX
+        val dy = endY - startY
+        val length = sqrt(dx * dx + dy * dy)
+        if (length <= 0.1f) return
+        drawLocalPaint(
+            length,
+            thickness,
+            thickness * 0.5f,
+            color,
+            transform *
+                    UiMatrix4.translation(startX, startY, 0f) *
+                    UiMatrix4.rotationZ(atan2(dy, dx)) *
+                    UiMatrix4.translation(0f, -thickness * 0.5f, 0f),
+            filter,
+        )
     }
 
     private fun drawInlayHintFrames(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
         command.layout.lines.forEach { line ->
             line.fragments.filterIsInstance<UiInlayTextRun>().forEach { fragment ->
                 val frame = UiRect(
-                    command.textOffset + line.x + fragment.x - command.scrollOffset.x - 3f,
+                    command.textOffset + line.x + fragment.x - command.scrollOffset.x + InlayHintVisualOffsetX,
                     line.y + fragment.y - command.scrollOffset.y - 1f,
-                    fragment.width + 6f,
+                    fragment.width,
                     fragment.height + 2f,
                 ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
-                drawLocalPaint(
-                    frame.width,
-                    frame.height,
-                    3f,
-                    UiColor(0.18f, 0.2f, 0.24f, command.opacity * 0.16f),
-                    transform * UiMatrix4.translation(frame.x, frame.y, 0f),
-                    command.filter,
-                )
                 drawLocalBorder(
                     frame.width,
                     frame.height,
                     3f,
                     1f,
-                    command.inlayHintColor.withOpacity(command.opacity * 0.75f),
+                    command.inlayHintColor.withOpacity(command.opacity * 0.55f),
                     transform * UiMatrix4.translation(frame.x, frame.y, 0f),
                 )
             }
@@ -233,7 +263,7 @@ internal class UiWidgetRenderer(
         drawLocalBorder(popupWidth, popupHeight, 3f, 1f, UiColor(0.36f, 0.42f, 0.5f, command.opacity * 0.75f), popupTransform)
         items.forEachIndexed { index, item ->
             val rowY = 3f + index * rowHeight
-            if (index == 0) {
+            if (index == command.completionSelectedIndex.coerceIn(0, items.lastIndex)) {
                 drawLocalPaint(
                     popupWidth - 4f,
                     rowHeight,
@@ -266,6 +296,11 @@ internal class UiWidgetRenderer(
                 )
             }
         }
+    }
+
+    private fun textFieldCaretVisible(): Boolean {
+        val phase = (System.currentTimeMillis() % 900L).toFloat() / 900f
+        return phase < 0.55f
     }
 
     private fun UiRect.translated(deltaX: Float, deltaY: Float): UiRect {
@@ -369,6 +404,8 @@ internal class UiWidgetRenderer(
         filter: UiFilterChain,
     ) {
         val mc = Minecraft.getInstance()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         val xAxis = transform.transform(1f, 0f)
         val origin = transform.transform(0f, 0f)
         val yAxis = transform.transform(0f, 1f)

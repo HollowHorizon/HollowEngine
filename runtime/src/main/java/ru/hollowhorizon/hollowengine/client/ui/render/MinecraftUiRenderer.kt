@@ -546,7 +546,7 @@ class MinecraftUiRenderer {
     }
 
     private fun UiInlayTextRun.toTextRun(): UiTextRun {
-        return UiTextRun(text, style, x, y, width, height)
+        return UiTextRun(text, style, x + textX + InlayHintVisualOffsetX, y, textWidth, height)
     }
 
     private fun drawTextRun(
@@ -573,7 +573,7 @@ class MinecraftUiRenderer {
                 fontSize,
                 fontFamily,
                 fragment.style.color,
-                command.opacity,
+                1f,
             )
             return
         }
@@ -625,7 +625,7 @@ class MinecraftUiRenderer {
                     fontSize,
                     fontFamily,
                     passColor,
-                    command.opacity,
+                    pass.alphaMultiplier,
                 )
             }
         }
@@ -634,7 +634,7 @@ class MinecraftUiRenderer {
             command, fragment, transform, scaleX, scaleY,
             localX, localY, fontSize,
             fontFamily,
-            fragment.style.color, command.opacity,
+            fragment.style.color, 1f,
         )
     }
 

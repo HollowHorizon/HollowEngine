@@ -220,6 +220,7 @@ class TextFieldNode(
     completionContributor: UiCompletionContributor? = null,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
+    inlayHintsProvider: UiInlayHintsProvider? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
@@ -279,10 +280,17 @@ class TextFieldNode(
     var completionContributor: UiCompletionContributor? = completionContributor
     var diagnostics: List<UiTextDiagnostic> = diagnostics
     var inlayHints: List<UiInlayHint> = inlayHints
+    var inlayHintsProvider: UiInlayHintsProvider? = inlayHintsProvider
     var completionItems: List<UiTextCompletion> = emptyList()
         private set
     var completionAnchor: Int = this.value.length
         private set
+    var completionSelectedIndex: Int = 0
+        private set
+    private var completionReplacementStart: Int = this.value.length
+    private var completionReplacementEnd: Int = this.value.length
+    private var completionLineStart: Int = 0
+    private var completionLineEnd: Int = 0
 
     var caret: Int = this.value.length
         private set
@@ -313,6 +321,7 @@ class TextFieldNode(
         this.completionContributor = completionContributor
         this.diagnostics = diagnostics
         this.inlayHints = inlayHints
+        this.inlayHintsProvider = inlayHintsProvider
         this.value = value
         moveCaret(this.value.length)
     }
@@ -355,6 +364,7 @@ class TextFieldNode(
         caret = position.coerceIn(0, value.length)
         selectionAnchor = if (select) selectionAnchor ?: previous else null
         setCaretRangesInternal(listOf(UiTextCaret(caret, selectionAnchor)), updatePrimary = false)
+        closeCompletionsIfCaretLeftLine()
         if (caret != previous || selectionAnchor != previousAnchor) caretVisibilityRevision++
     }
 
@@ -365,6 +375,7 @@ class TextFieldNode(
             UiTextCaret(position, if (select) range.selectionAnchor ?: range.position else null)
         }
         setCaretRanges(next)
+        closeCompletionsIfCaretLeftLine()
         if (previous != caretRanges) caretVisibilityRevision++
     }
 
@@ -396,6 +407,23 @@ class TextFieldNode(
                         (existing.selectionStart == normalized.selectionStart && existing.selectionEnd == normalized.selectionEnd)
             } + normalized
         setCaretRanges(next.ifEmpty { listOf(normalized) })
+    }
+
+    fun removeCaretRangeAt(position: Int): Boolean {
+        val index = activeCaretRanges().indexOfFirst { range ->
+            if (range.hasSelection) position in range.selectionStart..range.selectionEnd else range.position == position
+        }
+        if (index < 0) return false
+        val next = activeCaretRanges().toMutableList().also { it.removeAt(index) }
+        setCaretRanges(next.ifEmpty { listOf(UiTextCaret(position.coerceIn(0, value.length))) })
+        return true
+    }
+
+    fun updateLastCaretRange(anchor: Int, active: Int) {
+        val ranges = activeCaretRanges().toMutableList()
+        val range = UiTextCaret(active.coerceIn(0, value.length), anchor.coerceIn(0, value.length))
+        if (ranges.isEmpty()) ranges += range else ranges[ranges.lastIndex] = range
+        setCaretRanges(ranges)
     }
 
     fun setSelection(anchor: Int, active: Int) {
@@ -437,22 +465,42 @@ class TextFieldNode(
             .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
         val previousItems = completionItems
         val previousAnchor = completionAnchor
+        val replacement = completionReplacementRange(value, caret)
         completionItems = items
         completionAnchor = caret
+        completionSelectedIndex = 0
+        completionReplacementStart = replacement.first
+        completionReplacementEnd = replacement.last
+        val line = completionLineRange(value, caret)
+        completionLineStart = line.first
+        completionLineEnd = line.last
         return previousItems != completionItems || previousAnchor != completionAnchor
     }
 
     fun closeCompletions(): Boolean {
         if (completionItems.isEmpty()) return false
         completionItems = emptyList()
+        completionSelectedIndex = 0
         return true
+    }
+
+    fun moveCompletionSelection(delta: Int): Boolean {
+        if (completionItems.isEmpty()) return false
+        val previous = completionSelectedIndex
+        completionSelectedIndex = (completionSelectedIndex + delta).floorMod(completionItems.size)
+        return previous != completionSelectedIndex
     }
 
     fun acceptCompletion(index: Int = 0): Boolean {
         val item = completionItems.getOrNull(index) ?: return false
-        val changed = insert(item.insertText.ifEmpty { item.label })
+        val insertText = item.insertText.ifEmpty { item.label }
+        val changed = replaceCompletionRange(insertText, item.caretOffset)
         completionItems = emptyList()
         return changed
+    }
+
+    fun currentInlayHints(): List<UiInlayHint> {
+        return inlayHintsProvider?.hints(value) ?: inlayHints
     }
 
     override fun exportState(): UiNodePersistentState = TextFieldPersistentState(
@@ -519,6 +567,22 @@ class TextFieldNode(
         return true
     }
 
+    private fun replaceCompletionRange(replacement: String, caretOffset: Int?): Boolean {
+        val start = completionReplacementStart.coerceIn(0, value.length)
+        val end = completionReplacementEnd.coerceIn(start, value.length)
+        val nextValue = value.substring(0, start) + replacement + value.substring(end)
+        if (!filter.accepts(nextValue)) return false
+        value = nextValue
+        val nextCaret = start + (caretOffset ?: replacement.length).coerceIn(0, replacement.length)
+        setCaretRanges(listOf(UiTextCaret(nextCaret)))
+        return true
+    }
+
+    private fun closeCompletionsIfCaretLeftLine() {
+        if (completionItems.isEmpty()) return
+        if (caret < completionLineStart || caret > completionLineEnd) closeCompletions()
+    }
+
     private fun activeCaretRanges(): List<UiTextCaret> {
         val ranges = if (multiCaret) caretRanges else caretRanges.take(1)
         return ranges.ifEmpty { listOf(UiTextCaret(caret, selectionAnchor)) }
@@ -562,6 +626,26 @@ private fun editorWordRight(text: String, position: Int): Int {
 }
 
 private fun Char.isEditorWordChar(): Boolean = this == '_' || isLetterOrDigit()
+
+private fun completionReplacementRange(text: String, caret: Int): IntRange {
+    val end = caret.coerceIn(0, text.length)
+    var start = end
+    while (start > 0 && text[start - 1].isEditorWordChar()) start--
+    return start..end
+}
+
+private fun completionLineRange(text: String, caret: Int): IntRange {
+    val index = caret.coerceIn(0, text.length)
+    val start = text.lastIndexOf('\n', (index - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+    return start..end
+}
+
+private fun Int.floorMod(modulo: Int): Int {
+    if (modulo <= 0) return 0
+    val result = this % modulo
+    return if (result < 0) result + modulo else result
+}
 
 internal fun Map<String, String>.readSliderValue(name: String, fallback: Float): Float =
     this[name]?.toFloatOrNull() ?: fallback

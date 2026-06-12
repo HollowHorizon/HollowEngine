@@ -385,6 +385,7 @@ fun TextField(
     completionContributor: UiCompletionContributor? = null,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
+    inlayHintsProvider: UiInlayHintsProvider? = null,
     placeholder: String = "",
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -393,7 +394,18 @@ fun TextField(
 ) {
     val modifiers = modifier.asList()
     val textFieldModifiers = modifiers + TextFieldDefaultKeyInputModifier
-    val values = TextFieldValues(value, mode, filter, multiCaret, syntaxHighlighter, completionContributor, diagnostics, inlayHints, placeholder)
+    val values = TextFieldValues(
+        value,
+        mode,
+        filter,
+        multiCaret,
+        syntaxHighlighter,
+        completionContributor,
+        diagnostics,
+        inlayHints,
+        inlayHintsProvider,
+        placeholder,
+    )
     ComposeNode<TextFieldNode, HollowUiApplier>(
         factory = {
             TextFieldNode(
@@ -405,6 +417,7 @@ fun TextField(
                 completionContributor,
                 diagnostics,
                 inlayHints,
+                inlayHintsProvider,
                 id,
                 tags,
                 textFieldModifiers,
@@ -498,6 +511,7 @@ private data class TextFieldValues(
     val completionContributor: UiCompletionContributor?,
     val diagnostics: List<UiTextDiagnostic>,
     val inlayHints: List<UiInlayHint>,
+    val inlayHintsProvider: UiInlayHintsProvider?,
     val placeholder: String,
 )
 
@@ -526,6 +540,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     completionContributor = values.completionContributor
     diagnostics = values.diagnostics
     inlayHints = values.inlayHints
+    inlayHintsProvider = values.inlayHintsProvider
     placeholder = values.placeholder
     value = values.value
 }
