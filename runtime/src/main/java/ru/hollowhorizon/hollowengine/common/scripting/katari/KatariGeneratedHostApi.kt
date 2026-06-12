@@ -457,6 +457,17 @@ val Vec3.blockY: Int get() = BlockPos.containing(this).y
 @ScriptBinding("blockZ")
 val Vec3.blockZ: Int get() = BlockPos.containing(this).z
 
+@ScriptBinding("item")
+val ItemStack.item: String
+    get() = BuiltInRegistries.ITEM.getKey(item).toString()
+
+@ScriptBinding("count")
+var ItemStack.scriptCount: Int
+    get() = count
+    set(value) {
+        count = value
+    }
+
 @ScriptBinding("distanceTo")
 fun Vec3.scriptDistanceTo(other: Vec3): Double {
     return distanceTo(other)
