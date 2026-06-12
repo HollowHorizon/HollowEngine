@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
@@ -12,9 +13,11 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.time.Duration.Companion.milliseconds
@@ -53,11 +56,15 @@ suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
 @ScriptBinding
 suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
-        navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
+        withContext(currentServer.dispatcher) {
+            navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
+        }
         delay(50.milliseconds)
     }
 
-    navigation.stop()
+    withContext(currentServer.dispatcher) {
+        navigation.stop()
+    }
 }
 
 /**
@@ -75,7 +82,9 @@ suspend infix fun NpcEntity.move(position: Vec3): Unit = move(pos = position)
  */
 @ScriptBinding
 suspend infix fun NpcEntity.lookAt(position: Vec3) {
-    rotate({ position }, 1500)
+    withContext(currentServer.dispatcher) {
+        rotate({ position }, 1500)
+    }
 }
 
 /**
@@ -85,7 +94,9 @@ suspend infix fun NpcEntity.lookAt(position: Vec3) {
  */
 @ScriptBinding
 suspend infix fun NpcEntity.lookAt(entity: Entity) {
-    rotate({ entity.eyePosition }, 1500)
+    withContext(currentServer.dispatcher) {
+        rotate({ entity.eyePosition }, 1500)
+    }
 }
 
 /**
@@ -143,7 +154,7 @@ fun NpcEntity.dropItem(item: ItemStack) {
  */
 @ScriptBinding
 suspend fun wait(time: Int) {
-    delay(time * 50L)
+    delay((time * 50L).milliseconds)
 }
 
 /**

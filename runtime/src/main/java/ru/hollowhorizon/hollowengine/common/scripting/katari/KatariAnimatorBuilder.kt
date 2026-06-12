@@ -39,7 +39,7 @@ class KatariAnimatorBuilder @ScriptIgnore constructor(
         weight: String = "1",
         priority: Int = 0,
         blendMode: LayerBlendMode = LayerBlendMode.Override,
-        mask: BoneMask = BoneMask.full(),
+        mask: BoneMask = BoneMask(),
         fadeIn: Float = 0f,
         fadeOut: Float = 0f,
         referencePose: String? = null,
@@ -67,7 +67,7 @@ class KatariAnimatorBuilder @ScriptIgnore constructor(
         weight: String = "1",
         priority: Int = 0,
         blendMode: LayerBlendMode = LayerBlendMode.Override,
-        mask: BoneMask = BoneMask.full(),
+        mask: BoneMask = BoneMask(),
         fadeIn: Float = 0f,
         fadeOut: Float = 0f,
     ): KatariAnimatorBuilder = replace(
@@ -130,7 +130,7 @@ class KatariAnimatorBuilder @ScriptIgnore constructor(
         weight: String = "1",
         priority: Int = 0,
         blendMode: LayerBlendMode = LayerBlendMode.Additive,
-        mask: BoneMask = BoneMask.full(),
+        mask: BoneMask = BoneMask(),
         fadeIn: Float = 0f,
         fadeOut: Float = 0f,
     ): KatariAnimatorBuilder = replace(
@@ -234,7 +234,8 @@ data class KatariAnimatorBuilderSnapshot(
     }
 }
 
-internal fun vectorExpression(x: String, y: String, z: String) =
+@ScriptBinding
+fun vectorExpression(x: String, y: String, z: String) =
     AnimationVectorExpression(x.expr(), y.expr(), z.expr())
 
 private fun String.expr() = AnimationExpression(ifBlank { "0" })

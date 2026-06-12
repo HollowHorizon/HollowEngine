@@ -4,6 +4,7 @@ import de.fabmax.kool.math.MutableQuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.rotateByEulers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerLevel
@@ -19,6 +20,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.PlayCutscenePacket
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
+import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
@@ -74,18 +76,24 @@ fun Player.runScript(path: String) {
 
 @ScriptBinding
 suspend fun waitTime(timeOfDay: Int) {
-    val targetTime = timeOfDay.toLong().floorMod(DAY_TICKS)
-    while (currentServer.overworld().dayTime.floorMod(DAY_TICKS) != targetTime) delay(50)
+    withContext(currentServer.dispatcher) {
+        val targetTime = timeOfDay.toLong().floorMod(DAY_TICKS)
+        while (currentServer.overworld().dayTime.floorMod(DAY_TICKS) != targetTime) delay(50)
+    }
 }
 
 @ScriptBinding
 suspend fun waitDay() {
-    while (!currentServer.overworld().isDay) delay(50)
+    withContext(currentServer.dispatcher) {
+        while (!currentServer.overworld().isDay) delay(50)
+    }
 }
 
 @ScriptBinding
 suspend fun waitNight() {
-    while (currentServer.overworld().isDay) delay(50)
+    withContext(currentServer.dispatcher) {
+        while (currentServer.overworld().isDay) delay(50)
+    }
 }
 
 @ScriptBinding
@@ -269,33 +277,43 @@ fun Entity.stopNavigation() {
 
 @ScriptBinding
 suspend fun Entity.waitNpcInteract(): Player {
-    val event = PlayerInteractEvent.EntityInteract.await { it.target.uuid == uuid }
-    return event.player
+    return withContext(currentServer.dispatcher) {
+        val event = PlayerInteractEvent.EntityInteract.await { it.target.uuid == uuid }
+        event.player
+    }
 }
 
 @ScriptBinding
 suspend fun Player.waitZone(position: Vec3, radius: Double = 1.0, leave: Boolean = false): Player {
-    while (position().distanceTo(position) <= radius == leave) delay(50.milliseconds)
-    return this
+    return withContext(currentServer.dispatcher) {
+        while (position().distanceTo(position) <= radius == leave) delay(50.milliseconds)
+        this@waitZone
+    }
 }
 
 @ScriptBinding
 suspend fun Player.waitKey(key: Int, action: KatariInputAction = KatariInputAction.Press): KatariInputSnapshot {
-    return awaitInput(uuid.toString()) { input ->
-        input.kind == KatariInputKind.Key && input.key == key && input.action == action
+    return withContext(currentServer.dispatcher) {
+        awaitInput(uuid.toString()) { input ->
+            input.kind == KatariInputKind.Key && input.key == key && input.action == action
+        }
     }
 }
 
 @ScriptBinding
 suspend fun Player.waitClick(button: Int, action: KatariInputAction = KatariInputAction.Press): KatariInputSnapshot {
-    return awaitInput(uuid.toString()) { input ->
-        input.kind == KatariInputKind.MouseButton && input.button == button && input.action == action
+    return withContext(currentServer.dispatcher) {
+        awaitInput(uuid.toString()) { input ->
+            input.kind == KatariInputKind.MouseButton && input.button == button && input.action == action
+        }
     }
 }
 
 @ScriptBinding
 suspend fun Player.waitScroll(): KatariInputSnapshot {
-    return awaitInput(uuid.toString()) { input -> input.kind == KatariInputKind.MouseScroll }
+    return withContext(currentServer.dispatcher) {
+        awaitInput(uuid.toString()) { input -> input.kind == KatariInputKind.MouseScroll }
+    }
 }
 
 @ScriptBinding("name")

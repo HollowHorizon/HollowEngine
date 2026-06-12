@@ -26,6 +26,10 @@ class KatariScriptSystem(
     private val records = linkedMapOf<String, KatariRunRecord>()
     private val programCache = linkedMapOf<ProgramKey, KatariProgram>()
 
+    init {
+        katariScope = scope
+    }
+
     fun run(path: String, sourcePlayer: ServerPlayer? = null): Result<String> = runCatching {
         val source = loadSource(path)
         start(source, sourcePlayer, loader = null)
@@ -287,6 +291,10 @@ class KatariScriptSystem(
         createHollowKatariBindings(server, id, null, ::markDirty).first.snapshotCodec.serializersModule()
 
     private fun markDirty() = onDirty()
+
+    companion object {
+        lateinit var katariScope: CoroutineScope
+    }
 }
 
 class HollowEngineSources(val source: CodeSource) : KatariSourceProvider {

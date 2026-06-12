@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
@@ -124,13 +125,16 @@ data class ProceduralBoneTransformSpec(
     val scale: AnimationVectorExpression? = null,
 )
 
+@ScriptBinding
+fun BoneMask() = BoneMask.full()
+
 @Serializable
 data class BoneMask(
     val includes: Set<String> = emptySet(),
     val excludes: Set<String> = emptySet(),
 ) {
     companion object {
-        fun full() = BoneMask()
+        fun full() = BoneMask(emptySet(), emptySet())
         fun of(vararg bones: String): BoneMask {
             val includes = linkedSetOf<String>()
             val excludes = linkedSetOf<String>()

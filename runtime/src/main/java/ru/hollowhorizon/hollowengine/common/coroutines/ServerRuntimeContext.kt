@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import net.minecraft.nbt.CompoundTag
@@ -17,7 +19,7 @@ class ServerRuntimeContext(
         server.dispatcher + SupervisorJob(server.coroutineScope.coroutineContext[Job]),
         ::markDirty,
     )
-    val katari = KatariScriptSystem(server, server.coroutineScope, ::markDirty)
+    val katari = KatariScriptSystem(server, CoroutineScope(Dispatchers.IO + SupervisorJob(server.coroutineScope.coroutineContext[Job])), ::markDirty)
 
     private var dirty = false
 
