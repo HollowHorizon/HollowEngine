@@ -1,4 +1,5 @@
 import androidx.compose.runtime.mutableStateOf
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
@@ -61,6 +62,88 @@ class UiComposeTests {
 
             assertSame(field, root.textField())
             assertEquals("remote", root.textField().value)
+        }
+    }
+
+    @Test
+    fun `text field applies insertion to multiple carets`() {
+        val field = TextFieldNode("ac", mode = UiTextFieldMode.MULTI_LINE, multiCaret = true)
+
+        field.setCaretRanges(listOf(UiTextCaret(1), UiTextCaret(2)))
+        field.insert("b")
+
+        assertEquals("abcb", field.value)
+        assertEquals(listOf(2, 4), field.carets)
+    }
+
+    @Test
+    fun `text field default keymap is a modifier fallback`() {
+        var intercepted = false
+
+        HollowComposeUiRuntime().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    TextField(
+                        value = "abc",
+                        id = "field",
+                        modifier = Modifier.onKeyInput { input ->
+                            intercepted = input.key == GLFW.GLFW_KEY_LEFT
+                            intercepted
+                        },
+                    )
+                },
+                width = 120f,
+                height = 32f,
+            )
+            val field = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single()
+            field.moveCaret(3)
+
+            val event = UiEvent(UiEventKind.KEY_PRESSED, field, frame = frame, key = GLFW.GLFW_KEY_LEFT)
+            assertTrue(field.dispatch(event))
+
+            assertTrue(intercepted)
+            assertEquals(3, field.caret)
+        }
+    }
+
+    @Test
+    fun `lazy column keeps scroll range but places only visible children`() {
+        val root = BoxNode(layout = UiLayout.LazyColumn, modifiers = listOf(Modifier.size(100.px, 30.px), Modifier.input(scrollable = true)))
+        repeat(10) { index ->
+            root.children += BoxNode(id = "row-$index", modifiers = listOf(Modifier.size(100.px, 10.px)))
+        }
+
+        UiNodeKeys.assign(root)
+        val resolved = UiStyleResolver().resolve(root, animate = false)
+        val layout = UiLayoutEngine().compute(resolved, width = 100f, height = 30f)
+
+        assertTrue(layout[root].scrollRange.y > 0f)
+        assertTrue(root.children.count { it in layout.nodes } < root.children.size)
+    }
+
+    @Test
+    fun `scroll target ignores virtualized lazy children without layout nodes`() {
+        HollowComposeUiRuntime().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    LazyColumn(
+                        id = "lazy",
+                        modifier = Modifier.then(
+                            Modifier.size(100.px, 30.px),
+                            Modifier.input(scrollable = true),
+                        ),
+                    ) {
+                        repeat(10) { index ->
+                            Box(id = "row-$index", modifier = Modifier.size(100.px, 10.px))
+                        }
+                    }
+                },
+                width = 100f,
+                height = 30f,
+            )
+            val target = frame.scrollTargetAt(8f, 8f)
+
+            assertEquals("lazy", target?.id)
         }
     }
 

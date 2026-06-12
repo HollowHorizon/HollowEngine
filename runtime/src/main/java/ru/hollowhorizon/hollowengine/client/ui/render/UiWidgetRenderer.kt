@@ -70,20 +70,26 @@ internal class UiWidgetRenderer(
     }
 
     fun drawTextFieldChrome(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        command.layout.selectionRects(
-            command.selectionStart,
-            command.selectionEnd,
-            command.fontSize,
-            command.fontFamily,
-        ).forEach { rect ->
-            drawLocalPaint(
-                rect.width,
-                rect.height,
-                0f,
-                command.selectionColor.withOpacity(command.opacity),
-                transform * UiMatrix4.translation(rect.x - command.scrollOffset.x, rect.y - command.scrollOffset.y, 0f),
-                command.filter,
-            )
+        command.carets.forEach { caretRange ->
+            command.layout.selectionRects(
+                caretRange.selectionStart,
+                caretRange.selectionEnd,
+                command.fontSize,
+                command.fontFamily,
+            ).forEach { rect ->
+                drawLocalPaint(
+                    rect.width,
+                    rect.height,
+                    0f,
+                    command.selectionColor.withOpacity(command.opacity),
+                    transform * UiMatrix4.translation(
+                        command.textOffset + rect.x - command.scrollOffset.x,
+                        rect.y - command.scrollOffset.y,
+                        0f,
+                    ),
+                    command.filter,
+                )
+            }
         }
         if (command.showLineNumbers) {
             command.layout.lines.forEachIndexed { index, line ->
@@ -100,18 +106,33 @@ internal class UiWidgetRenderer(
             }
         }
         if (command.showInlayHints && command.node.value.isEmpty() && command.placeholder.isNotBlank()) {
-            drawPlainText(command.placeholder, 0f, 0f, command.fontSize, command.inlayHintColor, command.opacity, transform, command.filter)
-        }
-        if (command.showCaret) {
-            val caret = command.layout.caretPosition(command.caretIndex, command.fontSize, command.fontFamily)
-            drawLocalPaint(
-                TextFieldCaretWidth,
-                command.fontSize,
+            drawPlainText(
+                command.placeholder,
+                command.textOffset,
                 0f,
-                command.caretColor.withOpacity(command.opacity),
-                transform * UiMatrix4.translation(caret.x - command.scrollOffset.x, caret.y - command.scrollOffset.y, 0f),
+                command.fontSize,
+                command.inlayHintColor,
+                command.opacity,
+                transform,
                 command.filter,
             )
+        }
+        if (command.showCaret) {
+            command.carets.forEach { caretRange ->
+                val caret = command.layout.caretPosition(caretRange.position, command.fontSize, command.fontFamily)
+                drawLocalPaint(
+                    TextFieldCaretWidth,
+                    command.fontSize,
+                    0f,
+                    command.caretColor.withOpacity(command.opacity),
+                    transform * UiMatrix4.translation(
+                        command.textOffset + caret.x - command.scrollOffset.x,
+                        caret.y - command.scrollOffset.y,
+                        0f,
+                    ),
+                    command.filter,
+                )
+            }
         }
     }
 

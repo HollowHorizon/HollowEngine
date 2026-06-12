@@ -23,6 +23,7 @@ data class UiLayoutNode(
     val scrollOffset: UiScrollOffset = UiScrollOffset.Zero,
     val scrollRange: UiScrollOffset = UiScrollOffset.Zero,
     val scrollArea: UiRect = content,
+    val virtualContentBounds: UiRect? = null,
 )
 
 data class UiLayoutResult(
@@ -323,6 +324,38 @@ class UiLayoutEngine {
             )
 
             UiLayout.Column -> placeColumnChildren(
+                node,
+                resolved,
+                style,
+                viewport,
+                parentRect,
+                transform,
+                inputTransform,
+                clip,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings
+            )
+
+            UiLayout.LazyColumn -> placeLazyColumnChildren(
+                node,
+                resolved,
+                style,
+                viewport,
+                parentRect,
+                transform,
+                inputTransform,
+                clip,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings
+            )
+
+            UiLayout.LazyRow -> placeLazyRowChildren(
                 node,
                 resolved,
                 style,
@@ -699,6 +732,157 @@ class UiLayoutEngine {
                 bindings
             )
             y += child.margin.top + childHeight + child.margin.bottom + actualGap
+        }
+    }
+
+    private fun placeLazyColumnChildren(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        content: UiRect,
+        parentRect: UiRect,
+        transform: UiMatrix4,
+        inputTransform: UiMatrix4,
+        clip: UiRect?,
+        insideFramebuffer: Boolean,
+        scrollState: UiScrollState,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
+    ) {
+        val gap = style.gap.resolve(content.height)
+        val measured = measureFlowChildren(
+            node.layoutChildren,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            allowWidthOverflow = style.input.scrollable,
+            allowHeightOverflow = true,
+            bindings = bindings,
+        )
+        val totalHeight = measured.sumOfOuterHeight() + gap * (measured.size - 1).coerceAtLeast(0)
+        val mainAlign = measured.singleChildMainAxisAlign { it.alignVertical } ?: style.childAlignVertical(node.layout)
+        val scrollOffset = scrollState.offset(node)
+        val unscrolledTop = content.y + scrollOffset.y
+        layouts[node]?.let { layoutNode ->
+            layouts[node] = layoutNode.copy(
+                virtualContentBounds = UiRect(
+                    content.x,
+                    unscrolledTop + mainAlign.mainStartOffset(content.height, totalHeight, measured.size, gap),
+                    measured.maxOfOuterWidth(),
+                    totalHeight,
+                )
+            )
+        }
+        var y = content.y + mainAlign.mainStartOffset(content.height, totalHeight, measured.size, gap)
+        val actualGap = mainAlign.mainGap(content.height, totalHeight, measured.size, gap)
+        val visibleTop = content.y + scrollOffset.y
+        val visibleBottom = visibleTop + content.height
+        for (child in measured) {
+            val childStyle = child.style
+            val position = childStyle.position.resolve(content.width, content.height)
+            val align = childStyle.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: style.childAlignHorizontal(node.layout)
+            ?: UiAlign.STRETCH
+            val width = childStyle.size.width
+            val childWidth = width.resolveWidth(align, childStyle, child, content)
+                .coerceAtMost((content.width - child.margin.left - child.margin.right).coerceAtLeast(0f))
+            val childHeight = child.size.height
+            val x = content.x + align.crossOffset(content.width, childWidth, child.margin.left, child.margin.right)
+            val rect = UiRect(x + position.x, y + child.margin.top + position.y, childWidth, childHeight)
+            if (rect.y + rect.height >= visibleTop && rect.y <= visibleBottom) {
+                placeNode(
+                    child.node,
+                    resolved,
+                    rect,
+                    parentRect,
+                    style,
+                    clip,
+                    transform,
+                    inputTransform,
+                    insideFramebuffer,
+                    scrollState,
+                    scrollbarReserves,
+                    layouts,
+                    bindings
+                )
+            }
+            y += child.margin.top + childHeight + child.margin.bottom + actualGap
+        }
+    }
+
+    private fun placeLazyRowChildren(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        content: UiRect,
+        parentRect: UiRect,
+        transform: UiMatrix4,
+        inputTransform: UiMatrix4,
+        clip: UiRect?,
+        insideFramebuffer: Boolean,
+        scrollState: UiScrollState,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
+    ) {
+        val gap = style.gap.resolve(content.width)
+        val measured = measureFlowChildren(
+            node.layoutChildren,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            allowWidthOverflow = true,
+            allowHeightOverflow = style.input.scrollable,
+            bindings = bindings,
+        )
+        val totalWidth = measured.sumOfOuterWidth() + gap * (measured.size - 1).coerceAtLeast(0)
+        val mainAlign = measured.singleChildMainAxisAlign { it.alignHorizontal } ?: style.childAlignHorizontal(node.layout)
+        val scrollOffset = scrollState.offset(node)
+        val unscrolledLeft = content.x + scrollOffset.x
+        layouts[node]?.let { layoutNode ->
+            layouts[node] = layoutNode.copy(
+                virtualContentBounds = UiRect(
+                    unscrolledLeft + mainAlign.mainStartOffset(content.width, totalWidth, measured.size, gap),
+                    content.y,
+                    totalWidth,
+                    measured.maxOfOuterHeight(),
+                )
+            )
+        }
+        var x = content.x + mainAlign.mainStartOffset(content.width, totalWidth, measured.size, gap)
+        val actualGap = mainAlign.mainGap(content.width, totalWidth, measured.size, gap)
+        val visibleLeft = content.x + scrollOffset.x
+        val visibleRight = visibleLeft + content.width
+        for (child in measured) {
+            val childStyle = child.style
+            val position = childStyle.position.resolve(content.width, content.height)
+            val align = childStyle.alignVertical.takeUnless { it == UiAlign.AUTO } ?: style.childAlignVertical(node.layout)
+            ?: UiAlign.START
+            val height = childStyle.size.height
+            val childHeight = height.resolveHeight(align, childStyle, child, content)
+            val childWidth = child.size.width
+            val y = content.y + align.crossOffset(content.height, childHeight, child.margin.top, child.margin.bottom)
+            val rect = UiRect(x + child.margin.left + position.x, y + position.y, childWidth, childHeight)
+            if (rect.x + rect.width >= visibleLeft && rect.x <= visibleRight) {
+                placeNode(
+                    child.node,
+                    resolved,
+                    rect,
+                    parentRect,
+                    style,
+                    clip,
+                    transform,
+                    inputTransform,
+                    insideFramebuffer,
+                    scrollState,
+                    scrollbarReserves,
+                    layouts,
+                    bindings
+                )
+            }
+            x += child.margin.left + childWidth + child.margin.right + actualGap
         }
     }
 
@@ -1120,7 +1304,7 @@ class UiLayoutEngine {
             bindings = bindings,
         )
         val layout = node.layout
-        val gap = style.gap.resolve(if (layout == UiLayout.Row) availableWidth else availableHeight)
+        val gap = style.gap.resolve(if (layout == UiLayout.Row || layout == UiLayout.LazyRow) availableWidth else availableHeight)
         return when (layout) {
             UiLayout.Row -> {
                 val rowChildren = knownContentWidth
@@ -1132,6 +1316,11 @@ class UiLayoutEngine {
                 )
             }
 
+            UiLayout.LazyRow -> LayoutSize(
+                children.sumOfOuterWidth() + gap * (children.size - 1).coerceAtLeast(0),
+                children.maxOfOuterHeight(),
+            )
+
             UiLayout.Column -> {
                 val columnChildren = knownContentHeight
                     ?.let { growColumnChildren(children, it, gap, resolved, scrollbarReserves, bindings) }
@@ -1141,6 +1330,11 @@ class UiLayoutEngine {
                     columnChildren.sumOfOuterHeight() + gap * (columnChildren.size - 1).coerceAtLeast(0),
                 )
             }
+
+            UiLayout.LazyColumn -> LayoutSize(
+                children.maxOfOuterWidth(),
+                children.sumOfOuterHeight() + gap * (children.size - 1).coerceAtLeast(0),
+            )
 
             is UiLayout.Box,
             is UiLayout.Custom -> LayoutSize(
@@ -1341,6 +1535,7 @@ private fun scrollableContentBounds(
     layouts: Map<UiNode, UiLayoutNode>,
     bindings: UiBindingContext,
 ): UiRect {
+    layout.virtualContentBounds?.let { return it }
     if (node is TextNode || node is TextFieldNode) {
         val textLayout = if (node is TextNode) {
             val widgetMetrics = node.layoutChildren.mapNotNull { child ->
@@ -1653,13 +1848,13 @@ private fun ComputedStyle.effectiveAlignVertical(parent: ComputedStyle?, parentL
 
 private fun ComputedStyle.childAlignHorizontal(layout: UiLayout?): UiAlign? {
     return alignItemsHorizontal.takeUnless { it == UiAlign.AUTO }
-        ?: if (layout == UiLayout.Row) justifyContent.takeUnless { it == UiAlign.AUTO }
+        ?: if (layout == UiLayout.Row || layout == UiLayout.LazyRow) justifyContent.takeUnless { it == UiAlign.AUTO }
         else alignItems.takeUnless { it == UiAlign.AUTO }
 }
 
 private fun ComputedStyle.childAlignVertical(layout: UiLayout?): UiAlign? {
     return alignItemsVertical.takeUnless { it == UiAlign.AUTO }
-        ?: if (layout == UiLayout.Row) alignItems.takeUnless { it == UiAlign.AUTO }
+        ?: if (layout == UiLayout.Row || layout == UiLayout.LazyRow) alignItems.takeUnless { it == UiAlign.AUTO }
         else justifyContent.takeUnless { it == UiAlign.AUTO }
 }
 

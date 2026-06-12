@@ -216,6 +216,7 @@ class TextFieldNode(
     mode: UiTextFieldMode = UiTextFieldMode.SINGLE_LINE,
     filter: UiTextInputFilter = UiTextInputFilter.ANY,
     multiCaret: Boolean = false,
+    syntaxHighlighter: UiSyntaxHighlighter? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
@@ -229,6 +230,7 @@ class TextFieldNode(
             field = normalized
             caret = caret.coerceIn(0, field.length)
             selectionAnchor = selectionAnchor?.coerceIn(0, field.length)
+            caretRanges.replaceAll { it.coerceIn(field.length) }
             this.attributes["value"] = field
         }
 
@@ -259,7 +261,12 @@ class TextFieldNode(
         set(value) {
             field = value
             this.attributes["multi-caret"] = value.toString()
+            if (!value && caretRanges.size > 1) {
+                setCaretRanges(listOf(caretRanges.last()))
+            }
         }
+
+    var syntaxHighlighter: UiSyntaxHighlighter? = syntaxHighlighter
 
     var caret: Int = this.value.length
         private set
@@ -268,6 +275,8 @@ class TextFieldNode(
         private set
 
     val carets: MutableList<Int> = mutableListOf(this.value.length)
+
+    val caretRanges: MutableList<UiTextCaret> = mutableListOf(UiTextCaret(this.value.length))
 
     var caretVisibilityRevision: Long = 0L
         private set
@@ -284,6 +293,7 @@ class TextFieldNode(
         this.mode = mode
         this.filter = filter
         this.multiCaret = multiCaret
+        this.syntaxHighlighter = syntaxHighlighter
         this.value = value
         moveCaret(this.value.length)
     }
@@ -291,29 +301,23 @@ class TextFieldNode(
     fun insert(text: String): Boolean {
         if (text.isEmpty()) return false
         val sanitized = if (multiline) text else text.replace('\n', ' ')
-        val start = selectionStart
-        val end = selectionEnd
-        val next = value.replaceRange(start, end, sanitized)
-        if (!filter.accepts(next)) return false
-        value = next
-        moveCaret(start + sanitized.length)
-        return true
+        return replaceSelectedRanges(sanitized)
     }
 
     fun backspace(): Boolean {
-        if (hasSelection) return deleteSelection()
-        if (caret <= 0) return false
-        val nextCaret = caret - 1
-        value = value.removeRange(nextCaret, caret)
-        moveCaret(nextCaret)
-        return true
+        if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
+        val ranges = activeCaretRanges().mapNotNull { range ->
+            if (range.position <= 0) null else TextEditRange(range.position - 1, range.position)
+        }
+        return replaceRanges(ranges, "")
     }
 
     fun deleteForward(): Boolean {
-        if (hasSelection) return deleteSelection()
-        if (caret >= value.length) return false
-        value = value.removeRange(caret, caret + 1)
-        return true
+        if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
+        val ranges = activeCaretRanges().mapNotNull { range ->
+            if (range.position >= value.length) null else TextEditRange(range.position, range.position + 1)
+        }
+        return replaceRanges(ranges, "")
     }
 
     fun moveCaret(position: Int, select: Boolean = false) {
@@ -321,8 +325,27 @@ class TextFieldNode(
         val previousAnchor = selectionAnchor
         caret = position.coerceIn(0, value.length)
         selectionAnchor = if (select) selectionAnchor ?: previous else null
-        if (carets.isEmpty()) carets += caret else carets[0] = caret
+        setCaretRangesInternal(listOf(UiTextCaret(caret, selectionAnchor)), updatePrimary = false)
         if (caret != previous || selectionAnchor != previousAnchor) caretVisibilityRevision++
+    }
+
+    fun moveCarets(transform: (UiTextCaret) -> Int, select: Boolean = false) {
+        val previous = caretRanges.toList()
+        val next = activeCaretRanges().map { range ->
+            val position = transform(range).coerceIn(0, value.length)
+            UiTextCaret(position, if (select) range.selectionAnchor ?: range.position else null)
+        }
+        setCaretRanges(next)
+        if (previous != caretRanges) caretVisibilityRevision++
+    }
+
+    fun addCaret(position: Int) {
+        if (!multiCaret) {
+            moveCaret(position)
+            return
+        }
+        val next = activeCaretRanges() + UiTextCaret(position.coerceIn(0, value.length))
+        setCaretRanges(next)
     }
 
     fun setSelection(anchor: Int, active: Int) {
@@ -330,13 +353,32 @@ class TextFieldNode(
         moveCaret(active.coerceIn(0, value.length), select = true)
     }
 
+    fun setCaretRanges(ranges: List<UiTextCaret>) {
+        val previousCaret = caret
+        val previousAnchor = selectionAnchor
+        val previousRanges = caretRanges.toList()
+        setCaretRangesInternal(ranges)
+        if (caret != previousCaret || selectionAnchor != previousAnchor || caretRanges != previousRanges) {
+            caretVisibilityRevision++
+        }
+    }
+
     fun selectAll() {
         selectionAnchor = 0
         moveCaret(value.length, select = true)
     }
 
+    fun selectedText(): String? {
+        val selections = activeCaretRanges().filter { it.hasSelection }
+        if (selections.isEmpty()) return null
+        return selections
+            .sortedBy { it.selectionStart }
+            .joinToString("\n") { value.substring(it.selectionStart, it.selectionEnd) }
+    }
+
     fun clearSelection() {
         selectionAnchor = null
+        setCaretRangesInternal(listOf(UiTextCaret(caret)))
     }
 
     override fun exportState(): UiNodePersistentState = TextFieldPersistentState(
@@ -344,6 +386,7 @@ class TextFieldNode(
         caret = caret,
         selectionAnchor = selectionAnchor,
         carets = carets.toList(),
+        caretRanges = caretRanges.toList(),
         caretVisibilityRevision = caretVisibilityRevision,
     )
 
@@ -352,20 +395,79 @@ class TextFieldNode(
         value = state.value
         caret = state.caret.coerceIn(0, value.length)
         selectionAnchor = state.selectionAnchor?.coerceIn(0, value.length)
-        carets.clear()
-        carets += state.carets.map { it.coerceIn(0, value.length) }
-        if (carets.isEmpty()) carets += caret
+        val ranges = state.caretRanges.takeIf { it.isNotEmpty() }
+            ?: state.carets.map { UiTextCaret(it) }.takeIf { it.isNotEmpty() }
+            ?: listOf(UiTextCaret(caret, selectionAnchor))
+        setCaretRangesInternal(ranges.map { it.coerceIn(value.length) })
         caretVisibilityRevision = state.caretVisibilityRevision
     }
 
-    private fun deleteSelection(): Boolean {
-        val start = selectionStart
-        val end = selectionEnd
-        if (start == end) return false
-        value = value.removeRange(start, end)
-        moveCaret(start)
+    private fun replaceSelectedRanges(replacement: String): Boolean {
+        val ranges = activeCaretRanges().map { TextEditRange(it.selectionStart, it.selectionEnd) }
+        return replaceRanges(ranges, replacement)
+    }
+
+    private fun replaceRanges(ranges: List<TextEditRange>, replacement: String): Boolean {
+        val edits = ranges
+            .map { TextEditRange(it.start.coerceIn(0, value.length), it.end.coerceIn(0, value.length)) }
+            .filter { it.start != it.end || replacement.isNotEmpty() }
+            .sortedWith(compareBy<TextEditRange> { it.start }.thenBy { it.end })
+            .fold(mutableListOf<TextEditRange>()) { acc, range ->
+                if (acc.isEmpty() || range.start >= acc.last().end) {
+                    acc += range
+                } else if (range.end > acc.last().end) {
+                    acc[acc.lastIndex] = TextEditRange(acc.last().start, range.end)
+                }
+                acc
+            }
+        if (edits.isEmpty()) return false
+
+        val nextValue = buildString {
+            var cursor = 0
+            for (edit in edits) {
+                append(value, cursor, edit.start)
+                append(replacement)
+                cursor = edit.end
+            }
+            append(value, cursor, value.length)
+        }
+        if (!filter.accepts(nextValue)) return false
+
+        var offset = 0
+        val nextCarets = edits.map { edit ->
+            val position = edit.start + offset + replacement.length
+            offset += replacement.length - (edit.end - edit.start)
+            UiTextCaret(position)
+        }
+        value = nextValue
+        setCaretRanges(nextCarets)
         return true
     }
+
+    private fun activeCaretRanges(): List<UiTextCaret> {
+        val ranges = if (multiCaret) caretRanges else caretRanges.take(1)
+        return ranges.ifEmpty { listOf(UiTextCaret(caret, selectionAnchor)) }
+    }
+
+    private fun setCaretRangesInternal(ranges: List<UiTextCaret>, updatePrimary: Boolean = true) {
+        val normalized = ranges
+            .ifEmpty { listOf(UiTextCaret(0)) }
+            .map { it.coerceIn(value.length) }
+            .let { if (multiCaret) it else listOf(it.last()) }
+            .distinctBy { it.position to it.selectionAnchor }
+        caretRanges.clear()
+        caretRanges += normalized
+        carets.clear()
+        carets += caretRanges.map { it.position }
+        if (carets.isEmpty()) carets += 0
+        if (updatePrimary) {
+            val primary = caretRanges.last()
+            caret = primary.position
+            selectionAnchor = primary.selectionAnchor
+        }
+    }
+
+    private data class TextEditRange(val start: Int, val end: Int)
 }
 
 internal fun Map<String, String>.readSliderValue(name: String, fallback: Float): Float =

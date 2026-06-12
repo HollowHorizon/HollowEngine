@@ -170,9 +170,8 @@ data class DrawTextFieldChromeCommand(
     val rect: UiRect,
     val layout: UiTextLayout,
     val scrollOffset: UiScrollOffset,
-    val caretIndex: Int,
-    val selectionStart: Int,
-    val selectionEnd: Int,
+    val carets: List<UiTextCaret>,
+    val textOffset: Float,
     val caretColor: UiColor,
     val selectionColor: UiColor,
     val lineNumberColor: UiColor,
@@ -295,6 +294,7 @@ class UiCommandRenderer {
 
         node.children
             .filterNot { it is PopupNode }
+            .filter { it in layout.nodes }
             .sortedBy { resolved[it].layer }
             .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
 
@@ -442,7 +442,7 @@ class UiCommandRenderer {
         val displayLayout = if (text.isEmpty()) {
             UiTextLayouter.layout(
                 visible,
-                layoutNode.content.width,
+                textFieldTextWidth(node, style, layoutNode),
                 textHeight,
                 wrap,
                 style.textAlign,
@@ -452,17 +452,17 @@ class UiCommandRenderer {
                 spaceWidth = style.spaceWidth,
             )
         } else {
-            editLayout
+            textFieldDisplayLayout(node, style, layoutNode)
         }
         val field = style.textField
+        val textOffset = textFieldTextOffset(node, style, layoutNode)
         commands += DrawTextFieldChromeCommand(
             node = node,
             rect = layoutNode.content,
             layout = editLayout,
             scrollOffset = layoutNode.scrollOffset,
-            caretIndex = node.caret,
-            selectionStart = node.selectionStart,
-            selectionEnd = node.selectionEnd,
+            carets = node.caretRanges.toList(),
+            textOffset = textOffset,
             caretColor = field.caretColor ?: style.foreground,
             selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
             lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
@@ -484,7 +484,7 @@ class UiCommandRenderer {
             text = visible,
             color = if (text.isEmpty()) field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.65f) else style.foreground,
             opacity = opacity,
-            transform = transform,
+            transform = transform * UiMatrix4.translation(textOffset, 0f, 0f),
             filter = filter,
             wrap = wrap,
             align = style.textAlign,
@@ -665,6 +665,7 @@ data class UiHit(
 class UiHitTester {
     fun hitTest(resolved: ResolvedUiTree, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
         val popups = resolved.root.popupDescendants()
+            .filter { it in layout.nodes }
             .sortedWith(compareBy<PopupNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         for (popup in popups.asReversed()) {
             hitNode(popup, resolved, layout, x, y, ancestorClip = null)?.let { return it }
@@ -680,7 +681,9 @@ class UiHitTester {
         y: Float,
         ancestorClip: UiRect?,
     ): UiHit? {
-        val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val children = node.children
+            .filter { it in layout.nodes }
+            .sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         val layoutNode = layout[node]
         val effectiveClip = ancestorClip.intersect(layoutNode.clip)
         for (child in children.filterIsInstance<PopupNode>().asReversed()) {

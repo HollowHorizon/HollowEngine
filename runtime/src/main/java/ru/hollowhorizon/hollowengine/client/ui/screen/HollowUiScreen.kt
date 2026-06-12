@@ -210,6 +210,7 @@ abstract class HollowUiScreen(
         val target = current.scrollTargetAt(mouseX.toFloat(), mouseY.toFloat())
             ?: input.focusedKey
                 ?.let(current::nodeByKey)
+                ?.takeIf { it in current.layout.nodes }
                 ?.takeIf { current.resolved[it].input.scrollable && current.layout[it].scrollRange.hasScrollableAxis() }
         if (target != null) {
             val range = current.layout[target].scrollRange

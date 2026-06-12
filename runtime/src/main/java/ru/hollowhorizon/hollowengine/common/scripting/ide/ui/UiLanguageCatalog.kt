@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 object UiLanguageCatalog {
-    val elementTypes = listOf("box", "text", "image", "item", "entity", "canvas")
+    val elementTypes = listOf("box", "column", "row", "lazy-column", "lazy-row", "text", "text-field", "image", "item", "entity", "canvas")
 
     val states = listOf("hover", "active", "focus", "disabled", "selected", "dragging", "closing")
 
@@ -63,6 +63,13 @@ object UiLanguageCatalog {
     val elementAttributes = mapOf(
         "import" to listOf(UiAttribute("element"), UiAttribute("named")),
         "text" to listOf(UiAttribute("text")),
+        "text-field" to listOf(
+            UiAttribute("value"),
+            UiAttribute("placeholder"),
+            UiAttribute("mode", "multi-line"),
+            UiAttribute("filter"),
+            UiAttribute("multi-caret", "true"),
+        ),
         "image" to listOf(UiAttribute("source"), UiAttribute("src"), UiAttribute("image"), UiAttribute("imageFit")),
         "item" to listOf(UiAttribute("item"), UiAttribute("value")),
         "entity" to listOf(UiAttribute("entity"), UiAttribute("value")),
@@ -136,6 +143,13 @@ object UiLanguageCatalog {
         "text-wrap",
         "text-align",
         "font-size",
+        "caret-color",
+        "text-field-caret",
+        "selection-color",
+        "line-number-color",
+        "inlay-hint-color",
+        "line-numbers",
+        "inlay-hints",
         "typing",
         "wrap",
         "transition",
@@ -151,7 +165,7 @@ object UiLanguageCatalog {
     )
 
     val valueCompletions = mapOf(
-        "layout" to listOf("row", "column", "grid", "stack", "free"),
+        "layout" to listOf("row", "column", "lazy-row", "lazy-column", "grid", "stack", "free"),
         "size" to listOf("fill fill", "fit fit", "100% 100%", "80% 80%", "64px 64px"),
         "width" to listOf("fill", "fit", "100%", "80%", "64px"),
         "height" to listOf("fill", "fit", "100%", "80%", "64px"),
@@ -207,6 +221,13 @@ object UiLanguageCatalog {
         "text-wrap" to listOf("wrap", "nowrap"),
         "text-align" to listOf("left", "center", "right", "justify"),
         "font-size" to listOf("10px", "12px", "16px", "24px"),
+        "caret-color" to colorValues(),
+        "text-field-caret" to colorValues(),
+        "selection-color" to colorValues(),
+        "line-number-color" to colorValues(),
+        "inlay-hint-color" to colorValues(),
+        "line-numbers" to booleanValues(),
+        "inlay-hints" to booleanValues(),
         "typing" to listOf("auto linear", "auto ease-out", "5s ease-in", "none"),
         "wrap" to listOf("wrap", "nowrap"),
         "animation" to listOf("fade 200ms ease-out forwards", "none"),

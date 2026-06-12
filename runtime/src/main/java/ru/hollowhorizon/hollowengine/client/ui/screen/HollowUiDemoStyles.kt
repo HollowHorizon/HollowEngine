@@ -301,6 +301,94 @@ internal val DemoStyles = compileHss(
         shadow: none;
     }
 
+    .editor-demo-stage {
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+    }
+
+    .editor-demo-card {
+        gap: 8px;
+        padding: 12px;
+        size: 532px 268px;
+        background: rgba(24, 29, 39, 0.94);
+        border-radius: 10px;
+        border: 1px rgba(120, 140, 170, 0.36);
+    }
+
+    .editor-text-field {
+        padding: 9px;
+        background: rgba(10, 13, 18, 0.96);
+        foreground: rgba(226, 232, 240, 0.96);
+        border: 1px rgba(112, 134, 166, 0.48);
+        border-radius: 8px;
+        font-size: 10px;
+        line-spacing: 3px;
+        caret-color: #f4f7ff;
+        selection-color: rgba(92, 150, 255, 0.36);
+        line-number-color: rgba(130, 146, 170, 0.76);
+        inlay-hint-color: rgba(130, 146, 170, 0.58);
+        line-numbers: true;
+        inlay-hints: true;
+    }
+
+    .editor-key-log {
+        foreground: rgba(160, 184, 220, 0.92);
+        height: 16px;
+    }
+
+    .lazy-column-card {
+        size: 260px 268px;
+    }
+
+    .lazy-column-demo {
+        size: 100% 216px;
+        min-size: 0px 0px;
+        gap: 5px;
+        scrollable: true;
+        clip: true;
+    }
+
+    .lazy-list-row {
+        height: 32px;
+        padding: 6px 8px;
+        gap: 8px;
+        background: rgba(34, 40, 52, 0.86);
+        border-radius: 6px;
+        border: 1px rgba(116, 136, 164, 0.22);
+    }
+
+    .lazy-row-index {
+        width: 30px;
+        foreground: rgba(120, 190, 180, 0.96);
+    }
+
+    .lazy-row-card {
+        size: 812px 144px;
+    }
+
+    .lazy-row-demo {
+        size: 100% 88px;
+        min-size: 0px 0px;
+        gap: 8px;
+        scrollable: true;
+        clip: true;
+    }
+
+    .lazy-row-tile {
+        gap: 4px;
+        padding: 9px;
+        size: 72px 68px;
+        background: rgba(38, 46, 62, 0.92);
+        border-radius: 8px;
+        border: 1px rgba(130, 154, 188, 0.34);
+    }
+
+    .lazy-row-tile-title {
+        foreground: #c8ddff;
+        height: 16px;
+    }
+
     .effects-stage {
         size: 100% 100%;
         min-size: 0px 0px;

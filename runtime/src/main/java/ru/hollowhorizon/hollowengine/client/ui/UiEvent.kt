@@ -49,6 +49,7 @@ enum class UiEventKind {
 data class UiEvent(
     val kind: UiEventKind,
     val node: UiNode,
+    val frame: HollowUiFrame? = null,
     val button: Int = 0,
     val x: Float = 0f,
     val y: Float = 0f,
@@ -74,10 +75,17 @@ data class UiEvent(
     var consumed: Boolean = false
         private set
 
+    var changed: Boolean = false
+        private set
+
     var variables: CompoundTag = CompoundTag()
 
     fun consume() {
         consumed = true
+    }
+
+    fun markChanged() {
+        changed = true
     }
 
     fun localXInAncestor(identifier: String): Float? = ancestorLocalPositions[identifier]?.x
@@ -140,11 +148,27 @@ fun interface UiEventSink {
 }
 
 fun UiNode.dispatch(event: UiEvent): Boolean {
-    val handlers = modifiers.flattenModifiers()
-        .filterIsInstance<EventModifier>()
-        .filter { it.kind == event.kind }
-    handlers.forEach {
-        if (!event.consumed) it.handler(event)
+    var handled = false
+    modifiers.flattenModifiers().forEach { modifier ->
+        if (event.consumed) return@forEach
+        when (modifier) {
+            is EventModifier -> if (modifier.kind == event.kind) {
+                handled = true
+                modifier.handler(event)
+            }
+
+            is KeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED) {
+                handled = true
+                if (modifier.handler(UiKeyInput(event))) event.consume()
+            }
+
+            TextFieldDefaultKeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED && this is TextFieldNode) {
+                handled = true
+                if (handleDefaultTextFieldKeyInput(UiKeyInput(event))) event.consume()
+            }
+
+            else -> Unit
+        }
     }
-    return handlers.isNotEmpty()
+    return handled
 }

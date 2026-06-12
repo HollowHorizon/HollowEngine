@@ -162,6 +162,44 @@ fun Row(
 }
 
 @Composable
+fun LazyColumn(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    ComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.LazyColumn, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.LazyColumn) { layout = it }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun LazyRow(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    ComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.LazyRow, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.LazyRow) { layout = it }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
 fun Layout(
     content: HollowUiContent,
     modifier: Modifier? = null,
@@ -343,6 +381,7 @@ fun TextField(
     mode: UiTextFieldMode = UiTextFieldMode.SINGLE_LINE,
     filter: UiTextInputFilter = UiTextInputFilter.ANY,
     multiCaret: Boolean = false,
+    syntaxHighlighter: UiSyntaxHighlighter? = null,
     placeholder: String = "",
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -350,15 +389,16 @@ fun TextField(
     attributes: Map<String, String> = emptyMap(),
 ) {
     val modifiers = modifier.asList()
-    val values = TextFieldValues(value, mode, filter, multiCaret, placeholder)
+    val textFieldModifiers = modifiers + TextFieldDefaultKeyInputModifier
+    val values = TextFieldValues(value, mode, filter, multiCaret, syntaxHighlighter, placeholder)
     ComposeNode<TextFieldNode, HollowUiApplier>(
         factory = {
-            TextFieldNode(value, mode, filter, multiCaret, id, tags, modifiers, attributes)
+            TextFieldNode(value, mode, filter, multiCaret, syntaxHighlighter, id, tags, textFieldModifiers, attributes)
                 .also { it.placeholder = placeholder }
         },
         update = {
             update(values) { apply(it) }
-            updateCommon(modifiers, attributes)
+            updateCommon(textFieldModifiers, attributes)
         },
     )
 }
@@ -438,6 +478,7 @@ private data class TextFieldValues(
     val mode: UiTextFieldMode,
     val filter: UiTextInputFilter,
     val multiCaret: Boolean,
+    val syntaxHighlighter: UiSyntaxHighlighter?,
     val placeholder: String,
 )
 
@@ -462,6 +503,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     mode = values.mode
     filter = values.filter
     multiCaret = values.multiCaret
+    syntaxHighlighter = values.syntaxHighlighter
     placeholder = values.placeholder
     value = values.value
 }

@@ -849,6 +849,37 @@ fun UiTextLayout.selectionRects(start: Int, end: Int, fontSize: Float, fontFamil
     return rects
 }
 
+internal fun UiTextLayout.verticalCaretIndex(index: Int, lineDelta: Int, fontSize: Float, fontFamily: String?): Int {
+    if (lines.isEmpty()) return 0
+    val currentLineIndex = lineIndexAtCaret(index)
+    val currentLine = lines[currentLineIndex]
+    val lineStart = lines.take(currentLineIndex).sumOf { it.sourceLength }
+    val localOffset = (index - lineStart).coerceIn(0, currentLine.sourceLength)
+    val x = currentLine.xAt(localOffset, fontSize, fontFamily)
+    val targetLineIndex = (currentLineIndex + lineDelta).coerceIn(0, lines.lastIndex)
+    val targetLine = lines[targetLineIndex]
+    var bestOffset = 0
+    var bestDistance = Float.POSITIVE_INFINITY
+    for (offset in 0..targetLine.sourceLength) {
+        val distance = abs(targetLine.xAt(offset, fontSize, fontFamily) - x)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            bestOffset = offset
+        }
+    }
+    return lines.take(targetLineIndex).sumOf { it.sourceLength } + bestOffset
+}
+
+private fun UiTextLayout.lineIndexAtCaret(index: Int): Int {
+    var consumed = 0
+    for ((lineIndex, line) in lines.withIndex()) {
+        val end = consumed + line.sourceLength
+        if (index < end || lineIndex == lines.lastIndex) return lineIndex
+        consumed = end
+    }
+    return lines.lastIndex
+}
+
 private fun UiTextLine.xAt(offset: Int, fontSize: Float, fontFamily: String?): Float {
     val textOffset = offset.coerceIn(0, text.length)
     if (fragments.isEmpty()) return x + UiTextLayouter.measureTextWidth(text.take(textOffset), fontSize, fontFamily)

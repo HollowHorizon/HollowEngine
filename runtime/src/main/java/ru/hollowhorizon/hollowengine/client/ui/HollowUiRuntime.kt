@@ -59,7 +59,9 @@ data class HollowUiFrame(
     }
 
     private fun scrollTargetAt(node: UiNode, x: Float, y: Float, ancestorClip: UiRect?): UiNode? {
-        val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val children = node.children
+            .filter { it in layout.nodes }
+            .sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         val layoutNode = layout[node]
         val childClip = ancestorClip.intersect(layoutNode.clip)
         for (child in children.asReversed()) {
@@ -187,12 +189,13 @@ class HollowUiRuntime(
                 continue
             }
             val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, style.fontSize, style.fontFamily)
+            val textOffset = textFieldTextOffset(node, style, layoutNode)
             val next = layoutNode.scrollOffset.scrollCaretIntoView(
                 caretX = caret.x,
                 caretY = caret.y,
                 caretWidth = TextFieldCaretWidth,
                 caretHeight = style.fontSize,
-                viewportWidth = layoutNode.content.width,
+                viewportWidth = (layoutNode.content.width - textOffset).coerceAtLeast(1f),
                 viewportHeight = layoutNode.content.height,
                 range = layoutNode.scrollRange,
             )

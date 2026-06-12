@@ -305,6 +305,7 @@ private class KatariUiOverlay(
         val target = frame.scrollTargetAt(mouseX, mouseY)
             ?: input.focusedKey
                 ?.let(frame::nodeByKey)
+                ?.takeIf { it in frame.layout.nodes }
                 ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
             ?: return false
         val range = frame.layout[target].scrollRange

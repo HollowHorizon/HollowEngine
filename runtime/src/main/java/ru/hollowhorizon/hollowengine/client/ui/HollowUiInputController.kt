@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
 class HollowUiInputController {
@@ -262,9 +263,10 @@ class HollowUiInputController {
         }
 
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
-        val event = UiEvent(UiEventKind.KEY_PRESSED, node, key = keyCode, scanCode = scanCode, modifiers = modifiers)
+        val event = UiEvent(UiEventKind.KEY_PRESSED, node, frame = frame, key = keyCode, scanCode = scanCode, modifiers = modifiers)
         val handled = dispatch(event)
-        if (!event.consumed && node is TextFieldNode && applyTextFieldKey(node, keyCode, modifiers)) {
+        if (event.changed) {
+            stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
         }
         return UiInputResult(handled, node, UiNodeKeys.key(node))
@@ -338,7 +340,13 @@ class HollowUiInputController {
                 true
             }
             is TextFieldNode -> {
-                node.moveCaret(textFieldCaretIndexAt(frame, node, localX, localY))
+                val index = textFieldCaretIndexAt(frame, node, localX, localY)
+                val modifiers = GLFW.glfwGetKey(Minecraft.getInstance().window.window, GLFW.GLFW_KEY_LEFT_ALT)
+                if (node.multiCaret && modifiers == GLFW.GLFW_PRESS) {
+                    node.addCaret(index)
+                } else {
+                    node.moveCaret(index)
+                }
                 true
             }
             else -> false
@@ -374,52 +382,16 @@ class HollowUiInputController {
         return changed
     }
 
-    private fun applyTextFieldKey(node: TextFieldNode, keyCode: Int, modifiers: Int): Boolean {
-        val select = modifiers and GLFW.GLFW_MOD_SHIFT != 0
-        val control = modifiers and GLFW.GLFW_MOD_CONTROL != 0
-        val changed = when (keyCode) {
-            GLFW.GLFW_KEY_BACKSPACE -> node.backspace()
-            GLFW.GLFW_KEY_DELETE -> node.deleteForward()
-            GLFW.GLFW_KEY_A -> {
-                if (!control) {
-                    false
-                } else {
-                    node.selectAll()
-                    true
-                }
-            }
-            GLFW.GLFW_KEY_LEFT -> {
-                node.moveCaret(node.caret - 1, select)
-                true
-            }
-            GLFW.GLFW_KEY_RIGHT -> {
-                node.moveCaret(node.caret + 1, select)
-                true
-            }
-            GLFW.GLFW_KEY_HOME -> {
-                node.moveCaret(0, select)
-                true
-            }
-            GLFW.GLFW_KEY_END -> {
-                node.moveCaret(node.value.length, select)
-                true
-            }
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> node.multiline && node.insert("\n")
-            else -> false
-        }
-        if (changed) stateStore.save(node)
-        return changed
-    }
-
     private fun textFieldCaretIndexAt(frame: HollowUiFrame, node: TextFieldNode, localX: Float, localY: Float): Int {
         val layout = frame.layout[node]
         val style = frame.resolved[node]
-        val contentX = localX - (layout.content.x - layout.rect.x) + layout.scrollOffset.x
+        val textOffset = textFieldTextOffset(node, style, layout)
+        val contentX = localX - (layout.content.x - layout.rect.x) - textOffset + layout.scrollOffset.x
         val contentY = localY - (layout.content.y - layout.rect.y) + layout.scrollOffset.y
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layout.content.height
         val textLayout = UiTextLayouter.layout(
             text = node.value,
-            width = layout.content.width,
+            width = textFieldTextWidth(node, style, layout),
             height = textHeight,
             wrap = style.textWrap && node.multiline,
             align = style.textAlign,

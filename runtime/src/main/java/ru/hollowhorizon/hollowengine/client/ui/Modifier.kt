@@ -178,6 +178,8 @@ sealed interface Modifier {
 
         fun onKeyPressed(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.KEY_PRESSED, handler)
 
+        fun onKeyInput(handler: (UiKeyInput) -> Boolean) = KeyInputModifier(handler)
+
         fun onFocus(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.FOCUS, handler)
 
         fun onUnfocus(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.UNFOCUS, handler)
@@ -258,6 +260,15 @@ data class EventModifier(
             UiEventKind.UPDATE,
             UiEventKind.CLOSE -> input
         }
+    }
+}
+
+data class KeyInputModifier(
+    val handler: (UiKeyInput) -> Boolean,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) {
+        val input = style.input ?: UiInputStyle()
+        style.input = input.copy(focusable = true, hoverable = true)
     }
 }
 

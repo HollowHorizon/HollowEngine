@@ -35,6 +35,8 @@ enum class UiNodeType(val typeName: String) {
 sealed interface UiLayout {
     data object Column : UiLayout
     data object Row : UiLayout
+    data object LazyColumn : UiLayout
+    data object LazyRow : UiLayout
     data class Box(val mode: UiBoxMode = UiBoxMode.FREE) : UiLayout
     data class Custom(val measurePolicy: UiMeasurePolicy) : UiLayout
 }

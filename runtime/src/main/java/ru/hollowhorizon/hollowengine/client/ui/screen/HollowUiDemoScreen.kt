@@ -15,6 +15,8 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private val freeNodeOffsets = mutableStateMapOf<Int, DemoOffset>()
     private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
     private var xmlEventText by mutableStateOf("XML event log is empty")
+    private var editorKeyLog by mutableStateOf("F2 is handled by Modifier.onKeyInput")
+    private val editorHighlighter = UiSyntaxHighlighter(::highlightEditorDemoText)
     private val dockingState = DockingState().apply {
         open(DockItem("project", "Project"))
         open(DockItem("editor", "Editor"))
@@ -31,6 +33,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
                 tab("text", "Text", "hollowengine:textures/gui/icons/docs.svg")
+                tab("editor", "Editor", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
@@ -40,6 +43,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 when (selectedTab) {
                     "widgets" -> widgets()
                     "text" -> textAndPopupDemo()
+                    "editor" -> editorDemo()
                     "layout" -> layout()
                     "docking" -> docking()
                     "transforms" -> transforms()
@@ -217,6 +221,15 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 }
             }
         }
+    }
+
+    @Composable
+    private fun editorDemo() {
+        HollowUiEditorDemo(
+            keyLog = editorKeyLog,
+            onKeyLog = { editorKeyLog = it },
+            highlighter = editorHighlighter,
+        )
     }
 
     @Composable

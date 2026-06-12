@@ -105,7 +105,15 @@ private fun UiXmlElement(
             UiXmlChildren(resolved, document)
         }
 
+        "lazy-column", "lazycolumn" -> LazyColumn(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
         "row" -> Row(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "lazy-row", "lazyrow" -> LazyRow(id, tags, modifier, customAttributes) {
             UiXmlChildren(resolved, document)
         }
 
@@ -258,7 +266,11 @@ private fun String.toEventKind(): UiEventKind? = UiEventKind.fromAttribute(this)
 private fun String.isLayoutContainer(): Boolean {
     return equals("box", ignoreCase = true) ||
             equals("column", ignoreCase = true) ||
-            equals("row", ignoreCase = true)
+            equals("lazy-column", ignoreCase = true) ||
+            equals("lazycolumn", ignoreCase = true) ||
+            equals("row", ignoreCase = true) ||
+            equals("lazy-row", ignoreCase = true) ||
+            equals("lazyrow", ignoreCase = true)
 }
 
 private fun Map<String, String>.boxMode(): UiBoxMode {
