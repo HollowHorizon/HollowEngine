@@ -32,10 +32,14 @@ import kotlin.time.Duration.Companion.milliseconds
 @ScriptBinding
 suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceTo(entity) > dist) {
-        navigation.moveTo(entity.x, entity.y, entity.z, 0, speed)
+        withContext(currentServer.dispatcher) {
+            navigation.moveTo(entity.x, entity.y, entity.z, 0, speed)
+        }
         delay(50.milliseconds)
     }
-    navigation.stop()
+    withContext(currentServer.dispatcher) {
+        navigation.stop()
+    }
 }
 
 /**
