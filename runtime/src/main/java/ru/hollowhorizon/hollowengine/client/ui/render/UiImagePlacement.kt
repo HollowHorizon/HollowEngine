@@ -18,7 +18,11 @@ internal data class ImagePlacement(
 )
 
 internal fun imagePlacement(width: Float, height: Float, fit: UiImageFit, texture: ResourceLocation?): ImagePlacement {
-    val size = texture?.let(::textureSize) ?: return ImagePlacement(0f, 0f, width, height)
+    return imagePlacement(width, height, fit, texture?.let(::textureSize))
+}
+
+internal fun imagePlacement(width: Float, height: Float, fit: UiImageFit, size: Pair<Float, Float>?): ImagePlacement {
+    if (size == null) return ImagePlacement(0f, 0f, width, height)
     val sourceAspect = size.first / size.second
     val targetAspect = width / height
     return when (fit) {

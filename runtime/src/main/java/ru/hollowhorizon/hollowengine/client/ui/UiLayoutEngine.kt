@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import java.util.LinkedHashMap
 import kotlin.math.abs
 
 data class UiRect(
@@ -38,7 +37,6 @@ data class UiLayoutResult(
 private const val DirectTextTransformEpsilon = 0.0001f
 private const val ScrollOverflowEpsilon = 0.01f
 private const val ConstraintReflowEpsilon = 0.01f
-private const val MaxMeasureCacheEntries = 4096
 
 private data class UiScrollbarReserve(
     val vertical: Boolean = false,
@@ -67,7 +65,8 @@ private data class NodeBoxes(
 
 private data class MeasureCacheKey(
     val nodeId: Int,
-    val layoutFingerprint: Int,
+    val subtreeRevision: Long,
+    val bindingsHash: Int,
     val availableWidth: Float,
     val availableHeight: Float,
     val widthOverride: Float?,
@@ -80,12 +79,6 @@ private data class MeasureCacheKey(
 )
 
 class UiLayoutEngine {
-    private val measureCache = object : LinkedHashMap<MeasureCacheKey, LayoutSize>(128, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<MeasureCacheKey, LayoutSize>): Boolean {
-            return size > MaxMeasureCacheEntries
-        }
-    }
-
     private inner class EngineMeasurable(
         override val node: UiNode,
         private val resolved: ResolvedUiTree,
@@ -1155,10 +1148,10 @@ class UiLayoutEngine {
         allowHeightOverflow: Boolean = false,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
-        val style = resolved[node]
         val cacheKey = MeasureCacheKey(
             nodeId = System.identityHashCode(node),
-            layoutFingerprint = node.layoutFingerprint(resolved, bindings),
+            subtreeRevision = node.layoutState.subtreeRevision,
+            bindingsHash = bindings.root.hashCode(),
             availableWidth = availableWidth.layoutCacheValue(),
             availableHeight = availableHeight.layoutCacheValue(),
             widthOverride = widthOverride?.layoutCacheValue(),
@@ -1169,7 +1162,39 @@ class UiLayoutEngine {
             allowHeightOverflow = allowHeightOverflow,
             reserve = scrollbarReserves[node] ?: UiScrollbarReserve.None,
         )
-        measureCache[cacheKey]?.let { return it }
+        return node.layoutState.cachedMeasure(cacheKey) {
+            measureNodeUncached(
+                node = node,
+                resolved = resolved,
+                availableWidth = availableWidth,
+                availableHeight = availableHeight,
+                scrollbarReserves = scrollbarReserves,
+                widthOverride = widthOverride,
+                heightOverride = heightOverride,
+                deferFlexibleWidth = deferFlexibleWidth,
+                deferFlexibleHeight = deferFlexibleHeight,
+                allowWidthOverflow = allowWidthOverflow,
+                allowHeightOverflow = allowHeightOverflow,
+                bindings = bindings,
+            )
+        }
+    }
+
+    private fun measureNodeUncached(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        widthOverride: Float?,
+        heightOverride: Float?,
+        deferFlexibleWidth: Boolean,
+        deferFlexibleHeight: Boolean,
+        allowWidthOverflow: Boolean,
+        allowHeightOverflow: Boolean,
+        bindings: UiBindingContext,
+    ): LayoutSize {
+        val style = resolved[node]
         val referenceWidth = availableWidth.coerceAtLeast(0f)
         val referenceHeight = availableHeight.coerceAtLeast(0f)
         val insets =
@@ -1189,7 +1214,7 @@ class UiLayoutEngine {
                 referenceHeight = referenceHeight,
                 allowWidthOverflow = allowWidthOverflow,
                 allowHeightOverflow = allowHeightOverflow,
-            ).also { measureCache[cacheKey] = it }
+            )
         }
         val childAvailableWidth = ((width ?: referenceWidth) - insets.horizontal).coerceAtLeast(0f)
         val childAvailableHeight = ((height ?: referenceHeight) - insets.vertical).coerceAtLeast(0f)
@@ -1255,7 +1280,7 @@ class UiLayoutEngine {
         return LayoutSize(
             width = constrainedWidth,
             height = constrainedHeight,
-        ).also { measureCache[cacheKey] = it }
+        )
     }
 
     private fun constrainMeasuredSize(
@@ -1875,29 +1900,7 @@ private fun UiAlign.alignmentOffset(size: Float): Float {
     }
 }
 
-private fun UiNode.layoutFingerprint(resolved: ResolvedUiTree, bindings: UiBindingContext): Int {
-    var result = 31 * layout.hashCode() + resolved[this].layoutFingerprint()
-    result = 31 * result + intrinsicFingerprint(bindings)
-    for (child in children) {
-        result = 31 * result + child.layoutFingerprint(resolved, bindings)
-    }
-    return result
-}
-
-private fun UiNode.intrinsicFingerprint(bindings: UiBindingContext): Int {
-    return when (this) {
-        is TextNode -> content.resolve(bindings).hashCode()
-        is TextFieldNode -> 31 * value.hashCode() + placeholder.hashCode()
-        is ImageNode -> source.resolve(bindings).hashCode()
-        is ItemNode -> item.resolve(bindings).hashCode()
-        is EntityNode -> entity.resolve(bindings).hashCode()
-        is SliderNode -> type.hashCode()
-        is CheckboxNode -> variant.hashCode()
-        else -> type.hashCode()
-    }
-}
-
-private fun ComputedStyle.layoutFingerprint(): Int {
+internal fun ComputedStyle.layoutFingerprint(): Int {
     return listOf(
         size,
         minSize,

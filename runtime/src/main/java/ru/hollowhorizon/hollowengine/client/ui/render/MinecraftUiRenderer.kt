@@ -57,15 +57,19 @@ class MinecraftUiRenderer {
                 bindTarget(it.toState())
                 configureLayerProjection(it.logicalWidth, it.logicalHeight)
             }
+            val segment = ArrayList<UiRenderCommand>()
             commands.forEach { command ->
-                if (command is DrawBoxCommand) flushTextBatch()
-                if (!appendBatchedShapes(command)) {
-                    flushShapeBatch()
-                    if (command !is DrawTextCommand) flushTextBatch()
+                if (isSegmentCommand(command)) {
+                    segment += command
+                } else {
+                    renderSegment(segment)
+                    segment.clear()
                     render(command)
+                    flushShapeBatch()
+                    flushTextBatch()
                 }
             }
-            flushShapeBatch()
+            renderSegment(segment)
             flushTextBatch()
             disableScissor()
             while (layerStack.isNotEmpty()) finishLayer()
@@ -98,6 +102,69 @@ class MinecraftUiRenderer {
             is DrawCheckboxCommand -> drawWidget(command)
             is DrawTextFieldChromeCommand -> drawWidget(command)
         }
+    }
+
+    private fun isSegmentCommand(command: UiRenderCommand): Boolean = when (command) {
+        is DrawBoxCommand -> !command.renderToFramebuffer
+        is DrawImageCommand -> !command.renderToFramebuffer && command.filter == UiFilterChain.Empty
+        is DrawTextCommand -> true
+        else -> false
+    }
+
+    private fun renderSegment(commands: List<UiRenderCommand>) {
+        if (commands.isEmpty()) return
+        for (phase in UiRenderPhase.entries) renderPhase(commands, phase)
+        flushShapeBatch()
+        flushTextBatch()
+    }
+
+    private fun renderPhase(commands: List<UiRenderCommand>, phase: UiRenderPhase) {
+        val directBoxes = mutableListOf<DrawBoxCommand>()
+        val imageBatches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
+        val textCommands = mutableListOf<DrawTextCommand>()
+
+        commands.forEach { command ->
+            when (command) {
+                is DrawBoxCommand -> if (command.phase == phase && !appendBatchedShapes(command)) {
+                    directBoxes += command
+                }
+
+                is DrawImageCommand -> if (command.phase == phase) {
+                    appendImageBatch(command, imageBatches)
+                }
+
+                is DrawTextCommand -> if (command.phase == phase) {
+                    textCommands += command
+                }
+
+                else -> Unit
+            }
+        }
+
+        flushShapeBatch()
+        directBoxes.forEach(::drawBox)
+        imageBatches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads) }
+        textCommands.forEach(::drawText)
+        flushTextBatch()
+    }
+
+    private fun appendImageBatch(
+        command: DrawImageCommand,
+        batches: MutableMap<ResourceLocation, MutableList<UiTexturedQuad>>,
+    ) {
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        val location = ResourceLocation.tryParse(command.source) ?: return
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        batches.getOrPut(location) { mutableListOf() } += UiTexturedQuad(
+            width = command.rect.width,
+            height = command.rect.height,
+            transform = transform,
+            opacity = command.opacity,
+            fit = command.fit,
+            slice = command.slice,
+            tint = command.tint,
+        )
     }
 
     private fun flushShapeBatch() {

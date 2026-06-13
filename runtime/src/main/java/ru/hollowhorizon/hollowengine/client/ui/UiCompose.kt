@@ -85,12 +85,17 @@ class HollowUiComposition(
 class HollowUiApplier(root: BoxNode) : AbstractApplier<UiNode>(root) {
     override fun insertTopDown(index: Int, instance: UiNode) {
         current.children.add(index, instance)
+        instance.layoutState.attachTo(current)
+        current.invalidateLayout()
     }
 
     override fun insertBottomUp(index: Int, instance: UiNode) = Unit
 
     override fun remove(index: Int, count: Int) {
-        repeat(count) { current.children.removeAt(index) }
+        repeat(count) {
+            current.children.removeAt(index).detachLayoutParentRecursively()
+        }
+        current.invalidateLayout()
     }
 
     override fun move(from: Int, to: Int, count: Int) {
@@ -99,10 +104,13 @@ class HollowUiApplier(root: BoxNode) : AbstractApplier<UiNode>(root) {
         repeat(count) { current.children.removeAt(from) }
         val target = if (to > from) to - count else to
         current.children.addAll(target, moving)
+        current.invalidateLayout()
     }
 
     override fun onClear() {
+        root.children.forEach { it.detachLayoutParentRecursively() }
         root.children.clear()
+        root.invalidateLayout()
     }
 }
 
@@ -120,7 +128,10 @@ fun Box(
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, layout, tags, modifiers, attributes) },
         update = {
-            update(layout) { this.layout = it }
+            update(layout) {
+                this.layout = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -139,7 +150,10 @@ fun Column(
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, UiLayout.Column, tags, modifiers, attributes) },
         update = {
-            update(UiLayout.Column) { layout = it }
+            update(UiLayout.Column) {
+                layout = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -158,7 +172,10 @@ fun Row(
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, UiLayout.Row, tags, modifiers, attributes) },
         update = {
-            update(UiLayout.Row) { layout = it }
+            update(UiLayout.Row) {
+                layout = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -177,7 +194,10 @@ fun LazyColumn(
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, UiLayout.LazyColumn, tags, modifiers, attributes) },
         update = {
-            update(UiLayout.LazyColumn) { layout = it }
+            update(UiLayout.LazyColumn) {
+                layout = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -196,7 +216,10 @@ fun LazyRow(
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, UiLayout.LazyRow, tags, modifiers, attributes) },
         update = {
-            update(UiLayout.LazyRow) { layout = it }
+            update(UiLayout.LazyRow) {
+                layout = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -217,7 +240,10 @@ fun Layout(
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, layout, tags, modifiers, attributes) },
         update = {
-            update(layout) { this.layout = it }
+            update(layout) {
+                this.layout = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -237,7 +263,10 @@ fun Text(
     ReusableComposeNode<TextNode, HollowUiApplier>(
         factory = { TextNode(value.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(value) { text = it.bound() }
+            update(value) {
+                text = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -257,7 +286,10 @@ fun Text(
     ReusableComposeNode<TextNode, HollowUiApplier>(
         factory = { TextNode(textContent, id, tags, modifiers, attributes) },
         update = {
-            update(textContent) { this.content = it }
+            update(textContent) {
+                this.content = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -287,7 +319,10 @@ fun Image(
     ReusableComposeNode<ImageNode, HollowUiApplier>(
         factory = { ImageNode(source.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(source) { this.source = it.bound() }
+            update(source) {
+                this.source = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -305,7 +340,10 @@ fun Canvas(
     ReusableComposeNode<CanvasNode, HollowUiApplier>(
         factory = { CanvasNode(renderer, id, tags, modifiers, attributes) },
         update = {
-            update(renderer) { this.renderer = it }
+            update(renderer) {
+                this.renderer = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -353,7 +391,10 @@ fun Slider(
     ReusableComposeNode<SliderNode, HollowUiApplier>(
         factory = { SliderNode(value, min, max, step, id, tags, modifiers, attributes) },
         update = {
-            update(values) { apply(it) }
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -373,7 +414,10 @@ fun Checkbox(
     ReusableComposeNode<CheckboxNode, HollowUiApplier>(
         factory = { CheckboxNode(checked, variant, id, tags, modifiers, attributes) },
         update = {
-            update(values) { apply(it) }
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -430,7 +474,10 @@ fun TextField(
                 .also { it.placeholder = placeholder }
         },
         update = {
-            update(values) { apply(it) }
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
             updateCommon(textFieldModifiers, attributes)
         },
     )
@@ -448,7 +495,10 @@ fun Item(
     ReusableComposeNode<ItemNode, HollowUiApplier>(
         factory = { ItemNode(item.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(item) { this.item = it.bound() }
+            update(item) {
+                this.item = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -466,7 +516,10 @@ fun Entity(
     ReusableComposeNode<EntityNode, HollowUiApplier>(
         factory = { EntityNode(entity.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(entity) { this.entity = it.bound() }
+            update(entity) {
+                this.entity = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -487,7 +540,10 @@ fun Popup(
     ReusableComposeNode<PopupNode, HollowUiApplier>(
         factory = { PopupNode(anchor, alignment, id, tags, modifiers, attributes) },
         update = {
-            update(values) { apply(it) }
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
         content = content,
@@ -561,9 +617,11 @@ fun <T : BaseUiNode> Updater<T>.updateCommon(
     update(modifiers) {
         this.modifiers.clear()
         this.modifiers += it
+        invalidateLayout()
     }
     update(attributes) {
         replaceCustomAttributes(it)
+        invalidateLayout()
     }
 }
 

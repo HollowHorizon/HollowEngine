@@ -23,7 +23,7 @@ sealed interface UiStylesheetReference {
         override fun revision(): Long = 0L
     }
 
-    class Resource(
+    data class Resource(
         private val location: String,
         private val loader: HssResourceLoader,
     ) : UiStylesheetReference {

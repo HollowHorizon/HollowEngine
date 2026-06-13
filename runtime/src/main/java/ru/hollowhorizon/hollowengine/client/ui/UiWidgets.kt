@@ -111,29 +111,42 @@ class SliderNode(
     UiStatefulNode {
     var min: Float = min
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["min"] = value.toString()
             this.value = this.value
+            invalidateLayout()
         }
 
     var max: Float = max
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["max"] = value.toString()
             this.value = this.value
+            invalidateLayout()
         }
 
     var step: Float = step.coerceAtLeast(0f)
         set(value) {
-            field = value.coerceAtLeast(0f)
+            val normalized = value.coerceAtLeast(0f)
+            if (field == normalized) return
+            field = normalized
             this.attributes["step"] = field.toString()
             this.value = this.value
+            invalidateLayout()
         }
 
     var value: Float = 0f
         set(value) {
-            field = normalize(value)
+            val normalized = normalize(value)
+            if (field == normalized) {
+                this.attributes["value"] = field.toString()
+                return
+            }
+            field = normalized
             this.attributes["value"] = field.toString()
+            invalidateLayout()
         }
 
     init {
@@ -183,15 +196,19 @@ class CheckboxNode(
     UiStatefulNode {
     var checked: Boolean = checked
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["checked"] = value.toString()
             if (value) states += UiState.SELECTED else states -= UiState.SELECTED
+            invalidateLayout()
         }
 
     var variant: UiCheckboxVariant = variant
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["variant"] = value.name.lowercase()
+            invalidateLayout()
         }
 
     init {
@@ -242,52 +259,80 @@ class TextFieldNode(
             completionAnchor = completionAnchor.coerceIn(0, field.length)
             completionItems = emptyList()
             this.attributes["value"] = field
+            invalidateLayout()
         }
 
     var placeholder: String = this.attributes["placeholder"].orEmpty()
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["placeholder"] = value
+            invalidateLayout()
         }
 
     var mode: UiTextFieldMode = mode
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["mode"] = when (value) {
                 UiTextFieldMode.SINGLE_LINE -> "single-line"
                 UiTextFieldMode.MULTI_LINE -> "multi-line"
             }
             this.value = this.value
+            invalidateLayout()
         }
 
     var filter: UiTextInputFilter = filter
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["filter"] = value.name.lowercase()
             this.value = this.value
+            invalidateLayout()
         }
 
     var multiCaret: Boolean = multiCaret
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["multi-caret"] = value.toString()
             if (!value && caretRanges.size > 1) {
                 setCaretRanges(listOf(caretRanges.last()))
             }
+            invalidateLayout()
         }
 
     var syntaxHighlighter: UiSyntaxHighlighter? = syntaxHighlighter
+        set(value) {
+            if (field === value) return
+            field = value
+            invalidateLayout()
+        }
     var completionContributor: UiCompletionContributor? = completionContributor
+        set(value) {
+            if (field === value) return
+            field = value
+            invalidateLayout()
+        }
     var diagnostics: List<UiTextDiagnostic> = diagnostics
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
     var inlayHints: List<UiInlayHint> = inlayHints
         set(value) {
+            if (field == value) return
             field = value
             clearInlayHintCache()
+            invalidateLayout()
         }
     var inlayHintsProvider: UiInlayHintsProvider? = inlayHintsProvider
         set(value) {
+            if (field === value) return
             field = value
             clearInlayHintCache()
+            invalidateLayout()
         }
     var completionItems: List<UiTextCompletion> = emptyList()
         private set

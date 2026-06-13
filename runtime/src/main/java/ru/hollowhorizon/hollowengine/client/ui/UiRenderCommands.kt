@@ -8,6 +8,12 @@ sealed interface UiRenderCommand {
     val node: UiNode
 }
 
+enum class UiRenderPhase {
+    BACKGROUND,
+    CONTENT,
+    OVERLAY,
+}
+
 data class BeginLayerCommand(
     override val node: UiNode,
     val rect: UiRect,
@@ -67,6 +73,7 @@ data class DrawBoxCommand(
     val slice: UiInsets,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
 data class DrawTextCommand(
@@ -86,6 +93,7 @@ data class DrawTextCommand(
     val scrollOffset: UiScrollOffset,
     val hoveredLink: String?,
     val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
 data class DrawImageCommand(
@@ -100,6 +108,7 @@ data class DrawImageCommand(
     val slice: UiInsets,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
 data class DrawItemCommand(
@@ -269,7 +278,8 @@ class UiCommandRenderer {
                 node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
                 border = style.border, shadows = emptyList(), opacity = localOpacity, tint = style.tint,
                 transform = layoutNode.worldTransform, renderToFramebuffer = false,
-                fit = style.imageFit, slice = style.imageSlice, filter = baseFilter, backfaceVisibility = style.backfaceVisibility
+                fit = style.imageFit, slice = style.imageSlice, filter = baseFilter,
+                backfaceVisibility = style.backfaceVisibility, phase = UiRenderPhase.BACKGROUND
             )
         }
 
@@ -657,6 +667,7 @@ class UiCommandRenderer {
             slice = UiInsets.Zero,
             filter = filter,
             backfaceVisibility = backface,
+            phase = UiRenderPhase.OVERLAY,
         )
     }
 
@@ -688,6 +699,7 @@ class UiCommandRenderer {
             scrollOffset = UiScrollOffset.Zero,
             hoveredLink = null,
             backfaceVisibility = backface,
+            phase = UiRenderPhase.OVERLAY,
         )
     }
 
@@ -761,6 +773,7 @@ class UiCommandRenderer {
             slice = slice,
             filter = UiFilterChain.Empty,
             backfaceVisibility = backfaceVisibility,
+            phase = UiRenderPhase.OVERLAY,
         )
     }
 }

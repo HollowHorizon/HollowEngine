@@ -11,6 +11,7 @@ interface UiNode {
     val states: MutableSet<UiState>
     val modifiers: MutableList<Modifier>
     val children: UiChildren
+    val layoutState: UiNodeLayoutState
 }
 
 typealias UiChildren = MutableList<UiNode>
@@ -23,19 +24,35 @@ open class BaseUiNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-    final override var layout: UiLayout = UiLayout.Column,
+    layout: UiLayout = UiLayout.Column,
 ) : UiNode {
     final override val tags: MutableSet<String> = tags.toMutableSet()
     final override val attributes: MutableMap<String, String> = attributes.toMutableMap()
     final override val states: MutableSet<UiState> = mutableSetOf()
     final override val modifiers: MutableList<Modifier> = modifiers.toMutableList()
     final override val children = UiChildren()
+    final override val layoutState = UiNodeLayoutState(this)
+    final override var layout: UiLayout = layout
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
 
-    fun add(vararg modifiers: Modifier): BaseUiNode = apply { this.modifiers.addAll(modifiers) }
+    fun add(vararg modifiers: Modifier): BaseUiNode = apply {
+        this.modifiers.addAll(modifiers)
+        invalidateLayout()
+    }
 
-    fun tag(vararg values: String): BaseUiNode = apply { tags.addAll(values.map { it.trimTagPrefix() }) }
+    fun tag(vararg values: String): BaseUiNode = apply {
+        tags.addAll(values.map { it.trimTagPrefix() })
+        invalidateLayout()
+    }
 
-    fun state(vararg values: UiState): BaseUiNode = apply { states.addAll(values) }
+    fun state(vararg values: UiState): BaseUiNode = apply {
+        states.addAll(values)
+        invalidateLayout()
+    }
 }
 
 class BoxNode(
@@ -54,12 +71,19 @@ class BoxNode(
 )
 
 class TextNode(
-    var content: UiTextContent,
+    content: UiTextContent,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var content: UiTextContent = content
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+
     constructor(
         text: UiBoundString,
         id: String? = null,
@@ -72,46 +96,75 @@ class TextNode(
         get() = UiBoundString(content.asTemplate())
         set(value) {
             content = UiTextContent.plain(value)
+            invalidateLayout()
         }
 
     var hoveredLink: String? = null
 }
 
 class ImageNode(
-    var source: UiBoundString,
+    source: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var source: UiBoundString = source
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class CanvasNode(
-    var renderer: String? = null,
+    renderer: String? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var renderer: String? = renderer
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class ItemNode(
-    var item: UiBoundString,
+    item: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var item: UiBoundString = item
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class EntityNode(
-    var entity: UiBoundString,
+    entity: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var entity: UiBoundString = entity
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class PopupNode(
-    var anchor: UiPopupAnchor,
-    var alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    anchor: UiPopupAnchor,
+    alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
@@ -123,7 +176,21 @@ class PopupNode(
     modifiers,
     attributes,
     UiLayout.Column,
-)
+) {
+    var anchor: UiPopupAnchor = anchor
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+
+    var alignment: UiPopupAlignment = alignment
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 fun UiNode.setClosingState(closing: Boolean) {
     if (closing) {
@@ -131,6 +198,7 @@ fun UiNode.setClosingState(closing: Boolean) {
     } else {
         states -= UiState.CLOSING
     }
+    invalidateLayout()
     children.forEach { it.setClosingState(closing) }
 }
 

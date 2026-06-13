@@ -127,10 +127,41 @@ class UiComposeTests {
             val frame = runtime.frame(160f, 80f)
             val popupBoxes = frame.commands.filterIsInstance<DrawBoxCommand>().filter { it.node == field }
             val popupTexts = frame.commands.filterIsInstance<DrawTextCommand>().filter { it.node == field }
+            val completionTexts = popupTexts.filter { it.text == "AlphaOption" || it.text == "template" }
 
             assertTrue(popupBoxes.size >= 2)
+            assertTrue(popupBoxes.all { it.phase == UiRenderPhase.OVERLAY })
             assertTrue(popupTexts.any { it.text == "AlphaOption" })
             assertTrue(popupTexts.any { it.text == "template" })
+            assertTrue(completionTexts.all { it.phase == UiRenderPhase.OVERLAY })
+        }
+    }
+
+    @Test
+    fun `background and text commands use stable render phases`() {
+        HollowUiSurface().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    Box(
+                        id = "card",
+                        modifier = Modifier.then(
+                            Modifier.size(100.px, 24.px),
+                            Modifier.background(UiColor(0.12f, 0.14f, 0.18f, 1f)),
+                        ),
+                    ) {
+                        Text("Title", id = "title")
+                    }
+                },
+                width = 120f,
+                height = 40f,
+            )
+            val card = frame.resolved.styles.keys.single { it.id == "card" }
+            val title = frame.resolved.styles.keys.single { it.id == "title" }
+            val background = frame.commands.filterIsInstance<DrawBoxCommand>().single { it.node == card }
+            val text = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == title }
+
+            assertEquals(UiRenderPhase.BACKGROUND, background.phase)
+            assertEquals(UiRenderPhase.CONTENT, text.phase)
         }
     }
 
@@ -360,6 +391,7 @@ class UiComposeTests {
 
             assertEquals(ScrollbarOrientation.VERTICAL, scrollbar.orientation)
             assertEquals(2, scrollbarCommands.size)
+            assertTrue(scrollbarCommands.all { it.phase == UiRenderPhase.OVERLAY })
             assertEquals(scrollbar.track.width, scrollbarCommands[0].rect.width)
             assertEquals(scrollbar.thumb.height, scrollbarCommands[1].rect.height)
             assertSame(scroll, hit?.node)
@@ -1212,6 +1244,67 @@ class UiComposeTests {
 
             assertEquals(250L, closing.motionDurationMillis(opened))
         }
+    }
+
+    @Test
+    fun `standard style modifiers are structurally equal`() {
+        assertEquals(
+            Modifier.then(
+                Modifier.size(120.px, 40.px),
+                Modifier.gap(4.px),
+                Modifier.fontSize(9f),
+                Modifier.translate(1f, 2f),
+            ),
+            Modifier.then(
+                Modifier.size(120.px, 40.px),
+                Modifier.gap(4.px),
+                Modifier.fontSize(9f),
+                Modifier.translate(1f, 2f),
+            ),
+        )
+    }
+
+    @Test
+    fun `style resolver reuses unchanged node style`() {
+        var applyCount = 0
+        val root = BoxNode(
+            modifiers = listOf(
+                StyleModifier {
+                    applyCount += 1
+                    it.opacity = 0.75f
+                },
+            ),
+        )
+        val resolver = UiStyleResolver()
+
+        UiNodeKeys.assign(root)
+        assertEquals(0.75f, resolver.resolve(root, animate = false)[root].opacity)
+        assertEquals(0.75f, resolver.resolve(root, animate = false)[root].opacity)
+
+        assertEquals(1, applyCount)
+    }
+
+    @Test
+    fun `style resolver invalidates cached style when node state changes`() {
+        val stylesheet = compileHss(
+            """
+            .panel {
+                opacity: 1;
+            }
+
+            .panel:hover {
+                opacity: 0.5;
+            }
+            """.trimIndent(),
+        )
+        val root = BoxNode(tags = listOf("panel"))
+        val resolver = UiStyleResolver(stylesheet = stylesheet)
+
+        UiNodeKeys.assign(root)
+        assertEquals(1f, resolver.resolve(root, animate = false)[root].opacity)
+
+        root.states += UiState.HOVER
+        assertEquals(0.5f, resolver.resolve(root, animate = false)[root].opacity)
     }
 
     @Test

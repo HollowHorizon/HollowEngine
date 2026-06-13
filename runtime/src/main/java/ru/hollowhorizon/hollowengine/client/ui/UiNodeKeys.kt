@@ -12,6 +12,7 @@ object UiNodeKeys {
     fun key(node: UiNode): String = keys[node] ?: node.id ?: node.type
 
     private fun assign(node: UiNode, path: String) {
+        node.layoutState.synchronizeChildren()
         val ownKey = node.id ?: "$path/${node.type}${node.tags.sorted().joinToString(prefix = "[", postfix = "]")}"
         keys[node] = ownKey
         node.children.forEachIndexed { index, child ->
