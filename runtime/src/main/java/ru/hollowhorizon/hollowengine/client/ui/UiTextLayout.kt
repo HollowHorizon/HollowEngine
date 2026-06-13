@@ -904,7 +904,7 @@ private fun UiTextLayout.lineIndexAtCaret(index: Int): Int {
     var high = lines.lastIndex
     var result = lines.lastIndex
     while (low <= high) {
-        val mid = (low + high) ushr 1
+        val mid = low + high ushr 1
         val line = lines[mid]
         if (line.sourceStart + line.sourceLength > target || mid == lines.lastIndex) {
             result = mid
@@ -920,7 +920,7 @@ private fun UiTextLayout.firstLineIndexEndingAtOrAfter(y: Float): Int {
     var low = 0
     var high = lines.size
     while (low < high) {
-        val mid = (low + high) ushr 1
+        val mid = low + high ushr 1
         val line = lines[mid]
         if (line.y + line.height >= y) high = mid else low = mid + 1
     }
@@ -931,7 +931,7 @@ private fun UiTextLayout.firstLineIndexStartingAfter(y: Float): Int {
     var low = 0
     var high = lines.size
     while (low < high) {
-        val mid = (low + high) ushr 1
+        val mid = low + high ushr 1
         if (lines[mid].y > y) high = mid else low = mid + 1
     }
     return low
@@ -941,7 +941,7 @@ private fun UiTextLayout.firstLineIndexEndingAfterSource(offset: Int): Int {
     var low = 0
     var high = lines.size
     while (low < high) {
-        val mid = (low + high) ushr 1
+        val mid = low + high ushr 1
         val line = lines[mid]
         if (line.sourceStart + line.sourceLength > offset || line.sourceLength == 0 && line.sourceStart >= offset) {
             high = mid
@@ -956,7 +956,7 @@ private fun UiTextLayout.firstLineIndexStartingAfterSource(offset: Int): Int {
     var low = 0
     var high = lines.size
     while (low < high) {
-        val mid = (low + high) ushr 1
+        val mid = low + high ushr 1
         if (lines[mid].sourceStart > offset) high = mid else low = mid + 1
     }
     return low
