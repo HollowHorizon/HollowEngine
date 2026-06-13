@@ -6,6 +6,7 @@ data class UiTextLayout(
     val lines: List<UiTextLine>,
     val width: Float,
     val height: Float,
+    val maxNaturalLineWidth: Float = lines.maxOfOrNull { it.naturalWidth } ?: width,
 )
 
 data class UiTextLine(
@@ -17,6 +18,7 @@ data class UiTextLine(
     val height: Float,
     val justify: Boolean = false,
     val extraSpace: Float = 0f,
+    val sourceStart: Int = 0,
     val sourceLength: Int = text.length,
     val fragments: List<UiTextFragment> = emptyList(),
 )
@@ -154,11 +156,7 @@ internal object UiTextLayouter {
             lineSpacing,
             spaceWidth,
         )
-        val measuredWidth = if (wrap && width.isFinite()) {
-            layout.lines.maxOfOrNull { it.naturalWidth } ?: width
-        } else {
-            width
-        }
+        val measuredWidth = if (wrap && width.isFinite()) layout.maxNaturalLineWidth else width
         return LayoutSize(measuredWidth, layout.height)
     }
 
@@ -226,6 +224,7 @@ internal object UiTextLayouter {
         )
         val lines = mutableListOf<UiTextLine>()
         var y = 0f
+        var sourceStart = 0
         for (index in rawLines.indices) {
             val raw = rawLines[index]
             val lineAdvance = if (index == rawLines.lastIndex) raw.contentHeight else raw.advanceHeight
@@ -238,7 +237,8 @@ internal object UiTextLayouter {
                 0f
             }
             val x = if (justify) 0f else align.lineOffset(textBoxWidth, raw.width)
-            lines += raw.toLine(x, y, textBoxWidth, justify, extra)
+            lines += raw.toLine(x, y, textBoxWidth, justify, extra, sourceStart)
+            sourceStart += raw.sourceLength
             y += lineAdvance
             if (height.isFinite() && y >= height) break
         }
@@ -300,7 +300,11 @@ internal object UiTextLayouter {
             line.copy(text = lineText.toString(), fragments = fragments)
         }
         val height = lines.lastOrNull()?.let { it.y + it.height } ?: 0f
-        return layout.copy(lines = lines, height = height)
+        return layout.copy(
+            lines = lines,
+            height = height,
+            maxNaturalLineWidth = lines.maxOfOrNull { it.naturalWidth } ?: layout.width,
+        )
     }
 
     private fun measureTextWidth(text: String, fontSize: Float, fontFamily: String?, style: UiInlineStyle): Float {
@@ -574,6 +578,7 @@ internal object UiTextLayouter {
         textBoxWidth: Float,
         justify: Boolean,
         extraSpace: Float,
+        sourceStart: Int,
     ): UiTextLine {
         var x = 0f
         val fragments = mutableListOf<UiTextFragment>()
@@ -635,6 +640,7 @@ internal object UiTextLayouter {
             height = height,
             justify = justify,
             extraSpace = extraSpace,
+            sourceStart = sourceStart,
             sourceLength = sourceLength,
             fragments = fragments,
         )
@@ -866,17 +872,9 @@ private fun <K, V> lruCache(maxSize: Int): MutableMap<K, V> {
 
 fun UiTextLayout.caretPosition(index: Int, fontSize: Float, fontFamily: String? = null): UiVec3 {
     if (lines.isEmpty()) return UiVec3()
-    var consumed = 0
-    for (line in lines) {
-        val lineEnd = consumed + line.sourceLength
-        if (index < lineEnd || line === lines.last()) {
-            val local = (index - consumed).coerceIn(0, line.sourceLength)
-            return UiVec3(line.xAt(local, fontSize, fontFamily), line.y)
-        }
-        consumed = lineEnd
-    }
-    val last = lines.last()
-    return UiVec3(last.xAt(last.sourceLength, fontSize, fontFamily), last.y)
+    val line = lines[lineIndexAtCaret(index)]
+    val local = (index - line.sourceStart).coerceIn(0, line.sourceLength)
+    return UiVec3(line.xAt(local, fontSize, fontFamily), line.y)
 }
 
 fun UiTextLayout.caretIndexAt(x: Float, y: Float, fontSize: Float, fontFamily: String? = null): Int {
@@ -897,7 +895,7 @@ fun UiTextLayout.caretIndexAt(x: Float, y: Float, fontSize: Float, fontFamily: S
             bestOffset = offset
         }
     }
-    return lines.takeWhile { it !== line }.sumOf { it.sourceLength } + bestOffset
+    return line.sourceStart + bestOffset
 }
 
 fun UiTextLayout.selectionRects(
@@ -911,10 +909,12 @@ fun UiTextLayout.selectionRects(
     val selectionEnd = maxOf(start, end).coerceAtLeast(selectionStart)
     if (selectionStart == selectionEnd) return emptyList()
     val rects = mutableListOf<UiRect>()
-    var consumed = 0
-    for ((lineIndex, line) in lines.withIndex()) {
-        val lineStart = consumed
-        val lineEnd = consumed + line.sourceLength
+    val firstLine = firstLineIndexEndingAfterSource(selectionStart)
+    val lastLineExclusive = firstLineIndexStartingAfterSource(selectionEnd)
+    for (lineIndex in firstLine until lastLineExclusive) {
+        val line = lines[lineIndex]
+        val lineStart = line.sourceStart
+        val lineEnd = line.sourceStart + line.sourceLength
         val startOffset = (selectionStart - lineStart).coerceIn(0, line.sourceLength)
         val endOffset = (selectionEnd - lineStart).coerceIn(0, line.sourceLength)
         if (selectionStart < lineEnd && selectionEnd > lineStart && startOffset != endOffset) {
@@ -935,17 +935,29 @@ fun UiTextLayout.selectionRects(
         } else if (fillLineGaps && line.sourceLength == 0 && selectionStart <= lineStart && selectionEnd >= lineEnd) {
             rects += UiRect(0f, line.y, this.width, line.height)
         }
-        consumed = lineEnd
     }
     return rects
+}
+
+internal fun UiTextLayout.visibleLineItems(
+    scrollY: Float,
+    viewportHeight: Float,
+    overscan: Float = 48f,
+): Sequence<IndexedValue<UiTextLine>> {
+    if (lines.isEmpty()) return emptySequence()
+    val top = scrollY - overscan
+    val bottom = scrollY + viewportHeight + overscan
+    val first = firstLineIndexEndingAtOrAfter(top)
+    val endExclusive = firstLineIndexStartingAfter(bottom)
+    if (first >= endExclusive) return emptySequence()
+    return (first until endExclusive).asSequence().map { index -> IndexedValue(index, lines[index]) }
 }
 
 internal fun UiTextLayout.verticalCaretIndex(index: Int, lineDelta: Int, fontSize: Float, fontFamily: String?): Int {
     if (lines.isEmpty()) return 0
     val currentLineIndex = lineIndexAtCaret(index)
     val currentLine = lines[currentLineIndex]
-    val lineStart = lines.take(currentLineIndex).sumOf { it.sourceLength }
-    val localOffset = (index - lineStart).coerceIn(0, currentLine.sourceLength)
+    val localOffset = (index - currentLine.sourceStart).coerceIn(0, currentLine.sourceLength)
     val x = currentLine.xAt(localOffset, fontSize, fontFamily)
     val targetLineIndex = (currentLineIndex + lineDelta).coerceIn(0, lines.lastIndex)
     val targetLine = lines[targetLineIndex]
@@ -958,17 +970,72 @@ internal fun UiTextLayout.verticalCaretIndex(index: Int, lineDelta: Int, fontSiz
             bestOffset = offset
         }
     }
-    return lines.take(targetLineIndex).sumOf { it.sourceLength } + bestOffset
+    return targetLine.sourceStart + bestOffset
 }
 
 private fun UiTextLayout.lineIndexAtCaret(index: Int): Int {
-    var consumed = 0
-    for ((lineIndex, line) in lines.withIndex()) {
-        val end = consumed + line.sourceLength
-        if (index < end || lineIndex == lines.lastIndex) return lineIndex
-        consumed = end
+    if (lines.isEmpty()) return 0
+    val target = index.coerceAtLeast(0)
+    var low = 0
+    var high = lines.lastIndex
+    var result = lines.lastIndex
+    while (low <= high) {
+        val mid = (low + high) ushr 1
+        val line = lines[mid]
+        if (line.sourceStart + line.sourceLength > target || mid == lines.lastIndex) {
+            result = mid
+            high = mid - 1
+        } else {
+            low = mid + 1
+        }
     }
-    return lines.lastIndex
+    return result
+}
+
+private fun UiTextLayout.firstLineIndexEndingAtOrAfter(y: Float): Int {
+    var low = 0
+    var high = lines.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        val line = lines[mid]
+        if (line.y + line.height >= y) high = mid else low = mid + 1
+    }
+    return low
+}
+
+private fun UiTextLayout.firstLineIndexStartingAfter(y: Float): Int {
+    var low = 0
+    var high = lines.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (lines[mid].y > y) high = mid else low = mid + 1
+    }
+    return low
+}
+
+private fun UiTextLayout.firstLineIndexEndingAfterSource(offset: Int): Int {
+    var low = 0
+    var high = lines.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        val line = lines[mid]
+        if (line.sourceStart + line.sourceLength > offset || line.sourceLength == 0 && line.sourceStart >= offset) {
+            high = mid
+        } else {
+            low = mid + 1
+        }
+    }
+    return low
+}
+
+private fun UiTextLayout.firstLineIndexStartingAfterSource(offset: Int): Int {
+    var low = 0
+    var high = lines.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (lines[mid].sourceStart > offset) high = mid else low = mid + 1
+    }
+    return low
 }
 
 private fun UiTextLine.xAt(offset: Int, fontSize: Float, fontFamily: String?): Float {

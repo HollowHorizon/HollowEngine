@@ -25,7 +25,6 @@ data class HollowUiFrame(
     fun requiresContinuousRefresh(): Boolean {
         return activeScrollAnimation ||
                 activeTransitionDurations.values.any { it > 0L } ||
-                resolved.styles.keys.any { it is TextFieldNode && UiState.FOCUS in it.states } ||
                 resolved.styles.values.any { it.requiresContinuousRefresh() }
     }
 

@@ -1,6 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import java.util.LinkedHashMap
+
 internal const val InlayHintVisualOffsetX = 2f
+private const val HighlightedRichTextCacheSize = 24
+
+private val highlightedRichTextCache = object : LinkedHashMap<HighlightedRichTextCacheKey, UiRichText>(
+    HighlightedRichTextCacheSize,
+    0.75f,
+    true,
+) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<HighlightedRichTextCacheKey, UiRichText>): Boolean {
+        return size > HighlightedRichTextCacheSize
+    }
+}
 
 data class UiTextCaret(
     val position: Int,
@@ -72,6 +85,14 @@ internal fun String.toHighlightedRichText(
     inlayStyle: UiInlineStyle = UiInlineStyle(),
 ): UiRichText {
     if (isEmpty()) return UiRichText.plain(this)
+    if (highlighter == null && inlayHints.isEmpty()) return UiRichText.plain(this)
+    val cacheKey = HighlightedRichTextCacheKey(
+        text = this,
+        highlighter = highlighter,
+        inlayHints = inlayHints.toList(),
+        inlayStyle = inlayStyle,
+    )
+    highlightedRichTextCache[cacheKey]?.let { return it }
     val highlights = highlighter?.highlight(this).orEmpty()
         .mapNotNull { highlight ->
             val start = highlight.start.coerceIn(0, length)
@@ -123,8 +144,15 @@ internal fun String.toHighlightedRichText(
         }
     }
     emitInlays(length)
-    return UiRichText(items)
+    return UiRichText(items).also { highlightedRichTextCache[cacheKey] = it }
 }
+
+private data class HighlightedRichTextCacheKey(
+    val text: String,
+    val highlighter: UiSyntaxHighlighter?,
+    val inlayHints: List<UiInlayHint>,
+    val inlayStyle: UiInlineStyle,
+)
 
 private data class TextStyleSpan(
     val start: Int,

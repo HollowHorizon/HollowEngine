@@ -280,7 +280,15 @@ class TextFieldNode(
     var completionContributor: UiCompletionContributor? = completionContributor
     var diagnostics: List<UiTextDiagnostic> = diagnostics
     var inlayHints: List<UiInlayHint> = inlayHints
+        set(value) {
+            field = value
+            clearInlayHintCache()
+        }
     var inlayHintsProvider: UiInlayHintsProvider? = inlayHintsProvider
+        set(value) {
+            field = value
+            clearInlayHintCache()
+        }
     var completionItems: List<UiTextCompletion> = emptyList()
         private set
     var completionAnchor: Int = this.value.length
@@ -291,6 +299,9 @@ class TextFieldNode(
     private var completionReplacementEnd: Int = this.value.length
     private var completionLineStart: Int = 0
     private var completionLineEnd: Int = 0
+    private var cachedInlayProvider: UiInlayHintsProvider? = null
+    private var cachedInlayText: String? = null
+    private var cachedInlayHints: List<UiInlayHint> = emptyList()
 
     var caret: Int = this.value.length
         private set
@@ -500,7 +511,13 @@ class TextFieldNode(
     }
 
     fun currentInlayHints(): List<UiInlayHint> {
-        return inlayHintsProvider?.hints(value) ?: inlayHints
+        val provider = inlayHintsProvider ?: return inlayHints
+        if (cachedInlayProvider === provider && cachedInlayText == value) return cachedInlayHints
+        val hints = provider.hints(value)
+        cachedInlayProvider = provider
+        cachedInlayText = value
+        cachedInlayHints = hints
+        return hints
     }
 
     override fun exportState(): UiNodePersistentState = TextFieldPersistentState(
@@ -527,6 +544,12 @@ class TextFieldNode(
     private fun replaceSelectedRanges(replacement: String): Boolean {
         val ranges = activeCaretRanges().map { TextEditRange(it.selectionStart, it.selectionEnd) }
         return replaceRanges(ranges, replacement)
+    }
+
+    private fun clearInlayHintCache() {
+        cachedInlayProvider = null
+        cachedInlayText = null
+        cachedInlayHints = emptyList()
     }
 
     private fun replaceRanges(ranges: List<TextEditRange>, replacement: String): Boolean {

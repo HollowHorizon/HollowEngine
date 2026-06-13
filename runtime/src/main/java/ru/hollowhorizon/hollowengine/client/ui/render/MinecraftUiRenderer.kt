@@ -508,7 +508,7 @@ class MinecraftUiRenderer {
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
         val now = TickHandler.time / 20f
-        command.layout.lines.forEach { line ->
+        command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
             drawTextLine(command, line, transform, scaleX, scaleY, now)
         }
         mc.renderBuffers().bufferSource().endBatch()

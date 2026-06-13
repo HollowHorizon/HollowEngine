@@ -1586,7 +1586,7 @@ private fun scrollableContentBounds(
     return node.layoutChildren.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
 }
 
-private fun UiTextLayout.maxNaturalLineWidth(): Float = lines.maxOfOrNull { it.naturalWidth } ?: width
+private fun UiTextLayout.maxNaturalLineWidth(): Float = maxNaturalLineWidth
 
 private fun List<MeasuredChild>.sumOfOuterWidth(): Float =
     sumOf { (it.margin.left + it.size.width + it.margin.right).toDouble() }.toFloat()

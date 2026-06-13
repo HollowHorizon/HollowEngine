@@ -25,6 +25,8 @@ import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.bound
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.selectionRects
+import ru.hollowhorizon.hollowengine.client.ui.visibleLineItems
 import ru.hollowhorizon.hollowengine.client.ui.withColor
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -194,6 +196,45 @@ class UiTextLayoutTests {
         assertTrue(natural.width > DialogueTextWidth)
         assertTrue(renderedWidth < DialogueTextWidth)
         assertEquals(renderedWidth, measured.width)
+    }
+
+    @Test
+    fun `visible line lookup returns only viewport lines`() {
+        val layout = UiTextLayouter.layout(
+            text = (1..5000).joinToString("\n") { "line $it" },
+            width = 320f,
+            height = Float.POSITIVE_INFINITY,
+            wrap = false,
+            align = UiTextAlign.LEFT,
+            fontSize = 12f,
+            preserveWhitespace = true,
+        )
+        val targetLine = layout.lines[2500]
+        val viewportHeight = targetLine.height * 5f
+        val visible = layout.visibleLineItems(targetLine.y + 0.1f, viewportHeight, overscan = 0f).toList()
+
+        assertTrue(visible.size <= 6)
+        assertEquals(2500, visible.first().index)
+        assertTrue(visible.all { (_, line) -> line.y <= targetLine.y + 0.1f + viewportHeight })
+    }
+
+    @Test
+    fun `selection rects use source offsets across empty lines`() {
+        val text = "alpha\n\nbeta\ngamma"
+        val layout = UiTextLayouter.layout(
+            text = text,
+            width = 320f,
+            height = Float.POSITIVE_INFINITY,
+            wrap = false,
+            align = UiTextAlign.LEFT,
+            fontSize = 12f,
+            preserveWhitespace = true,
+        )
+        val betaStart = text.indexOf("beta")
+        val rects = layout.selectionRects(betaStart, betaStart + "beta".length, 12f)
+
+        assertEquals(1, rects.size)
+        assertEquals(layout.lines[2].y, rects.single().y)
     }
 
     @Test

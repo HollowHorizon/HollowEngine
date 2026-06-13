@@ -73,6 +73,7 @@ internal class UiWidgetRenderer(
     }
 
     fun drawTextFieldChrome(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
+        val selectionQuads = mutableListOf<UiBatchedQuad>()
         command.carets.forEach { caretRange ->
             command.layout.selectionRects(
                 caretRange.selectionStart,
@@ -84,18 +85,17 @@ internal class UiWidgetRenderer(
                 val clipped = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
                     .clipHorizontally(command.textOffset, command.rect.width)
                     ?: return@forEach
-                drawLocalPaint(
-                    clipped.width,
-                    clipped.height,
-                    0f,
-                    command.selectionColor.withOpacity(command.opacity),
-                    transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
-                    command.filter,
+                selectionQuads += solidQuad(
+                    width = clipped.width,
+                    height = clipped.height,
+                    color = command.selectionColor.withOpacity(command.opacity).filtered(command.filter),
+                    transform = transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
                 )
             }
         }
+        drawBatchedQuads(selectionQuads)
         if (command.showLineNumbers) {
-            command.layout.lines.forEachIndexed { index, line ->
+            command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (index, line) ->
                 drawPlainText(
                     (index + 1).toString(),
                     0f,
@@ -136,6 +136,7 @@ internal class UiWidgetRenderer(
     }
 
     private fun drawDiagnostics(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
+        val quads = mutableListOf<UiBatchedQuad>()
         command.diagnostics.forEach { diagnostic ->
             val color = when (diagnostic.severity) {
                 UiTextDiagnosticSeverity.ERROR -> command.diagnosticErrorColor
@@ -151,18 +152,23 @@ internal class UiWidgetRenderer(
                 val underline = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
                     .clipHorizontally(command.textOffset, command.rect.width)
                     ?: return@forEach
-                drawZigZagUnderline(underline, color, command, transform)
+                quads += zigZagUnderlineQuads(
+                    rect = underline,
+                    color = color.withOpacity(command.opacity).filtered(command.filter),
+                    transform = transform,
+                )
             }
         }
+        drawBatchedQuads(quads)
     }
 
-    private fun drawZigZagUnderline(
+    private fun zigZagUnderlineQuads(
         rect: UiRect,
         color: UiColor,
-        command: DrawTextFieldChromeCommand,
         transform: UiMatrix4,
-    ) {
-        if (rect.width <= 1f) return
+    ): List<UiBatchedQuad> {
+        if (rect.width <= 1f) return emptyList()
+        val quads = mutableListOf<UiBatchedQuad>()
         val step = 3f
         val amplitude = 2f
         val thickness = 1.25f
@@ -174,23 +180,23 @@ internal class UiWidgetRenderer(
         while (startX < right) {
             val endX = min(startX + step, right)
             val endY = baseY + if (nextHigh) -amplitude else amplitude
-            drawZigZagSegment(
+            zigZagSegmentQuad(
                 startX = startX,
                 startY = startY,
                 endX = endX,
                 endY = endY,
                 thickness = thickness,
-                color = color.withOpacity(command.opacity),
+                color = color,
                 transform = transform,
-                filter = command.filter,
-            )
+            )?.let(quads::add)
             startX = endX
             startY = endY
             nextHigh = !nextHigh
         }
+        return quads
     }
 
-    private fun drawZigZagSegment(
+    private fun zigZagSegmentQuad(
         startX: Float,
         startY: Float,
         endX: Float,
@@ -198,27 +204,24 @@ internal class UiWidgetRenderer(
         thickness: Float,
         color: UiColor,
         transform: UiMatrix4,
-        filter: UiFilterChain,
-    ) {
+    ): UiBatchedQuad? {
         val dx = endX - startX
         val dy = endY - startY
         val length = sqrt(dx * dx + dy * dy)
-        if (length <= 0.1f) return
-        drawLocalPaint(
+        if (length <= 0.1f) return null
+        return solidQuad(
             length,
             thickness,
-            thickness * 0.5f,
             color,
             transform *
                     UiMatrix4.translation(startX, startY, 0f) *
                     UiMatrix4.rotationZ(atan2(dy, dx)) *
                     UiMatrix4.translation(0f, -thickness * 0.5f, 0f),
-            filter,
         )
     }
 
     private fun drawInlayHintFrames(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        command.layout.lines.forEach { line ->
+        command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
             line.fragments.filterIsInstance<UiInlayTextRun>().forEach { fragment ->
                 val frame = UiRect(
                     command.textOffset + line.x + fragment.x - command.scrollOffset.x + InlayHintVisualOffsetX,

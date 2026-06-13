@@ -9,7 +9,7 @@ internal fun textFieldEditLayout(node: TextFieldNode, style: ComputedStyle, layo
     val inlayStyle = UiInlineStyle().withColor((style.textField.inlayHintColor ?: UiColor(0.66f, 0.72f, 0.82f, 1f)).copy(alpha = 0.95f))
     return UiTextLayouter.layout(
         richText = node.value.toHighlightedRichText(
-            highlighter = node.syntaxHighlighter,
+            highlighter = null,
             inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
             inlayStyle = inlayStyle,
         ),
