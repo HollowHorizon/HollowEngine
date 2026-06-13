@@ -389,7 +389,8 @@ class UiLayoutPipeline {
         }
         for (child in node.layoutChildren) {
             if (child in placed) continue
-            val measured = measureNode(child, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
+            val measured =
+                measureNode(child, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
             placeNode(
                 child,
                 resolved,
@@ -455,7 +456,8 @@ class UiLayoutPipeline {
         if (popups.isEmpty()) return
         val parentStyle = resolved[node]
         for (popup in popups) {
-            val measured = measureNode(popup, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
+            val measured =
+                measureNode(popup, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
             val anchor = popup.anchor.resolvePopupAnchor(content, resolved, layouts, bindings)
             val rect = popup.alignment.popupRect(anchor, measured)
             placeNode(
@@ -569,8 +571,9 @@ class UiLayoutPipeline {
         for (child in grown) {
             val childStyle = child.style
             val position = childStyle.position.resolve(content.width, content.height)
-            val align = childStyle.alignVertical.takeUnless { it == UiAlign.AUTO } ?: style.childAlignVertical(node.layout)
-            ?: UiAlign.START
+            val align =
+                childStyle.alignVertical.takeUnless { it == UiAlign.AUTO } ?: style.childAlignVertical(node.layout)
+                ?: UiAlign.START
             val height = childStyle.size.height
             val childHeight = height.resolveHeight(align, childStyle, child, content)
             val childWidth = child.size.width.coerceAtMost(
@@ -639,8 +642,9 @@ class UiLayoutPipeline {
         for (child in grown) {
             val childStyle = child.style
             val position = childStyle.position.resolve(content.width, content.height)
-            val align = childStyle.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: style.childAlignHorizontal(node.layout)
-            ?: UiAlign.STRETCH
+            val align =
+                childStyle.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: style.childAlignHorizontal(node.layout)
+                ?: UiAlign.STRETCH
             val width = childStyle.size.width
             val childWidth = width.resolveWidth(align, childStyle, child, content)
                 .coerceAtMost((content.width - child.margin.left - child.margin.right).coerceAtLeast(0f))
@@ -715,8 +719,9 @@ class UiLayoutPipeline {
         for (child in measured) {
             val childStyle = child.style
             val position = childStyle.position.resolve(content.width, content.height)
-            val align = childStyle.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: style.childAlignHorizontal(node.layout)
-            ?: UiAlign.STRETCH
+            val align =
+                childStyle.alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: style.childAlignHorizontal(node.layout)
+                ?: UiAlign.STRETCH
             val width = childStyle.size.width
             val childWidth = width.resolveWidth(align, childStyle, child, content)
                 .coerceAtMost((content.width - child.margin.left - child.margin.right).coerceAtLeast(0f))
@@ -771,7 +776,8 @@ class UiLayoutPipeline {
             bindings = bindings,
         )
         val totalWidth = measured.sumOfOuterWidth() + gap * (measured.size - 1).coerceAtLeast(0)
-        val mainAlign = measured.singleChildMainAxisAlign { it.alignHorizontal } ?: style.childAlignHorizontal(node.layout)
+        val mainAlign =
+            measured.singleChildMainAxisAlign { it.alignHorizontal } ?: style.childAlignHorizontal(node.layout)
         val scrollOffset = scrollState.offset(node)
         val unscrolledLeft = content.x + scrollOffset.x
         layouts[node]?.let { layoutNode ->
@@ -791,8 +797,9 @@ class UiLayoutPipeline {
         for (child in measured) {
             val childStyle = child.style
             val position = childStyle.position.resolve(content.width, content.height)
-            val align = childStyle.alignVertical.takeUnless { it == UiAlign.AUTO } ?: style.childAlignVertical(node.layout)
-            ?: UiAlign.START
+            val align =
+                childStyle.alignVertical.takeUnless { it == UiAlign.AUTO } ?: style.childAlignVertical(node.layout)
+                ?: UiAlign.START
             val height = childStyle.size.height
             val childHeight = height.resolveHeight(align, childStyle, child, content)
             val childWidth = child.size.width
@@ -1128,8 +1135,8 @@ class UiLayoutPipeline {
         }
         if (width != null && height != null) {
             return constrainMeasuredSize(
-                width = requireNotNull(width),
-                height = requireNotNull(height),
+                width = width,
+                height = height,
                 style = style,
                 referenceWidth = referenceWidth,
                 referenceHeight = referenceHeight,
@@ -1176,28 +1183,30 @@ class UiLayoutPipeline {
                     (node is TextNode ||
                             heightOverride == null && style.size.height is UiLength.Auto ||
                             widthOverride == null && style.size.width is UiLength.Auto)
-        if (shouldReflowConstrainedWidth) {
-            val constrainedContentWidth = (constrainedWidth - insets.horizontal).coerceAtLeast(0f)
-            val reflowed = intrinsicSize(
-                node,
-                resolved,
-                style,
-                constrainedContentWidth,
-                childAvailableHeight,
-                scrollbarReserves,
-                knownContentWidth = constrainedContentWidth,
-                knownContentHeight = null,
-                bindings = bindings,
-            )
-            if (widthOverride == null && style.size.width is UiLength.Auto) {
-                constrainedWidth = (reflowed.width + insets.horizontal)
-                    .coerceIn(style.minSize.width, style.maxSize.width, widthReference)
-            }
-            if (heightOverride == null && style.size.height is UiLength.Auto) {
-                constrainedHeight = (reflowed.height + insets.vertical)
-                    .coerceIn(style.minSize.height, style.maxSize.height, heightReference)
-            }
+
+        if (shouldReflowConstrainedWidth) return LayoutSize(constrainedWidth, constrainedHeight)
+
+        val constrainedContentWidth = (constrainedWidth - insets.horizontal).coerceAtLeast(0f)
+        val reflowed = intrinsicSize(
+            node,
+            resolved,
+            style,
+            constrainedContentWidth,
+            childAvailableHeight,
+            scrollbarReserves,
+            knownContentWidth = constrainedContentWidth,
+            knownContentHeight = null,
+            bindings = bindings,
+        )
+        if (widthOverride == null && style.size.width is UiLength.Auto) {
+            constrainedWidth = (reflowed.width + insets.horizontal)
+                .coerceIn(style.minSize.width, style.maxSize.width, widthReference)
         }
+        if (heightOverride == null && style.size.height is UiLength.Auto) {
+            constrainedHeight = (reflowed.height + insets.vertical)
+                .coerceIn(style.minSize.height, style.maxSize.height, heightReference)
+        }
+
         return LayoutSize(
             width = constrainedWidth,
             height = constrainedHeight,
@@ -1234,58 +1243,97 @@ class UiLayoutPipeline {
         knownContentHeight: Float? = null,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
-        if (node is TextNode) {
-            val widgetMetrics = measureInlineWidgetMetrics(
-                node.layoutChildren,
-                resolved,
-                availableWidth,
-                availableHeight,
-                scrollbarReserves,
-                bindings,
-            )
-            return UiTextLayouter.measure(
-                richText = node.content.resolve(bindings).toRichText(widgetMetrics),
-                availableWidth = availableWidth,
-                knownWidth = knownContentWidth,
-                wrap = style.textWrap,
-                fontSize = style.fontSize,
-                fontFamily = style.fontFamily,
-                lineSpacing = style.lineSpacing,
-                spaceWidth = style.spaceWidth,
-            )
-        }
-        if (node is TextFieldNode) {
-            val measured = UiTextLayouter.measure(
-                text = node.value.ifEmpty { node.placeholder },
-                availableWidth = availableWidth,
-                knownWidth = knownContentWidth,
-                wrap = textFieldWrap(style, node, knownContentWidth != null),
-                fontSize = style.fontSize,
-                fontFamily = style.fontFamily,
-                preserveWhitespace = true,
-                lineSpacing = style.lineSpacing,
-                spaceWidth = style.spaceWidth,
-            )
-            return if (knownContentWidth == null) {
-                measured.copy(width = measured.width + TextFieldCaretWidth + TextFieldCaretVisibilityPadding)
-            } else {
-                measured
+        return when (node) {
+            is TextNode -> measureTextNode(node, resolved, style, availableWidth, availableHeight, scrollbarReserves, knownContentWidth, bindings)
+            is TextFieldNode -> measureTextFieldNode(node, style, availableWidth, knownContentWidth)
+            else -> {
+                if (node.layoutChildren.isEmpty()) return replacedIntrinsicSize(node, style)
+
+                val customLayout = node.layout as? UiLayout.Custom
+                if (customLayout != null) {
+                    measureCustomContainer(node, resolved, customLayout, availableWidth, availableHeight, scrollbarReserves, bindings)
+                } else {
+                    measureStandardContainer(node, resolved, style, availableWidth, availableHeight, scrollbarReserves, knownContentWidth, knownContentHeight, bindings)
+                }
             }
         }
-        if (node.layoutChildren.isEmpty()) return replacedIntrinsicSize(node, style)
-        val customLayout = node.layout as? UiLayout.Custom
-        if (customLayout != null) {
-            val result = measureCustomLayout(
-                node,
-                resolved,
-                customLayout,
-                availableWidth,
-                availableHeight,
-                scrollbarReserves,
-                bindings,
-            )
-            return LayoutSize(result.width, result.height)
+    }
+
+    private fun measureTextNode(
+        node: TextNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        knownContentWidth: Float?,
+        bindings: UiBindingContext
+    ): LayoutSize {
+        val widgetMetrics = measureInlineWidgetMetrics(
+            node.layoutChildren, resolved, availableWidth, availableHeight, scrollbarReserves, bindings
+        )
+        return UiTextLayouter.measure(
+            richText = node.content.resolve(bindings).toRichText(widgetMetrics),
+            availableWidth = availableWidth,
+            knownWidth = knownContentWidth,
+            wrap = style.textWrap,
+            fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
+            lineSpacing = style.lineSpacing,
+            spaceWidth = style.spaceWidth,
+        )
+    }
+
+    private fun measureTextFieldNode(
+        node: TextFieldNode,
+        style: ComputedStyle,
+        availableWidth: Float,
+        knownContentWidth: Float?
+    ): LayoutSize {
+        val measured = UiTextLayouter.measure(
+            text = node.value.ifEmpty { node.placeholder },
+            availableWidth = availableWidth,
+            knownWidth = knownContentWidth,
+            wrap = textFieldWrap(style, node, knownContentWidth != null),
+            fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
+            preserveWhitespace = true,
+            lineSpacing = style.lineSpacing,
+            spaceWidth = style.spaceWidth,
+        )
+        return if (knownContentWidth == null) {
+            measured.copy(width = measured.width + TextFieldCaretWidth + TextFieldCaretVisibilityPadding)
+        } else {
+            measured
         }
+    }
+
+    private fun measureCustomContainer(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        customLayout: UiLayout.Custom,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext
+    ): LayoutSize {
+        val result = measureCustomLayout(
+            node, resolved, customLayout, availableWidth, availableHeight, scrollbarReserves, bindings
+        )
+        return LayoutSize(result.width, result.height)
+    }
+
+    private fun measureStandardContainer(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        knownContentWidth: Float?,
+        knownContentHeight: Float?,
+        bindings: UiBindingContext
+    ): LayoutSize {
         val children = measureFlowChildren(
             node.layoutChildren,
             resolved,
@@ -1298,8 +1346,11 @@ class UiLayoutPipeline {
             allowHeightOverflow = style.input.scrollable,
             bindings = bindings,
         )
+
         val layout = node.layout
-        val gap = style.gap.resolve(if (layout == UiLayout.Row || layout == UiLayout.LazyRow) availableWidth else availableHeight)
+        val isHorizontal = layout == UiLayout.Row || layout == UiLayout.LazyRow
+        val gap = style.gap.resolve(if (isHorizontal) availableWidth else availableHeight)
+
         return layout.policy().intrinsic(
             this,
             ChildIntrinsicScope(
@@ -1349,7 +1400,8 @@ class UiLayoutPipeline {
         if (children.isEmpty()) return emptyMap()
         return children.mapNotNull { child ->
             val id = child.id ?: return@mapNotNull null
-            val size = measureNode(child, resolved, availableWidth, availableHeight, scrollbarReserves, bindings = bindings)
+            val size =
+                measureNode(child, resolved, availableWidth, availableHeight, scrollbarReserves, bindings = bindings)
             id to UiInlineWidgetMetrics(size.width, size.height)
         }.toMap()
     }
@@ -1378,6 +1430,7 @@ private fun UiLength.resolveWidth(
 
         is UiLength.Px -> child.size.width
             .coerceIn(childStyle.minSize.width, childStyle.maxSize.width, content.width)
+
         is UiLength.Addition -> first.resolveWidth(align, childStyle, child, content) + second.resolveWidth(
             align,
             childStyle,
@@ -1416,6 +1469,7 @@ private fun UiLength.resolveHeight(
 
         is UiLength.Px -> child.size.height
             .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)
+
         is UiLength.Addition -> first.resolveHeight(align, childStyle, child, content) + second.resolveHeight(
             align,
             childStyle,
@@ -1505,7 +1559,8 @@ private fun scrollbarGeometry(style: ComputedStyle, layoutNode: UiLayoutNode): L
                 height = trackHeight,
             )
             val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
-            val thumbHeight = maxOf(verticalStyle.minThumbSize, track.height * layoutNode.content.height / contentHeight)
+            val thumbHeight =
+                maxOf(verticalStyle.minThumbSize, track.height * layoutNode.content.height / contentHeight)
             val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
             result += UiScrollbarGeometry(
                 track = track,
@@ -1585,8 +1640,10 @@ private fun scrollableContentBounds(
             )
         }
         val textOffset = if (node is TextFieldNode) textFieldTextOffset(node, style, layout) else 0f
-        val textViewportWidth = if (node is TextFieldNode) textFieldTextWidth(node, style, layout) else layout.content.width
-        val horizontalPadding = if (node is TextFieldNode) textFieldHorizontalScrollPadding(textViewportWidth) else TextFieldCaretVisibilityPadding
+        val textViewportWidth =
+            if (node is TextFieldNode) textFieldTextWidth(node, style, layout) else layout.content.width
+        val horizontalPadding =
+            if (node is TextFieldNode) textFieldHorizontalScrollPadding(textViewportWidth) else TextFieldCaretVisibilityPadding
         return UiRect(
             layout.content.x,
             layout.content.y,
@@ -1597,7 +1654,8 @@ private fun scrollableContentBounds(
             maxOf(layout.content.height, textLayout.height + TextFieldCaretVisibilityPadding),
         )
     }
-    return node.layoutChildren.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
+    return node.layoutChildren.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union()
+        ?: layout.content
 }
 
 private fun textLayoutForScrollBounds(
@@ -1718,8 +1776,11 @@ private fun UiLength.resolveOrNull(reference: Float, deferFlexible: Boolean = fa
     UiLength.Fill -> if (deferFlexible) null else reference
     is UiLength.Px -> value
     is UiLength.Percent -> if (deferFlexible) null else reference * value
-    is UiLength.Addition -> first.resolveOrNull(reference, deferFlexible)?.let { it + (second.resolveOrNull(reference, deferFlexible) ?: return null) }
-    is UiLength.Substraction -> first.resolveOrNull(reference, deferFlexible)?.let { it - (second.resolveOrNull(reference, deferFlexible) ?: return null) }
+    is UiLength.Addition -> first.resolveOrNull(reference, deferFlexible)
+        ?.let { it + (second.resolveOrNull(reference, deferFlexible) ?: return null) }
+
+    is UiLength.Substraction -> first.resolveOrNull(reference, deferFlexible)
+        ?.let { it - (second.resolveOrNull(reference, deferFlexible) ?: return null) }
 }
 
 private fun UiConstraints.fixedWidthOrNull(): Float? {
@@ -1775,6 +1836,7 @@ private fun UiPopupAnchor.resolvePopupAnchor(
             0f,
             0f,
         )
+
         is UiPopupAnchor.Node -> {
             val anchorNode = resolved.styles.keys.firstOrNull { it.id == id }
             anchorNode?.let { layouts[it]?.rect } ?: parentContent

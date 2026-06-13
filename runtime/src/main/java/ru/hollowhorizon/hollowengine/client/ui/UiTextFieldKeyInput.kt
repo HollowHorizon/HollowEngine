@@ -29,51 +29,70 @@ internal data object TextFieldDefaultKeyInputModifier : Modifier {
 }
 
 internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Boolean {
-    if (completionItems.isNotEmpty()) {
-        val completionChanged = when (input.key) {
-            GLFW.GLFW_KEY_UP -> moveCompletionSelection(-1)
-            GLFW.GLFW_KEY_DOWN -> moveCompletionSelection(1)
-            GLFW.GLFW_KEY_TAB,
-            GLFW.GLFW_KEY_ENTER,
-            GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion(completionSelectedIndex)
-            GLFW.GLFW_KEY_ESCAPE -> closeCompletions()
-            else -> false
-        }
-        if (completionChanged) input.markChanged()
-        if (completionChanged ||
-            input.key == GLFW.GLFW_KEY_UP ||
-            input.key == GLFW.GLFW_KEY_DOWN ||
-            input.key == GLFW.GLFW_KEY_ESCAPE
-        ) return true
-        if (input.key == GLFW.GLFW_KEY_LEFT || input.key == GLFW.GLFW_KEY_RIGHT) {
-            closeCompletions()
-            input.markChanged()
-        }
+    if (completionItems.isNotEmpty() && handleCompletionKeyInput(input)) {
+        return true
     }
-    val changed = when (input.key) {
-        GLFW.GLFW_KEY_BACKSPACE -> backspace(word = input.control)
-        GLFW.GLFW_KEY_DELETE -> deleteForward(word = input.control)
-        GLFW.GLFW_KEY_A -> {
-            if (!input.command) return false
-            selectAll()
-            true
-        }
-        GLFW.GLFW_KEY_C -> {
-            if (!input.command) return false
-            selectedText()?.let { Minecraft.getInstance().keyboardHandler.setClipboard(it) }
-            return true
-        }
+
+    if (input.command && handleClipboardAndSelection(input)) {
+        input.markChanged()
+        return true
+    }
+
+    val changed = handleNavigationAndEditing(input)
+    if (changed) {
+        input.markChanged()
+    }
+    return changed
+}
+
+
+private fun TextFieldNode.handleCompletionKeyInput(input: UiKeyInput): Boolean {
+    val completionChanged = when (input.key) {
+        GLFW.GLFW_KEY_UP -> moveCompletionSelection(-1)
+        GLFW.GLFW_KEY_DOWN -> moveCompletionSelection(1)
+        GLFW.GLFW_KEY_TAB,
+        GLFW.GLFW_KEY_ENTER,
+        GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion(completionSelectedIndex)
+        GLFW.GLFW_KEY_ESCAPE -> closeCompletions()
+        else -> false
+    }
+
+    if (completionChanged) {
+        input.markChanged()
+    }
+
+    if (completionChanged || input.key in listOf(GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_ESCAPE)) {
+        return true
+    }
+
+    if (input.key == GLFW.GLFW_KEY_LEFT || input.key == GLFW.GLFW_KEY_RIGHT) {
+        closeCompletions()
+        input.markChanged()
+    }
+
+    return false
+}
+
+private fun TextFieldNode.handleClipboardAndSelection(input: UiKeyInput): Boolean {
+    val handler = Minecraft.getInstance().keyboardHandler
+    return when (input.key) {
+        GLFW.GLFW_KEY_A -> { selectAll(); true }
+        GLFW.GLFW_KEY_C -> { selectedText()?.let { handler.clipboard = it }; true }
         GLFW.GLFW_KEY_X -> {
-            if (!input.command) return false
             val selected = selectedText() ?: return true
-            Minecraft.getInstance().keyboardHandler.setClipboard(selected)
+            handler.clipboard = selected
             backspace()
         }
-        GLFW.GLFW_KEY_V -> {
-            if (!input.command) return false
-            val clipboard = Minecraft.getInstance().keyboardHandler.clipboard
-            clipboard.isNotEmpty() && insert(clipboard)
-        }
+        GLFW.GLFW_KEY_V -> handler.clipboard.let { it.isNotEmpty() && insert(it) }
+        else -> false
+    }
+}
+
+private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean {
+    return when (input.key) {
+        GLFW.GLFW_KEY_BACKSPACE -> backspace(word = input.control)
+        GLFW.GLFW_KEY_DELETE -> deleteForward(word = input.control)
+
         GLFW.GLFW_KEY_LEFT -> {
             moveCarets({ range ->
                 if (input.control) wordLeft(value, range.position) else range.position - 1
@@ -86,37 +105,33 @@ internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Bo
             }, input.shift)
             true
         }
+
         GLFW.GLFW_KEY_UP -> multiline && moveTextFieldVertically(input, -1)
         GLFW.GLFW_KEY_DOWN -> multiline && moveTextFieldVertically(input, 1)
         GLFW.GLFW_KEY_PAGE_UP -> multiline && moveTextFieldVertically(input, -visibleTextFieldLines(input))
         GLFW.GLFW_KEY_PAGE_DOWN -> multiline && moveTextFieldVertically(input, visibleTextFieldLines(input))
+
         GLFW.GLFW_KEY_HOME -> {
-            if (input.control || !multiline) {
-                moveCaret(0, input.shift)
-            } else {
-                moveCarets({ lineStart(value, it.position) }, input.shift)
-            }
+            if (input.control || !multiline) moveCaret(0, input.shift)
+            else moveCarets({ lineStart(value, it.position) }, input.shift)
             true
         }
         GLFW.GLFW_KEY_END -> {
-            if (input.control || !multiline) {
-                moveCaret(value.length, input.shift)
-            } else {
-                moveCarets({ lineEnd(value, it.position) }, input.shift)
-            }
+            if (input.control || !multiline) moveCaret(value.length, input.shift)
+            else moveCarets({ lineEnd(value, it.position) }, input.shift)
             true
         }
+
         GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
             if (input.alt) {
                 openCompletions()
+                false
             } else {
                 multiline && insert("\n")
             }
         }
         else -> false
     }
-    if (changed) input.markChanged()
-    return changed
 }
 
 private fun TextFieldNode.moveTextFieldVertically(input: UiKeyInput, lineDelta: Int): Boolean {

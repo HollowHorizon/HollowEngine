@@ -246,7 +246,7 @@ sealed interface Modifier {
         fun eventScript(kind: UiEventKind, source: String, sink: UiEventSink) =
             ScriptEventModifier(kind, source, sink)
 
-        fun then(vararg modifiers: Modifier) = CompositeModifier(modifiers.toList())
+        fun then(vararg modifiers: Modifier) = CompositeModifier(modifiers.toMutableList())
     }
 }
 
@@ -281,7 +281,12 @@ class StyleModifier(
     }
 }
 
-data class CompositeModifier(private val values: List<Modifier>) : Modifier {
+data class CompositeModifier(private val values: MutableList<Modifier>) : Modifier {
+    fun then(modifier: Modifier): CompositeModifier {
+        values.add(modifier)
+        return this
+    }
+
     override fun applyTo(style: MutableUiStyle) {
         values.forEach { it.applyTo(style) }
     }
