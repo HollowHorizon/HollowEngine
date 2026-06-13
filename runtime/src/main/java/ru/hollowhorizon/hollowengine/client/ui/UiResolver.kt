@@ -20,6 +20,7 @@ class UiStyleResolver(
 ) {
     private val styleCache = WeakHashMap<UiNode, StyleCacheEntry>()
     private val scopeCache = WeakHashMap<UiNode, ScopeCacheEntry>()
+    private var treeCache: TreeCacheEntry? = null
     private var nextScopeId = 1L
     private val rootScope = StyleScope(
         stylesheets = emptyList(),
@@ -36,9 +37,26 @@ class UiStyleResolver(
         nowMillis: Long = 0L,
         animate: Boolean = true,
     ): ResolvedUiTree {
+        val treeKey = TreeCacheKey(
+            root = root,
+            subtreeRevision = root.layoutState.subtreeRevision,
+            stylesheetRevision = root.stylesheetRevision(),
+            bindingsHash = bindings.root.hashCode(),
+            animate = animate,
+        )
+        treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.tree }
         val styles = linkedMapOf<UiNode, ComputedStyle>()
         resolveNode(root, null, rootScope, bindings, nowMillis, animate, styles)
-        return ResolvedUiTree(root, styles)
+        return ResolvedUiTree(root, styles).also { tree ->
+            treeCache = TreeCacheEntry(
+                key = treeKey.copy(
+                    subtreeRevision = root.layoutState.subtreeRevision,
+                    stylesheetRevision = root.stylesheetRevision(),
+                ),
+                tree = tree,
+                requiresRefresh = animate && (transitions.hasActiveTransitions() || styles.values.any { it.requiresStyleRefresh() }),
+            )
+        }
     }
 
     private fun resolveNode(
@@ -253,6 +271,24 @@ private data class StyleCacheEntry(
     val key: StyleCacheKey,
     val style: ComputedStyle,
 )
+
+private data class TreeCacheKey(
+    val root: UiNode,
+    val subtreeRevision: Long,
+    val stylesheetRevision: Long,
+    val bindingsHash: Int,
+    val animate: Boolean,
+)
+
+private data class TreeCacheEntry(
+    val key: TreeCacheKey,
+    val tree: ResolvedUiTree,
+    val requiresRefresh: Boolean,
+)
+
+private fun ComputedStyle.requiresStyleRefresh(): Boolean {
+    return animations.any { animation -> animation.totalDurationMillis()?.let { it > 0L } ?: true }
+}
 
 private fun UiNode.styleSnapshot(modifiers: List<Modifier>) = NodeStyleSnapshot(
     nodeClass = javaClass,

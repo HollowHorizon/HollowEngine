@@ -166,7 +166,7 @@ class HollowUiRuntime(
     private val transitionState = UiTransitionState()
     private val typingState = UiTypingState()
     private val resolver = UiStyleResolver(theme, stylesheet, transitionState)
-    private val layoutEngine = UiLayoutEngine()
+    private val layoutPipeline = UiLayoutPipeline()
     private val commandRenderer = UiCommandRenderer()
     private val ensuredTextFieldCaretRevisions = mutableMapOf<String, Long>()
 
@@ -181,9 +181,9 @@ class HollowUiRuntime(
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
         val transitionDurations = collectTransitionDurations(resolved)
-        var layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+        var layout = layoutPipeline.compute(resolved, width, height, scrollState, bindings)
         if (ensureFocusedTextFieldsVisible(resolved, layout)) {
-            layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+            layout = layoutPipeline.compute(resolved, width, height, scrollState, bindings)
         }
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
         return HollowUiFrame(

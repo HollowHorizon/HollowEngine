@@ -4,6 +4,155 @@ import java.util.LinkedHashMap
 
 private const val MaxNodeMeasureCacheEntries = 64
 
+internal class InvalidatingMutableList<E>(
+    values: Iterable<E> = emptyList(),
+    private val onChange: () -> Unit,
+) : AbstractMutableList<E>() {
+    private val items = values.toMutableList()
+
+    override val size: Int
+        get() = items.size
+
+    override fun get(index: Int): E = items[index]
+
+    override fun clear() {
+        if (items.isEmpty()) return
+        items.clear()
+        onChange()
+    }
+
+    override fun add(index: Int, element: E) {
+        items.add(index, element)
+        onChange()
+    }
+
+    override fun removeAt(index: Int): E {
+        return items.removeAt(index).also { onChange() }
+    }
+
+    override fun set(index: Int, element: E): E {
+        val previous = items.set(index, element)
+        if (previous != element) onChange()
+        return previous
+    }
+}
+
+internal class InvalidatingMutableSet<E>(
+    values: Iterable<E> = emptyList(),
+    private val onChange: () -> Unit,
+) : AbstractMutableSet<E>() {
+    private val items = values.toMutableSet()
+
+    override val size: Int
+        get() = items.size
+
+    override fun contains(element: E): Boolean = items.contains(element)
+
+    override fun add(element: E): Boolean {
+        return items.add(element).also { changed -> if (changed) onChange() }
+    }
+
+    override fun clear() {
+        if (items.isEmpty()) return
+        items.clear()
+        onChange()
+    }
+
+    override fun iterator(): MutableIterator<E> {
+        val iterator = items.iterator()
+        return object : MutableIterator<E> {
+            override fun hasNext(): Boolean = iterator.hasNext()
+
+            override fun next(): E = iterator.next()
+
+            override fun remove() {
+                iterator.remove()
+                onChange()
+            }
+        }
+    }
+}
+
+internal class InvalidatingMutableMap<K, V>(
+    values: Map<K, V> = emptyMap(),
+    private val onChange: () -> Unit,
+) : AbstractMutableMap<K, V>() {
+    private val items = values.toMutableMap()
+
+    override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
+        get() = InvalidatingEntrySet(items.entries, onChange)
+
+    override fun containsKey(key: K): Boolean = items.containsKey(key)
+
+    override fun containsValue(value: V): Boolean = items.containsValue(value)
+
+    override fun get(key: K): V? = items[key]
+
+    override fun put(key: K, value: V): V? {
+        val hadKey = items.containsKey(key)
+        val previous = items.put(key, value)
+        if (!hadKey || previous != value) onChange()
+        return previous
+    }
+
+    override fun remove(key: K): V? {
+        if (!items.containsKey(key)) return null
+        return items.remove(key).also { onChange() }
+    }
+
+    override fun clear() {
+        if (items.isEmpty()) return
+        items.clear()
+        onChange()
+    }
+
+    private class InvalidatingEntrySet<K, V>(
+        private val entries: MutableSet<MutableMap.MutableEntry<K, V>>,
+        private val onChange: () -> Unit,
+    ) : AbstractMutableSet<MutableMap.MutableEntry<K, V>>() {
+        override val size: Int
+            get() = entries.size
+
+        override fun add(element: MutableMap.MutableEntry<K, V>): Boolean {
+            return entries.add(element).also { changed -> if (changed) onChange() }
+        }
+
+        override fun iterator(): MutableIterator<MutableMap.MutableEntry<K, V>> {
+            val iterator = entries.iterator()
+            return object : MutableIterator<MutableMap.MutableEntry<K, V>> {
+                override fun hasNext(): Boolean = iterator.hasNext()
+
+                override fun next(): MutableMap.MutableEntry<K, V> {
+                    val entry = iterator.next()
+                    return InvalidatingEntry(entry, onChange)
+                }
+
+                override fun remove() {
+                    iterator.remove()
+                    onChange()
+                }
+            }
+        }
+    }
+
+    private class InvalidatingEntry<K, V>(
+        private val entry: MutableMap.MutableEntry<K, V>,
+        private val onChange: () -> Unit,
+    ) : MutableMap.MutableEntry<K, V> {
+        override val key: K
+            get() = entry.key
+
+        override val value: V
+            get() = entry.value
+
+        override fun setValue(newValue: V): V {
+            val previous = entry.setValue(newValue)
+            if (previous != newValue) onChange()
+            return previous
+        }
+    }
+}
+
 class UiNodeLayoutState internal constructor(private val owner: UiNode) {
     private val measureCache = object : LinkedHashMap<Any, LayoutSize>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Any, LayoutSize>): Boolean {

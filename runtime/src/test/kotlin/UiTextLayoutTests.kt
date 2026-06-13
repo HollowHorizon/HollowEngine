@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiCommandRenderer
 import ru.hollowhorizon.hollowengine.client.ui.UiLayout
-import ru.hollowhorizon.hollowengine.client.ui.UiLayoutEngine
+import ru.hollowhorizon.hollowengine.client.ui.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineItem
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
@@ -139,7 +139,7 @@ class UiTextLayoutTests {
         root.children += message
 
         val resolved = UiStyleResolver().resolve(root, animate = false)
-        val layout = UiLayoutEngine().compute(resolved, width = 1920f, height = 1080f)
+        val layout = UiLayoutPipeline().compute(resolved, width = 1920f, height = 1080f)
         val rootLayout = layout[root]
         val messageLayout = layout[message]
         val constrainedTextLayout = UiTextLayouter.layout(
@@ -254,7 +254,7 @@ class UiTextLayoutTests {
         )
 
         val resolved = UiStyleResolver().resolve(text, animate = false)
-        val layout = UiLayoutEngine().compute(resolved, width = 320f, height = 180f)
+        val layout = UiLayoutPipeline().compute(resolved, width = 320f, height = 180f)
         val commands = UiCommandRenderer().collect(resolved, layout)
         val textCommand = commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
         val textShadow = textCommand.textEffects.filterIsInstance<Shadow>().single()

@@ -26,12 +26,12 @@ open class BaseUiNode(
     attributes: Map<String, String> = emptyMap(),
     layout: UiLayout = UiLayout.Column,
 ) : UiNode {
-    final override val tags: MutableSet<String> = tags.toMutableSet()
-    final override val attributes: MutableMap<String, String> = attributes.toMutableMap()
-    final override val states: MutableSet<UiState> = mutableSetOf()
-    final override val modifiers: MutableList<Modifier> = modifiers.toMutableList()
-    final override val children = UiChildren()
     final override val layoutState = UiNodeLayoutState(this)
+    final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateLayout() }
+    final override val attributes: MutableMap<String, String> = InvalidatingMutableMap(attributes) { invalidateLayout() }
+    final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
+    final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateLayout() }
+    final override val children = UiChildren()
     final override var layout: UiLayout = layout
         set(value) {
             if (field == value) return

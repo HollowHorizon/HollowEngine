@@ -301,7 +301,7 @@ class UiComposeTests {
 
         UiNodeKeys.assign(root)
         val resolved = UiStyleResolver().resolve(root, animate = false)
-        val layout = UiLayoutEngine().compute(resolved, width = 100f, height = 30f)
+        val layout = UiLayoutPipeline().compute(resolved, width = 100f, height = 30f)
         val placedChildren = root.children.filter { it in layout.nodes }.map { it.id }
 
         assertTrue(layout[root].scrollRange.y > 0f)
@@ -407,7 +407,7 @@ class UiComposeTests {
 
         UiNodeKeys.assign(root)
         val resolved = UiStyleResolver().resolve(root, animate = false)
-        val layout = UiLayoutEngine().compute(resolved, width = 30f, height = 100f)
+        val layout = UiLayoutPipeline().compute(resolved, width = 30f, height = 100f)
         val placedChildren = root.children.filter { it in layout.nodes }.map { it.id }
 
         assertTrue(layout[root].scrollRange.x > 0f)
@@ -1278,9 +1278,12 @@ class UiComposeTests {
         val resolver = UiStyleResolver()
 
         UiNodeKeys.assign(root)
-        assertEquals(0.75f, resolver.resolve(root, animate = false)[root].opacity)
-        assertEquals(0.75f, resolver.resolve(root, animate = false)[root].opacity)
+        val first = resolver.resolve(root, animate = false)
+        val second = resolver.resolve(root, animate = false)
 
+        assertSame(first, second)
+        assertEquals(0.75f, first[root].opacity)
+        assertEquals(0.75f, second[root].opacity)
         assertEquals(1, applyCount)
     }
 
@@ -1301,10 +1304,13 @@ class UiComposeTests {
         val resolver = UiStyleResolver(stylesheet = stylesheet)
 
         UiNodeKeys.assign(root)
-        assertEquals(1f, resolver.resolve(root, animate = false)[root].opacity)
+        val initial = resolver.resolve(root, animate = false)
+        assertEquals(1f, initial[root].opacity)
 
         root.states += UiState.HOVER
-        assertEquals(0.5f, resolver.resolve(root, animate = false)[root].opacity)
+        val hovered = resolver.resolve(root, animate = false)
+        assertTrue(initial !== hovered)
+        assertEquals(0.5f, hovered[root].opacity)
     }
 
     @Test

@@ -38,7 +38,7 @@ private const val DirectTextTransformEpsilon = 0.0001f
 private const val ScrollOverflowEpsilon = 0.01f
 private const val ConstraintReflowEpsilon = 0.01f
 
-private data class UiScrollbarReserve(
+internal data class UiScrollbarReserve(
     val vertical: Boolean = false,
     val horizontal: Boolean = false,
 ) {
@@ -51,7 +51,7 @@ private data class UiScrollbarReserve(
 
 internal data class LayoutSize(val width: Float, val height: Float)
 
-private data class MeasuredChild(
+internal data class MeasuredChild(
     val node: UiNode,
     val style: ComputedStyle,
     val size: LayoutSize,
@@ -78,7 +78,7 @@ private data class MeasureCacheKey(
     val reserve: UiScrollbarReserve,
 )
 
-class UiLayoutEngine {
+class UiLayoutPipeline {
     private inner class EngineMeasurable(
         override val node: UiNode,
         private val resolved: ResolvedUiTree,
@@ -306,104 +306,25 @@ class UiLayoutEngine {
             )
             return
         }
-        val layout = node.layout
-        when (layout) {
-            UiLayout.Row -> placeRowChildren(
-                node,
-                resolved,
-                style,
-                viewport,
-                parentRect,
-                transform,
-                inputTransform,
-                clip,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings
+        node.layout.policy().place(
+            this,
+            ChildPlacementScope(
+                node = node,
+                resolved = resolved,
+                style = style,
+                layout = node.layout,
+                content = viewport,
+                parentRect = parentRect,
+                transform = transform,
+                inputTransform = inputTransform,
+                clip = clip,
+                insideFramebuffer = insideFramebuffer,
+                scrollState = scrollState,
+                scrollbarReserves = scrollbarReserves,
+                layouts = layouts,
+                bindings = bindings,
             )
-
-            UiLayout.Column -> placeColumnChildren(
-                node,
-                resolved,
-                style,
-                viewport,
-                parentRect,
-                transform,
-                inputTransform,
-                clip,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings
-            )
-
-            UiLayout.LazyColumn -> placeLazyColumnChildren(
-                node,
-                resolved,
-                style,
-                viewport,
-                parentRect,
-                transform,
-                inputTransform,
-                clip,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings
-            )
-
-            UiLayout.LazyRow -> placeLazyRowChildren(
-                node,
-                resolved,
-                style,
-                viewport,
-                parentRect,
-                transform,
-                inputTransform,
-                clip,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings
-            )
-
-            is UiLayout.Box -> placeFreeChildren(
-                node,
-                resolved,
-                style,
-                viewport,
-                parentRect,
-                transform,
-                inputTransform,
-                clip,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings
-            )
-
-            is UiLayout.Custom -> placeCustomChildren(
-                node,
-                resolved,
-                layout,
-                viewport,
-                parentRect,
-                transform,
-                inputTransform,
-                clip,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings
-            )
-        }
+        )
         placePopupChildren(
             node,
             resolved,
@@ -555,7 +476,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun placeCustomChildren(
+    internal fun placeCustomChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         layout: UiLayout.Custom,
@@ -606,7 +527,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun placeRowChildren(
+    internal fun placeRowChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         style: ComputedStyle,
@@ -676,7 +597,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun placeColumnChildren(
+    internal fun placeColumnChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         style: ComputedStyle,
@@ -747,7 +668,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun placeLazyColumnChildren(
+    internal fun placeLazyColumnChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         style: ComputedStyle,
@@ -823,7 +744,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun placeLazyRowChildren(
+    internal fun placeLazyRowChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         style: ComputedStyle,
@@ -898,7 +819,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun placeFreeChildren(
+    internal fun placeFreeChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         style: ComputedStyle,
@@ -1010,7 +931,7 @@ class UiLayoutEngine {
         )
     }
 
-    private fun growRowChildren(
+    internal fun growRowChildren(
         children: List<MeasuredChild>,
         availableWidth: Float,
         gap: Float,
@@ -1073,7 +994,7 @@ class UiLayoutEngine {
         }
     }
 
-    private fun growColumnChildren(
+    internal fun growColumnChildren(
         children: List<MeasuredChild>,
         availableHeight: Float,
         gap: Float,
@@ -1379,43 +1300,20 @@ class UiLayoutEngine {
         )
         val layout = node.layout
         val gap = style.gap.resolve(if (layout == UiLayout.Row || layout == UiLayout.LazyRow) availableWidth else availableHeight)
-        return when (layout) {
-            UiLayout.Row -> {
-                val rowChildren = knownContentWidth
-                    ?.let { growRowChildren(children, it, gap, resolved, scrollbarReserves, bindings) }
-                    ?: children
-                LayoutSize(
-                    rowChildren.sumOfOuterWidth() + gap * (rowChildren.size - 1).coerceAtLeast(0),
-                    rowChildren.maxOfOuterHeight(),
-                )
-            }
-
-            UiLayout.LazyRow -> LayoutSize(
-                children.sumOfOuterWidth() + gap * (children.size - 1).coerceAtLeast(0),
-                children.maxOfOuterHeight(),
+        return layout.policy().intrinsic(
+            this,
+            ChildIntrinsicScope(
+                children = children,
+                availableWidth = availableWidth,
+                availableHeight = availableHeight,
+                knownContentWidth = knownContentWidth,
+                knownContentHeight = knownContentHeight,
+                gap = gap,
+                resolved = resolved,
+                scrollbarReserves = scrollbarReserves,
+                bindings = bindings,
             )
-
-            UiLayout.Column -> {
-                val columnChildren = knownContentHeight
-                    ?.let { growColumnChildren(children, it, gap, resolved, scrollbarReserves, bindings) }
-                    ?: children
-                LayoutSize(
-                    columnChildren.maxOfOuterWidth(),
-                    columnChildren.sumOfOuterHeight() + gap * (columnChildren.size - 1).coerceAtLeast(0),
-                )
-            }
-
-            UiLayout.LazyColumn -> LayoutSize(
-                children.maxOfOuterWidth(),
-                children.sumOfOuterHeight() + gap * (children.size - 1).coerceAtLeast(0),
-            )
-
-            is UiLayout.Box,
-            is UiLayout.Custom -> LayoutSize(
-                children.maxOfPositionedOuterWidth(availableWidth, availableHeight),
-                children.maxOfPositionedOuterHeight(availableWidth, availableHeight),
-            )
-        }
+        )
     }
 
     private fun nodeBoxes(rect: UiRect, style: ComputedStyle, reserve: UiScrollbarReserve): NodeBoxes {
@@ -1729,26 +1627,26 @@ private fun textLayoutForScrollBounds(
 
 private fun UiTextLayout.maxNaturalLineWidth(): Float = maxNaturalLineWidth
 
-private fun List<MeasuredChild>.sumOfOuterWidth(): Float =
+internal fun List<MeasuredChild>.sumOfOuterWidth(): Float =
     sumOf { (it.margin.left + it.size.width + it.margin.right).toDouble() }.toFloat()
 
-private fun List<MeasuredChild>.sumOfOuterHeight(): Float =
+internal fun List<MeasuredChild>.sumOfOuterHeight(): Float =
     sumOf { (it.margin.top + it.size.height + it.margin.bottom).toDouble() }.toFloat()
 
-private fun List<MeasuredChild>.maxOfOuterWidth(): Float =
+internal fun List<MeasuredChild>.maxOfOuterWidth(): Float =
     maxOfOrNull { it.margin.left + it.size.width + it.margin.right } ?: 0f
 
-private fun List<MeasuredChild>.maxOfOuterHeight(): Float =
+internal fun List<MeasuredChild>.maxOfOuterHeight(): Float =
     maxOfOrNull { it.margin.top + it.size.height + it.margin.bottom } ?: 0f
 
-private fun List<MeasuredChild>.maxOfPositionedOuterWidth(referenceWidth: Float, referenceHeight: Float): Float {
+internal fun List<MeasuredChild>.maxOfPositionedOuterWidth(referenceWidth: Float, referenceHeight: Float): Float {
     return maxOfOrNull { child ->
         val position = child.style.position.resolve(referenceWidth, referenceHeight)
         child.margin.left + position.x + child.size.width + child.margin.right
     } ?: 0f
 }
 
-private fun List<MeasuredChild>.maxOfPositionedOuterHeight(referenceWidth: Float, referenceHeight: Float): Float {
+internal fun List<MeasuredChild>.maxOfPositionedOuterHeight(referenceWidth: Float, referenceHeight: Float): Float {
     return maxOfOrNull { child ->
         val position = child.style.position.resolve(referenceWidth, referenceHeight)
         child.margin.top + position.y + child.size.height + child.margin.bottom
@@ -1990,7 +1888,7 @@ private fun UiInsets.resolve(parentWidth: Float, parentHeight: Float): ResolvedU
     )
 }
 
-private data class ResolvedUiInsets(
+internal data class ResolvedUiInsets(
     val left: Float,
     val top: Float,
     val right: Float,

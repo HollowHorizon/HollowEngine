@@ -874,6 +874,8 @@ class UiTransitionState {
 
     fun startedDurationMillis(node: UiNode): Long = startedDurations[UiNodeKeys.key(node)] ?: 0L
 
+    fun hasActiveTransitions(): Boolean = activeDurations.values.any { it > 0L }
+
     private fun List<UiTransition>.progress(elapsedMillis: Long): TransitionProgress {
         return TransitionProgress(
             background = progress("background", elapsedMillis),
