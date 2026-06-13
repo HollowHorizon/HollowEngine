@@ -16,8 +16,8 @@ data class HollowUiFrame(
 
     fun nodeByKey(key: String): UiNode? = resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
 
-    fun scrollbarAt(x: Float, y: Float): DrawScrollbarCommand? {
-        val scrollbars = commands.filterIsInstance<DrawScrollbarCommand>()
+    internal fun scrollbarAt(x: Float, y: Float): UiScrollbarHandle? {
+        val scrollbars = scrollbarHandlesInDrawOrder()
         return scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.THUMB }
             ?: scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.TRACK }
     }
@@ -59,7 +59,9 @@ data class HollowUiFrame(
     }
 
     private fun scrollTargetAt(node: UiNode, x: Float, y: Float, ancestorClip: UiRect?): UiNode? {
-        val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val children = node.children
+            .filter { it in layout.nodes }
+            .sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         val layoutNode = layout[node]
         val childClip = ancestorClip.intersect(layoutNode.clip)
         for (child in children.asReversed()) {
@@ -74,6 +76,28 @@ data class HollowUiFrame(
         val local = inverse.transform(x, y, 0f)
         val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
         return if (rect.contains(local.x, local.y)) node else null
+    }
+
+    private fun scrollbarHandlesInDrawOrder(): List<UiScrollbarHandle> {
+        val result = mutableListOf<UiScrollbarHandle>()
+
+        fun visit(node: UiNode) {
+            node.children
+                .filterNot { it is PopupNode }
+                .filter { it in layout.nodes }
+                .sortedBy { resolved[it].layer }
+                .forEach(::visit)
+            val layoutNode = layout.nodes[node] ?: return
+            layoutNode.scrollbars.forEach { geometry ->
+                result += UiScrollbarHandle(node, geometry, layoutNode.worldTransform)
+            }
+        }
+
+        visit(resolved.root)
+        resolved.root.popupDescendants()
+            .sortedBy { resolved[it].layer }
+            .forEach(::visit)
+        return result
     }
 
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
@@ -115,6 +139,18 @@ private fun UiRect?.intersect(other: UiRect?): UiRect? {
     return UiRect(left, top, right - left, bottom - top)
 }
 
+private fun UiNode.popupDescendants(): List<PopupNode> {
+    val result = mutableListOf<PopupNode>()
+    fun visit(node: UiNode) {
+        for (child in node.children) {
+            if (child is PopupNode) result += child
+            visit(child)
+        }
+    }
+    visit(this)
+    return result
+}
+
 private fun ComputedStyle.requiresContinuousRefresh(): Boolean {
     if (typing != null) return true
     return animations.any { animation ->
@@ -130,7 +166,7 @@ class HollowUiRuntime(
     private val transitionState = UiTransitionState()
     private val typingState = UiTypingState()
     private val resolver = UiStyleResolver(theme, stylesheet, transitionState)
-    private val layoutEngine = UiLayoutEngine()
+    private val layoutPipeline = UiLayoutPipeline()
     private val commandRenderer = UiCommandRenderer()
     private val ensuredTextFieldCaretRevisions = mutableMapOf<String, Long>()
 
@@ -144,23 +180,18 @@ class HollowUiRuntime(
         UiNodeKeys.assign(root)
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
-        val activeTransitionDurations = resolved.styles.keys.associate { node ->
-            UiNodeKeys.key(node) to transitionState.activeDurationMillis(node)
-        }
-        val startedTransitionDurations = resolved.styles.keys.associate { node ->
-            UiNodeKeys.key(node) to transitionState.startedDurationMillis(node)
-        }
-        var layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+        val transitionDurations = collectTransitionDurations(resolved)
+        var layout = layoutPipeline.compute(resolved, width, height, scrollState, bindings)
         if (ensureFocusedTextFieldsVisible(resolved, layout)) {
-            layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
+            layout = layoutPipeline.compute(resolved, width, height, scrollState, bindings)
         }
         val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
         return HollowUiFrame(
             resolved = resolved,
             layout = layout,
             commands = commands,
-            activeTransitionDurations = activeTransitionDurations,
-            startedTransitionDurations = startedTransitionDurations,
+            activeTransitionDurations = transitionDurations.active,
+            startedTransitionDurations = transitionDurations.started,
             activeScrollAnimation = scrollState.isAnimating(),
         )
     }
@@ -169,6 +200,18 @@ class HollowUiRuntime(
 
     fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset =
         scrollState.setImmediate(node, x, y)
+
+    private fun collectTransitionDurations(resolved: ResolvedUiTree): TransitionDurations {
+        if (resolved.styles.values.none { it.transitions.isNotEmpty() }) return TransitionDurations.Empty
+        val active = mutableMapOf<String, Long>()
+        val started = mutableMapOf<String, Long>()
+        resolved.styles.keys.forEach { node ->
+            val key = UiNodeKeys.key(node)
+            active[key] = transitionState.activeDurationMillis(node)
+            started[key] = transitionState.startedDurationMillis(node)
+        }
+        return TransitionDurations(active, started)
+    }
 
     private fun ensureFocusedTextFieldsVisible(resolved: ResolvedUiTree, layout: UiLayoutResult): Boolean {
         var changed = false
@@ -187,12 +230,13 @@ class HollowUiRuntime(
                 continue
             }
             val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, style.fontSize, style.fontFamily)
+            val textOffset = textFieldTextOffset(node, style, layoutNode)
             val next = layoutNode.scrollOffset.scrollCaretIntoView(
                 caretX = caret.x,
                 caretY = caret.y,
                 caretWidth = TextFieldCaretWidth,
                 caretHeight = style.fontSize,
-                viewportWidth = layoutNode.content.width,
+                viewportWidth = (layoutNode.content.width - textOffset).coerceAtLeast(1f),
                 viewportHeight = layoutNode.content.height,
                 range = layoutNode.scrollRange,
             )
@@ -203,6 +247,15 @@ class HollowUiRuntime(
             ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
         }
         return changed
+    }
+}
+
+private data class TransitionDurations(
+    val active: Map<String, Long>,
+    val started: Map<String, Long>,
+) {
+    companion object {
+        val Empty = TransitionDurations(emptyMap(), emptyMap())
     }
 }
 
@@ -217,12 +270,13 @@ private fun UiScrollOffset.scrollCaretIntoView(
 ): UiScrollOffset {
     var nextX = x
     var nextY = y
-    val left = x + TextFieldCaretVisibilityPadding
-    val right = x + viewportWidth - TextFieldCaretVisibilityPadding
+    val horizontalPadding = textFieldHorizontalScrollPadding(viewportWidth)
+    val left = x + horizontalPadding
+    val right = x + viewportWidth - horizontalPadding
     val top = y + TextFieldCaretVisibilityPadding
     val bottom = y + viewportHeight - TextFieldCaretVisibilityPadding
-    if (caretX < left) nextX = caretX - TextFieldCaretVisibilityPadding
-    if (caretX + caretWidth > right) nextX = caretX + caretWidth + TextFieldCaretVisibilityPadding - viewportWidth
+    if (caretX < left) nextX = caretX - horizontalPadding
+    if (caretX + caretWidth > right) nextX = caretX + caretWidth + horizontalPadding - viewportWidth
     if (caretY < top) nextY = caretY - TextFieldCaretVisibilityPadding
     if (caretY + caretHeight > bottom) nextY = caretY + caretHeight + TextFieldCaretVisibilityPadding - viewportHeight
     return UiScrollOffset(

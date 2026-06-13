@@ -15,7 +15,7 @@ data class UiTextContent(
         }
     }
 
-    fun toRichText(): UiRichText {
+    fun toRichText(widgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap()): UiRichText {
         return UiRichText(
             segments.mapNotNull { segment ->
                 when (segment) {
@@ -24,6 +24,14 @@ data class UiTextContent(
                         source = segment.source.template,
                         width = segment.width,
                         height = segment.height,
+                        align = segment.align,
+                        alt = segment.alt,
+                    )
+
+                    is UiTextSegment.Widget -> UiInlineItem.Widget(
+                        id = segment.id,
+                        width = widgetMetrics[segment.id]?.width ?: 0f,
+                        height = widgetMetrics[segment.id]?.height ?: 0f,
                         align = segment.align,
                         alt = segment.alt,
                     )
@@ -43,6 +51,14 @@ data class UiTextContent(
 
 sealed interface UiTextSegment {
     fun resolve(bindings: UiBindingContext): UiResolvedTextSegment
+
+    companion object {
+        fun inlineWidget(
+            id: String,
+            align: UiInlineAlign = UiInlineAlign.BASELINE,
+            alt: String = "",
+        ): Widget = Widget(id, align, alt)
+    }
 
     data class Text(
         val value: UiBoundString,
@@ -65,6 +81,16 @@ sealed interface UiTextSegment {
         }
     }
 
+    data class Widget(
+        val id: String,
+        val align: UiInlineAlign = UiInlineAlign.BASELINE,
+        val alt: String = "",
+    ) : UiTextSegment {
+        override fun resolve(bindings: UiBindingContext): UiResolvedTextSegment {
+            return UiResolvedTextSegment.Widget(id, align, alt)
+        }
+    }
+
     data class Pause(
         val delayMillis: Long,
     ) : UiTextSegment {
@@ -83,7 +109,7 @@ data class UiResolvedTextContent(
         }
     }
 
-    fun toRichText(): UiRichText {
+    fun toRichText(widgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap()): UiRichText {
         return UiRichText(
             segments.mapNotNull { segment ->
                 when (segment) {
@@ -92,6 +118,14 @@ data class UiResolvedTextContent(
                         source = segment.source,
                         width = segment.width,
                         height = segment.height,
+                        align = segment.align,
+                        alt = segment.alt,
+                    )
+
+                    is UiResolvedTextSegment.Widget -> UiInlineItem.Widget(
+                        id = segment.id,
+                        width = widgetMetrics[segment.id]?.width ?: 0f,
+                        height = widgetMetrics[segment.id]?.height ?: 0f,
                         align = segment.align,
                         alt = segment.alt,
                     )
@@ -123,6 +157,7 @@ data class UiResolvedTextContent(
         for (segment in segments) {
             when (segment) {
                 is UiResolvedTextSegment.Image -> result += segment
+                is UiResolvedTextSegment.Widget -> result += segment
                 is UiResolvedTextSegment.Pause -> pausesBefore += segment.delayMillis
                 is UiResolvedTextSegment.Text -> {
                     val length = segment.value.length
@@ -156,6 +191,12 @@ sealed interface UiResolvedTextSegment {
         val source: String,
         val width: Float,
         val height: Float,
+        val align: UiInlineAlign = UiInlineAlign.BASELINE,
+        val alt: String = "",
+    ) : UiResolvedTextSegment
+
+    data class Widget(
+        val id: String,
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiResolvedTextSegment

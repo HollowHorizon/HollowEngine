@@ -28,15 +28,112 @@ enum class UiNodeType(val typeName: String) {
     CANVAS("canvas"),
     SLIDER("slider"),
     CHECKBOX("checkbox"),
-    TEXT_FIELD("text-field");
+    TEXT_FIELD("text-field"),
+    POPUP("popup");
 }
 
-enum class LayoutType {
-    COLUMN,
-    ROW,
-    GRID,
-    STACK,
-    FREE
+sealed interface UiLayout {
+    data object Column : UiLayout
+    data object Row : UiLayout
+    data object LazyColumn : UiLayout
+    data object LazyRow : UiLayout
+    data class Box(val mode: UiBoxMode = UiBoxMode.FREE) : UiLayout
+    data class Custom(val measurePolicy: UiMeasurePolicy) : UiLayout
+}
+
+enum class UiBoxMode {
+    FREE,
+    STACK
+}
+
+data class UiConstraints(
+    val minWidth: Float = 0f,
+    val maxWidth: Float = Float.POSITIVE_INFINITY,
+    val minHeight: Float = 0f,
+    val maxHeight: Float = Float.POSITIVE_INFINITY,
+) {
+    init {
+        require(minWidth >= 0f && minHeight >= 0f) { "Constraint minimums must be non-negative" }
+        require(maxWidth >= minWidth) { "maxWidth must be greater than or equal to minWidth" }
+        require(maxHeight >= minHeight) { "maxHeight must be greater than or equal to minHeight" }
+    }
+
+    fun constrainWidth(width: Float): Float = width.coerceIn(minWidth, maxWidth)
+
+    fun constrainHeight(height: Float): Float = height.coerceIn(minHeight, maxHeight)
+
+    companion object {
+        fun fixed(width: Float, height: Float): UiConstraints {
+            return UiConstraints(width, width, height, height)
+        }
+    }
+}
+
+fun interface UiMeasurePolicy {
+    fun UiMeasureScope.measure(measurables: List<UiMeasurable>, constraints: UiConstraints): UiMeasureResult
+}
+
+interface UiMeasurable {
+    val node: UiNode
+    fun measure(constraints: UiConstraints): UiPlaceable
+}
+
+data class UiPlaceable(
+    val width: Float,
+    val height: Float,
+    internal val node: UiNode,
+)
+
+data class UiMeasureResult(
+    val width: Float,
+    val height: Float,
+    internal val placements: List<UiPlacement>,
+)
+
+data class UiPlacement(
+    val placeable: UiPlaceable,
+    val x: Float,
+    val y: Float,
+)
+
+class UiMeasureScope {
+    fun layout(width: Float, height: Float, block: UiPlacementScope.() -> Unit = {}): UiMeasureResult {
+        val scope = UiPlacementScope()
+        scope.block()
+        return UiMeasureResult(width.coerceAtLeast(0f), height.coerceAtLeast(0f), scope.placements)
+    }
+}
+
+class UiPlacementScope internal constructor() {
+    internal val placements = mutableListOf<UiPlacement>()
+
+    fun UiPlaceable.place(x: Float, y: Float) {
+        placements += UiPlacement(this, x, y)
+    }
+
+    fun UiPlaceable.place(x: Int, y: Int) {
+        place(x.toFloat(), y.toFloat())
+    }
+}
+
+sealed interface UiPopupAnchor {
+    data object Parent : UiPopupAnchor
+    data class Node(val id: String) : UiPopupAnchor
+    data class Cursor(val x: Float = Float.NaN, val y: Float = Float.NaN) : UiPopupAnchor
+}
+
+data class UiPopupAlignment(
+    val anchorHorizontal: UiAlign = UiAlign.START,
+    val anchorVertical: UiAlign = UiAlign.END,
+    val popupHorizontal: UiAlign = UiAlign.START,
+    val popupVertical: UiAlign = UiAlign.START,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+) {
+    companion object {
+        val BelowStart = UiPopupAlignment()
+        val Cursor = UiPopupAlignment(anchorVertical = UiAlign.START, offsetX = 8f, offsetY = 8f)
+    }
 }
 
 enum class UiAlign {

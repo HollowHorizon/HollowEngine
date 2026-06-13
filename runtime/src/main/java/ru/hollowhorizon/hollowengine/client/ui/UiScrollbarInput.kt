@@ -31,7 +31,17 @@ internal data class UiScrollbarDragState(
     }
 }
 
-internal fun DrawScrollbarCommand.pointerAreaAt(mouseX: Float, mouseY: Float): UiScrollbarPointerArea? {
+internal data class UiScrollbarHandle(
+    val node: UiNode,
+    val geometry: UiScrollbarGeometry,
+    val transform: UiMatrix4,
+) {
+    val track: UiRect get() = geometry.track
+    val thumb: UiRect get() = geometry.thumb
+    val orientation: ScrollbarOrientation get() = geometry.orientation
+}
+
+internal fun UiScrollbarHandle.pointerAreaAt(mouseX: Float, mouseY: Float): UiScrollbarPointerArea? {
     val local = pointerLocal(mouseX, mouseY) ?: return null
     return when {
         thumb.contains(local.x, local.y) -> UiScrollbarPointerArea.THUMB
@@ -40,7 +50,7 @@ internal fun DrawScrollbarCommand.pointerAreaAt(mouseX: Float, mouseY: Float): U
     }
 }
 
-internal fun DrawScrollbarCommand.dragStateAt(mouseX: Float, mouseY: Float): UiScrollbarDragState? {
+internal fun UiScrollbarHandle.dragStateAt(mouseX: Float, mouseY: Float): UiScrollbarDragState? {
     val inverse = transform.inverse() ?: return null
     val local = inverse.transform(mouseX, mouseY, 0f)
     if (pointerAreaAt(mouseX, mouseY) != UiScrollbarPointerArea.THUMB) return null
@@ -57,7 +67,7 @@ internal fun DrawScrollbarCommand.dragStateAt(mouseX: Float, mouseY: Float): UiS
     )
 }
 
-internal fun DrawScrollbarCommand.trackClickOffset(layout: UiLayoutNode, mouseX: Float, mouseY: Float): UiScrollOffset {
+internal fun UiScrollbarHandle.trackClickOffset(layout: UiLayoutNode, mouseX: Float, mouseY: Float): UiScrollOffset {
     val inverse = transform.inverse() ?: return layout.scrollOffset
     val drag = UiScrollbarDragState(
         nodeKey = UiNodeKeys.key(node),
@@ -73,7 +83,7 @@ internal fun DrawScrollbarCommand.trackClickOffset(layout: UiLayoutNode, mouseX:
     return drag.offsetFor(layout, mouseX, mouseY)
 }
 
-private fun DrawScrollbarCommand.pointerLocal(mouseX: Float, mouseY: Float): UiVec3? {
+private fun UiScrollbarHandle.pointerLocal(mouseX: Float, mouseY: Float): UiVec3? {
     return transform.inverse()?.transform(mouseX, mouseY, 0f)
 }
 

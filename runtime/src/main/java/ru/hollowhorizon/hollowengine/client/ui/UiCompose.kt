@@ -1,11 +1,25 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.AbstractApplier
+import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Composition
+import androidx.compose.runtime.ReusableComposeNode
+import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.Updater
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.snapshots.Snapshot
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
+
+val LocalUiFrameTimeNanos = staticCompositionLocalOf { 0L }
 
 class HollowUiComposition(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
@@ -13,11 +27,12 @@ class HollowUiComposition(
     private val frameClock = BroadcastFrameClock()
     private val scope = CoroutineScope(SupervisorJob() + coroutineContext + frameClock)
     private val recomposer = Recomposer(scope.coroutineContext)
-    private val rootNode = BoxNode()
+    private val rootNode = BoxNode(layout = UiLayout.Column)
     private val applier = HollowUiApplier(rootNode)
     private val composition = Composition(applier, recomposer)
     private val recomposerJob: Job = scope.launch { recomposer.runRecomposeAndApplyChanges() }
     private var observedChangeCount = recomposer.changeCount
+    private var keysAssigned = false
     private var closed = false
 
     val root: BoxNode
@@ -40,13 +55,21 @@ class HollowUiComposition(
 
     fun applyPendingChanges(nowNanos: Long = System.nanoTime()): Boolean {
         if (closed) return false
-        Snapshot.sendApplyNotifications()
-        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
-        runBlocking { recomposer.awaitIdle() }
-        UiNodeKeys.assign(rootNode)
+        pumpPendingChanges(nowNanos)
         val changed = recomposer.changeCount != observedChangeCount
+        if (changed || !keysAssigned) {
+            UiNodeKeys.assign(rootNode)
+            keysAssigned = true
+        }
         observedChangeCount = recomposer.changeCount
         return changed
+    }
+
+    private fun pumpPendingChanges(nowNanos: Long) {
+        Snapshot.sendApplyNotifications()
+        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
+        Snapshot.sendApplyNotifications()
+        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
     }
 
     override fun close() {
@@ -62,12 +85,17 @@ class HollowUiComposition(
 class HollowUiApplier(root: BoxNode) : AbstractApplier<UiNode>(root) {
     override fun insertTopDown(index: Int, instance: UiNode) {
         current.children.add(index, instance)
+        instance.layoutState.attachTo(current)
+        current.invalidateLayout()
     }
 
     override fun insertBottomUp(index: Int, instance: UiNode) = Unit
 
     override fun remove(index: Int, count: Int) {
-        repeat(count) { current.children.removeAt(index) }
+        repeat(count) {
+            current.children.removeAt(index).detachLayoutParentRecursively()
+        }
+        current.invalidateLayout()
     }
 
     override fun move(from: Int, to: Int, count: Int) {
@@ -76,15 +104,42 @@ class HollowUiApplier(root: BoxNode) : AbstractApplier<UiNode>(root) {
         repeat(count) { current.children.removeAt(from) }
         val target = if (to > from) to - count else to
         current.children.addAll(target, moving)
+        current.invalidateLayout()
     }
 
     override fun onClear() {
+        root.children.forEach { it.detachLayoutParentRecursively() }
         root.children.clear()
+        root.invalidateLayout()
     }
 }
 
 @Composable
 fun Box(
+    id: String? = null,
+    mode: UiBoxMode = UiBoxMode.FREE,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    val layout = UiLayout.Box(mode)
+    ReusableComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, layout, tags, modifiers, attributes) },
+        update = {
+            update(layout) {
+                this.layout = it
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun Column(
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
@@ -92,9 +147,105 @@ fun Box(
     content: HollowUiContent = {},
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, tags, modifiers, attributes) },
-        update = { updateCommon(modifiers, attributes) },
+    ReusableComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.Column, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.Column) {
+                layout = it
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun Row(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    ReusableComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.Row, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.Row) {
+                layout = it
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun LazyColumn(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    ReusableComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.LazyColumn, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.LazyColumn) {
+                layout = it
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun LazyRow(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    ReusableComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, UiLayout.LazyRow, tags, modifiers, attributes) },
+        update = {
+            update(UiLayout.LazyRow) {
+                layout = it
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun Layout(
+    content: HollowUiContent,
+    modifier: Modifier? = null,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
+    measurePolicy: UiMeasurePolicy,
+) {
+    val modifiers = modifier.asList()
+    val layout = UiLayout.Custom(measurePolicy)
+    ReusableComposeNode<BoxNode, HollowUiApplier>(
+        factory = { BoxNode(id, layout, tags, modifiers, attributes) },
+        update = {
+            update(layout) {
+                this.layout = it
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
         content = content,
     )
 }
@@ -106,33 +257,54 @@ fun Text(
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<TextNode, HollowUiApplier>(
+    ReusableComposeNode<TextNode, HollowUiApplier>(
         factory = { TextNode(value.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(value) { text = it.bound() }
+            update(value) {
+                text = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
+        content = content,
     )
 }
 
 @Composable
 fun Text(
-    content: UiTextContent,
+    textContent: UiTextContent,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<TextNode, HollowUiApplier>(
-        factory = { TextNode(content, id, tags, modifiers, attributes) },
+    ReusableComposeNode<TextNode, HollowUiApplier>(
+        factory = { TextNode(textContent, id, tags, modifiers, attributes) },
         update = {
-            update(content) { this.content = it }
+            update(textContent) {
+                this.content = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
+        content = content,
     )
+}
+
+@Composable
+fun InlineWidget(
+    id: String,
+    modifier: Modifier? = null,
+    tags: Iterable<String> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    Box(id = id, tags = tags, modifier = modifier, attributes = attributes, content = content)
 }
 
 @Composable
@@ -144,10 +316,13 @@ fun Image(
     attributes: Map<String, String> = emptyMap(),
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<ImageNode, HollowUiApplier>(
+    ReusableComposeNode<ImageNode, HollowUiApplier>(
         factory = { ImageNode(source.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(source) { this.source = it.bound() }
+            update(source) {
+                this.source = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -162,10 +337,13 @@ fun Canvas(
     attributes: Map<String, String> = emptyMap(),
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<CanvasNode, HollowUiApplier>(
+    ReusableComposeNode<CanvasNode, HollowUiApplier>(
         factory = { CanvasNode(renderer, id, tags, modifiers, attributes) },
         update = {
-            update(renderer) { this.renderer = it }
+            update(renderer) {
+                this.renderer = it
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -182,7 +360,7 @@ fun Element(
 ) {
     val modifiers = modifier.asList()
     val nodeType = type.lowercase()
-    ComposeNode<BaseUiNode, HollowUiApplier>(
+    ReusableComposeNode<BaseUiNode, HollowUiApplier>(
         factory = {
             BaseUiNode(
                 nodeType,
@@ -210,10 +388,13 @@ fun Slider(
 ) {
     val modifiers = modifier.asList()
     val values = SliderValues(value, min, max, step)
-    ComposeNode<SliderNode, HollowUiApplier>(
+    ReusableComposeNode<SliderNode, HollowUiApplier>(
         factory = { SliderNode(value, min, max, step, id, tags, modifiers, attributes) },
         update = {
-            update(values) { apply(it) }
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -230,10 +411,13 @@ fun Checkbox(
 ) {
     val modifiers = modifier.asList()
     val values = CheckboxValues(checked, variant)
-    ComposeNode<CheckboxNode, HollowUiApplier>(
+    ReusableComposeNode<CheckboxNode, HollowUiApplier>(
         factory = { CheckboxNode(checked, variant, id, tags, modifiers, attributes) },
         update = {
-            update(values) { apply(it) }
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -245,6 +429,11 @@ fun TextField(
     mode: UiTextFieldMode = UiTextFieldMode.SINGLE_LINE,
     filter: UiTextInputFilter = UiTextInputFilter.ANY,
     multiCaret: Boolean = false,
+    syntaxHighlighter: UiSyntaxHighlighter? = null,
+    completionContributor: UiCompletionContributor? = null,
+    diagnostics: List<UiTextDiagnostic> = emptyList(),
+    inlayHints: List<UiInlayHint> = emptyList(),
+    inlayHintsProvider: UiInlayHintsProvider? = null,
     placeholder: String = "",
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -252,15 +441,44 @@ fun TextField(
     attributes: Map<String, String> = emptyMap(),
 ) {
     val modifiers = modifier.asList()
-    val values = TextFieldValues(value, mode, filter, multiCaret, placeholder)
-    ComposeNode<TextFieldNode, HollowUiApplier>(
+    val textFieldModifiers = modifiers + TextFieldDefaultKeyInputModifier
+    val values = TextFieldValues(
+        value,
+        mode,
+        filter,
+        multiCaret,
+        syntaxHighlighter,
+        completionContributor,
+        diagnostics,
+        inlayHints,
+        inlayHintsProvider,
+        placeholder,
+    )
+    ReusableComposeNode<TextFieldNode, HollowUiApplier>(
         factory = {
-            TextFieldNode(value, mode, filter, multiCaret, id, tags, modifiers, attributes)
+            TextFieldNode(
+                value,
+                mode,
+                filter,
+                multiCaret,
+                syntaxHighlighter,
+                completionContributor,
+                diagnostics,
+                inlayHints,
+                inlayHintsProvider,
+                id,
+                tags,
+                textFieldModifiers,
+                attributes,
+            )
                 .also { it.placeholder = placeholder }
         },
         update = {
-            update(values) { apply(it) }
-            updateCommon(modifiers, attributes)
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
+            updateCommon(textFieldModifiers, attributes)
         },
     )
 }
@@ -274,10 +492,13 @@ fun Item(
     attributes: Map<String, String> = emptyMap(),
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<ItemNode, HollowUiApplier>(
+    ReusableComposeNode<ItemNode, HollowUiApplier>(
         factory = { ItemNode(item.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(item) { this.item = it.bound() }
+            update(item) {
+                this.item = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
     )
@@ -292,12 +513,40 @@ fun Entity(
     attributes: Map<String, String> = emptyMap(),
 ) {
     val modifiers = modifier.asList()
-    ComposeNode<EntityNode, HollowUiApplier>(
+    ReusableComposeNode<EntityNode, HollowUiApplier>(
         factory = { EntityNode(entity.bound(), id, tags, modifiers, attributes) },
         update = {
-            update(entity) { this.entity = it.bound() }
+            update(entity) {
+                this.entity = it.bound()
+                invalidateLayout()
+            }
             updateCommon(modifiers, attributes)
         },
+    )
+}
+
+@Composable
+fun Popup(
+    anchor: UiPopupAnchor,
+    alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) {
+    val modifiers = modifier.asList()
+    val values = PopupValues(anchor, alignment)
+    ReusableComposeNode<PopupNode, HollowUiApplier>(
+        factory = { PopupNode(anchor, alignment, id, tags, modifiers, attributes) },
+        update = {
+            update(values) {
+                apply(it)
+                invalidateLayout()
+            }
+            updateCommon(modifiers, attributes)
+        },
+        content = content,
     )
 }
 
@@ -318,7 +567,17 @@ private data class TextFieldValues(
     val mode: UiTextFieldMode,
     val filter: UiTextInputFilter,
     val multiCaret: Boolean,
+    val syntaxHighlighter: UiSyntaxHighlighter?,
+    val completionContributor: UiCompletionContributor?,
+    val diagnostics: List<UiTextDiagnostic>,
+    val inlayHints: List<UiInlayHint>,
+    val inlayHintsProvider: UiInlayHintsProvider?,
     val placeholder: String,
+)
+
+private data class PopupValues(
+    val anchor: UiPopupAnchor,
+    val alignment: UiPopupAlignment,
 )
 
 private fun SliderNode.apply(values: SliderValues) {
@@ -337,8 +596,18 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     mode = values.mode
     filter = values.filter
     multiCaret = values.multiCaret
+    syntaxHighlighter = values.syntaxHighlighter
+    completionContributor = values.completionContributor
+    diagnostics = values.diagnostics
+    inlayHints = values.inlayHints
+    inlayHintsProvider = values.inlayHintsProvider
     placeholder = values.placeholder
     value = values.value
+}
+
+private fun PopupNode.apply(values: PopupValues) {
+    anchor = values.anchor
+    alignment = values.alignment
 }
 
 fun <T : BaseUiNode> Updater<T>.updateCommon(
@@ -348,9 +617,11 @@ fun <T : BaseUiNode> Updater<T>.updateCommon(
     update(modifiers) {
         this.modifiers.clear()
         this.modifiers += it
+        invalidateLayout()
     }
     update(attributes) {
         replaceCustomAttributes(it)
+        invalidateLayout()
     }
 }
 

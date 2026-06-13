@@ -29,17 +29,20 @@ import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.sqrt
 
 class MinecraftUiRenderer {
     private val framebuffers = UiFramebufferPool()
-    private val widgets = UiWidgetRenderer(::drawImage)
+    private val widgets = UiWidgetRenderer(::drawImage, ::markTextBatchDirty, ::flushTextBatch)
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
-    private val shapeBatch = mutableListOf<UiBatchedQuad>()
+    private val shapeBatch = mutableListOf<UiBatchedTriangle>()
+    private val layerRequests = mutableListOf<UiLayerRequest>()
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
+    private var textBatchDirty = false
 
     fun render(commands: List<UiRenderCommand>, target: UiRenderTarget? = null) {
         val previousTarget = renderTarget
@@ -54,16 +57,20 @@ class MinecraftUiRenderer {
                 bindTarget(it.toState())
                 configureLayerProjection(it.logicalWidth, it.logicalHeight)
             }
+            val segment = ArrayList<UiRenderCommand>()
             commands.forEach { command ->
-                val quads = batchedQuads(command)
-                if (quads.isNotEmpty()) {
-                    shapeBatch += quads
+                if (isSegmentCommand(command)) {
+                    segment += command
                 } else {
-                    flushShapeBatch()
+                    renderSegment(segment)
+                    segment.clear()
                     render(command)
+                    flushShapeBatch()
+                    flushTextBatch()
                 }
             }
-            flushShapeBatch()
+            renderSegment(segment)
+            flushTextBatch()
             disableScissor()
             while (layerStack.isNotEmpty()) finishLayer()
             GL11.glDepthMask(true)
@@ -94,76 +101,145 @@ class MinecraftUiRenderer {
             is DrawSliderCommand -> drawWidget(command)
             is DrawCheckboxCommand -> drawWidget(command)
             is DrawTextFieldChromeCommand -> drawWidget(command)
-            is DrawScrollbarCommand -> drawScrollbar(command)
         }
+    }
+
+    private fun isSegmentCommand(command: UiRenderCommand): Boolean = when (command) {
+        is DrawBoxCommand -> !command.renderToFramebuffer
+        is DrawImageCommand -> !command.renderToFramebuffer && command.filter == UiFilterChain.Empty
+        is DrawTextCommand -> true
+        else -> false
+    }
+
+    private fun renderSegment(commands: List<UiRenderCommand>) {
+        if (commands.isEmpty()) return
+        for (phase in UiRenderPhase.entries) renderPhase(commands, phase)
+        flushShapeBatch()
+        flushTextBatch()
+    }
+
+    private fun renderPhase(commands: List<UiRenderCommand>, phase: UiRenderPhase) {
+        val directBoxes = mutableListOf<DrawBoxCommand>()
+        val imageBatches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
+        val textCommands = mutableListOf<DrawTextCommand>()
+
+        commands.forEach { command ->
+            when (command) {
+                is DrawBoxCommand -> if (command.phase == phase && !appendBatchedShapes(command)) {
+                    directBoxes += command
+                }
+
+                is DrawImageCommand -> if (command.phase == phase) {
+                    appendImageBatch(command, imageBatches)
+                }
+
+                is DrawTextCommand -> if (command.phase == phase) {
+                    textCommands += command
+                }
+
+                else -> Unit
+            }
+        }
+
+        flushShapeBatch()
+        directBoxes.forEach(::drawBox)
+        imageBatches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads) }
+        textCommands.forEach(::drawText)
+        flushTextBatch()
+    }
+
+    private fun appendImageBatch(
+        command: DrawImageCommand,
+        batches: MutableMap<ResourceLocation, MutableList<UiTexturedQuad>>,
+    ) {
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        val location = ResourceLocation.tryParse(command.source) ?: return
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        batches.getOrPut(location) { mutableListOf() } += UiTexturedQuad(
+            width = command.rect.width,
+            height = command.rect.height,
+            transform = transform,
+            opacity = command.opacity,
+            fit = command.fit,
+            slice = command.slice,
+            tint = command.tint,
+        )
     }
 
     private fun flushShapeBatch() {
         if (shapeBatch.isEmpty()) return
-        drawBatchedQuads(shapeBatch)
+        drawBatchedTriangles(shapeBatch)
         shapeBatch.clear()
     }
 
-    private fun batchedQuads(command: UiRenderCommand): List<UiBatchedQuad> {
-        if (command !is DrawBoxCommand) return emptyList()
-        if (command.rect.width <= 0f || command.rect.height <= 0f) return emptyList()
-        if (command.border.radius != 0f) return emptyList()
-        if (command.filter != UiFilterChain.Empty) return emptyList()
-        if (command.renderToFramebuffer) return emptyList()
+    private fun markTextBatchDirty() {
+        textBatchDirty = true
+    }
+
+    private fun flushTextBatch() {
+        if (!textBatchDirty) return
+        Minecraft.getInstance().renderBuffers().bufferSource().endBatch()
+        textBatchDirty = false
+    }
+
+    private fun appendBatchedShapes(command: UiRenderCommand): Boolean {
+        if (command !is DrawBoxCommand) return false
+        if (command.rect.width <= 0f || command.rect.height <= 0f) return false
+        if (command.renderToFramebuffer) return false
         val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return emptyList()
-        val quads = mutableListOf<UiBatchedQuad>()
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return true
         when (val paint = command.paint) {
             UiResolvedPaint.None -> Unit
             is UiResolvedPaint.Image,
-            is UiResolvedPaint.Shader -> return emptyList()
+            is UiResolvedPaint.Shader -> return false
 
-            is UiResolvedPaint.Color -> quads += solidQuad(
+            is UiResolvedPaint.Color -> shapeBatch.appendLocalPaint(
                 width = command.rect.width,
                 height = command.rect.height,
+                radius = command.border.radius,
                 color = paint.color.withOpacity(command.opacity),
                 transform = transform,
+                filter = command.filter,
             )
 
-            is UiResolvedPaint.LinearGradient -> quads += gradientQuad(
+            is UiResolvedPaint.LinearGradient -> shapeBatch.appendLocalGradient(
                 width = command.rect.width,
                 height = command.rect.height,
+                radius = command.border.radius,
                 angleDegrees = paint.angleDegrees,
                 stops = paint.stops,
                 opacity = command.opacity,
                 transform = transform,
+                filter = command.filter,
             )
         }
-        quads += borderQuads(command, transform)
-        return quads
+        appendBorderShapes(command, transform)
+        return true
     }
 
-    private fun borderQuads(command: DrawBoxCommand, transform: UiMatrix4): List<UiBatchedQuad> {
+    private fun appendBorderShapes(command: DrawBoxCommand, transform: UiMatrix4) {
         val borderWidth = command.border.width.left.resolve(command.rect.width)
-        if (borderWidth <= 0f || command.border.color.alpha <= 0f) return emptyList()
+        if (borderWidth <= 0f || command.border.color.alpha <= 0f) return
         val width = command.rect.width
         val height = command.rect.height
         val thickness = borderWidth.coerceAtLeast(1f).coerceAtMost(minOf(width, height) * 0.5f)
-        val color = command.border.color.withOpacity(command.opacity)
-        return listOf(
-            solidQuad(width, thickness, color, transform),
-            solidQuad(width, thickness, color, transform * UiMatrix4.translation(0f, height - thickness, 0f)),
-            solidQuad(thickness, height, color, transform),
-            solidQuad(thickness, height, color, transform * UiMatrix4.translation(width - thickness, 0f, 0f)),
-        )
+        val color = command.border.color.withOpacity(command.opacity).filtered(command.filter)
+        shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, color, transform)
     }
 
     private fun prepareFramebuffers(commands: List<UiRenderCommand>) {
         val scale = layerScale()
-        val requests = commands.mapNotNull { command ->
-            if (command !is BeginLayerCommand) return@mapNotNull null
+        layerRequests.clear()
+        commands.forEach { command ->
+            if (command !is BeginLayerCommand) return@forEach
             val padding = layerPadding(command)
             val width = ceil((command.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
             val height = ceil((command.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
-            UiLayerRequest(width, height)
+            layerRequests += UiLayerRequest(width, height)
         }
         framebuffers.beginFrame(
-            requests,
+            layerRequests,
             1,
             1,
         )
@@ -500,17 +576,15 @@ class MinecraftUiRenderer {
     private fun drawText(command: DrawTextCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        val mc = Minecraft.getInstance()
         val xAxis = transform.transform(1f, 0f)
         val origin = transform.transform(0f, 0f)
         val yAxis = transform.transform(0f, 1f)
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
         val now = TickHandler.time / 20f
-        command.layout.lines.forEach { line ->
+        command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
             drawTextLine(command, line, transform, scaleX, scaleY, now)
         }
-        mc.renderBuffers().bufferSource().endBatch()
     }
 
     private fun drawTextLine(
@@ -525,8 +599,10 @@ class MinecraftUiRenderer {
             line.fragments.forEach { fragment ->
                 when (fragment) {
                     is UiInlineImageRun -> drawInlineImage(command, fragment, line, transform)
+                    is UiInlineWidgetRun -> Unit
                     is UiTextSpaceRun -> Unit
                     is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
+                    is UiInlayTextRun -> drawTextRun(command, fragment.toTextRun(), line, transform, scaleX, scaleY, now)
                 }
             }
         } else {
@@ -540,6 +616,10 @@ class MinecraftUiRenderer {
             )
             drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
         }
+    }
+
+    private fun UiInlayTextRun.toTextRun(): UiTextRun {
+        return UiTextRun(text, style, x + textX + InlayHintVisualOffsetX, y, textWidth, height)
     }
 
     private fun drawTextRun(
@@ -561,12 +641,12 @@ class MinecraftUiRenderer {
         if (!hasLayer && !hasAnimated) {
             drawSingleTextRun(
                 command, fragment, transform, scaleX, scaleY,
-                fragment.x - command.scrollOffset.x,
+                line.x + fragment.x - command.scrollOffset.x,
                 line.y + fragment.y - command.scrollOffset.y,
                 fontSize,
                 fontFamily,
                 fragment.style.color,
-                command.opacity,
+                1f,
             )
             return
         }
@@ -574,7 +654,7 @@ class MinecraftUiRenderer {
         val layerEffects = effects.filter { it.isLayer }
         val animatedEffects = if (hasAnimated) effects.filter { it.isAnimated } else emptyList()
 
-        val localX = fragment.x - command.scrollOffset.x
+        val localX = line.x + fragment.x - command.scrollOffset.x
         val localY = line.y + fragment.y - command.scrollOffset.y
 
         if (hasAnimated) {
@@ -618,7 +698,7 @@ class MinecraftUiRenderer {
                     fontSize,
                     fontFamily,
                     passColor,
-                    command.opacity,
+                    pass.alphaMultiplier,
                 )
             }
         }
@@ -627,7 +707,7 @@ class MinecraftUiRenderer {
             command, fragment, transform, scaleX, scaleY,
             localX, localY, fontSize,
             fontFamily,
-            fragment.style.color, command.opacity,
+            fragment.style.color, 1f,
         )
     }
 
@@ -645,6 +725,7 @@ class MinecraftUiRenderer {
         alphaMultiplier: Float,
     ) {
         if (fragment.style.code) {
+            flushTextBatch()
             drawLocalPaint(
                 fragment.width,
                 fragment.height,
@@ -710,6 +791,7 @@ class MinecraftUiRenderer {
             0,
             15728880,
         )
+        markTextBatchDirty()
     }
 
     private fun drawAnimatedTextRun(
@@ -828,6 +910,7 @@ class MinecraftUiRenderer {
     ): Boolean {
         val fontData = UiMsdfFont.getOrLoadFontData(fontFamily) ?: return false
         val shader = ModShaders.MSDF_TEXT ?: return false
+        flushTextBatch()
         val atlasInfo = fontData.meta.atlas
         val metrics = fontData.meta.metrics
         val distanceRange = atlasInfo.distanceRange
@@ -911,13 +994,14 @@ class MinecraftUiRenderer {
         line: UiTextLine,
         transform: UiMatrix4,
     ) {
+        flushTextBatch()
         drawImage(
             fragment.width,
             fragment.height,
             fragment.image.source,
             command.opacity,
-            transform * UiMatrix4.translation(
-                fragment.x - command.scrollOffset.x,
+                transform * UiMatrix4.translation(
+                line.x + fragment.x - command.scrollOffset.x,
                 line.y + fragment.y - command.scrollOffset.y,
                 0f
             ),
@@ -1083,92 +1167,6 @@ class MinecraftUiRenderer {
         widgets.drawTextFieldChrome(command, transform)
     }
 
-    private fun drawScrollbar(command: DrawScrollbarCommand) {
-        val transform = effective(command.transform)
-        drawScrollbarPart(
-            command.track,
-            command.trackPaint,
-            command.trackBorder,
-            command.trackFit,
-            command.trackSlice,
-            command.opacity,
-            transform,
-        )
-        drawScrollbarPart(
-            command.thumb,
-            command.thumbPaint,
-            command.thumbBorder,
-            command.thumbFit,
-            command.thumbSlice,
-            command.opacity,
-            transform,
-        )
-    }
-
-    private fun drawScrollbarPart(
-        rect: UiRect,
-        paint: UiResolvedPaint,
-        border: UiBorder,
-        fit: UiImageFit,
-        slice: UiInsets,
-        opacity: Float,
-        baseTransform: UiMatrix4,
-    ) {
-        val transform = baseTransform * UiMatrix4.translation(rect.x, rect.y, 0f)
-        when (paint) {
-            UiResolvedPaint.None -> Unit
-            is UiResolvedPaint.Color -> drawLocalPaint(
-                rect.width,
-                rect.height,
-                border.radius,
-                paint.color.withOpacity(opacity),
-                transform,
-                UiFilterChain.Empty,
-            )
-
-            is UiResolvedPaint.LinearGradient -> drawLocalGradient(
-                rect.width,
-                rect.height,
-                border.radius,
-                paint.angleDegrees,
-                paint.stops,
-                opacity,
-                transform,
-                UiFilterChain.Empty,
-            )
-
-            is UiResolvedPaint.Image -> drawImage(
-                rect.width,
-                rect.height,
-                paint.source,
-                opacity,
-                transform,
-                fit = fit,
-                slice = slice,
-            )
-
-            is UiResolvedPaint.Shader -> drawLocalPaint(
-                rect.width,
-                rect.height,
-                border.radius,
-                UiColor(0.2f, 0.2f, 0.24f, opacity),
-                transform,
-                UiFilterChain.Empty,
-            )
-        }
-        val borderWidth = border.width.left.resolve(rect.width)
-        if (borderWidth > 0f && border.color.alpha > 0f) {
-            drawLocalBorder(
-                rect.width,
-                rect.height,
-                border.radius,
-                borderWidth.coerceAtLeast(1f),
-                border.color.withOpacity(opacity),
-                transform,
-            )
-        }
-    }
-
     private fun pushClip(rect: UiRect) {
         val local = localRect(rect)
         clipStack.addLast(clipStack.lastOrNull()?.intersect(local) ?: local)
@@ -1183,12 +1181,13 @@ class MinecraftUiRenderer {
     private fun applyScissor(rect: UiRect) {
         val layer = layerStack.lastOrNull()
         if (layer != null) {
+            val bounds = rect.toScissorBounds(layer.scale, layer.scale)
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(
-                layer.framebuffer.region.x + (rect.x * layer.scale).toInt(),
-                layer.framebuffer.region.y + (layer.framebuffer.height - (rect.y + rect.height) * layer.scale).toInt(),
-                (rect.width * layer.scale).toInt().coerceAtLeast(0),
-                (rect.height * layer.scale).toInt().coerceAtLeast(0),
+                layer.framebuffer.region.x + bounds.x,
+                layer.framebuffer.region.y + layer.framebuffer.height - bounds.y - bounds.height,
+                bounds.width,
+                bounds.height,
             )
             return
         }
@@ -1196,24 +1195,39 @@ class MinecraftUiRenderer {
         if (target != null) {
             val scaleX = target.width / target.logicalWidth.coerceAtLeast(1f)
             val scaleY = target.height / target.logicalHeight.coerceAtLeast(1f)
+            val bounds = rect.toScissorBounds(scaleX, scaleY)
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(
-                target.x + (rect.x * scaleX).toInt(),
-                target.y + target.height - ((rect.y + rect.height) * scaleY).toInt(),
-                (rect.width * scaleX).toInt().coerceAtLeast(0),
-                (rect.height * scaleY).toInt().coerceAtLeast(0),
+                target.x + bounds.x,
+                target.y + target.height - bounds.y - bounds.height,
+                bounds.width,
+                bounds.height,
             )
             return
         }
         val window = Minecraft.getInstance().window
         val scaleX = window.width / window.guiScaledWidth.toFloat()
         val scaleY = window.height / window.guiScaledHeight.toFloat()
+        val bounds = rect.toScissorBounds(scaleX, scaleY)
         GL11.glEnable(GL11.GL_SCISSOR_TEST)
         GL11.glScissor(
-            (rect.x * scaleX).toInt(),
-            (window.height - (rect.y + rect.height) * scaleY).toInt(),
-            (rect.width * scaleX).toInt().coerceAtLeast(0),
-            (rect.height * scaleY).toInt().coerceAtLeast(0),
+            bounds.x,
+            window.height - bounds.y - bounds.height,
+            bounds.width,
+            bounds.height,
+        )
+    }
+
+    private fun UiRect.toScissorBounds(scaleX: Float, scaleY: Float): ScissorBounds {
+        val left = floor(x * scaleX).toInt()
+        val top = floor(y * scaleY).toInt()
+        val right = ceil((x + width) * scaleX).toInt()
+        val bottom = ceil((y + height) * scaleY).toInt()
+        return ScissorBounds(
+            x = left,
+            y = top,
+            width = (right - left).coerceAtLeast(0),
+            height = (bottom - top).coerceAtLeast(0),
         )
     }
 

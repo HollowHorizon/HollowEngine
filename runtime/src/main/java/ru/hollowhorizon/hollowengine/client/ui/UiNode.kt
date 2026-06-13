@@ -5,11 +5,13 @@ import net.minecraft.nbt.CompoundTag
 interface UiNode {
     val type: String
     val id: String?
+    var layout: UiLayout
     val tags: MutableSet<String>
     val attributes: MutableMap<String, String>
     val states: MutableSet<UiState>
     val modifiers: MutableList<Modifier>
     val children: UiChildren
+    val layoutState: UiNodeLayoutState
 }
 
 typealias UiChildren = MutableList<UiNode>
@@ -22,34 +24,66 @@ open class BaseUiNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
+    layout: UiLayout = UiLayout.Column,
 ) : UiNode {
-    final override val tags: MutableSet<String> = tags.toMutableSet()
-    final override val attributes: MutableMap<String, String> = attributes.toMutableMap()
-    final override val states: MutableSet<UiState> = mutableSetOf()
-    final override val modifiers: MutableList<Modifier> = modifiers.toMutableList()
+    final override val layoutState = UiNodeLayoutState(this)
+    final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateLayout() }
+    final override val attributes: MutableMap<String, String> = InvalidatingMutableMap(attributes) { invalidateLayout() }
+    final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
+    final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateLayout() }
     final override val children = UiChildren()
+    final override var layout: UiLayout = layout
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
 
-    fun add(vararg modifiers: Modifier): BaseUiNode = apply { this.modifiers.addAll(modifiers) }
+    fun add(vararg modifiers: Modifier): BaseUiNode = apply {
+        this.modifiers.addAll(modifiers)
+        invalidateLayout()
+    }
 
-    fun tag(vararg values: String): BaseUiNode = apply { tags.addAll(values.map { it.trimTagPrefix() }) }
+    fun tag(vararg values: String): BaseUiNode = apply {
+        tags.addAll(values.map { it.trimTagPrefix() })
+        invalidateLayout()
+    }
 
-    fun state(vararg values: UiState): BaseUiNode = apply { states.addAll(values) }
+    fun state(vararg values: UiState): BaseUiNode = apply {
+        states.addAll(values)
+        invalidateLayout()
+    }
 }
 
 class BoxNode(
     id: String? = null,
+    layout: UiLayout = UiLayout.Box(),
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.BOX.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(
+    UiNodeType.BOX.typeName,
+    id?.trimIdPrefix(),
+    tags.map { it.trimTagPrefix() },
+    modifiers,
+    attributes,
+    layout,
+)
 
 class TextNode(
-    var content: UiTextContent,
+    content: UiTextContent,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var content: UiTextContent = content
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+
     constructor(
         text: UiBoundString,
         id: String? = null,
@@ -62,43 +96,101 @@ class TextNode(
         get() = UiBoundString(content.asTemplate())
         set(value) {
             content = UiTextContent.plain(value)
+            invalidateLayout()
         }
 
     var hoveredLink: String? = null
 }
 
 class ImageNode(
-    var source: UiBoundString,
+    source: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var source: UiBoundString = source
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class CanvasNode(
-    var renderer: String? = null,
+    renderer: String? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var renderer: String? = renderer
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class ItemNode(
-    var item: UiBoundString,
+    item: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var item: UiBoundString = item
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 class EntityNode(
-    var entity: UiBoundString,
+    entity: UiBoundString,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes)
+) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+    var entity: UiBoundString = entity
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
+class PopupNode(
+    anchor: UiPopupAnchor,
+    alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifiers: Iterable<Modifier> = emptyList(),
+    attributes: Map<String, String> = emptyMap(),
+) : BaseUiNode(
+    UiNodeType.POPUP.typeName,
+    id?.trimIdPrefix(),
+    tags.map { it.trimTagPrefix() },
+    modifiers,
+    attributes,
+    UiLayout.Column,
+) {
+    var anchor: UiPopupAnchor = anchor
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+
+    var alignment: UiPopupAlignment = alignment
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+}
 
 fun UiNode.setClosingState(closing: Boolean) {
     if (closing) {
@@ -106,6 +198,7 @@ fun UiNode.setClosingState(closing: Boolean) {
     } else {
         states -= UiState.CLOSING
     }
+    invalidateLayout()
     children.forEach { it.setClosingState(closing) }
 }
 
@@ -158,6 +251,27 @@ data class UiBindingContext(val root: CompoundTag = CompoundTag()) {
         val align = parts.getOrNull(1) ?: return true
         return align in setOf("baseline", "middle", "top", "bottom")
     }
+}
+
+fun UiBindingContext.withPointer(x: Float, y: Float): UiBindingContext {
+    val next = root.copy()
+    val mouse = next.getCompound("mouse").copy()
+    mouse.putFloat("x", x)
+    mouse.putFloat("y", y)
+    next.put("mouse", mouse)
+    return UiBindingContext(next)
+}
+
+fun UiBindingContext.pointerX(default: Float = 0f): Float {
+    if (!root.contains("mouse")) return default
+    val mouse = root.getCompound("mouse")
+    return if (mouse.contains("x")) mouse.getFloat("x") else default
+}
+
+fun UiBindingContext.pointerY(default: Float = 0f): Float {
+    if (!root.contains("mouse")) return default
+    val mouse = root.getCompound("mouse")
+    return if (mouse.contains("y")) mouse.getFloat("y") else default
 }
 
 private fun Modifier?.asList(): List<Modifier> = if (this == null) emptyList() else listOf(this)

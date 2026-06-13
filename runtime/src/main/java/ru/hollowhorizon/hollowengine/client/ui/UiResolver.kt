@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.StyleRule
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import java.util.WeakHashMap
 
 data class ResolvedUiTree(
     val root: UiNode,
@@ -17,52 +18,122 @@ class UiStyleResolver(
     private val transitions: UiTransitionState = UiTransitionState(),
     private val animations: UiAnimationState = UiAnimationState(),
 ) {
+    private val styleCache = WeakHashMap<UiNode, StyleCacheEntry>()
+    private val scopeCache = WeakHashMap<UiNode, ScopeCacheEntry>()
+    private var treeCache: TreeCacheEntry? = null
+    private var nextScopeId = 1L
+    private val rootScope = StyleScope(
+        stylesheets = emptyList(),
+        keyframes = buildMap {
+            theme?.keyframes?.let(::putAll)
+            stylesheet?.keyframes?.let(::putAll)
+        },
+        id = 0L,
+    )
+
     fun resolve(
         root: UiNode,
         bindings: UiBindingContext = UiBindingContext(),
         nowMillis: Long = 0L,
         animate: Boolean = true,
     ): ResolvedUiTree {
+        val treeKey = TreeCacheKey(
+            root = root,
+            subtreeRevision = root.layoutState.subtreeRevision,
+            stylesheetRevision = root.stylesheetRevision(),
+            bindingsHash = bindings.root.hashCode(),
+            animate = animate,
+        )
+        treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.tree }
         val styles = linkedMapOf<UiNode, ComputedStyle>()
-        resolveNode(root, null, emptyList(), bindings, nowMillis, animate, styles)
-        return ResolvedUiTree(root, styles)
+        resolveNode(root, null, rootScope, bindings, nowMillis, animate, styles)
+        return ResolvedUiTree(root, styles).also { tree ->
+            treeCache = TreeCacheEntry(
+                key = treeKey.copy(
+                    subtreeRevision = root.layoutState.subtreeRevision,
+                    stylesheetRevision = root.stylesheetRevision(),
+                ),
+                tree = tree,
+                requiresRefresh = animate && (transitions.hasActiveTransitions() || styles.values.any { it.requiresStyleRefresh() }),
+            )
+        }
     }
 
     private fun resolveNode(
         node: UiNode,
         parent: ComputedStyle?,
-        inheritedStylesheets: List<CompiledHss>,
+        inheritedScope: StyleScope,
         bindings: UiBindingContext,
         nowMillis: Long,
         animate: Boolean,
         styles: MutableMap<UiNode, ComputedStyle>,
     ) {
-        val scopedStylesheets = inheritedStylesheets + node.modifiers.flattenModifiers()
-            .filterIsInstance<StyleImportModifier>()
-            .map { it.reference.resolve() }
+        val modifiers = node.modifiers.flattenModifiers()
+        val scopedScope = scopedStyleScope(node, inheritedScope, modifiers)
+        val computed = resolveBaseStyle(node, parent, scopedScope, modifiers, bindings)
+        val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
+        val finalStyle = if (animate) animations.apply(node, transitioned, scopedScope.keyframes, nowMillis) else transitioned
+        styles[node] = finalStyle
+        node.children.forEach { child ->
+            resolveNode(child, finalStyle, scopedScope, bindings, nowMillis, animate, styles)
+        }
+    }
+
+    private fun scopedStyleScope(
+        node: UiNode,
+        inheritedScope: StyleScope,
+        modifiers: List<Modifier>,
+    ): StyleScope {
+        val imports = modifiers.filterIsInstance<StyleImportModifier>()
+        if (imports.isEmpty()) return inheritedScope
+        val snapshots = imports.map { StyleImportSnapshot(it.reference, it.reference.revision()) }
+        val key = ScopeCacheKey(inheritedScope.id, snapshots)
+        scopeCache[node]?.takeIf { it.key == key }?.let { return it.scope }
+        val stylesheets = ArrayList<CompiledHss>(inheritedScope.stylesheets.size + imports.size)
+        stylesheets += inheritedScope.stylesheets
+        val keyframes = LinkedHashMap(inheritedScope.keyframes)
+        imports.forEach { modifier ->
+            val stylesheet = modifier.reference.resolve()
+            stylesheets += stylesheet
+            keyframes.putAll(stylesheet.keyframes)
+        }
+        return StyleScope(stylesheets, keyframes, nextScopeId++).also { scope ->
+            scopeCache[node] = ScopeCacheEntry(key, scope)
+        }
+    }
+
+    private fun resolveBaseStyle(
+        node: UiNode,
+        parent: ComputedStyle?,
+        scope: StyleScope,
+        modifiers: List<Modifier>,
+        bindings: UiBindingContext,
+    ): ComputedStyle {
+        val key = StyleCacheKey(
+            scopeId = scope.id,
+            parent = parent,
+            bindingsHash = bindings.root.hashCode(),
+            node = node.styleSnapshot(modifiers),
+        )
+        styleCache[node]?.takeIf { it.key == key }?.let {
+            node.layoutState.updateResolvedLayoutFingerprint(it.style.layoutFingerprint())
+            return it.style
+        }
         val mutable = engineDefaults(node)
         applyRules(theme?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.THEME_DEFAULTS)
         applyRules(stylesheet?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.STYLESHEET)
-        scopedStylesheets.forEach { scoped ->
+        scope.stylesheets.forEach { scoped ->
             applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STYLESHEET)
         }
         applyRules(stylesheet?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
-        scopedStylesheets.forEach { scoped ->
+        scope.stylesheets.forEach { scoped ->
             applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
         }
-        mutable.merge(node.modifiers.style())
+        mutable.merge(modifiers.style())
         applyAttributeStyles(node, mutable)
-        val computed = mutable.toComputed(parent)
-        val keyframes = buildMap {
-            theme?.keyframes?.let(::putAll)
-            stylesheet?.keyframes?.let(::putAll)
-            scopedStylesheets.forEach { putAll(it.keyframes) }
-        }
-        val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
-        val finalStyle = if (animate) animations.apply(node, transitioned, keyframes, nowMillis) else transitioned
-        styles[node] = finalStyle
-        node.children.forEach { child ->
-            resolveNode(child, finalStyle, scopedStylesheets, bindings, nowMillis, animate, styles)
+        return mutable.toComputed(parent).also { style ->
+            node.layoutState.updateResolvedLayoutFingerprint(style.layoutFingerprint())
+            styleCache[node] = StyleCacheEntry(key, style)
         }
     }
 
@@ -108,10 +179,7 @@ class UiStyleResolver(
     }
 
     private fun engineDefaults(node: UiNode): MutableUiStyle {
-        val style = MutableUiStyle(
-            layout = LayoutType.COLUMN,
-            transitions = DefaultTransformTransitions,
-        )
+        val style = MutableUiStyle(transitions = DefaultTransformTransitions)
         when (node.type) {
             UiNodeType.TEXT.typeName -> {
                 style.foreground = UiColor.White
@@ -159,4 +227,81 @@ class UiStyleResolver(
             UiTransition("perspective", 200L, TransitionEasing.EASE_OUT),
         )
     }
+}
+
+private data class StyleScope(
+    val stylesheets: List<CompiledHss>,
+    val keyframes: Map<String, UiKeyframes>,
+    val id: Long,
+)
+
+private data class StyleImportSnapshot(
+    val reference: UiStylesheetReference,
+    val revision: Long,
+)
+
+private data class ScopeCacheKey(
+    val inheritedScopeId: Long,
+    val imports: List<StyleImportSnapshot>,
+)
+
+private data class ScopeCacheEntry(
+    val key: ScopeCacheKey,
+    val scope: StyleScope,
+)
+
+private data class NodeStyleSnapshot(
+    val nodeClass: Class<out UiNode>,
+    val type: String,
+    val id: String?,
+    val tags: Set<String>,
+    val states: Set<UiState>,
+    val attributes: Map<String, String>,
+    val modifiers: List<Modifier>,
+)
+
+private data class StyleCacheKey(
+    val scopeId: Long,
+    val parent: ComputedStyle?,
+    val bindingsHash: Int,
+    val node: NodeStyleSnapshot,
+)
+
+private data class StyleCacheEntry(
+    val key: StyleCacheKey,
+    val style: ComputedStyle,
+)
+
+private data class TreeCacheKey(
+    val root: UiNode,
+    val subtreeRevision: Long,
+    val stylesheetRevision: Long,
+    val bindingsHash: Int,
+    val animate: Boolean,
+)
+
+private data class TreeCacheEntry(
+    val key: TreeCacheKey,
+    val tree: ResolvedUiTree,
+    val requiresRefresh: Boolean,
+)
+
+private fun ComputedStyle.requiresStyleRefresh(): Boolean {
+    return animations.any { animation -> animation.totalDurationMillis()?.let { it > 0L } ?: true }
+}
+
+private fun UiNode.styleSnapshot(modifiers: List<Modifier>) = NodeStyleSnapshot(
+    nodeClass = javaClass,
+    type = type,
+    id = id,
+    tags = tags.toSet(),
+    states = states.toSet(),
+    attributes = attributes.toMap(),
+    modifiers = modifiers,
+)
+
+private fun List<Modifier>.style(): MutableUiStyle {
+    val style = MutableUiStyle()
+    forEach { it.applyTo(style) }
+    return style
 }

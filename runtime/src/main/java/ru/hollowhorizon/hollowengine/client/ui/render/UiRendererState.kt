@@ -42,6 +42,13 @@ internal data class LayerState(
     val opacity: Float,
 )
 
+internal data class ScissorBounds(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
+
 internal const val LayerSupersampling = 1f
 internal const val LayerTextureSubdivisions = 12
 

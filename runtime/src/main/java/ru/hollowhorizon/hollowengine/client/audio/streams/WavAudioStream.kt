@@ -23,7 +23,6 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
     private var dataChunkReached: Boolean = false
 
     init {
-        // Оборачиваем InputStream в BufferedInputStream для оптимизации чтения
         inputStream = BufferedInputStream(wavInputStream)
         wave = readWaveHeader(inputStream)
 
@@ -68,10 +67,8 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
                         if (chunk.size > 16) stream.skip((chunk.size - 16).toLong())
                     }
                     "data" -> {
-                        // Сохраняем размер data-чанка и оставляем поток на его начале
                         dataChunkSize = chunk.size
                         dataChunkReached = true
-                        // НЕ пропускаем данные, чтобы начать чтение с этого места
                     }
                     else -> {
                         var cueData: ByteArray
@@ -135,7 +132,6 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
             return ByteBuffer.allocate(0) // Нет данных для чтения
         }
 
-        // Ограничиваем размер чтения оставшимися данными
         val actualSize = minOf(size, dataChunkSize - bytesRead)
         val buffer = ByteArray(actualSize)
         val read = inputStream.read(buffer, 0, actualSize)
@@ -153,7 +149,6 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
             return ByteBuffer.allocate(0)
         }
 
-        // Читаем все оставшиеся данные
         val remaining = dataChunkSize - bytesRead
         val buffer = ByteArray(remaining)
         val read = inputStream.read(buffer)
@@ -170,7 +165,6 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
         return ByteBuffer.allocate(0)
     }
 
-    // Добавляем метод закрытия потока
     override fun close() {
         inputStream.close()
         MemoryUtil.memFree(byteBuffer)

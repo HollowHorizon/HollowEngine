@@ -5,7 +5,6 @@ import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 internal val DemoStyles = compileHss(
     """
     #demo-root {
-        layout: column;
         size: 100% 100%;
         min-size: 0px 0px;
         padding: 14px;
@@ -14,7 +13,6 @@ internal val DemoStyles = compileHss(
     }
 
     .tabs {
-        layout: row;
         align: start;
         gap: 8px;
         height: 47px;
@@ -22,7 +20,6 @@ internal val DemoStyles = compileHss(
     }
 
     .tab {
-        layout: row;
         padding: 6px 10px;
         gap: 6px;
         width: 104px;
@@ -67,7 +64,6 @@ internal val DemoStyles = compileHss(
     }
 
     .panel {
-        layout: column;
         gap: 10px;
         size: 100% 100%;
         min-size: 0px 0px;
@@ -89,7 +85,6 @@ internal val DemoStyles = compileHss(
     }
 
     .row {
-        layout: row;
         gap: 8px;
         padding: 8px;
         height: 48px;
@@ -102,7 +97,6 @@ internal val DemoStyles = compileHss(
     }
 
     .panel-grid {
-        layout: free;
         size: 100% 100%;
         min-size: 0px 0px;
         gap: 10px;
@@ -110,7 +104,6 @@ internal val DemoStyles = compileHss(
     }
 
     .card {
-        layout: column;
         gap: 8px;
         padding: 10px;
         size: 168px 118px;
@@ -157,8 +150,101 @@ internal val DemoStyles = compileHss(
         size: 120px 54px;
     }
 
+    .text-demo-stage {
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+    }
+
+    .text-demo-card {
+        gap: 8px;
+        padding: 12px;
+        size: 330px 140px;
+        background: rgba(30, 34, 44, 0.9);
+        border-radius: 10px;
+        border: 1px rgba(120, 140, 170, 0.35);
+    }
+
+    .text-slot-card {
+        size: 354px 140px;
+    }
+
+    .popup-demo-card {
+        size: 330px 172px;
+    }
+
+    .text-demo-copy {
+        foreground: rgba(226, 230, 238, 0.92);
+        text-wrap: true;
+        line-spacing: 3px;
+    }
+
+    .text-inline-chip {
+        padding: 2px 8px;
+        size: auto 22px;
+        background: rgba(90, 166, 154, 0.96);
+        border-radius: 6px;
+        border: 1px rgba(182, 255, 244, 0.62);
+    }
+
+    .text-inline-chip-label {
+        foreground: white;
+        font-size: 9px;
+        height: 14px;
+    }
+
+    .text-slot-note {
+        padding: 6px;
+        size: 72px 46px;
+        background: rgba(238, 244, 255, 0.94);
+        foreground: rgba(24, 32, 46, 0.98);
+        border-radius: 8px;
+        border: 1px rgba(255, 255, 255, 0.66);
+    }
+
+    .text-slot-note-label {
+        foreground: rgba(24, 32, 46, 0.98);
+        font-size: 9px;
+    }
+
+    .popup-anchor {
+        padding: 7px 12px;
+        width: 136px;
+        height: 28px;
+        background: rgba(72, 150, 142, 0.96);
+        border-radius: 7px;
+        border: 1px rgba(184, 255, 244, 0.68);
+    }
+
+    .popup-anchor-label {
+        foreground: white;
+    }
+
+    .popup-panel {
+        gap: 4px;
+        padding: 9px;
+        size: 154px auto;
+        background: rgba(244, 248, 255, 0.96);
+        foreground: rgba(26, 34, 48, 0.98);
+        border-radius: 8px;
+        border: 1px rgba(255, 255, 255, 0.7);
+        shadow: 0px 14px 26px -8px rgba(0, 0, 0, 0.52);
+    }
+
+    .cursor-popup {
+        size: 150px auto;
+    }
+
+    .popup-title {
+        foreground: rgba(24, 38, 58, 0.98);
+        height: 16px;
+    }
+
+    .popup-body {
+        foreground: rgba(58, 68, 84, 0.92);
+    }
+
     .free-stage {
-        layout: free;
         size: 100% 100%;
         min-size: 0px 0px;
         background: linear-gradient(135deg, rgba(12, 16, 23, 0.94), rgba(18, 44, 54, 0.9), rgba(38, 42, 64, 0.88));
@@ -193,7 +279,6 @@ internal val DemoStyles = compileHss(
     }
 
     .layout-glass {
-        layout: column;
         gap: 8px;
         padding: 12px;
         size: 184px 92px;
@@ -216,8 +301,95 @@ internal val DemoStyles = compileHss(
         shadow: none;
     }
 
+    .editor-demo-stage {
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+    }
+
+    .editor-demo-card {
+        gap: 8px;
+        padding: 12px;
+        size: 532px 268px;
+        background: rgba(24, 29, 39, 0.94);
+        border-radius: 10px;
+        border: 1px rgba(120, 140, 170, 0.36);
+    }
+
+    .editor-text-field {
+        padding: 9px;
+        background: rgba(10, 13, 18, 0.96);
+        foreground: rgba(226, 232, 240, 0.96);
+        border: 1px rgba(112, 134, 166, 0.48);
+        border-radius: 8px;
+        font-size: 10px;
+        line-spacing: 3px;
+        caret-color: #f4f7ff;
+        selection-color: rgba(92, 150, 255, 0.36);
+        line-number-color: rgba(130, 146, 170, 0.76);
+        inlay-hint-color: rgba(130, 146, 170, 0.58);
+        line-numbers: true;
+        inlay-hints: true;
+    }
+
+    .editor-key-log {
+        foreground: rgba(160, 184, 220, 0.92);
+        height: 16px;
+    }
+
+    .lazy-column-card {
+        size: 260px 268px;
+    }
+
+    .lazy-column-demo {
+        size: 100% 216px;
+        min-size: 0px 0px;
+        gap: 5px;
+        scrollable: true;
+        clip: true;
+    }
+
+    .lazy-list-row {
+        height: 32px;
+        padding: 6px 8px;
+        gap: 8px;
+        background: rgba(34, 40, 52, 0.86);
+        border-radius: 6px;
+        border: 1px rgba(116, 136, 164, 0.22);
+    }
+
+    .lazy-row-index {
+        width: 30px;
+        foreground: rgba(120, 190, 180, 0.96);
+    }
+
+    .lazy-row-card {
+        size: 812px 144px;
+    }
+
+    .lazy-row-demo {
+        size: 100% 88px;
+        min-size: 0px 0px;
+        gap: 8px;
+        scrollable: true;
+        clip: true;
+    }
+
+    .lazy-row-tile {
+        gap: 4px;
+        padding: 9px;
+        size: 72px 68px;
+        background: rgba(38, 46, 62, 0.92);
+        border-radius: 8px;
+        border: 1px rgba(130, 154, 188, 0.34);
+    }
+
+    .lazy-row-tile-title {
+        foreground: #c8ddff;
+        height: 16px;
+    }
+
     .effects-stage {
-        layout: free;
         size: 100% 100%;
         min-size: 0px 0px;
         scrollable: true;
@@ -226,7 +398,6 @@ internal val DemoStyles = compileHss(
     }
 
     .effect-card {
-        layout: column;
         gap: 8px;
         padding: 12px;
         size: 178px 126px;
@@ -263,7 +434,6 @@ internal val DemoStyles = compileHss(
     }
 
     .flip-zone {
-        layout: free;
         size: 178px 126px;
         hoverable: true;
         perspective: 680px;

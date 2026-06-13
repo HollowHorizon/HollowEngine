@@ -2,13 +2,13 @@ import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.ImageNode
-import ru.hollowhorizon.hollowengine.client.ui.LayoutType
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
 import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiCommandRenderer
-import ru.hollowhorizon.hollowengine.client.ui.UiLayoutEngine
+import ru.hollowhorizon.hollowengine.client.ui.UiLayout
+import ru.hollowhorizon.hollowengine.client.ui.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineItem
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
@@ -25,6 +25,8 @@ import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.bound
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.selectionRects
+import ru.hollowhorizon.hollowengine.client.ui.visibleLineItems
 import ru.hollowhorizon.hollowengine.client.ui.withColor
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -104,8 +106,8 @@ class UiTextLayoutTests {
     fun `fit row with max width lays wrapped text in constrained content box`() {
         val root = BoxNode(
             id = "root",
+            layout = UiLayout.Row,
             modifiers = listOf(
-                Modifier.layout(LayoutType.ROW),
                 Modifier.size(),
                 Modifier.minSize(30.px, 16.px),
                 Modifier.maxSize(300.px),
@@ -137,7 +139,7 @@ class UiTextLayoutTests {
         root.children += message
 
         val resolved = UiStyleResolver().resolve(root, animate = false)
-        val layout = UiLayoutEngine().compute(resolved, width = 1920f, height = 1080f)
+        val layout = UiLayoutPipeline().compute(resolved, width = 1920f, height = 1080f)
         val rootLayout = layout[root]
         val messageLayout = layout[message]
         val constrainedTextLayout = UiTextLayouter.layout(
@@ -197,6 +199,45 @@ class UiTextLayoutTests {
     }
 
     @Test
+    fun `visible line lookup returns only viewport lines`() {
+        val layout = UiTextLayouter.layout(
+            text = (1..5000).joinToString("\n") { "line $it" },
+            width = 320f,
+            height = Float.POSITIVE_INFINITY,
+            wrap = false,
+            align = UiTextAlign.LEFT,
+            fontSize = 12f,
+            preserveWhitespace = true,
+        )
+        val targetLine = layout.lines[2500]
+        val viewportHeight = targetLine.height * 5f
+        val visible = layout.visibleLineItems(targetLine.y + 0.1f, viewportHeight, overscan = 0f).toList()
+
+        assertTrue(visible.size <= 6)
+        assertEquals(2500, visible.first().index)
+        assertTrue(visible.all { (_, line) -> line.y <= targetLine.y + 0.1f + viewportHeight })
+    }
+
+    @Test
+    fun `selection rects use source offsets across empty lines`() {
+        val text = "alpha\n\nbeta\ngamma"
+        val layout = UiTextLayouter.layout(
+            text = text,
+            width = 320f,
+            height = Float.POSITIVE_INFINITY,
+            wrap = false,
+            align = UiTextAlign.LEFT,
+            fontSize = 12f,
+            preserveWhitespace = true,
+        )
+        val betaStart = text.indexOf("beta")
+        val rects = layout.selectionRects(betaStart, betaStart + "beta".length, 12f)
+
+        assertEquals(1, rects.size)
+        assertEquals(layout.lines[2].y, rects.single().y)
+    }
+
+    @Test
     fun `text style shadow is rendered as glyph effect`() {
         val shadow = UiShadow(
             offset = UiVec3(2f, 3f, 0f),
@@ -213,7 +254,7 @@ class UiTextLayoutTests {
         )
 
         val resolved = UiStyleResolver().resolve(text, animate = false)
-        val layout = UiLayoutEngine().compute(resolved, width = 320f, height = 180f)
+        val layout = UiLayoutPipeline().compute(resolved, width = 320f, height = 180f)
         val commands = UiCommandRenderer().collect(resolved, layout)
         val textCommand = commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
         val textShadow = textCommand.textEffects.filterIsInstance<Shadow>().single()

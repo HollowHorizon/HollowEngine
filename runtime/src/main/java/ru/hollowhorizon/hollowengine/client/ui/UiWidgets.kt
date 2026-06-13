@@ -111,29 +111,42 @@ class SliderNode(
     UiStatefulNode {
     var min: Float = min
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["min"] = value.toString()
             this.value = this.value
+            invalidateLayout()
         }
 
     var max: Float = max
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["max"] = value.toString()
             this.value = this.value
+            invalidateLayout()
         }
 
     var step: Float = step.coerceAtLeast(0f)
         set(value) {
-            field = value.coerceAtLeast(0f)
+            val normalized = value.coerceAtLeast(0f)
+            if (field == normalized) return
+            field = normalized
             this.attributes["step"] = field.toString()
             this.value = this.value
+            invalidateLayout()
         }
 
     var value: Float = 0f
         set(value) {
-            field = normalize(value)
+            val normalized = normalize(value)
+            if (field == normalized) {
+                this.attributes["value"] = field.toString()
+                return
+            }
+            field = normalized
             this.attributes["value"] = field.toString()
+            invalidateLayout()
         }
 
     init {
@@ -183,15 +196,19 @@ class CheckboxNode(
     UiStatefulNode {
     var checked: Boolean = checked
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["checked"] = value.toString()
             if (value) states += UiState.SELECTED else states -= UiState.SELECTED
+            invalidateLayout()
         }
 
     var variant: UiCheckboxVariant = variant
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["variant"] = value.name.lowercase()
+            invalidateLayout()
         }
 
     init {
@@ -216,6 +233,11 @@ class TextFieldNode(
     mode: UiTextFieldMode = UiTextFieldMode.SINGLE_LINE,
     filter: UiTextInputFilter = UiTextInputFilter.ANY,
     multiCaret: Boolean = false,
+    syntaxHighlighter: UiSyntaxHighlighter? = null,
+    completionContributor: UiCompletionContributor? = null,
+    diagnostics: List<UiTextDiagnostic> = emptyList(),
+    inlayHints: List<UiInlayHint> = emptyList(),
+    inlayHintsProvider: UiInlayHintsProvider? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
@@ -226,40 +248,105 @@ class TextFieldNode(
         set(value) {
             val normalized = if (mode == UiTextFieldMode.SINGLE_LINE) value.replace('\n', ' ') else value
             if (!filter.accepts(normalized)) return
+            if (field == normalized) {
+                this.attributes["value"] = field
+                return
+            }
             field = normalized
             caret = caret.coerceIn(0, field.length)
             selectionAnchor = selectionAnchor?.coerceIn(0, field.length)
+            caretRanges.replaceAll { it.coerceIn(field.length) }
+            completionAnchor = completionAnchor.coerceIn(0, field.length)
+            completionItems = emptyList()
             this.attributes["value"] = field
+            invalidateLayout()
         }
 
     var placeholder: String = this.attributes["placeholder"].orEmpty()
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["placeholder"] = value
+            invalidateLayout()
         }
 
     var mode: UiTextFieldMode = mode
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["mode"] = when (value) {
                 UiTextFieldMode.SINGLE_LINE -> "single-line"
                 UiTextFieldMode.MULTI_LINE -> "multi-line"
             }
             this.value = this.value
+            invalidateLayout()
         }
 
     var filter: UiTextInputFilter = filter
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["filter"] = value.name.lowercase()
             this.value = this.value
+            invalidateLayout()
         }
 
     var multiCaret: Boolean = multiCaret
         set(value) {
+            if (field == value) return
             field = value
             this.attributes["multi-caret"] = value.toString()
+            if (!value && caretRanges.size > 1) {
+                setCaretRanges(listOf(caretRanges.last()))
+            }
+            invalidateLayout()
         }
+
+    var syntaxHighlighter: UiSyntaxHighlighter? = syntaxHighlighter
+        set(value) {
+            if (field === value) return
+            field = value
+            invalidateLayout()
+        }
+    var completionContributor: UiCompletionContributor? = completionContributor
+        set(value) {
+            if (field === value) return
+            field = value
+            invalidateLayout()
+        }
+    var diagnostics: List<UiTextDiagnostic> = diagnostics
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateLayout()
+        }
+    var inlayHints: List<UiInlayHint> = inlayHints
+        set(value) {
+            if (field == value) return
+            field = value
+            clearInlayHintCache()
+            invalidateLayout()
+        }
+    var inlayHintsProvider: UiInlayHintsProvider? = inlayHintsProvider
+        set(value) {
+            if (field === value) return
+            field = value
+            clearInlayHintCache()
+            invalidateLayout()
+        }
+    var completionItems: List<UiTextCompletion> = emptyList()
+        private set
+    var completionAnchor: Int = this.value.length
+        private set
+    var completionSelectedIndex: Int = 0
+        private set
+    private var completionReplacementStart: Int = this.value.length
+    private var completionReplacementEnd: Int = this.value.length
+    private var completionLineStart: Int = 0
+    private var completionLineEnd: Int = 0
+    private var cachedInlayProvider: UiInlayHintsProvider? = null
+    private var cachedInlayText: String? = null
+    private var cachedInlayHints: List<UiInlayHint> = emptyList()
 
     var caret: Int = this.value.length
         private set
@@ -268,6 +355,8 @@ class TextFieldNode(
         private set
 
     val carets: MutableList<Int> = mutableListOf(this.value.length)
+
+    val caretRanges: MutableList<UiTextCaret> = mutableListOf(UiTextCaret(this.value.length))
 
     var caretVisibilityRevision: Long = 0L
         private set
@@ -284,6 +373,11 @@ class TextFieldNode(
         this.mode = mode
         this.filter = filter
         this.multiCaret = multiCaret
+        this.syntaxHighlighter = syntaxHighlighter
+        this.completionContributor = completionContributor
+        this.diagnostics = diagnostics
+        this.inlayHints = inlayHints
+        this.inlayHintsProvider = inlayHintsProvider
         this.value = value
         moveCaret(this.value.length)
     }
@@ -291,29 +385,33 @@ class TextFieldNode(
     fun insert(text: String): Boolean {
         if (text.isEmpty()) return false
         val sanitized = if (multiline) text else text.replace('\n', ' ')
-        val start = selectionStart
-        val end = selectionEnd
-        val next = value.replaceRange(start, end, sanitized)
-        if (!filter.accepts(next)) return false
-        value = next
-        moveCaret(start + sanitized.length)
-        return true
+        return replaceSelectedRanges(sanitized)
     }
 
-    fun backspace(): Boolean {
-        if (hasSelection) return deleteSelection()
-        if (caret <= 0) return false
-        val nextCaret = caret - 1
-        value = value.removeRange(nextCaret, caret)
-        moveCaret(nextCaret)
-        return true
+    fun backspace(word: Boolean = false): Boolean {
+        if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
+        val ranges = activeCaretRanges().mapNotNull { range ->
+            if (range.position <= 0) {
+                null
+            } else {
+                val start = if (word) editorWordLeft(value, range.position) else range.position - 1
+                TextEditRange(start, range.position)
+            }
+        }
+        return replaceRanges(ranges, "")
     }
 
-    fun deleteForward(): Boolean {
-        if (hasSelection) return deleteSelection()
-        if (caret >= value.length) return false
-        value = value.removeRange(caret, caret + 1)
-        return true
+    fun deleteForward(word: Boolean = false): Boolean {
+        if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
+        val ranges = activeCaretRanges().mapNotNull { range ->
+            if (range.position >= value.length) {
+                null
+            } else {
+                val end = if (word) editorWordRight(value, range.position) else range.position + 1
+                TextEditRange(range.position, end)
+            }
+        }
+        return replaceRanges(ranges, "")
     }
 
     fun moveCaret(position: Int, select: Boolean = false) {
@@ -321,8 +419,67 @@ class TextFieldNode(
         val previousAnchor = selectionAnchor
         caret = position.coerceIn(0, value.length)
         selectionAnchor = if (select) selectionAnchor ?: previous else null
-        if (carets.isEmpty()) carets += caret else carets[0] = caret
+        setCaretRangesInternal(listOf(UiTextCaret(caret, selectionAnchor)), updatePrimary = false)
+        closeCompletionsIfCaretLeftLine()
         if (caret != previous || selectionAnchor != previousAnchor) caretVisibilityRevision++
+    }
+
+    fun moveCarets(transform: (UiTextCaret) -> Int, select: Boolean = false) {
+        val previous = caretRanges.toList()
+        val next = activeCaretRanges().map { range ->
+            val position = transform(range).coerceIn(0, value.length)
+            UiTextCaret(position, if (select) range.selectionAnchor ?: range.position else null)
+        }
+        setCaretRanges(next)
+        closeCompletionsIfCaretLeftLine()
+        if (previous != caretRanges) caretVisibilityRevision++
+    }
+
+    fun addCaret(position: Int) {
+        if (!multiCaret) {
+            moveCaret(position)
+            return
+        }
+        val caret = UiTextCaret(position.coerceIn(0, value.length))
+        val ranges = activeCaretRanges()
+        val next = if (ranges.any { !it.hasSelection && it.position == caret.position }) {
+            ranges.filterNot { !it.hasSelection && it.position == caret.position }
+        } else {
+            ranges + caret
+        }
+        setCaretRanges(next.ifEmpty { listOf(caret) })
+    }
+
+    fun addCaretRange(range: UiTextCaret) {
+        if (!multiCaret) {
+            setCaretRanges(listOf(range))
+            return
+        }
+        val normalized = range.coerceIn(value.length)
+        val ranges = activeCaretRanges()
+        val next = ranges
+            .filterNot { existing ->
+                (!existing.hasSelection && existing.position in normalized.selectionStart..normalized.selectionEnd) ||
+                        (existing.selectionStart == normalized.selectionStart && existing.selectionEnd == normalized.selectionEnd)
+            } + normalized
+        setCaretRanges(next.ifEmpty { listOf(normalized) })
+    }
+
+    fun removeCaretRangeAt(position: Int): Boolean {
+        val index = activeCaretRanges().indexOfFirst { range ->
+            if (range.hasSelection) position in range.selectionStart..range.selectionEnd else range.position == position
+        }
+        if (index < 0) return false
+        val next = activeCaretRanges().toMutableList().also { it.removeAt(index) }
+        setCaretRanges(next.ifEmpty { listOf(UiTextCaret(position.coerceIn(0, value.length))) })
+        return true
+    }
+
+    fun updateLastCaretRange(anchor: Int, active: Int) {
+        val ranges = activeCaretRanges().toMutableList()
+        val range = UiTextCaret(active.coerceIn(0, value.length), anchor.coerceIn(0, value.length))
+        if (ranges.isEmpty()) ranges += range else ranges[ranges.lastIndex] = range
+        setCaretRanges(ranges)
     }
 
     fun setSelection(anchor: Int, active: Int) {
@@ -330,13 +487,82 @@ class TextFieldNode(
         moveCaret(active.coerceIn(0, value.length), select = true)
     }
 
+    fun setCaretRanges(ranges: List<UiTextCaret>) {
+        val previousCaret = caret
+        val previousAnchor = selectionAnchor
+        val previousRanges = caretRanges.toList()
+        setCaretRangesInternal(ranges)
+        if (caret != previousCaret || selectionAnchor != previousAnchor || caretRanges != previousRanges) {
+            caretVisibilityRevision++
+        }
+    }
+
     fun selectAll() {
         selectionAnchor = 0
         moveCaret(value.length, select = true)
     }
 
+    fun selectedText(): String? {
+        val selections = activeCaretRanges().filter { it.hasSelection }
+        if (selections.isEmpty()) return null
+        return selections
+            .sortedBy { it.selectionStart }
+            .joinToString("\n") { value.substring(it.selectionStart, it.selectionEnd) }
+    }
+
     fun clearSelection() {
         selectionAnchor = null
+        setCaretRangesInternal(listOf(UiTextCaret(caret)))
+    }
+
+    fun openCompletions(): Boolean {
+        val contributor = completionContributor ?: return false
+        val items = contributor.complete(UiCompletionContext(value, caret))
+            .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+        val previousItems = completionItems
+        val previousAnchor = completionAnchor
+        val replacement = completionReplacementRange(value, caret)
+        completionItems = items
+        completionAnchor = caret
+        completionSelectedIndex = 0
+        completionReplacementStart = replacement.first
+        completionReplacementEnd = replacement.last
+        val line = completionLineRange(value, caret)
+        completionLineStart = line.first
+        completionLineEnd = line.last
+        return previousItems != completionItems || previousAnchor != completionAnchor
+    }
+
+    fun closeCompletions(): Boolean {
+        if (completionItems.isEmpty()) return false
+        completionItems = emptyList()
+        completionSelectedIndex = 0
+        return true
+    }
+
+    fun moveCompletionSelection(delta: Int): Boolean {
+        if (completionItems.isEmpty()) return false
+        val previous = completionSelectedIndex
+        completionSelectedIndex = (completionSelectedIndex + delta).floorMod(completionItems.size)
+        return previous != completionSelectedIndex
+    }
+
+    fun acceptCompletion(index: Int = 0): Boolean {
+        val item = completionItems.getOrNull(index) ?: return false
+        val insertText = item.insertText.ifEmpty { item.label }
+        val changed = replaceCompletionRange(insertText, item.caretOffset)
+        completionItems = emptyList()
+        return changed
+    }
+
+    fun currentInlayHints(): List<UiInlayHint> {
+        val provider = inlayHintsProvider ?: return inlayHints
+        if (cachedInlayProvider === provider && cachedInlayText == value) return cachedInlayHints
+        val hints = provider.hints(value)
+        cachedInlayProvider = provider
+        cachedInlayText = value
+        cachedInlayHints = hints
+        return hints
     }
 
     override fun exportState(): UiNodePersistentState = TextFieldPersistentState(
@@ -344,6 +570,7 @@ class TextFieldNode(
         caret = caret,
         selectionAnchor = selectionAnchor,
         carets = carets.toList(),
+        caretRanges = caretRanges.toList(),
         caretVisibilityRevision = caretVisibilityRevision,
     )
 
@@ -352,20 +579,140 @@ class TextFieldNode(
         value = state.value
         caret = state.caret.coerceIn(0, value.length)
         selectionAnchor = state.selectionAnchor?.coerceIn(0, value.length)
-        carets.clear()
-        carets += state.carets.map { it.coerceIn(0, value.length) }
-        if (carets.isEmpty()) carets += caret
+        val ranges = state.caretRanges.takeIf { it.isNotEmpty() }
+            ?: state.carets.map { UiTextCaret(it) }.takeIf { it.isNotEmpty() }
+            ?: listOf(UiTextCaret(caret, selectionAnchor))
+        setCaretRangesInternal(ranges.map { it.coerceIn(value.length) })
         caretVisibilityRevision = state.caretVisibilityRevision
     }
 
-    private fun deleteSelection(): Boolean {
-        val start = selectionStart
-        val end = selectionEnd
-        if (start == end) return false
-        value = value.removeRange(start, end)
-        moveCaret(start)
+    private fun replaceSelectedRanges(replacement: String): Boolean {
+        val ranges = activeCaretRanges().map { TextEditRange(it.selectionStart, it.selectionEnd) }
+        return replaceRanges(ranges, replacement)
+    }
+
+    private fun clearInlayHintCache() {
+        cachedInlayProvider = null
+        cachedInlayText = null
+        cachedInlayHints = emptyList()
+    }
+
+    private fun replaceRanges(ranges: List<TextEditRange>, replacement: String): Boolean {
+        val edits = ranges
+            .map { TextEditRange(it.start.coerceIn(0, value.length), it.end.coerceIn(0, value.length)) }
+            .filter { it.start != it.end || replacement.isNotEmpty() }
+            .sortedWith(compareBy<TextEditRange> { it.start }.thenBy { it.end })
+            .fold(mutableListOf<TextEditRange>()) { acc, range ->
+                if (acc.isEmpty() || range.start >= acc.last().end) {
+                    acc += range
+                } else if (range.end > acc.last().end) {
+                    acc[acc.lastIndex] = TextEditRange(acc.last().start, range.end)
+                }
+                acc
+            }
+        if (edits.isEmpty()) return false
+
+        val nextValue = buildString {
+            var cursor = 0
+            for (edit in edits) {
+                append(value, cursor, edit.start)
+                append(replacement)
+                cursor = edit.end
+            }
+            append(value, cursor, value.length)
+        }
+        if (!filter.accepts(nextValue)) return false
+
+        var offset = 0
+        val nextCarets = edits.map { edit ->
+            val position = edit.start + offset + replacement.length
+            offset += replacement.length - (edit.end - edit.start)
+            UiTextCaret(position)
+        }
+        value = nextValue
+        setCaretRanges(nextCarets)
+        completionItems = emptyList()
         return true
     }
+
+    private fun replaceCompletionRange(replacement: String, caretOffset: Int?): Boolean {
+        val start = completionReplacementStart.coerceIn(0, value.length)
+        val end = completionReplacementEnd.coerceIn(start, value.length)
+        val nextValue = value.substring(0, start) + replacement + value.substring(end)
+        if (!filter.accepts(nextValue)) return false
+        value = nextValue
+        val nextCaret = start + (caretOffset ?: replacement.length).coerceIn(0, replacement.length)
+        setCaretRanges(listOf(UiTextCaret(nextCaret)))
+        return true
+    }
+
+    private fun closeCompletionsIfCaretLeftLine() {
+        if (completionItems.isEmpty()) return
+        if (caret < completionLineStart || caret > completionLineEnd) closeCompletions()
+    }
+
+    private fun activeCaretRanges(): List<UiTextCaret> {
+        val ranges = if (multiCaret) caretRanges else caretRanges.take(1)
+        return ranges.ifEmpty { listOf(UiTextCaret(caret, selectionAnchor)) }
+    }
+
+    private fun setCaretRangesInternal(ranges: List<UiTextCaret>, updatePrimary: Boolean = true) {
+        val normalized = ranges
+            .ifEmpty { listOf(UiTextCaret(0)) }
+            .map { it.coerceIn(value.length) }
+            .let { if (multiCaret) it else listOf(it.last()) }
+            .distinctBy { it.position to it.selectionAnchor }
+        caretRanges.clear()
+        caretRanges += normalized
+        carets.clear()
+        carets += caretRanges.map { it.position }
+        if (carets.isEmpty()) carets += 0
+        if (updatePrimary) {
+            val primary = caretRanges.last()
+            caret = primary.position
+            selectionAnchor = primary.selectionAnchor
+        }
+    }
+
+    private data class TextEditRange(val start: Int, val end: Int)
+}
+
+private fun editorWordLeft(text: String, position: Int): Int {
+    var index = position.coerceIn(0, text.length)
+    while (index > 0 && text[index - 1].isWhitespace()) index--
+    while (index > 0 && text[index - 1].isEditorWordChar()) index--
+    if (index == position.coerceIn(0, text.length) && index > 0) index--
+    return index
+}
+
+private fun editorWordRight(text: String, position: Int): Int {
+    var index = position.coerceIn(0, text.length)
+    while (index < text.length && text[index].isWhitespace()) index++
+    while (index < text.length && text[index].isEditorWordChar()) index++
+    if (index == position.coerceIn(0, text.length) && index < text.length) index++
+    return index
+}
+
+private fun Char.isEditorWordChar(): Boolean = this == '_' || isLetterOrDigit()
+
+private fun completionReplacementRange(text: String, caret: Int): IntRange {
+    val end = caret.coerceIn(0, text.length)
+    var start = end
+    while (start > 0 && text[start - 1].isEditorWordChar()) start--
+    return start..end
+}
+
+private fun completionLineRange(text: String, caret: Int): IntRange {
+    val index = caret.coerceIn(0, text.length)
+    val start = text.lastIndexOf('\n', (index - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+    return start..end
+}
+
+private fun Int.floorMod(modulo: Int): Int {
+    if (modulo <= 0) return 0
+    val result = this % modulo
+    return if (result < 0) result + modulo else result
 }
 
 internal fun Map<String, String>.readSliderValue(name: String, fallback: Float): Float =

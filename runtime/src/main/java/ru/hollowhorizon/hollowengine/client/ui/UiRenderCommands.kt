@@ -2,9 +2,16 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
+import kotlin.math.max
 
 sealed interface UiRenderCommand {
     val node: UiNode
+}
+
+enum class UiRenderPhase {
+    BACKGROUND,
+    CONTENT,
+    OVERLAY,
 }
 
 data class BeginLayerCommand(
@@ -66,6 +73,7 @@ data class DrawBoxCommand(
     val slice: UiInsets,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
 data class DrawTextCommand(
@@ -85,6 +93,7 @@ data class DrawTextCommand(
     val scrollOffset: UiScrollOffset,
     val hoveredLink: String?,
     val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
 data class DrawImageCommand(
@@ -99,6 +108,7 @@ data class DrawImageCommand(
     val slice: UiInsets,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
 data class DrawItemCommand(
@@ -170,16 +180,20 @@ data class DrawTextFieldChromeCommand(
     val rect: UiRect,
     val layout: UiTextLayout,
     val scrollOffset: UiScrollOffset,
-    val caretIndex: Int,
-    val selectionStart: Int,
-    val selectionEnd: Int,
+    val carets: List<UiTextCaret>,
+    val textOffset: Float,
     val caretColor: UiColor,
     val selectionColor: UiColor,
     val lineNumberColor: UiColor,
     val inlayHintColor: UiColor,
+    val diagnosticErrorColor: UiColor,
+    val diagnosticWarningColor: UiColor,
+    val diagnosticInfoColor: UiColor,
     val showCaret: Boolean,
     val showLineNumbers: Boolean,
     val showInlayHints: Boolean,
+    val diagnostics: List<UiTextDiagnostic>,
+    val inlayHints: List<UiInlayHint>,
     val placeholder: String,
     val opacity: Float,
     val fontSize: Float,
@@ -188,27 +202,6 @@ data class DrawTextFieldChromeCommand(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
-
-data class DrawScrollbarCommand(
-    override val node: UiNode,
-    val track: UiRect,
-    val thumb: UiRect,
-    val orientation: ScrollbarOrientation,
-    val trackPaint: UiResolvedPaint,
-    val trackBorder: UiBorder,
-    val trackFit: UiImageFit,
-    val trackSlice: UiInsets,
-    val thumbPaint: UiResolvedPaint,
-    val thumbBorder: UiBorder,
-    val thumbFit: UiImageFit,
-    val thumbSlice: UiInsets,
-    val opacity: Float,
-    val transform: UiMatrix4,
-) : UiRenderCommand
-
-enum class ScrollbarOrientation {
-    VERTICAL, HORIZONTAL
-}
 
 class UiCommandRenderer {
     fun collect(
@@ -219,7 +212,10 @@ class UiCommandRenderer {
         typingState: UiTypingState = UiTypingState(),
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands)
+        collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands, activeClip = null)
+        resolved.root.popupDescendants()
+            .sortedBy { resolved[it].layer }
+            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands, activeClip = null) }
         return commands
     }
 
@@ -231,6 +227,7 @@ class UiCommandRenderer {
         nowMillis: Long,
         typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>,
+        activeClip: UiRect?,
     ) {
         val style = resolved[node]
         val layoutNode = layout[node]
@@ -238,8 +235,20 @@ class UiCommandRenderer {
         val isFramebuffer = layoutNode.needsFramebuffer
         val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
         val localOpacity = if (isFramebuffer) 1f else style.opacity
+        val visibleShadows = if (node is TextNode) emptyList() else style.shadows.filterNot { it.inset }
+        val canCullNode = activeClip != null &&
+                node !is PopupNode &&
+                !isFramebuffer &&
+                visibleShadows.isEmpty() &&
+                style.backdropFilter.effects.isEmpty() &&
+                style.filter == UiFilterChain.Empty &&
+                style.transform == DirectLayoutTransform
+        val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
+        val pushedClip = style.clip || style.input.scrollable
 
-        if (style.backdropFilter.effects.isNotEmpty()) {
+        if (cullNodeCommands && pushedClip) return
+
+        if (!cullNodeCommands && style.backdropFilter.effects.isNotEmpty()) {
             commands += DrawBackdropFilterCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
                 filter = style.backdropFilter, opacity = style.opacity,
@@ -247,8 +256,7 @@ class UiCommandRenderer {
             )
         }
 
-        val visibleShadows = if (node is TextNode) emptyList() else style.shadows.filterNot { it.inset }
-        if (visibleShadows.isNotEmpty()) {
+        if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
             commands += DrawShadowCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
                 shadows = visibleShadows, opacity = style.opacity,
@@ -256,7 +264,7 @@ class UiCommandRenderer {
             )
         }
 
-        if (isFramebuffer) {
+        if (!cullNodeCommands && isFramebuffer) {
             commands += BeginLayerCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
                 transform = layoutNode.worldTransform, filter = style.filter,
@@ -265,27 +273,52 @@ class UiCommandRenderer {
             )
         }
 
-        if (style.background != UiPaint.None || style.border.width != UiInsets.Zero) {
+        if (!cullNodeCommands && (style.background != UiPaint.None || style.border.width != UiInsets.Zero)) {
             commands += DrawBoxCommand(
                 node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
                 border = style.border, shadows = emptyList(), opacity = localOpacity, tint = style.tint,
                 transform = layoutNode.worldTransform, renderToFramebuffer = false,
-                fit = style.imageFit, slice = style.imageSlice, filter = baseFilter, backfaceVisibility = style.backfaceVisibility
+                fit = style.imageFit, slice = style.imageSlice, filter = baseFilter,
+                backfaceVisibility = style.backfaceVisibility, phase = UiRenderPhase.BACKGROUND
             )
         }
 
-        val pushedClip = style.clip || style.input.scrollable
-        if (pushedClip) commands += PushClipCommand(node, layoutNode.content)
+        if (!cullNodeCommands && pushedClip) commands += PushClipCommand(node, layoutNode.content)
 
-        collectNodeContent(node, style, localOpacity, layoutNode, baseFilter, bindings, nowMillis, typingState, commands)
+        if (!cullNodeCommands) {
+            collectNodeContent(
+                node,
+                style,
+                localOpacity,
+                layoutNode,
+                layout,
+                baseFilter,
+                bindings,
+                nowMillis,
+                typingState,
+                commands,
+            )
+        }
 
-        node.children
-            .sortedBy { resolved[it].layer }
-            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
+        val childClip = when {
+            cullNodeCommands -> activeClip
+            !pushedClip -> activeClip
+            activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
+            else -> activeClip.visibleIntersection(layoutNode.content)
+        }
+        val collectChildren = !pushedClip || childClip != null
 
-        if (pushedClip) commands += PopClipCommand(node)
-        if (style.input.scrollable) appendScrollbars(node, layoutNode, style, localOpacity, bindings, commands)
-        if (isFramebuffer) commands += EndLayerCommand(node)
+        if (collectChildren) {
+            node.children
+                .filterNot { it is PopupNode }
+                .filter { it in layout.nodes }
+                .sortedBy { resolved[it].layer }
+                .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands, childClip) }
+        }
+
+        if (!cullNodeCommands && pushedClip) commands += PopClipCommand(node)
+        if (!cullNodeCommands && style.input.scrollable) appendScrollbars(node, layoutNode, style, localOpacity, bindings, commands)
+        if (!cullNodeCommands && isFramebuffer) commands += EndLayerCommand(node)
     }
 
     private fun collectNodeContent(
@@ -293,6 +326,7 @@ class UiCommandRenderer {
         style: ComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
+        layout: UiLayoutResult,
         filter: UiFilterChain,
         bindings: UiBindingContext,
         nowMillis: Long,
@@ -314,16 +348,7 @@ class UiCommandRenderer {
                     typingState.elapsed(node, style.typing, fullContent.text, nowMillis),
                 )
                 val textString = visibleContent.text
-                val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-                val fullLayout = UiTextLayouter.layout(
-                    fullContent.toRichText(),
-                    layoutNode.content.width,
-                    textHeight,
-                    style.textWrap,
-                    style.textAlign,
-                    style.fontSize,
-                    style.fontFamily,
-                )
+                val fullLayout = layoutNode.textLayout ?: fallbackTextLayout(node, style, layoutNode, layout, bindings)
                 val textLayout = if (style.typing == null) {
                     fullLayout
                 } else {
@@ -344,8 +369,29 @@ class UiCommandRenderer {
             is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
             is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
             is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
-            is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, commands)
+            is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, nowMillis, commands)
         }
+    }
+
+    private fun fallbackTextLayout(
+        node: TextNode,
+        style: ComputedStyle,
+        layoutNode: UiLayoutNode,
+        layout: UiLayoutResult,
+        bindings: UiBindingContext,
+    ): UiTextLayout {
+        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
+        return UiTextLayouter.layout(
+            node.content.resolve(bindings).toRichText(node.inlineWidgetMetrics(layout)),
+            layoutNode.content.width,
+            textHeight,
+            style.textWrap,
+            style.textAlign,
+            style.fontSize,
+            style.fontFamily,
+            lineSpacing = style.lineSpacing,
+            spaceWidth = style.spaceWidth,
+        )
     }
 
     private fun sliderCommand(
@@ -413,6 +459,7 @@ class UiCommandRenderer {
         transform: UiMatrix4,
         filter: UiFilterChain,
         backface: UiBackfaceVisibility,
+        nowMillis: Long,
         commands: MutableList<UiRenderCommand>,
     ) {
         val text = node.value
@@ -423,39 +470,28 @@ class UiCommandRenderer {
         val displayLayout = if (text.isEmpty()) {
             UiTextLayouter.layout(
                 visible,
-                layoutNode.content.width,
+                textFieldTextWidth(node, style, layoutNode),
                 textHeight,
                 wrap,
                 style.textAlign,
                 style.fontSize,
                 style.fontFamily,
+                lineSpacing = style.lineSpacing,
+                spaceWidth = style.spaceWidth,
             )
         } else {
-            editLayout
+            textFieldDisplayLayout(node, style, layoutNode)
         }
         val field = style.textField
-        commands += DrawTextFieldChromeCommand(
+        val textOffset = textFieldTextOffset(node, style, layoutNode)
+        commands += PushClipCommand(
             node = node,
-            rect = layoutNode.content,
-            layout = editLayout,
-            scrollOffset = layoutNode.scrollOffset,
-            caretIndex = node.caret,
-            selectionStart = node.selectionStart,
-            selectionEnd = node.selectionEnd,
-            caretColor = field.caretColor ?: style.foreground,
-            selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
-            lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
-            inlayHintColor = field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
-            showCaret = UiState.FOCUS in node.states,
-            showLineNumbers = field.lineNumbers == true,
-            showInlayHints = field.inlayHints == true,
-            placeholder = node.placeholder,
-            opacity = opacity,
-            fontSize = style.fontSize,
-            fontFamily = style.fontFamily,
-            transform = transform,
-            filter = filter,
-            backfaceVisibility = backface,
+            rect = UiRect(
+                layoutNode.content.x + textOffset,
+                layoutNode.content.y,
+                (layoutNode.content.width - textOffset).coerceAtLeast(0f),
+                layoutNode.content.height,
+            ),
         )
         commands += DrawTextCommand(
             node = node,
@@ -463,7 +499,7 @@ class UiCommandRenderer {
             text = visible,
             color = if (text.isEmpty()) field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.65f) else style.foreground,
             opacity = opacity,
-            transform = transform,
+            transform = transform * UiMatrix4.translation(textOffset, 0f, 0f),
             filter = filter,
             wrap = wrap,
             align = style.textAlign,
@@ -475,6 +511,196 @@ class UiCommandRenderer {
             hoveredLink = null,
             backfaceVisibility = backface,
         )
+        commands += PopClipCommand(node)
+        commands += DrawTextFieldChromeCommand(
+            node = node,
+            rect = layoutNode.content,
+            layout = editLayout,
+            scrollOffset = layoutNode.scrollOffset,
+            carets = node.caretRanges.toList(),
+            textOffset = textOffset,
+            caretColor = field.caretColor ?: style.foreground,
+            selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
+            lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
+            inlayHintColor = field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
+            diagnosticErrorColor = UiColor(1f, 0.33f, 0.33f, 0.9f),
+            diagnosticWarningColor = UiColor(1f, 0.72f, 0.26f, 0.88f),
+            diagnosticInfoColor = UiColor(0.38f, 0.66f, 1f, 0.84f),
+            showCaret = UiState.FOCUS in node.states,
+            showLineNumbers = field.lineNumbers == true,
+            showInlayHints = field.inlayHints == true,
+            diagnostics = node.diagnostics,
+            inlayHints = node.currentInlayHints(),
+            placeholder = node.placeholder,
+            opacity = opacity,
+            fontSize = style.fontSize,
+            fontFamily = style.fontFamily,
+            transform = transform,
+            filter = filter,
+            backfaceVisibility = backface,
+        )
+        appendCompletionPopupCommands(
+            node = node,
+            style = style,
+            opacity = opacity,
+            layoutNode = layoutNode,
+            editLayout = editLayout,
+            textOffset = textOffset,
+            transform = transform,
+            filter = filter,
+            backface = backface,
+            commands = commands,
+        )
+    }
+
+    private fun appendCompletionPopupCommands(
+        node: TextFieldNode,
+        style: ComputedStyle,
+        opacity: Float,
+        layoutNode: UiLayoutNode,
+        editLayout: UiTextLayout,
+        textOffset: Float,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+        backface: UiBackfaceVisibility,
+        commands: MutableList<UiRenderCommand>,
+    ) {
+        val items = node.completionItems.take(6)
+        if (items.isEmpty()) return
+        val rowHeight = (style.fontSize + 5f).coerceAtLeast(12f)
+        val popupHeight = rowHeight * items.size + 6f
+        val labelWidth = items.maxOfOrNull { item ->
+            val detail = if (item.detail.isBlank()) "" else "  ${item.detail}"
+            (item.label.length + detail.length) * style.fontSize * 0.56f
+        } ?: 0f
+        val popupWidth = (labelWidth + 18f).coerceIn(90f, max(90f, layoutNode.content.width - 8f))
+        val caret = editLayout.caretPosition(node.completionAnchor, style.fontSize, style.fontFamily)
+        val preferredX = textOffset + caret.x - layoutNode.scrollOffset.x
+        val popupX = preferredX.coerceIn(4f, (layoutNode.content.width - popupWidth - 4f).coerceAtLeast(4f))
+        val belowY = caret.y + style.fontSize - layoutNode.scrollOffset.y + 4f
+        val aboveY = caret.y - layoutNode.scrollOffset.y - popupHeight - 4f
+        val popupY = if (belowY + popupHeight <= layoutNode.content.height) {
+            belowY
+        } else {
+            aboveY.coerceAtLeast(4f)
+        }
+        val popupTransform = transform * UiMatrix4.translation(popupX, popupY, 30f)
+        commands += completionBoxCommand(
+            node = node,
+            width = popupWidth,
+            height = popupHeight,
+            paint = UiResolvedPaint.Color(UiColor(0.08f, 0.09f, 0.11f, 0.96f)),
+            border = UiBorder(UiInsets.all(1.px), UiColor(0.36f, 0.42f, 0.5f, 0.75f), 3f),
+            opacity = opacity,
+            transform = popupTransform,
+            filter = filter,
+            backface = backface,
+        )
+        items.forEachIndexed { index, item ->
+            val rowY = 3f + index * rowHeight
+            if (index == node.completionSelectedIndex.coerceIn(0, items.lastIndex)) {
+                commands += completionBoxCommand(
+                    node = node,
+                    width = popupWidth - 4f,
+                    height = rowHeight,
+                    paint = UiResolvedPaint.Color(UiColor(0.22f, 0.32f, 0.46f, 0.7f)),
+                    border = UiBorder(radius = 2f),
+                    opacity = opacity,
+                    transform = popupTransform * UiMatrix4.translation(2f, rowY, 0f),
+                    filter = filter,
+                    backface = backface,
+                )
+            }
+            commands += completionTextCommand(
+                node = node,
+                text = item.label,
+                color = UiColor(0.9f, 0.94f, 1f, 1f),
+                opacity = opacity,
+                fontSize = style.fontSize,
+                fontFamily = style.fontFamily,
+                transform = popupTransform * UiMatrix4.translation(8f, rowY + 2f, 0f),
+                filter = filter,
+                backface = backface,
+            )
+            if (item.detail.isNotBlank()) {
+                commands += completionTextCommand(
+                    node = node,
+                    text = item.detail,
+                    color = style.textField.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
+                    opacity = opacity,
+                    fontSize = style.fontSize,
+                    fontFamily = style.fontFamily,
+                    transform = popupTransform * UiMatrix4.translation(
+                        (item.label.length * style.fontSize * 0.56f + 16f).coerceAtMost(popupWidth - 42f),
+                        rowY + 2f,
+                        0f,
+                    ),
+                    filter = filter,
+                    backface = backface,
+                )
+            }
+        }
+    }
+
+    private fun completionBoxCommand(
+        node: UiNode,
+        width: Float,
+        height: Float,
+        paint: UiResolvedPaint,
+        border: UiBorder,
+        opacity: Float,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+        backface: UiBackfaceVisibility,
+    ): DrawBoxCommand {
+        return DrawBoxCommand(
+            node = node,
+            rect = UiRect(0f, 0f, width, height),
+            paint = paint,
+            border = border,
+            shadows = emptyList(),
+            opacity = opacity,
+            tint = UiColor.White,
+            transform = transform,
+            renderToFramebuffer = false,
+            fit = UiImageFit.STRETCH,
+            slice = UiInsets.Zero,
+            filter = filter,
+            backfaceVisibility = backface,
+            phase = UiRenderPhase.OVERLAY,
+        )
+    }
+
+    private fun completionTextCommand(
+        node: UiNode,
+        text: String,
+        color: UiColor,
+        opacity: Float,
+        fontSize: Float,
+        fontFamily: String?,
+        transform: UiMatrix4,
+        filter: UiFilterChain,
+        backface: UiBackfaceVisibility,
+    ): DrawTextCommand {
+        return DrawTextCommand(
+            node = node,
+            rect = UiRect(0f, 0f, 256f, fontSize + 5f),
+            text = text,
+            color = color,
+            opacity = opacity,
+            transform = transform,
+            filter = filter,
+            wrap = false,
+            align = UiTextAlign.LEFT,
+            fontSize = fontSize,
+            fontFamily = fontFamily,
+            textEffects = emptyList(),
+            layout = UiTextLayouter.layout(text, 256f, fontSize + 5f, false, UiTextAlign.LEFT, fontSize, fontFamily),
+            scrollOffset = UiScrollOffset.Zero,
+            hoveredLink = null,
+            backfaceVisibility = backface,
+            phase = UiRenderPhase.OVERLAY,
+        )
     }
 
     private fun appendScrollbars(
@@ -485,73 +711,91 @@ class UiCommandRenderer {
         bindings: UiBindingContext,
         commands: MutableList<UiRenderCommand>,
     ) {
-        val verticalStyle = style.scrollbar.resolved(layoutNode.scrollArea.width)
-        val horizontalStyle = style.scrollbar.resolved(layoutNode.scrollArea.height)
-        val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.scrollArea.height > verticalStyle.gutter
-        val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.scrollArea.width > horizontalStyle.gutter
-        if (hasVerticalScrollbar) {
-            val horizontalReserve = if (hasHorizontalScrollbar) horizontalStyle.gutter else 0f
-            val trackHeight = layoutNode.scrollArea.height - verticalStyle.margin * 2f - horizontalReserve
-            if (trackHeight > 0f) {
-                val track = UiRect(
-                    x = layoutNode.scrollArea.x - layoutNode.rect.x + layoutNode.scrollArea.width - verticalStyle.thickness - verticalStyle.margin,
-                    y = layoutNode.scrollArea.y - layoutNode.rect.y + verticalStyle.margin,
-                    width = verticalStyle.thickness,
-                    height = trackHeight,
-                )
-                val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
-                val thumbHeight = maxOf(verticalStyle.minThumbSize, track.height * layoutNode.content.height / contentHeight)
-                val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
-                commands += DrawScrollbarCommand(
-                    node = node,
-                    track = track,
-                    thumb = track.copy(y = thumbY, height = thumbHeight),
-                    orientation = ScrollbarOrientation.VERTICAL,
-                    trackPaint = verticalStyle.track.paint.resolve(bindings, UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
-                    trackBorder = verticalStyle.track.border ?: UiBorder(radius = verticalStyle.track.radius ?: 3.5f),
-                    trackFit = verticalStyle.track.fit ?: UiImageFit.STRETCH,
-                    trackSlice = verticalStyle.track.slice ?: UiInsets.all(4.px),
-                    thumbPaint = verticalStyle.thumb.paint.resolve(bindings, UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.9f))),
-                    thumbBorder = verticalStyle.thumb.border ?: UiBorder(radius = verticalStyle.thumb.radius ?: 3.5f),
-                    thumbFit = verticalStyle.thumb.fit ?: UiImageFit.STRETCH,
-                    thumbSlice = verticalStyle.thumb.slice ?: UiInsets.all(4.px),
-                    opacity = opacity,
-                    transform = layoutNode.worldTransform,
-                )
+        for (scrollbar in layoutNode.scrollbars) {
+            val scrollbarStyle = when (scrollbar.orientation) {
+                ScrollbarOrientation.VERTICAL -> style.scrollbar.resolved(layoutNode.scrollArea.width)
+                ScrollbarOrientation.HORIZONTAL -> style.scrollbar.resolved(layoutNode.scrollArea.height)
             }
-        }
-        if (hasHorizontalScrollbar) {
-            val verticalReserve = if (hasVerticalScrollbar) verticalStyle.gutter else 0f
-            val trackWidth = layoutNode.scrollArea.width - horizontalStyle.margin * 2f - verticalReserve
-            if (trackWidth > 0f) {
-                val track = UiRect(
-                    x = layoutNode.scrollArea.x - layoutNode.rect.x + horizontalStyle.margin,
-                    y = layoutNode.scrollArea.y - layoutNode.rect.y + layoutNode.scrollArea.height - horizontalStyle.thickness - horizontalStyle.margin,
-                    width = trackWidth,
-                    height = horizontalStyle.thickness,
-                )
-                val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
-                val thumbWidth = maxOf(horizontalStyle.minThumbSize, track.width * layoutNode.content.width / contentWidth)
-                val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
-                commands += DrawScrollbarCommand(
-                    node = node,
-                    track = track,
-                    thumb = track.copy(x = thumbX, width = thumbWidth),
-                    orientation = ScrollbarOrientation.HORIZONTAL,
-                    trackPaint = horizontalStyle.track.paint.resolve(bindings, UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
-                    trackBorder = horizontalStyle.track.border ?: UiBorder(radius = horizontalStyle.track.radius ?: 3.5f),
-                    trackFit = horizontalStyle.track.fit ?: UiImageFit.STRETCH,
-                    trackSlice = horizontalStyle.track.slice ?: UiInsets.all(4.px),
-                    thumbPaint = horizontalStyle.thumb.paint.resolve(bindings, UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.82f))),
-                    thumbBorder = horizontalStyle.thumb.border ?: UiBorder(radius = horizontalStyle.thumb.radius ?: 3.5f),
-                    thumbFit = horizontalStyle.thumb.fit ?: UiImageFit.STRETCH,
-                    thumbSlice = horizontalStyle.thumb.slice ?: UiInsets.all(4.px),
-                    opacity = opacity,
-                    transform = layoutNode.worldTransform,
-                )
+            val thumbOpacity = when (scrollbar.orientation) {
+                ScrollbarOrientation.VERTICAL -> 0.9f
+                ScrollbarOrientation.HORIZONTAL -> 0.82f
             }
+            commands += scrollbarBoxCommand(
+                node = node,
+                rect = scrollbar.track,
+                paint = scrollbarStyle.track.paint.resolve(bindings, UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
+                border = scrollbarStyle.track.border ?: UiBorder(radius = scrollbarStyle.track.radius ?: 3.5f),
+                fit = scrollbarStyle.track.fit ?: UiImageFit.STRETCH,
+                slice = scrollbarStyle.track.slice ?: UiInsets.all(4.px),
+                opacity = opacity,
+                transform = layoutNode.worldTransform,
+                backfaceVisibility = style.backfaceVisibility,
+            )
+            commands += scrollbarBoxCommand(
+                node = node,
+                rect = scrollbar.thumb,
+                paint = scrollbarStyle.thumb.paint.resolve(
+                    bindings,
+                    UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, thumbOpacity)),
+                ),
+                border = scrollbarStyle.thumb.border ?: UiBorder(radius = scrollbarStyle.thumb.radius ?: 3.5f),
+                fit = scrollbarStyle.thumb.fit ?: UiImageFit.STRETCH,
+                slice = scrollbarStyle.thumb.slice ?: UiInsets.all(4.px),
+                opacity = opacity,
+                transform = layoutNode.worldTransform,
+                backfaceVisibility = style.backfaceVisibility,
+            )
         }
     }
+
+    private fun scrollbarBoxCommand(
+        node: UiNode,
+        rect: UiRect,
+        paint: UiResolvedPaint,
+        border: UiBorder,
+        fit: UiImageFit,
+        slice: UiInsets,
+        opacity: Float,
+        transform: UiMatrix4,
+        backfaceVisibility: UiBackfaceVisibility,
+    ): DrawBoxCommand {
+        return DrawBoxCommand(
+            node = node,
+            rect = UiRect(0f, 0f, rect.width, rect.height),
+            paint = paint,
+            border = border,
+            shadows = emptyList(),
+            opacity = opacity,
+            tint = UiColor.White,
+            transform = transform * UiMatrix4.translation(rect.x, rect.y, 0f),
+            renderToFramebuffer = false,
+            fit = fit,
+            slice = slice,
+            filter = UiFilterChain.Empty,
+            backfaceVisibility = backfaceVisibility,
+            phase = UiRenderPhase.OVERLAY,
+        )
+    }
+}
+
+private fun UiNode.popupDescendants(): List<PopupNode> {
+    val result = mutableListOf<PopupNode>()
+    fun visit(node: UiNode) {
+        for (child in node.children) {
+            if (child is PopupNode) result += child
+            visit(child)
+        }
+    }
+    visit(this)
+    return result
+}
+
+private fun TextNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
+    return children.mapNotNull { child ->
+        val id = child.id ?: return@mapNotNull null
+        val rect = layout.nodes[child]?.rect ?: return@mapNotNull null
+        id to UiInlineWidgetMetrics(rect.width, rect.height)
+    }.toMap()
 }
 
 private fun ComputedStyle.textEffectsWithShadows(): List<UiTextEffect> {
@@ -623,6 +867,12 @@ data class UiHit(
 
 class UiHitTester {
     fun hitTest(resolved: ResolvedUiTree, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
+        val popups = resolved.root.popupDescendants()
+            .filter { it in layout.nodes }
+            .sortedWith(compareBy<PopupNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        for (popup in popups.asReversed()) {
+            hitNode(popup, resolved, layout, x, y, ancestorClip = null)?.let { return it }
+        }
         return hitNode(resolved.root, resolved, layout, x, y, ancestorClip = null)
     }
 
@@ -634,10 +884,15 @@ class UiHitTester {
         y: Float,
         ancestorClip: UiRect?,
     ): UiHit? {
-        val children = node.children.sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val children = node.children
+            .filter { it in layout.nodes }
+            .sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
         val layoutNode = layout[node]
         val effectiveClip = ancestorClip.intersect(layoutNode.clip)
-        for (child in children.asReversed()) {
+        for (child in children.filterIsInstance<PopupNode>().asReversed()) {
+            hitNode(child, resolved, layout, x, y, ancestorClip = ancestorClip)?.let { return it }
+        }
+        for (child in children.filterNot { it is PopupNode }.asReversed()) {
             hitNode(child, resolved, layout, x, y, ancestorClip = effectiveClip)?.let { return it }
         }
         val style = resolved[node]
@@ -684,6 +939,8 @@ class UiHitTester {
     }
 }
 
+private val DirectLayoutTransform = UiTransform()
+
 private fun UiRect?.intersect(other: UiRect?): UiRect? {
     if (this == null) return other
     if (other == null) return this
@@ -693,4 +950,21 @@ private fun UiRect?.intersect(other: UiRect?): UiRect? {
     val bottom = minOf(y + height, other.y + other.height)
     if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
     return UiRect(left, top, right - left, bottom - top)
+}
+
+private fun UiRect.hasVisibleArea(): Boolean {
+    return width > 0f && height > 0f
+}
+
+private fun UiRect.visibleIntersection(other: UiRect): UiRect? {
+    val left = maxOf(x, other.x)
+    val top = maxOf(y, other.y)
+    val right = minOf(x + width, other.x + other.width)
+    val bottom = minOf(y + height, other.y + other.height)
+    if (right <= left || bottom <= top) return null
+    return UiRect(left, top, right - left, bottom - top)
+}
+
+private fun UiRect.intersectsVisible(other: UiRect): Boolean {
+    return visibleIntersection(other) != null
 }

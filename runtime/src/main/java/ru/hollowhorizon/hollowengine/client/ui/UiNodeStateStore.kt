@@ -47,6 +47,7 @@ data class TextFieldPersistentState(
     val caret: Int,
     val selectionAnchor: Int?,
     val carets: List<Int>,
+    val caretRanges: List<UiTextCaret> = emptyList(),
     val caretVisibilityRevision: Long = 0L,
 ) : UiNodePersistentState {
     override val type: String = UiNodeType.TEXT_FIELD.typeName

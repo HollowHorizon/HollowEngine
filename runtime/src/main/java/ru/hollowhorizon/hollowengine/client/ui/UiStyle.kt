@@ -165,7 +165,6 @@ enum class UiAnimationPlayState {
 }
 
 data class MutableUiStyle(
-    var layout: LayoutType? = null,
     var size: UiSize? = null,
     var minSize: UiSize? = null,
     var maxSize: UiSize? = null,
@@ -207,6 +206,8 @@ data class MutableUiStyle(
     var textField: UiTextFieldStyle? = null,
     var textWrap: Boolean? = null,
     var textAlign: UiTextAlign? = null,
+    var lineSpacing: Float? = null,
+    var spaceWidth: Float? = null,
     var fontSize: Float? = null,
     var fontFamily: String? = null,
     var textEffects: List<UiTextEffect>? = null,
@@ -216,7 +217,6 @@ data class MutableUiStyle(
     var explicitProperties: Set<UiStyleProperty>? = null,
 ) {
     fun merge(other: MutableUiStyle) {
-        other.layout?.let { layout = it }
         other.size?.let { size = it }
         other.minSize?.let { minSize = it }
         other.maxSize?.let { maxSize = it }
@@ -258,6 +258,8 @@ data class MutableUiStyle(
         other.textField?.let { textField = textField?.merge(it) ?: it }
         other.textWrap?.let { textWrap = it }
         other.textAlign?.let { textAlign = it }
+        other.lineSpacing?.let { lineSpacing = it }
+        other.spaceWidth?.let { spaceWidth = it }
         other.fontSize?.let { fontSize = it }
         other.fontFamily?.let { fontFamily = it }
         other.textEffects?.let { textEffects = textEffects.orEmpty() + it }
@@ -270,9 +272,9 @@ data class MutableUiStyle(
     fun toComputed(parent: ComputedStyle? = null): ComputedStyle {
         val inheritedForeground = parent?.foreground ?: UiColor.White
         val inheritedTextAlign = parent?.textAlign ?: UiTextAlign.LEFT
+        val inheritedLineSpacing = parent?.lineSpacing ?: 0f
         val inheritedFontSize = parent?.fontSize ?: DefaultUiFontSize
         return ComputedStyle(
-            layout = layout ?: LayoutType.COLUMN,
             size = size ?: UiSize(),
             minSize = minSize ?: UiSize(),
             maxSize = maxSize ?: UiSize(),
@@ -314,6 +316,8 @@ data class MutableUiStyle(
             textField = textField ?: UiTextFieldStyle(),
             textWrap = textWrap ?: true,
             textAlign = textAlign ?: inheritedTextAlign,
+            lineSpacing = lineSpacing ?: inheritedLineSpacing,
+            spaceWidth = spaceWidth ?: parent?.spaceWidth,
             fontSize = fontSize ?: inheritedFontSize,
             fontFamily = fontFamily,
             textEffects = textEffects ?: emptyList(),
@@ -326,7 +330,6 @@ data class MutableUiStyle(
 }
 
 data class ComputedStyle(
-    val layout: LayoutType,
     val size: UiSize,
     val minSize: UiSize,
     val maxSize: UiSize,
@@ -368,6 +371,8 @@ data class ComputedStyle(
     val textField: UiTextFieldStyle,
     val textWrap: Boolean,
     val textAlign: UiTextAlign,
+    val lineSpacing: Float,
+    val spaceWidth: Float?,
     val fontSize: Float,
     val fontFamily: String?,
     val textEffects: List<UiTextEffect>,
@@ -471,7 +476,6 @@ private val TransitionProperties = setOf(
 )
 
 private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
-    layout = layout,
     size = size,
     minSize = minSize,
     maxSize = maxSize,
@@ -513,6 +517,8 @@ private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     textField = textField,
     textWrap = textWrap,
     textAlign = textAlign,
+    lineSpacing = lineSpacing,
+    spaceWidth = spaceWidth,
     fontSize = fontSize,
     fontFamily = fontFamily,
     textEffects = textEffects,
@@ -637,7 +643,7 @@ data class UiScrollbarStyle(
     }
 
     companion object {
-        val DefaultThickness: UiLength = 7.px
+        val DefaultThickness: UiLength = 3.5.px
         val DefaultMargin: UiLength = 3.px
         val DefaultMinThumbSize: UiLength = 18.px
     }
@@ -867,6 +873,8 @@ class UiTransitionState {
     fun activeDurationMillis(node: UiNode): Long = activeDurations[UiNodeKeys.key(node)] ?: 0L
 
     fun startedDurationMillis(node: UiNode): Long = startedDurations[UiNodeKeys.key(node)] ?: 0L
+
+    fun hasActiveTransitions(): Boolean = activeDurations.values.any { it > 0L }
 
     private fun List<UiTransition>.progress(elapsedMillis: Long): TransitionProgress {
         return TransitionProgress(

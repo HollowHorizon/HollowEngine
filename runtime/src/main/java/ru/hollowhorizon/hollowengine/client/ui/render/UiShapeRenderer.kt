@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.BufferUploader
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.renderer.GameRenderer
 import ru.hollowhorizon.hollowengine.client.ui.*
@@ -13,7 +14,21 @@ internal data class UiBatchedQuad(
     val width: Float,
     val height: Float,
     val transform: UiMatrix4,
-    val colors: List<UiColor>,
+    val topLeft: UiColor,
+    val bottomLeft: UiColor,
+    val bottomRight: UiColor,
+    val topRight: UiColor,
+)
+
+internal data class UiBatchedTriangle(
+    val first: UiBatchedVertex,
+    val second: UiBatchedVertex,
+    val third: UiBatchedVertex,
+)
+
+internal data class UiBatchedVertex(
+    val position: UiVec3,
+    val color: UiColor,
 )
 
 internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
@@ -21,13 +36,19 @@ internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
     withCullStatePreserved {
         RenderSystem.disableCull()
         RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
         quads.forEach { quad ->
             val corners = localCorners(quad.width, quad.height, quad.transform)
             corners.forEachIndexed { index, corner ->
-                val color = quad.colors[index.coerceAtMost(quad.colors.lastIndex)]
+                val color = when (index) {
+                    0 -> quad.topLeft
+                    1 -> quad.bottomLeft
+                    2 -> quad.bottomRight
+                    else -> quad.topRight
+                }
                 buffer.addVertex(corner.x, corner.y, corner.z).setColor(color.red, color.green, color.blue, color.alpha)
             }
         }
@@ -35,8 +56,26 @@ internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
     }
 }
 
+internal fun drawBatchedTriangles(triangles: List<UiBatchedTriangle>) {
+    if (triangles.isEmpty()) return
+    withCullStatePreserved {
+        RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
+        triangles.forEach { triangle ->
+            buffer.add(triangle.first)
+            buffer.add(triangle.second)
+            buffer.add(triangle.third)
+        }
+        BufferUploader.drawWithShader(buffer.buildOrThrow())
+    }
+}
+
 internal fun solidQuad(width: Float, height: Float, color: UiColor, transform: UiMatrix4): UiBatchedQuad {
-    return UiBatchedQuad(width, height, transform, List(4) { color })
+    return UiBatchedQuad(width, height, transform, color, color, color, color)
 }
 
 internal fun gradientQuad(
@@ -51,13 +90,172 @@ internal fun gradientQuad(
         width = width,
         height = height,
         transform = transform,
-        colors = listOf(
-            gradientColorAt(0f, 0f, width, height, angleDegrees, stops).withOpacity(opacity),
-            gradientColorAt(0f, height, width, height, angleDegrees, stops).withOpacity(opacity),
-            gradientColorAt(width, height, width, height, angleDegrees, stops).withOpacity(opacity),
-            gradientColorAt(width, 0f, width, height, angleDegrees, stops).withOpacity(opacity),
-        ),
+        topLeft = gradientColorAt(0f, 0f, width, height, angleDegrees, stops).withOpacity(opacity),
+        bottomLeft = gradientColorAt(0f, height, width, height, angleDegrees, stops).withOpacity(opacity),
+        bottomRight = gradientColorAt(width, height, width, height, angleDegrees, stops).withOpacity(opacity),
+        topRight = gradientColorAt(width, 0f, width, height, angleDegrees, stops).withOpacity(opacity),
     )
+}
+
+internal fun MutableList<UiBatchedTriangle>.appendSolidQuad(
+    width: Float,
+    height: Float,
+    color: UiColor,
+    transform: UiMatrix4,
+) {
+    appendGradientQuad(width, height, color, color, color, color, transform)
+}
+
+internal fun MutableList<UiBatchedTriangle>.appendGradientQuad(
+    width: Float,
+    height: Float,
+    angleDegrees: Float,
+    stops: List<UiGradientStop>,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    appendGradientQuad(
+        width = width,
+        height = height,
+        topLeft = gradientColorAt(0f, 0f, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
+        bottomLeft = gradientColorAt(0f, height, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
+        bottomRight = gradientColorAt(width, height, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
+        topRight = gradientColorAt(width, 0f, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
+        transform = transform,
+    )
+}
+
+internal fun MutableList<UiBatchedTriangle>.appendLocalPaint(
+    width: Float,
+    height: Float,
+    radius: Float,
+    color: UiColor,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    val filtered = color.filtered(filter)
+    if (radius <= 0f) {
+        appendSolidQuad(width, height, filtered, transform)
+        return
+    }
+    appendRoundedFill(width, height, radius, transform) { _, _ -> filtered }
+}
+
+internal fun MutableList<UiBatchedTriangle>.appendLocalGradient(
+    width: Float,
+    height: Float,
+    radius: Float,
+    angleDegrees: Float,
+    stops: List<UiGradientStop>,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    if (radius <= 0f) {
+        appendGradientQuad(width, height, angleDegrees, stops, opacity, transform, filter)
+        return
+    }
+    appendRoundedFill(width, height, radius, transform) { x, y ->
+        gradientColorAt(x, y, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter)
+    }
+}
+
+internal fun MutableList<UiBatchedTriangle>.appendLocalBorder(
+    width: Float,
+    height: Float,
+    radius: Float,
+    thickness: Float,
+    color: UiColor,
+    transform: UiMatrix4,
+) {
+    val border = thickness.coerceAtLeast(1f)
+    if (radius > 0f) {
+        appendRoundedStroke(width, height, radius, border, color, transform)
+        return
+    }
+    appendSolidQuad(width, border, color, transform)
+    appendSolidQuad(width, border, color, transform * UiMatrix4.translation(0f, height - border, 0f))
+    appendSolidQuad(border, height, color, transform)
+    appendSolidQuad(border, height, color, transform * UiMatrix4.translation(width - border, 0f, 0f))
+}
+
+private fun MutableList<UiBatchedTriangle>.appendGradientQuad(
+    width: Float,
+    height: Float,
+    topLeft: UiColor,
+    bottomLeft: UiColor,
+    bottomRight: UiColor,
+    topRight: UiColor,
+    transform: UiMatrix4,
+) {
+    val corners = localCorners(width, height, transform)
+    val first = UiBatchedVertex(corners[0], topLeft)
+    val second = UiBatchedVertex(corners[1], bottomLeft)
+    val third = UiBatchedVertex(corners[2], bottomRight)
+    val fourth = UiBatchedVertex(corners[3], topRight)
+    this += UiBatchedTriangle(first, second, third)
+    this += UiBatchedTriangle(first, third, fourth)
+}
+
+private fun MutableList<UiBatchedTriangle>.appendRoundedFill(
+    width: Float,
+    height: Float,
+    radius: Float,
+    transform: UiMatrix4,
+    colorAt: (Float, Float) -> UiColor,
+) {
+    val centerX = width * 0.5f
+    val centerY = height * 0.5f
+    val center = UiBatchedVertex(transform.transform(centerX, centerY), colorAt(centerX, centerY))
+    val perimeter = roundedPerimeter(width, height, radius)
+    for (index in 0 until perimeter.lastIndex) {
+        val first = perimeter[index]
+        val second = perimeter[index + 1]
+        this += UiBatchedTriangle(
+            center,
+            UiBatchedVertex(transform.transform(first.first, first.second), colorAt(first.first, first.second)),
+            UiBatchedVertex(transform.transform(second.first, second.second), colorAt(second.first, second.second)),
+        )
+    }
+}
+
+private fun MutableList<UiBatchedTriangle>.appendRoundedStroke(
+    width: Float,
+    height: Float,
+    radius: Float,
+    thickness: Float,
+    color: UiColor,
+    transform: UiMatrix4,
+) {
+    val inset = thickness.coerceAtLeast(1f)
+    val innerWidth = width - inset * 2f
+    val innerHeight = height - inset * 2f
+    if (innerWidth <= 0f || innerHeight <= 0f) {
+        appendRoundedFill(width, height, radius, transform) { _, _ -> color }
+        return
+    }
+    val segments = roundedSegments(radius)
+    val outer = roundedPerimeter(width, height, radius, segments)
+    val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments)
+        .map { (x, y) -> x + inset to y + inset }
+    for (index in 0 until outer.lastIndex) {
+        val nextIndex = index + 1
+        val currentInner = inner[index.coerceAtMost(inner.lastIndex)]
+        val nextInner = inner[nextIndex.coerceAtMost(inner.lastIndex)]
+        val outerVertex = UiBatchedVertex(transform.transform(outer[index].first, outer[index].second), color)
+        val nextOuterVertex = UiBatchedVertex(transform.transform(outer[nextIndex].first, outer[nextIndex].second), color)
+        val innerVertex = UiBatchedVertex(transform.transform(currentInner.first, currentInner.second), color)
+        val nextInnerVertex = UiBatchedVertex(transform.transform(nextInner.first, nextInner.second), color)
+        this += UiBatchedTriangle(outerVertex, innerVertex, nextInnerVertex)
+        this += UiBatchedTriangle(outerVertex, nextInnerVertex, nextOuterVertex)
+    }
+}
+
+private fun VertexConsumer.add(vertex: UiBatchedVertex) {
+    val color = vertex.color
+    val position = vertex.position
+    addVertex(position.x, position.y, position.z).setColor(color.red, color.green, color.blue, color.alpha)
 }
 
 internal fun drawLocalBorder(width: Float, height: Float, radius: Float, color: UiColor, transform: UiMatrix4) {
@@ -83,6 +281,8 @@ internal fun drawSolid(rect: UiRect, color: UiColor, transform: UiMatrix4, radiu
     }
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
@@ -110,6 +310,8 @@ internal fun drawLocalPaint(
     }
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
@@ -248,6 +450,8 @@ private fun drawRoundedFan(
 ) {
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR)
@@ -282,6 +486,8 @@ private fun drawProjectedShadowGradient(
     configureUiBlend()
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
@@ -335,6 +541,8 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
     val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments).map { (x, y) -> x + inset to y + inset }
     withCullStatePreserved {
         RenderSystem.disableCull()
+        RenderSystem.enableBlend()
+        configureUiBlend()
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR)

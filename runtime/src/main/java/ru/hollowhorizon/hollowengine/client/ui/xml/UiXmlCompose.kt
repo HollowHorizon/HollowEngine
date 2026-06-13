@@ -15,10 +15,10 @@ fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {
         .takeIf { it.isNotEmpty() }
         ?.let(::UiClientScriptModifier)
     val rootElement = document.resolve(document.root)
-    if (rootElement.name.equals("box", ignoreCase = true)) {
+    if (rootElement.name.isLayoutContainer()) {
         UiXmlElement(rootElement, document, listOfNotNull(scriptModifier))
     } else {
-        Box(modifier = scriptModifier) {
+        Column(modifier = scriptModifier) {
             UiXmlElement(rootElement, document)
         }
     }
@@ -97,15 +97,44 @@ private fun UiXmlElement(
     val id = attributes["id"]
     val tags = attributes.tags(resolved.name)
     when (resolved.name.lowercase()) {
-        "box" -> Box(id, tags, modifier, customAttributes) {
+        "box" -> Box(id, attributes.boxMode(), tags, modifier, customAttributes) {
             UiXmlChildren(resolved, document)
         }
 
-        "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes)
+        "column" -> Column(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "lazy-column", "lazycolumn" -> LazyColumn(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "row" -> Row(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "lazy-row", "lazyrow" -> LazyRow(id, tags, modifier, customAttributes) {
+            UiXmlChildren(resolved, document)
+        }
+
+        "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes) {
+            UiXmlInlineWidgetChildren(resolved, document)
+        }
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
         "canvas" -> Canvas(attributes["renderer"], id, tags, modifier, customAttributes)
+        "popup" -> Popup(
+            anchor = attributes.popupAnchor(),
+            alignment = attributes.popupAlignment(),
+            id = id,
+            tags = tags,
+            modifier = modifier,
+            attributes = customAttributes,
+        ) {
+            UiXmlChildren(resolved, document)
+        }
+
         "slider" -> Slider(
             value = attributes.readSliderValue("value", 0f),
             min = attributes.readSliderValue("min", 0f),
@@ -152,6 +181,17 @@ private fun UiXmlChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
         .forEachIndexed { index, child ->
             key(child.composeKey(index)) {
                 UiXmlElement(child, document)
+            }
+        }
+}
+
+@Composable
+private fun UiXmlInlineWidgetChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
+    element.children
+        .filterNot { it.isTextLiteral() || it.isTextInlineElement() }
+        .forEachIndexed { index, child ->
+            key(child.composeKey(index)) {
+                UiXmlElement(child.withInlineWidgetId(index), document)
             }
         }
 }
@@ -223,6 +263,24 @@ private fun String.toModifierName(): String {
 
 private fun String.toEventKind(): UiEventKind? = UiEventKind.fromAttribute(this)
 
+private fun String.isLayoutContainer(): Boolean {
+    return equals("box", ignoreCase = true) ||
+            equals("column", ignoreCase = true) ||
+            equals("lazy-column", ignoreCase = true) ||
+            equals("lazycolumn", ignoreCase = true) ||
+            equals("row", ignoreCase = true) ||
+            equals("lazy-row", ignoreCase = true) ||
+            equals("lazyrow", ignoreCase = true)
+}
+
+private fun Map<String, String>.boxMode(): UiBoxMode {
+    return when (firstValue("mode").lowercase()) {
+        "", "free" -> UiBoxMode.FREE
+        "stack" -> UiBoxMode.STACK
+        else -> throw IllegalArgumentException("Unknown box mode '${firstValue("mode")}'")
+    }
+}
+
 private fun List<Modifier>.asModifier(): Modifier? = when (size) {
     0 -> null
     1 -> single()
@@ -241,6 +299,55 @@ private fun Map<String, String>.textFieldMode(): UiTextFieldMode {
     if (readBoolean("multiline") || readBoolean("multi-line")) return UiTextFieldMode.MULTI_LINE
     return UiTextFieldMode.from(firstValue("mode", "multiline", "multi-line"))
 }
+
+private fun Map<String, String>.popupAnchor(): UiPopupAnchor {
+    val anchor = firstValue("anchor", "target", "for").ifBlank { "parent" }.trim()
+    return when {
+        anchor.equals("parent", ignoreCase = true) -> UiPopupAnchor.Parent
+        anchor.equals("cursor", ignoreCase = true) -> {
+            val x = firstValue("cursor-x", "x")
+            val y = firstValue("cursor-y", "y")
+            if (x.isBlank() && y.isBlank()) {
+                UiPopupAnchor.Cursor()
+            } else {
+                UiPopupAnchor.Cursor(x.parsePopupFloat(), y.parsePopupFloat())
+            }
+        }
+
+        else -> UiPopupAnchor.Node(anchor.removePrefix("#"))
+    }
+}
+
+private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
+    val preset = firstValue("placement", "align", "alignment").ifBlank { "below-start" }
+    val base = when (preset.lowercase()) {
+        "cursor" -> UiPopupAlignment.Cursor
+        "above-start" -> UiPopupAlignment(anchorVertical = UiAlign.START, popupVertical = UiAlign.END)
+        "above-end" -> UiPopupAlignment(
+            anchorHorizontal = UiAlign.END,
+            anchorVertical = UiAlign.START,
+            popupHorizontal = UiAlign.END,
+            popupVertical = UiAlign.END,
+        )
+
+        "below-end" -> UiPopupAlignment(anchorHorizontal = UiAlign.END, popupHorizontal = UiAlign.END)
+        "right-start" -> UiPopupAlignment(anchorHorizontal = UiAlign.END, anchorVertical = UiAlign.START)
+        "left-start" -> UiPopupAlignment(
+            anchorHorizontal = UiAlign.START,
+            anchorVertical = UiAlign.START,
+            popupHorizontal = UiAlign.END,
+            popupVertical = UiAlign.START,
+        )
+
+        else -> UiPopupAlignment.BelowStart
+    }
+    return base.copy(
+        offsetX = firstValue("offset-x", "offsetX").ifBlank { base.offsetX.toString() }.parsePopupFloat(),
+        offsetY = firstValue("offset-y", "offsetY").ifBlank { base.offsetY.toString() }.parsePopupFloat(),
+    )
+}
+
+private fun String.parsePopupFloat(): Float = trim().removeSuffix("px").toFloatOrNull() ?: 0f
 
 private fun UiTextSegment.Text.trimStart(): UiTextSegment.Text {
     return copy(value = value.template.trimStart().bound())
@@ -273,6 +380,7 @@ private val StructuralAttributes = setOf(
     "item",
     "entity",
     "renderer",
+    "mode",
 )
 
 private val SliderAttributes = setOf("value", "min", "max", "step")

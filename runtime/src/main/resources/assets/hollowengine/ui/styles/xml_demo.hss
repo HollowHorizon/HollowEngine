@@ -1,5 +1,4 @@
 #xml-demo {
-    layout: free;
     size: 100% 100%;
     min-size: 0px 0px;
     background: linear-gradient(135deg, rgba(18, 26, 38, 0.98), rgba(34, 72, 82, 0.92), rgba(54, 48, 86, 0.9));
@@ -20,9 +19,60 @@
     size: 420px 34px;
 }
 
+.xml-rich-text {
+    position: 24px 84px;
+    size: 430px 42px;
+    foreground: rgba(236, 242, 248, 0.92);
+    text-align: justify;
+}
+
+.xml-inline-chip {
+    padding: 2px 7px;
+    size: auto 17px;
+    background: rgba(88, 168, 154, 0.98);
+    foreground: white;
+    border-radius: 6px;
+    border: 1px rgba(188, 255, 244, 0.64);
+}
+
+.xml-slot-text {
+    position: 24px 134px;
+    size: 430px 78px;
+    foreground: rgba(236, 242, 248, 0.92);
+}
+
+.xml-slot-note {
+    padding: 6px;
+    size: 58px 36px;
+    background: rgba(246, 250, 254, 0.94);
+    foreground: rgba(30, 36, 50, 0.98);
+    border-radius: 8px;
+    border: 1px rgba(255, 255, 255, 0.7);
+}
+
+.xml-popup-anchor {
+    position: 484px 32px;
+    padding: 8px;
+    size: 118px 32px;
+    background: rgba(72, 150, 142, 0.96);
+    foreground: white;
+    border-radius: 7px;
+    border: 1px rgba(184, 255, 244, 0.68);
+}
+
+.xml-popup {
+    gap: 4px;
+    padding: 9px;
+    size: 112px auto;
+    background: rgba(246, 250, 254, 0.96);
+    foreground: rgba(30, 36, 50, 0.98);
+    border-radius: 8px;
+    border: 1px rgba(255, 255, 255, 0.7);
+    shadow: 0px 14px 26px -8px rgba(0, 0, 0, 0.55);
+}
+
 .xml-button {
-    position: 24px 108px;
-    layout: column;
+    position: 24px 226px;
     align-items: center center;
     size: 104px 34px;
     padding: 8px;
@@ -41,7 +91,7 @@
 }
 
 .xml-button.secondary {
-    position: 142px 108px;
+    position: 142px 226px;
     background: rgba(72, 82, 108, 0.94);
     border: 1px rgba(196, 210, 238, 0.48);
 }
@@ -51,8 +101,7 @@
 }
 
 .xml-badge {
-    position: 284px 100px;
-    layout: column;
+    position: 284px 222px;
     gap: 7px;
     size: 248px 78px;
     padding: 12px;

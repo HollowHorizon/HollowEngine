@@ -51,10 +51,11 @@ internal fun UiXmlTree.toTextContent(
     onlyDirectText: Boolean = true,
 ): UiTextContent {
     attributes["text"]?.let { return UiTextContent.plain(it) }
-    val segments = children.flatMap { child ->
+    val segments = children.flatMapIndexed { index, child ->
         when {
             child.isTextLiteral() -> listOf(UiTextSegment.Text(child.attributes.firstValue(XML_TEXT_VALUE_ATTRIBUTE, "value").normalizeInlineText().bound(), style))
-            onlyDirectText && !child.isTextInlineElement() -> emptyList()
+            child.isTextInlineElement() -> child.toInlineSegments(style)
+            onlyDirectText -> listOf(child.toInlineWidgetSegment(index))
             else -> child.toInlineSegments(style)
         }
     }
@@ -138,7 +139,7 @@ private fun UiXmlTree.toInlineSegments(style: UiInlineStyle): List<UiTextSegment
             )
         )
 
-        else -> throw IllegalArgumentException("Unsupported inline text tag '$name'")
+        else -> listOf(toInlineWidgetSegment())
     }
 }
 
@@ -161,13 +162,32 @@ private fun UiXmlTree.inlineTextOrChildren(style: UiInlineStyle): List<UiTextSeg
 }
 
 private fun UiXmlTree.inlineChildren(style: UiInlineStyle): List<UiTextSegment> {
-    return children.flatMap { child ->
+    return children.flatMapIndexed { index, child ->
         if (child.isTextLiteral()) {
             listOf(UiTextSegment.Text(child.attributes.firstValue(XML_TEXT_VALUE_ATTRIBUTE, "value").normalizeInlineText().bound(), style))
-        } else {
+        } else if (child.isTextInlineElement()) {
             child.toInlineSegments(style)
+        } else {
+            listOf(child.toInlineWidgetSegment(index))
         }
     }
+}
+
+internal fun UiXmlTree.withInlineWidgetId(index: Int = 0): UiXmlTree {
+    if ("id" in attributes) return this
+    return copy(attributes = attributes + ("id" to inlineWidgetId(index)))
+}
+
+internal fun UiXmlTree.inlineWidgetId(index: Int = 0): String {
+    return attributes["id"] ?: "__inline_${index}_${name.lowercase()}_${attributes.hashCode().toUInt().toString(16)}"
+}
+
+private fun UiXmlTree.toInlineWidgetSegment(index: Int = 0): UiTextSegment {
+    return UiTextSegment.Widget(
+        id = inlineWidgetId(index),
+        align = parseInlineAlign(attributes.firstValue("align", default = "baseline")),
+        alt = attributes.firstValue("alt"),
+    )
 }
 
 internal fun UiXmlTree.isTextInlineElement(): Boolean {
@@ -240,8 +260,6 @@ private fun parseInlineAlign(value: String): UiInlineAlign = when (value.lowerca
     "bottom" -> UiInlineAlign.BOTTOM
     else -> UiInlineAlign.BASELINE
 }
-
-
 
 private fun parseShadowEffect(attrs: Map<String, String>): Shadow {
     return Shadow(

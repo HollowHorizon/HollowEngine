@@ -63,7 +63,6 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         val property = declaration.property.lowercase()
         val value = declaration.value.trim()
         return when (property) {
-            "layout" -> instruction { it.layout = parseLayout(value) }
             "size" -> instruction(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT) { it.size = parseSize(value) }
             "width" -> instruction(UiStyleProperty.WIDTH) { it.size = (it.size ?: UiSize()).copy(width = parseLength(value)) }
             "height" -> instruction(UiStyleProperty.HEIGHT) { it.size = (it.size ?: UiSize()).copy(height = parseLength(value)) }
@@ -251,6 +250,12 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
+            "line-spacing", "text-line-spacing", "leading" -> instruction {
+                it.lineSpacing = parseScalar(value).coerceAtLeast(0f)
+            }
+            "space-width", "text-space-width" -> instruction {
+                it.spaceWidth = parseScalar(value).coerceAtLeast(0f)
+            }
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
             "font-family" -> instruction { it.fontFamily = value.trim().removeSurrounding("\"").removeSurrounding("'") }
             "typing" -> instruction { it.typing = parseTyping(value) }
@@ -340,16 +345,6 @@ private fun String.explicitStyleProperties(): Set<UiStyleProperty> = when (lower
     "width" -> setOf(UiStyleProperty.WIDTH)
     "height" -> setOf(UiStyleProperty.HEIGHT)
     else -> emptySet()
-}
-
-private fun parseLayout(value: String): LayoutType = when (value.lowercase()) {
-    "auto" -> LayoutType.COLUMN
-    "column" -> LayoutType.COLUMN
-    "row" -> LayoutType.ROW
-    "grid" -> LayoutType.GRID
-    "stack" -> LayoutType.STACK
-    "free" -> LayoutType.FREE
-    else -> throw IllegalArgumentException("Unknown layout '$value'")
 }
 
 private fun parseAlign(value: String): UiAlign = when (value.lowercase()) {

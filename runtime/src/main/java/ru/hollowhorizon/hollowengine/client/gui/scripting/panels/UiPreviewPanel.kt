@@ -172,7 +172,7 @@ class UiPreviewPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.ui_preview", 
 }
 
 private object UiPreviewRenderer {
-    private val runtime = HollowComposeUiRuntime()
+    private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
     private val contentTree = composeStateOf(UiXmlTree("box"))
@@ -201,14 +201,14 @@ private object UiPreviewRenderer {
             }
             contentSize.value = UiPreviewSize(target.logicalWidth, target.logicalHeight)
             ensureContentInstalled()
-            val root = runtime.root
+            val root = surface.root
             input.prepareRoot(root)
             val now = System.currentTimeMillis()
-            var frame = runtime.frame(target.logicalWidth, target.logicalHeight, nowMillis = now)
+            var frame = surface.frame(target.logicalWidth, target.logicalHeight, nowMillis = now)
             val localMouse = context.localMouse(target)
             if (localMouse != null && input.updateHover(frame, localMouse.x, localMouse.y, ::dispatchPreviewEvent)) {
                 input.prepareRoot(root)
-                frame = runtime.frame(target.logicalWidth, target.logicalHeight, nowMillis = now)
+                frame = surface.frame(target.logicalWidth, target.logicalHeight, nowMillis = now)
             }
             localMouse?.let { input.dispatchHover(frame, it.x, it.y, ::dispatchPreviewEvent) }
             lastFrame = frame
@@ -223,13 +223,9 @@ private object UiPreviewRenderer {
     fun scroll(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float) {
         val frame = lastFrame ?: return
         val local = localPosition(mouseX, mouseY) ?: return
-        val node = frame.scrollTargetAt(local.x, local.y)
-            ?: input.focusedKey
-                ?.let(frame::nodeByKey)
-                ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
-            ?: return
+        val node = input.scrollTargetAt(frame, local.x, local.y) ?: return
         val delta = scrollWheelDelta(frame.layout[node].scrollRange, scrollX.toDouble(), scrollY.toDouble(), horizontalScrollModifierDown())
-        runtime.scroll(node, delta.x * 32f, delta.y * 32f)
+        surface.scroll(node, delta.x * 32f, delta.y * 32f)
     }
 
     fun click(mouseX: Float, mouseY: Float) {
@@ -291,14 +287,9 @@ private object UiPreviewRenderer {
 
     private fun ensureContentInstalled() {
         if (contentInstalled) return
-        runtime.setContent {
+        surface.setContent {
             val size = contentSize.value
-            ComposeBox(
-                modifier = Modifier.then(
-                    Modifier.layout(LayoutType.FREE),
-                    Modifier.size(size.width.px, size.height.px),
-                ),
-            ) {
+            ComposeBox(modifier = Modifier.size(size.width.px, size.height.px)) {
                 UiXmlContent(contentTree.value, UiXmlOptions(resources = PreviewUiResourceLoader))
             }
         }
@@ -320,7 +311,7 @@ private object UiPreviewRenderer {
     }
 
     private fun setScrollImmediate(node: HollowUiNode, offset: UiScrollOffset) {
-        runtime.setScrollImmediate(node, offset.x, offset.y)
+        surface.setScrollImmediate(node, offset.x, offset.y)
     }
 
     private fun horizontalScrollModifierDown(): Boolean {

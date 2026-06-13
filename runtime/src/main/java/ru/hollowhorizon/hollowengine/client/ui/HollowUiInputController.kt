@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
+import kotlin.math.abs
 
 class HollowUiInputController {
     var hoveredKey: String? = null
@@ -16,6 +18,10 @@ class HollowUiInputController {
 
     private val stateStore = UiNodeStateStore()
     private var scrollbarDrag: UiScrollbarDragState? = null
+    private var lastTextClickKey: String? = null
+    private var lastTextClickAtMillis: Long = 0L
+    private var lastTextClickIndex: Int = -1
+    private var textAltSelectionAnchor: Int? = null
 
     fun reset() {
         clearInteraction()
@@ -28,6 +34,7 @@ class HollowUiInputController {
         activeKey = null
         draggingKey = null
         scrollbarDrag = null
+        textAltSelectionAnchor = null
         if (clearFocus) focusedKey = null
     }
 
@@ -68,6 +75,27 @@ class HollowUiInputController {
     ): Boolean {
         val node = hoveredKey?.let(frame::nodeByKey) ?: return false
         return dispatch(UiEvent(UiEventKind.HOVER, node, x = mouseX, y = mouseY))
+    }
+
+    fun focus(
+        frame: HollowUiFrame,
+        nodeKey: String?,
+        dispatch: (UiEvent) -> Boolean,
+    ): Boolean {
+        if (nodeKey == null) {
+            val hadFocus = focusedKey != null
+            setFocus(frame, null, dispatch)
+            return hadFocus
+        }
+        val node = frame.nodeByKey(nodeKey) ?: return false
+        if (!frame.resolved[node].input.focusable) return false
+        val previous = focusedKey
+        setFocus(frame, nodeKey, dispatch)
+        return previous != focusedKey
+    }
+
+    fun scrollTargetAt(frame: HollowUiFrame, x: Float, y: Float): UiNode? {
+        return frame.scrollTargetAt(x, y) ?: focusedScrollableNode(frame)
     }
 
     fun mouseClicked(
@@ -243,7 +271,9 @@ class HollowUiInputController {
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
         val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
         val handled = dispatch(event)
+        val hadCompletions = node is TextFieldNode && node.completionItems.isNotEmpty()
         if (!event.consumed && node is TextFieldNode && node.insert(codePoint.toString())) {
+            if (codePoint == '.' || hadCompletions) node.openCompletions()
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
         }
@@ -257,15 +287,15 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
-            return UiInputResult(true, focusedKey?.let(frame::nodeByKey), focusedKey)
-        }
-
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
-        val event = UiEvent(UiEventKind.KEY_PRESSED, node, key = keyCode, scanCode = scanCode, modifiers = modifiers)
+        val event = UiEvent(UiEventKind.KEY_PRESSED, node, frame = frame, key = keyCode, scanCode = scanCode, modifiers = modifiers)
         val handled = dispatch(event)
-        if (!event.consumed && node is TextFieldNode && applyTextFieldKey(node, keyCode, modifiers)) {
+        if (event.changed) {
+            stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
+        }
+        if (!event.consumed && keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
+            return UiInputResult(true, focusedKey?.let(frame::nodeByKey), focusedKey)
         }
         return UiInputResult(handled, node, UiNodeKeys.key(node))
     }
@@ -338,7 +368,26 @@ class HollowUiInputController {
                 true
             }
             is TextFieldNode -> {
-                node.moveCaret(textFieldCaretIndexAt(frame, node, localX, localY))
+                val index = textFieldCaretIndexAt(frame, node, localX, localY)
+                val nodeKey = UiNodeKeys.key(node)
+                val altPressed = isAltPressed()
+                textAltSelectionAnchor = null
+                if (isTextDoubleClick(nodeKey, index)) {
+                    val range = textFieldWordRangeAt(node.value, index)
+                    if (node.multiCaret && altPressed) {
+                        node.addCaretRange(UiTextCaret(range.end, range.start))
+                    } else {
+                        node.setSelection(range.start, range.end)
+                    }
+                } else if (node.multiCaret && altPressed) {
+                    if (!node.removeCaretRangeAt(index)) {
+                        node.addCaret(index)
+                        textAltSelectionAnchor = index
+                    }
+                } else {
+                    node.moveCaret(index)
+                }
+                rememberTextClick(nodeKey, index)
                 true
             }
             else -> false
@@ -368,45 +417,13 @@ class HollowUiInputController {
         val index = textFieldCaretIndexAt(frame, node, local.x, local.y)
         val previousStart = node.selectionStart
         val previousEnd = node.selectionEnd
-        node.setSelection(node.selectionAnchor ?: node.caret, index)
-        val changed = previousStart != node.selectionStart || previousEnd != node.selectionEnd
-        if (changed) stateStore.save(node)
-        return changed
-    }
-
-    private fun applyTextFieldKey(node: TextFieldNode, keyCode: Int, modifiers: Int): Boolean {
-        val select = modifiers and GLFW.GLFW_MOD_SHIFT != 0
-        val control = modifiers and GLFW.GLFW_MOD_CONTROL != 0
-        val changed = when (keyCode) {
-            GLFW.GLFW_KEY_BACKSPACE -> node.backspace()
-            GLFW.GLFW_KEY_DELETE -> node.deleteForward()
-            GLFW.GLFW_KEY_A -> {
-                if (!control) {
-                    false
-                } else {
-                    node.selectAll()
-                    true
-                }
-            }
-            GLFW.GLFW_KEY_LEFT -> {
-                node.moveCaret(node.caret - 1, select)
-                true
-            }
-            GLFW.GLFW_KEY_RIGHT -> {
-                node.moveCaret(node.caret + 1, select)
-                true
-            }
-            GLFW.GLFW_KEY_HOME -> {
-                node.moveCaret(0, select)
-                true
-            }
-            GLFW.GLFW_KEY_END -> {
-                node.moveCaret(node.value.length, select)
-                true
-            }
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> node.multiline && node.insert("\n")
-            else -> false
+        val altAnchor = textAltSelectionAnchor
+        if (altAnchor != null && node.multiCaret) {
+            node.updateLastCaretRange(altAnchor, index)
+        } else {
+            node.setSelection(node.selectionAnchor ?: node.caret, index)
         }
+        val changed = previousStart != node.selectionStart || previousEnd != node.selectionEnd
         if (changed) stateStore.save(node)
         return changed
     }
@@ -414,20 +431,49 @@ class HollowUiInputController {
     private fun textFieldCaretIndexAt(frame: HollowUiFrame, node: TextFieldNode, localX: Float, localY: Float): Int {
         val layout = frame.layout[node]
         val style = frame.resolved[node]
-        val contentX = localX - (layout.content.x - layout.rect.x) + layout.scrollOffset.x
+        val textOffset = textFieldTextOffset(node, style, layout)
+        val contentX = localX - (layout.content.x - layout.rect.x) - textOffset + layout.scrollOffset.x
         val contentY = localY - (layout.content.y - layout.rect.y) + layout.scrollOffset.y
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layout.content.height
         val textLayout = UiTextLayouter.layout(
             text = node.value,
-            width = layout.content.width,
+            width = textFieldTextWidth(node, style, layout),
             height = textHeight,
             wrap = style.textWrap && node.multiline,
             align = style.textAlign,
             fontSize = style.fontSize,
             fontFamily = style.fontFamily,
             preserveWhitespace = true,
+            lineSpacing = style.lineSpacing,
+            spaceWidth = style.spaceWidth,
         )
         return textLayout.caretIndexAt(contentX, contentY, style.fontSize, style.fontFamily)
+    }
+
+    private fun isTextDoubleClick(nodeKey: String, index: Int): Boolean {
+        val now = System.currentTimeMillis()
+        return lastTextClickKey == nodeKey &&
+                now - lastTextClickAtMillis <= TextDoubleClickMillis &&
+                abs(lastTextClickIndex - index) <= 1
+    }
+
+    private fun rememberTextClick(nodeKey: String, index: Int) {
+        lastTextClickKey = nodeKey
+        lastTextClickIndex = index
+        lastTextClickAtMillis = System.currentTimeMillis()
+    }
+
+    private fun isAltPressed(): Boolean {
+        val window = Minecraft.getInstance().window.window
+        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS ||
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS
+    }
+
+    private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
+        return focusedKey
+            ?.let(frame::nodeByKey)
+            ?.takeIf { it in frame.layout.nodes }
+            ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
@@ -451,6 +497,35 @@ class HollowUiInputController {
         node.children.forEach { applyRuntimeStates(it, closing) }
     }
 }
+
+private const val TextDoubleClickMillis = 350L
+
+private data class ClickTextRange(
+    val start: Int,
+    val end: Int,
+)
+
+private fun textFieldWordRangeAt(text: String, caretIndex: Int): ClickTextRange {
+    if (text.isEmpty()) return ClickTextRange(0, 0)
+    val index = caretIndex.coerceIn(0, text.length)
+    val characterIndex = when {
+        index < text.length -> index
+        else -> text.lastIndex
+    }
+    val character = text[characterIndex]
+    val predicate: (Char) -> Boolean = when {
+        character.isTextFieldWordChar() -> Char::isTextFieldWordChar
+        character.isWhitespace() -> Char::isWhitespace
+        else -> { candidate -> candidate == character }
+    }
+    var start = characterIndex
+    var end = characterIndex + 1
+    while (start > 0 && predicate(text[start - 1])) start--
+    while (end < text.length && predicate(text[end])) end++
+    return ClickTextRange(start, end)
+}
+
+private fun Char.isTextFieldWordChar(): Boolean = this == '_' || isLetterOrDigit()
 
 data class UiInputResult(
     val handled: Boolean,
