@@ -21,7 +21,7 @@ abstract class HollowUiScreen(
     title: String,
     stylesheet: CompiledHss,
 ) : Screen(title.literal) {
-    private val runtime = HollowUiRuntime(stylesheet = stylesheet)
+    private val surface = HollowUiSurface(stylesheet = stylesheet)
     private val renderer = MinecraftUiRenderer()
     private var frame: HollowUiFrame? = null
     private var cachedRoot: UiNode? = null
@@ -62,6 +62,18 @@ abstract class HollowUiScreen(
     protected open fun rebuildEveryFrame(): Boolean = false
 
     protected open fun applyPendingUiChanges(nowNanos: Long = System.nanoTime()): Boolean = false
+
+    protected fun installComposeContent(content: HollowUiContent): BoxNode {
+        return surface.setContent(content)
+    }
+
+    protected fun composeRoot(nowNanos: Long = System.nanoTime()): BoxNode {
+        return surface.composeRoot(nowNanos)
+    }
+
+    protected fun applyComposePendingChanges(nowNanos: Long = System.nanoTime()): Boolean {
+        return surface.applyPendingChanges(nowNanos)
+    }
 
     protected fun invalidateUi(immediate: Boolean = false) {
         uiDirty = true
@@ -207,11 +219,7 @@ abstract class HollowUiScreen(
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         if (closing) return true
         val current = frame ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-        val target = current.scrollTargetAt(mouseX.toFloat(), mouseY.toFloat())
-            ?: input.focusedKey
-                ?.let(current::nodeByKey)
-                ?.takeIf { it in current.layout.nodes }
-                ?.takeIf { current.resolved[it].input.scrollable && current.layout[it].scrollRange.hasScrollableAxis() }
+        val target = input.scrollTargetAt(current, mouseX.toFloat(), mouseY.toFloat())
         if (target != null) {
             val range = current.layout[target].scrollRange
             val delta = scrollWheelDelta(range, scrollX, scrollY, hasShiftDown() || hasControlDown())
@@ -227,7 +235,7 @@ abstract class HollowUiScreen(
                 invalidateUi(immediate = true)
                 return true
             }
-            runtime.scroll(target, delta.x * 32f, delta.y * 32f)
+            surface.scroll(target, delta.x * 32f, delta.y * 32f)
             invalidateUi(immediate = true)
             return true
         }
@@ -277,13 +285,13 @@ abstract class HollowUiScreen(
     }
 
     private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
-        runtime.setScrollImmediate(node, offset.x, offset.y)
+        surface.setScrollImmediate(node, offset.x, offset.y)
     }
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         val root = currentRoot()
         input.prepareRoot(root, closing)
-        val nextFrame = runtime.frame(root, width.toFloat(), height.toFloat(), bindings().withPointer(mouseX, mouseY), nowMillis)
+        val nextFrame = surface.frame(root, width.toFloat(), height.toFloat(), bindings().withPointer(mouseX, mouseY), nowMillis)
         frame = nextFrame
         lastFrameMouseX = mouseX
         lastFrameMouseY = mouseY
@@ -320,6 +328,7 @@ abstract class HollowUiScreen(
         frame?.let { current ->
             dispatchUiEvent(UiEvent(UiEventKind.CLOSE, current.resolved.root))
         }
+        surface.close()
         renderer.close()
         prepareScriptsJob?.cancel()
         super.removed()

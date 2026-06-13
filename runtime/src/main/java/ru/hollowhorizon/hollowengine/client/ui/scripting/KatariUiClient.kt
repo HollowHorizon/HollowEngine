@@ -199,10 +199,9 @@ private class KatariUiOverlay(
     private var root: UiXmlTree,
     private var variables: CompoundTag,
 ) {
-    private val runtime = HollowUiRuntime()
+    private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
-    private val composition = HollowUiComposition()
     private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
     private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
     private var cachedScriptHash: Int = 0
@@ -302,12 +301,7 @@ private class KatariUiOverlay(
     fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Double, scrollY: Double): Boolean {
         if (closing) return false
         val frame = lastFrame ?: return false
-        val target = frame.scrollTargetAt(mouseX, mouseY)
-            ?: input.focusedKey
-                ?.let(frame::nodeByKey)
-                ?.takeIf { it in frame.layout.nodes }
-                ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
-            ?: return false
+        val target = input.scrollTargetAt(frame, mouseX, mouseY) ?: return false
         val range = frame.layout[target].scrollRange
         val delta = scrollWheelDelta(range, scrollX, scrollY, horizontalScrollModifierDown())
         val event = UiEvent(
@@ -322,7 +316,7 @@ private class KatariUiOverlay(
             refreshFrame()
             return true
         }
-        runtime.scroll(target, delta.x * 32f, delta.y * 32f)
+        surface.scroll(target, delta.x * 32f, delta.y * 32f)
         refreshFrame()
         return true
     }
@@ -347,7 +341,7 @@ private class KatariUiOverlay(
     fun hasFocusedInput(): Boolean = input.focusedKey != null
 
     fun dispose() {
-        composition.close()
+        surface.close()
         renderer.close()
     }
 
@@ -381,20 +375,21 @@ private class KatariUiOverlay(
     }
 
     private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
-        runtime.setScrollImmediate(node, offset.x, offset.y)
+        surface.setScrollImmediate(node, offset.x, offset.y)
     }
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         val window = Minecraft.getInstance().window
-        node = composition.frameRoot(nowMillis * NanosPerMillisecond)
-        prepareClientScripts(node)
-        input.prepareRoot(node, closing)
-        return runtime.frame(
-            node,
+        return surface.frame(
             window.guiScaledWidth.toFloat(),
             window.guiScaledHeight.toFloat(),
             UiBindingContext(variables).withPointer(lastMouseX, lastMouseY),
             nowMillis,
+            prepareRoot = { root ->
+                node = root
+                prepareClientScripts(root)
+                input.prepareRoot(root, closing)
+            },
         ).also { lastFrame = it }
     }
 
@@ -416,7 +411,7 @@ private class KatariUiOverlay(
     }
 
     private fun composeNode(): BoxNode {
-        return composition.setContent {
+        return surface.setContent {
             UiXmlContent(root, UiXmlOptions(eventSink = sink))
         }.also(::prepareClientScripts)
     }
@@ -438,9 +433,6 @@ private class KatariUiOverlay(
         preparedScripts = UiClientScriptRunner.prepare(scripts, root, sink, variables)
     }
 
-    private companion object {
-        const val NanosPerMillisecond = 1_000_000L
-    }
 }
 
 private data class UiOverlayPoint(val x: Float, val y: Float)

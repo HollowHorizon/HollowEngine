@@ -24,6 +24,8 @@ data class UiLayoutNode(
     val scrollRange: UiScrollOffset = UiScrollOffset.Zero,
     val scrollArea: UiRect = content,
     val virtualContentBounds: UiRect? = null,
+    val textLayout: UiTextLayout? = null,
+    val scrollbars: List<UiScrollbarGeometry> = emptyList(),
 )
 
 data class UiLayoutResult(
@@ -209,6 +211,11 @@ class UiLayoutEngine {
         val style = resolved[node]
         val boxes = nodeBoxes(rect, style, scrollbarReserves[node] ?: UiScrollbarReserve.None)
         val scrollOffset = scrollState.offset(node)
+        val textLayout = if (node is TextNode) {
+            layoutTextNode(node, resolved, style, boxes.content, scrollbarReserves, bindings)
+        } else {
+            null
+        }
         val clip = if (style.clip || style.input.scrollable) parentClip.intersect(boxes.content) else parentClip
         val localX = rect.x - parentRect.x
         val localY = rect.y - parentRect.y
@@ -234,6 +241,7 @@ class UiLayoutEngine {
             needsFramebuffer = needsFramebuffer,
             scrollOffset = scrollOffset,
             scrollArea = boxes.scrollArea,
+            textLayout = textLayout,
         )
 
         placeChildren(
@@ -435,26 +443,8 @@ class UiLayoutEngine {
     ) {
         val widgets = node.layoutChildren.associateBy { it.id }
         if (widgets.isEmpty()) return
-        val widgetMetrics = measureInlineWidgetMetrics(
-            widgets.values,
-            resolved,
-            content.width,
-            content.height,
-            scrollbarReserves,
-            bindings,
-        )
-        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else content.height
-        val textLayout = UiTextLayouter.layout(
-            node.content.resolve(bindings).toRichText(widgetMetrics),
-            content.width,
-            textHeight,
-            style.textWrap,
-            style.textAlign,
-            style.fontSize,
-            style.fontFamily,
-            lineSpacing = style.lineSpacing,
-            spaceWidth = style.spaceWidth,
-        )
+        val textLayout = layouts[node]?.textLayout
+            ?: layoutTextNode(node, resolved, style, content, scrollbarReserves, bindings)
         val placed = mutableSetOf<UiNode>()
         for (line in textLayout.lines) {
             for (fragment in line.fragments) {
@@ -485,8 +475,7 @@ class UiLayoutEngine {
         }
         for (child in node.layoutChildren) {
             if (child in placed) continue
-            val measured = widgetMetrics[child.id]?.let { LayoutSize(it.width, it.height) }
-                ?: measureNode(child, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
+            val measured = measureNode(child, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
             placeNode(
                 child,
                 resolved,
@@ -503,6 +492,36 @@ class UiLayoutEngine {
                 bindings,
             )
         }
+    }
+
+    private fun layoutTextNode(
+        node: TextNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        content: UiRect,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
+    ): UiTextLayout {
+        val widgetMetrics = measureInlineWidgetMetrics(
+            node.layoutChildren,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            bindings,
+        )
+        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else content.height
+        return UiTextLayouter.layout(
+            node.content.resolve(bindings).toRichText(widgetMetrics),
+            content.width,
+            textHeight,
+            style.textWrap,
+            style.textAlign,
+            style.fontSize,
+            style.fontFamily,
+            lineSpacing = style.lineSpacing,
+            spaceWidth = style.spaceWidth,
+        )
     }
 
     private fun placePopupChildren(
@@ -790,7 +809,7 @@ class UiLayoutEngine {
             val childHeight = child.size.height
             val x = content.x + align.crossOffset(content.width, childWidth, child.margin.left, child.margin.right)
             val rect = UiRect(x + position.x, y + child.margin.top + position.y, childWidth, childHeight)
-            if (rect.y + rect.height >= visibleTop && rect.y <= visibleBottom) {
+            if (rect.y + rect.height > visibleTop && rect.y < visibleBottom) {
                 placeNode(
                     child.node,
                     resolved,
@@ -865,7 +884,7 @@ class UiLayoutEngine {
             val childWidth = child.size.width
             val y = content.y + align.crossOffset(content.height, childHeight, child.margin.top, child.margin.bottom)
             val rect = UiRect(x + child.margin.left + position.x, y + position.y, childWidth, childHeight)
-            if (rect.x + rect.width >= visibleLeft && rect.x <= visibleRight) {
+            if (rect.x + rect.width > visibleLeft && rect.x < visibleRight) {
                 placeNode(
                     child.node,
                     resolved,
@@ -1161,6 +1180,17 @@ class UiLayoutEngine {
             if (width == null && height != null) width = height * ratio
             if (height == null && width != null) height = width / ratio
         }
+        if (width != null && height != null) {
+            return constrainMeasuredSize(
+                width = requireNotNull(width),
+                height = requireNotNull(height),
+                style = style,
+                referenceWidth = referenceWidth,
+                referenceHeight = referenceHeight,
+                allowWidthOverflow = allowWidthOverflow,
+                allowHeightOverflow = allowHeightOverflow,
+            ).also { measureCache[cacheKey] = it }
+        }
         val childAvailableWidth = ((width ?: referenceWidth) - insets.horizontal).coerceAtLeast(0f)
         val childAvailableHeight = ((height ?: referenceHeight) - insets.vertical).coerceAtLeast(0f)
         val intrinsic = intrinsicSize(
@@ -1226,6 +1256,25 @@ class UiLayoutEngine {
             width = constrainedWidth,
             height = constrainedHeight,
         ).also { measureCache[cacheKey] = it }
+    }
+
+    private fun constrainMeasuredSize(
+        width: Float,
+        height: Float,
+        style: ComputedStyle,
+        referenceWidth: Float,
+        referenceHeight: Float,
+        allowWidthOverflow: Boolean,
+        allowHeightOverflow: Boolean,
+    ): LayoutSize {
+        val widthReference =
+            if (allowWidthOverflow && style.size.width is UiLength.Auto) Float.POSITIVE_INFINITY else referenceWidth
+        val heightReference =
+            if (allowHeightOverflow && style.size.height is UiLength.Auto) Float.POSITIVE_INFINITY else referenceHeight
+        return LayoutSize(
+            width = width.coerceIn(style.minSize.width, style.maxSize.width, widthReference),
+            height = height.coerceIn(style.minSize.height, style.maxSize.height, heightReference),
+        )
     }
 
     private fun intrinsicSize(
@@ -1504,7 +1553,64 @@ private fun applyScrollRanges(
         )
         val clamped = scrollState.clamp(node, range)
         val clip = layout.clip?.let { it.intersect(layout.content) } ?: layout.content
-        result[node] = layout.copy(content = layout.content, clip = clip, scrollOffset = clamped, scrollRange = range)
+        val scrolledLayout = layout.copy(
+            content = layout.content,
+            clip = clip,
+            scrollOffset = clamped,
+            scrollRange = range,
+        )
+        result[node] = scrolledLayout.copy(scrollbars = scrollbarGeometry(style, scrolledLayout))
+    }
+    return result
+}
+
+private fun scrollbarGeometry(style: ComputedStyle, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
+    val result = mutableListOf<UiScrollbarGeometry>()
+    val verticalStyle = style.scrollbar.resolved(layoutNode.scrollArea.width)
+    val horizontalStyle = style.scrollbar.resolved(layoutNode.scrollArea.height)
+    val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.scrollArea.height > verticalStyle.gutter
+    val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.scrollArea.width > horizontalStyle.gutter
+    if (hasVerticalScrollbar) {
+        val horizontalReserve = if (hasHorizontalScrollbar) horizontalStyle.gutter else 0f
+        val trackHeight = layoutNode.scrollArea.height - verticalStyle.margin * 2f - horizontalReserve
+        if (trackHeight > 0f) {
+            val track = UiRect(
+                x = layoutNode.scrollArea.x - layoutNode.rect.x + layoutNode.scrollArea.width -
+                        verticalStyle.thickness - verticalStyle.margin,
+                y = layoutNode.scrollArea.y - layoutNode.rect.y + verticalStyle.margin,
+                width = verticalStyle.thickness,
+                height = trackHeight,
+            )
+            val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
+            val thumbHeight = maxOf(verticalStyle.minThumbSize, track.height * layoutNode.content.height / contentHeight)
+            val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
+            result += UiScrollbarGeometry(
+                track = track,
+                thumb = track.copy(y = thumbY, height = thumbHeight),
+                orientation = ScrollbarOrientation.VERTICAL,
+            )
+        }
+    }
+    if (hasHorizontalScrollbar) {
+        val verticalReserve = if (hasVerticalScrollbar) verticalStyle.gutter else 0f
+        val trackWidth = layoutNode.scrollArea.width - horizontalStyle.margin * 2f - verticalReserve
+        if (trackWidth > 0f) {
+            val track = UiRect(
+                x = layoutNode.scrollArea.x - layoutNode.rect.x + horizontalStyle.margin,
+                y = layoutNode.scrollArea.y - layoutNode.rect.y + layoutNode.scrollArea.height -
+                        horizontalStyle.thickness - horizontalStyle.margin,
+                width = trackWidth,
+                height = horizontalStyle.thickness,
+            )
+            val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
+            val thumbWidth = maxOf(horizontalStyle.minThumbSize, track.width * layoutNode.content.width / contentWidth)
+            val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
+            result += UiScrollbarGeometry(
+                track = track,
+                thumb = track.copy(x = thumbX, width = thumbWidth),
+                orientation = ScrollbarOrientation.HORIZONTAL,
+            )
+        }
     }
     return result
 }
@@ -1538,22 +1644,7 @@ private fun scrollableContentBounds(
     layout.virtualContentBounds?.let { return it }
     if (node is TextNode || node is TextFieldNode) {
         val textLayout = if (node is TextNode) {
-            val widgetMetrics = node.layoutChildren.mapNotNull { child ->
-                val id = child.id ?: return@mapNotNull null
-                val rect = layouts[child]?.rect ?: return@mapNotNull null
-                id to UiInlineWidgetMetrics(rect.width, rect.height)
-            }.toMap()
-            UiTextLayouter.layout(
-                node.content.resolve(bindings).toRichText(widgetMetrics),
-                layout.content.width,
-                Float.POSITIVE_INFINITY,
-                style.textWrap,
-                style.textAlign,
-                style.fontSize,
-                style.fontFamily,
-                lineSpacing = style.lineSpacing,
-                spaceWidth = style.spaceWidth,
-            )
+            layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, bindings)
         } else {
             val field = node as TextFieldNode
             val editWidth = textFieldTextWidth(field, style, layout)
@@ -1584,6 +1675,31 @@ private fun scrollableContentBounds(
         )
     }
     return node.layoutChildren.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union() ?: layout.content
+}
+
+private fun textLayoutForScrollBounds(
+    node: TextNode,
+    style: ComputedStyle,
+    layout: UiLayoutNode,
+    layouts: Map<UiNode, UiLayoutNode>,
+    bindings: UiBindingContext,
+): UiTextLayout {
+    val widgetMetrics = node.layoutChildren.mapNotNull { child ->
+        val id = child.id ?: return@mapNotNull null
+        val rect = layouts[child]?.rect ?: return@mapNotNull null
+        id to UiInlineWidgetMetrics(rect.width, rect.height)
+    }.toMap()
+    return UiTextLayouter.layout(
+        node.content.resolve(bindings).toRichText(widgetMetrics),
+        layout.content.width,
+        Float.POSITIVE_INFINITY,
+        style.textWrap,
+        style.textAlign,
+        style.fontSize,
+        style.fontFamily,
+        lineSpacing = style.lineSpacing,
+        spaceWidth = style.spaceWidth,
+    )
 }
 
 private fun UiTextLayout.maxNaturalLineWidth(): Float = maxNaturalLineWidth

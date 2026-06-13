@@ -35,13 +35,13 @@
     border: 1px rgba(188, 255, 244, 0.64);
 }
 
-.xml-flow-text {
+.xml-slot-text {
     position: 24px 134px;
     size: 430px 78px;
     foreground: rgba(236, 242, 248, 0.92);
 }
 
-.xml-flow-note {
+.xml-slot-note {
     padding: 6px;
     size: 58px 36px;
     background: rgba(246, 250, 254, 0.94);

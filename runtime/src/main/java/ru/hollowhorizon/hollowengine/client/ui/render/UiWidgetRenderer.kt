@@ -13,7 +13,12 @@ import kotlin.math.sqrt
 
 internal class UiWidgetRenderer(
     private val imageDrawer: (Float, Float, String, Float, UiMatrix4, UiImageFit, UiFilterChain, UiInsets, UiColor) -> Unit,
+    private val markTextBatchDirty: () -> Unit,
+    private val flushTextBatch: () -> Unit,
 ) {
+    private val scratchQuads = mutableListOf<UiBatchedQuad>()
+    private val scratchTriangles = mutableListOf<UiBatchedTriangle>()
+
     fun drawSlider(command: DrawSliderCommand, transform: UiMatrix4) {
         val width = command.rect.width
         val height = command.rect.height
@@ -53,7 +58,7 @@ internal class UiWidgetRenderer(
         )
         val borderWidth = command.thumbBorder.width.left.resolve(command.thumbWidth)
         if (borderWidth > 0f && command.thumbBorder.color.alpha > 0f) {
-            drawLocalBorder(
+            scratchTriangles.appendLocalBorder(
                 command.thumbWidth,
                 command.thumbHeight,
                 command.thumbBorder.radius,
@@ -62,6 +67,7 @@ internal class UiWidgetRenderer(
                 thumbTransform,
             )
         }
+        flushScratchTriangles()
     }
 
     fun drawCheckbox(command: DrawCheckboxCommand, transform: UiMatrix4) {
@@ -70,30 +76,12 @@ internal class UiWidgetRenderer(
             UiCheckboxVariant.RADIO -> drawRadio(command, transform)
             UiCheckboxVariant.CHECKBOX -> drawCheckboxBox(command, transform)
         }
+        flushScratchTriangles()
     }
 
     fun drawTextFieldChrome(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        val selectionQuads = mutableListOf<UiBatchedQuad>()
-        command.carets.forEach { caretRange ->
-            command.layout.selectionRects(
-                caretRange.selectionStart,
-                caretRange.selectionEnd,
-                command.fontSize,
-                command.fontFamily,
-                fillLineGaps = true,
-            ).forEach { rect ->
-                val clipped = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
-                    .clipHorizontally(command.textOffset, command.rect.width)
-                    ?: return@forEach
-                selectionQuads += solidQuad(
-                    width = clipped.width,
-                    height = clipped.height,
-                    color = command.selectionColor.withOpacity(command.opacity).filtered(command.filter),
-                    transform = transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
-                )
-            }
-        }
-        drawBatchedQuads(selectionQuads)
+        appendSelectionQuads(command, transform, scratchQuads)
+        flushScratchQuads()
         if (command.showLineNumbers) {
             command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (index, line) ->
                 drawPlainText(
@@ -107,36 +95,50 @@ internal class UiWidgetRenderer(
                     command.filter,
                 )
             }
+            flushTextBatch()
         }
-        drawDiagnostics(command, transform)
+        appendDiagnostics(command, transform, scratchQuads)
+        flushScratchQuads()
         if (command.showInlayHints) {
             drawInlayHintFrames(command, transform)
         }
-        drawCompletionPopup(command, transform)
-        if (command.showCaret) {
-            if (!textFieldCaretVisible()) return
-            command.carets.forEach { caretRange ->
-                val caret = command.layout.caretPosition(caretRange.position, command.fontSize, command.fontFamily)
-                val clipped = UiRect(
-                    command.textOffset + caret.x - command.scrollOffset.x,
-                    caret.y - command.scrollOffset.y,
-                    TextFieldCaretWidth,
-                    command.fontSize,
-                ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
-                drawLocalPaint(
-                    clipped.width,
-                    clipped.height,
-                    0f,
-                    command.caretColor.withOpacity(command.opacity),
-                    transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
-                    command.filter,
+        if (command.showCaret && textFieldCaretVisible()) {
+            appendCaretQuads(command, transform, scratchQuads)
+            flushScratchQuads()
+        }
+    }
+
+    private fun appendSelectionQuads(
+        command: DrawTextFieldChromeCommand,
+        transform: UiMatrix4,
+        quads: MutableList<UiBatchedQuad>,
+    ) {
+        command.carets.forEach { caretRange ->
+            command.layout.selectionRects(
+                caretRange.selectionStart,
+                caretRange.selectionEnd,
+                command.fontSize,
+                command.fontFamily,
+                fillLineGaps = true,
+            ).forEach { rect ->
+                val clipped = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
+                    .clipHorizontally(command.textOffset, command.rect.width)
+                    ?: return@forEach
+                quads += solidQuad(
+                    width = clipped.width,
+                    height = clipped.height,
+                    color = command.selectionColor.withOpacity(command.opacity).filtered(command.filter),
+                    transform = transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
                 )
             }
         }
     }
 
-    private fun drawDiagnostics(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        val quads = mutableListOf<UiBatchedQuad>()
+    private fun appendDiagnostics(
+        command: DrawTextFieldChromeCommand,
+        transform: UiMatrix4,
+        quads: MutableList<UiBatchedQuad>,
+    ) {
         command.diagnostics.forEach { diagnostic ->
             val color = when (diagnostic.severity) {
                 UiTextDiagnosticSeverity.ERROR -> command.diagnosticErrorColor
@@ -147,28 +149,28 @@ internal class UiWidgetRenderer(
                 diagnostic.start,
                 diagnostic.end,
                 command.fontSize,
-            command.fontFamily,
-        ).forEach { rect ->
+                command.fontFamily,
+            ).forEach { rect ->
                 val underline = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
                     .clipHorizontally(command.textOffset, command.rect.width)
                     ?: return@forEach
-                quads += zigZagUnderlineQuads(
+                appendZigZagUnderlineQuads(
+                    quads = quads,
                     rect = underline,
                     color = color.withOpacity(command.opacity).filtered(command.filter),
                     transform = transform,
                 )
             }
         }
-        drawBatchedQuads(quads)
     }
 
-    private fun zigZagUnderlineQuads(
+    private fun appendZigZagUnderlineQuads(
+        quads: MutableList<UiBatchedQuad>,
         rect: UiRect,
         color: UiColor,
         transform: UiMatrix4,
-    ): List<UiBatchedQuad> {
-        if (rect.width <= 1f) return emptyList()
-        val quads = mutableListOf<UiBatchedQuad>()
+    ) {
+        if (rect.width <= 1f) return
         val step = 3f
         val amplitude = 2f
         val thickness = 1.25f
@@ -193,7 +195,6 @@ internal class UiWidgetRenderer(
             startY = endY
             nextHigh = !nextHigh
         }
-        return quads
     }
 
     private fun zigZagSegmentQuad(
@@ -220,6 +221,38 @@ internal class UiWidgetRenderer(
         )
     }
 
+    private fun appendCaretQuads(
+        command: DrawTextFieldChromeCommand,
+        transform: UiMatrix4,
+        quads: MutableList<UiBatchedQuad>,
+    ) {
+        command.carets.forEach { caretRange ->
+            val caret = command.layout.caretPosition(caretRange.position, command.fontSize, command.fontFamily)
+            val clipped = UiRect(
+                command.textOffset + caret.x - command.scrollOffset.x,
+                caret.y - command.scrollOffset.y,
+                TextFieldCaretWidth,
+                command.fontSize,
+            ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
+            quads += solidQuad(
+                clipped.width,
+                clipped.height,
+                command.caretColor.withOpacity(command.opacity).filtered(command.filter),
+                transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
+            )
+        }
+    }
+
+    private fun flushScratchQuads() {
+        drawBatchedQuads(scratchQuads)
+        scratchQuads.clear()
+    }
+
+    private fun flushScratchTriangles() {
+        drawBatchedTriangles(scratchTriangles)
+        scratchTriangles.clear()
+    }
+
     private fun drawInlayHintFrames(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
         command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
             line.fragments.filterIsInstance<UiInlayTextRun>().forEach { fragment ->
@@ -229,7 +262,7 @@ internal class UiWidgetRenderer(
                     fragment.width,
                     fragment.height + 2f,
                 ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
-                drawLocalBorder(
+                scratchTriangles.appendLocalBorder(
                     frame.width,
                     frame.height,
                     3f,
@@ -239,66 +272,7 @@ internal class UiWidgetRenderer(
                 )
             }
         }
-    }
-
-    private fun drawCompletionPopup(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        val items = command.completionItems.take(6)
-        if (items.isEmpty()) return
-        val rowHeight = (command.fontSize + 5f).coerceAtLeast(12f)
-        val popupHeight = rowHeight * items.size + 6f
-        val labelWidth = items.maxOfOrNull { item ->
-            val detail = if (item.detail.isBlank()) "" else "  ${item.detail}"
-            (item.label.length + detail.length) * command.fontSize * 0.56f
-        } ?: 0f
-        val popupWidth = (labelWidth + 18f).coerceIn(90f, max(90f, command.rect.width - 8f))
-        val caret = command.layout.caretPosition(command.completionAnchor, command.fontSize, command.fontFamily)
-        val preferredX = command.textOffset + caret.x - command.scrollOffset.x
-        val popupX = preferredX.coerceIn(4f, (command.rect.width - popupWidth - 4f).coerceAtLeast(4f))
-        val belowY = caret.y + command.fontSize - command.scrollOffset.y + 4f
-        val aboveY = caret.y - command.scrollOffset.y - popupHeight - 4f
-        val popupY = if (belowY + popupHeight <= command.rect.height) {
-            belowY
-        } else {
-            aboveY.coerceAtLeast(4f)
-        }
-        val popupTransform = transform * UiMatrix4.translation(popupX, popupY, 30f)
-        drawLocalPaint(popupWidth, popupHeight, 3f, UiColor(0.08f, 0.09f, 0.11f, command.opacity * 0.96f), popupTransform, command.filter)
-        drawLocalBorder(popupWidth, popupHeight, 3f, 1f, UiColor(0.36f, 0.42f, 0.5f, command.opacity * 0.75f), popupTransform)
-        items.forEachIndexed { index, item ->
-            val rowY = 3f + index * rowHeight
-            if (index == command.completionSelectedIndex.coerceIn(0, items.lastIndex)) {
-                drawLocalPaint(
-                    popupWidth - 4f,
-                    rowHeight,
-                    2f,
-                    UiColor(0.22f, 0.32f, 0.46f, command.opacity * 0.7f),
-                    popupTransform * UiMatrix4.translation(2f, rowY, 0f),
-                    command.filter,
-                )
-            }
-            drawPlainText(
-                item.label,
-                8f,
-                rowY + 2f,
-                command.fontSize,
-                UiColor(0.9f, 0.94f, 1f, 1f),
-                command.opacity,
-                popupTransform,
-                command.filter,
-            )
-            if (item.detail.isNotBlank()) {
-                drawPlainText(
-                    item.detail,
-                    (item.label.length * command.fontSize * 0.56f + 16f).coerceAtMost(popupWidth - 42f),
-                    rowY + 2f,
-                    command.fontSize,
-                    command.inlayHintColor,
-                    command.opacity,
-                    popupTransform,
-                    command.filter,
-                )
-            }
-        }
+        flushScratchTriangles()
     }
 
     private fun textFieldCaretVisible(): Boolean {
@@ -320,7 +294,14 @@ internal class UiWidgetRenderer(
     private fun drawCheckboxBox(command: DrawCheckboxCommand, transform: UiMatrix4) {
         val size = min(command.rect.width, command.rect.height)
         val local = centeredSquare(command, size, transform)
-        drawLocalPaint(size, size, 3f, UiColor(0.16f, 0.18f, 0.22f, command.opacity), local, command.filter)
+        scratchTriangles.appendLocalPaint(
+            size,
+            size,
+            3f,
+            UiColor(0.16f, 0.18f, 0.22f, command.opacity),
+            local,
+            command.filter,
+        )
         if (!command.checked) return
         drawResolvedPaint(size, size, 3f, command.activePaint, command.opacity, local, command.filter)
         val markSize = size * 0.5f
@@ -338,7 +319,14 @@ internal class UiWidgetRenderer(
     private fun drawRadio(command: DrawCheckboxCommand, transform: UiMatrix4) {
         val size = min(command.rect.width, command.rect.height)
         val local = centeredSquare(command, size, transform)
-        drawLocalPaint(size, size, size * 0.5f, UiColor(0.16f, 0.18f, 0.22f, command.opacity), local, command.filter)
+        scratchTriangles.appendLocalPaint(
+            size,
+            size,
+            size * 0.5f,
+            UiColor(0.16f, 0.18f, 0.22f, command.opacity),
+            local,
+            command.filter,
+        )
         if (!command.checked) return
         drawResolvedPaint(size, size, size * 0.5f, command.activePaint, command.opacity, local, command.filter)
         val dot = size * 0.45f
@@ -389,10 +377,36 @@ internal class UiWidgetRenderer(
     ) {
         when (paint) {
             UiResolvedPaint.None -> Unit
-            is UiResolvedPaint.Color -> drawLocalPaint(width, height, radius, paint.color.withOpacity(opacity), transform, filter)
-            is UiResolvedPaint.LinearGradient -> drawLocalGradient(width, height, radius, paint.angleDegrees, paint.stops, opacity, transform, filter)
-            is UiResolvedPaint.Image -> imageDrawer(width, height, paint.source, opacity, transform, UiImageFit.STRETCH, filter, UiInsets.Zero, UiColor.White)
-            is UiResolvedPaint.Shader -> drawLocalPaint(width, height, radius, UiColor(0.2f, 0.2f, 0.24f, opacity), transform, filter)
+            is UiResolvedPaint.Color -> scratchTriangles.appendLocalPaint(
+                width,
+                height,
+                radius,
+                paint.color.withOpacity(opacity),
+                transform,
+                filter,
+            )
+            is UiResolvedPaint.LinearGradient -> scratchTriangles.appendLocalGradient(
+                width,
+                height,
+                radius,
+                paint.angleDegrees,
+                paint.stops,
+                opacity,
+                transform,
+                filter,
+            )
+            is UiResolvedPaint.Image -> {
+                flushScratchTriangles()
+                imageDrawer(width, height, paint.source, opacity, transform, UiImageFit.STRETCH, filter, UiInsets.Zero, UiColor.White)
+            }
+            is UiResolvedPaint.Shader -> scratchTriangles.appendLocalPaint(
+                width,
+                height,
+                radius,
+                UiColor(0.2f, 0.2f, 0.24f, opacity),
+                transform,
+                filter,
+            )
         }
     }
 
@@ -431,6 +445,6 @@ internal class UiWidgetRenderer(
             0,
             15728880,
         )
-        mc.renderBuffers().bufferSource().endBatch()
+        markTextBatchDirty()
     }
 }

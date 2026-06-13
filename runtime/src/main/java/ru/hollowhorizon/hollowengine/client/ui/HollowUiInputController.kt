@@ -77,6 +77,27 @@ class HollowUiInputController {
         return dispatch(UiEvent(UiEventKind.HOVER, node, x = mouseX, y = mouseY))
     }
 
+    fun focus(
+        frame: HollowUiFrame,
+        nodeKey: String?,
+        dispatch: (UiEvent) -> Boolean,
+    ): Boolean {
+        if (nodeKey == null) {
+            val hadFocus = focusedKey != null
+            setFocus(frame, null, dispatch)
+            return hadFocus
+        }
+        val node = frame.nodeByKey(nodeKey) ?: return false
+        if (!frame.resolved[node].input.focusable) return false
+        val previous = focusedKey
+        setFocus(frame, nodeKey, dispatch)
+        return previous != focusedKey
+    }
+
+    fun scrollTargetAt(frame: HollowUiFrame, x: Float, y: Float): UiNode? {
+        return frame.scrollTargetAt(x, y) ?: focusedScrollableNode(frame)
+    }
+
     fun mouseClicked(
         frame: HollowUiFrame,
         mouseX: Float,
@@ -266,16 +287,15 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
-            return UiInputResult(true, focusedKey?.let(frame::nodeByKey), focusedKey)
-        }
-
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
         val event = UiEvent(UiEventKind.KEY_PRESSED, node, frame = frame, key = keyCode, scanCode = scanCode, modifiers = modifiers)
         val handled = dispatch(event)
         if (event.changed) {
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
+        }
+        if (!event.consumed && keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
+            return UiInputResult(true, focusedKey?.let(frame::nodeByKey), focusedKey)
         }
         return UiInputResult(handled, node, UiNodeKeys.key(node))
     }
@@ -447,6 +467,13 @@ class HollowUiInputController {
         val window = Minecraft.getInstance().window.window
         return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS ||
                 GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS
+    }
+
+    private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
+        return focusedKey
+            ?.let(frame::nodeByKey)
+            ?.takeIf { it in frame.layout.nodes }
+            ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {

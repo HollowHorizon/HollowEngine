@@ -33,7 +33,9 @@ internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Bo
         val completionChanged = when (input.key) {
             GLFW.GLFW_KEY_UP -> moveCompletionSelection(-1)
             GLFW.GLFW_KEY_DOWN -> moveCompletionSelection(1)
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion(completionSelectedIndex)
+            GLFW.GLFW_KEY_TAB,
+            GLFW.GLFW_KEY_ENTER,
+            GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion(completionSelectedIndex)
             GLFW.GLFW_KEY_ESCAPE -> closeCompletions()
             else -> false
         }

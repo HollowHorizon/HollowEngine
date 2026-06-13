@@ -77,7 +77,6 @@ data class UiInlineWidgetRun(
 internal object UiTextLayouter {
     private const val MaxCachedLayouts = 512
     private const val MaxCachedTextWidths = 2048
-    private const val FloatingWidgetGap = 6f
     private val lineCache = lruCache<LineCacheKey, List<RawTextLine>>(MaxCachedLayouts)
     private val layoutCache = lruCache<LayoutCacheKey, UiTextLayout>(MaxCachedLayouts)
     private val widthCache = lruCache<TextWidthCacheKey, Float>(MaxCachedTextWidths)
@@ -230,7 +229,7 @@ internal object UiTextLayouter {
             val lineAdvance = if (index == rawLines.lastIndex) raw.contentHeight else raw.advanceHeight
             if (height.isFinite() && lines.isNotEmpty() && y + lineAdvance > height) break
             val justify = align == UiTextAlign.JUSTIFY && !raw.lastInParagraph && raw.justifyGapCount > 0
-            val textBoxWidth = raw.textBoxWidth.takeIf { it.isFinite() } ?: width
+            val textBoxWidth = width
             val extra = if (justify) {
                 (textBoxWidth - raw.width).coerceAtLeast(0f) / raw.justifyGapCount.coerceAtLeast(1)
             } else {
@@ -340,22 +339,16 @@ internal object UiTextLayouter {
         val units = richText.toUnits(fontSize, fontFamily, spaceWidth)
         val result = mutableListOf<RawTextLine>()
         val current = mutableListOf<InlineUnit>()
-        val floating = mutableListOf<FloatingWidget>()
-        val pendingFloatingFragments = mutableListOf<FloatingWidgetFragment>()
         var currentWidth = 0f
         var pendingSpace: InlineUnit.Space? = null
         var endedWithNewline = false
         var y = 0f
 
         fun commit(lastInParagraph: Boolean, trailingSourceCharacters: Int = 0) {
-            val bounds = lineBounds(width, y, floating)
             val line = RawTextLine(
                 current.toList(),
                 lastInParagraph,
                 trailingSourceCharacters,
-                bounds.x,
-                bounds.width,
-                pendingFloatingFragments.toList(),
                 lineSpacing,
             )
             result += line
@@ -363,11 +356,9 @@ internal object UiTextLayouter {
             current.clear()
             currentWidth = 0f
             pendingSpace = null
-            pendingFloatingFragments.clear()
         }
 
         unitLoop@ for (unit in units) {
-            val bounds = lineBounds(width, y, floating)
             when (unit) {
                 InlineUnit.Newline -> {
                     commit(lastInParagraph = true, trailingSourceCharacters = 1)
@@ -377,7 +368,7 @@ internal object UiTextLayouter {
                 is InlineUnit.Space -> {
                     endedWithNewline = false
                     if (preserveWhitespace) {
-                        if (wrap && current.isNotEmpty() && currentWidth + unit.width > bounds.width) {
+                        if (wrap && current.isNotEmpty() && currentWidth + unit.width > width) {
                             commit(lastInParagraph = false)
                         }
                         current += unit
@@ -390,7 +381,7 @@ internal object UiTextLayouter {
                 is InlineUnit.Word -> {
                     endedWithNewline = false
                     val space = pendingSpace
-                    val availableWidth = bounds.width.takeIf { it > 0f } ?: width
+                    val availableWidth = width.takeIf { it > 0f } ?: width
                     if (wrap && availableWidth.isFinite() && availableWidth > 0f && unit.width > availableWidth) {
                         if (current.isNotEmpty()) {
                             commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
@@ -406,7 +397,7 @@ internal object UiTextLayouter {
                     }
 
                     val candidateWidth = currentWidth + (space?.width ?: 0f) + unit.width
-                    if (wrap && current.isNotEmpty() && candidateWidth > bounds.width) {
+                    if (wrap && current.isNotEmpty() && candidateWidth > width) {
                         commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
                     } else if (space != null) {
                         current += space
@@ -421,7 +412,7 @@ internal object UiTextLayouter {
                     endedWithNewline = false
                     val space = pendingSpace
                     val candidateWidth = currentWidth + (space?.width ?: 0f) + unit.width
-                    if (wrap && current.isNotEmpty() && candidateWidth > bounds.width) {
+                    if (wrap && current.isNotEmpty() && candidateWidth > width) {
                         commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
                     } else if (space != null) {
                         current += space
@@ -436,7 +427,7 @@ internal object UiTextLayouter {
                     endedWithNewline = false
                     val space = pendingSpace
                     val candidateWidth = currentWidth + (space?.width ?: 0f) + unit.width
-                    if (wrap && current.isNotEmpty() && candidateWidth > bounds.width) {
+                    if (wrap && current.isNotEmpty() && candidateWidth > width) {
                         commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
                     } else if (space != null) {
                         current += space
@@ -449,21 +440,9 @@ internal object UiTextLayouter {
 
                 is InlineUnit.Widget -> {
                     endedWithNewline = false
-                    if (unit.widget.flow != UiTextWidgetFlow.INLINE) {
-                        if (current.isNotEmpty()) commit(lastInParagraph = false)
-                        val updatedBounds = lineBounds(width, y, floating)
-                        val x = when (unit.widget.flow) {
-                            UiTextWidgetFlow.FLOAT_END -> (width - unit.width).coerceAtLeast(0f)
-                            else -> updatedBounds.x
-                        }
-                        floating += FloatingWidget(unit.widget, x, y, unit.width, unit.height, FloatingWidgetGap)
-                        pendingFloatingFragments += FloatingWidgetFragment(unit.widget, x, 0f, unit.width, unit.height)
-                        pendingSpace = null
-                        continue@unitLoop
-                    }
                     val space = pendingSpace
                     val candidateWidth = currentWidth + (space?.width ?: 0f) + unit.width
-                    if (wrap && current.isNotEmpty() && candidateWidth > bounds.width) {
+                    if (wrap && current.isNotEmpty() && candidateWidth > width) {
                         commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
                     } else if (space != null) {
                         current += space
@@ -475,7 +454,7 @@ internal object UiTextLayouter {
                 }
             }
         }
-        if (current.isNotEmpty() || pendingFloatingFragments.isNotEmpty() || result.isEmpty() || endedWithNewline) {
+        if (current.isNotEmpty() || result.isEmpty() || endedWithNewline) {
             commit(lastInParagraph = true)
         }
         return result.also { lineCache[key] = it }
@@ -582,16 +561,6 @@ internal object UiTextLayouter {
     ): UiTextLine {
         var x = 0f
         val fragments = mutableListOf<UiTextFragment>()
-        val finalLineX = lineX + textX
-        for (floating in floatingFragments) {
-            fragments += UiInlineWidgetRun(
-                floating.widget,
-                floating.x - finalLineX,
-                floating.y,
-                floating.width,
-                floating.height,
-            )
-        }
         for (unit in units) {
             when (unit) {
                 InlineUnit.Newline -> Unit
@@ -633,7 +602,7 @@ internal object UiTextLayouter {
         }
         return UiTextLine(
             text = text,
-            x = finalLineX,
+            x = lineX,
             y = lineY,
             width = if (justify) textBoxWidth else width,
             naturalWidth = naturalWidth,
@@ -652,50 +621,10 @@ internal object UiTextLayouter {
         UiTextAlign.CENTER -> ((width - lineWidth) / 2f).coerceAtLeast(0f)
     }
 
-    private fun lineBounds(width: Float, y: Float, floating: List<FloatingWidget>): LineBounds {
-        if (!width.isFinite() || floating.isEmpty()) return LineBounds(0f, width)
-        var start = 0f
-        var end = width
-        for (widget in floating) {
-            if (y < widget.y || y >= widget.y + widget.height) continue
-            when (widget.widget.flow) {
-                UiTextWidgetFlow.FLOAT_START -> start = maxOf(start, widget.x + widget.width + widget.gap)
-                UiTextWidgetFlow.FLOAT_END -> end = minOf(end, widget.x - widget.gap)
-                UiTextWidgetFlow.INLINE -> Unit
-            }
-        }
-        return LineBounds(start, (end - start).coerceAtLeast(0f))
-    }
-
-    private data class LineBounds(
-        val x: Float,
-        val width: Float,
-    )
-
-    private data class FloatingWidget(
-        val widget: UiInlineItem.Widget,
-        val x: Float,
-        val y: Float,
-        val width: Float,
-        val height: Float,
-        val gap: Float,
-    )
-
-    private data class FloatingWidgetFragment(
-        val widget: UiInlineItem.Widget,
-        val x: Float,
-        val y: Float,
-        val width: Float,
-        val height: Float,
-    )
-
     private data class RawTextLine(
         val units: List<InlineUnit>,
         val lastInParagraph: Boolean,
         val trailingSourceCharacters: Int = 0,
-        val textX: Float = 0f,
-        val textBoxWidth: Float = Float.POSITIVE_INFINITY,
-        val floatingFragments: List<FloatingWidgetFragment> = emptyList(),
         val lineSpacing: Float = 0f,
     ) {
         val text: String = buildString {
@@ -711,10 +640,7 @@ internal object UiTextLayouter {
             }
         }
         val width: Float = units.sumOf { it.width.toDouble() }.toFloat()
-        val naturalWidth: Float = maxOf(
-            textX + width,
-            floatingFragments.maxOfOrNull { it.x + it.width } ?: 0f,
-        )
+        val naturalWidth: Float = width
         val height: Float
         val contentHeight: Float
         val advanceHeight: Float
@@ -726,7 +652,6 @@ internal object UiTextLayouter {
                 .maxOfOrNull { it.height }
                 ?: DefaultUiFontSize
             val lineHeight = units.maxOfOrNull { it.height }
-                ?: floatingFragments.maxOfOrNull { it.y + it.height }
                 ?: textHeight
             val imageBaseline = units.filterIsInstance<InlineUnit.Image>().maxOfOrNull { image ->
                 if (image.image.align == UiInlineAlign.BASELINE) image.height else 0f
@@ -737,7 +662,6 @@ internal object UiTextLayouter {
             val baseline = maxOf(textHeight, imageBaseline, widgetBaseline)
             units.forEach { it.resolveY(lineHeight, baseline) }
             val lineBottom = units.maxOfOrNull { it.y + it.height }
-                ?: floatingFragments.maxOfOrNull { it.y + it.height }
                 ?: lineHeight
             contentHeight = maxOf(
                 lineHeight,

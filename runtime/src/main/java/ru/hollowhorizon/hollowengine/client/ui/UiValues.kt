@@ -136,12 +136,6 @@ data class UiPopupAlignment(
     }
 }
 
-enum class UiTextWidgetFlow {
-    INLINE,
-    FLOAT_START,
-    FLOAT_END
-}
-
 enum class UiAlign {
     AUTO,
     START,

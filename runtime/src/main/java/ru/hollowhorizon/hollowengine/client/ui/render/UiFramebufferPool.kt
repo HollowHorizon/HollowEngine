@@ -248,10 +248,18 @@ private class UiAtlasAllocator(width: Int, height: Int) {
     private val freeRects = mutableListOf(UiPackedRect(0, 0, width, height))
 
     fun allocate(width: Int, height: Int): UiPackedRect? {
-        val index = freeRects.indices
-            .filter { freeRects[it].fits(width, height) }
-            .minByOrNull { freeRects[it].waste(width, height) }
-            ?: return null
+        var index = -1
+        var bestWaste = Int.MAX_VALUE
+        for (candidateIndex in freeRects.indices) {
+            val candidate = freeRects[candidateIndex]
+            if (!candidate.fits(width, height)) continue
+            val waste = candidate.waste(width, height)
+            if (waste < bestWaste) {
+                index = candidateIndex
+                bestWaste = waste
+            }
+        }
+        if (index < 0) return null
         val free = freeRects.removeAt(index)
         val allocated = UiPackedRect(free.x, free.y, width, height)
         val rightWidth = free.width - width
@@ -266,8 +274,11 @@ private class UiAtlasAllocator(width: Int, height: Int) {
         var index = 0
         while (index < freeRects.size) {
             val rect = freeRects[index]
-            val contained = freeRects.indices.any { other ->
-                other != index && freeRects[other].contains(rect)
+            var contained = false
+            var other = 0
+            while (other < freeRects.size && !contained) {
+                contained = other != index && freeRects[other].contains(rect)
+                other++
             }
             if (contained) {
                 freeRects.removeAt(index)

@@ -142,11 +142,11 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 UiTextSegment.Text(" measured widgets and keep wrapping/justify consistent.".bound()),
             )
         )
-        val flowContent = UiTextContent(
+        val slotContent = UiTextContent(
             listOf(
-                UiTextSegment.flowWidget("flow-note", UiTextWidgetFlow.FLOAT_START),
+                UiTextSegment.inlineWidget("inline-note", align = UiInlineAlign.TOP),
                 UiTextSegment.Text(
-                    "Flow text reserves the measured widget rectangle first, wraps beside it while the rectangle is active, and then returns to the full text width below the widget.".bound(),
+                    "Measured slots now travel through the same inline line builder as text and images, so wrapping uses one layout path.".bound(),
                 ),
             )
         )
@@ -169,15 +169,15 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 }
             }
 
-            Column(tags = listOf("text-demo-card", "text-flow-card"), modifier = Modifier.position(352.px, 0.px)) {
-                Text("Flow widget", tags = listOf("card-title"))
+            Column(tags = listOf("text-demo-card", "text-slot-card"), modifier = Modifier.position(352.px, 0.px)) {
+                Text("Inline slot", tags = listOf("card-title"))
                 Text(
-                    textContent = flowContent,
+                    textContent = slotContent,
                     tags = listOf("text-demo-copy"),
                     modifier = Modifier.size(330.px, 116.px),
                 ) {
-                    InlineWidget("flow-note", tags = listOf("text-flow-note")) {
-                        Text("Measured\nslot", tags = listOf("text-flow-note-label"))
+                    InlineWidget("inline-note", tags = listOf("text-slot-note")) {
+                        Text("Measured\nslot", tags = listOf("text-slot-note-label"))
                     }
                 }
             }
@@ -447,9 +447,9 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 <text tags="xml-rich-text">
                     XML text with <box id="xml-inline-chip" tags="xml-inline-chip"><text>inline</text></box> measured slot.
                 </text>
-                <text tags="xml-flow-text">
-                    <box id="xml-flow-note" tags="xml-flow-note" flow="start"><text>flow</text></box>
-                    This paragraph wraps around a widget whose size comes from HSS, then uses the full line width below it.
+                <text tags="xml-slot-text">
+                    <box id="xml-slot-note" tags="xml-slot-note"><text>slot</text></box>
+                    This paragraph contains a measured inline widget whose size comes from HSS.
                 </text>
                 <column id="xml-popup-anchor" tags="xml-popup-anchor">
                     <text>Popup anchor</text>

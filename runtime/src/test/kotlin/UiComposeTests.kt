@@ -107,6 +107,112 @@ class UiComposeTests {
     }
 
     @Test
+    fun `text completion popup is emitted as generic render commands`() {
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                TextField(
+                    value = "A",
+                    id = "field",
+                    completionContributor = UiCompletionContributor {
+                        listOf(UiTextCompletion("AlphaOption", "AlphaOption()", "template"))
+                    },
+                    modifier = Modifier.size(140.px, 40.px),
+                )
+            }
+            val initial = runtime.frame(160f, 80f)
+            val field = initial.resolved.styles.keys.filterIsInstance<TextFieldNode>().single()
+            field.moveCaret(1)
+            field.openCompletions()
+
+            val frame = runtime.frame(160f, 80f)
+            val popupBoxes = frame.commands.filterIsInstance<DrawBoxCommand>().filter { it.node == field }
+            val popupTexts = frame.commands.filterIsInstance<DrawTextCommand>().filter { it.node == field }
+
+            assertTrue(popupBoxes.size >= 2)
+            assertTrue(popupTexts.any { it.text == "AlphaOption" })
+            assertTrue(popupTexts.any { it.text == "template" })
+        }
+    }
+
+    @Test
+    fun `tab accepts text completion before focus traversal`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                Column {
+                    TextField(
+                        value = "Fo",
+                        id = "field",
+                        completionContributor = UiCompletionContributor {
+                            listOf(UiTextCompletion("FooBar", "FooBar"))
+                        },
+                        modifier = Modifier.size(120.px, 20.px),
+                    )
+                    TextField(value = "", id = "next", modifier = Modifier.size(120.px, 20.px))
+                }
+            }
+            val frame = runtime.frame(160f, 60f)
+            val field = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single { it.id == "field" }
+
+            input.focus(frame, "field") { it.node.dispatch(it) }
+            field.moveCaret(2)
+            field.openCompletions()
+            val result = input.keyPressed(frame, GLFW.GLFW_KEY_TAB, scanCode = 0, modifiers = 0) { it.node.dispatch(it) }
+
+            assertTrue(result.changed)
+            assertEquals("FooBar", field.value)
+            assertEquals("field", input.focusedKey)
+        }
+    }
+
+    @Test
+    fun `tab moves focus when focused text field does not consume it`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                Column {
+                    TextField(value = "first", id = "first", modifier = Modifier.size(120.px, 20.px))
+                    TextField(value = "second", id = "second", modifier = Modifier.size(120.px, 20.px))
+                }
+            }
+            val frame = runtime.frame(160f, 60f)
+
+            input.focus(frame, "first") { it.node.dispatch(it) }
+            input.keyPressed(frame, GLFW.GLFW_KEY_TAB, scanCode = 0, modifiers = 0) { it.node.dispatch(it) }
+
+            assertEquals("second", input.focusedKey)
+        }
+    }
+
+    @Test
+    fun `input scroll target falls back to focused scrollable node`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                TextField(
+                    value = "line 1\nline 2\nline 3\nline 4\nline 5",
+                    mode = UiTextFieldMode.MULTI_LINE,
+                    id = "editor",
+                    modifier = Modifier.then(
+                        Modifier.size(80.px, 20.px),
+                        Modifier.input(scrollable = true),
+                    ),
+                )
+            }
+            val frame = runtime.frame(160f, 80f)
+            val editor = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single { it.id == "editor" }
+
+            input.focus(frame, "editor") { it.node.dispatch(it) }
+
+            assertTrue(frame.layout[editor].scrollRange.y > 0f)
+            assertSame(editor, input.scrollTargetAt(frame, x = 140f, y = 60f))
+        }
+    }
+
+    @Test
     fun `text selection fills line gaps and empty lines`() {
         val layout = UiTextLayouter.layout(
             "a\n\nb",
@@ -129,7 +235,7 @@ class UiComposeTests {
     fun `text field default keymap is a modifier fallback`() {
         var intercepted = false
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     TextField(
@@ -165,14 +271,15 @@ class UiComposeTests {
         UiNodeKeys.assign(root)
         val resolved = UiStyleResolver().resolve(root, animate = false)
         val layout = UiLayoutEngine().compute(resolved, width = 100f, height = 30f)
+        val placedChildren = root.children.filter { it in layout.nodes }.map { it.id }
 
         assertTrue(layout[root].scrollRange.y > 0f)
-        assertTrue(root.children.count { it in layout.nodes } < root.children.size)
+        assertEquals(listOf("row-0", "row-1", "row-2"), placedChildren)
     }
 
     @Test
     fun `scroll target ignores virtualized lazy children without layout nodes`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     LazyColumn(
@@ -193,6 +300,140 @@ class UiComposeTests {
             val target = frame.scrollTargetAt(8f, 8f)
 
             assertEquals("lazy", target?.id)
+        }
+    }
+
+    @Test
+    fun `lazy column places partially visible children after scroll offset`() {
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                LazyColumn(
+                    id = "lazy",
+                    modifier = Modifier.then(
+                        Modifier.size(100.px, 30.px),
+                        Modifier.input(scrollable = true),
+                    ),
+                ) {
+                    repeat(10) { index ->
+                        Box(id = "row-$index", modifier = Modifier.size(100.px, 10.px))
+                    }
+                }
+            }
+            val initial = runtime.frame(100f, 30f)
+            val lazy = initial.resolved.styles.keys.single { it.id == "lazy" }
+            runtime.setScrollImmediate(lazy, y = 15f)
+            val scrolled = runtime.frame(100f, 30f)
+            val placedChildren = scrolled.resolved.styles.keys
+                .filter { it.id?.startsWith("row-") == true && it in scrolled.layout.nodes }
+                .mapNotNull { it.id }
+                .sorted()
+
+            assertEquals(listOf("row-1", "row-2", "row-3", "row-4"), placedChildren)
+        }
+    }
+
+    @Test
+    fun `scrollbar uses layout geometry and generic box commands`() {
+        HollowUiSurface().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    Box(
+                        id = "scroll",
+                        modifier = Modifier.then(
+                            Modifier.size(100.px, 30.px),
+                            Modifier.input(scrollable = true),
+                        ),
+                    ) {
+                        Box(id = "content", modifier = Modifier.size(80.px, 100.px))
+                    }
+                },
+                width = 100f,
+                height = 30f,
+            )
+            val scroll = frame.resolved.styles.keys.single { it.id == "scroll" }
+            val scrollbar = frame.layout[scroll].scrollbars.single()
+            val scrollbarCommands = frame.commands.filterIsInstance<DrawBoxCommand>().filter { it.node == scroll }
+            val hit = frame.scrollbarAt(
+                scrollbar.thumb.x + scrollbar.thumb.width * 0.5f,
+                scrollbar.thumb.y + scrollbar.thumb.height * 0.5f,
+            )
+
+            assertEquals(ScrollbarOrientation.VERTICAL, scrollbar.orientation)
+            assertEquals(2, scrollbarCommands.size)
+            assertEquals(scrollbar.track.width, scrollbarCommands[0].rect.width)
+            assertEquals(scrollbar.thumb.height, scrollbarCommands[1].rect.height)
+            assertSame(scroll, hit?.node)
+        }
+    }
+
+    @Test
+    fun `lazy row keeps horizontal scroll range but places only visible children`() {
+        val root = BoxNode(layout = UiLayout.LazyRow, modifiers = listOf(Modifier.size(30.px, 100.px), Modifier.input(scrollable = true)))
+        repeat(10) { index ->
+            root.children += BoxNode(id = "column-$index", modifiers = listOf(Modifier.size(10.px, 100.px)))
+        }
+
+        UiNodeKeys.assign(root)
+        val resolved = UiStyleResolver().resolve(root, animate = false)
+        val layout = UiLayoutEngine().compute(resolved, width = 30f, height = 100f)
+        val placedChildren = root.children.filter { it in layout.nodes }.map { it.id }
+
+        assertTrue(layout[root].scrollRange.x > 0f)
+        assertEquals(listOf("column-0", "column-1", "column-2"), placedChildren)
+    }
+
+    @Test
+    fun `scroll target ignores virtualized lazy row children without layout nodes`() {
+        HollowUiSurface().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    LazyRow(
+                        id = "lazy",
+                        modifier = Modifier.then(
+                            Modifier.size(30.px, 100.px),
+                            Modifier.input(scrollable = true),
+                        ),
+                    ) {
+                        repeat(10) { index ->
+                            Box(id = "column-$index", modifier = Modifier.size(10.px, 100.px))
+                        }
+                    }
+                },
+                width = 30f,
+                height = 100f,
+            )
+            val target = frame.scrollTargetAt(8f, 8f)
+
+            assertEquals("lazy", target?.id)
+        }
+    }
+
+    @Test
+    fun `lazy row places partially visible children after scroll offset`() {
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                LazyRow(
+                    id = "lazy",
+                    modifier = Modifier.then(
+                        Modifier.size(30.px, 100.px),
+                        Modifier.input(scrollable = true),
+                    ),
+                ) {
+                    repeat(10) { index ->
+                        Box(id = "column-$index", modifier = Modifier.size(10.px, 100.px))
+                    }
+                }
+            }
+            val initial = runtime.frame(30f, 100f)
+            val lazy = initial.resolved.styles.keys.single { it.id == "lazy" }
+            runtime.setScrollImmediate(lazy, x = 15f)
+            val scrolled = runtime.frame(30f, 100f)
+            val placedChildren = scrolled.resolved.styles.keys
+                .filter { it.id?.startsWith("column-") == true && it in scrolled.layout.nodes }
+                .mapNotNull { it.id }
+                .sorted()
+
+            assertEquals(listOf("column-1", "column-2", "column-3", "column-4"), placedChildren)
         }
     }
 
@@ -220,7 +461,7 @@ class UiComposeTests {
 
     @Test
     fun `compose runtime produces layout frames from composed nodes`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Row(
@@ -246,8 +487,29 @@ class UiComposeTests {
     }
 
     @Test
+    fun `ui surface produces composed layout frames`() {
+        HollowUiSurface().use { surface ->
+            val frame = surface.frame(
+                content = {
+                    Row(modifier = Modifier.then(Modifier.size(80.px, 20.px), Modifier.gap(4.px))) {
+                        Box(id = "left", modifier = Modifier.size(20.px, 10.px))
+                        Box(id = "right", modifier = Modifier.size(20.px, 10.px))
+                    }
+                },
+                width = 80f,
+                height = 20f,
+            )
+            val left = frame.resolved.styles.keys.single { it.id == "left" }
+            val right = frame.resolved.styles.keys.single { it.id == "right" }
+
+            assertEquals(0f, frame.layout[left].rect.x)
+            assertEquals(24f, frame.layout[right].rect.x)
+        }
+    }
+
+    @Test
     fun `custom layout policy measures and places children explicitly`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Layout(
@@ -293,7 +555,7 @@ class UiComposeTests {
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(textContent = content, modifier = Modifier.fontSize(10f)) {
@@ -320,6 +582,30 @@ class UiComposeTests {
     }
 
     @Test
+    fun `text render command reuses layout engine text layout`() {
+        HollowUiSurface().use { runtime ->
+            val frame = runtime.frame(
+                content = {
+                    Text(
+                        "One two three four five six",
+                        modifier = Modifier.then(
+                            Modifier.size(74.px, 80.px),
+                            Modifier.fontSize(10f),
+                        ),
+                    )
+                },
+                width = 90f,
+                height = 90f,
+            )
+            val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
+            val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
+
+            assertSame(frame.layout[text].textLayout, command.layout)
+            assertTrue(command.layout.lines.size > 1)
+        }
+    }
+
+    @Test
     fun `text inline widget follows justified line offsets`() {
         val content = UiTextContent(
             listOf(
@@ -329,7 +615,7 @@ class UiComposeTests {
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -367,7 +653,7 @@ class UiComposeTests {
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Column(
@@ -418,7 +704,7 @@ class UiComposeTests {
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -451,7 +737,7 @@ class UiComposeTests {
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -479,15 +765,15 @@ class UiComposeTests {
     }
 
     @Test
-    fun `text flow widget reserves measured space for wrapped text`() {
+    fun `text inline widget is positioned from the unified text layout`() {
         val content = UiTextContent(
             listOf(
-                UiTextSegment.flowWidget("aside"),
-                UiTextSegment.Text("Flow text wraps beside the measured widget before using the full line width below it.".bound()),
+                UiTextSegment.inlineWidget("aside", align = UiInlineAlign.TOP),
+                UiTextSegment.Text("Inline text wraps after the measured widget using the same line width as every other run.".bound()),
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -503,32 +789,32 @@ class UiComposeTests {
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val aside = frame.resolved.styles.keys.single { it.id == "aside" }
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
-            val flowRun = command.layout.lines
+            val widgetRun = command.layout.lines
                 .flatMap { line -> line.fragments.map { line to it } }
                 .single { (_, fragment) -> fragment is UiInlineWidgetRun }
             val firstTextRun = command.layout.lines.first().fragments.filterIsInstance<UiTextRun>().first()
 
-            assertEquals(frame.layout[text].content.x, frame.layout[aside].rect.x)
-            assertEquals(frame.layout[text].content.y, frame.layout[aside].rect.y)
-            assertEquals(frame.layout[text].content.x + flowRun.first.x + flowRun.second.x, frame.layout[aside].rect.x)
-            assertTrue(command.layout.lines.first().x >= 48f)
-            assertTrue(command.layout.lines.count { it.y < 28f && it.x >= 48f } > 1)
-            assertTrue(firstTextRun.x >= 0f)
+            assertEquals(42f, frame.layout[aside].rect.width)
+            assertEquals(28f, frame.layout[aside].rect.height)
+            assertEquals(frame.layout[text].content.x + widgetRun.first.x + widgetRun.second.x, frame.layout[aside].rect.x)
+            assertEquals(frame.layout[text].content.y + widgetRun.first.y + widgetRun.second.y, frame.layout[aside].rect.y)
+            assertEquals(0f, command.layout.lines.first().x)
+            assertTrue(firstTextRun.x >= 42f)
         }
     }
 
     @Test
-    fun `text flow widget keeps wrapped lines beside widget until widget bottom`() {
+    fun `text inline widget does not offset following wrapped lines`() {
         val content = UiTextContent(
             listOf(
-                UiTextSegment.flowWidget("aside"),
+                UiTextSegment.inlineWidget("aside", align = UiInlineAlign.TOP),
                 UiTextSegment.Text(
                     "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen.".bound(),
                 ),
             )
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -543,16 +829,17 @@ class UiComposeTests {
             )
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
-            val fullWidthLine = command.layout.lines.firstOrNull { it.x < 42f }
+            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is UiInlineWidgetRun } }
+            val nextLine = command.layout.lines.first { it.y > widgetLine.y }
 
-            assertTrue(command.layout.lines.count { it.y < 36f && it.x >= 48f } > 1)
-            assertTrue(fullWidthLine == null || fullWidthLine.y >= 36f)
+            assertTrue(command.layout.lines.all { it.x == 0f })
+            assertTrue(nextLine.y >= widgetLine.y + 36f)
         }
     }
 
     @Test
     fun `text line spacing increases distance between lines`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -577,7 +864,7 @@ class UiComposeTests {
 
     @Test
     fun `text space width can be configured`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Text(
@@ -616,7 +903,7 @@ class UiComposeTests {
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime(stylesheet = stylesheet).use { runtime ->
+        HollowUiSurface(stylesheet = stylesheet).use { runtime ->
             val frame = runtime.frame(
                 content = { UiXmlContent(xml) },
                 width = 70f,
@@ -642,7 +929,7 @@ class UiComposeTests {
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = { UiXmlContent(xml) },
                 width = 180f,
@@ -662,10 +949,10 @@ class UiComposeTests {
     }
 
     @Test
-    fun `xml text flow widget uses hss sized child for wrapping`() {
+    fun `xml text inline widget uses hss sized child layout run`() {
         val stylesheet = compileHss(
             """
-            .flow-aside {
+            .slot-aside {
                 size: 36px 24px;
             }
             """.trimIndent(),
@@ -673,13 +960,13 @@ class UiComposeTests {
         val xml = parseUiXml(
             """
             <text font-size="10" width="130px" height="80px">
-                <box id="aside" tags="flow-aside" flow="start" />
-                Text wraps around the HSS-sized child and then continues below it.
+                <box id="aside" tags="slot-aside" />
+                Text wraps after the HSS-sized child as a normal inline run.
             </text>
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime(stylesheet = stylesheet).use { runtime ->
+        HollowUiSurface(stylesheet = stylesheet).use { runtime ->
             val frame = runtime.frame(
                 content = { UiXmlContent(xml) },
                 width = 160f,
@@ -688,18 +975,20 @@ class UiComposeTests {
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val aside = frame.resolved.styles.keys.single { it.id == "aside" }
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
+            val widgetRun = command.layout.lines
+                .flatMap { line -> line.fragments.map { line to it } }
+                .single { (_, fragment) -> fragment is UiInlineWidgetRun }
 
             assertEquals(36f, frame.layout[aside].rect.width)
             assertEquals(24f, frame.layout[aside].rect.height)
-            assertEquals(frame.layout[text].content.x, frame.layout[aside].rect.x)
-            assertTrue(command.layout.lines.first().x >= 42f)
-            assertTrue(command.layout.lines.count { it.y < 24f && it.x >= 42f } > 1)
+            assertEquals(frame.layout[text].content.x + widgetRun.first.x + widgetRun.second.x, frame.layout[aside].rect.x)
+            assertEquals(0f, command.layout.lines.first().x)
         }
     }
 
     @Test
     fun `popup is positioned relative to anchor node alignment`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     Box(modifier = Modifier.size(200.px, 120.px)) {
@@ -724,7 +1013,7 @@ class UiComposeTests {
 
     @Test
     fun `cursor popup follows pointer bindings`() {
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             runtime.setContent {
                 Box(modifier = Modifier.size(200.px, 120.px)) {
                     Popup(
@@ -751,7 +1040,7 @@ class UiComposeTests {
     fun `compose runtime keeps scroll state across recomposition`() {
         val label = mutableStateOf("before")
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             runtime.setContent {
                 Column {
                     Text(label.value)
@@ -777,6 +1066,35 @@ class UiComposeTests {
     }
 
     @Test
+    fun `render commands skip children outside scroll clip`() {
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                Box(
+                    id = "scroll",
+                    modifier = Modifier.then(Modifier.size(80.px, 30.px), Modifier.input(scrollable = true)),
+                ) {
+                    Text(
+                        "visible",
+                        id = "visible",
+                        modifier = Modifier.then(Modifier.position(0.px, 0.px), Modifier.size(80.px, 12.px)),
+                    )
+                    Text(
+                        "hidden",
+                        id = "hidden",
+                        modifier = Modifier.then(Modifier.position(0.px, 60.px), Modifier.size(80.px, 12.px)),
+                    )
+                }
+            }
+
+            val frame = runtime.frame(120f, 80f)
+            val textCommands = frame.commands.filterIsInstance<DrawTextCommand>()
+
+            assertTrue(textCommands.any { it.node.id == "visible" })
+            assertTrue(textCommands.none { it.node.id == "hidden" })
+        }
+    }
+
+    @Test
     fun `compose xml content produces layout frames`() {
         val xml = parseUiXml(
             """
@@ -787,7 +1105,7 @@ class UiComposeTests {
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = { UiXmlContent(xml) },
                 width = 120f,
@@ -814,7 +1132,7 @@ class UiComposeTests {
 
         val serverTree = mutableStateOf(tree("Before", "server"))
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val root = runtime.setContent {
                 UiXmlContent(serverTree.value)
             }
@@ -850,7 +1168,7 @@ class UiComposeTests {
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime(stylesheet = stylesheet).use { runtime ->
+        HollowUiSurface(stylesheet = stylesheet).use { runtime ->
             runtime.setContent {
                 Box(id = "dialog", tags = listOf("dialog"))
             }
@@ -883,7 +1201,7 @@ class UiComposeTests {
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime(stylesheet = stylesheet).use { runtime ->
+        HollowUiSurface(stylesheet = stylesheet).use { runtime ->
             runtime.setContent {
                 Box(id = "dialog", tags = listOf("dialog"))
             }
@@ -906,7 +1224,7 @@ class UiComposeTests {
             """.trimIndent(),
         )
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             runtime.setContent {
                 Box(id = "panel", tags = listOf("panel"), modifier = Modifier.style("test:panel.hss", loader))
             }

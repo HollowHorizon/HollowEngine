@@ -16,8 +16,8 @@ data class HollowUiFrame(
 
     fun nodeByKey(key: String): UiNode? = resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
 
-    fun scrollbarAt(x: Float, y: Float): DrawScrollbarCommand? {
-        val scrollbars = commands.filterIsInstance<DrawScrollbarCommand>()
+    internal fun scrollbarAt(x: Float, y: Float): UiScrollbarHandle? {
+        val scrollbars = scrollbarHandlesInDrawOrder()
         return scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.THUMB }
             ?: scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.TRACK }
     }
@@ -78,6 +78,28 @@ data class HollowUiFrame(
         return if (rect.contains(local.x, local.y)) node else null
     }
 
+    private fun scrollbarHandlesInDrawOrder(): List<UiScrollbarHandle> {
+        val result = mutableListOf<UiScrollbarHandle>()
+
+        fun visit(node: UiNode) {
+            node.children
+                .filterNot { it is PopupNode }
+                .filter { it in layout.nodes }
+                .sortedBy { resolved[it].layer }
+                .forEach(::visit)
+            val layoutNode = layout.nodes[node] ?: return
+            layoutNode.scrollbars.forEach { geometry ->
+                result += UiScrollbarHandle(node, geometry, layoutNode.worldTransform)
+            }
+        }
+
+        visit(resolved.root)
+        resolved.root.popupDescendants()
+            .sortedBy { resolved[it].layer }
+            .forEach(::visit)
+        return result
+    }
+
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
         val corners = arrayOf(
             inputTransform.transform(0f, 0f),
@@ -117,6 +139,18 @@ private fun UiRect?.intersect(other: UiRect?): UiRect? {
     return UiRect(left, top, right - left, bottom - top)
 }
 
+private fun UiNode.popupDescendants(): List<PopupNode> {
+    val result = mutableListOf<PopupNode>()
+    fun visit(node: UiNode) {
+        for (child in node.children) {
+            if (child is PopupNode) result += child
+            visit(child)
+        }
+    }
+    visit(this)
+    return result
+}
+
 private fun ComputedStyle.requiresContinuousRefresh(): Boolean {
     if (typing != null) return true
     return animations.any { animation ->
@@ -146,12 +180,7 @@ class HollowUiRuntime(
         UiNodeKeys.assign(root)
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, bindings, nowMillis)
-        val activeTransitionDurations = resolved.styles.keys.associate { node ->
-            UiNodeKeys.key(node) to transitionState.activeDurationMillis(node)
-        }
-        val startedTransitionDurations = resolved.styles.keys.associate { node ->
-            UiNodeKeys.key(node) to transitionState.startedDurationMillis(node)
-        }
+        val transitionDurations = collectTransitionDurations(resolved)
         var layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
         if (ensureFocusedTextFieldsVisible(resolved, layout)) {
             layout = layoutEngine.compute(resolved, width, height, scrollState, bindings)
@@ -161,8 +190,8 @@ class HollowUiRuntime(
             resolved = resolved,
             layout = layout,
             commands = commands,
-            activeTransitionDurations = activeTransitionDurations,
-            startedTransitionDurations = startedTransitionDurations,
+            activeTransitionDurations = transitionDurations.active,
+            startedTransitionDurations = transitionDurations.started,
             activeScrollAnimation = scrollState.isAnimating(),
         )
     }
@@ -171,6 +200,18 @@ class HollowUiRuntime(
 
     fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset =
         scrollState.setImmediate(node, x, y)
+
+    private fun collectTransitionDurations(resolved: ResolvedUiTree): TransitionDurations {
+        if (resolved.styles.values.none { it.transitions.isNotEmpty() }) return TransitionDurations.Empty
+        val active = mutableMapOf<String, Long>()
+        val started = mutableMapOf<String, Long>()
+        resolved.styles.keys.forEach { node ->
+            val key = UiNodeKeys.key(node)
+            active[key] = transitionState.activeDurationMillis(node)
+            started[key] = transitionState.startedDurationMillis(node)
+        }
+        return TransitionDurations(active, started)
+    }
 
     private fun ensureFocusedTextFieldsVisible(resolved: ResolvedUiTree, layout: UiLayoutResult): Boolean {
         var changed = false
@@ -206,6 +247,15 @@ class HollowUiRuntime(
             ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
         }
         return changed
+    }
+}
+
+private data class TransitionDurations(
+    val active: Map<String, Long>,
+    val started: Map<String, Long>,
+) {
+    companion object {
+        val Empty = TransitionDurations(emptyMap(), emptyMap())
     }
 }
 

@@ -165,7 +165,7 @@ internal val DemoStyles = compileHss(
         border: 1px rgba(120, 140, 170, 0.35);
     }
 
-    .text-flow-card {
+    .text-slot-card {
         size: 354px 140px;
     }
 
@@ -193,7 +193,7 @@ internal val DemoStyles = compileHss(
         height: 14px;
     }
 
-    .text-flow-note {
+    .text-slot-note {
         padding: 6px;
         size: 72px 46px;
         background: rgba(238, 244, 255, 0.94);
@@ -202,7 +202,7 @@ internal val DemoStyles = compileHss(
         border: 1px rgba(255, 255, 255, 0.66);
     }
 
-    .text-flow-note-label {
+    .text-slot-note-label {
         foreground: rgba(24, 32, 46, 0.98);
         font-size: 9px;
     }

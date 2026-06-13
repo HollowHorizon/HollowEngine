@@ -185,7 +185,6 @@ internal fun UiXmlTree.inlineWidgetId(index: Int = 0): String {
 private fun UiXmlTree.toInlineWidgetSegment(index: Int = 0): UiTextSegment {
     return UiTextSegment.Widget(
         id = inlineWidgetId(index),
-        flow = parseTextWidgetFlow(attributes.firstValue("text-flow", "flow", "float", default = "inline")),
         align = parseInlineAlign(attributes.firstValue("align", default = "baseline")),
         alt = attributes.firstValue("alt"),
     )
@@ -261,14 +260,6 @@ private fun parseInlineAlign(value: String): UiInlineAlign = when (value.lowerca
     "bottom" -> UiInlineAlign.BOTTOM
     else -> UiInlineAlign.BASELINE
 }
-
-private fun parseTextWidgetFlow(value: String): UiTextWidgetFlow = when (value.lowercase()) {
-    "start", "left", "float-start", "float-left" -> UiTextWidgetFlow.FLOAT_START
-    "end", "right", "float-end", "float-right" -> UiTextWidgetFlow.FLOAT_END
-    else -> UiTextWidgetFlow.INLINE
-}
-
-
 
 private fun parseShadowEffect(attrs: Map<String, String>): Shadow {
     return Shadow(

@@ -32,7 +32,6 @@ data class UiTextContent(
                         id = segment.id,
                         width = widgetMetrics[segment.id]?.width ?: 0f,
                         height = widgetMetrics[segment.id]?.height ?: 0f,
-                        flow = segment.flow,
                         align = segment.align,
                         alt = segment.alt,
                     )
@@ -58,16 +57,7 @@ sealed interface UiTextSegment {
             id: String,
             align: UiInlineAlign = UiInlineAlign.BASELINE,
             alt: String = "",
-        ): Widget = Widget(id, UiTextWidgetFlow.INLINE, align, alt)
-
-        fun flowWidget(
-            id: String,
-            side: UiTextWidgetFlow = UiTextWidgetFlow.FLOAT_START,
-            alt: String = "",
-        ): Widget {
-            val flow = side.takeIf { it != UiTextWidgetFlow.INLINE } ?: UiTextWidgetFlow.FLOAT_START
-            return Widget(id, flow, UiInlineAlign.TOP, alt)
-        }
+        ): Widget = Widget(id, align, alt)
     }
 
     data class Text(
@@ -93,12 +83,11 @@ sealed interface UiTextSegment {
 
     data class Widget(
         val id: String,
-        val flow: UiTextWidgetFlow = UiTextWidgetFlow.INLINE,
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiTextSegment {
         override fun resolve(bindings: UiBindingContext): UiResolvedTextSegment {
-            return UiResolvedTextSegment.Widget(id, flow, align, alt)
+            return UiResolvedTextSegment.Widget(id, align, alt)
         }
     }
 
@@ -137,7 +126,6 @@ data class UiResolvedTextContent(
                         id = segment.id,
                         width = widgetMetrics[segment.id]?.width ?: 0f,
                         height = widgetMetrics[segment.id]?.height ?: 0f,
-                        flow = segment.flow,
                         align = segment.align,
                         alt = segment.alt,
                     )
@@ -209,7 +197,6 @@ sealed interface UiResolvedTextSegment {
 
     data class Widget(
         val id: String,
-        val flow: UiTextWidgetFlow = UiTextWidgetFlow.INLINE,
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiResolvedTextSegment

@@ -151,7 +151,7 @@ class UiDockingTests {
         state.openFloating(item("console"), x = 20f, y = 16f, width = 220f, height = 160f)
         val input = HollowUiInputController()
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             input.mouseClicked(frame, mouseX = 36f, mouseY = 24f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
 
@@ -176,7 +176,7 @@ class UiDockingTests {
         state.select("files")
         val input = HollowUiInputController()
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
 
             input.mouseClicked(frame, mouseX = 150f, mouseY = 12f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
@@ -193,7 +193,7 @@ class UiDockingTests {
         state.open(item("logs"))
         val input = HollowUiInputController()
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             input.mouseClicked(frame, mouseX = 150f, mouseY = 12f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
             input.mouseDragged(frame, mouseX = 10f, mouseY = 12f, button = 0, deltaX = -140f, deltaY = 0f) {
@@ -226,7 +226,7 @@ class UiDockingTests {
         state.open(item("console"))
         val input = HollowUiInputController()
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val firstFrame = runtime.frame(
                 content = {
                     Box(modifier = Modifier.size(100.percent, 100.percent)) {
@@ -260,7 +260,7 @@ class UiDockingTests {
         state.open(item("console"))
         val input = HollowUiInputController()
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val firstFrame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             input.mouseClicked(firstFrame, mouseX = 150f, mouseY = 12f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
             input.mouseDragged(firstFrame, mouseX = 160f, mouseY = 60f, button = 0, deltaX = 10f, deltaY = 48f) {
@@ -287,7 +287,7 @@ class UiDockingTests {
         val state = DockingState()
         state.openFloating(item("console"), x = 20f, y = 16f, width = 220f, height = 160f)
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             val header = frame.resolved.styles.keys.single { it.id == "dock-window-1-header" }
             val rightResize = frame.resolved.styles.keys.single { it.id == "dock-window-1-resize-right" }
@@ -306,7 +306,7 @@ class UiDockingTests {
         state.open(item("console"), DockTarget(placement = DockPlacement.RIGHT))
         val splitId = (state.root as DockNode.Split).id
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             val splitter = frame.resolved.styles.keys.single { it.id == "$splitId-splitter" }
 
@@ -322,7 +322,7 @@ class UiDockingTests {
         val window = state.floatingWindows.single()
         state.startDraggingWindow(window.id)
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
 
             assertNotNull(frame.resolved.styles.keys.firstOrNull { it.id == "dock-drop-root-center" })
@@ -335,7 +335,7 @@ class UiDockingTests {
         state.openFloating(item("console"), x = 20f, y = 16f)
         state.startDraggingWindow(state.floatingWindows.single().id)
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             val center = frame.layout[frame.resolved.styles.keys.first { it.id == "dock-drop-root-center" }].rect
 
@@ -351,7 +351,7 @@ class UiDockingTests {
         state.openFloating(item("console"), x = 20f, y = 16f)
         state.startDraggingWindow(state.floatingWindows.single().id)
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             val hit = frame.hitTest(8f, 180f)
 
@@ -367,7 +367,7 @@ class UiDockingTests {
         val window = state.floatingWindows.single()
         state.startDraggingWindow(window.id)
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
             val zone = frame.resolved.styles.keys.first { it.id == "dock-drop-root-left" }
 
@@ -399,7 +399,7 @@ class UiDockingTests {
         state.open(item("files"))
         state.openFloating(item("console"), x = 20f, y = 16f)
 
-        HollowComposeUiRuntime().use { runtime ->
+        HollowUiSurface().use { runtime ->
             val frame = runtime.frame(
                 content = {
                     DockSpace(state) { item ->

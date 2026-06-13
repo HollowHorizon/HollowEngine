@@ -11,6 +11,17 @@ data class UiScrollOffset(
 
 internal fun UiScrollOffset.hasScrollableAxis(): Boolean = x > 0f || y > 0f
 
+enum class ScrollbarOrientation {
+    VERTICAL,
+    HORIZONTAL,
+}
+
+data class UiScrollbarGeometry(
+    val track: UiRect,
+    val thumb: UiRect,
+    val orientation: ScrollbarOrientation,
+)
+
 class UiScrollState {
     private val offsets = mutableMapOf<String, UiScrollOffset>()
     private val targets = mutableMapOf<String, UiScrollOffset>()

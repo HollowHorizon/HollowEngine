@@ -33,7 +33,6 @@ sealed interface UiInlineItem {
         val id: String,
         val width: Float,
         val height: Float,
-        val flow: UiTextWidgetFlow = UiTextWidgetFlow.INLINE,
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiInlineItem
