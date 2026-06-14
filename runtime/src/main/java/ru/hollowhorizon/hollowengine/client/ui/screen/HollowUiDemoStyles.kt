@@ -531,5 +531,53 @@ internal val DemoStyles = compileHss(
     .soft-body {
         foreground: rgba(250, 252, 255, 0.94);
     }
+
+    .shapes-stage {
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+        background: linear-gradient(135deg, rgba(12, 16, 24, 0.98), rgba(26, 34, 46, 0.94), rgba(22, 50, 54, 0.92));
+        border-radius: 10px;
+    }
+
+    .shape-card {
+        gap: 8px;
+        padding: 12px;
+        size: 188px 126px;
+        foreground: rgba(238, 244, 252, 0.96);
+    }
+
+    .hss-path-card {
+        padding: 24px 12px 12px 32px;
+        shape: path("M 0 0 L 188 0 C 176 32 190 72 156 126 L 0 126 Q 24 64 0 0 Z", 188 126);
+        shape-fill: radial-gradient(72% at 32% 28%, rgba(92, 204, 190, 0.98), rgba(58, 86, 156, 0.96), rgba(28, 32, 52, 0.94));
+        shape-stroke: rgba(224, 246, 255, 0.74);
+        shape-stroke-width: 2px;
+    }
+
+    .shape-label {
+        foreground: rgba(244, 248, 255, 0.98);
+        height: 16px;
+    }
+
+    .shape-clip-card {
+        padding: 0px;
+    }
+
+    .shape-clip-stripe {
+        border-radius: 0px;
+    }
+
+    .shape-clip-stripe-a {
+        background: rgba(255, 255, 255, 0.24);
+    }
+
+    .shape-clip-stripe-b {
+        background: linear-gradient(90deg, rgba(255, 230, 128, 0.72), rgba(255, 122, 154, 0.52));
+    }
+
+    .shape-clip-stripe-c {
+        background: rgba(18, 26, 44, 0.34);
+    }
     """.trimIndent()
 )

@@ -93,6 +93,7 @@ class MinecraftUiRenderer {
             is PushClipCommand -> pushClip(command.rect)
             is PopClipCommand -> popClip()
             is DrawBoxCommand -> drawBox(command)
+            is DrawShapeCommand -> drawShape(command)
             is DrawTextCommand -> drawText(command)
             is DrawImageCommand -> drawImage(command)
             is DrawItemCommand -> drawItem(command)
@@ -106,6 +107,7 @@ class MinecraftUiRenderer {
 
     private fun isSegmentCommand(command: UiRenderCommand): Boolean = when (command) {
         is DrawBoxCommand -> !command.renderToFramebuffer
+        is DrawShapeCommand -> true
         is DrawImageCommand -> !command.renderToFramebuffer && command.filter == UiFilterChain.Empty
         is DrawTextCommand -> true
         else -> false
@@ -120,6 +122,7 @@ class MinecraftUiRenderer {
 
     private fun renderPhase(commands: List<UiRenderCommand>, phase: UiRenderPhase) {
         val directBoxes = mutableListOf<DrawBoxCommand>()
+        val directShapes = mutableListOf<DrawShapeCommand>()
         val imageBatches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
         val textCommands = mutableListOf<DrawTextCommand>()
 
@@ -127,6 +130,10 @@ class MinecraftUiRenderer {
             when (command) {
                 is DrawBoxCommand -> if (command.phase == phase && !appendBatchedShapes(command)) {
                     directBoxes += command
+                }
+
+                is DrawShapeCommand -> if (command.phase == phase && !appendBatchedShapes(command)) {
+                    directShapes += command
                 }
 
                 is DrawImageCommand -> if (command.phase == phase) {
@@ -143,6 +150,7 @@ class MinecraftUiRenderer {
 
         flushShapeBatch()
         directBoxes.forEach(::drawBox)
+        directShapes.forEach(::drawShape)
         imageBatches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads) }
         textCommands.forEach(::drawText)
         flushTextBatch()
@@ -184,6 +192,7 @@ class MinecraftUiRenderer {
     }
 
     private fun appendBatchedShapes(command: UiRenderCommand): Boolean {
+        if (command is DrawShapeCommand) return appendBatchedShape(command)
         if (command !is DrawBoxCommand) return false
         if (command.rect.width <= 0f || command.rect.height <= 0f) return false
         if (command.renderToFramebuffer) return false
@@ -213,9 +222,36 @@ class MinecraftUiRenderer {
                 transform = transform,
                 filter = command.filter,
             )
+
+            is UiResolvedPaint.RadialGradient -> shapeBatch.appendLocalRadialGradient(
+                width = command.rect.width,
+                height = command.rect.height,
+                radius = command.border.radius,
+                gradient = paint.gradient,
+                opacity = command.opacity,
+                transform = transform,
+                filter = command.filter,
+            )
         }
         appendBorderShapes(command, transform)
         return true
+    }
+
+    private fun appendBatchedShape(command: DrawShapeCommand): Boolean {
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return true
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return true
+        return shapeBatch.appendLocalShape(
+            shape = command.shape,
+            width = command.rect.width,
+            height = command.rect.height,
+            fill = command.fill,
+            stroke = command.stroke,
+            strokeWidth = command.strokeWidth,
+            opacity = command.opacity,
+            transform = transform,
+            filter = command.filter,
+        )
     }
 
     private fun appendBorderShapes(command: DrawBoxCommand, transform: UiMatrix4) {
@@ -268,6 +304,7 @@ class MinecraftUiRenderer {
             LayerState(
                 rect = command.rect,
                 radius = command.radius,
+                clipShape = command.clipShape,
                 transform = command.transform,
                 framebuffer = framebuffer,
                 parentClips = parentClips,
@@ -392,25 +429,48 @@ class MinecraftUiRenderer {
         val width = layer.rect.width + layer.padding * 2f
         val height = layer.rect.height + layer.padding * 2f
         if (isBackfaceHidden(width, height, transform, layer.backfaceVisibility)) return
-        UiTextureEffects.drawTexturedRegion(
-            texture = texture,
-            width = width,
-            height = height,
-            transform = transform,
-            opacity = layer.opacity,
-            u0 = u0,
-            v0 = v0,
-            u1 = u1,
-            v1 = v1,
-            flipY = true,
-            filter = filter,
-            textureWidth = textureWidth,
-            textureHeight = textureHeight,
-            subdivisions = LayerTextureSubdivisions,
-            maskRadius = layer.radius,
-            maskPadding = layer.padding,
-            maskScale = layer.scale,
-        )
+        val clipShape = layer.clipShape
+        if (clipShape != null) {
+            val horizontalPadding = layer.padding / width.coerceAtLeast(0.0001f)
+            val verticalPadding = layer.padding / height.coerceAtLeast(0.0001f)
+            val clippedTransform = transform * UiMatrix4.translation(layer.padding, layer.padding, 0f)
+            UiTextureEffects.drawTexturedShapeRegion(
+                texture = texture,
+                width = layer.rect.width,
+                height = layer.rect.height,
+                shape = clipShape,
+                transform = clippedTransform,
+                opacity = layer.opacity,
+                u0 = u0 + (u1 - u0) * horizontalPadding,
+                v0 = v0 + (v1 - v0) * verticalPadding,
+                u1 = u1 - (u1 - u0) * horizontalPadding,
+                v1 = v1 - (v1 - v0) * verticalPadding,
+                flipY = true,
+                filter = filter,
+                textureWidth = textureWidth,
+                textureHeight = textureHeight,
+            )
+        } else {
+            UiTextureEffects.drawTexturedRegion(
+                texture = texture,
+                width = width,
+                height = height,
+                transform = transform,
+                opacity = layer.opacity,
+                u0 = u0,
+                v0 = v0,
+                u1 = u1,
+                v1 = v1,
+                flipY = true,
+                filter = filter,
+                textureWidth = textureWidth,
+                textureHeight = textureHeight,
+                subdivisions = LayerTextureSubdivisions,
+                maskRadius = layer.radius,
+                maskPadding = layer.padding,
+                maskScale = layer.scale,
+            )
+        }
     }
 
     private fun copyLayerToScratch(layer: LayerState): UiFramebuffer {
@@ -538,6 +598,16 @@ class MinecraftUiRenderer {
                 command.filter,
             )
 
+            is UiResolvedPaint.RadialGradient -> drawLocalRadialGradient(
+                command.rect.width,
+                command.rect.height,
+                command.border.radius,
+                paint.gradient,
+                command.opacity,
+                transform,
+                command.filter,
+            )
+
             is UiResolvedPaint.Image -> drawImage(
                 command.rect.width,
                 command.rect.height,
@@ -571,6 +641,22 @@ class MinecraftUiRenderer {
                 transform
             )
         }
+    }
+
+    private fun drawShape(command: DrawShapeCommand) {
+        if (appendBatchedShape(command)) {
+            flushShapeBatch()
+            return
+        }
+        val transform = effective(command.transform)
+        drawLocalPaint(
+            command.rect.width,
+            command.rect.height,
+            0f,
+            UiColor(0.2f, 0.2f, 0.24f, command.opacity),
+            transform,
+            command.filter,
+        )
     }
 
     private fun drawText(command: DrawTextCommand) {

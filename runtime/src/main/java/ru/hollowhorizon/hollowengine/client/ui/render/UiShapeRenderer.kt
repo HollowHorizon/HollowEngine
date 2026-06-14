@@ -161,6 +161,32 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalGradient(
     }
 }
 
+internal fun MutableList<UiBatchedTriangle>.appendLocalRadialGradient(
+    width: Float,
+    height: Float,
+    radius: Float,
+    gradient: UiRadialGradient,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    if (radius <= 0f) {
+        appendGradientQuad(
+            width = width,
+            height = height,
+            topLeft = radialGradientColorAt(0f, 0f, width, height, gradient).withOpacity(opacity).filtered(filter),
+            bottomLeft = radialGradientColorAt(0f, height, width, height, gradient).withOpacity(opacity).filtered(filter),
+            bottomRight = radialGradientColorAt(width, height, width, height, gradient).withOpacity(opacity).filtered(filter),
+            topRight = radialGradientColorAt(width, 0f, width, height, gradient).withOpacity(opacity).filtered(filter),
+            transform = transform,
+        )
+        return
+    }
+    appendRoundedFill(width, height, radius, transform) { x, y ->
+        radialGradientColorAt(x, y, width, height, gradient).withOpacity(opacity).filtered(filter)
+    }
+}
+
 internal fun MutableList<UiBatchedTriangle>.appendLocalBorder(
     width: Float,
     height: Float,
@@ -178,6 +204,32 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalBorder(
     appendSolidQuad(width, border, color, transform * UiMatrix4.translation(0f, height - border, 0f))
     appendSolidQuad(border, height, color, transform)
     appendSolidQuad(border, height, color, transform * UiMatrix4.translation(width - border, 0f, 0f))
+}
+
+internal fun MutableList<UiBatchedTriangle>.appendLocalShape(
+    shape: Shape,
+    width: Float,
+    height: Float,
+    fill: UiResolvedPaint,
+    stroke: UiResolvedPaint,
+    strokeWidth: Float,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+): Boolean {
+    if (!fill.canDrawAsShapePaint() || !stroke.canDrawAsShapePaint()) return false
+    val geometry = shape.createPath(UiShapeSize(width, height)).flatten()
+    if (fill != UiResolvedPaint.None) {
+        geometry.fillTriangles().forEach { triangle ->
+            appendColoredTriangle(triangle, fill, width, height, opacity, transform, filter)
+        }
+    }
+    if (stroke != UiResolvedPaint.None && strokeWidth > 0f) {
+        geometry.strokeTriangles(strokeWidth).forEach { triangle ->
+            appendColoredTriangle(triangle, stroke, width, height, opacity, transform, filter)
+        }
+    }
+    return true
 }
 
 private fun MutableList<UiBatchedTriangle>.appendGradientQuad(
@@ -336,6 +388,20 @@ internal fun drawLocalGradient(
 ) {
     drawRoundedFan(width, height, radius, transform) { x, y ->
         gradientColorAt(x, y, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter)
+    }
+}
+
+internal fun drawLocalRadialGradient(
+    width: Float,
+    height: Float,
+    radius: Float,
+    gradient: UiRadialGradient,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    drawRoundedFan(width, height, radius, transform) { x, y ->
+        radialGradientColorAt(x, y, width, height, gradient).withOpacity(opacity).filtered(filter)
     }
 }
 
@@ -598,6 +664,71 @@ private fun gradientColorAt(x: Float, y: Float, width: Float, height: Float, ang
     if (left == right) return left.color
     val range = (right.offset - left.offset).coerceAtLeast(0.0001f)
     return left.color.interpolate(right.color, (clamped - left.offset) / range)
+}
+
+private fun radialGradientColorAt(x: Float, y: Float, width: Float, height: Float, gradient: UiRadialGradient): UiColor {
+    val stops = gradient.stops
+    if (stops.isEmpty()) return UiColor.Transparent
+    if (stops.size == 1) return stops.first().color
+    val centerX = gradient.centerX.resolve(width)
+    val centerY = gradient.centerY.resolve(height)
+    val radius = gradient.radius.resolve(max(width, height)).coerceAtLeast(0.0001f)
+    val dx = x - centerX
+    val dy = y - centerY
+    val offset = (sqrt(dx * dx + dy * dy) / radius).coerceIn(0f, 1f)
+    val right = stops.firstOrNull { it.offset >= offset } ?: stops.last()
+    val left = stops.lastOrNull { it.offset <= offset } ?: stops.first()
+    if (left == right) return left.color
+    val range = (right.offset - left.offset).coerceAtLeast(0.0001f)
+    return left.color.interpolate(right.color, (offset - left.offset) / range)
+}
+
+private fun MutableList<UiBatchedTriangle>.appendColoredTriangle(
+    triangle: UiPathTriangle,
+    paint: UiResolvedPaint,
+    width: Float,
+    height: Float,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+) {
+    this += UiBatchedTriangle(
+        first = triangle.first.toVertex(paint, width, height, opacity, transform, filter),
+        second = triangle.second.toVertex(paint, width, height, opacity, transform, filter),
+        third = triangle.third.toVertex(paint, width, height, opacity, transform, filter),
+    )
+}
+
+private fun UiPathPoint.toVertex(
+    paint: UiResolvedPaint,
+    width: Float,
+    height: Float,
+    opacity: Float,
+    transform: UiMatrix4,
+    filter: UiFilterChain,
+): UiBatchedVertex {
+    return UiBatchedVertex(
+        position = transform.transform(x, y),
+        color = paint.colorAt(x, y, width, height).withOpacity(opacity).filtered(filter),
+    )
+}
+
+private fun UiResolvedPaint.colorAt(x: Float, y: Float, width: Float, height: Float): UiColor = when (this) {
+    UiResolvedPaint.None -> UiColor.Transparent
+    is UiResolvedPaint.Color -> color
+    is UiResolvedPaint.LinearGradient -> gradientColorAt(x, y, width, height, angleDegrees, stops)
+    is UiResolvedPaint.RadialGradient -> radialGradientColorAt(x, y, width, height, gradient)
+    is UiResolvedPaint.Image,
+    is UiResolvedPaint.Shader -> UiColor.Transparent
+}
+
+private fun UiResolvedPaint.canDrawAsShapePaint(): Boolean = when (this) {
+    UiResolvedPaint.None,
+    is UiResolvedPaint.Color,
+    is UiResolvedPaint.LinearGradient,
+    is UiResolvedPaint.RadialGradient -> true
+    is UiResolvedPaint.Image,
+    is UiResolvedPaint.Shader -> false
 }
 
 private fun UiRect.corners(transform: UiMatrix4) = arrayOf(

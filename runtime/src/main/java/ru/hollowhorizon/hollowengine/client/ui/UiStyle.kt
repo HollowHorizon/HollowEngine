@@ -197,9 +197,14 @@ data class MutableUiStyle(
     var input: UiInputStyle? = null,
     var cursor: UiCursorShape? = null,
     var clip: Boolean? = null,
+    var clipShape: Shape? = null,
     var layer: Int? = null,
     var imageFit: UiImageFit? = null,
     var imageSlice: UiInsets? = null,
+    var shape: Shape? = null,
+    var shapeFill: UiPaint? = null,
+    var shapeStroke: UiPaint? = null,
+    var shapeStrokeWidth: UiLength? = null,
     var scrollbar: UiScrollbarStyle? = null,
     var slider: UiSliderStyle? = null,
     var checkbox: UiCheckboxStyle? = null,
@@ -249,9 +254,14 @@ data class MutableUiStyle(
         other.input?.let { input = input?.merge(it) ?: it }
         other.cursor?.let { cursor = it }
         other.clip?.let { clip = it }
+        other.clipShape?.let { clipShape = it }
         other.layer?.let { layer = it }
         other.imageFit?.let { imageFit = it }
         other.imageSlice?.let { imageSlice = it }
+        other.shape?.let { shape = it }
+        other.shapeFill?.let { shapeFill = it }
+        other.shapeStroke?.let { shapeStroke = it }
+        other.shapeStrokeWidth?.let { shapeStrokeWidth = it }
         other.scrollbar?.let { scrollbar = scrollbar?.merge(it) ?: it }
         other.slider?.let { slider = slider?.merge(it) ?: it }
         other.checkbox?.let { checkbox = checkbox?.merge(it) ?: it }
@@ -307,9 +317,14 @@ data class MutableUiStyle(
             input = input ?: UiInputStyle(),
             cursor = cursor ?: parent?.cursor ?: UiCursorShape.DEFAULT,
             clip = clip ?: false,
+            clipShape = clipShape,
             layer = layer ?: 0,
             imageFit = imageFit ?: UiImageFit.STRETCH,
             imageSlice = imageSlice ?: UiInsets.all(4.px),
+            shape = shape,
+            shapeFill = shapeFill,
+            shapeStroke = shapeStroke,
+            shapeStrokeWidth = shapeStrokeWidth,
             scrollbar = scrollbar ?: UiScrollbarStyle(),
             slider = slider ?: UiSliderStyle(),
             checkbox = checkbox ?: UiCheckboxStyle(),
@@ -362,9 +377,14 @@ data class ComputedStyle(
     val input: UiInputStyle,
     val cursor: UiCursorShape,
     val clip: Boolean,
+    val clipShape: Shape?,
     val layer: Int,
     val imageFit: UiImageFit,
     val imageSlice: UiInsets,
+    val shape: Shape?,
+    val shapeFill: UiPaint?,
+    val shapeStroke: UiPaint?,
+    val shapeStrokeWidth: UiLength?,
     val scrollbar: UiScrollbarStyle,
     val slider: UiSliderStyle,
     val checkbox: UiCheckboxStyle,
@@ -508,9 +528,14 @@ private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     input = input,
     cursor = cursor,
     clip = clip,
+    clipShape = clipShape,
     layer = layer,
     imageFit = imageFit,
     imageSlice = imageSlice,
+    shape = shape,
+    shapeFill = shapeFill,
+    shapeStroke = shapeStroke,
+    shapeStrokeWidth = shapeStrokeWidth,
     scrollbar = scrollbar,
     slider = slider,
     checkbox = checkbox,
@@ -688,6 +713,18 @@ private fun UiPaint.interpolate(to: UiPaint, progress: Float): UiPaint {
             },
         )
     }
+    if (this is UiPaint.RadialGradient && to is UiPaint.RadialGradient && gradient.stops.size == to.gradient.stops.size) {
+        return UiPaint.RadialGradient(
+            gradient = gradient.copy(
+                stops = gradient.stops.zip(to.gradient.stops) { from, target ->
+                    UiGradientStop(
+                        offset = from.offset + (target.offset - from.offset) * progress,
+                        color = from.color.interpolate(target.color, progress),
+                    )
+                },
+            ),
+        )
+    }
     return if (progress >= 1f) to else this
 }
 
@@ -706,9 +743,17 @@ sealed interface UiPaint {
     data object None : UiPaint
     data class Color(val color: UiColor) : UiPaint
     data class LinearGradient(val angleDegrees: Float, val stops: List<UiGradientStop>) : UiPaint
+    data class RadialGradient(val gradient: UiRadialGradient) : UiPaint
     data class Image(val source: UiBoundString) : UiPaint
     data class Shader(val name: UiBoundString) : UiPaint
 }
+
+data class UiRadialGradient(
+    val centerX: UiLength = 50.percent,
+    val centerY: UiLength = 50.percent,
+    val radius: UiLength = 50.percent,
+    val stops: List<UiGradientStop>,
+)
 
 data class UiGradientStop(
     val offset: Float,

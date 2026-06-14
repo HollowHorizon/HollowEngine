@@ -125,6 +125,7 @@ dependencies {
     addShadow("lib:katari-stdlib-jvm:1.2.0")
 
     addShadow("androidx.compose.runtime:runtime:1.10.3")
+    addShadow("androidx.compose.foundation:foundation:1.7.3")
     addShadow("androidx.collection:collection:1.4.0")
     addShadow("org.jetbrains.kotlinx:atomicfu:0.33.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.9.0")

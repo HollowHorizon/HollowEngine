@@ -111,6 +111,10 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "position" -> instruction { it.position = parsePosition(value) }
             "background" -> instruction { it.background = parsePaint(value) }
             "background-image" -> instruction { it.background = UiPaint.Image(parseImageSource(value)) }
+            "shape" -> instruction { it.shape = parseShape(value) }
+            "shape-fill", "fill" -> instruction { it.shapeFill = parsePaint(value) }
+            "shape-stroke", "stroke" -> instruction { it.shapeStroke = parsePaint(value) }
+            "shape-stroke-width", "stroke-width" -> instruction { it.shapeStrokeWidth = parseLength(value, allowAuto = false) }
             "foreground", "color" -> instruction { it.foreground = parseColor(value) }
             "image" -> instruction { it.image = parseBoundFunction(value, "image") ?: UiBoundString(unquote(value)) }
             "shader" -> instruction { it.shader = parseBoundFunction(value, "shader") ?: UiBoundString(unquote(value)) }
@@ -141,7 +145,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "focusable" -> inputInstruction(value) { style, enabled -> style.copy(focusable = enabled) }
             "draggable" -> inputInstruction(value) { style, enabled -> style.copy(draggable = enabled) }
             "scrollable" -> inputInstruction(value) { style, enabled -> style.copy(scrollable = enabled) }
-            "clip" -> instruction { it.clip = parseBoolean(value) }
+            "clip", "clip-path" -> instruction { applyClip(it, value) }
             "layer" -> instruction { it.layer = value.toInt() }
             "image-fit", "fit" -> instruction {
                 it.imageFit = parseImageFit(value)
@@ -446,10 +450,12 @@ private fun parseLength(value: String, allowAuto: Boolean = true): UiLength {
 }
 
 private fun parsePaint(value: String): UiPaint {
+    if (value.trim().equals("none", ignoreCase = true)) return UiPaint.None
     parseBoundFunction(value, "image")?.let { return UiPaint.Image(it) }
     parseBoundFunction(value, "url")?.let { return UiPaint.Image(it) }
     parseBoundFunction(value, "shader")?.let { return UiPaint.Shader(it) }
     parseLinearGradient(value)?.let { return it }
+    parseRadialGradient(value)?.let { return it }
     if (looksLikeImageSource(value)) return UiPaint.Image(parseImageSource(value))
     return UiPaint.Color(parseColor(value))
 }
@@ -458,6 +464,40 @@ private fun parseImageSource(value: String): UiBoundString {
     return parseBoundFunction(value, "image")
         ?: parseBoundFunction(value, "url")
         ?: UiBoundString(unquote(value))
+}
+
+private fun applyClip(style: MutableUiStyle, value: String) {
+    val cleaned = value.trim()
+    if (cleaned.startsWith("path(") || cleaned.startsWith("svg-path(")) {
+        style.clip = true
+        style.clipShape = parseShape(cleaned)
+        return
+    }
+    style.clip = parseBoolean(cleaned)
+    if (style.clip == false) style.clipShape = null
+}
+
+private fun parseShape(value: String): Shape {
+    val cleaned = value.trim()
+    val functionName = when {
+        cleaned.startsWith("path(") -> "path"
+        cleaned.startsWith("svg-path(") -> "svg-path"
+        else -> throw IllegalArgumentException("Expected path(...), got '$value'")
+    }
+    val args = functionArgs(cleaned, functionName)
+    require(args.isNotEmpty()) { "$functionName requires SVG path data" }
+    return SvgPathShape(unquote(args.first()), parseShapeViewBox(args.drop(1)))
+}
+
+private fun parseShapeViewBox(args: List<String>): UiRect? {
+    if (args.isEmpty()) return null
+    val parts = splitWhitespace(args.joinToString(" "))
+    val numbers = parts.map(::parseScalar)
+    return when (numbers.size) {
+        2 -> UiRect(0f, 0f, numbers[0], numbers[1])
+        4 -> UiRect(numbers[0], numbers[1], numbers[2], numbers[3])
+        else -> throw IllegalArgumentException("Shape viewBox expects width height or x y width height")
+    }
 }
 
 private fun parseLinearGradient(value: String): UiPaint.LinearGradient? {
@@ -477,6 +517,45 @@ private fun parseLinearGradient(value: String): UiPaint.LinearGradient? {
         UiGradientStop(offset.coerceIn(0f, 1f), color)
     }
     return UiPaint.LinearGradient(angle, explicitStops.sortedBy { it.offset })
+}
+
+private fun parseRadialGradient(value: String): UiPaint.RadialGradient? {
+    val cleaned = value.trim()
+    if (!cleaned.startsWith("radial-gradient(")) return null
+    val args = functionArgs(cleaned, "radial-gradient")
+    val first = args.firstOrNull()?.trim().orEmpty()
+    val descriptor = first.takeIf { it.isNotEmpty() && !looksLikeColor(it) }
+    val colorArgs = if (descriptor == null) args else args.drop(1)
+    require(colorArgs.size >= 2) { "radial-gradient requires at least two colors" }
+    val gradient = parseRadialGradientDescriptor(descriptor).copy(stops = parseGradientStops(colorArgs))
+    return UiPaint.RadialGradient(gradient)
+}
+
+private fun parseRadialGradientDescriptor(value: String?): UiRadialGradient {
+    if (value == null) return UiRadialGradient(stops = emptyList())
+    val tokens = splitTopLevelWhitespace(value)
+    val atIndex = tokens.indexOfFirst { it.equals("at", ignoreCase = true) }
+    val radius = tokens.take(atIndex.takeIf { it >= 0 } ?: tokens.size)
+        .firstOrNull { it.endsWith("%") || it.endsWith("px") || it.toFloatOrNull() != null }
+        ?.let { parseLength(it, allowAuto = false) }
+        ?: 50.percent
+    val center = if (atIndex >= 0) tokens.drop(atIndex + 1) else emptyList()
+    return UiRadialGradient(
+        centerX = center.getOrNull(0)?.let { parseLength(it, allowAuto = false) } ?: 50.percent,
+        centerY = center.getOrNull(1)?.let { parseLength(it, allowAuto = false) } ?: 50.percent,
+        radius = radius,
+        stops = emptyList(),
+    )
+}
+
+private fun parseGradientStops(args: List<String>): List<UiGradientStop> {
+    return args.mapIndexed { index, entry ->
+        val parts = splitTopLevelWhitespace(entry)
+        val color = parseColor(parts.first())
+        val offset = parts.getOrNull(1)?.let(::parseStopOffset)
+            ?: if (args.size == 1) 0f else index.toFloat() / (args.size - 1).toFloat()
+        UiGradientStop(offset.coerceIn(0f, 1f), color)
+    }.sortedBy { it.offset }
 }
 
 private fun parseColor(value: String): UiColor {

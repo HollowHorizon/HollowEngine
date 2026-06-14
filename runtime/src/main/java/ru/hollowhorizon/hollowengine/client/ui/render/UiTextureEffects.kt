@@ -186,6 +186,51 @@ internal object UiTextureEffects {
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 
+    fun drawTexturedShapeRegion(
+        texture: Int,
+        width: Float,
+        height: Float,
+        shape: Shape,
+        transform: UiMatrix4,
+        opacity: Float,
+        u0: Float,
+        v0: Float,
+        u1: Float,
+        v1: Float,
+        flipY: Boolean,
+        filter: UiFilterChain,
+        textureWidth: Int,
+        textureHeight: Int,
+        tint: UiColor = UiColor.White,
+    ) {
+        val triangles = shape.createPath(UiShapeSize(width, height)).flatten().fillTriangles()
+        if (triangles.isEmpty()) return
+        withCullStatePreserved {
+            RenderSystem.disableCull()
+            GlStateManager._bindTexture(texture)
+            RenderSystem.setShaderTexture(0, texture)
+            setTextureShader(
+                filter,
+                textureWidth.toFloat(),
+                textureHeight.toFloat(),
+                logicalWidth = width,
+                logicalHeight = height,
+                sampleU = minOf(u0, u1),
+                sampleV = minOf(v0, v1),
+                sampleWidth = abs(u1 - u0),
+                sampleHeight = abs(v1 - v0),
+            )
+            val buffer = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR)
+            val finalTint = tint.withOpacity(opacity)
+            triangles.forEach { triangle ->
+                addShapeVertex(buffer, transform, width, height, triangle.first, u0, v0, u1, v1, flipY, finalTint)
+                addShapeVertex(buffer, transform, width, height, triangle.second, u0, v0, u1, v1, flipY, finalTint)
+                addShapeVertex(buffer, transform, width, height, triangle.third, u0, v0, u1, v1, flipY, finalTint)
+            }
+            BufferUploader.drawWithShader(buffer.buildOrThrow())
+        }
+    }
+
     private fun setTextureShader(
         filter: UiFilterChain,
         textureWidth: Float,
@@ -258,6 +303,31 @@ internal object UiTextureEffects {
         val flippedV = v1 + (v0 - v1) * yProgress
         val v = if (flipY) flippedV else baseV
         buffer.addVertex(point.x, point.y, point.z).setUv(u, v).setColor(tint.red, tint.green, tint.blue, tint.alpha)
+    }
+
+    private fun addShapeVertex(
+        buffer: BufferBuilder,
+        transform: UiMatrix4,
+        width: Float,
+        height: Float,
+        point: UiPathPoint,
+        u0: Float,
+        v0: Float,
+        u1: Float,
+        v1: Float,
+        flipY: Boolean,
+        tint: UiColor,
+    ) {
+        val position = transform.transform(point.x, point.y)
+        val xProgress = point.x / width.coerceAtLeast(0.0001f)
+        val yProgress = point.y / height.coerceAtLeast(0.0001f)
+        val u = u0 + (u1 - u0) * xProgress
+        val baseV = v0 + (v1 - v0) * yProgress
+        val flippedV = v1 + (v0 - v1) * yProgress
+        val v = if (flipY) flippedV else baseV
+        buffer.addVertex(position.x, position.y, position.z)
+            .setUv(u, v)
+            .setColor(tint.red, tint.green, tint.blue, tint.alpha)
     }
 
     private fun addTexturedQuad(

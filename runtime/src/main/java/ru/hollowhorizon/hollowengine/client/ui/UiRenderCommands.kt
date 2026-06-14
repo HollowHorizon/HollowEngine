@@ -18,6 +18,7 @@ data class BeginLayerCommand(
     override val node: UiNode,
     val rect: UiRect,
     val radius: Float,
+    val clipShape: Shape?,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backdropFilter: UiFilterChain,
@@ -71,6 +72,20 @@ data class DrawBoxCommand(
     val renderToFramebuffer: Boolean,
     val fit: UiImageFit,
     val slice: UiInsets,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+) : UiRenderCommand
+
+data class DrawShapeCommand(
+    override val node: UiNode,
+    val rect: UiRect,
+    val shape: Shape,
+    val fill: UiResolvedPaint,
+    val stroke: UiResolvedPaint,
+    val strokeWidth: Float,
+    val opacity: Float,
+    val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
@@ -244,7 +259,7 @@ class UiCommandRenderer {
                 style.filter == UiFilterChain.Empty &&
                 style.transform == DirectLayoutTransform
         val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
-        val pushedClip = style.clip || style.input.scrollable
+        val pushedClip = (style.clip && style.clipShape == null) || style.input.scrollable
 
         if (cullNodeCommands && pushedClip) return
 
@@ -267,20 +282,15 @@ class UiCommandRenderer {
         if (!cullNodeCommands && isFramebuffer) {
             commands += BeginLayerCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
+                clipShape = style.clipShape.takeIf { style.clip },
                 transform = layoutNode.worldTransform, filter = style.filter,
                 backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility,
                 opacity = style.opacity,
             )
         }
 
-        if (!cullNodeCommands && (style.background != UiPaint.None || style.border.width != UiInsets.Zero)) {
-            commands += DrawBoxCommand(
-                node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
-                border = style.border, shadows = emptyList(), opacity = localOpacity, tint = style.tint,
-                transform = layoutNode.worldTransform, renderToFramebuffer = false,
-                fit = style.imageFit, slice = style.imageSlice, filter = baseFilter,
-                backfaceVisibility = style.backfaceVisibility, phase = UiRenderPhase.BACKGROUND
-            )
+        if (!cullNodeCommands) {
+            appendBackgroundCommand(node, style, layoutNode, bindings, localOpacity, baseFilter, commands)
         }
 
         if (!cullNodeCommands && pushedClip) commands += PushClipCommand(node, layoutNode.content)
@@ -371,6 +381,48 @@ class UiCommandRenderer {
             is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
             is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, nowMillis, commands)
         }
+    }
+
+    private fun appendBackgroundCommand(
+        node: UiNode,
+        style: ComputedStyle,
+        layoutNode: UiLayoutNode,
+        bindings: UiBindingContext,
+        opacity: Float,
+        filter: UiFilterChain,
+        commands: MutableList<UiRenderCommand>,
+    ) {
+        val shape = style.shape
+        if (shape != null) {
+            val fill = (style.shapeFill ?: style.background).resolve(bindings)
+            val strokePaint = style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
+            val stroke = strokePaint.resolve(bindings, UiPaint.None)
+            val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
+            if (fill != UiResolvedPaint.None || stroke != UiResolvedPaint.None && strokeWidth > 0f) {
+                commands += DrawShapeCommand(
+                    node = node,
+                    rect = layoutNode.rect,
+                    shape = shape,
+                    fill = fill,
+                    stroke = stroke,
+                    strokeWidth = strokeWidth,
+                    opacity = opacity,
+                    transform = layoutNode.worldTransform,
+                    filter = filter,
+                    backfaceVisibility = style.backfaceVisibility,
+                    phase = UiRenderPhase.BACKGROUND,
+                )
+            }
+            return
+        }
+        if (style.background == UiPaint.None && style.border.width == UiInsets.Zero) return
+        commands += DrawBoxCommand(
+            node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
+            border = style.border, shadows = emptyList(), opacity = opacity, tint = style.tint,
+            transform = layoutNode.worldTransform, renderToFramebuffer = false,
+            fit = style.imageFit, slice = style.imageSlice, filter = filter,
+            backfaceVisibility = style.backfaceVisibility, phase = UiRenderPhase.BACKGROUND
+        )
     }
 
     private fun fallbackTextLayout(
@@ -843,6 +895,7 @@ sealed interface UiResolvedPaint {
     data object None : UiResolvedPaint
     data class Color(val color: UiColor) : UiResolvedPaint
     data class LinearGradient(val angleDegrees: Float, val stops: List<UiGradientStop>) : UiResolvedPaint
+    data class RadialGradient(val gradient: UiRadialGradient) : UiResolvedPaint
     data class Image(val source: String) : UiResolvedPaint
     data class Shader(val name: String) : UiResolvedPaint
 }
@@ -851,6 +904,7 @@ private fun UiPaint.resolve(bindings: UiBindingContext): UiResolvedPaint = when 
     UiPaint.None -> UiResolvedPaint.None
     is UiPaint.Color -> UiResolvedPaint.Color(color)
     is UiPaint.LinearGradient -> UiResolvedPaint.LinearGradient(angleDegrees, stops)
+    is UiPaint.RadialGradient -> UiResolvedPaint.RadialGradient(gradient)
     is UiPaint.Image -> UiResolvedPaint.Image(source.resolve(bindings))
     is UiPaint.Shader -> UiResolvedPaint.Shader(name.resolve(bindings))
 }

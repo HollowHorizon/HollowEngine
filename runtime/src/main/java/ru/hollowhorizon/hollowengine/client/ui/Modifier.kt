@@ -86,6 +86,14 @@ sealed interface Modifier {
                 it.background = UiPaint.LinearGradient(angleDegrees, stops)
             }
 
+        fun background(gradient: UiRadialGradient) =
+            StyleModifier(key = modifierKey("background-radial-gradient", gradient)) {
+                it.background = UiPaint.RadialGradient(gradient)
+            }
+
+        fun background(paint: UiPaint) =
+            StyleModifier(key = modifierKey("background-paint", paint)) { it.background = paint }
+
         fun background(source: UiBoundString) =
             StyleModifier(key = modifierKey("background-image", source)) { it.background = UiPaint.Image(source) }
 
@@ -170,6 +178,33 @@ sealed interface Modifier {
         fun cursor(shape: UiCursorShape) = StyleModifier(key = modifierKey("cursor", shape)) { it.cursor = shape }
 
         fun clip(enabled: Boolean = true) = StyleModifier(key = modifierKey("clip", enabled)) { it.clip = enabled }
+
+        fun clip(shape: Shape) = StyleModifier(key = modifierKey("clip-shape", shape)) {
+            it.clip = true
+            it.clipShape = shape
+        }
+
+        fun shape(shape: Shape) = StyleModifier(key = modifierKey("shape", shape)) { it.shape = shape }
+
+        fun shape(shape: Shape, fill: UiPaint?, stroke: UiPaint? = null, strokeWidth: UiLength = 0.px) =
+            StyleModifier(key = modifierKey("shape-paint", shape, fill, stroke, strokeWidth)) {
+                it.shape = shape
+                it.shapeFill = fill
+                it.shapeStroke = stroke
+                it.shapeStrokeWidth = strokeWidth
+            }
+
+        fun shapeFill(paint: UiPaint) = StyleModifier(key = modifierKey("shape-fill", paint)) { it.shapeFill = paint }
+
+        fun shapeFill(color: UiColor) = shapeFill(UiPaint.Color(color))
+
+        fun shapeStroke(paint: UiPaint, width: UiLength = 1.px) =
+            StyleModifier(key = modifierKey("shape-stroke", paint, width)) {
+                it.shapeStroke = paint
+                it.shapeStrokeWidth = width
+            }
+
+        fun shapeStroke(color: UiColor, width: UiLength = 1.px) = shapeStroke(UiPaint.Color(color), width)
 
         fun layer(value: Int) = StyleModifier(key = modifierKey("layer", value)) { it.layer = value }
 
