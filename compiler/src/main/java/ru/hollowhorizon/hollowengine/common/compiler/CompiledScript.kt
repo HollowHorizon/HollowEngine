@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.compiler
 
-import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
 import kotlin.reflect.KClass
@@ -15,7 +14,7 @@ data class CompiledScriptImpl(
     val evalConfiguration: ScriptEvaluationConfiguration,
 ) : CompiledScript {
     private val scriptClassDelegate = lazy {
-        runBlocking {
+        runScriptingBlocking {
             (script.getClass(evalConfiguration) as ResultWithDiagnostics.Success).value
         }
     }
@@ -27,7 +26,7 @@ data class CompiledScriptImpl(
     override fun <T> execute(vararg constructorArgs: Any?): Result<T> {
         val evaluator = HollowEngineScriptEvaluator()
 
-        val result = runBlocking {
+        val result = runScriptingBlocking {
             evaluator(script, evalConfiguration.with {
                 constructorArgs(*constructorArgs)
             })

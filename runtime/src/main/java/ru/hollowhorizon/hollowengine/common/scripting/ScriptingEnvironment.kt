@@ -20,6 +20,23 @@ interface ScriptingEnvironment {
     fun close()
 
     companion object {
-        lateinit var INSTANCE: ScriptingEnvironment
+        @Volatile
+        private var current: ScriptingEnvironment? = null
+
+        var INSTANCE: ScriptingEnvironment
+            get() = current ?: error("Kotlin scripting environment is not available. Install the compiler addon to compile or analyze Kotlin scripts.")
+            set(value) {
+                current?.close()
+                current = value
+            }
+
+        fun currentOrNull(): ScriptingEnvironment? = current
+
+        fun isAvailable(): Boolean = current != null
+
+        fun clear() {
+            current?.close()
+            current = null
+        }
     }
 }

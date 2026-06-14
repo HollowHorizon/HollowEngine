@@ -7,9 +7,8 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.analyzeCopy
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderFactory
-import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.analysis.api.scopes.KaScope
 import org.jetbrains.kotlin.analysis.api.scopes.KaTypeScope
@@ -28,6 +27,7 @@ import org.jetbrains.kotlin.types.Variance
 import ru.hollowhorizon.hollowengine.common.ide.session.ScriptingAnalyzerImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.KeywordCompletion
 import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
+import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
@@ -41,7 +41,7 @@ fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<Com
     val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
 
     try {
-        return analyzeCopy(file, KaDanglingFileResolutionMode.PREFER_SELF) {
+        return analyze(file) {
             createItems(file, element, ktElement) ?: emptyList()
         }
     } finally {
@@ -49,7 +49,7 @@ fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<Com
     }
 }
 
-private fun createFileForCompletion(original: KtFile, offset: Int): KtFile {
+private fun ScriptingAnalyzerImpl.createFileForCompletion(original: KtFile, offset: Int): KtFile {
     val safeOffset = offset.coerceIn(0, original.textLength)
     val textWithInsertedFakeIdentifier = original.text.replaceRange(safeOffset, safeOffset, COMPLETION_FAKE_IDENTIFIER)
     val copyKtFile =
@@ -58,7 +58,14 @@ private fun createFileForCompletion(original: KtFile, offset: Int): KtFile {
             textWithInsertedFakeIdentifier
         )
 
-    copyKtFile.contextModule = original.virtualFile.kaModule
+    copyKtFile.contextModule = KaScriptModule(
+        copyKtFile,
+        project,
+        buildList {
+            addAll(libraries)
+            add(builtins.kaModule)
+        },
+    )
     copyKtFile.virtualFile.kaModule = copyKtFile.contextModule
     copyKtFile.originalFile = original
     return copyKtFile

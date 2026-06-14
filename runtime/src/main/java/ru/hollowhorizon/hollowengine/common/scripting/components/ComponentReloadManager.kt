@@ -15,11 +15,15 @@ fun onRegisterManagers(event: RegisterReloadListenersEvent.Server) {
 
 object ComponentReloadManager : ResourceManagerReloadListener {
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
+        val scripting = ScriptingEnvironment.currentOrNull() ?: run {
+            HollowEngine.LOGGER.warn("Skipping entity component scripts: Kotlin scripting compiler addon is not installed")
+            return
+        }
 
         val components = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").toFile()
             .walk()
             .filter { it.isFile && it.name.endsWith(".entity-component.kts") }
-            .map { it.toReadablePath() to ScriptingEnvironment.INSTANCE.compiler.compile(it) }
+            .map { it.toReadablePath() to scripting.compiler.compile(it) }
             .filter { (_, it) ->
                 val result = it.isSuccess
                 if(!result) it.exceptionOrNull()?.stackTraceToString()?.let { HollowEngine.LOGGER.error(it) }

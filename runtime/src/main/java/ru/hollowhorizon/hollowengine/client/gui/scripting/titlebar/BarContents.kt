@@ -8,6 +8,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -37,11 +38,13 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import ru.hollowhorizon.hollowengine.generated.Assets
+import java.io.File
 
 @SubscribeEvent
 @ClientOnly
@@ -246,28 +249,66 @@ class StartScriptPacket(val path: String) : HollowPacket {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("hollowengine.gui.ide.script.no_permissions_start".lang.literal)
             return
+        }
+
+        val file = path.fromReadablePath()
+        val server = player.server ?: return
+
+        when {
+            file.name.endsWith(".bc") -> startCodeBlocksScript(player, server)
+            file.name.endsWith(".ktr") -> startKatariScript(player as ServerPlayer, server)
+            file.name.endsWith(".kts") -> startKotlinScript(player, file)
+        }
+    }
+
+    private fun startCodeBlocksScript(player: Player, server: MinecraftServer) {
+        val blocksSystem = BlocksSystemSavedData.get(server)
+        blocksSystem.reloadScripts()
+
+        val script = blocksSystem.scripts[path]
+        if (script != null) {
+            script.setEnabled(true)
         } else {
-            val file = path.fromReadablePath()
-            val server = player.server ?: return
+            player.sendSystemMessage("Code blocks script not found: $path".literal)
+        }
+    }
 
-            if (file.name.endsWith(".bc")) {
-                val blocksSystem = BlocksSystemSavedData.get(server)
-                blocksSystem.reloadScripts()
+    private fun startKatariScript(player: ServerPlayer, server: MinecraftServer) {
+        val result = server.runtimeContext.katari.run(path, player)
+        if (result.isSuccess) {
+            player.sendSystemMessage("Katari script started: $path (${result.getOrThrow()})".literal)
+        } else {
+            val error = result.exceptionOrNull()
+            HollowEngine.LOGGER.error("Katari script start failed", error)
+            player.sendSystemMessage("Katari script start failed: ${error?.message ?: "Unknown error"}".literal)
+        }
+    }
 
-                val script = blocksSystem.scripts[path]
-                if (script != null) {
-                    script.setEnabled(true)
-                }
-            } else if(file.name.endsWith(".ktr")) {
-                val result = server.runtimeContext.katari.run(path, player as ServerPlayer)
-                if (result.isSuccess) {
-                    player.sendSystemMessage("Katari script started: $path (${result.getOrThrow()})".literal)
-                } else {
-                    val error = result.exceptionOrNull()
-                    HollowEngine.LOGGER.error("Katari script start failed", error)
-                    player.sendSystemMessage("Katari script start failed: ${error?.message ?: "Unknown error"}".literal)
-                }
-            }
+    private fun startKotlinScript(player: Player, file: File) {
+        if (file.name.endsWith(".reload.kts") || file.name.endsWith(".animation-controller.kts")) {
+            player.sendSystemMessage("Kotlin script requires its lifecycle context: $path".literal)
+            return
+        }
+
+        if (!file.isFile) {
+            player.sendSystemMessage("Kotlin script not found: $path".literal)
+            return
+        }
+
+        val scripting = ScriptingEnvironment.currentOrNull()
+        if (scripting == null) {
+            player.sendSystemMessage("Kotlin scripting compiler addon is not installed".literal)
+            return
+        }
+
+        runCatching {
+            val script = scripting.compiler.compile(file).getOrThrow()
+            script.execute<Any>().getOrThrow()
+        }.onSuccess {
+            player.sendSystemMessage("Kotlin script started: $path".literal)
+        }.onFailure { error ->
+            HollowEngine.LOGGER.error("Kotlin script start failed: {}", path, error)
+            player.sendSystemMessage("Kotlin script start failed: ${error.message ?: "Unknown error"}".literal)
         }
     }
 }

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.runtime.bootstrap
 
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonManager
 import ru.hollowhorizon.hollowengine.common.runtime.HollowRuntimeBootstrapContext
 import ru.hollowhorizon.hollowengine.common.runtime.HollowRuntimeEntrypoint
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
@@ -23,6 +24,7 @@ class HollowEngineRuntimeBootstrap : HollowRuntimeEntrypoint {
     }
 
     override fun close() {
+        HollowAddonManager.close()
         RuntimeAnnotationEnvironment.annotationIndex = ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
         runtimeIndex.close()
     }

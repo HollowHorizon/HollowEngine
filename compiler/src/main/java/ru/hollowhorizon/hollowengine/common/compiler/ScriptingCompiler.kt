@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.compiler
 
-import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
 import ru.hollowhorizon.hollowengine.common.compiler.isolated.ScriptJvmCompilerRemapped
@@ -28,7 +27,7 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
 
         val hostConfiguration = definition.hostConfiguration
         val compiler = JvmScriptCompiler(hostConfiguration, ScriptJvmCompilerRemapped(hostConfiguration))
-        val result = runBlocking {
+        val result = runScriptingBlocking {
             compiler(StringScriptSource(code), definition.compilationConfiguration)
         }
 
