@@ -460,6 +460,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 ),
             )
         )
+        val svgHexagon = svgResource("hollowengine:ui/shapes/hexagon.svg")
+        val svgBadge = svgResource("hollowengine:ui/shapes/badge-check.svg")
+        val svgUnderline = svgResource("hollowengine:ui/shapes/underline.svg")
+        val engineLogo = svgResource("hollowengine:textures/gui/logo/logo.svg")
 
         Box(tags = listOf("shapes-stage"), modifier = Modifier.input(scrollable = true)) {
             Column(tags = listOf("shape-card", "hss-path-card"), modifier = Modifier.position(20.px, 20.px)) {
@@ -518,7 +522,91 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     Modifier.shape(wave, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.72f, 0.9f, 1f, 1f)), strokeWidth = 5.px),
                 ),
             ) {
-                Text("Stroke-only curve", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+                Text("Stroke-only curve", tags = listOf("shape-label"), modifier = Modifier.position(142.px, 10.px))
+            }
+            Box(
+                tags = listOf("shape-card", "svg-file-hexagon"),
+                modifier = Modifier.position(440.px, 176.px),
+            ) {
+                Text("HSS svg(...)", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+            }
+            Box(
+                tags = listOf("shape-card"),
+                modifier = Modifier.then(
+                    Modifier.position(650.px, 176.px),
+                    Modifier.size(188.px, 126.px),
+                    Modifier.shape(svgBadge, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.72f, 0.9f, 1f, 1f)), strokeWidth = 2.px),
+                ),
+            ) {
+                Text("SVG stroke", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+            }
+            Box(
+                tags = listOf("shape-card", "svg-clip-card"),
+                modifier = Modifier.then(
+                    Modifier.position(650.px, 320.px),
+                    Modifier.size(188.px, 126.px),
+                    Modifier.clip(svgHexagon),
+                    Modifier.background(45f, listOf(
+                        UiGradientStop(0f, UiColor(0.92f, 0.58f, 0.36f, 1f)),
+                        UiGradientStop(1f, UiColor(0.26f, 0.84f, 0.75f, 1f)),
+                    )),
+                ),
+            ) {
+                Box(
+                    tags = listOf("shape-clip-stripe", "shape-clip-stripe-a"),
+                    modifier = Modifier.then(Modifier.position((-14).px, 26.px), Modifier.size(230.px, 24.px)),
+                )
+                Box(
+                    tags = listOf("shape-clip-stripe", "shape-clip-stripe-b"),
+                    modifier = Modifier.then(Modifier.position(18.px, 68.px), Modifier.size(198.px, 22.px)),
+                )
+                Text("SVG clip", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+            }
+            Box(
+                modifier = Modifier.then(
+                    Modifier.position(650.px, 320.px),
+                    Modifier.size(188.px, 126.px),
+                    Modifier.shape(svgHexagon, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.94f, 1f, 0.9f, 0.84f)), strokeWidth = 2.px),
+                ),
+            ) {
+            }
+            Box(
+                tags = listOf("shape-card"),
+                modifier = Modifier.then(
+                    Modifier.position(20.px, 320.px),
+                    Modifier.size(398.px, 64.px),
+                    Modifier.shape(svgUnderline, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(1f, 0.86f, 0.42f, 1f)), strokeWidth = 5.px),
+                ),
+            ) {
+                Text("SVG file underline", tags = listOf("shape-label"), modifier = Modifier.position(142.px, 6.px))
+            }
+            Box(
+                tags = listOf("shape-card"),
+                modifier = Modifier.then(
+                    Modifier.position(440.px, 320.px),
+                    Modifier.size(188.px, 126.px),
+                    Modifier.shape(
+                        engineLogo,
+                        fill = UiPaint.RadialGradient(
+                            UiRadialGradient(
+                                centerX = 38.percent,
+                                centerY = 34.percent,
+                                radius = 72.percent,
+                                stops = listOf(
+                                    UiGradientStop(0f, UiColor(1f, 0.72f, 0.28f, 0.96f)),
+                                    UiGradientStop(1f, UiColor(0.2f, 0.5f, 0.9f, 0.9f)),
+                                ),
+                            )
+                        ),
+                        stroke = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.72f)),
+                        strokeWidth = 1.px,
+                    ),
+                ),
+            ) {
+                Text("Engine logo SVG",
+                    tags = listOf("shape-label"),
+                    modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER)
+                )
             }
         }
     }

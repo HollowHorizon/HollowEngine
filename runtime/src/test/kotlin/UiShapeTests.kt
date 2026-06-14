@@ -1,7 +1,11 @@
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -39,7 +43,7 @@ class UiShapeTests {
         val style = MutableUiStyle()
 
         compileStyleModifier("clip", "path(\"M 0 0 L 100 0 L 100 100 L 0 100 Z\", 100 100)")!!.applyTo(style)
-        compileStyleModifier("shape", "path(\"M 0 0 L 100 50 L 0 100 Z\", 100 100)")!!.applyTo(style)
+        compileStyleModifier("shape", "svg(\"hollowengine:ui/shapes/hexagon.svg\")")!!.applyTo(style)
         compileStyleModifier("shape-fill", "radial-gradient(70% at 25% 25%, #000000, #FFFFFF)")!!.applyTo(style)
         compileStyleModifier("shape-stroke-width", "3px")!!.applyTo(style)
 
@@ -48,6 +52,93 @@ class UiShapeTests {
         assertNotNull(style.shape)
         assertTrue(style.shapeFill is UiPaint.RadialGradient)
         assertEquals(UiLength.Px(3f), style.shapeStrokeWidth)
+    }
+
+    @Test
+    fun `svg file parser extracts viewBox and path elements`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 -1 10 8" xmlns="http://www.w3.org/2000/svg">
+                <g>
+                    <path d="M 0 0 L 10 0 L 10 5 Z"/>
+                </g>
+            </svg>
+            """.trimIndent()
+        )
+
+        assertEquals(UiRect(0f, -1f, 10f, 8f), document.viewBox)
+        assertTrue(document.path.commands.first() is UiPathCommand.MoveTo)
+        assertTrue(document.path.commands.last() is UiPathCommand.Close)
+    }
+
+    @Test
+    fun `svg file parser rejects unsupported geometry`() {
+        assertFailsWith<IllegalArgumentException> {
+            SvgFileParser.parse(
+                """
+                <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+                    <text x="0" y="10">text</text>
+                </svg>
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `svg file parser converts basic primitives to paths`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="2" width="8" height="6" rx="1"/>
+                <circle cx="16" cy="6" r="3"/>
+                <line x1="2" y1="14" x2="22" y2="14"/>
+                <polygon points="4 18 12 16 20 18 12 22"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        assertTrue(document.path.commands.any { it is UiPathCommand.ArcTo })
+        assertTrue(document.path.commands.count { it is UiPathCommand.MoveTo } >= 4)
+        assertTrue(document.path.commands.count { it is UiPathCommand.Close } >= 3)
+    }
+
+    @Test
+    fun `svg resource shape loads path asset`() {
+        val shape = svgResource("hollowengine:ui/shapes/hexagon.svg")
+        val path = shape.createPath(UiShapeSize(120f, 80f))
+
+        val bounds = path.bounds()
+
+        assertNotNull(bounds)
+        assertTrue(bounds.width > 80f)
+        assertTrue(bounds.height > 60f)
+    }
+
+    @Test
+    fun `existing geometric hollowengine svg assets load as shapes`() {
+        val root = Path.of("src/main/resources/assets/hollowengine")
+        val locations = Files.walk(root).use { paths ->
+            paths.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".svg") }
+                .map { root.relativize(it).toString().replace('\\', '/') }
+                .map { ResourceLocation.parse("hollowengine:$it") }
+                .toList()
+        }
+        val unsupported = mutableMapOf<ResourceLocation, Throwable>()
+
+        assertTrue(locations.any { it.path == "textures/gui/logo/logo.svg" })
+        locations.forEach { location ->
+            val result = runCatching {
+                svgResource(location).createPath(UiShapeSize(64f, 64f))
+            }
+            val path = result.getOrElse {
+                unsupported[location] = it
+                return@forEach
+            }
+
+            assertTrue(path.commands.isNotEmpty(), "Expected $location to produce path commands")
+        }
+        assertEquals(setOf(ResourceLocation.parse("hollowengine:textures/gui/icons/nbt.svg")), unsupported.keys)
+        assertTrue(unsupported.values.single().message?.contains("<text>") == true)
     }
 
     @Test

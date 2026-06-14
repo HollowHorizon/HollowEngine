@@ -468,7 +468,7 @@ private fun parseImageSource(value: String): UiBoundString {
 
 private fun applyClip(style: MutableUiStyle, value: String) {
     val cleaned = value.trim()
-    if (cleaned.startsWith("path(") || cleaned.startsWith("svg-path(")) {
+    if (cleaned.startsWith("path(") || cleaned.startsWith("svg-path(") || cleaned.startsWith("svg(")) {
         style.clip = true
         style.clipShape = parseShape(cleaned)
         return
@@ -482,10 +482,12 @@ private fun parseShape(value: String): Shape {
     val functionName = when {
         cleaned.startsWith("path(") -> "path"
         cleaned.startsWith("svg-path(") -> "svg-path"
-        else -> throw IllegalArgumentException("Expected path(...), got '$value'")
+        cleaned.startsWith("svg(") -> "svg"
+        else -> throw IllegalArgumentException("Expected path(...) or svg(...), got '$value'")
     }
     val args = functionArgs(cleaned, functionName)
-    require(args.isNotEmpty()) { "$functionName requires SVG path data" }
+    require(args.isNotEmpty()) { "$functionName requires SVG path data or resource location" }
+    if (functionName == "svg") return svgResource(unquote(args.first()))
     return SvgPathShape(unquote(args.first()), parseShapeViewBox(args.drop(1)))
 }
 

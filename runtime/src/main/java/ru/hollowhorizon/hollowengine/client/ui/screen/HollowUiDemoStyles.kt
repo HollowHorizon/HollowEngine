@@ -579,5 +579,16 @@ internal val DemoStyles = compileHss(
     .shape-clip-stripe-c {
         background: rgba(18, 26, 44, 0.34);
     }
+
+    .svg-file-hexagon {
+        shape: svg("hollowengine:ui/shapes/hexagon.svg");
+        shape-fill: linear-gradient(135deg, rgba(255, 206, 94, 0.88), rgba(92, 204, 190, 0.86), rgba(58, 86, 156, 0.92));
+        shape-stroke: rgba(242, 250, 255, 0.82);
+        shape-stroke-width: 2px;
+    }
+
+    .svg-clip-card {
+        padding: 0px;
+    }
     """.trimIndent()
 )
