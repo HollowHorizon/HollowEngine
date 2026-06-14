@@ -203,7 +203,7 @@ internal object UiTextureEffects {
         textureHeight: Int,
         tint: UiColor = UiColor.White,
     ) {
-        val triangles = shape.createPath(UiShapeSize(width, height)).flatten().fillTriangles()
+        val triangles = cachedFillTriangles(shape, width, height)
         if (triangles.isEmpty()) return
         withCullStatePreserved {
             RenderSystem.disableCull()

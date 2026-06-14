@@ -16,9 +16,7 @@ import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
@@ -146,14 +144,7 @@ object HollowIdeOverlay {
     }
 
     @SubscribeEvent
-    fun render(event: RenderOverlayEvent.Post) {
-        if (event.overlay != GuiOverlay.PLAYER_LIST || !isVisible()) return
-        if (Minecraft.getInstance().screen != null) return
-        renderOverlay()
-    }
-
-    @SubscribeEvent
-    fun render(event: ScreenEvent.Render.Post) {
+    fun render(event: RenderTickEvent.Blit) {
         if (!isVisible()) return
         renderOverlay()
     }
@@ -378,11 +369,11 @@ object HollowIdeOverlay {
         lastMouseY = mouseY
         val scrollbarResult = input.scrollbarMouseClicked(frame, mouseX, mouseY, button, ::setScrollImmediate)
         if (scrollbarResult.handled) {
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl)
-        if (result.handled) invalidateUi(immediate = true)
+        if (result.handled) invalidateUi()
         if (!result.handled) activeButton = null
         return result.handled
     }
@@ -391,7 +382,7 @@ object HollowIdeOverlay {
         val hadActivePointer = activeButton != null || input.hasScrollbarDrag()
         val result = input.mouseReleased(frame, mouseX, mouseY, button, ::dispatchUiEvent)
         activeButton = null
-        if (result.handled || hadActivePointer) invalidateUi(immediate = true)
+        if (result.handled || hadActivePointer) invalidateUi()
         return result.handled || hadActivePointer
     }
 
@@ -399,19 +390,13 @@ object HollowIdeOverlay {
         val nowMillis = System.currentTimeMillis()
         val current = currentFrame(nowMillis)
         val hoverChanged = input.updateHover(current, lastMouseX, lastMouseY, ::dispatchUiEvent)
-        val activeFrame = if (hoverChanged || current.requiresContinuousRefresh()) {
-            if (hoverChanged) uiDirty = true
-            refreshFrame(nowMillis)
-        } else {
-            current
-        }
-        input.dispatchHover(activeFrame, lastMouseX, lastMouseY, ::dispatchUiEvent)
-        renderer.render(activeFrame.commands)
+        if (hoverChanged || current.requiresContinuousRefresh()) invalidateUi()
+        input.dispatchHover(current, lastMouseX, lastMouseY, ::dispatchUiEvent)
+        renderer.render(current.commands)
     }
 
-    private fun invalidateUi(immediate: Boolean = false): HollowUiFrame? {
+    private fun invalidateUi() {
         uiDirty = true
-        return if (immediate) refreshFrame() else null
     }
 
     private fun currentFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
@@ -432,7 +417,7 @@ object HollowIdeOverlay {
 
     private fun currentFrameForInput(): HollowUiFrame? {
         if (!isVisible()) return lastFrame
-        return currentFrame()
+        return lastFrame ?: currentFrame()
     }
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {

@@ -77,7 +77,7 @@ abstract class HollowUiScreen(
 
     protected fun invalidateUi(immediate: Boolean = false) {
         uiDirty = true
-        if (immediate && width > 0 && height > 0) refreshFrame()
+        if (immediate && frame == null && width > 0 && height > 0) refreshFrame()
     }
 
     protected fun layoutRect(id: String): UiRect? {
@@ -132,8 +132,8 @@ abstract class HollowUiScreen(
         } else {
             val hadHoverChange = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
             applyCursor(current)
-            val hasActiveMotion = current.requiresContinuousRefresh() || hadHoverChange
-            if (hasActiveMotion) refreshFrame(nowMillis) else current
+            if (hadHoverChange || current.requiresContinuousRefresh()) uiDirty = true
+            current
         }
         if (!closing) {
             input.dispatchHover(activeFrame, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
@@ -149,7 +149,7 @@ abstract class HollowUiScreen(
         val hoverChanged = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
         applyCursor(current)
         if (hoverChanged) {
-            refreshFrame()
+            invalidateUi()
         }
     }
 
@@ -158,7 +158,7 @@ abstract class HollowUiScreen(
         val current = frame ?: return super.mouseClicked(mouseX, mouseY, button)
         val scrollbarResult = input.scrollbarMouseClicked(current, mouseX.toFloat(), mouseY.toFloat(), button, ::setScrollImmediate)
         if (scrollbarResult.handled) {
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         val result = input.mouseClicked(current, mouseX.toFloat(), mouseY.toFloat(), button, ::dispatchUiEvent, ::openUrl)
@@ -166,7 +166,7 @@ abstract class HollowUiScreen(
             lastDragX = mouseX
             lastDragY = mouseY
             applyCursor(current)
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         if (result.node != null && onNodeClicked(result.node, button)) return true
@@ -178,7 +178,7 @@ abstract class HollowUiScreen(
         frame?.let { current ->
             input.mouseReleased(current, mouseX.toFloat(), mouseY.toFloat(), button, ::dispatchUiEvent)
         }
-        invalidateUi(immediate = true)
+        invalidateUi()
         return super.mouseReleased(mouseX, mouseY, button)
     }
 
@@ -187,7 +187,7 @@ abstract class HollowUiScreen(
         frame?.let { current ->
             val scrollbarResult = input.scrollbarMouseDragged(current, mouseX.toFloat(), mouseY.toFloat(), ::setScrollImmediate)
             if (scrollbarResult.handled) {
-                invalidateUi(immediate = true)
+                invalidateUi()
                 return true
             }
         }
@@ -198,19 +198,19 @@ abstract class HollowUiScreen(
         lastDragY = mouseY
         if (onNodeDragged(key, dx, dy)) {
             frame?.let(::applyCursor)
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         val current = frame ?: return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
         val result = input.mouseDragged(current, mouseX.toFloat(), mouseY.toFloat(), button, dx, dy, ::dispatchUiEvent)
         if (result.handled) {
             applyCursor(current)
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         if (result.node != null && onNodeDragged(result.node, dx, dy)) {
             applyCursor(current)
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY)
@@ -232,11 +232,11 @@ abstract class HollowUiScreen(
                 scrollY = delta.y,
             )
             if (dispatchUiEvent(event) && event.consumed) {
-                invalidateUi(immediate = true)
+                invalidateUi()
                 return true
             }
             surface.scroll(target, delta.x * 32f, delta.y * 32f)
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
@@ -247,7 +247,7 @@ abstract class HollowUiScreen(
         val current = frame ?: return super.charTyped(codePoint, modifiers)
         val result = input.charTyped(current, codePoint, modifiers, ::dispatchUiEvent)
         if (result.handled) {
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         return super.charTyped(codePoint, modifiers)
@@ -258,7 +258,7 @@ abstract class HollowUiScreen(
         val current = frame ?: return super.keyPressed(keyCode, scanCode, modifiers)
         val result = input.keyPressed(current, keyCode, scanCode, modifiers, ::dispatchUiEvent)
         if (result.handled) {
-            invalidateUi(immediate = true)
+            invalidateUi()
             return true
         }
         return super.keyPressed(keyCode, scanCode, modifiers)
@@ -310,15 +310,12 @@ abstract class HollowUiScreen(
         val uiChanged = applyPendingUiChanges()
         if (uiChanged) uiDirty = true
         return if (frame == null ||
-            uiDirty ||
             sizeChanged ||
-            stylesheetChanged ||
-            rebuildEveryFrame() ||
-            uiChanged ||
-            needsPointerRebuild
+            rebuildEveryFrame()
         ) {
             refreshFrame()
         } else {
+            if (stylesheetChanged || uiChanged || needsPointerRebuild) uiDirty = true
             frame
         }
     }

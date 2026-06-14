@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.renderer.GameRenderer
 import ru.hollowhorizon.hollowengine.client.ui.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 
 internal data class UiBatchedQuad(
@@ -218,19 +219,86 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalShape(
     filter: UiFilterChain,
 ): Boolean {
     if (!fill.canDrawAsShapePaint() || !stroke.canDrawAsShapePaint()) return false
-    val geometry = shape.createPath(UiShapeSize(width, height)).flatten()
+    val mesh = UiShapeMeshCache.mesh(
+        shape = shape,
+        width = width,
+        height = height,
+        strokeWidth = strokeWidth,
+        includeFill = fill != UiResolvedPaint.None,
+        includeStroke = stroke != UiResolvedPaint.None && strokeWidth > 0f,
+    )
     if (fill != UiResolvedPaint.None) {
-        geometry.fillTriangles().forEach { triangle ->
+        mesh.fill.forEach { triangle ->
             appendColoredTriangle(triangle, fill, width, height, opacity, transform, filter)
         }
     }
     if (stroke != UiResolvedPaint.None && strokeWidth > 0f) {
-        geometry.strokeTriangles(strokeWidth).forEach { triangle ->
+        mesh.stroke.forEach { triangle ->
             appendColoredTriangle(triangle, stroke, width, height, opacity, transform, filter)
         }
     }
     return true
 }
+
+internal fun cachedFillTriangles(shape: Shape, width: Float, height: Float): List<UiPathTriangle> {
+    return UiShapeMeshCache.mesh(
+        shape = shape,
+        width = width,
+        height = height,
+        strokeWidth = 0f,
+        includeFill = true,
+        includeStroke = false,
+    ).fill
+}
+
+private object UiShapeMeshCache {
+    private val meshes = ConcurrentHashMap<UiShapeMeshKey, UiShapeMesh>()
+
+    fun mesh(
+        shape: Shape,
+        width: Float,
+        height: Float,
+        strokeWidth: Float,
+        includeFill: Boolean,
+        includeStroke: Boolean,
+    ): UiShapeMesh {
+        val key = UiShapeMeshKey(
+            shape = shape,
+            revision = shape.revision(),
+            width = width,
+            height = height,
+            strokeWidth = strokeWidth,
+            includeFill = includeFill,
+            includeStroke = includeStroke,
+        )
+        return meshes.computeIfAbsent(key) {
+            val geometry = shape.createPath(UiShapeSize(width, height)).flatten()
+            UiShapeMesh(
+                fill = if (includeFill) geometry.fillTriangles() else emptyList(),
+                stroke = if (includeStroke) geometry.strokeTriangles(strokeWidth) else emptyList(),
+            )
+        }
+    }
+
+    private fun Shape.revision(): Long {
+        return if (this is SvgResourceShape) HollowUiResourceAccess.version(location) else 0L
+    }
+}
+
+private data class UiShapeMeshKey(
+    val shape: Shape,
+    val revision: Long,
+    val width: Float,
+    val height: Float,
+    val strokeWidth: Float,
+    val includeFill: Boolean,
+    val includeStroke: Boolean,
+)
+
+private data class UiShapeMesh(
+    val fill: List<UiPathTriangle>,
+    val stroke: List<UiPathTriangle>,
+)
 
 private fun MutableList<UiBatchedTriangle>.appendGradientQuad(
     width: Float,

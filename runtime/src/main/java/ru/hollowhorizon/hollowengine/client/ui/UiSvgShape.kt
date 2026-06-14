@@ -12,8 +12,8 @@ data class UiSvgPathDocument(
     val viewBox: UiRect,
 )
 
-class SvgResourceShape(
-    private val location: ResourceLocation,
+data class SvgResourceShape(
+    val location: ResourceLocation,
 ) : Shape {
     override fun createPath(size: UiShapeSize): UiPath {
         val document = UiSvgResourceLoader.load(location)

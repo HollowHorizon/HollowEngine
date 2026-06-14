@@ -43,32 +43,39 @@ object UiMsdfFont {
 
     private val fonts = ConcurrentHashMap<String, UiMsdfFontData>()
     private val metrics = ConcurrentHashMap<String, UiMsdfFontMetrics>()
+    private val missingFonts = ConcurrentHashMap.newKeySet<String>()
 
     fun isLoaded(fontPath: String): Boolean = fonts.containsKey(fontPath)
 
     fun loadFont(fontPath: String) {
+        if (fontPath in missingFonts) return
         if (fonts.containsKey(fontPath)) return
 
-        val fontMetrics = loadMetrics(fontPath)
-        val imageStream = "$fontPath.png".rl.stream
-        val nativeImage = NativeImage.read(imageStream)
-        nativeImage.flipY()
+        runCatching {
+            val fontMetrics = loadMetrics(fontPath)
+            val imageStream = "$fontPath.png".rl.stream
+            val nativeImage = NativeImage.read(imageStream)
+            nativeImage.flipY()
 
-        val textureId = GL11.glGenTextures()
-        RenderSystem.bindTexture(textureId)
-        TextureUtil.prepareImage(textureId, nativeImage.width, nativeImage.height)
-        nativeImage.upload(0, 0, 0, 0, 0, nativeImage.width, nativeImage.height, true, true, false, false)
-        nativeImage.close()
+            val textureId = GL11.glGenTextures()
+            RenderSystem.bindTexture(textureId)
+            TextureUtil.prepareImage(textureId, nativeImage.width, nativeImage.height)
+            nativeImage.upload(0, 0, 0, 0, 0, nativeImage.width, nativeImage.height, true, true, false, false)
+            nativeImage.close()
 
-        fonts[fontPath] = UiMsdfFontData(
-            metrics = fontMetrics,
-            textureId = textureId,
-        )
+            fonts[fontPath] = UiMsdfFontData(
+                metrics = fontMetrics,
+                textureId = textureId,
+            )
+        }.onFailure {
+            missingFonts += fontPath
+        }.getOrThrow()
     }
 
     fun getFontData(fontPath: String): UiMsdfFontData? = fonts[fontPath]
 
     fun getOrLoadFontData(fontPath: String): UiMsdfFontData? {
+        if (fontPath in missingFonts) return null
         return runCatching {
             loadFont(fontPath)
             fonts[fontPath]
@@ -76,6 +83,7 @@ object UiMsdfFont {
     }
 
     fun getMetrics(fontPath: String): UiMsdfFontMetrics? {
+        if (fontPath in missingFonts) return null
         return runCatching { loadMetrics(fontPath) }.getOrNull()
     }
 
@@ -85,17 +93,23 @@ object UiMsdfFont {
         }
         fonts.clear()
         metrics.clear()
+        missingFonts.clear()
     }
 
     private fun loadMetrics(fontPath: String): UiMsdfFontMetrics {
+        if (fontPath in missingFonts) error("MSDF font $fontPath is not available")
         metrics[fontPath]?.let { return it }
 
-        val metaStream = "$fontPath.json".rl.stream
-        val fontInfo: MsdfMeta = JsonFormat.decodeFromStream(metaStream)
-        val glyphs = fontInfo.glyphs.ifEmpty {
-            fontInfo.compactGlyphs.map { it.toMsdfGlyph() }
-        }
-        val glyphMap = glyphs.associateBy { it.unicode.toChar() }
-        return UiMsdfFontMetrics(fontInfo, glyphMap).also { metrics[fontPath] = it }
+        return runCatching {
+            val metaStream = "$fontPath.json".rl.stream
+            val fontInfo: MsdfMeta = JsonFormat.decodeFromStream(metaStream)
+            val glyphs = fontInfo.glyphs.ifEmpty {
+                fontInfo.compactGlyphs.map { it.toMsdfGlyph() }
+            }
+            val glyphMap = glyphs.associateBy { it.unicode.toChar() }
+            UiMsdfFontMetrics(fontInfo, glyphMap).also { metrics[fontPath] = it }
+        }.onFailure {
+            missingFonts += fontPath
+        }.getOrThrow()
     }
 }

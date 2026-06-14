@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
@@ -42,6 +43,7 @@ class MinecraftUiRenderer {
     private val shapeBatch = mutableListOf<UiBatchedTriangle>()
     private val layerRequests = mutableListOf<UiLayerRequest>()
     private val brokenSvgSources = mutableSetOf<String>()
+    private val svgShapes = ConcurrentHashMap<ResourceLocation, Shape>()
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var textBatchDirty = false
@@ -213,7 +215,7 @@ class MinecraftUiRenderer {
         }
         val placement = imagePlacement(width, height, fit, document.viewBox.width to document.viewBox.height)
         return shapeBatch.appendLocalShape(
-            shape = svgResource(location),
+            shape = svgShapes.computeIfAbsent(location, ::svgResource),
             width = placement.width,
             height = placement.height,
             fill = UiResolvedPaint.Color(tint),
