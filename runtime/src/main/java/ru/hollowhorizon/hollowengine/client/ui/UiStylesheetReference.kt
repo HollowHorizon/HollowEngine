@@ -5,6 +5,8 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.UiPreviewState
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import java.util.ArrayDeque
+import java.util.concurrent.ConcurrentHashMap
 
 fun interface HssResourceLoader {
     fun load(location: String): CompiledHss
@@ -45,9 +47,11 @@ sealed interface UiStylesheetReference {
 }
 
 object MinecraftHssResourceLoader : HssResourceLoader {
+    private val locations = ConcurrentHashMap<String, ResourceLocation>()
+
     override fun load(location: String): CompiledHss {
         return runCatching {
-            compileHss(HollowUiResourceAccess.readText(ResourceLocation.parse(location)))
+            compileHss(HollowUiResourceAccess.readText(resourceLocation(location)))
         }.getOrElse {
             HollowEngine.LOGGER.error("Error while loading $location", it)
             UiPreviewState.errorText.set("Error while loading $location: ${it.message}")
@@ -56,21 +60,25 @@ object MinecraftHssResourceLoader : HssResourceLoader {
     }
 
     override fun version(location: String): Long {
-        return HollowUiResourceAccess.version(ResourceLocation.parse(location))
+        return HollowUiResourceAccess.version(resourceLocation(location))
     }
+
+    private fun resourceLocation(location: String): ResourceLocation =
+        locations.computeIfAbsent(location, ResourceLocation::parse)
 }
 
 fun UiNode.stylesheetRevision(): Long {
     var revision = 1L
-    visitStylesheetReferences { reference ->
-        revision = revision * 31L + reference.revision()
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        for (modifier in node.modifiers.flattenModifiers()) {
+            if (modifier is StyleImportModifier) {
+                revision = revision * 31L + modifier.reference.revision()
+            }
+        }
+        node.children.forEach(stack::add)
     }
     return revision
-}
-
-private fun UiNode.visitStylesheetReferences(visitor: (UiStylesheetReference) -> Unit) {
-    modifiers.flattenModifiers()
-        .filterIsInstance<StyleImportModifier>()
-        .forEach { visitor(it.reference) }
-    children.forEach { it.visitStylesheetReferences(visitor) }
 }

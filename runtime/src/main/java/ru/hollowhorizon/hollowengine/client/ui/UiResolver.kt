@@ -37,10 +37,11 @@ class UiStyleResolver(
         nowMillis: Long = 0L,
         animate: Boolean = true,
     ): ResolvedUiTree {
+        val stylesheetRevision = root.stylesheetRevision()
         val treeKey = TreeCacheKey(
             root = root,
             subtreeRevision = root.layoutState.subtreeRevision,
-            stylesheetRevision = root.stylesheetRevision(),
+            stylesheetRevision = stylesheetRevision,
             bindingsHash = bindings.root.hashCode(),
             animate = animate,
         )
@@ -51,7 +52,7 @@ class UiStyleResolver(
             treeCache = TreeCacheEntry(
                 key = treeKey.copy(
                     subtreeRevision = root.layoutState.subtreeRevision,
-                    stylesheetRevision = root.stylesheetRevision(),
+                    stylesheetRevision = stylesheetRevision,
                 ),
                 tree = tree,
                 requiresRefresh = animate && (transitions.hasActiveTransitions() || styles.values.any { it.requiresStyleRefresh() }),

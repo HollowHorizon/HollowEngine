@@ -341,6 +341,35 @@ class DockingState {
         }
     }
 
+    fun stackIdOf(itemId: String): String? {
+        return root?.findStackWithItem(itemId)?.id
+            ?: floatingWindows.firstOrNull { window -> window.stack.items.any { it.id == itemId } }?.stack?.id
+    }
+
+    fun updateItem(item: DockItem): Boolean {
+        var changed = false
+        root = root?.mapStacks { stack ->
+            val index = stack.items.indexOfFirst { it.id == item.id }
+            if (index < 0) return@mapStacks stack
+            val nextItems = stack.items.toMutableList()
+            if (nextItems[index] == item) return@mapStacks stack
+            nextItems[index] = item
+            changed = true
+            stack.copy(items = nextItems)
+        }
+        for (index in floatingWindows.indices) {
+            val window = floatingWindows[index]
+            val itemIndex = window.stack.items.indexOfFirst { it.id == item.id }
+            if (itemIndex < 0) continue
+            val nextItems = window.stack.items.toMutableList()
+            if (nextItems[itemIndex] == item) continue
+            nextItems[itemIndex] = item
+            floatingWindows[index] = window.copy(stack = window.stack.copy(items = nextItems))
+            changed = true
+        }
+        return changed
+    }
+
     private fun removeItemForDock(itemId: String): DockItem? {
         val dockedRemoval = root?.removeItem(itemId)
         if (dockedRemoval?.item != null) {
@@ -511,6 +540,13 @@ private fun DockNode.mapSplits(transform: (DockNode.Split) -> DockNode.Split): D
     return when (this) {
         is DockNode.Stack -> this
         is DockNode.Split -> transform(copy(first = first.mapSplits(transform), second = second.mapSplits(transform)))
+    }
+}
+
+private fun DockNode.mapStacks(transform: (DockNode.Stack) -> DockNode.Stack): DockNode {
+    return when (this) {
+        is DockNode.Stack -> transform(this)
+        is DockNode.Split -> copy(first = first.mapStacks(transform), second = second.mapStacks(transform))
     }
 }
 

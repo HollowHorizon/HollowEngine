@@ -1,0 +1,69 @@
+.dock-stack,
+.dock-window {
+    background: #12141a;
+    border: 1px #414653;
+}
+
+.dock-tab-bar,
+.dock-header {
+    background: #1b1e26;
+}
+
+.dock-splitter {
+    background: #323845;
+    transition: background 120ms ease-out;
+}
+
+.dock-splitter:hover,
+.dock-splitter:active {
+    background: #4a5668;
+}
+
+.dock-tab {
+    background: #222631;
+    border: 1px #4f5969;
+    border-radius: 4px;
+    foreground: #c9d0dc;
+    align: start center;
+    shadow: 0px 3px 9px -5px rgba(0, 0, 0, 0.5);
+    transition:
+        background 120ms ease-out,
+        foreground 120ms ease-out,
+        translate 140ms ease-out,
+        shadow 140ms ease-out;
+}
+
+.dock-tab:hover {
+    background: #2b303d;
+    foreground: #eef3fb;
+    translate: 0px -1px 0px;
+}
+
+.dock-tab:selected {
+    background: #343b4a;
+    border: 1px #6a778b;
+    foreground: #ffffff;
+    shadow: 0px 7px 14px -6px rgba(0, 0, 0, 0.62);
+}
+
+.dock-tab:dragging {
+    translate: 0px -2px 10px;
+    shadow: 0px 5px 9px -5px rgba(0, 0, 0, 0.5);
+    transition: none;
+}
+
+.dock-content {
+    background: #0f1117;
+}
+
+.dock-close-button {
+    foreground: #8d96a8;
+    transition:
+        foreground 100ms ease-out,
+        background 100ms ease-out;
+}
+
+.dock-close-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    foreground: #ffffff;
+}

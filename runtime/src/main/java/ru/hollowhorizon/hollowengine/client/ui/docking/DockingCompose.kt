@@ -3,45 +3,11 @@ package ru.hollowhorizon.hollowengine.client.ui.docking
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
 
 private const val DockTabWidth = 100f
 private const val DockTabHeight = 18f
 private const val DockTabMargin = 2f
 private const val DockTabStride = DockTabWidth + DockTabMargin * 2f
-
-private val DockTabStyle = compileHss(
-    """
-    .dock-tab {
-        background: rgba(34, 37, 45, 1);
-        border: 1px rgba(78, 84, 96, 0.9);
-        border-radius: 7px;
-        shadow: 0px 3px 9px -5px rgba(0, 0, 0, 0.5);
-        align: start center;
-        transition:
-            background 120ms ease-out,
-            translate 140ms ease-out,
-            shadow 140ms ease-out;
-    }
-
-    .dock-tab:hover {
-        translate: 0px -1px 0px;
-        shadow: 0px 3px 9px -5px rgba(0.3, 0.3, 0.7, 0.25);
-    }
-
-    .dock-tab:selected {
-        background: rgba(48, 54, 65, 1);
-        border: 1px rgba(106, 119, 139, 1);
-        shadow: 0px 7px 14px -6px rgba(0, 0, 0, 0.62);
-    }
-
-    .dock-tab:dragging {
-        translate: 0px -2px 10px;
-        shadow: 0px 5px 9px -5px rgba(0, 0, 0, 0.5);
-        transition: none;
-    }
-    """.trimIndent(),
-)
 
 typealias DockItemContent = @Composable (DockItem) -> Unit
 typealias DockHeaderContent = @Composable (DockItem) -> Unit
@@ -59,6 +25,7 @@ fun DockSpace(
         id = id,
         tags = listOf(DockTags.Space),
         modifier = Modifier.then(
+            Modifier.style("hollowengine:ui/styles/docking.hss"),
             modifier,
             Modifier.clip(),
         ),
@@ -150,7 +117,6 @@ private fun Splitter(
         tags = listOf(DockTags.Splitter),
         modifier = Modifier.then(
             Modifier.size(if (horizontal) size else 100.percent, if (horizontal) 100.percent else size),
-            Modifier.background(DockColors.Splitter),
             Modifier.input(hoverable = true, draggable = true),
             Modifier.cursor(if (horizontal) UiCursorShape.RESIZE_HORIZONTAL else UiCursorShape.RESIZE_VERTICAL),
             Modifier.onDrag { event ->
@@ -179,8 +145,6 @@ private fun DockStackView(
         tags = listOf(DockTags.Stack),
         modifier = Modifier.then(
             Modifier.size(100.percent, 100.percent),
-            Modifier.background(DockColors.Panel),
-            Modifier.border(1.px, DockColors.Border),
         ),
     ) {
         DockTabBar(stack, state, tabContent, allowUndock = true)
@@ -216,8 +180,6 @@ private fun FloatingDockWindowView(
             Modifier.position(window.x.px, window.y.px),
             Modifier.size(window.width.px, window.height.px),
             Modifier.layer(100 + index),
-            Modifier.background(DockColors.Panel),
-            Modifier.border(1.px, DockColors.Border),
             Modifier.input(hoverable = true, clickable = true),
             Modifier.onPress {
                 state.focus(selected.id)
@@ -260,7 +222,6 @@ private fun FloatingHeader(
         modifier = Modifier.then(
             Modifier.size(100.percent, 24.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),
-            Modifier.background(DockColors.Header),
             Modifier.input(hoverable = true, clickable = true, draggable = true),
             Modifier.cursor(UiCursorShape.MOVE),
             Modifier.onPress { event ->
@@ -302,7 +263,6 @@ private fun DockTabBar(
         tags = listOf(DockTags.TabBar),
         modifier = Modifier.then(
             Modifier.size(100.percent, 24.px),
-            Modifier.background(DockColors.Header),
         ),
     ) {
         stack.items.forEachIndexed { index, item ->
@@ -338,7 +298,6 @@ private fun DockTab(
         id = tabNodeId(item.id),
         tags = if (selected) listOf(DockTags.Tab, DockTags.Selected) else listOf(DockTags.Tab),
         modifier = Modifier.then(
-            Modifier.style(DockTabStyle),
             Modifier.size(width = DockTabWidth.px, height = DockTabHeight.px),
             Modifier.margin(DockTabMargin.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),

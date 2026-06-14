@@ -435,6 +435,7 @@ fun TextField(
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
     placeholder: String = "",
+    onChange: ((String) -> Unit)? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
@@ -453,6 +454,7 @@ fun TextField(
         inlayHints,
         inlayHintsProvider,
         placeholder,
+        onChange,
     )
     ReusableComposeNode<TextFieldNode, HollowUiApplier>(
         factory = {
@@ -466,6 +468,7 @@ fun TextField(
                 diagnostics,
                 inlayHints,
                 inlayHintsProvider,
+                onChange,
                 id,
                 tags,
                 textFieldModifiers,
@@ -573,6 +576,7 @@ private data class TextFieldValues(
     val inlayHints: List<UiInlayHint>,
     val inlayHintsProvider: UiInlayHintsProvider?,
     val placeholder: String,
+    val onChange: ((String) -> Unit)?,
 )
 
 private data class PopupValues(
@@ -602,6 +606,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     inlayHints = values.inlayHints
     inlayHintsProvider = values.inlayHintsProvider
     placeholder = values.placeholder
+    onChange = values.onChange
     value = values.value
 }
 

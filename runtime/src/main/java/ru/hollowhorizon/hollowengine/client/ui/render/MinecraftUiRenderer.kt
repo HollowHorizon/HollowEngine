@@ -26,6 +26,7 @@ import ru.hollowhorizon.hollowengine.client.ui.effects.*
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import kotlin.math.ceil
@@ -40,6 +41,7 @@ class MinecraftUiRenderer {
     private val clipStack = ArrayDeque<UiRect>()
     private val shapeBatch = mutableListOf<UiBatchedTriangle>()
     private val layerRequests = mutableListOf<UiLayerRequest>()
+    private val brokenSvgSources = mutableSetOf<String>()
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var textBatchDirty = false
@@ -137,7 +139,7 @@ class MinecraftUiRenderer {
                 }
 
                 is DrawImageCommand -> if (command.phase == phase) {
-                    appendImageBatch(command, imageBatches)
+                    if (!appendSvgImage(command)) appendImageBatch(command, imageBatches)
                 }
 
                 is DrawTextCommand -> if (command.phase == phase) {
@@ -172,6 +174,54 @@ class MinecraftUiRenderer {
             fit = command.fit,
             slice = command.slice,
             tint = command.tint,
+        )
+    }
+
+    private fun appendSvgImage(command: DrawImageCommand): Boolean {
+        return appendSvgImage(
+            width = command.rect.width,
+            height = command.rect.height,
+            source = command.source,
+            opacity = command.opacity,
+            transform = effective(command.transform),
+            fit = command.fit,
+            filter = command.filter,
+            tint = command.tint,
+            backfaceVisibility = command.backfaceVisibility,
+        )
+    }
+
+    private fun appendSvgImage(
+        width: Float,
+        height: Float,
+        source: String,
+        opacity: Float,
+        transform: UiMatrix4,
+        fit: UiImageFit,
+        filter: UiFilterChain,
+        tint: UiColor,
+        backfaceVisibility: UiBackfaceVisibility = UiBackfaceVisibility.VISIBLE,
+    ): Boolean {
+        val location = svgLocation(source) ?: return false
+        if (width <= 0f || height <= 0f || opacity <= 0f) return true
+        if (isBackfaceHidden(width, height, transform, backfaceVisibility)) return true
+        val document = runCatching { UiSvgResourceLoader.load(location) }.getOrElse { error ->
+            if (brokenSvgSources.add(source)) {
+                HollowEngine.LOGGER.error("Error while loading SVG image $source", error)
+            }
+            return true
+        }
+        val placement = imagePlacement(width, height, fit, document.viewBox.width to document.viewBox.height)
+        return shapeBatch.appendLocalShape(
+            shape = svgResource(location),
+            width = placement.width,
+            height = placement.height,
+            fill = UiResolvedPaint.Color(tint),
+            stroke = UiResolvedPaint.None,
+            strokeWidth = 0f,
+            opacity = opacity,
+            transform = transform * UiMatrix4.translation(placement.x, placement.y, 0f),
+            filter = filter,
         )
     }
 
@@ -1123,6 +1173,7 @@ class MinecraftUiRenderer {
         slice: UiInsets = UiInsets.Zero,
         tint: UiColor = UiColor.White,
     ) {
+        if (appendSvgImage(width, height, source, opacity, transform, fit, filter, tint)) return
         val location = ResourceLocation.tryParse(source) ?: return
         RenderSystem.setShaderTexture(0, location)
         UiTextureEffects.drawTexturedQuad(
@@ -1137,6 +1188,11 @@ class MinecraftUiRenderer {
             slice = slice,
             tint = tint,
         )
+    }
+
+    private fun svgLocation(source: String): ResourceLocation? {
+        val location = ResourceLocation.tryParse(source) ?: return null
+        return location.takeIf { it.path.endsWith(".svg", ignoreCase = true) }
     }
 
     private fun drawItem(command: DrawItemCommand) {

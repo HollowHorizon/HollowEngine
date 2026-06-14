@@ -1,0 +1,87 @@
+#ide-root {
+    background: none;
+    foreground: #d7deea;
+}
+
+#ide-toolbar {
+    size: 100% 32px;
+    padding: 0px 6px;
+    gap: 2px;
+    background: rgba(18, 20, 26, 0.94);
+    border-bottom: 1px #323846;
+    shadow: 0px 8px 18px -12px rgba(0, 0, 0, 0.76);
+}
+
+#ide-logo {
+    size: 28px 28px;
+    align-items: center center;
+    border-radius: 4px;
+    transition:
+        background 120ms ease-out,
+        scale 120ms ease-out;
+}
+
+#ide-logo:hover {
+    background: rgba(255, 255, 255, 0.09);
+    scale: 1.04;
+}
+
+.ide-logo-icon {
+    size: 22px 22px;
+    tint: rgba(255, 255, 255, 0.88);
+}
+
+#ide-dock {
+    padding: 6px;
+    background: rgba(8, 10, 14, 0.72);
+}
+
+.ide-panel {
+    size: 100% 100%;
+    padding: 7px;
+    gap: 6px;
+    background: #10131a;
+}
+
+.project-filter-row {
+    height: 26px;
+    padding: 0px 7px;
+    gap: 6px;
+    align-items: start center;
+    background: #191e27;
+    border: 1px #303848;
+    border-radius: 4px;
+}
+
+.project-filter-icon {
+    size: 14px 14px;
+    tint: #8f9bad;
+}
+
+.project-filter {
+    size: 0px 100%;
+    grow: 1;
+    background: none;
+    border: 0px transparent;
+    foreground: #d7deea;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+}
+
+.ide-empty-editor {
+    size: 100% 100%;
+    align-items: center center;
+    gap: 8px;
+    background: #0c0f14;
+    foreground: #8792a4;
+}
+
+.ide-empty-title {
+    foreground: #cbd3df;
+    height: 18px;
+}
+
+.ide-status {
+    foreground: #8792a4;
+    height: 16px;
+}

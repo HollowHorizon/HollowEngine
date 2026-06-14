@@ -94,6 +94,7 @@ object ScriptingEnvironmentOverlay {
 }
 
 fun isMouseOverDock(x: Float, y: Float): Boolean {
+    if (HollowIdeOverlay.isMouseOver(x, y)) return true
     if (ScriptingEnvironmentOverlay.isCollapsed) return false
     return (dock.dockables.values.any {
         it.isInBounds(
@@ -106,11 +107,13 @@ fun isMouseOverDock(x: Float, y: Float): Boolean {
 }
 
 fun isAnyFocusNodeInput(): Boolean {
+    if (HollowIdeOverlay.hasFocusedInput()) return true
     return dock.dockables.keys.any { it.inputHandler.blockAllKeyboardInput }
 }
 
 @SubscribeEvent
 @ClientOnly
 fun onDrawOverlay(event: RenderTickEvent.Blit) {
+    if (HollowIdeOverlay.isVisible()) return
     ScriptingEnvironmentOverlay.scene.render()
 }

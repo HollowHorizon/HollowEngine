@@ -1,0 +1,133 @@
+.dropdown-button {
+    height: 24px;
+    padding: 0px 8px;
+    gap: 6px;
+    foreground: #cbd3df;
+    border-radius: 4px;
+    transition:
+        background 100ms ease-out,
+        foreground 100ms ease-out;
+}
+
+.dropdown-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    foreground: #ffffff;
+}
+
+.dropdown-button-icon,
+.dropdown-item-icon,
+.tree-icon {
+    size: 16px 16px;
+    tint: #ffffff;
+}
+
+.dropdown-item-check {
+    size: 14px 14px;
+    checkbox-active: #5f8ccd;
+    checkbox-mark: #ffffff;
+    border: 1px #647084;
+}
+
+.dropdown-button-arrow {
+    size: 7px 5px;
+    shape: path("M 0 0 L 7 0 L 3.5 5 Z", 7 5);
+    fill: #9aa5b7;
+    transition:
+        rotate 120ms ease-out,
+        fill 120ms ease-out;
+}
+
+.dropdown-popup {
+    min-width: 156px;
+    padding: 5px;
+    gap: 2px;
+    background: #181b23;
+    border: 1px #3f4756;
+    border-radius: 5px;
+    shadow: 0px 14px 28px -10px rgba(0, 0, 0, 0.62);
+}
+
+.dropdown-item {
+    height: 24px;
+    padding: 0px 7px;
+    gap: 7px;
+    foreground: #cbd3df;
+    border-radius: 4px;
+    transition:
+        background 80ms ease-out,
+        foreground 80ms ease-out;
+}
+
+.dropdown-item:hover {
+    background: #2b3340;
+    foreground: #ffffff;
+}
+
+.dropdown-item.disabled {
+    opacity: 0.42;
+}
+
+.tree-view {
+    scrollbar: 6px;
+    scrollbar-track: rgba(255, 255, 255, 0.03);
+    scrollbar-thumb: rgba(155, 169, 194, 0.38);
+    scrollbar-thumb-radius: 3px;
+}
+
+.tree-item {
+    padding-right: 6px;
+    foreground: #aeb8ca;
+    border-radius: 4px;
+    transition:
+        background 90ms ease-out,
+        foreground 90ms ease-out;
+}
+
+.tree-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    foreground: #ffffff;
+}
+
+.tree-item.selected {
+    background: rgba(88, 123, 174, 0.32);
+    foreground: #ffffff;
+}
+
+.tree-indent {
+    size: 14px 100%;
+}
+
+.tree-expander {
+    size: 12px 12px;
+    margin: 0px 2px;
+    shape: path("M 3 1 L 9 6 L 3 11 Z", 12 12);
+    fill: #7f8a9d;
+    transition:
+        rotate 120ms ease-out,
+        fill 100ms ease-out;
+}
+
+.tree-expander.expanded {
+    rotate: 0px 0px 90px;
+}
+
+.tree-label {
+    height: 16px;
+}
+
+.code-editor {
+    padding: 8px;
+    background: #0c0f14;
+    foreground: #d7deea;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+    line-numbers: true;
+    line-number-color: #556070;
+    inlay-hint-color: #687588;
+    font-family: minecraft:default;
+    font-size: 10px;
+    scrollbar: 7px;
+    scrollbar-track: rgba(255, 255, 255, 0.03);
+    scrollbar-thumb: rgba(155, 169, 194, 0.42);
+    scrollbar-thumb-radius: 3px;
+}

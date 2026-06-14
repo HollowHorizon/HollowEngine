@@ -238,6 +238,7 @@ class TextFieldNode(
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
+    onChange: ((String) -> Unit)? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
@@ -260,6 +261,7 @@ class TextFieldNode(
             completionItems = emptyList()
             this.attributes["value"] = field
             invalidateLayout()
+            onChange?.invoke(field)
         }
 
     var placeholder: String = this.attributes["placeholder"].orEmpty()
@@ -334,6 +336,7 @@ class TextFieldNode(
             clearInlayHintCache()
             invalidateLayout()
         }
+    var onChange: ((String) -> Unit)? = onChange
     var completionItems: List<UiTextCompletion> = emptyList()
         private set
     var completionAnchor: Int = this.value.length

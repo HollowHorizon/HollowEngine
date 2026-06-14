@@ -1,0 +1,199 @@
+package ru.hollowhorizon.hollowengine.client.gui.scripting
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import java.io.File
+
+private const val BinarySampleSize = 8192
+
+internal class HollowIdeModel {
+    val tree = HollowIdeFileTree()
+    val files = mutableStateMapOf<String, HollowIdeOpenFile>()
+    var selectedTreePath by mutableStateOf("")
+        private set
+
+    fun visibleTreeItems(filter: String): List<UiTreeItem<HollowIdeFileNode>> {
+        return tree.visible(filter).map { node ->
+            UiTreeItem(
+                id = node.path.ifEmpty { "root" }.replace('/', '-'),
+                label = node.name,
+                depth = node.depth,
+                payload = node,
+                icon = IconHelper.forPath(node.path, node.isDirectory, node.expanded).toString(),
+                hasChildren = node.isDirectory,
+                expanded = node.expanded,
+                selected = node.path == selectedTreePath,
+            )
+        }
+    }
+
+    fun toggle(node: HollowIdeFileNode) {
+        selectedTreePath = node.path
+        tree.toggle(node.path)
+    }
+
+    fun open(node: HollowIdeFileNode): HollowIdeOpenResult {
+        selectedTreePath = node.path
+        if (node.isDirectory) {
+            tree.toggle(node.path)
+            return HollowIdeOpenResult.Directory
+        }
+        return openFile(node.path)
+    }
+
+    fun openFile(path: String): HollowIdeOpenResult {
+        selectedTreePath = path
+        files[path]?.let { return HollowIdeOpenResult.File(it, created = false) }
+        val file = path.fromReadablePath()
+        if (!file.isFile || file.isProbablyBinary()) return HollowIdeOpenResult.Unsupported
+        val opened = HollowIdeOpenFile(path, file.readText())
+        files[path] = opened
+        return HollowIdeOpenResult.File(opened, created = true)
+    }
+
+    fun updateText(path: String, text: String) {
+        files[path]?.update(text)
+    }
+
+    fun save(path: String): Boolean {
+        val file = files[path] ?: return false
+        path.fromReadablePath().writeText(file.text)
+        file.markSaved()
+        tree.refresh()
+        return true
+    }
+
+    fun saveAll(): Int {
+        var count = 0
+        files.values.forEach { file ->
+            if (file.dirty && save(file.path)) count++
+        }
+        return count
+    }
+}
+
+internal sealed interface HollowIdeOpenResult {
+    data object Directory : HollowIdeOpenResult
+    data object Unsupported : HollowIdeOpenResult
+    data class File(val file: HollowIdeOpenFile, val created: Boolean) : HollowIdeOpenResult
+}
+
+internal class HollowIdeOpenFile(
+    val path: String,
+    initialText: String,
+) {
+    var text by mutableStateOf(initialText)
+        private set
+    var dirty by mutableStateOf(false)
+        private set
+
+    val id: String = fileDockItemId(path)
+    val title: String get() = path.substringAfterLast('/').ifEmpty { path }
+
+    fun dockItem(): DockItem {
+        return DockItem(id, if (dirty) "$title *" else title, IconHelper.forPath(path).toString())
+    }
+
+    fun update(next: String) {
+        if (text == next) return
+        text = next
+        dirty = true
+    }
+
+    fun markSaved() {
+        dirty = false
+    }
+}
+
+internal class HollowIdeFileTree {
+    private val root = HollowIdeFileNode("HollowEngine", "", depth = 0, isDirectory = true).apply {
+        expanded = true
+    }
+
+    init {
+        refresh()
+    }
+
+    fun refresh() {
+        root.refresh()
+    }
+
+    fun toggle(path: String) {
+        val node = root.find(path) ?: return
+        if (!node.isDirectory) return
+        node.expanded = !node.expanded
+        if (node.expanded) node.refresh()
+    }
+
+    fun visible(filter: String): List<HollowIdeFileNode> {
+        val cleanFilter = filter.trim()
+        return root.visible(cleanFilter)
+    }
+}
+
+internal class HollowIdeFileNode(
+    val name: String,
+    val path: String,
+    val depth: Int,
+    val isDirectory: Boolean,
+) {
+    val children = mutableStateListOf<HollowIdeFileNode>()
+    var expanded by mutableStateOf(false)
+
+    fun refresh() {
+        if (!isDirectory) return
+        val previous = children.associateBy({ it.path }, { it.expanded })
+        val files = path.fromReadablePath().listFiles().orEmpty()
+        children.clear()
+        children += files
+            .sortedWith(compareBy<File> { it.isFile }.thenBy { it.name.lowercase() })
+            .map { file ->
+                val childPath = if (path.isEmpty()) file.name else "$path/${file.name}"
+                HollowIdeFileNode(file.name, childPath, depth + 1, file.isDirectory).apply {
+                    expanded = previous[childPath] == true
+                    if (expanded) refresh()
+                }
+            }
+    }
+
+    fun find(targetPath: String): HollowIdeFileNode? {
+        if (path == targetPath) return this
+        return children.firstNotNullOfOrNull { it.find(targetPath) }
+    }
+
+    fun visible(filter: String): List<HollowIdeFileNode> {
+        if (filter.isNotEmpty() && !matches(filter)) return emptyList()
+        val result = mutableListOf(this)
+        if (expanded || filter.isNotEmpty()) {
+            children.forEach { result += it.visible(filter) }
+        }
+        return result
+    }
+
+    private fun matches(filter: String): Boolean {
+        return path.contains(filter, ignoreCase = true) || children.any { it.matches(filter) }
+    }
+}
+
+internal fun fileDockItemId(path: String): String {
+    return "ide-file-" + path.replace(Regex("[^A-Za-z0-9_-]"), "_")
+}
+
+private fun File.isProbablyBinary(): Boolean {
+    val bytes = inputStream().use { it.readNBytes(BinarySampleSize) }
+    if (bytes.isEmpty()) return false
+    val nullBytes = bytes.count { it.toInt() == 0 }
+    val controlBytes = bytes.count { byte ->
+        val value = byte.toInt() and 0xFF
+        value < 32 && value != 9 && value != 10 && value != 13
+    }
+    return nullBytes > bytes.size / 100 || controlBytes > bytes.size / 10
+}
