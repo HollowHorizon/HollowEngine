@@ -32,6 +32,7 @@ internal data class RenderTargetState(
 internal data class LayerState(
     val rect: UiRect,
     val radius: Float,
+    val clipShape: Shape?,
     val transform: UiMatrix4,
     val framebuffer: UiLayerFramebuffer,
     val parentClips: List<UiRect>,

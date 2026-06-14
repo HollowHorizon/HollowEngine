@@ -222,7 +222,8 @@ class UiLayoutPipeline {
             opacityNeedsLayer ||
                     style.transform.needsFramebuffer || !insideFramebuffer && node.requiresTextLayer(transform) ||
                     style.filter.requiresLayer ||
-                    style.backdropFilter.requiresLayer
+                    style.backdropFilter.requiresLayer ||
+                    style.clipShape != null && style.clip
 
         layouts[node] = UiLayoutNode(
             node = node,

@@ -395,6 +395,15 @@ internal class UiWidgetRenderer(
                 transform,
                 filter,
             )
+            is UiResolvedPaint.RadialGradient -> scratchTriangles.appendLocalRadialGradient(
+                width,
+                height,
+                radius,
+                paint.gradient,
+                opacity,
+                transform,
+                filter,
+            )
             is UiResolvedPaint.Image -> {
                 flushScratchTriangles()
                 imageDrawer(width, height, paint.source, opacity, transform, UiImageFit.STRETCH, filter, UiInsets.Zero, UiColor.White)

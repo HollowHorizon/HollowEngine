@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.config
 
 @ConfigName("hollowengine")
 object HollowEngineConfig : Config() {
-    val debugMode by property(false)
+    val debugMode by property(true)
 
     @PropertyComment("Enables editor button in top left corner")
     @PropertyName("edit_mode")
