@@ -119,6 +119,13 @@ dependencies {
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion") {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-scripting-compiler-embeddable")
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-compiler-embeddable")
+    }
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
     addShadow("lib:katari-jvm:1.2.0")

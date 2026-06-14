@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.fabric
 
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonManager
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.registry.HollowModProcessor
 import ru.hollowhorizon.hollowengine.common.registry.getAnnotatedClasses
@@ -40,6 +41,7 @@ object CoreInitialization {
             }
 
         HollowModProcessor
+        HollowAddonManager.initializeAll()
 
         // Очищаем старые результаты сканирования, они в среднем жрут 500мб памяти, так что регистрация аннотаций должна быть одноразовой
         getSubTypes = { emptySet() }

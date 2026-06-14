@@ -1,4 +1,5 @@
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar.Companion.shadowJar
 import me.modmuss50.mpp.ReleaseType
 import net.fabricmc.loom.task.RemapJarTask
 import java.util.*
@@ -147,4 +148,7 @@ tasks.named<Sync>("buildAndCollect") {
         dependsOn(remapJar)
         from(remapJar.flatMap { it.archiveFile })
     }
+    val compilerJar = project(":compiler").tasks.shadowJar
+    dependsOn(compilerJar)
+    from(compilerJar.flatMap { it.archiveFile })
 }

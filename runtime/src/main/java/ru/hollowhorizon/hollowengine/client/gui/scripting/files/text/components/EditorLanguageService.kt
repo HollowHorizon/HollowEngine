@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.JsonScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.common.scripting.ide.UnavailableKotlinScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptingAnalyzer
@@ -24,7 +25,7 @@ fun EditorLanguageService(extension: String): EditorLanguageService {
 
 object KotlinEditorLanguageService : EditorLanguageService {
     override val analyzer: ScriptingAnalyzer
-        get() = ScriptingEnvironment.INSTANCE.analyzer
+        get() = ScriptingEnvironment.currentOrNull()?.analyzer ?: UnavailableKotlinScriptingAnalyzer
 }
 
 object JsonEditorLanguageService : EditorLanguageService {
