@@ -1,0 +1,287 @@
+package ru.hollowhorizon.hollowengine.client.ui.screen
+
+import androidx.compose.runtime.Composable
+import ru.hollowhorizon.hollowengine.client.ui.*
+
+@Composable
+internal fun shapesDemo() {
+    val bevel = GenericShape { size ->
+        moveTo(0f, 0f)
+        lineTo(size.width, 0f)
+        lineTo(size.width - 34f, size.height)
+        lineTo(0f, size.height - 18f)
+        close()
+    }
+    val wave = GenericShape { size ->
+        moveTo(8f, size.height * 0.7f)
+        curveTo(size.width * 0.28f, -18f, size.width * 0.58f, size.height + 28f, size.width - 8f, size.height * 0.28f)
+    }
+    val radial = UiPaint.RadialGradient(
+        UiRadialGradient(
+            centerX = 34.percent,
+            centerY = 34.percent,
+            radius = 76.percent,
+            stops = listOf(
+                UiGradientStop(0f, UiColor(0.34f, 0.78f, 0.74f, 1f)),
+                UiGradientStop(1f, UiColor(0.16f, 0.24f, 0.45f, 1f)),
+            ),
+        )
+    )
+    val svgHexagon = svgResource("hollowengine:ui/shapes/hexagon.svg")
+    val svgBadge = svgResource("hollowengine:ui/shapes/badge-check.svg")
+    val svgUnderline = svgResource("hollowengine:ui/shapes/underline.svg")
+    val engineLogo = svgResource("hollowengine:textures/gui/logo/logo.svg")
+    val nbtIcon = svgResource("hollowengine:textures/gui/icons/nbt.svg")
+    val consoleIcon = svgResource("hollowengine:textures/gui/icons/console.svg")
+    val lightSpotIcon = svgResource("hollowengine:textures/gui/icons/light_spot.svg")
+    val pipelineSvg = svgResource("hollowengine:ui/shapes/demo-pipeline.svg")
+    val questMapSvg = svgResource("hollowengine:ui/shapes/demo-quest-map.svg")
+    val viewportStackSvg = svgResource("hollowengine:ui/shapes/demo-viewport-stack.svg")
+
+    Box(tags = listOf("shapes-stage"), modifier = Modifier.input(scrollable = true)) {
+        Column(tags = listOf("shape-card", "hss-path-card"), modifier = Modifier.position(20.px, 20.px)) {
+            Text("HSS path", tags = listOf("card-title"))
+            Text("shape + fill + stroke", tags = listOf("body"))
+        }
+        Box(
+            tags = listOf("shape-card"),
+            modifier = Modifier.then(
+                Modifier.position(230.px, 20.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.shape(bevel, radial, UiPaint.Color(UiColor(0.82f, 0.94f, 1f, 0.8f)), 2.px),
+            ),
+        ) {
+            Text("GenericShape", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+        }
+        Box(
+            tags = listOf("shape-card", "shape-clip-card"),
+            modifier = Modifier.then(
+                Modifier.position(440.px, 20.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.clip(bevel),
+                Modifier.background(32f, listOf(
+                    UiGradientStop(0f, UiColor(0.36f, 0.58f, 0.95f, 1f)),
+                    UiGradientStop(1f, UiColor(0.18f, 0.8f, 0.64f, 1f)),
+                )),
+            ),
+        ) {
+            Box(
+                tags = listOf("shape-clip-stripe", "shape-clip-stripe-a"),
+                modifier = Modifier.then(Modifier.position((-18).px, 18.px), Modifier.size(236.px, 24.px)),
+            )
+            Box(
+                tags = listOf("shape-clip-stripe", "shape-clip-stripe-b"),
+                modifier = Modifier.then(Modifier.position(22.px, 54.px), Modifier.size(190.px, 22.px)),
+            )
+            Box(
+                tags = listOf("shape-clip-stripe", "shape-clip-stripe-c"),
+                modifier = Modifier.then(Modifier.position((-24).px, 92.px), Modifier.size(242.px, 24.px)),
+            )
+            Text("Clip + children", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+        }
+        Box(
+            modifier = Modifier.then(
+                Modifier.position(440.px, 20.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.shape(bevel, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.82f, 0.94f, 1f, 0.82f)), strokeWidth = 2.px),
+            ),
+        ) {
+        }
+        Box(
+            tags = listOf("shape-card"),
+            modifier = Modifier.then(
+                Modifier.position(20.px, 176.px),
+                Modifier.size(398.px, 112.px),
+                Modifier.shape(wave, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.72f, 0.9f, 1f, 1f)), strokeWidth = 5.px),
+            ),
+        ) {
+            Text("Stroke-only curve", tags = listOf("shape-label"), modifier = Modifier.position(142.px, 10.px))
+        }
+        Box(
+            tags = listOf("shape-card", "svg-file-hexagon"),
+            modifier = Modifier.position(440.px, 176.px),
+        ) {
+            Text("HSS svg(...)", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+        }
+        Box(
+            tags = listOf("shape-card"),
+            modifier = Modifier.then(
+                Modifier.position(650.px, 176.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.shape(svgBadge, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.72f, 0.9f, 1f, 1f)), strokeWidth = 2.px),
+            ),
+        ) {
+            Text("SVG stroke", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+        }
+        Box(
+            tags = listOf("shape-card", "svg-clip-card"),
+            modifier = Modifier.then(
+                Modifier.position(650.px, 320.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.clip(svgHexagon),
+                Modifier.background(45f, listOf(
+                    UiGradientStop(0f, UiColor(0.92f, 0.58f, 0.36f, 1f)),
+                    UiGradientStop(1f, UiColor(0.26f, 0.84f, 0.75f, 1f)),
+                )),
+            ),
+        ) {
+            Box(
+                tags = listOf("shape-clip-stripe", "shape-clip-stripe-a"),
+                modifier = Modifier.then(Modifier.position((-14).px, 26.px), Modifier.size(230.px, 24.px)),
+            )
+            Box(
+                tags = listOf("shape-clip-stripe", "shape-clip-stripe-b"),
+                modifier = Modifier.then(Modifier.position(18.px, 68.px), Modifier.size(198.px, 22.px)),
+            )
+            Text("SVG clip", tags = listOf("shape-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+        }
+        Box(
+            modifier = Modifier.then(
+                Modifier.position(650.px, 320.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.shape(svgHexagon, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(0.94f, 1f, 0.9f, 0.84f)), strokeWidth = 2.px),
+            ),
+        ) {
+        }
+        Box(
+            tags = listOf("shape-card"),
+            modifier = Modifier.then(
+                Modifier.position(20.px, 320.px),
+                Modifier.size(398.px, 64.px),
+                Modifier.shape(svgUnderline, fill = UiPaint.None, stroke = UiPaint.Color(UiColor(1f, 0.86f, 0.42f, 1f)), strokeWidth = 5.px),
+            ),
+        ) {
+            Text("SVG file underline", tags = listOf("shape-label"), modifier = Modifier.position(142.px, 6.px))
+        }
+        Box(
+            tags = listOf("shape-card"),
+            modifier = Modifier.then(
+                Modifier.position(440.px, 320.px),
+                Modifier.size(188.px, 126.px),
+                Modifier.shape(
+                    engineLogo,
+                    fill = UiPaint.RadialGradient(
+                        UiRadialGradient(
+                            centerX = 38.percent,
+                            centerY = 34.percent,
+                            radius = 72.percent,
+                            stops = listOf(
+                                UiGradientStop(0f, UiColor(1f, 0.72f, 0.28f, 0.96f)),
+                                UiGradientStop(1f, UiColor(0.2f, 0.5f, 0.9f, 0.9f)),
+                            ),
+                        )
+                    ),
+                    stroke = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.72f)),
+                    strokeWidth = 1.px,
+                ),
+            ),
+        ) {
+            Text(
+                "Engine logo SVG",
+                tags = listOf("shape-label"),
+                modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER)
+            )
+        }
+        SvgDemoCard(
+            label = "Existing text SVG",
+            shape = nbtIcon,
+            x = 20,
+            y = 464,
+            fill = UiPaint.Color(UiColor(0.92f, 1f, 0.78f, 0.95f)),
+            stroke = UiPaint.Color(UiColor(0.12f, 0.16f, 0.22f, 0.72f)),
+            strokeWidth = 1.px,
+        )
+        SvgDemoCard(
+            label = "Existing clip SVG",
+            shape = consoleIcon,
+            x = 230,
+            y = 464,
+            fill = UiPaint.LinearGradient(
+                130f,
+                listOf(
+                    UiGradientStop(0f, UiColor(0.82f, 0.94f, 1f, 0.96f)),
+                    UiGradientStop(1f, UiColor(0.34f, 0.78f, 0.74f, 0.92f)),
+                ),
+            ),
+            stroke = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.6f)),
+            strokeWidth = 1.px,
+        )
+        SvgDemoCard(
+            label = "Existing round stroke",
+            shape = lightSpotIcon,
+            x = 440,
+            y = 464,
+            fill = UiPaint.Color(UiColor(1f, 0.84f, 0.42f, 0.92f)),
+            stroke = UiPaint.Color(UiColor(1f, 0.96f, 0.72f, 0.62f)),
+            strokeWidth = 1.px,
+        )
+        SvgDemoCard(
+            label = "Custom pipeline",
+            shape = pipelineSvg,
+            x = 20,
+            y = 608,
+            width = 398,
+            fill = UiPaint.RadialGradient(
+                UiRadialGradient(
+                    centerX = 32.percent,
+                    centerY = 34.percent,
+                    radius = 86.percent,
+                    stops = listOf(
+                        UiGradientStop(0f, UiColor(1f, 0.84f, 0.42f, 0.95f)),
+                        UiGradientStop(1f, UiColor(0.22f, 0.75f, 0.72f, 0.88f)),
+                    ),
+                ),
+            ),
+            stroke = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.54f)),
+            strokeWidth = 1.px,
+        )
+        SvgDemoCard(
+            label = "Custom quest map",
+            shape = questMapSvg,
+            x = 440,
+            y = 608,
+            fill = UiPaint.LinearGradient(
+                45f,
+                listOf(
+                    UiGradientStop(0f, UiColor(0.36f, 0.62f, 0.95f, 0.92f)),
+                    UiGradientStop(1f, UiColor(0.28f, 0.88f, 0.62f, 0.86f)),
+                ),
+            ),
+            stroke = UiPaint.Color(UiColor(0.92f, 0.98f, 1f, 0.64f)),
+            strokeWidth = 1.px,
+        )
+        SvgDemoCard(
+            label = "Custom viewport",
+            shape = viewportStackSvg,
+            x = 650,
+            y = 608,
+            fill = UiPaint.Color(UiColor(0.76f, 0.86f, 1f, 0.94f)),
+            stroke = UiPaint.Color(UiColor(1f, 0.8f, 0.42f, 0.62f)),
+            strokeWidth = 1.px,
+        )
+    }
+}
+
+@Composable
+private fun SvgDemoCard(
+    label: String,
+    shape: Shape,
+    x: Int,
+    y: Int,
+    width: Int = 188,
+    height: Int = 126,
+    fill: UiPaint = UiPaint.Color(UiColor(0.82f, 0.94f, 1f, 0.9f)),
+    stroke: UiPaint? = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.62f)),
+    strokeWidth: UiLength = 1.px,
+) {
+    Box(
+        tags = listOf("shape-card"),
+        modifier = Modifier.then(
+            Modifier.position(x.px, y.px),
+            Modifier.size(width.px, height.px),
+            Modifier.shape(shape, fill = fill, stroke = stroke, strokeWidth = strokeWidth),
+        ),
+    ) {
+        Text(label, tags = listOf("shape-label"), modifier = Modifier.position(14.px, 8.px))
+    }
+}

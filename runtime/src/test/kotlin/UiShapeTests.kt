@@ -1,11 +1,11 @@
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import java.awt.Font
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -72,16 +72,40 @@ class UiShapeTests {
     }
 
     @Test
-    fun `svg file parser rejects unsupported geometry`() {
-        assertFailsWith<IllegalArgumentException> {
-            SvgFileParser.parse(
-                """
-                <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
-                    <text x="0" y="10">text</text>
-                </svg>
-                """.trimIndent()
-            )
-        }
+    fun `svg file parser converts text image and foreignObject to geometry`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg">
+                <text x="4" y="18" font-size="14" fill="#ffffff">NBT</text>
+                <image x="50" y="4" width="20" height="12" href="icon.png"/>
+                <foreignObject x="80" y="5" width="30" height="20"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        assertTrue(document.path.commands.isNotEmpty())
+        assertEquals(UiColor.White, document.elements.first().style.fillColor())
+    }
+
+    @Test
+    fun `svg text uses serif fallback for unavailable concrete font`() {
+        val font = resolveSvgTextFont("'Definitely Missing SVG Font'", 23f)
+
+        assertEquals(Font.SERIF, font.family)
+    }
+
+    @Test
+    fun `svg text infers monospaced fallback from missing mono font name`() {
+        val font = resolveSvgTextFont("'JetBrains Mono'", 23f)
+
+        assertEquals(Font.MONOSPACED, font.family)
+    }
+
+    @Test
+    fun `svg text font family list uses next available fallback`() {
+        val font = resolveSvgTextFont("'Definitely Missing SVG Font', monospace", 23f)
+
+        assertEquals(Font.MONOSPACED, font.family)
     }
 
     @Test
@@ -100,6 +124,115 @@ class UiShapeTests {
         assertTrue(document.path.commands.any { it is UiPathCommand.ArcTo })
         assertTrue(document.path.commands.count { it is UiPathCommand.MoveTo } >= 4)
         assertTrue(document.path.commands.count { it is UiPathCommand.Close } >= 3)
+    }
+
+    @Test
+    fun `svg file parser applies transform chains to paths primitives and groups`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <g transform="translate(10 5) scale(2)">
+                    <rect x="1" y="2" width="4" height="3"/>
+                    <path transform="translate(4 0)" d="M 0 0 L 2 0"/>
+                </g>
+            </svg>
+            """.trimIndent()
+        )
+
+        val bounds = document.path.bounds()
+
+        assertNotNull(bounds)
+        assertEquals(12f, bounds.x)
+        assertEquals(5f, bounds.y)
+        assertTrue(bounds.width >= 10f)
+    }
+
+    @Test
+    fun `svg file parser resolves css colors and use symbols`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <style>
+                        .accent, #direct { fill: rgb(255, 128, 0); stroke-linecap: round; stroke-linejoin: round; }
+                    </style>
+                    <symbol id="mark" viewBox="0 0 10 10">
+                        <path class="accent" d="M 1 1 L 9 1 L 9 9 Z"/>
+                    </symbol>
+                </defs>
+                <use href="#mark" width="20" height="20"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        val style = document.elements.single().style
+
+        assertEquals(UiColor(1f, 128f / 255f, 0f, 1f), style.fillColor())
+        assertEquals(UiSvgStrokeLineCap.ROUND, style.strokeLineCap)
+        assertEquals(UiSvgStrokeLineJoin.ROUND, style.strokeLineJoin)
+        assertTrue(document.path.bounds()!!.width > 15f)
+    }
+
+    @Test
+    fun `svg file parser turns styled strokes into geometry`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 12 10" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 2 5 L 10 5" fill="none" stroke="#fff" stroke-width="4"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        val bounds = document.path.bounds()
+
+        assertNotNull(bounds)
+        assertTrue(bounds.x < 1f)
+        assertTrue(bounds.width > 11f)
+        assertEquals(UiSvgStrokeLineCap.ROUND, document.elements.single().style.strokeLineCap)
+    }
+
+    @Test
+    fun `svg file parser applies clipPath mask and filter geometry`() {
+        val clipped = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <clipPath id="clip"><rect x="0" y="0" width="8" height="20"/></clipPath>
+                    <mask id="mask"><rect x="0" y="0" width="8" height="12"/></mask>
+                </defs>
+                <rect x="0" y="0" width="20" height="20" clip-path="url(#clip)" mask="url(#mask)"/>
+            </svg>
+            """.trimIndent()
+        )
+        val filtered = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <defs><filter id="shadow"><feDropShadow dx="4" dy="0" stdDeviation="1"/></filter></defs>
+                <rect x="2" y="2" width="4" height="4" filter="url(#shadow)"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        assertEquals(8f, clipped.path.bounds()!!.width)
+        assertEquals(12f, clipped.path.bounds()!!.height)
+        assertTrue(filtered.path.bounds()!!.width > 8f)
+    }
+
+    @Test
+    fun `path stroke mesh uses round caps and joins by default`() {
+        val triangles = SvgPathParser.parse("M 0 0 L 10 0").flatten().strokeTriangles(4f)
+        val xs = triangles.flatMap { listOf(it.first.x, it.second.x, it.third.x) }
+
+        assertTrue(xs.minOrNull()!! < 0f)
+        assertTrue(xs.maxOrNull()!! > 10f)
+    }
+
+    @Test
+    fun `round stroke caps keep enough segments for smooth small radii`() {
+        val triangles = SvgPathParser.parse("M 0 0 L 10 0").flatten().strokeTriangles(4f)
+
+        assertTrue(triangles.size >= 34)
     }
 
     @Test
@@ -137,8 +270,7 @@ class UiShapeTests {
 
             assertTrue(path.commands.isNotEmpty(), "Expected $location to produce path commands")
         }
-        assertEquals(setOf(ResourceLocation.parse("hollowengine:textures/gui/icons/nbt.svg")), unsupported.keys)
-        assertTrue(unsupported.values.single().message?.contains("<text>") == true)
+        assertTrue(unsupported.isEmpty(), unsupported.toString())
     }
 
     @Test

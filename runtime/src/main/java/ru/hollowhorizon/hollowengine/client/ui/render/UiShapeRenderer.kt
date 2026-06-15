@@ -715,7 +715,7 @@ private fun roundedPerimeter(width: Float, height: Float, radius: Float, segment
     return points
 }
 
-private fun roundedSegments(radius: Float): Int = max(4, min(12, (radius / 2f).roundToInt()))
+private fun roundedSegments(radius: Float): Int = max(8, min(48, (radius * 0.75f).roundToInt()))
 
 private fun gradientColorAt(x: Float, y: Float, width: Float, height: Float, angleDegrees: Float, stops: List<UiGradientStop>): UiColor {
     if (stops.isEmpty()) return UiColor.Transparent

@@ -6,6 +6,7 @@ import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -21,7 +22,11 @@ data class UiPathGeometry(
         .filter { it.closed }
         .flatMap { triangulate(it.points) }
 
-    fun strokeTriangles(width: Float): List<UiPathTriangle> {
+    fun strokeTriangles(
+        width: Float,
+        lineCap: UiPathStrokeLineCap = UiPathStrokeLineCap.Round,
+        lineJoin: UiPathStrokeLineJoin = UiPathStrokeLineJoin.Round,
+    ): List<UiPathTriangle> {
         val half = width.coerceAtLeast(0f) * 0.5f
         if (half <= 0f) return emptyList()
         return contours.flatMap { contour ->
@@ -32,11 +37,31 @@ data class UiPathGeometry(
             for (index in 0 until segmentCount) {
                 val start = points[index]
                 val end = points[(index + 1) % points.size]
-                appendStrokeSegment(result, start, end, half)
+                appendStrokeSegment(result, start, end, half, lineCap)
+            }
+            if (lineJoin == UiPathStrokeLineJoin.Round) {
+                val joinRange = if (contour.closed) points.indices else 1 until points.lastIndex
+                joinRange.forEach { index -> appendRoundStrokeDisk(result, points[index], half) }
+            }
+            if (!contour.closed && lineCap == UiPathStrokeLineCap.Round) {
+                appendRoundStrokeDisk(result, points.first(), half)
+                appendRoundStrokeDisk(result, points.last(), half)
             }
             result
         }
     }
+}
+
+enum class UiPathStrokeLineCap {
+    Butt,
+    Round,
+    Square,
+}
+
+enum class UiPathStrokeLineJoin {
+    Miter,
+    Round,
+    Bevel,
 }
 
 data class UiPathTriangle(
@@ -168,7 +193,7 @@ private fun arcPoints(from: UiPathPoint, command: UiPathCommand.ArcTo, tolerance
     val radius = max(radiusX, radiusY).toDouble()
     val byTolerance = ceil(max(abs(sweepAngle) * radius / tolerance.coerceAtLeast(0.25f).toDouble(), 1.0)).toInt()
     val byAngle = ceil(abs(sweepAngle) / maxStep).toInt().coerceAtLeast(1)
-    val segments = max(byTolerance, byAngle).coerceIn(1, 96)
+    val segments = max(byTolerance, byAngle).coerceIn(1, 256)
     val points = (1..segments).map { index ->
         val theta = startAngle + sweepAngle * index.toDouble() / segments.toDouble()
         val x = cosPhi * radiusXd * cos(theta) - sinPhi * radiusYd * sin(theta) + centerX
@@ -180,7 +205,7 @@ private fun arcPoints(from: UiPathPoint, command: UiPathCommand.ArcTo, tolerance
 
 private fun curveSegments(vararg points: UiPathPoint, tolerance: Float): Int {
     val length = points.asList().zipWithNext().sumOf { (start, end) -> start.distanceTo(end).toDouble() }.toFloat()
-    return ceil(length / tolerance.coerceAtLeast(0.25f)).toInt().coerceIn(4, 64)
+    return ceil(length / tolerance.coerceAtLeast(0.1f)).toInt().coerceIn(8, 256)
 }
 
 private fun angle(ux: Double, uy: Double, vx: Double, vy: Double): Double {
@@ -234,19 +259,41 @@ private fun fanTriangulate(points: List<UiPathPoint>): List<UiPathTriangle> {
     }
 }
 
-private fun appendStrokeSegment(result: MutableList<UiPathTriangle>, start: UiPathPoint, end: UiPathPoint, half: Float) {
+private fun appendStrokeSegment(
+    result: MutableList<UiPathTriangle>,
+    start: UiPathPoint,
+    end: UiPathPoint,
+    half: Float,
+    lineCap: UiPathStrokeLineCap,
+) {
     val dx = end.x - start.x
     val dy = end.y - start.y
     val length = sqrt(dx * dx + dy * dy)
     if (length <= 0.0001f) return
+    val extension = if (lineCap == UiPathStrokeLineCap.Square) half else 0f
+    val tx = dx / length * extension
+    val ty = dy / length * extension
     val nx = -dy / length * half
     val ny = dx / length * half
-    val a = UiPathPoint(start.x + nx, start.y + ny)
-    val b = UiPathPoint(start.x - nx, start.y - ny)
-    val c = UiPathPoint(end.x - nx, end.y - ny)
-    val d = UiPathPoint(end.x + nx, end.y + ny)
+    val a = UiPathPoint(start.x - tx + nx, start.y - ty + ny)
+    val b = UiPathPoint(start.x - tx - nx, start.y - ty - ny)
+    val c = UiPathPoint(end.x + tx - nx, end.y + ty - ny)
+    val d = UiPathPoint(end.x + tx + nx, end.y + ty + ny)
     result += UiPathTriangle(a, b, c)
     result += UiPathTriangle(a, c, d)
+}
+
+private fun appendRoundStrokeDisk(result: MutableList<UiPathTriangle>, center: UiPathPoint, radius: Float) {
+    val segments = max(16, min(64, ceil(radius * 4f).toInt()))
+    for (index in 0 until segments) {
+        val firstAngle = PI.toFloat() * 2f * index.toFloat() / segments.toFloat()
+        val secondAngle = PI.toFloat() * 2f * (index + 1).toFloat() / segments.toFloat()
+        result += UiPathTriangle(
+            center,
+            UiPathPoint(center.x + cos(firstAngle) * radius, center.y + sin(firstAngle) * radius),
+            UiPathPoint(center.x + cos(secondAngle) * radius, center.y + sin(secondAngle) * radius),
+        )
+    }
 }
 
 private fun List<UiPathPoint>.withoutRepeatedLast(): List<UiPathPoint> {
@@ -283,4 +330,4 @@ private fun UiPathPoint.distanceTo(other: UiPathPoint): Float {
     return sqrt(dx * dx + dy * dy)
 }
 
-private const val DefaultPathTolerance = 1f
+private const val DefaultPathTolerance = 0.35f
