@@ -44,9 +44,9 @@
 }
 
 .project-filter-row {
-    height: 26px;
-    padding: 0px 7px;
-    gap: 6px;
+    height: fit;
+    padding: 0px 4px;
+    gap: 4px;
     align-items: start center;
     background: #191e27;
     border: 1px #303848;
@@ -59,10 +59,9 @@
 }
 
 .project-filter {
-    size: 0px 100%;
-    grow: 1;
-    background: none;
-    border: 0px transparent;
+    width: 100%;
+    margin-top: 2px;
+    align: center center;
     foreground: #d7deea;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);

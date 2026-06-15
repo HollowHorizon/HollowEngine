@@ -101,8 +101,10 @@
 .tree-expander {
     size: 12px 12px;
     margin: 0px 2px;
-    shape: path("M 3 1 L 9 6 L 3 11 Z", 12 12);
-    fill: #7f8a9d;
+    shape: path("M 3 2 L 8 6 L 3 10", 12 12);
+    fill: none;
+    stroke: #7f8a9d;
+    stroke-width: 1.5px;
     transition:
         rotate 120ms ease-out,
         fill 100ms ease-out;
@@ -123,7 +125,7 @@
 
 .tree-label {
     height: fit;
-    margin-left: 2px;
+    margin-left: 4px;
     align: start center;
     wrap: false;
 }
