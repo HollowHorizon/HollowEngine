@@ -37,9 +37,6 @@ suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1
         }
         delay(50.milliseconds)
     }
-    withContext(currentServer.dispatcher) {
-        navigation.stop()
-    }
 }
 
 /**
@@ -64,10 +61,6 @@ suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
             navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
         }
         delay(50.milliseconds)
-    }
-
-    withContext(currentServer.dispatcher) {
-        navigation.stop()
     }
 }
 
