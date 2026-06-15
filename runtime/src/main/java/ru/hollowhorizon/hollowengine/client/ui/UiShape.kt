@@ -23,6 +23,8 @@ class SvgPathShape(
     private val path: UiPath,
     private val viewBox: UiRect? = null,
 ) : Shape {
+    private val hash = 31 * path.hashCode() + viewBox.hashCode()
+
     constructor(source: String, viewBox: UiRect? = null) : this(SvgPathParser.parse(source), viewBox)
 
     override fun createPath(size: UiShapeSize): UiPath {
@@ -36,6 +38,14 @@ class SvgPathShape(
             translateY = -sourceBox.y * scaleY,
         )
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SvgPathShape) return false
+        return path == other.path && viewBox == other.viewBox
+    }
+
+    override fun hashCode(): Int = hash
 }
 
 class ShapePathScope internal constructor() {

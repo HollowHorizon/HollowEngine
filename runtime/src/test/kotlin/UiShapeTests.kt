@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
 import java.awt.Font
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -193,6 +194,34 @@ class UiShapeTests {
     }
 
     @Test
+    fun `svg file parser keeps root and path paint colors`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 20 10" fill="#123456" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 0 0 L 10 0 L 10 10 L 0 10 Z"/>
+                <path fill="#ff0000" d="M 10 0 L 20 0 L 20 10 L 10 10 Z"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        assertEquals(UiColor(0x12 / 255f, 0x34 / 255f, 0x56 / 255f, 1f), document.elements[0].paint)
+        assertEquals(UiColor(1f, 0f, 0f, 1f), document.elements[1].paint)
+    }
+
+    @Test
+    fun `svg file parser keeps fill and stroke as separate painted geometry`() {
+        val document = SvgFileParser.parse(
+            """
+            <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#0000ff" stroke="#ff0000" stroke-width="2" d="M 2 2 L 10 2 L 10 10 L 2 10 Z"/>
+            </svg>
+            """.trimIndent()
+        )
+
+        assertEquals(listOf(UiColor(0f, 0f, 1f, 1f), UiColor(1f, 0f, 0f, 1f)), document.elements.map { it.paint })
+    }
+
+    @Test
     fun `svg file parser applies clipPath mask and filter geometry`() {
         val clipped = SvgFileParser.parse(
             """
@@ -229,10 +258,47 @@ class UiShapeTests {
     }
 
     @Test
-    fun `round stroke caps keep enough segments for smooth small radii`() {
+    fun `path stroke mesh avoids disk fan geometry for round caps`() {
         val triangles = SvgPathParser.parse("M 0 0 L 10 0").flatten().strokeTriangles(4f)
+        val xs = triangles.flatMap { listOf(it.first.x, it.second.x, it.third.x) }
 
-        assertTrue(triangles.size >= 34)
+        assertTrue(xs.minOrNull()!! < 0f)
+        assertTrue(xs.maxOrNull()!! > 10f)
+        assertTrue(triangles.size < 34)
+    }
+
+    @Test
+    fun `fill triangulation supports concave contours and holes`() {
+        val concave = SvgPathParser.parse("M 0 0 L 10 0 L 10 10 L 5 5 L 0 10 Z").flatten().fillTriangles()
+        val holed = SvgPathParser.parse(
+            "M 0 0 L 10 0 L 10 10 L 0 10 Z M 3 3 L 7 3 L 7 7 L 3 7 Z"
+        ).flatten().fillTriangles()
+
+        assertEquals(75f, concave.sumArea(), 0.001f)
+        assertEquals(84f, holed.sumArea(), 0.001f)
+    }
+
+    @Test
+    fun `fill triangulation removes collinear points without hanging`() {
+        val geometry = UiPathGeometry(
+            listOf(
+                UiPathContour(
+                    points = listOf(
+                        UiPathPoint(0f, 0f),
+                        UiPathPoint(5f, 0f),
+                        UiPathPoint(10f, 0f),
+                        UiPathPoint(10f, 10f),
+                        UiPathPoint(0f, 10f),
+                        UiPathPoint(0f, 0f),
+                    ),
+                    closed = true,
+                ),
+            ),
+        )
+
+        val triangles = geometry.fillTriangles()
+
+        assertEquals(100f, triangles.sumArea(), 0.001f)
     }
 
     @Test
@@ -274,6 +340,30 @@ class UiShapeTests {
     }
 
     @Test
+    fun `existing geometric hollowengine svg assets triangulate without hanging`() {
+        val root = Path.of("src/main/resources/assets/hollowengine")
+        val locations = Files.walk(root).use { paths ->
+            paths.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".svg") }
+                .map { root.relativize(it).toString().replace('\\', '/') }
+                .map { ResourceLocation.parse("hollowengine:$it") }
+                .toList()
+        }
+        val failed = mutableMapOf<ResourceLocation, Throwable>()
+
+        locations.forEach { location ->
+            runCatching {
+                val triangles = svgResource(location)
+                    .createPath(UiShapeSize(64f, 64f))
+                    .flatten()
+                    .fillTriangles()
+                assertTrue(triangles.size < 50_000, "Expected $location to stay below 50000 triangles, got ${triangles.size}")
+            }.onFailure { failed[location] = it }
+        }
+
+        assertTrue(failed.isEmpty(), failed.toString())
+    }
+
+    @Test
     fun `shape and shape clip emit render commands`() {
         val shape = svgPath("M 0 0 L 100 0 L 100 100 L 0 100 Z", UiRect(0f, 0f, 100f, 100f))
 
@@ -309,4 +399,13 @@ class UiShapeTests {
             assertNotNull(layer.clipShape)
         }
     }
+}
+
+private fun List<UiPathTriangle>.sumArea(): Float {
+    return sumOf { triangle ->
+        abs(
+            ((triangle.second.x - triangle.first.x) * (triangle.third.y - triangle.first.y) -
+                    (triangle.second.y - triangle.first.y) * (triangle.third.x - triangle.first.x)).toDouble()
+        ) * 0.5
+    }.toFloat()
 }

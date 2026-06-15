@@ -15,6 +15,7 @@ data class UiSvgPathElement(
     val path: UiPath,
     val style: UiSvgStyle = UiSvgStyle.Default,
     val id: String? = null,
+    val paint: UiColor? = style.fillColor(),
 )
 
 enum class UiSvgStrokeLineCap {
@@ -176,14 +177,18 @@ internal fun combineSvgPaths(paths: List<UiPath>): UiPath {
 }
 
 internal fun UiPath.withSvgStrokeGeometry(style: UiSvgStyle): UiPath {
+    val stroke = toSvgStrokePath(style) ?: return this
+    return combineSvgPaths(listOf(this, stroke))
+}
+
+internal fun UiPath.toSvgStrokePath(style: UiSvgStyle): UiPath? {
     val strokeWidth = style.strokeWidth
-    if (style.strokeColor() == null || strokeWidth <= 0f || isEmpty()) return this
-    val stroke = BasicStroke(
+    if (style.strokeColor() == null || strokeWidth <= 0f || isEmpty()) return null
+    return BasicStroke(
         strokeWidth,
         style.strokeLineCap.toAwtStrokeCap(),
         style.strokeLineJoin.toAwtStrokeJoin(),
     ).createStrokedShape(toAwtPath()).toUiPath(flatness = 0.5)
-    return combineSvgPaths(listOf(this, stroke))
 }
 
 internal fun rectPath(x: Float, y: Float, width: Float, height: Float): UiPath {

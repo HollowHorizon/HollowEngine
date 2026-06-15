@@ -7,6 +7,7 @@ import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.client.renderer.LightTexture
+import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
@@ -35,6 +36,27 @@ import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.sqrt
 
+private data class SvgRasterKey(
+    val location: ResourceLocation,
+    val revision: Long,
+    val width: Int,
+    val height: Int,
+)
+
+private data class SvgRasterTexture(
+    val location: ResourceLocation,
+    val texture: DynamicTexture,
+)
+
+private data class SvgRasterQuad(
+    val texture: ResourceLocation,
+    val width: Float,
+    val height: Float,
+    val transform: UiMatrix4,
+)
+
+private const val MaxSvgRasterSize = 4096
+
 class MinecraftUiRenderer {
     private val framebuffers = UiFramebufferPool()
     private val widgets = UiWidgetRenderer(::drawImage, ::markTextBatchDirty, ::flushTextBatch)
@@ -43,7 +65,7 @@ class MinecraftUiRenderer {
     private val shapeBatch = mutableListOf<UiBatchedTriangle>()
     private val layerRequests = mutableListOf<UiLayerRequest>()
     private val brokenSvgSources = mutableSetOf<String>()
-    private val svgShapes = ConcurrentHashMap<ResourceLocation, Shape>()
+    private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var textBatchDirty = false
@@ -85,6 +107,8 @@ class MinecraftUiRenderer {
 
     fun close() {
         while (layerStack.isNotEmpty()) finishLayer()
+        svgRasterTextures.values.forEach { it.texture.close() }
+        svgRasterTextures.clear()
         framebuffers.close()
     }
 
@@ -141,7 +165,7 @@ class MinecraftUiRenderer {
                 }
 
                 is DrawImageCommand -> if (command.phase == phase) {
-                    if (!appendSvgImage(command)) appendImageBatch(command, imageBatches)
+                    if (!appendSvgImage(command, imageBatches)) appendImageBatch(command, imageBatches)
                 }
 
                 is DrawTextCommand -> if (command.phase == phase) {
@@ -179,52 +203,81 @@ class MinecraftUiRenderer {
         )
     }
 
-    private fun appendSvgImage(command: DrawImageCommand): Boolean {
-        return appendSvgImage(
+    private fun appendSvgImage(
+        command: DrawImageCommand,
+        batches: MutableMap<ResourceLocation, MutableList<UiTexturedQuad>>,
+    ): Boolean {
+        val quad = svgRasterQuad(
             width = command.rect.width,
             height = command.rect.height,
             source = command.source,
             opacity = command.opacity,
             transform = effective(command.transform),
             fit = command.fit,
-            filter = command.filter,
-            tint = command.tint,
             backfaceVisibility = command.backfaceVisibility,
+        ) ?: return svgLocation(command.source) != null
+        batches.getOrPut(quad.texture) { mutableListOf() } += UiTexturedQuad(
+            width = quad.width,
+            height = quad.height,
+            transform = quad.transform,
+            opacity = command.opacity,
+            fit = command.fit.svgRasterDrawFit(),
+            slice = command.slice,
+            tint = command.tint,
         )
+        return true
     }
 
-    private fun appendSvgImage(
+    private fun svgRasterQuad(
         width: Float,
         height: Float,
         source: String,
         opacity: Float,
         transform: UiMatrix4,
         fit: UiImageFit,
-        filter: UiFilterChain,
-        tint: UiColor,
         backfaceVisibility: UiBackfaceVisibility = UiBackfaceVisibility.VISIBLE,
-    ): Boolean {
-        val location = svgLocation(source) ?: return false
-        if (width <= 0f || height <= 0f || opacity <= 0f) return true
-        if (isBackfaceHidden(width, height, transform, backfaceVisibility)) return true
-        val document = runCatching { UiSvgResourceLoader.load(location) }.getOrElse { error ->
+    ): SvgRasterQuad? {
+        val location = svgLocation(source) ?: return null
+        if (width <= 0f || height <= 0f || opacity <= 0f) return null
+        if (isBackfaceHidden(width, height, transform, backfaceVisibility)) return null
+        val revision = HollowUiResourceAccess.version(location)
+        return runCatching {
+            val intrinsicSize = UiSvgRasterizer.intrinsicSize(location, revision)
+            val placement = imagePlacement(width, height, fit, intrinsicSize)
+            val pixelWidth = rasterPixelSize(placement.width)
+            val pixelHeight = rasterPixelSize(placement.height)
+            val texture = svgRasterTextures.computeIfAbsent(SvgRasterKey(location, revision, pixelWidth, pixelHeight)) { key ->
+                createSvgRasterTexture(key)
+            }
+            SvgRasterQuad(
+                texture = texture.location,
+                width = placement.width,
+                height = placement.height,
+                transform = transform * UiMatrix4.translation(placement.x, placement.y, 0f),
+            )
+        }.getOrElse { error ->
             if (brokenSvgSources.add(source)) {
                 HollowEngine.LOGGER.error("Error while loading SVG image $source", error)
             }
-            return true
+            null
         }
-        val placement = imagePlacement(width, height, fit, document.viewBox.width to document.viewBox.height)
-        return shapeBatch.appendLocalShape(
-            shape = svgShapes.computeIfAbsent(location, ::svgResource),
-            width = placement.width,
-            height = placement.height,
-            fill = UiResolvedPaint.Color(tint),
-            stroke = UiResolvedPaint.None,
-            strokeWidth = 0f,
-            opacity = opacity,
-            transform = transform * UiMatrix4.translation(placement.x, placement.y, 0f),
-            filter = filter,
-        )
+    }
+
+    private fun rasterPixelSize(size: Float): Int {
+        return ceil(size * layerScale()).toInt().coerceIn(1, MaxSvgRasterSize)
+    }
+
+    private fun createSvgRasterTexture(key: SvgRasterKey): SvgRasterTexture {
+        val image = UiSvgRasterizer.rasterize(key.location, key.revision, key.width, key.height)
+        val texture = DynamicTexture(image)
+        val location = svgDynamicTextureLocation(key)
+        Minecraft.getInstance().textureManager.register(location, texture)
+        return SvgRasterTexture(location, texture)
+    }
+
+    private fun svgDynamicTextureLocation(key: SvgRasterKey): ResourceLocation {
+        val hash = key.hashCode().toString().replace("-", "n")
+        return ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "generated/ui/svg/$hash")
     }
 
     private fun flushShapeBatch() {
@@ -1175,7 +1228,24 @@ class MinecraftUiRenderer {
         slice: UiInsets = UiInsets.Zero,
         tint: UiColor = UiColor.White,
     ) {
-        if (appendSvgImage(width, height, source, opacity, transform, fit, filter, tint)) return
+        val svgQuad = svgRasterQuad(width, height, source, opacity, transform, fit)
+        if (svgQuad != null) {
+            RenderSystem.setShaderTexture(0, svgQuad.texture)
+            UiTextureEffects.drawTexturedQuad(
+                svgQuad.width,
+                svgQuad.height,
+                svgQuad.transform,
+                opacity,
+                flipY = false,
+                fit = fit.svgRasterDrawFit(),
+                texture = svgQuad.texture,
+                filter = filter,
+                slice = slice,
+                tint = tint,
+            )
+            return
+        }
+        if (svgLocation(source) != null) return
         val location = ResourceLocation.tryParse(source) ?: return
         RenderSystem.setShaderTexture(0, location)
         UiTextureEffects.drawTexturedQuad(
@@ -1195,6 +1265,18 @@ class MinecraftUiRenderer {
     private fun svgLocation(source: String): ResourceLocation? {
         val location = ResourceLocation.tryParse(source) ?: return null
         return location.takeIf { it.path.endsWith(".svg", ignoreCase = true) }
+    }
+
+    private fun UiImageFit.svgRasterDrawFit(): UiImageFit {
+        return when (this) {
+            UiImageFit.NINE_SLICE,
+            UiImageFit.THREE_SLICE_VERTICAL,
+            UiImageFit.THREE_SLICE_HORIZONTAL -> this
+            UiImageFit.STRETCH,
+            UiImageFit.NONE,
+            UiImageFit.CONTAIN,
+            UiImageFit.COVER -> UiImageFit.STRETCH
+        }
     }
 
     private fun drawItem(command: DrawItemCommand) {

@@ -111,7 +111,7 @@ dependencies {
     compileOnly("org.jetbrains:annotations:24.1.0")
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
-    addShadow("com.github.weisj:jsvg:2.0.0")
+    addShadow("com.github.weisj:jsvg:2.1.0")
     addShadow("org.jetbrains:markdown:0.7.3")
     addShadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")

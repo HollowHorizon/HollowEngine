@@ -567,6 +567,13 @@ private fun facingAmount(width: Float, height: Float, transform: UiMatrix4): Flo
 
 internal fun UiColor.withOpacity(opacity: Float) = copy(alpha = alpha * opacity)
 
+internal fun UiColor.tinted(tint: UiColor) = UiColor(
+    red = red * tint.red,
+    green = green * tint.green,
+    blue = blue * tint.blue,
+    alpha = alpha * tint.alpha,
+)
+
 internal fun UiColor.argb(): Int {
     val a = (alpha * 255f).toInt().coerceIn(0, 255)
     val r = (red * 255f).toInt().coerceIn(0, 255)

@@ -1,12 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import java.awt.BasicStroke
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -18,37 +18,19 @@ data class UiPathContour(
 data class UiPathGeometry(
     val contours: List<UiPathContour>,
 ) {
-    fun fillTriangles(): List<UiPathTriangle> = contours
-        .filter { it.closed }
-        .flatMap { triangulate(it.points) }
+    fun fillTriangles(): List<UiPathTriangle> = triangulatePath(contours)
 
     fun strokeTriangles(
         width: Float,
         lineCap: UiPathStrokeLineCap = UiPathStrokeLineCap.Round,
         lineJoin: UiPathStrokeLineJoin = UiPathStrokeLineJoin.Round,
     ): List<UiPathTriangle> {
-        val half = width.coerceAtLeast(0f) * 0.5f
-        if (half <= 0f) return emptyList()
-        return contours.flatMap { contour ->
-            val points = contour.points
-            if (points.size < 2) return@flatMap emptyList()
-            val result = mutableListOf<UiPathTriangle>()
-            val segmentCount = if (contour.closed) points.size else points.size - 1
-            for (index in 0 until segmentCount) {
-                val start = points[index]
-                val end = points[(index + 1) % points.size]
-                appendStrokeSegment(result, start, end, half, lineCap)
-            }
-            if (lineJoin == UiPathStrokeLineJoin.Round) {
-                val joinRange = if (contour.closed) points.indices else 1 until points.lastIndex
-                joinRange.forEach { index -> appendRoundStrokeDisk(result, points[index], half) }
-            }
-            if (!contour.closed && lineCap == UiPathStrokeLineCap.Round) {
-                appendRoundStrokeDisk(result, points.first(), half)
-                appendRoundStrokeDisk(result, points.last(), half)
-            }
-            result
-        }
+        if (width <= 0f || contours.none { it.points.size >= 2 }) return emptyList()
+        return BasicStroke(
+            width,
+            lineCap.toAwtStrokeCap(),
+            lineJoin.toAwtStrokeJoin(),
+        ).createStrokedShape(toPath().toAwtPath()).toUiPath(flatness = 0.35).flatten().fillTriangles()
     }
 }
 
@@ -214,120 +196,31 @@ private fun angle(ux: Double, uy: Double, vx: Double, vy: Double): Double {
     return atan2(cross, dot)
 }
 
-private fun triangulate(points: List<UiPathPoint>): List<UiPathTriangle> {
-    val clean = points.withoutRepeatedLast()
-    if (clean.size < 3) return emptyList()
-    if (clean.size == 3) return listOf(UiPathTriangle(clean[0], clean[1], clean[2]))
-    val indices = clean.indices.toMutableList()
-    val result = mutableListOf<UiPathTriangle>()
-    val orientation = polygonArea(clean)
-    var guard = 0
-    while (indices.size > 3 && guard++ < clean.size * clean.size) {
-        val earIndex = indices.indices.firstOrNull { localIndex ->
-            isEar(clean, indices, localIndex, orientation)
-        } ?: break
-        val previous = indices[(earIndex - 1 + indices.size) % indices.size]
-        val current = indices[earIndex]
-        val next = indices[(earIndex + 1) % indices.size]
-        result += UiPathTriangle(clean[previous], clean[current], clean[next])
-        indices.removeAt(earIndex)
-    }
-    if (indices.size == 3) result += UiPathTriangle(clean[indices[0]], clean[indices[1]], clean[indices[2]])
-    return if (result.isEmpty()) fanTriangulate(clean) else result
-}
-
-private fun isEar(points: List<UiPathPoint>, indices: List<Int>, localIndex: Int, orientation: Float): Boolean {
-    val previous = points[indices[(localIndex - 1 + indices.size) % indices.size]]
-    val current = points[indices[localIndex]]
-    val next = points[indices[(localIndex + 1) % indices.size]]
-    val cross = cross(previous, current, next)
-    if (orientation >= 0f && cross <= 0f) return false
-    if (orientation < 0f && cross >= 0f) return false
-    return indices.none { index ->
-        val point = points[index]
-        point != previous && point != current && point != next && pointInTriangle(point, previous, current, next)
-    }
-}
-
-private fun fanTriangulate(points: List<UiPathPoint>): List<UiPathTriangle> {
-    val center = UiPathPoint(
-        points.sumOf { it.x.toDouble() }.toFloat() / points.size.toFloat(),
-        points.sumOf { it.y.toDouble() }.toFloat() / points.size.toFloat(),
-    )
-    return points.indices.map { index ->
-        UiPathTriangle(center, points[index], points[(index + 1) % points.size])
-    }
-}
-
-private fun appendStrokeSegment(
-    result: MutableList<UiPathTriangle>,
-    start: UiPathPoint,
-    end: UiPathPoint,
-    half: Float,
-    lineCap: UiPathStrokeLineCap,
-) {
-    val dx = end.x - start.x
-    val dy = end.y - start.y
-    val length = sqrt(dx * dx + dy * dy)
-    if (length <= 0.0001f) return
-    val extension = if (lineCap == UiPathStrokeLineCap.Square) half else 0f
-    val tx = dx / length * extension
-    val ty = dy / length * extension
-    val nx = -dy / length * half
-    val ny = dx / length * half
-    val a = UiPathPoint(start.x - tx + nx, start.y - ty + ny)
-    val b = UiPathPoint(start.x - tx - nx, start.y - ty - ny)
-    val c = UiPathPoint(end.x + tx - nx, end.y + ty - ny)
-    val d = UiPathPoint(end.x + tx + nx, end.y + ty + ny)
-    result += UiPathTriangle(a, b, c)
-    result += UiPathTriangle(a, c, d)
-}
-
-private fun appendRoundStrokeDisk(result: MutableList<UiPathTriangle>, center: UiPathPoint, radius: Float) {
-    val segments = max(16, min(64, ceil(radius * 4f).toInt()))
-    for (index in 0 until segments) {
-        val firstAngle = PI.toFloat() * 2f * index.toFloat() / segments.toFloat()
-        val secondAngle = PI.toFloat() * 2f * (index + 1).toFloat() / segments.toFloat()
-        result += UiPathTriangle(
-            center,
-            UiPathPoint(center.x + cos(firstAngle) * radius, center.y + sin(firstAngle) * radius),
-            UiPathPoint(center.x + cos(secondAngle) * radius, center.y + sin(secondAngle) * radius),
-        )
-    }
-}
-
 private fun List<UiPathPoint>.withoutRepeatedLast(): List<UiPathPoint> {
     if (size > 1 && first() == last()) return dropLast(1)
     return this
-}
-
-private fun polygonArea(points: List<UiPathPoint>): Float {
-    var area = 0f
-    for (index in points.indices) {
-        val a = points[index]
-        val b = points[(index + 1) % points.size]
-        area += a.x * b.y - b.x * a.y
-    }
-    return area * 0.5f
-}
-
-private fun cross(a: UiPathPoint, b: UiPathPoint, c: UiPathPoint): Float {
-    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
-}
-
-private fun pointInTriangle(point: UiPathPoint, a: UiPathPoint, b: UiPathPoint, c: UiPathPoint): Boolean {
-    val c1 = cross(a, b, point)
-    val c2 = cross(b, c, point)
-    val c3 = cross(c, a, point)
-    val hasNegative = c1 < 0f || c2 < 0f || c3 < 0f
-    val hasPositive = c1 > 0f || c2 > 0f || c3 > 0f
-    return !(hasNegative && hasPositive)
 }
 
 private fun UiPathPoint.distanceTo(other: UiPathPoint): Float {
     val dx = other.x - x
     val dy = other.y - y
     return sqrt(dx * dx + dy * dy)
+}
+
+private fun UiPathStrokeLineCap.toAwtStrokeCap(): Int {
+    return when (this) {
+        UiPathStrokeLineCap.Butt -> BasicStroke.CAP_BUTT
+        UiPathStrokeLineCap.Round -> BasicStroke.CAP_ROUND
+        UiPathStrokeLineCap.Square -> BasicStroke.CAP_SQUARE
+    }
+}
+
+private fun UiPathStrokeLineJoin.toAwtStrokeJoin(): Int {
+    return when (this) {
+        UiPathStrokeLineJoin.Miter -> BasicStroke.JOIN_MITER
+        UiPathStrokeLineJoin.Round -> BasicStroke.JOIN_ROUND
+        UiPathStrokeLineJoin.Bevel -> BasicStroke.JOIN_BEVEL
+    }
 }
 
 private const val DefaultPathTolerance = 0.35f

@@ -188,12 +188,39 @@ private class SvgParseSession(
 
     private fun listOfElement(element: Element, context: SvgContext, sourcePath: UiPath): List<UiSvgPathElement> {
         if (sourcePath.isEmpty()) return emptyList()
-        val visualPath = sourcePath.withSvgStrokeGeometry(context.style)
-        val transformed = visualPath.transformed(context.transform)
+        val id = element.svgId()
+        val result = mutableListOf<UiSvgPathElement>()
+
+        context.style.fillColor()?.let { color ->
+            appendElementPath(result, sourcePath, context, id, color)
+        }
+
+        val strokePath = sourcePath.toSvgStrokePath(context.style)
+        val strokeColor = context.style.strokeColor()
+        if (strokePath != null && strokeColor != null) {
+            appendElementPath(result, strokePath, context, id, strokeColor)
+        }
+
+        if (result.isEmpty() && strokeColor == null) {
+            appendElementPath(result, sourcePath, context, id, UiColor.White)
+        }
+
+        return result
+    }
+
+    private fun appendElementPath(
+        result: MutableList<UiSvgPathElement>,
+        sourcePath: UiPath,
+        context: SvgContext,
+        id: String?,
+        color: UiColor,
+    ) {
+        val transformed = sourcePath.transformed(context.transform)
         val clipped = applyClipAndMask(transformed, context)
         val filtered = applyFilterGeometry(clipped, context)
-        if (filtered.isEmpty()) return emptyList()
-        return listOf(UiSvgPathElement(path = filtered, style = context.style, id = element.svgId()))
+        if (!filtered.isEmpty()) {
+            result += UiSvgPathElement(path = filtered, style = context.style, id = id, paint = color)
+        }
     }
 
     private fun applyClipAndMask(path: UiPath, context: SvgContext): UiPath {
