@@ -28,6 +28,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiEventPacket
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
+import java.util.ArrayDeque
 
 
 @Serializable
@@ -211,6 +212,11 @@ private class KatariUiOverlay(
     private var closingDurationMillis: Long? = null
     private var closeBaseFrame: HollowUiFrame? = null
     private var lastFrame: HollowUiFrame? = null
+    private var uiDirty = true
+    private var lastWidth = -1
+    private var lastHeight = -1
+    private var lastFrameMouseX = Float.NaN
+    private var lastFrameMouseY = Float.NaN
     private var activeButton: Int? = null
     private var lastMouseX = 0f
     private var lastMouseY = 0f
@@ -225,11 +231,13 @@ private class KatariUiOverlay(
         closeBaseFrame = null
         input.reset()
         activeButton = null
+        invalidateUi()
     }
 
     fun update(root: UiXmlTree) {
         this.root = root
         node = composeNode()
+        invalidateUi()
     }
 
     fun close(root: UiXmlTree) {
@@ -240,12 +248,13 @@ private class KatariUiOverlay(
         closingDurationMillis = null
         activeButton = null
         input.clearInteraction()
-        closeBaseFrame = refreshFrame()
+        closeBaseFrame = currentFrame(force = true)
         closing = true
+        invalidateUi()
     }
 
     fun render(nowMillis: Long): Boolean {
-        val frame = refreshFrame(nowMillis)
+        val frame = currentFrame(nowMillis, force = closing)
         if (!closing) {
             renderer.render(frame.commands)
             return false
@@ -265,7 +274,7 @@ private class KatariUiOverlay(
         val button = activeButton
         if (button == null) {
             val changed = input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
-            if (changed) refreshFrame()
+            if (changed) invalidateUi()
             return false
         }
 
@@ -276,13 +285,13 @@ private class KatariUiOverlay(
 
         val scrollbarResult = input.scrollbarMouseDragged(frame, mouseX, mouseY, ::setScrollImmediate)
         if (scrollbarResult.handled) {
-            refreshFrame()
+            invalidateUi()
             return true
         }
 
         val result = input.mouseDragged(frame, mouseX, mouseY, button, deltaX, deltaY, ::dispatchUiEvent)
         if (result.handled) {
-            refreshFrame()
+            invalidateUi()
             return true
         }
         return input.hasScrollbarDrag()
@@ -313,11 +322,11 @@ private class KatariUiOverlay(
             scrollY = delta.y,
         )
         if (dispatchUiEvent(event) && event.consumed) {
-            refreshFrame()
+            invalidateUi()
             return true
         }
         surface.scroll(target, delta.x * 32f, delta.y * 32f)
-        refreshFrame()
+        invalidateUi()
         return true
     }
 
@@ -326,7 +335,7 @@ private class KatariUiOverlay(
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
         val frame = lastFrame ?: return false
         val result = input.keyPressed(frame, keyCode, scanCode, modifiers, ::dispatchUiEvent)
-        if (result.handled) refreshFrame()
+        if (result.handled) invalidateUi()
         return result.handled
     }
 
@@ -334,7 +343,7 @@ private class KatariUiOverlay(
         if (closing) return false
         val frame = lastFrame ?: return false
         val result = input.charTyped(frame, codePoint, modifiers, ::dispatchUiEvent)
-        if (result.handled) refreshFrame()
+        if (result.handled) invalidateUi()
         return result.handled
     }
 
@@ -352,13 +361,13 @@ private class KatariUiOverlay(
 
         val scrollbarResult = input.scrollbarMouseClicked(frame, mouseX, mouseY, button, ::setScrollImmediate)
         if (scrollbarResult.handled) {
-            refreshFrame()
+            invalidateUi()
             return true
         }
 
         val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl)
         if (result.handled) {
-            refreshFrame()
+            invalidateUi()
             return true
         }
 
@@ -370,12 +379,38 @@ private class KatariUiOverlay(
         val hadActivePointer = activeButton != null || input.hasScrollbarDrag()
         val result = input.mouseReleased(frame, mouseX, mouseY, button, ::dispatchUiEvent)
         activeButton = null
-        if (result.handled || hadActivePointer) refreshFrame()
+        if (result.handled || hadActivePointer) invalidateUi()
         return result.handled || hadActivePointer
     }
 
     private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
         surface.setScrollImmediate(node, offset.x, offset.y)
+    }
+
+    private fun invalidateUi() {
+        uiDirty = true
+    }
+
+    private fun currentFrame(nowMillis: Long = System.currentTimeMillis(), force: Boolean = false): HollowUiFrame {
+        val window = Minecraft.getInstance().window
+        val width = window.guiScaledWidth
+        val height = window.guiScaledHeight
+        val pointerChanged = lastMouseX != lastFrameMouseX || lastMouseY != lastFrameMouseY
+        val needsPointerRebuild = pointerChanged && node.hasLiveCursorPopup()
+        val continuous = lastFrame?.requiresContinuousRefresh() == true
+        return if (
+            force ||
+            lastFrame == null ||
+            uiDirty ||
+            width != lastWidth ||
+            height != lastHeight ||
+            needsPointerRebuild ||
+            continuous
+        ) {
+            refreshFrame(nowMillis)
+        } else {
+            lastFrame!!
+        }
     }
 
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
@@ -390,7 +425,14 @@ private class KatariUiOverlay(
                 prepareClientScripts(root)
                 input.prepareRoot(root, closing)
             },
-        ).also { lastFrame = it }
+        ).also { frame ->
+            lastFrame = frame
+            uiDirty = false
+            lastWidth = window.guiScaledWidth
+            lastHeight = window.guiScaledHeight
+            lastFrameMouseX = lastMouseX
+            lastFrameMouseY = lastMouseY
+        }
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {
@@ -433,6 +475,19 @@ private class KatariUiOverlay(
         preparedScripts = UiClientScriptRunner.prepare(scripts, root, sink, variables)
     }
 
+}
+
+private fun UiNode.hasLiveCursorPopup(): Boolean {
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        for (child in node.children) {
+            if (child is PopupNode && child.anchor is UiPopupAnchor.Cursor) return true
+            stack.add(child)
+        }
+    }
+    return false
 }
 
 private data class UiOverlayPoint(val x: Float, val y: Float)

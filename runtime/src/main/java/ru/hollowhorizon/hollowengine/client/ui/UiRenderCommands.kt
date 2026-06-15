@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
+import java.util.ArrayDeque
 import kotlin.math.max
 
 sealed interface UiRenderCommand {
@@ -228,7 +229,7 @@ class UiCommandRenderer {
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
         collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands, activeClip = null)
-        resolved.root.popupDescendants()
+        layout.popupNodes
             .sortedBy { resolved[it].layer }
             .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands, activeClip = null) }
         return commands
@@ -244,91 +245,115 @@ class UiCommandRenderer {
         commands: MutableList<UiRenderCommand>,
         activeClip: UiRect?,
     ) {
-        val style = resolved[node]
-        val layoutNode = layout[node]
+        val stack = ArrayDeque<RenderCollectTask>()
+        stack.add(RenderCollectTask.Enter(node, activeClip))
+        while (stack.isNotEmpty()) {
+            when (val task = stack.removeLast()) {
+                is RenderCollectTask.Enter -> {
+                    val current = task.node
+                    val style = resolved[current]
+                    val layoutNode = layout[current]
+                    val isFramebuffer = layoutNode.needsFramebuffer
+                    val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
+                    val localOpacity = if (isFramebuffer) 1f else style.opacity
+                    val visibleShadows = if (current is TextNode) emptyList() else style.shadows.filterNot { it.inset }
+                    val canCullNode = task.activeClip != null &&
+                            current !is PopupNode &&
+                            !isFramebuffer &&
+                            visibleShadows.isEmpty() &&
+                            style.backdropFilter.effects.isEmpty() &&
+                            style.filter == UiFilterChain.Empty &&
+                            style.transform == DirectLayoutTransform
+                    val cullNodeCommands =
+                        task.activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
+                    val pushedClip = (style.clip && style.clipShape == null) || style.input.scrollable
 
-        val isFramebuffer = layoutNode.needsFramebuffer
-        val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
-        val localOpacity = if (isFramebuffer) 1f else style.opacity
-        val visibleShadows = if (node is TextNode) emptyList() else style.shadows.filterNot { it.inset }
-        val canCullNode = activeClip != null &&
-                node !is PopupNode &&
-                !isFramebuffer &&
-                visibleShadows.isEmpty() &&
-                style.backdropFilter.effects.isEmpty() &&
-                style.filter == UiFilterChain.Empty &&
-                style.transform == DirectLayoutTransform
-        val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
-        val pushedClip = (style.clip && style.clipShape == null) || style.input.scrollable
+                    if (cullNodeCommands && pushedClip) continue
 
-        if (cullNodeCommands && pushedClip) return
+                    if (!cullNodeCommands && style.backdropFilter.effects.isNotEmpty()) {
+                        commands += DrawBackdropFilterCommand(
+                            node = current, rect = layoutNode.rect, radius = style.border.radius,
+                            filter = style.backdropFilter, opacity = style.opacity,
+                            transform = layoutNode.worldTransform, backfaceVisibility = style.backfaceVisibility
+                        )
+                    }
 
-        if (!cullNodeCommands && style.backdropFilter.effects.isNotEmpty()) {
-            commands += DrawBackdropFilterCommand(
-                node = node, rect = layoutNode.rect, radius = style.border.radius,
-                filter = style.backdropFilter, opacity = style.opacity,
-                transform = layoutNode.worldTransform, backfaceVisibility = style.backfaceVisibility
-            )
+                    if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
+                        commands += DrawShadowCommand(
+                            node = current, rect = layoutNode.rect, radius = style.border.radius,
+                            shadows = visibleShadows, opacity = style.opacity,
+                            transform = layoutNode.worldTransform, filter = baseFilter,
+                            backfaceVisibility = style.backfaceVisibility
+                        )
+                    }
+
+                    if (!cullNodeCommands && isFramebuffer) {
+                        commands += BeginLayerCommand(
+                            node = current, rect = layoutNode.rect, radius = style.border.radius,
+                            clipShape = style.clipShape.takeIf { style.clip },
+                            transform = layoutNode.worldTransform, filter = style.filter,
+                            backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility,
+                            opacity = style.opacity,
+                        )
+                    }
+
+                    if (!cullNodeCommands) {
+                        appendBackgroundCommand(current, style, layoutNode, bindings, localOpacity, baseFilter, commands)
+                    }
+
+                    if (!cullNodeCommands && pushedClip) commands += PushClipCommand(current, layoutNode.content)
+
+                    if (!cullNodeCommands) {
+                        collectNodeContent(
+                            current,
+                            style,
+                            localOpacity,
+                            layoutNode,
+                            layout,
+                            baseFilter,
+                            bindings,
+                            nowMillis,
+                            typingState,
+                            commands,
+                        )
+                    }
+
+                    val childClip = when {
+                        cullNodeCommands -> task.activeClip
+                        !pushedClip -> task.activeClip
+                        task.activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
+                        else -> task.activeClip.visibleIntersection(layoutNode.content)
+                    }
+                    if (!cullNodeCommands) {
+                        stack.add(RenderCollectTask.Exit(current, layoutNode, style, localOpacity, pushedClip, isFramebuffer))
+                    }
+                    if (!pushedClip || childClip != null) {
+                        val children = current.children
+                            .filterNot { it is PopupNode }
+                            .filter { it in layout.nodes }
+                            .sortedBy { resolved[it].layer }
+                        for (index in children.indices.reversed()) {
+                            stack.add(RenderCollectTask.Enter(children[index], childClip))
+                        }
+                    }
+                }
+
+                is RenderCollectTask.Exit -> {
+                    if (task.pushedClip) commands += PopClipCommand(task.node)
+                    if (task.style.input.scrollable) {
+                        appendScrollbars(
+                            task.node,
+                            task.layoutNode,
+                            task.style,
+                            task.localOpacity,
+                            bindings,
+                            commands
+                        )
+                    }
+                    if (task.isFramebuffer) commands += EndLayerCommand(task.node)
+                }
+            }
         }
-
-        if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
-            commands += DrawShadowCommand(
-                node = node, rect = layoutNode.rect, radius = style.border.radius,
-                shadows = visibleShadows, opacity = style.opacity,
-                transform = layoutNode.worldTransform, filter = baseFilter, backfaceVisibility = style.backfaceVisibility
-            )
-        }
-
-        if (!cullNodeCommands && isFramebuffer) {
-            commands += BeginLayerCommand(
-                node = node, rect = layoutNode.rect, radius = style.border.radius,
-                clipShape = style.clipShape.takeIf { style.clip },
-                transform = layoutNode.worldTransform, filter = style.filter,
-                backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility,
-                opacity = style.opacity,
-            )
-        }
-
-        if (!cullNodeCommands) {
-            appendBackgroundCommand(node, style, layoutNode, bindings, localOpacity, baseFilter, commands)
-        }
-
-        if (!cullNodeCommands && pushedClip) commands += PushClipCommand(node, layoutNode.content)
-
-        if (!cullNodeCommands) {
-            collectNodeContent(
-                node,
-                style,
-                localOpacity,
-                layoutNode,
-                layout,
-                baseFilter,
-                bindings,
-                nowMillis,
-                typingState,
-                commands,
-            )
-        }
-
-        val childClip = when {
-            cullNodeCommands -> activeClip
-            !pushedClip -> activeClip
-            activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
-            else -> activeClip.visibleIntersection(layoutNode.content)
-        }
-        val collectChildren = !pushedClip || childClip != null
-
-        if (collectChildren) {
-            node.children
-                .filterNot { it is PopupNode }
-                .filter { it in layout.nodes }
-                .sortedBy { resolved[it].layer }
-                .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands, childClip) }
-        }
-
-        if (!cullNodeCommands && pushedClip) commands += PopClipCommand(node)
-        if (!cullNodeCommands && style.input.scrollable) appendScrollbars(node, layoutNode, style, localOpacity, bindings, commands)
-        if (!cullNodeCommands && isFramebuffer) commands += EndLayerCommand(node)
     }
 
     private fun collectNodeContent(
@@ -830,18 +855,6 @@ class UiCommandRenderer {
     }
 }
 
-private fun UiNode.popupDescendants(): List<PopupNode> {
-    val result = mutableListOf<PopupNode>()
-    fun visit(node: UiNode) {
-        for (child in node.children) {
-            if (child is PopupNode) result += child
-            visit(child)
-        }
-    }
-    visit(this)
-    return result
-}
-
 private fun TextNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
     return children.mapNotNull { child ->
         val id = child.id ?: return@mapNotNull null
@@ -891,6 +904,22 @@ class UiTypingState {
     )
 }
 
+private sealed interface RenderCollectTask {
+    data class Enter(
+        val node: UiNode,
+        val activeClip: UiRect?,
+    ) : RenderCollectTask
+
+    data class Exit(
+        val node: UiNode,
+        val layoutNode: UiLayoutNode,
+        val style: ComputedStyle,
+        val localOpacity: Float,
+        val pushedClip: Boolean,
+        val isFramebuffer: Boolean,
+    ) : RenderCollectTask
+}
+
 sealed interface UiResolvedPaint {
     data object None : UiResolvedPaint
     data class Color(val color: UiColor) : UiResolvedPaint
@@ -919,11 +948,22 @@ data class UiHit(
     val link: String? = null,
 )
 
+private sealed interface HitTestTask {
+    data class Enter(
+        val node: UiNode,
+        val ancestorClip: UiRect?,
+    ) : HitTestTask
+
+    data class Test(
+        val node: UiNode,
+        val ancestorClip: UiRect?,
+    ) : HitTestTask
+}
+
 class UiHitTester {
     fun hitTest(resolved: ResolvedUiTree, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
-        val popups = resolved.root.popupDescendants()
-            .filter { it in layout.nodes }
-            .sortedWith(compareBy<PopupNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
+        val popups = layout.popupNodes
+            .sortedBy { resolved[it].layer }
         for (popup in popups.asReversed()) {
             hitNode(popup, resolved, layout, x, y, ancestorClip = null)?.let { return it }
         }
@@ -938,31 +978,51 @@ class UiHitTester {
         y: Float,
         ancestorClip: UiRect?,
     ): UiHit? {
-        val children = node.children
-            .filter { it in layout.nodes }
-            .sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
-        val layoutNode = layout[node]
-        val effectiveClip = ancestorClip.intersect(layoutNode.clip)
-        for (child in children.filterIsInstance<PopupNode>().asReversed()) {
-            hitNode(child, resolved, layout, x, y, ancestorClip = ancestorClip)?.let { return it }
+        val stack = ArrayDeque<HitTestTask>()
+        stack.add(HitTestTask.Enter(node, ancestorClip))
+        while (stack.isNotEmpty()) {
+            when (val task = stack.removeLast()) {
+                is HitTestTask.Enter -> {
+                    val current = task.node
+                    val layoutNode = layout[current]
+                    val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
+                    val children = current.children
+                        .filter { it in layout.nodes }
+                        .sortedBy { resolved[it].layer }
+
+                    stack.add(HitTestTask.Test(current, task.ancestorClip))
+                    val normalChildren = children.filterNot { it is PopupNode }
+                    for (child in normalChildren) stack.add(HitTestTask.Enter(child, effectiveClip))
+                    val popupChildren = children.filterIsInstance<PopupNode>()
+                    for (child in popupChildren) stack.add(HitTestTask.Enter(child, task.ancestorClip))
+                }
+
+                is HitTestTask.Test -> {
+                    val current = task.node
+                    val style = resolved[current]
+                    if (UiState.DISABLED in current.states) continue
+                    if (!style.input.hoverable &&
+                        !style.input.clickable &&
+                        !style.input.focusable &&
+                        !style.input.draggable &&
+                        !style.input.scrollable
+                    ) {
+                        continue
+                    }
+                    task.ancestorClip?.let { clip ->
+                        if (!clip.contains(x, y)) continue
+                    }
+                    val layoutNode = layout[current]
+                    if (!layoutNode.inputQuadContains(x, y)) continue
+                    val inverse = layoutNode.inputTransform.inverse() ?: continue
+                    val local = inverse.transform(x, y, 0f)
+                    val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
+                    if (!rect.contains(local.x, local.y)) continue
+                    return UiHit(current, local.x, local.y)
+                }
+            }
         }
-        for (child in children.filterNot { it is PopupNode }.asReversed()) {
-            hitNode(child, resolved, layout, x, y, ancestorClip = effectiveClip)?.let { return it }
-        }
-        val style = resolved[node]
-        if (UiState.DISABLED in node.states) return null
-        if (!style.input.hoverable && !style.input.clickable && !style.input.focusable && !style.input.draggable && !style.input.scrollable) {
-            return null
-        }
-        ancestorClip?.let { clip ->
-            if (!clip.contains(x, y)) return null
-        }
-        if (!layoutNode.inputQuadContains(x, y)) return null
-        val inverse = layoutNode.inputTransform.inverse() ?: return null
-        val local = inverse.transform(x, y, 0f)
-        val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
-        if (!rect.contains(local.x, local.y)) return null
-        return UiHit(node, local.x, local.y)
+        return null
     }
 
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {

@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
+import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
@@ -144,7 +144,7 @@ object HollowIdeOverlay {
     }
 
     @SubscribeEvent
-    fun render(event: RenderTickEvent.Blit) {
+    fun render(event: ScreenEvent.Render.Post) {
         if (!isVisible()) return
         renderOverlay()
     }

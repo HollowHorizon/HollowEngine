@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import java.util.ArrayDeque
+
 class UiNodeStateStore {
     private val states = linkedMapOf<String, UiNodePersistentState>()
 
@@ -54,6 +56,13 @@ data class TextFieldPersistentState(
 }
 
 private fun UiNode.forEachNode(block: (UiNode) -> Unit) {
-    block(this)
-    children.forEach { it.forEachNode(block) }
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        block(node)
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
+    }
 }

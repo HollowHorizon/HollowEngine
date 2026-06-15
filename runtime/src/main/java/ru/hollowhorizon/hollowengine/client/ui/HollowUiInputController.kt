@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
+import java.util.ArrayDeque
 import kotlin.math.abs
 
 class HollowUiInputController {
@@ -477,24 +478,31 @@ class HollowUiInputController {
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
-        val key = UiNodeKeys.key(node)
-        node.states -= UiState.HOVER
-        node.states -= UiState.ACTIVE
-        node.states -= UiState.DRAGGING
-        if (key != focusedKey) node.states -= UiState.FOCUS
-        if (node is TextNode) {
-            node.hoveredLink = if (key == hoveredKey) hoveredLink else null
+        val stack = ArrayDeque<UiNode>()
+        stack.add(node)
+        while (stack.isNotEmpty()) {
+            val current = stack.removeLast()
+            val key = UiNodeKeys.key(current)
+            current.states -= UiState.HOVER
+            current.states -= UiState.ACTIVE
+            current.states -= UiState.DRAGGING
+            if (key != focusedKey) current.states -= UiState.FOCUS
+            if (current is TextNode) {
+                current.hoveredLink = if (key == hoveredKey) hoveredLink else null
+            }
+            if (key == hoveredKey || current.containsNodeKey(hoveredKey)) current.states += UiState.HOVER
+            if (key == activeKey) current.states += UiState.ACTIVE
+            if (key == focusedKey) current.states += UiState.FOCUS
+            if (key == draggingKey) current.states += UiState.DRAGGING
+            if (closing) {
+                current.states += UiState.CLOSING
+            } else {
+                current.states -= UiState.CLOSING
+            }
+            for (index in current.children.indices.reversed()) {
+                stack.add(current.children[index])
+            }
         }
-        if (key == hoveredKey || node.containsNodeKey(hoveredKey)) node.states += UiState.HOVER
-        if (key == activeKey) node.states += UiState.ACTIVE
-        if (key == focusedKey) node.states += UiState.FOCUS
-        if (key == draggingKey) node.states += UiState.DRAGGING
-        if (closing) {
-            node.states += UiState.CLOSING
-        } else {
-            node.states -= UiState.CLOSING
-        }
-        node.children.forEach { applyRuntimeStates(it, closing) }
     }
 }
 
@@ -536,15 +544,29 @@ data class UiInputResult(
 
 private fun UiNode.containsNodeKey(key: String?): Boolean {
     if (key == null) return false
-    return children.any { UiNodeKeys.key(it) == key || it.containsNodeKey(key) }
+    val stack = ArrayDeque<UiNode>()
+    children.asReversed().forEach(stack::add)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        if (UiNodeKeys.key(node) == key) return true
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
+    }
+    return false
 }
 
 private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {
-    fun find(current: UiNode): UiNode? {
-        if (current.children.any { it === node }) return current
-        return current.children.firstNotNullOfOrNull(::find)
+    val stack = ArrayDeque<UiNode>()
+    stack.add(resolved.root)
+    while (stack.isNotEmpty()) {
+        val current = stack.removeLast()
+        for (child in current.children) {
+            if (child === node) return current
+            stack.add(child)
+        }
     }
-    return find(resolved.root)
+    return null
 }
 
 private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Float): Map<String, UiVec3> {
@@ -561,12 +583,24 @@ private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Floa
 }
 
 private fun HollowUiFrame.ancestorsOf(node: UiNode): List<UiNode> {
-    fun find(current: UiNode, path: List<UiNode>): List<UiNode>? {
-        if (current === node) return path
+    val parents = linkedMapOf<UiNode, UiNode?>()
+    val stack = ArrayDeque<UiNode>()
+    parents[resolved.root] = null
+    stack.add(resolved.root)
+    while (stack.isNotEmpty()) {
+        val current = stack.removeLast()
+        if (current === node) break
         for (child in current.children) {
-            find(child, path + current)?.let { return it }
+            parents[child] = current
+            stack.add(child)
         }
-        return null
     }
-    return find(resolved.root, emptyList()).orEmpty()
+    if (node !in parents) return emptyList()
+    val result = ArrayDeque<UiNode>()
+    var current = parents[node]
+    while (current != null) {
+        result.addFirst(current)
+        current = parents[current]
+    }
+    return result.toList()
 }

@@ -1,16 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import androidx.compose.runtime.Composable
-import ru.hollowhorizon.hollowengine.client.ui.Box
-import ru.hollowhorizon.hollowengine.client.ui.Image
-import ru.hollowhorizon.hollowengine.client.ui.LazyColumn
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.Text
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
-import ru.hollowhorizon.hollowengine.client.ui.percent
-import ru.hollowhorizon.hollowengine.client.ui.px
+import androidx.compose.runtime.key
+import ru.hollowhorizon.hollowengine.client.ui.*
 
 data class UiTreeItem<T>(
     val id: String,
@@ -39,7 +31,9 @@ fun <T> UiTreeView(
         ),
     ) {
         items.forEach { item ->
-            UiTreeRow(item, onToggle, onSelect)
+            key(item) {
+                UiTreeRow(item, onToggle, onSelect)
+            }
         }
     }
 }
@@ -68,7 +62,10 @@ private fun <T> UiTreeRow(
             Box(tags = listOf("tree-indent"))
         }
         Box(
-            tags = if (item.expanded) listOf("tree-expander", "expanded") else listOf("tree-expander"),
+            tags = if (!item.hasChildren) listOf("tree-expander-empty") else listOf("tree-expander"),
+            attributes = mapOf(
+                "expanded" to if (item.expanded) "true" else "false",
+            ),
             modifier = Modifier.onClick { event ->
                 if (item.hasChildren) onToggle(item)
                 event.consume()

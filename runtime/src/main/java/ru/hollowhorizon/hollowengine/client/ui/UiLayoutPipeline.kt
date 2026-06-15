@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import java.util.ArrayDeque
+import java.util.IdentityHashMap
 import kotlin.math.abs
 
 data class UiRect(
@@ -30,6 +32,8 @@ data class UiLayoutNode(
 data class UiLayoutResult(
     val root: UiNode,
     val nodes: Map<UiNode, UiLayoutNode>,
+    val traversalOrder: List<UiNode> = nodes.keys.toList(),
+    val popupNodes: List<PopupNode> = traversalOrder.filterIsInstance<PopupNode>(),
 ) {
     operator fun get(node: UiNode): UiLayoutNode = nodes.getValue(node)
 }
@@ -78,7 +82,174 @@ private data class MeasureCacheKey(
     val reserve: UiScrollbarReserve,
 )
 
+private data class FlowChildrenCacheKey(
+    val nodeId: Int,
+    val subtreeRevision: Long,
+    val bindingsHash: Int,
+    val availableWidth: Float,
+    val availableHeight: Float,
+    val deferFlexibleWidth: Boolean,
+    val deferFlexibleHeight: Boolean,
+    val allowWidthOverflow: Boolean,
+    val allowHeightOverflow: Boolean,
+)
+
+private data class InlineWidgetMetricsCacheKey(
+    val nodeId: Int,
+    val subtreeRevision: Long,
+    val bindingsHash: Int,
+    val availableWidth: Float,
+    val availableHeight: Float,
+)
+
+private data class IntrinsicSizeCacheKey(
+    val nodeId: Int,
+    val subtreeRevision: Long,
+    val bindingsHash: Int,
+    val availableWidth: Float,
+    val availableHeight: Float,
+    val knownContentWidth: Float?,
+    val knownContentHeight: Float?,
+)
+
+private data class MeasureRequest(
+    val node: UiNode,
+    val resolved: ResolvedUiTree,
+    val availableWidth: Float,
+    val availableHeight: Float,
+    val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    val widthOverride: Float? = null,
+    val heightOverride: Float? = null,
+    val deferFlexibleWidth: Boolean = false,
+    val deferFlexibleHeight: Boolean = false,
+    val allowWidthOverflow: Boolean = false,
+    val allowHeightOverflow: Boolean = false,
+    val bindings: UiBindingContext = UiBindingContext(),
+) {
+    fun cacheKey(): MeasureCacheKey {
+        val reserve = scrollbarReserves[node] ?: UiScrollbarReserve.None
+        return MeasureCacheKey(
+            nodeId = System.identityHashCode(node),
+            subtreeRevision = node.layoutState.subtreeRevision,
+            bindingsHash = bindings.root.hashCode(),
+            availableWidth = availableWidth.layoutCacheValue(),
+            availableHeight = availableHeight.layoutCacheValue(),
+            widthOverride = widthOverride?.layoutCacheValue(),
+            heightOverride = heightOverride?.layoutCacheValue(),
+            deferFlexibleWidth = deferFlexibleWidth,
+            deferFlexibleHeight = deferFlexibleHeight,
+            allowWidthOverflow = allowWidthOverflow,
+            allowHeightOverflow = allowHeightOverflow,
+            reserve = reserve,
+        )
+    }
+}
+
+private class MeasureContext(
+    private val compute: (MeasureRequest) -> LayoutSize,
+) {
+    private val activeKeys = HashSet<MeasureCacheKey>()
+    private val measured = HashMap<MeasureCacheKey, LayoutSize>()
+    private val measuredChildren = HashMap<FlowChildrenCacheKey, List<MeasuredChild>>()
+    private val inlineWidgetMetrics = HashMap<InlineWidgetMetricsCacheKey, Map<String, UiInlineWidgetMetrics>>()
+    private val intrinsicSizes = HashMap<IntrinsicSizeCacheKey, LayoutSize>()
+
+    fun measure(request: MeasureRequest): LayoutSize {
+        val key = request.cacheKey()
+        measured[key]?.let { return it }
+        if (!activeKeys.add(key)) return compute(request)
+        return try {
+            compute(request).also { measured[key] = it }
+        } finally {
+            activeKeys.remove(key)
+        }
+    }
+
+    fun measureChildren(key: FlowChildrenCacheKey, compute: () -> List<MeasuredChild>): List<MeasuredChild> {
+        measuredChildren[key]?.let { return it }
+        return compute().also { measuredChildren[key] = it }
+    }
+
+    fun inlineMetrics(
+        key: InlineWidgetMetricsCacheKey,
+        compute: () -> Map<String, UiInlineWidgetMetrics>,
+    ): Map<String, UiInlineWidgetMetrics> {
+        inlineWidgetMetrics[key]?.let { return it }
+        return compute().also { inlineWidgetMetrics[key] = it }
+    }
+
+    fun intrinsicSize(key: IntrinsicSizeCacheKey, compute: () -> LayoutSize): LayoutSize {
+        intrinsicSizes[key]?.let { return it }
+        return compute().also { intrinsicSizes[key] = it }
+    }
+}
+
+private sealed interface PlacementTask
+
+private data class NodePlacementTask(
+    val node: UiNode,
+    val resolved: ResolvedUiTree,
+    val rect: UiRect,
+    val parentRect: UiRect,
+    val parentStyle: ComputedStyle?,
+    val parentClip: UiRect?,
+    val parentTransform: UiMatrix4,
+    val parentInputTransform: UiMatrix4,
+    val insideFramebuffer: Boolean,
+    val scrollState: UiScrollState,
+    val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    val layouts: MutableMap<UiNode, UiLayoutNode>,
+    val bindings: UiBindingContext,
+) : PlacementTask
+
+private data class PopupPlacementTask(
+    val node: UiNode,
+    val resolved: ResolvedUiTree,
+    val content: UiRect,
+    val parentRect: UiRect,
+    val transform: UiMatrix4,
+    val inputTransform: UiMatrix4,
+    val insideFramebuffer: Boolean,
+    val scrollState: UiScrollState,
+    val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    val layouts: MutableMap<UiNode, UiLayoutNode>,
+    val bindings: UiBindingContext,
+) : PlacementTask
+
+private class LayoutPass(root: UiNode) {
+    val nodes = ArrayList<UiNode>()
+    val layoutChildren = IdentityHashMap<UiNode, List<UiNode>>()
+    val popupChildren = IdentityHashMap<UiNode, List<PopupNode>>()
+
+    init {
+        val stack = ArrayDeque<UiNode>()
+        stack.add(root)
+        while (stack.isNotEmpty()) {
+            val node = stack.removeLast()
+            nodes += node
+            val layout = ArrayList<UiNode>()
+            val popups = ArrayList<PopupNode>()
+            for (child in node.children) {
+                if (child is PopupNode) {
+                    popups += child
+                } else {
+                    layout += child
+                }
+            }
+            layoutChildren[node] = layout
+            popupChildren[node] = popups
+            for (index in node.children.indices.reversed()) {
+                stack.add(node.children[index])
+            }
+        }
+    }
+}
+
 class UiLayoutPipeline {
+    private var placementStack: ArrayDeque<PlacementTask>? = null
+    private var layoutPass: LayoutPass? = null
+    private var measureContext: MeasureContext? = null
+
     private inner class EngineMeasurable(
         override val node: UiNode,
         private val resolved: ResolvedUiTree,
@@ -112,14 +283,20 @@ class UiLayoutPipeline {
         bindings: UiBindingContext = UiBindingContext(),
     ): UiLayoutResult {
         val initialLayouts = computeLayouts(resolved, width, height, scrollState, emptyMap(), bindings)
-        val scrollbarReserves = detectScrollbarReserves(resolved, initialLayouts, bindings)
+        val scrollbarReserves = detectScrollbarReserves(resolved, initialLayouts, bindings, ::layoutChildren)
         val layouts = if (scrollbarReserves.isEmpty()) {
             initialLayouts
         } else {
             computeLayouts(resolved, width, height, scrollState, scrollbarReserves, bindings)
         }
-        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState, bindings)
-        return UiLayoutResult(resolved.root, rangedLayouts)
+        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState, bindings, ::layoutChildren)
+        val traversalOrder = rangedLayouts.keys.toList()
+        return UiLayoutResult(
+            root = resolved.root,
+            nodes = rangedLayouts,
+            traversalOrder = traversalOrder,
+            popupNodes = traversalOrder.filterIsInstance<PopupNode>(),
+        )
     }
 
     private fun computeLayouts(
@@ -132,23 +309,50 @@ class UiLayoutPipeline {
     ): Map<UiNode, UiLayoutNode> {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
-        val rootRect = rootRect(resolved, width, height, scrollbarReserves, bindings)
-        placeNode(
-            node = resolved.root,
-            resolved = resolved,
-            rect = rootRect,
-            parentRect = viewport,
-            parentStyle = null,
-            parentClip = null,
-            parentTransform = UiMatrix4.identity(),
-            parentInputTransform = UiMatrix4.identity(),
-            insideFramebuffer = false,
-            scrollState = scrollState,
-            scrollbarReserves = scrollbarReserves,
-            layouts = layouts,
-            bindings = bindings,
-        )
+        val previousStack = placementStack
+        val previousPass = layoutPass
+        val previousMeasureContext = measureContext
+        val stack = ArrayDeque<PlacementTask>()
+        try {
+            layoutPass = LayoutPass(resolved.root)
+            measureContext = MeasureContext(::measureNodeCached)
+            val rootRect = rootRect(resolved, width, height, scrollbarReserves, bindings)
+            placementStack = stack
+            enqueuePlacement(
+                node = resolved.root,
+                resolved = resolved,
+                rect = rootRect,
+                parentRect = viewport,
+                parentStyle = null,
+                parentClip = null,
+                parentTransform = UiMatrix4.identity(),
+                parentInputTransform = UiMatrix4.identity(),
+                insideFramebuffer = false,
+                scrollState = scrollState,
+                scrollbarReserves = scrollbarReserves,
+                layouts = layouts,
+                bindings = bindings,
+            )
+            while (stack.isNotEmpty()) {
+                when (val task = stack.removeLast()) {
+                    is NodePlacementTask -> placeNodeNow(task)
+                    is PopupPlacementTask -> placePopupChildrenNow(task)
+                }
+            }
+        } finally {
+            placementStack = previousStack
+            layoutPass = previousPass
+            measureContext = previousMeasureContext
+        }
         return layouts
+    }
+
+    private fun layoutChildren(node: UiNode): List<UiNode> {
+        return layoutPass?.layoutChildren?.get(node) ?: node.children.filterNot { it is PopupNode }
+    }
+
+    private fun popupChildren(node: UiNode): List<PopupNode> {
+        return layoutPass?.popupChildren?.get(node) ?: node.children.filterIsInstance<PopupNode>()
     }
 
     private fun rootRect(
@@ -201,6 +405,91 @@ class UiLayoutPipeline {
         layouts: MutableMap<UiNode, UiLayoutNode>,
         bindings: UiBindingContext,
     ) {
+        val stack = placementStack
+        if (stack != null) {
+            enqueuePlacement(
+                node,
+                resolved,
+                rect,
+                parentRect,
+                parentStyle,
+                parentClip,
+                parentTransform,
+                parentInputTransform,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings,
+            )
+            return
+        }
+        placeNodeNow(
+            NodePlacementTask(
+                node,
+                resolved,
+                rect,
+                parentRect,
+                parentStyle,
+                parentClip,
+                parentTransform,
+                parentInputTransform,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings,
+            )
+        )
+    }
+
+    private fun enqueuePlacement(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        rect: UiRect,
+        parentRect: UiRect,
+        parentStyle: ComputedStyle?,
+        parentClip: UiRect?,
+        parentTransform: UiMatrix4,
+        parentInputTransform: UiMatrix4,
+        insideFramebuffer: Boolean,
+        scrollState: UiScrollState,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
+    ) {
+        placementStack?.addLast(
+            NodePlacementTask(
+                node,
+                resolved,
+                rect,
+                parentRect,
+                parentStyle,
+                parentClip,
+                parentTransform,
+                parentInputTransform,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings,
+            )
+        )
+    }
+
+    private fun placeNodeNow(task: NodePlacementTask) {
+        val node = task.node
+        val resolved = task.resolved
+        val rect = task.rect
+        val parentRect = task.parentRect
+        val parentClip = task.parentClip
+        val parentTransform = task.parentTransform
+        val parentInputTransform = task.parentInputTransform
+        val insideFramebuffer = task.insideFramebuffer
+        val scrollState = task.scrollState
+        val scrollbarReserves = task.scrollbarReserves
+        val layouts = task.layouts
+        val bindings = task.bindings
         val style = resolved[node]
         val boxes = nodeBoxes(rect, style, scrollbarReserves[node] ?: UiScrollbarReserve.None)
         val scrollOffset = scrollState.offset(node)
@@ -277,6 +566,19 @@ class UiLayoutPipeline {
             content
         }
         if (node is TextNode) {
+            enqueuePopupChildren(
+                node,
+                resolved,
+                content,
+                parentRect,
+                transform,
+                inputTransform,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings,
+            )
             placeTextInlineChildren(
                 node,
                 resolved,
@@ -292,21 +594,21 @@ class UiLayoutPipeline {
                 layouts,
                 bindings,
             )
-            placePopupChildren(
-                node,
-                resolved,
-                content,
-                parentRect,
-                transform,
-                inputTransform,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-                bindings,
-            )
             return
         }
+        enqueuePopupChildren(
+            node,
+            resolved,
+            content,
+            parentRect,
+            transform,
+            inputTransform,
+            insideFramebuffer,
+            scrollState,
+            scrollbarReserves,
+            layouts,
+            bindings,
+        )
         node.layout.policy().place(
             this,
             ChildPlacementScope(
@@ -326,19 +628,6 @@ class UiLayoutPipeline {
                 bindings = bindings,
             )
         )
-        placePopupChildren(
-            node,
-            resolved,
-            content,
-            parentRect,
-            transform,
-            inputTransform,
-            insideFramebuffer,
-            scrollState,
-            scrollbarReserves,
-            layouts,
-            bindings,
-        )
     }
 
     private fun placeTextInlineChildren(
@@ -356,7 +645,7 @@ class UiLayoutPipeline {
         layouts: MutableMap<UiNode, UiLayoutNode>,
         bindings: UiBindingContext,
     ) {
-        val widgets = node.layoutChildren.associateBy { it.id }
+        val widgets = layoutChildren(node).associateBy { it.id }
         if (widgets.isEmpty()) return
         val textLayout = layouts[node]?.textLayout
             ?: layoutTextNode(node, resolved, style, content, scrollbarReserves, bindings)
@@ -388,7 +677,7 @@ class UiLayoutPipeline {
                 )
             }
         }
-        for (child in node.layoutChildren) {
+        for (child in layoutChildren(node)) {
             if (child in placed) continue
             val measured =
                 measureNode(child, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
@@ -419,7 +708,7 @@ class UiLayoutPipeline {
         bindings: UiBindingContext,
     ): UiTextLayout {
         val widgetMetrics = measureInlineWidgetMetrics(
-            node.layoutChildren,
+            node,
             resolved,
             content.width,
             content.height,
@@ -440,7 +729,7 @@ class UiLayoutPipeline {
         )
     }
 
-    private fun placePopupChildren(
+    private fun enqueuePopupChildren(
         node: UiNode,
         resolved: ResolvedUiTree,
         content: UiRect,
@@ -453,21 +742,32 @@ class UiLayoutPipeline {
         layouts: MutableMap<UiNode, UiLayoutNode>,
         bindings: UiBindingContext,
     ) {
-        val popups = node.children.filterIsInstance<PopupNode>()
-        if (popups.isEmpty()) return
-        val parentStyle = resolved[node]
-        for (popup in popups) {
-            val measured =
-                measureNode(popup, resolved, content.width, content.height, scrollbarReserves, bindings = bindings)
-            val anchor = popup.anchor.resolvePopupAnchor(content, resolved, layouts, bindings)
-            val rect = popup.alignment.popupRect(anchor, measured)
-            placeNode(
-                popup,
+        if (popupChildren(node).isEmpty()) return
+        val stack = placementStack
+        if (stack != null) {
+            stack.addLast(
+                PopupPlacementTask(
+                    node,
+                    resolved,
+                    content,
+                    parentRect,
+                    transform,
+                    inputTransform,
+                    insideFramebuffer,
+                    scrollState,
+                    scrollbarReserves,
+                    layouts,
+                    bindings,
+                )
+            )
+            return
+        }
+        placePopupChildrenNow(
+            PopupPlacementTask(
+                node,
                 resolved,
-                rect,
+                content,
                 parentRect,
-                parentStyle,
-                null,
                 transform,
                 inputTransform,
                 insideFramebuffer,
@@ -475,6 +775,39 @@ class UiLayoutPipeline {
                 scrollbarReserves,
                 layouts,
                 bindings,
+            )
+        )
+    }
+
+    private fun placePopupChildrenNow(task: PopupPlacementTask) {
+        val popups = popupChildren(task.node)
+        if (popups.isEmpty()) return
+        val parentStyle = task.resolved[task.node]
+        for (popup in popups) {
+            val measured = measureNode(
+                popup,
+                task.resolved,
+                task.content.width,
+                task.content.height,
+                task.scrollbarReserves,
+                bindings = task.bindings
+            )
+            val anchor = popup.anchor.resolvePopupAnchor(task.content, task.resolved, task.layouts, task.bindings)
+            val rect = popup.alignment.popupRect(anchor, measured)
+            placeNode(
+                popup,
+                task.resolved,
+                rect,
+                task.parentRect,
+                parentStyle,
+                null,
+                task.transform,
+                task.inputTransform,
+                task.insideFramebuffer,
+                task.scrollState,
+                task.scrollbarReserves,
+                task.layouts,
+                task.bindings,
             )
         }
     }
@@ -547,7 +880,7 @@ class UiLayoutPipeline {
     ) {
         val gap = style.gap.resolve(content.width)
         val measured = measureFlowChildren(
-            node.layoutChildren,
+            node,
             resolved,
             content.width,
             content.height,
@@ -618,7 +951,7 @@ class UiLayoutPipeline {
     ) {
         val gap = style.gap.resolve(content.height)
         val measured = measureFlowChildren(
-            node.layoutChildren,
+            node,
             resolved,
             content.width,
             content.height,
@@ -690,7 +1023,7 @@ class UiLayoutPipeline {
     ) {
         val gap = style.gap.resolve(content.height)
         val measured = measureFlowChildren(
-            node.layoutChildren,
+            node,
             resolved,
             content.width,
             content.height,
@@ -767,7 +1100,7 @@ class UiLayoutPipeline {
     ) {
         val gap = style.gap.resolve(content.width)
         val measured = measureFlowChildren(
-            node.layoutChildren,
+            node,
             resolved,
             content.width,
             content.height,
@@ -843,7 +1176,7 @@ class UiLayoutPipeline {
         bindings: UiBindingContext,
     ) {
         for (child in measureFlowChildren(
-            node.layoutChildren,
+            node,
             resolved,
             content.width,
             content.height,
@@ -879,6 +1212,56 @@ class UiLayoutPipeline {
     }
 
     private fun measureFlowChildren(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        deferFlexibleWidth: Boolean = false,
+        deferFlexibleHeight: Boolean = false,
+        allowWidthOverflow: Boolean = false,
+        allowHeightOverflow: Boolean = false,
+        bindings: UiBindingContext = UiBindingContext(),
+    ): List<MeasuredChild> {
+        val key = FlowChildrenCacheKey(
+            nodeId = System.identityHashCode(node),
+            subtreeRevision = node.layoutState.subtreeRevision,
+            bindingsHash = bindings.root.hashCode(),
+            availableWidth = availableWidth.layoutCacheValue(),
+            availableHeight = availableHeight.layoutCacheValue(),
+            deferFlexibleWidth = deferFlexibleWidth,
+            deferFlexibleHeight = deferFlexibleHeight,
+            allowWidthOverflow = allowWidthOverflow,
+            allowHeightOverflow = allowHeightOverflow,
+        )
+        return measureContext?.measureChildren(key) {
+            measureFlowChildrenUncached(
+                layoutChildren(node),
+                resolved,
+                availableWidth,
+                availableHeight,
+                scrollbarReserves,
+                deferFlexibleWidth = deferFlexibleWidth,
+                deferFlexibleHeight = deferFlexibleHeight,
+                allowWidthOverflow = allowWidthOverflow,
+                allowHeightOverflow = allowHeightOverflow,
+                bindings = bindings,
+            )
+        } ?: measureFlowChildrenUncached(
+            layoutChildren(node),
+            resolved,
+            availableWidth,
+            availableHeight,
+            scrollbarReserves,
+            deferFlexibleWidth = deferFlexibleWidth,
+            deferFlexibleHeight = deferFlexibleHeight,
+            allowWidthOverflow = allowWidthOverflow,
+            allowHeightOverflow = allowHeightOverflow,
+            bindings = bindings,
+        )
+    }
+
+    private fun measureFlowChildrenUncached(
         children: List<UiNode>,
         resolved: ResolvedUiTree,
         availableWidth: Float,
@@ -890,27 +1273,31 @@ class UiLayoutPipeline {
         allowHeightOverflow: Boolean = false,
         bindings: UiBindingContext = UiBindingContext(),
     ): List<MeasuredChild> {
-        return children.map { child ->
+        if (children.isEmpty()) return emptyList()
+        val measured = ArrayList<MeasuredChild>(children.size)
+        for (child in children) {
             val style = resolved[child]
             val margin = style.margin.resolve(availableWidth, availableHeight)
-            MeasuredChild(
+            val size = measureNode(
                 child,
-                style,
-                measureNode(
-                    child,
-                    resolved,
-                    availableWidth,
-                    availableHeight,
-                    scrollbarReserves,
-                    deferFlexibleWidth = deferFlexibleWidth,
-                    deferFlexibleHeight = deferFlexibleHeight,
-                    allowWidthOverflow = allowWidthOverflow,
-                    allowHeightOverflow = allowHeightOverflow,
-                    bindings = bindings,
-                ),
-                margin
+                resolved,
+                availableWidth,
+                availableHeight,
+                scrollbarReserves,
+                deferFlexibleWidth = deferFlexibleWidth,
+                deferFlexibleHeight = deferFlexibleHeight,
+                allowWidthOverflow = allowWidthOverflow,
+                allowHeightOverflow = allowHeightOverflow,
+                bindings = bindings,
+            )
+            measured += MeasuredChild(
+                node = child,
+                style = style,
+                size = size,
+                margin = margin,
             )
         }
+        return measured
     }
 
     private fun measureCustomLayout(
@@ -926,7 +1313,7 @@ class UiLayoutPipeline {
             maxWidth = availableWidth.coerceAtLeast(0f),
             maxHeight = availableHeight.coerceAtLeast(0f),
         )
-        val measurables = node.layoutChildren.map { child ->
+        val measurables = layoutChildren(node).map { child ->
             EngineMeasurable(child, resolved, scrollbarReserves, bindings)
         }
         val scope = UiMeasureScope()
@@ -949,21 +1336,33 @@ class UiLayoutPipeline {
         allowOverflow: Boolean = false,
     ): List<MeasuredChild> {
         val gapTotal = gap * (children.size - 1).coerceAtLeast(0)
-        val fixedWidth = children
-            .filterNot { it.isRowFlexible }
-            .sumOf { (it.margin.left + it.size.width + it.margin.right).toDouble() }
-            .toFloat()
-        val flexible = children.filter { it.isRowFlexible }
-        val flexibleMargins = flexible.sumOf { (it.margin.left + it.margin.right).toDouble() }.toFloat()
+        var fixedWidth = 0f
+        var flexibleMargins = 0f
+        var flexibleCount = 0
+        var totalWeight = 0f
+        for (child in children) {
+            if (child.isRowFlexible) {
+                flexibleCount++
+                flexibleMargins += child.margin.left + child.margin.right
+                totalWeight += child.rowWeight()
+            } else {
+                fixedWidth += child.margin.left + child.size.width + child.margin.right
+            }
+        }
         val availableForFlexible = (availableWidth - fixedWidth - flexibleMargins - gapTotal).coerceAtLeast(0f)
-        val totalWeight = flexible.sumOf { it.rowWeight().toDouble() }.toFloat()
-        val distributed = if (flexible.isEmpty() || totalWeight <= 0f) children else children.map { child ->
-            if (!child.isRowFlexible) child
-            else {
+        val distributed = if (flexibleCount == 0 || totalWeight <= 0f) {
+            children
+        } else {
+            val next = ArrayList<MeasuredChild>(children.size)
+            for (child in children) {
+                if (!child.isRowFlexible) {
+                    next += child
+                    continue
+                }
                 val weight = child.rowWeight()
                 val targetWidth = availableForFlexible * (weight / totalWeight)
                 val fixedWidthOverride = targetWidth.takeUnless { child.isWrappedAutoText }
-                child.copy(
+                next += child.copy(
                     size = measureNode(
                         child.node,
                         resolved,
@@ -975,31 +1374,41 @@ class UiLayoutPipeline {
                     )
                 )
             }
+            next
         }
-        val overflow = (distributed.sumOfOuterWidth() + gapTotal - availableWidth).coerceAtLeast(0f)
+        var outerWidth = 0f
+        for (child in distributed) {
+            outerWidth += child.margin.left + child.size.width + child.margin.right
+        }
+        val overflow = (outerWidth + gapTotal - availableWidth).coerceAtLeast(0f)
         if (allowOverflow) return distributed
         if (overflow <= 0f) return distributed
-        val shrinkable = distributed.filter { it.style.size.width !is UiLength.Px && it.size.width > 0f }
-        val shrinkableWidth = shrinkable.sumOf { it.size.width.toDouble() }.toFloat()
-        if (shrinkableWidth <= 0f) return distributed
-        return distributed.map { child ->
-            if (child.style.size.width is UiLength.Px || child.size.width <= 0f) child
-            else {
-                val targetWidth = (child.size.width - overflow * (child.size.width / shrinkableWidth)).coerceAtLeast(0f)
-                val fixedWidthOverride = targetWidth.takeUnless { child.isWrappedAutoText }
-                child.copy(
-                    size = measureNode(
-                        child.node,
-                        resolved,
-                        targetWidth,
-                        child.size.height,
-                        scrollbarReserves,
-                        widthOverride = fixedWidthOverride,
-                        bindings = bindings
-                    )
-                )
-            }
+        var shrinkableWidth = 0f
+        for (child in distributed) {
+            if (child.style.size.width !is UiLength.Px && child.size.width > 0f) shrinkableWidth += child.size.width
         }
+        if (shrinkableWidth <= 0f) return distributed
+        val shrunk = ArrayList<MeasuredChild>(distributed.size)
+        for (child in distributed) {
+            if (child.style.size.width is UiLength.Px || child.size.width <= 0f) {
+                shrunk += child
+                continue
+            }
+            val targetWidth = (child.size.width - overflow * (child.size.width / shrinkableWidth)).coerceAtLeast(0f)
+            val fixedWidthOverride = targetWidth.takeUnless { child.isWrappedAutoText }
+            shrunk += child.copy(
+                size = measureNode(
+                    child.node,
+                    resolved,
+                    targetWidth,
+                    child.size.height,
+                    scrollbarReserves,
+                    widthOverride = fixedWidthOverride,
+                    bindings = bindings
+                )
+            )
+        }
+        return shrunk
     }
 
     internal fun growColumnChildren(
@@ -1012,24 +1421,36 @@ class UiLayoutPipeline {
         allowOverflow: Boolean = false,
     ): List<MeasuredChild> {
         val gapTotal = gap * (children.size - 1).coerceAtLeast(0)
-        val fixedHeight = children
-            .filterNot { it.isColumnFlexible }
-            .sumOf { (it.margin.top + it.size.height + it.margin.bottom).toDouble() }
-            .toFloat()
-        val flexible = children.filter { it.isColumnFlexible }
-        val flexibleMargins = flexible.sumOf { (it.margin.top + it.margin.bottom).toDouble() }.toFloat()
+        var fixedHeight = 0f
+        var flexibleMargins = 0f
+        var flexibleCount = 0
+        var totalWeight = 0f
+        for (child in children) {
+            if (child.isColumnFlexible) {
+                flexibleCount++
+                flexibleMargins += child.margin.top + child.margin.bottom
+                totalWeight += child.columnWeight()
+            } else {
+                fixedHeight += child.margin.top + child.size.height + child.margin.bottom
+            }
+        }
         val availableForFlexible = (availableHeight - fixedHeight - flexibleMargins - gapTotal).coerceAtLeast(0f)
-        val totalWeight = flexible.sumOf { it.columnWeight().toDouble() }.toFloat()
-        val distributed = if (flexible.isEmpty() || totalWeight <= 0f) children else children.map {
-            if (!it.isColumnFlexible) it
-            else {
-                val weight = it.columnWeight()
+        val distributed = if (flexibleCount == 0 || totalWeight <= 0f) {
+            children
+        } else {
+            val next = ArrayList<MeasuredChild>(children.size)
+            for (child in children) {
+                if (!child.isColumnFlexible) {
+                    next += child
+                    continue
+                }
+                val weight = child.columnWeight()
                 val targetHeight = availableForFlexible * (weight / totalWeight)
-                it.copy(
+                next += child.copy(
                     size = measureNode(
-                        it.node,
+                        child.node,
                         resolved,
-                        it.size.width,
+                        child.size.width,
                         targetHeight,
                         scrollbarReserves,
                         heightOverride = targetHeight,
@@ -1037,30 +1458,41 @@ class UiLayoutPipeline {
                     )
                 )
             }
+            next
         }
-        val overflow = (distributed.sumOfOuterHeight() + gapTotal - availableHeight).coerceAtLeast(0f)
+        var outerHeight = 0f
+        for (child in distributed) {
+            outerHeight += child.margin.top + child.size.height + child.margin.bottom
+        }
+        val overflow = (outerHeight + gapTotal - availableHeight).coerceAtLeast(0f)
         if (allowOverflow) return distributed
         if (overflow <= 0f) return distributed
-        val shrinkable = distributed.filter { it.style.size.height !is UiLength.Px && it.size.height > 0f }
-        val shrinkableHeight = shrinkable.sumOf { it.size.height.toDouble() }.toFloat()
-        if (shrinkableHeight <= 0f) return distributed
-        return distributed.map {
-            if (it.style.size.height is UiLength.Px || it.size.height <= 0f) it
-            else {
-                val targetHeight = (it.size.height - overflow * (it.size.height / shrinkableHeight)).coerceAtLeast(0f)
-                it.copy(
-                    size = measureNode(
-                        it.node,
-                        resolved,
-                        it.size.width,
-                        targetHeight,
-                        scrollbarReserves,
-                        heightOverride = targetHeight,
-                        bindings = bindings
-                    )
-                )
-            }
+        var shrinkableHeight = 0f
+        for (child in distributed) {
+            if (child.style.size.height !is UiLength.Px && child.size.height > 0f) shrinkableHeight += child.size.height
         }
+        if (shrinkableHeight <= 0f) return distributed
+        val shrunk = ArrayList<MeasuredChild>(distributed.size)
+        for (child in distributed) {
+            if (child.style.size.height is UiLength.Px || child.size.height <= 0f) {
+                shrunk += child
+                continue
+            }
+            val targetHeight =
+                (child.size.height - overflow * (child.size.height / shrinkableHeight)).coerceAtLeast(0f)
+            shrunk += child.copy(
+                size = measureNode(
+                    child.node,
+                    resolved,
+                    child.size.width,
+                    targetHeight,
+                    scrollbarReserves,
+                    heightOverride = targetHeight,
+                    bindings = bindings
+                )
+            )
+        }
+        return shrunk
     }
 
     private fun measureNode(
@@ -1077,34 +1509,40 @@ class UiLayoutPipeline {
         allowHeightOverflow: Boolean = false,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
-        val cacheKey = MeasureCacheKey(
-            nodeId = System.identityHashCode(node),
-            subtreeRevision = node.layoutState.subtreeRevision,
-            bindingsHash = bindings.root.hashCode(),
-            availableWidth = availableWidth.layoutCacheValue(),
-            availableHeight = availableHeight.layoutCacheValue(),
-            widthOverride = widthOverride?.layoutCacheValue(),
-            heightOverride = heightOverride?.layoutCacheValue(),
+        val request = MeasureRequest(
+            node = node,
+            resolved = resolved,
+            availableWidth = availableWidth,
+            availableHeight = availableHeight,
+            scrollbarReserves = scrollbarReserves,
+            widthOverride = widthOverride,
+            heightOverride = heightOverride,
             deferFlexibleWidth = deferFlexibleWidth,
             deferFlexibleHeight = deferFlexibleHeight,
             allowWidthOverflow = allowWidthOverflow,
             allowHeightOverflow = allowHeightOverflow,
-            reserve = scrollbarReserves[node] ?: UiScrollbarReserve.None,
+            bindings = bindings,
         )
+        return measureContext?.measure(request) ?: measureNodeCached(request)
+    }
+
+    private fun measureNodeCached(request: MeasureRequest): LayoutSize {
+        val node = request.node
+        val cacheKey = request.cacheKey()
         return node.layoutState.cachedMeasure(cacheKey) {
             measureNodeUncached(
                 node = node,
-                resolved = resolved,
-                availableWidth = availableWidth,
-                availableHeight = availableHeight,
-                scrollbarReserves = scrollbarReserves,
-                widthOverride = widthOverride,
-                heightOverride = heightOverride,
-                deferFlexibleWidth = deferFlexibleWidth,
-                deferFlexibleHeight = deferFlexibleHeight,
-                allowWidthOverflow = allowWidthOverflow,
-                allowHeightOverflow = allowHeightOverflow,
-                bindings = bindings,
+                resolved = request.resolved,
+                availableWidth = request.availableWidth,
+                availableHeight = request.availableHeight,
+                scrollbarReserves = request.scrollbarReserves,
+                widthOverride = request.widthOverride,
+                heightOverride = request.heightOverride,
+                deferFlexibleWidth = request.deferFlexibleWidth,
+                deferFlexibleHeight = request.deferFlexibleHeight,
+                allowWidthOverflow = request.allowWidthOverflow,
+                allowHeightOverflow = request.allowHeightOverflow,
+                bindings = request.bindings,
             )
         }
     }
@@ -1244,11 +1682,56 @@ class UiLayoutPipeline {
         knownContentHeight: Float? = null,
         bindings: UiBindingContext = UiBindingContext(),
     ): LayoutSize {
+        val key = IntrinsicSizeCacheKey(
+            nodeId = System.identityHashCode(node),
+            subtreeRevision = node.layoutState.subtreeRevision,
+            bindingsHash = bindings.root.hashCode(),
+            availableWidth = availableWidth.layoutCacheValue(),
+            availableHeight = availableHeight.layoutCacheValue(),
+            knownContentWidth = knownContentWidth?.layoutCacheValue(),
+            knownContentHeight = knownContentHeight?.layoutCacheValue(),
+        )
+        return measureContext?.intrinsicSize(key) {
+            intrinsicSizeUncached(
+                node,
+                resolved,
+                style,
+                availableWidth,
+                availableHeight,
+                scrollbarReserves,
+                knownContentWidth,
+                knownContentHeight,
+                bindings,
+            )
+        } ?: intrinsicSizeUncached(
+            node,
+            resolved,
+            style,
+            availableWidth,
+            availableHeight,
+            scrollbarReserves,
+            knownContentWidth,
+            knownContentHeight,
+            bindings,
+        )
+    }
+
+    private fun intrinsicSizeUncached(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        knownContentWidth: Float? = null,
+        knownContentHeight: Float? = null,
+        bindings: UiBindingContext = UiBindingContext(),
+    ): LayoutSize {
         return when (node) {
             is TextNode -> measureTextNode(node, resolved, style, availableWidth, availableHeight, scrollbarReserves, knownContentWidth, bindings)
             is TextFieldNode -> measureTextFieldNode(node, style, availableWidth, knownContentWidth)
             else -> {
-                if (node.layoutChildren.isEmpty()) return replacedIntrinsicSize(node, style)
+                if (layoutChildren(node).isEmpty()) return replacedIntrinsicSize(node, style)
 
                 val customLayout = node.layout as? UiLayout.Custom
                 if (customLayout != null) {
@@ -1271,7 +1754,7 @@ class UiLayoutPipeline {
         bindings: UiBindingContext
     ): LayoutSize {
         val widgetMetrics = measureInlineWidgetMetrics(
-            node.layoutChildren, resolved, availableWidth, availableHeight, scrollbarReserves, bindings
+            node, resolved, availableWidth, availableHeight, scrollbarReserves, bindings
         )
         return UiTextLayouter.measure(
             richText = node.content.resolve(bindings).toRichText(widgetMetrics),
@@ -1336,7 +1819,7 @@ class UiLayoutPipeline {
         bindings: UiBindingContext
     ): LayoutSize {
         val children = measureFlowChildren(
-            node.layoutChildren,
+            node,
             resolved,
             availableWidth,
             availableHeight,
@@ -1391,6 +1874,40 @@ class UiLayoutPipeline {
     }
 
     private fun measureInlineWidgetMetrics(
+        node: TextNode,
+        resolved: ResolvedUiTree,
+        availableWidth: Float,
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
+    ): Map<String, UiInlineWidgetMetrics> {
+        val key = InlineWidgetMetricsCacheKey(
+            nodeId = System.identityHashCode(node),
+            subtreeRevision = node.layoutState.subtreeRevision,
+            bindingsHash = bindings.root.hashCode(),
+            availableWidth = availableWidth.layoutCacheValue(),
+            availableHeight = availableHeight.layoutCacheValue(),
+        )
+        return measureContext?.inlineMetrics(key) {
+            measureInlineWidgetMetricsUncached(
+                layoutChildren(node),
+                resolved,
+                availableWidth,
+                availableHeight,
+                scrollbarReserves,
+                bindings,
+            )
+        } ?: measureInlineWidgetMetricsUncached(
+            layoutChildren(node),
+            resolved,
+            availableWidth,
+            availableHeight,
+            scrollbarReserves,
+            bindings,
+        )
+    }
+
+    private fun measureInlineWidgetMetricsUncached(
         children: Collection<UiNode>,
         resolved: ResolvedUiTree,
         availableWidth: Float,
@@ -1399,12 +1916,14 @@ class UiLayoutPipeline {
         bindings: UiBindingContext,
     ): Map<String, UiInlineWidgetMetrics> {
         if (children.isEmpty()) return emptyMap()
-        return children.mapNotNull { child ->
-            val id = child.id ?: return@mapNotNull null
+        val metrics = LinkedHashMap<String, UiInlineWidgetMetrics>()
+        for (child in children) {
+            val id = child.id ?: continue
             val size =
                 measureNode(child, resolved, availableWidth, availableHeight, scrollbarReserves, bindings = bindings)
-            id to UiInlineWidgetMetrics(size.width, size.height)
-        }.toMap()
+            metrics[id] = UiInlineWidgetMetrics(size.width, size.height)
+        }
+        return metrics
     }
 
 }
@@ -1519,12 +2038,13 @@ private fun applyScrollRanges(
     layouts: Map<UiNode, UiLayoutNode>,
     scrollState: UiScrollState,
     bindings: UiBindingContext,
+    layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiLayoutNode> {
     val result = layouts.toMutableMap()
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings)
+        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings, layoutChildren)
         val range = UiScrollOffset(
             x = maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)),
             y = maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)),
@@ -1598,12 +2118,13 @@ private fun detectScrollbarReserves(
     resolved: ResolvedUiTree,
     layouts: Map<UiNode, UiLayoutNode>,
     bindings: UiBindingContext,
+    layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiScrollbarReserve> {
     val reserves = linkedMapOf<UiNode, UiScrollbarReserve>()
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings)
+        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings, layoutChildren)
         val reserve = UiScrollbarReserve(
             vertical = (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
             horizontal = (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
@@ -1619,11 +2140,12 @@ private fun scrollableContentBounds(
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
     bindings: UiBindingContext,
+    layoutChildren: (UiNode) -> List<UiNode>,
 ): UiRect {
     layout.virtualContentBounds?.let { return it }
     if (node is TextNode || node is TextFieldNode) {
         val textLayout = if (node is TextNode) {
-            layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, bindings)
+            layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, bindings, layoutChildren)
         } else {
             val field = node as TextFieldNode
             val editWidth = textFieldTextWidth(field, style, layout)
@@ -1655,7 +2177,7 @@ private fun scrollableContentBounds(
             maxOf(layout.content.height, textLayout.height + TextFieldCaretVisibilityPadding),
         )
     }
-    return node.layoutChildren.mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union()
+    return layoutChildren(node).mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union()
         ?: layout.content
 }
 
@@ -1665,8 +2187,9 @@ private fun textLayoutForScrollBounds(
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
     bindings: UiBindingContext,
+    layoutChildren: (UiNode) -> List<UiNode>,
 ): UiTextLayout {
-    val widgetMetrics = node.layoutChildren.mapNotNull { child ->
+    val widgetMetrics = layoutChildren(node).mapNotNull { child ->
         val id = child.id ?: return@mapNotNull null
         val rect = layouts[child]?.rect ?: return@mapNotNull null
         id to UiInlineWidgetMetrics(rect.width, rect.height)
@@ -1820,8 +2343,9 @@ private fun Float.layoutCacheValue(): Float {
     return (this * 100f).toInt().toFloat() / 100f
 }
 
-private val UiNode.layoutChildren: List<UiNode>
-    get() = children.filterNot { it is PopupNode }
+private fun layoutChildren(node: UiNode): List<UiNode> {
+    return node.children.filterNot { it is PopupNode }
+}
 
 private fun UiPopupAnchor.resolvePopupAnchor(
     parentContent: UiRect,

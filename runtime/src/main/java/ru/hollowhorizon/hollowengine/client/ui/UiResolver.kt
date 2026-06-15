@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.StyleRule
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import java.util.ArrayDeque
 import java.util.WeakHashMap
 
 data class ResolvedUiTree(
@@ -47,7 +48,7 @@ class UiStyleResolver(
         )
         treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.tree }
         val styles = linkedMapOf<UiNode, ComputedStyle>()
-        resolveNode(root, null, rootScope, bindings, nowMillis, animate, styles)
+        resolveNodes(root, bindings, nowMillis, animate, styles)
         return ResolvedUiTree(root, styles).also { tree ->
             treeCache = TreeCacheEntry(
                 key = treeKey.copy(
@@ -60,23 +61,31 @@ class UiStyleResolver(
         }
     }
 
-    private fun resolveNode(
-        node: UiNode,
-        parent: ComputedStyle?,
-        inheritedScope: StyleScope,
+    private fun resolveNodes(
+        root: UiNode,
         bindings: UiBindingContext,
         nowMillis: Long,
         animate: Boolean,
         styles: MutableMap<UiNode, ComputedStyle>,
     ) {
-        val modifiers = node.modifiers.flattenModifiers()
-        val scopedScope = scopedStyleScope(node, inheritedScope, modifiers)
-        val computed = resolveBaseStyle(node, parent, scopedScope, modifiers, bindings)
-        val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
-        val finalStyle = if (animate) animations.apply(node, transitioned, scopedScope.keyframes, nowMillis) else transitioned
-        styles[node] = finalStyle
-        node.children.forEach { child ->
-            resolveNode(child, finalStyle, scopedScope, bindings, nowMillis, animate, styles)
+        val stack = ArrayDeque<StyleResolveTask>()
+        stack.add(StyleResolveTask(root, parent = null, scope = rootScope))
+        while (stack.isNotEmpty()) {
+            val task = stack.removeLast()
+            val node = task.node
+            val modifiers = node.modifiers.flattenModifiers()
+            val scopedScope = scopedStyleScope(node, task.scope, modifiers)
+            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers, bindings)
+            val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
+            val finalStyle = if (animate) {
+                animations.apply(node, transitioned, scopedScope.keyframes, nowMillis)
+            } else {
+                transitioned
+            }
+            styles[node] = finalStyle
+            for (index in node.children.indices.reversed()) {
+                stack.add(StyleResolveTask(node.children[index], finalStyle, scopedScope))
+            }
         }
     }
 
@@ -234,6 +243,12 @@ private data class StyleScope(
     val stylesheets: List<CompiledHss>,
     val keyframes: Map<String, UiKeyframes>,
     val id: Long,
+)
+
+private data class StyleResolveTask(
+    val node: UiNode,
+    val parent: ComputedStyle?,
+    val scope: StyleScope,
 )
 
 private data class StyleImportSnapshot(

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
+import java.util.ArrayDeque
 
 interface UiNode {
     val type: String
@@ -193,13 +194,20 @@ class PopupNode(
 }
 
 fun UiNode.setClosingState(closing: Boolean) {
-    if (closing) {
-        states += UiState.CLOSING
-    } else {
-        states -= UiState.CLOSING
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        if (closing) {
+            node.states += UiState.CLOSING
+        } else {
+            node.states -= UiState.CLOSING
+        }
+        node.invalidateLayout()
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
     }
-    invalidateLayout()
-    children.forEach { it.setClosingState(closing) }
 }
 
 data class UiBindingContext(val root: CompoundTag = CompoundTag()) {

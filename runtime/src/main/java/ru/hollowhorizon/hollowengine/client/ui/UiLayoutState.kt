@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import java.util.ArrayDeque
 import java.util.LinkedHashMap
 
 private const val MaxNodeMeasureCacheEntries = 64
@@ -214,8 +215,15 @@ internal fun UiNode.invalidateLayout() {
 }
 
 internal fun UiNode.detachLayoutParentRecursively() {
-    layoutState.attachTo(null)
-    children.forEach { it.detachLayoutParentRecursively() }
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        node.layoutState.attachTo(null)
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
+    }
 }
 
 private object UiLayoutRevision {

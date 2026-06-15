@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.parseHssSelector
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
+import java.util.ArrayDeque
 
 sealed class UiClientScript {
     abstract val name: String
@@ -622,8 +623,15 @@ private fun UiEventKind.inputStyle(): UiInputStyle {
 }
 
 private fun UiNode.walk(visitor: (UiNode) -> Unit) {
-    visitor(this)
-    children.forEach { it.walk(visitor) }
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        visitor(node)
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
+    }
 }
 
 private fun extractHandlerDeclarations(source: String): HandlerDeclarations {

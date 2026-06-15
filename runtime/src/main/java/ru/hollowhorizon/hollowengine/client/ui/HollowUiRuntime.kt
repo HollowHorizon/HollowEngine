@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import java.util.ArrayDeque
 
 data class HollowUiFrame(
     val resolved: ResolvedUiTree,
@@ -12,7 +13,39 @@ data class HollowUiFrame(
 ) {
     fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(resolved, layout, x, y)
 
-    fun scrollTargetAt(x: Float, y: Float): UiNode? = scrollTargetAt(resolved.root, x, y, ancestorClip = null)
+    fun scrollTargetAt(x: Float, y: Float): UiNode? {
+        val stack = ArrayDeque<ScrollTargetTask>()
+        stack.add(ScrollTargetTask.Enter(resolved.root, ancestorClip = null))
+        while (stack.isNotEmpty()) {
+            when (val task = stack.removeLast()) {
+                is ScrollTargetTask.Enter -> {
+                    val node = task.node
+                    val layoutNode = layout[node]
+                    val childClip = task.ancestorClip.intersect(layoutNode.clip)
+                    stack.add(ScrollTargetTask.Test(node, task.ancestorClip))
+                    val children = node.children
+                        .filter { it in layout.nodes }
+                        .sortedWith(compareByDescending<UiNode> { resolved[it].layer }.thenByDescending { layout[it].rect.y })
+                    for (child in children) stack.add(ScrollTargetTask.Enter(child, childClip))
+                }
+
+                is ScrollTargetTask.Test -> {
+                    val node = task.node
+                    if (!resolved[node].input.scrollable) continue
+                    task.ancestorClip?.let { clip ->
+                        if (!clip.contains(x, y)) continue
+                    }
+                    val layoutNode = layout[node]
+                    if (!layoutNode.inputQuadContains(x, y)) continue
+                    val inverse = layoutNode.inputTransform.inverse() ?: continue
+                    val local = inverse.transform(x, y, 0f)
+                    val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
+                    if (rect.contains(local.x, local.y)) return node
+                }
+            }
+        }
+        return null
+    }
 
     fun nodeByKey(key: String): UiNode? = resolved.styles.keys.firstOrNull { UiNodeKeys.key(it) == key }
 
@@ -58,45 +91,33 @@ data class HollowUiFrame(
         return null
     }
 
-    private fun scrollTargetAt(node: UiNode, x: Float, y: Float, ancestorClip: UiRect?): UiNode? {
-        val children = node.children
-            .filter { it in layout.nodes }
-            .sortedWith(compareBy<UiNode> { resolved[it].layer }.thenBy { layout[it].rect.y })
-        val layoutNode = layout[node]
-        val childClip = ancestorClip.intersect(layoutNode.clip)
-        for (child in children.asReversed()) {
-            scrollTargetAt(child, x, y, childClip)?.let { return it }
-        }
-        if (!resolved[node].input.scrollable) return null
-        ancestorClip?.let { clip ->
-            if (!clip.contains(x, y)) return null
-        }
-        if (!layoutNode.inputQuadContains(x, y)) return null
-        val inverse = layoutNode.inputTransform.inverse() ?: return null
-        val local = inverse.transform(x, y, 0f)
-        val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
-        return if (rect.contains(local.x, local.y)) node else null
-    }
-
     private fun scrollbarHandlesInDrawOrder(): List<UiScrollbarHandle> {
         val result = mutableListOf<UiScrollbarHandle>()
-
-        fun visit(node: UiNode) {
-            node.children
-                .filterNot { it is PopupNode }
-                .filter { it in layout.nodes }
-                .sortedBy { resolved[it].layer }
-                .forEach(::visit)
-            val layoutNode = layout.nodes[node] ?: return
-            layoutNode.scrollbars.forEach { geometry ->
-                result += UiScrollbarHandle(node, geometry, layoutNode.worldTransform)
+        fun collect(root: UiNode) {
+            val stack = ArrayDeque<ScrollbarTraversalTask>()
+            stack.add(ScrollbarTraversalTask(root, visited = false))
+            while (stack.isNotEmpty()) {
+                val task = stack.removeLast()
+                val node = task.node
+                if (task.visited) {
+                    val layoutNode = layout.nodes[node] ?: continue
+                    for (geometry in layoutNode.scrollbars) {
+                        result += UiScrollbarHandle(node, geometry, layoutNode.worldTransform)
+                    }
+                    continue
+                }
+                stack.add(ScrollbarTraversalTask(node, visited = true))
+                val children = node.children
+                    .filterNot { it is PopupNode }
+                    .filter { it in layout.nodes }
+                    .sortedByDescending { resolved[it].layer }
+                for (child in children) stack.add(ScrollbarTraversalTask(child, visited = false))
             }
         }
-
-        visit(resolved.root)
-        resolved.root.popupDescendants()
+        collect(resolved.root)
+        layout.popupNodes
             .sortedBy { resolved[it].layer }
-            .forEach(::visit)
+            .forEach(::collect)
         return result
     }
 
@@ -128,6 +149,23 @@ data class HollowUiFrame(
     }
 }
 
+private data class ScrollbarTraversalTask(
+    val node: UiNode,
+    val visited: Boolean,
+)
+
+private sealed interface ScrollTargetTask {
+    data class Enter(
+        val node: UiNode,
+        val ancestorClip: UiRect?,
+    ) : ScrollTargetTask
+
+    data class Test(
+        val node: UiNode,
+        val ancestorClip: UiRect?,
+    ) : ScrollTargetTask
+}
+
 private fun UiRect?.intersect(other: UiRect?): UiRect? {
     if (this == null) return other
     if (other == null) return this
@@ -137,18 +175,6 @@ private fun UiRect?.intersect(other: UiRect?): UiRect? {
     val bottom = minOf(y + height, other.y + other.height)
     if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
     return UiRect(left, top, right - left, bottom - top)
-}
-
-private fun UiNode.popupDescendants(): List<PopupNode> {
-    val result = mutableListOf<PopupNode>()
-    fun visit(node: UiNode) {
-        for (child in node.children) {
-            if (child is PopupNode) result += child
-            visit(child)
-        }
-    }
-    visit(this)
-    return result
 }
 
 private fun ComputedStyle.requiresContinuousRefresh(): Boolean {

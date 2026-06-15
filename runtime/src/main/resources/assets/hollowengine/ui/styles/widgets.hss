@@ -76,11 +76,12 @@
 
 .tree-item {
     padding-right: 6px;
+    background: #00000000;
     foreground: #aeb8ca;
     border-radius: 4px;
     transition:
-        background 90ms ease-out,
-        foreground 90ms ease-out;
+        background 200ms ease-out,
+        foreground 200ms ease-out;
 }
 
 .tree-item:hover {
@@ -107,12 +108,24 @@
         fill 100ms ease-out;
 }
 
-.tree-expander.expanded {
+.tree-expander[expanded="false"] {
+    rotate: 0px 0px 0px;
+}
+
+.tree-expander[expanded="true"] {
     rotate: 0px 0px 90px;
 }
 
+.tree-expander-empty {
+    size: 12px 12px;
+    margin: 0px 2px;
+}
+
 .tree-label {
-    height: 16px;
+    height: fit;
+    margin-left: 2px;
+    align: start center;
+    wrap: false;
 }
 
 .code-editor {

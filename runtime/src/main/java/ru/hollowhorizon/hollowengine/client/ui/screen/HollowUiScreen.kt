@@ -16,6 +16,9 @@ import ru.hollowhorizon.hollowengine.client.ui.scripting.clientScripts
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
+import java.util.*
+
+private const val NanosPerMillisecond = 1_000_000L
 
 abstract class HollowUiScreen(
     title: String,
@@ -112,20 +115,7 @@ abstract class HollowUiScreen(
         val nowMillis = System.currentTimeMillis()
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
-        val sizeChanged = width != lastWidth || height != lastHeight
-        val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
-        val pointerChanged = mouseX.toFloat() != lastFrameMouseX || mouseY.toFloat() != lastFrameMouseY
-        val needsPointerRebuild = pointerChanged && cachedRoot?.hasLiveCursorPopup() == true
-        val uiChanged = applyPendingUiChanges()
-        if (uiChanged) uiDirty = true
-        val needsRebuild = frame == null ||
-                uiDirty ||
-                sizeChanged ||
-                stylesheetChanged ||
-                rebuildEveryFrame() ||
-                uiChanged ||
-                needsPointerRebuild
-        val current = if (needsRebuild) refreshFrame(nowMillis) else frame!!
+        val current = updateUi(nowMillis) ?: return
         if (completeClosingIfReady(current, nowMillis)) return
         val activeFrame = if (closing) {
             current
@@ -288,6 +278,25 @@ abstract class HollowUiScreen(
         surface.setScrollImmediate(node, offset.x, offset.y)
     }
 
+    private fun updateUi(nowMillis: Long = System.currentTimeMillis(), force: Boolean = false): HollowUiFrame? {
+        if (width <= 0 || height <= 0) return frame
+        val uiChanged = applyPendingUiChanges(nowMillis * NanosPerMillisecond)
+        if (uiChanged) uiDirty = true
+        val root = cachedRoot
+        val sizeChanged = width != lastWidth || height != lastHeight
+        val stylesheetChanged = root?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
+        val pointerChanged = mouseX != lastFrameMouseX || mouseY != lastFrameMouseY
+        val needsPointerRebuild = pointerChanged && root?.hasLiveCursorPopup() == true
+        val needsRebuild = force ||
+                frame == null ||
+                uiDirty ||
+                sizeChanged ||
+                stylesheetChanged ||
+                rebuildEveryFrame() ||
+                needsPointerRebuild
+        return if (needsRebuild) refreshFrame(nowMillis) else frame
+    }
+
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         val root = currentRoot()
         input.prepareRoot(root, closing)
@@ -303,21 +312,13 @@ abstract class HollowUiScreen(
 
     private fun currentFrameForInput(): HollowUiFrame? {
         if (width <= 0 || height <= 0) return frame
+        if (frame == null) return refreshFrame()
         val sizeChanged = width != lastWidth || height != lastHeight
         val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
         val pointerChanged = mouseX != lastFrameMouseX || mouseY != lastFrameMouseY
         val needsPointerRebuild = pointerChanged && cachedRoot?.hasLiveCursorPopup() == true
-        val uiChanged = applyPendingUiChanges()
-        if (uiChanged) uiDirty = true
-        return if (frame == null ||
-            sizeChanged ||
-            rebuildEveryFrame()
-        ) {
-            refreshFrame()
-        } else {
-            if (stylesheetChanged || uiChanged || needsPointerRebuild) uiDirty = true
-            frame
-        }
+        if (sizeChanged || stylesheetChanged || needsPointerRebuild || rebuildEveryFrame()) uiDirty = true
+        return frame
     }
 
     override fun removed() {
@@ -393,7 +394,7 @@ abstract class HollowUiScreen(
                     val currentRoot = cachedRoot ?: return@execute
                     prepared.applyInputHints(currentRoot)
                     preparedScripts = prepared
-                    if (width > 0 && height > 0) refreshFrame()
+                    invalidateUi()
                 }
             }
         }
@@ -403,15 +404,29 @@ abstract class HollowUiScreen(
 }
 
 private fun UiNode.hasLiveCursorPopup(): Boolean {
-    return children.any { child ->
-        (child is PopupNode && child.anchor.isLiveCursor()) || child.hasLiveCursorPopup()
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        for (child in node.children) {
+            if (child is PopupNode && child.anchor.isLiveCursor()) return true
+            stack.add(child)
+        }
     }
+    return false
 }
 
 private fun UiNode.hasDescendantKey(key: String): Boolean {
-    return children.any { child ->
-        UiNodeKeys.key(child) == key || child.hasDescendantKey(key)
+    val stack = ArrayDeque<UiNode>()
+    children.asReversed().forEach(stack::add)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        if (UiNodeKeys.key(node) == key) return true
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
     }
+    return false
 }
 
 private fun UiPopupAnchor.isLiveCursor(): Boolean {
