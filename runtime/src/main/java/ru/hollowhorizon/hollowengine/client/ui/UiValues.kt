@@ -284,7 +284,10 @@ data class UiTransform(
     val pivot: UiTransformPivot = UiTransformPivot.Center,
     val perspective: Float = 0f,
 ) {
-    val needsFramebuffer: Boolean get() = rotate.x != 0f || rotate.y != 0f || rotate.z != 0f || perspective != 0f
+    val needsFramebuffer: Boolean get() = !rotate.x.isAlmostZero() || !rotate.y.isAlmostZero()
+
+    private fun Float.isAlmostZero(epsilon: Float = 0.0001f): Boolean =
+        kotlin.math.abs(this) <= epsilon
 
     fun matrix(pivotPoint: UiVec3 = pivot.resolve(0f, 0f)): UiMatrix4 {
         var result = UiMatrix4.identity()
