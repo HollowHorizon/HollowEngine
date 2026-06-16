@@ -5,20 +5,31 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import java.io.File
+import java.util.Base64
 
 private const val BinarySampleSize = 8192
+private const val AutoSaveDelayMillis = 900L
 
 internal class HollowIdeModel {
     val tree = HollowIdeFileTree()
     val files = mutableStateMapOf<String, HollowIdeOpenFile>()
     var selectedTreePath by mutableStateOf("")
         private set
+    private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val pendingSaves = mutableMapOf<String, Job>()
 
     fun visibleTreeItems(filter: String): List<UiTreeItem<HollowIdeFileNode>> {
         return tree.visible(filter).map { node ->
@@ -51,9 +62,12 @@ internal class HollowIdeModel {
 
     fun openFile(path: String): HollowIdeOpenResult {
         selectedTreePath = path
-        files[path]?.let { return HollowIdeOpenResult.File(it, created = false) }
         val file = path.fromReadablePath()
         if (!file.isFile || file.isProbablyBinary()) return HollowIdeOpenResult.Unsupported
+        files[path]?.let { opened ->
+            if (!opened.dirty) opened.refresh(file.readText())
+            return HollowIdeOpenResult.File(opened, created = false)
+        }
         val opened = HollowIdeOpenFile(path, file.readText())
         files[path] = opened
         return HollowIdeOpenResult.File(opened, created = true)
@@ -61,10 +75,12 @@ internal class HollowIdeModel {
 
     fun updateText(path: String, text: String) {
         files[path]?.update(text)
+        scheduleSave(path)
     }
 
     fun save(path: String): Boolean {
         val file = files[path] ?: return false
+        pendingSaves.remove(path)?.cancel()
         path.fromReadablePath().writeText(file.text)
         file.markSaved()
         tree.refresh()
@@ -77,6 +93,24 @@ internal class HollowIdeModel {
             if (file.dirty && save(file.path)) count++
         }
         return count
+    }
+
+    private fun scheduleSave(path: String) {
+        val file = files[path]?.takeIf { it.dirty } ?: return
+        val text = file.text
+        pendingSaves.remove(path)?.cancel()
+        pendingSaves[path] = saveScope.launch {
+            delay(AutoSaveDelayMillis)
+            runCatching {
+                path.fromReadablePath().writeText(text)
+            }.onSuccess {
+                Minecraft.getInstance().execute {
+                    pendingSaves.remove(path)
+                    files[path]?.markSavedIfText(text)
+                    tree.refresh()
+                }
+            }
+        }
     }
 }
 
@@ -99,7 +133,7 @@ internal class HollowIdeOpenFile(
     val title: String get() = path.substringAfterLast('/').ifEmpty { path }
 
     fun dockItem(): DockItem {
-        return DockItem(id, if (dirty) "$title *" else title, IconHelper.forPath(path).toString())
+        return DockItem(id, title, IconHelper.forPath(path).toString(), dirty = dirty)
     }
 
     fun update(next: String) {
@@ -110,6 +144,15 @@ internal class HollowIdeOpenFile(
 
     fun markSaved() {
         dirty = false
+    }
+
+    fun markSavedIfText(savedText: String) {
+        if (text == savedText) dirty = false
+    }
+
+    fun refresh(next: String) {
+        if (dirty || text == next) return
+        text = next
     }
 }
 
@@ -184,7 +227,7 @@ internal class HollowIdeFileNode(
 }
 
 internal fun fileDockItemId(path: String): String {
-    return "ide-file-" + path.replace(Regex("[^A-Za-z0-9_-]"), "_")
+    return "ide-file-" + Base64.getUrlEncoder().withoutPadding().encodeToString(path.toByteArray())
 }
 
 private fun File.isProbablyBinary(): Boolean {

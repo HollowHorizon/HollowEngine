@@ -12,7 +12,6 @@ import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiCompletionContext
 import ru.hollowhorizon.hollowengine.client.ui.UiCompletionContributor
 import ru.hollowhorizon.hollowengine.client.ui.UiInlayHint
-import ru.hollowhorizon.hollowengine.client.ui.UiInlayHintsProvider
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiTextCompletion
 import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnostic
@@ -52,6 +51,9 @@ internal class HollowIdeEditorSession(
     private var snapshot = EditorAnalysisSnapshot.Empty
     @Volatile
     private var completionSnapshot = CompletionSnapshot.Empty
+    private val publishedRevision = AtomicLong()
+
+    val revision: Long get() = publishedRevision.get()
 
     val highlighter: UiCaretAwareSyntaxHighlighter = object : UiCaretAwareSyntaxHighlighter {
         override fun highlight(text: String, caret: Int): List<UiTextHighlight> {
@@ -59,7 +61,10 @@ internal class HollowIdeEditorSession(
             val current = snapshot
             return when {
                 current.matches(text, caret) -> current.highlights
-                current.matchesText(text) -> current.highlights
+                current.matchesText(text) -> {
+                    requestAnalysis(text, caret)
+                    current.highlights
+                }
                 current.hasText -> current.highlightsForEditedText(text, ::lightweightHighlights)
                 else -> lightweightHighlights(text)
             }
@@ -71,11 +76,11 @@ internal class HollowIdeEditorSession(
         completionSnapshot.takeIf { it.matches(context.text, context.caret) }?.items.orEmpty()
     }
 
-    val inlayHints: UiInlayHintsProvider = UiInlayHintsProvider { text ->
+    fun inlayHints(text: String): List<UiInlayHint> {
         val current = snapshot
         if (!current.matchesText(text)) requestAnalysis(text, current.caret)
         val next = snapshot
-        when {
+        return when {
             next.matchesText(text) -> next.inlayHints
             next.hasText -> next.inlayHintsForEditedText(text)
             else -> emptyList()
@@ -139,12 +144,14 @@ internal class HollowIdeEditorSession(
     private fun publishAnalysisIfCurrent(requestRevision: Long, update: () -> Unit) {
         if (requestRevision < analysisRevision.get()) return
         update()
+        publishedRevision.incrementAndGet()
         Minecraft.getInstance().execute(onUpdated)
     }
 
     private fun publishCompletionIfCurrent(requestRevision: Long, update: () -> Unit) {
         if (requestRevision < completionRevision.get()) return
         update()
+        publishedRevision.incrementAndGet()
         Minecraft.getInstance().execute(onUpdated)
     }
 
@@ -247,22 +254,31 @@ private data class EditorAnalysisSnapshot(
 
     fun inlayHintsForEditedText(editedText: String): List<UiInlayHint> {
         if (!hasText) return emptyList()
-        val commonPrefix = commonPrefixLength(text, editedText)
-        val commonSuffix = commonSuffixLength(text, editedText, commonPrefix)
-        val oldChangedStart = commonPrefix
-        val oldChangedEnd = text.length - commonSuffix
-        val delta = editedText.length - text.length
-        return inlayHints.mapNotNull { hint ->
-            when {
-                hint.offset <= oldChangedStart -> hint
-                hint.offset >= oldChangedEnd -> hint.copy(offset = (hint.offset + delta).coerceIn(0, editedText.length))
-                else -> null
-            }
-        }
+        return shiftInlayHintsForEditedText(text, editedText, inlayHints)
     }
 
     companion object {
         val Empty = EditorAnalysisSnapshot("", 0, -1, 0, emptyList(), emptyList(), emptyList())
+    }
+}
+
+internal fun shiftInlayHintsForEditedText(
+    originalText: String,
+    editedText: String,
+    inlayHints: List<UiInlayHint>,
+): List<UiInlayHint> {
+    if (inlayHints.isEmpty()) return emptyList()
+    val commonPrefix = commonPrefixLength(originalText, editedText)
+    val commonSuffix = commonSuffixLength(originalText, editedText, commonPrefix)
+    val oldChangedStart = commonPrefix
+    val oldChangedEnd = originalText.length - commonSuffix
+    val delta = editedText.length - originalText.length
+    return inlayHints.mapNotNull { hint ->
+        when {
+            hint.offset < oldChangedStart -> hint
+            hint.offset >= oldChangedEnd -> hint.copy(offset = (hint.offset + delta).coerceIn(0, editedText.length))
+            else -> null
+        }
     }
 }
 

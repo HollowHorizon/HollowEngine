@@ -9,6 +9,7 @@ internal data class UiTextFieldCompletionPopupGeometry(
     val height: Float,
     val rowHeight: Float,
     val itemCount: Int,
+    val visibleRows: Int,
 ) {
     fun rowAt(localX: Float, localY: Float): Int? {
         if (localX < x || localX > x + width || localY < y || localY > y + height) return null
@@ -54,6 +55,7 @@ internal fun textFieldCompletionPopupGeometry(
         height = popupHeight,
         rowHeight = rowHeight,
         itemCount = itemCount,
+        visibleRows = visibleRows,
     )
 }
 

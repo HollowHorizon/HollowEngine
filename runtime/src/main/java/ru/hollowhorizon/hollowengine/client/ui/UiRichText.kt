@@ -35,6 +35,7 @@ sealed interface UiInlineItem {
         val height: Float,
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
+        val sourceLength: Int = alt.ifBlank { "\uFFFC" }.length,
     ) : UiInlineItem
 }
 

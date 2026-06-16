@@ -29,7 +29,7 @@ internal data object TextFieldDefaultKeyInputModifier : Modifier {
 }
 
 internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Boolean {
-    if (completionItems.isNotEmpty() && handleCompletionKeyInput(input)) {
+    if (completionActive && handleCompletionKeyInput(input)) {
         return true
     }
 
@@ -127,7 +127,7 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
         GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
             if (input.alt) {
                 openCompletions()
-                false
+                true
             } else {
                 multiline && insert("\n")
             }

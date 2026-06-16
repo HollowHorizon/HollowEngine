@@ -13,8 +13,8 @@ import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.lexer.KtTokens.DOT
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getChildrenOfType
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.renderVerbose
+import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
 import ru.hollowhorizon.hollowengine.logE
 val KtNamedDeclaration.isSingleUnderscore: Boolean
     get() {

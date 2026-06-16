@@ -7,6 +7,7 @@ data class DockItem(
     val closable: Boolean = true,
     val minWidth: Float = 96f,
     val minHeight: Float = 64f,
+    val dirty: Boolean = false,
 )
 
 sealed interface DockNode {

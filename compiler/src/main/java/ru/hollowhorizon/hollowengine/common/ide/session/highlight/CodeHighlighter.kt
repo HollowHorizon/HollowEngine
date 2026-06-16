@@ -14,8 +14,8 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
 import ru.hollowhorizon.hollowengine.common.ide.session.inlays.provideHints
+import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType

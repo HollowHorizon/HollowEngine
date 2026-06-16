@@ -107,7 +107,7 @@ class UiComposeTests {
     }
 
     @Test
-    fun `text completion popup is emitted as generic render commands`() {
+    fun `text completion state no longer emits legacy text field popup commands`() {
         HollowUiSurface().use { runtime ->
             runtime.setContent {
                 TextField(
@@ -127,13 +127,10 @@ class UiComposeTests {
             val frame = runtime.frame(160f, 80f)
             val popupBoxes = frame.commands.filterIsInstance<DrawBoxCommand>().filter { it.node == field }
             val popupTexts = frame.commands.filterIsInstance<DrawTextCommand>().filter { it.node == field }
-            val completionTexts = popupTexts.filter { it.text == "AlphaOption" || it.text == "template" }
 
-            assertTrue(popupBoxes.size >= 2)
-            assertTrue(popupBoxes.all { it.phase == UiRenderPhase.OVERLAY })
-            assertTrue(popupTexts.any { it.text == "AlphaOption" })
-            assertTrue(popupTexts.any { it.text == "template" })
-            assertTrue(completionTexts.all { it.phase == UiRenderPhase.OVERLAY })
+            assertEquals(listOf("AlphaOption"), field.completionItems.map { it.label })
+            assertTrue(popupBoxes.none { it.phase == UiRenderPhase.OVERLAY })
+            assertTrue(popupTexts.none { it.text == "AlphaOption" || it.text == "template" })
         }
     }
 
@@ -488,6 +485,37 @@ class UiComposeTests {
             val field = root.children.single() as TextFieldNode
             assertEquals("value", field.attributes["value"])
             assertEquals("ready", field.attributes["status"])
+        }
+    }
+
+    @Test
+    fun `compose updates tags on reused widget nodes`() {
+        val selected = mutableStateOf(false)
+
+        HollowUiComposition().use { composition ->
+            val root = composition.setContent {
+                Row(id = "tab", tags = if (selected.value) listOf("dock-tab", "selected") else listOf("dock-tab")) {
+                    Image(
+                        "hollowengine:textures/gui/icons/code_editor.svg",
+                        id = "icon",
+                        tags = if (selected.value) listOf("icon", "selected") else listOf("icon"),
+                    )
+                }
+            }
+
+            selected.value = true
+            composition.applyPendingChanges()
+
+            val tab = root.children.single() as BoxNode
+            val icon = tab.children.single() as ImageNode
+            assertEquals(setOf("dock-tab", "selected"), tab.tags)
+            assertEquals(setOf("icon", "selected"), icon.tags)
+
+            selected.value = false
+            composition.applyPendingChanges()
+
+            assertEquals(setOf("dock-tab"), tab.tags)
+            assertEquals(setOf("icon"), icon.tags)
         }
     }
 

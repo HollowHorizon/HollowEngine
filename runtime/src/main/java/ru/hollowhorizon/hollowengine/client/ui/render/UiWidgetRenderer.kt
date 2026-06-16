@@ -18,6 +18,7 @@ internal class UiWidgetRenderer(
 ) {
     private val scratchQuads = mutableListOf<UiBatchedQuad>()
     private val scratchTriangles = mutableListOf<UiBatchedTriangle>()
+    private val textFieldCaretBlinkStates = mutableMapOf<String, CaretBlinkState>()
 
     fun drawSlider(command: DrawSliderCommand, transform: UiMatrix4) {
         val width = command.rect.width
@@ -101,7 +102,7 @@ internal class UiWidgetRenderer(
         flushScratchQuads()
         appendDiagnostics(command, transform, scratchQuads)
         flushScratchQuads()
-        if (command.showCaret && textFieldCaretVisible()) {
+        if (command.showCaret && textFieldCaretVisible(command.node, command.caretVisibilityRevision)) {
             appendCaretQuads(command, transform, scratchQuads)
             flushScratchQuads()
         }
@@ -287,8 +288,13 @@ internal class UiWidgetRenderer(
         scratchTriangles.clear()
     }
 
-    private fun textFieldCaretVisible(): Boolean {
-        val phase = (System.currentTimeMillis() % 900L).toFloat() / 900f
+    private fun textFieldCaretVisible(node: TextFieldNode, revision: Long): Boolean {
+        val key = UiNodeKeys.key(node)
+        val now = System.currentTimeMillis()
+        val state = textFieldCaretBlinkStates[key]
+            ?.takeIf { it.revision == revision }
+            ?: CaretBlinkState(revision, now).also { textFieldCaretBlinkStates[key] = it }
+        val phase = ((now - state.startedAtMillis) % CaretBlinkPeriodMillis).toFloat() / CaretBlinkPeriodMillis.toFloat()
         return phase < 0.55f
     }
 
@@ -469,5 +475,12 @@ internal class UiWidgetRenderer(
         markTextBatchDirty()
     }
 }
+
+private data class CaretBlinkState(
+    val revision: Long,
+    val startedAtMillis: Long,
+)
+
+private const val CaretBlinkPeriodMillis = 900L
 
 private const val IndentGuideSize = 4

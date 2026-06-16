@@ -296,7 +296,11 @@ private fun DockTab(
 
     Row(
         id = tabNodeId(item.id),
-        tags = if (selected) listOf(DockTags.Tab, DockTags.Selected) else listOf(DockTags.Tab),
+        tags = buildList {
+            add(DockTags.Tab)
+            if (selected) add(DockTags.Selected)
+            if (item.dirty) add(DockTags.Dirty)
+        },
         modifier = Modifier.then(
             Modifier.size(width = DockTabWidth.px, height = DockTabHeight.px),
             Modifier.margin(DockTabMargin.px),
@@ -448,6 +452,7 @@ object DockTags {
     const val TabBar = "dock-tab-bar"
     const val Tab = "dock-tab"
     const val Selected = "selected"
+    const val Dirty = "dirty"
     const val Header = "dock-header"
     const val Window = "dock-window"
     const val Content = "dock-content"

@@ -132,7 +132,7 @@ fun Box(
                 this.layout = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -154,7 +154,7 @@ fun Column(
                 layout = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -176,7 +176,7 @@ fun Row(
                 layout = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -198,7 +198,7 @@ fun LazyColumn(
                 layout = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -220,7 +220,7 @@ fun LazyRow(
                 layout = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -244,7 +244,7 @@ fun Layout(
                 this.layout = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -267,7 +267,7 @@ fun Text(
                 text = it.bound()
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -290,7 +290,7 @@ fun Text(
                 this.content = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -323,7 +323,7 @@ fun Image(
                 this.source = it.bound()
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
     )
 }
@@ -344,7 +344,7 @@ fun Canvas(
                 this.renderer = it
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
     )
 }
@@ -370,7 +370,7 @@ fun Element(
                 attributes,
             )
         },
-        update = { updateCommon(modifiers, attributes) },
+        update = { updateCommon(modifiers, attributes, tags.map { it.removePrefix(".") }) },
         content = content,
     )
 }
@@ -395,7 +395,7 @@ fun Slider(
                 apply(it)
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
     )
 }
@@ -418,7 +418,7 @@ fun Checkbox(
                 apply(it)
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
     )
 }
@@ -434,6 +434,7 @@ fun TextField(
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
+    inlayRevision: Long = 0L,
     placeholder: String = "",
     onChange: ((String) -> Unit)? = null,
     id: String? = null,
@@ -453,6 +454,7 @@ fun TextField(
         diagnostics,
         inlayHints,
         inlayHintsProvider,
+        inlayRevision,
         placeholder,
         onChange,
     )
@@ -481,19 +483,21 @@ fun TextField(
                 apply(it)
                 invalidateLayout()
             }
-            updateCommon(textFieldModifiers, attributes)
+            updateCommon(textFieldModifiers, attributes, tags)
         },
         content = {
-            TextFieldInlayWidgets(value, inlayHints, inlayHintsProvider)
+            TextFieldInlayWidgets(value, inlayHints, inlayHintsProvider, inlayRevision)
         },
     )
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun TextFieldInlayWidgets(
     value: String,
     inlayHints: List<UiInlayHint>,
     provider: UiInlayHintsProvider?,
+    revision: Long,
 ) {
     textFieldActiveInlayHints(value, inlayHints, provider).forEachIndexed { index, hint ->
         InlineWidget(
@@ -521,7 +525,7 @@ fun Item(
                 this.item = it.bound()
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
     )
 }
@@ -542,7 +546,7 @@ fun Entity(
                 this.entity = it.bound()
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
     )
 }
@@ -566,7 +570,7 @@ fun Popup(
                 apply(it)
                 invalidateLayout()
             }
-            updateCommon(modifiers, attributes)
+            updateCommon(modifiers, attributes, tags)
         },
         content = content,
     )
@@ -594,6 +598,7 @@ private data class TextFieldValues(
     val diagnostics: List<UiTextDiagnostic>,
     val inlayHints: List<UiInlayHint>,
     val inlayHintsProvider: UiInlayHintsProvider?,
+    val inlayRevision: Long,
     val placeholder: String,
     val onChange: ((String) -> Unit)?,
 )
@@ -637,7 +642,17 @@ private fun PopupNode.apply(values: PopupValues) {
 fun <T : BaseUiNode> Updater<T>.updateCommon(
     modifiers: List<Modifier>,
     attributes: Map<String, String>,
+    tags: Iterable<String>? = null,
 ) {
+    if (tags != null) {
+        val normalizedTags = tags.map { it.removePrefix(".") }.toSet()
+        update(normalizedTags) {
+            if (this.tags == it) return@update
+            this.tags.clear()
+            this.tags += it
+            invalidateLayout()
+        }
+    }
     update(modifiers) {
         this.modifiers.clear()
         this.modifiers += it

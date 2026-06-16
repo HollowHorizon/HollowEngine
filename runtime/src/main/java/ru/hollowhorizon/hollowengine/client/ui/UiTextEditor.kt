@@ -166,7 +166,8 @@ private fun String.mergeTextWithInlays(
                     width = metrics?.width ?: 0f,
                     height = metrics?.height ?: 0f,
                     align = UiInlineAlign.MIDDLE,
-                    alt = hint.text,
+                    alt = "",
+                    sourceLength = 0,
                 )
             }
         }

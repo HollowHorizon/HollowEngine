@@ -51,6 +51,14 @@ data class TextFieldPersistentState(
     val carets: List<Int>,
     val caretRanges: List<UiTextCaret> = emptyList(),
     val caretVisibilityRevision: Long = 0L,
+    val completionItems: List<UiTextCompletion> = emptyList(),
+    val completionActive: Boolean = false,
+    val completionAnchor: Int = value.length,
+    val completionSelectedIndex: Int = 0,
+    val completionReplacementStart: Int = value.length,
+    val completionReplacementEnd: Int = value.length,
+    val completionLineStart: Int = 0,
+    val completionLineEnd: Int = value.length,
 ) : UiNodePersistentState {
     override val type: String = UiNodeType.TEXT_FIELD.typeName
 }

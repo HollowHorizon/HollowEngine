@@ -63,7 +63,7 @@ object HollowIdeOverlay {
     private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
     private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
     private var editorAnalysisRevision by mutableStateOf(0)
-    private val editorOverlays = HollowIdeEditorOverlays(input) { invalidateUi() }
+    private val editorOverlays = HollowIdeEditorOverlays(input, ::setScrollImmediate) { invalidateUi() }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
 
@@ -116,6 +116,13 @@ object HollowIdeOverlay {
         if (!isVisible()) return false
         val point = hollowIdeOverlayPoint(x, y)
         val frame = currentFrameForInput() ?: return false
+        editorOverlays.completionScrollTargetAt(frame, point.x, point.y)?.let { target ->
+            val range = frame.layout[target].scrollRange
+            val delta = scrollWheelDelta(range, scrollX, scrollY, hollowIdeHorizontalScrollModifierDown())
+            surface.scroll(target, delta.x * 32f, delta.y * 32f)
+            invalidateUi()
+            return true
+        }
         val target = input.scrollTargetAt(frame, point.x, point.y) ?: return false
         if (target is TextFieldNode && hollowIdeControlModifierDown()) {
             val editorId = target.id?.removePrefix("editor-")
@@ -305,7 +312,7 @@ object HollowIdeOverlay {
             onExpandedChange = { openDropdown = if (it) "open-files" else null },
             items = files.map { file ->
                 UiDropdownItem(
-                    label = if (file.dirty) "${file.title} *" else file.title,
+                    label = file.title,
                     icon = file.dockItem().icon,
                     onClick = { dock.focus(file.id) },
                 )
@@ -350,8 +357,9 @@ object HollowIdeOverlay {
                 invalidateUi()
             }
         }
-        val analysisRevision = editorAnalysisRevision
+        val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
+        val inlayHints = editorSession.inlayHints(file.text)
         val fontSize = editorFontSize
         val editorId = "editor-${file.id}"
         Column(tags = listOf("ide-editor-shell")) {
@@ -365,13 +373,16 @@ object HollowIdeOverlay {
                     value = file.text,
                     onChange = { text ->
                         model.updateText(file.path, text)
+                        editorSession.requestAnalysis(text, text.length)
                         dock.updateItem(file.dockItem())
                     },
                     highlighter = editorSession.highlighter,
                     completions = editorSession.completions,
                     diagnostics = diagnostics,
-                    inlayHints = editorSession.inlayHints,
+                    inlayHints = inlayHints,
+                    inlayRevision = analysisRevision,
                     id = editorId,
+                    attributes = mapOf("analysis-revision" to analysisRevision.toString()),
                     modifier = Modifier.then(
                         Modifier.size(100.percent, 100.percent),
                         Modifier.fontSize(fontSize),
@@ -438,6 +449,9 @@ object HollowIdeOverlay {
         activeButton = button
         lastMouseX = mouseX
         lastMouseY = mouseY
+        if (button == 0 && editorOverlays.closeCompletionsOutside(frame, mouseX, mouseY)) {
+            invalidateUi()
+        }
         val scrollbarResult = input.scrollbarMouseClicked(frame, mouseX, mouseY, button, ::setScrollImmediate)
         if (scrollbarResult.handled) {
             invalidateUi()

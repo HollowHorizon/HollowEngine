@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 
 internal class HollowIdeEditorOverlays(
     private val input: HollowUiInputController,
+    private val setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
     private val invalidateUi: () -> Unit,
 ) {
     private val completionPopups = mutableStateMapOf<String, HollowIdeCompletionPopupState>()
@@ -23,7 +24,7 @@ internal class HollowIdeEditorOverlays(
             ),
         ) {
             LazyColumn(
-                id = "ide-completion-list-$fileId",
+                id = completionListId(fileId),
                 tags = listOf("ide-completion-list"),
                 modifier = Modifier.then(
                     Modifier.size(100.percent, 100.percent),
@@ -48,13 +49,18 @@ internal class HollowIdeEditorOverlays(
     fun DiagnosticTooltip(fileId: String) {
         val state = diagnosticTooltips[fileId] ?: return
         Box(
+            mode = UiBoxMode.STACK,
             tags = listOf("ide-diagnostic-tooltip", state.severity.name.lowercase()),
             modifier = Modifier.then(
                 Modifier.position(state.x.px, state.y.px, 50f),
-                Modifier.size(state.width.px, state.height.px),
+                Modifier.maxSize(state.maxWidth.px, UiLength.Auto),
             ),
         ) {
-            Text(state.message, tags = listOf("ide-diagnostic-tooltip-message"))
+            Text(
+                state.message,
+                tags = listOf("ide-diagnostic-tooltip-message"),
+                modifier = Modifier.maxSize(100.percent, UiLength.Auto),
+            )
         }
     }
 
@@ -70,14 +76,6 @@ internal class HollowIdeEditorOverlays(
             modifier = Modifier.then(
                 Modifier.size(100.percent, state.rowHeight.px),
                 Modifier.input(clickable = true, hoverable = true),
-                Modifier.onEnter { event ->
-                    if (state.node.selectCompletion(index)) invalidateUi()
-                    event.consume()
-                },
-                Modifier.onHover { event ->
-                    if (state.node.selectCompletion(index)) invalidateUi()
-                    event.consume()
-                },
                 Modifier.onClick { event ->
                     if (state.node.acceptCompletion(index)) {
                         input.saveState(state.node)
@@ -118,16 +116,30 @@ internal class HollowIdeEditorOverlays(
                 node.visibleCompletionItems(CompletionPopupWindowSize)
                 val totalItems = node.completionItems
                 val selectedIndex = node.completionSelectedIndex.coerceIn(0, totalItems.lastIndex)
-                val scrollOffset = frame.resolved.styles.keys
-                    .firstOrNull { it.id == "ide-completion-list-$editorId" }
-                    ?.let { frame.layout.nodes[it]?.scrollOffset?.y }
-                    ?: 0f
+                val listNode = frame.resolved.styles.keys.firstOrNull { it.id == completionListId(editorId) }
+                val scrollOffset = listNode?.let { frame.layout.nodes[it]?.scrollOffset?.y } ?: 0f
+                val previousSelectedIndex = completionPopups[editorId]?.selectedIndex
+                val selectedChanged = previousSelectedIndex != null && previousSelectedIndex != selectedIndex
                 val firstIndex = completionWindowStart(
                     totalCount = totalItems.size,
                     selectedIndex = selectedIndex,
+                    selectedChanged = selectedChanged,
                     scrollOffset = scrollOffset,
                     rowHeight = geometry.rowHeight,
+                    visibleRows = geometry.visibleRows,
                 )
+                if (selectedChanged && listNode != null) {
+                    val targetScroll = completionScrollIndex(
+                        totalCount = totalItems.size,
+                        selectedIndex = selectedIndex,
+                        scrollOffset = scrollOffset,
+                        rowHeight = geometry.rowHeight,
+                        visibleRows = geometry.visibleRows,
+                    ) * geometry.rowHeight
+                    if (frame.layout.nodes[listNode]?.scrollOffset?.y != targetScroll) {
+                        setScrollImmediate(listNode, UiScrollOffset(y = targetScroll))
+                    }
+                }
                 val items = totalItems
                     .asSequence()
                     .drop(firstIndex)
@@ -143,6 +155,8 @@ internal class HollowIdeEditorOverlays(
                         totalCount = totalItems.size,
                         x = localOriginX + geometry.x,
                         y = localOriginY + geometry.y,
+                        globalX = layoutNode.content.x + geometry.x,
+                        globalY = layoutNode.content.y + geometry.y,
                         width = geometry.width,
                         height = geometry.height,
                         rowHeight = geometry.rowHeight,
@@ -164,6 +178,26 @@ internal class HollowIdeEditorOverlays(
         return frame.resolved.styles.keys
             .filterIsInstance<TextFieldNode>()
             .any { node -> node.diagnostics.isNotEmpty() }
+    }
+
+    fun closeCompletionsOutside(frame: HollowUiFrame, mouseX: Float, mouseY: Float): Boolean {
+        if (completionPopups.isEmpty()) return false
+        val clickedInsidePopup = completionPopups.values.any { it.contains(mouseX, mouseY) }
+        if (clickedInsidePopup) return false
+        var changed = false
+        frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().forEach { node ->
+            if (node.closeCompletions()) {
+                input.saveState(node)
+                changed = true
+            }
+        }
+        return changed
+    }
+
+    fun completionScrollTargetAt(frame: HollowUiFrame, mouseX: Float, mouseY: Float): UiNode? {
+        val editorId = completionPopups.entries.firstOrNull { (_, state) -> state.contains(mouseX, mouseY) }?.key
+            ?: return null
+        return frame.resolved.styles.keys.firstOrNull { it.id == completionListId(editorId) }
     }
 
     private fun diagnosticTooltipAtPointer(
@@ -190,10 +224,17 @@ internal class HollowIdeEditorOverlays(
             index in diagnostic.start until end
         } ?: return null
         val message = diagnostic.message.take(220)
-        val maxWidth = layoutNode.content.width.coerceIn(140f, 360f)
-        val width = (message.longestWordWidth() + 22f)
+        val maxWidth = (layoutNode.content.width - 12f).coerceIn(140f, 420f)
+        val measured = UiTextLayouter.measure(
+            text = message,
+            availableWidth = maxWidth - DiagnosticTooltipHorizontalPadding,
+            knownWidth = null,
+            wrap = true,
+            fontSize = DiagnosticTooltipFontSize,
+        )
+        val width = (measured.width + DiagnosticTooltipHorizontalPadding)
             .coerceIn(140f, maxWidth)
-        val height = (message.estimatedWrappedLineCount(width - 18f) * DiagnosticTooltipLineHeight + 10f)
+        val height = (measured.height + DiagnosticTooltipVerticalPadding)
             .coerceIn(DiagnosticTooltipMinHeight, DiagnosticTooltipMaxHeight)
         val x = (local.x - (layoutNode.content.x - layoutNode.rect.x) + 12f)
             .coerceIn(4f, (layoutNode.content.width - width - 4f).coerceAtLeast(4f))
@@ -204,8 +245,7 @@ internal class HollowIdeEditorOverlays(
             severity = diagnostic.severity,
             x = localOriginX + x,
             y = localOriginY + y,
-            width = width,
-            height = height,
+            maxWidth = maxWidth,
         )
     }
 }
@@ -229,10 +269,16 @@ private data class HollowIdeCompletionPopupState(
     val totalCount: Int,
     val x: Float,
     val y: Float,
+    val globalX: Float,
+    val globalY: Float,
     val width: Float,
     val height: Float,
     val rowHeight: Float,
-)
+) {
+    fun contains(mouseX: Float, mouseY: Float): Boolean {
+        return mouseX >= globalX && mouseX <= globalX + width && mouseY >= globalY && mouseY <= globalY + height
+    }
+}
 
 private data class HollowIdeCompletionItemState(
     val index: Int,
@@ -244,51 +290,52 @@ private data class HollowIdeDiagnosticTooltipState(
     val severity: UiTextDiagnosticSeverity,
     val x: Float,
     val y: Float,
-    val width: Float,
-    val height: Float,
+    val maxWidth: Float,
 )
 
-private const val DiagnosticTooltipCharacterWidth = 6f
-private const val DiagnosticTooltipLineHeight = 13f
+private const val DiagnosticTooltipFontSize = 11f
+private const val DiagnosticTooltipHorizontalPadding = 18f
+private const val DiagnosticTooltipVerticalPadding = 10f
 private const val DiagnosticTooltipMinHeight = 24f
-private const val DiagnosticTooltipMaxHeight = 92f
+private const val DiagnosticTooltipMaxHeight = 128f
 private const val CompletionPopupWindowSize = 48
+private const val CompletionPopupOverscanRows = 12
 
-private fun String.longestWordWidth(): Float {
-    return splitToSequence(' ', '\n', '\t')
-        .maxOfOrNull { word -> word.length * DiagnosticTooltipCharacterWidth }
-        ?: 0f
-}
-
-private fun String.estimatedWrappedLineCount(width: Float): Int {
-    val charactersPerLine = (width / DiagnosticTooltipCharacterWidth).toInt().coerceAtLeast(1)
-    var lines = 1
-    var lineLength = 0
-    split(' ', '\n', '\t').forEach { word ->
-        if (word.isEmpty()) return@forEach
-        val extra = if (lineLength == 0) word.length else word.length + 1
-        if (lineLength > 0 && lineLength + extra > charactersPerLine) {
-            lines++
-            lineLength = word.length
-        } else {
-            lineLength += extra
-        }
-    }
-    return lines
-}
+private fun completionListId(editorId: String) = "ide-completion-list-$editorId"
 
 private fun completionWindowStart(
     totalCount: Int,
     selectedIndex: Int,
+    selectedChanged: Boolean,
     scrollOffset: Float,
     rowHeight: Float,
+    visibleRows: Int,
 ): Int {
     if (totalCount <= CompletionPopupWindowSize) return 0
-    val scrollIndex = (scrollOffset / rowHeight.coerceAtLeast(1f)).toInt()
-        .coerceIn(0, totalCount - CompletionPopupWindowSize)
-    if (selectedIndex in scrollIndex until scrollIndex + CompletionPopupWindowSize) return scrollIndex
-    val centered = selectedIndex - CompletionPopupWindowSize / 2
-    return centered.coerceIn(0, totalCount - CompletionPopupWindowSize)
+    val scrollIndex = completionScrollIndex(totalCount, selectedIndex, scrollOffset, rowHeight, visibleRows)
+    val virtualStart = if (selectedChanged) {
+        scrollIndex - CompletionPopupOverscanRows
+    } else {
+        scrollIndex
+    }
+    return virtualStart.coerceIn(0, totalCount - CompletionPopupWindowSize)
+}
+
+private fun completionScrollIndex(
+    totalCount: Int,
+    selectedIndex: Int,
+    scrollOffset: Float,
+    rowHeight: Float,
+    visibleRows: Int,
+): Int {
+    val rows = visibleRows.coerceAtLeast(1)
+    val maxScrollIndex = (totalCount - rows).coerceAtLeast(0)
+    val scrollIndex = (scrollOffset / rowHeight.coerceAtLeast(1f)).toInt().coerceIn(0, maxScrollIndex)
+    return when {
+        selectedIndex < scrollIndex -> selectedIndex
+        selectedIndex >= scrollIndex + rows -> selectedIndex - rows + 1
+        else -> scrollIndex
+    }.coerceIn(0, maxScrollIndex)
 }
 
 private fun <K, V> MutableMap<K, V>.replaceWith(next: Map<K, V>): Boolean {

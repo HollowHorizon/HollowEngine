@@ -4,8 +4,8 @@ import com.sunnychung.lib.multiplatform.kotlite.katari.KatariNarrativeAnalysis
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariSourceRequest
 import com.sunnychung.lib.multiplatform.kotlite.katari.analyzeKatariNarrativeScript
 import com.sunnychung.lib.multiplatform.kotlite.model.*
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
 import java.util.*

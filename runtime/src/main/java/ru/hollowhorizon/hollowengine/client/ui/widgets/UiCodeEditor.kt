@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextField
 import ru.hollowhorizon.hollowengine.client.ui.UiCompletionContributor
+import ru.hollowhorizon.hollowengine.client.ui.UiInlayHint
 import ru.hollowhorizon.hollowengine.client.ui.UiInlayHintsProvider
 import ru.hollowhorizon.hollowengine.client.ui.UiSyntaxHighlighter
 import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnostic
@@ -17,10 +18,13 @@ fun UiCodeEditor(
     highlighter: UiSyntaxHighlighter? = null,
     completions: UiCompletionContributor? = null,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
-    inlayHints: UiInlayHintsProvider? = null,
+    inlayHints: List<UiInlayHint> = emptyList(),
+    inlayHintsProvider: UiInlayHintsProvider? = null,
+    inlayRevision: Long = 0L,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier = Modifier.size(100.percent, 100.percent),
+    attributes: Map<String, String> = emptyMap(),
 ) {
     TextField(
         value = value,
@@ -29,7 +33,9 @@ fun UiCodeEditor(
         syntaxHighlighter = highlighter,
         completionContributor = completions,
         diagnostics = diagnostics,
-        inlayHintsProvider = inlayHints,
+        inlayHints = inlayHints,
+        inlayHintsProvider = inlayHintsProvider,
+        inlayRevision = inlayRevision,
         onChange = onChange,
         id = id,
         tags = listOf("code-editor") + tags,
@@ -38,5 +44,6 @@ fun UiCodeEditor(
             Modifier.input(scrollable = true),
             Modifier.textWrap(false),
         ),
+        attributes = attributes,
     )
 }

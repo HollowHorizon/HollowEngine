@@ -579,7 +579,9 @@ internal object UiTextLayouter {
                     is InlineUnit.Space -> append(' ')
                     is InlineUnit.Word -> append(unit.text)
                     is InlineUnit.Image -> append(unit.image.alt.ifBlank { "\uFFFC" })
-                    is InlineUnit.Widget -> append(unit.widget.alt.ifBlank { "\uFFFC" })
+                    is InlineUnit.Widget -> {
+                        if (unit.sourceLength > 0) append(unit.widget.alt.ifBlank { "\uFFFC" })
+                    }
                 }
             }
         }
@@ -657,6 +659,7 @@ internal object UiTextLayouter {
         ) : InlineUnit {
             override val width: Float = widget.width
             override val height: Float = widget.height
+            val sourceLength: Int = widget.sourceLength.coerceAtLeast(0)
             override var y: Float = 0f
         }
     }
@@ -847,7 +850,7 @@ private fun UiTextLine.selectionRects(
             }
 
             is UiInlineWidgetRun -> {
-                val length = fragment.widget.alt.ifBlank { "\uFFFC" }.length
+                val length = fragment.widget.sourceLength
                 val sourceEnd = sourceCursor + length
                 if (startOffset < sourceEnd && endOffset > sourceCursor) {
                     rects += UiRect(x + fragment.x, y, fragment.width, rectHeight)
@@ -881,6 +884,10 @@ internal fun UiTextLayout.verticalCaretIndex(index: Int, lineDelta: Int, fontSiz
     val x = currentLine.xAt(localOffset, fontSize, fontFamily)
     val targetLineIndex = (currentLineIndex + lineDelta).coerceIn(0, lines.lastIndex)
     val targetLine = lines[targetLineIndex]
+    if (targetLineIndex == currentLineIndex) {
+        val targetOffset = if (lineDelta < 0) 0 else targetLine.sourceLength
+        return targetLine.sourceStart + targetOffset
+    }
     var bestOffset = 0
     var bestDistance = Float.POSITIVE_INFINITY
     for (offset in 0..targetLine.sourceLength) {
@@ -974,7 +981,11 @@ private fun UiTextLine.xAt(offset: Int, fontSize: Float, fontFamily: String?): F
             }
 
             is UiInlineWidgetRun -> {
-                val widgetTextLength = fragment.widget.alt.ifBlank { "\uFFFC" }.length
+                val widgetTextLength = fragment.widget.sourceLength
+                if (widgetTextLength == 0) {
+                    cursor = fragment.x + fragment.width
+                    continue
+                }
                 if (remaining <= widgetTextLength) return x + cursor
                 remaining -= widgetTextLength
                 cursor = fragment.x + fragment.width

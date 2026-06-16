@@ -41,6 +41,18 @@ class ScriptingAnalysisEnvironmentTest {
     }
 
     @Test
+    fun `highlight keeps inlay hints after leading newline`() {
+        withEnvironment { environment ->
+            val text = "\nval answer = 42"
+
+            val lines = environment.analyzer.highlight("leading-newline.analysis.kts", text, text.length)
+
+            val secondLineHints = lines.getOrNull(1)?.hints.orEmpty()
+            assertTrue(secondLineHints.any { it.index == "val answer".length }, secondLineHints.toString())
+        }
+    }
+
+    @Test
     fun `completion sees declarations from current script`() {
         withEnvironment { environment ->
             val text = """

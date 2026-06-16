@@ -524,6 +524,7 @@ class TextFieldNode(
             .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
         val previousItems = completionItems
         val previousAnchor = completionAnchor
+        val wasActive = completionActive
         val replacement = completionReplacementRange(value, caret)
         completionItems = items
         completionActive = true
@@ -534,7 +535,7 @@ class TextFieldNode(
         val line = completionLineRange(value, caret)
         completionLineStart = line.first
         completionLineEnd = line.last
-        return previousItems != completionItems || previousAnchor != completionAnchor
+        return !wasActive || previousItems != completionItems || previousAnchor != completionAnchor
     }
 
     fun closeCompletions(): Boolean {
@@ -561,7 +562,9 @@ class TextFieldNode(
         if (completionItems.isEmpty()) return false
         val previous = completionSelectedIndex
         completionSelectedIndex = (completionSelectedIndex + delta).floorMod(completionItems.size)
-        return previous != completionSelectedIndex
+        val changed = previous != completionSelectedIndex
+        if (changed) invalidateLayout()
+        return changed
     }
 
     fun selectCompletion(index: Int): Boolean {
@@ -569,6 +572,7 @@ class TextFieldNode(
         val normalized = index.coerceIn(0, completionItems.lastIndex)
         if (completionSelectedIndex == normalized) return false
         completionSelectedIndex = normalized
+        invalidateLayout()
         return true
     }
 
@@ -612,6 +616,14 @@ class TextFieldNode(
         carets = carets.toList(),
         caretRanges = caretRanges.toList(),
         caretVisibilityRevision = caretVisibilityRevision,
+        completionItems = completionItems,
+        completionActive = completionActive,
+        completionAnchor = completionAnchor,
+        completionSelectedIndex = completionSelectedIndex,
+        completionReplacementStart = completionReplacementStart,
+        completionReplacementEnd = completionReplacementEnd,
+        completionLineStart = completionLineStart,
+        completionLineEnd = completionLineEnd,
     )
 
     override fun importState(state: UiNodePersistentState) {
@@ -624,6 +636,14 @@ class TextFieldNode(
             ?: listOf(UiTextCaret(caret, selectionAnchor))
         setCaretRangesInternal(ranges.map { it.coerceIn(value.length) })
         caretVisibilityRevision = state.caretVisibilityRevision
+        completionItems = state.completionItems
+        completionActive = state.completionActive
+        completionAnchor = state.completionAnchor.coerceIn(0, value.length)
+        completionSelectedIndex = state.completionSelectedIndex.coerceIn(0, (completionItems.size - 1).coerceAtLeast(0))
+        completionReplacementStart = state.completionReplacementStart.coerceIn(0, value.length)
+        completionReplacementEnd = state.completionReplacementEnd.coerceIn(completionReplacementStart, value.length)
+        completionLineStart = state.completionLineStart.coerceIn(0, value.length)
+        completionLineEnd = state.completionLineEnd.coerceIn(completionLineStart, value.length)
     }
 
     private fun replaceSelectedRanges(replacement: String): Boolean {

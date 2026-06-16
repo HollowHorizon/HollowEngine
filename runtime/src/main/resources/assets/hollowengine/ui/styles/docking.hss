@@ -39,11 +39,19 @@
     translate: 0px -1px 0px;
 }
 
-.dock-tab:selected {
+.dock-tab.selected {
     background: #343b4a;
     border: 1px #6a778b;
     foreground: #ffffff;
     shadow: 0px 7px 14px -6px rgba(0, 0, 0, 0.62);
+}
+
+.dock-tab.dirty {
+    border: 1px rgba(255, 192, 100, 0.72);
+}
+
+.dock-tab.dirty.selected {
+    border: 1px rgba(255, 214, 132, 0.9);
 }
 
 .dock-tab:dragging {
