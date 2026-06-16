@@ -35,11 +35,26 @@ data class HssSelector(
     val tags: Set<String> = emptySet(),
     val states: Set<UiState> = emptySet(),
     val attributes: Set<HssAttributeSelector> = emptySet(),
+    val ancestor: HssSelector? = null,
 ) {
     val specificity: Int =
-        (if (id != null) 100 else 0) + (tags.size + states.size + attributes.size) * 10 + if (type != null) 1 else 0
+        (ancestor?.specificity ?: 0) +
+                (if (id != null) 100 else 0) +
+                (tags.size + states.size + attributes.size) * 10 +
+                if (type != null) 1 else 0
 
     fun matches(node: UiNode): Boolean {
+        if (!matchesSelf(node)) return false
+        val requiredAncestor = ancestor ?: return true
+        var current = node.layoutState.parentNode
+        while (current != null) {
+            if (requiredAncestor.matches(current)) return true
+            current = current.layoutState.parentNode
+        }
+        return false
+    }
+
+    private fun matchesSelf(node: UiNode): Boolean {
         if (type != null && node.type != type) return false
         if (id != null && node.id != id) return false
         if (!node.tags.containsAll(tags)) return false

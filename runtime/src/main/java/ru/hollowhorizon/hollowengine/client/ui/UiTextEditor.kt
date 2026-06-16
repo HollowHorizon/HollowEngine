@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-internal const val InlayHintVisualOffsetX = 2f
 private const val HighlightedRichTextCacheSize = 24
 
 private val highlightedRichTextCache = object : LinkedHashMap<HighlightedRichTextCacheKey, UiRichText>(
@@ -39,6 +38,12 @@ fun interface UiSyntaxHighlighter {
     fun highlight(text: String): List<UiTextHighlight>
 }
 
+interface UiCaretAwareSyntaxHighlighter : UiSyntaxHighlighter {
+    fun highlight(text: String, caret: Int): List<UiTextHighlight>
+
+    override fun highlight(text: String): List<UiTextHighlight> = highlight(text, 0)
+}
+
 data class UiCompletionContext(
     val text: String,
     val caret: Int,
@@ -48,6 +53,8 @@ data class UiTextCompletion(
     val label: String,
     val insertText: String = label,
     val detail: String = "",
+    val tail: String = "",
+    val icon: String? = null,
     val caretOffset: Int? = null,
 )
 
@@ -66,6 +73,8 @@ data class UiTextDiagnostic(
     val end: Int,
     val message: String,
     val severity: UiTextDiagnosticSeverity = UiTextDiagnosticSeverity.ERROR,
+    val line: Int = 0,
+    val column: Int = 0,
 )
 
 data class UiInlayHint(
@@ -81,12 +90,13 @@ internal fun String.toHighlightedRichText(
     highlighter: UiSyntaxHighlighter?,
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayStyle: UiInlineStyle = UiInlineStyle(),
+    inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiRichText {
     if (isEmpty() || (highlighter == null && inlayHints.isEmpty())) {
         return UiRichText.plain(this)
     }
 
-    val cacheKey = HighlightedRichTextCacheKey(this, highlighter, inlayHints.toList(), inlayStyle)
+    val cacheKey = HighlightedRichTextCacheKey(this, highlighter, inlayHints.toList(), inlayStyle, inlayWidgetMetrics)
     highlightedRichTextCache[cacheKey]?.let { return it }
 
     val cleanHighlights = prepareHighlights(highlighter)
@@ -99,7 +109,7 @@ internal fun String.toHighlightedRichText(
     }
 
     val segments = buildTextSegments(cleanHighlights)
-    val items = mergeTextWithInlays(segments, inlaysByOffset, inlayStyle)
+    val items = mergeTextWithInlays(segments, inlaysByOffset, inlayStyle, inlayWidgetMetrics)
 
     return UiRichText(items).also { highlightedRichTextCache[cacheKey] = it }
 }
@@ -139,15 +149,25 @@ private fun String.buildTextSegments(highlights: List<UiTextHighlight>): List<Te
 private fun String.mergeTextWithInlays(
     segments: List<TextStyleSpan>,
     inlaysByOffset: Map<Int, List<UiInlayHint>>,
-    inlayStyle: UiInlineStyle
+    inlayStyle: UiInlineStyle,
+    inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,
 ): List<UiInlineItem> {
     val items = mutableListOf<UiInlineItem>()
     val emittedInlays = mutableSetOf<Int>()
+    var inlayIndex = 0
 
     fun emitInlaysAt(offset: Int) {
         if (emittedInlays.add(offset)) {
             inlaysByOffset[offset]?.forEach { hint ->
-                items += UiInlineItem.Inlay(hint.text, inlayStyle)
+                val id = textFieldInlayWidgetId(hint, inlayIndex++)
+                val metrics = inlayWidgetMetrics[id]
+                items += UiInlineItem.Widget(
+                    id = id,
+                    width = metrics?.width ?: 0f,
+                    height = metrics?.height ?: 0f,
+                    align = UiInlineAlign.MIDDLE,
+                    alt = hint.text,
+                )
             }
         }
     }
@@ -179,7 +199,24 @@ private data class HighlightedRichTextCacheKey(
     val highlighter: UiSyntaxHighlighter?,
     val inlayHints: List<UiInlayHint>,
     val inlayStyle: UiInlineStyle,
+    val inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,
 )
+
+internal fun textFieldInlayWidgetId(hint: UiInlayHint, index: Int): String {
+    val hash = hint.text.hashCode().toUInt().toString(16)
+    return "inlay-${hint.offset}-$index-$hash"
+}
+
+internal fun textFieldActiveInlayHints(
+    text: String,
+    inlayHints: List<UiInlayHint>,
+    provider: UiInlayHintsProvider?,
+): List<UiInlayHint> {
+    val hints = provider?.hints(text) ?: inlayHints
+    return hints
+        .filter { it.text.isNotBlank() }
+        .map { hint -> hint.copy(offset = hint.offset.coerceIn(0, text.length)) }
+}
 
 private data class TextStyleSpan(
     val start: Int,

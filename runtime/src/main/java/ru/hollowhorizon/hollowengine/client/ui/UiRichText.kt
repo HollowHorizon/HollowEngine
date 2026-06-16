@@ -36,21 +36,15 @@ sealed interface UiInlineItem {
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiInlineItem
-
-    data class Inlay(
-        val text: String,
-        val style: UiInlineStyle = UiInlineStyle(),
-        val paddingLeft: Float = 0f,
-        val paddingRight: Float = 0f,
-        val fontScale: Float = 0.86f,
-    ) : UiInlineItem
 }
 
 data class UiInlineStyle(
     val effects: List<UiTextEffect> = emptyList(),
+    val background: UiColor? = null,
 ) {
     fun merge(other: UiInlineStyle): UiInlineStyle = UiInlineStyle(
         effects = effects + other.effects,
+        background = other.background ?: background,
     )
 
     fun resolvedFontSize(baseFontSize: Float): Float = fontSize ?: baseFontSize.coerceAtLeast(0.0001f)
@@ -73,6 +67,7 @@ fun UiInlineStyle.withStrikethrough(): UiInlineStyle = copy(effects = effects + 
 fun UiInlineStyle.withCode(): UiInlineStyle = copy(effects = effects + Code)
 fun UiInlineStyle.withLink(url: String): UiInlineStyle = copy(effects = effects + Link(url))
 fun UiInlineStyle.withColor(value: UiColor): UiInlineStyle = copy(effects = effects + TextColor(value))
+fun UiInlineStyle.withBackground(value: UiColor): UiInlineStyle = copy(background = value)
 fun UiInlineStyle.withFontSize(value: Float): UiInlineStyle = copy(effects = effects + TextSize(value))
 fun UiInlineStyle.withFontFamily(name: String): UiInlineStyle = copy(effects = effects + TextFont(name))
 

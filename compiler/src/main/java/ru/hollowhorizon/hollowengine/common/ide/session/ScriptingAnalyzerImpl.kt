@@ -74,6 +74,7 @@ class ScriptingAnalyzerImpl(
         removeFromPsiManager(file)
     }
 
+    @Synchronized
     override fun highlight(
         name: String,
         text: String,
@@ -83,11 +84,13 @@ class ScriptingAnalyzerImpl(
         return highlightCode(file, offset)
     }
 
+    @Synchronized
     override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
         val file = getOrCreateFile(name, text)
         return createCompletions(file, offset)
     }
 
+    @Synchronized
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         val file = getOrCreateFile(name, text)
         return diagnosticCode(file)

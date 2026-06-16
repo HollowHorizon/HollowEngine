@@ -326,18 +326,18 @@ class TextFieldNode(
         set(value) {
             if (field == value) return
             field = value
-            clearInlayHintCache()
             invalidateLayout()
         }
     var inlayHintsProvider: UiInlayHintsProvider? = inlayHintsProvider
         set(value) {
             if (field === value) return
             field = value
-            clearInlayHintCache()
             invalidateLayout()
         }
     var onChange: ((String) -> Unit)? = onChange
     var completionItems: List<UiTextCompletion> = emptyList()
+        private set
+    var completionActive: Boolean = false
         private set
     var completionAnchor: Int = this.value.length
         private set
@@ -347,9 +347,9 @@ class TextFieldNode(
     private var completionReplacementEnd: Int = this.value.length
     private var completionLineStart: Int = 0
     private var completionLineEnd: Int = 0
-    private var cachedInlayProvider: UiInlayHintsProvider? = null
-    private var cachedInlayText: String? = null
-    private var cachedInlayHints: List<UiInlayHint> = emptyList()
+    private val undoStack = ArrayDeque<TextFieldHistoryEntry>()
+    private val redoStack = ArrayDeque<TextFieldHistoryEntry>()
+    private var restoringHistory = false
 
     var caret: Int = this.value.length
         private set
@@ -526,6 +526,7 @@ class TextFieldNode(
         val previousAnchor = completionAnchor
         val replacement = completionReplacementRange(value, caret)
         completionItems = items
+        completionActive = true
         completionAnchor = caret
         completionSelectedIndex = 0
         completionReplacementStart = replacement.first
@@ -537,9 +538,22 @@ class TextFieldNode(
     }
 
     fun closeCompletions(): Boolean {
-        if (completionItems.isEmpty()) return false
+        if (completionItems.isEmpty() && !completionActive) return false
         completionItems = emptyList()
+        completionActive = false
         completionSelectedIndex = 0
+        return true
+    }
+
+    fun refreshCompletions(): Boolean {
+        if (!completionActive) return false
+        val contributor = completionContributor ?: return closeCompletions()
+        val items = contributor.complete(UiCompletionContext(value, caret))
+            .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+        if (items == completionItems) return false
+        completionItems = items
+        completionSelectedIndex = completionSelectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        invalidateLayout()
         return true
     }
 
@@ -550,22 +564,45 @@ class TextFieldNode(
         return previous != completionSelectedIndex
     }
 
+    fun selectCompletion(index: Int): Boolean {
+        if (completionItems.isEmpty()) return false
+        val normalized = index.coerceIn(0, completionItems.lastIndex)
+        if (completionSelectedIndex == normalized) return false
+        completionSelectedIndex = normalized
+        return true
+    }
+
     fun acceptCompletion(index: Int = 0): Boolean {
         val item = completionItems.getOrNull(index) ?: return false
         val insertText = item.insertText.ifEmpty { item.label }
         val changed = replaceCompletionRange(insertText, item.caretOffset)
         completionItems = emptyList()
+        completionActive = false
         return changed
+    }
+
+    fun visibleCompletionItems(limit: Int = TextFieldCompletionPopupMaxItems): List<UiTextCompletion> {
+        if (completionActive) refreshCompletions()
+        return completionItems.take(limit)
     }
 
     fun currentInlayHints(): List<UiInlayHint> {
         val provider = inlayHintsProvider ?: return inlayHints
-        if (cachedInlayProvider === provider && cachedInlayText == value) return cachedInlayHints
-        val hints = provider.hints(value)
-        cachedInlayProvider = provider
-        cachedInlayText = value
-        cachedInlayHints = hints
-        return hints
+        return provider.hints(value)
+    }
+
+    fun undo(): Boolean {
+        val entry = undoStack.removeLastOrNull() ?: return false
+        redoStack.addLast(historyEntry())
+        restoreHistory(entry)
+        return true
+    }
+
+    fun redo(): Boolean {
+        val entry = redoStack.removeLastOrNull() ?: return false
+        undoStack.addLast(historyEntry())
+        restoreHistory(entry)
+        return true
     }
 
     override fun exportState(): UiNodePersistentState = TextFieldPersistentState(
@@ -594,12 +631,6 @@ class TextFieldNode(
         return replaceRanges(ranges, replacement)
     }
 
-    private fun clearInlayHintCache() {
-        cachedInlayProvider = null
-        cachedInlayText = null
-        cachedInlayHints = emptyList()
-    }
-
     private fun replaceRanges(ranges: List<TextEditRange>, replacement: String): Boolean {
         val edits = ranges
             .map { TextEditRange(it.start.coerceIn(0, value.length), it.end.coerceIn(0, value.length)) }
@@ -625,6 +656,7 @@ class TextFieldNode(
             append(value, cursor, value.length)
         }
         if (!filter.accepts(nextValue)) return false
+        recordHistorySnapshot()
 
         var offset = 0
         val nextCarets = edits.map { edit ->
@@ -643,10 +675,43 @@ class TextFieldNode(
         val end = completionReplacementEnd.coerceIn(start, value.length)
         val nextValue = value.substring(0, start) + replacement + value.substring(end)
         if (!filter.accepts(nextValue)) return false
+        recordHistorySnapshot()
         value = nextValue
         val nextCaret = start + (caretOffset ?: replacement.length).coerceIn(0, replacement.length)
         setCaretRanges(listOf(UiTextCaret(nextCaret)))
         return true
+    }
+
+    private fun recordHistorySnapshot() {
+        if (restoringHistory) return
+        val entry = historyEntry()
+        if (undoStack.lastOrNull() == entry) return
+        undoStack.addLast(entry)
+        while (undoStack.size > TextFieldHistoryLimit) undoStack.removeFirst()
+        redoStack.clear()
+    }
+
+    private fun historyEntry(): TextFieldHistoryEntry {
+        return TextFieldHistoryEntry(
+            value = value,
+            caret = caret,
+            selectionAnchor = selectionAnchor,
+            caretRanges = caretRanges.toList(),
+        )
+    }
+
+    private fun restoreHistory(entry: TextFieldHistoryEntry) {
+        restoringHistory = true
+        try {
+            value = entry.value
+            caret = entry.caret.coerceIn(0, value.length)
+            selectionAnchor = entry.selectionAnchor?.coerceIn(0, value.length)
+            setCaretRangesInternal(entry.caretRanges.map { it.coerceIn(value.length) })
+            closeCompletions()
+            caretVisibilityRevision++
+        } finally {
+            restoringHistory = false
+        }
     }
 
     private fun closeCompletionsIfCaretLeftLine() {
@@ -678,7 +743,16 @@ class TextFieldNode(
     }
 
     private data class TextEditRange(val start: Int, val end: Int)
+    private data class TextFieldHistoryEntry(
+        val value: String,
+        val caret: Int,
+        val selectionAnchor: Int?,
+        val caretRanges: List<UiTextCaret>,
+    )
 }
+
+internal const val TextFieldCompletionPopupMaxItems = 10
+private const val TextFieldHistoryLimit = 128
 
 private fun editorWordLeft(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)

@@ -118,18 +118,11 @@ private fun scrollableContentBounds(
             layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, bindings, layoutChildren)
         } else {
             val field = node as TextFieldNode
-            val editWidth = textFieldTextWidth(field, style, layout)
-            UiTextLayouter.layout(
-                field.value.ifEmpty { field.placeholder },
-                editWidth,
-                Float.POSITIVE_INFINITY,
-                textFieldWrap(style, field, constrainedWidth = true),
-                style.textAlign,
-                style.fontSize,
-                style.fontFamily,
-                preserveWhitespace = true,
-                lineSpacing = style.lineSpacing,
-                spaceWidth = style.spaceWidth,
+            layout.textLayout ?: textFieldDisplayLayout(
+                field,
+                style,
+                layout,
+                textFieldInlineWidgetMetrics(field, layouts),
             )
         }
         val textOffset = if (node is TextFieldNode) textFieldTextOffset(node, style, layout) else 0f
@@ -149,6 +142,17 @@ private fun scrollableContentBounds(
     }
     return layoutChildren(node).mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union()
         ?: layout.content
+}
+
+private fun textFieldInlineWidgetMetrics(
+    node: TextFieldNode,
+    layouts: Map<UiNode, UiLayoutNode>,
+): Map<String, UiInlineWidgetMetrics> {
+    return node.children.mapNotNull { child ->
+        val id = child.id ?: return@mapNotNull null
+        val rect = layouts[child]?.rect ?: return@mapNotNull null
+        id to UiInlineWidgetMetrics(rect.width, rect.height)
+    }.toMap()
 }
 
 private fun textLayoutForScrollBounds(

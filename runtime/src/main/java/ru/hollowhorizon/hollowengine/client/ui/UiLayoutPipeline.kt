@@ -254,10 +254,10 @@ class UiLayoutPipeline {
         val style = resolved[node]
         val boxes = nodeBoxes(rect, style, scrollbarReserves[node] ?: UiScrollbarReserve.None)
         val scrollOffset = scrollState.offset(node)
-        val textLayout = if (node is TextNode) {
-            layoutTextNode(node, resolved, style, boxes.content, scrollbarReserves, bindings)
-        } else {
-            null
+        val textLayout = when (node) {
+            is TextNode -> layoutTextNode(node, resolved, style, boxes.content, scrollbarReserves, bindings)
+            is TextFieldNode -> layoutTextFieldNode(node, resolved, style, boxes.content, scrollbarReserves, bindings)
+            else -> null
         }
         val clip = if (style.clip || style.input.scrollable) parentClip.intersect(boxes.content) else parentClip
         val localX = rect.x - parentRect.x
@@ -341,6 +341,24 @@ class UiLayoutPipeline {
                 bindings,
             )
             placeTextInlineChildren(
+                node,
+                resolved,
+                style,
+                viewport,
+                parentRect,
+                transform,
+                inputTransform,
+                clip,
+                insideFramebuffer,
+                scrollState,
+                scrollbarReserves,
+                layouts,
+                bindings,
+            )
+            return
+        }
+        if (node is TextFieldNode) {
+            placeTextFieldInlineChildren(
                 node,
                 resolved,
                 style,
@@ -460,6 +478,54 @@ class UiLayoutPipeline {
         }
     }
 
+    private fun placeTextFieldInlineChildren(
+        node: TextFieldNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        content: UiRect,
+        parentRect: UiRect,
+        transform: UiMatrix4,
+        inputTransform: UiMatrix4,
+        clip: UiRect?,
+        insideFramebuffer: Boolean,
+        scrollState: UiScrollState,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        layouts: MutableMap<UiNode, UiLayoutNode>,
+        bindings: UiBindingContext,
+    ) {
+        val widgets = layoutChildren(node).associateBy { it.id }
+        if (widgets.isEmpty() || style.textField.inlayHints != true) return
+        val textLayout = layouts[node]?.textLayout
+            ?: layoutTextFieldNode(node, resolved, style, content, scrollbarReserves, bindings)
+        val textOffset = textFieldTextOffset(node, style, layouts[node] ?: return)
+        for (line in textLayout.lines) {
+            for (fragment in line.fragments) {
+                if (fragment !is UiInlineWidgetRun) continue
+                val child = widgets[fragment.widget.id] ?: continue
+                placeNode(
+                    child,
+                    resolved,
+                    UiRect(
+                        content.x + textOffset + line.x + fragment.x,
+                        content.y + line.y + fragment.y,
+                        fragment.width,
+                        fragment.height,
+                    ),
+                    parentRect,
+                    style,
+                    clip,
+                    transform,
+                    inputTransform,
+                    insideFramebuffer,
+                    scrollState,
+                    scrollbarReserves,
+                    layouts,
+                    bindings,
+                )
+            }
+        }
+    }
+
     private fun layoutTextNode(
         node: TextNode,
         resolved: ResolvedUiTree,
@@ -488,6 +554,26 @@ class UiLayoutPipeline {
             lineSpacing = style.lineSpacing,
             spaceWidth = style.spaceWidth,
         )
+    }
+
+    private fun layoutTextFieldNode(
+        node: TextFieldNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        content: UiRect,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        bindings: UiBindingContext,
+    ): UiTextLayout {
+        val layout = temporaryTextFieldLayoutNode(node, content)
+        val widgetMetrics = measureInlineWidgetMetrics(
+            node,
+            resolved,
+            content.width,
+            content.height,
+            scrollbarReserves,
+            bindings,
+        )
+        return textFieldDisplayLayout(node, style, layout, widgetMetrics)
     }
 
     private fun enqueuePopupChildren(
@@ -1500,7 +1586,16 @@ class UiLayoutPipeline {
                 bindings,
             )
 
-            is TextFieldNode -> measureTextFieldNode(node, style, availableWidth, knownContentWidth)
+            is TextFieldNode -> measureTextFieldNode(
+                node,
+                resolved,
+                style,
+                availableWidth,
+                availableHeight,
+                scrollbarReserves,
+                knownContentWidth,
+                bindings,
+            )
             else -> {
                 if (layoutChildren(node).isEmpty()) return replacedIntrinsicSize(node, style)
 
@@ -1541,15 +1636,39 @@ class UiLayoutPipeline {
 
     private fun measureTextFieldNode(
         node: TextFieldNode,
+        resolved: ResolvedUiTree,
         style: ComputedStyle,
         availableWidth: Float,
-        knownContentWidth: Float?
+        availableHeight: Float,
+        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+        knownContentWidth: Float?,
+        bindings: UiBindingContext,
     ): LayoutSize {
+        val widgetMetrics = measureInlineWidgetMetrics(
+            node,
+            resolved,
+            availableWidth,
+            availableHeight,
+            scrollbarReserves,
+            bindings,
+        )
+        val layout = temporaryTextFieldLayoutNode(
+            node,
+            UiRect(0f, 0f, availableWidth, availableHeight),
+        )
+        val textOffset = textFieldTextOffset(node, style, layout)
+        val textWidth = (availableWidth - textOffset).coerceAtLeast(1f)
+        val knownTextWidth = knownContentWidth?.let { (it - textOffset).coerceAtLeast(1f) }
         val measured = UiTextLayouter.measure(
-            text = node.value.ifEmpty { node.placeholder },
-            availableWidth = availableWidth,
-            knownWidth = knownContentWidth,
-            wrap = textFieldWrap(style, node, knownContentWidth != null),
+            richText = node.value.ifEmpty { node.placeholder }.toHighlightedRichText(
+                highlighter = null,
+                inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
+                inlayStyle = textFieldInlayStyle(style),
+                inlayWidgetMetrics = widgetMetrics,
+            ),
+            availableWidth = textWidth,
+            knownWidth = knownTextWidth,
+            wrap = textFieldWrap(style, node, knownTextWidth != null),
             fontSize = style.fontSize,
             fontFamily = style.fontFamily,
             preserveWhitespace = true,
@@ -1557,7 +1676,7 @@ class UiLayoutPipeline {
             spaceWidth = style.spaceWidth,
         )
         return if (knownContentWidth == null) {
-            measured.copy(width = measured.width + TextFieldCaretWidth + TextFieldCaretVisibilityPadding)
+            measured.copy(width = textOffset + measured.width + TextFieldCaretWidth + TextFieldCaretVisibilityPadding)
         } else {
             measured
         }
@@ -1645,7 +1764,7 @@ class UiLayoutPipeline {
     }
 
     private fun measureInlineWidgetMetrics(
-        node: TextNode,
+        node: UiNode,
         resolved: ResolvedUiTree,
         availableWidth: Float,
         availableHeight: Float,
@@ -1695,6 +1814,18 @@ class UiLayoutPipeline {
             metrics[id] = UiInlineWidgetMetrics(size.width, size.height)
         }
         return metrics
+    }
+
+    private fun temporaryTextFieldLayoutNode(node: TextFieldNode, content: UiRect): UiLayoutNode {
+        return UiLayoutNode(
+            node = node,
+            rect = content,
+            content = content,
+            clip = null,
+            worldTransform = UiMatrix4.identity(),
+            inputTransform = UiMatrix4.identity(),
+            needsFramebuffer = false,
+        )
     }
 
 }

@@ -29,6 +29,10 @@ class HollowUiInputController {
         stateStore.clear()
     }
 
+    fun saveState(node: UiNode) {
+        stateStore.save(node)
+    }
+
     fun clearInteraction(clearFocus: Boolean = true) {
         hoveredKey = null
         hoveredLink = null
@@ -435,20 +439,23 @@ class HollowUiInputController {
         val textOffset = textFieldTextOffset(node, style, layout)
         val contentX = localX - (layout.content.x - layout.rect.x) - textOffset + layout.scrollOffset.x
         val contentY = localY - (layout.content.y - layout.rect.y) + layout.scrollOffset.y
-        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layout.content.height
-        val textLayout = UiTextLayouter.layout(
-            text = node.value,
-            width = textFieldTextWidth(node, style, layout),
-            height = textHeight,
-            wrap = style.textWrap && node.multiline,
-            align = style.textAlign,
-            fontSize = style.fontSize,
-            fontFamily = style.fontFamily,
-            preserveWhitespace = true,
-            lineSpacing = style.lineSpacing,
-            spaceWidth = style.spaceWidth,
-        )
+        val textLayout = textFieldEditLayout(node, style, layout, textFieldInlineWidgetMetrics(node, frame.layout.nodes))
         return textLayout.caretIndexAt(contentX, contentY, style.fontSize, style.fontFamily)
+    }
+
+    private fun textFieldInlineWidgetMetrics(
+        node: TextFieldNode,
+        layouts: Map<UiNode, UiLayoutNode>,
+    ): Map<String, UiInlineWidgetMetrics> {
+        return node.children.mapNotNull { child ->
+            val id = child.id ?: return@mapNotNull null
+            val rect = layouts[child]?.rect ?: return@mapNotNull null
+            id to UiInlineWidgetMetrics(rect.width, rect.height)
+        }.toMap()
+    }
+
+    private fun focusedTextField(frame: HollowUiFrame): TextFieldNode? {
+        return focusedKey?.let(frame::nodeByKey) as? TextFieldNode
     }
 
     private fun isTextDoubleClick(nodeKey: String, index: Int): Boolean {

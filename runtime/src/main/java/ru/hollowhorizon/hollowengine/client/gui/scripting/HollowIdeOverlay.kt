@@ -2,7 +2,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
@@ -29,6 +31,8 @@ internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
 private const val ToolbarHeight = 32f
 private const val StylesheetCheckIntervalMillis = 250L
 private const val NanosPerMillisecond = 1_000_000L
+private const val MinEditorFontSize = 6f
+private const val MaxEditorFontSize = 36f
 
 @ClientOnly
 object HollowIdeOverlay {
@@ -55,6 +59,11 @@ object HollowIdeOverlay {
     private var filter by mutableStateOf("")
     private var openDropdown by mutableStateOf<String?>(null)
     private var statusText by mutableStateOf("")
+    private val diagnosticsPanels = mutableStateMapOf<String, Boolean>()
+    private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
+    private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
+    private var editorAnalysisRevision by mutableStateOf(0)
+    private val editorOverlays = HollowIdeEditorOverlays(input) { invalidateUi() }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
 
@@ -73,7 +82,8 @@ object HollowIdeOverlay {
             lastMouseX = point.x
             lastMouseY = point.y
             val frame = lastFrame ?: currentFrameForInput() ?: return false
-            if (input.updateHover(frame, point.x, point.y, ::dispatchUiEvent)) invalidateUi()
+            val hoverChanged = input.updateHover(frame, point.x, point.y, ::dispatchUiEvent)
+            if (hoverChanged || editorOverlays.needsPointerUpdate(frame)) invalidateUi()
             return false
         }
         val frame = lastFrame ?: currentFrameForInput() ?: return false
@@ -107,6 +117,22 @@ object HollowIdeOverlay {
         val point = hollowIdeOverlayPoint(x, y)
         val frame = currentFrameForInput() ?: return false
         val target = input.scrollTargetAt(frame, point.x, point.y) ?: return false
+        if (target is TextFieldNode && hollowIdeControlModifierDown()) {
+            val editorId = target.id?.removePrefix("editor-")
+            if (editorId != null && editorId != target.id) {
+                val current = editorFontSize
+                val next = (current + scrollY.toFloat()).coerceIn(MinEditorFontSize, MaxEditorFontSize)
+                if (current != next) {
+                    editorFontSize = next
+                    HollowEngineConfig.ideEditorFontSize = next
+                    invalidateUi()
+                    return true
+                }
+            } else {
+                invalidateUi()
+                return true
+            }
+        }
         val range = frame.layout[target].scrollRange
         val delta = scrollWheelDelta(range, scrollX, scrollY, hollowIdeHorizontalScrollModifierDown())
         val event = UiEvent(
@@ -131,7 +157,10 @@ object HollowIdeOverlay {
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
         val frame = currentFrameForInput() ?: return false
         val result = input.keyPressed(frame, key, scanCode, modifiers, ::dispatchUiEvent)
-        if (result.handled) invalidateUi()
+        if (result.handled) {
+            editorOverlays.update(frame, lastMouseX, lastMouseY)
+            invalidateUi()
+        }
         return result.handled
     }
 
@@ -139,7 +168,10 @@ object HollowIdeOverlay {
         if (!isVisible()) return false
         val frame = currentFrameForInput() ?: return false
         val result = input.charTyped(frame, codePoint.toChar(), modifiers, ::dispatchUiEvent)
-        if (result.handled) invalidateUi()
+        if (result.handled) {
+            editorOverlays.update(frame, lastMouseX, lastMouseY)
+            invalidateUi()
+        }
         return result.handled
     }
 
@@ -312,17 +344,56 @@ object HollowIdeOverlay {
 
     @Composable
     private fun FileEditor(file: HollowIdeOpenFile) {
-        UiCodeEditor(
-            value = file.text,
-            onChange = { text ->
-                model.updateText(file.path, text)
-                dock.updateItem(file.dockItem())
-            },
-            highlighter = HollowIdeSyntaxHighlighter(file.path),
-            completions = HollowIdeCompletionContributor(file.path),
-            diagnostics = diagnosticsFor(file.path, file.text),
-            id = "editor-${file.id}",
-        )
+        val editorSession = remember(file.path) {
+            HollowIdeEditorSession(file.path) {
+                editorAnalysisRevision++
+                invalidateUi()
+            }
+        }
+        val analysisRevision = editorAnalysisRevision
+        val diagnostics = editorSession.diagnostics(file.text)
+        val fontSize = editorFontSize
+        val editorId = "editor-${file.id}"
+        Column(tags = listOf("ide-editor-shell")) {
+            Box(
+                id = "editor-stack-${file.id}",
+                mode = UiBoxMode.STACK,
+                tags = listOf("ide-editor-stack"),
+                modifier = Modifier.grow(1f),
+            ) {
+                UiCodeEditor(
+                    value = file.text,
+                    onChange = { text ->
+                        model.updateText(file.path, text)
+                        dock.updateItem(file.dockItem())
+                    },
+                    highlighter = editorSession.highlighter,
+                    completions = editorSession.completions,
+                    diagnostics = diagnostics,
+                    inlayHints = editorSession.inlayHints,
+                    id = editorId,
+                    modifier = Modifier.then(
+                        Modifier.size(100.percent, 100.percent),
+                        Modifier.fontSize(fontSize),
+                    ),
+                )
+                editorOverlays.CompletionPopup(file.id)
+                editorOverlays.DiagnosticTooltip(file.id)
+                HollowIdeDiagnosticsBadge(file.id, diagnostics) { id ->
+                    diagnosticsPanels[id] = diagnosticsPanels[id] != true
+                }
+            }
+            if (diagnosticsPanels[file.id] == true) {
+                val height = diagnosticsPanelHeights[file.id] ?: DefaultDiagnosticsPanelHeight
+                HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, delta ->
+                    diagnosticsPanelHeights[id] = ((diagnosticsPanelHeights[id] ?: DefaultDiagnosticsPanelHeight) + delta)
+                        .coerceIn(
+                            MinDiagnosticsPanelHeight,
+                            MaxDiagnosticsPanelHeight,
+                        )
+                }
+            }
+        }
     }
 
     @Composable
@@ -406,7 +477,10 @@ object HollowIdeOverlay {
         if (uiChanged) uiDirty = true
         val sizeChanged = window.guiScaledWidth != lastWidth || window.guiScaledHeight != lastHeight
         val pointerChanged = lastMouseX != lastFrameMouseX || lastMouseY != lastFrameMouseY
-        val needsPointerRebuild = pointerChanged && surface.root.hasLiveCursorPopup()
+        val needsPointerRebuild = pointerChanged && (
+                surface.root.hasLiveCursorPopup() ||
+                        lastFrame?.let(editorOverlays::needsPointerUpdate) == true
+                )
         val stylesheetChanged = stylesheetChanged(nowMillis)
         return if (lastFrame == null || uiDirty || sizeChanged || uiChanged || needsPointerRebuild || stylesheetChanged) {
             refreshFrame(nowMillis)
@@ -423,16 +497,29 @@ object HollowIdeOverlay {
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         initialize()
         val window = Minecraft.getInstance().window
-        val root = surface.composeRoot(nowMillis * NanosPerMillisecond)
+        var root = surface.composeRoot(nowMillis * NanosPerMillisecond)
         input.prepareRoot(root, closing = false)
-        return surface.frame(
+        var frame = surface.frame(
             root = root,
             width = window.guiScaledWidth.toFloat(),
             height = window.guiScaledHeight.toFloat(),
             bindings = UiBindingContext().withPointer(lastMouseX, lastMouseY),
             nowMillis = nowMillis,
-        ).also { frame ->
-            lastFrame = frame
+        )
+        if (editorOverlays.update(frame, lastMouseX, lastMouseY)) {
+            root = surface.composeRoot(nowMillis * NanosPerMillisecond)
+            input.prepareRoot(root, closing = false)
+            frame = surface.frame(
+                root = root,
+                width = window.guiScaledWidth.toFloat(),
+                height = window.guiScaledHeight.toFloat(),
+                bindings = UiBindingContext().withPointer(lastMouseX, lastMouseY),
+                nowMillis = nowMillis,
+            )
+            editorOverlays.update(frame, lastMouseX, lastMouseY)
+        }
+        return frame.also {
+            lastFrame = it
             uiDirty = false
             lastWidth = window.guiScaledWidth
             lastHeight = window.guiScaledHeight
@@ -470,3 +557,7 @@ object HollowIdeOverlay {
     }
 
 }
+
+private const val DefaultDiagnosticsPanelHeight = 160f
+private const val MinDiagnosticsPanelHeight = 90f
+private const val MaxDiagnosticsPanelHeight = 360f

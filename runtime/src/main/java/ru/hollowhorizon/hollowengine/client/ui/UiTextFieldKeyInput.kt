@@ -84,6 +84,8 @@ private fun TextFieldNode.handleClipboardAndSelection(input: UiKeyInput): Boolea
             backspace()
         }
         GLFW.GLFW_KEY_V -> handler.clipboard.let { it.isNotEmpty() && insert(it) }
+        GLFW.GLFW_KEY_Z -> if (input.shift) redo() else undo()
+        GLFW.GLFW_KEY_Y -> redo()
         else -> false
     }
 }
@@ -138,9 +140,10 @@ private fun TextFieldNode.moveTextFieldVertically(input: UiKeyInput, lineDelta: 
     val frame = input.frame ?: return false
     val layout = frame.layout[this]
     val style = frame.resolved[this]
-    val textLayout = textFieldEditLayout(this, style, layout)
+    val fontSize = style.fontSize
+    val textLayout = textFieldEditLayout(this, style, layout, textFieldInlineWidgetMetrics(this, frame.layout.nodes))
     moveCarets({ range ->
-        textLayout.verticalCaretIndex(range.position, lineDelta, style.fontSize, style.fontFamily)
+        textLayout.verticalCaretIndex(range.position, lineDelta, fontSize, style.fontFamily)
     }, input.shift)
     return true
 }
@@ -152,6 +155,17 @@ private fun visibleTextFieldLines(input: UiKeyInput): Int {
     val style = frame.resolved[field]
     val lineHeight = (style.fontSize + style.lineSpacing).coerceAtLeast(1f)
     return (layout.content.height / lineHeight).toInt().coerceAtLeast(1)
+}
+
+private fun textFieldInlineWidgetMetrics(
+    node: TextFieldNode,
+    layouts: Map<UiNode, UiLayoutNode>,
+): Map<String, UiInlineWidgetMetrics> {
+    return node.children.mapNotNull { child ->
+        val id = child.id ?: return@mapNotNull null
+        val rect = layouts[child]?.rect ?: return@mapNotNull null
+        id to UiInlineWidgetMetrics(rect.width, rect.height)
+    }.toMap()
 }
 
 private fun wordLeft(text: String, position: Int): Int {

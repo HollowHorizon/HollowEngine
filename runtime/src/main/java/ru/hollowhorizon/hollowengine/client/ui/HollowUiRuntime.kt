@@ -14,8 +14,17 @@ data class HollowUiFrame(
     fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(resolved, layout, x, y)
 
     fun scrollTargetAt(x: Float, y: Float): UiNode? {
+        val popups = layout.popupNodes
+            .sortedBy { resolved[it].layer }
+        for (popup in popups.asReversed()) {
+            scrollTargetIn(popup, x, y)?.let { return it }
+        }
+        return scrollTargetIn(resolved.root, x, y)
+    }
+
+    private fun scrollTargetIn(root: UiNode, x: Float, y: Float): UiNode? {
         val stack = ArrayDeque<ScrollTargetTask>()
-        stack.add(ScrollTargetTask.Enter(resolved.root, ancestorClip = null))
+        stack.add(ScrollTargetTask.Enter(root, ancestorClip = null))
         while (stack.isNotEmpty()) {
             when (val task = stack.removeLast()) {
                 is ScrollTargetTask.Enter -> {
@@ -255,13 +264,14 @@ class HollowUiRuntime(
                 ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
                 continue
             }
-            val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, style.fontSize, style.fontFamily)
+            val fontSize = style.fontSize
+            val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, fontSize, style.fontFamily)
             val textOffset = textFieldTextOffset(node, style, layoutNode)
             val next = layoutNode.scrollOffset.scrollCaretIntoView(
                 caretX = caret.x,
                 caretY = caret.y,
                 caretWidth = TextFieldCaretWidth,
-                caretHeight = style.fontSize,
+                caretHeight = fontSize,
                 viewportWidth = (layoutNode.content.width - textOffset).coerceAtLeast(1f),
                 viewportHeight = layoutNode.content.height,
                 range = layoutNode.scrollRange,

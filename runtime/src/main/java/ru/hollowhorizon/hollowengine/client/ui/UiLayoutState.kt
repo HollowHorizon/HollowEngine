@@ -169,6 +169,9 @@ class UiNodeLayoutState internal constructor(private val owner: UiNode) {
     val subtreeRevision: Long
         get() = revision
 
+    internal val parentNode: UiNode?
+        get() = parent
+
     internal fun attachTo(nextParent: UiNode?) {
         if (parent === nextParent) return
         parent = nextParent

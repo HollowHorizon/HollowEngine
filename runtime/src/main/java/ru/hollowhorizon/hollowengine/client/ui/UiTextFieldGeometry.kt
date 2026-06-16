@@ -5,19 +5,26 @@ internal const val TextFieldCaretVisibilityPadding = 2f
 private const val TextFieldHorizontalVisibilityFraction = 0.12f
 private const val TextFieldLineNumberGap = 8f
 
-internal fun textFieldEditLayout(node: TextFieldNode, style: ComputedStyle, layout: UiLayoutNode): UiTextLayout {
-    val inlayStyle = UiInlineStyle().withColor((style.textField.inlayHintColor ?: UiColor(0.66f, 0.72f, 0.82f, 1f)).copy(alpha = 0.95f))
+internal fun textFieldEditLayout(
+    node: TextFieldNode,
+    style: ComputedStyle,
+    layout: UiLayoutNode,
+    inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
+): UiTextLayout {
+    val inlayStyle = textFieldInlayStyle(style)
+    val fontSize = style.fontSize
     return UiTextLayouter.layout(
         richText = node.value.toHighlightedRichText(
             highlighter = null,
             inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
             inlayStyle = inlayStyle,
+            inlayWidgetMetrics = inlayWidgetMetrics,
         ),
         width = textFieldTextWidth(node, style, layout),
         height = if (style.input.scrollable) Float.POSITIVE_INFINITY else layout.content.height,
         wrap = textFieldWrap(style, node, constrainedWidth = true),
         align = style.textAlign,
-        fontSize = style.fontSize,
+        fontSize = fontSize,
         fontFamily = style.fontFamily,
         preserveWhitespace = true,
         lineSpacing = style.lineSpacing,
@@ -25,19 +32,26 @@ internal fun textFieldEditLayout(node: TextFieldNode, style: ComputedStyle, layo
     )
 }
 
-internal fun textFieldDisplayLayout(node: TextFieldNode, style: ComputedStyle, layout: UiLayoutNode): UiTextLayout {
-    val inlayStyle = UiInlineStyle().withColor((style.textField.inlayHintColor ?: UiColor(0.66f, 0.72f, 0.82f, 1f)).copy(alpha = 0.95f))
+internal fun textFieldDisplayLayout(
+    node: TextFieldNode,
+    style: ComputedStyle,
+    layout: UiLayoutNode,
+    inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
+): UiTextLayout {
+    val inlayStyle = textFieldInlayStyle(style)
+    val fontSize = style.fontSize
     return UiTextLayouter.layout(
         richText = node.value.toHighlightedRichText(
-            highlighter = node.syntaxHighlighter,
+            highlighter = node.syntaxHighlighter?.forCaret(node.caret),
             inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
             inlayStyle = inlayStyle,
+            inlayWidgetMetrics = inlayWidgetMetrics,
         ),
         width = textFieldTextWidth(node, style, layout),
         height = if (style.input.scrollable) Float.POSITIVE_INFINITY else layout.content.height,
         wrap = textFieldWrap(style, node, constrainedWidth = true),
         align = style.textAlign,
-        fontSize = style.fontSize,
+        fontSize = fontSize,
         fontFamily = style.fontFamily,
         preserveWhitespace = true,
         lineSpacing = style.lineSpacing,
@@ -50,6 +64,12 @@ internal fun textFieldTextOffset(node: TextFieldNode, style: ComputedStyle, layo
     val lines = node.value.count { it == '\n' } + 1
     val digits = lines.toString().length.coerceAtLeast(2)
     return digits * style.fontSize * 0.62f + TextFieldLineNumberGap
+}
+
+internal fun textFieldInlayStyle(style: ComputedStyle): UiInlineStyle {
+    return UiInlineStyle().withColor(
+        (style.textField.inlayHintColor ?: UiColor(0.66f, 0.72f, 0.82f, 1f)).copy(alpha = 0.95f)
+    )
 }
 
 internal fun textFieldTextWidth(node: TextFieldNode, style: ComputedStyle, layout: UiLayoutNode): Float {
@@ -79,4 +99,9 @@ internal fun textFieldWidthConstrained(style: ComputedStyle, node: TextFieldNode
         spaceWidth = style.spaceWidth,
     ).width
     return contentWidth + 0.5f < naturalWidth
+}
+
+private fun UiSyntaxHighlighter.forCaret(caret: Int): UiSyntaxHighlighter {
+    if (this !is UiCaretAwareSyntaxHighlighter) return this
+    return UiSyntaxHighlighter { text -> highlight(text, caret) }
 }

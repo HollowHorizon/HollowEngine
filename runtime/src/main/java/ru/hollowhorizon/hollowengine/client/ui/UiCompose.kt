@@ -483,7 +483,26 @@ fun TextField(
             }
             updateCommon(textFieldModifiers, attributes)
         },
+        content = {
+            TextFieldInlayWidgets(value, inlayHints, inlayHintsProvider)
+        },
     )
+}
+
+@Composable
+private fun TextFieldInlayWidgets(
+    value: String,
+    inlayHints: List<UiInlayHint>,
+    provider: UiInlayHintsProvider?,
+) {
+    textFieldActiveInlayHints(value, inlayHints, provider).forEachIndexed { index, hint ->
+        InlineWidget(
+            id = textFieldInlayWidgetId(hint, index),
+            tags = listOf("text-field-inlay", "code-editor-inlay"),
+        ) {
+            Text(hint.text, tags = listOf("text-field-inlay-text", "code-editor-inlay-text"))
+        }
+    }
 }
 
 @Composable

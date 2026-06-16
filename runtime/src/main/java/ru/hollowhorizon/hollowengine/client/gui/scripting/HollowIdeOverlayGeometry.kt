@@ -23,7 +23,11 @@ internal fun hollowIdeHorizontalScrollModifierDown(): Boolean {
     val window = Minecraft.getInstance().window.window
     return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
             GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS ||
-            GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+            hollowIdeControlModifierDown(window)
+}
+
+internal fun hollowIdeControlModifierDown(window: Long = Minecraft.getInstance().window.window): Boolean {
+    return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
             GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
 }
 

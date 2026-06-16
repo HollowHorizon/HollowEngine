@@ -26,6 +26,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 import ru.hollowhorizon.hollowengine.generated.Assets
 
+@Deprecated("Replaced with new IDE using HollowUI")
 class ScriptFile(path: String) : EditorFile(path) {
 
     lateinit var modifier: ScriptTextAreaModifier

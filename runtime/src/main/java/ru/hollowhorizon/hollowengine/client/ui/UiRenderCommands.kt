@@ -256,7 +256,11 @@ class UiCommandRenderer {
                     val isFramebuffer = layoutNode.needsFramebuffer
                     val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
                     val localOpacity = if (isFramebuffer) 1f else style.opacity
-                    val visibleShadows = if (current is TextNode) emptyList() else style.shadows.filterNot { it.inset }
+                    val visibleShadows = if (current is TextNode || current is TextFieldNode) {
+                        emptyList()
+                    } else {
+                        style.shadows.filterNot { it.inset }
+                    }
                     val canCullNode = task.activeClip != null &&
                             current !is PopupNode &&
                             !isFramebuffer &&
@@ -404,7 +408,17 @@ class UiCommandRenderer {
             is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
             is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
             is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
-            is TextFieldNode -> appendTextFieldCommands(node, style, opacity, layoutNode, contentTransform, filter, backface, nowMillis, commands)
+            is TextFieldNode -> appendTextFieldCommands(
+                node,
+                style,
+                opacity,
+                layoutNode,
+                layout,
+                contentTransform,
+                filter,
+                backface,
+                commands,
+            )
         }
     }
 
@@ -533,17 +547,19 @@ class UiCommandRenderer {
         style: ComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
+        layout: UiLayoutResult,
         transform: UiMatrix4,
         filter: UiFilterChain,
         backface: UiBackfaceVisibility,
-        nowMillis: Long,
         commands: MutableList<UiRenderCommand>,
     ) {
         val text = node.value
         val visible = text.ifEmpty { node.placeholder }
+        val fontSize = style.fontSize
         val wrap = style.textWrap && node.multiline && textFieldWidthConstrained(style, node, layoutNode.content.width)
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-        val editLayout = textFieldEditLayout(node, style, layoutNode)
+        val widgetMetrics = node.inlineWidgetMetrics(layout)
+        val editLayout = textFieldEditLayout(node, style, layoutNode, widgetMetrics)
         val displayLayout = if (text.isEmpty()) {
             UiTextLayouter.layout(
                 visible,
@@ -551,13 +567,13 @@ class UiCommandRenderer {
                 textHeight,
                 wrap,
                 style.textAlign,
-                style.fontSize,
+                fontSize,
                 style.fontFamily,
                 lineSpacing = style.lineSpacing,
                 spaceWidth = style.spaceWidth,
             )
         } else {
-            textFieldDisplayLayout(node, style, layoutNode)
+            textFieldDisplayLayout(node, style, layoutNode, widgetMetrics)
         }
         val field = style.textField
         val textOffset = textFieldTextOffset(node, style, layoutNode)
@@ -580,9 +596,9 @@ class UiCommandRenderer {
             filter = filter,
             wrap = wrap,
             align = style.textAlign,
-            fontSize = style.fontSize,
+            fontSize = fontSize,
             fontFamily = style.fontFamily,
-            textEffects = style.textEffects,
+            textEffects = style.textEffectsWithShadows(),
             layout = displayLayout,
             scrollOffset = layoutNode.scrollOffset,
             hoveredLink = null,
@@ -610,173 +626,11 @@ class UiCommandRenderer {
             inlayHints = node.currentInlayHints(),
             placeholder = node.placeholder,
             opacity = opacity,
-            fontSize = style.fontSize,
+            fontSize = fontSize,
             fontFamily = style.fontFamily,
             transform = transform,
             filter = filter,
             backfaceVisibility = backface,
-        )
-        appendCompletionPopupCommands(
-            node = node,
-            style = style,
-            opacity = opacity,
-            layoutNode = layoutNode,
-            editLayout = editLayout,
-            textOffset = textOffset,
-            transform = transform,
-            filter = filter,
-            backface = backface,
-            commands = commands,
-        )
-    }
-
-    private fun appendCompletionPopupCommands(
-        node: TextFieldNode,
-        style: ComputedStyle,
-        opacity: Float,
-        layoutNode: UiLayoutNode,
-        editLayout: UiTextLayout,
-        textOffset: Float,
-        transform: UiMatrix4,
-        filter: UiFilterChain,
-        backface: UiBackfaceVisibility,
-        commands: MutableList<UiRenderCommand>,
-    ) {
-        val items = node.completionItems.take(6)
-        if (items.isEmpty()) return
-        val rowHeight = (style.fontSize + 5f).coerceAtLeast(12f)
-        val popupHeight = rowHeight * items.size + 6f
-        val labelWidth = items.maxOfOrNull { item ->
-            val detail = if (item.detail.isBlank()) "" else "  ${item.detail}"
-            (item.label.length + detail.length) * style.fontSize * 0.56f
-        } ?: 0f
-        val popupWidth = (labelWidth + 18f).coerceIn(90f, max(90f, layoutNode.content.width - 8f))
-        val caret = editLayout.caretPosition(node.completionAnchor, style.fontSize, style.fontFamily)
-        val preferredX = textOffset + caret.x - layoutNode.scrollOffset.x
-        val popupX = preferredX.coerceIn(4f, (layoutNode.content.width - popupWidth - 4f).coerceAtLeast(4f))
-        val belowY = caret.y + style.fontSize - layoutNode.scrollOffset.y + 4f
-        val aboveY = caret.y - layoutNode.scrollOffset.y - popupHeight - 4f
-        val popupY = if (belowY + popupHeight <= layoutNode.content.height) {
-            belowY
-        } else {
-            aboveY.coerceAtLeast(4f)
-        }
-        val popupTransform = transform * UiMatrix4.translation(popupX, popupY, 30f)
-        commands += completionBoxCommand(
-            node = node,
-            width = popupWidth,
-            height = popupHeight,
-            paint = UiResolvedPaint.Color(UiColor(0.08f, 0.09f, 0.11f, 0.96f)),
-            border = UiBorder(UiInsets.all(1.px), UiColor(0.36f, 0.42f, 0.5f, 0.75f), 3f),
-            opacity = opacity,
-            transform = popupTransform,
-            filter = filter,
-            backface = backface,
-        )
-        items.forEachIndexed { index, item ->
-            val rowY = 3f + index * rowHeight
-            if (index == node.completionSelectedIndex.coerceIn(0, items.lastIndex)) {
-                commands += completionBoxCommand(
-                    node = node,
-                    width = popupWidth - 4f,
-                    height = rowHeight,
-                    paint = UiResolvedPaint.Color(UiColor(0.22f, 0.32f, 0.46f, 0.7f)),
-                    border = UiBorder(radius = 2f),
-                    opacity = opacity,
-                    transform = popupTransform * UiMatrix4.translation(2f, rowY, 0f),
-                    filter = filter,
-                    backface = backface,
-                )
-            }
-            commands += completionTextCommand(
-                node = node,
-                text = item.label,
-                color = UiColor(0.9f, 0.94f, 1f, 1f),
-                opacity = opacity,
-                fontSize = style.fontSize,
-                fontFamily = style.fontFamily,
-                transform = popupTransform * UiMatrix4.translation(8f, rowY + 2f, 0f),
-                filter = filter,
-                backface = backface,
-            )
-            if (item.detail.isNotBlank()) {
-                commands += completionTextCommand(
-                    node = node,
-                    text = item.detail,
-                    color = style.textField.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
-                    opacity = opacity,
-                    fontSize = style.fontSize,
-                    fontFamily = style.fontFamily,
-                    transform = popupTransform * UiMatrix4.translation(
-                        (item.label.length * style.fontSize * 0.56f + 16f).coerceAtMost(popupWidth - 42f),
-                        rowY + 2f,
-                        0f,
-                    ),
-                    filter = filter,
-                    backface = backface,
-                )
-            }
-        }
-    }
-
-    private fun completionBoxCommand(
-        node: UiNode,
-        width: Float,
-        height: Float,
-        paint: UiResolvedPaint,
-        border: UiBorder,
-        opacity: Float,
-        transform: UiMatrix4,
-        filter: UiFilterChain,
-        backface: UiBackfaceVisibility,
-    ): DrawBoxCommand {
-        return DrawBoxCommand(
-            node = node,
-            rect = UiRect(0f, 0f, width, height),
-            paint = paint,
-            border = border,
-            shadows = emptyList(),
-            opacity = opacity,
-            tint = UiColor.White,
-            transform = transform,
-            renderToFramebuffer = false,
-            fit = UiImageFit.STRETCH,
-            slice = UiInsets.Zero,
-            filter = filter,
-            backfaceVisibility = backface,
-            phase = UiRenderPhase.OVERLAY,
-        )
-    }
-
-    private fun completionTextCommand(
-        node: UiNode,
-        text: String,
-        color: UiColor,
-        opacity: Float,
-        fontSize: Float,
-        fontFamily: String?,
-        transform: UiMatrix4,
-        filter: UiFilterChain,
-        backface: UiBackfaceVisibility,
-    ): DrawTextCommand {
-        return DrawTextCommand(
-            node = node,
-            rect = UiRect(0f, 0f, 256f, fontSize + 5f),
-            text = text,
-            color = color,
-            opacity = opacity,
-            transform = transform,
-            filter = filter,
-            wrap = false,
-            align = UiTextAlign.LEFT,
-            fontSize = fontSize,
-            fontFamily = fontFamily,
-            textEffects = emptyList(),
-            layout = UiTextLayouter.layout(text, 256f, fontSize + 5f, false, UiTextAlign.LEFT, fontSize, fontFamily),
-            scrollOffset = UiScrollOffset.Zero,
-            hoveredLink = null,
-            backfaceVisibility = backface,
-            phase = UiRenderPhase.OVERLAY,
         )
     }
 
@@ -855,7 +709,7 @@ class UiCommandRenderer {
     }
 }
 
-private fun TextNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
+private fun UiNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
     return children.mapNotNull { child ->
         val id = child.id ?: return@mapNotNull null
         val rect = layout.nodes[child]?.rect ?: return@mapNotNull null

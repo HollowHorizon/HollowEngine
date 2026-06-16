@@ -84,3 +84,203 @@
     foreground: #8792a4;
     height: 16px;
 }
+
+.ide-editor-shell {
+    size: 100% 100%;
+    background: #0c0f14;
+}
+
+.ide-editor-stack {
+    size: 100% 100%;
+}
+
+.code-editor {
+    font-size: 12px;
+    line-spacing: 2px;
+    foreground: #d7deea;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+    line-number-color: rgba(130, 145, 166, 0.72);
+    inlay-hint-color: rgba(142, 153, 171, 0.78);
+    line-numbers: true;
+    inlay-hints: true;
+    shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.42);
+}
+
+.code-editor-inlay {
+    height: fit;
+    padding: 1px 3px;
+    align-items: center center;
+    background: rgba(31, 38, 50, 0.76);
+    border: 1px rgba(142, 153, 171, 0.32);
+    border-radius: 3px;
+}
+
+.code-editor-inlay-text {
+    font-size: 10px;
+    foreground: rgba(142, 153, 171, 0.9);
+    text-wrap: false;
+}
+
+.ide-diagnostics-badge {
+    height: 22px;
+    padding: 4px 8px;
+    align-items: center center;
+    background: rgba(18, 20, 26, 0.96);
+    border: 1px rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+    shadow: 0px 7px 14px -8px rgba(0, 0, 0, 0.72);
+    foreground: #d7deea;
+}
+
+.ide-diagnostics-badge:hover {
+    background: rgba(38, 44, 56, 0.98);
+}
+
+.ide-diagnostics-badge.has-errors {
+    foreground: #ff8787;
+}
+
+.ide-diagnostics-badge.has-warnings {
+    foreground: #ffc266;
+}
+
+.ide-diagnostics-wrap {
+    width: 100%;
+    background: #10131a;
+    border-top: 1px #323846;
+}
+
+.ide-diagnostics-resizer {
+    size: 100% 5px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.ide-diagnostics-resizer:hover {
+    background: rgba(120, 168, 255, 0.24);
+}
+
+.ide-diagnostics-panel {
+    width: 100%;
+    background: #10131a;
+    padding: 4px;
+    gap: 2px;
+}
+
+.ide-diagnostic-row {
+    width: 100%;
+    height: fit;
+    padding: 4px 6px;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.025);
+    border-radius: 3px;
+}
+
+.ide-diagnostic-severity {
+    width: 68px;
+    foreground: #8f9bad;
+}
+
+.ide-diagnostic-location {
+    width: 54px;
+    foreground: #8f9bad;
+}
+
+.ide-diagnostic-row.error .ide-diagnostic-severity {
+    foreground: #ff8787;
+}
+
+.ide-diagnostic-row.warning .ide-diagnostic-severity {
+    foreground: #ffc266;
+}
+
+.ide-diagnostic-row.info .ide-diagnostic-severity {
+    foreground: #78a8ff;
+}
+
+.ide-diagnostic-message {
+    width: 100%;
+    foreground: #d7deea;
+}
+
+.ide-completion-popup {
+    background: rgba(13, 15, 20, 0.98);
+    border: 1px rgba(95, 115, 145, 0.72);
+    border-radius: 4px;
+    shadow: 0px 10px 20px -10px rgba(0, 0, 0, 0.86);
+    clip: true;
+}
+
+.ide-completion-list {
+    size: 100% 100%;
+    text-wrap: false;
+    scrollbar: 5px;
+}
+
+.ide-completion-row {
+    width: 100%;
+    padding: 0px 7px;
+    gap: 6px;
+    align-items: start center;
+    foreground: #e5ebf5;
+    text-wrap: false;
+    clip: true;
+}
+
+.ide-completion-row:hover {
+    background: rgba(67, 92, 132, 0.34);
+}
+
+.ide-completion-row.selected {
+    background: rgba(67, 106, 154, 0.62);
+}
+
+.ide-completion-icon {
+    size: 14px 14px;
+    tint: rgba(160, 188, 230, 0.96);
+}
+
+.ide-completion-label {
+    foreground: #eef4ff;
+    text-wrap: false;
+}
+
+.ide-completion-detail {
+    foreground: rgba(169, 181, 198, 0.78);
+    text-wrap: false;
+}
+
+.ide-completion-tail {
+    foreground: rgba(140, 153, 174, 0.72);
+    font-size: 10px;
+    text-wrap: false;
+    align: end center;
+}
+
+.ide-diagnostic-tooltip {
+    padding: 5px 8px;
+    align-items: start center;
+    background: rgba(13, 15, 20, 0.98);
+    border: 1px rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+    shadow: 0px 8px 18px -10px rgba(0, 0, 0, 0.86);
+    clip: true;
+}
+
+.ide-diagnostic-tooltip.error {
+    border: 1px rgba(255, 120, 120, 0.78);
+}
+
+.ide-diagnostic-tooltip.warning {
+    border: 1px rgba(255, 192, 100, 0.78);
+}
+
+.ide-diagnostic-tooltip.info {
+    border: 1px rgba(120, 168, 255, 0.72);
+}
+
+.ide-diagnostic-tooltip-message {
+    foreground: #edf3ff;
+    font-size: 11px;
+    text-wrap: true;
+}

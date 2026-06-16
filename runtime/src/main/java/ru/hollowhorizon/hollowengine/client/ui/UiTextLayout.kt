@@ -39,17 +39,6 @@ data class UiTextRun(
     override val height: Float,
 ) : UiTextFragment
 
-data class UiInlayTextRun(
-    val text: String,
-    val style: UiInlineStyle,
-    val textX: Float,
-    val textWidth: Float,
-    override val x: Float,
-    override val y: Float,
-    override val width: Float,
-    override val height: Float,
-) : UiTextFragment
-
 data class UiTextSpaceRun(
     val style: UiInlineStyle,
     override val x: Float,
@@ -269,7 +258,6 @@ internal object UiTextLayouter {
                 when (fragment) {
                     is UiInlineImageRun -> fragments += fragment
                     is UiInlineWidgetRun -> fragments += fragment
-                    is UiInlayTextRun -> fragments += fragment
                     is UiTextSpaceRun -> {
                         if (remaining <= 0) break@fragmentLoop
                         fragments += fragment
@@ -349,6 +337,7 @@ internal object UiTextLayouter {
                 current.toList(),
                 lastInParagraph,
                 trailingSourceCharacters,
+                fontSize,
                 lineSpacing,
             )
             result += line
@@ -396,21 +385,6 @@ internal object UiTextLayouter {
                         continue@unitLoop
                     }
 
-                    val candidateWidth = currentWidth + (space?.width ?: 0f) + unit.width
-                    if (wrap && current.isNotEmpty() && candidateWidth > width) {
-                        commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
-                    } else if (space != null) {
-                        current += space
-                        currentWidth += space.width
-                    }
-                    current += unit
-                    currentWidth += unit.width
-                    pendingSpace = null
-                }
-
-                is InlineUnit.Inlay -> {
-                    endedWithNewline = false
-                    val space = pendingSpace
                     val candidateWidth = currentWidth + (space?.width ?: 0f) + unit.width
                     if (wrap && current.isNotEmpty() && candidateWidth > width) {
                         commit(lastInParagraph = false, trailingSourceCharacters = if (space == null) 0 else 1)
@@ -490,26 +464,10 @@ internal object UiTextLayouter {
             when (item) {
                 is UiInlineItem.Image -> units += InlineUnit.Image(item)
                 is UiInlineItem.Widget -> units += InlineUnit.Widget(item)
-                is UiInlineItem.Inlay -> units += item.toUnit(baseFontSize, fontFamily)
                 is UiInlineItem.Text -> item.value.toUnits(item.style, baseFontSize, fontFamily, spaceWidth, units)
             }
         }
         return units
-    }
-
-    private fun UiInlineItem.Inlay.toUnit(baseFontSize: Float, fontFamily: String?): InlineUnit.Inlay {
-        val size = style.resolvedFontSize(baseFontSize) * fontScale.coerceAtLeast(0.1f)
-        val resolvedFamily = style.fontFamily ?: fontFamily
-        val lineHeight = UiTextFonts.resolve(resolvedFamily).lineHeight(size)
-        val textWidth = measureTextWidth(text, size, resolvedFamily, style)
-        return InlineUnit.Inlay(
-            text = text,
-            style = style.withFontSize(size),
-            textX = paddingLeft.coerceAtLeast(0f),
-            textWidth = textWidth,
-            width = textWidth + paddingLeft.coerceAtLeast(0f) + paddingRight.coerceAtLeast(0f),
-            height = lineHeight,
-        )
     }
 
     private fun String.toUnits(
@@ -575,20 +533,6 @@ internal object UiTextLayouter {
                     x += unit.width
                 }
 
-                is InlineUnit.Inlay -> {
-                    fragments += UiInlayTextRun(
-                        unit.text,
-                        unit.style,
-                        unit.textX,
-                        unit.textWidth,
-                        x,
-                        unit.y,
-                        unit.width,
-                        unit.height,
-                    )
-                    x += unit.width
-                }
-
                 is InlineUnit.Image -> {
                     fragments += UiInlineImageRun(unit.image, x, unit.y, unit.width, unit.height)
                     x += unit.width
@@ -625,6 +569,7 @@ internal object UiTextLayouter {
         val units: List<InlineUnit>,
         val lastInParagraph: Boolean,
         val trailingSourceCharacters: Int = 0,
+        val baseFontSize: Float,
         val lineSpacing: Float = 0f,
     ) {
         val text: String = buildString {
@@ -633,7 +578,6 @@ internal object UiTextLayouter {
                     InlineUnit.Newline -> Unit
                     is InlineUnit.Space -> append(' ')
                     is InlineUnit.Word -> append(unit.text)
-                    is InlineUnit.Inlay -> Unit
                     is InlineUnit.Image -> append(unit.image.alt.ifBlank { "\uFFFC" })
                     is InlineUnit.Widget -> append(unit.widget.alt.ifBlank { "\uFFFC" })
                 }
@@ -648,9 +592,9 @@ internal object UiTextLayouter {
         val justifyGapCount: Int = units.count { it is InlineUnit.Space }
 
         init {
-            val textHeight = units.filter { it is InlineUnit.Word || it is InlineUnit.Inlay }
+            val textHeight = units.filter { it is InlineUnit.Word }
                 .maxOfOrNull { it.height }
-                ?: DefaultUiFontSize
+                ?: UiTextFonts.resolve(null).lineHeight(baseFontSize)
             val lineHeight = units.maxOfOrNull { it.height }
                 ?: textHeight
             val imageBaseline = units.filterIsInstance<InlineUnit.Image>().maxOfOrNull { image ->
@@ -700,17 +644,6 @@ internal object UiTextLayouter {
             override var y: Float = 0f
         }
 
-        data class Inlay(
-            val text: String,
-            val style: UiInlineStyle,
-            val textX: Float,
-            val textWidth: Float,
-            override val width: Float,
-            override val height: Float,
-        ) : InlineUnit {
-            override var y: Float = 0f
-        }
-
         data class Image(
             val image: UiInlineItem.Image,
         ) : InlineUnit {
@@ -732,7 +665,6 @@ internal object UiTextLayouter {
         y = when (this) {
             InlineUnit.Newline, is InlineUnit.Space -> 0f
             is InlineUnit.Word -> (lineHeight - height) / 2f
-            is InlineUnit.Inlay -> (lineHeight - height) / 2f
             is InlineUnit.Image -> when (image.align) {
                 UiInlineAlign.BASELINE -> baseline - height
                 UiInlineAlign.MIDDLE -> (lineHeight - height) / 2f
@@ -842,22 +774,86 @@ fun UiTextLayout.selectionRects(
         val startOffset = (selectionStart - lineStart).coerceIn(0, line.sourceLength)
         val endOffset = (selectionEnd - lineStart).coerceIn(0, line.sourceLength)
         if (selectionStart < lineEnd && selectionEnd > lineStart && startOffset != endOffset) {
-            val x1 = line.xAt(startOffset, fontSize, fontFamily)
-            val x2 = line.xAt(endOffset, fontSize, fontFamily)
             val nextLine = lines.getOrNull(lineIndex + 1)
             val height = if (fillLineGaps && selectionEnd > lineEnd && nextLine != null) {
                 (nextLine.y - line.y).coerceAtLeast(line.height)
             } else {
                 line.height
             }
-            val width = abs(x2 - x1)
-            if (fillLineGaps && width <= 0.5f && line.text.isEmpty()) {
+            val lineRects = line.selectionRects(startOffset, endOffset, height, fontSize, fontFamily)
+            if (fillLineGaps && lineRects.isEmpty() && line.text.isEmpty()) {
                 rects += UiRect(0f, line.y, this.width, height)
             } else {
-                rects += UiRect(minOf(x1, x2), line.y, width, height)
+                rects += lineRects
             }
         } else if (fillLineGaps && line.sourceLength == 0 && selectionStart <= lineStart && selectionEnd >= lineEnd) {
             rects += UiRect(0f, line.y, this.width, line.height)
+        }
+    }
+    return rects
+}
+
+private fun UiTextLine.selectionRects(
+    startOffset: Int,
+    endOffset: Int,
+    rectHeight: Float,
+    fontSize: Float,
+    fontFamily: String?,
+): List<UiRect> {
+    if (fragments.isEmpty()) {
+        val x1 = xAt(startOffset, fontSize, fontFamily)
+        val x2 = xAt(endOffset, fontSize, fontFamily)
+        val width = abs(x2 - x1)
+        return if (width <= 0.5f) emptyList() else listOf(UiRect(minOf(x1, x2), y, width, rectHeight))
+    }
+
+    val rects = mutableListOf<UiRect>()
+    var sourceCursor = 0
+    fragments.forEach { fragment ->
+        when (fragment) {
+            is UiTextRun -> {
+                val sourceEnd = sourceCursor + fragment.text.length
+                val selectedStart = maxOf(startOffset, sourceCursor)
+                val selectedEnd = minOf(endOffset, sourceEnd)
+                if (selectedStart < selectedEnd) {
+                    val localStart = selectedStart - sourceCursor
+                    val localEnd = selectedEnd - sourceCursor
+                    val size = fragment.style.resolvedFontSize(fontSize)
+                    val family = fragment.style.fontFamily ?: fontFamily
+                    val x1 = UiTextLayouter.measureTextWidth(fragment.text.substring(0, localStart), size, family)
+                    val x2 = UiTextLayouter.measureTextWidth(fragment.text.substring(0, localEnd), size, family)
+                    if (x2 > x1) {
+                        rects += UiRect(x + fragment.x + x1, y, x2 - x1, rectHeight)
+                    }
+                }
+                sourceCursor = sourceEnd
+            }
+
+            is UiTextSpaceRun -> {
+                val sourceEnd = sourceCursor + 1
+                if (startOffset < sourceEnd && endOffset > sourceCursor) {
+                    rects += UiRect(x + fragment.x, y, fragment.width, rectHeight)
+                }
+                sourceCursor = sourceEnd
+            }
+
+            is UiInlineImageRun -> {
+                val length = fragment.image.alt.ifBlank { "\uFFFC" }.length
+                val sourceEnd = sourceCursor + length
+                if (startOffset < sourceEnd && endOffset > sourceCursor) {
+                    rects += UiRect(x + fragment.x, y, fragment.width, rectHeight)
+                }
+                sourceCursor = sourceEnd
+            }
+
+            is UiInlineWidgetRun -> {
+                val length = fragment.widget.alt.ifBlank { "\uFFFC" }.length
+                val sourceEnd = sourceCursor + length
+                if (startOffset < sourceEnd && endOffset > sourceCursor) {
+                    rects += UiRect(x + fragment.x, y, fragment.width, rectHeight)
+                }
+                sourceCursor = sourceEnd
+            }
         }
     }
     return rects
@@ -987,10 +983,6 @@ private fun UiTextLine.xAt(offset: Int, fontSize: Float, fontFamily: String?): F
             is UiTextSpaceRun -> {
                 if (remaining <= 1) return x + fragment.x + if (remaining == 0) 0f else fragment.width
                 remaining -= 1
-                cursor = fragment.x + fragment.width
-            }
-
-            is UiInlayTextRun -> {
                 cursor = fragment.x + fragment.width
             }
 

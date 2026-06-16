@@ -96,6 +96,16 @@ class HssParser(private val source: String) {
     }
 
     private fun parseSelector(): HssSelector {
+        var selector = parseSimpleSelector()
+        while (true) {
+            val hadWhitespace = consumeSelectorWhitespace()
+            if (!hadWhitespace || isEnd() || peek() == '{' || peek() == ',') return selector
+            val child = parseSimpleSelector()
+            selector = child.copy(ancestor = selector)
+        }
+    }
+
+    private fun parseSimpleSelector(): HssSelector {
         var type: String? = null
         var id: String? = null
         val tags = mutableSetOf<String>()
@@ -134,6 +144,12 @@ class HssParser(private val source: String) {
         }
         if (!consumed) throw HssParseException("Expected selector", index)
         return HssSelector(type, id, tags, states, attributes)
+    }
+
+    private fun consumeSelectorWhitespace(): Boolean {
+        val start = index
+        while (!isEnd() && peek().isWhitespace()) index++
+        return index > start
     }
 
     private fun parseDeclarations(): List<HssDeclaration> {

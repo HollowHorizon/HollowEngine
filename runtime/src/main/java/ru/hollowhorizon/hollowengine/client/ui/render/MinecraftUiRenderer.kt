@@ -793,7 +793,6 @@ class MinecraftUiRenderer {
                     is UiInlineWidgetRun -> Unit
                     is UiTextSpaceRun -> Unit
                     is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
-                    is UiInlayTextRun -> drawTextRun(command, fragment.toTextRun(), line, transform, scaleX, scaleY, now)
                 }
             }
         } else {
@@ -809,10 +808,6 @@ class MinecraftUiRenderer {
         }
     }
 
-    private fun UiInlayTextRun.toTextRun(): UiTextRun {
-        return UiTextRun(text, style, x + textX + InlayHintVisualOffsetX, y, textWidth, height)
-    }
-
     private fun drawTextRun(
         command: DrawTextCommand,
         fragment: UiTextRun,
@@ -825,6 +820,10 @@ class MinecraftUiRenderer {
         val fontSize = fragment.style.resolvedFontSize(command.fontSize)
         val effects = fragment.style.effects + command.textEffects
         val fontFamily = fragment.style.fontFamily ?: command.fontFamily
+        val localX = line.x + fragment.x - command.scrollOffset.x
+        val localY = line.y + fragment.y - command.scrollOffset.y
+
+        drawTextBackground(command, fragment, transform, localX, localY)
 
         val hasLayer = effects.hasLayerEffects()
         val hasAnimated = effects.hasAnimatedEffects()
@@ -832,8 +831,8 @@ class MinecraftUiRenderer {
         if (!hasLayer && !hasAnimated) {
             drawSingleTextRun(
                 command, fragment, transform, scaleX, scaleY,
-                line.x + fragment.x - command.scrollOffset.x,
-                line.y + fragment.y - command.scrollOffset.y,
+                localX,
+                localY,
                 fontSize,
                 fontFamily,
                 fragment.style.color,
@@ -844,9 +843,6 @@ class MinecraftUiRenderer {
 
         val layerEffects = effects.filter { it.isLayer }
         val animatedEffects = if (hasAnimated) effects.filter { it.isAnimated } else emptyList()
-
-        val localX = line.x + fragment.x - command.scrollOffset.x
-        val localY = line.y + fragment.y - command.scrollOffset.y
 
         if (hasAnimated) {
             drawAnimatedTextRun(
@@ -877,7 +873,7 @@ class MinecraftUiRenderer {
         for (layerEffect in layerEffects) {
             val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
             for (pass in passes) {
-                val passColor = pass.colorOverride ?: effectiveColor
+                val passColor = pass.colorOverride?.textShadowColor(layerEffect, effectiveColor) ?: effectiveColor
                 drawSingleTextRun(
                     command,
                     fragment,
@@ -899,6 +895,26 @@ class MinecraftUiRenderer {
             localX, localY, fontSize,
             fontFamily,
             fragment.style.color, 1f,
+        )
+    }
+
+    private fun drawTextBackground(
+        command: DrawTextCommand,
+        fragment: UiTextRun,
+        transform: UiMatrix4,
+        localX: Float,
+        localY: Float,
+    ) {
+        val background = fragment.style.background ?: return
+        if (fragment.width <= 0f || fragment.height <= 0f || background.alpha <= 0f) return
+        flushTextBatch()
+        drawLocalPaint(
+            fragment.width,
+            fragment.height,
+            2f,
+            background.withOpacity(command.opacity).filtered(command.filter),
+            transform * UiMatrix4.translation(localX, localY, 0f),
+            command.filter,
         )
     }
 
@@ -1044,7 +1060,7 @@ class MinecraftUiRenderer {
                 for (layerEffect in layerEffects) {
                     val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
                     for (pass in passes) {
-                        val passColor = pass.colorOverride ?: effectiveColor
+                        val passColor = pass.colorOverride?.textShadowColor(layerEffect, effectiveColor) ?: effectiveColor
                         drawSingleTextRun(
                             command,
                             charFragment,
@@ -1277,6 +1293,16 @@ class MinecraftUiRenderer {
             UiImageFit.CONTAIN,
             UiImageFit.COVER -> UiImageFit.STRETCH
         }
+    }
+
+    private fun UiColor.textShadowColor(effect: UiTextEffect, textColor: UiColor): UiColor {
+        if (effect !is Shadow) return this
+        return UiColor(
+            red = red * textColor.red,
+            green = green * textColor.green,
+            blue = blue * textColor.blue,
+            alpha = alpha * textColor.alpha,
+        )
     }
 
     private fun drawItem(command: DrawItemCommand) {

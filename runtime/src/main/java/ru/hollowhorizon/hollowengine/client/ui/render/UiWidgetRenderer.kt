@@ -97,14 +97,48 @@ internal class UiWidgetRenderer(
             }
             flushTextBatch()
         }
+        appendIndentGuideQuads(command, transform, scratchQuads)
+        flushScratchQuads()
         appendDiagnostics(command, transform, scratchQuads)
         flushScratchQuads()
-        if (command.showInlayHints) {
-            drawInlayHintFrames(command, transform)
-        }
         if (command.showCaret && textFieldCaretVisible()) {
             appendCaretQuads(command, transform, scratchQuads)
             flushScratchQuads()
+        }
+    }
+
+    private fun appendIndentGuideQuads(
+        command: DrawTextFieldChromeCommand,
+        transform: UiMatrix4,
+        quads: MutableList<UiBatchedQuad>,
+    ) {
+        val color = command.inlayHintColor.withOpacity(command.opacity * 0.22f).filtered(command.filter)
+        val visibleLines = command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).toList()
+        visibleLines.forEachIndexed { visibleIndex, (_, line) ->
+            if (line.text.isBlank()) return@forEachIndexed
+            val leadingSpaces = line.text.takeWhile { it == ' ' }.length
+            if (leadingSpaces < IndentGuideSize) return@forEachIndexed
+            val levels = leadingSpaces / IndentGuideSize
+            for (level in 1..levels) {
+                val column = (level * IndentGuideSize - 1).coerceAtLeast(0)
+                if (line.text.getOrNull(column)?.let { it != ' ' } == true) continue
+                val x = command.textOffset +
+                        line.x +
+                        UiTextLayouter.measureTextWidth(" ".repeat(column), command.fontSize, command.fontFamily) -
+                        command.scrollOffset.x -
+                        1f
+                if (x < command.textOffset || x > command.rect.width) continue
+                val y = line.y - command.scrollOffset.y
+                if (y + line.height < 0f || y > command.rect.height) continue
+                val nextLine = visibleLines.getOrNull(visibleIndex + 1)?.value
+                val height = ((nextLine?.y ?: (line.y + line.height)) - line.y).coerceAtLeast(line.height)
+                quads += solidQuad(
+                    width = 1f,
+                    height = height,
+                    color = color,
+                    transform = transform * UiMatrix4.translation(x, y, 0f),
+                )
+            }
         }
     }
 
@@ -147,7 +181,7 @@ internal class UiWidgetRenderer(
             }
             command.layout.selectionRects(
                 diagnostic.start,
-                diagnostic.end,
+                diagnostic.end.coerceAtLeast(diagnostic.start + 1),
                 command.fontSize,
                 command.fontFamily,
             ).forEach { rect ->
@@ -251,28 +285,6 @@ internal class UiWidgetRenderer(
     private fun flushScratchTriangles() {
         drawBatchedTriangles(scratchTriangles)
         scratchTriangles.clear()
-    }
-
-    private fun drawInlayHintFrames(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
-            line.fragments.filterIsInstance<UiInlayTextRun>().forEach { fragment ->
-                val frame = UiRect(
-                    command.textOffset + line.x + fragment.x - command.scrollOffset.x + InlayHintVisualOffsetX,
-                    line.y + fragment.y - command.scrollOffset.y - 1f,
-                    fragment.width,
-                    fragment.height + 2f,
-                ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
-                scratchTriangles.appendLocalBorder(
-                    frame.width,
-                    frame.height,
-                    3f,
-                    1f,
-                    command.inlayHintColor.withOpacity(command.opacity * 0.55f),
-                    transform * UiMatrix4.translation(frame.x, frame.y, 0f),
-                )
-            }
-        }
-        flushScratchTriangles()
     }
 
     private fun textFieldCaretVisible(): Boolean {
@@ -457,3 +469,5 @@ internal class UiWidgetRenderer(
         markTextBatchDirty()
     }
 }
+
+private const val IndentGuideSize = 4
