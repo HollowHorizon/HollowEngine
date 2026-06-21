@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.Updater
+import androidx.compose.runtime.key
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineScope
@@ -500,11 +501,14 @@ private fun TextFieldInlayWidgets(
     revision: Long,
 ) {
     textFieldActiveInlayHints(value, inlayHints, provider).forEachIndexed { index, hint ->
-        InlineWidget(
-            id = textFieldInlayWidgetId(hint, index),
-            tags = listOf("text-field-inlay", "code-editor-inlay"),
-        ) {
-            Text(hint.text, tags = listOf("text-field-inlay-text", "code-editor-inlay-text"))
+        val widgetId = textFieldInlayWidgetId(hint, index)
+        key(widgetId) {
+            InlineWidget(
+                id = widgetId,
+                tags = listOf("text-field-inlay", "code-editor-inlay"),
+            ) {
+                Text(hint.text, tags = listOf("text-field-inlay-text", "code-editor-inlay-text"))
+            }
         }
     }
 }
@@ -631,7 +635,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     inlayHintsProvider = values.inlayHintsProvider
     placeholder = values.placeholder
     onChange = values.onChange
-    value = values.value
+    applyExternalValue(values.value)
 }
 
 private fun PopupNode.apply(values: PopupValues) {

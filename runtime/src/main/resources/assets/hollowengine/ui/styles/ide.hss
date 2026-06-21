@@ -117,7 +117,6 @@
 }
 
 .code-editor-inlay-text {
-    font-size: 10px;
     foreground: rgba(142, 153, 171, 0.9);
     text-wrap: false;
 }

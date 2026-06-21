@@ -44,6 +44,13 @@ data class CheckboxPersistentState(
     override val type: String = UiNodeType.CHECKBOX.typeName
 }
 
+data class TextFieldHistoryState(
+    val value: String,
+    val caret: Int,
+    val selectionAnchor: Int?,
+    val caretRanges: List<UiTextCaret>,
+)
+
 data class TextFieldPersistentState(
     val value: String,
     val caret: Int,
@@ -59,6 +66,8 @@ data class TextFieldPersistentState(
     val completionReplacementEnd: Int = value.length,
     val completionLineStart: Int = 0,
     val completionLineEnd: Int = value.length,
+    val undoHistory: List<TextFieldHistoryState> = emptyList(),
+    val redoHistory: List<TextFieldHistoryState> = emptyList(),
 ) : UiNodePersistentState {
     override val type: String = UiNodeType.TEXT_FIELD.typeName
 }

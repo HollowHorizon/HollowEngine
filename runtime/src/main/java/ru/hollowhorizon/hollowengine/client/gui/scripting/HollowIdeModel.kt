@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
+import ru.hollowhorizon.hollowengine.client.ui.normalizeEditorLineEndings
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -65,10 +66,10 @@ internal class HollowIdeModel {
         val file = path.fromReadablePath()
         if (!file.isFile || file.isProbablyBinary()) return HollowIdeOpenResult.Unsupported
         files[path]?.let { opened ->
-            if (!opened.dirty) opened.refresh(file.readText())
+            if (!opened.dirty) opened.refresh(file.readText().normalizeEditorLineEndings())
             return HollowIdeOpenResult.File(opened, created = false)
         }
-        val opened = HollowIdeOpenFile(path, file.readText())
+        val opened = HollowIdeOpenFile(path, file.readText().normalizeEditorLineEndings())
         files[path] = opened
         return HollowIdeOpenResult.File(opened, created = true)
     }
@@ -124,7 +125,7 @@ internal class HollowIdeOpenFile(
     val path: String,
     initialText: String,
 ) {
-    var text by mutableStateOf(initialText)
+    var text by mutableStateOf(initialText.normalizeEditorLineEndings())
         private set
     var dirty by mutableStateOf(false)
         private set
@@ -137,8 +138,9 @@ internal class HollowIdeOpenFile(
     }
 
     fun update(next: String) {
-        if (text == next) return
-        text = next
+        val normalized = next.normalizeEditorLineEndings()
+        if (text == normalized) return
+        text = normalized
         dirty = true
     }
 
@@ -151,8 +153,9 @@ internal class HollowIdeOpenFile(
     }
 
     fun refresh(next: String) {
-        if (dirty || text == next) return
-        text = next
+        val normalized = next.normalizeEditorLineEndings()
+        if (dirty || text == normalized) return
+        text = normalized
     }
 }
 

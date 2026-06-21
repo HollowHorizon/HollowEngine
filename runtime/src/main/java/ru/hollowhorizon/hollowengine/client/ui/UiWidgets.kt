@@ -245,9 +245,12 @@ class TextFieldNode(
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiNodeType.TEXT_FIELD.typeName, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
     UiStatefulNode {
+    private var notifyValueChanges = true
+
     var value: String = ""
         set(value) {
-            val normalized = if (mode == UiTextFieldMode.SINGLE_LINE) value.replace('\n', ' ') else value
+            val lineNormalized = value.normalizeEditorLineEndings()
+            val normalized = if (mode == UiTextFieldMode.SINGLE_LINE) lineNormalized.replace('\n', ' ') else lineNormalized
             if (!filter.accepts(normalized)) return
             if (field == normalized) {
                 this.attributes["value"] = field
@@ -261,7 +264,7 @@ class TextFieldNode(
             completionItems = emptyList()
             this.attributes["value"] = field
             invalidateLayout()
-            onChange?.invoke(field)
+            if (notifyValueChanges) onChange?.invoke(field)
         }
 
     var placeholder: String = this.attributes["placeholder"].orEmpty()
@@ -350,6 +353,7 @@ class TextFieldNode(
     private val undoStack = ArrayDeque<TextFieldHistoryEntry>()
     private val redoStack = ArrayDeque<TextFieldHistoryEntry>()
     private var restoringHistory = false
+    private var lastHistoryEditNanos = Long.MIN_VALUE
 
     var caret: Int = this.value.length
         private set
@@ -381,14 +385,32 @@ class TextFieldNode(
         this.diagnostics = diagnostics
         this.inlayHints = inlayHints
         this.inlayHintsProvider = inlayHintsProvider
+        notifyValueChanges = false
         this.value = value
+        notifyValueChanges = true
         moveCaret(this.value.length)
     }
 
     fun insert(text: String): Boolean {
         if (text.isEmpty()) return false
-        val sanitized = if (multiline) text else text.replace('\n', ' ')
+        val normalized = text.normalizeEditorLineEndings()
+        val sanitized = if (multiline) normalized else normalized.replace('\n', ' ')
         return replaceSelectedRanges(sanitized)
+    }
+
+    internal fun applyExternalValue(next: String) {
+        val previous = value
+        notifyValueChanges = false
+        try {
+            value = next
+        } finally {
+            notifyValueChanges = true
+        }
+        if (value != previous) {
+            undoStack.clear()
+            redoStack.clear()
+            breakHistoryGroup()
+        }
     }
 
     fun backspace(word: Boolean = false): Boolean {
@@ -424,7 +446,10 @@ class TextFieldNode(
         selectionAnchor = if (select) selectionAnchor ?: previous else null
         setCaretRangesInternal(listOf(UiTextCaret(caret, selectionAnchor)), updatePrimary = false)
         closeCompletionsIfCaretLeftLine()
-        if (caret != previous || selectionAnchor != previousAnchor) caretVisibilityRevision++
+        if (caret != previous || selectionAnchor != previousAnchor) {
+            caretVisibilityRevision++
+            breakHistoryGroup()
+        }
     }
 
     fun moveCarets(transform: (UiTextCaret) -> Int, select: Boolean = false) {
@@ -599,6 +624,7 @@ class TextFieldNode(
         val entry = undoStack.removeLastOrNull() ?: return false
         redoStack.addLast(historyEntry())
         restoreHistory(entry)
+        breakHistoryGroup()
         return true
     }
 
@@ -606,6 +632,7 @@ class TextFieldNode(
         val entry = redoStack.removeLastOrNull() ?: return false
         undoStack.addLast(historyEntry())
         restoreHistory(entry)
+        breakHistoryGroup()
         return true
     }
 
@@ -624,11 +651,13 @@ class TextFieldNode(
         completionReplacementEnd = completionReplacementEnd,
         completionLineStart = completionLineStart,
         completionLineEnd = completionLineEnd,
+        undoHistory = undoStack.map { it.toPersistentState() },
+        redoHistory = redoStack.map { it.toPersistentState() },
     )
 
     override fun importState(state: UiNodePersistentState) {
         if (state !is TextFieldPersistentState) return
-        value = state.value
+        applyExternalValue(state.value)
         caret = state.caret.coerceIn(0, value.length)
         selectionAnchor = state.selectionAnchor?.coerceIn(0, value.length)
         val ranges = state.caretRanges.takeIf { it.isNotEmpty() }
@@ -644,6 +673,11 @@ class TextFieldNode(
         completionReplacementEnd = state.completionReplacementEnd.coerceIn(completionReplacementStart, value.length)
         completionLineStart = state.completionLineStart.coerceIn(0, value.length)
         completionLineEnd = state.completionLineEnd.coerceIn(completionLineStart, value.length)
+        undoStack.clear()
+        undoStack.addAll(state.undoHistory.map { it.toHistoryEntry() })
+        redoStack.clear()
+        redoStack.addAll(state.redoHistory.map { it.toHistoryEntry() })
+        breakHistoryGroup()
     }
 
     private fun replaceSelectedRanges(replacement: String): Boolean {
@@ -704,11 +738,20 @@ class TextFieldNode(
 
     private fun recordHistorySnapshot() {
         if (restoringHistory) return
+        val now = System.nanoTime()
         val entry = historyEntry()
-        if (undoStack.lastOrNull() == entry) return
-        undoStack.addLast(entry)
-        while (undoStack.size > TextFieldHistoryLimit) undoStack.removeFirst()
+        val startsNewGroup = lastHistoryEditNanos == Long.MIN_VALUE ||
+                now - lastHistoryEditNanos > TextFieldHistoryMergeWindowNanos
+        if (startsNewGroup && undoStack.lastOrNull() != entry) {
+            undoStack.addLast(entry)
+            while (undoStack.size > TextFieldHistoryLimit) undoStack.removeFirst()
+        }
+        lastHistoryEditNanos = now
         redoStack.clear()
+    }
+
+    private fun breakHistoryGroup() {
+        lastHistoryEditNanos = Long.MIN_VALUE
     }
 
     private fun historyEntry(): TextFieldHistoryEntry {
@@ -768,11 +811,20 @@ class TextFieldNode(
         val caret: Int,
         val selectionAnchor: Int?,
         val caretRanges: List<UiTextCaret>,
-    )
+    ) {
+        fun toPersistentState(): TextFieldHistoryState {
+            return TextFieldHistoryState(value, caret, selectionAnchor, caretRanges)
+        }
+    }
+
+    private fun TextFieldHistoryState.toHistoryEntry(): TextFieldHistoryEntry {
+        return TextFieldHistoryEntry(value, caret, selectionAnchor, caretRanges)
+    }
 }
 
 internal const val TextFieldCompletionPopupMaxItems = 10
 private const val TextFieldHistoryLimit = 128
+private const val TextFieldHistoryMergeWindowNanos = 600_000_000L
 
 private fun editorWordLeft(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)

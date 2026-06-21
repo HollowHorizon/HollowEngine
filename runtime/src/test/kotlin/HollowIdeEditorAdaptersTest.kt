@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import ru.hollowhorizon.hollowengine.client.ui.UiInlayHint
+import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnostic
 
 class HollowIdeEditorAdaptersTest {
     @Test
@@ -42,5 +43,35 @@ class HollowIdeEditorAdaptersTest {
         )
 
         assertEquals(emptyList(), shifted)
+    }
+    @Test
+    fun shiftsDiagnosticsWithoutDroppingThemDuringAnalysis() {
+        val diagnostics = listOf(
+            UiTextDiagnostic(
+                start = 8,
+                end = 15,
+                message = "Unresolved reference",
+                line = 1,
+                column = 9,
+            ),
+        )
+
+        val shifted = shiftDiagnosticsForEditedText(
+            originalText = "val a = missing",
+            editedText = "\nval a = missing",
+            diagnostics = diagnostics,
+        )
+
+        assertEquals(1, shifted.size)
+        assertEquals(9, shifted.single().start)
+        assertEquals(2, shifted.single().line)
+        assertEquals(9, shifted.single().column)
+    }
+
+    @Test
+    fun openFileModelNormalizesLineEndings() {
+        val file = HollowIdeOpenFile("test.kts", "first\r\nsecond\rthird")
+
+        assertEquals("first\nsecond\nthird", file.text)
     }
 }

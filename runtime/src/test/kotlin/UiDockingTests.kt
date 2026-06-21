@@ -186,6 +186,33 @@ class UiDockingTests {
     }
 
     @Test
+    fun `switching tabs recreates keyed content for selected item`() {
+        val state = DockingState()
+        state.open(item("first"))
+        state.open(item("second"))
+        state.select("first")
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                DockSpace(state) { selected ->
+                    TextField(selected.id, id = "editor-${selected.id}")
+                }
+            }
+
+            val firstFrame = runtime.frame(640f, 360f)
+            val firstEditor = firstFrame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single()
+
+            state.select("second")
+            val secondFrame = runtime.frame(640f, 360f)
+            val secondEditor = secondFrame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single()
+
+            assertEquals("first", firstEditor.value)
+            assertEquals("second", secondEditor.value)
+            assertTrue(firstEditor !== secondEditor)
+        }
+    }
+
+    @Test
     fun `tabs can be reordered inside tab bar`() {
         val state = DockingState()
         state.open(item("files"))

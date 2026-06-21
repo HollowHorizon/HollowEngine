@@ -82,6 +82,11 @@ data class UiInlayHint(
     val text: String,
 )
 
+internal fun String.normalizeEditorLineEndings(): String {
+    if ('\r' !in this) return this
+    return replace("\r\n", "\n").replace('\r', '\n')
+}
+
 fun interface UiInlayHintsProvider {
     fun hints(text: String): List<UiInlayHint>
 }

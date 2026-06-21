@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.client.ui.withItalic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
@@ -35,7 +36,7 @@ internal class HollowIdeEditorSession(
     private val path: String,
     private val onUpdated: () -> Unit,
 ) {
-    private val analyzer = analyzerFor(path)
+    private val languageService = languageServiceFor(path)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val analysisRevision = AtomicLong()
     private val completionRevision = AtomicLong()
@@ -57,12 +58,13 @@ internal class HollowIdeEditorSession(
 
     val highlighter: UiCaretAwareSyntaxHighlighter = object : UiCaretAwareSyntaxHighlighter {
         override fun highlight(text: String, caret: Int): List<UiTextHighlight> {
-            requestAnalysis(text, caret)
+            val analyzer = currentAnalyzer()
+            requestAnalysis(text, caret, analyzer)
             val current = snapshot
             return when {
-                current.matches(text, caret) -> current.highlights
+                current.matches(text, caret, analyzer) -> current.highlights
                 current.matchesText(text) -> {
-                    requestAnalysis(text, caret)
+                    requestAnalysis(text, caret, analyzer)
                     current.highlights
                 }
                 current.hasText -> current.highlightsForEditedText(text, ::lightweightHighlights)
@@ -72,13 +74,17 @@ internal class HollowIdeEditorSession(
     }
 
     val completions: UiCompletionContributor = UiCompletionContributor { context ->
-        requestCompletions(context.text, context.caret)
-        completionSnapshot.takeIf { it.matches(context.text, context.caret) }?.items.orEmpty()
+        val analyzer = currentAnalyzer()
+        requestCompletions(context.text, context.caret, analyzer)
+        completionSnapshot.takeIf { it.matches(context.text, context.caret, analyzer) }?.items.orEmpty()
     }
 
     fun inlayHints(text: String): List<UiInlayHint> {
+        val analyzer = currentAnalyzer()
         val current = snapshot
-        if (!current.matchesText(text)) requestAnalysis(text, current.caret)
+        if (!current.matchesText(text, analyzer) && requestedAnalysis?.matchesText(text, analyzer) != true) {
+            requestAnalysis(text, current.caret, analyzer)
+        }
         val next = snapshot
         return when {
             next.matchesText(text) -> next.inlayHints
@@ -88,13 +94,25 @@ internal class HollowIdeEditorSession(
     }
 
     fun diagnostics(text: String): List<UiTextDiagnostic> {
+        val analyzer = currentAnalyzer()
         val current = snapshot
-        if (!current.matchesText(text)) requestAnalysis(text, current.caret)
-        return snapshot.takeIf { it.matchesText(text) }?.diagnostics.orEmpty()
+        if (!current.matchesText(text, analyzer) && requestedAnalysis?.matchesText(text, analyzer) != true) {
+            requestAnalysis(text, current.caret, analyzer)
+        }
+        val next = snapshot
+        return when {
+            next.matchesText(text) -> next.diagnostics
+            next.hasText -> next.diagnosticsForEditedText(text)
+            else -> emptyList()
+        }
     }
 
     fun requestAnalysis(text: String, caret: Int) {
-        val key = AnalysisKey(text.hashCode(), text.length, caret.coerceIn(0, text.length))
+        requestAnalysis(text, caret, currentAnalyzer())
+    }
+
+    private fun requestAnalysis(text: String, caret: Int, analyzer: ScriptingAnalyzer) {
+        val key = AnalysisKey(text.hashCode(), text.length, caret.coerceIn(0, text.length), analyzer)
         if (requestedAnalysis == key) return
         requestedAnalysis = key
         val requestRevision = analysisRevision.incrementAndGet()
@@ -112,6 +130,7 @@ internal class HollowIdeEditorSession(
                 textHash = key.textHash,
                 textLength = key.textLength,
                 caret = key.caret,
+                analyzer = analyzer,
                 highlights = lines.toHighlights(text, lineStarts),
                 inlayHints = lines.toInlayHints(lineStarts, text.length),
                 diagnostics = diagnostics,
@@ -122,8 +141,8 @@ internal class HollowIdeEditorSession(
         }
     }
 
-    private fun requestCompletions(text: String, caret: Int) {
-        val key = CompletionKey(text.hashCode(), text.length, caret.coerceIn(0, text.length))
+    private fun requestCompletions(text: String, caret: Int, analyzer: ScriptingAnalyzer) {
+        val key = CompletionKey(text.hashCode(), text.length, caret.coerceIn(0, text.length), analyzer)
         if (requestedCompletion == key) return
         requestedCompletion = key
         val requestRevision = completionRevision.incrementAndGet()
@@ -136,7 +155,7 @@ internal class HollowIdeEditorSession(
                     .toList()
             }.getOrDefault(emptyList())
             publishCompletionIfCurrent(requestRevision) {
-                completionSnapshot = CompletionSnapshot(key.textHash, key.textLength, key.caret, items)
+                completionSnapshot = CompletionSnapshot(key.textHash, key.textLength, key.caret, analyzer, items)
             }
         }
     }
@@ -156,6 +175,7 @@ internal class HollowIdeEditorSession(
     }
 
     private fun lightweightHighlights(text: String): List<UiTextHighlight> {
+        val analyzer = currentAnalyzer()
         val starts = lineStarts(text)
         return text.split('\n').flatMapIndexed { lineIndex, line ->
             val textLine = runCatching { analyzer.lightweightHighlightLine(path, line) }.getOrElse {
@@ -171,32 +191,46 @@ internal class HollowIdeEditorSession(
             }
         }
     }
+
+    private fun currentAnalyzer(): ScriptingAnalyzer {
+        return languageService?.analyzer ?: UnavailableKotlinScriptingAnalyzer
+    }
 }
 
 private data class AnalysisKey(
     val textHash: Int,
     val textLength: Int,
     val caret: Int,
-)
+    val analyzer: ScriptingAnalyzer,
+) {
+    fun matchesText(text: String, analyzer: ScriptingAnalyzer): Boolean {
+        return textHash == text.hashCode() && textLength == text.length && this.analyzer === analyzer
+    }
+}
 
 private data class CompletionKey(
     val textHash: Int,
     val textLength: Int,
     val caret: Int,
+    val analyzer: ScriptingAnalyzer,
 )
 
 private data class CompletionSnapshot(
     val textHash: Int,
     val textLength: Int,
     val caret: Int,
+    val analyzer: ScriptingAnalyzer,
     val items: List<UiTextCompletion>,
 ) {
-    fun matches(text: String, offset: Int): Boolean {
-        return textHash == text.hashCode() && textLength == text.length && caret == offset.coerceIn(0, text.length)
+    fun matches(text: String, offset: Int, analyzer: ScriptingAnalyzer): Boolean {
+        return textHash == text.hashCode() &&
+                textLength == text.length &&
+                caret == offset.coerceIn(0, text.length) &&
+                this.analyzer === analyzer
     }
 
     companion object {
-        val Empty = CompletionSnapshot(0, -1, 0, emptyList())
+        val Empty = CompletionSnapshot(0, -1, 0, UnavailableKotlinScriptingAnalyzer, emptyList())
     }
 }
 
@@ -205,12 +239,17 @@ private data class EditorAnalysisSnapshot(
     val textHash: Int,
     val textLength: Int,
     val caret: Int,
+    val analyzer: ScriptingAnalyzer,
     val highlights: List<UiTextHighlight>,
     val inlayHints: List<UiInlayHint>,
     val diagnostics: List<UiTextDiagnostic>,
 ) {
-    fun matches(text: String, offset: Int): Boolean {
-        return textHash == text.hashCode() && textLength == text.length && caret == offset.coerceIn(0, text.length)
+    fun matches(text: String, offset: Int, analyzer: ScriptingAnalyzer): Boolean {
+        return matchesText(text, analyzer) && caret == offset.coerceIn(0, text.length)
+    }
+
+    fun matchesText(text: String, analyzer: ScriptingAnalyzer): Boolean {
+        return matchesText(text) && this.analyzer === analyzer
     }
 
     fun matchesText(text: String): Boolean {
@@ -257,8 +296,58 @@ private data class EditorAnalysisSnapshot(
         return shiftInlayHintsForEditedText(text, editedText, inlayHints)
     }
 
+    fun diagnosticsForEditedText(editedText: String): List<UiTextDiagnostic> {
+        if (!hasText) return emptyList()
+        return shiftDiagnosticsForEditedText(text, editedText, diagnostics)
+    }
+
     companion object {
-        val Empty = EditorAnalysisSnapshot("", 0, -1, 0, emptyList(), emptyList(), emptyList())
+        val Empty = EditorAnalysisSnapshot(
+            "",
+            0,
+            -1,
+            0,
+            UnavailableKotlinScriptingAnalyzer,
+            emptyList(),
+            emptyList(),
+            emptyList(),
+        )
+    }
+}
+
+internal fun shiftDiagnosticsForEditedText(
+    originalText: String,
+    editedText: String,
+    diagnostics: List<UiTextDiagnostic>,
+): List<UiTextDiagnostic> {
+    if (diagnostics.isEmpty()) return emptyList()
+    val commonPrefix = commonPrefixLength(originalText, editedText)
+    val commonSuffix = commonSuffixLength(originalText, editedText, commonPrefix)
+    val oldChangedEnd = originalText.length - commonSuffix
+    val newChangedEnd = editedText.length - commonSuffix
+    val delta = editedText.length - originalText.length
+    val starts = lineStarts(editedText)
+
+    fun mapOffset(offset: Int): Int {
+        return when {
+            offset < commonPrefix -> offset
+            offset >= oldChangedEnd -> offset + delta
+            else -> newChangedEnd
+        }.coerceIn(0, editedText.length)
+    }
+
+    return diagnostics.map { diagnostic ->
+        val start = mapOffset(diagnostic.start)
+        val end = mapOffset(diagnostic.end).coerceAtLeast(start)
+        val line = starts.binarySearch(start).let { index ->
+            if (index >= 0) index else (-index - 2).coerceAtLeast(0)
+        }
+        diagnostic.copy(
+            start = start,
+            end = end,
+            line = line + 1,
+            column = start - starts.getOrElse(line) { 0 } + 1,
+        )
     }
 }
 
@@ -282,10 +371,10 @@ internal fun shiftInlayHintsForEditedText(
     }
 }
 
-private fun analyzerFor(path: String) = runCatching {
-    EditorLanguageService(path.substringAfterLast('.', "")).analyzer
-}.getOrElse {
-    UnavailableKotlinScriptingAnalyzer
+private fun languageServiceFor(path: String): EditorLanguageService? {
+    return runCatching {
+        EditorLanguageService(path.substringAfterLast('.', ""))
+    }.getOrNull()
 }
 
 private fun List<TextLine>.toHighlights(text: String, lineStarts: List<Int>): List<UiTextHighlight> {

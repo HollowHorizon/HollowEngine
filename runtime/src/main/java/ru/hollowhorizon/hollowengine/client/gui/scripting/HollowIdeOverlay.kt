@@ -63,6 +63,7 @@ object HollowIdeOverlay {
     private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
     private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
     private var editorAnalysisRevision by mutableStateOf(0)
+    private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorOverlays = HollowIdeEditorOverlays(input, ::setScrollImmediate) { invalidateUi() }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
@@ -352,9 +353,11 @@ object HollowIdeOverlay {
     @Composable
     private fun FileEditor(file: HollowIdeOpenFile) {
         val editorSession = remember(file.path) {
-            HollowIdeEditorSession(file.path) {
-                editorAnalysisRevision++
-                invalidateUi()
+            editorSessions.getOrPut(file.path) {
+                HollowIdeEditorSession(file.path) {
+                    editorAnalysisRevision++
+                    invalidateUi()
+                }
             }
         }
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision

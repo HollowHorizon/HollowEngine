@@ -66,6 +66,56 @@ class UiComposeTests {
     }
 
     @Test
+    fun `controlled text field updates do not invoke on change`() {
+        val serverValue = mutableStateOf("first")
+        var changes = 0
+
+        HollowUiComposition().use { composition ->
+            val root = composition.setContent {
+                TextField(serverValue.value, id = "field", onChange = { changes++ })
+            }
+            val field = root.textField()
+
+            serverValue.value = "second"
+            composition.applyPendingChanges()
+
+            assertEquals("second", field.value)
+            assertEquals(0, changes)
+
+            field.insert("!")
+            assertEquals(1, changes)
+        }
+    }
+
+    @Test
+    fun `text field normalizes carriage return line endings`() {
+        val field = TextFieldNode(mode = UiTextFieldMode.MULTI_LINE)
+
+        field.insert("first\r\nsecond\rthird")
+
+        assertEquals("first\nsecond\nthird", field.value)
+    }
+
+    @Test
+    fun `text field merges rapid edits into one undo entry`() {
+        val field = TextFieldNode(mode = UiTextFieldMode.MULTI_LINE)
+
+        field.insert("a")
+        field.insert("b")
+        field.insert("c")
+
+        assertTrue(field.undo())
+        assertEquals("", field.value)
+        assertTrue(field.redo())
+        assertEquals("abc", field.value)
+
+        field.moveCaret(0)
+        field.insert("x")
+        assertTrue(field.undo())
+        assertEquals("abc", field.value)
+    }
+
+    @Test
     fun `text field applies insertion to multiple carets`() {
         val field = TextFieldNode("ac", mode = UiTextFieldMode.MULTI_LINE, multiCaret = true)
 
@@ -485,6 +535,33 @@ class UiComposeTests {
             val field = root.children.single() as TextFieldNode
             assertEquals("value", field.attributes["value"])
             assertEquals("ready", field.attributes["status"])
+        }
+    }
+
+    @Test
+    fun `compose recreates inlay widget when its offset changes`() {
+        val text = mutableStateOf("val a = 1")
+        val hints = mutableStateOf(listOf(UiInlayHint(5, ": Int")))
+
+        HollowUiComposition().use { composition ->
+            val root = composition.setContent {
+                TextField(
+                    value = text.value,
+                    mode = UiTextFieldMode.MULTI_LINE,
+                    inlayHints = hints.value,
+                    id = "editor",
+                )
+            }
+            val field = root.textField()
+            val firstWidget = field.children.single()
+
+            text.value = "\nval a = 1"
+            hints.value = listOf(UiInlayHint(6, ": Int"))
+            composition.applyPendingChanges()
+
+            val movedWidget = field.children.single()
+            assertEquals(textFieldInlayWidgetId(UiInlayHint(6, ": Int"), 0), movedWidget.id)
+            assertTrue(firstWidget !== movedWidget)
         }
     }
 

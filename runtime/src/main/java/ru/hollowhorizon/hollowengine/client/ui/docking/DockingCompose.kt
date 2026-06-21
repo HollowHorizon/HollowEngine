@@ -158,7 +158,9 @@ private fun DockStackView(
                 Modifier.clip(),
             ),
         ) {
-            content(selected)
+            key(selected.id) {
+                content(selected)
+            }
         }
     }
 }
@@ -202,7 +204,9 @@ private fun FloatingDockWindowView(
                     },
                 ),
             ) {
-                content(selected)
+                key(selected.id) {
+                    content(selected)
+                }
             }
         }
         FloatingResizeHandle(window, state)
