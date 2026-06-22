@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 @Composable
 internal fun HollowIdeDiagnosticsBadge(
@@ -13,13 +13,10 @@ internal fun HollowIdeDiagnosticsBadge(
     if (diagnostics.isEmpty()) return
     val errors = diagnostics.count { it.severity == UiTextDiagnosticSeverity.ERROR }
     val warnings = diagnostics.count { it.severity == UiTextDiagnosticSeverity.WARNING }
-    val label = if (errors > 0) "$errors errors" else "$warnings warnings"
     Row(
         tags = listOf("ide-diagnostics-badge", if (errors > 0) "has-errors" else "has-warnings"),
         modifier = Modifier.then(
             Modifier.align(UiAlign.END, UiAlign.START),
-            Modifier.margin(6.px),
-            Modifier.translate(z = 20f),
             Modifier.input(clickable = true, hoverable = true),
             Modifier.onClick { event ->
                 onToggle(fileId)
@@ -27,7 +24,14 @@ internal fun HollowIdeDiagnosticsBadge(
             },
         ),
     ) {
-        Text(label)
+        if (errors > 0) {
+            Image(Assets.Hollowengine.Textures.Gui.Icons.ERROR.toString(), modifier = Modifier.size(10.px, 10.px))
+            Text(errors.toString(), tags = listOf("ide-diagnostics-text"))
+        }
+        if (warnings > 0) {
+            Image(Assets.Hollowengine.Textures.Gui.Icons.WARN.toString(), modifier = Modifier.size(10.px, 10.px))
+            Text(warnings.toString(), tags = listOf("ide-diagnostics-text"))
+        }
     }
 }
 

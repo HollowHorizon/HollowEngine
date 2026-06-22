@@ -122,7 +122,7 @@ private fun scrollableContentBounds(
                 field,
                 style,
                 layout,
-                textFieldInlineWidgetMetrics(field, layouts),
+                layout.inlineWidgetMetrics(),
             )
         }
         val textOffset = if (node is TextFieldNode) textFieldTextOffset(node, style, layout) else 0f
@@ -144,16 +144,6 @@ private fun scrollableContentBounds(
         ?: layout.content
 }
 
-private fun textFieldInlineWidgetMetrics(
-    node: TextFieldNode,
-    layouts: Map<UiNode, UiLayoutNode>,
-): Map<String, UiInlineWidgetMetrics> {
-    return node.children.mapNotNull { child ->
-        val id = child.id ?: return@mapNotNull null
-        val rect = layouts[child]?.rect ?: return@mapNotNull null
-        id to UiInlineWidgetMetrics(rect.width, rect.height)
-    }.toMap()
-}
 
 private fun textLayoutForScrollBounds(
     node: TextNode,

@@ -43,8 +43,7 @@
     padding: 0px 4px;
     gap: 4px;
     align-items: start center;
-    background: #1A202C;
-    border: 1px #28303F;
+    background: #31343D;
     border-radius: 4px;
 }
 
@@ -57,7 +56,6 @@
     width: 100%;
     margin-top: 2px;
     align: center center;
-    foreground: #d7deea;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
 }
@@ -68,7 +66,6 @@
 }
 
 .ide-status {
-    foreground: #8792a4;
     height: 16px;
 }
 
@@ -88,7 +85,8 @@
     padding: 0px 3px;
     align-items: center center;
     background: #1E1F22;
-    margin-left: 10px;
+    margin-left: 2px;
+    margin-right: 4px;
     shadow: 0px 1px 1px 1px #00000044;
     border-radius: 3px;
 }
@@ -101,18 +99,22 @@
 
 .ide-diagnostics-badge {
     height: fit;
-    padding: 4px 8px;
+    padding: 4px;
     align-items: center center;
-    background: rgba(18, 20, 26, 0.96);
+    gap: 4px;
+    background: #31343DBB;
     border: 1px rgba(255, 255, 255, 0.16);
     border-radius: 4px;
-    shadow: 0px 7px 14px -8px rgba(0, 0, 0, 0.72);
+    shadow: 1px 2px 1px 0px rgba(0, 0, 0, 0.72);
+    translate: 0 0 20px;
     foreground: #d7deea;
-    transition: background 120ms ease-out;
+    transition: background 120ms ease-out, translate 120ms ease-out, shadow 120ms ease-out;
 }
 
 .ide-diagnostics-badge:hover {
-    background: rgba(38, 44, 56, 0.98);
+    background: #31343D;
+    translate: -1px -1px 20px;
+    shadow: 2px 3px 1px 0px rgba(0, 0, 0, 0.72);
 }
 
 .ide-diagnostics-badge.has-errors {
@@ -123,24 +125,28 @@
     foreground: #ffc266;
 }
 
+.ide-diagnostics-text {
+    translate: 0 1px 0;
+}
+
 .ide-diagnostics-wrap {
     width: 100%;
-    background: #10131a;
+    background: #24272E;
     border-top: 1px #323846;
 }
 
 .ide-diagnostics-resizer {
     size: 100% 5px;
-    background: rgba(255, 255, 255, 0.035);
+    background: #5F6677BB;
+    transition: background 120ms ease-out;
 }
 
 .ide-diagnostics-resizer:hover {
-    background: rgba(120, 168, 255, 0.24);
+    background: #5F6677;
 }
 
 .ide-diagnostics-panel {
     width: 100%;
-    background: #10131a;
     padding: 4px;
     gap: 2px;
 }
@@ -150,7 +156,7 @@
     height: fit;
     padding: 4px 6px;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.025);
+    background: #31343D;
     border-radius: 3px;
 }
 
@@ -182,10 +188,10 @@
 }
 
 .ide-completion-popup {
-    background: rgba(13, 15, 20, 0.98);
-    border: 1px rgba(95, 115, 145, 0.72);
+    background: #24272E;
+    border: 1px #5F6677;
     border-radius: 4px;
-    shadow: 0px 10px 20px -10px rgba(0, 0, 0, 0.86);
+    shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.76);
     clip: true;
 }
 
@@ -193,6 +199,13 @@
     size: 100% 100%;
     text-wrap: false;
     scrollbar: 5px;
+    scrollbar-track: none;
+    scrollbar-thumb: #5F6677;
+}
+
+.ide-completion-hint {
+    align-items: start center;
+    padding: 2px;
 }
 
 .ide-completion-row {
@@ -200,7 +213,6 @@
     padding: 0px 7px;
     gap: 6px;
     align-items: start center;
-    foreground: #e5ebf5;
     text-wrap: false;
     clip: true;
 }
@@ -221,11 +233,13 @@
 .ide-completion-label {
     foreground: #eef4ff;
     text-wrap: false;
+    shadow: 1px 1px 1px #00000088
 }
 
 .ide-completion-detail {
-    foreground: rgba(169, 181, 198, 0.78);
+    foreground: rgba(169, 181, 198, 0.88);
     text-wrap: false;
+    translate: -4px 0 0;
 }
 
 .ide-completion-tail {
@@ -238,24 +252,13 @@
 .ide-diagnostic-tooltip {
     padding: 5px 8px;
     align-items: start center;
-    background: rgba(13, 15, 20, 0.98);
-    border: 1px rgba(255, 255, 255, 0.18);
+    background: #31343D;
+    border: 1px #5F6677;
     border-radius: 4px;
-    shadow: 0px 8px 18px -10px rgba(0, 0, 0, 0.86);
+    shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.56);
     clip: false;
 }
 
-.ide-diagnostic-tooltip.error {
-    border: 1px rgba(255, 120, 120, 0.78);
-}
-
-.ide-diagnostic-tooltip.warning {
-    border: 1px rgba(255, 192, 100, 0.78);
-}
-
-.ide-diagnostic-tooltip.info {
-    border: 1px rgba(120, 168, 255, 0.72);
-}
 
 .ide-diagnostic-tooltip-message {
     foreground: #edf3ff;

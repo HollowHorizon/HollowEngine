@@ -141,7 +141,7 @@ private fun TextFieldNode.moveTextFieldVertically(input: UiKeyInput, lineDelta: 
     val layout = frame.layout[this]
     val style = frame.resolved[this]
     val fontSize = style.fontSize
-    val textLayout = textFieldEditLayout(this, style, layout, textFieldInlineWidgetMetrics(this, frame.layout.nodes))
+    val textLayout = textFieldEditLayout(this, style, layout, layout.inlineWidgetMetrics())
     moveCarets({ range ->
         textLayout.verticalCaretIndex(range.position, lineDelta, fontSize, style.fontFamily)
     }, input.shift)
@@ -157,16 +157,6 @@ private fun visibleTextFieldLines(input: UiKeyInput): Int {
     return (layout.content.height / lineHeight).toInt().coerceAtLeast(1)
 }
 
-private fun textFieldInlineWidgetMetrics(
-    node: TextFieldNode,
-    layouts: Map<UiNode, UiLayoutNode>,
-): Map<String, UiInlineWidgetMetrics> {
-    return node.children.mapNotNull { child ->
-        val id = child.id ?: return@mapNotNull null
-        val rect = layouts[child]?.rect ?: return@mapNotNull null
-        id to UiInlineWidgetMetrics(rect.width, rect.height)
-    }.toMap()
-}
 
 private fun wordLeft(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)

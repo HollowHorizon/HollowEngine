@@ -433,15 +433,16 @@ class UiLayoutPipeline {
             for (fragment in line.fragments) {
                 if (fragment !is UiInlineWidgetRun) continue
                 val child = widgets[fragment.widget.id] ?: continue
+                val margin = resolved[child].margin.resolve(content.width, content.height)
                 placed += child
                 placeNode(
                     child,
                     resolved,
                     UiRect(
-                        content.x + line.x + fragment.x,
-                        content.y + line.y + fragment.y,
-                        fragment.width,
-                        fragment.height,
+                        content.x + line.x + fragment.x + margin.left,
+                        content.y + line.y + fragment.y + margin.top,
+                        (fragment.width - margin.horizontal).coerceAtLeast(0f),
+                        (fragment.height - margin.vertical).coerceAtLeast(0f),
                     ),
                     parentRect,
                     style,
@@ -502,14 +503,15 @@ class UiLayoutPipeline {
             for (fragment in line.fragments) {
                 if (fragment !is UiInlineWidgetRun) continue
                 val child = widgets[fragment.widget.id] ?: continue
+                val margin = resolved[child].margin.resolve(content.width, content.height)
                 placeNode(
                     child,
                     resolved,
                     UiRect(
-                        content.x + textOffset + line.x + fragment.x,
-                        content.y + line.y + fragment.y,
-                        fragment.width,
-                        fragment.height,
+                        content.x + textOffset + line.x + fragment.x + margin.left,
+                        content.y + line.y + fragment.y + margin.top,
+                        (fragment.width - margin.horizontal).coerceAtLeast(0f),
+                        (fragment.height - margin.vertical).coerceAtLeast(0f),
                     ),
                     parentRect,
                     style,
@@ -1817,9 +1819,10 @@ class UiLayoutPipeline {
         val metrics = LinkedHashMap<String, UiInlineWidgetMetrics>()
         for (child in children) {
             val id = child.id ?: continue
+            val margin = resolved[child].margin.resolve(availableWidth, availableHeight)
             val size =
                 measureNode(child, resolved, availableWidth, availableHeight, scrollbarReserves, bindings = bindings)
-            metrics[id] = UiInlineWidgetMetrics(size.width, size.height)
+            metrics[id] = UiInlineWidgetMetrics(size.width + margin.horizontal, size.height + margin.vertical)
         }
         return metrics
     }

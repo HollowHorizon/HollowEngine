@@ -439,20 +439,10 @@ class HollowUiInputController {
         val textOffset = textFieldTextOffset(node, style, layout)
         val contentX = localX - (layout.content.x - layout.rect.x) - textOffset + layout.scrollOffset.x
         val contentY = localY - (layout.content.y - layout.rect.y) + layout.scrollOffset.y
-        val textLayout = textFieldEditLayout(node, style, layout, textFieldInlineWidgetMetrics(node, frame.layout.nodes))
+        val textLayout = textFieldEditLayout(node, style, layout, layout.inlineWidgetMetrics())
         return textLayout.caretIndexAt(contentX, contentY, style.fontSize, style.fontFamily)
     }
 
-    private fun textFieldInlineWidgetMetrics(
-        node: TextFieldNode,
-        layouts: Map<UiNode, UiLayoutNode>,
-    ): Map<String, UiInlineWidgetMetrics> {
-        return node.children.mapNotNull { child ->
-            val id = child.id ?: return@mapNotNull null
-            val rect = layouts[child]?.rect ?: return@mapNotNull null
-            id to UiInlineWidgetMetrics(rect.width, rect.height)
-        }.toMap()
-    }
 
     private fun focusedTextField(frame: HollowUiFrame): TextFieldNode? {
         return focusedKey?.let(frame::nodeByKey) as? TextFieldNode

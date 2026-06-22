@@ -3,6 +3,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.effects.TextColor
+import ru.hollowhorizon.hollowengine.client.ui.hss.parseColor
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 internal class HollowIdeEditorOverlays(
     private val input: HollowUiInputController,
@@ -16,7 +19,8 @@ internal class HollowIdeEditorOverlays(
     fun CompletionPopup(fileId: String) {
         val state = completionPopups[fileId]
         if (state == null || state.items.isEmpty()) return
-        Box(
+
+        Column(
             tags = listOf("ide-completion-popup"),
             modifier = Modifier.then(
                 Modifier.position(state.x.px, state.y.px, 40f),
@@ -41,6 +45,46 @@ internal class HollowIdeEditorOverlays(
                 if (remaining > 0) {
                     Box(modifier = Modifier.size(100.percent, (remaining * state.rowHeight).px))
                 }
+            }
+            Box(modifier = Modifier.then(Modifier.size(UiLength.Fill, 1.px), Modifier.background(parseColor("#31343D"))))
+            Row(tags = listOf("ide-completion-hint")) {
+                Text(
+                    UiTextContent(
+                        buildList {
+                            this += UiTextSegment.Image(
+                                UiBoundString(Assets.Hollowengine.Textures.Gui.Icons.COMPLETIONS.toString()),
+                                16f,
+                                16f
+                            )
+
+                            this += UiTextSegment.Text(
+                                UiBoundString("to navigate.  "),
+                                style = UiInlineStyle(listOf(TextColor(parseColor("#5F6677"))))
+                            )
+
+                            this += UiTextSegment.Text(
+                                UiBoundString(" Enter "),
+                                style = UiInlineStyle(listOf(TextColor(parseColor("#C4CBDA"))))
+                            )
+
+                            this += UiTextSegment.Text(
+                                UiBoundString("or"),
+                                style = UiInlineStyle(listOf(TextColor(parseColor("#5F6677"))))
+                            )
+
+                            this += UiTextSegment.Text(
+                                UiBoundString(" Tab "),
+                                style = UiInlineStyle(listOf(TextColor(parseColor("#C4CBDA"))))
+                            )
+
+                            this += UiTextSegment.Text(
+                                UiBoundString("to insert."),
+                                style = UiInlineStyle(listOf(TextColor(parseColor("#5F6677"))))
+                            )
+                        }
+                    ),
+                    modifier = Modifier.textWrap(false)
+                )
             }
         }
     }
@@ -92,7 +136,7 @@ internal class HollowIdeEditorOverlays(
             if (item.detail.isNotBlank()) {
                 Text(item.detail, tags = listOf("ide-completion-detail"))
             }
-            Box(modifier = Modifier.then(Modifier.size(0.px, 100.percent), Modifier.grow(1f)))
+            Box(modifier = Modifier.then(Modifier.size(100.percent, 100.percent), Modifier.grow(1f)))
             if (item.tail.isNotBlank()) {
                 Text(item.tail, tags = listOf("ide-completion-tail"))
             }
@@ -105,7 +149,8 @@ internal class HollowIdeEditorOverlays(
         frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().forEach { node ->
             val editorId = node.id?.removePrefix("editor-") ?: return@forEach
             if (editorId == node.id) return@forEach
-            val stackNode = frame.resolved.styles.keys.firstOrNull { it.id == "editor-stack-$editorId" } ?: return@forEach
+            val stackNode =
+                frame.resolved.styles.keys.firstOrNull { it.id == "editor-stack-$editorId" } ?: return@forEach
             val layoutNode = frame.layout.nodes[node] ?: return@forEach
             val stackLayout = frame.layout.nodes[stackNode] ?: return@forEach
             val style = frame.resolved[node]
@@ -164,8 +209,17 @@ internal class HollowIdeEditorOverlays(
                 }
             }
 
-            val inlayMetrics = textFieldInlineWidgetMetrics(node, frame.layout.nodes)
-            diagnosticTooltipAtPointer(node, style, layoutNode, inlayMetrics, localOriginX, localOriginY, mouseX, mouseY)?.let {
+            val inlayMetrics = layoutNode.inlineWidgetMetrics()
+            diagnosticTooltipAtPointer(
+                node,
+                style,
+                layoutNode,
+                inlayMetrics,
+                localOriginX,
+                localOriginY,
+                mouseX,
+                mouseY
+            )?.let {
                 nextDiagnosticTooltips[editorId] = it
             }
         }
@@ -250,16 +304,6 @@ internal class HollowIdeEditorOverlays(
     }
 }
 
-private fun textFieldInlineWidgetMetrics(
-    node: TextFieldNode,
-    layouts: Map<UiNode, UiLayoutNode>,
-): Map<String, UiInlineWidgetMetrics> {
-    return node.children.mapNotNull { child ->
-        val id = child.id ?: return@mapNotNull null
-        val rect = layouts[child]?.rect ?: return@mapNotNull null
-        id to UiInlineWidgetMetrics(rect.width, rect.height)
-    }.toMap()
-}
 
 private data class HollowIdeCompletionPopupState(
     val node: TextFieldNode,

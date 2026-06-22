@@ -560,7 +560,7 @@ private fun parseGradientStops(args: List<String>): List<UiGradientStop> {
     }.sortedBy { it.offset }
 }
 
-private fun parseColor(value: String): UiColor {
+fun parseColor(value: String): UiColor {
     val cleaned = value.trim()
     if (cleaned.startsWith("rgba(")) {
         val args = functionArgs(cleaned, "rgba").map { it.trim().toFloat() }

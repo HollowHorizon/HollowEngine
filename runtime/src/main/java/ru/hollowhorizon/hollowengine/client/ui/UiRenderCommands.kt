@@ -712,6 +712,7 @@ class UiCommandRenderer {
 }
 
 private fun UiNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
+    layout.nodes[this]?.inlineWidgetMetrics()?.takeIf { it.isNotEmpty() }?.let { return it }
     return children.mapNotNull { child ->
         val id = child.id ?: return@mapNotNull null
         val rect = layout.nodes[child]?.rect ?: return@mapNotNull null

@@ -34,6 +34,13 @@ data class UiLayoutResult(
 ) {
     operator fun get(node: UiNode): UiLayoutNode = nodes.getValue(node)
 }
+internal fun UiLayoutNode.inlineWidgetMetrics(): Map<String, UiInlineWidgetMetrics> {
+    val layout = textLayout ?: return emptyMap()
+    return layout.lines
+        .flatMap { line -> line.fragments.filterIsInstance<UiInlineWidgetRun>() }
+        .associate { fragment -> fragment.widget.id to UiInlineWidgetMetrics(fragment.width, fragment.height) }
+}
+
 
 internal data class UiScrollbarReserve(
     val vertical: Boolean = false,
