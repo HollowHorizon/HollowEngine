@@ -257,6 +257,7 @@ class StartScriptPacket(val path: String) : HollowPacket {
         when {
             file.name.endsWith(".bc") -> startCodeBlocksScript(player, server)
             file.name.endsWith(".ktr") -> startKatariScript(player as ServerPlayer, server)
+            file.name.endsWith(".story.kts") -> startStoryScript(player as ServerPlayer, server)
             file.name.endsWith(".kts") -> startKotlinScript(player, file)
         }
     }
@@ -281,6 +282,16 @@ class StartScriptPacket(val path: String) : HollowPacket {
             val error = result.exceptionOrNull()
             HollowEngine.LOGGER.error("Katari script start failed", error)
             player.sendSystemMessage("Katari script start failed: ${error?.message ?: "Unknown error"}".literal)
+        }
+    }
+
+    private fun startStoryScript(player: ServerPlayer, server: MinecraftServer) {
+        val result = server.runtimeContext.stories.run(path, player)
+        result.onSuccess { id ->
+            player.sendSystemMessage("Story script started: $path ($id)".literal)
+        }.onFailure { error ->
+            HollowEngine.LOGGER.error("Story script start failed", error)
+            player.sendSystemMessage("Story script start failed: ${error.message ?: "Unknown error"}".literal)
         }
     }
 

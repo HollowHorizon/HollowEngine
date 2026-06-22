@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptSystem
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryScriptSystem
 
 interface ServerRuntimeContextProvider {
     val `hollowengine$serverRuntimeContext`: ServerRuntimeContext
@@ -20,6 +21,7 @@ class ServerRuntimeContext(
         ::markDirty,
     )
     val katari = KatariScriptSystem(server, CoroutineScope(Dispatchers.IO + SupervisorJob(server.coroutineScope.coroutineContext[Job])), ::markDirty)
+    val stories = StoryScriptSystem(server)
 
     private var dirty = false
 
@@ -40,6 +42,7 @@ class ServerRuntimeContext(
 
     fun dispose() {
         katari.dispose()
+        stories.dispose()
         scope.cancelAll()
     }
 

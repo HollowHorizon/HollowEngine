@@ -9,16 +9,19 @@ import androidx.compose.runtime.setValue
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import org.lwjgl.glfw.GLFW
+import org.lwjgl.opengl.GL11
+import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
+import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
@@ -184,9 +187,9 @@ object HollowIdeOverlay {
     }
 
     @SubscribeEvent
-    fun render(event: ScreenEvent.Render.Post) {
+    fun render(event: RenderTickEvent.Blit) {
         if (!isVisible()) return
-        renderOverlay()
+        renderOverlay(currentBlitTarget())
     }
 
     private fun initialize() {
@@ -474,13 +477,31 @@ object HollowIdeOverlay {
         return result.handled || hadActivePointer
     }
 
-    private fun renderOverlay() {
+    private fun renderOverlay(target: UiRenderTarget) {
         val nowMillis = System.currentTimeMillis()
         val current = currentFrame(nowMillis)
         val hoverChanged = input.updateHover(current, lastMouseX, lastMouseY, ::dispatchUiEvent)
         if (hoverChanged || current.requiresContinuousRefresh()) invalidateUi()
         input.dispatchHover(current, lastMouseX, lastMouseY, ::dispatchUiEvent)
-        renderer.render(current.commands)
+        renderer.render(current.commands, target)
+    }
+
+    private fun currentBlitTarget(): UiRenderTarget {
+        val viewport = IntArray(4)
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport)
+        val window = Minecraft.getInstance().window
+        val logicalWidth = window.guiScaledWidth.toFloat()
+        val logicalHeight = window.guiScaledHeight.toFloat()
+        return UiRenderTarget(
+            framebufferId = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),
+            x = viewport[0],
+            y = viewport[1],
+            width = viewport[2],
+            height = viewport[3],
+            logicalWidth = logicalWidth,
+            logicalHeight = logicalHeight,
+            scale = viewport[2] / logicalWidth,
+        )
     }
 
     private fun invalidateUi() {

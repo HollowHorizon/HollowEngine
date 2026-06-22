@@ -1,7 +1,7 @@
 name: build
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "dev", "v2.3" ]
 
 jobs:
   create_tag:

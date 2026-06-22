@@ -62,6 +62,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariRunStatus
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiDocument
 import ru.hollowhorizon.hollowengine.common.scripting.katari.getAvailableKatariScripts
 import ru.hollowhorizon.hollowengine.common.scripting.katari.katariUi
+import ru.hollowhorizon.hollowengine.common.scripting.story.getAvailableStoryScripts
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
@@ -791,6 +792,26 @@ private fun CommandExtension.registerCodeBlocksCommands() {
 }
 
 private fun CommandExtension.registerKatariCommands() {
+    "scripting" {
+        requires { hasPermission(2) }
+
+        "run"(arg("path", StringArgumentType.greedyString()) { getAvailableStoryScripts() }) {
+            executes {
+                val path = StringArgumentType.getString(this, "path")
+                val player = source.playerOrException
+                val result = source.server.runtimeContext.stories.run(path, player)
+                if (result.isSuccess) {
+                    sendSuccess { "Kotlin script started: $path (${result.getOrThrow()})".literal }
+                } else {
+                    val error = result.exceptionOrNull()
+                    HollowEngine.LOGGER.error("Katari script start failed", error)
+                    sendFailure("Kotlin script start failed: ${error?.message ?: "Unknown error"}".literal)
+                }
+                SUCCESS
+            }
+        }
+    }
+
     "katari" {
         requires { hasPermission(2) }
 
