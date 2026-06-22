@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.compiler.isolated
 
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptJvmK2CompilerIsolated
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapClass
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
@@ -69,7 +70,7 @@ private class RemappedCompiledModule(
     override val compilerOutputFiles: Map<String, ByteArray>,
 ) : KJvmCompiledModuleInMemory, Serializable {
     override fun createClassLoader(baseClassLoader: ClassLoader?): ClassLoader {
-        return RemappedCompiledScriptClassLoader(compilerOutputFiles, baseClassLoader)
+        return RemappedCompiledScriptClassLoader(compilerOutputFiles, HollowEngine::class.java.classLoader)
     }
 }
 
