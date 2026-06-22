@@ -55,7 +55,14 @@ private data class SvgRasterQuad(
     val transform: UiMatrix4,
 )
 
+private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
+
+internal fun svgRasterPixelSize(size: Float, scale: Float): Int {
+    val requiredSize = ceil(size * scale).toInt().coerceIn(1, MaxSvgRasterSize)
+    if (requiredSize <= MinSvgRasterSize) return MinSvgRasterSize
+    return Integer.highestOneBit(requiredSize - 1).shl(1).coerceAtMost(MaxSvgRasterSize)
+}
 
 class MinecraftUiRenderer {
     private val framebuffers = UiFramebufferPool()
@@ -264,7 +271,7 @@ class MinecraftUiRenderer {
     }
 
     private fun rasterPixelSize(size: Float): Int {
-        return ceil(size * layerScale()).toInt().coerceIn(1, MaxSvgRasterSize)
+        return svgRasterPixelSize(size, layerScale())
     }
 
     private fun createSvgRasterTexture(key: SvgRasterKey): SvgRasterTexture {

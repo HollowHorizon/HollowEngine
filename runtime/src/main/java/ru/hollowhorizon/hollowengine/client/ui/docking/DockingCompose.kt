@@ -111,7 +111,7 @@ private fun Splitter(
     state: DockingState,
     horizontal: Boolean,
 ) {
-    val size = 6.px
+    val size = 3.px
     Box(
         id = "${split.id}-splitter",
         tags = listOf(DockTags.Splitter),

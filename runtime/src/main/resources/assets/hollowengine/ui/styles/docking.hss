@@ -1,66 +1,43 @@
 .dock-stack,
 .dock-window {
-    background: #12141a;
-    border: 1px #414653;
-}
-
-.dock-tab-bar,
-.dock-header {
-    background: #1b1e26;
+    background: #1E1F22;
 }
 
 .dock-splitter {
-    background: #323845;
-    transition: background 120ms ease-out;
-}
-
-.dock-splitter:hover,
-.dock-splitter:active {
-    background: #4a5668;
+    background: #1E1F22;
 }
 
 .dock-tab {
-    background: #222631;
-    border: 1px #4f5969;
+    background: #1E1F22;
     border-radius: 4px;
-    foreground: #c9d0dc;
     align: start center;
-    shadow: 0px 3px 9px -5px rgba(0, 0, 0, 0.5);
     transition:
-        background 120ms ease-out,
-        foreground 120ms ease-out,
-        translate 140ms ease-out,
-        shadow 140ms ease-out;
+            background 120ms ease-out,
+            foreground 120ms ease-out,
+            translate 140ms ease-out,
 }
 
 .dock-tab:hover {
-    background: #2b303d;
-    foreground: #eef3fb;
-    translate: 0px -1px 0px;
+    background: #31343D;
 }
 
 .dock-tab.selected {
-    background: #285f9e;
-    border: 1px #68a9f3;
-    foreground: #ffffff;
-    shadow: 0px 7px 14px -6px rgba(0, 0, 0, 0.62);
+    background: #24272E;
 }
 
 .dock-tab:dragging {
-    translate: 0px -2px 10px;
-    shadow: 0px 5px 9px -5px rgba(0, 0, 0, 0.5);
     transition: none;
 }
 
 .dock-content {
-    background: #0f1117;
+    background: #1E1F22;
 }
 
 .dock-close-button {
     foreground: #8d96a8;
     transition:
-        foreground 100ms ease-out,
-        background 100ms ease-out;
+            foreground 100ms ease-out,
+            background 100ms ease-out;
 }
 
 .dock-close-button:hover {

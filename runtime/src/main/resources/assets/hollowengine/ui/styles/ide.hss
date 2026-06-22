@@ -1,61 +1,56 @@
 #ide-root {
     background: none;
-    foreground: #d7deea;
 }
 
 #ide-toolbar {
-    size: 100% 32px;
-    padding: 0px 6px;
+    size: 100% fit;
     gap: 2px;
-    background: rgba(18, 20, 26, 0.94);
-    border-bottom: 1px #323846;
-    shadow: 0px 8px 18px -12px rgba(0, 0, 0, 0.76);
+    background: #24272E;
 }
 
 #ide-logo {
-    size: 28px 28px;
+    size: 24px 24px;
     align-items: center center;
     border-radius: 4px;
+    rotate: 0 0 0;
     transition:
         background 120ms ease-out,
+        rotate 420ms ease-out,
         scale 120ms ease-out;
 }
 
 #ide-logo:hover {
     background: rgba(255, 255, 255, 0.09);
-    scale: 1.04;
+    rotate: 0 0 360;
+    scale: 1.1;
 }
 
-.ide-logo-icon {
-    size: 22px 22px;
-    tint: rgba(255, 255, 255, 0.88);
-}
-
-#ide-dock {
-    padding: 6px;
-    background: rgba(8, 10, 14, 0.72);
-}
-
-.ide-panel {
-    size: 100% 100%;
-    padding: 7px;
+.ide-panel, .ide-empty-editor, .ide-editor-shell {
+    size: fill fill;
+    margin: 2px;
+    padding: 4px;
+    border-radius: 4px;
     gap: 6px;
-    background: #10131a;
+    background: #24272E;
+}
+
+.ide-empty-editor {
+    align-items: center center;
 }
 
 .project-filter-row {
-    height: fit;
+    size: fit fit;
     padding: 0px 4px;
     gap: 4px;
     align-items: start center;
-    background: #191e27;
-    border: 1px #303848;
+    background: #1A202C;
+    border: 1px #28303F;
     border-radius: 4px;
 }
 
 .project-filter-icon {
     size: 14px 14px;
-    tint: #8f9bad;
+    tint: #FFFFFF;
 }
 
 .project-filter {
@@ -65,14 +60,6 @@
     foreground: #d7deea;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
-}
-
-.ide-empty-editor {
-    size: 100% 100%;
-    align-items: center center;
-    gap: 8px;
-    background: #0c0f14;
-    foreground: #8792a4;
 }
 
 .ide-empty-title {
@@ -85,11 +72,6 @@
     height: 16px;
 }
 
-.ide-editor-shell {
-    size: 100% 100%;
-    background: #0c0f14;
-}
-
 .ide-editor-stack {
     size: 100% 100%;
 }
@@ -97,32 +79,28 @@
 .code-editor {
     font-size: 12px;
     line-spacing: 2px;
-    foreground: #d7deea;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
-    line-number-color: rgba(130, 145, 166, 0.72);
-    inlay-hint-color: rgba(142, 153, 171, 0.78);
-    line-numbers: true;
     inlay-hints: true;
-    shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.42);
+    shadow: 0px 1px 2px 0px #FFFFFF66;
 }
 
 .code-editor-inlay {
     height: fit;
-    padding: 1px 3px;
+    padding: 0px 3px;
     align-items: center center;
-    background: rgba(31, 38, 50, 0.76);
-    border: 1px rgba(142, 153, 171, 0.32);
+    background: #1E1F22;
+    margin-left: 10px;
+    shadow: 0px 1px 1px 1px #00000044;
     border-radius: 3px;
 }
 
 .code-editor-inlay-text {
     foreground: rgba(142, 153, 171, 0.9);
     text-wrap: false;
+    shadow: 0px 1px 2px 0px #FFFFFF66;
 }
 
 .ide-diagnostics-badge {
-    height: 22px;
+    height: fit;
     padding: 4px 8px;
     align-items: center center;
     background: rgba(18, 20, 26, 0.96);
@@ -130,6 +108,7 @@
     border-radius: 4px;
     shadow: 0px 7px 14px -8px rgba(0, 0, 0, 0.72);
     foreground: #d7deea;
+    transition: background 120ms ease-out;
 }
 
 .ide-diagnostics-badge:hover {

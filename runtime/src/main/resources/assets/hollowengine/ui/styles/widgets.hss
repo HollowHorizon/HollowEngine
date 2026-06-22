@@ -132,8 +132,6 @@
 
 .code-editor {
     padding: 8px;
-    background: #0c0f14;
-    foreground: #d7deea;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
     line-numbers: true;

@@ -4,6 +4,14 @@ package ru.hollowhorizon.hollowengine.client.ui
 import kotlin.math.abs
 
 private const val DirectTextTransformEpsilon = 0.0001f
+internal val UiLength.dependsOnAvailableSpace: Boolean
+    get() = when (this) {
+        UiLength.Auto, UiLength.Fill, is UiLength.Percent -> true
+        is UiLength.Px -> false
+        is UiLength.Addition -> first.dependsOnAvailableSpace || second.dependsOnAvailableSpace
+        is UiLength.Substraction -> first.dependsOnAvailableSpace || second.dependsOnAvailableSpace
+    }
+
 
 internal fun UiLength.resolveWidth(
     align: UiAlign,

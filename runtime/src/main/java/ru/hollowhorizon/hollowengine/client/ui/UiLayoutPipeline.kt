@@ -1035,11 +1035,19 @@ class UiLayoutPipeline {
             val position = child.style.position.resolve(content.width, content.height)
             val alignX = child.style.effectiveAlignHorizontal(style, node.layout) ?: UiAlign.START
             val alignY = child.style.effectiveAlignVertical(style, node.layout) ?: UiAlign.START
+            val width = child.style.size.width
+            val height = child.style.size.height
+            val childWidth = if (width.dependsOnAvailableSpace) {
+                width.resolveWidth(alignX, child.style, child, content)
+            } else child.size.width
+            val childHeight = if (height.dependsOnAvailableSpace) {
+                height.resolveHeight(alignY, child.style, child, content)
+            } else child.size.height
             val x =
-                content.x + alignX.crossOffset(content.width, child.size.width, child.margin.left, child.margin.right)
+                content.x + alignX.crossOffset(content.width, childWidth, child.margin.left, child.margin.right)
             val y =
-                content.y + alignY.crossOffset(content.height, child.size.height, child.margin.top, child.margin.bottom)
-            val rect = UiRect(x + position.x, y + position.y, child.size.width, child.size.height)
+                content.y + alignY.crossOffset(content.height, childHeight, child.margin.top, child.margin.bottom)
+            val rect = UiRect(x + position.x, y + position.y, childWidth, childHeight)
             placeNode(
                 child.node,
                 resolved,
