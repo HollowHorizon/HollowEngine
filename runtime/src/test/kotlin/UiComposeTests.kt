@@ -157,6 +157,70 @@ class UiComposeTests {
     }
 
     @Test
+    fun `typing identifier opens and refreshes completions`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                TextField(
+                    value = "",
+                    id = "field",
+                    completionContributor = UiCompletionContributor { context ->
+                        listOf(UiTextCompletion(context.text.uppercase()))
+                    },
+                    modifier = Modifier.size(120.px, 20.px),
+                )
+            }
+            val frame = runtime.frame(140f, 40f)
+            val field = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single()
+            input.focus(frame, "field") { it.node.dispatch(it) }
+
+            input.charTyped(frame, 'a', modifiers = 0) { it.node.dispatch(it) }
+
+            assertTrue(field.completionActive)
+            assertEquals(listOf("A"), field.completionItems.map { it.label })
+        }
+    }
+
+    @Test
+    fun `alt enter opens completions`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                TextField(
+                    value = "value",
+                    id = "field",
+                    completionContributor = UiCompletionContributor { listOf(UiTextCompletion("valueOf")) },
+                    modifier = Modifier.size(120.px, 20.px),
+                )
+            }
+            val frame = runtime.frame(140f, 40f)
+            val field = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single()
+            input.focus(frame, "field") { it.node.dispatch(it) }
+
+            val result = input.keyPressed(
+                frame,
+                GLFW.GLFW_KEY_ENTER,
+                scanCode = 0,
+                modifiers = GLFW.GLFW_MOD_ALT,
+            ) { it.node.dispatch(it) }
+
+            assertTrue(result.changed)
+            assertTrue(field.completionActive)
+            assertEquals(listOf("valueOf"), field.completionItems.map { it.label })
+        }
+    }
+
+    @Test
+    fun `text field normalizes carriage returns before analysis offsets are used`() {
+        val field = TextFieldNode("first\r\nsecond\rthird", mode = UiTextFieldMode.MULTI_LINE)
+
+        assertEquals("first\nsecond\nthird", field.value)
+        assertEquals(field.value.length, field.caret)
+    }
+
+    @Test
     fun `text completion state no longer emits legacy text field popup commands`() {
         HollowUiSurface().use { runtime ->
             runtime.setContent {

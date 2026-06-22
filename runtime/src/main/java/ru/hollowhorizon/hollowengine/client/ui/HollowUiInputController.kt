@@ -278,7 +278,7 @@ class HollowUiInputController {
         val handled = dispatch(event)
         val hadCompletions = node is TextFieldNode && node.completionItems.isNotEmpty()
         if (!event.consumed && node is TextFieldNode && node.insert(codePoint.toString())) {
-            if (codePoint == '.' || hadCompletions) node.openCompletions()
+            if (codePoint.isCompletionTrigger() || hadCompletions) node.openCompletions()
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
         }
@@ -293,7 +293,17 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
-        val event = UiEvent(UiEventKind.KEY_PRESSED, node, frame = frame, key = keyCode, scanCode = scanCode, modifiers = modifiers)
+        val enterPressed = keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER
+        val altPressed = modifiers and GLFW.GLFW_MOD_ALT != 0 || enterPressed && isAltPressed()
+        val effectiveModifiers = if (altPressed) modifiers or GLFW.GLFW_MOD_ALT else modifiers
+        val event = UiEvent(
+            UiEventKind.KEY_PRESSED,
+            node,
+            frame = frame,
+            key = keyCode,
+            scanCode = scanCode,
+            modifiers = effectiveModifiers,
+        )
         val handled = dispatch(event)
         if (event.changed) {
             stateStore.save(node)
@@ -462,7 +472,7 @@ class HollowUiInputController {
     }
 
     private fun isAltPressed(): Boolean {
-        val window = Minecraft.getInstance().window.window
+        val window = Minecraft.getInstance()?.window?.window ?: return false
         return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS ||
                 GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS
     }
@@ -502,6 +512,8 @@ class HollowUiInputController {
         }
     }
 }
+
+private fun Char.isCompletionTrigger(): Boolean = this == '.' || this == '_' || isLetterOrDigit()
 
 private const val TextDoubleClickMillis = 350L
 

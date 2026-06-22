@@ -174,11 +174,16 @@ internal class HollowIdeEditorOverlays(
                     visibleRows = geometry.visibleRows,
                 )
                 if (selectedChanged && listNode != null) {
-                    val targetScroll = completionScrollIndex(
+                    val currentScrollIndex = completionScrollIndex(
                         totalCount = totalItems.size,
-                        selectedIndex = selectedIndex,
                         scrollOffset = scrollOffset,
                         rowHeight = geometry.rowHeight,
+                        visibleRows = geometry.visibleRows,
+                    )
+                    val targetScroll = completionSelectionScrollIndex(
+                        totalCount = totalItems.size,
+                        selectedIndex = selectedIndex,
+                        scrollIndex = currentScrollIndex,
                         visibleRows = geometry.visibleRows,
                     ) * geometry.rowHeight
                     if (frame.layout.nodes[listNode]?.scrollOffset?.y != targetScroll) {
@@ -347,7 +352,7 @@ private const val CompletionPopupOverscanRows = 12
 
 private fun completionListId(editorId: String) = "ide-completion-list-$editorId"
 
-private fun completionWindowStart(
+internal fun completionWindowStart(
     totalCount: Int,
     selectedIndex: Int,
     selectedChanged: Boolean,
@@ -356,25 +361,34 @@ private fun completionWindowStart(
     visibleRows: Int,
 ): Int {
     if (totalCount <= CompletionPopupWindowSize) return 0
-    val scrollIndex = completionScrollIndex(totalCount, selectedIndex, scrollOffset, rowHeight, visibleRows)
+    val scrollIndex = completionScrollIndex(totalCount, scrollOffset, rowHeight, visibleRows)
     val virtualStart = if (selectedChanged) {
-        scrollIndex - CompletionPopupOverscanRows
+        completionSelectionScrollIndex(totalCount, selectedIndex, scrollIndex, visibleRows) - CompletionPopupOverscanRows
     } else {
-        scrollIndex
+        scrollIndex - CompletionPopupOverscanRows
     }
     return virtualStart.coerceIn(0, totalCount - CompletionPopupWindowSize)
 }
 
-private fun completionScrollIndex(
+internal fun completionScrollIndex(
     totalCount: Int,
-    selectedIndex: Int,
     scrollOffset: Float,
     rowHeight: Float,
     visibleRows: Int,
 ): Int {
     val rows = visibleRows.coerceAtLeast(1)
     val maxScrollIndex = (totalCount - rows).coerceAtLeast(0)
-    val scrollIndex = (scrollOffset / rowHeight.coerceAtLeast(1f)).toInt().coerceIn(0, maxScrollIndex)
+    return (scrollOffset / rowHeight.coerceAtLeast(1f)).toInt().coerceIn(0, maxScrollIndex)
+}
+
+internal fun completionSelectionScrollIndex(
+    totalCount: Int,
+    selectedIndex: Int,
+    scrollIndex: Int,
+    visibleRows: Int,
+): Int {
+    val rows = visibleRows.coerceAtLeast(1)
+    val maxScrollIndex = (totalCount - rows).coerceAtLeast(0)
     return when {
         selectedIndex < scrollIndex -> selectedIndex
         selectedIndex >= scrollIndex + rows -> selectedIndex - rows + 1

@@ -28,7 +28,7 @@ internal fun textFieldCompletionPopupGeometry(
     val fontSize = style.fontSize
     val rowHeight = (fontSize + 6f).coerceAtLeast(14f)
     val itemCount = node.completionItems.size.coerceAtLeast(items.size)
-    val visibleRows = itemCount.coerceAtMost(TextFieldCompletionPopupMaxItems)
+    val visibleRows = itemCount.coerceAtMost(TextFieldCompletionPopupMaxItems) + 1
     val popupHeight = rowHeight * visibleRows + CompletionPopupVerticalPadding * 2f
     val labelWidth = items.maxOfOrNull { item ->
         val detail = if (item.detail.isBlank()) "" else item.detail

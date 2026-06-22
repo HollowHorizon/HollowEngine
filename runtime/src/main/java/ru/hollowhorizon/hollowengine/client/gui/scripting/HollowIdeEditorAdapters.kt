@@ -1,35 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorLanguageService
-import ru.hollowhorizon.hollowengine.client.ui.UiCaretAwareSyntaxHighlighter
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiCompletionContext
-import ru.hollowhorizon.hollowengine.client.ui.UiCompletionContributor
-import ru.hollowhorizon.hollowengine.client.ui.UiInlayHint
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.UiTextCompletion
-import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnostic
-import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnosticSeverity
-import ru.hollowhorizon.hollowengine.client.ui.UiTextHighlight
-import ru.hollowhorizon.hollowengine.client.ui.withBold
-import ru.hollowhorizon.hollowengine.client.ui.withBackground
-import ru.hollowhorizon.hollowengine.client.ui.withColor
-import ru.hollowhorizon.hollowengine.client.ui.withItalic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.scripting.ide.UnavailableKotlinScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.util.concurrent.atomic.AtomicLong
 
 internal class HollowIdeEditorSession(
@@ -149,7 +124,7 @@ internal class HollowIdeEditorSession(
         completionJob?.cancel()
         completionJob = scope.launch {
             val items = runCatching {
-                analyzer.completions(path, text, key.caret)
+                analyzer.completions(path, text, key.caret-1)
                     .asSequence()
                     .map(CompletionItem::toUi)
                     .toList()

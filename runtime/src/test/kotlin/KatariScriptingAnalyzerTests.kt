@@ -54,6 +54,19 @@ class KatariScriptingAnalyzerTests {
     }
 
     @Test
+    fun `completion offsets support all editor line endings`() {
+        listOf("\n", "\r\n", "\r").forEach { lineEnding ->
+            val text = "val result = 1${lineEnding}res"
+            val completions = KatariScriptingAnalyzer.completions("line-endings.ktr", text, text.length)
+
+            assertTrue(
+                completions.any { it.name == "result" && it.tag == CompletionItemTag.LOCAL_VARIABLE },
+                "Missing local completion for ${lineEnding.toCharArray().joinToString { it.code.toString() }}",
+            )
+        }
+    }
+
+    @Test
     fun `highlight marks full declared variable name`() {
         val lines = KatariScriptingAnalyzer.highlight("test.ktr", "val result = 1", 0)
         val tokens = lines.flatMap { line -> line.spans.map { it.first to it.second.color } }
