@@ -83,7 +83,7 @@ sealed class TransitionEasing {
                 val mid = (low + high) / 2f
                 if (sampleCurve(mid, x1, x2) < targetX) low = mid else high = mid
             }
-            return sampleCurve((low + high) / 2f, y1, y2).coerceIn(0f, 1f)
+            return sampleCurve((low + high) / 2f, y1, y2)
         }
 
         private fun sampleCurve(t: Float, a1: Float, a2: Float): Float {
@@ -108,6 +108,8 @@ data class UiTransition(
         val linear = (elapsedMillis.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
         return easing.transform(linear)
     }
+
+    fun complete(elapsedMillis: Long): Boolean = durationMillis <= 0L || elapsedMillis >= durationMillis
 }
 
 data class UiKeyframes(
@@ -598,20 +600,19 @@ data class TransitionProgress(
     val rotate: Float = 1f,
     val scale: Float = 1f,
     val perspective: Float = 1f,
+    private val completed: Boolean = background == 1f &&
+            foreground == 1f &&
+            shadow == 1f &&
+            opacity == 1f &&
+            tint == 1f &&
+            filter == 1f &&
+            backdropFilter == 1f &&
+            translate == 1f &&
+            rotate == 1f &&
+            scale == 1f &&
+            perspective == 1f,
 ) {
-    fun complete(): Boolean {
-        return background >= 1f &&
-                foreground >= 1f &&
-                shadow >= 1f &&
-                opacity >= 1f &&
-                tint >= 1f &&
-                filter >= 1f &&
-                backdropFilter >= 1f &&
-                translate >= 1f &&
-                rotate >= 1f &&
-                scale >= 1f &&
-                perspective >= 1f
-    }
+    fun complete(): Boolean = completed
 
     companion object {
         fun all(progress: Float) = TransitionProgress(
@@ -934,6 +935,7 @@ class UiTransitionState {
             rotate = progress("rotate", elapsedMillis),
             scale = progress("scale", elapsedMillis),
             perspective = progress("perspective", elapsedMillis),
+            completed = all { it.complete(elapsedMillis) },
         )
     }
 

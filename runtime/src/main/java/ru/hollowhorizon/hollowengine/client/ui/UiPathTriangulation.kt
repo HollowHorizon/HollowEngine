@@ -123,14 +123,15 @@ private fun triangulateSimple(points: List<UiPathPoint>): List<UiPathTriangle> {
     while (indices.size > 3 && guard-- > 0) {
         var clipped = false
         for (position in indices.indices) {
-            if (!isEar(polygon, indices, position)) continue
-            val previous = indices[(position - 1 + indices.size) % indices.size]
-            val current = indices[position]
-            val next = indices[(position + 1) % indices.size]
-            triangles += UiPathTriangle(polygon[previous], polygon[current], polygon[next])
-            indices.removeAt(position)
-            clipped = true
-            break
+            if (isEar(polygon, indices, position)) {
+                val previous = indices[(position - 1 + indices.size) % indices.size]
+                val current = indices[position]
+                val next = indices[(position + 1) % indices.size]
+                triangles += UiPathTriangle(polygon[previous], polygon[current], polygon[next])
+                indices.removeAt(position)
+                clipped = true
+                break
+            }
         }
         if (!clipped) break
     }
@@ -200,7 +201,7 @@ private fun pointInPolygon(point: UiPathPoint, polygon: List<UiPathPoint>): Bool
     for (index in polygon.indices) {
         val a = polygon[index]
         val b = polygon[(index + 1) % polygon.size]
-        if ((a.y > point.y) != (b.y > point.y) &&
+        if (a.y > point.y != b.y > point.y &&
             point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x
         ) inside = !inside
     }
