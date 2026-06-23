@@ -29,7 +29,7 @@ internal data object TextFieldDefaultKeyInputModifier : Modifier {
 }
 
 internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Boolean {
-    if (completionActive && handleCompletionKeyInput(input)) {
+    if (completionItems.isNotEmpty() && handleCompletionKeyInput(input)) {
         return true
     }
 
@@ -74,16 +74,15 @@ private fun TextFieldNode.handleCompletionKeyInput(input: UiKeyInput): Boolean {
 }
 
 private fun TextFieldNode.handleClipboardAndSelection(input: UiKeyInput): Boolean {
-    val handler = Minecraft.getInstance().keyboardHandler
     return when (input.key) {
         GLFW.GLFW_KEY_A -> { selectAll(); true }
-        GLFW.GLFW_KEY_C -> { selectedText()?.let { handler.clipboard = it }; true }
+        GLFW.GLFW_KEY_C -> { selectedText()?.let { Minecraft.getInstance().keyboardHandler.clipboard = it }; true }
         GLFW.GLFW_KEY_X -> {
             val selected = selectedText() ?: return true
-            handler.clipboard = selected
+            Minecraft.getInstance().keyboardHandler.clipboard = selected
             backspace()
         }
-        GLFW.GLFW_KEY_V -> handler.clipboard.let { it.isNotEmpty() && insert(it) }
+        GLFW.GLFW_KEY_V -> Minecraft.getInstance().keyboardHandler.clipboard.let { it.isNotEmpty() && insert(it) }
         GLFW.GLFW_KEY_Z -> if (input.shift) redo() else undo()
         GLFW.GLFW_KEY_Y -> redo()
         else -> false
@@ -129,7 +128,16 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
                 openCompletions()
                 true
             } else {
-                multiline && insert("\n")
+                insertNewlineWithIndent()
+            }
+        }
+        GLFW.GLFW_KEY_TAB -> {
+            if (!multiline || indentSize == null || input.control || input.alt) {
+                false
+            } else if (input.shift) {
+                unindent()
+            } else {
+                indent()
             }
         }
         else -> false
@@ -160,7 +168,8 @@ private fun visibleTextFieldLines(input: UiKeyInput): Int {
 
 private fun wordLeft(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)
-    while (index > 0 && text[index - 1].isWhitespace()) index--
+    if (index > 0 && text[index - 1] == '\n') return index - 1
+    while (index > 0 && text[index - 1].isWhitespace() && text[index - 1] != '\n') index--
     while (index > 0 && text[index - 1].isEditorWordChar()) index--
     if (index == position.coerceIn(0, text.length) && index > 0) index--
     return index
@@ -168,7 +177,9 @@ private fun wordLeft(text: String, position: Int): Int {
 
 private fun wordRight(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)
-    while (index < text.length && text[index].isWhitespace()) index++
+    if (index < text.length && text[index] == '\n') return index + 1
+    while (index < text.length && text[index].isWhitespace() && text[index] != '\n') index++
+    if (index < text.length && text[index] == '\n') return index + 1
     while (index < text.length && text[index].isEditorWordChar()) index++
     if (index == position.coerceIn(0, text.length) && index < text.length) index++
     return index

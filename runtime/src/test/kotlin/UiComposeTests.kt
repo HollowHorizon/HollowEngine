@@ -3,11 +3,13 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.render.textFieldIndentGuideColumns
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -352,6 +354,287 @@ class UiComposeTests {
             assertTrue(frame.layout[editor].scrollRange.y > 0f)
             assertSame(editor, input.scrollTargetAt(frame, x = 140f, y = 60f))
         }
+    }
+
+    @Test
+    fun `text field keeps empty completion result pending without activating popup`() {
+        var calls = 0
+        val field = TextFieldNode(
+            value = "val value = ",
+            mode = UiTextFieldMode.MULTI_LINE,
+            completionContributor = UiCompletionContributor {
+                calls++
+                if (calls == 1) emptyList() else listOf(UiTextCompletion("valueOf"))
+            },
+        )
+
+        assertFalse(field.openCompletions())
+        assertFalse(field.completionActive)
+        assertEquals(emptyList(), field.completionItems)
+        assertTrue(field.resolvePendingCompletions())
+        assertTrue(field.completionActive)
+        assertEquals(listOf("valueOf"), field.completionItems.map { it.label })
+
+        val pendingField = TextFieldNode(
+            value = "val value = ",
+            mode = UiTextFieldMode.MULTI_LINE,
+            completionContributor = UiCompletionContributor { emptyList() },
+        )
+        assertFalse(pendingField.openCompletions())
+
+        val restored = TextFieldNode(
+            value = "val value = ",
+            mode = UiTextFieldMode.MULTI_LINE,
+            completionContributor = UiCompletionContributor { listOf(UiTextCompletion("valueOf")) },
+        )
+        restored.importState(pendingField.exportState())
+        assertTrue(restored.resolvePendingCompletions())
+        assertTrue(restored.completionActive)
+        assertEquals(listOf("valueOf"), restored.completionItems.map { it.label })
+
+        val activeField = TextFieldNode(
+            value = "Fo",
+            completionContributor = UiCompletionContributor { listOf(UiTextCompletion("Foo")) },
+        )
+        assertTrue(activeField.openCompletions())
+        activeField.applyExternalValue("bar")
+        assertFalse(activeField.completionActive)
+        assertEquals(emptyList(), activeField.completionItems)
+    }
+
+    @Test
+    fun `input controller resolves pending completions after state is restored`() {
+        val input = HollowUiInputController()
+        val pendingField = TextFieldNode(
+            value = "HollowEngine.",
+            mode = UiTextFieldMode.MULTI_LINE,
+            id = "editor",
+            completionContributor = UiCompletionContributor { emptyList() },
+        )
+        val pendingRoot = BoxNode()
+        pendingRoot.children += pendingField
+
+        input.prepareRoot(pendingRoot)
+        assertFalse(pendingField.openCompletions())
+        input.saveState(pendingField)
+
+        val restoredField = TextFieldNode(
+            value = "HollowEngine.",
+            mode = UiTextFieldMode.MULTI_LINE,
+            id = "editor",
+            completionContributor = UiCompletionContributor { listOf(UiTextCompletion("LOGGER")) },
+        )
+        val restoredRoot = BoxNode()
+        restoredRoot.children += restoredField
+
+        input.prepareRoot(restoredRoot)
+
+        assertTrue(restoredField.completionActive)
+        assertEquals(listOf("LOGGER"), restoredField.completionItems.map { it.label })
+    }
+
+    @Test
+    fun `ctrl word navigation stops at line breaks`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                TextField(
+                    value = "one\ntwo",
+                    mode = UiTextFieldMode.MULTI_LINE,
+                    id = "editor",
+                    modifier = Modifier.size(120.px, 50.px),
+                )
+            }
+            val frame = runtime.frame(140f, 70f)
+            val editor = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single { it.id == "editor" }
+            input.focus(frame, "editor") { it.node.dispatch(it) }
+
+            editor.moveCaret("one".length)
+            input.keyPressed(frame, GLFW.GLFW_KEY_RIGHT, scanCode = 0, modifiers = GLFW.GLFW_MOD_CONTROL) { it.node.dispatch(it) }
+            assertEquals("one\n".length, editor.caret)
+
+            input.keyPressed(frame, GLFW.GLFW_KEY_LEFT, scanCode = 0, modifiers = GLFW.GLFW_MOD_CONTROL) { it.node.dispatch(it) }
+            assertEquals("one".length, editor.caret)
+        }
+    }
+
+    @Test
+    fun `ctrl word deletion stops at line breaks`() {
+        val backspaceField = TextFieldNode("one\ntwo", mode = UiTextFieldMode.MULTI_LINE)
+        backspaceField.moveCaret("one\n".length)
+
+        assertTrue(backspaceField.backspace(word = true))
+        assertEquals("onetwo", backspaceField.value)
+        assertEquals("one".length, backspaceField.caret)
+
+        val deleteField = TextFieldNode("one\ntwo", mode = UiTextFieldMode.MULTI_LINE)
+        deleteField.moveCaret("one".length)
+
+        assertTrue(deleteField.deleteForward(word = true))
+        assertEquals("onetwo", deleteField.value)
+        assertEquals("one".length, deleteField.caret)
+    }
+
+    @Test
+    fun `code text field inserts configured spaces on tab without changing focus`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                Row {
+                    TextField(
+                        value = "",
+                        mode = UiTextFieldMode.MULTI_LINE,
+                        indentSize = 4,
+                        id = "editor",
+                    )
+                    TextField(value = "", id = "next")
+                }
+            }
+            val frame = runtime.frame(160f, 60f)
+            val editor = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single { it.id == "editor" }
+
+            input.focus(frame, "editor") { it.node.dispatch(it) }
+            input.keyPressed(frame, GLFW.GLFW_KEY_TAB, scanCode = 0, modifiers = 0) { it.node.dispatch(it) }
+
+            assertEquals("editor", input.focusedKey)
+            assertEquals("    ", editor.value)
+        }
+    }
+
+    @Test
+    fun `plain text field keeps tab focus navigation when indent is not configured`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                Row {
+                    TextField(value = "", id = "first")
+                    TextField(value = "", id = "second")
+                }
+            }
+            val frame = runtime.frame(160f, 60f)
+
+            input.focus(frame, "first") { it.node.dispatch(it) }
+            input.keyPressed(frame, GLFW.GLFW_KEY_TAB, scanCode = 0, modifiers = 0) { it.node.dispatch(it) }
+
+            assertEquals("second", input.focusedKey)
+        }
+    }
+
+    @Test
+    fun `text field auto pairs brackets and skips matching closing quote`() {
+        val field = TextFieldNode(
+            value = "",
+            mode = UiTextFieldMode.MULTI_LINE,
+            autoPairs = true,
+        )
+
+        assertTrue(field.typeCharacter('"'))
+        assertEquals("\"\"", field.value)
+        assertEquals(1, field.caret)
+
+        assertTrue(field.typeCharacter('"'))
+        assertEquals("\"\"", field.value)
+        assertEquals(2, field.caret)
+    }
+
+    @Test
+    fun `text field backspace removes matching auto pair`() {
+        val field = TextFieldNode(
+            value = "",
+            mode = UiTextFieldMode.MULTI_LINE,
+            autoPairs = true,
+        )
+
+        field.typeCharacter('(')
+        assertEquals("()", field.value)
+        assertEquals(1, field.caret)
+
+        assertTrue(field.backspace())
+        assertEquals("", field.value)
+        assertEquals(0, field.caret)
+    }
+
+    @Test
+    fun `code text field keeps contextual indent on newline`() {
+        val field = TextFieldNode(
+            value = "story {}",
+            mode = UiTextFieldMode.MULTI_LINE,
+            indentSize = 4,
+        )
+        field.moveCaret("story {".length)
+
+        assertTrue(field.insertNewlineWithIndent())
+        assertEquals("story {\n    \n}", field.value)
+        assertEquals("story {\n    ".length, field.caret)
+
+        assertTrue(field.insertNewlineWithIndent())
+        assertEquals("story {\n    \n    \n}", field.value)
+        assertEquals("story {\n    \n    ".length, field.caret)
+    }
+
+    @Test
+    fun `backspace removes whitespace only line`() {
+        val field = TextFieldNode("first\n    \nsecond", mode = UiTextFieldMode.MULTI_LINE)
+        field.moveCaret("first\n  ".length)
+
+        assertTrue(field.backspace())
+        assertEquals("first\nsecond", field.value)
+        assertEquals("first".length, field.caret)
+    }
+
+    @Test
+    fun `triple click selects whole text field line`() {
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            runtime.setContent {
+                TextField(
+                    value = "alpha beta\nnext",
+                    mode = UiTextFieldMode.MULTI_LINE,
+                    id = "editor",
+                    modifier = Modifier.size(180.px, 60.px),
+                )
+            }
+            val frame = runtime.frame(200f, 80f)
+            val editor = frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().single { it.id == "editor" }
+
+            repeat(3) {
+                input.mouseClicked(frame, mouseX = 8f, mouseY = 8f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
+            }
+
+            assertEquals(0, editor.selectionStart)
+            assertEquals("alpha beta".length, editor.selectionEnd)
+        }
+    }
+
+    @Test
+    fun `completion import is inserted once and sorted before applying item`() {
+        val field = TextFieldNode(
+            value = "import z.Z\n\nfun main() {\n    Foo\n}",
+            mode = UiTextFieldMode.MULTI_LINE,
+            completionContributor = UiCompletionContributor {
+                listOf(UiTextCompletion("Foo", importFqName = "a.Foo"))
+            },
+        )
+        field.moveCaret(field.value.indexOf("Foo") + "Foo".length)
+
+        assertTrue(field.openCompletions())
+        assertTrue(field.acceptCompletion())
+
+        assertEquals(
+            "import a.Foo\nimport z.Z\n\nfun main() {\n    Foo\n}",
+            field.value,
+        )
+    }
+
+    @Test
+    fun `indent guides render one indent level before text`() {
+        assertEquals(emptyList(), textFieldIndentGuideColumns("    value", indentSize = 4))
+        assertEquals(listOf(4), textFieldIndentGuideColumns("        value", indentSize = 4))
+        assertEquals(listOf(4, 8), textFieldIndentGuideColumns("            value", indentSize = 4))
     }
 
     @Test

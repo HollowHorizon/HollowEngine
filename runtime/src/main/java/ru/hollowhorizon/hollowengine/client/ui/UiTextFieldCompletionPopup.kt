@@ -7,12 +7,14 @@ internal data class UiTextFieldCompletionPopupGeometry(
     val y: Float,
     val width: Float,
     val height: Float,
+    val listHeight: Float,
     val rowHeight: Float,
     val itemCount: Int,
     val visibleRows: Int,
 ) {
     fun rowAt(localX: Float, localY: Float): Int? {
         if (localX < x || localX > x + width || localY < y || localY > y + height) return null
+        if (localY > y + listHeight) return null
         val index = ((localY - y - CompletionPopupVerticalPadding) / rowHeight).toInt()
         return index.takeIf { it in 0 until itemCount }
     }
@@ -28,8 +30,9 @@ internal fun textFieldCompletionPopupGeometry(
     val fontSize = style.fontSize
     val rowHeight = (fontSize + 6f).coerceAtLeast(14f)
     val itemCount = node.completionItems.size.coerceAtLeast(items.size)
-    val visibleRows = itemCount.coerceAtMost(TextFieldCompletionPopupMaxItems) + 1
-    val popupHeight = rowHeight * visibleRows + CompletionPopupVerticalPadding * 2f
+    val visibleRows = itemCount.coerceAtMost(TextFieldCompletionPopupMaxItems)
+    val listHeight = rowHeight * visibleRows + CompletionPopupVerticalPadding * 2f
+    val popupHeight = listHeight + rowHeight + 1f
     val labelWidth = items.maxOfOrNull { item ->
         val detail = if (item.detail.isBlank()) "" else item.detail
         val tail = if (item.tail.isBlank()) "" else item.tail
@@ -53,6 +56,7 @@ internal fun textFieldCompletionPopupGeometry(
         y = popupY,
         width = popupWidth,
         height = popupHeight,
+        listHeight = listHeight,
         rowHeight = rowHeight,
         itemCount = itemCount,
         visibleRows = visibleRows,

@@ -235,6 +235,8 @@ class TextFieldNode(
     multiCaret: Boolean = false,
     syntaxHighlighter: UiSyntaxHighlighter? = null,
     completionContributor: UiCompletionContributor? = null,
+    indentSize: Int? = null,
+    autoPairs: Boolean = false,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
@@ -262,6 +264,8 @@ class TextFieldNode(
             caretRanges.replaceAll { it.coerceIn(field.length) }
             completionAnchor = completionAnchor.coerceIn(0, field.length)
             completionItems = emptyList()
+            completionActive = false
+            completionAutoOpenPending = false
             this.attributes["value"] = field
             invalidateLayout()
             if (notifyValueChanges) onChange?.invoke(field)
@@ -319,6 +323,19 @@ class TextFieldNode(
             field = value
             invalidateLayout()
         }
+    var indentSize: Int? = indentSize
+        set(value) {
+            val normalized = value?.coerceAtLeast(1)
+            if (field == normalized) return
+            field = normalized
+            normalized?.let { attributes["indent-size"] = it.toString() } ?: attributes.remove("indent-size")
+        }
+    var autoPairs: Boolean = autoPairs
+        set(value) {
+            if (field == value) return
+            field = value
+            attributes["auto-pairs"] = value.toString()
+        }
     var diagnostics: List<UiTextDiagnostic> = diagnostics
         set(value) {
             if (field == value) return
@@ -350,6 +367,7 @@ class TextFieldNode(
     private var completionReplacementEnd: Int = this.value.length
     private var completionLineStart: Int = 0
     private var completionLineEnd: Int = 0
+    private var completionAutoOpenPending: Boolean = false
     private val undoStack = ArrayDeque<TextFieldHistoryEntry>()
     private val redoStack = ArrayDeque<TextFieldHistoryEntry>()
     private var restoringHistory = false
@@ -382,6 +400,8 @@ class TextFieldNode(
         this.multiCaret = multiCaret
         this.syntaxHighlighter = syntaxHighlighter
         this.completionContributor = completionContributor
+        this.indentSize = indentSize
+        this.autoPairs = autoPairs
         this.diagnostics = diagnostics
         this.inlayHints = inlayHints
         this.inlayHintsProvider = inlayHintsProvider
@@ -396,6 +416,21 @@ class TextFieldNode(
         val normalized = text.normalizeEditorLineEndings()
         val sanitized = if (multiline) normalized else normalized.replace('\n', ' ')
         return replaceSelectedRanges(sanitized)
+    }
+
+    fun typeCharacter(char: Char): Boolean {
+        if (!autoPairs) return insert(char.toString())
+
+        if (trySkipClosingPair(char)) return true
+
+        val closing = AutoPairClosings[char] ?: return insert(char.toString())
+        if (activeCaretRanges().any { it.hasSelection }) return insert(char.toString())
+
+        val changed = insert("$char$closing")
+        if (changed) {
+            moveCarets({ range -> range.position - 1 })
+        }
+        return changed
     }
 
     internal fun applyExternalValue(next: String) {
@@ -415,6 +450,18 @@ class TextFieldNode(
 
     fun backspace(word: Boolean = false): Boolean {
         if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
+        if (!word && multiline && deleteWhitespaceOnlyLineBeforeCaret()) return true
+        if (!word && autoPairs) {
+            val pairRanges = activeCaretRanges().mapNotNull { range ->
+                val position = range.position
+                val opening = value.getOrNull(position - 1) ?: return@mapNotNull null
+                val closing = value.getOrNull(position) ?: return@mapNotNull null
+                if (AutoPairClosings[opening] == closing) TextEditRange(position - 1, position + 1) else null
+            }
+            if (pairRanges.size == activeCaretRanges().size && pairRanges.isNotEmpty()) {
+                return replaceRanges(pairRanges, "")
+            }
+        }
         val ranges = activeCaretRanges().mapNotNull { range ->
             if (range.position <= 0) {
                 null
@@ -424,6 +471,58 @@ class TextFieldNode(
             }
         }
         return replaceRanges(ranges, "")
+    }
+
+    fun indent(): Boolean {
+        val size = indentSize ?: return false
+        if (!multiline) return false
+        if (activeCaretRanges().all { !it.hasSelection }) return insert(" ".repeat(size))
+
+        val lineStarts = selectedLineStarts()
+        if (lineStarts.isEmpty()) return false
+        return replaceRanges(lineStarts.map { TextEditRange(it, it) }, " ".repeat(size))
+    }
+
+    fun unindent(): Boolean {
+        val size = indentSize ?: return false
+        if (!multiline) return false
+        val ranges = selectedLineStarts().mapNotNull { start ->
+            val end = (start + size).coerceAtMost(value.length)
+            val removable = value.substring(start, end).takeWhile { it == ' ' }.length
+            removable.takeIf { it > 0 }?.let { TextEditRange(start, start + it) }
+        }
+        return replaceRanges(ranges, "")
+    }
+
+    fun insertNewlineWithIndent(): Boolean {
+        if (!multiline) return false
+        val size = indentSize ?: return insert("\n")
+        if (activeCaretRanges().any { it.hasSelection }) return insert("\n")
+
+        val position = caret.coerceIn(0, value.length)
+        val lineStart = value.lastIndexOf('\n', (position - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+        val lineEnd = value.indexOf('\n', position).let { if (it < 0) value.length else it }
+        val line = value.substring(lineStart, lineEnd)
+        val column = position - lineStart
+        val context = newlineIndentContext(lineStart, line, column, size)
+        val baseIndent = context.baseIndent
+        val beforeCaret = line.substring(0, column).trimEnd()
+        val afterCaret = line.substring(column).trimStart()
+        val opensBlock = beforeCaret.endsWith("{") || beforeCaret.endsWith("(") || beforeCaret.endsWith("[") ||
+                line.isBlank() && context.previousOpensBlock
+        val closesBlock = afterCaret.startsWith("}") || afterCaret.startsWith(")") || afterCaret.startsWith("]")
+
+        return if (opensBlock && closesBlock) {
+            val innerIndent = baseIndent + " ".repeat(size)
+            val changed = insert("\n$innerIndent\n$baseIndent")
+            if (changed) {
+                moveCarets({ range -> range.position - baseIndent.length - 1 })
+            }
+            changed
+        } else {
+            val nextIndent = if (opensBlock) baseIndent + " ".repeat(size) else baseIndent
+            insert("\n$nextIndent")
+        }
     }
 
     fun deleteForward(word: Boolean = false): Boolean {
@@ -547,26 +646,41 @@ class TextFieldNode(
         val contributor = completionContributor ?: return false
         val items = contributor.complete(UiCompletionContext(value, caret))
             .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+        val replacement = completionReplacementRange(value, caret)
+        val line = completionLineRange(value, caret)
+        if (items.isEmpty()) {
+            completionAutoOpenPending = true
+            completionItems = emptyList()
+            completionActive = false
+            completionAnchor = caret
+            completionSelectedIndex = 0
+            completionReplacementStart = replacement.first
+            completionReplacementEnd = replacement.last
+            completionLineStart = line.first
+            completionLineEnd = line.last
+            return false
+        }
         val previousItems = completionItems
         val previousAnchor = completionAnchor
         val wasActive = completionActive
-        val replacement = completionReplacementRange(value, caret)
         completionItems = items
         completionActive = true
+        completionAutoOpenPending = false
         completionAnchor = caret
         completionSelectedIndex = 0
         completionReplacementStart = replacement.first
         completionReplacementEnd = replacement.last
-        val line = completionLineRange(value, caret)
         completionLineStart = line.first
         completionLineEnd = line.last
         return !wasActive || previousItems != completionItems || previousAnchor != completionAnchor
     }
 
     fun closeCompletions(): Boolean {
-        if (completionItems.isEmpty() && !completionActive) return false
+        val hadState = completionItems.isNotEmpty() || completionActive || completionAutoOpenPending
+        if (!hadState) return false
         completionItems = emptyList()
         completionActive = false
+        completionAutoOpenPending = false
         completionSelectedIndex = 0
         return true
     }
@@ -576,8 +690,15 @@ class TextFieldNode(
         val contributor = completionContributor ?: return closeCompletions()
         val items = contributor.complete(UiCompletionContext(value, caret))
             .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+        if (items.isEmpty()) {
+            completionItems = emptyList()
+            completionActive = false
+            return false
+        }
         if (items == completionItems) return false
         completionItems = items
+        completionActive = true
+        completionAutoOpenPending = false
         completionSelectedIndex = completionSelectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
         invalidateLayout()
         return true
@@ -604,7 +725,7 @@ class TextFieldNode(
     fun acceptCompletion(index: Int = 0): Boolean {
         val item = completionItems.getOrNull(index) ?: return false
         val insertText = item.insertText.ifEmpty { item.label }
-        val changed = replaceCompletionRange(insertText, item.caretOffset)
+        val changed = replaceCompletionRange(insertText, item.caretOffset, item.importFqName)
         completionItems = emptyList()
         completionActive = false
         return changed
@@ -613,6 +734,11 @@ class TextFieldNode(
     fun visibleCompletionItems(limit: Int = TextFieldCompletionPopupMaxItems): List<UiTextCompletion> {
         if (completionActive) refreshCompletions()
         return completionItems.take(limit)
+    }
+
+    fun resolvePendingCompletions(): Boolean {
+        if (!completionAutoOpenPending) return false
+        return openCompletions()
     }
 
     fun currentInlayHints(): List<UiInlayHint> {
@@ -645,6 +771,7 @@ class TextFieldNode(
         caretVisibilityRevision = caretVisibilityRevision,
         completionItems = completionItems,
         completionActive = completionActive,
+        completionAutoOpenPending = completionAutoOpenPending,
         completionAnchor = completionAnchor,
         completionSelectedIndex = completionSelectedIndex,
         completionReplacementStart = completionReplacementStart,
@@ -666,7 +793,8 @@ class TextFieldNode(
         setCaretRangesInternal(ranges.map { it.coerceIn(value.length) })
         caretVisibilityRevision = state.caretVisibilityRevision
         completionItems = state.completionItems
-        completionActive = state.completionActive
+        completionActive = state.completionActive && completionItems.isNotEmpty()
+        completionAutoOpenPending = state.completionAutoOpenPending && completionItems.isEmpty()
         completionAnchor = state.completionAnchor.coerceIn(0, value.length)
         completionSelectedIndex = state.completionSelectedIndex.coerceIn(0, (completionItems.size - 1).coerceAtLeast(0))
         completionReplacementStart = state.completionReplacementStart.coerceIn(0, value.length)
@@ -721,13 +849,22 @@ class TextFieldNode(
         value = nextValue
         setCaretRanges(nextCarets)
         completionItems = emptyList()
+        completionActive = false
+        completionAutoOpenPending = false
         return true
     }
 
-    private fun replaceCompletionRange(replacement: String, caretOffset: Int?): Boolean {
-        val start = completionReplacementStart.coerceIn(0, value.length)
-        val end = completionReplacementEnd.coerceIn(start, value.length)
-        val nextValue = value.substring(0, start) + replacement + value.substring(end)
+    private fun replaceCompletionRange(replacement: String, caretOffset: Int?, importFqName: String?): Boolean {
+        val originalStart = completionReplacementStart.coerceIn(0, value.length)
+        val importResult = importFqName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { value.withSortedKotlinImport(it, originalStart) }
+            ?: UiTextImportResult(value, 0)
+
+        val importedValue = importResult.text
+        val start = (originalStart + importResult.shiftBeforeReference).coerceIn(0, importedValue.length)
+        val end = (completionReplacementEnd + importResult.shiftBeforeReference).coerceIn(start, importedValue.length)
+        val nextValue = importedValue.substring(0, start) + replacement + importedValue.substring(end)
         if (!filter.accepts(nextValue)) return false
         recordHistorySnapshot()
         value = nextValue
@@ -778,8 +915,66 @@ class TextFieldNode(
     }
 
     private fun closeCompletionsIfCaretLeftLine() {
-        if (completionItems.isEmpty()) return
+        if (!completionActive && !completionAutoOpenPending) return
         if (caret < completionLineStart || caret > completionLineEnd) closeCompletions()
+    }
+
+    private fun deleteWhitespaceOnlyLineBeforeCaret(): Boolean {
+        val position = caret.coerceIn(0, value.length)
+        val lineStart = value.lastIndexOf('\n', (position - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+        val lineEnd = value.indexOf('\n', position).let { if (it < 0) value.length else it }
+        if (lineEnd <= lineStart) return false
+        if (value.substring(lineStart, lineEnd).any { it != ' ' }) return false
+
+        val deleteStart = if (lineStart > 0) lineStart - 1 else 0
+        val deleteEnd = if (lineStart == 0 && lineEnd < value.length) lineEnd + 1 else lineEnd
+        return replaceRanges(listOf(TextEditRange(deleteStart, deleteEnd)), "")
+    }
+
+    private fun newlineIndentContext(lineStart: Int, line: String, column: Int, indentSize: Int): NewlineIndentContext {
+        if (line.isNotBlank()) {
+            return NewlineIndentContext(line.takeWhile { it == ' ' }, previousOpensBlock = false)
+        }
+
+        var scanEnd = (lineStart - 1).coerceAtLeast(0)
+        while (scanEnd > 0) {
+            val previousStart = value.lastIndexOf('\n', scanEnd - 1).let { if (it < 0) 0 else it + 1 }
+            val previousLine = value.substring(previousStart, scanEnd)
+            if (previousLine.isNotBlank()) {
+                val indent = previousLine.takeWhile { it == ' ' }
+                val opens = previousLine.trimEnd().let { it.endsWith("{") || it.endsWith("(") || it.endsWith("[") }
+                return NewlineIndentContext(indent, opens)
+            }
+            scanEnd = (previousStart - 1).coerceAtLeast(0)
+            if (previousStart == 0) break
+        }
+
+        return NewlineIndentContext(" ".repeat((column / indentSize) * indentSize), previousOpensBlock = false)
+    }
+
+    private fun trySkipClosingPair(char: Char): Boolean {
+        if (char !in AutoPairClosings.values) return false
+        val ranges = activeCaretRanges()
+        if (ranges.any { it.hasSelection || value.getOrNull(it.position) != char }) return false
+        moveCarets({ range -> range.position + 1 })
+        return true
+    }
+
+    private fun selectedLineStarts(): List<Int> {
+        val starts = linkedSetOf<Int>()
+        for (range in activeCaretRanges()) {
+            val from = range.selectionStart.coerceIn(0, value.length)
+            val rawTo = range.selectionEnd.coerceIn(0, value.length)
+            val to = if (rawTo > from && value.getOrNull(rawTo - 1) == '\n') rawTo - 1 else rawTo
+            var lineStart = value.lastIndexOf('\n', (from - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+            while (lineStart <= to) {
+                starts += lineStart
+                val next = value.indexOf('\n', lineStart)
+                if (next < 0 || next >= to) break
+                lineStart = next + 1
+            }
+        }
+        return starts.toList()
     }
 
     private fun activeCaretRanges(): List<UiTextCaret> {
@@ -806,6 +1001,10 @@ class TextFieldNode(
     }
 
     private data class TextEditRange(val start: Int, val end: Int)
+    private data class NewlineIndentContext(
+        val baseIndent: String,
+        val previousOpensBlock: Boolean,
+    )
     private data class TextFieldHistoryEntry(
         val value: String,
         val caret: Int,
@@ -825,10 +1024,18 @@ class TextFieldNode(
 internal const val TextFieldCompletionPopupMaxItems = 10
 private const val TextFieldHistoryLimit = 128
 private const val TextFieldHistoryMergeWindowNanos = 600_000_000L
+private val AutoPairClosings = mapOf(
+    '(' to ')',
+    '[' to ']',
+    '{' to '}',
+    '"' to '"',
+    '\'' to '\'',
+)
 
 private fun editorWordLeft(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)
-    while (index > 0 && text[index - 1].isWhitespace()) index--
+    if (index > 0 && text[index - 1] == '\n') return index - 1
+    while (index > 0 && text[index - 1].isWhitespace() && text[index - 1] != '\n') index--
     while (index > 0 && text[index - 1].isEditorWordChar()) index--
     if (index == position.coerceIn(0, text.length) && index > 0) index--
     return index
@@ -836,7 +1043,9 @@ private fun editorWordLeft(text: String, position: Int): Int {
 
 private fun editorWordRight(text: String, position: Int): Int {
     var index = position.coerceIn(0, text.length)
-    while (index < text.length && text[index].isWhitespace()) index++
+    if (index < text.length && text[index] == '\n') return index + 1
+    while (index < text.length && text[index].isWhitespace() && text[index] != '\n') index++
+    if (index < text.length && text[index] == '\n') return index + 1
     while (index < text.length && text[index].isEditorWordChar()) index++
     if (index == position.coerceIn(0, text.length) && index < text.length) index++
     return index

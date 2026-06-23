@@ -124,7 +124,7 @@ internal class HollowIdeEditorSession(
         completionJob?.cancel()
         completionJob = scope.launch {
             val items = runCatching {
-                analyzer.completions(path, text, key.caret-1)
+                analyzer.completions(path, text, key.caret)
                     .asSequence()
                     .map(CompletionItem::toUi)
                     .toList()
@@ -378,13 +378,15 @@ private fun List<TextLine>.toInlayHints(lineStarts: List<Int>, textLength: Int):
 }
 
 private fun CompletionItem.toUi(): UiTextCompletion {
+    val declaration = this as? CompletionItem.Declaration
     return UiTextCompletion(
         label = show,
         insertText = insert,
-        detail = (this as? CompletionItem.Declaration)?.middle.orEmpty(),
-        tail = (this as? CompletionItem.Declaration)?.tail.orEmpty(),
+        detail = declaration?.middle.orEmpty(),
+        tail = declaration?.tail.orEmpty(),
         icon = tag.completionIcon(),
         caretOffset = (insert.length + moveCaret).coerceIn(0, insert.length),
+        importFqName = declaration?.fqName?.takeIf { declaration.import },
     )
 }
 

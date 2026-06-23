@@ -114,6 +114,7 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(
             elementType in KtTokens.STRINGS || elementType == KtTokens.OPEN_QUOTE || elementType == KtTokens.CLOSING_QUOTE -> tokenType = TokenType.STRING
             KtTokens.COMMENTS.contains(elementType) -> tokenType = TokenType.COMMENT
             parent is KtConstantExpression && !isEnumConstant(parent) -> tokenType = TokenType.NUMERIC_LITERAL
+            elementType == KtTokens.MINUS && psi.isUnaryNumericMinus() -> tokenType = TokenType.NUMERIC_LITERAL
 
             else -> {
                 val symbols = resolveSymbolsForHighlight(parent, psi)
@@ -134,6 +135,12 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(
 
         append(text)
     }
+}
+
+private fun PsiElement.isUnaryNumericMinus(): Boolean {
+    val prefix = parent?.parent as? KtPrefixExpression ?: return false
+    if (prefix.operationReference.node.elementType != KtTokens.MINUS) return false
+    return prefix.baseExpression is KtConstantExpression
 }
 
 context(session: KaSession)

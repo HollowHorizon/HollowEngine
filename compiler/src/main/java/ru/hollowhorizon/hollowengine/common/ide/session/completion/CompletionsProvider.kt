@@ -36,8 +36,10 @@ import ru.hollowhorizon.hollowengine.logE
 
 fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
     val safeOffset = offset.coerceIn(0, file.textLength)
-    val file = createFileForCompletion(file, safeOffset + 1)
-    val element = file.findElementAt(safeOffset) ?: return emptyList()
+    val file = createFileForCompletion(file, safeOffset)
+    val element = file.findElementAt(safeOffset)
+        ?: (if (safeOffset > 0) file.findElementAt(safeOffset - 1) else null)
+        ?: return emptyList()
     val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
 
     try {

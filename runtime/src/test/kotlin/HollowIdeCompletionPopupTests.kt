@@ -1,8 +1,10 @@
 import ru.hollowhorizon.hollowengine.client.gui.scripting.completionScrollIndex
 import ru.hollowhorizon.hollowengine.client.gui.scripting.completionSelectionScrollIndex
 import ru.hollowhorizon.hollowengine.client.gui.scripting.completionWindowStart
+import ru.hollowhorizon.hollowengine.client.ui.UiTextFieldCompletionPopupGeometry
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class HollowIdeCompletionPopupTests {
     @Test
@@ -31,5 +33,23 @@ class HollowIdeCompletionPopupTests {
         assertEquals(120, scrollIndex)
         assertEquals(191, completionSelectionScrollIndex(500, 200, scrollIndex, 10))
         assertEquals(80, completionSelectionScrollIndex(500, 80, scrollIndex, 10))
+    }
+
+    @Test
+    fun `completion hint space is not counted as a selectable row`() {
+        val geometry = UiTextFieldCompletionPopupGeometry(
+            x = 0f,
+            y = 0f,
+            width = 100f,
+            height = 45f,
+            listHeight = 24f,
+            rowHeight = 20f,
+            itemCount = 1,
+            visibleRows = 1,
+        )
+
+        assertEquals(1, geometry.visibleRows)
+        assertEquals(0, geometry.rowAt(8f, 8f))
+        assertNull(geometry.rowAt(8f, 32f))
     }
 }

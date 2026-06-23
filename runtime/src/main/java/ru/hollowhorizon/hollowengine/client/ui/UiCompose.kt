@@ -432,6 +432,8 @@ fun TextField(
     multiCaret: Boolean = false,
     syntaxHighlighter: UiSyntaxHighlighter? = null,
     completionContributor: UiCompletionContributor? = null,
+    indentSize: Int? = null,
+    autoPairs: Boolean = false,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
@@ -452,6 +454,8 @@ fun TextField(
         multiCaret,
         syntaxHighlighter,
         completionContributor,
+        indentSize,
+        autoPairs,
         diagnostics,
         inlayHints,
         inlayHintsProvider,
@@ -468,6 +472,8 @@ fun TextField(
                 multiCaret,
                 syntaxHighlighter,
                 completionContributor,
+                indentSize,
+                autoPairs,
                 diagnostics,
                 inlayHints,
                 inlayHintsProvider,
@@ -599,6 +605,8 @@ private data class TextFieldValues(
     val multiCaret: Boolean,
     val syntaxHighlighter: UiSyntaxHighlighter?,
     val completionContributor: UiCompletionContributor?,
+    val indentSize: Int?,
+    val autoPairs: Boolean,
     val diagnostics: List<UiTextDiagnostic>,
     val inlayHints: List<UiInlayHint>,
     val inlayHintsProvider: UiInlayHintsProvider?,
@@ -630,6 +638,8 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     multiCaret = values.multiCaret
     syntaxHighlighter = values.syntaxHighlighter
     completionContributor = values.completionContributor
+    indentSize = values.indentSize
+    autoPairs = values.autoPairs
     diagnostics = values.diagnostics
     inlayHints = values.inlayHints
     inlayHintsProvider = values.inlayHintsProvider

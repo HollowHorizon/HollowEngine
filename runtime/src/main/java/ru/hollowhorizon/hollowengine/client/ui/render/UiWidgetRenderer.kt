@@ -113,21 +113,15 @@ internal class UiWidgetRenderer(
         transform: UiMatrix4,
         quads: MutableList<UiBatchedQuad>,
     ) {
+        val indentSize = command.node.indentSize ?: return
         val color = command.inlayHintColor.withOpacity(command.opacity * 0.22f).filtered(command.filter)
         val visibleLines = command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).toList()
         visibleLines.forEachIndexed { visibleIndex, (_, line) ->
-            if (line.text.isBlank()) return@forEachIndexed
-            val leadingSpaces = line.text.takeWhile { it == ' ' }.length
-            if (leadingSpaces < IndentGuideSize) return@forEachIndexed
-            val levels = leadingSpaces / IndentGuideSize
-            for (level in 1..levels) {
-                val column = (level * IndentGuideSize - 1).coerceAtLeast(0)
-                if (line.text.getOrNull(column)?.let { it != ' ' } == true) continue
+            for (column in textFieldIndentGuideColumns(line.text, indentSize)) {
                 val x = command.textOffset +
                         line.x +
                         UiTextLayouter.measureTextWidth(" ".repeat(column), command.fontSize, command.fontFamily) -
-                        command.scrollOffset.x -
-                        1f
+                        command.scrollOffset.x + 2f
                 if (x < command.textOffset || x > command.rect.width) continue
                 val y = line.y - command.scrollOffset.y
                 if (y + line.height < 0f || y > command.rect.height) continue
@@ -476,11 +470,17 @@ internal class UiWidgetRenderer(
     }
 }
 
+internal fun textFieldIndentGuideColumns(line: String, indentSize: Int): List<Int> {
+    val normalizedIndent = indentSize.coerceAtLeast(1)
+    val leadingSpaces = line.takeWhile { it == ' ' }.length
+    if (leadingSpaces < normalizedIndent * 2) return emptyList()
+    val levels = leadingSpaces / normalizedIndent
+    return (1 until levels).map { level -> level * normalizedIndent }
+}
+
 private data class CaretBlinkState(
     val revision: Long,
     val startedAtMillis: Long,
 )
 
 private const val CaretBlinkPeriodMillis = 900L
-
-private const val IndentGuideSize = 4

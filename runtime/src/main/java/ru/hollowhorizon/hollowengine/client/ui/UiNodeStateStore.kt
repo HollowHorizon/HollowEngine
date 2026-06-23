@@ -60,6 +60,7 @@ data class TextFieldPersistentState(
     val caretVisibilityRevision: Long = 0L,
     val completionItems: List<UiTextCompletion> = emptyList(),
     val completionActive: Boolean = false,
+    val completionAutoOpenPending: Boolean = false,
     val completionAnchor: Int = value.length,
     val completionSelectedIndex: Int = 0,
     val completionReplacementStart: Int = value.length,

@@ -22,6 +22,7 @@ class HollowUiInputController {
     private var lastTextClickKey: String? = null
     private var lastTextClickAtMillis: Long = 0L
     private var lastTextClickIndex: Int = -1
+    private var lastTextClickCount: Int = 0
     private var textAltSelectionAnchor: Int? = null
 
     fun reset() {
@@ -40,6 +41,7 @@ class HollowUiInputController {
         draggingKey = null
         scrollbarDrag = null
         textAltSelectionAnchor = null
+        lastTextClickCount = 0
         if (clearFocus) focusedKey = null
     }
 
@@ -48,6 +50,11 @@ class HollowUiInputController {
     fun prepareRoot(root: UiNode, closing: Boolean = false) {
         UiNodeKeys.assign(root)
         stateStore.apply(root)
+        root.forEachTextFields { field ->
+            if (field.resolvePendingCompletions()) {
+                stateStore.save(field)
+            }
+        }
         applyRuntimeStates(root, closing)
     }
 
@@ -276,8 +283,8 @@ class HollowUiInputController {
         val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
         val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
         val handled = dispatch(event)
-        val hadCompletions = node is TextFieldNode && node.completionItems.isNotEmpty()
-        if (!event.consumed && node is TextFieldNode && node.insert(codePoint.toString())) {
+        val hadCompletions = node is TextFieldNode && node.completionActive
+        if (!event.consumed && node is TextFieldNode && node.typeCharacter(codePoint)) {
             if (codePoint.isCompletionTrigger() || hadCompletions) node.openCompletions()
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
@@ -386,8 +393,16 @@ class HollowUiInputController {
                 val index = textFieldCaretIndexAt(frame, node, localX, localY)
                 val nodeKey = UiNodeKeys.key(node)
                 val altPressed = isAltPressed()
+                val clickCount = textClickCount(nodeKey, index)
                 textAltSelectionAnchor = null
-                if (isTextDoubleClick(nodeKey, index)) {
+                if (clickCount >= 3) {
+                    val range = textFieldLineRangeAt(node.value, index)
+                    if (node.multiCaret && altPressed) {
+                        node.addCaretRange(UiTextCaret(range.end, range.start))
+                    } else {
+                        node.setSelection(range.start, range.end)
+                    }
+                } else if (clickCount == 2) {
                     val range = textFieldWordRangeAt(node.value, index)
                     if (node.multiCaret && altPressed) {
                         node.addCaretRange(UiTextCaret(range.end, range.start))
@@ -402,7 +417,7 @@ class HollowUiInputController {
                 } else {
                     node.moveCaret(index)
                 }
-                rememberTextClick(nodeKey, index)
+                rememberTextClick(nodeKey, index, clickCount)
                 true
             }
             else -> false
@@ -458,16 +473,18 @@ class HollowUiInputController {
         return focusedKey?.let(frame::nodeByKey) as? TextFieldNode
     }
 
-    private fun isTextDoubleClick(nodeKey: String, index: Int): Boolean {
+    private fun textClickCount(nodeKey: String, index: Int): Int {
         val now = System.currentTimeMillis()
-        return lastTextClickKey == nodeKey &&
+        val continues = lastTextClickKey == nodeKey &&
                 now - lastTextClickAtMillis <= TextDoubleClickMillis &&
                 abs(lastTextClickIndex - index) <= 1
+        return if (continues) (lastTextClickCount + 1).coerceAtMost(3) else 1
     }
 
-    private fun rememberTextClick(nodeKey: String, index: Int) {
+    private fun rememberTextClick(nodeKey: String, index: Int, count: Int) {
         lastTextClickKey = nodeKey
         lastTextClickIndex = index
+        lastTextClickCount = count
         lastTextClickAtMillis = System.currentTimeMillis()
     }
 
@@ -517,7 +534,7 @@ private fun Char.isCompletionTrigger(): Boolean = this == '.' || this == '_' || 
 
 private const val TextDoubleClickMillis = 350L
 
-private data class ClickTextRange(
+internal data class ClickTextRange(
     val start: Int,
     val end: Int,
 )
@@ -542,6 +559,14 @@ private fun textFieldWordRangeAt(text: String, caretIndex: Int): ClickTextRange 
     return ClickTextRange(start, end)
 }
 
+internal fun textFieldLineRangeAt(text: String, caretIndex: Int): ClickTextRange {
+    if (text.isEmpty()) return ClickTextRange(0, 0)
+    val index = caretIndex.coerceIn(0, text.length)
+    val start = text.lastIndexOf('\n', (index - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+    return ClickTextRange(start, end)
+}
+
 private fun Char.isTextFieldWordChar(): Boolean = this == '_' || isLetterOrDigit()
 
 data class UiInputResult(
@@ -563,6 +588,18 @@ private fun UiNode.containsNodeKey(key: String?): Boolean {
         }
     }
     return false
+}
+
+private fun UiNode.forEachTextFields(block: (TextFieldNode) -> Unit) {
+    val stack = ArrayDeque<UiNode>()
+    stack.add(this)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        if (node is TextFieldNode) block(node)
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
+    }
 }
 
 private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {

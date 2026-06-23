@@ -30,6 +30,16 @@ class KatariScriptingAnalyzerTests {
     }
 
     @Test
+    fun `highlight treats unary minus as part of numeric literal`() {
+        val line = KatariScriptingAnalyzer.lightweightHighlightLine("test.ktr", "pos(-233.9, x - 2)")
+        val tokens = line.spans.map { it.first to it.second.color }
+
+        assertTrue(tokens.any { it.first == "-233.9" && it.second == TokenType.NUMERIC_LITERAL })
+        assertFalse(tokens.any { it.first == "- 2" && it.second == TokenType.NUMERIC_LITERAL })
+        assertTrue(tokens.any { it.first == "2" && it.second == TokenType.NUMERIC_LITERAL })
+    }
+
+    @Test
     fun `diagnostic reports invalid katari syntax`() {
         val diagnostics = KatariScriptingAnalyzer.diagnostic("broken.ktr", "val answer =")
 

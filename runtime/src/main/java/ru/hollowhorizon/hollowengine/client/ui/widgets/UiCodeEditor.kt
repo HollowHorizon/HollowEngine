@@ -32,6 +32,8 @@ fun UiCodeEditor(
         multiCaret = true,
         syntaxHighlighter = highlighter,
         completionContributor = completions,
+        indentSize = 4,
+        autoPairs = true,
         diagnostics = diagnostics,
         inlayHints = inlayHints,
         inlayHintsProvider = inlayHintsProvider,

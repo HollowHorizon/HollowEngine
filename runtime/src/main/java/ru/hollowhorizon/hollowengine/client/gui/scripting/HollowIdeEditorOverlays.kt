@@ -31,7 +31,7 @@ internal class HollowIdeEditorOverlays(
                 id = completionListId(fileId),
                 tags = listOf("ide-completion-list"),
                 modifier = Modifier.then(
-                    Modifier.size(100.percent, 100.percent),
+                    Modifier.size(100.percent, state.listHeight.px),
                     Modifier.input(scrollable = true),
                 ),
             ) {
@@ -209,6 +209,7 @@ internal class HollowIdeEditorOverlays(
                         globalY = layoutNode.content.y + geometry.y,
                         width = geometry.width,
                         height = geometry.height,
+                        listHeight = geometry.listHeight,
                         rowHeight = geometry.rowHeight,
                     )
                 }
@@ -322,6 +323,7 @@ private data class HollowIdeCompletionPopupState(
     val globalY: Float,
     val width: Float,
     val height: Float,
+    val listHeight: Float,
     val rowHeight: Float,
 ) {
     fun contains(mouseX: Float, mouseY: Float): Boolean {

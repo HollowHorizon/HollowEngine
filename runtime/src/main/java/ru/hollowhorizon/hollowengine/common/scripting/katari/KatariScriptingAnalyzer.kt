@@ -405,8 +405,8 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     ranges += StyledRange(0, baseOffset + start, baseOffset + i, style(TokenType.STRING), priority = 4)
                     ranges += templates
                 }
-                line[i].isDigit() -> {
-                    while (i < line.length && (line[i].isDigit() || line[i] == '.')) i++
+                isNumberStart(line, i) -> {
+                    i = consumeNumber(line, i)
                     ranges += StyledRange(0, baseOffset + start, baseOffset + i, style(TokenType.NUMERIC_LITERAL), priority = 1)
                 }
                 line[i].isIdentifierStart() -> {
@@ -428,8 +428,8 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         while (index < expression.length) {
             val start = index
             when {
-                expression[index].isDigit() -> {
-                    while (index < expression.length && (expression[index].isDigit() || expression[index] == '.')) index++
+                isNumberStart(expression, index) -> {
+                    index = consumeNumber(expression, index)
                     ranges += StyledRange(0, baseOffset + start, baseOffset + index, style(TokenType.NUMERIC_LITERAL), priority = 5)
                     afterDot = false
                 }
@@ -1177,6 +1177,24 @@ private fun CompletionItem.completionIdentity(): List<String?> {
 
     private fun String.cleanType(): String {
         return removeSuffix("?").substringBefore('<')
+    }
+
+    private fun isNumberStart(text: String, index: Int): Boolean {
+        val char = text.getOrNull(index) ?: return false
+        if (char.isDigit()) return true
+        if (char != '-' || text.getOrNull(index + 1)?.isDigit() != true) return false
+
+        val previous = text
+            .substring(0, index)
+            .lastOrNull { !it.isWhitespace() }
+            ?: return true
+        return previous in "([{=,:+-*/%<>!&|?"
+    }
+
+    private fun consumeNumber(text: String, start: Int): Int {
+        var index = if (text[start] == '-') start + 1 else start
+        while (index < text.length && (text[index].isDigit() || text[index] == '.')) index++
+        return index
     }
 
     private fun identifierStart(lines: List<String>, position: SourcePosition, name: String): Int? {

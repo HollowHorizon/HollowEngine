@@ -56,6 +56,7 @@ data class UiTextCompletion(
     val tail: String = "",
     val icon: String? = null,
     val caretOffset: Int? = null,
+    val importFqName: String? = null,
 )
 
 fun interface UiCompletionContributor {
@@ -85,6 +86,51 @@ data class UiInlayHint(
 internal fun String.normalizeEditorLineEndings(): String {
     if ('\r' !in this) return this
     return replace("\r\n", "\n").replace('\r', '\n')
+}
+
+internal data class UiTextImportResult(
+    val text: String,
+    val shiftBeforeReference: Int,
+)
+
+internal fun String.withSortedKotlinImport(fqName: String, referenceOffset: Int): UiTextImportResult {
+    val cleanName = fqName.trim()
+    if (cleanName.isEmpty()) return UiTextImportResult(this, 0)
+
+    val importLine = "import $cleanName"
+    val lines = split('\n')
+    if (lines.any { it.trim() == importLine }) return UiTextImportResult(this, 0)
+
+    val packageIndex = lines.indexOfFirst { it.trimStart().startsWith("package ") }
+    val headerEnd = if (packageIndex >= 0) packageIndex + 1 else 0
+    var importScan = headerEnd
+    while (importScan < lines.size && lines[importScan].isBlank()) importScan++
+
+    val importStart = importScan.takeIf { it < lines.size && lines[it].trimStart().startsWith("import ") } ?: importScan
+    var importEnd = importStart
+    while (importEnd < lines.size && lines[importEnd].trimStart().startsWith("import ")) importEnd++
+
+    var bodyStart = importEnd
+    while (bodyStart < lines.size && lines[bodyStart].isBlank()) bodyStart++
+
+    val imports = (lines.subList(importStart, importEnd).map { it.trim() } + importLine)
+        .distinct()
+        .sorted()
+
+    val rebuilt = buildList {
+        addAll(lines.take(headerEnd))
+        if (isNotEmpty()) add("")
+        addAll(imports)
+        if (bodyStart < lines.size) {
+            add("")
+            addAll(lines.drop(bodyStart))
+        }
+    }.joinToString("\n")
+
+    val reference = referenceOffset.coerceIn(0, length)
+    val originalBodyOffset = lines.take(bodyStart).sumOf { it.length + 1 }.coerceAtMost(length)
+    val shift = if (reference >= originalBodyOffset) rebuilt.length - length else 0
+    return UiTextImportResult(rebuilt, shift)
 }
 
 fun interface UiInlayHintsProvider {
