@@ -558,6 +558,25 @@ class UiComposeTests {
     }
 
     @Test
+    fun `read only text field allows caret movement without edits`() {
+        val field = TextFieldNode(
+            value = "val value = 1",
+            mode = UiTextFieldMode.MULTI_LINE,
+            readOnly = true,
+        )
+
+        field.moveCaret(3)
+
+        assertEquals(3, field.caret)
+        assertFalse(field.insert("x"))
+        assertFalse(field.backspace())
+        assertFalse(field.deleteForward())
+        assertFalse(field.undo())
+        assertEquals("val value = 1", field.value)
+        assertEquals(3, field.caret)
+    }
+
+    @Test
     fun `code text field keeps contextual indent on newline`() {
         val field = TextFieldNode(
             value = "story {}",

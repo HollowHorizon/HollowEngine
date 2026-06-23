@@ -12,8 +12,16 @@ interface ScriptingAnalyzer {
     }
 
     fun completions(name: String, text: String, offset: Int): List<CompletionItem>
+    fun definition(name: String, text: String, offset: Int): DefinitionLocation? = null
     fun diagnostic(name: String, text: String): List<Diagnostic>
 }
+
+data class DefinitionLocation(
+    val path: String,
+    val offset: Int = 0,
+    val text: String? = null,
+    val readOnly: Boolean = text != null,
+)
 
 data class InlayHint(
     val index: Int,

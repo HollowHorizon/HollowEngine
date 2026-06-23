@@ -138,6 +138,7 @@ dependencies {
     implementation("com.google.guava:guava:33.6.0-jre") { isTransitive = false }
 
     implementation("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil:8.5.18-jb1") { isTransitive = false }
+    implementation("org.benf:cfr:0.152") { isTransitive = false }
 
     runtimeOnly(files(patchedLightTreeJar.flatMap { it.archiveFile }))
 
@@ -181,6 +182,7 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("one.util.streamex", "ru.hollowhorizon.hollowengine.repackaged.streamex")
     relocate("io.vavr", "ru.hollowhorizon.hollowengine.repackaged.vavr")
     relocate("gnu.trove", "ru.hollowhorizon.hollowengine.repackaged.gnu.trove")
+    relocate("org.benf.cfr", "ru.hollowhorizon.hollowengine.repackaged.cfr")
 }
 
 tasks.build {

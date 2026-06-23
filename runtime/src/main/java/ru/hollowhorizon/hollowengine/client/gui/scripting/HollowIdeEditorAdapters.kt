@@ -24,6 +24,8 @@ internal class HollowIdeEditorSession(
     @Volatile
     private var completionJob: Job? = null
     @Volatile
+    private var definitionJob: Job? = null
+    @Volatile
     private var snapshot = EditorAnalysisSnapshot.Empty
     @Volatile
     private var completionSnapshot = CompletionSnapshot.Empty
@@ -79,6 +81,20 @@ internal class HollowIdeEditorSession(
             next.matchesText(text) -> next.diagnostics
             next.hasText -> next.diagnosticsForEditedText(text)
             else -> emptyList()
+        }
+    }
+
+    fun resolveDefinition(text: String, caret: Int, onResolved: (DefinitionLocation?) -> Unit) {
+        val analyzer = currentAnalyzer()
+        val safeCaret = caret.coerceIn(0, text.length)
+        definitionJob?.cancel()
+        definitionJob = scope.launch {
+            val definition = runCatching {
+                analyzer.definition(path, text, safeCaret)
+            }.getOrNull()
+            Minecraft.getInstance().execute {
+                onResolved(definition)
+            }
         }
     }
 

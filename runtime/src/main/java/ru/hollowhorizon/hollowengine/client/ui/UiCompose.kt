@@ -434,6 +434,7 @@ fun TextField(
     completionContributor: UiCompletionContributor? = null,
     indentSize: Int? = null,
     autoPairs: Boolean = false,
+    readOnly: Boolean = false,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
@@ -456,6 +457,7 @@ fun TextField(
         completionContributor,
         indentSize,
         autoPairs,
+        readOnly,
         diagnostics,
         inlayHints,
         inlayHintsProvider,
@@ -474,6 +476,7 @@ fun TextField(
                 completionContributor,
                 indentSize,
                 autoPairs,
+                readOnly,
                 diagnostics,
                 inlayHints,
                 inlayHintsProvider,
@@ -607,6 +610,7 @@ private data class TextFieldValues(
     val completionContributor: UiCompletionContributor?,
     val indentSize: Int?,
     val autoPairs: Boolean,
+    val readOnly: Boolean,
     val diagnostics: List<UiTextDiagnostic>,
     val inlayHints: List<UiInlayHint>,
     val inlayHintsProvider: UiInlayHintsProvider?,
@@ -640,6 +644,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
     completionContributor = values.completionContributor
     indentSize = values.indentSize
     autoPairs = values.autoPairs
+    readOnly = values.readOnly
     diagnostics = values.diagnostics
     inlayHints = values.inlayHints
     inlayHintsProvider = values.inlayHintsProvider

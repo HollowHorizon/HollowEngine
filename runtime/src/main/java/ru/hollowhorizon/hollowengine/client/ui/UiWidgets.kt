@@ -237,6 +237,7 @@ class TextFieldNode(
     completionContributor: UiCompletionContributor? = null,
     indentSize: Int? = null,
     autoPairs: Boolean = false,
+    readOnly: Boolean = false,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
@@ -336,6 +337,17 @@ class TextFieldNode(
             field = value
             attributes["auto-pairs"] = value.toString()
         }
+    var readOnly: Boolean = readOnly
+        set(value) {
+            if (field == value) return
+            field = value
+            attributes["read-only"] = value.toString()
+            if (value) {
+                completionItems = emptyList()
+                completionActive = false
+                completionAutoOpenPending = false
+            }
+        }
     var diagnostics: List<UiTextDiagnostic> = diagnostics
         set(value) {
             if (field == value) return
@@ -402,6 +414,7 @@ class TextFieldNode(
         this.completionContributor = completionContributor
         this.indentSize = indentSize
         this.autoPairs = autoPairs
+        this.readOnly = readOnly
         this.diagnostics = diagnostics
         this.inlayHints = inlayHints
         this.inlayHintsProvider = inlayHintsProvider
@@ -412,6 +425,7 @@ class TextFieldNode(
     }
 
     fun insert(text: String): Boolean {
+        if (readOnly) return false
         if (text.isEmpty()) return false
         val normalized = text.normalizeEditorLineEndings()
         val sanitized = if (multiline) normalized else normalized.replace('\n', ' ')
@@ -449,6 +463,7 @@ class TextFieldNode(
     }
 
     fun backspace(word: Boolean = false): Boolean {
+        if (readOnly) return false
         if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
         if (!word && multiline && deleteWhitespaceOnlyLineBeforeCaret()) return true
         if (!word && autoPairs) {
@@ -474,6 +489,7 @@ class TextFieldNode(
     }
 
     fun indent(): Boolean {
+        if (readOnly) return false
         val size = indentSize ?: return false
         if (!multiline) return false
         if (activeCaretRanges().all { !it.hasSelection }) return insert(" ".repeat(size))
@@ -484,6 +500,7 @@ class TextFieldNode(
     }
 
     fun unindent(): Boolean {
+        if (readOnly) return false
         val size = indentSize ?: return false
         if (!multiline) return false
         val ranges = selectedLineStarts().mapNotNull { start ->
@@ -495,6 +512,7 @@ class TextFieldNode(
     }
 
     fun insertNewlineWithIndent(): Boolean {
+        if (readOnly) return false
         if (!multiline) return false
         val size = indentSize ?: return insert("\n")
         if (activeCaretRanges().any { it.hasSelection }) return insert("\n")
@@ -526,6 +544,7 @@ class TextFieldNode(
     }
 
     fun deleteForward(word: Boolean = false): Boolean {
+        if (readOnly) return false
         if (activeCaretRanges().any { it.hasSelection }) return replaceSelectedRanges("")
         val ranges = activeCaretRanges().mapNotNull { range ->
             if (range.position >= value.length) {
@@ -643,6 +662,7 @@ class TextFieldNode(
     }
 
     fun openCompletions(): Boolean {
+        if (readOnly) return false
         val contributor = completionContributor ?: return false
         val items = contributor.complete(UiCompletionContext(value, caret))
             .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
@@ -723,6 +743,7 @@ class TextFieldNode(
     }
 
     fun acceptCompletion(index: Int = 0): Boolean {
+        if (readOnly) return false
         val item = completionItems.getOrNull(index) ?: return false
         val insertText = item.insertText.ifEmpty { item.label }
         val changed = replaceCompletionRange(insertText, item.caretOffset, item.importFqName)
@@ -747,6 +768,7 @@ class TextFieldNode(
     }
 
     fun undo(): Boolean {
+        if (readOnly) return false
         val entry = undoStack.removeLastOrNull() ?: return false
         redoStack.addLast(historyEntry())
         restoreHistory(entry)
@@ -755,6 +777,7 @@ class TextFieldNode(
     }
 
     fun redo(): Boolean {
+        if (readOnly) return false
         val entry = redoStack.removeLastOrNull() ?: return false
         undoStack.addLast(historyEntry())
         restoreHistory(entry)
@@ -814,6 +837,7 @@ class TextFieldNode(
     }
 
     private fun replaceRanges(ranges: List<TextEditRange>, replacement: String): Boolean {
+        if (readOnly) return false
         val edits = ranges
             .map { TextEditRange(it.start.coerceIn(0, value.length), it.end.coerceIn(0, value.length)) }
             .filter { it.start != it.end || replacement.isNotEmpty() }
@@ -855,6 +879,7 @@ class TextFieldNode(
     }
 
     private fun replaceCompletionRange(replacement: String, caretOffset: Int?, importFqName: String?): Boolean {
+        if (readOnly) return false
         val originalStart = completionReplacementStart.coerceIn(0, value.length)
         val importResult = importFqName
             ?.takeIf { it.isNotBlank() }

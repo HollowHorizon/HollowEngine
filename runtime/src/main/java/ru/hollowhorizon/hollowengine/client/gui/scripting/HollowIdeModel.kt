@@ -74,13 +74,24 @@ internal class HollowIdeModel {
         return HollowIdeOpenResult.File(opened, created = true)
     }
 
+    fun openReadOnly(path: String, text: String): HollowIdeOpenFile {
+        files[path]?.let { opened ->
+            opened.refreshReadOnly(text)
+            return opened
+        }
+        return HollowIdeOpenFile(path, text.normalizeEditorLineEndings(), readOnly = true).also { opened ->
+            files[path] = opened
+        }
+    }
+
     fun updateText(path: String, text: String) {
-        files[path]?.update(text)
+        val file = files[path]?.takeUnless { it.readOnly } ?: return
+        file.update(text)
         scheduleSave(path)
     }
 
     fun save(path: String): Boolean {
-        val file = files[path] ?: return false
+        val file = files[path]?.takeUnless { it.readOnly } ?: return false
         pendingSaves.remove(path)?.cancel()
         path.fromReadablePath().writeText(file.text)
         file.markSaved()
@@ -124,6 +135,7 @@ internal sealed interface HollowIdeOpenResult {
 internal class HollowIdeOpenFile(
     val path: String,
     initialText: String,
+    val readOnly: Boolean = false,
 ) {
     var text by mutableStateOf(initialText.normalizeEditorLineEndings())
         private set
@@ -134,10 +146,11 @@ internal class HollowIdeOpenFile(
     val title: String get() = path.substringAfterLast('/').ifEmpty { path }
 
     fun dockItem(): DockItem {
-        return DockItem(id, title, IconHelper.forPath(path).toString(), dirty = dirty)
+        return DockItem(id, title, IconHelper.forPath(path).toString(), dirty = dirty && !readOnly)
     }
 
     fun update(next: String) {
+        if (readOnly) return
         val normalized = next.normalizeEditorLineEndings()
         if (text == normalized) return
         text = normalized
@@ -145,17 +158,28 @@ internal class HollowIdeOpenFile(
     }
 
     fun markSaved() {
+        if (readOnly) return
         dirty = false
     }
 
     fun markSavedIfText(savedText: String) {
+        if (readOnly) return
         if (text == savedText) dirty = false
     }
 
     fun refresh(next: String) {
+        if (readOnly) return
         val normalized = next.normalizeEditorLineEndings()
         if (dirty || text == normalized) return
         text = normalized
+    }
+
+    fun refreshReadOnly(next: String) {
+        if (!readOnly) return
+        val normalized = next.normalizeEditorLineEndings()
+        if (text == normalized) return
+        text = normalized
+        dirty = false
     }
 }
 

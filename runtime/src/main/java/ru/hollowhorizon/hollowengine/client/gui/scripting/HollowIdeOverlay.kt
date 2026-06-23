@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
+import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
@@ -167,6 +168,10 @@ object HollowIdeOverlay {
         if (!isVisible()) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
         val frame = currentFrameForInput() ?: return false
+        if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition(frame)) {
+            invalidateUi()
+            return true
+        }
         val result = input.keyPressed(frame, key, scanCode, modifiers, ::dispatchUiEvent)
         if (result.handled) {
             editorOverlays.update(frame, lastMouseX, lastMouseY)
@@ -383,10 +388,11 @@ object HollowIdeOverlay {
                         dock.updateItem(file.dockItem())
                     },
                     highlighter = editorSession.highlighter,
-                    completions = editorSession.completions,
+                    completions = if (file.readOnly) null else editorSession.completions,
                     diagnostics = diagnostics,
                     inlayHints = inlayHints,
                     inlayRevision = analysisRevision,
+                    readOnly = file.readOnly,
                     id = editorId,
                     attributes = mapOf("analysis-revision" to analysisRevision.toString()),
                     modifier = Modifier.then(
@@ -449,6 +455,60 @@ object HollowIdeOverlay {
     private fun focusedFile(): HollowIdeOpenFile? {
         val focused = dock.focusedItemId ?: return null
         return model.files.values.firstOrNull { it.id == focused }
+    }
+
+    private fun goToDefinition(frame: HollowUiFrame): Boolean {
+        val file = focusedFile() ?: return false
+        val editorKey = "editor-${file.id}"
+        if (input.focusedKey != editorKey) return false
+        val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return false
+        val session = editorSessions.getOrPut(file.path) {
+            HollowIdeEditorSession(file.path) {
+                editorAnalysisRevision++
+                invalidateUi()
+            }
+        }
+        statusText = ""
+        session.resolveDefinition(file.text, editor.caret) { definition ->
+            if (definition == null) {
+                statusText = "Definition not found"
+                invalidateUi()
+                return@resolveDefinition
+            }
+            openDefinition(definition)
+        }
+        return true
+    }
+
+    private fun openDefinition(definition: DefinitionLocation) {
+        val file = if (definition.text != null || definition.readOnly) {
+            model.openReadOnly(definition.path, definition.text.orEmpty())
+        } else {
+            when (val result = model.openFile(definition.path)) {
+                HollowIdeOpenResult.Unsupported -> {
+                    statusText = "Unsupported definition target: ${definition.path}"
+                    invalidateUi()
+                    return
+                }
+
+                is HollowIdeOpenResult.File -> result.file
+                HollowIdeOpenResult.Directory -> return
+            }
+        }
+        openFileDockItem(file)
+        focusEditorAt(file, definition.offset)
+    }
+
+    private fun focusEditorAt(file: HollowIdeOpenFile, offset: Int) {
+        Minecraft.getInstance().execute {
+            val frame = currentFrame()
+            val editorKey = "editor-${file.id}"
+            val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return@execute
+            editor.moveCaret(offset)
+            input.saveState(editor)
+            input.focus(frame, editorKey, ::dispatchUiEvent)
+            invalidateUi()
+        }
     }
 
     private fun mousePressed(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int): Boolean {

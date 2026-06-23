@@ -7,11 +7,13 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.createCompletions
+import ru.hollowhorizon.hollowengine.common.ide.session.definition.findDefinition
 import ru.hollowhorizon.hollowengine.common.ide.session.diagnostic.diagnosticCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.highlightCode
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
@@ -88,6 +90,12 @@ class ScriptingAnalyzerImpl(
     override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
         val file = getOrCreateFile(name, text)
         return createCompletions(file, offset)
+    }
+
+    @Synchronized
+    override fun definition(name: String, text: String, offset: Int): DefinitionLocation? {
+        val file = getOrCreateFile(name, text)
+        return findDefinition(file, offset)
     }
 
     @Synchronized
