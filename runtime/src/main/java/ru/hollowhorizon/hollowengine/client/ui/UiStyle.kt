@@ -166,6 +166,12 @@ enum class UiAnimationPlayState {
     PAUSED
 }
 
+enum class UiTextOverflow {
+    SHOW,
+    HIDDEN,
+    DOTS
+}
+
 data class MutableUiStyle(
     var size: UiSize? = null,
     var minSize: UiSize? = null,
@@ -212,6 +218,7 @@ data class MutableUiStyle(
     var checkbox: UiCheckboxStyle? = null,
     var textField: UiTextFieldStyle? = null,
     var textWrap: Boolean? = null,
+    var textOverflow: UiTextOverflow? = null,
     var textAlign: UiTextAlign? = null,
     var lineSpacing: Float? = null,
     var spaceWidth: Float? = null,
@@ -269,6 +276,7 @@ data class MutableUiStyle(
         other.checkbox?.let { checkbox = checkbox?.merge(it) ?: it }
         other.textField?.let { textField = textField?.merge(it) ?: it }
         other.textWrap?.let { textWrap = it }
+        other.textOverflow?.let { textOverflow = it }
         other.textAlign?.let { textAlign = it }
         other.lineSpacing?.let { lineSpacing = it }
         other.spaceWidth?.let { spaceWidth = it }
@@ -332,6 +340,7 @@ data class MutableUiStyle(
             checkbox = checkbox ?: UiCheckboxStyle(),
             textField = textField ?: UiTextFieldStyle(),
             textWrap = textWrap ?: true,
+            textOverflow = textOverflow ?: UiTextOverflow.SHOW,
             textAlign = textAlign ?: inheritedTextAlign,
             lineSpacing = lineSpacing ?: inheritedLineSpacing,
             spaceWidth = spaceWidth ?: parent?.spaceWidth,
@@ -392,6 +401,7 @@ data class ComputedStyle(
     val checkbox: UiCheckboxStyle,
     val textField: UiTextFieldStyle,
     val textWrap: Boolean,
+    val textOverflow: UiTextOverflow,
     val textAlign: UiTextAlign,
     val lineSpacing: Float,
     val spaceWidth: Float?,

@@ -178,11 +178,56 @@ class UiDockingTests {
 
         HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
+            val consoleTab = frame.layout[frame.nodeByKey("dock-tab-console")!!].rect
 
-            input.mouseClicked(frame, mouseX = 150f, mouseY = 12f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
+            input.mouseClicked(
+                frame,
+                mouseX = consoleTab.x + consoleTab.width / 2f,
+                mouseY = consoleTab.y + consoleTab.height / 2f,
+                button = 0,
+                dispatch = { it.node.dispatch(it) },
+                openUrl = {},
+            )
 
             assertEquals("console", (state.root as DockNode.Stack).selectedItemId)
         }
+    }
+
+    @Test
+    fun `middle click closes closable tab`() {
+        val state = DockingState()
+        state.open(item("files"))
+        state.open(item("console"))
+        val input = HollowUiInputController()
+
+        HollowUiSurface().use { runtime ->
+            val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
+            val consoleTab = frame.layout[frame.nodeByKey("dock-tab-console")!!].rect
+
+            input.mouseClicked(
+                frame,
+                mouseX = consoleTab.x + 4f,
+                mouseY = consoleTab.y + 4f,
+                button = 2,
+                dispatch = { it.node.dispatch(it) },
+                openUrl = {},
+            )
+
+            assertFalse(state.contains("console"))
+            assertTrue(state.contains("files"))
+        }
+    }
+
+    @Test
+    fun `close focused respects closable flag`() {
+        val state = DockingState()
+        state.open(item("project", closable = false))
+        state.open(item("console"))
+
+        assertTrue(state.closeFocused())
+        assertFalse(state.contains("console"))
+        assertFalse(state.closeFocused())
+        assertTrue(state.contains("project"))
     }
 
     @Test
@@ -222,8 +267,14 @@ class UiDockingTests {
 
         HollowUiSurface().use { runtime ->
             val frame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
-            input.mouseClicked(frame, mouseX = 150f, mouseY = 12f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
-            input.mouseDragged(frame, mouseX = 10f, mouseY = 12f, button = 0, deltaX = -140f, deltaY = 0f) {
+            val consoleTab = frame.layout[frame.nodeByKey("dock-tab-console")!!].rect
+            val filesTab = frame.layout[frame.nodeByKey("dock-tab-files")!!].rect
+            val pressX = consoleTab.x + consoleTab.width / 2f
+            val pressY = consoleTab.y + consoleTab.height / 2f
+            val dragX = filesTab.x + filesTab.width / 4f
+
+            input.mouseClicked(frame, mouseX = pressX, mouseY = pressY, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
+            input.mouseDragged(frame, mouseX = dragX, mouseY = pressY, button = 0, deltaX = dragX - pressX, deltaY = 0f) {
                 it.node.dispatch(it)
             }
 
@@ -269,14 +320,19 @@ class UiDockingTests {
                 width = 640f,
                 height = 360f,
             )
-            input.mouseClicked(firstFrame, mouseX = 190f, mouseY = 42f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
-            input.mouseDragged(firstFrame, mouseX = 200f, mouseY = 90f, button = 0, deltaX = 10f, deltaY = 48f) {
+            val consoleTab = firstFrame.layout[firstFrame.nodeByKey("dock-tab-console")!!].rect
+            val pressX = consoleTab.x + consoleTab.width / 2f
+            val pressY = consoleTab.y + consoleTab.height / 2f
+            val dragX = pressX + 10f
+            val dragY = pressY + 48f
+            input.mouseClicked(firstFrame, mouseX = pressX, mouseY = pressY, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
+            input.mouseDragged(firstFrame, mouseX = dragX, mouseY = dragY, button = 0, deltaX = 10f, deltaY = 48f) {
                 it.node.dispatch(it)
             }
 
             val window = state.floatingWindows.single()
-            assertEquals(116f, window.x)
-            assertEquals(51f, window.y)
+            assertEquals(dragX - 40f - (pressX - consoleTab.x), window.x)
+            assertEquals(dragY - 30f - (pressY - consoleTab.y), window.y)
         }
     }
 
@@ -289,8 +345,11 @@ class UiDockingTests {
 
         HollowUiSurface().use { runtime ->
             val firstFrame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
-            input.mouseClicked(firstFrame, mouseX = 150f, mouseY = 12f, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
-            input.mouseDragged(firstFrame, mouseX = 160f, mouseY = 60f, button = 0, deltaX = 10f, deltaY = 48f) {
+            val consoleTab = firstFrame.layout[firstFrame.nodeByKey("dock-tab-console")!!].rect
+            val pressX = consoleTab.x + consoleTab.width / 2f
+            val pressY = consoleTab.y + consoleTab.height / 2f
+            input.mouseClicked(firstFrame, mouseX = pressX, mouseY = pressY, button = 0, dispatch = { it.node.dispatch(it) }, openUrl = {})
+            input.mouseDragged(firstFrame, mouseX = pressX + 10f, mouseY = pressY + 48f, button = 0, deltaX = 10f, deltaY = 48f) {
                 it.node.dispatch(it)
             }
 
@@ -299,7 +358,7 @@ class UiDockingTests {
             assertEquals("dock-tab-console", input.draggingKey)
 
             val secondFrame = runtime.frame(content = { DockSpace(state) { Text(it.title) } }, width = 640f, height = 360f)
-            input.mouseDragged(secondFrame, mouseX = 180f, mouseY = 80f, button = 0, deltaX = 20f, deltaY = 20f) {
+            input.mouseDragged(secondFrame, mouseX = pressX + 30f, mouseY = pressY + 68f, button = 0, deltaX = 20f, deltaY = 20f) {
                 it.node.dispatch(it)
             }
 
@@ -450,5 +509,6 @@ class UiDockingTests {
             .associate { it.nodeId to it.rect }
     }
 
-    private fun item(id: String) = DockItem(id = id, title = id.replaceFirstChar { it.uppercase() })
+    private fun item(id: String, closable: Boolean = true) =
+        DockItem(id = id, title = id.replaceFirstChar { it.uppercase() }, closable = closable)
 }

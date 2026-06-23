@@ -96,6 +96,10 @@ internal fun DockNode.containsItem(itemId: String): Boolean {
     return findStackWithItem(itemId) != null
 }
 
+internal fun DockNode.findItem(itemId: String): DockItem? {
+    return findStackWithItem(itemId)?.items?.firstOrNull { it.id == itemId }
+}
+
 internal fun DockNode.removeItem(itemId: String): DockRemoval {
     return when (this) {
         is DockNode.Stack -> {

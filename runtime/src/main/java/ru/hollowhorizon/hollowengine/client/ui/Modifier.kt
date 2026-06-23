@@ -211,6 +211,9 @@ sealed interface Modifier {
         fun textWrap(enabled: Boolean = true) =
             StyleModifier(key = modifierKey("text-wrap", enabled)) { it.textWrap = enabled }
 
+        fun textOverflow(value: UiTextOverflow) =
+            StyleModifier(key = modifierKey("text-overflow", value)) { it.textOverflow = value }
+
         fun textAlign(value: UiTextAlign) =
             StyleModifier(key = modifierKey("text-align", value)) { it.textAlign = value }
 

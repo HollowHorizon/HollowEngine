@@ -253,6 +253,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(inlayHints = parseBoolean(value))
             }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
+            "text-overflow" -> instruction { it.textOverflow = parseTextOverflow(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
             "line-spacing", "text-line-spacing", "leading" -> instruction {
                 it.lineSpacing = parseScalar(value).coerceAtLeast(0f)
@@ -405,6 +406,13 @@ private fun parseTextWrap(value: String): Boolean = when (value.lowercase()) {
     "wrap", "true", "yes", "1", "enabled" -> true
     "nowrap", "no-wrap", "false", "no", "0", "disabled" -> false
     else -> throw IllegalArgumentException("Unknown text wrap '$value'")
+}
+
+private fun parseTextOverflow(value: String): UiTextOverflow = when (value.lowercase()) {
+    "show", "visible", "none" -> UiTextOverflow.SHOW
+    "hidden", "clip" -> UiTextOverflow.HIDDEN
+    "dots", "ellipsis" -> UiTextOverflow.DOTS
+    else -> throw IllegalArgumentException("Unknown text-overflow '$value'")
 }
 
 private fun parseTextAlign(value: String): UiTextAlign = when (value.lowercase()) {

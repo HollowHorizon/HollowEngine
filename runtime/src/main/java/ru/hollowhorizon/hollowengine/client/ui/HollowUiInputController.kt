@@ -129,6 +129,7 @@ class HollowUiInputController {
         }
 
         val key = UiNodeKeys.key(hit.node)
+        val layoutNode = frame.layout[hit.node]
         activeKey = key
         updateFocus(frame, hit.node, dispatch)
 
@@ -141,12 +142,14 @@ class HollowUiInputController {
             y = mouseY,
             localX = hit.localX,
             localY = hit.localY,
+            width = layoutNode.rect.width,
+            height = layoutNode.rect.height,
         )
         val pressHandled = dispatch(press)
         if (pressHandled && press.consumed) return UiInputResult(true, hit.node, key)
 
         if (button == 0 && applyBuiltInPointerPress(frame, hit.node, hit.localX, hit.localY)) {
-            dispatchClick(hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
+            dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
             if (hit.node is SliderNode || hit.node is TextFieldNode) {
                 draggingKey = key
                 hit.node.states += UiState.DRAGGING
@@ -160,7 +163,7 @@ class HollowUiInputController {
             return UiInputResult(true, hit.node, key)
         }
 
-        val clickHandled = dispatchClick(hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
+        val clickHandled = dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
         return UiInputResult(clickHandled, hit.node, key)
     }
 
@@ -207,6 +210,7 @@ class HollowUiInputController {
             changed = updateTextFieldSelectionFromMouse(frame, node, mouseX, mouseY)
         }
         val local = frame.layout[node].inputTransform.inverse()?.transform(mouseX, mouseY, 0f)
+        val layoutNode = frame.layout[node]
         val parent = frame.parentOf(node)
         val parentLayout = parent?.let { frame.layout[it] }
         val parentLocal = parentLayout?.inputTransform?.inverse()?.transform(mouseX, mouseY, 0f)
@@ -221,6 +225,8 @@ class HollowUiInputController {
             y = mouseY,
             localX = local?.x ?: 0f,
             localY = local?.y ?: 0f,
+            width = layoutNode.rect.width,
+            height = layoutNode.rect.height,
             parentLocalX = parentLocal?.x ?: 0f,
             parentLocalY = parentLocal?.y ?: 0f,
             parentWidth = parentLayout?.rect?.width ?: 0f,
@@ -359,6 +365,7 @@ class HollowUiInputController {
     }
 
     private fun dispatchClick(
+        frame: HollowUiFrame,
         node: UiNode,
         button: Int,
         mouseX: Float,
@@ -368,6 +375,7 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
+        val layoutNode = frame.layout[node]
         return dispatch(
             UiEvent(
                 kind = UiEventKind.CLICK,
@@ -378,6 +386,8 @@ class HollowUiInputController {
                 y = mouseY,
                 localX = localX,
                 localY = localY,
+                width = layoutNode.rect.width,
+                height = layoutNode.rect.height,
             )
         )
     }

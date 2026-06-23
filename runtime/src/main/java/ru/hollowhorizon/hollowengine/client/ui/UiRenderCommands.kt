@@ -101,6 +101,7 @@ data class DrawTextCommand(
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val wrap: Boolean,
+    val overflow: UiTextOverflow,
     val align: UiTextAlign,
     val fontSize: Float,
     val fontFamily: String?,
@@ -397,7 +398,7 @@ class UiCommandRenderer {
 
                 commands += DrawTextCommand(
                     node, layoutNode.content, textString, style.foreground, opacity, contentTransform,
-                    filter, style.textWrap, style.textAlign, style.fontSize,
+                    filter, style.textWrap, style.textOverflow, style.textAlign, style.fontSize,
                     style.fontFamily, style.textEffectsWithShadows(),
                     textLayout,
                     layoutNode.scrollOffset, node.hoveredLink, backface
@@ -596,6 +597,7 @@ class UiCommandRenderer {
             transform = transform * UiMatrix4.translation(textOffset, 0f, 0f),
             filter = filter,
             wrap = wrap,
+            overflow = UiTextOverflow.HIDDEN,
             align = style.textAlign,
             fontSize = fontSize,
             fontFamily = style.fontFamily,

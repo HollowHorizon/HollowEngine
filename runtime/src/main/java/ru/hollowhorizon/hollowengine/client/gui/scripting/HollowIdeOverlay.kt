@@ -186,6 +186,10 @@ object HollowIdeOverlay {
             invalidateUi()
             return true
         }
+        if (action == GLFW.GLFW_PRESS && handleDockShortcut(key, modifiers)) {
+            invalidateUi()
+            return true
+        }
         if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition(frame)) {
             invalidateUi()
             return true
@@ -475,6 +479,12 @@ object HollowIdeOverlay {
             dock.focus(file.id)
         }
         if (dock.contains(EditorWelcomeId)) dock.close(EditorWelcomeId)
+    }
+
+    private fun handleDockShortcut(key: Int, modifiers: Int): Boolean {
+        val command = modifiers and GLFW.GLFW_MOD_CONTROL != 0
+        if (!command || key != GLFW.GLFW_KEY_W) return false
+        return dock.closeFocused()
     }
 
     private fun editorAnchor(): String? {

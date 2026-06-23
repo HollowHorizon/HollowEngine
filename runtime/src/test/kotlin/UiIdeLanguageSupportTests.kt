@@ -142,11 +142,13 @@ class UiIdeLanguageSupportTests {
 
         compileStyleModifier("aspect-ratio", "16/9")!!.applyTo(style)
         compileStyleModifier("text-wrap", "nowrap")!!.applyTo(style)
+        compileStyleModifier("text-overflow", "dots")!!.applyTo(style)
         compileStyleModifier("text-align", "justify")!!.applyTo(style)
         compileStyleModifier("font-size", "16px")!!.applyTo(style)
 
         assertEquals(16f / 9f, style.aspectRatio)
         assertEquals(false, style.textWrap)
+        assertEquals(UiTextOverflow.DOTS, style.textOverflow)
         assertEquals(UiTextAlign.JUSTIFY, style.textAlign)
         assertEquals(16f, style.fontSize)
     }
@@ -192,5 +194,10 @@ class UiIdeLanguageSupportTests {
 
         assertTrue("bottom-right" in pivotCompletions)
         assertTrue("justify" in alignCompletions)
+        assertTrue("dots" in HssScriptingAnalyzer.completions(
+            "style.hss",
+            ".label { text-overflow: do }",
+            ".label { text-overflow: do }".indexOf("do") + 2,
+        ).map { it.show })
     }
 }

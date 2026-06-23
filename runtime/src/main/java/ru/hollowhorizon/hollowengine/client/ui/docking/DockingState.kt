@@ -80,6 +80,12 @@ class DockingState {
         return true
     }
 
+    fun closeFocused(): Boolean {
+        val item = focusedItem() ?: return false
+        if (!item.closable) return false
+        return close(item.id)
+    }
+
     fun focus(itemId: String): Boolean {
         if (!contains(itemId)) return false
         focusedItemId = itemId
@@ -339,6 +345,16 @@ class DockingState {
         return root?.containsItem(itemId) == true || floatingWindows.any { window ->
             window.stack.items.any { it.id == itemId }
         }
+    }
+
+    fun focusedItem(): DockItem? {
+        val focused = focusedItemId ?: return null
+        return item(focused)
+    }
+
+    fun item(itemId: String): DockItem? {
+        return root?.findItem(itemId)
+            ?: floatingWindows.firstNotNullOfOrNull { window -> window.stack.items.firstOrNull { it.id == itemId } }
     }
 
     fun stackIdOf(itemId: String): String? {

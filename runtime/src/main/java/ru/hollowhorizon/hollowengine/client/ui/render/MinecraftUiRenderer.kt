@@ -156,39 +156,53 @@ class MinecraftUiRenderer {
     }
 
     private fun renderPhase(commands: List<UiRenderCommand>, phase: UiRenderPhase) {
-        val directBoxes = mutableListOf<DrawBoxCommand>()
-        val directShapes = mutableListOf<DrawShapeCommand>()
         val imageBatches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
-        val textCommands = mutableListOf<DrawTextCommand>()
 
         commands.forEach { command ->
             when (command) {
-                is DrawBoxCommand -> if (command.phase == phase && !appendBatchedShapes(command)) {
-                    directBoxes += command
+                is DrawBoxCommand -> if (command.phase == phase) {
+                    flushImageBatches(imageBatches)
+                    if (!appendBatchedShapes(command)) {
+                        flushShapeBatch()
+                        flushTextBatch()
+                        drawBox(command)
+                    }
                 }
 
-                is DrawShapeCommand -> if (command.phase == phase && !appendBatchedShapes(command)) {
-                    directShapes += command
+                is DrawShapeCommand -> if (command.phase == phase) {
+                    flushImageBatches(imageBatches)
+                    if (!appendBatchedShapes(command)) {
+                        flushShapeBatch()
+                        flushTextBatch()
+                        drawShape(command)
+                    }
                 }
 
                 is DrawImageCommand -> if (command.phase == phase) {
+                    flushShapeBatch()
+                    flushTextBatch()
                     if (!appendSvgImage(command, imageBatches)) appendImageBatch(command, imageBatches)
                 }
 
                 is DrawTextCommand -> if (command.phase == phase) {
-                    textCommands += command
+                    flushImageBatches(imageBatches)
+                    flushShapeBatch()
+                    drawText(command)
                 }
 
                 else -> Unit
             }
         }
 
+        flushImageBatches(imageBatches)
         flushShapeBatch()
-        directBoxes.forEach(::drawBox)
-        directShapes.forEach(::drawShape)
-        imageBatches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads) }
-        textCommands.forEach(::drawText)
         flushTextBatch()
+    }
+
+    private fun flushImageBatches(imageBatches: MutableMap<ResourceLocation, MutableList<UiTexturedQuad>>) {
+        if (imageBatches.isEmpty()) return
+        imageBatches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads) }
+        imageBatches.clear()
     }
 
     private fun appendImageBatch(
@@ -780,8 +794,18 @@ class MinecraftUiRenderer {
         val scaleX = sqrt((xAxis.x - origin.x) * (xAxis.x - origin.x) + (xAxis.y - origin.y) * (xAxis.y - origin.y))
         val scaleY = sqrt((yAxis.x - origin.x) * (yAxis.x - origin.x) + (yAxis.y - origin.y) * (yAxis.y - origin.y))
         val now = TickHandler.time / 20f
+        val clipped = command.overflow != UiTextOverflow.SHOW
+        if (clipped) {
+            flushTextBatch()
+            pushClip(command.rect)
+        }
         command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
-            drawTextLine(command, line, transform, scaleX, scaleY, now)
+            val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(command, line) else line
+            drawTextLine(command, displayLine, transform, scaleX, scaleY, now)
+        }
+        if (clipped) {
+            flushTextBatch()
+            popClip()
         }
     }
 
