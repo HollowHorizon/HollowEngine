@@ -52,12 +52,10 @@ object CommonEnvironment {
     }
 
     //@formatter:off
-    fun setupPlatform(mappings: Mappings, outputDir: File): List<File> =
-        //? if forge {
-        /*ForgeEnvironmentSetup.setup(mappings, outputDir)
-        *///?} else {
-        FabricEnvironmentSetup.setup(mappings, outputDir)
-        //?}
+    fun setupPlatform(mappings: Mappings, outputDir: File): List<File> = when {
+        NeoForgeEnvironmentSetup.isAvailable() -> NeoForgeEnvironmentSetup.setup(mappings, outputDir)
+        else -> FabricEnvironmentSetup.setup(mappings, outputDir)
+    }
     //@formatter:on
 
     private fun resolveRuntimeJar(): File? {
