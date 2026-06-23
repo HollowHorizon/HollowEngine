@@ -117,6 +117,7 @@ class HollowUiInputController {
         button: Int,
         dispatch: (UiEvent) -> Boolean,
         openUrl: (String) -> Unit,
+        modifiers: Int = 0,
     ): UiInputResult {
         val hit = frame.hitTest(mouseX, mouseY) ?: run {
             setFocus(frame, null, dispatch)
@@ -135,6 +136,7 @@ class HollowUiInputController {
             kind = UiEventKind.PRESS,
             node = hit.node,
             button = button,
+            modifiers = modifiers,
             x = mouseX,
             y = mouseY,
             localX = hit.localX,
@@ -144,7 +146,7 @@ class HollowUiInputController {
         if (pressHandled && press.consumed) return UiInputResult(true, hit.node, key)
 
         if (button == 0 && applyBuiltInPointerPress(frame, hit.node, hit.localX, hit.localY)) {
-            dispatchClick(hit.node, button, mouseX, mouseY, hit.localX, hit.localY, dispatch)
+            dispatchClick(hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
             if (hit.node is SliderNode || hit.node is TextFieldNode) {
                 draggingKey = key
                 hit.node.states += UiState.DRAGGING
@@ -158,7 +160,7 @@ class HollowUiInputController {
             return UiInputResult(true, hit.node, key)
         }
 
-        val clickHandled = dispatchClick(hit.node, button, mouseX, mouseY, hit.localX, hit.localY, dispatch)
+        val clickHandled = dispatchClick(hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
         return UiInputResult(clickHandled, hit.node, key)
     }
 
@@ -363,6 +365,7 @@ class HollowUiInputController {
         mouseY: Float,
         localX: Float,
         localY: Float,
+        modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
         return dispatch(
@@ -370,6 +373,7 @@ class HollowUiInputController {
                 kind = UiEventKind.CLICK,
                 node = node,
                 button = button,
+                modifiers = modifiers,
                 x = mouseX,
                 y = mouseY,
                 localX = localX,

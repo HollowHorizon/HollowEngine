@@ -41,26 +41,23 @@
     min-width: 156px;
     padding: 5px;
     gap: 2px;
-    background: #181b23;
-    border: 1px #3f4756;
+    background: #24272E;
+    border: 1px #5F6677;
     border-radius: 5px;
-    shadow: 0px 14px 28px -10px rgba(0, 0, 0, 0.62);
+    shadow: 1px 1px 3px 0px rgba(0, 0, 0, 0.42);
 }
 
 .dropdown-item {
-    height: 24px;
-    padding: 0px 7px;
-    gap: 7px;
-    foreground: #cbd3df;
+    gap: 4px;
+    padding-vertical: 4px;
     border-radius: 4px;
+    background: #31343D00;
     transition:
-        background 80ms ease-out,
-        foreground 80ms ease-out;
+        background 80ms ease-out;
 }
 
 .dropdown-item:hover {
-    background: #2b3340;
-    foreground: #ffffff;
+    background: #31343D;
 }
 
 .dropdown-item.disabled {

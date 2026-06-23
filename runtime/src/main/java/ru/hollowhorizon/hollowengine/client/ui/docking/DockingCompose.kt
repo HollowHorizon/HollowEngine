@@ -424,7 +424,7 @@ private fun CloseButton(item: DockItem, state: DockingState) {
 
 @Composable
 private fun DefaultDockTabContent(item: DockItem) {
-    Text(item.title, modifier = Modifier.align(UiAlign.START, UiAlign.CENTER))
+    Text(item.title, modifier = Modifier.then(Modifier.align(UiAlign.START, UiAlign.CENTER), Modifier.textWrap(false)))
 }
 
 @Composable

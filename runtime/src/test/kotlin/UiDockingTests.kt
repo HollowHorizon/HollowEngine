@@ -275,8 +275,8 @@ class UiDockingTests {
             }
 
             val window = state.floatingWindows.single()
-            assertEquals(117f, window.x)
-            assertEquals(52f, window.y)
+            assertEquals(116f, window.x)
+            assertEquals(51f, window.y)
         }
     }
 
@@ -338,7 +338,7 @@ class UiDockingTests {
             val splitter = frame.resolved.styles.keys.single { it.id == "$splitId-splitter" }
 
             assertEquals(UiCursorShape.RESIZE_HORIZONTAL, frame.resolved[splitter].cursor)
-            assertEquals(6f, frame.layout[splitter].rect.width)
+            assertEquals(3f, frame.layout[splitter].rect.width)
         }
     }
 

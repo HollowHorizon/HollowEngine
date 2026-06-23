@@ -63,6 +63,16 @@ object HollowIdeOverlay {
     private var filter by mutableStateOf("")
     private var openDropdown by mutableStateOf<String?>(null)
     private var statusText by mutableStateOf("")
+    private val project = HollowIdeProjectController(
+        model = model,
+        focusProjectTree = { dock.focus(ProjectTreeId) },
+        shortcutsActive = { model.selectedTreePath.isNotBlank() && input.focusedKey == null && dock.focusedItemId == ProjectTreeId },
+        closeDockItem = { dock.close(it) },
+        openFile = { openFileDockItem(it) },
+        setStatus = { statusText = it },
+        pointerX = { lastMouseX },
+        pointerY = { lastMouseY },
+    )
     private val diagnosticsPanels = mutableStateMapOf<String, Boolean>()
     private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
     private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
@@ -111,7 +121,7 @@ object HollowIdeOverlay {
         val point = hollowIdeOverlayPoint(x, y)
         val frame = currentFrameForInput() ?: return false
         return when (action) {
-            GLFW.GLFW_PRESS -> mousePressed(frame, point.x, point.y, button)
+            GLFW.GLFW_PRESS -> mousePressed(frame, point.x, point.y, button, modifiers)
             GLFW.GLFW_RELEASE -> mouseReleased(frame, point.x, point.y, button)
             else -> false
         }
@@ -168,6 +178,14 @@ object HollowIdeOverlay {
         if (!isVisible()) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
         val frame = currentFrameForInput() ?: return false
+        if (action == GLFW.GLFW_PRESS && project.handleNameDialogKey(key)) {
+            invalidateUi()
+            return true
+        }
+        if (action == GLFW.GLFW_PRESS && project.handleShortcut(key, modifiers)) {
+            invalidateUi()
+            return true
+        }
         if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition(frame)) {
             invalidateUi()
             return true
@@ -352,8 +370,25 @@ object HollowIdeOverlay {
             }
             UiTreeView(
                 items = model.visibleTreeItems(filter),
-                onToggle = { item -> model.toggle(item.payload) },
-                onSelect = ::openTreeItem,
+                onToggle = project::toggle,
+                onSelect = project::select,
+            )
+            HollowIdeProjectContextMenu(
+                menu = project.contextMenu,
+                onCreateFile = project::openCreateFileDialog,
+                onCreateFolder = project::openCreateFolderDialog,
+                onRename = project::openRenameDialog,
+                onCopy = { project.copy(it, cut = false) },
+                onCut = { project.copy(it, cut = true) },
+                onPaste = project::pasteInto,
+                onShowInExplorer = project::showInExplorer,
+                onDelete = project::delete,
+            )
+            HollowIdeProjectNameDialog(
+                dialog = project.nameDialog,
+                onNameChange = project::updateNameDialog,
+                onConfirm = project::applyNameDialog,
+                onCancel = project::cancelNameDialog,
             )
         }
     }
@@ -398,6 +433,9 @@ object HollowIdeOverlay {
                     modifier = Modifier.then(
                         Modifier.size(100.percent, 100.percent),
                         Modifier.fontSize(fontSize),
+                        Modifier.onFocus {
+                            dock.focus(file.id)
+                        },
                     ),
                 )
                 editorOverlays.CompletionPopup(file.id)
@@ -427,14 +465,6 @@ object HollowIdeOverlay {
         }
     }
 
-    private fun openTreeItem(item: UiTreeItem<HollowIdeFileNode>) {
-        when (val result = model.open(item.payload)) {
-            HollowIdeOpenResult.Directory -> Unit
-            HollowIdeOpenResult.Unsupported -> statusText = "Unsupported or binary file: ${item.payload.path}"
-            is HollowIdeOpenResult.File -> openFileDockItem(result.file)
-        }
-    }
-
     private fun openFileDockItem(file: HollowIdeOpenFile) {
         statusText = ""
         if (!dock.contains(file.id)) {
@@ -458,10 +488,10 @@ object HollowIdeOverlay {
     }
 
     private fun goToDefinition(frame: HollowUiFrame): Boolean {
-        val file = focusedFile() ?: return false
+        val file = focusedEditorFile() ?: return false
         val editorKey = "editor-${file.id}"
-        if (input.focusedKey != editorKey) return false
         val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return false
+        if (input.focusedKey != editorKey) input.focus(frame, editorKey, ::dispatchUiEvent)
         val session = editorSessions.getOrPut(file.path) {
             HollowIdeEditorSession(file.path) {
                 editorAnalysisRevision++
@@ -478,6 +508,13 @@ object HollowIdeOverlay {
             openDefinition(definition)
         }
         return true
+    }
+
+    private fun focusedEditorFile(): HollowIdeOpenFile? {
+        input.focusedKey?.removePrefix("editor-")?.takeIf { it != input.focusedKey }?.let { editorFileId ->
+            model.files.values.firstOrNull { it.id == editorFileId }?.let { return it }
+        }
+        return focusedFile()
     }
 
     private fun openDefinition(definition: DefinitionLocation) {
@@ -511,10 +548,13 @@ object HollowIdeOverlay {
         }
     }
 
-    private fun mousePressed(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int): Boolean {
+    private fun mousePressed(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int, modifiers: Int): Boolean {
         activeButton = button
         lastMouseX = mouseX
         lastMouseY = mouseY
+        if (closePopupsOutside(frame, mouseX, mouseY)) {
+            invalidateUi()
+        }
         if (button == 0 && editorOverlays.closeCompletionsOutside(frame, mouseX, mouseY)) {
             invalidateUi()
         }
@@ -523,10 +563,20 @@ object HollowIdeOverlay {
             invalidateUi()
             return true
         }
-        val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl)
+        val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl, modifiers)
         if (result.handled) invalidateUi()
         if (!result.handled) activeButton = null
         return result.handled
+    }
+
+    private fun closePopupsOutside(frame: HollowUiFrame, mouseX: Float, mouseY: Float): Boolean {
+        if (openDropdown == null && !project.hasOpenPopup()) return false
+        val hit = frame.hitTest(mouseX, mouseY)?.node
+        if (hit != null && frame.hasPopupAncestor(hit)) return false
+        val changed = openDropdown != null || project.hasOpenPopup()
+        openDropdown = null
+        project.closePopups()
+        return changed
     }
 
     private fun mouseReleased(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int): Boolean {
@@ -654,6 +704,28 @@ object HollowIdeOverlay {
         }
     }
 
+}
+
+private fun HollowUiFrame.hasPopupAncestor(node: UiNode): Boolean {
+    var current: UiNode? = node
+    while (current != null) {
+        if (current is PopupNode) return true
+        current = parentOf(current)
+    }
+    return false
+}
+
+private fun HollowUiFrame.parentOf(child: UiNode): UiNode? {
+    val stack = ArrayDeque<UiNode>()
+    stack.add(resolved.root)
+    while (stack.isNotEmpty()) {
+        val node = stack.removeLast()
+        if (child in node.children) return node
+        for (index in node.children.indices.reversed()) {
+            stack.add(node.children[index])
+        }
+    }
+    return null
 }
 
 private const val DefaultDiagnosticsPanelHeight = 160f

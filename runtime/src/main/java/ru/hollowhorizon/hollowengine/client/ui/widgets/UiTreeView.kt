@@ -19,7 +19,7 @@ data class UiTreeItem<T>(
 fun <T> UiTreeView(
     items: List<UiTreeItem<T>>,
     onToggle: (UiTreeItem<T>) -> Unit,
-    onSelect: (UiTreeItem<T>) -> Unit,
+    onSelect: (UiTreeItem<T>, UiEvent) -> Unit,
     modifier: Modifier = Modifier.size(100.percent, 100.percent),
     tags: Iterable<String> = emptyList(),
 ) {
@@ -42,7 +42,7 @@ fun <T> UiTreeView(
 private fun <T> UiTreeRow(
     item: UiTreeItem<T>,
     onToggle: (UiTreeItem<T>) -> Unit,
-    onSelect: (UiTreeItem<T>) -> Unit,
+    onSelect: (UiTreeItem<T>, UiEvent) -> Unit,
 ) {
     Row(
         id = "tree-item-${item.id}",
@@ -53,7 +53,7 @@ private fun <T> UiTreeRow(
             Modifier.input(hoverable = true, clickable = true),
             Modifier.cursor(UiCursorShape.HAND),
             Modifier.onClick { event ->
-                if (item.hasChildren) onToggle(item) else onSelect(item)
+                onSelect(item, event)
                 event.consume()
             },
         ),

@@ -13,16 +13,13 @@
     align-items: center center;
     border-radius: 4px;
     rotate: 0 0 0;
-    transition:
-        background 120ms ease-out,
-        rotate 420ms ease-out,
-        scale 120ms ease-out;
+    scale: 0.9;
+    transition: all 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #ide-logo:hover {
-    background: rgba(255, 255, 255, 0.09);
     rotate: 0 0 360;
-    scale: 1.1;
+    scale: 1.2;
 }
 
 .ide-panel, .ide-empty-editor, .ide-editor-shell {
@@ -67,6 +64,51 @@
 
 .ide-status {
     height: 16px;
+}
+
+.project-context-menu {
+    padding: 4px;
+    gap: 1px;
+}
+
+.project-context-menu-item {
+    width: 100%;
+    padding: 0px 5px;
+}
+
+.project-context-menu-icon {
+    size: 14px 14px;
+}
+
+.project-context-menu-label {
+    wrap: false;
+}
+
+.project-context-menu-shortcut {
+    foreground: #7f8a9d;
+    align: end center;
+}
+
+.project-name-dialog {
+    gap: 5px;
+    padding: 5px;
+}
+
+.project-name-dialog-title {
+    height: 18px;
+    foreground: #d7deea;
+}
+
+.project-name-dialog-input {
+    caret-color: #f0f6ff;
+    background: #1E2127;
+    border-radius: 4px;
+    border: 1px #5F6677;
+    selection-color: rgba(95, 140, 205, 0.46);
+}
+
+.project-name-dialog-actions {
+    gap: 3px;
 }
 
 .ide-editor-stack {

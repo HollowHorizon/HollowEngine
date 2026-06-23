@@ -19,6 +19,13 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import java.io.File
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.Base64
 
 private const val BinarySampleSize = 8192
@@ -27,6 +34,7 @@ private const val AutoSaveDelayMillis = 900L
 internal class HollowIdeModel {
     val tree = HollowIdeFileTree()
     val files = mutableStateMapOf<String, HollowIdeOpenFile>()
+    val selectedTreePaths = mutableStateListOf<String>()
     var selectedTreePath by mutableStateOf("")
         private set
     private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -42,18 +50,40 @@ internal class HollowIdeModel {
                 icon = IconHelper.forPath(node.path, node.isDirectory, node.expanded).toString(),
                 hasChildren = node.isDirectory,
                 expanded = node.expanded,
-                selected = node.path == selectedTreePath,
+                selected = node.path in selectedTreePaths,
             )
         }
     }
 
-    fun toggle(node: HollowIdeFileNode) {
+    fun select(node: HollowIdeFileNode, additive: Boolean = false) {
+        selectPath(node.path, additive)
+    }
+
+    fun focusSelection(node: HollowIdeFileNode) {
         selectedTreePath = node.path
+        if (node.path !in selectedTreePaths) {
+            selectedTreePaths.clear()
+            selectedTreePaths += node.path
+        }
+    }
+
+    fun selectPath(path: String, additive: Boolean = false) {
+        selectedTreePath = path
+        if (additive) {
+            if (path in selectedTreePaths) selectedTreePaths.remove(path) else selectedTreePaths += path
+        } else {
+            selectedTreePaths.clear()
+            selectedTreePaths += path
+        }
+    }
+
+    fun toggle(node: HollowIdeFileNode, additive: Boolean = false) {
+        select(node, additive)
         tree.toggle(node.path)
     }
 
-    fun open(node: HollowIdeFileNode): HollowIdeOpenResult {
-        selectedTreePath = node.path
+    fun open(node: HollowIdeFileNode, additive: Boolean = false): HollowIdeOpenResult {
+        select(node, additive)
         if (node.isDirectory) {
             tree.toggle(node.path)
             return HollowIdeOpenResult.Directory
@@ -99,6 +129,97 @@ internal class HollowIdeModel {
         return true
     }
 
+    fun selectedOr(path: String): List<String> {
+        return if (path in selectedTreePaths) selectedTreePaths.toList() else listOf(path)
+    }
+
+    fun createFile(parentPath: String, name: String): HollowIdeFileOperationResult {
+        val cleanName = name.trim().replace('\\', '/').trim('/')
+        if (cleanName.isBlank()) return HollowIdeFileOperationResult.InvalidName
+        val parent = targetDirectory(parentPath)
+        val target = parent.resolve(cleanName).toPath().normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
+        if (Files.exists(target)) return HollowIdeFileOperationResult.AlreadyExists
+        Files.createDirectories(target.parent)
+        Files.createFile(target)
+        tree.refresh()
+        selectPath(target.toReadablePathInsideRoot())
+        return HollowIdeFileOperationResult.Success
+    }
+
+    fun createFolder(parentPath: String, name: String): HollowIdeFileOperationResult {
+        val cleanName = name.trim().replace('\\', '/').trim('/')
+        if (cleanName.isBlank()) return HollowIdeFileOperationResult.InvalidName
+        val parent = targetDirectory(parentPath)
+        val target = parent.resolve(cleanName).toPath().normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
+        if (Files.exists(target)) return HollowIdeFileOperationResult.AlreadyExists
+        Files.createDirectories(target)
+        tree.refresh()
+        selectPath(target.toReadablePathInsideRoot())
+        return HollowIdeFileOperationResult.Success
+    }
+
+    fun rename(path: String, newName: String): HollowIdeFileOperationResult {
+        val cleanName = newName.trim()
+        if (cleanName.isBlank() || cleanName.any { it == '/' || it == '\\' }) return HollowIdeFileOperationResult.InvalidName
+        val source = path.toPathInsideRoot() ?: return HollowIdeFileOperationResult.NotFound
+        if (!Files.exists(source)) return HollowIdeFileOperationResult.NotFound
+        val target = source.parent.resolve(cleanName).normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
+        if (Files.exists(target)) return HollowIdeFileOperationResult.AlreadyExists
+        Files.move(source, target)
+        val targetPath = target.toReadablePathInsideRoot()
+        files.remove(path)?.let { opened ->
+            files[targetPath] = opened.renamed(targetPath)
+        }
+        tree.refresh()
+        selectPath(targetPath)
+        return HollowIdeFileOperationResult.Success
+    }
+
+    fun delete(paths: List<String>): HollowIdeFileOperationResult {
+        val targets = paths.mapNotNull { it.toPathInsideRoot() }.filter { Files.exists(it) }
+            .filterNot { it == DirectoryManager.HOLLOW_ENGINE }
+            .withoutNestedChildren()
+        if (targets.isEmpty()) return HollowIdeFileOperationResult.NotFound
+        targets.forEach { path -> path.toFile().deleteRecursively() }
+        val removedReadable = targets.map { it.toReadablePathInsideRoot() }
+        files.keys.filter { openPath -> removedReadable.any { openPath == it || openPath.startsWith("$it/") } }
+            .forEach(files::remove)
+        tree.refresh()
+        selectedTreePaths.clear()
+        selectedTreePath = ""
+        return HollowIdeFileOperationResult.Success
+    }
+
+    fun copyToClipboard(paths: List<String>, cut: Boolean = false): HollowIdeFileOperationResult {
+        val files = paths.mapNotNull { it.toPathInsideRoot()?.toFile() }.filter { it.exists() }
+        if (files.isEmpty()) return HollowIdeFileOperationResult.NotFound
+        HollowIdeFileClipboard.set(files, cut)
+        return HollowIdeFileOperationResult.Success
+    }
+
+    fun pasteInto(targetPath: String): HollowIdeFileOperationResult {
+        val targetDir = targetDirectory(targetPath).toPath().normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
+        val clipboard = HollowIdeFileClipboard.get()
+        if (clipboard.files.isEmpty()) return HollowIdeFileOperationResult.NotFound
+        Files.createDirectories(targetDir)
+        clipboard.files.forEach { sourceFile ->
+            val source = sourceFile.toPath()
+            if (!Files.exists(source)) return@forEach
+            val destination = uniqueDestination(targetDir, source.fileName.toString())
+            if (Files.isDirectory(source)) {
+                source.copyDirectory(destination)
+            } else {
+                Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES)
+            }
+            if (clipboard.cut && source.normalizeInsideRoot() != null) {
+                source.toFile().deleteRecursively()
+            }
+        }
+        if (clipboard.cut) HollowIdeFileClipboard.clearInternalCut()
+        tree.refresh()
+        return HollowIdeFileOperationResult.Success
+    }
+
     fun saveAll(): Int {
         var count = 0
         files.values.forEach { file ->
@@ -130,6 +251,13 @@ internal sealed interface HollowIdeOpenResult {
     data object Directory : HollowIdeOpenResult
     data object Unsupported : HollowIdeOpenResult
     data class File(val file: HollowIdeOpenFile, val created: Boolean) : HollowIdeOpenResult
+}
+
+internal enum class HollowIdeFileOperationResult {
+    Success,
+    InvalidName,
+    AlreadyExists,
+    NotFound,
 }
 
 internal class HollowIdeOpenFile(
@@ -180,6 +308,56 @@ internal class HollowIdeOpenFile(
         if (text == normalized) return
         text = normalized
         dirty = false
+    }
+
+    fun renamed(nextPath: String): HollowIdeOpenFile {
+        return HollowIdeOpenFile(nextPath, text, readOnly).also { renamed ->
+            renamed.dirty = dirty
+        }
+    }
+}
+
+private data class HollowIdeClipboardPayload(
+    val files: List<File>,
+    val cut: Boolean,
+)
+
+private object HollowIdeFileClipboard {
+    private var internal: HollowIdeClipboardPayload? = null
+
+    fun set(files: List<File>, cut: Boolean) {
+        internal = HollowIdeClipboardPayload(files, cut)
+        if (!cut) {
+            runCatching {
+                Toolkit.getDefaultToolkit().systemClipboard.setContents(FileListTransferable(files), null)
+            }
+        }
+    }
+
+    fun get(): HollowIdeClipboardPayload {
+        val systemFiles = runCatching {
+            val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+            if (!clipboard.isDataFlavorAvailable(DataFlavor.javaFileListFlavor)) return@runCatching emptyList<File>()
+            @Suppress("UNCHECKED_CAST")
+            clipboard.getData(DataFlavor.javaFileListFlavor) as? List<File> ?: emptyList()
+        }.getOrDefault(emptyList())
+        if (systemFiles.isNotEmpty()) return HollowIdeClipboardPayload(systemFiles, cut = false)
+        return internal ?: HollowIdeClipboardPayload(emptyList(), cut = false)
+    }
+
+    fun clearInternalCut() {
+        if (internal?.cut == true) internal = null
+    }
+}
+
+private class FileListTransferable(private val files: List<File>) : Transferable {
+    override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.javaFileListFlavor)
+
+    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor
+
+    override fun getTransferData(flavor: DataFlavor): Any {
+        if (!isDataFlavorSupported(flavor)) throw UnsupportedFlavorException(flavor)
+        return files
     }
 }
 
@@ -266,4 +444,72 @@ private fun File.isProbablyBinary(): Boolean {
         value < 32 && value != 9 && value != 10 && value != 13
     }
     return nullBytes > bytes.size / 100 || controlBytes > bytes.size / 10
+}
+
+private fun targetDirectory(path: String): File {
+    val file = path.fromReadablePath()
+    return if (file.isDirectory || path.isBlank()) file else file.parentFile
+}
+
+private fun String.toPathInsideRoot(): Path? {
+    return fromReadablePath().toPath().normalizeInsideRoot()
+}
+
+private fun Path.normalizeInsideRoot(): Path? {
+    val root = DirectoryManager.HOLLOW_ENGINE.toAbsolutePath().normalize()
+    val normalized = toAbsolutePath().normalize()
+    return normalized.takeIf { it.isSameOrNestedIn(root) }
+}
+
+private fun List<Path>.withoutNestedChildren(): List<Path> {
+    val sorted = map { it.toAbsolutePath().normalize() }.sortedBy { it.nameCount }
+    val result = mutableListOf<Path>()
+    for (path in sorted) {
+        if (result.none { parent -> path != parent && path.isSameOrNestedIn(parent) }) result.add(path)
+    }
+    return result
+}
+
+private fun Path.isSameOrNestedIn(parent: Path): Boolean {
+    val value = toComparablePathString()
+    val root = parent.toComparablePathString().trimEnd('/')
+    return value == root || value.startsWith("$root/")
+}
+
+private fun Path.toComparablePathString(): String {
+    return toAbsolutePath().normalize().toString().replace('\\', '/')
+}
+
+private fun Path.toReadablePathInsideRoot(): String {
+    val root = DirectoryManager.HOLLOW_ENGINE.toAbsolutePath().normalize()
+    val normalized = toAbsolutePath().normalize()
+    return root.relativize(normalized).toString().replace('\\', '/')
+}
+
+private fun uniqueDestination(targetDir: Path, fileName: String): Path {
+    var candidate = targetDir.resolve(fileName)
+    if (!Files.exists(candidate)) return candidate
+    val extensionStart = fileName.lastIndexOf('.').takeIf { it > 0 }
+    val baseName = extensionStart?.let { fileName.substring(0, it) } ?: fileName
+    val extension = extensionStart?.let { fileName.substring(it) }.orEmpty()
+    var index = 1
+    while (Files.exists(candidate)) {
+        candidate = targetDir.resolve("$baseName copy${if (index == 1) "" else " $index"}$extension")
+        index++
+    }
+    return candidate
+}
+
+private fun Path.copyDirectory(target: Path) {
+    Files.walk(this).use { stream ->
+        stream.forEach { source ->
+            val destination = target.resolve(relativize(source).toString())
+            if (Files.isDirectory(source)) {
+                Files.createDirectories(destination)
+            } else {
+                Files.createDirectories(destination.parent)
+                Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES)
+            }
+        }
+    }
 }
