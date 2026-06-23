@@ -121,7 +121,7 @@ internal class UiWidgetRenderer(
                 val x = command.textOffset +
                         line.x +
                         UiTextLayouter.measureTextWidth(" ".repeat(column), command.fontSize, command.fontFamily) -
-                        command.scrollOffset.x + 2f
+                        command.scrollOffset.x
                 if (x < command.textOffset || x > command.rect.width) continue
                 val y = line.y - command.scrollOffset.y
                 if (y + line.height < 0f || y > command.rect.height) continue
