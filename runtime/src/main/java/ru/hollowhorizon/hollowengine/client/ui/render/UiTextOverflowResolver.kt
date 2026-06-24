@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiTextSpaceRun
 import ru.hollowhorizon.hollowengine.client.ui.fontFamily
 
 internal object UiTextOverflowResolver {
-    private const val ELLIPSIS = "..."
+    private const val ELLIPSIS = "…"
 
     fun ellipsizeLine(command: DrawTextCommand, line: UiTextLine): UiTextLine {
         val availableWidth = (command.rect.width - line.x).coerceAtLeast(0f)

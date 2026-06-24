@@ -46,7 +46,7 @@ data class DockTabDragState(
     val itemId: String,
     val pointerX: Float,
     val grabX: Float,
-    val tabWidth: Float,
+    val layouts: List<DockTabLayout> = emptyList(),
 )
 
 data class DockTabGrabState(
@@ -55,6 +55,16 @@ data class DockTabGrabState(
     val x: Float,
     val y: Float,
 )
+
+data class DockTabLayout(
+    val itemId: String,
+    val left: Float,
+    val width: Float,
+    val outerLeft: Float,
+    val outerWidth: Float,
+) {
+    val midpoint: Float get() = left + width * 0.5f
+}
 
 data class DockWindowDragStart(
     val windowId: String,

@@ -125,7 +125,7 @@ class MinecraftUiRenderer {
             is EndLayerCommand -> finishLayer()
             is DrawBackdropFilterCommand -> drawBackdropFilter(command)
             is DrawShadowCommand -> drawShadow(command)
-            is PushClipCommand -> pushClip(command.rect)
+            is PushClipCommand -> pushClip(command.rect, command.transform)
             is PopClipCommand -> popClip()
             is DrawBoxCommand -> drawBox(command)
             is DrawShapeCommand -> drawShape(command)
@@ -797,7 +797,7 @@ class MinecraftUiRenderer {
         val clipped = command.overflow != UiTextOverflow.SHOW
         if (clipped) {
             flushTextBatch()
-            pushClip(command.rect)
+            pushClip(UiRect(0f, 0f, command.rect.width, command.rect.height), command.transform)
         }
         command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
             val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(command, line) else line
@@ -1450,8 +1450,8 @@ class MinecraftUiRenderer {
         widgets.drawTextFieldChrome(command, transform)
     }
 
-    private fun pushClip(rect: UiRect) {
-        val local = localRect(rect)
+    private fun pushClip(rect: UiRect, transform: UiMatrix4) {
+        val local = transformedLocalRect(rect, effective(transform))
         clipStack.addLast(clipStack.lastOrNull()?.intersect(local) ?: local)
         applyScissor(clipStack.last())
     }
@@ -1543,6 +1543,18 @@ class MinecraftUiRenderer {
             )
         }
         ?: rect
+
+    private fun transformedLocalRect(rect: UiRect, transform: UiMatrix4): UiRect {
+        val topLeft = transform.transform(rect.x, rect.y)
+        val bottomLeft = transform.transform(rect.x, rect.y + rect.height)
+        val bottomRight = transform.transform(rect.x + rect.width, rect.y + rect.height)
+        val topRight = transform.transform(rect.x + rect.width, rect.y)
+        val left = minOf(topLeft.x, bottomLeft.x, bottomRight.x, topRight.x)
+        val top = minOf(topLeft.y, bottomLeft.y, bottomRight.y, topRight.y)
+        val right = maxOf(topLeft.x, bottomLeft.x, bottomRight.x, topRight.x)
+        val bottom = maxOf(topLeft.y, bottomLeft.y, bottomRight.y, topRight.y)
+        return UiRect(left, top, (right - left).coerceAtLeast(0f), (bottom - top).coerceAtLeast(0f))
+    }
 
     private fun layerScale(): Float {
         return (renderTarget?.scale ?: Minecraft.getInstance().window.guiScale.toFloat()) * LayerSupersampling

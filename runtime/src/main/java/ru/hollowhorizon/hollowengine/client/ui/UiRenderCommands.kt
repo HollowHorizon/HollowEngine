@@ -55,6 +55,7 @@ data class DrawShadowCommand(
 data class PushClipCommand(
     override val node: UiNode,
     val rect: UiRect,
+    val transform: UiMatrix4,
 ) : UiRenderCommand
 
 data class PopClipCommand(
@@ -307,7 +308,13 @@ class UiCommandRenderer {
                         appendBackgroundCommand(current, style, layoutNode, bindings, localOpacity, baseFilter, commands)
                     }
 
-                    if (!cullNodeCommands && pushedClip) commands += PushClipCommand(current, layoutNode.content)
+                    if (!cullNodeCommands && pushedClip) {
+                        commands += PushClipCommand(
+                            current,
+                            layoutNode.content.localTo(layoutNode.rect),
+                            layoutNode.worldTransform,
+                        )
+                    }
 
                     if (!cullNodeCommands) {
                         collectNodeContent(
@@ -582,11 +589,12 @@ class UiCommandRenderer {
         commands += PushClipCommand(
             node = node,
             rect = UiRect(
-                layoutNode.content.x + textOffset,
-                layoutNode.content.y,
+                textOffset,
+                0f,
                 (layoutNode.content.width - textOffset).coerceAtLeast(0f),
                 layoutNode.content.height,
             ),
+            transform = transform,
         )
         commands += DrawTextCommand(
             node = node,
@@ -940,4 +948,8 @@ private fun UiRect.visibleIntersection(other: UiRect): UiRect? {
 
 private fun UiRect.intersectsVisible(other: UiRect): Boolean {
     return visibleIntersection(other) != null
+}
+
+private fun UiRect.localTo(parent: UiRect): UiRect {
+    return copy(x = x - parent.x, y = y - parent.y)
 }

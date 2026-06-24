@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -265,20 +266,26 @@ private fun DockTabBar(
     tabContent: DockHeaderContent,
     allowUndock: Boolean,
 ) {
-    Row(
+    val itemIds = stack.items.map { it.id }
+    val measurePolicy = remember(stack.id, itemIds) {
+        dockTabBarMeasurePolicy(stack.id, itemIds, state)
+    }
+    Layout(
+        content = {
+            stack.items.forEachIndexed { index, item ->
+                val selected = stack.selectedItem?.id == item.id
+                key(item.id) {
+                    DockTab(stack.id, index, item, selected, state, tabContent, allowUndock)
+                }
+            }
+        },
         id = "${stack.id}-tabs",
         tags = listOf(DockTags.TabBar),
         modifier = Modifier.then(
             Modifier.size(100.percent, 24.px),
         ),
-    ) {
-        stack.items.forEachIndexed { index, item ->
-            val selected = stack.selectedItem?.id == item.id
-            key(item.id) {
-                DockTab(stack.id, index, item, selected, state, tabContent, allowUndock)
-            }
-        }
-    }
+        measurePolicy = measurePolicy,
+    )
 }
 
 @Composable
@@ -312,10 +319,9 @@ private fun DockTab(
             Modifier.size(width = UiLength.Auto, height = DockTabHeight.px),
             Modifier.minSize(width = DockTabMinWidth.px),
             Modifier.maxSize(width = DockTabMaxWidth.px),
-            Modifier.margin(DockTabMargin.px),
             Modifier.alignItems(vertical = UiAlign.CENTER),
             Modifier.layer(layerIndex),
-            // Modifier.clip(),
+            Modifier.clip(),
             buildTabTransformModifier(tabOffset, dragOffset, swapOffset),
             Modifier.cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND),
             Modifier.input(hoverable = true, clickable = true, draggable = true),
@@ -377,8 +383,7 @@ private fun buildTabInputModifier(
             val grab = state.tabGrab(stackId, item.id)
 
             if (event.isInsideTabBar()) {
-                val tabWidth = event.width + DockTabMargin * 2f
-                state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX, tabWidth)
+                state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX)
                 event.consume()
                 return@onDrag
             }
@@ -404,6 +409,42 @@ private fun buildTabInputModifier(
             state.finishTabDrag()
         }
     )
+}
+
+private fun dockTabBarMeasurePolicy(
+    stackId: String,
+    itemIds: List<String>,
+    state: DockingState,
+) = UiMeasurePolicy { measurables, constraints ->
+    var x = 0f
+    val layouts = ArrayList<DockTabLayout>(measurables.size)
+    val placeables = measurables.mapIndexed { index, measurable ->
+        val placeable = measurable.measure(
+            UiConstraints(
+                maxWidth = constraints.maxWidth,
+                maxHeight = DockTabHeight,
+            )
+        )
+        val itemId = itemIds.getOrNull(index) ?: measurable.node.id.orEmpty()
+        layouts += DockTabLayout(
+            itemId = itemId,
+            left = x + DockTabMargin,
+            width = placeable.width,
+            outerLeft = x,
+            outerWidth = placeable.width + DockTabMargin * 2f,
+        )
+        x += placeable.width + DockTabMargin * 2f
+        placeable
+    }
+    state.updateTabLayouts(stackId, layouts)
+    val width = constraints.maxWidth.takeIf { it.isFinite() } ?: x
+    layout(width, DockTabHeight + DockTabMargin * 2f) {
+        var childX = 0f
+        placeables.forEach { placeable ->
+            placeable.place(childX + DockTabMargin, DockTabMargin)
+            childX += placeable.width + DockTabMargin * 2f
+        }
+    }
 }
 
 @Composable

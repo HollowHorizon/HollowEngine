@@ -298,6 +298,29 @@ class UiDockingTests {
     }
 
     @Test
+    fun `tab reorder uses measured tab bounds for dynamic widths`() {
+        val state = DockingState()
+        state.open(item("short"))
+        state.open(item("wide"))
+        state.open(item("tail"))
+        val stackId = (state.root as DockNode.Stack).id
+        state.updateTabLayouts(
+            stackId,
+            listOf(
+                DockTabLayout("short", left = 2f, width = 60f, outerLeft = 0f, outerWidth = 64f),
+                DockTabLayout("wide", left = 66f, width = 140f, outerLeft = 64f, outerWidth = 144f),
+                DockTabLayout("tail", left = 210f, width = 80f, outerLeft = 208f, outerWidth = 84f),
+            )
+        )
+
+        assertTrue(state.dragTabInBar(stackId, "wide", pointerX = 45f, grabX = 20f))
+
+        assertEquals(listOf("wide", "short", "tail"), (state.root as DockNode.Stack).items.map { it.id })
+        assertEquals(23f, state.tabDragOffset(stackId, "wide", currentIndex = 0))
+        assertEquals(-144f, state.consumeTabSwapOffset(stackId, "short"))
+    }
+
+    @Test
     fun `undocked tab starts floating in dock space coordinates`() {
         val state = DockingState()
         state.open(item("files"))
