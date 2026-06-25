@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
+import net.minecraft.SharedConstants
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapJars
+import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
 import java.lang.reflect.Modifier
@@ -10,33 +12,19 @@ import java.nio.file.Path
 object NeoForgeEnvironmentSetup : EnvironmentSetup {
     override fun setup(mappings: Mappings, outputDir: File): List<File> {
         val classpath = runtimeClasspath()
-        val gameJars = minecraftGameJars()
 
-        return if (isProduction && gameJars.isNotEmpty()) {
+        return if (isProduction && !SharedConstants.getCurrentVersion().id.startsWith("1.21")) {
             val remapped = remapJars(
                 mappings = mappings,
-                inputs = gameJars,
+                inputs = listOf(ModList.getFile("minecraft")),
                 outputDir = outputDir,
                 from = "official",
                 to = "named",
             )
             classpath + remapped
         } else {
-            classpath + gameJars
+            classpath + ModList.getFile("minecraft")
         }.distinctBy { it.absoluteFile.normalize() }
-    }
-
-    private fun minecraftGameJars(): List<File> {
-        val loaderClass = loadClass("net.neoforged.fml.loading.FMLLoader")
-            ?: loadClass("net.minecraftforge.fml.loading.FMLLoader")
-            ?: return emptyList()
-        val launchHandler = loaderClass.callStatic("getLaunchHandler") ?: return emptyList()
-        val pathsHolder = launchHandler.member("minecraftPaths") ?: launchHandler.call("getMinecraftPaths") ?: return emptyList()
-        val rawPaths = pathsHolder.member("minecraftPaths") ?: pathsHolder.call("getMinecraftPaths") ?: pathsHolder
-
-        return rawPaths.flattenToFiles()
-            .filter { it.isFile && it.exists() && it.extension.equals("jar", ignoreCase = true) }
-            .distinctBy { it.absoluteFile.normalize() }
     }
 
     private fun runtimeClasspath(): List<File> {

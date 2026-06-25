@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptJvmK2CompilerIsolated
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapClass
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.ByteArrayInputStream
@@ -56,7 +57,7 @@ class ScriptJvmCompilerRemapped(
 }
 
 private fun remapScriptClass(path: String, classes: Map<String, ByteArray>, bytes: ByteArray): ByteArray {
-    if (!path.endsWith(".class") || !isProduction) return bytes
+    if (!path.endsWith(".class") || !isProduction || NeoForgeEnvironmentSetup.isAvailable()) return bytes
     val environment = ScriptingEnvironment.INSTANCE
     return remapClass(
         bytes,
