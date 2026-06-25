@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoader
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapJars
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.runtime.bootstrap.HollowEngineRuntimeBootstrap
 import java.io.BufferedReader
@@ -30,8 +31,12 @@ object CommonEnvironment {
 
         val classpath = setupPlatform(mappings, outputDir).toMutableList()
         resolveRuntimeJar()?.takeIf(File::isFile)?.let { runtimeJar ->
-            if (classpath.none { it.absoluteFile == runtimeJar.absoluteFile }) {
-                classpath += runtimeJar
+            if(!NeoForgeEnvironmentSetup.isAvailable()) {
+                classpath += remapJars(mappings, listOf(runtimeJar), outputDir, from = "intermediary", to = "named")
+            } else {
+                if (classpath.none { it.absoluteFile == runtimeJar.absoluteFile }) {
+                    classpath += runtimeJar
+                }
             }
         }
 
@@ -42,11 +47,7 @@ object CommonEnvironment {
 
     private fun setupMappings(compilerJar: File): Mappings {
         JarFile(compilerJar).use { jar ->
-            //? if forge {
-            /*val file = jar.getJarEntry("mappings-1.20.1.tsrg")
-            *///?} else {
-            val file = jar.getJarEntry("mappings-1.20.1.tiny")
-            //?}
+            val file = jar.getJarEntry("mappings-1.21.1.tiny")
             return MappingsLoader.loadMappings(jar.getInputStream(file))
         }
     }

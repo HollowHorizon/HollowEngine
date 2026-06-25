@@ -9,6 +9,6 @@ class ModsEnvironment(vararg val modIds: String) : EnvironmentSetup {
     override fun setup(mappings: Mappings, outputDir: File): List<File> {
         val mods = modIds.flatMap { ModList.getAllFiles(it) }
         if (mods.singleOrNull()?.isDirectory == true) return mods
-        return remapJars(mappings, mods, outputDir)
+        return remapJars(mappings, mods, outputDir, from = "intermediary", to = "named")
     }
 }
