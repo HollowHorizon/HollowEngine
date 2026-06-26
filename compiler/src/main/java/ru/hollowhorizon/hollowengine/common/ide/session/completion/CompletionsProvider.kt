@@ -7,8 +7,9 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.analyzeCopy
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderFactory
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.analysis.api.scopes.KaScope
 import org.jetbrains.kotlin.analysis.api.scopes.KaTypeScope
@@ -43,7 +44,7 @@ fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<Com
     val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
 
     try {
-        return analyze(file) {
+        return analyzeCopy(ktElement, KaDanglingFileResolutionMode.PREFER_SELF) {
             createItems(file, element, ktElement) ?: emptyList()
         }
     } finally {
@@ -63,10 +64,7 @@ private fun ScriptingAnalyzerImpl.createFileForCompletion(original: KtFile, offs
     copyKtFile.contextModule = KaScriptModule(
         copyKtFile,
         project,
-        buildList {
-            addAll(libraries)
-            add(builtins.kaModule)
-        },
+        (original.contextModule as? KaScriptModule)?.binaryDependencies ?: emptyList(),
     )
     copyKtFile.virtualFile.kaModule = copyKtFile.contextModule
     copyKtFile.originalFile = original

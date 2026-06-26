@@ -3,20 +3,19 @@ package ru.hollowhorizon.hollowengine.common.ide.session
 import com.intellij.openapi.project.Project
 import com.intellij.psi.impl.PsiFileEx
 import com.intellij.psi.impl.PsiManagerEx
+import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.createCompletions
 import ru.hollowhorizon.hollowengine.common.ide.session.definition.findDefinition
 import ru.hollowhorizon.hollowengine.common.ide.session.diagnostic.diagnosticCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.highlightCode
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import java.io.File
 
 class ScriptingAnalyzerImpl(
     val kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment,
@@ -55,19 +54,39 @@ class ScriptingAnalyzerImpl(
             cleanupFile(cached.file)
         }
 
+        val file = createPsiFile(name, original)
+
+        fileCache[name] = CachedFile(textHash, textLength, file)
+
+        return file
+    }
+
+    private fun createPsiFile(name: String, text: String): KtFile {
         val file = factory.createFile(name, text)
+        val importedScripts = resolveImports(file)
+
         projectStructureProvider.setModule(
             file, KaScriptModule(
                 file, project, buildList {
+                    addAll(importedScripts.mapNotNull { it.contextModule })
                     addAll(libraries)
                     add(builtins.kaModule)
                 }
             )
         )
-
-        fileCache[name] = CachedFile(textHash, textLength, file)
-
         return file
+    }
+
+    private fun resolveImports(file: KtFile): List<KtFile> {
+        val localPath = file.virtualFile.path.replace(File.separatorChar, '/').removePrefix("/").removePrefix("hollowengine/")
+        val baseDir = DirectoryManager.HOLLOW_ENGINE.resolve(localPath).parent.toFile()
+
+        return file.annotationEntries.mapNotNull {
+            val path = it.valueArguments[0].getArgumentExpression()?.text?.trim('"') ?: return@mapNotNull null
+            val fsFile = baseDir.resolve(path)
+
+            createPsiFile(fsFile.relativeTo(DirectoryManager.HOLLOW_ENGINE.toFile()).toString(), fsFile.readText())
+        }
     }
 
     internal fun cleanupFile(file: KtFile) {

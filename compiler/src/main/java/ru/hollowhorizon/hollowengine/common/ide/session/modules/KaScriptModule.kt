@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.common.ide.session.HollowEngineLanguageSett
 class KaScriptModule(
     override val file: KtFile,
     override val project: Project,
-    binaryDependencies: List<KaModule>,
+    val binaryDependencies: List<KaModule>,
 ) : KaScriptModule {
     override val directRegularDependencies: List<KaModule> = binaryDependencies
 
