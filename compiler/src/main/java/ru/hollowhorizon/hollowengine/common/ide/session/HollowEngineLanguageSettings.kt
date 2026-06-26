@@ -10,7 +10,7 @@ object HollowEngineLanguageSettings {
         LanguageVersion.LATEST_STABLE, ApiVersion.LATEST_STABLE,
         emptyMap(),
         mapOf(
-            LanguageFeature.ContextReceivers to LanguageFeature.State.ENABLED
+            LanguageFeature.CollectionLiterals to LanguageFeature.State.ENABLED
         )
     )
 }
