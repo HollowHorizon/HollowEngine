@@ -299,8 +299,13 @@ private fun CompletionItemsCollector.completeAfterDot(
 
             receiverTarget.staticDeclaredMemberScope.classifiers
                 .filterIsInstance<KaClassSymbol>()
-                .firstOrNull { it.classKind == KaClassKind.COMPANION_OBJECT }
-                ?.let { completeScope(it.combinedMemberScope) }
+                .forEach {
+                    if(it.classKind == KaClassKind.OBJECT) {
+                        completeScope(it.combinedMemberScope)
+                    } else {
+                        add(it)
+                    }
+                }
         }
 
         is KaPackageSymbol -> {
