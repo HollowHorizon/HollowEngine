@@ -1082,9 +1082,10 @@ private fun editorWordRight(text: String, position: Int): Int {
 private fun Char.isEditorWordChar(): Boolean = this == '_' || isLetterOrDigit()
 
 private fun completionReplacementRange(text: String, caret: Int): IntRange {
-    val end = caret.coerceIn(0, text.length)
+    var end = caret.coerceIn(0, text.length)
     var start = end
     while (start > 0 && text[start - 1].isEditorWordChar()) start--
+    while(end < text.length && text[end].isEditorWordChar()) end++
     return start..end
 }
 

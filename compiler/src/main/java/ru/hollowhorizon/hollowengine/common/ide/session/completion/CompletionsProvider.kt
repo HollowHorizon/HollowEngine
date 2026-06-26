@@ -241,7 +241,7 @@ private fun completeKeywords(
         val matcher = when {
             position == null -> when {
                 element.tokenType == KtTokens.IDENTIFIER -> {
-                    element.text.removeSuffix(COMPLETION_FAKE_IDENTIFIER).let(::PlainPrefixMatcher)
+                    element.text.removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER).let(::PlainPrefixMatcher)
                 }
 
                 else -> return emptyList()
@@ -298,7 +298,7 @@ private fun CompletionItemsCollector.completeAfterDot(
             receiverTarget.staticDeclaredMemberScope.classifiers
                 .filterIsInstance<KaClassSymbol>()
                 .forEach {
-                    if(it.classKind == KaClassKind.COMPANION_OBJECT) {
+                    if (it.classKind == KaClassKind.COMPANION_OBJECT) {
                         completeScope(it.combinedMemberScope)
                     } else {
                         add(it)
@@ -313,7 +313,7 @@ private fun CompletionItemsCollector.completeAfterDot(
         else -> {
             val receiverType = position.receiver.expressionType
 
-            if(receiverType == null || receiverType is org.jetbrains.kotlin.analysis.api.types.KaErrorType) return@with
+            if (receiverType == null || receiverType is org.jetbrains.kotlin.analysis.api.types.KaErrorType) return@with
 
             receiverType.scope?.let { completeTypeScope(it) }
 
@@ -504,7 +504,7 @@ private fun getPosition(element: KtElement): CompletionPosition? {
         }
 
         val prefix = if (element is KtSimpleNameExpression) element.getReferencedName()
-            .removeSuffix(COMPLETION_FAKE_IDENTIFIER) else null
+            .removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER) else null
 
         val fqName = if (current is KtDotQualifiedExpression) {
             current.receiverExpression.text.let(::FqName)
@@ -521,7 +521,7 @@ private fun getPosition(element: KtElement): CompletionPosition? {
                 is KtDotQualifiedExpression if parent.selectorExpression == element -> getPosition(parent)
                 is KtUserType if parent.referenceExpression == element -> getPositionByUserType(parent)
                 else -> CompletionPosition.Identifier(
-                    element.getReferencedName().removeSuffix(COMPLETION_FAKE_IDENTIFIER)
+                    element.getReferencedName().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER)
                 )
             }
         }
@@ -531,7 +531,7 @@ private fun getPosition(element: KtElement): CompletionPosition? {
             CompletionPosition.AfterDot(
                 (selector as? KtNameReferenceExpression)
                     ?.getReferencedName()
-                    ?.removeSuffix(COMPLETION_FAKE_IDENTIFIER),
+                    ?.removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
                 element.receiverExpression,
             )
         }
@@ -604,16 +604,18 @@ private fun Sequence<KaCallableSignature<*>>.filterShadowedJavaFieldsInSignature
 private fun getPositionByUserType(element: KtUserType) =
     when (val qualifier = element.qualifier) {
         null -> CompletionPosition.Type(
-            element.referencedName.orEmpty().removeSuffix(COMPLETION_FAKE_IDENTIFIER),
+            element.referencedName.orEmpty().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
             element.isAnnotation()
         )
 
         else ->
             CompletionPosition.NestedType(
-                element.referencedName.orEmpty().removeSuffix(COMPLETION_FAKE_IDENTIFIER),
+                element.referencedName.orEmpty().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
                 qualifier,
             )
     }
+
+private fun String.removeFakeIdentifier(suffix: String) = runCatching { substring(0, indexOf(suffix)) }.getOrElse { this }
 
 fun KtUserType.isAnnotation(): Boolean {
     val typeReference = parent as? KtTypeReference ?: return false
