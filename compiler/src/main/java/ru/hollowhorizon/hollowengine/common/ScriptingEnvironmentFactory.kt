@@ -38,7 +38,7 @@ class ScriptingEnvironmentInitializerImpl : ScriptingEnvironmentInitializer, Hol
         javaHome: File,
         classpath: List<File>,
         scriptTypes: List<ScriptClassProvider>,
-        mappings: Mappings
+        mappings: Mappings,
     ) {
         initialize(javaHome, classpath, classpath, scriptTypes, mappings)
     }
@@ -75,9 +75,9 @@ class ScriptingEnvironmentImpl(
     override val classpath: List<File>,
     private val hostClasspath: List<File> = classpath,
     scriptTypes: List<ScriptClassProvider>,
-    override val mappings: Mappings
+    override val mappings: Mappings,
 ) : ScriptingEnvironment {
-    val scriptHostConfig = ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
+    var scriptHostConfig = ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
         getScriptingClass(JvmGetScriptingClass())
         configurationDependencies(JvmDependency(hostClasspath))
     }

@@ -9,14 +9,30 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
+import kotlin.script.experimental.host.FileScriptSource
 import kotlin.script.experimental.host.StringScriptSource
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 
 class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : ScriptingCompiler {
     override fun compile(file: File): Result<CompiledScript.WithFile> {
-        val result = compile(file.name, file.readText())
+        val definition = environment.scriptDefinitions.getDefinitionFor(file.name)
 
-        return result.map { CompiledScript.WithFile(it, file) }
+        val hostConfiguration = definition.hostConfiguration
+        val compiler = JvmScriptCompiler(hostConfiguration, ScriptJvmCompilerRemapped(environment.scriptDefinitions, hostConfiguration))
+        val result = runScriptingBlocking {
+            compiler(FileScriptSource(file), definition.compilationConfiguration)
+        }
+
+        return if (result is ResultWithDiagnostics.Success) {
+            Result.success(
+                CompiledScript.WithFile(
+                    CompiledScriptImpl(file.name, result.value, definition.evaluationConfiguration!!),
+                    file
+                )
+            )
+        } else {
+            Result.failure(ScriptCompilationException(file.name, result.reports.map { it.convert() }))
+        }
     }
 
     override fun compile(
@@ -26,7 +42,7 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
         val definition = environment.scriptDefinitions.getDefinitionFor(name)
 
         val hostConfiguration = definition.hostConfiguration
-        val compiler = JvmScriptCompiler(hostConfiguration, ScriptJvmCompilerRemapped(hostConfiguration))
+        val compiler = JvmScriptCompiler(hostConfiguration, ScriptJvmCompilerRemapped(environment.scriptDefinitions, hostConfiguration))
         val result = runScriptingBlocking {
             compiler(StringScriptSource(code), definition.compilationConfiguration)
         }
@@ -39,7 +55,7 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
     }
 }
 
-private fun List<ScriptDefinition.FromConfigurations>.getDefinitionFor(name: String): ScriptDefinition {
+fun List<ScriptDefinition.FromConfigurations>.getDefinitionFor(name: String): ScriptDefinition {
     return sortedWith(
         compareByDescending<ScriptDefinition.FromConfigurations> { it.fileExtension.length }
             .thenByDescending { it.fileExtension }

@@ -1,7 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.compiler.isolated
 
+import com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptJvmK2CompilerIsolated
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.*
+import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
+import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
@@ -11,17 +17,20 @@ import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.Serializable
 import java.security.ProtectionDomain
-import kotlin.script.experimental.api.CompiledScript
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptCompilationConfiguration
-import kotlin.script.experimental.api.SourceCode
+import kotlin.script.experimental.api.*
+import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.jvm.compilationCache
+import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
+import kotlin.script.experimental.jvm.disableCompilationCache
 import kotlin.script.experimental.jvm.impl.KJvmCompiledModuleInMemory
 import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
+import kotlin.script.experimental.jvm.jvm
 
 class ScriptJvmCompilerRemapped(
-    hostConfiguration: kotlin.script.experimental.host.ScriptingHostConfiguration,
+    definitions: List<ScriptDefinition>,
+    hostConfiguration: ScriptingHostConfiguration,
 ) : ScriptCompilerProxy {
-    private val delegate = ScriptJvmK2CompilerIsolated(hostConfiguration)
+    private val delegate = HollowEngineScriptCompiler(definitions, hostConfiguration)
 
     override fun compile(
         script: SourceCode,
@@ -55,6 +64,79 @@ class ScriptJvmCompilerRemapped(
         )
     }
 }
+
+class HollowEngineScriptCompiler(val definitions: List<ScriptDefinition>, val hostConfiguration: ScriptingHostConfiguration): ScriptCompilerProxy {
+    override fun compile(
+        script: SourceCode,
+        scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    ): ResultWithDiagnostics<CompiledScript> = withMessageCollector { messageCollector ->
+        withScriptCompilationCache(script, scriptCompilationConfiguration, messageCollector) {
+            withConfiguredK2ScriptCompilerWithLightTree(
+                scriptCompilationConfiguration.with {
+                    hostConfiguration(this@HollowEngineScriptCompiler.hostConfiguration)
+                },
+                messageCollector,
+                configureCompiler = {
+                    put(JVMConfigurationKeys.DISABLE_STANDARD_SCRIPT_DEFINITION, true)
+                    addAll(
+                        ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
+                        definitions
+                    )
+                }
+            ) {
+                if (messageCollector.hasErrors()) failure(messageCollector)
+                else it.compile(script)
+            }
+        }
+    }
+}
+
+fun <T> withConfiguredK2ScriptCompilerWithLightTree(
+    scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    parentMessageCollector: MessageCollector? = null,
+    configureCompiler: CompilerConfiguration.() -> Unit = {},
+    body: (ScriptJvmK2CompilerImpl) -> T,
+): T {
+    val disposable = Disposer.newDisposable("Default disposable for scripting compiler")
+    return try {
+        body(
+            ScriptJvmK2CompilerImpl(
+                createIsolatedCompilerState(
+                    ScriptDiagnosticsMessageCollector(parentMessageCollector), disposable,
+                    scriptCompilationConfiguration,
+                    scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration] ?: defaultJvmScriptingHostConfiguration,
+                    configureCompiler
+                ),
+                SourceCode::convertToFirViaLightTree
+            )
+        )
+    } finally {
+        Disposer.dispose(disposable)
+    }
+}
+
+internal fun withScriptCompilationCache(
+    script: SourceCode,
+    scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    messageCollector: ScriptDiagnosticsMessageCollector,
+    body: () -> ResultWithDiagnostics<CompiledScript>
+): ResultWithDiagnostics<CompiledScript> {
+    val cache = scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration]
+        ?.let {
+            if (it[ScriptingHostConfiguration.jvm.disableCompilationCache] == true) null
+            else it[ScriptingHostConfiguration.jvm.compilationCache]
+        }
+
+    val cached = cache?.get(script, scriptCompilationConfiguration)
+
+    return cached?.asSuccess(messageCollector.diagnostics)
+        ?: body().also {
+            if (cache != null && it is ResultWithDiagnostics.Success) {
+                cache.store(it.value, script, scriptCompilationConfiguration)
+            }
+        }
+}
+
 
 private fun remapScriptClass(path: String, classes: Map<String, ByteArray>, bytes: ByteArray): ByteArray {
     if (!path.endsWith(".class") || !isProduction || NeoForgeEnvironmentSetup.isAvailable()) return bytes

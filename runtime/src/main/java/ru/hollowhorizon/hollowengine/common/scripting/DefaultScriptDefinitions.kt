@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryScript
 object DefaultScriptDefinitions {
     fun providers(): List<ScriptClassProvider> {
         return listOf(
-            ScriptClassProvider(".kts", "kotlin.Any"),
+            ScriptClassProvider("kts", "kotlin.Any"),
             ScriptClassProvider(
                 extension = ".story.kts",
                 baseClass = StoryScript::class.qualifiedName!!,
@@ -27,7 +27,7 @@ object DefaultScriptDefinitions {
                 ),
             ),
             ScriptClassProvider(
-                extension = ".reload.kts",
+                extension = "reload.kts",
                 baseClass = ReloadScript::class.qualifiedName!!,
                 defaultImports = listOf(
                     ResourceLocation::class.qualifiedName!!,
@@ -38,7 +38,7 @@ object DefaultScriptDefinitions {
                 )
             ),
             ScriptClassProvider(
-                extension = ".animation-controller.kts",
+                extension = "animation-controller.kts",
                 baseClass = "ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationController",
                 defaultImports = listOf(
                     "net.minecraft.world.entity.LivingEntity",

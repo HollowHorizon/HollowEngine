@@ -33,6 +33,7 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
             val configurationForOtherScripts by lazy {
                 sharedConfiguration.with {
                     reset(ScriptEvaluationConfiguration.previousSnippets)
+                    reset(ScriptEvaluationConfiguration.constructorArgs)
                 }
             }
             val sharedScripts = sharedConfiguration[ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap]
