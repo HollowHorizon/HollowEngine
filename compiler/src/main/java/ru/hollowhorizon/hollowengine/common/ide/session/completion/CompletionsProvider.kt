@@ -300,7 +300,7 @@ private fun CompletionItemsCollector.completeAfterDot(
             receiverTarget.staticDeclaredMemberScope.classifiers
                 .filterIsInstance<KaClassSymbol>()
                 .forEach {
-                    if(it.classKind == KaClassKind.OBJECT) {
+                    if(it.classKind == KaClassKind.COMPANION_OBJECT) {
                         completeScope(it.combinedMemberScope)
                     } else {
                         add(it)
