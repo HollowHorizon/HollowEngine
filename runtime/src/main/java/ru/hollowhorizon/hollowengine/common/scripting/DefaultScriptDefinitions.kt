@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryScript
 
@@ -27,12 +30,9 @@ object DefaultScriptDefinitions {
                 extension = ".reload.kts",
                 baseClass = ReloadScript::class.qualifiedName!!,
                 defaultImports = listOf(
-                    "net.minecraft.resources.ResourceLocation",
-                    "net.minecraft.world.item.ItemStack",
-                    "net.minecraft.world.item.Items",
-                    "net.minecraft.world.item.crafting.Ingredient",
-                    "ru.hollowhorizon.hollowengine.common.scripting.reload.ingredient",
-                    "ru.hollowhorizon.hollowengine.common.scripting.reload.ingredientTag",
+                    ResourceLocation::class.qualifiedName!!,
+                    ItemStack::class.qualifiedName!!,
+                    SubscribeEvent::class.qualifiedName!!,
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.item",
                     "ru.hollowhorizon.hollowengine.common.utils.rl",
                 )

@@ -108,7 +108,6 @@ dependencies {
 
     implementation(project(":bridge"))
     ksp(project(":katari-binding-processor"))
-    compileOnly("org.jetbrains:annotations:24.1.0")
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
     addShadow("com.github.weisj:jsvg:2.1.0")
@@ -145,6 +144,8 @@ dependencies {
     val jeiVersion = "19.25.1.332"
     add("modCompileOnly", "mezz.jei:jei-$minecraftVersion-fabric-api:$jeiVersion")
     compileOnly("lib:bbs:1.2.6-1.20.1-deobf")
+
+    compileOnly("org.jetbrains:annotations:26.1.0")
 
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")

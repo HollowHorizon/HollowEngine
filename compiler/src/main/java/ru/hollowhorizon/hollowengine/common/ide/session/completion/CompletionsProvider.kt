@@ -341,6 +341,11 @@ private fun CompletionItemsCollector.completeStaticMembers(kaClassSymbol: KaClas
 context(_: KaSession)
 private fun CompletionItemsCollector.completeIdentifier(file: KtFile, element: KtElement) {
     completeScopeContext(file, element)
+    completeClassesWithImport(file)
+}
+
+context(session: KaSession)
+private fun CompletionItemsCollector.completeClassesWithImport(file: KtFile) {
     for (declaration in getKotlinDeclarationsFromIndex(file, nameFilter)) {
         add(declaration) { withImport() }
     }
@@ -455,6 +460,7 @@ private fun CompletionItemsCollector.completeType(file: KtFile, element: KtEleme
         for (scope in file.scopeContext(element).scopes) {
             add(scope.scope.classifiers(nameFilter))
         }
+        completeClassesWithImport(file)
     }
 
 context(kaSession: KaSession)

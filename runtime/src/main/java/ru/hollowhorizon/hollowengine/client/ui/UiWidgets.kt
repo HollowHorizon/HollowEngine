@@ -518,7 +518,10 @@ class TextFieldNode(
         if (activeCaretRanges().any { it.hasSelection }) return insert("\n")
 
         val position = caret.coerceIn(0, value.length)
-        val lineStart = value.lastIndexOf('\n', (position - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+        val lineStart = if (position == 0) 0 else {
+            val lastLineBreak = value.lastIndexOf('\n', position - 1)
+            if (lastLineBreak < 0) 0 else lastLineBreak + 1
+        }
         val lineEnd = value.indexOf('\n', position).let { if (it < 0) value.length else it }
         val line = value.substring(lineStart, lineEnd)
         val column = position - lineStart

@@ -109,7 +109,7 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(
         italic = false
 
         when {
-            psi is KtAnnotationEntry -> tokenType = TokenType.ANNOTATION
+            psi is KtAnnotationEntry || parent is KtAnnotationEntry -> tokenType = TokenType.ANNOTATION
             elementType in KtTokens.KEYWORDS || elementType in KtTokens.SOFT_KEYWORDS -> tokenType = TokenType.KEYWORD
             elementType in KtTokens.STRINGS || elementType == KtTokens.OPEN_QUOTE || elementType == KtTokens.CLOSING_QUOTE -> tokenType = TokenType.STRING
             KtTokens.COMMENTS.contains(elementType) -> tokenType = TokenType.COMMENT
@@ -254,7 +254,15 @@ private fun LineBuilder.SpanBuilder.computeSymbolStyle(symbol: KaSymbol) {
             }
 
             is KaFunctionSymbol -> when (symbol) {
-                is KaConstructorSymbol -> TokenType.CLASS
+                is KaConstructorSymbol -> {
+                    (symbol.containingSymbol as? KaClassSymbol)?.let {
+                        when (it.classKind) {
+                            KaClassKind.ANNOTATION_CLASS -> TokenType.ANNOTATION
+                            KaClassKind.INTERFACE -> TokenType.INTERFACE
+                            else -> TokenType.CLASS
+                        }
+                    } ?: TokenType.CLASS
+                }
                 is KaNamedFunctionSymbol -> {
                     if (symbol.isExtension) TokenType.EXTENSION_RECEIVER
                     else if (symbol.location == KaSymbolLocation.TOP_LEVEL) TokenType.TOP_LEVEL
