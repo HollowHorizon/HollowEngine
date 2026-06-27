@@ -19,7 +19,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CLOSE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.GENERAL
 import ru.hollowhorizon.hollowengine.runtime.transform.kool.UiDockableAccessor
 
 fun UiScope.FileDockingTabsBar(
@@ -98,7 +99,7 @@ private fun UiScope.FileDockingTab(
 ) {
     Row {
         val file = IdeContent.files.values.find { it.dockable == item }
-        val icon = file?.icon ?: icons.GENERAL
+        val icon = file?.icon ?: GENERAL
         val itemName = file?.filePath?.substringAfterLast('/') ?: item.name.lang
         val isHovered by modifier.hoverable()
         val factor by animateFloatAsState(
@@ -191,7 +192,7 @@ private fun UiScope.FileDockingTab(
         }
 
         onCloseAction?.let { action ->
-            TabCloseButton(icons.CLOSE) {
+            TabCloseButton(CLOSE) {
                 closeDockable(item, action)
             }
         }
@@ -333,7 +334,7 @@ private fun UiScope.FileDockingBar(
                 headerRight(color)
 
                 onCloseAction?.let { action ->
-                    HeaderIconButton(icons.CLOSE) {
+                    HeaderIconButton(CLOSE) {
                         action(windowDockable)
                     }
                 }

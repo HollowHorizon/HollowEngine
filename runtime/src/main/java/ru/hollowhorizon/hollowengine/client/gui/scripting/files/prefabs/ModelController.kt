@@ -23,7 +23,6 @@ import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.animateSpringFloatAsState
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
@@ -44,7 +43,6 @@ import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -108,7 +106,7 @@ class ModelController {
     operator fun invoke() = with(scope) {
         surface.triggerUpdate()
         val zoomState = zoom.use()
-        val smoothedZoom by animateSpringFloatAsState(zoomState)
+        val smoothedZoom = zoomState
         scale = smoothedZoom
 
         if (isAutoRotateEnabled.use()) {
@@ -293,10 +291,10 @@ class ModelController {
                             }
                         }
 
-                    if (animation != null) Image(if (animation.weight == 1f) icons.PAUSE else icons.START) {
-                        modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                            .tint(animateColorAsState(if (animation.weight == 1f) Color.WHITE else ColorTheme.UI.WhiteReplacement).use())
-                    }
+//                    if (animation != null) Image(if (animation.weight == 1f) icons.PAUSE else icons.START) {
+//                        modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+//                            .tint(animateColorAsState(if (animation.weight == 1f) Color.WHITE else ColorTheme.UI.WhiteReplacement).use())
+//                    }
                 }
             }
 
@@ -334,14 +332,14 @@ class ModelController {
             modifier.align(AlignmentX.Start, AlignmentY.Top)
                 .zLayer(1000)
 
-            Toggle(
-                icons.AUTOCOMPLETE_CLASS,
-                isBoundingBoxVisible,
-                "hollowengine.gui.model_controller.bounding_box".lang
-            )
-            Toggle(icons.LAYERS, isWireframeVisible, "hollowengine.gui.model_controller.wireframe".lang)
-            Toggle(icons.RECIPES, isGridVisible, "hollowengine.gui.model_controller.grid".lang)
-            Toggle(icons.RELOAD, isAutoRotateEnabled, "hollowengine.gui.model_controller.auto_rotate".lang)
+//            Toggle(
+//                icons.AUTOCOMPLETE_CLASS,
+//                isBoundingBoxVisible,
+//                "hollowengine.gui.model_controller.bounding_box".lang
+//            )
+//            Toggle(icons.LAYERS, isWireframeVisible, "hollowengine.gui.model_controller.wireframe".lang)
+//            Toggle(icons.RECIPES, isGridVisible, "hollowengine.gui.model_controller.grid".lang)
+//            Toggle(icons.RELOAD, isAutoRotateEnabled, "hollowengine.gui.model_controller.auto_rotate".lang)
         }
     }
 

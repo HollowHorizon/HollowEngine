@@ -8,22 +8,30 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
-import ru.hollowhorizon.hollowengine.generated.Assets
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.DOCS_SVG
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FILE_CODEBLOCKS
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FILE_KTS
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.GRAPH
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.NPCS
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.PLAYERS
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RECIPES
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.SEARCH
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.TIMER
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.TUTORIAL
 
 class DocsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.docs", dock) {
-    override val icon = Assets.Hollowengine.Textures.Gui.Icons.DOCS_SVG
+    override val icon = DOCS_SVG
     var filter = mutableStateOf("")
 
     val items = buildList {
-        add(DocCategory(icons.TUTORIAL, "hollowengine.gui.docs.category.beginners".lang))
-        add(DocCategory(icons.FILE_KTS, "hollowengine.gui.docs.category.scripting".lang))
-        add(DocCategory(icons.FILE_CODEBLOCKS, "hollowengine.gui.docs.category.codeblocks".lang))
-        add(DocCategory(icons.GRAPH, "hollowengine.gui.docs.category.states".lang))
-        add(DocCategory(icons.TIMER, "hollowengine.gui.docs.category.coroutines".lang))
-        add(DocCategory(icons.NPCS, "hollowengine.gui.docs.category.npcs".lang))
-        add(DocCategory(icons.PLAYERS, "hollowengine.gui.docs.category.players".lang))
-        add(DocCategory(icons.RECIPES, "hollowengine.gui.docs.category.recipes".lang))
+        add(DocCategory(TUTORIAL, "hollowengine.gui.docs.category.beginners".lang))
+        add(DocCategory(FILE_KTS, "hollowengine.gui.docs.category.scripting".lang))
+        add(DocCategory(FILE_CODEBLOCKS, "hollowengine.gui.docs.category.codeblocks".lang))
+        add(DocCategory(GRAPH, "hollowengine.gui.docs.category.states".lang))
+        add(DocCategory(TIMER, "hollowengine.gui.docs.category.coroutines".lang))
+        add(DocCategory(NPCS, "hollowengine.gui.docs.category.npcs".lang))
+        add(DocCategory(PLAYERS, "hollowengine.gui.docs.category.players".lang))
+        add(DocCategory(RECIPES, "hollowengine.gui.docs.category.recipes".lang))
 
     }
 
@@ -38,7 +46,7 @@ class DocsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.docs", dock) {
                     .margin(Dimensions.PaddingMedium)
                     .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingHuge))
 
-                Image(Assets.Hollowengine.Textures.Gui.Icons.SEARCH) {
+                Image(SEARCH) {
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                         .alignY(AlignmentY.Center).margin(start = Dimensions.PaddingMedium)
                 }

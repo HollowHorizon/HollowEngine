@@ -5,7 +5,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CLOSE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.ICON_45
 
 abstract class EditorFile(
     val filePath: String,
@@ -13,10 +14,10 @@ abstract class EditorFile(
     override val icon = IconHelper.forPath(filePath)
 
     override fun SubMenuItem<Dockable>.createMenu() {
-        item("Save", icons.ICON_45) {
+        item("Save", ICON_45) {
             save()
         }
-        item("Close", icons.CLOSE) {
+        item("Close", CLOSE) {
             close()
         }
     }

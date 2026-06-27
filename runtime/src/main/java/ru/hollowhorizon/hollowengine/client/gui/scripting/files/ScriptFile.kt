@@ -20,11 +20,11 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.StartScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 import ru.hollowhorizon.hollowengine.generated.Assets
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.ICON_41
 
 @Deprecated("Replaced with new IDE using HollowUI")
 class ScriptFile(path: String) : EditorFile(path) {
@@ -296,7 +296,7 @@ class ScriptFile(path: String) : EditorFile(path) {
                     StartScriptPacket(filePath).send()
                 }
 
-            Image(Assets.Hollowengine.Textures.Gui.Icons.PLAY) {
+            Image(Assets.Hollowengine.Textures.Gui.PLAY) {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).alignY(AlignmentY.Center)
             }
         }
@@ -327,7 +327,7 @@ class ScriptFile(path: String) : EditorFile(path) {
     }
 
     override fun SubMenuItem<Dockable>.createMenu() {
-        item("Format", icons.ICON_41) {
+        item("Format", ICON_41) {
             try {
                 val original = editorState.provider.lines.joinToString("\n") { it.text }
                 val new = original //TODO Formatter.format(KOTLINLANG_FORMAT, original)

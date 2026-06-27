@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc
+package ru.hollowhorizon.hollowengine.common.npcs
 
 import kotlinx.serialization.Serializable
 import net.minecraft.server.MinecraftServer

@@ -16,10 +16,10 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.EntityReference
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
 import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -585,7 +585,7 @@ fun UiScope.Category(
             }
 
             if (showRemoveButton) {
-                Image(icons.REMOVE) {
+                Image(REMOVE) {
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                         .margin(end = Dimensions.PaddingSmall)
                         .alignY(AlignmentY.Center)

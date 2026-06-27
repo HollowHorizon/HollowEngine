@@ -7,7 +7,6 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 
 object IdeContent {
     val files = HashMap<String, EditorFile>()
@@ -22,11 +21,7 @@ object IdeContent {
             val file = files.getOrPut(path) {
                 val fileType = FileTypeRegistry.findType(path)
                 
-                val localFile = if (fileType != null) {
-                    fileType.resolve(path, bytes)
-                } else {
-                    tryOpenAsText(path, bytes)
-                } ?: throw IllegalStateException("Failed to create file for: $path")
+                val localFile = fileType?.resolve(path, bytes) ?: throw IllegalStateException("Failed to create file for: $path")
                 
                 localFile.open()
 
@@ -42,38 +37,6 @@ object IdeContent {
         } catch (e: Exception) {
             HollowEngine.LOGGER.warn("Can't open $path", e)
             return null
-        }
-    }
-
-    private fun isBinaryContent(bytes: ByteArray): Boolean {
-        if (bytes.isEmpty()) return false
-        
-        var nullCount = 0
-        var nonPrintableCount = 0
-        val sampleSize = minOf(bytes.size, 8192)
-        
-        for (i in 0 until sampleSize) {
-            val b = bytes[i].toInt() and 0xFF
-            if (b == 0) {
-                nullCount++
-            } else if (b < 32 && b != 9 && b != 10 && b != 13) {
-                nonPrintableCount++
-            }
-        }
-        
-        val threshold = sampleSize / 100
-        return nullCount > threshold || nonPrintableCount > sampleSize / 10
-    }
-
-    private fun tryOpenAsText(path: String, bytes: ByteArray): EditorFile? {
-        if (isBinaryContent(bytes)) {
-            return null
-        }
-        
-        return try {
-            TextFile(path, bytes)
-        } catch (e: Exception) {
-            null
         }
     }
 

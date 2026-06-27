@@ -9,9 +9,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.KTypeExpressionType
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.EntityReference
 import java.util.*
 import kotlin.reflect.KClass
@@ -42,9 +39,7 @@ data class ComponentSchema(
     val ownerType: KType?,
     val valueKind: FieldValueKind,
     val fields: List<ComponentFieldSchema>,
-) {
-    val expressionType: ExpressionType = ownerType?.let(::KTypeExpressionType) ?: AnyType
-}
+)
 
 data class ComponentFieldSchema(
     val ownerSchemaKey: String,
@@ -55,8 +50,6 @@ data class ComponentFieldSchema(
     val ownerType: KType?,
     val valueKind: FieldValueKind,
     val defaultJson: kotlinx.serialization.json.JsonElement?,
-    val inputExpressionType: ExpressionType,
-    val outputExpressionType: ExpressionType,
     val nestedSchemaKey: String? = null,
     val listElementType: KType? = null,
     val listElementSerializer: KSerializer<Any>? = null,
@@ -207,8 +200,6 @@ object ComponentSchemaRegistry {
                     ownerType = fieldType,
                     valueKind = fieldKind,
                     defaultJson = ownerDefaults?.get(fieldName) ?: fieldSerializer.let(AutoEditor::defaultJson),
-                    inputExpressionType = resolveInputExpressionType(fieldType, fieldKind),
-                    outputExpressionType = resolveOutputExpressionType(fieldType, fieldKind),
                     nestedSchemaKey = nestedSchemaKey,
                     listElementType = listElementType,
                     listElementSerializer = listElementSerializer,
@@ -290,19 +281,6 @@ fun resolveSchemaDisplayName(serializer: KSerializer<Any>): String {
 fun resolveSchemaIcon(serializer: KSerializer<Any>): String {
     return serializer.descriptor.annotations.filterIsInstance<EditorIcon>().firstOrNull()?.icon
         ?: "hollowengine:textures/gui/icons/autocomplete_class.svg"
-}
-
-fun resolveInputExpressionType(type: KType?, kind: FieldValueKind): ExpressionType {
-    if (kind == FieldValueKind.NUMBER) return KTypeExpressionType(Number::class.createType())
-    return resolveOutputExpressionType(type, kind)
-}
-
-fun resolveOutputExpressionType(type: KType?, kind: FieldValueKind): ExpressionType {
-    return when {
-        type != null -> KTypeExpressionType(type)
-        kind == FieldValueKind.NUMBER -> KTypeExpressionType(Number::class.createType())
-        else -> AnyType
-    }
 }
 
 @OptIn(InternalSerializationApi::class)

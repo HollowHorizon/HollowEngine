@@ -1,18 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import androidx.compose.runtime.Composable
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Image
-import ru.hollowhorizon.hollowengine.client.ui.Popup
-import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.Text
-import ru.hollowhorizon.hollowengine.client.ui.TextField
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
-import ru.hollowhorizon.hollowengine.client.ui.UiPopupAlignment
-import ru.hollowhorizon.hollowengine.client.ui.UiPopupAnchor
-import ru.hollowhorizon.hollowengine.client.ui.px
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FILE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FOLDER
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CUT
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FOLDER
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.PASTE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RENAME
 
 @Composable
 internal fun HollowIdeProjectContextMenu(
@@ -33,14 +30,14 @@ internal fun HollowIdeProjectContextMenu(
         id = "project-context-menu",
         tags = listOf("dropdown-popup", "project-context-menu"),
     ) {
-        ProjectMenuItem("New File", "Ctrl+N", icons.CREATE_FILE.toString()) { onCreateFile(menu.path) }
-        ProjectMenuItem("New Folder", "Ctrl+Shift+N", icons.CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
-        ProjectMenuItem("Rename", "F2", icons.RENAME.toString()) { onRename(menu.path) }
-        ProjectMenuItem("Copy", "Ctrl+C", icons.COPY.toString()) { onCopy(menu.path) }
-        ProjectMenuItem("Cut", "Ctrl+X", icons.CUT.toString()) { onCut(menu.path) }
-        ProjectMenuItem("Paste", "Ctrl+V", icons.PASTE.toString()) { onPaste(menu.path) }
-        ProjectMenuItem("Show in Explorer", "", icons.FOLDER.toString()) { onShowInExplorer(menu.path) }
-        ProjectMenuItem("Delete", "Del", icons.REMOVE.toString()) { onDelete(menu.path) }
+        ProjectMenuItem("New File", "Ctrl+N", CREATE_FILE.toString()) { onCreateFile(menu.path) }
+        ProjectMenuItem("New Folder", "Ctrl+Shift+N", CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
+        ProjectMenuItem("Rename", "F2", RENAME.toString()) { onRename(menu.path) }
+        ProjectMenuItem("Copy", "Ctrl+C", COPY.toString()) { onCopy(menu.path) }
+        ProjectMenuItem("Cut", "Ctrl+X", CUT.toString()) { onCut(menu.path) }
+        ProjectMenuItem("Paste", "Ctrl+V", PASTE.toString()) { onPaste(menu.path) }
+        ProjectMenuItem("Show in Explorer", "", FOLDER.toString()) { onShowInExplorer(menu.path) }
+        ProjectMenuItem("Delete", "Del", REMOVE.toString()) { onDelete(menu.path) }
     }
 }
 

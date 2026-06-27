@@ -5,7 +5,6 @@ import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import com.mojang.brigadier.context.CommandContext
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
@@ -34,11 +33,7 @@ import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
 import ru.hollowhorizon.hollowengine.client.utils.mc
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
-import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
+import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -71,7 +66,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerModelCommands()
             registerLightCommands()
             registerUtilityCommands()
-            registerCodeBlocksCommands()
             registerScriptingCommands()
             registerUiCommands()
         }
@@ -668,114 +662,6 @@ private fun CommandExtension.registerUtilityCommands() {
     }
 }
 
-private fun CommandExtension.registerCodeBlocksCommands() {
-    "codeblocks" {
-        requires { hasPermission(2) }
-
-        "reload" {
-            executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                system.reloadScripts()
-                sendSuccess { "CodeBlocks: reloaded scripts".literal }
-            }
-        }
-
-        "list" {
-            executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                if (system.scripts.isEmpty()) {
-                    sendSuccess { "CodeBlocks: no scripts loaded".literal }
-                } else {
-                    sendSuccess { "CodeBlocks scripts:".literal }
-                    system.scripts.keys.sorted().forEach { p ->
-                        source.sendSuccess({ "- $p".literal }, false)
-                    }
-                }
-                SUCCESS
-            }
-        }
-
-        "start"(arg("path", StringArgumentType.greedyString())) {
-            executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                system.reloadScripts()
-                val path = StringArgumentType.getString(this, "path")
-                val script = system.scripts[path]
-                if (script == null) {
-                    sendFailure("CodeBlocks: script not found: $path".literal)
-                } else {
-                    script.setEnabled(true)
-                    sendSuccess { "CodeBlocks: enabled $path".literal }
-                }
-            }
-        }
-
-        "stop"(arg("path", StringArgumentType.greedyString())) {
-            executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                val path = StringArgumentType.getString(this, "path")
-                val script = system.scripts[path]
-                if (script == null) {
-                    sendFailure("CodeBlocks: script not found: $path".literal)
-                } else {
-                    script.setEnabled(false)
-                    sendSuccess { "CodeBlocks: disabled $path".literal }
-                }
-            }
-        }
-
-        "dev" {
-            "clear" {
-                executes {
-                    val system = BlocksSystemSavedData.get(source.server)
-                    system.clearDevHistory()
-                    sendSuccess { "CodeBlocks dev history cleared".literal }
-                }
-            }
-        }
-
-        "vars" {
-            "global" {
-                executes {
-                    printVariables("Global variables", source.server.runtimeContext.scope.variables)
-                }
-
-                "value"(arg("name", StringArgumentType.string())) {
-                    executes {
-                        printVariable(
-                            scopeName = "Global",
-                            map = source.server.runtimeContext.scope.variables,
-                            name = StringArgumentType.getString(this, "name")
-                        )
-                    }
-                }
-            }
-
-            "entity"(arg("entity", EntityArgument.entity())) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val scope = entity.coroutineScope as? OwnerScope
-                        ?: return@executes sendFailure("CodeBlocks: entity ${entity.stringUUID} has no owner scope".literal)
-                    printVariables("Entity ${entity.stringUUID} variables", scope.variables)
-                }
-
-                "value"(arg("name", StringArgumentType.string())) {
-                    executes {
-                        val entity = EntityArgument.getEntity(this, "entity")
-                        val scope = entity.coroutineScope as? OwnerScope
-                            ?: return@executes sendFailure("CodeBlocks: entity ${entity.stringUUID} has no owner scope".literal)
-                        printVariable(
-                            scopeName = "Entity ${entity.stringUUID}",
-                            map = scope.variables,
-                            name = StringArgumentType.getString(this, "name")
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 private fun CommandExtension.registerScriptingCommands() {
     "scripting" {
         requires { hasPermission(2) }
@@ -861,27 +747,6 @@ private fun parseUiVariables(raw: String): CompoundTag {
     if (raw.isBlank()) return CompoundTag()
     return TagParser.parseTag(raw)
 }
-
-private fun CommandContext<CommandSourceStack>.printVariables(header: String, map: VariableMap): Int {
-    val entries = map.entries().sortedBy { it.key }
-    if (entries.isEmpty()) {
-        return sendSuccess { "$header: <empty>".literal }
-    }
-
-    sendSuccess { "$header:".literal }
-    entries.forEach { (name, wrapper) ->
-        source.sendSuccess({ "- $name = ${wrapper.describeVariableValue()}".literal }, false)
-    }
-    return 1
-}
-
-private fun CommandContext<CommandSourceStack>.printVariable(scopeName: String, map: VariableMap, name: String): Int {
-    val wrapper = map.entries().firstOrNull { it.key == name }?.value
-        ?: return sendFailure("CodeBlocks: $scopeName variable '$name' not found".literal)
-    return sendSuccess { "$scopeName variable '$name' = ${wrapper.describeVariableValue()}".literal }
-}
-
-private fun CompoundTag.describeVariableValue(): String = get(VariableMap.VALUE_KEY).describeTag()
 
 private fun Tag?.describeTag(): String = this?.toString() ?: "<null>"
 

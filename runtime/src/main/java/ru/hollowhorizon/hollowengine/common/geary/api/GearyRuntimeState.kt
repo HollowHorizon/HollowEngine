@@ -10,7 +10,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerScopeRestoredEvent
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
@@ -152,7 +151,6 @@ object GearyRuntimeState {
         }
 
         state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
-        OwnerScopeRestoredEvent.post(OwnerScopeRestoredEvent(entity))
     }
 
     fun onSetLevel(entity: Entity, newLevel: Level) {

@@ -16,10 +16,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.ADD
 import kotlin.reflect.full.findAnnotation
 
 class EntityEditorScreen(val target: Entity) : KoolScreen() {
@@ -110,7 +110,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
 
             Row {
                 modifier.alignX(AlignmentX.Center)
-                Image(icons.ADD) {
+                Image(ADD) {
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).margin(Dimensions.PaddingMedium)
                 }
                 Text("hollowengine.gui.entity_editor.add_component".lang) {

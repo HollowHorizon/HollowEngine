@@ -13,12 +13,12 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.network.CUpdateTagPacket
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RECIPES
 
 class TagEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.tags", dock) {
-    override val icon = icons.RECIPES
+    override val icon = RECIPES
     private val searchQuery = mutableStateOf("")
     private val selectedRegistryType = mutableStateOf(RegistryType.ALL)
     private val selectedTag = mutableStateOf<TagData?>(null)

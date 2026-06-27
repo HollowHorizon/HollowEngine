@@ -39,7 +39,6 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.MinecraftCamera
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.mcCamera
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.syncFromMinecraft
 import ru.hollowhorizon.hollowengine.client.render.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
@@ -53,6 +52,9 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.GENERAL
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
 import java.util.*
 import kotlin.math.*
 
@@ -211,18 +213,18 @@ object TransformGizmoEditor {
 
             PopupActionRow(
                 label = if (isInspectorOpened) "Hide Components" else "Show Components",
-                icon = icons.GENERAL,
+                icon = GENERAL,
             ) {
                 if (isInspectorOpened) inspectorState.close()
                 else inspectorState.open(entry.snapshot ?: return@PopupActionRow, entry.target ?: return@PopupActionRow)
                 contextMenu = null
             }
-            PopupActionRow(label = "Copy Snapshot ID", icon = icons.COPY) {
+            PopupActionRow(label = "Copy Snapshot ID", icon = COPY) {
                 Minecraft.getInstance().keyboardHandler.clipboard = menu.entryId.snapshotId.toString()
                 Minecraft.getInstance().player?.displayClientMessage(Component.literal("Snapshot id copied"), true)
                 contextMenu = null
             }
-            PopupActionRow(label = "Clear Selection", icon = icons.REMOVE) {
+            PopupActionRow(label = "Clear Selection", icon = REMOVE) {
                 clearSelection()
                 contextMenu = null
             }

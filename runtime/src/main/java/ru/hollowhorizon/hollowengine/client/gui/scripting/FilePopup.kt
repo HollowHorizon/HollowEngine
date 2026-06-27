@@ -9,9 +9,19 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.ADD
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FILE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FOLDER
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CUT
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FILE_KTS
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FOLDER
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.GITHUB
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.PASTE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RENAME
 
 class FilePopup : Composable {
     private lateinit var filePopup: ItemPopupMenu<FileNode>
@@ -64,13 +74,13 @@ class FilePopup : Composable {
         filePopup.hide()
         filePopup.show(Vec2f(position), SubMenuItem {
             if (node.isFolder) {
-                subMenu(ACTIONS("create"), icons.ADD) {
-                    item(ACTIONS("create.folder"), icons.CREATE_FOLDER) {
+                subMenu(ACTIONS("create"), ADD) {
+                    item(ACTIONS("create.folder"), CREATE_FOLDER) {
                         createFolderPopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                     }
                     if (node.treePath.startsWith("scripts")) {
-                        subMenu(ACTIONS("create.script"), icons.CREATE_FILE) {
-                            item("hollowengine.gui.ide.actions.create.script.simple".lang, icons.FILE_KTS) {
+                        subMenu(ACTIONS("create.script"), CREATE_FILE) {
+                            item("hollowengine.gui.ide.actions.create.script.simple".lang, FILE_KTS) {
                                 fileExtension = ".ktr"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
@@ -78,20 +88,20 @@ class FilePopup : Composable {
                     }
                 }
             } else {
-                item(ACTIONS("open"), icons.FILE_KTS) {
+                item(ACTIONS("open"), FILE_KTS) {
                     IdeContent.openFile(node.treePath, node.treePath.fromReadablePath().readBytes())
                 }
             }
             divider()
-            item(ACTIONS("copy"), icons.COPY) {
+            item(ACTIONS("copy"), COPY) {
                 copySource = it.treePath
                 deleteOriginal = false
             }
-            item(ACTIONS("cut"), icons.CUT) {
+            item(ACTIONS("cut"), CUT) {
                 copySource = it.treePath
                 deleteOriginal = true
             }
-            item(ACTIONS("paste"), icons.PASTE) {
+            item(ACTIONS("paste"), PASTE) {
                 if (!it.isFolder) return@item
 
                 if (copySource.isNotEmpty()) {
@@ -130,7 +140,7 @@ class FilePopup : Composable {
             if (node.treePath.startsWith("assets/")) {
                 item(
                     ACTIONS("copy_as_path"),
-                    icons.COPY
+                    COPY
                 ) {
                     Clipboard.copyToClipboard(node.treePath.substringAfter("assets/").replaceFirst('/', ':'))
                 }
@@ -139,19 +149,19 @@ class FilePopup : Composable {
             if (Minecraft.getInstance().isLocalServer) {
                 item(
                     ACTIONS("open_in_explorer"),
-                    icons.FOLDER
+                    FOLDER
                 ) {
                     DesktopUtil.openInExplorer(node.treePath.fromReadablePath())
                 }
                 hasAny = true
             }
             if (hasAny) divider()
-            subMenu(ACTIONS("github"), icons.GITHUB) {}
+            subMenu(ACTIONS("github"), GITHUB) {}
             divider()
-            item(ACTIONS("rename"), icons.RENAME) {
+            item(ACTIONS("rename"), RENAME) {
                 renamePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
             }
-            item(ACTIONS("delete"), icons.REMOVE) {
+            item(ACTIONS("delete"), REMOVE) {
                 deletePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                 // Folder refresh happens via close / reopen
             }

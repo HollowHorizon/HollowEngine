@@ -22,13 +22,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
@@ -44,6 +41,8 @@ import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import ru.hollowhorizon.hollowengine.generated.Assets
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.DOCS_SVG
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RELOAD_MC
 import java.io.File
 
 @SubscribeEvent
@@ -70,10 +69,10 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     TextButton("hollowengine.gui.ide.file".lang) {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
-            item("hollowengine.gui.ide.file.reload_client_resources".lang, icons.RELOAD_MC) {
+            item("hollowengine.gui.ide.file.reload_client_resources".lang, RELOAD_MC) {
                 Minecraft.getInstance().reloadResourcePacks()
             }
-            item("hollowengine.gui.ide.file.reload_server_resources".lang, icons.RELOAD_MC) {
+            item("hollowengine.gui.ide.file.reload_server_resources".lang, RELOAD_MC) {
                 ReloadServerResourcesPacket().send()
             }
             item("hollowengine.gui.ide.file.open_mod_folder".lang, Assets.Hollowengine.Textures.Gui.Logo.LOGO) {
@@ -101,10 +100,10 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
     TextButton("hollowengine.gui.ide.help".lang) {
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
-            item("Telegram".lang, icons.DOCS_SVG) {
+            item("Telegram".lang, DOCS_SVG) {
                 openUrl("https://t.me/hollowengine")
             }
-            item("Discord".lang, icons.DOCS_SVG) {
+            item("Discord".lang, DOCS_SVG) {
                 openUrl("https://discord.gg/qKpPhkwGCY")
             }
         }, Unit)
@@ -255,21 +254,8 @@ class StartScriptPacket(val path: String) : HollowPacket {
         val server = player.server ?: return
 
         when {
-            file.name.endsWith(".bc") -> startCodeBlocksScript(player, server)
             file.name.endsWith(".story.kts") -> startStoryScript(player as ServerPlayer, server)
             file.name.endsWith(".kts") -> startKotlinScript(player, file)
-        }
-    }
-
-    private fun startCodeBlocksScript(player: Player, server: MinecraftServer) {
-        val blocksSystem = BlocksSystemSavedData.get(server)
-        blocksSystem.reloadScripts()
-
-        val script = blocksSystem.scripts[path]
-        if (script != null) {
-            script.setEnabled(true)
-        } else {
-            player.sendSystemMessage("Code blocks script not found: $path".literal)
         }
     }
 
@@ -317,27 +303,6 @@ class StartScriptPacket(val path: String) : HollowPacket {
 class CloseScreenPacket : HollowPacket {
     override fun handle(player: Player) {
         Minecraft.getInstance().screen?.onClose()
-    }
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-@Serializable
-class StopScriptPacket(val path: String) : HollowPacket {
-    override fun handle(player: Player) {
-        if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("hollowengine.gui.ide.script.no_permissions_start".lang.literal)
-            return
-        } else {
-            val file = path.fromReadablePath()
-
-            if (file.name.endsWith(".bc")) {
-                val server = player.server ?: return
-                val blocksSystem = BlocksSystemSavedData.get(server)
-                blocksSystem.scripts[path]?.setEnabled(false)
-            }
-
-            player.sendToast("hollowengine.gui.ide.script.stopped".lang.literal)
-        }
     }
 }
 
