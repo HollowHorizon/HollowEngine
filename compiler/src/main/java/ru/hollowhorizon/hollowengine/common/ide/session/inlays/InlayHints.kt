@@ -3,23 +3,21 @@ package ru.hollowhorizon.hollowengine.common.ide.session.inlays
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNameIdentifierOwner
-import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.StubBasedPsiElement
+import org.jetbrains.kotlin.analysis.api.KaContextParameterApi
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.components.resolveToCall
+import org.jetbrains.kotlin.analysis.api.resolution.KaCallInfo
 import org.jetbrains.kotlin.analysis.api.resolution.KaFunctionCall
 import org.jetbrains.kotlin.analysis.api.resolution.KaSuccessCallInfo
 import org.jetbrains.kotlin.analysis.api.types.KaErrorType
 import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.lexer.KtTokens.DOT
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.psiUtil.getChildrenOfType
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.renderVerbose
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
 import ru.hollowhorizon.hollowengine.logE
 val KtNamedDeclaration.isSingleUnderscore: Boolean
     get() {
-        // We don't want to call 'getNameIdentifier' on stubs to prevent text building
-        // But it's fine because one-underscore names are prohibited for non-local declarations (only lambda parameters, local vars are allowed)
         if (this is StubBasedPsiElement<*> && this.stub != null) return false
         return nameIdentifier?.text == "_"
     }
@@ -61,9 +59,8 @@ private fun PsiElement.hintBuilder(kind: InlayKind, label: String? = null): Inla
 context(session: KaSession)
 private fun callableArgNameHints(
     acc: MutableList<InlayHint>,
-    callExpression: KtCallExpression,
+    callInfo: KaCallInfo,
 ): Unit = with(session) {
-    val callInfo = callExpression.resolveToCall()
     val successfulCallInfo = callInfo as? KaSuccessCallInfo ?: return
 
     val functionCall = successfulCallInfo.call as? KaFunctionCall<*> ?: return
@@ -72,21 +69,18 @@ private fun callableArgNameHints(
 
         val valueArgument = argExpression.parent as? KtValueArgument ?: continue
 
-        // --- Правила фильтрации (когда подсказку показывать НЕ надо) ---
+        // Правила фильтрации (когда подсказку показывать НЕ надо)
 
-        // A. Если аргумент уже именован явно: foo(param = 1)
+        // Если аргумент уже именован явно: foo(param = 1)
         if (valueArgument.isNamed()) continue
 
-        // B. Если аргумент — это лямбда (особенно trailing lambda): list.forEach { ... }
-        // Подсказка "action: { ... }" обычно считается шумом.
+        // Если аргумент - это лямбда (особенно в качестве последнего аргумента): list.forEach { ... }
         if (valueArgument is KtLambdaArgument) continue
 
-        // Получаем имя параметра из сигнатуры
         val paramName = variableSignature.symbol.name.asString()
 
-        // C. (Эвристика IDE) Не показывать подсказку, если имя передаваемой переменной совпадает с именем параметра.
+        // Если имя передаваемой переменной совпадает с именем параметра
         // Пример: fun setAlpha(alpha: Float). Вызов: setAlpha(alpha).
-        // Подсказка "alpha: alpha" избыточна.
         if (argExpression is KtNameReferenceExpression && argExpression.getReferencedName() == paramName) {
             continue
         }
@@ -106,9 +100,9 @@ private fun lambdaValueParamHints(
 
     val params = node.getLambdaExpression()!!.valueParameters
 
-    //hint should not be rendered when parameter is of type DestructuringDeclaration
-    //example: Map.forEach { (k,v) -> _ }
-    //lambda parameter (k,v) becomes (k :hint, v :hint) :hint <- outer hint isnt needed
+    // Подсказки нужны только для деструктурируемых параметров
+    // Например: Map.forEach { (k, v) -> _ }
+    // Здесь (k, v) станет (k: hint, v: hint): hint <- но вот эта подсказка уже не нужна
     params.singleOrNull()?.let {
         if (it.destructuringDeclaration != null) return
     }
@@ -117,23 +111,6 @@ private fun lambdaValueParamHints(
         it.hintBuilder(InlayKind.TypeHint)
     }
     acc.addAll(hints)
-}
-
-context(session: KaSession)
-private fun chainedExpressionHints(
-    acc: MutableList<InlayHint>,
-    node: KtDotQualifiedExpression,
-) {
-    ///chaining is defined as an expression whose next sibling tokens are newline and dot
-    val next = (node.nextSibling as? PsiWhiteSpace)
-    val nextSiblingElement = next?.nextSibling?.node?.elementType
-
-    if (nextSiblingElement != null && nextSiblingElement == DOT) {
-        val hints = node.getChildrenOfType<KtCallExpression>().mapNotNull {
-            it.hintBuilder(InlayKind.ChainingHint)
-        }
-        acc.addAll(hints)
-    }
 }
 
 context(session: KaSession)
@@ -152,7 +129,7 @@ private fun declarationHint(
     acc: MutableList<InlayHint>,
     node: KtProperty,
 ) {
-    //check decleration does not include type i.e. var t1: String
+    // Если тип указан явно (т.е. `var value: String`), дублировать его не нужно
     if (node.typeReference != null) return
 
     val hint = node.hintBuilder(InlayKind.TypeHint) ?: return
@@ -164,14 +141,14 @@ private fun functionHint(
     acc: MutableList<InlayHint>,
     node: KtNamedFunction,
 ) {
-    //only render hints for functions without block body
-    //functions WITH block body will always specify return types explicitly
+    // Подсказки нужны только для expression функций, для функций с `{ ... }` тип указывается вручную
     if (!node.hasDeclaredReturnType() && !node.hasBlockBody()) {
         val hint = node.hintBuilder(InlayKind.TypeHint) ?: return
         acc.add(hint)
     }
 }
 
+@OptIn(KaContextParameterApi::class)
 context(session: KaSession)
 fun provideHints(file: KtFile): List<InlayHint> {
     val res = mutableListOf<InlayHint>()
@@ -180,9 +157,7 @@ fun provideHints(file: KtFile): List<InlayHint> {
             when (node) {
                 is KtNamedFunction -> functionHint(res, node)
                 is KtLambdaArgument -> lambdaValueParamHints(res, node)
-                // TODO: chained expressions обычно в Java применяют, в Kotlin от них толку мало, но можно будет в конфиг добавить
-                // is KtDotQualifiedExpression -> chainedExpressionHints(res, node)
-                is KtCallExpression -> callableArgNameHints(res, node)
+                is KtCallExpression, is KtAnnotationEntry -> callableArgNameHints(res, node.resolveToCall() ?: continue)
                 is KtDestructuringDeclaration -> destructuringVarHints(res, node)
                 is KtProperty -> declarationHint(res, node)
             }
@@ -212,5 +187,4 @@ fun PsiElement.preOrderTraversal(shouldTraverse: (PsiElement) -> Boolean = { tru
 enum class InlayKind {
     TypeHint,
     ParameterHint,
-    ChainingHint,
 }

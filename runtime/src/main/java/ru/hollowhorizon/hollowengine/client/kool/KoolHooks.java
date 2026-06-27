@@ -20,7 +20,7 @@ import java.lang.reflect.Modifier;
  * Bypasses internal modificators with support for both static and instance fields in Kotlin objects.
  */
 public class KoolHooks {
-    private static final Unsafe unsafe = UnsafeTools.INSTANCE.getUNSAFE();
+    private static final Unsafe unsafe = UnsafeTools.INSTANCE.getUnsafe();
 
     // ShaderManager (Instance fields)
     private static final long boundShaderOffset;

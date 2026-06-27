@@ -7,8 +7,10 @@ import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
 
 object TickHandler {
-    private var clientTicks = 0
-    private var serverTicks = 0
+    var clientTicks = 0
+        private set
+    var serverTicks = 0
+        private set
 
     val currentTicks get() = if (isLogicalClient) clientTicks else serverTicks
     val partialTick

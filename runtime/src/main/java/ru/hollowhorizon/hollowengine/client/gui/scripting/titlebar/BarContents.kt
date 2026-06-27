@@ -9,7 +9,6 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
@@ -28,7 +27,6 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
-import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -36,6 +34,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.components.addNode
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -254,19 +253,13 @@ class StartScriptPacket(val path: String) : HollowPacket {
         val server = player.server ?: return
 
         when {
-            file.name.endsWith(".story.kts") -> startStoryScript(player as ServerPlayer, server)
+            file.name.endsWith(".node.kts") -> startComponentScript(server)
             file.name.endsWith(".kts") -> startKotlinScript(player, file)
         }
     }
 
-    private fun startStoryScript(player: ServerPlayer, server: MinecraftServer) {
-        val result = server.runtimeContext.stories.run(path, player)
-        result.onSuccess { id ->
-            player.sendSystemMessage("Story script started: $path ($id)".literal)
-        }.onFailure { error ->
-            HollowEngine.LOGGER.error("Story script start failed", error)
-            player.sendSystemMessage("Story script start failed: ${error.message ?: "Unknown error"}".literal)
-        }
+    private fun startComponentScript(server: MinecraftServer) {
+        server.addNode(path)
     }
 
     private fun startKotlinScript(player: Player, file: File) {

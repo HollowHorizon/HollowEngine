@@ -505,11 +505,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onServerTick(server: MinecraftServer) {
         RuntimeDispatcherState.runServerTasks(server)
-        ServerRuntimeState.autosave(server)
     }
 
     override fun onServerStopping(server: MinecraftServer) {
-        ServerRuntimeState.save(server)
+        ServerRuntimeState.save(server, saveAnyways = true)
         ServerEvent.Stoping.post(ServerEvent.Stoping(server))
     }
 

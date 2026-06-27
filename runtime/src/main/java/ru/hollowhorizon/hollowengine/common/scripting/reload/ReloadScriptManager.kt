@@ -22,14 +22,7 @@ import kotlin.reflect.KClass
 object ReloadScriptManager : ResourceManagerReloadListener {
     private var events: List<EventHandle> = emptyList()
 
-    private val openLookup by lazy {
-        val unsafe = UnsafeTools.UNSAFE
-        val lookupClass = Class.forName("java.lang.invoke.MethodHandles\$Lookup", true, Thread.currentThread().contextClassLoader)
-        val field = lookupClass.getDeclaredField("IMPL_LOOKUP")
-        val base = unsafe.staticFieldBase(field)
-        val offset = unsafe.staticFieldOffset(field)
-        unsafe.getObject(base, offset) as MethodHandles.Lookup
-    }
+
 
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
         val recipeManager = currentRecipeManagerOrNull() ?: run {
@@ -68,7 +61,7 @@ object ReloadScriptManager : ResourceManagerReloadListener {
             val scriptClass = script.javaClass
             val classLoader = Thread.currentThread().contextClassLoader
             try {
-                val lookup = MethodHandles.privateLookupIn(scriptClass, openLookup)
+                val lookup = MethodHandles.privateLookupIn(scriptClass, UnsafeTools.lookup)
 
                 Thread.currentThread().contextClassLoader = script.javaClass.classLoader
                 scriptClass.declaredMethods

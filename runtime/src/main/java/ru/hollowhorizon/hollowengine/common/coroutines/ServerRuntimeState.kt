@@ -2,7 +2,10 @@ package ru.hollowhorizon.hollowengine.common.coroutines
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hollowengine.common.utils.nbt.save
 import java.nio.file.Files
@@ -14,7 +17,6 @@ private const val HOLLOWENGINE_RUNTIME_FILE = "hollowengine-server-runtime.dat"
 private data class ServerRuntimeStateEntry(
     val runtimeContext: ServerRuntimeContext,
     val runtimePath: Path,
-    var autosaveTicks: Int = 0,
 )
 
 object ServerRuntimeState {
@@ -31,10 +33,7 @@ object ServerRuntimeState {
 
     fun load(server: MinecraftServer) {
         val state = entry(server)
-        if (!Files.exists(state.runtimePath)) {
-            state.runtimeContext.startLoaders()
-            return
-        }
+        if (!Files.exists(state.runtimePath)) return
 
         try {
             Files.newInputStream(state.runtimePath).use { stream ->
@@ -48,22 +47,15 @@ object ServerRuntimeState {
         }
     }
 
-    fun autosave(server: MinecraftServer) {
-        val state = entry(server)
-        if (!state.runtimeContext.isDirty()) {
-            state.autosaveTicks = 0
-            return
-        }
-
-        state.autosaveTicks++
-        if (state.autosaveTicks >= 200) {
-            save(server)
-        }
+    @SubscribeEvent
+    fun onSaveLevel(event: LevelEvent.Save) {
+        if (event.level.dimension() != Level.OVERWORLD) return
+        save(event.level.server ?: return, saveAnyways = true)
     }
 
-    fun save(server: MinecraftServer) {
+    fun save(server: MinecraftServer, saveAnyways: Boolean = false) {
         val state = entry(server)
-        if (!state.runtimeContext.isDirty()) return
+        if (!state.runtimeContext.isDirty() && !saveAnyways) return
 
         try {
             Files.createDirectories(state.runtimePath.parent)
@@ -71,7 +63,6 @@ object ServerRuntimeState {
             state.runtimeContext.serialize(tag)
             Files.newOutputStream(state.runtimePath).use { stream -> tag.save(stream) }
             state.runtimeContext.clearDirty()
-            state.autosaveTicks = 0
         } catch (exception: Exception) {
             HollowCore.LOGGER.error("Failed to save HollowEngine server runtime to {}", state.runtimePath, exception)
         }

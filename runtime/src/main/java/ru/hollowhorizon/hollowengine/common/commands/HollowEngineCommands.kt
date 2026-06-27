@@ -33,9 +33,7 @@ import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
 import ru.hollowhorizon.hollowengine.client.utils.mc
-import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
-import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -50,7 +48,9 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import ru.hollowhorizon.hollowengine.common.scripting.story.getAvailableStoryScripts
+import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
+import ru.hollowhorizon.hollowengine.common.scripting.components.addNode
+import ru.hollowhorizon.hollowengine.common.scripting.components.removeNode
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
@@ -666,18 +666,26 @@ private fun CommandExtension.registerScriptingCommands() {
     "scripting" {
         requires { hasPermission(2) }
 
-        "run"(arg("path", StringArgumentType.greedyString()) { getAvailableStoryScripts() }) {
+        "run"(
+            arg("path", StringArgumentType.greedyString()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            }
+        ) {
             executes {
                 val path = StringArgumentType.getString(this, "path")
-                val player = source.playerOrException
-                val result = source.server.runtimeContext.stories.run(path, player)
-                if (result.isSuccess) {
-                    sendSuccess { "Kotlin script started: $path (${result.getOrThrow()})".literal }
-                } else {
-                    val error = result.exceptionOrNull()
-                    HollowEngine.LOGGER.error("Katari script start failed", error)
-                    sendFailure("Kotlin script start failed: ${error?.message ?: "Unknown error"}".literal)
-                }
+                source.server.addNode(path)
+                SUCCESS
+            }
+        }
+
+        "stop"(
+            arg("path", StringArgumentType.greedyString()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            }
+        ) {
+            executes {
+                val path = StringArgumentType.getString(this, "path")
+                source.server.removeNode(path)
                 SUCCESS
             }
         }
