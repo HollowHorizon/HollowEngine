@@ -6,7 +6,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.UnavailableKotlinScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptingAnalyzer
 
 interface EditorLanguageService {
     val analyzer: ScriptingAnalyzer
@@ -15,7 +14,6 @@ interface EditorLanguageService {
 fun EditorLanguageService(extension: String): EditorLanguageService {
     return when (extension) {
         "kt", "kts" -> KotlinEditorLanguageService
-        "ktr" -> KatariEditorLanguageService
         "json" -> JsonEditorLanguageService
         "ui" -> UiXmlEditorLanguageService
         "hss" -> HssEditorLanguageService
@@ -31,11 +29,6 @@ object KotlinEditorLanguageService : EditorLanguageService {
 object JsonEditorLanguageService : EditorLanguageService {
     override val analyzer: ScriptingAnalyzer
         get() = JsonScriptingAnalyzer
-}
-
-object KatariEditorLanguageService : EditorLanguageService {
-    override val analyzer: ScriptingAnalyzer
-        get() = KatariScriptingAnalyzer
 }
 
 object UiXmlEditorLanguageService : EditorLanguageService {

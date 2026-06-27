@@ -39,7 +39,6 @@ include("bootstrap:fabric")
 include("bootstrap:neoforge")
 include("runtime")
 include("bridge")
-include("katari-binding-processor")
 include("compiler")
 
 project(":bootstrap").buildFileName = "parent.gradle.kts"

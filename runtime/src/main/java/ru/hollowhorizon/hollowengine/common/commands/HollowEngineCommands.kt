@@ -32,9 +32,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
 import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
-import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
@@ -45,7 +43,6 @@ import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
@@ -58,10 +55,6 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariRunStatus
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiDocument
-import ru.hollowhorizon.hollowengine.common.scripting.katari.getAvailableKatariScripts
-import ru.hollowhorizon.hollowengine.common.scripting.katari.katariUi
 import ru.hollowhorizon.hollowengine.common.scripting.story.getAvailableStoryScripts
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
@@ -79,17 +72,9 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerLightCommands()
             registerUtilityCommands()
             registerCodeBlocksCommands()
-            registerKatariCommands()
+            registerScriptingCommands()
             registerUiCommands()
         }
-    }
-}
-
-@SubscribeEvent
-fun onKatariChat(event: ServerChatEvent) {
-    val server = event.player.server ?: return
-    if (server.runtimeContext.katari.submitChat(event.player, event.message.string)) {
-        event.isCanceled = true
     }
 }
 
@@ -791,7 +776,7 @@ private fun CommandExtension.registerCodeBlocksCommands() {
     }
 }
 
-private fun CommandExtension.registerKatariCommands() {
+private fun CommandExtension.registerScriptingCommands() {
     "scripting" {
         requires { hasPermission(2) }
 
@@ -806,84 +791,6 @@ private fun CommandExtension.registerKatariCommands() {
                     val error = result.exceptionOrNull()
                     HollowEngine.LOGGER.error("Katari script start failed", error)
                     sendFailure("Kotlin script start failed: ${error?.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-    }
-
-    "katari" {
-        requires { hasPermission(2) }
-
-        "run"(arg("path", StringArgumentType.greedyString()) { getAvailableKatariScripts() }) {
-            executes {
-                val path = StringArgumentType.getString(this, "path")
-                val player = runCatching { source.playerOrException }.getOrNull()
-                val result = source.server.runtimeContext.katari.run(path, player)
-                if (result.isSuccess) {
-                    sendSuccess { "Katari script started: $path (${result.getOrThrow()})".literal }
-                } else {
-                    val error = result.exceptionOrNull()
-                    HollowEngine.LOGGER.error("Katari script start failed", error)
-                    sendFailure("Katari script start failed: ${error?.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-
-        "list" {
-            executes {
-                val system = source.server.runtimeContext.katari
-                val runs = system.list()
-                val scripts = getAvailableKatariScripts().sorted()
-                if (scripts.isEmpty()) {
-                    sendSuccess { "No .ktr scripts found in hollowengine/scripts/".literal }
-                } else {
-                    sendSuccess { "Available Katari scripts:".literal }
-                    scripts.forEach { source.sendSuccess({ "- $it".literal }, false) }
-                }
-                if (runs.isEmpty()) {
-                    source.sendSuccess({ "Katari runs: <none>".literal }, false)
-                } else {
-                    source.sendSuccess({ "Katari runs:".literal }, false)
-                    runs.forEach { run ->
-                        val status = when (run.status) {
-                            KatariRunStatus.RUNNING -> "running"
-                            KatariRunStatus.PAUSED -> "paused"
-                            KatariRunStatus.FAILED -> "failed"
-                        }
-                        val suffix = run.error?.let { " - $it" }.orEmpty()
-                        source.sendSuccess({ "- ${run.id} [$status] ${run.path}$suffix".literal }, false)
-                    }
-                }
-                SUCCESS
-            }
-        }
-
-        "stop"(arg("target", StringArgumentType.greedyString()) { listOf("all") }) {
-            executes {
-                val target = StringArgumentType.getString(this, "target")
-                val stopped = source.server.runtimeContext.katari.stop(target)
-                if (stopped == 0) {
-                    sendFailure("Katari run not found: $target".literal)
-                } else {
-                    sendSuccess { "Stopped Katari run(s): $stopped".literal }
-                }
-                SUCCESS
-            }
-        }
-
-        "choose"(
-            arg("run", StringArgumentType.string()),
-            arg("option", StringArgumentType.greedyString())
-        ) {
-            executes {
-                val run = StringArgumentType.getString(this, "run")
-                val option = StringArgumentType.getString(this, "option")
-                if (source.server.runtimeContext.katari.choose(run, option)) {
-                    sendSuccess { "Katari choice selected: $option".literal }
-                } else {
-                    sendFailure("Katari choice is not pending for run: $run".literal)
                 }
                 SUCCESS
             }
@@ -905,7 +812,7 @@ private fun CommandExtension.registerUiCommands() {
                 val player = source.playerOrException
                 val variables = parseUiVariables(variablesRaw)
                 runCatching {
-                    katariUi(path).openScreenFromCommand(player, variables)
+                    //TODO: katariUi(path).openScreenFromCommand(player, variables)
                 }.onSuccess {
                     sendSuccess { "UI opened: $path".literal }
                 }.onFailure { error ->
@@ -921,7 +828,7 @@ private fun CommandExtension.registerUiCommands() {
                 val path = StringArgumentType.getString(this, "path")
                 val player = source.playerOrException
                 runCatching {
-                    katariUi(path).openScreenFromCommand(player, CompoundTag())
+                    //TODO: katariUi(path).openScreenFromCommand(player, CompoundTag())
                 }.onSuccess {
                     sendSuccess { "UI opened: $path".literal }
                 }.onFailure { error ->
@@ -948,18 +855,6 @@ class ClearOverlaysPacket : HollowPacket {
         KatariUiOverlays.closeAll()
     }
 
-}
-
-private fun KatariUiDocument.openScreenFromCommand(
-    player: ServerPlayer,
-    variables: CompoundTag,
-) {
-    ShowKatariUiPacket(
-        id = id,
-        root = root,
-        mode = KatariUiDisplayMode.SCREEN,
-        variables = variables,
-    ).send(player)
 }
 
 private fun parseUiVariables(raw: String): CompoundTag {

@@ -25,10 +25,9 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiEventPacket
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
-import java.util.ArrayDeque
+import java.util.*
 
 
 @Serializable
@@ -101,7 +100,7 @@ class KatariUiScreen(
 ) : HollowComposeUiScreen("Katari UI", CompiledHss(emptyList())) {
     private val sink = UiEventSink { payload ->
         HollowEngine.LOGGER.info("[UI:$id]:\n ${payload.toPrettyString()}")
-        KatariUiEventPacket(id, payload).send()
+        //TODO: KatariUiEventPacket(id, payload).send()
     }
 
     @Composable
@@ -203,9 +202,9 @@ private class KatariUiOverlay(
     private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
-    private val sink = UiEventSink { payload -> KatariUiEventPacket(id, payload).send() }
-    private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
-    private var cachedScriptHash: Int = 0
+    private val sink = UiEventSink { payload ->
+        //TODO: KatariUiEventPacket(id, payload).send()
+    }
     private var node = composeNode()
     private var closing = false
     private var closingStartedAt: Long? = null
@@ -422,7 +421,6 @@ private class KatariUiOverlay(
             nowMillis,
             prepareRoot = { root ->
                 node = root
-                prepareClientScripts(root)
                 input.prepareRoot(root, closing)
             },
         ).also { frame ->
@@ -436,10 +434,8 @@ private class KatariUiOverlay(
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {
-        val rootNode = lastFrame?.resolved?.root ?: node
         event.variables = variables
         var handled = false
-        if (preparedScripts.dispatch(event, rootNode, variables)) handled = true
         if (!event.consumed && event.node.dispatch(event)) handled = true
         return handled
     }
@@ -455,24 +451,7 @@ private class KatariUiOverlay(
     private fun composeNode(): BoxNode {
         return surface.setContent {
             UiXmlContent(root, UiXmlOptions(eventSink = sink))
-        }.also(::prepareClientScripts)
-    }
-
-    private fun prepareClientScripts(root: UiNode) {
-        UiNodeKeys.assign(root)
-        val scripts = root.clientScripts()
-        if (scripts.isEmpty()) {
-            preparedScripts = UiPreparedClientScripts.Empty
-            cachedScriptHash = 0
-            return
         }
-        val scriptsHash = scripts.hashCode()
-        if (scriptsHash == cachedScriptHash) {
-            preparedScripts.applyInputHints(root)
-            return
-        }
-        cachedScriptHash = scriptsHash
-        preparedScripts = UiClientScriptRunner.prepare(scripts, root, sink, variables)
     }
 
 }

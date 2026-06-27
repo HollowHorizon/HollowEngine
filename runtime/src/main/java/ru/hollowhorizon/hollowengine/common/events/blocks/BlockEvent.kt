@@ -8,10 +8,8 @@ import net.minecraft.world.level.block.state.BlockState
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 import java.util.*
 
-@ScriptBinding
 open class BlockEvent(var state: BlockState, val pos: BlockPos) : Event, Cancellable {
     override var isCanceled = false
 
@@ -32,7 +30,6 @@ open class BlockEvent(var state: BlockState, val pos: BlockPos) : Event, Cancell
         companion object : EventHandler<Break>()
     }
 
-    @ScriptBinding
     class Placed(
         val player: Player,
         state: BlockState,

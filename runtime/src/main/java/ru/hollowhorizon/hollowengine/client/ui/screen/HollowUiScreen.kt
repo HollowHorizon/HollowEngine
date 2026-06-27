@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
@@ -10,10 +8,6 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScriptRunner
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiPreparedClientScripts
-import ru.hollowhorizon.hollowengine.client.ui.scripting.clientScripts
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
@@ -28,9 +22,7 @@ abstract class HollowUiScreen(
     private val renderer = MinecraftUiRenderer()
     private var frame: HollowUiFrame? = null
     private var cachedRoot: UiNode? = null
-    private var preparedScripts: UiPreparedClientScripts = UiPreparedClientScripts.Empty
     private var prepareScriptsJob: Job? = null
-    private var cachedScriptHash: Int = 0
     private var uiDirty = true
     private var lastWidth = -1
     private var lastHeight = -1
@@ -266,7 +258,6 @@ abstract class HollowUiScreen(
         if (cachedRoot == null || uiDirty || rebuildEveryFrame()) {
             cachedRoot = buildUi()
             input.prepareRoot(cachedRoot!!, closing)
-            schedulePrepareClientScripts(cachedRoot!!)
             uiDirty = false
             lastWidth = width
             lastHeight = height
@@ -359,45 +350,11 @@ abstract class HollowUiScreen(
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {
-        val root = frame?.resolved?.root ?: event.node
         val variables = bindings().root
         event.variables = variables
         var handled = false
-        if (preparedScripts.dispatch(event, root, variables)) handled = true
         if (!event.consumed && event.node.dispatch(event)) handled = true
         return handled
-    }
-
-    private fun schedulePrepareClientScripts(root: UiNode) {
-        UiNodeKeys.assign(root)
-        val scripts = root.clientScripts()
-        if (scripts.isEmpty()) {
-            preparedScripts = UiPreparedClientScripts.Empty
-            cachedScriptHash = 0
-            return
-        }
-        val scriptsHash = scripts.hashCode()
-        if (scriptsHash == cachedScriptHash) {
-            preparedScripts.applyInputHints(root)
-            return
-        }
-        cachedScriptHash = scriptsHash
-        preparedScripts = UiPreparedClientScripts.Empty
-        prepareScriptsJob?.cancel()
-        val sink = eventSink()
-        val variables = bindings().root
-        val minecraft = Minecraft.getInstance()
-        prepareScriptsJob = minecraft.coroutineScope.launch(Dispatchers.IO) {
-            val prepared = UiClientScriptRunner.prepare(scripts, root, sink, variables, applyInputHints = false)
-            minecraft.execute {
-                if (cachedScriptHash == scriptsHash) {
-                    val currentRoot = cachedRoot ?: return@execute
-                    prepared.applyInputHints(currentRoot)
-                    preparedScripts = prepared
-                    invalidateUi()
-                }
-            }
-        }
     }
 
     override fun isPauseScreen(): Boolean = false

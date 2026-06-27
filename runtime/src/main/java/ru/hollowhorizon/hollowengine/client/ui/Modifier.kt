@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 
 sealed interface Modifier {
     fun applyTo(style: MutableUiStyle)
@@ -388,12 +387,6 @@ data class ScriptEventModifier(
     override fun applyTo(style: MutableUiStyle) {
         EventModifier(kind) {}.applyTo(style)
     }
-}
-
-data class UiClientScriptModifier(
-    val scripts: List<UiClientScript>,
-) : Modifier {
-    override fun applyTo(style: MutableUiStyle) = Unit
 }
 
 data class PositionModifier(

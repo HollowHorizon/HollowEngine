@@ -1,11 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import com.sunnychung.lib.multiplatform.kotlite.Interpreter
-import com.sunnychung.lib.multiplatform.kotlite.KotliteInterpreter
-import com.sunnychung.lib.multiplatform.kotlite.model.*
-import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
 import de.fabmax.kool.math.Vec3f
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationVectorExpression
 
@@ -54,91 +49,12 @@ private class CompiledAnimationExpression(private val source: String) {
     private val variableNames = source.variableNames()
     private val variableValues = linkedMapOf<String, Double>()
     private var failureLogged = false
-    private val interpreter: Interpreter? by lazy {
-        runCatching { createInterpreter() }
-            .onFailure { logFailure("compile", it) }
-            .getOrNull()
-    }
 
-    fun float(context: AnimatorEvaluationContext, default: Float): Float =
-        fastExpression?.float(context) ?: (eval(context)?.asFloat(default) ?: default)
 
-    fun boolean(context: AnimatorEvaluationContext, default: Boolean): Boolean =
-        fastExpression?.boolean(context) ?: (eval(context)?.asBoolean(default) ?: default)
+    fun float(context: AnimatorEvaluationContext, default: Float): Float = fastExpression?.float(context) ?: default
 
-    @Synchronized
-    private fun eval(context: AnimatorEvaluationContext): RuntimeValue? {
-        updateVariables(context)
-        val compiled = interpreter ?: return null
-        return runCatching { compiled.eval() }
-            .onFailure { logFailure("evaluate", it) }
-            .getOrNull()
-    }
+    fun boolean(context: AnimatorEvaluationContext, default: Boolean): Boolean = fastExpression?.boolean(context) ?: default
 
-    private fun createInterpreter(): Interpreter {
-        val environment = ExecutionEnvironment().apply {
-            install(AllStdLibModules { message -> HollowEngine.LOGGER.info(message) })
-            variableNames.forEach { name ->
-                registerGlobalProperty(
-                    GlobalProperty(
-                        SOURCE_POSITION,
-                        name,
-                        "Double",
-                        true,
-                        { interpreter -> DoubleValue(variableValues[name] ?: 0.0, interpreter.symbolTable()) },
-                        { _, value -> variableValues[name] = value.asFloat(0f).toDouble() },
-                    )
-                )
-            }
-        }
-        return KotliteInterpreter(
-            filename = "animation-expression.kts",
-            code = source,
-            executionEnvironment = environment,
-        )
-    }
-
-    private fun updateVariables(context: AnimatorEvaluationContext) {
-        variableNames.forEach { name ->
-            val value = context.katariValue(name).toDouble()
-            variableValues[name] = value
-        }
-    }
-
-    private fun logFailure(stage: String, throwable: Throwable) {
-        if (failureLogged) return
-        failureLogged = true
-        HollowEngine.LOGGER.warn("Animation Katari expression `{}` failed to {}", source, stage, throwable)
-    }
-
-    private fun AnimatorEvaluationContext.katariValue(name: String): Float =
-        when (name) {
-            "delta_time" -> deltaTime
-            "time", "anim_time" -> time
-            else -> values[name] ?: 0f
-        }
-
-    private fun RuntimeValue.asFloat(default: Float): Float =
-        when (this) {
-            is DoubleValue -> value.toFloat()
-            is IntValue -> value.toFloat()
-            is LongValue -> value.toFloat()
-            is BooleanValue -> if (value) 1f else 0f
-            else -> convertToString().toFloatOrNull() ?: default
-        }
-
-    private fun RuntimeValue.asBoolean(default: Boolean): Boolean =
-        when (this) {
-            is BooleanValue -> value
-            is DoubleValue -> value != 0.0
-            is IntValue -> value != 0
-            is LongValue -> value != 0L
-            else -> convertToString().toBooleanStrictOrNull() ?: default
-        }
-
-    companion object {
-        private val SOURCE_POSITION = SourcePosition("animation-expression.kts", 1, 1)
-    }
 }
 
 private fun String.variableNames(): Set<String> {

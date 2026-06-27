@@ -3,22 +3,18 @@ package ru.hollowhorizon.hollowengine.client.ui.xml
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
-import ru.hollowhorizon.hollowengine.client.ui.scripting.UiClientScript
 
 @Composable
 fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {
     val document = remember(root, options) { UiXmlComposeCompiler(options).compile(root) }
-    val scriptModifier = document.scripts
-        .takeIf { it.isNotEmpty() }
-        ?.let(::UiClientScriptModifier)
+
     val rootElement = document.resolve(document.root)
     if (rootElement.name.isLayoutContainer()) {
-        UiXmlElement(rootElement, document, listOfNotNull(scriptModifier))
+        UiXmlElement(rootElement, document, listOfNotNull())
     } else {
-        Column(modifier = scriptModifier) {
+        Column {
             UiXmlElement(rootElement, document)
         }
     }
@@ -28,7 +24,6 @@ private class UiXmlComposeCompiler(private val options: UiXmlOptions) {
     fun compile(root: UiXmlTree): UiXmlComposeDocument {
         val imports = linkedMapOf<String, UiXmlTree>()
         val roots = mutableListOf<UiXmlTree>()
-        val scripts = mutableListOf<UiClientScript>()
         val documents = if (root.name == DocumentElementName) root.children else listOf(root)
         for (element in documents) {
             when {
@@ -40,17 +35,11 @@ private class UiXmlComposeCompiler(private val options: UiXmlOptions) {
                     imports[name] = loadImportedElement(location)
                 }
 
-                element.name.equals("script", ignoreCase = true) -> {
-                    val location = element.attributes["from"] ?: element.attributes["src"]
-                        ?: throw IllegalArgumentException("UI script requires 'from'")
-                    scripts += UiClientScript.Resource(location, options.resources.readText(location))
-                }
-
                 else -> roots += element
             }
         }
         require(roots.size == 1) { "UI document must contain exactly one root element" }
-        return UiXmlComposeDocument(roots.single(), imports, scripts, options)
+        return UiXmlComposeDocument(roots.single(), imports, options)
     }
 
     private fun loadImportedElement(location: String): UiXmlTree {
@@ -68,7 +57,6 @@ private class UiXmlComposeCompiler(private val options: UiXmlOptions) {
 private data class UiXmlComposeDocument(
     val root: UiXmlTree,
     val imports: Map<String, UiXmlTree>,
-    val scripts: List<UiClientScript>,
     val options: UiXmlOptions,
 ) {
     fun resolve(element: UiXmlTree): UiXmlTree {
@@ -372,7 +360,7 @@ private val StructuralAttributes = setOf(
     "tags",
     "class",
     "value",
-    XML_TEXT_NODE_NAME,
+    "#text",
     "source",
     "src",
     "image",

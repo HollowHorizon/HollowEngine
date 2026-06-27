@@ -32,7 +32,9 @@ val hollowcore: String by rootProject.properties
 
 group = modGroup
 version = modVersion
-base.archivesName.set("${modName}Runtime")
+base {
+    archivesName.set("${modName}Runtime")
+}
 
 apply(from = rootProject.file("gradle/assets-generator.gradle"))
 apply(from = rootProject.file("gradle/lang-merge.gradle"))
@@ -107,7 +109,6 @@ dependencies {
     modImplementation("lib:sodium-fabric:0.6.13+mc1.21.1")
 
     implementation(project(":bridge"))
-    ksp(project(":katari-binding-processor"))
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
     addShadow("com.github.weisj:jsvg:2.1.0")
@@ -127,8 +128,6 @@ dependencies {
     }
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
-    addShadow("lib:katari-jvm:1.2.0")
-    addShadow("lib:katari-stdlib-jvm:1.2.0")
 
     addShadow("androidx.compose.runtime:runtime:1.10.3")
     addShadow("androidx.collection:collection:1.4.0")

@@ -1,9 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui.xml
 
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_NODE_NAME
-import com.sunnychung.lib.multiplatform.kotlite.model.XML_TEXT_VALUE_ATTRIBUTE
-import com.sunnychung.lib.multiplatform.kotlite.model.XmlValue
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.*
@@ -34,17 +30,8 @@ data class UiXmlTree(
 }
 
 
-fun UiXmlTree.Companion.from(value: XmlValue): UiXmlTree {
-    return UiXmlTree(
-        name = value.name,
-        attributes = value.attributes.associate { it.name to it.value.asUiAttributeString() },
-        children = value.children.map { UiXmlTree.from(it) },
-    )
-}
 
-private fun RuntimeValue.asUiAttributeString(): String = convertToString()
-
-internal fun UiXmlTree.isTextLiteral(): Boolean = name == XML_TEXT_NODE_NAME
+internal fun UiXmlTree.isTextLiteral(): Boolean = name == "#text"
 
 internal fun UiXmlTree.toTextContent(
     style: UiInlineStyle = UiInlineStyle(),
@@ -53,7 +40,7 @@ internal fun UiXmlTree.toTextContent(
     attributes["text"]?.let { return UiTextContent.plain(it) }
     val segments = children.flatMapIndexed { index, child ->
         when {
-            child.isTextLiteral() -> listOf(UiTextSegment.Text(child.attributes.firstValue(XML_TEXT_VALUE_ATTRIBUTE, "value").normalizeInlineText().bound(), style))
+            child.isTextLiteral() -> listOf(UiTextSegment.Text(child.attributes.firstValue("#text", "value").normalizeInlineText().bound(), style))
             child.isTextInlineElement() -> child.toInlineSegments(style)
             onlyDirectText -> listOf(child.toInlineWidgetSegment(index))
             else -> child.toInlineSegments(style)
@@ -164,7 +151,7 @@ private fun UiXmlTree.inlineTextOrChildren(style: UiInlineStyle): List<UiTextSeg
 private fun UiXmlTree.inlineChildren(style: UiInlineStyle): List<UiTextSegment> {
     return children.flatMapIndexed { index, child ->
         if (child.isTextLiteral()) {
-            listOf(UiTextSegment.Text(child.attributes.firstValue(XML_TEXT_VALUE_ATTRIBUTE, "value").normalizeInlineText().bound(), style))
+            listOf(UiTextSegment.Text(child.attributes.firstValue("#text", "value").normalizeInlineText().bound(), style))
         } else if (child.isTextInlineElement()) {
             child.toInlineSegments(style)
         } else {
