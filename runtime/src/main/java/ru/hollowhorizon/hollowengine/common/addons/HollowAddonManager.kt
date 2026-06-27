@@ -169,6 +169,8 @@ private class HollowAddonClassLoader(
         "kotlin.random.",
         "kotlin.ranges.",
         "kotlin.sequences.",
+        "kotlin.script.experimental.api.",
+        "kotlin.script.experimental.util.",
         "kotlin.text.",
         "kotlin.time.",
         "net.minecraft.",

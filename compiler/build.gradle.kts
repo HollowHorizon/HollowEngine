@@ -129,7 +129,7 @@ dependencies {
         }
 
     implementation("one.util:streamex:0.7.2") { isTransitive = false }
-    implementation("org.jetbrains.intellij.deps:asm-all:9.0") { isTransitive = false }
+    implementation("org.jetbrains.intellij.deps:asm-all:9.10.1") { isTransitive = false }
     implementation("org.codehaus.woodstox:stax2-api:4.2.1") { isTransitive = false }
     implementation("com.fasterxml:aalto-xml:1.3.0") { isTransitive = false }
     implementation("com.github.ben-manes.caffeine:caffeine:2.9.3") { isTransitive = false }
@@ -197,6 +197,7 @@ tasks.withType<KotlinCompile>().configureEach {
             "-Xopt-in=org.jetbrains.kotlin.analysis.api.KaImplementationDetail",
             "-Xopt-in=org.jetbrains.kotlin.analysis.api.KaPlatformInterface",
             "-Xopt-in=org.jetbrains.kotlin.analysis.api.KaIdeApi",
+            "-Xopt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi",
         )
     }
 }

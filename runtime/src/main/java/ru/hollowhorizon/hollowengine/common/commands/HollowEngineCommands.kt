@@ -51,6 +51,7 @@ import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.components.addNode
 import ru.hollowhorizon.hollowengine.common.scripting.components.removeNode
+import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
@@ -667,9 +668,25 @@ private fun CommandExtension.registerScriptingCommands() {
         requires { hasPermission(2) }
 
         "run"(
-            arg("path", StringArgumentType.greedyString()) {
+            arg("path", StringArgumentType.string()) {
                 DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            },
+            arg("state", StringArgumentType.string())
+        ) {
+            executes {
+                val path = StringArgumentType.getString(this, "path")
+                source.server.addNode(
+                    path,
+                    context = StateContext(nextState = StringArgumentType.getString(this, "state"))
+                )
+                SUCCESS
             }
+        }
+
+        "run"(
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            },
         ) {
             executes {
                 val path = StringArgumentType.getString(this, "path")

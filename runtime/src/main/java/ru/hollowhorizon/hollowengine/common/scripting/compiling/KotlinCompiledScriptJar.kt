@@ -12,6 +12,7 @@ import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.InvocationTargetException
 import java.security.ProtectionDomain
+import java.util.ArrayList
 import java.util.Collections
 import java.util.WeakHashMap
 import java.util.jar.JarFile
@@ -67,7 +68,7 @@ internal class KotlinCompiledScriptJar(
     private val script: KotlinCompiledScript,
     private val evaluationConfiguration: ScriptEvaluationConfiguration,
 ) : CompiledScript {
-    private val evaluator = KotlinCompiledScriptEvaluator()
+    private val evaluator = HollowEngineScriptEvaluator()
     private val scriptClass = lazy {
         runBlocking {
             (script.getClass(evaluationConfiguration) as ResultWithDiagnostics.Success).value
@@ -96,12 +97,11 @@ internal class KotlinCompiledScriptJar(
 internal val JvmScriptEvaluationConfigurationKeys.actualClassLoader by PropertiesCollection.key<ClassLoader?>(
     isTransient = true
 )
-
 internal val JvmScriptEvaluationConfigurationKeys.scriptsInstancesSharingMap by PropertiesCollection.key<MutableMap<KClass<*>, EvaluationResult>>(
     isTransient = true
 )
 
-class KotlinCompiledScriptEvaluator : ScriptEvaluator {
+open class HollowEngineScriptEvaluator : ScriptEvaluator {
     companion object {
         private val constructorCache: MutableMap<Class<*>, MethodHandle> =
             Collections.synchronizedMap(WeakHashMap())
@@ -113,79 +113,90 @@ class KotlinCompiledScriptEvaluator : ScriptEvaluator {
     ): ResultWithDiagnostics<EvaluationResult> = try {
         compiledScript.getClass(scriptEvaluationConfiguration).onSuccess { scriptClass ->
             val sharedConfiguration = scriptEvaluationConfiguration.getOrPrepareShared(scriptClass.java.classLoader)
-            val configurationForOtherScripts by lazy { sharedConfiguration }
+            val configurationForOtherScripts by lazy {
+                sharedConfiguration.with {
+                    reset(ScriptEvaluationConfiguration.previousSnippets)
+                    reset(ScriptEvaluationConfiguration.constructorArgs)
+                }
+            }
             val sharedScripts = sharedConfiguration[ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap]
 
             sharedScripts?.get(scriptClass)?.asSuccess()
-                ?: compiledScript.otherScripts.mapSuccess {
-                    invoke(it, configurationForOtherScripts)
-                }.onSuccess { importedScriptsEvalResults ->
-                    val refinedEvaluationConfiguration =
-                        sharedConfiguration.with {
-                            compilationConfiguration(compiledScript.compilationConfiguration)
-                        }.refineBeforeEvaluation(compiledScript).valueOr {
-                            return@invoke ResultWithDiagnostics.Failure(it.reports)
-                        }
+                ?.let { return@let it }
 
-                    val resultValue = try {
-                        val instance = scriptClass.evalWithConfigAndOtherScriptsResults(
-                            refinedEvaluationConfiguration,
+            compiledScript.otherScripts.mapSuccess {
+                invoke(it, configurationForOtherScripts)
+            }.onSuccess { importedScriptsEvalResults ->
+
+                val refinedEvalConfiguration =
+                    sharedConfiguration.with {
+                        compilationConfiguration(compiledScript.compilationConfiguration)
+                    }.refineBeforeEvaluation(compiledScript).valueOr {
+                        return@invoke ResultWithDiagnostics.Failure(it.reports)
+                    }
+
+                val resultValue = try {
+                    val instance =
+                        scriptClass.evalWithConfigAndOtherScriptsResults(
+                            refinedEvalConfiguration,
                             importedScriptsEvalResults
                         )
 
-                        compiledScript.resultField?.let { (resultFieldName, resultType) ->
-                            scriptClass.java.declaredFields.find { it.name == resultFieldName }?.let {
-                                it.isAccessible = true
-                                ResultValue.Value(
-                                    resultFieldName,
-                                    it.get(instance),
-                                    resultType.typeName,
-                                    scriptClass,
-                                    instance
-                                )
-                            } ?: ResultValue.Unit(scriptClass, instance)
+                    compiledScript.resultField?.let { (resultFieldName, resultType) ->
+                        scriptClass.java.declaredFields.find { it.name == resultFieldName }?.let {
+                            it.isAccessible = true
+                            ResultValue.Value(
+                                resultFieldName,
+                                it.get(instance),
+                                resultType.typeName,
+                                scriptClass,
+                                instance
+                            )
                         } ?: ResultValue.Unit(scriptClass, instance)
-                    } catch (error: InvocationTargetException) {
-                        ResultValue.Error(error.targetException ?: error, error, scriptClass)
-                    } catch (error: Throwable) {
-                        ResultValue.Error(error, error, scriptClass)
-                    }
+                    } ?: ResultValue.Unit(scriptClass, instance)
 
-                    EvaluationResult(resultValue, refinedEvaluationConfiguration).let {
-                        sharedScripts?.put(scriptClass, it)
-                        ResultWithDiagnostics.Success(it)
-                    }
+                } catch (e: InvocationTargetException) {
+                    ResultValue.Error(e.targetException ?: e, e, scriptClass)
+                } catch (e: Throwable) {
+                    // Ловим исключения от MethodHandle
+                    ResultValue.Error(e, e, scriptClass)
                 }
+
+                EvaluationResult(resultValue, refinedEvalConfiguration).let {
+                    sharedScripts?.put(scriptClass, it)
+                    ResultWithDiagnostics.Success(it)
+                }
+            }
         }
-    } catch (error: Throwable) {
+    } catch (e: Throwable) {
         ResultWithDiagnostics.Failure(
-            error.asDiagnostics(path = compiledScript.sourceLocationId)
+            e.asDiagnostics(path = compiledScript.sourceLocationId)
         )
     }
 
     private fun KClass<*>.evalWithConfigAndOtherScriptsResults(
-        refinedEvaluationConfiguration: ScriptEvaluationConfiguration,
+        refinedEvalConfiguration: ScriptEvaluationConfiguration,
         importedScriptsEvalResults: List<EvaluationResult>,
     ): Any {
         val isCompiledWithK2 =
-            refinedEvaluationConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]
+            refinedEvalConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]
                 ?.get(ScriptCompilationConfiguration._languageVersion)
-                ?.let { it.substringBefore('.').toIntOrNull()?.let { version -> version >= 2 } } == true
+                ?.let { it.substringBefore('.').toIntOrNull()?.let { ver -> ver >= 2 } } == true
 
-        val providedProps = refinedEvaluationConfiguration[ScriptEvaluationConfiguration.providedProperties]
-        val implicitReceivers = refinedEvaluationConfiguration[ScriptEvaluationConfiguration.implicitReceivers]
-        val ctorArgs = refinedEvaluationConfiguration[ScriptEvaluationConfiguration.constructorArgs]
-        val previousSnippets = refinedEvaluationConfiguration[ScriptEvaluationConfiguration.previousSnippets]
+        val providedProps = refinedEvalConfiguration[ScriptEvaluationConfiguration.providedProperties]
+        val implicitReceivers = refinedEvalConfiguration[ScriptEvaluationConfiguration.implicitReceivers]
+        val ctorArgs = refinedEvalConfiguration[ScriptEvaluationConfiguration.constructorArgs]
+        val prevSnippets = refinedEvalConfiguration[ScriptEvaluationConfiguration.previousSnippets]
 
         var estimatedSize = importedScriptsEvalResults.size
-        if (previousSnippets != null) estimatedSize++
+        if (prevSnippets != null) estimatedSize++
         if (ctorArgs != null) estimatedSize += ctorArgs.size
         if (implicitReceivers != null) estimatedSize += implicitReceivers.size
         if (providedProps != null) estimatedSize += providedProps.size * (if (isCompiledWithK2) 2 else 1)
 
         val args = ArrayList<Any?>(estimatedSize)
 
-        previousSnippets?.let { args.add(it.toTypedArray()) }
+        prevSnippets?.let { args.add(it.toTypedArray()) }
         ctorArgs?.let { args.addAll(it) }
 
         if (isCompiledWithK2) {
@@ -203,37 +214,36 @@ class KotlinCompiledScriptEvaluator : ScriptEvaluator {
         }
 
         @Suppress("UNCHECKED_CAST")
-        val wrapper = refinedEvaluationConfiguration[ScriptEvaluationConfiguration.scriptExecutionWrapper]
-            as ScriptExecutionWrapper<Any>?
+        val wrapper: ScriptExecutionWrapper<Any>? =
+            refinedEvalConfiguration[ScriptEvaluationConfiguration.scriptExecutionWrapper] as ScriptExecutionWrapper<Any>?
 
-        val previousClassLoader = Thread.currentThread().contextClassLoader
-        Thread.currentThread().contextClassLoader = java.classLoader
+        val saveClassLoader = Thread.currentThread().contextClassLoader
+        Thread.currentThread().contextClassLoader = this.java.classLoader
         return try {
-            val constructorHandle = constructorCache.computeIfAbsent(java) { type ->
-                val constructor = type.constructors.single()
-                constructor.isAccessible = true
-                MethodHandles.publicLookup().unreflectConstructor(constructor)
+            val constructorHandle = constructorCache.computeIfAbsent(this.java) { clazz ->
+                val ctor = clazz.constructors.single()
+                ctor.isAccessible = true
+                MethodHandles.publicLookup().unreflectConstructor(ctor)
             }
 
             wrapper?.invoke { constructorHandle.invokeWithArguments(args) }
                 ?: constructorHandle.invokeWithArguments(args)
         } finally {
-            Thread.currentThread().contextClassLoader = previousClassLoader
+            Thread.currentThread().contextClassLoader = saveClassLoader
         }
     }
 }
 
 private fun ScriptEvaluationConfiguration.getOrPrepareShared(classLoader: ClassLoader): ScriptEvaluationConfiguration =
-    if (this[ScriptEvaluationConfiguration.jvm.actualClassLoader] != null) {
+    if (this[ScriptEvaluationConfiguration.jvm.actualClassLoader] != null)
         this
-    } else {
+    else
         with {
             ScriptEvaluationConfiguration.jvm.actualClassLoader(classLoader)
             if (this[ScriptEvaluationConfiguration.scriptsInstancesSharing] == true) {
                 ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap(mutableMapOf())
             }
         }
-    }
 
 internal class KJvmCompiledScriptFromJar(
     private val scriptClassName: String,

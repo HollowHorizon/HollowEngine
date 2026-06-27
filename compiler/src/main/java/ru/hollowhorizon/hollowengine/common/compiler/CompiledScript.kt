@@ -1,12 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.compiler
 
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.HollowEngineScriptEvaluator
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
 import kotlin.reflect.KClass
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptEvaluationConfiguration
-import kotlin.script.experimental.api.constructorArgs
-import kotlin.script.experimental.api.with
+import kotlin.script.experimental.api.*
 
 data class CompiledScriptImpl(
     override val name: String,
@@ -33,7 +31,12 @@ data class CompiledScriptImpl(
         }
 
         return if (result is ResultWithDiagnostics.Success) {
-            Result.success(result.value.returnValue.scriptInstance as T)
+            val value = result.value.returnValue
+            if (value is ResultValue.Error) {
+                Result.failure(value.error)
+            } else {
+                Result.success(result.value.returnValue.scriptInstance as T)
+            }
         } else {
             Result.failure(ScriptEvaluationException(name, result.reports.map { it.convert() }))
         }

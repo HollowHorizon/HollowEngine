@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.common.compiler.isolated
 
 import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy
@@ -9,6 +11,9 @@ import org.jetbrains.kotlin.scripting.compiler.plugin.impl.*
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.plugin.HollowEngineCompilerPlugin
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapClass
@@ -51,6 +56,7 @@ class ScriptJvmCompilerRemapped(
         val outputFiles = module.compilerOutputFiles
         val remappedModule = RemappedCompiledModule(
             outputFiles.mapValues { (path, bytes) ->
+                debugSave(path, bytes)
                 remapScriptClass(path, outputFiles, bytes)
             }
         )
@@ -63,9 +69,26 @@ class ScriptJvmCompilerRemapped(
             remappedModule,
         )
     }
+
+    private fun debugSave(path: String, bytes: ByteArray) {
+        if (HollowEngineConfig.debugMode) {
+            val file = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/compiler").resolve(path).toFile()
+
+            if (!file.exists()) {
+                file.parentFile.mkdirs()
+                file.createNewFile()
+            }
+
+            file.writeBytes(bytes)
+        }
+    }
 }
 
-class HollowEngineScriptCompiler(val definitions: List<ScriptDefinition>, val hostConfiguration: ScriptingHostConfiguration): ScriptCompilerProxy {
+class HollowEngineScriptCompiler(
+    val definitions: List<ScriptDefinition>,
+    val hostConfiguration: ScriptingHostConfiguration,
+) : ScriptCompilerProxy {
+    @OptIn(ExperimentalCompilerApi::class)
     override fun compile(
         script: SourceCode,
         scriptCompilationConfiguration: ScriptCompilationConfiguration,
@@ -82,6 +105,7 @@ class HollowEngineScriptCompiler(val definitions: List<ScriptDefinition>, val ho
                         ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
                         definitions
                     )
+                    add(CompilerPluginRegistrar.COMPILER_PLUGIN_REGISTRARS, HollowEngineCompilerPlugin())
                 }
             ) {
                 if (messageCollector.hasErrors()) failure(messageCollector)
@@ -104,7 +128,8 @@ fun <T> withConfiguredK2ScriptCompilerWithLightTree(
                 createIsolatedCompilerState(
                     ScriptDiagnosticsMessageCollector(parentMessageCollector), disposable,
                     scriptCompilationConfiguration,
-                    scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration] ?: defaultJvmScriptingHostConfiguration,
+                    scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration]
+                        ?: defaultJvmScriptingHostConfiguration,
                     configureCompiler
                 ),
                 SourceCode::convertToFirViaLightTree
@@ -119,7 +144,7 @@ internal fun withScriptCompilationCache(
     script: SourceCode,
     scriptCompilationConfiguration: ScriptCompilationConfiguration,
     messageCollector: ScriptDiagnosticsMessageCollector,
-    body: () -> ResultWithDiagnostics<CompiledScript>
+    body: () -> ResultWithDiagnostics<CompiledScript>,
 ): ResultWithDiagnostics<CompiledScript> {
     val cache = scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration]
         ?.let {

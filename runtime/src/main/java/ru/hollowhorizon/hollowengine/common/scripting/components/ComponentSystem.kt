@@ -3,11 +3,14 @@ package ru.hollowhorizon.hollowengine.common.scripting.components
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
+import ru.hollowhorizon.hollowengine.common.scripting.state.StateExecutor
 
 class ComponentSystem(val server: MinecraftServer) {
     private val components = mutableMapOf<String, Component>()
@@ -24,7 +27,12 @@ class ComponentSystem(val server: MinecraftServer) {
             runCatching {
                 val context = SerializationContext(server, CompoundTag())
                 component.script.onSave(context)
-                tag.put(name, context.tag)
+                val componentTag = CompoundTag()
+                componentTag.put("extras", context.tag)
+                component.context?.let {
+                    componentTag.put("states", it.serialize())
+                }
+                tag.put(name, componentTag)
             }.onFailure {
                 HollowEngine.LOGGER.error("Error while saving component '$name'", it)
             }
@@ -34,15 +42,22 @@ class ComponentSystem(val server: MinecraftServer) {
     fun deserialize(tag: CompoundTag) {
         tag.allKeys.forEach { key ->
             runCatching {
-                server.addNode(key, tag.getCompound(key))
+                val componentTag = tag.getCompound(key)
+                val extras = componentTag.getCompound("extras")
+                val context = (componentTag.get("states") as? CompoundTag)
+                    ?.let { StateContext.deserialize(it) }
+                server.addNode(key, extras, context)
             }.onFailure {
                 HollowEngine.LOGGER.error("Error while deserializing component '$key'", it)
             }
         }
     }
 
-    fun addNode(node: ComponentScript) {
-        components[node.path] = Component(node, node.prepareTickers())
+    fun addNode(node: ComponentScript, context: StateContext?) {
+        val executor = StateExecutor(server.coroutineScope)
+        node.prepareExecutor(executor)
+        components[node.path] = Component(node, node.prepareTickers(), executor, context)
+        context?.let { executor.start(it) }
     }
 
     fun removeNode(path: String) {
@@ -57,6 +72,8 @@ class ComponentSystem(val server: MinecraftServer) {
     private class Component(
         val script: ComponentScript,
         val ticker: Runnable? = null,
+        val executor: StateExecutor,
+        val context: StateContext?,
     )
 }
 
@@ -65,7 +82,7 @@ fun onServerTick(event: TickEvent.Server) {
     event.server.runtimeContext.components.tick()
 }
 
-fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null) {
+fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: StateContext? = null) {
     val scripting = ScriptingEnvironment.currentOrNull() ?: run {
         HollowEngine.LOGGER.warn("Skipping $path script: Kotlin scripting compiler addon is not installed")
         return
@@ -84,7 +101,7 @@ fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null) {
 
     script.onStart()
 
-    runtimeContext.components.addNode(script)
+    runtimeContext.components.addNode(script, context)
 }
 
 fun MinecraftServer.removeNode(path: String) {

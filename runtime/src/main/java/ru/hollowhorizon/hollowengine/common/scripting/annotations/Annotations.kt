@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.scripting
+package ru.hollowhorizon.hollowengine.common.scripting.annotations
 
 @Target(AnnotationTarget.FILE, AnnotationTarget.CLASS)
 annotation class Import(val file: String)
@@ -9,3 +9,6 @@ annotation class Import(val file: String)
  */
 @Target(AnnotationTarget.FUNCTION)
 annotation class Every(val ticks: Int = 1)
+
+@Target(AnnotationTarget.FUNCTION)
+annotation class State(val name: String = "")

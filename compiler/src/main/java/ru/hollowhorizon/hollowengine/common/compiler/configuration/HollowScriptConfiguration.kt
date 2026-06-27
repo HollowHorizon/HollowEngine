@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.compiler.configuration
 
-import ru.hollowhorizon.hollowengine.common.scripting.Import
+import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
 import kotlin.script.experimental.api.*
@@ -20,7 +20,7 @@ open class HollowScriptConfiguration(classpath: List<File>, body: Builder.() -> 
             "-opt-in=org.jetbrains.kotlin.analysis.api.KaIdeApi",
             "-opt-in=org.jetbrains.kotlin.analysis.api.KaContextParameterApi",
             "-Xcollection-literals",
-            "-jvm-target=17",
+            "-jvm-target=21",
             "-Xadd-modules=ALL-MODULE-PATH" // Loading kotlin from shadowed jar
         )
 
