@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.psi.*
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.renderVerbose
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
-import ru.hollowhorizon.hollowengine.logE
+
 val KtNamedDeclaration.isSingleUnderscore: Boolean
     get() {
         if (this is StubBasedPsiElement<*> && this.stub != null) return false
@@ -162,7 +162,8 @@ fun provideHints(file: KtFile): List<InlayHint> {
                 is KtProperty -> declarationHint(res, node)
             }
         } catch (e: Throwable) {
-            logE(e)
+            // TODO: тут могут быть некоторые ошибки, из-за того, что JetBrains всё ещё не допилили implicitReceiver'ы в совокупности с context args
+            //  KaFirResolver.toKaContextParameterValues() вызывает (Unexpected null receiver value for context argument)
         }
     }
     return res
