@@ -15,13 +15,12 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools
 import java.lang.invoke.MethodHandles
-import kotlin.jvm.java
 import kotlin.reflect.KClass
+import kotlin.script.experimental.api.constructorArgs
 
 @ReloadListener
 object ReloadScriptManager : ResourceManagerReloadListener {
     private var events: List<EventHandle> = emptyList()
-
 
 
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
@@ -48,7 +47,9 @@ object ReloadScriptManager : ResourceManagerReloadListener {
             .mapNotNull { file ->
                 val path = file.toReadablePath()
                 runCatching {
-                    scripting.compiler.compile(file).getOrThrow().execute<ReloadScript>(context).getOrThrow()
+                    scripting.compiler.compile(file).getOrThrow().execute<ReloadScript> {
+                        constructorArgs(context)
+                    }.getOrThrow()
                 }.onFailure { error ->
                     HollowEngine.LOGGER.error("Failed to execute reload script: {}", path, error)
                 }.getOrNull()

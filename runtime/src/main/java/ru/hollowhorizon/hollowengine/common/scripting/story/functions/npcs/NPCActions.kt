@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.util.*
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -151,6 +152,8 @@ fun NpcEntity.dropItem(item: ItemStack) {
 suspend fun wait(time: Int) {
     delay((time * 50L).milliseconds)
 }
+
+fun uuid(uuid: String): UUID = UUID.fromString(uuid)
 
 /**
  * Создает ItemStack с указанным предметом, количеством и NBT-тегом.

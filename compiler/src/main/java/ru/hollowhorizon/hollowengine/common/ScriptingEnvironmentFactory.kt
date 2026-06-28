@@ -81,13 +81,14 @@ class ScriptingEnvironmentImpl(
         getScriptingClass(JvmGetScriptingClass())
         configurationDependencies(JvmDependency(hostClasspath))
     }
-    val scriptDefinitions = scriptTypes.map { (extension, path, imports) ->
+    val scriptDefinitions = scriptTypes.map { (extension, path, imports, receivers) ->
         ScriptDefinition.FromConfigurations(
             scriptHostConfig,
             HollowScriptConfiguration(classpath) {
                 baseClass.replaceOnlyDefault(KotlinType(path))
                 fileExtension.replaceOnlyDefault(extension)
                 defaultImports(imports)
+                implicitReceivers(receivers.map { KotlinType(it) })
             },
             ScriptEvaluationConfiguration()
         )

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.MinecraftServer
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
@@ -33,7 +34,10 @@ object DefaultScriptDefinitions {
                 extension = "node.kts",
                 baseClass = ComponentScript::class.qualifiedName!!,
                 defaultImports = listOf(
+                    "ru.hollowhorizon.hollowengine.common.coroutines.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",
+                    "kotlinx.coroutines.delay",
+                    "kotlinx.coroutines.yield",
                     ResourceLocation::class.qualifiedName!!,
                     "net.minecraft.nbt.CompoundTag",
                     "net.minecraft.world.entity.Entity",
@@ -47,6 +51,9 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",
                     "ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode",
+                ),
+                implicitReceivers = listOf(
+                    MinecraftServer::class
                 )
             )
         }

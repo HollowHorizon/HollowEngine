@@ -11,6 +11,8 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateExecutor
+import kotlin.script.experimental.api.constructorArgs
+import kotlin.script.experimental.api.implicitReceivers
 
 class ComponentSystem(val server: MinecraftServer) {
     private val components = mutableMapOf<String, Component>()
@@ -89,7 +91,10 @@ fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: Sta
     }
 
     val script = runCatching {
-        scripting.compiler.compile(path.fromReadablePath()).getOrThrow().execute<ComponentScript>(path).getOrThrow()
+        scripting.compiler.compile(path.fromReadablePath()).getOrThrow().execute<ComponentScript> {
+            constructorArgs(path)
+            implicitReceivers(this@addNode)
+        }.getOrThrow()
     }.onFailure {
         HollowEngine.LOGGER.error("Error while loading $path", it)
     }.getOrNull() ?: return

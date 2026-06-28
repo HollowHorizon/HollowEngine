@@ -4,7 +4,10 @@ import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.HollowEngineScriptEvaluator
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
 import kotlin.reflect.KClass
-import kotlin.script.experimental.api.*
+import kotlin.script.experimental.api.ResultValue
+import kotlin.script.experimental.api.ResultWithDiagnostics
+import kotlin.script.experimental.api.ScriptEvaluationConfiguration
+import kotlin.script.experimental.api.with
 
 data class CompiledScriptImpl(
     override val name: String,
@@ -20,14 +23,11 @@ data class CompiledScriptImpl(
     override val type: KClass<*>
         get() = scriptClassDelegate.value
 
-    @Suppress("UNCHECKED_CAST")
-    override fun <T> execute(vararg constructorArgs: Any?): Result<T> {
+    override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
         val evaluator = HollowEngineScriptEvaluator()
 
         val result = runScriptingBlocking {
-            evaluator(script, evalConfiguration.with {
-                constructorArgs(*constructorArgs)
-            })
+            evaluator(script, evalConfiguration.with(body))
         }
 
         return if (result is ResultWithDiagnostics.Success) {

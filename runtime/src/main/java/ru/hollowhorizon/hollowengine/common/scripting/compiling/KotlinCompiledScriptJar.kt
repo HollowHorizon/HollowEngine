@@ -78,11 +78,9 @@ internal class KotlinCompiledScriptJar(
     override val type: KClass<*>
         get() = scriptClass.value
 
-    override fun <T> execute(vararg constructorArgs: Any?): Result<T> {
+    override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
         val result = runBlocking {
-            evaluator(script, evaluationConfiguration.with {
-                constructorArgs(*constructorArgs)
-            })
+            evaluator(script, evaluationConfiguration.with(body))
         }
 
         return if (result is ResultWithDiagnostics.Success) {
