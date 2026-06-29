@@ -209,18 +209,17 @@ class HollowUiRuntime(
         root: UiNode,
         width: Float,
         height: Float,
-        bindings: UiBindingContext = UiBindingContext(),
         nowMillis: Long = 0L,
     ): HollowUiFrame {
         UiNodeKeys.assign(root)
         scrollState.update(nowMillis)
-        val resolved = resolver.resolve(root, bindings, nowMillis)
+        val resolved = resolver.resolve(root, nowMillis)
         val transitionDurations = collectTransitionDurations(resolved)
-        var layout = layoutPipeline.compute(resolved, width, height, scrollState, bindings)
+        var layout = layoutPipeline.compute(resolved, width, height, scrollState)
         if (ensureFocusedTextFieldsVisible(resolved, layout)) {
-            layout = layoutPipeline.compute(resolved, width, height, scrollState, bindings)
+            layout = layoutPipeline.compute(resolved, width, height, scrollState)
         }
-        val commands = commandRenderer.collect(resolved, layout, bindings, nowMillis, typingState)
+        val commands = commandRenderer.collect(resolved, layout, nowMillis, typingState)
         return HollowUiFrame(
             resolved = resolved,
             layout = layout,

@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 
-import java.util.ArrayDeque
-import java.util.IdentityHashMap
+import java.util.*
 
 internal sealed interface PlacementTask
 
@@ -19,7 +18,6 @@ internal data class NodePlacementTask(
     val scrollState: UiScrollState,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     val layouts: MutableMap<UiNode, UiLayoutNode>,
-    val bindings: UiBindingContext,
 ) : PlacementTask
 
 internal data class PopupPlacementTask(
@@ -33,7 +31,6 @@ internal data class PopupPlacementTask(
     val scrollState: UiScrollState,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     val layouts: MutableMap<UiNode, UiLayoutNode>,
-    val bindings: UiBindingContext,
 ) : PlacementTask
 
 internal class LayoutPass(root: UiNode) {

@@ -17,21 +17,16 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
-import net.minecraft.nbt.TagParser
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.system
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -68,7 +63,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerLightCommands()
             registerUtilityCommands()
             registerScriptingCommands()
-            registerUiCommands()
         }
     }
 }
@@ -708,72 +702,6 @@ private fun CommandExtension.registerScriptingCommands() {
         }
     }
 }
-
-private fun CommandExtension.registerUiCommands() {
-    "ui" {
-        requires { hasPermission(2) }
-
-        "open"(
-            arg("path", StringArgumentType.string()),
-            arg("variables", StringArgumentType.greedyString())
-        ) {
-            executes {
-                val path = StringArgumentType.getString(this, "path")
-                val variablesRaw = StringArgumentType.getString(this, "variables")
-                val player = source.playerOrException
-                val variables = parseUiVariables(variablesRaw)
-                runCatching {
-                    //TODO: katariUi(path).openScreenFromCommand(player, variables)
-                }.onSuccess {
-                    sendSuccess { "UI opened: $path".literal }
-                }.onFailure { error ->
-                    HollowEngine.LOGGER.error("UI open failed", error)
-                    sendFailure("UI open failed: ${error.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-
-        "open"(arg("path", StringArgumentType.string())) {
-            executes {
-                val path = StringArgumentType.getString(this, "path")
-                val player = source.playerOrException
-                runCatching {
-                    //TODO: katariUi(path).openScreenFromCommand(player, CompoundTag())
-                }.onSuccess {
-                    sendSuccess { "UI opened: $path".literal }
-                }.onFailure { error ->
-                    HollowEngine.LOGGER.error("UI open failed", error)
-                    sendFailure("UI open failed: ${error.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-
-        "clear-overlays"(arg("player", EntityArgument.player())) {
-            executes {
-                ClearOverlaysPacket().send(EntityArgument.getPlayer(this, "player"))
-                SUCCESS
-            }
-        }
-    }
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class ClearOverlaysPacket : HollowPacket {
-    override fun handle(player: Player) {
-        KatariUiOverlays.closeAll()
-    }
-
-}
-
-private fun parseUiVariables(raw: String): CompoundTag {
-    if (raw.isBlank()) return CompoundTag()
-    return TagParser.parseTag(raw)
-}
-
-private fun Tag?.describeTag(): String = this?.toString() ?: "<null>"
 
 // region Particle Functions
 private fun spawnParticleAtPosition(particleName: String, pos: Vec3) {

@@ -4,7 +4,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 internal data class MeasureCacheKey(
     val nodeId: Int,
     val subtreeRevision: Long,
-    val bindingsHash: Int,
     val availableWidth: Float,
     val availableHeight: Float,
     val widthOverride: Float?,
@@ -19,7 +18,6 @@ internal data class MeasureCacheKey(
 internal data class FlowChildrenCacheKey(
     val nodeId: Int,
     val subtreeRevision: Long,
-    val bindingsHash: Int,
     val availableWidth: Float,
     val availableHeight: Float,
     val deferFlexibleWidth: Boolean,
@@ -31,7 +29,6 @@ internal data class FlowChildrenCacheKey(
 internal data class InlineWidgetMetricsCacheKey(
     val nodeId: Int,
     val subtreeRevision: Long,
-    val bindingsHash: Int,
     val availableWidth: Float,
     val availableHeight: Float,
 )
@@ -39,7 +36,6 @@ internal data class InlineWidgetMetricsCacheKey(
 internal data class IntrinsicSizeCacheKey(
     val nodeId: Int,
     val subtreeRevision: Long,
-    val bindingsHash: Int,
     val availableWidth: Float,
     val availableHeight: Float,
     val knownContentWidth: Float?,
@@ -58,14 +54,12 @@ internal data class MeasureRequest(
     val deferFlexibleHeight: Boolean = false,
     val allowWidthOverflow: Boolean = false,
     val allowHeightOverflow: Boolean = false,
-    val bindings: UiBindingContext = UiBindingContext(),
 ) {
     fun cacheKey(): MeasureCacheKey {
         val reserve = scrollbarReserves[node] ?: UiScrollbarReserve.None
         return MeasureCacheKey(
             nodeId = System.identityHashCode(node),
             subtreeRevision = node.layoutState.subtreeRevision,
-            bindingsHash = bindings.root.hashCode(),
             availableWidth = availableWidth.layoutCacheValue(),
             availableHeight = availableHeight.layoutCacheValue(),
             widthOverride = widthOverride?.layoutCacheValue(),

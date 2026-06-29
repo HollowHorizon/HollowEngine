@@ -40,8 +40,6 @@ class ScriptedUiScreen(
         UiXmlContent(root, UiXmlOptions(eventSink = sink))
     }
 
-    override fun bindings(): UiBindingContext = UiBindingContext(variables)
-
     override fun eventSink(): UiEventSink = sink
 }
 
@@ -349,7 +347,6 @@ private class KatariUiOverlay(
         return surface.frame(
             window.guiScaledWidth.toFloat(),
             window.guiScaledHeight.toFloat(),
-            UiBindingContext(variables).withPointer(lastMouseX, lastMouseY),
             nowMillis,
             prepareRoot = { root ->
                 node = root
@@ -366,7 +363,6 @@ private class KatariUiOverlay(
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {
-        event.variables = variables
         var handled = false
         if (!event.consumed && event.node.dispatch(event)) handled = true
         return handled

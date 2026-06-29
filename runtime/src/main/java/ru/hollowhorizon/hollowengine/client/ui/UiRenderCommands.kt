@@ -225,15 +225,14 @@ class UiCommandRenderer {
     fun collect(
         resolved: ResolvedUiTree,
         layout: UiLayoutResult,
-        bindings: UiBindingContext = UiBindingContext(),
         nowMillis: Long = 0L,
         typingState: UiTypingState = UiTypingState(),
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands)
+        collectNode(resolved.root, resolved, layout, nowMillis, typingState, commands)
         layout.popupNodes
             .sortedBy { resolved[it].layer }
-            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
+            .forEach { collectNode(it, resolved, layout, nowMillis, typingState, commands) }
         return commands
     }
 
@@ -241,7 +240,6 @@ class UiCommandRenderer {
         node: UiNode,
         resolved: ResolvedUiTree,
         layout: UiLayoutResult,
-        bindings: UiBindingContext,
         nowMillis: Long,
         typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>,
@@ -303,7 +301,7 @@ class UiCommandRenderer {
                     }
 
                     if (!cullNodeCommands) {
-                        appendBackgroundCommand(current, style, layoutNode, bindings, localOpacity, baseFilter, commands)
+                        appendBackgroundCommand(current, style, layoutNode, localOpacity, baseFilter, commands)
                     }
 
                     if (!cullNodeCommands && pushedClip) {
@@ -322,7 +320,6 @@ class UiCommandRenderer {
                             layoutNode,
                             layout,
                             baseFilter,
-                            bindings,
                             nowMillis,
                             typingState,
                             commands,
@@ -357,7 +354,6 @@ class UiCommandRenderer {
                             task.layoutNode,
                             task.style,
                             task.localOpacity,
-                            bindings,
                             commands
                         )
                     }
@@ -374,7 +370,6 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
         filter: UiFilterChain,
-        bindings: UiBindingContext,
         nowMillis: Long,
         typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>
@@ -388,13 +383,13 @@ class UiCommandRenderer {
 
         when (node) {
             is TextNode -> {
-                val fullContent = node.content.resolve(bindings)
+                val fullContent = node.content.resolve()
                 val visibleContent = fullContent.visibleBy(
                     style.typing,
                     typingState.elapsed(node, style.typing, fullContent.text, nowMillis),
                 )
                 val textString = visibleContent.text
-                val fullLayout = layoutNode.textLayout ?: fallbackTextLayout(node, style, layoutNode, layout, bindings)
+                val fullLayout = layoutNode.textLayout ?: fallbackTextLayout(node, style, layoutNode, layout)
                 val textLayout = if (style.typing == null) {
                     fullLayout
                 } else {
@@ -409,12 +404,12 @@ class UiCommandRenderer {
                     layoutNode.scrollOffset, node.hoveredLink, backface
                 )
             }
-            is ImageNode -> commands += DrawImageCommand(node, layoutNode.content, node.source.resolve(bindings), opacity, style.tint, contentTransform, false, style.imageFit, style.imageSlice, filter, backface)
-            is ItemNode -> commands += DrawItemCommand(node, layoutNode.content, node.item.resolve(bindings), opacity, contentTransform, filter, backface)
-            is EntityNode -> commands += DrawEntityCommand(node, layoutNode.content, node.entity.resolve(bindings), opacity, contentTransform, false, filter, backface)
+            is ImageNode -> commands += DrawImageCommand(node, layoutNode.content, node.source.resolve(), opacity, style.tint, contentTransform, false, style.imageFit, style.imageSlice, filter, backface)
+            is ItemNode -> commands += DrawItemCommand(node, layoutNode.content, node.item.resolve(), opacity, contentTransform, filter, backface)
+            is EntityNode -> commands += DrawEntityCommand(node, layoutNode.content, node.entity.resolve(), opacity, contentTransform, false, filter, backface)
             is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
-            is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
-            is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, bindings, backface)
+            is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, backface)
+            is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, backface)
             is TextFieldNode -> appendTextFieldCommands(
                 node,
                 style,
@@ -433,16 +428,15 @@ class UiCommandRenderer {
         node: UiNode,
         style: ComputedStyle,
         layoutNode: UiLayoutNode,
-        bindings: UiBindingContext,
         opacity: Float,
         filter: UiFilterChain,
         commands: MutableList<UiRenderCommand>,
     ) {
         val shape = style.shape
         if (shape != null) {
-            val fill = (style.shapeFill ?: style.background).resolve(bindings)
+            val fill = (style.shapeFill ?: style.background).resolve()
             val strokePaint = style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
-            val stroke = strokePaint.resolve(bindings, UiPaint.None)
+            val stroke = strokePaint.resolve(UiPaint.None)
             val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
             if (fill != UiResolvedPaint.None || stroke != UiResolvedPaint.None && strokeWidth > 0f) {
                 commands += DrawShapeCommand(
@@ -463,7 +457,7 @@ class UiCommandRenderer {
         }
         if (style.background == UiPaint.None && style.border.width == UiInsets.Zero) return
         commands += DrawBoxCommand(
-            node = node, rect = layoutNode.rect, paint = style.background.resolve(bindings),
+            node = node, rect = layoutNode.rect, paint = style.background.resolve(),
             border = style.border, shadows = emptyList(), opacity = opacity, tint = style.tint,
             transform = layoutNode.worldTransform, renderToFramebuffer = false,
             fit = style.imageFit, slice = style.imageSlice, filter = filter,
@@ -476,11 +470,10 @@ class UiCommandRenderer {
         style: ComputedStyle,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
-        bindings: UiBindingContext,
     ): UiTextLayout {
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
         return UiTextLayouter.layout(
-            node.content.resolve(bindings).toRichText(node.inlineWidgetMetrics(layout)),
+            node.content.resolve().toRichText(node.inlineWidgetMetrics(layout)),
             layoutNode.content.width,
             textHeight,
             style.textWrap,
@@ -499,7 +492,6 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         transform: UiMatrix4,
         filter: UiFilterChain,
-        bindings: UiBindingContext,
         backface: UiBackfaceVisibility,
     ): DrawSliderCommand {
         val slider = style.slider
@@ -510,9 +502,9 @@ class UiCommandRenderer {
             value = node.value,
             fraction = node.fraction,
             trackThickness = (slider.trackThickness ?: 4.px).resolve(layoutNode.content.height),
-            trackPaint = slider.trackPaint.resolve(bindings, UiPaint.Color(UiColor(0.24f, 0.27f, 0.32f, 1f))),
-            activeTrackPaint = slider.activeTrackPaint.resolve(bindings, UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
-            thumbPaint = slider.thumbPaint.resolve(bindings, UiPaint.Color(UiColor.White)),
+            trackPaint = slider.trackPaint.resolve(UiPaint.Color(UiColor(0.24f, 0.27f, 0.32f, 1f))),
+            activeTrackPaint = slider.activeTrackPaint.resolve(UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
+            thumbPaint = slider.thumbPaint.resolve(UiPaint.Color(UiColor.White)),
             thumbBorder = slider.thumbBorder ?: UiBorder(UiInsets.all(1.px), UiColor(0.06f, 0.07f, 0.08f, 0.45f), 6f),
             thumbWidth = thumb.width.resolve(layoutNode.content.width, 12f),
             thumbHeight = thumb.height.resolve(layoutNode.content.height, 12f),
@@ -531,7 +523,6 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         transform: UiMatrix4,
         filter: UiFilterChain,
-        bindings: UiBindingContext,
         backface: UiBackfaceVisibility,
     ): DrawCheckboxCommand {
         val checkbox = style.checkbox
@@ -540,8 +531,8 @@ class UiCommandRenderer {
             rect = layoutNode.content,
             checked = node.checked,
             variant = checkbox.variant ?: node.variant,
-            activePaint = checkbox.activePaint.resolve(bindings, UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
-            markPaint = checkbox.markPaint.resolve(bindings, UiPaint.Color(UiColor.White)),
+            activePaint = checkbox.activePaint.resolve(UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
+            markPaint = checkbox.markPaint.resolve(UiPaint.Color(UiColor.White)),
             opacity = opacity,
             transform = transform,
             filter = filter,
@@ -649,7 +640,6 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         style: ComputedStyle,
         opacity: Float,
-        bindings: UiBindingContext,
         commands: MutableList<UiRenderCommand>,
     ) {
         for (scrollbar in layoutNode.scrollbars) {
@@ -664,7 +654,7 @@ class UiCommandRenderer {
             commands += scrollbarBoxCommand(
                 node = node,
                 rect = scrollbar.track,
-                paint = scrollbarStyle.track.paint.resolve(bindings, UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
+                paint = scrollbarStyle.track.paint.resolve(UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
                 border = scrollbarStyle.track.border ?: UiBorder(radius = scrollbarStyle.track.radius ?: 3.5f),
                 fit = scrollbarStyle.track.fit ?: UiImageFit.STRETCH,
                 slice = scrollbarStyle.track.slice ?: UiInsets.all(4.px),
@@ -676,7 +666,6 @@ class UiCommandRenderer {
                 node = node,
                 rect = scrollbar.thumb,
                 paint = scrollbarStyle.thumb.paint.resolve(
-                    bindings,
                     UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, thumbOpacity)),
                 ),
                 border = scrollbarStyle.thumb.border ?: UiBorder(radius = scrollbarStyle.thumb.radius ?: 3.5f),
@@ -794,17 +783,17 @@ sealed interface UiResolvedPaint {
     data class Shader(val name: String) : UiResolvedPaint
 }
 
-private fun UiPaint.resolve(bindings: UiBindingContext): UiResolvedPaint = when (this) {
+private fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None
     is UiPaint.Color -> UiResolvedPaint.Color(color)
     is UiPaint.LinearGradient -> UiResolvedPaint.LinearGradient(angleDegrees, stops)
     is UiPaint.RadialGradient -> UiResolvedPaint.RadialGradient(gradient)
-    is UiPaint.Image -> UiResolvedPaint.Image(source.resolve(bindings))
-    is UiPaint.Shader -> UiResolvedPaint.Shader(name.resolve(bindings))
+    is UiPaint.Image -> UiResolvedPaint.Image(source.resolve())
+    is UiPaint.Shader -> UiResolvedPaint.Shader(name.resolve())
 }
 
-private fun UiPaint?.resolve(bindings: UiBindingContext, fallback: UiPaint): UiResolvedPaint =
-    (this ?: fallback).resolve(bindings)
+private fun UiPaint?.resolve(fallback: UiPaint): UiResolvedPaint =
+    (this ?: fallback).resolve()
 
 data class UiHit(
     val node: UiNode,

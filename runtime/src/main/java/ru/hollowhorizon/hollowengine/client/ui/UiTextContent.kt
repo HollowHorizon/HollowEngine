@@ -3,9 +3,9 @@ package ru.hollowhorizon.hollowengine.client.ui
 data class UiTextContent(
     val segments: List<UiTextSegment>,
 ) {
-    fun resolve(bindings: UiBindingContext): UiResolvedTextContent {
+    fun resolve(): UiResolvedTextContent {
         return UiResolvedTextContent(
-            segments.map { it.resolve(bindings) },
+            segments.map { it.resolve() },
         )
     }
 
@@ -50,7 +50,7 @@ data class UiTextContent(
 }
 
 sealed interface UiTextSegment {
-    fun resolve(bindings: UiBindingContext): UiResolvedTextSegment
+    fun resolve(): UiResolvedTextSegment
 
     companion object {
         fun inlineWidget(
@@ -64,8 +64,8 @@ sealed interface UiTextSegment {
         val value: UiBoundString,
         val style: UiInlineStyle = UiInlineStyle(),
     ) : UiTextSegment {
-        override fun resolve(bindings: UiBindingContext): UiResolvedTextSegment {
-            return UiResolvedTextSegment.Text(value.resolve(bindings), style)
+        override fun resolve(): UiResolvedTextSegment {
+            return UiResolvedTextSegment.Text(value.resolve(), style)
         }
     }
 
@@ -76,8 +76,8 @@ sealed interface UiTextSegment {
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiTextSegment {
-        override fun resolve(bindings: UiBindingContext): UiResolvedTextSegment {
-            return UiResolvedTextSegment.Image(source.resolve(bindings), width, height, align, alt)
+        override fun resolve(): UiResolvedTextSegment {
+            return UiResolvedTextSegment.Image(source.resolve(), width, height, align, alt)
         }
     }
 
@@ -86,7 +86,7 @@ sealed interface UiTextSegment {
         val align: UiInlineAlign = UiInlineAlign.BASELINE,
         val alt: String = "",
     ) : UiTextSegment {
-        override fun resolve(bindings: UiBindingContext): UiResolvedTextSegment {
+        override fun resolve(): UiResolvedTextSegment {
             return UiResolvedTextSegment.Widget(id, align, alt)
         }
     }
@@ -94,7 +94,7 @@ sealed interface UiTextSegment {
     data class Pause(
         val delayMillis: Long,
     ) : UiTextSegment {
-        override fun resolve(bindings: UiBindingContext): UiResolvedTextSegment {
+        override fun resolve(): UiResolvedTextSegment {
             return UiResolvedTextSegment.Pause(delayMillis)
         }
     }

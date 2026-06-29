@@ -21,7 +21,6 @@ abstract class HollowUiScreen(
     private val surface = HollowUiSurface(stylesheet = stylesheet)
     private val renderer = MinecraftUiRenderer()
     private var frame: HollowUiFrame? = null
-    private var cachedRoot: UiNode? = null
     private var prepareScriptsJob: Job? = null
     private var uiDirty = true
     private var lastWidth = -1
@@ -43,8 +42,6 @@ abstract class HollowUiScreen(
         private set
 
     protected abstract fun buildUi(): UiNode
-
-    protected open fun bindings(): UiBindingContext = UiBindingContext()
 
     protected open fun eventSink(): UiEventSink = UiEventSink.None
 
@@ -107,7 +104,8 @@ abstract class HollowUiScreen(
         val nowMillis = System.currentTimeMillis()
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
-        val current = updateUi(nowMillis) ?: return
+        refreshFrame(System.currentTimeMillis())
+        val current = frame ?: return
         if (completeClosingIfReady(current, nowMillis)) return
         val activeFrame = if (closing) {
             current
@@ -127,7 +125,7 @@ abstract class HollowUiScreen(
         if (closing) return
         this.mouseX = mouseX.toFloat()
         this.mouseY = mouseY.toFloat()
-        val current = currentFrameForInput() ?: return
+        val current = frame ?: return
         val hoverChanged = input.updateHover(current, mouseX.toFloat(), mouseY.toFloat(), ::dispatchUiEvent)
         applyCursor(current)
         if (hoverChanged) {
@@ -254,44 +252,17 @@ abstract class HollowUiScreen(
         return UiNodeKeys.key(node) == key || node.hasDescendantKey(key)
     }
 
-    private fun currentRoot(): UiNode {
-        if (cachedRoot == null || uiDirty || rebuildEveryFrame()) {
-            cachedRoot = buildUi()
-            input.prepareRoot(cachedRoot!!, closing)
-            uiDirty = false
-            lastWidth = width
-            lastHeight = height
-        }
-        return cachedRoot!!
-    }
-
     private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
         surface.setScrollImmediate(node, offset.x, offset.y)
     }
 
-    private fun updateUi(nowMillis: Long = System.currentTimeMillis(), force: Boolean = false): HollowUiFrame? {
-        if (width <= 0 || height <= 0) return frame
-        val uiChanged = applyPendingUiChanges(nowMillis * NanosPerMillisecond)
-        if (uiChanged) uiDirty = true
-        val root = cachedRoot
-        val sizeChanged = width != lastWidth || height != lastHeight
-        val stylesheetChanged = root?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
-        val pointerChanged = mouseX != lastFrameMouseX || mouseY != lastFrameMouseY
-        val needsPointerRebuild = pointerChanged && root?.hasLiveCursorPopup() == true
-        val needsRebuild = force ||
-                frame == null ||
-                uiDirty ||
-                sizeChanged ||
-                stylesheetChanged ||
-                rebuildEveryFrame() ||
-                needsPointerRebuild
-        return if (needsRebuild) refreshFrame(nowMillis) else frame
-    }
-
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
-        val root = currentRoot()
-        input.prepareRoot(root, closing)
-        val nextFrame = surface.frame(root, width.toFloat(), height.toFloat(), bindings().withPointer(mouseX, mouseY), nowMillis)
+        buildUi()
+        val root: BoxNode
+        val nextFrame = surface.frame(width.toFloat(), height.toFloat(), nowMillis) {
+            input.prepareRoot(it, closing)
+            root = it
+        }
         frame = nextFrame
         lastFrameMouseX = mouseX
         lastFrameMouseY = mouseY
@@ -299,17 +270,6 @@ abstract class HollowUiScreen(
         lastWidth = width
         lastHeight = height
         return nextFrame
-    }
-
-    private fun currentFrameForInput(): HollowUiFrame? {
-        if (width <= 0 || height <= 0) return frame
-        if (frame == null) return refreshFrame()
-        val sizeChanged = width != lastWidth || height != lastHeight
-        val stylesheetChanged = cachedRoot?.let { it.stylesheetRevision() != lastStylesheetRevision } ?: false
-        val pointerChanged = mouseX != lastFrameMouseX || mouseY != lastFrameMouseY
-        val needsPointerRebuild = pointerChanged && cachedRoot?.hasLiveCursorPopup() == true
-        if (sizeChanged || stylesheetChanged || needsPointerRebuild || rebuildEveryFrame()) uiDirty = true
-        return frame
     }
 
     override fun removed() {
@@ -350,8 +310,6 @@ abstract class HollowUiScreen(
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {
-        val variables = bindings().root
-        event.variables = variables
         var handled = false
         if (!event.consumed && event.node.dispatch(event)) handled = true
         return handled

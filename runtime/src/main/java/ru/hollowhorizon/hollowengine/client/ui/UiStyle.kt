@@ -863,7 +863,7 @@ data class UiInputStyle(
 }
 
 data class UiBoundString(val template: String) {
-    fun resolve(bindings: UiBindingContext): String = bindings.resolve(template)
+    fun resolve(): String = template
 }
 
 class UiTransitionState {

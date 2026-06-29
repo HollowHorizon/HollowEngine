@@ -7,14 +7,13 @@ internal fun applyScrollRanges(
     resolved: ResolvedUiTree,
     layouts: Map<UiNode, UiLayoutNode>,
     scrollState: UiScrollState,
-    bindings: UiBindingContext,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiLayoutNode> {
     val result = layouts.toMutableMap()
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings, layoutChildren)
+        val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val range = UiScrollOffset(
             x = maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)),
             y = maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)),
@@ -87,14 +86,13 @@ private fun scrollbarGeometry(style: ComputedStyle, layoutNode: UiLayoutNode): L
 internal fun detectScrollbarReserves(
     resolved: ResolvedUiTree,
     layouts: Map<UiNode, UiLayoutNode>,
-    bindings: UiBindingContext,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiScrollbarReserve> {
     val reserves = linkedMapOf<UiNode, UiScrollbarReserve>()
     for ((node, layout) in layouts) {
         val style = resolved[node]
         if (!style.input.scrollable) continue
-        val childBounds = scrollableContentBounds(node, style, layout, layouts, bindings, layoutChildren)
+        val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val reserve = UiScrollbarReserve(
             vertical = (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
             horizontal = (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
@@ -109,13 +107,12 @@ private fun scrollableContentBounds(
     style: ComputedStyle,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
-    bindings: UiBindingContext,
     layoutChildren: (UiNode) -> List<UiNode>,
 ): UiRect {
     layout.virtualContentBounds?.let { return it }
     if (node is TextNode || node is TextFieldNode) {
         val textLayout = if (node is TextNode) {
-            layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, bindings, layoutChildren)
+            layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, layoutChildren)
         } else {
             val field = node as TextFieldNode
             layout.textLayout ?: textFieldDisplayLayout(
@@ -150,7 +147,6 @@ private fun textLayoutForScrollBounds(
     style: ComputedStyle,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
-    bindings: UiBindingContext,
     layoutChildren: (UiNode) -> List<UiNode>,
 ): UiTextLayout {
     val widgetMetrics = layoutChildren(node).mapNotNull { child ->
@@ -159,7 +155,7 @@ private fun textLayoutForScrollBounds(
         id to UiInlineWidgetMetrics(rect.width, rect.height)
     }.toMap()
     return UiTextLayouter.layout(
-        node.content.resolve(bindings).toRichText(widgetMetrics),
+        node.content.resolve().toRichText(widgetMetrics),
         layout.content.width,
         Float.POSITIVE_INFINITY,
         style.textWrap,

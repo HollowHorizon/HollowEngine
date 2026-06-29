@@ -3,8 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.StyleRule
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
-import java.util.ArrayDeque
-import java.util.WeakHashMap
+import java.util.*
 
 data class ResolvedUiTree(
     val root: UiNode,
@@ -34,7 +33,6 @@ class UiStyleResolver(
 
     fun resolve(
         root: UiNode,
-        bindings: UiBindingContext = UiBindingContext(),
         nowMillis: Long = 0L,
         animate: Boolean = true,
     ): ResolvedUiTree {
@@ -43,12 +41,11 @@ class UiStyleResolver(
             root = root,
             subtreeRevision = root.layoutState.subtreeRevision,
             stylesheetRevision = stylesheetRevision,
-            bindingsHash = bindings.root.hashCode(),
             animate = animate,
         )
         treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.tree }
         val styles = linkedMapOf<UiNode, ComputedStyle>()
-        resolveNodes(root, bindings, nowMillis, animate, styles)
+        resolveNodes(root, nowMillis, animate, styles)
         return ResolvedUiTree(root, styles).also { tree ->
             treeCache = TreeCacheEntry(
                 key = treeKey.copy(
@@ -63,7 +60,6 @@ class UiStyleResolver(
 
     private fun resolveNodes(
         root: UiNode,
-        bindings: UiBindingContext,
         nowMillis: Long,
         animate: Boolean,
         styles: MutableMap<UiNode, ComputedStyle>,
@@ -75,7 +71,7 @@ class UiStyleResolver(
             val node = task.node
             val modifiers = node.modifiers.flattenModifiers()
             val scopedScope = scopedStyleScope(node, task.scope, modifiers)
-            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers, bindings)
+            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers)
             val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
             val finalStyle = if (animate) {
                 animations.apply(node, transitioned, scopedScope.keyframes, nowMillis)
@@ -117,12 +113,10 @@ class UiStyleResolver(
         parent: ComputedStyle?,
         scope: StyleScope,
         modifiers: List<Modifier>,
-        bindings: UiBindingContext,
     ): ComputedStyle {
         val key = StyleCacheKey(
             scopeId = scope.id,
             parent = parent,
-            bindingsHash = bindings.root.hashCode(),
             node = node.styleSnapshot(modifiers),
         )
         styleCache[node]?.takeIf { it.key == key }?.let {
@@ -130,14 +124,14 @@ class UiStyleResolver(
             return it.style
         }
         val mutable = engineDefaults(node)
-        applyRules(theme?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.THEME_DEFAULTS)
-        applyRules(stylesheet?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.STYLESHEET)
+        applyRules(theme?.rules.orEmpty(), node, mutable, StyleOrigin.THEME_DEFAULTS)
+        applyRules(stylesheet?.rules.orEmpty(), node, mutable, StyleOrigin.STYLESHEET)
         scope.stylesheets.forEach { scoped ->
-            applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STYLESHEET)
+            applyRules(scoped.rules, node, mutable, StyleOrigin.STYLESHEET)
         }
-        applyRules(stylesheet?.rules.orEmpty(), node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
+        applyRules(stylesheet?.rules.orEmpty(), node, mutable, StyleOrigin.STATE_STYLESHEET)
         scope.stylesheets.forEach { scoped ->
-            applyRules(scoped.rules, node, bindings, mutable, StyleOrigin.STATE_STYLESHEET)
+            applyRules(scoped.rules, node, mutable, StyleOrigin.STATE_STYLESHEET)
         }
         mutable.merge(modifiers.style())
         applyAttributeStyles(node, mutable)
@@ -150,13 +144,12 @@ class UiStyleResolver(
     private fun applyRules(
         rules: List<StyleRule>,
         node: UiNode,
-        bindings: UiBindingContext,
         target: MutableUiStyle,
         origin: StyleOrigin,
     ) {
         rules.asSequence().filter { it.origin == origin && it.matches(node) }
             .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
-            .forEach { it.patch.apply(target, bindings) }
+            .forEach { it.patch.apply(target) }
     }
 
     private fun applyAttributeStyles(node: UiNode, target: MutableUiStyle) {
@@ -279,7 +272,6 @@ private data class NodeStyleSnapshot(
 private data class StyleCacheKey(
     val scopeId: Long,
     val parent: ComputedStyle?,
-    val bindingsHash: Int,
     val node: NodeStyleSnapshot,
 )
 
@@ -292,7 +284,6 @@ private data class TreeCacheKey(
     val root: UiNode,
     val subtreeRevision: Long,
     val stylesheetRevision: Long,
-    val bindingsHash: Int,
     val animate: Boolean,
 )
 

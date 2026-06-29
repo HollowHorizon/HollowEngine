@@ -1,11 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import org.lwjgl.glfw.GLFW
@@ -17,7 +12,10 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCodeEditor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeView
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
@@ -368,7 +366,8 @@ object HollowIdeOverlay {
             ProjectTreeId -> ProjectTree()
             EditorWelcomeId -> EmptyEditor()
             CutsceneTimelineId -> CutsceneTimelineDock(CutsceneEditorSessions.default)
-            else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) } ?: EmptyEditor()
+            else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) }
+                ?: EmptyEditor()
         }
     }
 
@@ -463,11 +462,12 @@ object HollowIdeOverlay {
             if (diagnosticsPanels[file.id] == true) {
                 val height = diagnosticsPanelHeights[file.id] ?: DefaultDiagnosticsPanelHeight
                 HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, delta ->
-                    diagnosticsPanelHeights[id] = ((diagnosticsPanelHeights[id] ?: DefaultDiagnosticsPanelHeight) + delta)
-                        .coerceIn(
-                            MinDiagnosticsPanelHeight,
-                            MaxDiagnosticsPanelHeight,
-                        )
+                    diagnosticsPanelHeights[id] =
+                        ((diagnosticsPanelHeights[id] ?: DefaultDiagnosticsPanelHeight) + delta)
+                            .coerceIn(
+                                MinDiagnosticsPanelHeight,
+                                MaxDiagnosticsPanelHeight,
+                            )
                 }
             }
         }
@@ -668,25 +668,23 @@ object HollowIdeOverlay {
     private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         initialize()
         val window = Minecraft.getInstance().window
-        var root = surface.composeRoot(nowMillis * NanosPerMillisecond)
-        input.prepareRoot(root, closing = false)
+        val root: BoxNode
         var frame = surface.frame(
-            root = root,
             width = window.guiScaledWidth.toFloat(),
             height = window.guiScaledHeight.toFloat(),
-            bindings = UiBindingContext().withPointer(lastMouseX, lastMouseY),
             nowMillis = nowMillis,
-        )
+        ) {
+            input.prepareRoot(it, closing = false)
+            root = it
+        }
         if (editorOverlays.update(frame, lastMouseX, lastMouseY)) {
-            root = surface.composeRoot(nowMillis * NanosPerMillisecond)
-            input.prepareRoot(root, closing = false)
             frame = surface.frame(
-                root = root,
                 width = window.guiScaledWidth.toFloat(),
                 height = window.guiScaledHeight.toFloat(),
-                bindings = UiBindingContext().withPointer(lastMouseX, lastMouseY),
                 nowMillis = nowMillis,
-            )
+            ) {
+                input.prepareRoot(it, closing = false)
+            }
             editorOverlays.update(frame, lastMouseX, lastMouseY)
         }
         return frame.also {
@@ -711,7 +709,6 @@ object HollowIdeOverlay {
     }
 
     private fun dispatchNode(event: UiEvent): Boolean {
-        event.variables = UiBindingContext().root
         return event.node.dispatch(event)
     }
 

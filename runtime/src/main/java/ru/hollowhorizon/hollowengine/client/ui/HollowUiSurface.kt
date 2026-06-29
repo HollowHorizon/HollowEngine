@@ -2,6 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import kotlinx.coroutines.Dispatchers
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.coroutines.CoroutineContext
 
 class HollowUiSurface(
@@ -35,41 +38,21 @@ class HollowUiSurface(
         return composition.applyPendingChanges(nowNanos)
     }
 
+    @OptIn(ExperimentalContracts::class)
     fun frame(
         width: Float,
         height: Float,
-        bindings: UiBindingContext = UiBindingContext(),
         nowMillis: Long = 0L,
         prepareRoot: (BoxNode) -> Unit = {},
     ): HollowUiFrame {
+        contract {
+            callsInPlace(prepareRoot, InvocationKind.EXACTLY_ONCE)
+        }
+
         check(hasContent) { "UI content has not been set" }
         val root = composition.frameRoot(nowMillis * NanosPerMillisecond)
         prepareRoot(root)
-        return runtime.frame(root, width, height, bindings, nowMillis)
-    }
-
-    fun frame(
-        content: HollowUiContent,
-        width: Float,
-        height: Float,
-        bindings: UiBindingContext = UiBindingContext(),
-        nowMillis: Long = 0L,
-        prepareRoot: (BoxNode) -> Unit = {},
-    ): HollowUiFrame {
-        setContent(content)
-        return frame(width, height, bindings, nowMillis, prepareRoot)
-    }
-
-    fun frame(
-        root: UiNode,
-        width: Float,
-        height: Float,
-        bindings: UiBindingContext = UiBindingContext(),
-        nowMillis: Long = 0L,
-        prepareRoot: (UiNode) -> Unit = {},
-    ): HollowUiFrame {
-        prepareRoot(root)
-        return runtime.frame(root, width, height, bindings, nowMillis)
+        return runtime.frame(root, width, height, nowMillis)
     }
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {

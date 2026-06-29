@@ -18,13 +18,13 @@ data class StyleRule(
 }
 
 class StylePatch(private val instructions: List<StyleInstruction>) {
-    fun apply(style: MutableUiStyle, bindings: UiBindingContext) {
-        instructions.forEach { it.apply(style, bindings) }
+    fun apply(style: MutableUiStyle) {
+        instructions.forEach { it.apply(style) }
     }
 }
 
 fun interface StyleInstruction {
-    fun apply(style: MutableUiStyle, bindings: UiBindingContext)
+    fun apply(style: MutableUiStyle)
 }
 
 class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
@@ -51,7 +51,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
 
     private fun compileKeyframeStyle(declarations: List<HssDeclaration>): MutableUiStyle {
         val style = MutableUiStyle()
-        declarations.mapNotNull(::compileDeclaration).forEach { it.apply(style, UiBindingContext()) }
+        declarations.mapNotNull(::compileDeclaration).forEach { it.apply(style) }
         return style
     }
 
@@ -313,15 +313,15 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         }
     }
 
-    private fun instruction(writer: (MutableUiStyle) -> Unit) = StyleInstruction { style, _ -> writer(style) }
+    private fun instruction(writer: (MutableUiStyle) -> Unit) = StyleInstruction { style -> writer(style) }
 
     private fun instruction(vararg properties: UiStyleProperty, writer: (MutableUiStyle) -> Unit) =
-        StyleInstruction { style, _ ->
+        StyleInstruction { style ->
             writer(style)
             style.explicitProperties = style.explicitProperties.orEmpty() + properties
         }
 
-    private fun transitionInstruction(value: String) = StyleInstruction { style, _ ->
+    private fun transitionInstruction(value: String) = StyleInstruction { style ->
         val parsed = parseTransitions(value)
         style.transitions = if (UiStyleProperty.TRANSITIONS in style.explicitProperties.orEmpty()) {
             style.transitions.mergeUiTransitions(parsed)
@@ -342,7 +342,7 @@ fun compileHss(source: String, origin: StyleOrigin = StyleOrigin.STYLESHEET): Co
 
 fun compileStyleModifier(property: String, value: String): Modifier? {
     val instruction = HssCompiler().compileDeclaration(HssDeclaration(property, value)) ?: return null
-    return StyleModifier(property.explicitStyleProperties()) { style -> instruction.apply(style, UiBindingContext()) }
+    return StyleModifier(property.explicitStyleProperties()) { style -> instruction.apply(style) }
 }
 
 private fun String.explicitStyleProperties(): Set<UiStyleProperty> = when (lowercase()) {

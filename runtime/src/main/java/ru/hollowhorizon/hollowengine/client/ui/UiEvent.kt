@@ -80,8 +80,6 @@ data class UiEvent(
     var changed: Boolean = false
         private set
 
-    var variables: CompoundTag = CompoundTag()
-
     fun consume() {
         consumed = true
     }

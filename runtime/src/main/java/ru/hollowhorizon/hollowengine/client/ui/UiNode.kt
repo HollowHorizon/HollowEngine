@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import net.minecraft.nbt.CompoundTag
-import java.util.ArrayDeque
+import java.util.*
 
 interface UiNode {
     val type: String
@@ -210,79 +209,6 @@ fun UiNode.setClosingState(closing: Boolean) {
     }
 }
 
-data class UiBindingContext(val root: CompoundTag = CompoundTag()) {
-    fun resolve(template: String): String {
-        val result = StringBuilder()
-        var index = 0
-        while (index < template.length) {
-            val open = template.indexOf('{', index)
-            if (open < 0) {
-                result.append(template.substring(index))
-                break
-            }
-            val close = template.indexOf('}', open + 1)
-            if (close < 0) {
-                result.append(template.substring(index))
-                break
-            }
-            val content = template.substring(open + 1, close)
-            result.append(template.substring(index, open))
-            if (content.isInlineImageDimension()) {
-                result.append(template.substring(open, close + 1))
-            } else {
-                result.append(readPath(content))
-            }
-            index = close + 1
-        }
-        return result.toString()
-    }
-
-    private fun readPath(path: String): String {
-        val parts = path.split('.').filter { it.isNotBlank() }
-        if (parts.isEmpty()) return ""
-        var tag = root
-        for (part in parts.dropLast(1)) {
-            if (!tag.contains(part)) return ""
-            tag = tag.getCompound(part)
-        }
-        val key = parts.last()
-        if (!tag.contains(key)) return ""
-        return tag.getString(key)
-    }
-
-    private fun String.isInlineImageDimension(): Boolean {
-        val parts = split(',').map { it.trim() }
-        val size = parts.firstOrNull() ?: return false
-        val dimensions = size.split('x', 'X').map { it.trim().removeSuffix("px") }
-        if (dimensions.size !in 1..2) return false
-        if (dimensions.any { it.toFloatOrNull() == null }) return false
-        val align = parts.getOrNull(1) ?: return true
-        return align in setOf("baseline", "middle", "top", "bottom")
-    }
-}
-
-fun UiBindingContext.withPointer(x: Float, y: Float): UiBindingContext {
-    val next = root.copy()
-    val mouse = next.getCompound("mouse").copy()
-    mouse.putFloat("x", x)
-    mouse.putFloat("y", y)
-    next.put("mouse", mouse)
-    return UiBindingContext(next)
-}
-
-fun UiBindingContext.pointerX(default: Float = 0f): Float {
-    if (!root.contains("mouse")) return default
-    val mouse = root.getCompound("mouse")
-    return if (mouse.contains("x")) mouse.getFloat("x") else default
-}
-
-fun UiBindingContext.pointerY(default: Float = 0f): Float {
-    if (!root.contains("mouse")) return default
-    val mouse = root.getCompound("mouse")
-    return if (mouse.contains("y")) mouse.getFloat("y") else default
-}
-
-private fun Modifier?.asList(): List<Modifier> = if (this == null) emptyList() else listOf(this)
 
 private fun String.trimIdPrefix() = removePrefix("#")
 

@@ -20,7 +20,6 @@ internal data class ChildPlacementScope(
     val scrollState: UiScrollState,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     val layouts: MutableMap<UiNode, UiLayoutNode>,
-    val bindings: UiBindingContext,
 )
 
 internal data class ChildIntrinsicScope(
@@ -32,7 +31,6 @@ internal data class ChildIntrinsicScope(
     val gap: Float,
     val resolved: ResolvedUiTree,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    val bindings: UiBindingContext,
 )
 
 internal fun UiLayout.policy(): ChildLayoutPolicy = when (this) {
@@ -59,7 +57,6 @@ private object RowPolicy : ChildLayoutPolicy {
             scope.scrollState,
             scope.scrollbarReserves,
             scope.layouts,
-            scope.bindings,
         )
     }
 
@@ -72,7 +69,6 @@ private object RowPolicy : ChildLayoutPolicy {
                     scope.gap,
                     scope.resolved,
                     scope.scrollbarReserves,
-                    scope.bindings,
                 )
             }
             ?: scope.children
@@ -98,7 +94,6 @@ private object ColumnPolicy : ChildLayoutPolicy {
             scope.scrollState,
             scope.scrollbarReserves,
             scope.layouts,
-            scope.bindings,
         )
     }
 
@@ -111,7 +106,6 @@ private object ColumnPolicy : ChildLayoutPolicy {
                     scope.gap,
                     scope.resolved,
                     scope.scrollbarReserves,
-                    scope.bindings,
                 )
             }
             ?: scope.children
@@ -137,7 +131,6 @@ private object LazyColumnPolicy : ChildLayoutPolicy {
             scope.scrollState,
             scope.scrollbarReserves,
             scope.layouts,
-            scope.bindings,
         )
     }
 
@@ -164,7 +157,6 @@ private object LazyRowPolicy : ChildLayoutPolicy {
             scope.scrollState,
             scope.scrollbarReserves,
             scope.layouts,
-            scope.bindings,
         )
     }
 
@@ -191,7 +183,6 @@ private object BoxPolicy : ChildLayoutPolicy {
             scope.scrollState,
             scope.scrollbarReserves,
             scope.layouts,
-            scope.bindings,
         )
     }
 
@@ -218,7 +209,6 @@ private object CustomPolicy : ChildLayoutPolicy {
             scope.scrollState,
             scope.scrollbarReserves,
             scope.layouts,
-            scope.bindings,
         )
     }
 

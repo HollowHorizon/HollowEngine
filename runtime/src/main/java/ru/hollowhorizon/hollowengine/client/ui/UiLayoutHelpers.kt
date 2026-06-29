@@ -140,13 +140,12 @@ internal fun UiPopupAnchor.resolvePopupAnchor(
     parentContent: UiRect,
     resolved: ResolvedUiTree,
     layouts: Map<UiNode, UiLayoutNode>,
-    bindings: UiBindingContext,
 ): UiRect {
     return when (this) {
         UiPopupAnchor.Parent -> parentContent
         is UiPopupAnchor.Cursor -> UiRect(
-            x.takeIf { it.isFinite() } ?: bindings.pointerX(parentContent.x),
-            y.takeIf { it.isFinite() } ?: bindings.pointerY(parentContent.y),
+            x.takeIf { it.isFinite() } ?: parentContent.x,
+            y.takeIf { it.isFinite() } ?: parentContent.y,
             0f,
             0f,
         )
