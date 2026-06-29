@@ -2,10 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.UiPreviewState
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
-import java.util.ArrayDeque
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 fun interface HssResourceLoader {
@@ -54,7 +53,6 @@ object MinecraftHssResourceLoader : HssResourceLoader {
             compileHss(HollowUiResourceAccess.readText(resourceLocation(location)))
         }.getOrElse {
             HollowEngine.LOGGER.error("Error while loading $location", it)
-            UiPreviewState.errorText.set("Error while loading $location: ${it.message}")
             CompiledHss(emptyList())
         }
     }

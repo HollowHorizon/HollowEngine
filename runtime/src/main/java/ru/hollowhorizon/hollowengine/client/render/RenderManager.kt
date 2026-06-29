@@ -15,7 +15,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.system
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.PreviewCheckerboard
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
@@ -38,7 +37,6 @@ object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
         KoolManager
-        PreviewCheckerboard.initTexture()
     }
 
     @SubscribeEvent

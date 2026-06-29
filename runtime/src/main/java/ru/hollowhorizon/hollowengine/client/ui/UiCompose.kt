@@ -1,21 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import androidx.compose.runtime.AbstractApplier
-import androidx.compose.runtime.BroadcastFrameClock
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Composition
-import androidx.compose.runtime.ReusableComposeNode
-import androidx.compose.runtime.Recomposer
-import androidx.compose.runtime.Updater
-import androidx.compose.runtime.key
-import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
@@ -33,7 +20,6 @@ class HollowUiComposition(
     private val composition = Composition(applier, recomposer)
     private val recomposerJob: Job = scope.launch { recomposer.runRecomposeAndApplyChanges() }
     private var observedChangeCount = recomposer.changeCount
-    private var keysAssigned = false
     private var closed = false
 
     val root: BoxNode
@@ -58,9 +44,8 @@ class HollowUiComposition(
         if (closed) return false
         pumpPendingChanges(nowNanos)
         val changed = recomposer.changeCount != observedChangeCount
-        if (changed || !keysAssigned) {
+        if (changed) {
             UiNodeKeys.assign(rootNode)
-            keysAssigned = true
         }
         observedChangeCount = recomposer.changeCount
         return changed

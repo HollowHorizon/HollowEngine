@@ -891,7 +891,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val pressed = action == org.lwjgl.glfw.GLFW.GLFW_PRESS
         KoolInputBridge.handleMouseButtonEvent(button, pressed)
 
-        return HollowIdeOverlay.handleMouseButton(x, y, button, action, modifiers) ||
+        return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
                 isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }

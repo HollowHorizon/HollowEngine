@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
-import java.util.ArrayDeque
+import java.util.*
 import kotlin.math.abs
 
 class HollowUiInputController {
@@ -17,7 +17,10 @@ class HollowUiInputController {
     var draggingKey: String? = null
         private set
 
-    private val stateStore = UiNodeStateStore()
+    var x = 0f
+    var y = 0f
+
+    val stateStore = UiNodeStateStore()
     private var scrollbarDrag: UiScrollbarDragState? = null
     private var lastTextClickKey: String? = null
     private var lastTextClickAtMillis: Long = 0L
@@ -28,10 +31,6 @@ class HollowUiInputController {
     fun reset() {
         clearInteraction()
         stateStore.clear()
-    }
-
-    fun saveState(node: UiNode) {
-        stateStore.save(node)
     }
 
     fun clearInteraction(clearFocus: Boolean = true) {
@@ -48,7 +47,6 @@ class HollowUiInputController {
     fun isHovered(id: String): Boolean = hoveredKey == id
 
     fun prepareRoot(root: UiNode, closing: Boolean = false) {
-        UiNodeKeys.assign(root)
         stateStore.apply(root)
         root.forEachTextFields { field ->
             if (field.resolvePendingCompletions()) {
@@ -68,7 +66,12 @@ class HollowUiInputController {
         val previousKey = hoveredKey
         hoveredKey = hit?.node?.let(UiNodeKeys::key)
         hoveredLink = hit?.link
+
+        x = mouseX
+        y = mouseY
+
         if (previousKey == hoveredKey) return false
+
 
         previousKey?.let { key ->
             frame.nodeByKey(key)?.let { dispatch(UiEvent(UiEventKind.EXIT, it, x = mouseX, y = mouseY)) }
@@ -320,7 +323,7 @@ class HollowUiInputController {
             modifiers = effectiveModifiers,
         )
         val handled = dispatch(event)
-        if (event.changed) {
+        if (event.changed && node is UiStatefulNode) {
             stateStore.save(node)
             return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
         }
@@ -436,7 +439,7 @@ class HollowUiInputController {
             }
             else -> false
         }
-        if (handled) stateStore.save(node)
+        if (handled && node is UiStatefulNode) stateStore.save(node)
         return handled
     }
 

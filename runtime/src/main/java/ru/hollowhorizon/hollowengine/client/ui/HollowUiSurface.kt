@@ -2,9 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import kotlinx.coroutines.Dispatchers
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.InvocationKind
-import kotlin.contracts.contract
 import kotlin.coroutines.CoroutineContext
 
 class HollowUiSurface(
@@ -14,7 +11,7 @@ class HollowUiSurface(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
 ) : AutoCloseable {
     private val composition = HollowUiComposition(coroutineContext)
-    private val runtime = HollowUiRuntime(theme, stylesheet, scrollState)
+    val runtime = HollowUiRuntime(theme, stylesheet, scrollState)
     private var hasContent = false
 
     val root: BoxNode
@@ -38,29 +35,16 @@ class HollowUiSurface(
         return composition.applyPendingChanges(nowNanos)
     }
 
-    @OptIn(ExperimentalContracts::class)
     fun frame(
         width: Float,
         height: Float,
-        nowMillis: Long = 0L,
-        prepareRoot: (BoxNode) -> Unit = {},
+        x: Float,
+        y: Float,
+        nowNanos: Long = 0L,
     ): HollowUiFrame {
-        contract {
-            callsInPlace(prepareRoot, InvocationKind.EXACTLY_ONCE)
-        }
-
         check(hasContent) { "UI content has not been set" }
-        val root = composition.frameRoot(nowMillis * NanosPerMillisecond)
-        prepareRoot(root)
-        return runtime.frame(root, width, height, nowMillis)
-    }
-
-    fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {
-        return runtime.scroll(node, deltaX, deltaY)
-    }
-
-    fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        return runtime.setScrollImmediate(node, x, y)
+        val root = composition.frameRoot(nowNanos)
+        return runtime.frame(root, width, height, x, y, nowNanos / NanosPerMillisecond)
     }
 
     override fun close() {

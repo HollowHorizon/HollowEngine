@@ -1,6 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import net.minecraft.client.gui.screens.Screen.hasControlDown
+import net.minecraft.client.gui.screens.Screen.hasShiftDown
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
 
 data class HollowUiFrame(
@@ -204,14 +207,26 @@ class HollowUiRuntime(
     private val layoutPipeline = UiLayoutPipeline()
     private val commandRenderer = UiCommandRenderer()
     private val ensuredTextFieldCaretRevisions = mutableMapOf<String, Long>()
+    private val input = HollowUiInputController()
+    var lastFrame: HollowUiFrame? = null
+        private set
+
+    val mouseX: Float get() = input.x
+    val mouseY: Float get() = input.y
+    val focusedKey get() = input.focusedKey
+    val isAnyFocused get() = focusedKey != null
 
     fun frame(
         root: UiNode,
         width: Float,
         height: Float,
+        mouseX: Float,
+        mouseY: Float,
         nowMillis: Long = 0L,
     ): HollowUiFrame {
-        UiNodeKeys.assign(root)
+        lastFrame?.let { input.dispatchHover(it, mouseX, mouseY, ::dispatchUiEvent) }
+
+        input.prepareRoot(root, false)
         scrollState.update(nowMillis)
         val resolved = resolver.resolve(root, nowMillis)
         val transitionDurations = collectTransitionDurations(resolved)
@@ -220,7 +235,7 @@ class HollowUiRuntime(
             layout = layoutPipeline.compute(resolved, width, height, scrollState)
         }
         val commands = commandRenderer.collect(resolved, layout, nowMillis, typingState)
-        return HollowUiFrame(
+        val frame = HollowUiFrame(
             resolved = resolved,
             layout = layout,
             commands = commands,
@@ -228,12 +243,16 @@ class HollowUiRuntime(
             startedTransitionDurations = transitionDurations.started,
             activeScrollAnimation = scrollState.isAnimating(),
         )
+        input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
+        lastFrame = frame
+        return frame
     }
 
-    fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset = scrollState.scroll(node, deltaX, deltaY)
+    fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset =
+        scrollState.scroll(node, deltaX, deltaY)
 
-    fun setScrollImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset =
-        scrollState.setImmediate(node, x, y)
+    fun setScrollImmediate(node: UiNode, offset: UiScrollOffset): UiScrollOffset =
+        scrollState.setImmediate(node, offset.x, offset.y)
 
     private fun collectTransitionDurations(resolved: ResolvedUiTree): TransitionDurations {
         if (resolved.styles.values.none { it.transitions.isNotEmpty() }) return TransitionDurations.Empty
@@ -264,7 +283,8 @@ class HollowUiRuntime(
                 continue
             }
             val fontSize = style.fontSize
-            val caret = textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, fontSize, style.fontFamily)
+            val caret =
+                textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, fontSize, style.fontFamily)
             val textOffset = textFieldTextOffset(node, style, layoutNode)
             val next = layoutNode.scrollOffset.scrollCaretIntoView(
                 caretX = caret.x,
@@ -282,6 +302,79 @@ class HollowUiRuntime(
             ensuredTextFieldCaretRevisions[key] = node.caretVisibilityRevision
         }
         return changed
+    }
+
+    fun mouseClicked(mouseX: Float, mouseY: Float, button: Int): Boolean {
+        val frame = lastFrame ?: return false
+        val scrollbarResult = input.scrollbarMouseClicked(frame, mouseX, mouseY, button, ::setScrollImmediate)
+        if (scrollbarResult.handled) return true
+        val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl)
+        return result.handled
+    }
+
+    fun mouseReleased(mouseX: Float, mouseY: Float, button: Int): Boolean {
+        val frame = lastFrame ?: return false
+        input.mouseReleased(frame, mouseX, mouseY, button, ::dispatchUiEvent)
+        return true
+    }
+
+    fun mouseDragged(mouseX: Float, mouseY: Float, button: Int, dragX: Float, dragY: Float): Boolean {
+        val frame = lastFrame ?: return false
+        val scrollbarResult = input.scrollbarMouseDragged(frame, mouseX, mouseY, ::setScrollImmediate)
+        if (scrollbarResult.handled) return true
+
+        val result = input.mouseDragged(frame, mouseX, mouseY, button, dragX, dragY, ::dispatchUiEvent)
+        return result.handled
+    }
+
+    fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float): Boolean {
+        val frame = lastFrame ?: return false
+        val target = input.scrollTargetAt(frame, mouseX, mouseY) ?: return false
+
+        val range = frame.layout[target].scrollRange
+        val delta = scrollWheelDelta(range, scrollX, scrollY, hasShiftDown() || hasControlDown())
+        val event = UiEvent(
+            kind = UiEventKind.SCROLL, node = target,
+            x = mouseX, y = mouseY,
+            scrollX = delta.x, scrollY = delta.y
+        )
+        if (dispatchUiEvent(event) && event.consumed) return true
+        scroll(target, delta.x * 32f, delta.y * 32f)
+        return true
+    }
+
+    private fun dispatchUiEvent(event: UiEvent): Boolean {
+        var handled = false
+        if (!event.consumed && event.node.dispatch(event)) handled = true
+        return handled
+    }
+
+    fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        val frame = lastFrame ?: return false
+        val result = input.charTyped(frame, codePoint, modifiers, ::dispatchUiEvent)
+        return result.handled
+    }
+
+    fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        val frame = lastFrame ?: return false
+        val result = input.keyPressed(frame, keyCode, scanCode, modifiers, ::dispatchUiEvent)
+        return result.handled
+    }
+
+    fun reset() {
+        input.reset()
+    }
+
+    fun saveState(node: UiStatefulNode) {
+        input.stateStore.save(node)
+    }
+
+    fun focus(editorKey: String) {
+        input.focus(lastFrame ?: return, editorKey, ::dispatchUiEvent)
+    }
+
+    fun unfocus() {
+        input.focus(lastFrame ?: return, null, ::dispatchUiEvent)
     }
 }
 

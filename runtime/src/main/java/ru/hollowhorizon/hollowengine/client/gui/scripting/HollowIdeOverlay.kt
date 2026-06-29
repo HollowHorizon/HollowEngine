@@ -24,7 +24,6 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
-import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 internal const val ProjectTreeId = "ide-project-tree"
 internal const val EditorWelcomeId = "ide-code-editor"
@@ -48,19 +47,8 @@ object HollowIdeOverlay {
     private val dock = DockingState()
     private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
-    private val input = HollowUiInputController()
     private var initialized = false
     private var activeButton: Int? = null
-    private var lastFrame: HollowUiFrame? = null
-    private var uiDirty = true
-    private var lastWidth = -1
-    private var lastHeight = -1
-    private var lastFrameMouseX = Float.NaN
-    private var lastFrameMouseY = Float.NaN
-    private var lastStylesheetRevision = 0L
-    private var nextStylesheetCheckMillis = 0L
-    private var lastMouseX = 0f
-    private var lastMouseY = 0f
     private var collapsed by mutableStateOf(true)
     private var filter by mutableStateOf("")
     private var openDropdown by mutableStateOf<String?>(null)
@@ -68,19 +56,26 @@ object HollowIdeOverlay {
     private val project = HollowIdeProjectController(
         model = model,
         focusProjectTree = { dock.focus(ProjectTreeId) },
-        shortcutsActive = { model.selectedTreePath.isNotBlank() && input.focusedKey == null && dock.focusedItemId == ProjectTreeId },
+        shortcutsActive = { model.selectedTreePath.isNotBlank() && surface.runtime.focusedKey == null && dock.focusedItemId == ProjectTreeId },
         closeDockItem = { dock.close(it) },
         openFile = { openFileDockItem(it) },
         setStatus = { statusText = it },
-        pointerX = { lastMouseX },
-        pointerY = { lastMouseY },
+        pointerX = { surface.runtime.mouseX },
+        pointerY = { surface.runtime.mouseY },
     )
     private val diagnosticsPanels = mutableStateMapOf<String, Boolean>()
     private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
     private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
-    private val editorOverlays = HollowIdeEditorOverlays(input, ::setScrollImmediate) { invalidateUi() }
+    private val editorOverlays = HollowIdeEditorOverlays(surface.runtime)
+
+    private var lastMouseX = 0f
+    private var lastMouseY = 0f
+
+    init {
+        initialize()
+    }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
 
@@ -90,41 +85,35 @@ object HollowIdeOverlay {
         return if (collapsed) point.x <= 44f && point.y <= ToolbarHeight else true
     }
 
-    fun hasFocusedInput(): Boolean = isVisible() && input.focusedKey != null
+    fun hasFocusedInput(): Boolean = isVisible() && surface.runtime.isAnyFocused
 
     fun handleMouseMove(x: Float, y: Float): Boolean {
         if (!isVisible()) return false
         val point = hollowIdeOverlayPoint(x, y)
-        if (activeButton == null) {
-            lastMouseX = point.x
-            lastMouseY = point.y
-            val frame = lastFrame ?: currentFrameForInput() ?: return false
-            val hoverChanged = input.updateHover(frame, point.x, point.y, ::dispatchUiEvent)
-            if (hoverChanged || editorOverlays.needsPointerUpdate(frame)) invalidateUi()
-            return false
-        }
-        val frame = lastFrame ?: currentFrameForInput() ?: return false
         val deltaX = point.x - lastMouseX
         val deltaY = point.y - lastMouseY
         lastMouseX = point.x
         lastMouseY = point.y
-        val scrollbarResult = input.scrollbarMouseDragged(frame, point.x, point.y, ::setScrollImmediate)
-        if (scrollbarResult.handled) {
-            invalidateUi()
-            return true
-        }
-        val result = input.mouseDragged(frame, point.x, point.y, activeButton ?: 0, deltaX, deltaY, ::dispatchUiEvent)
-        if (result.handled) invalidateUi()
-        return result.handled || input.hasScrollbarDrag()
+        val button = activeButton ?: return false
+        return surface.runtime.mouseDragged(point.x, point.y, button, deltaX, deltaY)
     }
 
-    fun handleMouseButton(x: Float, y: Float, button: Int, action: Int, modifiers: Int): Boolean {
+    fun handleMouseButton(x: Float, y: Float, button: Int, action: Int): Boolean {
         if (!isVisible()) return false
         val point = hollowIdeOverlayPoint(x, y)
-        val frame = currentFrameForInput() ?: return false
+
         return when (action) {
-            GLFW.GLFW_PRESS -> mousePressed(frame, point.x, point.y, button, modifiers)
-            GLFW.GLFW_RELEASE -> mouseReleased(frame, point.x, point.y, button)
+            GLFW.GLFW_PRESS -> {
+                val result = surface.runtime.mouseClicked(point.x, point.y, button)
+                if (result) activeButton = button
+                result
+            }
+
+            GLFW.GLFW_RELEASE -> {
+                activeButton = null
+                surface.runtime.mouseReleased(point.x, point.y, button)
+            }
+
             else -> false
         }
     }
@@ -132,94 +121,37 @@ object HollowIdeOverlay {
     fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
         if (!isVisible()) return false
         val point = hollowIdeOverlayPoint(x, y)
-        val frame = currentFrameForInput() ?: return false
-        editorOverlays.completionScrollTargetAt(frame, point.x, point.y)?.let { target ->
-            val range = frame.layout[target].scrollRange
-            val delta = scrollWheelDelta(range, scrollX, scrollY, hollowIdeHorizontalScrollModifierDown())
-            surface.scroll(target, delta.x * 32f, delta.y * 32f)
-            invalidateUi()
-            return true
-        }
-        val target = input.scrollTargetAt(frame, point.x, point.y) ?: return false
-        if (target is TextFieldNode && hollowIdeControlModifierDown()) {
-            val editorId = target.id?.removePrefix("editor-")
-            if (editorId != null && editorId != target.id) {
-                val current = editorFontSize
-                val next = (current + scrollY.toFloat()).coerceIn(MinEditorFontSize, MaxEditorFontSize)
-                if (current != next) {
-                    editorFontSize = next
-                    HollowEngineConfig.ideEditorFontSize = next
-                    invalidateUi()
-                    return true
-                }
-            } else {
-                invalidateUi()
-                return true
-            }
-        }
-        val range = frame.layout[target].scrollRange
-        val delta = scrollWheelDelta(range, scrollX, scrollY, hollowIdeHorizontalScrollModifierDown())
-        val event = UiEvent(
-            kind = UiEventKind.SCROLL,
-            node = target,
-            x = point.x,
-            y = point.y,
-            scrollX = delta.x,
-            scrollY = delta.y,
-            modifiers = hollowIdeModifierMask(),
-        )
-        if (dispatchUiEvent(event) && event.consumed) {
-            invalidateUi()
-            return true
-        }
-        surface.scroll(target, delta.x * 32f, delta.y * 32f)
-        invalidateUi()
-        return true
+        return surface.runtime.mouseScrolled(point.x, point.y, scrollX.toFloat(), scrollY.toFloat())
     }
 
     fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (!isVisible()) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
-        val frame = currentFrameForInput() ?: return false
-        if (action == GLFW.GLFW_PRESS && project.handleNameDialogKey(key)) {
-            invalidateUi()
-            return true
-        }
-        if (action == GLFW.GLFW_PRESS && project.handleShortcut(key, modifiers)) {
-            invalidateUi()
-            return true
-        }
-        if (action == GLFW.GLFW_PRESS && handleDockShortcut(key, modifiers)) {
-            invalidateUi()
-            return true
-        }
+        if (action == GLFW.GLFW_PRESS && project.handleNameDialogKey(key)) return true
+        if (action == GLFW.GLFW_PRESS && project.handleShortcut(key, modifiers)) return true
+        if (action == GLFW.GLFW_PRESS && handleDockShortcut(key, modifiers)) return true
         if (action == GLFW.GLFW_PRESS && dock.focusedItemId == CutsceneTimelineId &&
             CutsceneEditorSessions.default.onHollowUiKey(key, modifiers)
         ) {
-            invalidateUi()
             return true
         }
-        if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition(frame)) {
-            invalidateUi()
+        if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition()) {
             return true
         }
-        val result = input.keyPressed(frame, key, scanCode, modifiers, ::dispatchUiEvent)
-        if (result.handled) {
-            editorOverlays.update(frame, lastMouseX, lastMouseY)
-            invalidateUi()
+        val result = surface.runtime.keyPressed(key, scanCode, modifiers)
+        if (result) {
+            editorOverlays.update(surface.runtime.lastFrame ?: return true, lastMouseX, lastMouseY)
         }
-        return result.handled
+        return result
     }
 
     fun handleChar(codePoint: Int, modifiers: Int): Boolean {
         if (!isVisible()) return false
-        val frame = currentFrameForInput() ?: return false
-        val result = input.charTyped(frame, codePoint.toChar(), modifiers, ::dispatchUiEvent)
-        if (result.handled) {
-            editorOverlays.update(frame, lastMouseX, lastMouseY)
-            invalidateUi()
+        val result = surface.runtime.charTyped(codePoint.toChar(), modifiers)
+        if (result) {
+            editorOverlays.update(surface.runtime.lastFrame ?: return true, lastMouseX, lastMouseY)
         }
-        return result.handled
+        return result
     }
 
     @SubscribeEvent
@@ -414,7 +346,6 @@ object HollowIdeOverlay {
             editorSessions.getOrPut(file.path) {
                 HollowIdeEditorSession(file.path) {
                     editorAnalysisRevision++
-                    invalidateUi()
                 }
             }
         }
@@ -509,22 +440,21 @@ object HollowIdeOverlay {
         return model.files.values.firstOrNull { it.id == focused }
     }
 
-    private fun goToDefinition(frame: HollowUiFrame): Boolean {
+    private fun goToDefinition(): Boolean {
         val file = focusedEditorFile() ?: return false
         val editorKey = "editor-${file.id}"
+        val frame = surface.runtime.lastFrame ?: return false
         val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return false
-        if (input.focusedKey != editorKey) input.focus(frame, editorKey, ::dispatchUiEvent)
+        if (surface.runtime.focusedKey != editorKey) surface.runtime.focus(editorKey)
         val session = editorSessions.getOrPut(file.path) {
             HollowIdeEditorSession(file.path) {
                 editorAnalysisRevision++
-                invalidateUi()
             }
         }
         statusText = ""
         session.resolveDefinition(file.text, editor.caret) { definition ->
             if (definition == null) {
                 statusText = "Definition not found"
-                invalidateUi()
                 return@resolveDefinition
             }
             openDefinition(definition)
@@ -533,7 +463,7 @@ object HollowIdeOverlay {
     }
 
     private fun focusedEditorFile(): HollowIdeOpenFile? {
-        input.focusedKey?.removePrefix("editor-")?.takeIf { it != input.focusedKey }?.let { editorFileId ->
+        surface.runtime.focusedKey?.removePrefix("editor-")?.takeIf { it != surface.runtime.focusedKey }?.let { editorFileId ->
             model.files.values.firstOrNull { it.id == editorFileId }?.let { return it }
         }
         return focusedFile()
@@ -546,7 +476,6 @@ object HollowIdeOverlay {
             when (val result = model.openFile(definition.path)) {
                 HollowIdeOpenResult.Unsupported -> {
                     statusText = "Unsupported definition target: ${definition.path}"
-                    invalidateUi()
                     return
                 }
 
@@ -560,62 +489,19 @@ object HollowIdeOverlay {
 
     private fun focusEditorAt(file: HollowIdeOpenFile, offset: Int) {
         Minecraft.getInstance().execute {
-            val frame = currentFrame()
+            val frame = surface.runtime.lastFrame ?: return@execute
             val editorKey = "editor-${file.id}"
             val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return@execute
             editor.moveCaret(offset)
-            input.saveState(editor)
-            input.focus(frame, editorKey, ::dispatchUiEvent)
-            invalidateUi()
+            surface.runtime.saveState(editor)
+            surface.runtime.focus(editorKey)
         }
-    }
-
-    private fun mousePressed(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int, modifiers: Int): Boolean {
-        activeButton = button
-        lastMouseX = mouseX
-        lastMouseY = mouseY
-        if (closePopupsOutside(frame, mouseX, mouseY)) {
-            invalidateUi()
-        }
-        if (button == 0 && editorOverlays.closeCompletionsOutside(frame, mouseX, mouseY)) {
-            invalidateUi()
-        }
-        val scrollbarResult = input.scrollbarMouseClicked(frame, mouseX, mouseY, button, ::setScrollImmediate)
-        if (scrollbarResult.handled) {
-            invalidateUi()
-            return true
-        }
-        val result = input.mouseClicked(frame, mouseX, mouseY, button, ::dispatchUiEvent, ::openUrl, modifiers)
-        if (result.handled) invalidateUi()
-        if (!result.handled) activeButton = null
-        return result.handled
-    }
-
-    private fun closePopupsOutside(frame: HollowUiFrame, mouseX: Float, mouseY: Float): Boolean {
-        if (openDropdown == null && !project.hasOpenPopup()) return false
-        val hit = frame.hitTest(mouseX, mouseY)?.node
-        if (hit != null && frame.hasPopupAncestor(hit)) return false
-        val changed = openDropdown != null || project.hasOpenPopup()
-        openDropdown = null
-        project.closePopups()
-        return changed
-    }
-
-    private fun mouseReleased(frame: HollowUiFrame, mouseX: Float, mouseY: Float, button: Int): Boolean {
-        val hadActivePointer = activeButton != null || input.hasScrollbarDrag()
-        val result = input.mouseReleased(frame, mouseX, mouseY, button, ::dispatchUiEvent)
-        activeButton = null
-        if (result.handled || hadActivePointer) invalidateUi()
-        return result.handled || hadActivePointer
     }
 
     private fun renderOverlay(target: UiRenderTarget) {
-        val nowMillis = System.currentTimeMillis()
-        val current = currentFrame(nowMillis)
-        val hoverChanged = input.updateHover(current, lastMouseX, lastMouseY, ::dispatchUiEvent)
-        if (hoverChanged || current.requiresContinuousRefresh()) invalidateUi()
-        input.dispatchHover(current, lastMouseX, lastMouseY, ::dispatchUiEvent)
-        renderer.render(current.commands, target)
+        val window = Minecraft.getInstance().window
+        val frame = surface.frame(window.width.toFloat(), window.height.toFloat(), lastMouseX, lastMouseY, System.nanoTime())
+        renderer.render(frame.commands, target)
     }
 
     private fun currentBlitTarget(): UiRenderTarget {
@@ -634,94 +520,6 @@ object HollowIdeOverlay {
             logicalHeight = logicalHeight,
             scale = viewport[2] / logicalWidth,
         )
-    }
-
-    private fun invalidateUi() {
-        uiDirty = true
-    }
-
-    private fun currentFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
-        initialize()
-        updateCutsceneTimeline()
-        val window = Minecraft.getInstance().window
-        val uiChanged = surface.applyPendingChanges(nowMillis * NanosPerMillisecond)
-        if (uiChanged) uiDirty = true
-        val sizeChanged = window.guiScaledWidth != lastWidth || window.guiScaledHeight != lastHeight
-        val pointerChanged = lastMouseX != lastFrameMouseX || lastMouseY != lastFrameMouseY
-        val needsPointerRebuild = pointerChanged && (
-                surface.root.hasLiveCursorPopup() ||
-                        lastFrame?.let(editorOverlays::needsPointerUpdate) == true
-                )
-        val stylesheetChanged = stylesheetChanged(nowMillis)
-        return if (lastFrame == null || uiDirty || sizeChanged || uiChanged || needsPointerRebuild || stylesheetChanged) {
-            refreshFrame(nowMillis)
-        } else {
-            lastFrame!!
-        }
-    }
-
-    private fun currentFrameForInput(): HollowUiFrame? {
-        if (!isVisible()) return lastFrame
-        return lastFrame ?: currentFrame()
-    }
-
-    private fun refreshFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
-        initialize()
-        val window = Minecraft.getInstance().window
-        val root: BoxNode
-        var frame = surface.frame(
-            width = window.guiScaledWidth.toFloat(),
-            height = window.guiScaledHeight.toFloat(),
-            nowMillis = nowMillis,
-        ) {
-            input.prepareRoot(it, closing = false)
-            root = it
-        }
-        if (editorOverlays.update(frame, lastMouseX, lastMouseY)) {
-            frame = surface.frame(
-                width = window.guiScaledWidth.toFloat(),
-                height = window.guiScaledHeight.toFloat(),
-                nowMillis = nowMillis,
-            ) {
-                input.prepareRoot(it, closing = false)
-            }
-            editorOverlays.update(frame, lastMouseX, lastMouseY)
-        }
-        return frame.also {
-            lastFrame = it
-            uiDirty = false
-            lastWidth = window.guiScaledWidth
-            lastHeight = window.guiScaledHeight
-            lastFrameMouseX = lastMouseX
-            lastFrameMouseY = lastMouseY
-            lastStylesheetRevision = root.stylesheetRevision()
-        }
-    }
-
-    private fun stylesheetChanged(nowMillis: Long): Boolean {
-        if (lastFrame == null || nowMillis < nextStylesheetCheckMillis) return false
-        nextStylesheetCheckMillis = nowMillis + StylesheetCheckIntervalMillis
-        return surface.root.stylesheetRevision() != lastStylesheetRevision
-    }
-
-    private fun dispatchUiEvent(event: UiEvent): Boolean {
-        return dispatchNode(event)
-    }
-
-    private fun dispatchNode(event: UiEvent): Boolean {
-        return event.node.dispatch(event)
-    }
-
-    private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
-        surface.setScrollImmediate(node, offset.x, offset.y)
-    }
-
-    private fun updateCutsceneTimeline() {
-        if (!dock.contains(CutsceneTimelineId)) return
-        val timeline = CutsceneEditorSessions.default.timeline
-        if (!timeline.isPlaying.value) return
-        CutsceneEditorSessions.default.update()
-        invalidateUi()
     }
 
     private fun isAvailable(): Boolean {

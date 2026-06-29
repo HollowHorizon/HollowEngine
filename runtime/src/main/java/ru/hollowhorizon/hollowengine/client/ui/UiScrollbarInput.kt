@@ -89,14 +89,14 @@ private fun UiScrollbarHandle.pointerLocal(mouseX: Float, mouseY: Float): UiVec3
 
 internal fun scrollWheelDelta(
     range: UiScrollOffset,
-    scrollX: Double,
-    scrollY: Double,
+    scrollX: Float,
+    scrollY: Float,
     horizontalModifier: Boolean,
 ): UiScrollOffset {
-    val horizontalOnly = scrollX == 0.0 && range.x > 0f && range.y <= 0f
-    val emulateHorizontal = horizontalModifier && scrollX == 0.0 || horizontalOnly
+    val horizontalOnly = scrollX == 0f && range.x > 0f && range.y <= 0f
+    val emulateHorizontal = horizontalModifier && scrollX == 0f || horizontalOnly
     return UiScrollOffset(
-        x = (if (emulateHorizontal) -scrollY else -scrollX).toFloat(),
-        y = (if (emulateHorizontal || horizontalModifier) 0.0 else -scrollY).toFloat(),
+        x = if (emulateHorizontal) -scrollY else -scrollX,
+        y = if (emulateHorizontal || horizontalModifier) 0f else -scrollY,
     )
 }

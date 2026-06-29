@@ -15,7 +15,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.UiPreviewState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.StartScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
@@ -276,7 +275,6 @@ class ScriptFile(path: String) : EditorFile(path) {
         if (filePath.endsWith(".ui")) {
             HeaderActionButton(Assets.Hollowengine.Textures.Gui.Icons.CODE_EDITOR) {
                 save()
-                UiPreviewState.previewPath.set(filePath)
                 LayoutLoader.LAYOUTS["hollowengine.gui.ide.ui_preview"]?.open()
             }
             return

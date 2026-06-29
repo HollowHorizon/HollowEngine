@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import java.util.ArrayDeque
+import java.util.*
 
 class UiNodeStateStore {
     private val states = linkedMapOf<String, UiNodePersistentState>()
@@ -9,9 +9,8 @@ class UiNodeStateStore {
         states.clear()
     }
 
-    fun save(node: UiNode) {
-        val stateful = node as? UiStatefulNode ?: return
-        states[UiNodeKeys.key(node)] = stateful.exportState()
+    fun save(node: UiStatefulNode) {
+        states[UiNodeKeys.key(node)] = node.exportState()
     }
 
     fun apply(root: UiNode) {
@@ -22,7 +21,7 @@ class UiNodeStateStore {
     }
 }
 
-interface UiStatefulNode {
+interface UiStatefulNode: UiNode {
     fun exportState(): UiNodePersistentState
 
     fun importState(state: UiNodePersistentState)

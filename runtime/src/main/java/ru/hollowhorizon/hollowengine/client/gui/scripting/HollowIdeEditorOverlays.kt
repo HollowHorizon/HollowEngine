@@ -8,9 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.hss.parseColor
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 internal class HollowIdeEditorOverlays(
-    private val input: HollowUiInputController,
-    private val setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
-    private val invalidateUi: () -> Unit,
+    private val surface: HollowUiRuntime,
 ) {
     private val completionPopups = mutableStateMapOf<String, HollowIdeCompletionPopupState>()
     private val diagnosticTooltips = mutableStateMapOf<String, HollowIdeDiagnosticTooltipState>()
@@ -122,8 +120,7 @@ internal class HollowIdeEditorOverlays(
                 Modifier.input(clickable = true, hoverable = true),
                 Modifier.onClick { event ->
                     if (state.node.acceptCompletion(index)) {
-                        input.saveState(state.node)
-                        invalidateUi()
+                        surface.saveState(state.node)
                     }
                     event.consume()
                 },
@@ -187,7 +184,7 @@ internal class HollowIdeEditorOverlays(
                         visibleRows = geometry.visibleRows,
                     ) * geometry.rowHeight
                     if (frame.layout.nodes[listNode]?.scrollOffset?.y != targetScroll) {
-                        setScrollImmediate(listNode, UiScrollOffset(y = targetScroll))
+                        surface.setScrollImmediate(listNode, UiScrollOffset(y = targetScroll))
                     }
                 }
                 val items = totalItems
@@ -247,7 +244,7 @@ internal class HollowIdeEditorOverlays(
         var changed = false
         frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().forEach { node ->
             if (node.closeCompletions()) {
-                input.saveState(node)
+                surface.saveState(node)
                 changed = true
             }
         }

@@ -36,7 +36,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("editor", "Editor", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
-                tab("transforms", "3D", "hollowengine:textures/gui/icons/dialogue.png")
                 tab("effects", "Эффекты", "hollowengine:textures/gui/npc_menu/character.png")
                 tab("shapes", "Shapes", "hollowengine:textures/gui/icons/code_editor.svg")
             }
@@ -47,7 +46,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     "editor" -> editorDemo()
                     "layout" -> layout()
                     "docking" -> docking()
-                    "transforms" -> transforms()
                     "effects" -> effects()
                     "shapes" -> shapesDemo()
                     "xml" -> xmlDemo()
@@ -57,30 +55,18 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
         }
     }
 
-    override fun onNodeClicked(node: UiNode, button: Int): Boolean {
-        if (button != 0) return false
-        val id = node.id ?: return false
-        if (!id.startsWith("tab-")) return false
-        selectedTab = id.removePrefix("tab-")
-        return true
-    }
-
-    override fun onNodeDragged(nodeKey: String, deltaX: Float, deltaY: Float): Boolean {
-        if (nodeKey == "layout-glass") {
-            layoutGlassOffset = DemoOffset(layoutGlassOffset.x + deltaX, layoutGlassOffset.y + deltaY)
-            return true
-        }
-        val index = nodeKey.removePrefix("free-node-").toIntOrNull() ?: return false
-        val current = freeNodeOffsets[index] ?: DemoOffset.Zero
-        freeNodeOffsets[index] = DemoOffset(current.x + deltaX, current.y + deltaY)
-        return true
-    }
-
     override fun rebuildEveryFrame(): Boolean = selectedTab == "transforms" || selectedTab == "effects"
 
     @Composable
     private fun tab(id: String, label: String, icon: String) {
-        Row(id = "tab-$id", tags = listOf("tab"), modifier = Modifier.input(hoverable = true, clickable = true)) {
+        Row(
+            id = "tab-$id", tags = listOf("tab"), modifier = Modifier.then(
+                Modifier.input(hoverable = true, clickable = true),
+                Modifier.onClick {
+                    selectedTab = id
+                }
+            )
+        ) {
             Image(icon, tags = listOf("tab-icon"))
             Text(label, tags = listOf("tab-label"))
         }
@@ -245,6 +231,13 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     modifier = Modifier.then(
                         Modifier.position((40 + index * 96 + offset.x).px, (40 + index % 4 * 82 + offset.y).px),
                         Modifier.input(hoverable = true, draggable = true),
+                        Modifier.onDrag {
+                            val nodeKey = it.node.id
+                            val index = nodeKey?.removePrefix("free-node-")?.toIntOrNull() ?: return@onDrag
+                            val current = freeNodeOffsets[index] ?: DemoOffset.Zero
+                            freeNodeOffsets[index] = DemoOffset(current.x + it.deltaX, current.y + it.deltaY)
+                            it.consume()
+                        }
                     ),
                 ) {
                     Text("Нода ${index + 1}", tags = listOf("free-label"))
@@ -256,6 +249,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 modifier = Modifier.then(
                     Modifier.position((140 + layoutGlassOffset.x).px, (260 + layoutGlassOffset.y).px),
                     Modifier.input(hoverable = true, draggable = true),
+                    Modifier.onDrag {
+                        layoutGlassOffset = DemoOffset(layoutGlassOffset.x + it.deltaX, layoutGlassOffset.y + it.deltaY)
+                        it.consume()
+                    }
                 ),
             ) {
                 Text("Стекляшка", tags = listOf("card-title"))
@@ -284,7 +281,12 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     "project" -> dockDemoRows("Scenes", "Scripts", "Assets", "Dialogues", "Cutscenes")
                     "editor" -> dockDemoRows("fun main() {", "    scene(\"intro\")", "    character(\"Ada\")", "}")
                     "preview" -> dockPreview()
-                    "console" -> dockDemoRows("[info] Runtime started", "[info] UI hot reload ready", "[warn] Missing optional icon")
+                    "console" -> dockDemoRows(
+                        "[info] Runtime started",
+                        "[info] UI hot reload ready",
+                        "[warn] Missing optional icon"
+                    )
+
                     "inspector" -> dockDemoRows("Transform", "Position: 0, 0, 0", "Rotation: 0, 0, 0", "Scale: 1, 1, 1")
                     else -> Text("Empty panel", tags = listOf("body"))
                 }
@@ -315,53 +317,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     }
 
     @Composable
-    private fun transforms() {
-        Box(tags = listOf("panel-grid")) {
-            // TODO: Rewrite compose-like
-            val rect = layoutRect("tilt-card")
-            val hoverRotate = if (rect != null && isHovered("tilt-card")) {
-                val centerX = rect.x + rect.width * 0.5f
-                val centerY = rect.y + rect.height * 0.5f
-                val halfWidth = rect.width * 0.5f
-                val halfHeight = rect.height * 0.5f
-                val distanceX = ((mouseX - centerX) / halfWidth.coerceAtLeast(1f)).coerceIn(-1f, 1f).easeOutSigned()
-                val distanceY = ((mouseY - centerY) / halfHeight.coerceAtLeast(1f)).coerceIn(-1f, 1f).easeOutSigned()
-                val maxTilt = 18f
-                val x = distanceY * maxTilt
-                val y = -distanceX * maxTilt
-                Modifier.then(
-                    Modifier.rotate(x = x, y = y),
-                    Modifier.transition(
-                        UiTransition("rotate", 0L, TransitionEasing.LINEAR),
-                        UiTransition("scale", 90L, TransitionEasing.EASE_OUT),
-                        UiTransition("background", 120L, TransitionEasing.EASE_OUT),
-                    ),
-                )
-            } else {
-                Modifier.rotate(x = 0f, y = 0f)
-            }
-            Column(
-                id = "tilt-card",
-                tags = listOf("card", "tilted-x"),
-                modifier = Modifier.then(Modifier.position(20.px, 20.px), hoverRotate, Modifier.input(hoverable = true))
-            ) {
-                Text("Фыреим буфыр гы-гы", tags = listOf("card-title"))
-                Image("hollowengine:textures/gui/quests/quest.png", tags = listOf("preview-image"))
-            }
-            Column(
-                tags = listOf("card", "scaled"),
-                modifier = Modifier.then(
-                    Modifier.position(220.px, 20.px),
-                    Modifier.input(hoverable = true)
-                )
-            ) {
-                Text("Zoom? Скайп? Дискорд?", tags = listOf("card-title"))
-                Text("Нет блин макс, иди на.", tags = listOf("body"))
-            }
-        }
-    }
-
-    @Composable
     private fun effects() {
         Box(tags = listOf("effects-stage"), modifier = Modifier.input(scrollable = true)) {
             Column(tags = listOf("effect-card", "gradient-card"), modifier = Modifier.position(20.px, 18.px)) {
@@ -376,13 +331,18 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 Image("hollowengine:textures/gui/npc_menu/character.png", tags = listOf("preview-image"))
                 Text("Работает даже на картинки")
             }
-            val flipHovered = isHovered("flip-zone")
+            var flipHovered by remember { mutableStateOf(false) }
             val frontRotation = if (flipHovered) 180f else 0f
             val backRotation = if (flipHovered) 0f else -180f
             Box(
                 id = "flip-zone",
                 tags = listOf("flip-zone"),
-                modifier = Modifier.then(Modifier.position(420.px, 18.px), Modifier.input(hoverable = true)),
+                modifier = Modifier.then(
+                    Modifier.position(420.px, 18.px),
+                    Modifier.input(hoverable = true),
+                    Modifier.onEnter { flipHovered = true },
+                    Modifier.onExit { flipHovered = false },
+                ),
             ) {
                 Column(
                     tags = listOf("effect-card", "flip-face", "flip-front"),
