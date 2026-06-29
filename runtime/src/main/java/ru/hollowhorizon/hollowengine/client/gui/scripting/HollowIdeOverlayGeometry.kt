@@ -31,6 +31,22 @@ internal fun hollowIdeControlModifierDown(window: Long = Minecraft.getInstance()
             GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
 }
 
+internal fun hollowIdeModifierMask(window: Long = Minecraft.getInstance().window.window): Int {
+    var modifiers = 0
+    if (hollowIdeControlModifierDown(window)) modifiers = modifiers or GLFW.GLFW_MOD_CONTROL
+    if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+        GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS
+    ) {
+        modifiers = modifiers or GLFW.GLFW_MOD_SHIFT
+    }
+    if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS ||
+        GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS
+    ) {
+        modifiers = modifiers or GLFW.GLFW_MOD_ALT
+    }
+    return modifiers
+}
+
 internal fun UiNode.hasLiveCursorPopup(): Boolean {
     return children.any { child ->
         (child is PopupNode && child.anchor.isLiveCursor()) || child.hasLiveCursorPopup()

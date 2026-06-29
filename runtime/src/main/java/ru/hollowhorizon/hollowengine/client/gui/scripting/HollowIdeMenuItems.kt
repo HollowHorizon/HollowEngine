@@ -6,6 +6,8 @@ import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ReloadServerResourcesPacket
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
@@ -59,6 +61,16 @@ internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState)
                 dock.open(DockItem(EditorWelcomeId, "Code Editor", CodeIcon, closable = false))
             }
             dock.focus(model.files.values.firstOrNull { dock.contains(it.id) }?.id ?: EditorWelcomeId)
+        },
+        UiDropdownItem("Cutscene Timeline", CutsceneIcon) {
+            if (!dock.contains(CutsceneTimelineId)) {
+                val anchor = model.files.values.firstOrNull { dock.contains(it.id) }?.id ?: EditorWelcomeId
+                dock.open(
+                    DockItem(CutsceneTimelineId, "Cutscene Timeline", CutsceneIcon, closable = true, minWidth = 520f, minHeight = 260f),
+                    DockTarget(anchor, DockPlacement.BOTTOM),
+                )
+            }
+            dock.focus(CutsceneTimelineId)
         },
     )
 }

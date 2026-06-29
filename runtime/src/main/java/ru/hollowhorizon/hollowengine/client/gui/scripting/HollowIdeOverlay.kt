@@ -11,6 +11,8 @@ import net.minecraft.client.gui.screens.ChatScreen
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
+import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSessions
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
@@ -28,10 +30,12 @@ import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 internal const val ProjectTreeId = "ide-project-tree"
 internal const val EditorWelcomeId = "ide-code-editor"
+internal const val CutsceneTimelineId = "ide-cutscene-timeline"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val CodeIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
 internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
+internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
 private const val ToolbarHeight = 32f
 private const val StylesheetCheckIntervalMillis = 250L
 private const val NanosPerMillisecond = 1_000_000L
@@ -164,6 +168,7 @@ object HollowIdeOverlay {
             y = point.y,
             scrollX = delta.x,
             scrollY = delta.y,
+            modifiers = hollowIdeModifierMask(),
         )
         if (dispatchUiEvent(event) && event.consumed) {
             invalidateUi()
@@ -187,6 +192,12 @@ object HollowIdeOverlay {
             return true
         }
         if (action == GLFW.GLFW_PRESS && handleDockShortcut(key, modifiers)) {
+            invalidateUi()
+            return true
+        }
+        if (action == GLFW.GLFW_PRESS && dock.focusedItemId == CutsceneTimelineId &&
+            CutsceneEditorSessions.default.onHollowUiKey(key, modifiers)
+        ) {
             invalidateUi()
             return true
         }
@@ -356,6 +367,7 @@ object HollowIdeOverlay {
         when (item.id) {
             ProjectTreeId -> ProjectTree()
             EditorWelcomeId -> EmptyEditor()
+            CutsceneTimelineId -> CutsceneTimelineDock(CutsceneEditorSessions.default)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) } ?: EmptyEditor()
         }
     }
@@ -630,6 +642,7 @@ object HollowIdeOverlay {
 
     private fun currentFrame(nowMillis: Long = System.currentTimeMillis()): HollowUiFrame {
         initialize()
+        updateCutsceneTimeline()
         val window = Minecraft.getInstance().window
         val uiChanged = surface.applyPendingChanges(nowMillis * NanosPerMillisecond)
         if (uiChanged) uiDirty = true
@@ -704,6 +717,14 @@ object HollowIdeOverlay {
 
     private fun setScrollImmediate(node: UiNode, offset: UiScrollOffset) {
         surface.setScrollImmediate(node, offset.x, offset.y)
+    }
+
+    private fun updateCutsceneTimeline() {
+        if (!dock.contains(CutsceneTimelineId)) return
+        val timeline = CutsceneEditorSessions.default.timeline
+        if (!timeline.isPlaying.value) return
+        CutsceneEditorSessions.default.update()
+        invalidateUi()
     }
 
     private fun isAvailable(): Boolean {
