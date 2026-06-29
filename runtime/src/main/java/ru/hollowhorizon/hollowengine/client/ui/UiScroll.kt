@@ -49,30 +49,28 @@ class UiScrollState {
     }
 
     fun set(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        val key = UiNodeKeys.key(node)
-        val current = targets[key] ?: offset(node)
-        val range = range(node)
-        val next = UiScrollOffset(
-            x = (x ?: current.x).coerceIn(0f, range.x),
-            y = (y ?: current.y).coerceIn(0f, range.y),
-        )
+        val (key, next) = resolveNext(node, x, y)
         animateTo(key, next)
         return next
     }
 
     fun setImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        val key = UiNodeKeys.key(node)
-        val current = targets[key] ?: offset(node)
-        val range = range(node)
-        val next = UiScrollOffset(
-            x = (x ?: current.x).coerceIn(0f, range.x),
-            y = (y ?: current.y).coerceIn(0f, range.y),
-        )
+        val (key, next) = resolveNext(node, x, y)
         offsets[key] = next
         targets[key] = next
         starts.remove(key)
         startedAt.remove(key)
         return next
+    }
+
+    private fun resolveNext(node: UiNode, x: Float? = null, y: Float?): Pair<String, UiScrollOffset> {
+        val key = UiNodeKeys.key(node)
+        val current = targets[key] ?: offset(node)
+        val range = range(node)
+        return key to UiScrollOffset(
+            x = (x ?: current.x).coerceIn(0f, range.x),
+            y = (y ?: current.y).coerceIn(0f, range.y),
+        )
     }
 
     fun clamp(node: UiNode, range: UiScrollOffset): UiScrollOffset {

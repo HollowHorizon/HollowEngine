@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.BufferUploader
-import com.mojang.blaze3d.vertex.DefaultVertexFormat
-import com.mojang.blaze3d.vertex.Tesselator
-import com.mojang.blaze3d.vertex.VertexConsumer
-import com.mojang.blaze3d.vertex.VertexFormat
+import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import ru.hollowhorizon.hollowengine.client.ui.*
 import java.util.concurrent.ConcurrentHashMap
@@ -566,13 +562,6 @@ private fun facingAmount(width: Float, height: Float, transform: UiMatrix4): Flo
 }
 
 internal fun UiColor.withOpacity(opacity: Float) = copy(alpha = alpha * opacity)
-
-internal fun UiColor.tinted(tint: UiColor) = UiColor(
-    red = red * tint.red,
-    green = green * tint.green,
-    blue = blue * tint.blue,
-    alpha = alpha * tint.alpha,
-)
 
 internal fun UiColor.argb(): Int {
     val a = (alpha * 255f).toInt().coerceIn(0, 255)

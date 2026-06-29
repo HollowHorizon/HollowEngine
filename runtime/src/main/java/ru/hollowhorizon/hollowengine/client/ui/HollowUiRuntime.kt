@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
-import java.util.ArrayDeque
+import java.util.*
 
 data class HollowUiFrame(
     val resolved: ResolvedUiTree,
@@ -175,7 +175,7 @@ private sealed interface ScrollTargetTask {
     ) : ScrollTargetTask
 }
 
-private fun UiRect?.intersect(other: UiRect?): UiRect? {
+fun UiRect?.intersect(other: UiRect?): UiRect? {
     if (this == null) return other
     if (other == null) return this
     val left = maxOf(x, other.x)

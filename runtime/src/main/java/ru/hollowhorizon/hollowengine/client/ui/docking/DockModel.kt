@@ -215,20 +215,14 @@ private fun DockNode.splitWith(node: DockNode, placement: DockPlacement, ids: Do
     val orientation = when (placement) {
         DockPlacement.LEFT,
         DockPlacement.RIGHT -> DockOrientation.HORIZONTAL
-
         DockPlacement.TOP,
         DockPlacement.BOTTOM -> DockOrientation.VERTICAL
-
-        DockPlacement.CENTER -> DockOrientation.HORIZONTAL
     }
     return when (placement) {
         DockPlacement.LEFT,
         DockPlacement.TOP -> DockNode.Split(ids.nextSplitId(), orientation, node, this)
-
         DockPlacement.RIGHT,
         DockPlacement.BOTTOM -> DockNode.Split(ids.nextSplitId(), orientation, this, node)
-
-        DockPlacement.CENTER -> this
     }
 }
 

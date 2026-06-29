@@ -1,9 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import java.util.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
-import java.util.ArrayDeque
-import kotlin.math.max
 
 sealed interface UiRenderCommand {
     val node: UiNode
@@ -231,10 +230,10 @@ class UiCommandRenderer {
         typingState: UiTypingState = UiTypingState(),
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands, activeClip = null)
+        collectNode(resolved.root, resolved, layout, bindings, nowMillis, typingState, commands)
         layout.popupNodes
             .sortedBy { resolved[it].layer }
-            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands, activeClip = null) }
+            .forEach { collectNode(it, resolved, layout, bindings, nowMillis, typingState, commands) }
         return commands
     }
 
@@ -246,10 +245,9 @@ class UiCommandRenderer {
         nowMillis: Long,
         typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>,
-        activeClip: UiRect?,
     ) {
         val stack = ArrayDeque<RenderCollectTask>()
-        stack.add(RenderCollectTask.Enter(node, activeClip))
+        stack.add(RenderCollectTask.Enter(node, null))
         while (stack.isNotEmpty()) {
             when (val task = stack.removeLast()) {
                 is RenderCollectTask.Enter -> {
@@ -921,17 +919,6 @@ class UiHitTester {
 }
 
 private val DirectLayoutTransform = UiTransform()
-
-private fun UiRect?.intersect(other: UiRect?): UiRect? {
-    if (this == null) return other
-    if (other == null) return this
-    val left = maxOf(x, other.x)
-    val top = maxOf(y, other.y)
-    val right = minOf(x + width, other.x + other.width)
-    val bottom = minOf(y + height, other.y + other.height)
-    if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
-    return UiRect(left, top, right - left, bottom - top)
-}
 
 private fun UiRect.hasVisibleArea(): Boolean {
     return width > 0f && height > 0f

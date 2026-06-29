@@ -223,9 +223,6 @@ private fun Map<String, String>.customAttributes(): Map<String, String> {
 
 private fun eventModifier(kind: UiEventKind, rawValue: String, options: UiXmlOptions): Modifier {
     val trimmed = rawValue.trim()
-    if (trimmed.startsWith("{")) {
-        return Modifier.emitOn(kind, UiEventPayloadTemplate.parse(trimmed), options.eventSink)
-    }
     return Modifier.eventScript(kind, trimmed, options.eventSink)
 }
 

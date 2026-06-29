@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 
 private const val MinSplitFraction = 0.1f
 private const val MaxSplitFraction = 0.9f
@@ -204,23 +200,6 @@ class DockingState {
 
     fun resizeFloating(
         windowId: String,
-        deltaX: Float,
-        deltaY: Float,
-        minWidth: Float = 160f,
-        minHeight: Float = 120f,
-    ): Boolean {
-        val index = floatingWindows.indexOfFirst { it.id == windowId }
-        if (index < 0) return false
-        val window = floatingWindows[index]
-        floatingWindows[index] = window.copy(
-            width = (window.width + deltaX).coerceAtLeast(minWidth),
-            height = (window.height + deltaY).coerceAtLeast(minHeight),
-        )
-        return true
-    }
-
-    fun resizeFloating(
-        windowId: String,
         edge: DockResizeEdge,
         deltaX: Float,
         deltaY: Float,
@@ -332,7 +311,7 @@ class DockingState {
         val drag = tabDrag ?: return null
         if (drag.stackId != stackId || drag.itemId != itemId) return null
         val left = drag.layouts.firstOrNull { it.itemId == itemId }?.left
-            ?: currentIndex * (drag.layouts.firstOrNull { it.itemId == itemId }?.width ?: 0f)
+            ?: (currentIndex * (drag.layouts.firstOrNull { it.itemId == itemId }?.width ?: 0f))
         return drag.pointerX - drag.grabX - left
     }
 
@@ -344,7 +323,7 @@ class DockingState {
         var changed = false
         root = root?.let { node ->
             val next = node.reorderTab(stackId, itemId, targetIndex)
-            changed = changed || next != node
+            changed = next != node
             next
         }
         for (index in floatingWindows.indices) {

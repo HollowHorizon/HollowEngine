@@ -72,8 +72,6 @@ object UiMsdfFont {
         }.getOrThrow()
     }
 
-    fun getFontData(fontPath: String): UiMsdfFontData? = fonts[fontPath]
-
     fun getOrLoadFontData(fontPath: String): UiMsdfFontData? {
         if (fontPath in missingFonts) return null
         return runCatching {

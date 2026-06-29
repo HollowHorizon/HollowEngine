@@ -5,11 +5,9 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.mojang.serialization.JsonOps
-import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtOps
-import net.minecraft.world.entity.player.Player
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
@@ -23,84 +21,18 @@ import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
-import ru.hollowhorizon.hollowengine.common.network.HollowPacket
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
 
 
-@Serializable
-enum class KatariUiDisplayMode {
-    SCREEN,
-    OVERLAY,
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class ShowKatariUiPacket(
-    private val id: String,
-    private val root: UiXmlTree,
-    private val mode: KatariUiDisplayMode,
-    private val variables: @Serializable(ForCompoundNBT::class) CompoundTag = CompoundTag(),
-) : HollowPacket {
-    override fun handle(player: Player) {
-        Minecraft.getInstance().execute {
-            when (mode) {
-                KatariUiDisplayMode.SCREEN -> Minecraft.getInstance().setScreen(KatariUiScreen(id, root, variables))
-                KatariUiDisplayMode.OVERLAY -> KatariUiOverlays.show(id, root, variables)
-            }
-        }
-    }
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class CloseKatariUiOverlayPacket(
-    private val id: String,
-    private val root: UiXmlTree,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        Minecraft.getInstance().execute {
-            KatariUiOverlays.close(id, root)
-        }
-    }
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class UpdateKatariUiOverlayPacket(
-    private val id: String,
-    private val root: UiXmlTree,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        Minecraft.getInstance().execute {
-            KatariUiOverlays.update(id, root)
-        }
-    }
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class CloseKatariUiScreenPacket(private val id: String) : HollowPacket {
-    override fun handle(player: Player) {
-        Minecraft.getInstance().execute {
-            val current = Minecraft.getInstance().screen
-            if (current is KatariUiScreen && current.id == id) {
-                current.startClosingAnimation()
-            }
-        }
-    }
-}
-
-class KatariUiScreen(
+class ScriptedUiScreen(
     val id: String,
     private val root: UiXmlTree,
     private val variables: CompoundTag = CompoundTag(),
 ) : HollowComposeUiScreen("Katari UI", CompiledHss(emptyList())) {
     private val sink = UiEventSink { payload ->
         HollowEngine.LOGGER.info("[UI:$id]:\n ${payload.toPrettyString()}")
-        //TODO: KatariUiEventPacket(id, payload).send()
+        //TODO: ScriptedUiEventPacket(id, payload).send()
     }
 
     @Composable
@@ -203,7 +135,7 @@ private class KatariUiOverlay(
     private val renderer = MinecraftUiRenderer()
     private val input = HollowUiInputController()
     private val sink = UiEventSink { payload ->
-        //TODO: KatariUiEventPacket(id, payload).send()
+        //TODO: ScriptedUiEventPacket(id, payload).send()
     }
     private var node = composeNode()
     private var closing = false

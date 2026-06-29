@@ -241,7 +241,7 @@ class TextFieldNode(
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
-    onChange: ((String) -> Unit)? = null,
+    var onChange: ((String) -> Unit)? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
@@ -366,7 +366,6 @@ class TextFieldNode(
             field = value
             invalidateLayout()
         }
-    var onChange: ((String) -> Unit)? = onChange
     var completionItems: List<UiTextCompletion> = emptyList()
         private set
     var completionActive: Boolean = false

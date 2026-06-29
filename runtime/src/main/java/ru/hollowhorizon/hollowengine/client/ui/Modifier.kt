@@ -271,15 +271,6 @@ sealed interface Modifier {
 
         fun onUnfocus(handler: (UiEvent) -> Unit) = EventModifier(UiEventKind.UNFOCUS, handler)
 
-        fun emitOn(kind: UiEventKind, template: UiEventPayloadTemplate, sink: UiEventSink) =
-            EventModifier(kind) { sink.emit(template.resolve(it)) }
-
-        fun emitOnClick(template: UiEventPayloadTemplate, sink: UiEventSink) =
-            emitOn(UiEventKind.CLICK, template, sink)
-
-        fun emitOnDrag(template: UiEventPayloadTemplate, sink: UiEventSink) =
-            emitOn(UiEventKind.DRAG, template, sink)
-
         fun eventScript(kind: UiEventKind, source: String, sink: UiEventSink) =
             ScriptEventModifier(kind, source, sink)
 

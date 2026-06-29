@@ -232,7 +232,7 @@ private fun FloatingHeader(
             Modifier.alignItems(vertical = UiAlign.CENTER),
             Modifier.input(hoverable = true, clickable = true, draggable = true),
             Modifier.cursor(UiCursorShape.MOVE),
-            Modifier.onPress { event ->
+            Modifier.onPress {
                 state.focus(selected.id)
             },
             Modifier.onDrag { event ->
@@ -536,12 +536,6 @@ object DockTags {
 }
 
 object DockColors {
-    val Panel = UiColor(0.07f, 0.08f, 0.1f, 1f)
-    val Header = UiColor(0.11f, 0.12f, 0.15f, 1f)
-    val Tab = UiColor(0.13f, 0.14f, 0.17f, 1f)
-    val SelectedTab = UiColor(0.18f, 0.2f, 0.24f, 1f)
-    val Border = UiColor(0.26f, 0.28f, 0.32f, 1f)
-    val Splitter = UiColor(0.24f, 0.26f, 0.3f, 1f)
     val DropZone = UiColor(0.18f, 0.42f, 0.75f, 0.1f)
     val DropZoneActive = UiColor(0.25f, 0.58f, 0.95f, 0.42f)
     val DropZoneBorder = UiColor(0.44f, 0.68f, 0.95f, 0.28f)
