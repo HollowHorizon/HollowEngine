@@ -9,7 +9,6 @@ private const val ConstraintReflowEpsilon = 0.01f
 class UiLayoutPipeline {
     internal var placementStack: ArrayDeque<PlacementTask>? = null
     internal var layoutPass: LayoutPass? = null
-    internal var measureContext: MeasureContext? = null
 
     private inner class EngineMeasurable(
         override val node: UiNode,
@@ -68,11 +67,9 @@ class UiLayoutPipeline {
         val viewport = UiRect(0f, 0f, width, height)
         val previousStack = placementStack
         val previousPass = layoutPass
-        val previousMeasureContext = measureContext
         val stack = ArrayDeque<PlacementTask>()
         try {
             layoutPass = LayoutPass(resolved.root)
-            measureContext = MeasureContext(::measureNodeCached)
             val rootRect = rootRect(resolved, width, height, scrollbarReserves)
             placementStack = stack
             enqueuePlacement(
@@ -98,7 +95,6 @@ class UiLayoutPipeline {
         } finally {
             placementStack = previousStack
             layoutPass = previousPass
-            measureContext = previousMeasureContext
         }
         return layouts
     }
@@ -1026,29 +1022,7 @@ class UiLayoutPipeline {
         allowWidthOverflow: Boolean = false,
         allowHeightOverflow: Boolean = false,
     ): List<MeasuredChild> {
-        val key = FlowChildrenCacheKey(
-            nodeId = System.identityHashCode(node),
-            subtreeRevision = node.layoutState.subtreeRevision,
-            availableWidth = availableWidth.layoutCacheValue(),
-            availableHeight = availableHeight.layoutCacheValue(),
-            deferFlexibleWidth = deferFlexibleWidth,
-            deferFlexibleHeight = deferFlexibleHeight,
-            allowWidthOverflow = allowWidthOverflow,
-            allowHeightOverflow = allowHeightOverflow,
-        )
-        return measureContext?.measureChildren(key) {
-            measureFlowChildrenUncached(
-                layoutChildren(node),
-                resolved,
-                availableWidth,
-                availableHeight,
-                scrollbarReserves,
-                deferFlexibleWidth = deferFlexibleWidth,
-                deferFlexibleHeight = deferFlexibleHeight,
-                allowWidthOverflow = allowWidthOverflow,
-                allowHeightOverflow = allowHeightOverflow,
-            )
-        } ?: measureFlowChildrenUncached(
+        return measureFlowChildren(
             layoutChildren(node),
             resolved,
             availableWidth,
@@ -1061,7 +1035,7 @@ class UiLayoutPipeline {
         )
     }
 
-    private fun measureFlowChildrenUncached(
+    private fun measureFlowChildren(
         children: List<UiNode>,
         resolved: ResolvedUiTree,
         availableWidth: Float,
@@ -1299,55 +1273,6 @@ class UiLayoutPipeline {
         allowWidthOverflow: Boolean = false,
         allowHeightOverflow: Boolean = false,
     ): LayoutSize {
-        val request = MeasureRequest(
-            node = node,
-            resolved = resolved,
-            availableWidth = availableWidth,
-            availableHeight = availableHeight,
-            scrollbarReserves = scrollbarReserves,
-            widthOverride = widthOverride,
-            heightOverride = heightOverride,
-            deferFlexibleWidth = deferFlexibleWidth,
-            deferFlexibleHeight = deferFlexibleHeight,
-            allowWidthOverflow = allowWidthOverflow,
-            allowHeightOverflow = allowHeightOverflow,
-        )
-        return measureContext?.measure(request) ?: measureNodeCached(request)
-    }
-
-    private fun measureNodeCached(request: MeasureRequest): LayoutSize {
-        val node = request.node
-        val cacheKey = request.cacheKey()
-        return node.layoutState.cachedMeasure(cacheKey) {
-            measureNodeUncached(
-                node = node,
-                resolved = request.resolved,
-                availableWidth = request.availableWidth,
-                availableHeight = request.availableHeight,
-                scrollbarReserves = request.scrollbarReserves,
-                widthOverride = request.widthOverride,
-                heightOverride = request.heightOverride,
-                deferFlexibleWidth = request.deferFlexibleWidth,
-                deferFlexibleHeight = request.deferFlexibleHeight,
-                allowWidthOverflow = request.allowWidthOverflow,
-                allowHeightOverflow = request.allowHeightOverflow,
-            )
-        }
-    }
-
-    private fun measureNodeUncached(
-        node: UiNode,
-        resolved: ResolvedUiTree,
-        availableWidth: Float,
-        availableHeight: Float,
-        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-        widthOverride: Float?,
-        heightOverride: Float?,
-        deferFlexibleWidth: Boolean,
-        deferFlexibleHeight: Boolean,
-        allowWidthOverflow: Boolean,
-        allowHeightOverflow: Boolean,
-    ): LayoutSize {
         val style = resolved[node]
         val referenceWidth = availableWidth.coerceAtLeast(0f)
         val referenceHeight = availableHeight.coerceAtLeast(0f)
@@ -1457,47 +1382,6 @@ class UiLayoutPipeline {
     }
 
     private fun intrinsicSize(
-        node: UiNode,
-        resolved: ResolvedUiTree,
-        style: ComputedStyle,
-        availableWidth: Float,
-        availableHeight: Float,
-        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-        knownContentWidth: Float? = null,
-        knownContentHeight: Float? = null,
-    ): LayoutSize {
-        val key = IntrinsicSizeCacheKey(
-            nodeId = System.identityHashCode(node),
-            subtreeRevision = node.layoutState.subtreeRevision,
-            availableWidth = availableWidth.layoutCacheValue(),
-            availableHeight = availableHeight.layoutCacheValue(),
-            knownContentWidth = knownContentWidth?.layoutCacheValue(),
-            knownContentHeight = knownContentHeight?.layoutCacheValue(),
-        )
-        return measureContext?.intrinsicSize(key) {
-            intrinsicSizeUncached(
-                node,
-                resolved,
-                style,
-                availableWidth,
-                availableHeight,
-                scrollbarReserves,
-                knownContentWidth,
-                knownContentHeight,
-            )
-        } ?: intrinsicSizeUncached(
-            node,
-            resolved,
-            style,
-            availableWidth,
-            availableHeight,
-            scrollbarReserves,
-            knownContentWidth,
-            knownContentHeight,
-        )
-    }
-
-    private fun intrinsicSizeUncached(
         node: UiNode,
         resolved: ResolvedUiTree,
         style: ComputedStyle,
@@ -1692,36 +1576,7 @@ class UiLayoutPipeline {
         availableHeight: Float,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     ): Map<String, UiInlineWidgetMetrics> {
-        val key = InlineWidgetMetricsCacheKey(
-            nodeId = System.identityHashCode(node),
-            subtreeRevision = node.layoutState.subtreeRevision,
-            availableWidth = availableWidth.layoutCacheValue(),
-            availableHeight = availableHeight.layoutCacheValue(),
-        )
-        return measureContext?.inlineMetrics(key) {
-            measureInlineWidgetMetricsUncached(
-                layoutChildren(node),
-                resolved,
-                availableWidth,
-                availableHeight,
-                scrollbarReserves,
-            )
-        } ?: measureInlineWidgetMetricsUncached(
-            layoutChildren(node),
-            resolved,
-            availableWidth,
-            availableHeight,
-            scrollbarReserves,
-        )
-    }
-
-    private fun measureInlineWidgetMetricsUncached(
-        children: Collection<UiNode>,
-        resolved: ResolvedUiTree,
-        availableWidth: Float,
-        availableHeight: Float,
-        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    ): Map<String, UiInlineWidgetMetrics> {
+        val children = layoutChildren(node)
         if (children.isEmpty()) return emptyMap()
         val metrics = LinkedHashMap<String, UiInlineWidgetMetrics>()
         for (child in children) {
