@@ -15,14 +15,12 @@ internal fun HollowIdeDiagnosticsBadge(
     val warnings = diagnostics.count { it.severity == UiTextDiagnosticSeverity.WARNING }
     Row(
         tags = listOf("ide-diagnostics-badge", if (errors > 0) "has-errors" else "has-warnings"),
-        modifier = Modifier.then(
-            Modifier.align(UiAlign.END, UiAlign.START),
-            Modifier.input(clickable = true, hoverable = true),
-            Modifier.onClick { event ->
+        modifier = Modifier.align(UiAlign.END, UiAlign.START)
+            .input(clickable = true, hoverable = true)
+            .onClick { event ->
                 onToggle(fileId)
                 event.consume()
-            },
-        ),
+            }
     ) {
         if (errors > 0) {
             Image(Assets.Hollowengine.Textures.Gui.Icons.ERROR.toString(), modifier = Modifier.size(10.px, 10.px))
@@ -45,14 +43,12 @@ internal fun HollowIdeDiagnosticsPanel(
     Column(tags = listOf("ide-diagnostics-wrap"), modifier = Modifier.size(100.percent, height.px)) {
         Box(
             tags = listOf("ide-diagnostics-resizer"),
-            modifier = Modifier.then(
-                Modifier.input(clickable = true, hoverable = true),
-                Modifier.cursor(UiCursorShape.RESIZE_VERTICAL),
-                Modifier.onDrag { event ->
+            modifier = Modifier.input(clickable = true, hoverable = true)
+                .cursor(UiCursorShape.RESIZE_VERTICAL)
+                .onDrag { event ->
                     onResize(fileId, -event.deltaY)
                     event.consume()
-                },
-            ),
+                }
         )
         LazyColumn(
             tags = listOf("ide-diagnostics-panel"),

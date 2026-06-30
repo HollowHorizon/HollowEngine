@@ -9,20 +9,7 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.easingTypes
-import ru.hollowhorizon.hollowengine.client.ui.Box
-import ru.hollowhorizon.hollowengine.client.ui.Column
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.Text
-import ru.hollowhorizon.hollowengine.client.ui.TextField
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
-import ru.hollowhorizon.hollowengine.client.ui.UiLength
-import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiTextInputFilter
-import ru.hollowhorizon.hollowengine.client.ui.percent
-import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.*
 
 @Composable
 internal fun HollowTimelineProperties(
@@ -36,19 +23,22 @@ internal fun HollowTimelineProperties(
 
     Column(
         id = "timeline-properties",
-        modifier = Modifier.then(
-            modifier,
-            Modifier.background(TimelineColors.Panel),
-            Modifier.border(1.px, TimelineColors.Border),
-            Modifier.padding(10.px),
-            Modifier.gap(8.px),
-            Modifier.input(scrollable = true),
-        ),
+        modifier = modifier.background(TimelineColors.Panel)
+            .border(1.px, TimelineColors.Border)
+            .padding(10.px)
+            .gap(8.px)
+            .input(scrollable = true)
     ) {
-        Text("Properties", modifier = Modifier.then(Modifier.fontSize(13f), Modifier.foreground(TimelineColors.Text)))
+        Text("Properties", modifier = Modifier.fontSize(13f).foreground(TimelineColors.Text))
         PreviewSection(controller, refresh)
         when {
-            selectedKey != null && selectedTrack != null -> KeyframeSection(selectedKey, selectedTrack, controller, refresh)
+            selectedKey != null && selectedTrack != null -> KeyframeSection(
+                selectedKey,
+                selectedTrack,
+                controller,
+                refresh
+            )
+
             controller.isWorkAreaSelected.value -> WorkAreaSection(controller, refresh)
             else -> EmptySection()
         }
@@ -58,14 +48,21 @@ internal fun HollowTimelineProperties(
 @Composable
 private fun PreviewSection(controller: TimelineController, refresh: () -> Unit) {
     Section("Preview") {
-        Row(modifier = Modifier.then(Modifier.size(100.percent, 24.px), Modifier.alignItems(vertical = UiAlign.CENTER), Modifier.gap(8.px))) {
-            TogglePill(if (controller.isCameraPreviewEnabled.value) "Camera On" else "Camera Off", controller.isCameraPreviewEnabled.value) {
+        Row(
+            modifier = Modifier.size(100.percent, 24.px)
+                .alignItems(vertical = UiAlign.CENTER)
+                .gap(8.px)
+        ) {
+            TogglePill(
+                if (controller.isCameraPreviewEnabled.value) "Camera On" else "Camera Off",
+                controller.isCameraPreviewEnabled.value
+            ) {
                 controller.setCameraPreviewEnabled(!controller.isCameraPreviewEnabled.value)
                 refresh()
             }
             Text(
                 if (controller.isPlaying.value) "Playing" else "Paused",
-                modifier = Modifier.then(Modifier.fontSize(10f), Modifier.foreground(TimelineColors.Muted)),
+                modifier = Modifier.fontSize(10f).foreground(TimelineColors.Muted),
             )
         }
         PropertyLine("Current time", "%.3f s".format(controller.currentTime.value).replace(',', '.'))
@@ -128,11 +125,9 @@ private fun EmptySection() {
     Section("Selection") {
         Text(
             "No keyframe selected",
-            modifier = Modifier.then(
-                Modifier.size(100.percent, 22.px),
-                Modifier.fontSize(11f),
-                Modifier.foreground(TimelineColors.Muted),
-            ),
+            modifier = Modifier.size(100.percent, 22.px)
+                .fontSize(11f)
+                .foreground(TimelineColors.Muted)
         )
     }
 }
@@ -182,24 +177,34 @@ private fun ValueEditor(
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(
-        modifier = Modifier.then(
-            Modifier.size(100.percent, UiLength.Auto),
-            Modifier.background(TimelineColors.PanelAlt),
-            Modifier.border(1.px, TimelineColors.Border, 4f),
-            Modifier.padding(8.px),
-            Modifier.gap(6.px),
-        ),
+        modifier = Modifier.size(100.percent, UiLength.Auto)
+            .background(TimelineColors.PanelAlt)
+            .border(1.px, TimelineColors.Border, 4f)
+            .padding(8.px)
+            .gap(6.px)
     ) {
-        Text(title, modifier = Modifier.then(Modifier.fontSize(11f), Modifier.foreground(TimelineColors.Blue)))
+        Text(title, modifier = Modifier.fontSize(11f).foreground(TimelineColors.Blue))
         content()
     }
 }
 
 @Composable
 private fun PropertyLine(label: String, value: String) {
-    Row(modifier = Modifier.then(Modifier.size(100.percent, 18.px), Modifier.alignItems(vertical = UiAlign.CENTER))) {
-        Text(label, modifier = Modifier.then(Modifier.size(96.px, 18.px), Modifier.fontSize(10f), Modifier.foreground(TimelineColors.Muted)))
-        Text(value, modifier = Modifier.then(Modifier.size(0.px, 18.px), Modifier.grow(1f), Modifier.fontSize(10f), Modifier.foreground(TimelineColors.Text), Modifier.textAlign(UiTextAlign.RIGHT)))
+    Row(modifier = Modifier.size(100.percent, 18.px).alignItems(vertical = UiAlign.CENTER)) {
+        Text(
+            label,
+            modifier = Modifier.size(96.px, 18.px)
+                .fontSize(10f)
+                .foreground(TimelineColors.Muted)
+        )
+        Text(
+            value,
+            modifier = Modifier.size(0.px, 18.px)
+                .grow(1f)
+                .fontSize(10f)
+                .foreground(TimelineColors.Text)
+                .textAlign(UiTextAlign.RIGHT)
+        )
     }
 }
 
@@ -213,8 +218,20 @@ private fun FloatField(
 ) {
     val formatted = "%.3f".format(value).replace(',', '.')
     val text = remember(label, formatted) { mutableStateOf(formatted) }
-    Row(modifier = Modifier.then(Modifier.size(100.percent, 24.px), Modifier.alignItems(vertical = UiAlign.CENTER), Modifier.gap(8.px))) {
-        Text(label, modifier = Modifier.then(Modifier.size(80.px, 18.px), Modifier.fontSize(10f), Modifier.foreground(TimelineColors.Muted)))
+    Row(
+        modifier =
+            Modifier.size(100.percent, 24.px)
+                .alignItems(vertical = UiAlign.CENTER)
+                .gap(8.px)
+    ) {
+        Text(
+            label,
+            modifier =
+                Modifier.size(80.px, 18.px)
+                    .fontSize(10f)
+                    .foreground(TimelineColors.Muted)
+
+        )
         TextField(
             value = text.value,
             filter = UiTextInputFilter.DECIMAL,
@@ -224,16 +241,14 @@ private fun FloatField(
                     onChange(parsed.coerceIn(min, max))
                 }
             },
-            modifier = Modifier.then(
-                Modifier.size(0.px, 22.px),
-                Modifier.grow(1f),
-                Modifier.background(TimelineColors.Background),
-                Modifier.border(1.px, TimelineColors.Border, 3f),
-                Modifier.padding(5.px, 2.px),
-                Modifier.foreground(TimelineColors.Text),
-                Modifier.fontSize(10f),
-                Modifier.textAlign(UiTextAlign.RIGHT),
-            ),
+            modifier = Modifier.size(0.px, 22.px)
+                .grow(1f)
+                .background(TimelineColors.Background)
+                .border(1.px, TimelineColors.Border, 3f)
+                .padding(5.px, 2.px)
+                .foreground(TimelineColors.Text)
+                .fontSize(10f)
+                .textAlign(UiTextAlign.RIGHT),
         )
     }
 }
@@ -241,19 +256,25 @@ private fun FloatField(
 @Composable
 private fun TogglePill(label: String, active: Boolean, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.then(
-            Modifier.size(88.px, 22.px),
-            Modifier.background(if (active) TimelineColors.Blue else TimelineColors.Background),
-            Modifier.border(1.px, if (active) UiColor.White else TimelineColors.Border, 4f),
-            Modifier.input(hoverable = true, clickable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.onClick {
+        modifier = Modifier.size(88.px, 22.px)
+            .background(if (active) TimelineColors.Blue else TimelineColors.Background)
+            .border(1.px, if (active) UiColor.White else TimelineColors.Border, 4f)
+            .input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .onClick {
                 onClick()
                 it.consume()
-            },
-        ),
+            }
     ) {
-        Text(label, modifier = Modifier.then(Modifier.align(UiAlign.CENTER, UiAlign.CENTER), Modifier.fontSize(10f), Modifier.foreground(TimelineColors.Text), Modifier.textAlign(UiTextAlign.CENTER)))
+        Text(
+            label,
+            modifier =
+                Modifier.align(UiAlign.CENTER, UiAlign.CENTER)
+                    .fontSize(10f)
+                    .foreground(TimelineColors.Text)
+                    .textAlign(UiTextAlign.CENTER)
+
+        )
     }
 }
 

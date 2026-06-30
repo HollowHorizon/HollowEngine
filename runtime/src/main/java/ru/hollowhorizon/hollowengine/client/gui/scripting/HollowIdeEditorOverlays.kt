@@ -20,18 +20,14 @@ internal class HollowIdeEditorOverlays(
 
         Column(
             tags = listOf("ide-completion-popup"),
-            modifier = Modifier.then(
-                Modifier.position(state.x.px, state.y.px, 40f),
-                Modifier.size(state.width.px, state.height.px),
-            ),
+            modifier = Modifier.position(state.x.px, state.y.px, 40f)
+                .size(state.width.px, state.height.px)
         ) {
             LazyColumn(
                 id = completionListId(fileId),
                 tags = listOf("ide-completion-list"),
-                modifier = Modifier.then(
-                    Modifier.size(100.percent, state.listHeight.px),
-                    Modifier.input(scrollable = true),
-                ),
+                modifier =
+                    Modifier.size(100.percent, state.listHeight.px).input(scrollable = true),
             ) {
                 if (state.firstIndex > 0) {
                     Box(modifier = Modifier.size(100.percent, (state.firstIndex * state.rowHeight).px))
@@ -44,7 +40,10 @@ internal class HollowIdeEditorOverlays(
                     Box(modifier = Modifier.size(100.percent, (remaining * state.rowHeight).px))
                 }
             }
-            Box(modifier = Modifier.then(Modifier.size(UiLength.Fill, 1.px), Modifier.background(parseColor("#31343D"))))
+            Box(
+                modifier = Modifier.size(UiLength.Fill, 1.px)
+                    .background(parseColor("#31343D"))
+            )
             Row(tags = listOf("ide-completion-hint")) {
                 Text(
                     UiTextContent(
@@ -93,10 +92,8 @@ internal class HollowIdeEditorOverlays(
         Box(
             mode = UiBoxMode.STACK,
             tags = listOf("ide-diagnostic-tooltip", state.severity.name.lowercase()),
-            modifier = Modifier.then(
-                Modifier.position(state.x.px, state.y.px, 50f),
-                Modifier.maxSize(state.maxWidth.px, UiLength.Auto),
-            ),
+            modifier = Modifier.position(state.x.px, state.y.px, 50f)
+                .maxSize(state.maxWidth.px, UiLength.Auto),
         ) {
             Text(
                 state.message,
@@ -115,16 +112,14 @@ internal class HollowIdeEditorOverlays(
                 "ide-completion-row",
                 if (index == state.selectedIndex) "selected" else "idle",
             ),
-            modifier = Modifier.then(
-                Modifier.size(100.percent, state.rowHeight.px),
-                Modifier.input(clickable = true, hoverable = true),
-                Modifier.onClick { event ->
+            modifier = Modifier.size(100.percent, state.rowHeight.px)
+                .input(clickable = true, hoverable = true)
+                .onClick { event ->
                     if (state.node.acceptCompletion(index)) {
                         surface.saveState(state.node)
                     }
                     event.consume()
-                },
-            ),
+                }
         ) {
             item.icon?.let { icon ->
                 Image(icon, tags = listOf("ide-completion-icon"))
@@ -133,7 +128,7 @@ internal class HollowIdeEditorOverlays(
             if (item.detail.isNotBlank()) {
                 Text(item.detail, tags = listOf("ide-completion-detail"))
             }
-            Box(modifier = Modifier.then(Modifier.size(100.percent, 100.percent), Modifier.grow(1f)))
+            Box(modifier = Modifier.size(100.percent, 100.percent).grow(1f))
             if (item.tail.isNotBlank()) {
                 Text(item.tail, tags = listOf("ide-completion-tail"))
             }
@@ -362,7 +357,12 @@ internal fun completionWindowStart(
     if (totalCount <= CompletionPopupWindowSize) return 0
     val scrollIndex = completionScrollIndex(totalCount, scrollOffset, rowHeight, visibleRows)
     val virtualStart = if (selectedChanged) {
-        completionSelectionScrollIndex(totalCount, selectedIndex, scrollIndex, visibleRows) - CompletionPopupOverscanRows
+        completionSelectionScrollIndex(
+            totalCount,
+            selectedIndex,
+            scrollIndex,
+            visibleRows
+        ) - CompletionPopupOverscanRows
     } else {
         scrollIndex - CompletionPopupOverscanRows
     }

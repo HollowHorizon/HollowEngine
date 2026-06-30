@@ -1,15 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import androidx.compose.runtime.Composable
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.TextField
-import ru.hollowhorizon.hollowengine.client.ui.UiCompletionContributor
-import ru.hollowhorizon.hollowengine.client.ui.UiInlayHint
-import ru.hollowhorizon.hollowengine.client.ui.UiInlayHintsProvider
-import ru.hollowhorizon.hollowengine.client.ui.UiSyntaxHighlighter
-import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnostic
-import ru.hollowhorizon.hollowengine.client.ui.UiTextFieldMode
-import ru.hollowhorizon.hollowengine.client.ui.percent
+import ru.hollowhorizon.hollowengine.client.ui.*
 
 @Composable
 fun UiCodeEditor(
@@ -43,11 +35,7 @@ fun UiCodeEditor(
         onChange = onChange,
         id = id,
         tags = listOf("code-editor") + tags,
-        modifier = Modifier.then(
-            modifier,
-            Modifier.input(scrollable = true),
-            Modifier.textWrap(false),
-        ),
+        modifier = modifier.input(scrollable = true).textWrap(false),
         attributes = attributes,
     )
 }

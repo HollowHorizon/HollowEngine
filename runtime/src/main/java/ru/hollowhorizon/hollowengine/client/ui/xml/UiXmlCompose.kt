@@ -29,7 +29,7 @@ private class UiXmlComposeCompiler(private val options: UiXmlOptions) {
             when {
                 element.name.equals("import", ignoreCase = true) -> {
                     val name = element.attributes["named"] ?: element.attributes["name"]
-                        ?: throw IllegalArgumentException("UI import requires 'named'")
+                    ?: throw IllegalArgumentException("UI import requires 'named'")
                     val location = element.attributes["element"]
                         ?: throw IllegalArgumentException("UI import '$name' requires 'element'")
                     imports[name] = loadImportedElement(location)
@@ -79,8 +79,8 @@ private fun UiXmlElement(
         "UI <button> was removed; use <box> with event handlers and nested <text> instead"
     }
     val attributes = resolved.attributes
-    val modifiers = attributes.toModifiers(document.options) + extraModifiers
-    val modifier = modifiers.asModifier()
+    val modifiers = (attributes.toModifiers(document.options) + extraModifiers).toMutableSet()
+    val modifier = CompositeModifier(modifiers)
     val customAttributes = attributes.customAttributes()
     val id = attributes["id"]
     val tags = attributes.tags(resolved.name)
@@ -108,6 +108,7 @@ private fun UiXmlElement(
         "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes) {
             UiXmlInlineWidgetChildren(resolved, document)
         }
+
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
@@ -194,7 +195,8 @@ private fun InlineTextChild(element: UiXmlTree) {
 }
 
 private fun UiXmlTree.composeKey(index: Int): String {
-    return attributes["id"] ?: "$index:${name.lowercase()}:${attributes["tag"]}:${attributes["tags"]}:${attributes["class"]}"
+    return attributes["id"]
+        ?: "$index:${name.lowercase()}:${attributes["tag"]}:${attributes["tags"]}:${attributes["class"]}"
 }
 
 private fun Map<String, String>.toModifiers(options: UiXmlOptions): List<Modifier> {
@@ -264,12 +266,6 @@ private fun Map<String, String>.boxMode(): UiBoxMode {
         "stack" -> UiBoxMode.STACK
         else -> throw IllegalArgumentException("Unknown box mode '${firstValue("mode")}'")
     }
-}
-
-private fun List<Modifier>.asModifier(): Modifier? = when (size) {
-    0 -> null
-    1 -> single()
-    else -> Modifier.then(*toTypedArray())
 }
 
 private fun Map<String, String>.firstValue(vararg names: String): String {

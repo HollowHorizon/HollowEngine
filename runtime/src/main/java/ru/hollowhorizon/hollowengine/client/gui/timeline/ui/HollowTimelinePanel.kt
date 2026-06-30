@@ -9,17 +9,7 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.BaseAnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSession
-import ru.hollowhorizon.hollowengine.client.ui.Box
-import ru.hollowhorizon.hollowengine.client.ui.Column
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.Text
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
-import ru.hollowhorizon.hollowengine.client.ui.UiEvent
-import ru.hollowhorizon.hollowengine.client.ui.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.percent
-import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.*
 import kotlin.math.round
 
 @Composable
@@ -64,14 +54,11 @@ fun HollowTimelineEditor(
 
     Row(
         id = "cutscene-timeline-root",
-        modifier = Modifier.then(
-            Modifier.size(100.percent, 100.percent),
-            Modifier.background(TimelineColors.Background),
-        ),
+        modifier = Modifier.size(100.percent, 100.percent).background(TimelineColors.Background)
     ) {
-        Column(modifier = Modifier.then(Modifier.size(0.px, 100.percent), Modifier.grow(1f))) {
+        Column(modifier = Modifier.size(0.px, 100.percent).grow(1f)) {
             TimelineToolbar(controller, onCapture, bump)
-            Row(modifier = Modifier.then(Modifier.size(100.percent, 0.px), Modifier.grow(1f))) {
+            Row(modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
                 TimelineHeaderList(controller, bump)
                 TimelineArea(controller, bump)
             }
@@ -86,26 +73,32 @@ private fun TimelineArea(controller: TimelineController, refresh: () -> Unit) {
     val tracks = controller.getAllTracks()
     val pxPerSec = controller.pixelsPerSecond.value
     val contentHeight = (TimelineRulerHeight + rows.sumOf { it.height.toDouble() }).toFloat()
-    val contentWidth = timelineContentWidth(controller.workAreaEnd.value, timelineMaxKeyTime(tracks), pxPerSec, TimelineMinContentWidth)
+    val contentWidth = timelineContentWidth(
+        controller.workAreaEnd.value,
+        timelineMaxKeyTime(tracks),
+        pxPerSec,
+        TimelineMinContentWidth
+    )
 
     Box(
         id = "timeline-scroll",
-        modifier = Modifier.then(
-            Modifier.size(0.px, 100.percent),
-            Modifier.grow(1f),
-            Modifier.background(TimelineColors.Background),
-            Modifier.input(scrollable = true),
-            Modifier.clip(),
-            Modifier.onScroll { event ->
+        modifier = Modifier.size(0.px, 100.percent)
+            .grow(1f)
+            .background(TimelineColors.Background)
+            .input(scrollable = true)
+            .clip()
+            .onScroll { event ->
                 if (event.modifiers and GLFW.GLFW_MOD_CONTROL != 0) {
                     controller.pixelsPerSecond.set(
-                        (controller.pixelsPerSecond.value + event.scrollY * 8f).coerceIn(TimelineMinZoom, TimelineMaxZoom)
+                        (controller.pixelsPerSecond.value + event.scrollY * 8f).coerceIn(
+                            TimelineMinZoom,
+                            TimelineMaxZoom
+                        )
                     )
                     event.consume()
                     refresh()
                 }
-            },
-        ),
+            }
     ) {
         Box(id = "timeline-content", modifier = Modifier.size(contentWidth.px, contentHeight.px)) {
             TimeRuler(controller, pxPerSec, contentWidth, refresh)
@@ -122,35 +115,43 @@ private fun TimelineArea(controller: TimelineController, refresh: () -> Unit) {
 private fun TimeRuler(controller: TimelineController, pxPerSec: Float, contentWidth: Float, refresh: () -> Unit) {
     Box(
         id = "timeline-ruler",
-        modifier = Modifier.then(
-            Modifier.position(0.px, 0.px),
-            Modifier.size(contentWidth.px, TimelineRulerHeight.px),
-            Modifier.background(TimelineColors.Group),
-            Modifier.input(clickable = true, draggable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.onPress { event ->
+        modifier = Modifier.position(0.px, 0.px)
+            .size(contentWidth.px, TimelineRulerHeight.px)
+            .background(TimelineColors.Group)
+            .input(clickable = true, draggable = true)
+            .cursor(UiCursorShape.HAND)
+            .onPress { event ->
                 controller.clearSelection()
                 controller.setCurrentTime(timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value))
                 refresh()
-            },
-            Modifier.onClick { event ->
+            }
+            .onClick { event ->
                 controller.clearSelection()
                 controller.setCurrentTime(timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value))
                 event.consume()
                 refresh()
-            },
-            Modifier.onDrag { event ->
+            }
+            .onDrag { event ->
                 controller.setCurrentTime(timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value))
                 event.consume()
                 refresh()
-            },
-        ),
+            }
     ) {
         val seconds = timelineRulerSeconds(0f, contentWidth, pxPerSec)
         seconds.forEach { second ->
             val x = TimelineLeftPadding + second * pxPerSec
-            Box(modifier = Modifier.then(Modifier.position(x.px, 14.px), Modifier.size(1.px, 16.px), Modifier.background(TimelineColors.Muted)))
-            Text(second.toString(), modifier = Modifier.then(Modifier.position((x + 4f).px, 4.px), Modifier.fontSize(10f), Modifier.foreground(TimelineColors.Muted)))
+            Box(
+                modifier = Modifier.position(x.px, 14.px)
+                    .size(1.px, 16.px)
+                    .background(TimelineColors.Muted)
+            )
+            Text(
+                second.toString(),
+                modifier = Modifier.position((x + 4f).px, 4.px)
+                    .fontSize(10f)
+                    .foreground(TimelineColors.Muted)
+
+            )
         }
         WorkAreaHandle(controller, pxPerSec, refresh)
     }
@@ -172,34 +173,34 @@ private fun TimelineLane(
     }
     Box(
         id = "lane-${row.id}",
-        modifier = Modifier.then(
-            Modifier.position(0.px, row.y.px),
-            Modifier.size(contentWidth.px, row.height.px),
-            Modifier.background(background),
-            Modifier.border(1.px, TimelineColors.Border),
-            Modifier.input(clickable = row.track != null, draggable = row.track != null && !row.locked),
-            Modifier.onPress { event ->
+        modifier = Modifier.position(0.px, row.y.px)
+            .size(contentWidth.px, row.height.px)
+            .background(background)
+            .border(1.px, TimelineColors.Border)
+            .input(clickable = row.track != null, draggable = row.track != null && !row.locked)
+            .onPress { event ->
                 val track = row.track as? AnimTrack<*> ?: return@onPress
                 if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && !row.locked) {
-                    controller.trackContextMenuTime = timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value)
+                    controller.trackContextMenuTime =
+                        timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value)
                     controller.addKeyframe(track, controller.trackContextMenuTime ?: controller.currentTime.value)
                 } else {
                     controller.clearSelection()
                 }
                 refresh()
-            },
-            Modifier.onClick { event ->
+            }
+            .onClick { event ->
                 val track = row.track as? AnimTrack<*> ?: return@onClick
                 if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && !row.locked) {
-                    controller.trackContextMenuTime = timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value)
+                    controller.trackContextMenuTime =
+                        timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value)
                     controller.addKeyframe(track, controller.trackContextMenuTime ?: controller.currentTime.value)
                 } else {
                     controller.clearSelection()
                 }
                 event.consume()
                 refresh()
-            },
-        ),
+            }
     ) {
         (row.track as? AnimTrack<*>)?.let { track ->
             KeyframeConnections(track, row, pxPerSec)
@@ -226,35 +227,43 @@ private fun TimelineKeyframe(
     val y = row.height * 0.5f - size * 0.5f
     Box(
         id = "keyframe-${track.nameState.value}-${keyframe.time}",
-        modifier = Modifier.then(
-            Modifier.position(x.px, y.px),
-            Modifier.size(size.px, size.px),
-            Modifier.shape(TimelineDiamondShape, UiPaint.Color(color), UiPaint.Color(if (selected) UiColor.White else TimelineColors.Background), 1.px),
-            Modifier.input(hoverable = true, clickable = true, draggable = !row.locked),
-            Modifier.cursor(if (row.locked) UiCursorShape.DEFAULT else UiCursorShape.MOVE),
-            Modifier.onPress { event ->
-                if (!row.locked) {
-                    selectKeyframe(controller, keyframe, event)
-                    refresh()
-                }
-            },
-            Modifier.onClick { event ->
-                if (!row.locked) selectKeyframe(controller, keyframe, event)
-                event.consume()
-                refresh()
-            },
-            Modifier.onDrag { event ->
-                if (!row.locked) {
-                    if (keyframe !in controller.selectedKeyframes) {
-                        controller.selectedKeyframes.clear()
-                        controller.selectedKeyframes.add(keyframe)
+        modifier =
+            Modifier.position(x.px, y.px)
+                .size(size.px, size.px)
+                .shape(
+                    TimelineDiamondShape,
+                    UiPaint.Color(color),
+                    UiPaint.Color(if (selected) UiColor.White else TimelineColors.Background),
+                    1.px
+                )
+                .input(hoverable = true, clickable = true, draggable = !row.locked)
+                .cursor(if (row.locked) UiCursorShape.DEFAULT else UiCursorShape.MOVE)
+                .onPress { event ->
+                    if (!row.locked) {
+                        selectKeyframe(controller, keyframe, event)
+                        refresh()
                     }
-                    controller.moveKeyframe(track, keyframe, keyframe.time + timelineTimeDelta(event.deltaX, pxPerSec))
+                }
+                .onClick { event ->
+                    if (!row.locked) selectKeyframe(controller, keyframe, event)
                     event.consume()
                     refresh()
                 }
-            },
-        ),
+                .onDrag { event ->
+                    if (!row.locked) {
+                        if (keyframe !in controller.selectedKeyframes) {
+                            controller.selectedKeyframes.clear()
+                            controller.selectedKeyframes.add(keyframe)
+                        }
+                        controller.moveKeyframe(
+                            track,
+                            keyframe,
+                            keyframe.time + timelineTimeDelta(event.deltaX, pxPerSec)
+                        )
+                        event.consume()
+                        refresh()
+                    }
+                }
     )
 }
 
@@ -269,11 +278,9 @@ private fun KeyframeConnections(track: AnimTrack<*>, row: TimelineRow, pxPerSec:
         val width = (second.time - first.time) * pxPerSec
         if (width <= 1f) continue
         Box(
-            modifier = Modifier.then(
-                Modifier.position(x.px, (row.height * 0.5f - 1f).px),
-                Modifier.size(width.px, 2.px),
-                Modifier.background(track.color.toUiColor(if (row.visible) 0.75f else 0.2f)),
-            ),
+            modifier = Modifier.position(x.px, (row.height * 0.5f - 1f).px)
+                .size(width.px, 2.px)
+                .background(track.color.toUiColor(if (row.visible) 0.75f else 0.2f))
         )
     }
 }
@@ -283,24 +290,26 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
     val x = TimelineLeftPadding + controller.workAreaEnd.value * pxPerSec
     Box(
         id = "timeline-work-area-end",
-        modifier = Modifier.then(
-            Modifier.position((x - 5f).px, 0.px),
-            Modifier.size(10.px, TimelineRulerHeight.px),
-            Modifier.shape(TimelineDiamondShape, UiPaint.Color(if (controller.isWorkAreaSelected.value) UiColor.White else TimelineColors.Accent)),
-            Modifier.input(clickable = true, draggable = true),
-            Modifier.cursor(UiCursorShape.RESIZE_HORIZONTAL),
-            Modifier.onPress {
+        modifier = Modifier.position((x - 5f).px, 0.px)
+            .size(10.px, TimelineRulerHeight.px)
+            .shape(
+                TimelineDiamondShape,
+                UiPaint.Color(if (controller.isWorkAreaSelected.value) UiColor.White else TimelineColors.Accent)
+            )
+            .input(clickable = true, draggable = true)
+            .cursor(UiCursorShape.RESIZE_HORIZONTAL)
+            .onPress {
                 controller.selectedKeyframes.clear()
                 controller.isWorkAreaSelected.set(true)
                 refresh()
-            },
-            Modifier.onClick { event ->
+            }
+            .onClick { event ->
                 controller.selectedKeyframes.clear()
                 controller.isWorkAreaSelected.set(true)
                 event.consume()
                 refresh()
-            },
-            Modifier.onDrag { event ->
+            }
+            .onDrag { event ->
                 val maxKeyTime = timelineMaxKeyTime(controller.getAllTracks())
                 val next = (controller.workAreaEnd.value + timelineTimeDelta(event.deltaX, pxPerSec))
                     .coerceAtLeast(maxKeyTime)
@@ -311,7 +320,6 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
                 event.consume()
                 refresh()
             },
-        ),
     )
 }
 
@@ -320,11 +328,9 @@ private fun WorkAreaShade(controller: TimelineController, pxPerSec: Float, conte
     val x = TimelineLeftPadding + controller.workAreaEnd.value * pxPerSec
     if (x >= contentWidth) return
     Box(
-        modifier = Modifier.then(
-            Modifier.position(x.px, TimelineRulerHeight.px),
-            Modifier.size((contentWidth - x).px, 100.percent),
-            Modifier.background(UiColor(0f, 0f, 0f, 0.38f)),
-        ),
+        modifier = Modifier.position(x.px, TimelineRulerHeight.px)
+            .size((contentWidth - x).px, 100.percent)
+            .background(UiColor(0f, 0f, 0f, 0.38f)),
     )
 }
 
@@ -333,11 +339,9 @@ private fun Playhead(controller: TimelineController, pxPerSec: Float, contentHei
     val x = TimelineLeftPadding + controller.currentTime.value * pxPerSec
     Box(
         id = "timeline-playhead",
-        modifier = Modifier.then(
-            Modifier.position(x.px, 0.px),
-            Modifier.size(2.px, contentHeight.px),
-            Modifier.background(TimelineColors.Accent),
-        ),
+        modifier = Modifier.position(x.px, 0.px)
+            .size(2.px, contentHeight.px)
+            .background(TimelineColors.Accent)
     )
 }
 

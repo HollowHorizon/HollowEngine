@@ -74,15 +74,13 @@ internal fun HollowIdeProjectNameDialog(
 private fun ProjectMenuItem(label: String, shortcut: String, icon: String? = null, action: () -> Unit) {
     Row(
         tags = listOf("dropdown-item", "project-context-menu-item"),
-        modifier = Modifier.then(
-            Modifier.input(hoverable = true, clickable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.alignItems(vertical = UiAlign.CENTER),
-            Modifier.onClick { event ->
+        modifier = Modifier.input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .alignItems(vertical = UiAlign.CENTER)
+            .onClick { event ->
                 action()
                 event.consume()
-            },
-        ),
+            }
     ) {
         if (icon != null) Image(icon, tags = listOf("dropdown-item-icon", "project-context-menu-icon"))
         Text(label, tags = listOf("dropdown-item-label", "project-context-menu-label"))

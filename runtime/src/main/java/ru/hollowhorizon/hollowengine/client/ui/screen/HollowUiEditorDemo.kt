@@ -23,16 +23,14 @@ internal fun HollowUiEditorDemo(
                 inlayHintsProvider = EditorDemoInlayHintsProvider,
                 placeholder = "Type code here",
                 tags = listOf("editor-text-field"),
-                modifier = Modifier.then(
-                    Modifier.size(520.px, 210.px),
-                    Modifier.input(scrollable = true),
-                    Modifier.textWrap(false),
-                    Modifier.onKeyInput { input ->
+                modifier = Modifier.size(520.px, 210.px)
+                    .input(scrollable = true)
+                    .textWrap(false)
+                    .onKeyInput { input ->
                         if (input.key != GLFW.GLFW_KEY_F2) return@onKeyInput false
                         onKeyLog("F2 captured before the default text-field keymap")
                         true
-                    },
-                ),
+                    }
             )
             Text(keyLog, tags = listOf("editor-key-log"))
         }
@@ -88,9 +86,24 @@ internal fun highlightEditorDemoText(text: String): List<UiTextHighlight> {
 private object EditorDemoCompletionContributor : UiCompletionContributor {
     override fun complete(context: UiCompletionContext): List<UiTextCompletion> {
         return listOf(
-            UiTextCompletion("TextField(...)", "TextField(value = \"\")", "template", caretOffset = "TextField(value = \"".length),
-            UiTextCompletion("LazyColumn { ... }", "LazyColumn {\n    \n}", "template", caretOffset = "LazyColumn {\n    ".length),
-            UiTextCompletion("Modifier.onKeyInput", "Modifier.onKeyInput { input ->\n    false\n}", "modifier", caretOffset = "Modifier.onKeyInput { input ->\n    ".length),
+            UiTextCompletion(
+                "TextField(...)",
+                "TextField(value = \"\")",
+                "template",
+                caretOffset = "TextField(value = \"".length
+            ),
+            UiTextCompletion(
+                "LazyColumn { ... }",
+                "LazyColumn {\n    \n}",
+                "template",
+                caretOffset = "LazyColumn {\n    ".length
+            ),
+            UiTextCompletion(
+                "Modifier.onKeyInput",
+                "Modifier.onKeyInput { input ->\n    false\n}",
+                "modifier",
+                caretOffset = "Modifier.onKeyInput { input ->\n    ".length
+            ),
             UiTextCompletion("line-numbers: true", "line-numbers: true;", "style"),
         )
     }

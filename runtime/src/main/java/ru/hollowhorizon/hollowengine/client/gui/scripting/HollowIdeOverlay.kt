@@ -179,11 +179,9 @@ object HollowIdeOverlay {
     private fun Content() {
         Box(
             id = "ide-root",
-            modifier = Modifier.then(
-                Modifier.style("hollowengine:ui/styles/ide.hss"),
-                Modifier.style("hollowengine:ui/styles/widgets.hss"),
-                Modifier.size(100.percent, 100.percent),
-            ),
+            modifier = Modifier.style("hollowengine:ui/styles/ide.hss")
+                .style("hollowengine:ui/styles/widgets.hss")
+                .size(100.percent, 100.percent)
         ) {
             if (collapsed) {
                 GearButton()
@@ -193,10 +191,8 @@ object HollowIdeOverlay {
                     DockSpace(
                         state = dock,
                         id = "ide-dock",
-                        modifier = Modifier.then(
-                            Modifier.size(100.percent, 0.px),
-                            Modifier.grow(1f),
-                        ),
+                        modifier = Modifier.size(100.percent, 0.px)
+                            .grow(1f),
                         content = { item -> DockContent(item) },
                     )
                 }
@@ -208,15 +204,13 @@ object HollowIdeOverlay {
     private fun GearButton() {
         Box(
             id = "ide-logo",
-            modifier = Modifier.then(
-                Modifier.input(hoverable = true, clickable = true),
-                Modifier.cursor(UiCursorShape.HAND),
-                Modifier.onClick { event ->
+            modifier = Modifier.input(hoverable = true, clickable = true)
+                .cursor(UiCursorShape.HAND)
+                .onClick { event ->
                     collapsed = !collapsed
                     openDropdown = null
                     event.consume()
-                },
-            ),
+                }
         ) {
             Image(LogoIcon, tags = listOf("ide-logo-icon"))
         }
@@ -230,7 +224,7 @@ object HollowIdeOverlay {
         ) {
             GearButton()
             ToolbarMenus()
-            Box(modifier = Modifier.then(Modifier.size(0.px, 100.percent), Modifier.grow(1f)))
+            Box(modifier = Modifier.size(0.px, 100.percent).grow(1f))
             OpenFilesDropdown()
         }
     }
@@ -376,13 +370,11 @@ object HollowIdeOverlay {
                     readOnly = file.readOnly,
                     id = editorId,
                     attributes = mapOf("analysis-revision" to analysisRevision.toString()),
-                    modifier = Modifier.then(
-                        Modifier.size(100.percent, 100.percent),
-                        Modifier.fontSize(fontSize),
-                        Modifier.onFocus {
+                    modifier = Modifier.size(100.percent, 100.percent)
+                        .fontSize(fontSize)
+                        .onFocus {
                             dock.focus(file.id)
-                        },
-                    ),
+                        }
                 )
                 editorOverlays.CompletionPopup(file.id)
                 editorOverlays.DiagnosticTooltip(file.id)
@@ -463,9 +455,10 @@ object HollowIdeOverlay {
     }
 
     private fun focusedEditorFile(): HollowIdeOpenFile? {
-        surface.runtime.focusedKey?.removePrefix("editor-")?.takeIf { it != surface.runtime.focusedKey }?.let { editorFileId ->
-            model.files.values.firstOrNull { it.id == editorFileId }?.let { return it }
-        }
+        surface.runtime.focusedKey?.removePrefix("editor-")?.takeIf { it != surface.runtime.focusedKey }
+            ?.let { editorFileId ->
+                model.files.values.firstOrNull { it.id == editorFileId }?.let { return it }
+            }
         return focusedFile()
     }
 
@@ -500,7 +493,8 @@ object HollowIdeOverlay {
 
     private fun renderOverlay(target: UiRenderTarget) {
         val window = Minecraft.getInstance().window
-        val frame = surface.frame(window.width.toFloat(), window.height.toFloat(), lastMouseX, lastMouseY, System.nanoTime())
+        val frame =
+            surface.frame(window.width.toFloat(), window.height.toFloat(), lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame.commands, target)
     }
 
