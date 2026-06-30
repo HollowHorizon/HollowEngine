@@ -14,25 +14,9 @@ class HollowUiSurface(
     val runtime = HollowUiRuntime(theme, stylesheet, scrollState)
     private var hasContent = false
 
-    val root: BoxNode
-        get() {
-            check(hasContent) { "UI content has not been set" }
-            return composition.root
-        }
-
     fun setContent(content: HollowUiContent): BoxNode {
         hasContent = true
         return composition.setContent(content)
-    }
-
-    fun composeRoot(nowNanos: Long = System.nanoTime()): BoxNode {
-        check(hasContent) { "UI content has not been set" }
-        return composition.frameRoot(nowNanos)
-    }
-
-    fun applyPendingChanges(nowNanos: Long = System.nanoTime()): Boolean {
-        if (!hasContent) return false
-        return composition.applyPendingChanges(nowNanos)
     }
 
     fun frame(

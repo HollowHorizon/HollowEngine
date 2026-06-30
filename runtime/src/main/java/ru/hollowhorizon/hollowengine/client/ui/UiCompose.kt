@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
+import ru.hollowhorizon.hollowengine.HollowEngine
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
@@ -18,20 +19,20 @@ class HollowUiComposition(
     private val rootNode = BoxNode(layout = UiLayout.Column)
     private val applier = HollowUiApplier(rootNode)
     private val composition = Composition(applier, recomposer)
-    private val recomposerJob: Job = scope.launch { recomposer.runRecomposeAndApplyChanges() }
-    private var observedChangeCount = recomposer.changeCount
-    private var closed = false
-
-    val root: BoxNode
-        get() {
-            applyPendingChanges()
-            return rootNode
+    private val recomposerJob: Job = scope.launch {
+        try {
+            recomposer.runRecomposeAndApplyChanges()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            HollowEngine.LOGGER.error("Critical error in Compose UI: $e")
         }
+    }
+    @Volatile
+    private var observedChangeCount = recomposer.changeCount
 
     fun setContent(content: HollowUiContent): BoxNode {
-        check(!closed) { "HollowUiComposition is already closed" }
         composition.setContent(content)
-        applyPendingChanges()
         return rootNode
     }
 
@@ -41,7 +42,6 @@ class HollowUiComposition(
     }
 
     fun applyPendingChanges(nowNanos: Long = System.nanoTime()): Boolean {
-        if (closed) return false
         pumpPendingChanges(nowNanos)
         val changed = recomposer.changeCount != observedChangeCount
         if (changed) {
@@ -54,17 +54,13 @@ class HollowUiComposition(
     private fun pumpPendingChanges(nowNanos: Long) {
         Snapshot.sendApplyNotifications()
         if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
-        Snapshot.sendApplyNotifications()
-        if (frameClock.hasAwaiters) frameClock.sendFrame(nowNanos)
     }
 
     override fun close() {
-        if (closed) return
-        closed = true
+        scope.cancel()
         composition.dispose()
         recomposer.cancel()
         recomposerJob.cancel()
-        scope.cancel()
     }
 }
 
