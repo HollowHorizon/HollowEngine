@@ -27,7 +27,7 @@ val ijPlatform = "261.25134.147"
 val ijJava = "261.25134.137"
 
 val runtimeProjectPath = ":runtime"
-val lightTreeClasses = project.projectDir.resolve("lightThree")
+val lightTreeClasses = project.projectDir.resolve("lightTree")
 val patchedLightTreeJar = tasks.register<ShadowJar>("patchedLightTreeJar") {
     archiveBaseName.set("hollowengine-light-tree")
     archiveClassifier.set("patched")
