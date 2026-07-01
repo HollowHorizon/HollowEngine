@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @Composable

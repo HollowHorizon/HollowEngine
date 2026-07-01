@@ -2,14 +2,14 @@ package ru.hollowhorizon.hollowengine.client.ui.render
 
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineImageRun
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiInlineWidgetRun
 import ru.hollowhorizon.hollowengine.client.ui.UiTextFragment
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLine
 import ru.hollowhorizon.hollowengine.client.ui.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.UiTextSpaceRun
-import ru.hollowhorizon.hollowengine.client.ui.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.widgets.fontFamily
 
 internal object UiTextOverflowResolver {
     private const val ELLIPSIS = "…"

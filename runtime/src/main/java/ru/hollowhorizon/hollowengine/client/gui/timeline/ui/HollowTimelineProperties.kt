@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.easingTypes
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 
 @Composable
 internal fun HollowTimelineProperties(

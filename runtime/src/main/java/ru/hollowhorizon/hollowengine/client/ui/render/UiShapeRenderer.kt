@@ -4,6 +4,18 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.shape.SvgResourceShape
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathPoint
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathTriangle
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
+import ru.hollowhorizon.hollowengine.client.ui.shape.flatten
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
+import ru.hollowhorizon.hollowengine.client.ui.style.UiRadialGradient
+import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 

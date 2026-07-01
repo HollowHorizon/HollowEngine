@@ -5,7 +5,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.LocalUiFrameTimeNanos
-import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 

@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCaret
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCompletion
 import java.util.*
 
 class UiNodeStateStore {

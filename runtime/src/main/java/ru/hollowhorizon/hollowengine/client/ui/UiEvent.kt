@@ -1,7 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.client.ui.hss.parseHssSelector
+import ru.hollowhorizon.hollowengine.client.ui.style.parseHssSelector
+import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldDefaultKeyInputModifier
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
+import ru.hollowhorizon.hollowengine.client.ui.widgets.handleDefaultTextFieldKeyInput
 
 enum class UiEventKind {
     INIT,

@@ -1,5 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.layout.InvalidatingMutableList
+import ru.hollowhorizon.hollowengine.client.ui.layout.InvalidatingMutableMap
+import ru.hollowhorizon.hollowengine.client.ui.layout.InvalidatingMutableSet
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiNodeLayoutState
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import java.util.*
 
 interface UiNode {
@@ -26,9 +33,10 @@ open class BaseUiNode(
     attributes: Map<String, String> = emptyMap(),
     layout: UiLayout = UiLayout.Column,
 ) : UiNode {
-    final override val layoutState = UiNodeLayoutState(this)
+    final override val layoutState = UiNodeLayoutState()
     final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateLayout() }
-    final override val attributes: MutableMap<String, String> = InvalidatingMutableMap(attributes) { invalidateLayout() }
+    final override val attributes: MutableMap<String, String> =
+        InvalidatingMutableMap(attributes) { invalidateLayout() }
     final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
     final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateLayout() }
     final override val children = UiChildren()

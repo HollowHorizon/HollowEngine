@@ -4,6 +4,21 @@ import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineAlign
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
+import ru.hollowhorizon.hollowengine.client.ui.widgets.readBoolean
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withBold
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withCode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withColor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withFontFamily
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withFontSize
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withItalic
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withLink
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withStrikethrough
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withUnderline
 
 fun interface UiResourceLoader {
     fun readText(location: String): String

@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import kotlinx.coroutines.Dispatchers
-import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import kotlin.coroutines.CoroutineContext
 
 class HollowUiSurface(

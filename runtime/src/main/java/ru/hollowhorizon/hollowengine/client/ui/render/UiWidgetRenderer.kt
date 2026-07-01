@@ -6,6 +6,13 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretWidth
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
 import java.util.*
 import kotlin.math.atan2
 import kotlin.math.max

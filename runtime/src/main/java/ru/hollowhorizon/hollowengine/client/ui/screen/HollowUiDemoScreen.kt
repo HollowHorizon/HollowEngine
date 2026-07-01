@@ -3,6 +3,11 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineAlign
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml

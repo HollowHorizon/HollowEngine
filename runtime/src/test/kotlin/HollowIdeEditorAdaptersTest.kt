@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import ru.hollowhorizon.hollowengine.client.ui.UiInlayHint
-import ru.hollowhorizon.hollowengine.client.ui.UiTextDiagnostic
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
 
 class HollowIdeEditorAdaptersTest {
     @Test

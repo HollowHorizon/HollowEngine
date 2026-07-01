@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
-import ru.hollowhorizon.hollowengine.client.ui.normalizeEditorLineEndings
+import ru.hollowhorizon.hollowengine.client.ui.widgets.normalizeEditorLineEndings
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath

@@ -20,14 +20,28 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.render.render
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.bold
+import ru.hollowhorizon.hollowengine.client.ui.widgets.code
+import ru.hollowhorizon.hollowengine.client.ui.widgets.color
+import ru.hollowhorizon.hollowengine.client.ui.widgets.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.widgets.italic
+import ru.hollowhorizon.hollowengine.client.ui.widgets.link
+import ru.hollowhorizon.hollowengine.client.ui.widgets.strikethrough
+import ru.hollowhorizon.hollowengine.client.ui.widgets.underline
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -267,9 +281,10 @@ class MinecraftUiRenderer {
             val placement = imagePlacement(width, height, fit, intrinsicSize)
             val pixelWidth = rasterPixelSize(placement.width)
             val pixelHeight = rasterPixelSize(placement.height)
-            val texture = svgRasterTextures.computeIfAbsent(SvgRasterKey(location, revision, pixelWidth, pixelHeight)) { key ->
-                createSvgRasterTexture(key)
-            }
+            val texture =
+                svgRasterTextures.computeIfAbsent(SvgRasterKey(location, revision, pixelWidth, pixelHeight)) { key ->
+                    createSvgRasterTexture(key)
+                }
             SvgRasterQuad(
                 texture = texture.location,
                 width = placement.width,
@@ -323,11 +338,15 @@ class MinecraftUiRenderer {
         if (command.rect.width <= 0f || command.rect.height <= 0f) return false
         if (command.renderToFramebuffer) return false
         val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return true
+        if (isBackfaceHidden(
+                command.rect.width, command.rect.height, transform, command.backfaceVisibility
+            )
+        ) return true
         when (val paint = command.paint) {
             UiResolvedPaint.None -> Unit
             is UiResolvedPaint.Image,
-            is UiResolvedPaint.Shader -> return false
+            is UiResolvedPaint.Shader,
+                -> return false
 
             is UiResolvedPaint.Color -> shapeBatch.appendLocalPaint(
                 width = command.rect.width,
@@ -366,7 +385,10 @@ class MinecraftUiRenderer {
     private fun appendBatchedShape(command: DrawShapeCommand): Boolean {
         if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return true
         val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return true
+        if (isBackfaceHidden(
+                command.rect.width, command.rect.height, transform, command.backfaceVisibility
+            )
+        ) return true
         return shapeBatch.appendLocalShape(
             shape = command.shape,
             width = command.rect.width,
@@ -449,7 +471,7 @@ class MinecraftUiRenderer {
         val width: Int,
         val height: Int,
         val u0: Float, val v0: Float,
-        val u1: Float, val v1: Float
+        val u1: Float, val v1: Float,
     )
 
     private fun finishLayer() {
@@ -458,7 +480,8 @@ class MinecraftUiRenderer {
 
         restoreClips(layer.parentClips)
 
-        val copiedSource = if (parentLayer != null || layer.filter.blurRadius() > 0f) copyLayerToScratch(layer) else null
+        val copiedSource =
+            if (parentLayer != null || layer.filter.blurRadius() > 0f) copyLayerToScratch(layer) else null
         val blurredSource = blurIfNeeded(copiedSource, layer.filter.blurRadius())
 
         val source = resolveRenderSource(layer, copiedSource, blurredSource)
@@ -473,9 +496,16 @@ class MinecraftUiRenderer {
         }
 
         drawLayerTexture(
-            layer, source.texture, source.width, source.height,
-            source.u0, source.v0, source.u1, source.v1,
-            compositeFilter, transform
+            layer,
+            source.texture,
+            source.width,
+            source.height,
+            source.u0,
+            source.v0,
+            source.u1,
+            source.v1,
+            compositeFilter,
+            transform
         )
 
         if (parentLayer == null) restoreMainProjection()
@@ -488,7 +518,9 @@ class MinecraftUiRenderer {
 
     private fun blurIfNeeded(copiedSource: UiFramebuffer?, blurRadius: Float): UiFramebuffer? {
         if (blurRadius <= 0f || copiedSource == null) return null
-        return blurTexture(framebuffers, copiedSource.texture, copiedSource.width, copiedSource.height, blurRadius, copiedSource)
+        return blurTexture(
+            framebuffers, copiedSource.texture, copiedSource.width, copiedSource.height, blurRadius, copiedSource
+        )
     }
 
     private fun resolveRenderSource(layer: LayerState, copied: UiFramebuffer?, blurred: UiFramebuffer?): RenderSource {
@@ -499,15 +531,20 @@ class MinecraftUiRenderer {
                 texture = activeBuffer.texture,
                 width = activeBuffer.width,
                 height = activeBuffer.height,
-                u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f
+                u0 = 0f,
+                v0 = 0f,
+                u1 = 1f,
+                v1 = 1f
             )
         } else {
             RenderSource(
                 texture = layer.framebuffer.texture,
                 width = layer.framebuffer.atlas.width,
                 height = layer.framebuffer.atlas.height,
-                u0 = layer.framebuffer.u0(), v0 = layer.framebuffer.v0(),
-                u1 = layer.framebuffer.u1(), v1 = layer.framebuffer.v1()
+                u0 = layer.framebuffer.u0(),
+                v0 = layer.framebuffer.v0(),
+                u1 = layer.framebuffer.u1(),
+                v1 = layer.framebuffer.v1()
             )
         }
     }
@@ -515,8 +552,7 @@ class MinecraftUiRenderer {
     private fun setupParentLayerContext(parentLayer: LayerState) {
         parentLayer.framebuffer.bind()
         configureLayerProjection(
-            parentLayer.rect.width + parentLayer.padding * 2f,
-            parentLayer.rect.height + parentLayer.padding * 2f
+            parentLayer.rect.width + parentLayer.padding * 2f, parentLayer.rect.height + parentLayer.padding * 2f
         )
         restoreActiveClip()
     }
@@ -527,13 +563,14 @@ class MinecraftUiRenderer {
     }
 
     private fun calculateParentTransform(parentLayer: LayerState, layer: LayerState): UiMatrix4 {
-        val parentInverse = parentLayer.transform.inverse()
-            ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
+        val parentInverse =
+            parentLayer.transform.inverse() ?: UiMatrix4.translation(-parentLayer.rect.x, -parentLayer.rect.y, 0f)
 
-        return UiMatrix4.translation(parentLayer.padding, parentLayer.padding, 0f) *
-                parentInverse *
-                layer.transform *
-                UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
+        return UiMatrix4.translation(
+            parentLayer.padding,
+            parentLayer.padding,
+            0f
+        ) * parentInverse * layer.transform * UiMatrix4.translation(-layer.padding, -layer.padding, 0f)
     }
 
     private fun calculateRootTransform(layer: LayerState): UiMatrix4 {
@@ -759,12 +796,7 @@ class MinecraftUiRenderer {
             val borderWidth = command.border.width.left.resolve(command.rect.width).coerceAtLeast(1f)
             val borderColor = command.border.color.withOpacity(command.opacity).filtered(command.filter)
             drawLocalBorder(
-                command.rect.width,
-                command.rect.height,
-                command.border.radius,
-                borderWidth,
-                borderColor,
-                transform
+                command.rect.width, command.rect.height, command.border.radius, borderWidth, borderColor, transform
             )
         }
     }
@@ -800,7 +832,9 @@ class MinecraftUiRenderer {
             pushClip(UiRect(0f, 0f, command.rect.width, command.rect.height), command.transform)
         }
         command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
-            val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(command, line) else line
+            val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(
+                command, line
+            ) else line
             drawTextLine(command, displayLine, transform, scaleX, scaleY, now)
         }
         if (clipped) {
@@ -893,13 +927,12 @@ class MinecraftUiRenderer {
             return
         }
 
-        val effectiveColor = fragment.style.color
-            ?: if (fragment.style.link != null) {
-                val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
-            } else {
-                command.color
-            }
+        val effectiveColor = fragment.style.color ?: if (fragment.style.link != null) {
+            val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+            if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+        } else {
+            command.color
+        }
 
         for (layerEffect in layerEffects) {
             val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
@@ -994,25 +1027,19 @@ class MinecraftUiRenderer {
         val origin = transform.transform(localX, localY)
         val pose = PoseStack()
         pose.translate(
-            origin.x.toDouble(),
-            origin.y.toDouble(),
-            origin.z.toDouble() - 10
+            origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble() - 10
         )
         pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
         val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-        val color = colorOverride
-            ?: fragment.style.color
-            ?: if (fragment.style.link != null) {
-                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
-            } else {
-                command.color
-            }
+        val color = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
+            if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+        } else {
+            command.color
+        }
         val finalAlpha = command.opacity * alphaMultiplier * color.alpha
         val finalColor = UiColor(color.red, color.green, color.blue, finalAlpha)
         val component = Component.literal(fragment.text).withStyle { style ->
-            style
-                .withBold(fragment.style.bold)
-                .withItalic(fragment.style.italic)
+            style.withBold(fragment.style.bold).withItalic(fragment.style.italic)
                 .withUnderlined(fragment.style.underline || fragment.style.link != null)
                 .withStrikethrough(fragment.style.strikethrough)
                 .withColor(TextColor.fromRgb(finalColor.argb() and 0xFFFFFF))
@@ -1081,17 +1108,17 @@ class MinecraftUiRenderer {
             }
 
             if (layerEffects.isNotEmpty()) {
-                val effectiveColor = colorOverride
-                    ?: if (fragment.style.link != null) {
-                        val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-                        if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
-                    } else {
-                        command.color
-                    }
+                val effectiveColor = colorOverride ?: if (fragment.style.link != null) {
+                    val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+                    if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+                } else {
+                    command.color
+                }
                 for (layerEffect in layerEffects) {
                     val passes = UiTextEffectApplier.getLayerPasses(layerEffect)
                     for (pass in passes) {
-                        val passColor = pass.colorOverride?.textShadowColor(layerEffect, effectiveColor) ?: effectiveColor
+                        val passColor =
+                            pass.colorOverride?.textShadowColor(layerEffect, effectiveColor) ?: effectiveColor
                         drawSingleTextRun(
                             command,
                             charFragment,
@@ -1112,13 +1139,12 @@ class MinecraftUiRenderer {
             val finalLocalX = charLocalX + charOffsetX
             val finalLocalY = baseLocalY + charOffsetY
 
-            val finalColor = colorOverride
-                ?: if (fragment.style.link != null) {
-                    val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-                    if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
-                } else {
-                    command.color
-                }
+            val finalColor = colorOverride ?: if (fragment.style.link != null) {
+                val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
+                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            } else {
+                command.color
+            }
             drawSingleTextRun(
                 command,
                 charFragment,
@@ -1161,13 +1187,11 @@ class MinecraftUiRenderer {
         val bufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
 
         val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-        val baseColor = colorOverride
-            ?: fragment.style.color
-            ?: if (fragment.style.link != null) {
-                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
-            } else {
-                command.color
-            }
+        val baseColor = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
+            if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+        } else {
+            command.color
+        }
         val alpha = command.opacity * alphaMultiplier
         val color = baseColor.withOpacity(alpha).filtered(command.filter)
 
@@ -1238,10 +1262,8 @@ class MinecraftUiRenderer {
             fragment.height,
             fragment.image.source,
             command.opacity,
-                transform * UiMatrix4.translation(
-                line.x + fragment.x - command.scrollOffset.x,
-                line.y + fragment.y - command.scrollOffset.y,
-                0f
+            transform * UiMatrix4.translation(
+                line.x + fragment.x - command.scrollOffset.x, line.y + fragment.y - command.scrollOffset.y, 0f
             ),
             UiImageFit.CONTAIN,
             command.filter,
@@ -1318,11 +1340,14 @@ class MinecraftUiRenderer {
         return when (this) {
             UiImageFit.NINE_SLICE,
             UiImageFit.THREE_SLICE_VERTICAL,
-            UiImageFit.THREE_SLICE_HORIZONTAL -> this
+            UiImageFit.THREE_SLICE_HORIZONTAL,
+                -> this
+
             UiImageFit.STRETCH,
             UiImageFit.NONE,
             UiImageFit.CONTAIN,
-            UiImageFit.COVER -> UiImageFit.STRETCH
+            UiImageFit.COVER,
+                -> UiImageFit.STRETCH
         }
     }
 
@@ -1339,10 +1364,7 @@ class MinecraftUiRenderer {
     private fun drawItem(command: DrawItemCommand) {
         if (layerStack.isNotEmpty()) return
         if (isBackfaceHidden(
-                command.rect.width,
-                command.rect.height,
-                effective(command.transform),
-                command.backfaceVisibility
+                command.rect.width, command.rect.height, effective(command.transform), command.backfaceVisibility
             )
         ) return
         val location = ResourceLocation.tryParse(command.item) ?: return
@@ -1530,19 +1552,16 @@ class MinecraftUiRenderer {
 
     private fun effective(transform: UiMatrix4): UiMatrix4 {
         val layer = layerStack.lastOrNull() ?: return transform
-        return UiMatrix4.translation(layer.padding, layer.padding, 0f) *
-                (layer.transform.inverse() ?: UiMatrix4.translation(-layer.rect.x, -layer.rect.y, 0f)) *
-                transform
+        return UiMatrix4.translation(layer.padding, layer.padding, 0f) * (layer.transform.inverse()
+            ?: UiMatrix4.translation(-layer.rect.x, -layer.rect.y, 0f)) * transform
     }
 
-    private fun localRect(rect: UiRect): UiRect = layerStack.lastOrNull()
-        ?.let {
+    private fun localRect(rect: UiRect): UiRect = layerStack.lastOrNull()?.let {
             rect.copy(
                 x = rect.x - it.rect.x + it.padding,
                 y = rect.y - it.rect.y + it.padding,
             )
-        }
-        ?: rect
+        } ?: rect
 
     private fun transformedLocalRect(rect: UiRect, transform: UiMatrix4): UiRect {
         val topLeft = transform.transform(rect.x, rect.y)

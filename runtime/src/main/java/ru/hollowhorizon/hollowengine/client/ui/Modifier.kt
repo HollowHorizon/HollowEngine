@@ -1,9 +1,28 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
-import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.style.HssResourceLoader
+import ru.hollowhorizon.hollowengine.client.ui.style.MinecraftHssResourceLoader
+import ru.hollowhorizon.hollowengine.client.ui.style.MutableUiStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterEffect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
+import ru.hollowhorizon.hollowengine.client.ui.style.UiInputStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.client.ui.style.UiRadialGradient
+import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
+import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
+import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
+import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTyping
 
-sealed interface Modifier {
+interface Modifier {
     fun applyTo(style: MutableUiStyle)
 
     infix fun then(other: Modifier): Modifier {

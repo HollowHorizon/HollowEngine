@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.DrawShapeCommand
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiInputController
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
-import ru.hollowhorizon.hollowengine.client.ui.UiShapeSize
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
 import ru.hollowhorizon.hollowengine.client.ui.dispatch
 import kotlin.test.Test
 import kotlin.test.assertEquals

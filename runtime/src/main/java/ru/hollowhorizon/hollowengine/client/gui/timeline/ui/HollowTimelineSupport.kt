@@ -7,8 +7,8 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.BaseAnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TrackGroup
-import ru.hollowhorizon.hollowengine.client.ui.GenericShape
-import ru.hollowhorizon.hollowengine.client.ui.Shape
+import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import kotlin.math.abs
 import kotlin.math.ceil

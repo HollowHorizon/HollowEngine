@@ -2,6 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
+import ru.hollowhorizon.hollowengine.client.ui.scroll.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 import kotlin.math.abs
 
@@ -454,7 +457,7 @@ class HollowUiInputController {
     private fun textFieldCaretIndexAt(frame: HollowUiFrame, node: TextFieldNode, localX: Float, localY: Float): Int {
         val layout = frame.layout[node]
         val style = frame.resolved[node]
-        val textOffset = textFieldTextOffset(node, style, layout)
+        val textOffset = textFieldTextOffset(node, style)
         val contentX = localX - (layout.content.x - layout.rect.x) - textOffset + layout.scrollOffset.x
         val contentY = localY - (layout.content.y - layout.rect.y) + layout.scrollOffset.y
         val textLayout = textFieldEditLayout(node, style, layout, layout.inlineWidgetMetrics())

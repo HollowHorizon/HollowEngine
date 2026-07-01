@@ -4,8 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.VertexSorting
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL11
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.UiFilterEffect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 

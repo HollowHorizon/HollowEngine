@@ -2,7 +2,19 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.gui.screens.Screen.hasControlDown
 import net.minecraft.client.gui.screens.Screen.hasShiftDown
-import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.scroll.*
+import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretVisibilityPadding
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretWidth
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.link
+import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldEditLayout
+import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldHorizontalScrollPadding
+import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldTextOffset
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
 
@@ -68,12 +80,6 @@ data class HollowUiFrame(
         val scrollbars = scrollbarHandlesInDrawOrder()
         return scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.THUMB }
             ?: scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.TRACK }
-    }
-
-    fun requiresContinuousRefresh(): Boolean {
-        return activeScrollAnimation ||
-                activeTransitionDurations.values.any { it > 0L } ||
-                resolved.styles.values.any { it.requiresContinuousRefresh() }
     }
 
     fun motionDurationMillis(previous: HollowUiFrame?): Long {
@@ -189,13 +195,6 @@ fun UiRect?.intersect(other: UiRect?): UiRect? {
     return UiRect(left, top, right - left, bottom - top)
 }
 
-private fun ComputedStyle.requiresContinuousRefresh(): Boolean {
-    if (typing != null) return true
-    return animations.any { animation ->
-        animation.totalDurationMillis()?.let { it > 0L } ?: true
-    }
-}
-
 class HollowUiRuntime(
     theme: CompiledHss? = null,
     stylesheet: CompiledHss? = null,
@@ -264,8 +263,7 @@ class HollowUiRuntime(
         if (pendingInputs.isEmpty()) return false
         var changed = false
         while (pendingInputs.isNotEmpty()) {
-            val input = pendingInputs.removeFirst()
-            val result = when (input) {
+            val result = when (val input = pendingInputs.removeFirst()) {
                 is QueuedUiInput.MouseClicked -> {
                     val scrollbarResult = this.input.scrollbarMouseClicked(
                         frame,
@@ -369,7 +367,7 @@ class HollowUiRuntime(
             val fontSize = style.fontSize
             val caret =
                 textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, fontSize, style.fontFamily)
-            val textOffset = textFieldTextOffset(node, style, layoutNode)
+            val textOffset = textFieldTextOffset(node, style)
             val next = layoutNode.scrollOffset.scrollCaretIntoView(
                 caretX = caret.x,
                 caretY = caret.y,

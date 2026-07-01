@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.layout.LayoutSize
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.math.abs
 
 data class UiTextLayout(
@@ -252,7 +255,7 @@ internal object UiTextLayouter {
         var remaining = visibleCharacters.coerceAtLeast(0)
         val lines = layout.lines.mapNotNull { line ->
             val fragments = mutableListOf<UiTextFragment>()
-            var lineText = StringBuilder()
+            val lineText = StringBuilder()
             var consumedOnLine = 0
             fragmentLoop@ for (fragment in line.fragments) {
                 when (fragment) {

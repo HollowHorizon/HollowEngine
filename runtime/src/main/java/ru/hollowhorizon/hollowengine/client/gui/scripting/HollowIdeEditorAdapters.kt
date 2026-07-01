@@ -4,6 +4,18 @@ import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCaretAwareSyntaxHighlighter
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCompletion
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextHighlight
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withBackground
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withBold
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withColor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.withItalic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.util.concurrent.atomic.AtomicLong
 

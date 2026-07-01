@@ -1,6 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
+import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarOrientation
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
 
@@ -333,7 +342,16 @@ class UiCommandRenderer {
                         else -> task.activeClip.visibleIntersection(layoutNode.content)
                     }
                     if (!cullNodeCommands) {
-                        stack.add(RenderCollectTask.Exit(current, layoutNode, style, localOpacity, pushedClip, isFramebuffer))
+                        stack.add(
+                            RenderCollectTask.Exit(
+                                current,
+                                layoutNode,
+                                style,
+                                localOpacity,
+                                pushedClip,
+                                isFramebuffer
+                            )
+                        )
                     }
                     if (!pushedClip || childClip != null) {
                         val children = current.children
@@ -372,7 +390,7 @@ class UiCommandRenderer {
         filter: UiFilterChain,
         nowMillis: Long,
         typingState: UiTypingState,
-        commands: MutableList<UiRenderCommand>
+        commands: MutableList<UiRenderCommand>,
     ) {
         val contentTransform = layoutNode.worldTransform * UiMatrix4.translation(
             layoutNode.content.x - layoutNode.rect.x,
@@ -404,12 +422,73 @@ class UiCommandRenderer {
                     layoutNode.scrollOffset, node.hoveredLink, backface
                 )
             }
-            is ImageNode -> commands += DrawImageCommand(node, layoutNode.content, node.source.resolve(), opacity, style.tint, contentTransform, false, style.imageFit, style.imageSlice, filter, backface)
-            is ItemNode -> commands += DrawItemCommand(node, layoutNode.content, node.item.resolve(), opacity, contentTransform, filter, backface)
-            is EntityNode -> commands += DrawEntityCommand(node, layoutNode.content, node.entity.resolve(), opacity, contentTransform, false, filter, backface)
-            is CanvasNode -> commands += DrawCanvasCommand(node, layoutNode.content, node.renderer, opacity, contentTransform, false, filter, backface)
-            is SliderNode -> commands += sliderCommand(node, style, opacity, layoutNode, contentTransform, filter, backface)
-            is CheckboxNode -> commands += checkboxCommand(node, style, opacity, layoutNode, contentTransform, filter, backface)
+
+            is ImageNode -> commands += DrawImageCommand(
+                node,
+                layoutNode.content,
+                node.source.resolve(),
+                opacity,
+                style.tint,
+                contentTransform,
+                false,
+                style.imageFit,
+                style.imageSlice,
+                filter,
+                backface
+            )
+
+            is ItemNode -> commands += DrawItemCommand(
+                node,
+                layoutNode.content,
+                node.item.resolve(),
+                opacity,
+                contentTransform,
+                filter,
+                backface
+            )
+
+            is EntityNode -> commands += DrawEntityCommand(
+                node,
+                layoutNode.content,
+                node.entity.resolve(),
+                opacity,
+                contentTransform,
+                false,
+                filter,
+                backface
+            )
+
+            is CanvasNode -> commands += DrawCanvasCommand(
+                node,
+                layoutNode.content,
+                node.renderer,
+                opacity,
+                contentTransform,
+                false,
+                filter,
+                backface
+            )
+
+            is SliderNode -> commands += sliderCommand(
+                node,
+                style,
+                opacity,
+                layoutNode,
+                contentTransform,
+                filter,
+                backface
+            )
+
+            is CheckboxNode -> commands += checkboxCommand(
+                node,
+                style,
+                opacity,
+                layoutNode,
+                contentTransform,
+                filter,
+                backface
+            )
+
             is TextFieldNode -> appendTextFieldCommands(
                 node,
                 style,
@@ -435,7 +514,8 @@ class UiCommandRenderer {
         val shape = style.shape
         if (shape != null) {
             val fill = (style.shapeFill ?: style.background).resolve()
-            val strokePaint = style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
+            val strokePaint =
+                style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
             val stroke = strokePaint.resolve(UiPaint.None)
             val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
             if (fill != UiResolvedPaint.None || stroke != UiResolvedPaint.None && strokeWidth > 0f) {
@@ -574,7 +654,7 @@ class UiCommandRenderer {
             textFieldDisplayLayout(node, style, layoutNode, widgetMetrics)
         }
         val field = style.textField
-        val textOffset = textFieldTextOffset(node, style, layoutNode)
+        val textOffset = textFieldTextOffset(node, style)
         commands += PushClipCommand(
             node = node,
             rect = UiRect(
@@ -589,7 +669,12 @@ class UiCommandRenderer {
             node = node,
             rect = layoutNode.content,
             text = visible,
-            color = if (text.isEmpty()) field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.65f) else style.foreground,
+            color = if (text.isEmpty()) field.inlayHintColor ?: UiColor(
+                0.56f,
+                0.6f,
+                0.66f,
+                0.65f
+            ) else style.foreground,
             opacity = opacity,
             transform = transform * UiMatrix4.translation(textOffset, 0f, 0f),
             filter = filter,
@@ -818,9 +903,9 @@ class UiHitTester {
         val popups = layout.popupNodes
             .sortedBy { resolved[it].layer }
         for (popup in popups.asReversed()) {
-            hitNode(popup, resolved, layout, x, y, ancestorClip = null)?.let { return it }
+            hitNode(popup, resolved, layout, x, y)?.let { return it }
         }
-        return hitNode(resolved.root, resolved, layout, x, y, ancestorClip = null)
+        return hitNode(resolved.root, resolved, layout, x, y)
     }
 
     private fun hitNode(
@@ -829,10 +914,9 @@ class UiHitTester {
         layout: UiLayoutResult,
         x: Float,
         y: Float,
-        ancestorClip: UiRect?,
     ): UiHit? {
         val stack = ArrayDeque<HitTestTask>()
-        stack.add(HitTestTask.Enter(node, ancestorClip))
+        stack.add(HitTestTask.Enter(node, null))
         while (stack.isNotEmpty()) {
             when (val task = stack.removeLast()) {
                 is HitTestTask.Enter -> {

@@ -1,9 +1,23 @@
 import androidx.compose.runtime.mutableStateOf
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.hss.CompiledHss
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.render.textFieldIndentGuideColumns
+import ru.hollowhorizon.hollowengine.client.ui.style.HssResourceLoader
+import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiStyleResolver
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineAlign
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCaret
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCompletion
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
+import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldInlayWidgetId
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlTree
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
@@ -146,7 +160,13 @@ class UiComposeTests {
         val field = TextFieldNode(
             "Text",
             completionContributor = UiCompletionContributor {
-                listOf(UiTextCompletion("TextField", "TextField(value = \"\")", caretOffset = "TextField(value = \"".length))
+                listOf(
+                    UiTextCompletion(
+                        "TextField",
+                        "TextField(value = \"\")",
+                        caretOffset = "TextField(value = \"".length
+                    )
+                )
             },
         )
 

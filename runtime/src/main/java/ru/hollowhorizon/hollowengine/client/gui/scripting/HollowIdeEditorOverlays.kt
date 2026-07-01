@@ -4,7 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.TextColor
-import ru.hollowhorizon.hollowengine.client.ui.hss.parseColor
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
+import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 internal class HollowIdeEditorOverlays(
@@ -226,32 +232,6 @@ internal class HollowIdeEditorOverlays(
         return completionChanged || tooltipChanged
     }
 
-    fun needsPointerUpdate(frame: HollowUiFrame): Boolean {
-        return frame.resolved.styles.keys
-            .filterIsInstance<TextFieldNode>()
-            .any { node -> node.diagnostics.isNotEmpty() }
-    }
-
-    fun closeCompletionsOutside(frame: HollowUiFrame, mouseX: Float, mouseY: Float): Boolean {
-        if (completionPopups.isEmpty()) return false
-        val clickedInsidePopup = completionPopups.values.any { it.contains(mouseX, mouseY) }
-        if (clickedInsidePopup) return false
-        var changed = false
-        frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().forEach { node ->
-            if (node.closeCompletions()) {
-                surface.saveState(node)
-                changed = true
-            }
-        }
-        return changed
-    }
-
-    fun completionScrollTargetAt(frame: HollowUiFrame, mouseX: Float, mouseY: Float): UiNode? {
-        val editorId = completionPopups.entries.firstOrNull { (_, state) -> state.contains(mouseX, mouseY) }?.key
-            ?: return null
-        return frame.resolved.styles.keys.firstOrNull { it.id == completionListId(editorId) }
-    }
-
     private fun diagnosticTooltipAtPointer(
         node: TextFieldNode,
         style: ComputedStyle,
@@ -264,7 +244,7 @@ internal class HollowIdeEditorOverlays(
     ): HollowIdeDiagnosticTooltipState? {
         if (node.diagnostics.isEmpty()) return null
         val local = layoutNode.inputTransform.inverse()?.transform(mouseX, mouseY, 0f) ?: return null
-        val textOffset = textFieldTextOffset(node, style, layoutNode)
+        val textOffset = textFieldTextOffset(node, style)
         val contentX = local.x - (layoutNode.content.x - layoutNode.rect.x) - textOffset + layoutNode.scrollOffset.x
         val contentY = local.y - (layoutNode.content.y - layoutNode.rect.y) + layoutNode.scrollOffset.y
         if (contentX < 0f || contentY < 0f) return null

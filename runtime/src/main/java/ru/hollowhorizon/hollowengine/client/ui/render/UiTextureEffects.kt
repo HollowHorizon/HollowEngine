@@ -6,6 +6,10 @@ import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathPoint
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import kotlin.math.abs
 

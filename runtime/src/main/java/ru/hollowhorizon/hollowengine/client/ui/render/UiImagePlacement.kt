@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.GlStateManager
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import org.lwjgl.opengl.GL11
-import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 
 internal data class ImagePlacement(
     val x: Float,

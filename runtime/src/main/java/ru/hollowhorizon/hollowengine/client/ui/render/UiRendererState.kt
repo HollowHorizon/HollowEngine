@@ -4,6 +4,10 @@ import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import kotlin.math.ceil
 
 data class UiRenderTarget(

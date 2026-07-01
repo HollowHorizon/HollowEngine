@@ -4,7 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.style.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
+import ru.hollowhorizon.hollowengine.client.ui.widgets.readBoolean
+import ru.hollowhorizon.hollowengine.client.ui.widgets.readSliderValue
 
 @Composable
 fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {

@@ -1,5 +1,6 @@
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import kotlin.test.*
 
 class UiDockingTests {

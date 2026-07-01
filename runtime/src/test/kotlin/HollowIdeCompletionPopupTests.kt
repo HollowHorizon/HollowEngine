@@ -1,7 +1,7 @@
 import ru.hollowhorizon.hollowengine.client.gui.scripting.completionScrollIndex
 import ru.hollowhorizon.hollowengine.client.gui.scripting.completionSelectionScrollIndex
 import ru.hollowhorizon.hollowengine.client.gui.scripting.completionWindowStart
-import ru.hollowhorizon.hollowengine.client.ui.UiTextFieldCompletionPopupGeometry
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldCompletionPopupGeometry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
