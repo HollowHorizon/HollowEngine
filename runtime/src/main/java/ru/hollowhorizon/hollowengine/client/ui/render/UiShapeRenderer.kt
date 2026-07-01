@@ -326,6 +326,12 @@ private fun MutableList<UiBatchedTriangle>.appendGradientQuad(
     this += UiBatchedTriangle(first, third, fourth)
 }
 
+private fun BufferBuilder.addColoredQuad(corners: Array<UiVec3>, color: UiColor) {
+    corners.forEach { corner ->
+        addVertex(corner.x, corner.y, corner.z).setColor(color.red, color.green, color.blue, color.alpha)
+    }
+}
+
 private fun MutableList<UiBatchedTriangle>.appendRoundedFill(
     width: Float,
     height: Float,
@@ -414,11 +420,7 @@ internal fun drawSolid(rect: UiRect, color: UiColor, transform: UiMatrix4, radiu
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
-        val corners = rect.corners(transform)
-        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setColor(color.red, color.green, color.blue, color.alpha)
-        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setColor(color.red, color.green, color.blue, color.alpha)
-        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setColor(color.red, color.green, color.blue, color.alpha)
-        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setColor(color.red, color.green, color.blue, color.alpha)
+        buffer.addColoredQuad(rect.corners(transform), color)
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 }
@@ -443,11 +445,7 @@ internal fun drawLocalPaint(
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR)
-        val corners = localCorners(width, height, transform)
-        buffer.addVertex(corners[0].x, corners[0].y, corners[0].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-        buffer.addVertex(corners[1].x, corners[1].y, corners[1].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-        buffer.addVertex(corners[2].x, corners[2].y, corners[2].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
-        buffer.addVertex(corners[3].x, corners[3].y, corners[3].z).setColor(filtered.red, filtered.green, filtered.blue, filtered.alpha)
+        buffer.addColoredQuad(localCorners(width, height, transform), filtered)
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 }

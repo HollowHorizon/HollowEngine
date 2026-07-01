@@ -5,7 +5,6 @@ import ru.hollowhorizon.hollowengine.client.ui.ImageNode
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.TextNode
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiBindingContext
 import ru.hollowhorizon.hollowengine.client.ui.UiCommandRenderer
 import ru.hollowhorizon.hollowengine.client.ui.UiLayout
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
@@ -143,7 +142,7 @@ class UiTextLayoutTests {
         val rootLayout = layout[root]
         val messageLayout = layout[message]
         val constrainedTextLayout = UiTextLayouter.layout(
-            richText = message.content.resolve(UiBindingContext()).toRichText(),
+            richText = message.content.toRichText(),
             width = DialogueTextWidth,
             height = Float.POSITIVE_INFINITY,
             wrap = true,
@@ -156,7 +155,7 @@ class UiTextLayoutTests {
         assertEquals(renderedWidth, messageLayout.content.width)
 
         val textLayout = UiTextLayouter.layout(
-            richText = message.content.resolve(UiBindingContext()).toRichText(),
+            richText = message.content.toRichText(),
             width = messageLayout.content.width,
             height = messageLayout.content.height,
             wrap = true,

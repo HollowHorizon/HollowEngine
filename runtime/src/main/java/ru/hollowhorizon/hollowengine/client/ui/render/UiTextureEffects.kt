@@ -172,21 +172,16 @@ internal object UiTextureEffects {
             sampleHeight = abs(v1 - v0),
         )
         val tessellator = Tesselator.getInstance()
-        val segments = subdivisions.coerceAtLeast(1)
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         val finalTint = tint.withOpacity(opacity)
-        for (yIndex in 0 until segments) {
-            val y0 = yIndex.toFloat() / segments.toFloat()
-            val y1 = (yIndex + 1).toFloat() / segments.toFloat()
-            for (xIndex in 0 until segments) {
-                val x0 = xIndex.toFloat() / segments.toFloat()
-                val x1 = (xIndex + 1).toFloat() / segments.toFloat()
-                addTexturedVertex(buffer, transform, width, height, x0, y0, u0, v0, u1, v1, flipY, finalTint)
-                addTexturedVertex(buffer, transform, width, height, x0, y1, u0, v0, u1, v1, flipY, finalTint)
-                addTexturedVertex(buffer, transform, width, height, x1, y1, u0, v0, u1, v1, flipY, finalTint)
-                addTexturedVertex(buffer, transform, width, height, x1, y0, u0, v0, u1, v1, flipY, finalTint)
-            }
-        }
+        addTexturedQuad(
+            buffer,
+            transform,
+            ImagePlacement(0f, 0f, width, height, u0, v0, u1, v1),
+            flipY,
+            finalTint,
+            subdivisions,
+        )
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 

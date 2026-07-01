@@ -51,20 +51,7 @@ internal fun UiLayout.policy(): ChildLayoutPolicy = when (this) {
 
 private object RowPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeRowChildren(
-            scope.node,
-            scope.resolved,
-            scope.style,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.clip,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
+        pipeline.placeLinearChildren(FlowAxis.Horizontal, scope, lazy = false)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -88,20 +75,7 @@ private object RowPolicy : ChildLayoutPolicy {
 
 private object ColumnPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeColumnChildren(
-            scope.node,
-            scope.resolved,
-            scope.style,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.clip,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
+        pipeline.placeLinearChildren(FlowAxis.Vertical, scope, lazy = false)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -125,20 +99,7 @@ private object ColumnPolicy : ChildLayoutPolicy {
 
 private object LazyColumnPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeLazyColumnChildren(
-            scope.node,
-            scope.resolved,
-            scope.style,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.clip,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
+        pipeline.placeLinearChildren(FlowAxis.Vertical, scope, lazy = true)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -151,20 +112,7 @@ private object LazyColumnPolicy : ChildLayoutPolicy {
 
 private object LazyRowPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeLazyRowChildren(
-            scope.node,
-            scope.resolved,
-            scope.style,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.clip,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
+        pipeline.placeLinearChildren(FlowAxis.Horizontal, scope, lazy = true)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -177,20 +125,7 @@ private object LazyRowPolicy : ChildLayoutPolicy {
 
 private object BoxPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeFreeChildren(
-            scope.node,
-            scope.resolved,
-            scope.style,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.clip,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
+        pipeline.placeFreeChildren(scope)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -203,20 +138,7 @@ private object BoxPolicy : ChildLayoutPolicy {
 
 private object CustomPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeCustomChildren(
-            scope.node,
-            scope.resolved,
-            scope.layout as UiLayout.Custom,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.clip,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
+        pipeline.placeCustomChildren(scope, scope.layout as UiLayout.Custom)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {

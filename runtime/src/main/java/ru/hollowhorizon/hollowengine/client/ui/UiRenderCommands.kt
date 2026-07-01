@@ -401,7 +401,7 @@ class UiCommandRenderer {
 
         when (node) {
             is TextNode -> {
-                val fullContent = node.content.resolve()
+                val fullContent = node.content
                 val visibleContent = fullContent.visibleBy(
                     style.typing,
                     typingState.elapsed(node, style.typing, fullContent.text, nowMillis),
@@ -553,7 +553,7 @@ class UiCommandRenderer {
     ): UiTextLayout {
         val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
         return UiTextLayouter.layout(
-            node.content.resolve().toRichText(node.inlineWidgetMetrics(layout)),
+            node.content.toRichText(node.inlineWidgetMetrics(layout)),
             layoutNode.content.width,
             textHeight,
             style.textWrap,

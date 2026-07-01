@@ -174,7 +174,7 @@ private fun textLayoutForScrollBounds(
         id to UiInlineWidgetMetrics(rect.width, rect.height)
     }.toMap()
     return UiTextLayouter.layout(
-        node.content.resolve().toRichText(widgetMetrics),
+        node.content.toRichText(widgetMetrics),
         layout.content.width,
         Float.POSITIVE_INFINITY,
         style.textWrap,
