@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import java.util.ArrayDeque
-import java.util.LinkedHashMap
+import java.util.*
 
 private const val MaxNodeMeasureCacheEntries = 64
 
@@ -155,12 +154,6 @@ internal class InvalidatingMutableMap<K, V>(
 }
 
 class UiNodeLayoutState internal constructor(private val owner: UiNode) {
-    private val measureCache = object : LinkedHashMap<Any, LayoutSize>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Any, LayoutSize>): Boolean {
-            return size > MaxNodeMeasureCacheEntries
-        }
-    }
-
     private var parent: UiNode? = null
     private var childrenSignature = 0
     private var resolvedLayoutFingerprint = 0
@@ -195,13 +188,7 @@ class UiNodeLayoutState internal constructor(private val owner: UiNode) {
         invalidate()
     }
 
-    internal fun cachedMeasure(key: Any, producer: () -> LayoutSize): LayoutSize {
-        measureCache[key]?.let { return it }
-        return producer().also { measureCache[key] = it }
-    }
-
     internal fun invalidate() {
-        measureCache.clear()
         val nextRevision = UiLayoutRevision.next()
         markSubtreeChanged(nextRevision)
     }
