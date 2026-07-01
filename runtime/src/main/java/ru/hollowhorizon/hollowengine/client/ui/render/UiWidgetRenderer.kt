@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.*
+import java.util.*
 import kotlin.math.atan2
 import kotlin.math.max
 import kotlin.math.min
@@ -18,7 +19,7 @@ internal class UiWidgetRenderer(
 ) {
     private val scratchQuads = mutableListOf<UiBatchedQuad>()
     private val scratchTriangles = mutableListOf<UiBatchedTriangle>()
-    private val textFieldCaretBlinkStates = mutableMapOf<String, CaretBlinkState>()
+    private val textFieldCaretBlinkStates = WeakHashMap<TextFieldNode, CaretBlinkState>()
 
     fun drawSlider(command: DrawSliderCommand, transform: UiMatrix4) {
         val width = command.rect.width
@@ -283,11 +284,10 @@ internal class UiWidgetRenderer(
     }
 
     private fun textFieldCaretVisible(node: TextFieldNode, revision: Long): Boolean {
-        val key = UiNodeKeys.key(node)
         val now = System.currentTimeMillis()
-        val state = textFieldCaretBlinkStates[key]
+        val state = textFieldCaretBlinkStates[node]
             ?.takeIf { it.revision == revision }
-            ?: CaretBlinkState(revision, now).also { textFieldCaretBlinkStates[key] = it }
+            ?: CaretBlinkState(revision, now).also { textFieldCaretBlinkStates[node] = it }
         val phase = ((now - state.startedAtMillis) % CaretBlinkPeriodMillis).toFloat() / CaretBlinkPeriodMillis.toFloat()
         return phase < 0.55f
     }

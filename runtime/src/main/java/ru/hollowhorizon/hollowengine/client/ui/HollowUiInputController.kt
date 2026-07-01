@@ -6,23 +6,20 @@ import java.util.*
 import kotlin.math.abs
 
 class HollowUiInputController {
-    var hoveredKey: String? = null
-        private set
+    private var hoveredNode: UiNode? = null
     var hoveredLink: String? = null
         private set
-    var activeKey: String? = null
-        private set
-    var focusedKey: String? = null
-        private set
-    var draggingKey: String? = null
-        private set
+    private var activeNode: UiNode? = null
+    private var focusedNode: UiNode? = null
+    private var draggingNode: UiNode? = null
+
+    val focusedKey: String? get() = focusedNode?.id
 
     var x = 0f
     var y = 0f
 
-    val stateStore = UiNodeStateStore()
     private var scrollbarDrag: UiScrollbarDragState? = null
-    private var lastTextClickKey: String? = null
+    private var lastTextClickNode: TextFieldNode? = null
     private var lastTextClickAtMillis: Long = 0L
     private var lastTextClickIndex: Int = -1
     private var lastTextClickCount: Int = 0
@@ -30,28 +27,24 @@ class HollowUiInputController {
 
     fun reset() {
         clearInteraction()
-        stateStore.clear()
     }
 
     fun clearInteraction(clearFocus: Boolean = true) {
-        hoveredKey = null
+        hoveredNode = null
         hoveredLink = null
-        activeKey = null
-        draggingKey = null
+        activeNode = null
+        draggingNode = null
         scrollbarDrag = null
         textAltSelectionAnchor = null
         lastTextClickCount = 0
-        if (clearFocus) focusedKey = null
+        if (clearFocus) focusedNode = null
     }
 
-    fun isHovered(id: String): Boolean = hoveredKey == id
+    fun isHovered(id: String): Boolean = hoveredNode?.id == id
 
     fun prepareRoot(root: UiNode, closing: Boolean = false) {
-        stateStore.apply(root)
         root.forEachTextFields { field ->
-            if (field.resolvePendingCompletions()) {
-                stateStore.save(field)
-            }
+            field.resolvePendingCompletions()
         }
         applyRuntimeStates(root, closing)
     }
@@ -63,21 +56,22 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
         val hit = frame.hitTest(mouseX, mouseY)
-        val previousKey = hoveredKey
-        hoveredKey = hit?.node?.let(UiNodeKeys::key)
+        val previousNode = hoveredNode
+        hoveredNode = hit?.node
         hoveredLink = hit?.link
 
         x = mouseX
         y = mouseY
 
-        if (previousKey == hoveredKey) return false
+        if (previousNode === hoveredNode) return false
 
-
-        previousKey?.let { key ->
-            frame.nodeByKey(key)?.let { dispatch(UiEvent(UiEventKind.EXIT, it, x = mouseX, y = mouseY)) }
-        }
-        hoveredKey?.let { key ->
-            frame.nodeByKey(key)?.let { dispatch(UiEvent(UiEventKind.ENTER, it, x = mouseX, y = mouseY)) }
+        previousNode
+            ?.takeIf { it in frame.resolved.styles }
+            ?.let { dispatch(UiEvent(UiEventKind.EXIT, it, x = mouseX, y = mouseY)) }
+        hoveredNode
+            ?.takeIf { it in frame.resolved.styles }
+            ?.let {
+                dispatch(UiEvent(UiEventKind.ENTER, it, x = mouseX, y = mouseY))
         }
         return true
     }
@@ -88,7 +82,7 @@ class HollowUiInputController {
         mouseY: Float,
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
-        val node = hoveredKey?.let(frame::nodeByKey) ?: return false
+        val node = hoveredNode?.takeIf { it in frame.resolved.styles } ?: return false
         return dispatch(UiEvent(UiEventKind.HOVER, node, x = mouseX, y = mouseY))
     }
 
@@ -98,15 +92,15 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
         if (nodeKey == null) {
-            val hadFocus = focusedKey != null
+            val hadFocus = focusedNode != null
             setFocus(frame, null, dispatch)
             return hadFocus
         }
-        val node = frame.nodeByKey(nodeKey) ?: return false
+        val node = frame.nodeByIdentifier(nodeKey) ?: return false
         if (!frame.resolved[node].input.focusable) return false
-        val previous = focusedKey
-        setFocus(frame, nodeKey, dispatch)
-        return previous != focusedKey
+        val previous = focusedNode
+        setFocus(frame, node, dispatch)
+        return previous !== focusedNode
     }
 
     fun scrollTargetAt(frame: HollowUiFrame, x: Float, y: Float): UiNode? {
@@ -128,12 +122,11 @@ class HollowUiInputController {
         }
         if (button == 0 && hit.link != null) {
             openUrl(hit.link)
-            return UiInputResult(true, hit.node, UiNodeKeys.key(hit.node), changed = false)
+            return UiInputResult(true, hit.node, hit.node.id, changed = false)
         }
 
-        val key = UiNodeKeys.key(hit.node)
         val layoutNode = frame.layout[hit.node]
-        activeKey = key
+        activeNode = hit.node
         updateFocus(frame, hit.node, dispatch)
 
         val press = UiEvent(
@@ -149,25 +142,23 @@ class HollowUiInputController {
             height = layoutNode.rect.height,
         )
         val pressHandled = dispatch(press)
-        if (pressHandled && press.consumed) return UiInputResult(true, hit.node, key)
+        if (pressHandled && press.consumed) return UiInputResult(true, hit.node, hit.node.id)
 
         if (button == 0 && applyBuiltInPointerPress(frame, hit.node, hit.localX, hit.localY)) {
             dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
             if (hit.node is SliderNode || hit.node is TextFieldNode) {
-                draggingKey = key
-                hit.node.states += UiState.DRAGGING
+                draggingNode = hit.node
             }
-            return UiInputResult(true, hit.node, key, changed = true)
+            return UiInputResult(true, hit.node, hit.node.id, changed = true)
         }
 
         if (frame.resolved[hit.node].input.draggable && button == 0) {
-            draggingKey = key
-            hit.node.states += UiState.DRAGGING
-            return UiInputResult(true, hit.node, key)
+            draggingNode = hit.node
+            return UiInputResult(true, hit.node, hit.node.id)
         }
 
         val clickHandled = dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
-        return UiInputResult(clickHandled, hit.node, key)
+        return UiInputResult(clickHandled, hit.node, hit.node.id)
     }
 
     fun scrollbarMouseClicked(
@@ -182,12 +173,12 @@ class HollowUiInputController {
         when (scrollbar.pointerAreaAt(mouseX, mouseY)) {
             UiScrollbarPointerArea.THUMB -> {
                 scrollbarDrag = scrollbar.dragStateAt(mouseX, mouseY)
-                return UiInputResult(true, scrollbar.node, UiNodeKeys.key(scrollbar.node))
+                return UiInputResult(true, scrollbar.node, scrollbar.node.id)
             }
 
             UiScrollbarPointerArea.TRACK -> {
                 setScrollImmediate(scrollbar.node, scrollbar.trackClickOffset(frame.layout[scrollbar.node], mouseX, mouseY))
-                return UiInputResult(true, scrollbar.node, UiNodeKeys.key(scrollbar.node), changed = true)
+                return UiInputResult(true, scrollbar.node, scrollbar.node.id, changed = true)
             }
 
             null -> return UiInputResult(false)
@@ -203,8 +194,7 @@ class HollowUiInputController {
         deltaY: Float,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val key = draggingKey ?: return UiInputResult(false)
-        val node = frame.nodeByKey(key) ?: return UiInputResult(false)
+        val node = draggingNode?.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
         var changed = false
         if (button == 0 && node is SliderNode) {
             changed = updateSliderFromMouse(frame, node, mouseX, mouseY)
@@ -241,7 +231,7 @@ class HollowUiInputController {
             deltaY = deltaY,
         )
         val handled = dispatch(event)
-        return UiInputResult(changed || handled, node, key, changed)
+        return UiInputResult(changed || handled, node, node.id, changed)
     }
 
     fun mouseReleased(
@@ -251,7 +241,7 @@ class HollowUiInputController {
         button: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val releaseNode = frame.hitTest(mouseX, mouseY)?.node ?: activeKey?.let(frame::nodeByKey)
+        val releaseNode = frame.hitTest(mouseX, mouseY)?.node ?: activeNode?.takeIf { it in frame.resolved.styles }
         val handled = releaseNode?.let { node ->
             dispatch(
                 UiEvent(
@@ -264,11 +254,10 @@ class HollowUiInputController {
                 )
             )
         } ?: false
-        val key = releaseNode?.let(UiNodeKeys::key)
-        activeKey = null
-        draggingKey = null
+        activeNode = null
+        draggingNode = null
         scrollbarDrag = null
-        return UiInputResult(handled, releaseNode, key)
+        return UiInputResult(handled, releaseNode, releaseNode?.id)
     }
 
     fun scrollbarMouseDragged(
@@ -278,9 +267,9 @@ class HollowUiInputController {
         setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
     ): UiInputResult {
         val drag = scrollbarDrag ?: return UiInputResult(false)
-        val node = frame.nodeByKey(drag.nodeKey) ?: return UiInputResult(false)
+        val node = drag.node.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
         setScrollImmediate(node, drag.offsetFor(frame.layout[node], mouseX, mouseY))
-        return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
+        return UiInputResult(true, node, node.id, changed = true)
     }
 
     fun hasScrollbarDrag(): Boolean = scrollbarDrag != null
@@ -291,16 +280,15 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
+        val node = focusedNode?.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
         val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
         val handled = dispatch(event)
         val hadCompletions = node is TextFieldNode && node.completionActive
         if (!event.consumed && node is TextFieldNode && node.typeCharacter(codePoint)) {
             if (codePoint.isCompletionTrigger() || hadCompletions) node.openCompletions()
-            stateStore.save(node)
-            return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
+            return UiInputResult(true, node, node.id, changed = true)
         }
-        return UiInputResult(handled, node, UiNodeKeys.key(node))
+        return UiInputResult(handled, node, node.id)
     }
 
     fun keyPressed(
@@ -310,7 +298,7 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = focusedKey?.let(frame::nodeByKey) ?: return UiInputResult(false)
+        val node = focusedNode?.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
         val enterPressed = keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER
         val altPressed = modifiers and GLFW.GLFW_MOD_ALT != 0 || enterPressed && isAltPressed()
         val effectiveModifiers = if (altPressed) modifiers or GLFW.GLFW_MOD_ALT else modifiers
@@ -324,46 +312,38 @@ class HollowUiInputController {
         )
         val handled = dispatch(event)
         if (event.changed && node is UiStatefulNode) {
-            stateStore.save(node)
-            return UiInputResult(true, node, UiNodeKeys.key(node), changed = true)
+            return UiInputResult(true, node, node.id, changed = true)
         }
         if (!event.consumed && keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
-            return UiInputResult(true, focusedKey?.let(frame::nodeByKey), focusedKey)
+            return UiInputResult(true, focusedNode, focusedNode?.id)
         }
-        return UiInputResult(handled, node, UiNodeKeys.key(node))
+        return UiInputResult(handled, node, node.id)
     }
 
     private fun updateFocus(frame: HollowUiFrame, node: UiNode, dispatch: (UiEvent) -> Boolean) {
         if (frame.resolved[node].input.focusable) {
-            setFocus(frame, UiNodeKeys.key(node), dispatch)
+            setFocus(frame, node, dispatch)
         } else {
             setFocus(frame, null, dispatch)
         }
     }
 
-    private fun setFocus(frame: HollowUiFrame, nextKey: String?, dispatch: (UiEvent) -> Boolean) {
-        if (focusedKey == nextKey) return
-        focusedKey?.let { key ->
-            frame.nodeByKey(key)?.let { node ->
-                if (node is TextFieldNode) {
-                    node.clearSelection()
-                    stateStore.save(node)
-                }
-                dispatch(UiEvent(UiEventKind.UNFOCUS, node))
-            }
+    private fun setFocus(frame: HollowUiFrame, nextNode: UiNode?, dispatch: (UiEvent) -> Boolean) {
+        if (focusedNode === nextNode) return
+        focusedNode?.takeIf { it in frame.resolved.styles }?.let { node ->
+            if (node is TextFieldNode) node.clearSelection()
+            dispatch(UiEvent(UiEventKind.UNFOCUS, node))
         }
-        focusedKey = nextKey
-        focusedKey?.let { key ->
-            frame.nodeByKey(key)?.let { dispatch(UiEvent(UiEventKind.FOCUS, it)) }
-        }
+        focusedNode = nextNode
+        focusedNode?.takeIf { it in frame.resolved.styles }?.let { dispatch(UiEvent(UiEventKind.FOCUS, it)) }
     }
 
     private fun focusNext(frame: HollowUiFrame, dispatch: (UiEvent) -> Boolean): Boolean {
         val focusables = frame.resolved.styles.keys.filter { frame.resolved[it].input.focusable }
         if (focusables.isEmpty()) return false
-        val currentIndex = focusables.indexOfFirst { UiNodeKeys.key(it) == focusedKey }
+        val currentIndex = focusables.indexOfFirst { it === focusedNode }
         val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % focusables.size
-        setFocus(frame, UiNodeKeys.key(focusables[nextIndex]), dispatch)
+        setFocus(frame, focusables[nextIndex], dispatch)
         return true
     }
 
@@ -408,9 +388,8 @@ class HollowUiInputController {
             }
             is TextFieldNode -> {
                 val index = textFieldCaretIndexAt(frame, node, localX, localY)
-                val nodeKey = UiNodeKeys.key(node)
                 val altPressed = isAltPressed()
-                val clickCount = textClickCount(nodeKey, index)
+                val clickCount = textClickCount(node, index)
                 textAltSelectionAnchor = null
                 if (clickCount >= 3) {
                     val range = textFieldLineRangeAt(node.value, index)
@@ -434,12 +413,11 @@ class HollowUiInputController {
                 } else {
                     node.moveCaret(index)
                 }
-                rememberTextClick(nodeKey, index, clickCount)
+                rememberTextClick(node, index, clickCount)
                 true
             }
             else -> false
         }
-        if (handled && node is UiStatefulNode) stateStore.save(node)
         return handled
     }
 
@@ -448,7 +426,6 @@ class HollowUiInputController {
         val inverse = layout.inputTransform.inverse() ?: return false
         val local = inverse.transform(mouseX, mouseY, 0f)
         val changed = node.setFromLocalX(local.x, layout.rect.width)
-        if (changed) stateStore.save(node)
         return changed
     }
 
@@ -471,7 +448,6 @@ class HollowUiInputController {
             node.setSelection(node.selectionAnchor ?: node.caret, index)
         }
         val changed = previousStart != node.selectionStart || previousEnd != node.selectionEnd
-        if (changed) stateStore.save(node)
         return changed
     }
 
@@ -487,19 +463,19 @@ class HollowUiInputController {
 
 
     private fun focusedTextField(frame: HollowUiFrame): TextFieldNode? {
-        return focusedKey?.let(frame::nodeByKey) as? TextFieldNode
+        return focusedNode?.takeIf { it in frame.resolved.styles } as? TextFieldNode
     }
 
-    private fun textClickCount(nodeKey: String, index: Int): Int {
+    private fun textClickCount(node: TextFieldNode, index: Int): Int {
         val now = System.currentTimeMillis()
-        val continues = lastTextClickKey == nodeKey &&
+        val continues = lastTextClickNode === node &&
                 now - lastTextClickAtMillis <= TextDoubleClickMillis &&
                 abs(lastTextClickIndex - index) <= 1
         return if (continues) (lastTextClickCount + 1).coerceAtMost(3) else 1
     }
 
-    private fun rememberTextClick(nodeKey: String, index: Int, count: Int) {
-        lastTextClickKey = nodeKey
+    private fun rememberTextClick(node: TextFieldNode, index: Int, count: Int) {
+        lastTextClickNode = node
         lastTextClickIndex = index
         lastTextClickCount = count
         lastTextClickAtMillis = System.currentTimeMillis()
@@ -512,8 +488,7 @@ class HollowUiInputController {
     }
 
     private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
-        return focusedKey
-            ?.let(frame::nodeByKey)
+        return focusedNode
             ?.takeIf { it in frame.layout.nodes }
             ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
     }
@@ -523,23 +498,16 @@ class HollowUiInputController {
         stack.add(node)
         while (stack.isNotEmpty()) {
             val current = stack.removeLast()
-            val key = UiNodeKeys.key(current)
-            current.states -= UiState.HOVER
-            current.states -= UiState.ACTIVE
-            current.states -= UiState.DRAGGING
-            if (key != focusedKey) current.states -= UiState.FOCUS
+            val states = linkedSetOf<UiState>()
             if (current is TextNode) {
-                current.hoveredLink = if (key == hoveredKey) hoveredLink else null
+                current.hoveredLink = if (current === hoveredNode) hoveredLink else null
             }
-            if (key == hoveredKey || current.containsNodeKey(hoveredKey)) current.states += UiState.HOVER
-            if (key == activeKey) current.states += UiState.ACTIVE
-            if (key == focusedKey) current.states += UiState.FOCUS
-            if (key == draggingKey) current.states += UiState.DRAGGING
-            if (closing) {
-                current.states += UiState.CLOSING
-            } else {
-                current.states -= UiState.CLOSING
-            }
+            if (current === hoveredNode || current.containsNode(hoveredNode)) states += UiState.HOVER
+            if (current === activeNode) states += UiState.ACTIVE
+            if (current === focusedNode) states += UiState.FOCUS
+            if (current === draggingNode) states += UiState.DRAGGING
+            if (closing) states += UiState.CLOSING
+            current.setRuntimeStates(states)
             for (index in current.children.indices.reversed()) {
                 stack.add(current.children[index])
             }
@@ -593,13 +561,13 @@ data class UiInputResult(
     val changed: Boolean = false,
 )
 
-private fun UiNode.containsNodeKey(key: String?): Boolean {
-    if (key == null) return false
+private fun UiNode.containsNode(target: UiNode?): Boolean {
+    if (target == null) return false
     val stack = ArrayDeque<UiNode>()
     children.asReversed().forEach(stack::add)
     while (stack.isNotEmpty()) {
         val node = stack.removeLast()
-        if (UiNodeKeys.key(node) == key) return true
+        if (node === target) return true
         for (index in node.children.indices.reversed()) {
             stack.add(node.children[index])
         }
@@ -638,7 +606,6 @@ private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Floa
     val positions = linkedMapOf<String, UiVec3>()
     ancestors.forEach { ancestor ->
         val local = layout[ancestor].inputTransform.inverse()?.transform(x, y, 0f) ?: return@forEach
-        positions[UiNodeKeys.key(ancestor)] = local
         ancestor.id?.let { positions[it] = local }
         ancestor.tags.forEach { tag -> positions[tag] = local }
     }

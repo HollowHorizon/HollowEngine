@@ -620,7 +620,7 @@ class UiCommandRenderer {
             diagnosticErrorColor = UiColor(1f, 0.33f, 0.33f, 0.9f),
             diagnosticWarningColor = UiColor(1f, 0.72f, 0.26f, 0.88f),
             diagnosticInfoColor = UiColor(0.38f, 0.66f, 1f, 0.84f),
-            showCaret = UiState.FOCUS in node.states,
+            showCaret = UiState.FOCUS in node.effectiveStates(),
             showLineNumbers = field.lineNumbers == true,
             showInlayHints = field.inlayHints == true,
             diagnostics = node.diagnostics,
@@ -730,18 +730,17 @@ private fun UiShadow.toTextShadow() = TextShadow(
 )
 
 class UiTypingState {
-    private val starts = linkedMapOf<String, TypingStart>()
+    private val starts = WeakHashMap<UiNode, TypingStart>()
 
     fun elapsed(node: UiNode, typing: UiTyping?, text: String, nowMillis: Long): Long {
         if (typing == null) {
-            starts.remove(UiNodeKeys.key(node))
+            starts.remove(node)
             return Long.MAX_VALUE
         }
-        val key = UiNodeKeys.key(node)
         val signature = TypingSignature(text, typing)
-        val current = starts[key]
+        val current = starts[node]
         if (current == null || current.signature != signature) {
-            starts[key] = TypingStart(signature, nowMillis)
+            starts[node] = TypingStart(signature, nowMillis)
             return 0L
         }
         return (nowMillis - current.startedAtMillis).coerceAtLeast(0L)
@@ -854,7 +853,7 @@ class UiHitTester {
                 is HitTestTask.Test -> {
                     val current = task.node
                     val style = resolved[current]
-                    if (UiState.DISABLED in current.states) continue
+                    if (UiState.DISABLED in current.effectiveStates()) continue
                     if (!style.input.hoverable &&
                         !style.input.clickable &&
                         !style.input.focusable &&

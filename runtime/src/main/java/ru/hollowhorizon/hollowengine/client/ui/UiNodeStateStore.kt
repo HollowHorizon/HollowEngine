@@ -3,20 +3,21 @@ package ru.hollowhorizon.hollowengine.client.ui
 import java.util.*
 
 class UiNodeStateStore {
-    private val states = linkedMapOf<String, UiNodePersistentState>()
+    private val states = WeakHashMap<UiStatefulNode, UiNodePersistentState>()
 
     fun clear() {
         states.clear()
     }
 
     fun save(node: UiStatefulNode) {
-        states[UiNodeKeys.key(node)] = node.exportState()
+        states[node] = node.exportState()
     }
 
     fun apply(root: UiNode) {
         root.forEachNode { node ->
-            val state = states[UiNodeKeys.key(node)] ?: return@forEachNode
-            (node as? UiStatefulNode)?.importState(state)
+            val statefulNode = node as? UiStatefulNode ?: return@forEachNode
+            val state = states[statefulNode] ?: return@forEachNode
+            statefulNode.importState(state)
         }
     }
 }

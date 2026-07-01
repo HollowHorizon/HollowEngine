@@ -6,7 +6,7 @@ internal enum class UiScrollbarPointerArea {
 }
 
 internal data class UiScrollbarDragState(
-    val nodeKey: String,
+    val node: UiNode,
     val orientation: ScrollbarOrientation,
     val track: UiRect,
     val thumb: UiRect,
@@ -55,7 +55,7 @@ internal fun UiScrollbarHandle.dragStateAt(mouseX: Float, mouseY: Float): UiScro
     val local = inverse.transform(mouseX, mouseY, 0f)
     if (pointerAreaAt(mouseX, mouseY) != UiScrollbarPointerArea.THUMB) return null
     return UiScrollbarDragState(
-        nodeKey = UiNodeKeys.key(node),
+        node = node,
         orientation = orientation,
         track = track,
         thumb = thumb,
@@ -70,7 +70,7 @@ internal fun UiScrollbarHandle.dragStateAt(mouseX: Float, mouseY: Float): UiScro
 internal fun UiScrollbarHandle.trackClickOffset(layout: UiLayoutNode, mouseX: Float, mouseY: Float): UiScrollOffset {
     val inverse = transform.inverse() ?: return layout.scrollOffset
     val drag = UiScrollbarDragState(
-        nodeKey = UiNodeKeys.key(node),
+        node = node,
         orientation = orientation,
         track = track,
         thumb = thumb,

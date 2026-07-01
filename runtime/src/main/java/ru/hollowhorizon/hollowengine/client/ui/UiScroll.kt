@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import java.util.*
+
 data class UiScrollOffset(
     val x: Float = 0f,
     val y: Float = 0f,
@@ -23,89 +25,86 @@ data class UiScrollbarGeometry(
 )
 
 class UiScrollState {
-    private val offsets = mutableMapOf<String, UiScrollOffset>()
-    private val targets = mutableMapOf<String, UiScrollOffset>()
-    private val starts = mutableMapOf<String, UiScrollOffset>()
-    private val startedAt = mutableMapOf<String, Long>()
-    private val ranges = mutableMapOf<String, UiScrollOffset>()
+    private val offsets = WeakHashMap<UiNode, UiScrollOffset>()
+    private val targets = WeakHashMap<UiNode, UiScrollOffset>()
+    private val starts = WeakHashMap<UiNode, UiScrollOffset>()
+    private val startedAt = WeakHashMap<UiNode, Long>()
+    private val ranges = WeakHashMap<UiNode, UiScrollOffset>()
     private val durationMillis = 190L
 
-    fun offset(node: UiNode): UiScrollOffset = offsets[UiNodeKeys.key(node)] ?: UiScrollOffset.Zero
+    fun offset(node: UiNode): UiScrollOffset = offsets[node] ?: UiScrollOffset.Zero
 
-    fun range(node: UiNode): UiScrollOffset = ranges[UiNodeKeys.key(node)] ?: UiScrollOffset.Zero
+    fun range(node: UiNode): UiScrollOffset = ranges[node] ?: UiScrollOffset.Zero
 
     fun isAnimating(): Boolean = startedAt.isNotEmpty()
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {
-        val key = UiNodeKeys.key(node)
-        val current = targets[key] ?: offset(node)
+        val current = targets[node] ?: offset(node)
         val range = range(node)
         val next = UiScrollOffset(
             x = (current.x + deltaX).coerceIn(0f, range.x),
             y = (current.y + deltaY).coerceIn(0f, range.y),
         )
-        animateTo(key, next)
+        animateTo(node, next)
         return next
     }
 
     fun set(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        val (key, next) = resolveNext(node, x, y)
-        animateTo(key, next)
+        val next = resolveNext(node, x, y)
+        animateTo(node, next)
         return next
     }
 
     fun setImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        val (key, next) = resolveNext(node, x, y)
-        offsets[key] = next
-        targets[key] = next
-        starts.remove(key)
-        startedAt.remove(key)
+        val next = resolveNext(node, x, y)
+        offsets[node] = next
+        targets[node] = next
+        starts.remove(node)
+        startedAt.remove(node)
         return next
     }
 
-    private fun resolveNext(node: UiNode, x: Float? = null, y: Float?): Pair<String, UiScrollOffset> {
-        val key = UiNodeKeys.key(node)
-        val current = targets[key] ?: offset(node)
+    private fun resolveNext(node: UiNode, x: Float? = null, y: Float?): UiScrollOffset {
+        val current = targets[node] ?: offset(node)
         val range = range(node)
-        return key to UiScrollOffset(
+        return UiScrollOffset(
             x = (x ?: current.x).coerceIn(0f, range.x),
             y = (y ?: current.y).coerceIn(0f, range.y),
         )
     }
 
     fun clamp(node: UiNode, range: UiScrollOffset): UiScrollOffset {
-        val key = UiNodeKeys.key(node)
-        ranges[key] = range
+        ranges[node] = range
         val current = offset(node)
         val clamped = UiScrollOffset(current.x.coerceIn(0f, range.x), current.y.coerceIn(0f, range.y))
-        offsets[key] = clamped
-        targets[key] =
-            (targets[key] ?: clamped).let { UiScrollOffset(it.x.coerceIn(0f, range.x), it.y.coerceIn(0f, range.y)) }
+        offsets[node] = clamped
+        targets[node] =
+            (targets[node] ?: clamped).let { UiScrollOffset(it.x.coerceIn(0f, range.x), it.y.coerceIn(0f, range.y)) }
         return clamped
     }
 
     fun update(nowMillis: Long) {
-        for ((key, target) in targets.toMap()) {
-            val startTime = startedAt[key] ?: continue
-            val start = starts[key] ?: offsets[key] ?: UiScrollOffset.Zero
+        for ((node, target) in targets.toMap()) {
+            val startTime = startedAt[node] ?: continue
+            val start = starts[node] ?: offsets[node] ?: UiScrollOffset.Zero
             val progress = ((nowMillis - startTime).toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
             val eased = 1f - (1f - progress) * (1f - progress)
             val next = UiScrollOffset(
                 x = start.x + (target.x - start.x) * eased,
                 y = start.y + (target.y - start.y) * eased,
             )
-            offsets[key] = next
+            offsets[node] = next
             if (progress >= 1f) {
-                offsets[key] = target
-                starts.remove(key)
-                startedAt.remove(key)
+                offsets[node] = target
+                starts.remove(node)
+                startedAt.remove(node)
             }
         }
     }
 
-    private fun animateTo(key: String, next: UiScrollOffset) {
-        starts[key] = offsets[key] ?: UiScrollOffset.Zero
-        targets[key] = next
-        startedAt[key] = System.currentTimeMillis()
+    private fun animateTo(node: UiNode, next: UiScrollOffset) {
+        starts[node] = offsets[node] ?: UiScrollOffset.Zero
+        targets[node] = next
+        startedAt[node] = System.currentTimeMillis()
     }
 }

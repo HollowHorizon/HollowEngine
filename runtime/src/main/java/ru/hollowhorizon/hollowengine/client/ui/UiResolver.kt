@@ -302,7 +302,7 @@ private fun UiNode.styleSnapshot(modifiers: List<Modifier>) = NodeStyleSnapshot(
     type = type,
     id = id,
     tags = tags.toSet(),
-    states = states.toSet(),
+    states = effectiveStates(),
     attributes = attributes.toMap(),
     modifiers = modifiers,
 )

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import java.util.*
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -867,68 +868,67 @@ data class UiBoundString(val template: String) {
 }
 
 class UiTransitionState {
-    private val rendered = mutableMapOf<String, ComputedStyle>()
-    private val starts = mutableMapOf<String, ComputedStyle>()
-    private val targets = mutableMapOf<String, ComputedStyle>()
-    private val startedAt = mutableMapOf<String, Long>()
-    private val activeDurations = mutableMapOf<String, Long>()
-    private val startedDurations = mutableMapOf<String, Long>()
+    private val rendered = WeakHashMap<UiNode, ComputedStyle>()
+    private val starts = WeakHashMap<UiNode, ComputedStyle>()
+    private val targets = WeakHashMap<UiNode, ComputedStyle>()
+    private val startedAt = WeakHashMap<UiNode, Long>()
+    private val activeDurations = WeakHashMap<UiNode, Long>()
+    private val startedDurations = WeakHashMap<UiNode, Long>()
 
     fun apply(node: UiNode, target: ComputedStyle, nowMillis: Long): ComputedStyle {
-        val key = UiNodeKeys.key(node)
-        startedDurations[key] = 0L
-        val current = rendered[key]
+        startedDurations[node] = 0L
+        val current = rendered[node]
         if (current == null) {
-            rendered[key] = target
-            targets[key] = target
-            activeDurations[key] = 0L
+            rendered[node] = target
+            targets[node] = target
+            activeDurations[node] = 0L
             return target
         }
-        val oldTarget = targets[key]
+        val oldTarget = targets[node]
         var targetChanged = false
         if (oldTarget != target) {
-            starts[key] = current
-            targets[key] = target
-            startedAt[key] = nowMillis
+            starts[node] = current
+            targets[node] = target
+            startedAt[node] = nowMillis
             targetChanged = true
-        } else if (!startedAt.containsKey(key)) {
-            activeDurations[key] = 0L
+        } else if (!startedAt.containsKey(node)) {
+            activeDurations[node] = 0L
             return target
         }
-        val startStyle = starts[key] ?: current
+        val startStyle = starts[node] ?: current
         val transitions =
             target.transitions.filter { transition ->
                 transition.property in TransitionProperties && startStyle.changed(transition.property, target)
             }
         if (transitions.isEmpty()) return target.also {
-            rendered[key] = target
-            targets[key] = target
-            starts.remove(key)
-            startedAt.remove(key)
-            activeDurations[key] = 0L
-            startedDurations[key] = 0L
+            rendered[node] = target
+            targets[node] = target
+            starts.remove(node)
+            startedAt.remove(node)
+            activeDurations[node] = 0L
+            startedDurations[node] = 0L
         }
         val duration = transitions.maxOfOrNull { it.durationMillis } ?: 0L
-        activeDurations[key] = duration
-        if (targetChanged) startedDurations[key] = duration
-        val start = startedAt[key] ?: nowMillis
+        activeDurations[node] = duration
+        if (targetChanged) startedDurations[node] = duration
+        val start = startedAt[node] ?: nowMillis
         val progress = transitions.progress(max(0L, nowMillis - start))
         val result = startStyle.interpolate(target, progress)
-        rendered[key] = result
+        rendered[node] = result
         if (progress.complete()) {
-            rendered[key] = target
-            targets[key] = target
-            starts.remove(key)
-            startedAt.remove(key)
-            activeDurations[key] = 0L
-            startedDurations[key] = 0L
+            rendered[node] = target
+            targets[node] = target
+            starts.remove(node)
+            startedAt.remove(node)
+            activeDurations[node] = 0L
+            startedDurations[node] = 0L
         }
         return result
     }
 
-    fun activeDurationMillis(node: UiNode): Long = activeDurations[UiNodeKeys.key(node)] ?: 0L
+    fun activeDurationMillis(node: UiNode): Long = activeDurations[node] ?: 0L
 
-    fun startedDurationMillis(node: UiNode): Long = startedDurations[UiNodeKeys.key(node)] ?: 0L
+    fun startedDurationMillis(node: UiNode): Long = startedDurations[node] ?: 0L
 
     fun hasActiveTransitions(): Boolean = activeDurations.values.any { it > 0L }
 
@@ -998,7 +998,7 @@ class UiTransitionState {
 }
 
 class UiAnimationState {
-    private val starts = mutableMapOf<String, AnimationStart>()
+    private val starts = WeakHashMap<UiNode, AnimationStart>()
 
     fun apply(
         node: UiNode,
@@ -1008,14 +1008,13 @@ class UiAnimationState {
     ): ComputedStyle {
         val animations = base.animations.filter { it.playState == UiAnimationPlayState.RUNNING && it.name.isNotBlank() }
         if (animations.isEmpty()) {
-            starts.remove(UiNodeKeys.key(node))
+            starts.remove(node)
             return base
         }
-        val key = UiNodeKeys.key(node)
         val signature = animations
-        val start = starts[key]
+        val start = starts[node]
         val startedAt = if (start == null || start.signature != signature) {
-            starts[key] = AnimationStart(signature, nowMillis)
+            starts[node] = AnimationStart(signature, nowMillis)
             nowMillis
         } else {
             start.startedAtMillis

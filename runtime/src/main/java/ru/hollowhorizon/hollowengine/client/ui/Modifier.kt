@@ -299,6 +299,8 @@ fun Modifier.onUnfocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiE
 fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) = this then
         ScriptEventModifier(kind, source, sink)
 
+fun Modifier.state(vararg states: UiState) = this then StateModifier(states.toSet())
+
 enum class UiStyleProperty {
     WIDTH,
     HEIGHT,
@@ -409,6 +411,18 @@ data class ScriptEventModifier(
     }
 }
 
+data class StateModifier(
+    val states: Set<UiState>,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) = Unit
+}
+
+internal data class RuntimeStateModifier(
+    val states: Set<UiState>,
+) : Modifier {
+    override fun applyTo(style: MutableUiStyle) = Unit
+}
+
 data class PositionModifier(
     val x: UiLength,
     val y: UiLength,
@@ -444,6 +458,32 @@ fun MutableList<Modifier>.style(): MutableUiStyle {
 
 fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = flatMap { modifier ->
     if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
+}
+
+internal fun UiNode.effectiveStates(): Set<UiState> {
+    val flattened = modifiers.flattenModifiers()
+    val modifierStates = flattened
+        .filterIsInstance<StateModifier>()
+        .flatMapTo(linkedSetOf()) { it.states }
+    val runtimeStates = flattened
+        .filterIsInstance<RuntimeStateModifier>()
+        .flatMapTo(linkedSetOf()) { it.states }
+    if (modifierStates.isEmpty() && runtimeStates.isEmpty()) return states.toSet()
+    return states + modifierStates + runtimeStates
+}
+
+internal fun UiNode.setRuntimeStates(next: Set<UiState>) {
+    val index = modifiers.indexOfFirst { it is RuntimeStateModifier }
+    val current = (index.takeIf { it >= 0 }?.let { modifiers[it] } as? RuntimeStateModifier)?.states.orEmpty()
+    if (current == next) return
+    if (next.isEmpty()) {
+        if (index >= 0) modifiers.removeAt(index)
+    } else if (index >= 0) {
+        modifiers[index] = RuntimeStateModifier(next)
+    } else {
+        modifiers += RuntimeStateModifier(next)
+    }
+    invalidateLayout()
 }
 
 fun String.bound() = UiBoundString(this)

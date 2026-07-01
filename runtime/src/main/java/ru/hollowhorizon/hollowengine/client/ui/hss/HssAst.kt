@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.hss
 
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.effectiveStates
 
 data class HssDocument(
     val rules: List<HssRule>,
@@ -58,7 +59,7 @@ data class HssSelector(
         if (type != null && node.type != type) return false
         if (id != null && node.id != id) return false
         if (!node.tags.containsAll(tags)) return false
-        if (!node.states.containsAll(states)) return false
+        if (!node.effectiveStates().containsAll(states)) return false
         if (attributes.any { !it.matches(node.attributes) }) return false
         return true
     }

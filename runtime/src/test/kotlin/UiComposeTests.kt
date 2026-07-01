@@ -712,7 +712,6 @@ class UiComposeTests {
             root.children += BoxNode(id = "row-$index", modifiers = listOf(Modifier.size(100.px, 10.px)))
         }
 
-        UiNodeKeys.assign(root)
         val resolved = UiStyleResolver().resolve(root, animate = false)
         val layout = UiLayoutPipeline().compute(resolved, width = 100f, height = 30f)
         val placedChildren = root.children.filter { it in layout.nodes }.map { it.id }
@@ -818,7 +817,6 @@ class UiComposeTests {
             root.children += BoxNode(id = "column-$index", modifiers = listOf(Modifier.size(10.px, 100.px)))
         }
 
-        UiNodeKeys.assign(root)
         val resolved = UiStyleResolver().resolve(root, animate = false)
         val layout = UiLayoutPipeline().compute(resolved, width = 30f, height = 100f)
         val placedChildren = root.children.filter { it in layout.nodes }.map { it.id }
@@ -1748,7 +1746,6 @@ class UiComposeTests {
         )
         val resolver = UiStyleResolver()
 
-        UiNodeKeys.assign(root)
         val first = resolver.resolve(root, animate = false)
         val second = resolver.resolve(root, animate = false)
 
@@ -1774,7 +1771,6 @@ class UiComposeTests {
         val root = BoxNode(tags = listOf("panel"))
         val resolver = UiStyleResolver(stylesheet = stylesheet)
 
-        UiNodeKeys.assign(root)
         val initial = resolver.resolve(root, animate = false)
         assertEquals(1f, initial[root].opacity)
 

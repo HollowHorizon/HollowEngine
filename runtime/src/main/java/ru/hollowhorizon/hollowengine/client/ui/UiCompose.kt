@@ -44,9 +44,6 @@ class HollowUiComposition(
     fun applyPendingChanges(nowNanos: Long = System.nanoTime()): Boolean {
         pumpPendingChanges(nowNanos)
         val changed = recomposer.changeCount != observedChangeCount
-        if (changed) {
-            UiNodeKeys.assign(rootNode)
-        }
         observedChangeCount = recomposer.changeCount
         return changed
     }
