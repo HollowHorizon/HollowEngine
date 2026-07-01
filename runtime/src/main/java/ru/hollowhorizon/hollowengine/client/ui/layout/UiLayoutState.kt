@@ -155,10 +155,33 @@ internal class InvalidatingMutableMap<K, V>(
 class UiNodeLayoutState internal constructor() {
     private var parent: UiNode? = null
     private var resolvedLayoutFingerprint = 0
-    private var revision = UiLayoutRevision.next()
+    private var localLayoutRevision = UiLayoutRevision.next()
+    private var localDrawRevision = localLayoutRevision
+    private var localInputRevision = localLayoutRevision
+    private var subtreeLayoutRevisionValue = localLayoutRevision
+    private var subtreeDrawRevisionValue = localDrawRevision
+    private var subtreeInputRevisionValue = localInputRevision
+
+    val layoutRevision: Long
+        get() = localLayoutRevision
+
+    val drawRevision: Long
+        get() = localDrawRevision
+
+    val inputRevision: Long
+        get() = localInputRevision
+
+    val subtreeLayoutRevision: Long
+        get() = subtreeLayoutRevisionValue
+
+    val subtreeDrawRevision: Long
+        get() = subtreeDrawRevisionValue
+
+    val subtreeInputRevision: Long
+        get() = subtreeInputRevisionValue
 
     val subtreeRevision: Long
-        get() = revision
+        get() = maxOf(subtreeLayoutRevisionValue, subtreeDrawRevisionValue, subtreeInputRevisionValue)
 
     internal val parentNode: UiNode?
         get() = parent
@@ -166,29 +189,62 @@ class UiNodeLayoutState internal constructor() {
     internal fun attachTo(nextParent: UiNode?) {
         if (parent === nextParent) return
         parent = nextParent
-        invalidate()
+        invalidateLayout()
     }
 
     internal fun updateResolvedLayoutFingerprint(fingerprint: Int) {
         if (resolvedLayoutFingerprint == fingerprint) return
         resolvedLayoutFingerprint = fingerprint
-        invalidate()
+        invalidateLayout()
     }
 
-    internal fun invalidate() {
+    internal fun invalidateLayout() {
         val nextRevision = UiLayoutRevision.next()
-        markSubtreeChanged(nextRevision)
+        localLayoutRevision = nextRevision
+        markSubtreeLayoutChanged(nextRevision)
     }
 
-    private fun markSubtreeChanged(nextRevision: Long) {
-        if (revision == nextRevision) return
-        revision = nextRevision
-        parent?.layoutState?.markSubtreeChanged(nextRevision)
+    internal fun invalidateDraw() {
+        val nextRevision = UiLayoutRevision.next()
+        localDrawRevision = nextRevision
+        markSubtreeDrawChanged(nextRevision)
+    }
+
+    internal fun invalidateInput() {
+        val nextRevision = UiLayoutRevision.next()
+        localInputRevision = nextRevision
+        markSubtreeInputChanged(nextRevision)
+    }
+
+    private fun markSubtreeLayoutChanged(nextRevision: Long) {
+        if (subtreeLayoutRevisionValue == nextRevision) return
+        subtreeLayoutRevisionValue = nextRevision
+        parent?.layoutState?.markSubtreeLayoutChanged(nextRevision)
+    }
+
+    private fun markSubtreeDrawChanged(nextRevision: Long) {
+        if (subtreeDrawRevisionValue == nextRevision) return
+        subtreeDrawRevisionValue = nextRevision
+        parent?.layoutState?.markSubtreeDrawChanged(nextRevision)
+    }
+
+    private fun markSubtreeInputChanged(nextRevision: Long) {
+        if (subtreeInputRevisionValue == nextRevision) return
+        subtreeInputRevisionValue = nextRevision
+        parent?.layoutState?.markSubtreeInputChanged(nextRevision)
     }
 }
 
 internal fun UiNode.invalidateLayout() {
-    layoutState.invalidate()
+    layoutState.invalidateLayout()
+}
+
+internal fun UiNode.invalidateDraw() {
+    layoutState.invalidateDraw()
+}
+
+internal fun UiNode.invalidateInput() {
+    layoutState.invalidateInput()
 }
 
 internal fun UiNode.detachLayoutParentRecursively() {

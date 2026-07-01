@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.layout.InvalidatingMutableList
-import ru.hollowhorizon.hollowengine.client.ui.layout.InvalidatingMutableMap
-import ru.hollowhorizon.hollowengine.client.ui.layout.InvalidatingMutableSet
-import ru.hollowhorizon.hollowengine.client.ui.layout.UiNodeLayoutState
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
+import ru.hollowhorizon.hollowengine.client.ui.layout.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import java.util.*
@@ -12,7 +8,7 @@ import java.util.*
 interface UiNode {
     val type: String
     val id: String?
-    var layout: UiLayout
+    var measurePolicy: UiMeasurePolicy
     val tags: MutableSet<String>
     val attributes: MutableMap<String, String>
     val states: MutableSet<UiState>
@@ -31,16 +27,16 @@ open class BaseUiNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-    layout: UiLayout = UiLayout.Column,
+    measurePolicy: UiMeasurePolicy = UiMeasurePolicies.Column,
 ) : UiNode {
     final override val layoutState = UiNodeLayoutState()
     final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateLayout() }
     final override val attributes: MutableMap<String, String> =
         InvalidatingMutableMap(attributes) { invalidateLayout() }
     final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
-    final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateLayout() }
+    final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateModifierChange() }
     final override val children = UiChildren()
-    final override var layout: UiLayout = layout
+    final override var measurePolicy: UiMeasurePolicy = measurePolicy
         set(value) {
             if (field == value) return
             field = value
@@ -49,7 +45,7 @@ open class BaseUiNode(
 
     fun add(vararg modifiers: Modifier): BaseUiNode = apply {
         this.modifiers.addAll(modifiers)
-        invalidateLayout()
+        invalidateModifierChange()
     }
 
     fun tag(vararg values: String): BaseUiNode = apply {
@@ -65,17 +61,17 @@ open class BaseUiNode(
 
 class BoxNode(
     id: String? = null,
-    layout: UiLayout = UiLayout.Box(),
+    measurePolicy: UiMeasurePolicy = UiMeasurePolicies.box(),
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(
-    UiNodeType.BOX.typeName,
+    UiBoxType,
     id?.trimIdPrefix(),
     tags.map { it.trimTagPrefix() },
     modifiers,
     attributes,
-    layout,
+    measurePolicy,
 )
 
 class TextNode(
@@ -84,7 +80,7 @@ class TextNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.TEXT.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+) : BaseUiNode(UiTextType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
     var content: UiTextContent = content
         set(value) {
             if (field == value) return
@@ -116,27 +112,12 @@ class ImageNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.IMAGE.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+) : BaseUiNode(UiImageType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
     var source: UiBoundString = source
         set(value) {
             if (field == value) return
             field = value
-            invalidateLayout()
-        }
-}
-
-class CanvasNode(
-    renderer: String? = null,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.CANVAS.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var renderer: String? = renderer
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateLayout()
+            invalidateDraw()
         }
 }
 
@@ -146,12 +127,12 @@ class ItemNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.ITEM.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+) : BaseUiNode(UiItemType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
     var item: UiBoundString = item
         set(value) {
             if (field == value) return
             field = value
-            invalidateLayout()
+            invalidateDraw()
         }
 }
 
@@ -161,12 +142,12 @@ class EntityNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.ENTITY.typeName, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
+) : BaseUiNode(UiEntityType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
     var entity: UiBoundString = entity
         set(value) {
             if (field == value) return
             field = value
-            invalidateLayout()
+            invalidateDraw()
         }
 }
 
@@ -178,12 +159,12 @@ class PopupNode(
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(
-    UiNodeType.POPUP.typeName,
+    UiPopupType,
     id?.trimIdPrefix(),
     tags.map { it.trimTagPrefix() },
     modifiers,
     attributes,
-    UiLayout.Column,
+    UiMeasurePolicies.Column,
 ) {
     var anchor: UiPopupAnchor = anchor
         set(value) {

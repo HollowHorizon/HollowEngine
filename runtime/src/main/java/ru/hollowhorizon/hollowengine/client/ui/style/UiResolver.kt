@@ -44,7 +44,9 @@ class UiStyleResolver(
         val stylesheetRevision = root.stylesheetRevision()
         val treeKey = TreeCacheKey(
             root = root,
-            subtreeRevision = root.layoutState.subtreeRevision,
+            subtreeLayoutRevision = root.layoutState.subtreeLayoutRevision,
+            subtreeDrawRevision = root.layoutState.subtreeDrawRevision,
+            subtreeInputRevision = root.layoutState.subtreeInputRevision,
             stylesheetRevision = stylesheetRevision,
             animate = animate,
         )
@@ -54,7 +56,9 @@ class UiStyleResolver(
         return ResolvedUiTree(root, styles).also { tree ->
             treeCache = TreeCacheEntry(
                 key = treeKey.copy(
-                    subtreeRevision = root.layoutState.subtreeRevision,
+                    subtreeLayoutRevision = root.layoutState.subtreeLayoutRevision,
+                    subtreeDrawRevision = root.layoutState.subtreeDrawRevision,
+                    subtreeInputRevision = root.layoutState.subtreeInputRevision,
                     stylesheetRevision = stylesheetRevision,
                 ),
                 tree = tree,
@@ -190,33 +194,32 @@ class UiStyleResolver(
     private fun engineDefaults(node: UiNode): MutableUiStyle {
         val style = MutableUiStyle(transitions = DefaultTransformTransitions)
         when (node.type) {
-            UiNodeType.TEXT.typeName -> {
+            UiTextType -> {
                 style.foreground = UiColor.White
                 style.size = UiSize(UiLength.Auto, UiLength.Auto)
                 style.minSize = UiSize(0.px, 0.px)
             }
 
-            UiNodeType.IMAGE.typeName,
-            UiNodeType.ITEM.typeName,
-            UiNodeType.ENTITY.typeName,
-            UiNodeType.CANVAS.typeName,
+            UiImageType,
+            UiItemType,
+            UiEntityType,
                 -> {
                 style.size = UiSize(16.px, 16.px)
             }
 
-            UiNodeType.SLIDER.typeName -> {
+            UiSliderType -> {
                 style.size = UiSize(120.px, 16.px)
                 style.input = UiInputStyle(hoverable = true, clickable = true, draggable = true, focusable = true)
                 style.slider = UiSliderStyle()
             }
 
-            UiNodeType.CHECKBOX.typeName -> {
+            UiCheckboxType -> {
                 style.size = UiSize(16.px, 16.px)
                 style.input = UiInputStyle(hoverable = true, clickable = true, focusable = true)
                 style.checkbox = UiCheckboxStyle()
             }
 
-            UiNodeType.TEXT_FIELD.typeName -> {
+            UiTextFieldType -> {
                 style.size = UiSize(UiLength.Auto, UiLength.Auto)
                 style.minSize = UiSize(0.px, 18.px)
                 style.padding = UiInsets.hv(4.px, 3.px)
@@ -288,7 +291,9 @@ private data class StyleCacheEntry(
 
 private data class TreeCacheKey(
     val root: UiNode,
-    val subtreeRevision: Long,
+    val subtreeLayoutRevision: Long,
+    val subtreeDrawRevision: Long,
+    val subtreeInputRevision: Long,
     val stylesheetRevision: Long,
     val animate: Boolean,
 )

@@ -147,7 +147,6 @@ class MinecraftUiRenderer {
             is DrawImageCommand -> drawImage(command)
             is DrawItemCommand -> drawItem(command)
             is DrawEntityCommand -> drawEntity(command)
-            is DrawCanvasCommand -> drawCanvasPlaceholder(command)
             is DrawSliderCommand -> drawWidget(command)
             is DrawCheckboxCommand -> drawWidget(command)
             is DrawTextFieldChromeCommand -> drawWidget(command)
@@ -1431,27 +1430,6 @@ class MinecraftUiRenderer {
         buffers.endBatch()
         dispatcher.setRenderShadow(true)
         Lighting.setupFor3DItems()
-    }
-
-    private fun drawCanvasPlaceholder(command: DrawCanvasCommand) {
-        val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        drawLocalPaint(
-            command.rect.width,
-            command.rect.height,
-            0f,
-            UiColor(0.08f, 0.08f, 0.1f, command.opacity),
-            transform,
-            command.filter
-        )
-        drawLocalPaint(
-            command.rect.width - 16f,
-            1f,
-            0f,
-            UiColor(0.4f, 0.7f, 0.9f, command.opacity),
-            transform * UiMatrix4.translation(8f, command.rect.height * 0.5f, 0f),
-            command.filter
-        )
     }
 
     private fun drawWidget(command: DrawSliderCommand) {

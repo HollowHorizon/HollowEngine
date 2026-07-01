@@ -35,11 +35,11 @@ internal enum class FlowAxis {
     Vertical,
 }
 
-internal fun UiLayoutPipeline.placeCustomChildren(scope: ChildPlacementScope, layout: UiLayout.Custom) {
+internal fun UiLayoutPipeline.placeCustomChildren(scope: ChildPlacementScope, measurePolicy: UiMeasurePolicy) {
     val result = measureCustomLayout(
         scope.node,
         scope.resolved,
-        layout,
+        measurePolicy,
         scope.content.width,
         scope.content.height,
         scope.scrollbarReserves,
@@ -98,7 +98,8 @@ internal fun UiLayoutPipeline.placeLinearChildren(
         )
     }
     val totalMain = children.sumOfOuterMain(axis) + gap * (children.size - 1).coerceAtLeast(0)
-    val mainAlign = children.singleChildMainAxisAlign(axis) ?: style.childMainAlign(node.layout, axis)
+    val parentAxis = node.measurePolicy.flowAxis()
+    val mainAlign = children.singleChildMainAxisAlign(axis) ?: style.childMainAlign(parentAxis, axis)
     val mainOffset = mainAlign.mainStartOffset(mainAvailable, totalMain, children.size)
     val scrollOffset = scope.scrollState.offset(node)
     if (lazy) {
@@ -121,7 +122,7 @@ internal fun UiLayoutPipeline.placeLinearChildren(
     val visibleEnd = visibleStart + mainAvailable
     for (child in children) {
         val position = child.style.position.resolve(content.width, content.height)
-        val align = child.crossAlign(style, node.layout, axis)
+        val align = child.crossAlign(style, parentAxis, axis)
         val mainSize = child.placedMainSize(axis, content, lazy)
         val crossSize = child.placedCrossSize(axis, content, align)
         val rect = axis.placedRect(content, child, position, main, mainSize, crossSize, align)
@@ -147,8 +148,9 @@ internal fun UiLayoutPipeline.placeFreeChildren(scope: ChildPlacementScope) {
         allowHeightOverflow = style.input.scrollable,
     )) {
         val position = child.style.position.resolve(content.width, content.height)
-        val alignX = child.style.effectiveAlignHorizontal(style, node.layout) ?: UiAlign.START
-        val alignY = child.style.effectiveAlignVertical(style, node.layout) ?: UiAlign.START
+        val parentAxis = node.measurePolicy.flowAxis()
+        val alignX = child.style.effectiveAlignHorizontal(style, parentAxis) ?: UiAlign.START
+        val alignY = child.style.effectiveAlignVertical(style, parentAxis) ?: UiAlign.START
         val width = child.style.size.width
         val height = child.style.size.height
         val childWidth = if (width.dependsOnAvailableSpace) {
@@ -220,15 +222,24 @@ internal fun UiLayoutPipeline.measureFlowChildren(
             style = style,
             size = size,
             margin = margin,
+            parentData = child.parentData(),
         )
     }
     return measured
 }
 
+private fun UiNode.parentData(): ParentData {
+    var data: ParentData = emptyMap()
+    for (modifier in modifiers.flattenModifiers().filterIsInstance<ParentDataModifierNode>()) {
+        data = modifier.modifyParentData(data)
+    }
+    return data
+}
+
 internal fun UiLayoutPipeline.measureCustomLayout(
     node: UiNode,
     resolved: ResolvedUiTree,
-    layout: UiLayout.Custom,
+    measurePolicy: UiMeasurePolicy,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -241,7 +252,7 @@ internal fun UiLayoutPipeline.measureCustomLayout(
         EngineMeasurable(this, child, resolved, scrollbarReserves)
     }
     val scope = UiMeasureScope()
-    val result = with(layout.measurePolicy) {
+    val result = with(measurePolicy) {
         scope.measure(measurables, constraints)
     }
     return result.copy(
@@ -396,21 +407,21 @@ private fun List<MeasuredChild>.singleChildMainAxisAlign(axis: FlowAxis): UiAlig
     }
 }
 
-private fun ComputedStyle.childMainAlign(layout: UiLayout?, axis: FlowAxis): UiAlign? {
+private fun ComputedStyle.childMainAlign(parentAxis: FlowAxis?, axis: FlowAxis): UiAlign? {
     return when (axis) {
-        FlowAxis.Horizontal -> childAlignHorizontal(layout)
-        FlowAxis.Vertical -> childAlignVertical(layout)
+        FlowAxis.Horizontal -> childAlignHorizontal(parentAxis)
+        FlowAxis.Vertical -> childAlignVertical(parentAxis)
     }
 }
 
-private fun MeasuredChild.crossAlign(parentStyle: ComputedStyle, parentLayout: UiLayout?, axis: FlowAxis): UiAlign {
+private fun MeasuredChild.crossAlign(parentStyle: ComputedStyle, parentAxis: FlowAxis?, axis: FlowAxis): UiAlign {
     return when (axis) {
         FlowAxis.Horizontal -> style.alignVertical.takeUnless { it == UiAlign.AUTO }
-            ?: parentStyle.childAlignVertical(parentLayout)
+            ?: parentStyle.childAlignVertical(parentAxis)
             ?: UiAlign.START
 
         FlowAxis.Vertical -> style.alignHorizontal.takeUnless { it == UiAlign.AUTO }
-            ?: parentStyle.childAlignHorizontal(parentLayout)
+            ?: parentStyle.childAlignHorizontal(parentAxis)
             ?: UiAlign.STRETCH
     }
 }

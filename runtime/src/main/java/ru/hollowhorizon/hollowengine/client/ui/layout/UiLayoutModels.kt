@@ -66,6 +66,7 @@ internal data class MeasuredChild(
     val style: ComputedStyle,
     val size: LayoutSize,
     val margin: ResolvedUiInsets,
+    val parentData: ParentData = emptyMap(),
 )
 
 internal data class NodeBoxes(

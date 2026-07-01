@@ -120,7 +120,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             }
             Column(tags = listOf("card"), modifier = Modifier.position(184.px, 136.px)) {
                 Text("Холст", tags = listOf("card-title"))
-                Canvas("demo-wave", tags = listOf("canvas-preview"))
+                Box(tags = listOf("visual-preview"))
             }
         }
     }

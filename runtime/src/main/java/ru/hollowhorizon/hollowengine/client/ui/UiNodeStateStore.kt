@@ -37,13 +37,13 @@ sealed interface UiNodePersistentState {
 data class SliderPersistentState(
     val value: Float,
 ) : UiNodePersistentState {
-    override val type: String = UiNodeType.SLIDER.typeName
+    override val type: String = UiSliderType
 }
 
 data class CheckboxPersistentState(
     val checked: Boolean,
 ) : UiNodePersistentState {
-    override val type: String = UiNodeType.CHECKBOX.typeName
+    override val type: String = UiCheckboxType
 }
 
 data class TextFieldHistoryState(
@@ -72,7 +72,7 @@ data class TextFieldPersistentState(
     val undoHistory: List<TextFieldHistoryState> = emptyList(),
     val redoHistory: List<TextFieldHistoryState> = emptyList(),
 ) : UiNodePersistentState {
-    override val type: String = UiNodeType.TEXT_FIELD.typeName
+    override val type: String = UiTextFieldType
 }
 
 private fun UiNode.forEachNode(block: (UiNode) -> Unit) {

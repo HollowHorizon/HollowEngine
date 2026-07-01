@@ -9,8 +9,6 @@ import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
 import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
 import java.util.*
 
-internal sealed interface PlacementTask
-
 internal data class NodePlacementTask(
     val node: UiNode,
     val resolved: ResolvedUiTree,
@@ -24,7 +22,7 @@ internal data class NodePlacementTask(
     val scrollState: UiScrollState,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     val layouts: MutableMap<UiNode, UiLayoutNode>,
-) : PlacementTask
+)
 
 internal data class PopupPlacementTask(
     val node: UiNode,
@@ -37,7 +35,7 @@ internal data class PopupPlacementTask(
     val scrollState: UiScrollState,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     val layouts: MutableMap<UiNode, UiLayoutNode>,
-) : PlacementTask
+)
 
 internal class LayoutPass(root: UiNode) {
     val layoutChildren = IdentityHashMap<UiNode, List<UiNode>>()

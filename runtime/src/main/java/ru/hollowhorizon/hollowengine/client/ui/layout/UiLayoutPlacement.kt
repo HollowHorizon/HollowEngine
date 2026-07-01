@@ -58,7 +58,7 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
             node = node,
             resolved = resolved,
             style = style,
-            layout = node.layout,
+            measurePolicy = node.measurePolicy,
             content = boxes.content,
             parentRect = rect,
             transform = transform,
@@ -83,16 +83,17 @@ private fun UiLayoutPipeline.placeChildren(scope: ChildPlacementScope) {
     }
     val childScope = scope.copy(content = viewport)
     if (node is TextNode) {
-        enqueuePopupChildren(scope)
         placeTextInlineChildren(node, childScope)
+        placePopupChildren(scope)
         return
     }
     if (node is TextFieldNode) {
         placeTextFieldInlineChildren(node, childScope)
+        placePopupChildren(scope)
         return
     }
-    enqueuePopupChildren(scope)
-    node.layout.policy().place(this, childScope)
+    node.measurePolicy.policy().place(this, childScope)
+    placePopupChildren(scope)
 }
 
 private fun UiLayoutPipeline.placeTextInlineChildren(node: TextNode, scope: ChildPlacementScope) {
@@ -199,21 +200,22 @@ internal fun UiLayoutPipeline.layoutTextFieldNode(
     return textFieldDisplayLayout(node, style, layout, widgetMetrics)
 }
 
-private fun UiLayoutPipeline.enqueuePopupChildren(scope: ChildPlacementScope) {
+private fun UiLayoutPipeline.placePopupChildren(scope: ChildPlacementScope) {
     if (popupChildren(scope.node).isEmpty()) return
-    val task = PopupPlacementTask(
-        scope.node,
-        scope.resolved,
-        scope.content,
-        scope.parentRect,
-        scope.transform,
-        scope.inputTransform,
-        scope.insideFramebuffer,
-        scope.scrollState,
-        scope.scrollbarReserves,
-        scope.layouts,
+    placePopupChildrenNow(
+        PopupPlacementTask(
+            scope.node,
+            scope.resolved,
+            scope.content,
+            scope.parentRect,
+            scope.transform,
+            scope.inputTransform,
+            scope.insideFramebuffer,
+            scope.scrollState,
+            scope.scrollbarReserves,
+            scope.layouts,
+        )
     )
-    placementStack?.addLast(task) ?: placePopupChildrenNow(task)
 }
 
 internal fun UiLayoutPipeline.placePopupChildrenNow(task: PopupPlacementTask) {

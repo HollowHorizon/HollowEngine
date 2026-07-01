@@ -43,26 +43,26 @@ internal inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (Comp
 internal val MeasuredChild.isRowFlexible: Boolean
     get() = style.size.width is UiLength.Fill ||
             style.size.width is UiLength.Percent ||
-            style.grow > 0f ||
+            grow > 0f ||
             node is TextNode && style.textWrap && style.size.width is UiLength.Auto
 
 internal val MeasuredChild.isWrappedAutoText: Boolean
     get() = node is TextNode &&
             style.textWrap &&
             style.size.width is UiLength.Auto &&
-            style.grow <= 0f
+            grow <= 0f
 
 internal val MeasuredChild.isColumnFlexible: Boolean
     get() = style.size.height is UiLength.Fill ||
             style.size.height is UiLength.Percent ||
-            style.grow > 0f ||
+            grow > 0f ||
             node is TextNode && style.input.scrollable && style.size.height is UiLength.Auto
 
 internal val MeasuredChild.canStretchAutoWidth: Boolean
     get() = node !is TextFieldNode
 
 internal fun MeasuredChild.rowWeight(): Float {
-    if (style.grow > 0f) return style.grow
+    if (grow > 0f) return grow
     val width = style.size.width
     return width.rowWeight(size)
 }
@@ -79,10 +79,13 @@ internal fun UiLength.rowWeight(size: LayoutSize): Float {
 }
 
 internal fun MeasuredChild.columnWeight(): Float {
-    if (style.grow > 0f) return style.grow
+    if (grow > 0f) return grow
     val height = style.size.height
     return height.columnWeight(size)
 }
+
+private val MeasuredChild.grow: Float
+    get() = (parentData[ParentDataKeys.Grow] as? Float) ?: style.grow
 
 internal fun UiLength.columnWeight(size: LayoutSize): Float {
     return when (this) {
@@ -237,23 +240,23 @@ internal fun UiAlign.crossOffset(available: Float, size: Float, startMargin: Flo
     }.coerceAtLeast(startMargin)
 }
 
-internal fun ComputedStyle.effectiveAlignHorizontal(parent: ComputedStyle?, parentLayout: UiLayout?): UiAlign? {
-    return alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignHorizontal(parentLayout)
+internal fun ComputedStyle.effectiveAlignHorizontal(parent: ComputedStyle?, parentAxis: FlowAxis?): UiAlign? {
+    return alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignHorizontal(parentAxis)
 }
 
-internal fun ComputedStyle.effectiveAlignVertical(parent: ComputedStyle?, parentLayout: UiLayout?): UiAlign? {
-    return alignVertical.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignVertical(parentLayout)
+internal fun ComputedStyle.effectiveAlignVertical(parent: ComputedStyle?, parentAxis: FlowAxis?): UiAlign? {
+    return alignVertical.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignVertical(parentAxis)
 }
 
-internal fun ComputedStyle.childAlignHorizontal(layout: UiLayout?): UiAlign? {
+internal fun ComputedStyle.childAlignHorizontal(parentAxis: FlowAxis?): UiAlign? {
     return alignItemsHorizontal.takeUnless { it == UiAlign.AUTO }
-        ?: if (layout == UiLayout.Row || layout == UiLayout.LazyRow) justifyContent.takeUnless { it == UiAlign.AUTO }
+        ?: if (parentAxis == FlowAxis.Horizontal) justifyContent.takeUnless { it == UiAlign.AUTO }
         else alignItems.takeUnless { it == UiAlign.AUTO }
 }
 
-internal fun ComputedStyle.childAlignVertical(layout: UiLayout?): UiAlign? {
+internal fun ComputedStyle.childAlignVertical(parentAxis: FlowAxis?): UiAlign? {
     return alignItemsVertical.takeUnless { it == UiAlign.AUTO }
-        ?: if (layout == UiLayout.Row || layout == UiLayout.LazyRow) alignItems.takeUnless { it == UiAlign.AUTO }
+        ?: if (parentAxis == FlowAxis.Horizontal) alignItems.takeUnless { it == UiAlign.AUTO }
         else justifyContent.takeUnless { it == UiAlign.AUTO }
 }
 

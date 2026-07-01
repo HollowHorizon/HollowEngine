@@ -25,7 +25,7 @@ data class UiKeyInput(
     }
 }
 
-internal data object TextFieldDefaultKeyInputModifier : Modifier {
+internal data object TextFieldDefaultKeyInputModifier : InputModifierNode {
     override fun applyTo(style: MutableUiStyle) {
         val input = style.input ?: UiInputStyle()
         style.input = input.copy(focusable = true, hoverable = true)

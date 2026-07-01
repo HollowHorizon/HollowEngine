@@ -86,7 +86,7 @@ private fun UiXmlElement(
         "UI <button> was removed; use <box> with event handlers and nested <text> instead"
     }
     val attributes = resolved.attributes
-    val modifiers = (attributes.toModifiers(document.options) + extraModifiers).toMutableSet()
+    val modifiers = (attributes.toModifiers(document.options) + extraModifiers).toMutableList()
     val modifier = CompositeModifier(modifiers)
     val customAttributes = attributes.customAttributes()
     val id = attributes["id"]
@@ -119,7 +119,6 @@ private fun UiXmlElement(
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
-        "canvas" -> Canvas(attributes["renderer"], id, tags, modifier, customAttributes)
         "popup" -> Popup(
             anchor = attributes.popupAnchor(),
             alignment = attributes.popupAlignment(),
@@ -367,7 +366,6 @@ private val StructuralAttributes = setOf(
     "text",
     "item",
     "entity",
-    "renderer",
     "mode",
 )
 

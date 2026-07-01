@@ -158,17 +158,6 @@ data class DrawEntityCommand(
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
-data class DrawCanvasCommand(
-    override val node: UiNode,
-    val rect: UiRect,
-    val renderer: String?,
-    val opacity: Float,
-    val transform: UiMatrix4,
-    val renderToFramebuffer: Boolean,
-    val filter: UiFilterChain,
-    val backfaceVisibility: UiBackfaceVisibility,
-) : UiRenderCommand
-
 data class DrawSliderCommand(
     override val node: SliderNode,
     val rect: UiRect,
@@ -238,10 +227,7 @@ class UiCommandRenderer {
         typingState: UiTypingState = UiTypingState(),
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        collectNode(resolved.root, resolved, layout, nowMillis, typingState, commands)
-        layout.popupNodes
-            .sortedBy { resolved[it].layer }
-            .forEach { collectNode(it, resolved, layout, nowMillis, typingState, commands) }
+        collectNode(resolved.root, resolved, layout, nowMillis, typingState, commands, activeClip = null)
         return commands
     }
 
@@ -252,132 +238,169 @@ class UiCommandRenderer {
         nowMillis: Long,
         typingState: UiTypingState,
         commands: MutableList<UiRenderCommand>,
+        activeClip: UiRect?,
     ) {
-        val stack = ArrayDeque<RenderCollectTask>()
-        stack.add(RenderCollectTask.Enter(node, null))
-        while (stack.isNotEmpty()) {
-            when (val task = stack.removeLast()) {
-                is RenderCollectTask.Enter -> {
-                    val current = task.node
-                    val style = resolved[current]
-                    val layoutNode = layout[current]
-                    val isFramebuffer = layoutNode.needsFramebuffer
-                    val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
-                    val localOpacity = if (isFramebuffer) 1f else style.opacity
-                    val visibleShadows = if (current is TextNode || current is TextFieldNode) {
-                        emptyList()
-                    } else {
-                        style.shadows.filterNot { it.inset }
-                    }
-                    val canCullNode = task.activeClip != null &&
-                            current !is PopupNode &&
-                            !isFramebuffer &&
-                            visibleShadows.isEmpty() &&
-                            style.backdropFilter.effects.isEmpty() &&
-                            style.filter == UiFilterChain.Empty &&
-                            style.transform == DirectLayoutTransform
-                    val cullNodeCommands =
-                        task.activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
-                    val pushedClip = (style.clip && style.clipShape == null) || style.input.scrollable
+        val style = resolved[node]
+        val layoutNode = layout[node]
+        val isFramebuffer = layoutNode.needsFramebuffer
+        val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
+        val localOpacity = if (isFramebuffer) 1f else style.opacity
+        val visibleShadows = if (node is TextNode || node is TextFieldNode) {
+            emptyList()
+        } else {
+            style.shadows.filterNot { it.inset }
+        }
+        val canCullNode = activeClip != null &&
+                node !is PopupNode &&
+                !isFramebuffer &&
+                visibleShadows.isEmpty() &&
+                style.backdropFilter.effects.isEmpty() &&
+                style.filter == UiFilterChain.Empty &&
+                style.transform == DirectLayoutTransform
+        val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
+        val pushedClip = (style.clip && style.clipShape == null) || style.input.scrollable
 
-                    if (cullNodeCommands && pushedClip) continue
+        if (cullNodeCommands && pushedClip) return
 
-                    if (!cullNodeCommands && style.backdropFilter.effects.isNotEmpty()) {
-                        commands += DrawBackdropFilterCommand(
-                            node = current, rect = layoutNode.rect, radius = style.border.radius,
-                            filter = style.backdropFilter, opacity = style.opacity,
-                            transform = layoutNode.worldTransform, backfaceVisibility = style.backfaceVisibility
-                        )
-                    }
+        if (!cullNodeCommands && style.backdropFilter.effects.isNotEmpty()) {
+            commands += DrawBackdropFilterCommand(
+                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                filter = style.backdropFilter, opacity = style.opacity,
+                transform = layoutNode.worldTransform, backfaceVisibility = style.backfaceVisibility
+            )
+        }
 
-                    if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
-                        commands += DrawShadowCommand(
-                            node = current, rect = layoutNode.rect, radius = style.border.radius,
-                            shadows = visibleShadows, opacity = style.opacity,
-                            transform = layoutNode.worldTransform, filter = baseFilter,
-                            backfaceVisibility = style.backfaceVisibility
-                        )
-                    }
+        if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
+            commands += DrawShadowCommand(
+                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                shadows = visibleShadows, opacity = style.opacity,
+                transform = layoutNode.worldTransform, filter = baseFilter,
+                backfaceVisibility = style.backfaceVisibility
+            )
+        }
 
-                    if (!cullNodeCommands && isFramebuffer) {
-                        commands += BeginLayerCommand(
-                            node = current, rect = layoutNode.rect, radius = style.border.radius,
-                            clipShape = style.clipShape.takeIf { style.clip },
-                            transform = layoutNode.worldTransform, filter = style.filter,
-                            backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility,
-                            opacity = style.opacity,
-                        )
-                    }
+        if (!cullNodeCommands && isFramebuffer) {
+            commands += BeginLayerCommand(
+                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                clipShape = style.clipShape.takeIf { style.clip },
+                transform = layoutNode.worldTransform, filter = style.filter,
+                backdropFilter = style.backdropFilter, backfaceVisibility = style.backfaceVisibility,
+                opacity = style.opacity,
+            )
+        }
 
-                    if (!cullNodeCommands) {
-                        appendBackgroundCommand(current, style, layoutNode, localOpacity, baseFilter, commands)
-                    }
+        if (!cullNodeCommands) {
+            drawNodeBody(
+                node,
+                resolved,
+                style,
+                layoutNode,
+                layout,
+                nowMillis,
+                typingState,
+                commands,
+                activeClip,
+                localOpacity,
+                baseFilter,
+                pushedClip,
+            )
+            if (isFramebuffer) commands += EndLayerCommand(node)
+        }
+    }
 
-                    if (!cullNodeCommands && pushedClip) {
-                        commands += PushClipCommand(
-                            current,
-                            layoutNode.content.localTo(layoutNode.rect),
-                            layoutNode.worldTransform,
-                        )
-                    }
+    private fun drawNodeBody(
+        node: UiNode,
+        resolved: ResolvedUiTree,
+        style: ComputedStyle,
+        layoutNode: UiLayoutNode,
+        layout: UiLayoutResult,
+        nowMillis: Long,
+        typingState: UiTypingState,
+        commands: MutableList<UiRenderCommand>,
+        activeClip: UiRect?,
+        localOpacity: Float,
+        baseFilter: UiFilterChain,
+        pushedClip: Boolean,
+    ) {
+        val drawModifiers = node.modifiers.flattenModifiers().filterIsInstance<DrawModifierNode>()
+        val context = UiDrawContext(
+            node = node,
+            style = style,
+            layoutNode = layoutNode,
+            layout = layout,
+            opacity = localOpacity,
+            filter = baseFilter,
+            backfaceVisibility = style.backfaceVisibility,
+            commands = commands,
+        )
+        drawWithModifiers(drawModifiers, 0, context) {
+            appendBackgroundCommand(node, style, layoutNode, localOpacity, baseFilter, commands)
 
-                    if (!cullNodeCommands) {
-                        collectNodeContent(
-                            current,
-                            style,
-                            localOpacity,
-                            layoutNode,
+            if (pushedClip) {
+                commands += PushClipCommand(
+                    node,
+                    layoutNode.content.localTo(layoutNode.rect),
+                    layoutNode.worldTransform,
+                )
+            }
+
+            collectNodeContent(
+                node,
+                style,
+                localOpacity,
+                layoutNode,
+                layout,
+                baseFilter,
+                nowMillis,
+                typingState,
+                commands,
+            )
+
+            val childClip = when {
+                !pushedClip -> activeClip
+                activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
+                else -> activeClip.visibleIntersection(layoutNode.content)
+            }
+            if (!pushedClip || childClip != null) {
+                node.children
+                    .asSequence()
+                    .filter { it in layout.nodes }
+                    .sortedBy { resolved[it].layer }
+                    .forEach { child ->
+                        collectNode(
+                            child,
+                            resolved,
                             layout,
-                            baseFilter,
                             nowMillis,
                             typingState,
                             commands,
+                            activeClip = childClip.takeUnless { child is PopupNode },
                         )
                     }
-
-                    val childClip = when {
-                        cullNodeCommands -> task.activeClip
-                        !pushedClip -> task.activeClip
-                        task.activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
-                        else -> task.activeClip.visibleIntersection(layoutNode.content)
-                    }
-                    if (!cullNodeCommands) {
-                        stack.add(
-                            RenderCollectTask.Exit(
-                                current,
-                                layoutNode,
-                                style,
-                                localOpacity,
-                                pushedClip,
-                                isFramebuffer
-                            )
-                        )
-                    }
-                    if (!pushedClip || childClip != null) {
-                        val children = current.children
-                            .filterNot { it is PopupNode }
-                            .filter { it in layout.nodes }
-                            .sortedBy { resolved[it].layer }
-                        for (index in children.indices.reversed()) {
-                            stack.add(RenderCollectTask.Enter(children[index], childClip))
-                        }
-                    }
-                }
-
-                is RenderCollectTask.Exit -> {
-                    if (task.pushedClip) commands += PopClipCommand(task.node)
-                    if (task.style.input.scrollable) {
-                        appendScrollbars(
-                            task.node,
-                            task.layoutNode,
-                            task.style,
-                            task.localOpacity,
-                            commands
-                        )
-                    }
-                    if (task.isFramebuffer) commands += EndLayerCommand(task.node)
-                }
             }
+
+            if (pushedClip) commands += PopClipCommand(node)
+            if (style.input.scrollable) {
+                appendScrollbars(node, layoutNode, style, localOpacity, commands)
+            }
+        }
+    }
+
+    private fun drawWithModifiers(
+        modifiers: List<DrawModifierNode>,
+        index: Int,
+        context: UiDrawContext,
+        drawContent: () -> Unit,
+    ) {
+        val modifier = modifiers.getOrNull(index)
+        if (modifier == null) {
+            drawContent()
+            return
+        }
+        with(modifier) {
+            context.draw(DrawScope {
+                drawWithModifiers(modifiers, index + 1, context, drawContent)
+            })
         }
     }
 
@@ -451,17 +474,6 @@ class UiCommandRenderer {
                 node,
                 layoutNode.content,
                 node.entity.resolve(),
-                opacity,
-                contentTransform,
-                false,
-                filter,
-                backface
-            )
-
-            is CanvasNode -> commands += DrawCanvasCommand(
-                node,
-                layoutNode.content,
-                node.renderer,
                 opacity,
                 contentTransform,
                 false,
@@ -842,22 +854,6 @@ class UiTypingState {
     )
 }
 
-private sealed interface RenderCollectTask {
-    data class Enter(
-        val node: UiNode,
-        val activeClip: UiRect?,
-    ) : RenderCollectTask
-
-    data class Exit(
-        val node: UiNode,
-        val layoutNode: UiLayoutNode,
-        val style: ComputedStyle,
-        val localOpacity: Float,
-        val pushedClip: Boolean,
-        val isFramebuffer: Boolean,
-    ) : RenderCollectTask
-}
-
 sealed interface UiResolvedPaint {
     data object None : UiResolvedPaint
     data class Color(val color: UiColor) : UiResolvedPaint
@@ -867,7 +863,7 @@ sealed interface UiResolvedPaint {
     data class Shader(val name: String) : UiResolvedPaint
 }
 
-private fun UiPaint.resolve(): UiResolvedPaint = when (this) {
+internal fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None
     is UiPaint.Color -> UiResolvedPaint.Color(color)
     is UiPaint.LinearGradient -> UiResolvedPaint.LinearGradient(angleDegrees, stops)

@@ -26,6 +26,26 @@ enum class UiEventKind {
     FOCUS,
     UNFOCUS;
 
+    val isPointerEvent: Boolean
+        get() = when (this) {
+            ENTER,
+            EXIT,
+            HOVER,
+            PRESS,
+            CLICK,
+            RELEASE,
+            DRAG,
+            SCROLL -> true
+
+            INIT,
+            UPDATE,
+            CLOSE,
+            CHAR_TYPED,
+            KEY_PRESSED,
+            FOCUS,
+            UNFOCUS -> false
+        }
+
     val attributeName: String
         get() = name.lowercase().split('_').joinToString("-")
 
@@ -162,7 +182,12 @@ fun UiNode.dispatch(event: UiEvent): Boolean {
         when (modifier) {
             is EventModifier -> if (modifier.kind == event.kind) {
                 handled = true
-                modifier.handler(event)
+                if (event.kind.isPointerEvent) modifier.onPointerEvent(event) else modifier.handler(event)
+            }
+
+            is PointerInputModifierNode -> if (event.kind.isPointerEvent) {
+                handled = true
+                modifier.onPointerEvent(event)
             }
 
             is KeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED) {

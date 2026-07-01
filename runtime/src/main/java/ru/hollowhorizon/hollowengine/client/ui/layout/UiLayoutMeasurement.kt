@@ -56,6 +56,117 @@ internal fun UiLayoutPipeline.measureNode(
     allowWidthOverflow: Boolean = false,
     allowHeightOverflow: Boolean = false,
 ): LayoutSize {
+    val modifiers = node.modifiers.flattenModifiers().filterIsInstance<LayoutModifierNode>()
+    if (modifiers.isEmpty()) {
+        return measureNodeContent(
+            node,
+            resolved,
+            availableWidth,
+            availableHeight,
+            scrollbarReserves,
+            widthOverride,
+            heightOverride,
+            deferFlexibleWidth,
+            deferFlexibleHeight,
+            allowWidthOverflow,
+            allowHeightOverflow,
+        )
+    }
+    val constraints = UiConstraints(
+        minWidth = widthOverride ?: 0f,
+        maxWidth = widthOverride ?: availableWidth.coerceAtLeast(0f),
+        minHeight = heightOverride ?: 0f,
+        maxHeight = heightOverride ?: availableHeight.coerceAtLeast(0f),
+    )
+    val measurable = LayoutModifierMeasurable(
+        pipeline = this,
+        node = node,
+        resolved = resolved,
+        scrollbarReserves = scrollbarReserves,
+        modifiers = modifiers,
+        index = 0,
+        deferFlexibleWidth = deferFlexibleWidth,
+        deferFlexibleHeight = deferFlexibleHeight,
+        allowWidthOverflow = allowWidthOverflow,
+        allowHeightOverflow = allowHeightOverflow,
+    )
+    val placeable = measurable.measure(constraints)
+    return LayoutSize(
+        constraints.constrainWidth(placeable.width),
+        constraints.constrainHeight(placeable.height),
+    )
+}
+
+private class LayoutModifierMeasurable(
+    private val pipeline: UiLayoutPipeline,
+    override val node: UiNode,
+    private val resolved: ResolvedUiTree,
+    private val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    private val modifiers: List<LayoutModifierNode>,
+    private val index: Int,
+    private val deferFlexibleWidth: Boolean,
+    private val deferFlexibleHeight: Boolean,
+    private val allowWidthOverflow: Boolean,
+    private val allowHeightOverflow: Boolean,
+) : UiMeasurable {
+    override fun measure(constraints: UiConstraints): UiPlaceable {
+        val modifier = modifiers.getOrNull(index)
+        if (modifier != null) {
+            return modifier.measure(next(index + 1), constraints)
+        }
+        val size = pipeline.measureNodeContent(
+            node = node,
+            resolved = resolved,
+            availableWidth = constraints.maxWidth,
+            availableHeight = constraints.maxHeight,
+            scrollbarReserves = scrollbarReserves,
+            widthOverride = constraints.fixedWidthOrNull(),
+            heightOverride = constraints.fixedHeightOrNull(),
+            deferFlexibleWidth = deferFlexibleWidth,
+            deferFlexibleHeight = deferFlexibleHeight,
+            allowWidthOverflow = allowWidthOverflow,
+            allowHeightOverflow = allowHeightOverflow,
+        )
+        return UiPlaceable(
+            width = constraints.constrainWidth(size.width),
+            height = constraints.constrainHeight(size.height),
+            node = node,
+        )
+    }
+
+    private fun next(nextIndex: Int): UiMeasurable {
+        return copy(index = nextIndex)
+    }
+
+    private fun copy(index: Int): LayoutModifierMeasurable {
+        return LayoutModifierMeasurable(
+            pipeline = pipeline,
+            node = node,
+            resolved = resolved,
+            scrollbarReserves = scrollbarReserves,
+            modifiers = modifiers,
+            index = index,
+            deferFlexibleWidth = deferFlexibleWidth,
+            deferFlexibleHeight = deferFlexibleHeight,
+            allowWidthOverflow = allowWidthOverflow,
+            allowHeightOverflow = allowHeightOverflow,
+        )
+    }
+}
+
+internal fun UiLayoutPipeline.measureNodeContent(
+    node: UiNode,
+    resolved: ResolvedUiTree,
+    availableWidth: Float,
+    availableHeight: Float,
+    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    widthOverride: Float? = null,
+    heightOverride: Float? = null,
+    deferFlexibleWidth: Boolean = false,
+    deferFlexibleHeight: Boolean = false,
+    allowWidthOverflow: Boolean = false,
+    allowHeightOverflow: Boolean = false,
+): LayoutSize {
     val style = resolved[node]
     val referenceWidth = availableWidth.coerceAtLeast(0f)
     val referenceHeight = availableHeight.coerceAtLeast(0f)
@@ -197,9 +308,15 @@ private fun UiLayoutPipeline.intrinsicSize(
         else -> {
             if (layoutChildren(node).isEmpty()) return replacedIntrinsicSize(node, style)
 
-            val customLayout = node.layout as? UiLayout.Custom
-            if (customLayout != null) {
-                measureCustomContainer(node, resolved, customLayout, availableWidth, availableHeight, scrollbarReserves)
+            if (node.measurePolicy !is UiBuiltInMeasurePolicy) {
+                measureCustomContainer(
+                    node,
+                    resolved,
+                    node.measurePolicy,
+                    availableWidth,
+                    availableHeight,
+                    scrollbarReserves,
+                )
             } else {
                 measureStandardContainer(node, resolved, style, availableWidth, availableHeight, scrollbarReserves, knownContentWidth, knownContentHeight)
             }
@@ -280,12 +397,12 @@ private fun UiLayoutPipeline.measureTextFieldNode(
 private fun UiLayoutPipeline.measureCustomContainer(
     node: UiNode,
     resolved: ResolvedUiTree,
-    customLayout: UiLayout.Custom,
+    measurePolicy: UiMeasurePolicy,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ): LayoutSize {
-    val result = measureCustomLayout(node, resolved, customLayout, availableWidth, availableHeight, scrollbarReserves)
+    val result = measureCustomLayout(node, resolved, measurePolicy, availableWidth, availableHeight, scrollbarReserves)
     return LayoutSize(result.width, result.height)
 }
 
@@ -311,11 +428,11 @@ private fun UiLayoutPipeline.measureStandardContainer(
         allowHeightOverflow = style.input.scrollable,
     )
 
-    val layout = node.layout
-    val isHorizontal = layout == UiLayout.Row || layout == UiLayout.LazyRow
+    val layoutAxis = node.measurePolicy.flowAxis()
+    val isHorizontal = layoutAxis == FlowAxis.Horizontal
     val gap = style.gap.resolve(if (isHorizontal) availableWidth else availableHeight)
 
-    return layout.policy().intrinsic(
+    return node.measurePolicy.policy().intrinsic(
         this,
         ChildIntrinsicScope(
             children = children,

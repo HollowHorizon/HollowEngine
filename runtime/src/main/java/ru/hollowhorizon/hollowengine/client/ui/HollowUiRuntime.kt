@@ -8,13 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretVisibilityPadding
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretWidth
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.link
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldEditLayout
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldHorizontalScrollPadding
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldTextOffset
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
 
@@ -228,15 +222,10 @@ class HollowUiRuntime(
         stateStore.apply(root)
         input.prepareRoot(root, false)
         scrollState.update(nowMillis)
-        var frame = buildFrame(root, width, height, nowMillis)
-        val inputChanged = drainInputQueue(frame)
-        val hoverChanged = input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
+        val frame = buildFrame(root, width, height, nowMillis)
+        drainInputQueue(frame)
+        input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         input.dispatchHover(frame, mouseX, mouseY, ::dispatchUiEvent)
-        if (inputChanged || hoverChanged) {
-            stateStore.apply(root)
-            input.prepareRoot(root, false)
-            frame = buildFrame(root, width, height, nowMillis)
-        }
         lastFrame = frame
         return frame
     }

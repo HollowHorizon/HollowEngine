@@ -19,31 +19,27 @@ enum class UiState(val selectorName: String) {
     }
 }
 
-enum class UiNodeType(val typeName: String) {
-    BOX("box"),
-    TEXT("text"),
-    IMAGE("image"),
-    ITEM("item"),
-    ENTITY("entity"),
-    CANVAS("canvas"),
-    SLIDER("slider"),
-    CHECKBOX("checkbox"),
-    TEXT_FIELD("text-field"),
-    POPUP("popup");
-}
-
-sealed interface UiLayout {
-    data object Column : UiLayout
-    data object Row : UiLayout
-    data object LazyColumn : UiLayout
-    data object LazyRow : UiLayout
-    data class Box(val mode: UiBoxMode = UiBoxMode.FREE) : UiLayout
-    data class Custom(val measurePolicy: UiMeasurePolicy) : UiLayout
-}
+const val UiBoxType = "box"
+const val UiTextType = "text"
+const val UiImageType = "image"
+const val UiItemType = "item"
+const val UiEntityType = "entity"
+const val UiSliderType = "slider"
+const val UiCheckboxType = "checkbox"
+const val UiTextFieldType = "text-field"
+const val UiPopupType = "popup"
 
 enum class UiBoxMode {
     FREE,
     STACK
+}
+
+enum class UiBuiltInMeasurePolicyKind {
+    COLUMN,
+    ROW,
+    LAZY_COLUMN,
+    LAZY_ROW,
+    BOX
 }
 
 data class UiConstraints(
@@ -71,6 +67,29 @@ data class UiConstraints(
 
 fun interface UiMeasurePolicy {
     fun UiMeasureScope.measure(measurables: List<UiMeasurable>, constraints: UiConstraints): UiMeasureResult
+}
+
+data class UiBuiltInMeasurePolicy(
+    val kind: UiBuiltInMeasurePolicyKind,
+    val boxMode: UiBoxMode = UiBoxMode.FREE,
+) : UiMeasurePolicy {
+    override fun UiMeasureScope.measure(
+        measurables: List<UiMeasurable>,
+        constraints: UiConstraints,
+    ): UiMeasureResult {
+        return layout(constraints.minWidth, constraints.minHeight)
+    }
+}
+
+object UiMeasurePolicies {
+    val Column = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.COLUMN)
+    val Row = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.ROW)
+    val LazyColumn = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.LAZY_COLUMN)
+    val LazyRow = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.LAZY_ROW)
+
+    fun box(mode: UiBoxMode = UiBoxMode.FREE): UiMeasurePolicy {
+        return UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.BOX, mode)
+    }
 }
 
 interface UiMeasurable {

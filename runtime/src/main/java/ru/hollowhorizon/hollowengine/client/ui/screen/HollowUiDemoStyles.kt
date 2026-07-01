@@ -146,7 +146,7 @@ internal val DemoStyles = compileHss(
         size: 72px 72px;
     }
 
-    .canvas-preview {
+    .visual-preview {
         size: 120px 54px;
     }
 

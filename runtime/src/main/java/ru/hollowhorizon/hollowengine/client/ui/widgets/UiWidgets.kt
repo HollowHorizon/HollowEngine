@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import kotlin.math.roundToInt
@@ -110,7 +112,7 @@ class SliderNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.SLIDER.typeName, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
+) : BaseUiNode(UiSliderType, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
     UiStatefulNode {
     var min: Float = min
         set(value) {
@@ -118,7 +120,8 @@ class SliderNode(
             field = value
             this.attributes["min"] = value.toString()
             this.value = this.value
-            invalidateLayout()
+            invalidateInput()
+            invalidateDraw()
         }
 
     var max: Float = max
@@ -127,7 +130,8 @@ class SliderNode(
             field = value
             this.attributes["max"] = value.toString()
             this.value = this.value
-            invalidateLayout()
+            invalidateInput()
+            invalidateDraw()
         }
 
     var step: Float = step.coerceAtLeast(0f)
@@ -137,7 +141,7 @@ class SliderNode(
             field = normalized
             this.attributes["step"] = field.toString()
             this.value = this.value
-            invalidateLayout()
+            invalidateInput()
         }
 
     var value: Float = 0f
@@ -149,7 +153,7 @@ class SliderNode(
             }
             field = normalized
             this.attributes["value"] = field.toString()
-            invalidateLayout()
+            invalidateDraw()
         }
 
     init {
@@ -195,15 +199,15 @@ class CheckboxNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.CHECKBOX.typeName, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
+) : BaseUiNode(UiCheckboxType, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
     UiStatefulNode {
     var checked: Boolean = checked
         set(value) {
             if (field == value) return
             field = value
             this.attributes["checked"] = value.toString()
-            states += if (value) UiState.SELECTED else UiState.SELECTED
-            invalidateLayout()
+            if (value) states += UiState.SELECTED else states -= UiState.SELECTED
+            invalidateDraw()
         }
 
     var variant: UiCheckboxVariant = variant
@@ -211,7 +215,7 @@ class CheckboxNode(
             if (field == value) return
             field = value
             this.attributes["variant"] = value.name.lowercase()
-            invalidateLayout()
+            invalidateDraw()
         }
 
     init {
@@ -249,7 +253,7 @@ class TextFieldNode(
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiNodeType.TEXT_FIELD.typeName, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
+) : BaseUiNode(UiTextFieldType, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
     UiStatefulNode {
     private var notifyValueChanges = true
 
@@ -301,7 +305,7 @@ class TextFieldNode(
             field = value
             this.attributes["filter"] = value.name.lowercase()
             this.value = this.value
-            invalidateLayout()
+            invalidateInput()
         }
 
     var multiCaret: Boolean = multiCaret
@@ -312,20 +316,21 @@ class TextFieldNode(
             if (!value && caretRanges.size > 1) {
                 setCaretRanges(listOf(caretRanges.last()))
             }
-            invalidateLayout()
+            invalidateInput()
+            invalidateDraw()
         }
 
     var syntaxHighlighter: UiSyntaxHighlighter? = syntaxHighlighter
         set(value) {
             if (field === value) return
             field = value
-            invalidateLayout()
+            invalidateDraw()
         }
     var completionContributor: UiCompletionContributor? = completionContributor
         set(value) {
             if (field === value) return
             field = value
-            invalidateLayout()
+            invalidateInput()
         }
     var indentSize: Int? = indentSize
         set(value) {
@@ -333,12 +338,14 @@ class TextFieldNode(
             if (field == normalized) return
             field = normalized
             normalized?.let { attributes["indent-size"] = it.toString() } ?: attributes.remove("indent-size")
+            invalidateInput()
         }
     var autoPairs: Boolean = autoPairs
         set(value) {
             if (field == value) return
             field = value
             attributes["auto-pairs"] = value.toString()
+            invalidateInput()
         }
     var readOnly: Boolean = readOnly
         set(value) {
@@ -350,12 +357,14 @@ class TextFieldNode(
                 completionActive = false
                 completionAutoOpenPending = false
             }
+            invalidateInput()
+            invalidateDraw()
         }
     var diagnostics: List<UiTextDiagnostic> = diagnostics
         set(value) {
             if (field == value) return
             field = value
-            invalidateLayout()
+            invalidateDraw()
         }
     var inlayHints: List<UiInlayHint> = inlayHints
         set(value) {
@@ -572,6 +581,7 @@ class TextFieldNode(
         if (caret != previous || selectionAnchor != previousAnchor) {
             caretVisibilityRevision++
             breakHistoryGroup()
+            invalidateDraw()
         }
     }
 
@@ -583,7 +593,10 @@ class TextFieldNode(
         }
         setCaretRanges(next)
         closeCompletionsIfCaretLeftLine()
-        if (previous != caretRanges) caretVisibilityRevision++
+        if (previous != caretRanges) {
+            caretVisibilityRevision++
+            invalidateDraw()
+        }
     }
 
     fun addCaret(position: Int) {
@@ -645,6 +658,7 @@ class TextFieldNode(
         setCaretRangesInternal(ranges)
         if (caret != previousCaret || selectionAnchor != previousAnchor || caretRanges != previousRanges) {
             caretVisibilityRevision++
+            invalidateDraw()
         }
     }
 
@@ -734,7 +748,7 @@ class TextFieldNode(
         val previous = completionSelectedIndex
         completionSelectedIndex = (completionSelectedIndex + delta).floorMod(completionItems.size)
         val changed = previous != completionSelectedIndex
-        if (changed) invalidateLayout()
+        if (changed) invalidateDraw()
         return changed
     }
 
@@ -743,7 +757,7 @@ class TextFieldNode(
         val normalized = index.coerceIn(0, completionItems.lastIndex)
         if (completionSelectedIndex == normalized) return false
         completionSelectedIndex = normalized
-        invalidateLayout()
+        invalidateDraw()
         return true
     }
 

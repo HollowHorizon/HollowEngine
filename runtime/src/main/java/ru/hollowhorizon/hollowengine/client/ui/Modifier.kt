@@ -1,24 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
-import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
-import ru.hollowhorizon.hollowengine.client.ui.style.HssResourceLoader
-import ru.hollowhorizon.hollowengine.client.ui.style.MinecraftHssResourceLoader
-import ru.hollowhorizon.hollowengine.client.ui.style.MutableUiStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
-import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterEffect
-import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
-import ru.hollowhorizon.hollowengine.client.ui.style.UiInputStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.style.UiRadialGradient
-import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTyping
 
@@ -26,7 +15,7 @@ interface Modifier {
     fun applyTo(style: MutableUiStyle)
 
     infix fun then(other: Modifier): Modifier {
-        return CompositeModifier(mutableSetOf(this, other))
+        return CompositeModifier(mutableListOf(this, other))
     }
 
     companion object : Modifier {
@@ -36,6 +25,51 @@ interface Modifier {
     }
 }
 
+interface LayoutModifierNode : Modifier {
+    fun measure(next: UiMeasurable, constraints: UiConstraints): UiPlaceable
+}
+
+interface DrawModifierNode : Modifier {
+    fun UiDrawContext.draw(next: DrawScope)
+}
+
+interface PointerInputModifierNode : Modifier {
+    fun onPointerEvent(event: UiEvent)
+}
+
+interface InputModifierNode : Modifier
+
+interface ParentDataModifierNode : Modifier {
+    fun modifyParentData(data: ParentData): ParentData
+}
+
+enum class UiInvalidationPhase {
+    Layout,
+    Draw,
+    Input
+}
+
+fun interface DrawScope {
+    fun draw()
+}
+
+class UiDrawContext internal constructor(
+    val node: UiNode,
+    val style: ComputedStyle,
+    val layoutNode: UiLayoutNode,
+    val layout: UiLayoutResult,
+    val opacity: Float,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+    private val commands: MutableList<UiRenderCommand>,
+) {
+    fun append(command: UiRenderCommand) {
+        commands += command
+    }
+}
+
+typealias ParentData = Map<String, Any?>
+
 fun Modifier.style(location: String, loader: HssResourceLoader = MinecraftHssResourceLoader) = this then
         StyleImportModifier(UiStylesheetReference.Resource(location, loader))
 
@@ -43,7 +77,7 @@ fun Modifier.style(stylesheet: CompiledHss) = this then
         StyleImportModifier(UiStylesheetReference.Compiled(stylesheet))
 
 fun Modifier.size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) = this then
-        StyleModifier(setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT), modifierKey("size", width, height)) {
+        StyleModifier(setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT), key = modifierKey("size", width, height)) {
             it.size = UiSize(width, height)
         }
 
@@ -105,37 +139,33 @@ fun Modifier.alignChildren(items: UiAlign = UiAlign.AUTO, content: UiAlign = UiA
     it.alignItemsVertical = content
 }
 
-fun Modifier.grow(value: Float = 1f) = this then StyleModifier(key = modifierKey("grow", value)) { it.grow = value }
+fun Modifier.grow(value: Float = 1f) = this then GrowModifier(value)
 
 fun Modifier.position(x: UiLength, y: UiLength, z: Float = 0f) = this then PositionModifier(x, y, z)
 
 fun Modifier.background(color: UiColor) = this then
-        StyleModifier(key = modifierKey("background-color", color)) { it.background = UiPaint.Color(color) }
+        BackgroundModifier(UiPaint.Color(color), modifierKey("background-color", color))
 
 fun Modifier.background(angleDegrees: Float, stops: List<UiGradientStop>) = this then
-        StyleModifier(key = modifierKey("background-gradient", angleDegrees, stops)) {
-            it.background = UiPaint.LinearGradient(angleDegrees, stops)
-        }
+        BackgroundModifier(UiPaint.LinearGradient(angleDegrees, stops), modifierKey("background-gradient", angleDegrees, stops))
 
 fun Modifier.background(gradient: UiRadialGradient) = this then
-        StyleModifier(key = modifierKey("background-radial-gradient", gradient)) {
-            it.background = UiPaint.RadialGradient(gradient)
-        }
+        BackgroundModifier(UiPaint.RadialGradient(gradient), modifierKey("background-radial-gradient", gradient))
 
 fun Modifier.background(paint: UiPaint) = this then
-        StyleModifier(key = modifierKey("background-paint", paint)) { it.background = paint }
+        BackgroundModifier(paint, modifierKey("background-paint", paint))
 
 fun Modifier.background(source: UiBoundString) = this then
-        StyleModifier(key = modifierKey("background-image", source)) { it.background = UiPaint.Image(source) }
+        BackgroundModifier(UiPaint.Image(source), modifierKey("background-image", source))
 
 fun Modifier.foreground(color: UiColor) = this then
-        StyleModifier(key = modifierKey("foreground", color)) { it.foreground = color }
+        StyleModifier(key = modifierKey("foreground", color), phases = DrawPhases) { it.foreground = color }
 
 fun Modifier.image(source: UiBoundString) =
-    this then StyleModifier(key = modifierKey("image", source)) { it.image = source }
+    this then StyleModifier(key = modifierKey("image", source), phases = DrawPhases) { it.image = source }
 
 fun Modifier.shader(name: UiBoundString) =
-    this then StyleModifier(key = modifierKey("shader", name)) { it.shader = name }
+    this then StyleModifier(key = modifierKey("shader", name), phases = DrawPhases) { it.shader = name }
 
 fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) = this then
         StyleModifier(key = modifierKey("border", width, color, radius)) {
@@ -146,9 +176,11 @@ fun Modifier.shadow(vararg shadows: UiShadow) = this then StyleModifier(key = mo
     it.shadows = shadows.toList()
 }
 
-fun Modifier.opacity(value: Float) = this then StyleModifier(key = modifierKey("opacity", value)) { it.opacity = value }
+fun Modifier.opacity(value: Float) = this then
+        StyleModifier(key = modifierKey("opacity", value), phases = DrawPhases) { it.opacity = value }
 
-fun Modifier.tint(color: UiColor) = this then StyleModifier(key = modifierKey("tint", color)) { it.tint = color }
+fun Modifier.tint(color: UiColor) = this then
+        StyleModifier(key = modifierKey("tint", color), phases = DrawPhases) { it.tint = color }
 
 fun Modifier.translate(x: Float = 0f, y: Float = 0f, z: Float = 0f) = this then TransformPatch(
     modifierKey("translate", x, y, z),
@@ -211,7 +243,7 @@ fun Modifier.input(
 }
 
 fun Modifier.cursor(shape: UiCursorShape) =
-    this then StyleModifier(key = modifierKey("cursor", shape)) { it.cursor = shape }
+    this then StyleModifier(key = modifierKey("cursor", shape), phases = InputPhases) { it.cursor = shape }
 
 fun Modifier.clip(enabled: Boolean = true) =
     this then StyleModifier(key = modifierKey("clip", enabled)) { it.clip = enabled }
@@ -328,6 +360,7 @@ enum class UiStyleProperty {
 
 class StyleModifier(
     val properties: Set<UiStyleProperty> = emptySet(),
+    val phases: Set<UiInvalidationPhase> = LayoutPhases,
     key: Any? = null,
     private val writer: (MutableUiStyle) -> Unit,
 ) : Modifier {
@@ -341,17 +374,19 @@ class StyleModifier(
     override fun equals(other: Any?): Boolean {
         return other is StyleModifier &&
                 properties == other.properties &&
+                phases == other.phases &&
                 equalityKey == other.equalityKey
     }
 
     override fun hashCode(): Int {
         var result = properties.hashCode()
+        result = 31 * result + phases.hashCode()
         result = 31 * result + equalityKey.hashCode()
         return result
     }
 }
 
-data class CompositeModifier(private val values: MutableSet<Modifier>) : Modifier {
+data class CompositeModifier(private val values: MutableList<Modifier>) : Modifier {
     override fun then(other: Modifier): Modifier {
         if (other is CompositeModifier) {
             values.addAll(other.values)
@@ -379,7 +414,7 @@ data class StyleImportModifier(
 data class EventModifier(
     val kind: UiEventKind,
     val handler: (UiEvent) -> Unit,
-) : Modifier {
+) : PointerInputModifierNode {
     override fun applyTo(style: MutableUiStyle) {
         val input = style.input ?: UiInputStyle()
         style.input = when (kind) {
@@ -409,11 +444,15 @@ data class EventModifier(
                 -> input
         }
     }
+
+    override fun onPointerEvent(event: UiEvent) {
+        if (event.kind == kind) handler(event)
+    }
 }
 
 data class KeyInputModifier(
     val handler: (UiKeyInput) -> Boolean,
-) : Modifier {
+) : InputModifierNode {
     override fun applyTo(style: MutableUiStyle) {
         val input = style.input ?: UiInputStyle()
         style.input = input.copy(focusable = true, hoverable = true)
@@ -434,6 +473,53 @@ data class StateModifier(
     val states: Set<UiState>,
 ) : Modifier {
     override fun applyTo(style: MutableUiStyle) = Unit
+}
+
+data class GrowModifier(
+    val value: Float = 1f,
+) : ParentDataModifierNode {
+    override fun applyTo(style: MutableUiStyle) {
+        style.grow = value
+    }
+
+    override fun modifyParentData(data: ParentData): ParentData {
+        return data + (ParentDataKeys.Grow to value)
+    }
+}
+
+data class BackgroundModifier(
+    val paint: UiPaint,
+    private val equalityKey: Any? = paint,
+) : DrawModifierNode {
+    override fun applyTo(style: MutableUiStyle) = Unit
+
+    override fun UiDrawContext.draw(next: DrawScope) {
+        if (paint != UiPaint.None) {
+            append(
+                DrawBoxCommand(
+                    node = node,
+                    rect = layoutNode.rect,
+                    paint = paint.resolve(),
+                    border = UiBorder(),
+                    shadows = emptyList(),
+                    opacity = opacity,
+                    tint = style.tint,
+                    transform = layoutNode.worldTransform,
+                    renderToFramebuffer = false,
+                    fit = style.imageFit,
+                    slice = style.imageSlice,
+                    filter = filter,
+                    backfaceVisibility = backfaceVisibility,
+                    phase = UiRenderPhase.BACKGROUND,
+                )
+            )
+        }
+        next.draw()
+    }
+}
+
+internal object ParentDataKeys {
+    const val Grow = "grow"
 }
 
 internal data class RuntimeStateModifier(
@@ -479,6 +565,30 @@ fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = flatMap { modifier -
     if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
 }
 
+internal fun UiNode.invalidateModifierChange() {
+    val phases = modifiers.flattenModifiers().invalidationPhases()
+    if (phases.isEmpty() || UiInvalidationPhase.Layout in phases) {
+        invalidateLayout()
+        return
+    }
+    if (UiInvalidationPhase.Draw in phases) invalidateDraw()
+    if (UiInvalidationPhase.Input in phases) invalidateInput()
+}
+
+private fun List<Modifier>.invalidationPhases(): Set<UiInvalidationPhase> {
+    return flatMapTo(linkedSetOf()) { modifier ->
+        when (modifier) {
+            is StyleModifier -> modifier.phases
+            is LayoutModifierNode,
+            is ParentDataModifierNode -> LayoutPhases
+            is DrawModifierNode -> DrawPhases
+            is PointerInputModifierNode,
+            is InputModifierNode -> InputPhases
+            else -> LayoutPhases
+        }
+    }
+}
+
 internal fun UiNode.effectiveStates(): Set<UiState> {
     val flattened = modifiers.flattenModifiers()
     val modifierStates = flattened
@@ -513,3 +623,7 @@ private data class ModifierKey(
 )
 
 private fun modifierKey(name: String, vararg values: Any?) = ModifierKey(name, values.toList())
+
+private val LayoutPhases = setOf(UiInvalidationPhase.Layout)
+private val DrawPhases = setOf(UiInvalidationPhase.Draw)
+private val InputPhases = setOf(UiInvalidationPhase.Input)

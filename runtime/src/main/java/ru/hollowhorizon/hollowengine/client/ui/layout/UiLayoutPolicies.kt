@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
-import ru.hollowhorizon.hollowengine.client.ui.UiLayout
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
 import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
@@ -17,7 +15,7 @@ internal data class ChildPlacementScope(
     val node: UiNode,
     val resolved: ResolvedUiTree,
     val style: ComputedStyle,
-    val layout: UiLayout,
+    val measurePolicy: UiMeasurePolicy,
     val content: UiRect,
     val parentRect: UiRect,
     val transform: UiMatrix4,
@@ -40,13 +38,26 @@ internal data class ChildIntrinsicScope(
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 )
 
-internal fun UiLayout.policy(): ChildLayoutPolicy = when (this) {
-    UiLayout.Row -> RowPolicy
-    UiLayout.Column -> ColumnPolicy
-    UiLayout.LazyColumn -> LazyColumnPolicy
-    UiLayout.LazyRow -> LazyRowPolicy
-    is UiLayout.Box -> BoxPolicy
-    is UiLayout.Custom -> CustomPolicy
+internal fun UiMeasurePolicy.policy(): ChildLayoutPolicy = when ((this as? UiBuiltInMeasurePolicy)?.kind) {
+    UiBuiltInMeasurePolicyKind.ROW -> RowPolicy
+    UiBuiltInMeasurePolicyKind.COLUMN -> ColumnPolicy
+    UiBuiltInMeasurePolicyKind.LAZY_COLUMN -> LazyColumnPolicy
+    UiBuiltInMeasurePolicyKind.LAZY_ROW -> LazyRowPolicy
+    UiBuiltInMeasurePolicyKind.BOX -> BoxPolicy
+    null -> CustomPolicy
+}
+
+internal fun UiMeasurePolicy.flowAxis(): FlowAxis? {
+    return when ((this as? UiBuiltInMeasurePolicy)?.kind) {
+        UiBuiltInMeasurePolicyKind.ROW,
+        UiBuiltInMeasurePolicyKind.LAZY_ROW -> FlowAxis.Horizontal
+
+        UiBuiltInMeasurePolicyKind.COLUMN,
+        UiBuiltInMeasurePolicyKind.LAZY_COLUMN -> FlowAxis.Vertical
+
+        UiBuiltInMeasurePolicyKind.BOX,
+        null -> null
+    }
 }
 
 private object RowPolicy : ChildLayoutPolicy {
@@ -138,7 +149,7 @@ private object BoxPolicy : ChildLayoutPolicy {
 
 private object CustomPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeCustomChildren(scope, scope.layout as UiLayout.Custom)
+        pipeline.placeCustomChildren(scope, scope.measurePolicy)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {

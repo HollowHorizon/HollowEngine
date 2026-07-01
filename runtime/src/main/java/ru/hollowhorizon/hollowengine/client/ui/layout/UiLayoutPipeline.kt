@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
 import java.util.*
 
 class UiLayoutPipeline {
-    internal var placementStack: ArrayDeque<PlacementTask>? = null
     internal var layoutPass: LayoutPass? = null
 
     fun compute(
@@ -46,14 +45,11 @@ class UiLayoutPipeline {
     ): Map<UiNode, UiLayoutNode> {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
-        val previousStack = placementStack
         val previousPass = layoutPass
-        val stack = ArrayDeque<PlacementTask>()
         try {
             layoutPass = LayoutPass(resolved.root)
             val rootRect = rootRect(resolved, width, height, scrollbarReserves)
-            placementStack = stack
-            enqueuePlacement(
+            placeNode(
                 node = resolved.root,
                 resolved = resolved,
                 rect = rootRect,
@@ -67,14 +63,7 @@ class UiLayoutPipeline {
                 scrollbarReserves = scrollbarReserves,
                 layouts = layouts,
             )
-            while (stack.isNotEmpty()) {
-                when (val task = stack.removeLast()) {
-                    is NodePlacementTask -> placeNodeNow(task)
-                    is PopupPlacementTask -> placePopupChildrenNow(task)
-                }
-            }
         } finally {
-            placementStack = previousStack
             layoutPass = previousPass
         }
         return layouts
@@ -102,57 +91,7 @@ class UiLayoutPipeline {
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
         layouts: MutableMap<UiNode, UiLayoutNode>,
     ) {
-        val stack = placementStack
-        if (stack != null) {
-            enqueuePlacement(
-                node,
-                resolved,
-                rect,
-                parentRect,
-                parentStyle,
-                parentClip,
-                parentTransform,
-                parentInputTransform,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-            )
-            return
-        }
         placeNodeNow(
-            NodePlacementTask(
-                node,
-                resolved,
-                rect,
-                parentRect,
-                parentStyle,
-                parentClip,
-                parentTransform,
-                parentInputTransform,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-            )
-        )
-    }
-
-    internal fun enqueuePlacement(
-        node: UiNode,
-        resolved: ResolvedUiTree,
-        rect: UiRect,
-        parentRect: UiRect,
-        parentStyle: ComputedStyle?,
-        parentClip: UiRect?,
-        parentTransform: UiMatrix4,
-        parentInputTransform: UiMatrix4,
-        insideFramebuffer: Boolean,
-        scrollState: UiScrollState,
-        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-        layouts: MutableMap<UiNode, UiLayoutNode>,
-    ) {
-        placementStack?.addLast(
             NodePlacementTask(
                 node,
                 resolved,
