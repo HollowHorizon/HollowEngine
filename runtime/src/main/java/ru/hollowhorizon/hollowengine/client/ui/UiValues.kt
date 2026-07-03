@@ -5,17 +5,27 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-enum class UiState(val selectorName: String) {
-    HOVER("hover"),
-    ACTIVE("active"),
-    FOCUS("focus"),
-    SELECTED("selected"),
-    DISABLED("disabled"),
-    DRAGGING("dragging"),
-    CLOSING("closing");
+/**
+ * An interaction state, matched by HSS `:name` selectors. Open by design: any name is a
+ * valid state, so widgets and users can define their own (`Modifier.state("expanded")`,
+ * `.element:expanded { ... }`) beyond the built-in set. Names are normalized to
+ * lowercase so selector and modifier casing never diverge.
+ */
+class UiState private constructor(val name: String) {
+    override fun equals(other: Any?): Boolean = other is UiState && other.name == name
+    override fun hashCode(): Int = name.hashCode()
+    override fun toString(): String = name
 
     companion object {
-        fun fromSelector(name: String): UiState? = entries.firstOrNull { it.selectorName == name }
+        val HOVER = UiState("hover")
+        val ACTIVE = UiState("active")
+        val FOCUS = UiState("focus")
+        val SELECTED = UiState("selected")
+        val DISABLED = UiState("disabled")
+        val DRAGGING = UiState("dragging")
+        val CLOSING = UiState("closing")
+
+        fun of(name: String): UiState = UiState(name.trim().lowercase())
     }
 }
 

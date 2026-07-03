@@ -252,7 +252,9 @@ class UiTransitionState {
         val progress = transitions.progressAt(elapsed)
         val result = startStyle.interpolate(target, progress)
         rendered[node] = result
-        if (progress.complete() && transitions.all { it.complete(elapsed) }) {
+        // Completion is time-based: eased progress may overshoot or sit above 1.0
+        // mid-flight for back/bezier easings without meaning the transition is done.
+        if (transitions.all { it.complete(elapsed) }) {
             rendered[node] = target
             targets[node] = target
             starts.remove(node)

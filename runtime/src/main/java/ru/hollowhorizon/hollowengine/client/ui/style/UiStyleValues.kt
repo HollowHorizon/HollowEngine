@@ -234,3 +234,16 @@ internal fun interpolateVec3(from: UiVec3, to: UiVec3, progress: Float) = UiVec3
     y = from.y + (to.y - from.y) * progress,
     z = from.z + (to.z - from.z) * progress,
 )
+
+// Combining semantics for stackable props: overlapping rules/modifiers accumulate instead
+// of the last one winning, so states (`:hover`, custom states) compose their effects.
+internal fun addVec3(a: UiVec3, b: UiVec3) = UiVec3(a.x + b.x, a.y + b.y, a.z + b.z)
+
+internal fun mulVec3(a: UiVec3, b: UiVec3) = UiVec3(a.x * b.x, a.y * b.y, a.z * b.z)
+
+internal fun mulColor(a: UiColor, b: UiColor) = UiColor(
+    red = a.red * b.red,
+    green = a.green * b.green,
+    blue = a.blue * b.blue,
+    alpha = a.alpha * b.alpha,
+)

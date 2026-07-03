@@ -71,8 +71,8 @@ class UiModifierResolver(
             val node = task.node
             val modifiers = node.modifiers.flattenModifiers()
             val scopedScope = scopedStyleScope(node, task.scope, modifiers)
-            val resolvedModifiers = resolveModifiers(node, scopedScope, modifiers)
-            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers, resolvedModifiers)
+            val resolved = resolveModifiers(node, scopedScope, modifiers)
+            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers, resolved)
             val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
             val finalStyle = if (animate) {
                 animations.apply(node, transitioned, scopedScope.keyframes, nowMillis)
@@ -80,7 +80,7 @@ class UiModifierResolver(
                 transitioned
             }
             nodes += node
-            node.resolvedModifiers = resolvedModifiers
+            node.resolvedModifiers = resolved.flat
             node.resolvedSnapshot = finalStyle
             visitSnapshot(finalStyle)
             for (index in node.children.indices.reversed()) {
@@ -89,24 +89,50 @@ class UiModifierResolver(
         }
     }
 
+    /**
+     * Splits the styling that applies to [node] into two layers:
+     *  - the base layer (theme defaults, non-state stylesheet rules, node modifiers,
+     *    attribute modifiers) that cascades last-wins;
+     *  - the currently-active state rules (`:hover`, `:selected`, custom), kept as separate
+     *    patches so the resolver can stack their effects with each other before overlaying
+     *    them onto the base.
+     * [flat] preserves the original order for node.resolvedModifiers (event/draw dispatch).
+     */
     private fun resolveModifiers(
         node: UiNode,
         scope: StyleScope,
         nodeModifiers: List<Modifier>,
-    ): List<Modifier> {
-        val resolved = ArrayList<Modifier>()
-        resolved += ruleModifiers(theme?.rules.orEmpty(), node, StyleOrigin.THEME_DEFAULTS)
-        resolved += ruleModifiers(stylesheet?.rules.orEmpty(), node, StyleOrigin.STYLESHEET)
+    ): ResolvedModifiers {
+        val baseRuleModifiers = ArrayList<Modifier>()
+        baseRuleModifiers += ruleModifiers(theme?.rules.orEmpty(), node, StyleOrigin.THEME_DEFAULTS)
+        baseRuleModifiers += ruleModifiers(stylesheet?.rules.orEmpty(), node, StyleOrigin.STYLESHEET)
         scope.stylesheets.forEach { scoped ->
-            resolved += ruleModifiers(scoped.rules, node, StyleOrigin.STYLESHEET)
+            baseRuleModifiers += ruleModifiers(scoped.rules, node, StyleOrigin.STYLESHEET)
         }
-        resolved += ruleModifiers(stylesheet?.rules.orEmpty(), node, StyleOrigin.STATE_STYLESHEET)
+
+        val stateRules = ArrayList<StyleRule>()
+        stateRules += matchingRules(stylesheet?.rules.orEmpty(), node, StyleOrigin.STATE_STYLESHEET)
         scope.stylesheets.forEach { scoped ->
-            resolved += ruleModifiers(scoped.rules, node, StyleOrigin.STATE_STYLESHEET)
+            stateRules += matchingRules(scoped.rules, node, StyleOrigin.STATE_STYLESHEET)
         }
-        resolved += nodeModifiers
-        resolved += attributeModifiers(node)
-        return resolved
+        val orderedStateRules = stateRules.sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
+
+        val attributeModifiers = attributeModifiers(node)
+        val baseModifiers = baseRuleModifiers + nodeModifiers + attributeModifiers
+
+        // Flat list keeps the historical dispatch order (base rules, then state rules, then
+        // node/attribute modifiers).
+        val flat = ArrayList<Modifier>(baseRuleModifiers.size + stateRules.size + nodeModifiers.size + attributeModifiers.size)
+        flat += baseRuleModifiers
+        orderedStateRules.forEach { flat += it.patch.modifiers() }
+        flat += nodeModifiers
+        flat += attributeModifiers
+
+        return ResolvedModifiers(
+            flat = flat,
+            baseModifiers = baseModifiers,
+            stateRulePatches = orderedStateRules.map { it.patch.modifiers().toStylePatch() },
+        )
     }
 
     private fun scopedStyleScope(
@@ -137,20 +163,26 @@ class UiModifierResolver(
         parent: UiComputedStyle?,
         scope: StyleScope,
         modifiers: List<Modifier>,
-        resolvedModifiers: List<Modifier>,
+        resolved: ResolvedModifiers,
     ): UiComputedStyle {
         val key = StyleCacheKey(
             scopeId = scope.id,
             parent = parent,
             node = node.styleSnapshot(modifiers),
-            resolvedModifiers = resolvedModifiers,
+            resolvedModifiers = resolved.flat,
         )
         styleCache[node]?.takeIf { it.key == key }?.let {
             node.layoutState.updateResolvedLayoutFingerprint(it.snapshot.layoutFingerprint())
             return it.snapshot
         }
         val mutable = engineDefaults(node)
-        mutable.merge(resolvedModifiers.toStylePatch())
+        mutable.merge(resolved.baseModifiers.toStylePatch())
+        if (resolved.stateRulePatches.isNotEmpty()) {
+            // Active states stack with each other, then overlay the base (base never stacks).
+            val combinedStates = UiStylePatch()
+            resolved.stateRulePatches.forEach { combinedStates.combineWith(it) }
+            mutable.merge(combinedStates)
+        }
         return mutable.resolve(parent).also { style ->
             node.layoutState.updateResolvedLayoutFingerprint(style.layoutFingerprint())
             styleCache[node] = StyleCacheEntry(key, style)
@@ -158,12 +190,13 @@ class UiModifierResolver(
     }
 
     private fun ruleModifiers(rules: List<StyleRule>, node: UiNode, origin: StyleOrigin): List<Modifier> {
-        return rules.asSequence()
-            .filter { it.origin == origin && it.matches(node) }
+        return matchingRules(rules, node, origin)
             .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
             .flatMap { it.patch.modifiers() }
-            .toList()
     }
+
+    private fun matchingRules(rules: List<StyleRule>, node: UiNode, origin: StyleOrigin): List<StyleRule> =
+        rules.filter { it.origin == origin && it.matches(node) }
 
     private fun attributeModifiers(node: UiNode): List<Modifier> {
         return node.attributes.mapNotNull { (name, value) ->
@@ -244,6 +277,12 @@ class UiModifierResolver(
         )
     }
 }
+
+private class ResolvedModifiers(
+    val flat: List<Modifier>,
+    val baseModifiers: List<Modifier>,
+    val stateRulePatches: List<UiStylePatch>,
+)
 
 private data class StyleScope(
     val stylesheets: List<CompiledHss>,

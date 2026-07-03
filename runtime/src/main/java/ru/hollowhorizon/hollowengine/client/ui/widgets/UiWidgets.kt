@@ -118,7 +118,6 @@ class SliderNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["min"] = value.toString()
             this.value = this.value
             invalidateInput()
             invalidateDraw()
@@ -128,7 +127,6 @@ class SliderNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["max"] = value.toString()
             this.value = this.value
             invalidateInput()
             invalidateDraw()
@@ -139,7 +137,6 @@ class SliderNode(
             val normalized = value.coerceAtLeast(0f)
             if (field == normalized) return
             field = normalized
-            this.attributes["step"] = field.toString()
             this.value = this.value
             invalidateInput()
         }
@@ -147,20 +144,13 @@ class SliderNode(
     var value: Float = 0f
         set(value) {
             val normalized = normalize(value)
-            if (field == normalized) {
-                this.attributes["value"] = field.toString()
-                return
-            }
+            if (field == normalized) return
             field = normalized
-            this.attributes["value"] = field.toString()
             invalidateDraw()
         }
 
     init {
         this.value = value
-        this.attributes["min"] = this.min.toString()
-        this.attributes["max"] = this.max.toString()
-        this.attributes["step"] = this.step.toString()
     }
 
     val fraction: Float
@@ -205,7 +195,6 @@ class CheckboxNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["checked"] = value.toString()
             if (value) states += UiState.SELECTED else states -= UiState.SELECTED
             invalidateDraw()
         }
@@ -214,7 +203,6 @@ class CheckboxNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["variant"] = value.name.lowercase()
             invalidateDraw()
         }
 
@@ -262,10 +250,7 @@ class TextFieldNode(
             val lineNormalized = value.normalizeEditorLineEndings()
             val normalized = if (mode == UiTextFieldMode.SINGLE_LINE) lineNormalized.replace('\n', ' ') else lineNormalized
             if (!filter.accepts(normalized)) return
-            if (field == normalized) {
-                this.attributes["value"] = field
-                return
-            }
+            if (field == normalized) return
             field = normalized
             caret = caret.coerceIn(0, field.length)
             selectionAnchor = selectionAnchor?.coerceIn(0, field.length)
@@ -274,16 +259,14 @@ class TextFieldNode(
             completionItems = emptyList()
             completionActive = false
             completionAutoOpenPending = false
-            this.attributes["value"] = field
             invalidateLayout()
             if (notifyValueChanges) onChange?.invoke(field)
         }
 
-    var placeholder: String = this.attributes["placeholder"].orEmpty()
+    var placeholder: String = ""
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["placeholder"] = value
             invalidateLayout()
         }
 
@@ -291,10 +274,6 @@ class TextFieldNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["mode"] = when (value) {
-                UiTextFieldMode.SINGLE_LINE -> "single-line"
-                UiTextFieldMode.MULTI_LINE -> "multi-line"
-            }
             this.value = this.value
             invalidateLayout()
         }
@@ -303,7 +282,6 @@ class TextFieldNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["filter"] = value.name.lowercase()
             this.value = this.value
             invalidateInput()
         }
@@ -312,7 +290,6 @@ class TextFieldNode(
         set(value) {
             if (field == value) return
             field = value
-            this.attributes["multi-caret"] = value.toString()
             if (!value && caretRanges.size > 1) {
                 setCaretRanges(listOf(caretRanges.last()))
             }
@@ -337,21 +314,18 @@ class TextFieldNode(
             val normalized = value?.coerceAtLeast(1)
             if (field == normalized) return
             field = normalized
-            normalized?.let { attributes["indent-size"] = it.toString() } ?: attributes.remove("indent-size")
             invalidateInput()
         }
     var autoPairs: Boolean = autoPairs
         set(value) {
             if (field == value) return
             field = value
-            attributes["auto-pairs"] = value.toString()
             invalidateInput()
         }
     var readOnly: Boolean = readOnly
         set(value) {
             if (field == value) return
             field = value
-            attributes["read-only"] = value.toString()
             if (value) {
                 completionItems = emptyList()
                 completionActive = false

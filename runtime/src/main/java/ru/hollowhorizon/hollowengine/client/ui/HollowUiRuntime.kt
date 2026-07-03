@@ -199,6 +199,7 @@ class HollowUiRuntime(
     theme: CompiledHss? = null,
     stylesheet: CompiledHss? = null,
     private val scrollState: UiScrollState = UiScrollState(),
+    private val horizontalScrollModifierDown: () -> Boolean = { hasShiftDown() || hasControlDown() },
 ) {
     private val transitionState = UiTransitionState()
     private val typingState = UiTypingState()
@@ -207,7 +208,6 @@ class HollowUiRuntime(
     private val ensuredTextFieldCaretRevisions = WeakHashMap<TextFieldNode, Long>()
     private val stateStore = UiNodeStateStore()
     private val input = HollowUiInputController()
-    private val pendingInputs = ArrayDeque<QueuedUiInput>()
     private var lastNodes: List<UiNode>? = null
     private var lastLayout: UiLayoutResult? = null
     private var lastLayoutKey: FrameLayoutKey? = null
@@ -231,7 +231,6 @@ class HollowUiRuntime(
         input.prepareRoot(root, false)
         scrollState.update(nowMillis)
         val frame = buildFrame(root, width, height, nowMillis)
-        drainInputQueue(frame)
         input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         input.dispatchHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         lastFrame = frame
@@ -280,66 +279,57 @@ class HollowUiRuntime(
         )
     }
 
-    private fun drainInputQueue(frame: HollowUiFrame): Boolean {
-        if (pendingInputs.isEmpty()) return false
-        var changed = false
-        while (pendingInputs.isNotEmpty()) {
-            val result = when (val input = pendingInputs.removeFirst()) {
-                is QueuedUiInput.MouseClicked -> {
-                    val scrollbarResult = this.input.scrollbarMouseClicked(
-                        frame,
-                        input.mouseX,
-                        input.mouseY,
-                        input.button,
-                        ::setScrollImmediate,
-                    )
-                    if (scrollbarResult.handled) scrollbarResult else this.input.mouseClicked(
-                        frame,
-                        input.mouseX,
-                        input.mouseY,
-                        input.button,
-                        ::dispatchUiEvent,
-                        ::openUrl,
-                    )
-                }
-
-                is QueuedUiInput.MouseReleased ->
-                    this.input.mouseReleased(frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent)
-
-                is QueuedUiInput.MouseDragged -> {
-                    val scrollbarResult = this.input.scrollbarMouseDragged(
-                        frame,
-                        input.mouseX,
-                        input.mouseY,
-                        ::setScrollImmediate,
-                    )
-                    if (scrollbarResult.handled) scrollbarResult else this.input.mouseDragged(
-                        frame,
-                        input.mouseX,
-                        input.mouseY,
-                        input.button,
-                        input.dragX,
-                        input.dragY,
-                        ::dispatchUiEvent,
-                    )
-                }
-
-                is QueuedUiInput.MouseScrolled -> handleQueuedScroll(frame, input)
-                is QueuedUiInput.CharTyped ->
-                    this.input.charTyped(frame, input.codePoint, input.modifiers, ::dispatchUiEvent)
-
-                is QueuedUiInput.KeyPressed ->
-                    this.input.keyPressed(frame, input.keyCode, input.scanCode, input.modifiers, ::dispatchUiEvent)
+    /**
+     * Processes an input against [frame] (always the last presented frame). Input is handled
+     * synchronously — not deferred to the next built frame — so callers get an accurate
+     * "handled" result, and the click/drag hit-tests the layout the user actually saw. Only
+     * the layout rebuild is per-frame; dispatching a handful of events against the existing
+     * layout is cheap.
+     */
+    private fun processInput(frame: HollowUiFrame, input: QueuedUiInput): UiInputResult {
+        return when (input) {
+            is QueuedUiInput.MouseClicked -> {
+                val scrollbarResult = this.input.scrollbarMouseClicked(
+                    frame, input.mouseX, input.mouseY, input.button, ::setScrollImmediate,
+                )
+                if (scrollbarResult.handled) scrollbarResult else this.input.mouseClicked(
+                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent, ::openUrl,
+                )
             }
-            changed = changed || result.handled || result.changed
+
+            is QueuedUiInput.MouseReleased ->
+                this.input.mouseReleased(frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent)
+
+            is QueuedUiInput.MouseDragged -> {
+                val scrollbarResult = this.input.scrollbarMouseDragged(
+                    frame, input.mouseX, input.mouseY, ::setScrollImmediate,
+                )
+                if (scrollbarResult.handled) scrollbarResult else this.input.mouseDragged(
+                    frame, input.mouseX, input.mouseY, input.button, input.dragX, input.dragY, ::dispatchUiEvent,
+                )
+            }
+
+            is QueuedUiInput.MouseScrolled -> handleQueuedScroll(frame, input)
+            is QueuedUiInput.CharTyped ->
+                this.input.charTyped(frame, input.codePoint, input.modifiers, ::dispatchUiEvent)
+
+            is QueuedUiInput.KeyPressed ->
+                this.input.keyPressed(frame, input.keyCode, input.scanCode, input.modifiers, ::dispatchUiEvent)
         }
-        return changed
     }
+
+    private fun dispatchInput(input: QueuedUiInput): Boolean {
+        val frame = lastFrame ?: return false
+        val result = processInput(frame, input)
+        return result.handled || result.changed
+    }
+
+    private fun UiInputResult.orConsumed(consumed: Boolean) = handled || changed || consumed
 
     private fun handleQueuedScroll(frame: HollowUiFrame, input: QueuedUiInput.MouseScrolled): UiInputResult {
         val target = this.input.scrollTargetAt(frame, input.mouseX, input.mouseY) ?: return UiInputResult(false)
         val range = frame.layout[target].scrollRange
-        val delta = scrollWheelDelta(range, input.scrollX, input.scrollY, hasShiftDown() || hasControlDown())
+        val delta = scrollWheelDelta(range, input.scrollX, input.scrollY, horizontalScrollModifierDown())
         val event = UiEvent(
             kind = UiEventKind.SCROLL,
             node = target,
@@ -409,26 +399,21 @@ class HollowUiRuntime(
 
     fun mouseClicked(mouseX: Float, mouseY: Float, button: Int): Boolean {
         val frame = lastFrame ?: return false
-        pendingInputs += QueuedUiInput.MouseClicked(mouseX, mouseY, button)
-        return frame.scrollbarAt(mouseX, mouseY) != null || frame.hitTest(mouseX, mouseY) != null
+        // Consume any press landing on the UI (interactive or not) to prevent click-through.
+        return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button))
+            .orConsumed(frame.scrollbarAt(mouseX, mouseY) != null || frame.hitTest(mouseX, mouseY) != null)
     }
 
-    fun mouseReleased(mouseX: Float, mouseY: Float, button: Int): Boolean {
-        lastFrame ?: return false
-        pendingInputs += QueuedUiInput.MouseReleased(mouseX, mouseY, button)
-        return true
-    }
+    fun mouseReleased(mouseX: Float, mouseY: Float, button: Int): Boolean =
+        dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button))
 
-    fun mouseDragged(mouseX: Float, mouseY: Float, button: Int, dragX: Float, dragY: Float): Boolean {
-        lastFrame ?: return false
-        pendingInputs += QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY)
-        return true
-    }
+    fun mouseDragged(mouseX: Float, mouseY: Float, button: Int, dragX: Float, dragY: Float): Boolean =
+        dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY))
 
     fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float): Boolean {
         val frame = lastFrame ?: return false
-        pendingInputs += QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY)
-        return input.scrollTargetAt(frame, mouseX, mouseY) != null
+        return processInput(frame, QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY))
+            .orConsumed(input.scrollTargetAt(frame, mouseX, mouseY) != null)
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {
@@ -438,19 +423,17 @@ class HollowUiRuntime(
     }
 
     fun charTyped(codePoint: Char, modifiers: Int): Boolean {
-        lastFrame ?: return false
-        pendingInputs += QueuedUiInput.CharTyped(codePoint, modifiers)
-        return isAnyFocused
+        val frame = lastFrame ?: return false
+        // A focused field consumes typing so it doesn't leak to game keybinds.
+        return processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(isAnyFocused)
     }
 
     fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        lastFrame ?: return false
-        pendingInputs += QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers)
-        return isAnyFocused
+        val frame = lastFrame ?: return false
+        return processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers)).orConsumed(isAnyFocused)
     }
 
     fun reset() {
-        pendingInputs.clear()
         input.reset()
         lastNodes = null
         lastLayout = null

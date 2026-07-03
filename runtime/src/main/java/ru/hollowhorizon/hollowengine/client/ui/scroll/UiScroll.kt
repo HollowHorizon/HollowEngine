@@ -38,6 +38,11 @@ class UiScrollState {
     var revision: Long = 0L
         private set
 
+    // The frame clock (surface passes nanoTime-based millis) — System.currentTimeMillis
+    // lives on a different epoch, so animations must use this clock exclusively.
+    private var clockMillis = 0L
+    private var clockInitialized = false
+
     fun offset(node: UiNode): UiScrollOffset = offsets[node] ?: UiScrollOffset.Zero
 
     fun range(node: UiNode): UiScrollOffset = ranges[node] ?: UiScrollOffset.Zero
@@ -92,6 +97,8 @@ class UiScrollState {
     }
 
     fun update(nowMillis: Long) {
+        clockMillis = nowMillis
+        clockInitialized = true
         for ((node, target) in targets.toMap()) {
             val startTime = startedAt[node] ?: continue
             val start = starts[node] ?: offsets[node] ?: UiScrollOffset.Zero
@@ -112,9 +119,14 @@ class UiScrollState {
     }
 
     private fun animateTo(node: UiNode, next: UiScrollOffset) {
+        if (!clockInitialized) {
+            // No frame clock yet — apply without animation rather than desync clocks.
+            setImmediate(node, next.x, next.y)
+            return
+        }
         starts[node] = offsets[node] ?: UiScrollOffset.Zero
         targets[node] = next
-        startedAt[node] = System.currentTimeMillis()
+        startedAt[node] = clockMillis
         revision++
     }
 }

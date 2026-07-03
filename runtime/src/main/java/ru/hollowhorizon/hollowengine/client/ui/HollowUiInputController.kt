@@ -48,10 +48,30 @@ class HollowUiInputController {
     fun isHovered(id: String): Boolean = hoveredNode?.id == id
 
     fun prepareRoot(root: UiNode, closing: Boolean = false) {
+        remapTrackedNodes(root)
         root.forEachTextFields { field ->
             field.resolvePendingCompletions()
         }
         applyRuntimeStates(root, closing)
+    }
+
+    /**
+     * Re-binds interaction tracking (hover/active/focus/drag) to the current tree by id.
+     * Compose may replace a node instance across a recomposition while keeping its id; without
+     * this, the stale instance would fail identity checks and the node would lose its hover/
+     * active/focus state for a frame — visibly resetting transitions (e.g. a hover animation
+     * snapping back on click) and dropping press→release on re-parented nodes.
+     */
+    private fun remapTrackedNodes(root: UiNode) {
+        hoveredNode = remapTracked(root, hoveredNode)
+        activeNode = remapTracked(root, activeNode)
+        focusedNode = remapTracked(root, focusedNode)
+        draggingNode = remapTracked(root, draggingNode)
+    }
+
+    private fun remapTracked(root: UiNode, tracked: UiNode?): UiNode? {
+        val id = tracked?.id ?: return tracked
+        return root.firstInSubtree { it.id == id } ?: tracked
     }
 
     fun updateHover(

@@ -126,9 +126,7 @@ class HssParser(private val source: String) {
                 }
                 ':' -> {
                     index++
-                    val stateName = readIdentifier()
-                    states += UiState.fromSelector(stateName)
-                        ?: throw HssParseException("Unknown UI state ':$stateName'", index)
+                    states += UiState.of(readIdentifier())
                     consumed = true
                 }
                 '[' -> {

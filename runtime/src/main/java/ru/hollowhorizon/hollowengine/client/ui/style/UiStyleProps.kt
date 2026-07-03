@@ -29,6 +29,7 @@ object UiProps {
         fingerprint: Boolean = false,
         group: String? = null,
         merge: ((current: T, next: T) -> T)? = null,
+        combine: ((current: T, next: T) -> T)? = null,
         interpolate: ((from: T, to: T, progress: Float) -> T)? = null,
         sanitize: ((T) -> T)? = null,
     ) = UiStyleProp(
@@ -39,6 +40,7 @@ object UiProps {
         transitionGroup = group,
         defaultValue = { default },
         mergeValues = merge,
+        combineValues = combine,
         interpolation = interpolate,
         sanitize = sanitize,
     )
@@ -83,7 +85,12 @@ object UiProps {
     val JustifyContent = prop("justify-content", UiAlign.AUTO, fingerprint = true)
     val Grow = prop("grow", 0f, fingerprint = true)
     val Position = prop("position", UiPosition(), fingerprint = true)
-    val Border = prop("border", UiBorder(), fingerprint = true)
+
+    // Border is split so a rule setting `border: 2px color` (width+colour) never wipes a
+    // radius set elsewhere. Only width participates in layout; colour/radius are visual.
+    val BorderWidth = prop("border-width", UiInsets.Zero, fingerprint = true)
+    val BorderColor = prop("border-color", UiColor.Transparent, phases = DrawPhase)
+    val BorderRadius = prop("border-radius", 0f, phases = DrawPhase)
 
     // Visuals
     val Background = prop<UiPaint>(
@@ -104,7 +111,7 @@ object UiProps {
         "opacity", 1f,
         phases = DrawPhase, interpolate = ::lerp, sanitize = { it.coerceIn(0f, 1f) },
     )
-    val Tint = prop("tint", UiColor.White, phases = DrawPhase, interpolate = UiColor::interpolate)
+    val Tint = prop("tint", UiColor.White, phases = DrawPhase, combine = ::mulColor, interpolate = UiColor::interpolate)
     val Filter = prop("filter", UiFilterChain.Empty, interpolate = UiFilterChain::interpolate)
     val BackdropFilter = prop("backdrop-filter", UiFilterChain.Empty, interpolate = UiFilterChain::interpolate)
     val BackfaceVisibility = prop("backface-visibility", UiBackfaceVisibility.VISIBLE)
@@ -118,18 +125,26 @@ object UiProps {
     val ShapeStroke = prop<UiPaint?>("shape-stroke", null)
     val ShapeStrokeWidth = prop<UiLength?>("shape-stroke-width", null)
 
-    // Transform (split into independent properties; `transform` groups them for transitions)
-    val Translate = prop("translate", UiVec3(), group = "transform", interpolate = ::interpolateVec3)
-    val Rotate = prop("rotate", UiVec3(), group = "transform", interpolate = ::interpolateVec3)
-    val Scale = prop("scale", UiVec3(1f, 1f, 1f), group = "transform", interpolate = ::interpolateVec3)
+    // Transform (split into independent properties; `transform` groups them for transitions).
+    // Only *active states* stack — translate/rotate add, scale multiplies (combine); base and
+    // a single state overlay last-wins (no merge).
+    val Translate = prop("translate", UiVec3(), group = "transform", combine = ::addVec3, interpolate = ::interpolateVec3)
+    val Rotate = prop("rotate", UiVec3(), group = "transform", combine = ::addVec3, interpolate = ::interpolateVec3)
+    val Scale = prop("scale", UiVec3(1f, 1f, 1f), group = "transform", combine = ::mulVec3, interpolate = ::interpolateVec3)
     val Pivot = prop(
         "pivot", UiTransformPivot.Center,
         aliases = setOf("transform-origin"), group = "transform",
     )
     val Perspective = prop("perspective", 0f, group = "transform", interpolate = ::lerp)
 
-    // Input
-    val Input = prop("input", UiInputStyle(), fingerprint = true, merge = UiInputStyle::merge)
+    // Input — one independent property per capability. Only Scrollable affects layout
+    // (it changes overflow/measurement); the rest are pure input concerns, so a hover or
+    // focusability change no longer forces a relayout.
+    val Hoverable = prop("hoverable", false, phases = InputPhase)
+    val Clickable = prop("clickable", false, phases = InputPhase)
+    val Focusable = prop("focusable", false, phases = InputPhase)
+    val Draggable = prop("draggable", false, phases = InputPhase)
+    val Scrollable = prop("scrollable", false, fingerprint = true)
     val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT, phases = InputPhase)
 
     // Widgets
@@ -182,7 +197,24 @@ var UiStylePatch.justifySelf by UiProps.JustifySelf
 var UiStylePatch.justifyContent by UiProps.JustifyContent
 var UiStylePatch.grow by UiProps.Grow
 var UiStylePatch.position by UiProps.Position
-var UiStylePatch.border by UiProps.Border
+var UiStylePatch.borderWidth by UiProps.BorderWidth
+var UiStylePatch.borderColor by UiProps.BorderColor
+var UiStylePatch.borderRadius by UiProps.BorderRadius
+
+/** Composite view over the three independent border props. */
+var UiStylePatch.border: UiBorder?
+    get() {
+        val width = this[UiProps.BorderWidth]
+        val color = this[UiProps.BorderColor]
+        val radius = this[UiProps.BorderRadius]
+        if (width == null && color == null && radius == null) return null
+        return UiBorder(width ?: UiInsets.Zero, color ?: UiColor.Transparent, radius ?: 0f)
+    }
+    set(value) {
+        this[UiProps.BorderWidth] = value?.width
+        this[UiProps.BorderColor] = value?.color
+        this[UiProps.BorderRadius] = value?.radius
+    }
 var UiStylePatch.background by UiProps.Background
 var UiStylePatch.foreground by UiProps.Foreground
 var UiStylePatch.image by UiProps.Image
@@ -207,8 +239,34 @@ var UiStylePatch.rotate by UiProps.Rotate
 var UiStylePatch.scale by UiProps.Scale
 var UiStylePatch.pivot by UiProps.Pivot
 var UiStylePatch.perspective by UiProps.Perspective
-var UiStylePatch.input by UiProps.Input
+var UiStylePatch.hoverable by UiProps.Hoverable
+var UiStylePatch.clickable by UiProps.Clickable
+var UiStylePatch.focusable by UiProps.Focusable
+var UiStylePatch.draggable by UiProps.Draggable
+var UiStylePatch.scrollable by UiProps.Scrollable
 var UiStylePatch.cursor by UiProps.Cursor
+
+/**
+ * Composite view over the five input capability props. Reading returns the merged flags;
+ * writing turns *on* only the flags that are true, so multiple event modifiers accumulate
+ * (OR) instead of clobbering each other. To force a flag off (e.g. a `:disabled` rule),
+ * set the individual prop (`clickable = false`) rather than assigning `input`.
+ */
+var UiStylePatch.input: UiInputStyle
+    get() = UiInputStyle(
+        hoverable = this[UiProps.Hoverable] ?: false,
+        clickable = this[UiProps.Clickable] ?: false,
+        focusable = this[UiProps.Focusable] ?: false,
+        draggable = this[UiProps.Draggable] ?: false,
+        scrollable = this[UiProps.Scrollable] ?: false,
+    )
+    set(value) {
+        if (value.hoverable) this[UiProps.Hoverable] = true
+        if (value.clickable) this[UiProps.Clickable] = true
+        if (value.focusable) this[UiProps.Focusable] = true
+        if (value.draggable) this[UiProps.Draggable] = true
+        if (value.scrollable) this[UiProps.Scrollable] = true
+    }
 var UiStylePatch.scrollbar by UiProps.Scrollbar
 var UiStylePatch.slider by UiProps.Slider
 var UiStylePatch.checkbox by UiProps.Checkbox
@@ -295,7 +353,9 @@ val UiComputedStyle.justifySelf by UiProps.JustifySelf
 val UiComputedStyle.justifyContent by UiProps.JustifyContent
 val UiComputedStyle.grow by UiProps.Grow
 val UiComputedStyle.position by UiProps.Position
-val UiComputedStyle.border by UiProps.Border
+
+val UiComputedStyle.border: UiBorder
+    get() = UiBorder(this[UiProps.BorderWidth], this[UiProps.BorderColor], this[UiProps.BorderRadius])
 val UiComputedStyle.background by UiProps.Background
 val UiComputedStyle.foreground by UiProps.Foreground
 val UiComputedStyle.image by UiProps.Image
@@ -320,7 +380,21 @@ val UiComputedStyle.rotate by UiProps.Rotate
 val UiComputedStyle.scale by UiProps.Scale
 val UiComputedStyle.pivot by UiProps.Pivot
 val UiComputedStyle.perspective by UiProps.Perspective
-val UiComputedStyle.input by UiProps.Input
+val UiComputedStyle.hoverable by UiProps.Hoverable
+val UiComputedStyle.clickable by UiProps.Clickable
+val UiComputedStyle.focusable by UiProps.Focusable
+val UiComputedStyle.draggable by UiProps.Draggable
+val UiComputedStyle.scrollable by UiProps.Scrollable
+
+/** Merged read-only view of the five input capability props (see the patch accessor). */
+val UiComputedStyle.input: UiInputStyle
+    get() = UiInputStyle(
+        hoverable = this[UiProps.Hoverable],
+        clickable = this[UiProps.Clickable],
+        focusable = this[UiProps.Focusable],
+        draggable = this[UiProps.Draggable],
+        scrollable = this[UiProps.Scrollable],
+    )
 val UiComputedStyle.cursor by UiProps.Cursor
 val UiComputedStyle.scrollbar by UiProps.Scrollbar
 val UiComputedStyle.slider by UiProps.Slider

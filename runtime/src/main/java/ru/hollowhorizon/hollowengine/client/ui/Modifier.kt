@@ -58,6 +58,8 @@ data class StylePropModifier<T>(
     val explicit: Set<UiStyleProperty> = emptySet(),
 ) : UiModifierPatchNode {
     override fun applyPatch(style: UiStylePatch) {
+        // Last-wins within a single source (node modifier chain, one HSS rule). Stacking is
+        // reserved for multiple simultaneously-active state rules, handled by the resolver.
         style[prop] = value
         if (explicit.isNotEmpty()) style.explicitProperties = style.explicitProperties.orEmpty() + explicit
     }
@@ -119,32 +121,34 @@ data class EventModifier(
     val handler: (UiEvent) -> Unit,
 ) : PointerInputModifierNode, UiModifierPatchNode {
     override fun applyPatch(style: UiStylePatch) {
-        val input = style.input ?: UiInputStyle()
-        style.input = when (kind) {
+        // Registering an event handler implies the capability it needs; capabilities are
+        // independent props that accumulate (never turned off here). Lifecycle events
+        // (INIT/UPDATE/CLOSE) imply no interaction capability.
+        when (kind) {
             UiEventKind.ENTER,
             UiEventKind.EXIT,
             UiEventKind.HOVER,
-                -> input.copy(hoverable = true)
+                -> style.hoverable = true
 
             UiEventKind.PRESS,
             UiEventKind.CLICK,
             UiEventKind.RELEASE,
-                -> input.copy(clickable = true, hoverable = true)
+                -> { style.clickable = true; style.hoverable = true }
 
-            UiEventKind.DRAG -> input.copy(draggable = true, hoverable = true)
+            UiEventKind.DRAG -> { style.draggable = true; style.hoverable = true }
 
-            UiEventKind.SCROLL -> input.copy(scrollable = true, hoverable = true)
+            UiEventKind.SCROLL -> { style.scrollable = true; style.hoverable = true }
 
             UiEventKind.CHAR_TYPED,
             UiEventKind.KEY_PRESSED,
             UiEventKind.FOCUS,
             UiEventKind.UNFOCUS,
-                -> input.copy(focusable = true, hoverable = true)
+                -> { style.focusable = true; style.hoverable = true }
 
             UiEventKind.INIT,
             UiEventKind.UPDATE,
             UiEventKind.CLOSE,
-                -> input
+                -> Unit
         }
     }
 
@@ -153,14 +157,23 @@ data class EventModifier(
     }
 }
 
+/**
+ * A keyboard interceptor. Handlers on a node run in descending [priority] order, and a
+ * handler stops propagation to lower-priority ones by calling `input.consume()`. Built-in
+ * widget key handling registers at a low priority ([TextFieldDefaultKeyPriority]) so user
+ * handlers at the default priority get first refusal.
+ */
 data class KeyInputModifier(
-    val handler: (UiKeyInput) -> Boolean,
+    val priority: Int,
+    val handler: (UiKeyInput) -> Unit,
 ) : InputModifierNode, UiModifierPatchNode {
     override fun applyPatch(style: UiStylePatch) {
-        val input = style.input ?: UiInputStyle()
-        style.input = input.copy(focusable = true, hoverable = true)
+        style.focusable = true
+        style.hoverable = true
     }
 }
+
+const val TextFieldDefaultKeyPriority = -1000
 
 data class ScriptEventModifier(
     val kind: UiEventKind,
@@ -178,6 +191,16 @@ data class StateModifier(
 
 internal data class RuntimeStateModifier(
     val states: Set<UiState>,
+) : Modifier
+
+/**
+ * A named attribute carried by a node, matched by HSS `[name]` / `[name=value]` selectors —
+ * the web-like way to expose custom data for styling (`Modifier.attribute("variant", "ghost")`
+ * → `.button[variant=ghost] { ... }`). Attributes live on modifiers, not a separate map.
+ */
+data class AttributeModifier(
+    val name: String,
+    val value: String? = null,
 ) : Modifier
 
 // -- Style DSL --------------------------------------------------------------------------
@@ -252,7 +275,9 @@ fun Modifier.image(source: UiBoundString) = prop(UiProps.Image, source)
 fun Modifier.shader(name: UiBoundString) = prop(UiProps.Shader, name)
 
 fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) =
-    prop(UiProps.Border, UiBorder(UiInsets.all(width), color, radius))
+    prop(UiProps.BorderWidth, UiInsets.all(width)).prop(UiProps.BorderColor, color).prop(UiProps.BorderRadius, radius)
+
+fun Modifier.borderRadius(radius: Float) = prop(UiProps.BorderRadius, radius)
 
 fun Modifier.shadow(vararg shadows: UiShadow) = prop(UiProps.Shadows, shadows.toList())
 
@@ -286,15 +311,13 @@ fun Modifier.input(
     draggable: Boolean = false,
     scrollable: Boolean = false,
 ) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, focusable, draggable, scrollable)) {
-    it.input = (it.input ?: UiInputStyle()).merge(
-        UiInputStyle(
-            hoverable = hoverable,
-            clickable = clickable,
-            focusable = focusable,
-            draggable = draggable,
-            scrollable = scrollable,
-        )
-    )
+    // Only turn capabilities on, so this composes (OR) with event modifiers and other
+    // input() calls rather than clobbering them.
+    if (hoverable) it.hoverable = true
+    if (clickable) it.clickable = true
+    if (focusable) it.focusable = true
+    if (draggable) it.draggable = true
+    if (scrollable) it.scrollable = true
 }
 
 fun Modifier.cursor(shape: UiCursorShape) = prop(UiProps.Cursor, shape)
@@ -368,7 +391,8 @@ fun Modifier.onCharTyped(handler: (UiEvent) -> Unit) = this then EventModifier(U
 
 fun Modifier.onKeyPressed(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.KEY_PRESSED, handler)
 
-fun Modifier.onKeyInput(handler: (UiKeyInput) -> Boolean) = this then KeyInputModifier(handler)
+fun Modifier.onKeyInput(priority: Int = 0, handler: (UiKeyInput) -> Unit) =
+    this then KeyInputModifier(priority, handler)
 
 fun Modifier.onFocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.FOCUS, handler)
 
@@ -378,6 +402,10 @@ fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) =
         ScriptEventModifier(kind, source, sink)
 
 fun Modifier.state(vararg states: UiState) = this then StateModifier(states.toSet())
+
+fun Modifier.state(vararg names: String) = this then StateModifier(names.mapTo(mutableSetOf()) { UiState.of(it) })
+
+fun Modifier.attribute(name: String, value: String? = null) = this then AttributeModifier(name.lowercase(), value)
 
 // -- Modifier utilities ------------------------------------------------------------------
 
@@ -411,6 +439,18 @@ private fun List<Modifier>.invalidationPhases(): Set<UiInvalidationPhase> {
             else -> LayoutPhases
         }
     }
+}
+
+/** Whether the node carries an attribute (via [AttributeModifier] or its legacy XML map). */
+internal fun UiNode.hasAttribute(name: String): Boolean {
+    if (modifiers.flattenModifiers().any { it is AttributeModifier && it.name == name }) return true
+    return attributes.containsKey(name)
+}
+
+/** The value of a named attribute, from [AttributeModifier]s first, then the legacy XML map. */
+internal fun UiNode.attributeValue(name: String): String? {
+    modifiers.flattenModifiers().forEach { if (it is AttributeModifier && it.name == name) return it.value }
+    return attributes[name]
 }
 
 internal fun UiNode.effectiveStates(): Set<UiState> {

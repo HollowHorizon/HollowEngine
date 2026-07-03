@@ -20,16 +20,26 @@ data class UiKeyInput(
     val alt: Boolean get() = modifiers and GLFW.GLFW_MOD_ALT != 0
     val command: Boolean get() = control || modifiers and GLFW.GLFW_MOD_SUPER != 0
 
+    val consumed: Boolean get() = event.consumed
+
+    /** Stops this key event from reaching lower-priority handlers on the same node. */
+    fun consume() {
+        event.consume()
+    }
+
     fun markChanged() {
         event.markChanged()
     }
 }
 
-internal data object TextFieldDefaultKeyInputModifier : InputModifierNode, UiModifierPatchNode {
-    override fun applyPatch(style: UiStylePatch) {
-        val input = style.input ?: UiInputStyle()
-        style.input = input.copy(focusable = true, hoverable = true)
-    }
+/**
+ * The built-in text-field keymap (editing, navigation, clipboard, completions), registered
+ * as a low-priority key handler so any user `onKeyInput` runs first and can consume keys
+ * before default editing sees them.
+ */
+internal val TextFieldDefaultKeyInputModifier = KeyInputModifier(TextFieldDefaultKeyPriority) { input ->
+    val node = input.node as? TextFieldNode ?: return@KeyInputModifier
+    if (node.handleDefaultTextFieldKeyInput(input)) input.consume()
 }
 
 internal fun TextFieldNode.handleDefaultTextFieldKeyInput(input: UiKeyInput): Boolean {

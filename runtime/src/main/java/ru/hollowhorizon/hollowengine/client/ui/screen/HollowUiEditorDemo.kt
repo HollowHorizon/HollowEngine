@@ -39,9 +39,9 @@ internal fun HollowUiEditorDemo(
                     .input(scrollable = true)
                     .textWrap(false)
                     .onKeyInput { input ->
-                        if (input.key != GLFW.GLFW_KEY_F2) return@onKeyInput false
+                        if (input.key != GLFW.GLFW_KEY_F2) return@onKeyInput
                         onKeyLog("F2 captured before the default text-field keymap")
-                        true
+                        input.consume()
                     }
             )
             Text(keyLog, tags = listOf("editor-key-log"))

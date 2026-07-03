@@ -29,7 +29,7 @@ class StylePatch(private val modifiers: List<Modifier>) {
 class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
     fun compile(document: HssDocument): CompiledHss {
         val rules = document.rules.flatMap { rule ->
-            val patch = StylePatch(rule.declarations.mapNotNull(::compileDeclaration))
+            val patch = StylePatch(dedupeDeclarations(rule.declarations).mapNotNull(::compileDeclaration))
             rule.selectors.map { selector ->
                 val ruleOrigin = if (selector.states.isEmpty()) origin else StyleOrigin.STATE_STYLESHEET
                 StyleRule(selector, patch, ruleOrigin, rule.order)
@@ -49,7 +49,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
     }
 
     private fun compileKeyframeStyle(declarations: List<HssDeclaration>): UiStylePatch {
-        return declarations.mapNotNull(::compileDeclaration).toStylePatch()
+        return dedupeDeclarations(declarations).mapNotNull(::compileDeclaration).toStylePatch()
     }
 
     private fun compileKeyframeProperties(declarations: List<HssDeclaration>): Set<String> {
@@ -114,17 +114,23 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "foreground", "color" -> instruction { it.foreground = parseColor(value) }
             "image" -> instruction { it.image = parseBoundFunction(value, "image") ?: UiBoundString(unquote(value)) }
             "shader" -> instruction { it.shader = parseBoundFunction(value, "shader") ?: UiBoundString(unquote(value)) }
-            "border" -> instruction { it.border = parseBorder(value, it.border ?: UiBorder()) }
-            "border-radius" -> instruction { it.border = (it.border ?: UiBorder()).copy(radius = parseScalar(value)) }
+            "border" -> instruction {
+                // Width + colour only — radius stays whatever `border-radius` set (possibly
+                // in another rule/layer), so `:hover { border: ... }` never squares corners.
+                val parsed = parseBorder(value, UiBorder())
+                it.borderWidth = parsed.width
+                it.borderColor = parsed.color
+            }
+            "border-color" -> instruction { it.borderColor = parseColor(value) }
+            "border-width" -> instruction { it.borderWidth = UiInsets.all(parseLength(value, allowAuto = false)) }
+            "border-radius" -> instruction { it.borderRadius = parseScalar(value) }
             "shadow", "box-shadow" -> instruction { it.shadows = parseShadows(value) }
             "opacity" -> instruction { it.opacity = value.toFloat() }
-            "tint" -> instruction { it.tint = parseColor(value) }
-            "translate" -> instruction {
-                it.transform = (it.transform ?: UiTransform()).copy(translate = parseVec3(value))
-            }
-
-            "rotate" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(rotate = parseVec3(value)) }
-            "scale" -> instruction { it.transform = (it.transform ?: UiTransform()).copy(scale = parseScale(value)) }
+            // Combinable props emit StylePropModifier so overlapping rules/states stack.
+            "tint" -> StylePropModifier(UiProps.Tint, parseColor(value))
+            "translate" -> StylePropModifier(UiProps.Translate, parseVec3(value))
+            "rotate" -> StylePropModifier(UiProps.Rotate, parseVec3(value))
+            "scale" -> StylePropModifier(UiProps.Scale, parseScale(value))
             "transform" -> instruction { it.transform = parseTransform(value, it.transform ?: UiTransform()) }
             "pivot", "transform-origin" -> instruction {
                 it.transform = (it.transform ?: UiTransform()).copy(pivot = parsePivot(value))
@@ -282,11 +288,14 @@ internal object HssModifierRegistry {
         register("background-image") { value ->
             StylePropModifier(UiProps.Background, UiPaint.Image(parseImageSource(value)))
         }
-        register("hoverable") { value -> inputModifier(parseBoolean(value)) { it.copy(hoverable = this) } }
-        register("clickable") { value -> inputModifier(parseBoolean(value)) { it.copy(clickable = this) } }
-        register("focusable") { value -> inputModifier(parseBoolean(value)) { it.copy(focusable = this) } }
-        register("draggable") { value -> inputModifier(parseBoolean(value)) { it.copy(draggable = this) } }
-        register("scrollable") { value -> inputModifier(parseBoolean(value)) { it.copy(scrollable = this) } }
+        // Each input capability is its own prop, so HSS can toggle one without touching the
+        // rest — `.btn:disabled { clickable: false }` works, and its prop carries the right
+        // invalidation phase (only scrollable relayouts).
+        register("hoverable") { StylePropModifier(UiProps.Hoverable, parseBoolean(it)) }
+        register("clickable") { StylePropModifier(UiProps.Clickable, parseBoolean(it)) }
+        register("focusable") { StylePropModifier(UiProps.Focusable, parseBoolean(it)) }
+        register("draggable") { StylePropModifier(UiProps.Draggable, parseBoolean(it)) }
+        register("scrollable") { StylePropModifier(UiProps.Scrollable, parseBoolean(it)) }
         register("transition") { value -> transitionModifier(value) }
         register("animation") { value -> StyleModifier { it.animations = parseAnimations(value) } }
         register("animation-name") { value ->
@@ -350,12 +359,6 @@ internal object HssModifierRegistry {
 
     fun compile(property: String, value: String): Modifier? {
         return handlers[property]?.invoke(value)
-    }
-}
-
-private fun inputModifier(enabled: Boolean, patch: Boolean.(UiInputStyle) -> UiInputStyle): Modifier {
-    return StyleModifier(phases = setOf(UiInvalidationPhase.Input)) { style ->
-        style.input = enabled.patch(style.input ?: UiInputStyle())
     }
 }
 

@@ -25,6 +25,7 @@ class UiStyleProp<T> internal constructor(
     val transitionGroup: String? = null,
     private val defaultValue: UiStyleProp<T>.(parent: UiComputedStyle?) -> T,
     private val mergeValues: ((current: T, next: T) -> T)? = null,
+    private val combineValues: ((current: T, next: T) -> T)? = null,
     private val interpolation: ((from: T, to: T, progress: Float) -> T)? = null,
     private val sanitize: ((T) -> T)? = null,
 ) {
@@ -34,11 +35,28 @@ class UiStyleProp<T> internal constructor(
 
     internal fun defaultFor(parent: UiComputedStyle?): T = defaultValue(this, parent)
 
+    /**
+     * Cascade merge (base layer, base→state overlay): structural props deep-merge, scalars
+     * are replaced (last-wins). Transforms/tint have no merge here, so base never stacks
+     * with a state.
+     */
     @Suppress("UNCHECKED_CAST")
     internal fun mergeRaw(current: Any?, next: Any?): Any? {
         val merge = mergeValues ?: return next
         if (current == null) return next
         return merge(current as T, next as T)
+    }
+
+    /**
+     * State-stacking combine: used only when several simultaneously-active state rules
+     * (`:hover` + `:selected` + custom) overlap. Combinable props accumulate (transform
+     * add, scale/tint multiply); everything else falls back to cascade merge.
+     */
+    @Suppress("UNCHECKED_CAST")
+    internal fun combineRaw(current: Any?, next: Any?): Any? {
+        val combine = combineValues ?: return mergeRaw(current, next)
+        if (current == null) return next
+        return combine(current as T, next as T)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -118,14 +136,30 @@ class UiStylePatch {
     @Suppress("UNCHECKED_CAST")
     operator fun <T> get(prop: UiStyleProp<T>): T? = values[prop] as T?
 
+    /** Sets the property (last-wins within a single patch/source). */
     operator fun <T> set(prop: UiStyleProp<T>, value: T?) {
         if (value == null) values.remove(prop) else values[prop] = value
     }
 
-    /** Overlays [other] onto this patch using each property's merge semantics. */
+    /**
+     * Cascade overlay of [other] onto this patch: structural props deep-merge, scalars and
+     * transforms are replaced (last-wins). Used for the base layer and for laying an active
+     * state's combined effect over the base — base never stacks with a state.
+     */
     fun merge(other: UiStylePatch) {
         for ((prop, value) in other.values) {
             values[prop] = prop.mergeRaw(values[prop], value)
+        }
+        other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
+    }
+
+    /**
+     * Stacks [other] onto this patch using combine semantics — the effects of multiple
+     * simultaneously-active state rules accumulate (transform add, scale/tint multiply).
+     */
+    fun combineWith(other: UiStylePatch) {
+        for ((prop, value) in other.values) {
+            values[prop] = prop.combineRaw(values[prop], value)
         }
         other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
     }
@@ -165,12 +199,17 @@ class UiComputedStyle internal constructor(
     @Suppress("UNCHECKED_CAST")
     operator fun <T> get(prop: UiStyleProp<T>): T = values[prop.index] as T
 
-    /** Applies a keyframe/override patch on top of this style using merge semantics. */
+    /**
+     * Applies a keyframe/override patch on top of this style, replacing each set property
+     * with the patch's absolute value. Keyframes express absolute targets, so this does
+     * NOT use the cascade's combine semantics (that stacking already happened when the
+     * base style was resolved).
+     */
     fun with(patch: UiStylePatch): UiComputedStyle {
         if (patch.values.isEmpty()) return this
         val next = values.copyOf()
         for ((prop, value) in patch.values) {
-            next[prop.index] = prop.sanitizeRaw(prop.mergeRaw(next[prop.index], value))
+            next[prop.index] = prop.sanitizeRaw(value)
         }
         return UiComputedStyle(next, explicitProperties + patch.explicitProperties.orEmpty())
     }
@@ -184,7 +223,9 @@ class UiComputedStyle internal constructor(
         val next = to.values.copyOf()
         for (prop in UiStyleProp.transitionable) {
             val local = progress[prop]
-            if (local >= 1f) continue
+            // Progress may overshoot 1.0 (e.g. back/overshooting cubic-bezier easings),
+            // so only an exact 1.0 is treated as settled.
+            if (local == 1f) continue
             next[prop.index] = prop.interpolateRaw(values[prop.index], to.values[prop.index], local)
         }
         return UiComputedStyle(next, to.explicitProperties)
@@ -230,13 +271,13 @@ class UiTransitionProgress internal constructor(
 ) {
     operator fun get(prop: UiStyleProp<*>): Float = values[prop] ?: 1f
 
-    fun complete(): Boolean = values.values.all { it >= 1f }
+    fun complete(): Boolean = values.values.all { it == 1f }
 
     companion object {
         val Complete = UiTransitionProgress(emptyMap())
 
         fun all(progress: Float): UiTransitionProgress {
-            if (progress >= 1f) return Complete
+            if (progress == 1f) return Complete
             return UiTransitionProgress(UiStyleProp.transitionable.associateWith { progress })
         }
 

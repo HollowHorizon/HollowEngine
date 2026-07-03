@@ -2,7 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiState
+import ru.hollowhorizon.hollowengine.client.ui.attributeValue
 import ru.hollowhorizon.hollowengine.client.ui.effectiveStates
+import ru.hollowhorizon.hollowengine.client.ui.hasAttribute
 
 data class HssDocument(
     val rules: List<HssRule>,
@@ -60,7 +62,7 @@ data class HssSelector(
         if (id != null && node.id != id) return false
         if (!node.tags.containsAll(tags)) return false
         if (!node.effectiveStates().containsAll(states)) return false
-        if (attributes.any { !it.matches(node.attributes) }) return false
+        if (attributes.any { !it.matches(node) }) return false
         return true
     }
 }
@@ -69,9 +71,9 @@ data class HssAttributeSelector(
     val name: String,
     val value: String? = null,
 ) {
-    fun matches(attributes: Map<String, String>): Boolean {
-        val actual = attributes[name] ?: return false
-        return value == null || actual == value
+    fun matches(node: UiNode): Boolean {
+        if (value == null) return node.hasAttribute(name)
+        return node.attributeValue(name) == value
     }
 }
 

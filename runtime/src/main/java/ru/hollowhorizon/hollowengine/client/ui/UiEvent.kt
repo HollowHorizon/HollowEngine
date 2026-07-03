@@ -4,10 +4,8 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldDefaultKeyInputModifier
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
-import ru.hollowhorizon.hollowengine.client.ui.widgets.handleDefaultTextFieldKeyInput
 
 enum class UiEventKind {
     INIT,
@@ -177,6 +175,19 @@ fun interface UiEventSink {
 
 fun UiNode.dispatch(event: UiEvent): Boolean {
     var handled = false
+    // Key events go to onKeyInput handlers first, ordered by priority; each may consume the
+    // event to stop lower-priority handlers (including built-in widget keymaps).
+    if (event.kind == UiEventKind.KEY_PRESSED) {
+        val keyInput = UiKeyInput(event)
+        val keyHandlers = resolvedModifiers
+            .filterIsInstance<KeyInputModifier>()
+            .sortedByDescending { it.priority }
+        for (modifier in keyHandlers) {
+            if (event.consumed) break
+            handled = true
+            modifier.handler(keyInput)
+        }
+    }
     resolvedModifiers.forEach { modifier ->
         if (event.consumed) return@forEach
         when (modifier) {
@@ -188,16 +199,6 @@ fun UiNode.dispatch(event: UiEvent): Boolean {
             is PointerInputModifierNode -> if (event.kind.isPointerEvent) {
                 handled = true
                 modifier.onPointerEvent(event)
-            }
-
-            is KeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED) {
-                handled = true
-                if (modifier.handler(UiKeyInput(event))) event.consume()
-            }
-
-            TextFieldDefaultKeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED && this is TextFieldNode) {
-                handled = true
-                if (handleDefaultTextFieldKeyInput(UiKeyInput(event))) event.consume()
             }
 
             else -> Unit
