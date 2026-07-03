@@ -5,7 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.PopupNode
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import java.util.*
 
 internal data class NodePlacementTask(
@@ -13,7 +13,7 @@ internal data class NodePlacementTask(
     val resolved: UiNode,
     val rect: UiRect,
     val parentRect: UiRect,
-    val parentStyle: UiModifierSnapshot?,
+    val parentStyle: UiComputedStyle?,
     val parentClip: UiRect?,
     val parentTransform: UiMatrix4,
     val parentInputTransform: UiMatrix4,

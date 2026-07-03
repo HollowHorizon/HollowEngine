@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode

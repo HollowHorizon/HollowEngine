@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 
@@ -38,7 +38,7 @@ internal fun applyScrollRanges(
     return result
 }
 
-private fun scrollbarGeometry(style: UiModifierSnapshot, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
+private fun scrollbarGeometry(style: UiComputedStyle, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
     val result = mutableListOf<UiScrollbarGeometry>()
     val verticalStyle = style.scrollbar.resolved(layoutNode.scrollArea.width)
     val horizontalStyle = style.scrollbar.resolved(layoutNode.scrollArea.height)
@@ -111,7 +111,7 @@ internal fun detectScrollbarReserves(
 
 private fun scrollableContentBounds(
     node: UiNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
     layoutChildren: (UiNode) -> List<UiNode>,
@@ -162,7 +162,7 @@ private fun scrollableContentBounds(
 
 private fun textLayoutForScrollBounds(
     node: ru.hollowhorizon.hollowengine.client.ui.TextNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
     layoutChildren: (UiNode) -> List<UiNode>,

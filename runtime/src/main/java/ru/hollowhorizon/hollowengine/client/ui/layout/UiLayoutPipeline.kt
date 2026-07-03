@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.scroll.applyScrollRanges
 import ru.hollowhorizon.hollowengine.client.ui.scroll.detectScrollbarReserves
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import java.util.*
 
 class UiLayoutPipeline {
@@ -81,7 +81,7 @@ class UiLayoutPipeline {
         resolved: UiNode,
         rect: UiRect,
         parentRect: UiRect,
-        parentStyle: UiModifierSnapshot?,
+        parentStyle: UiComputedStyle?,
         parentClip: UiRect?,
         parentTransform: UiMatrix4,
         parentInputTransform: UiMatrix4,

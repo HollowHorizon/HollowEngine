@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.layout.layoutFingerprint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 
@@ -63,7 +62,7 @@ class UiModifierResolver(
         nowMillis: Long,
         animate: Boolean,
         nodes: MutableList<UiNode>,
-        visitSnapshot: (UiModifierSnapshot) -> Unit,
+        visitSnapshot: (UiComputedStyle) -> Unit,
     ) {
         val stack = ArrayDeque<StyleResolveTask>()
         stack.add(StyleResolveTask(root, parent = null, scope = rootScope))
@@ -135,11 +134,11 @@ class UiModifierResolver(
 
     private fun resolveBaseStyle(
         node: UiNode,
-        parent: UiModifierSnapshot?,
+        parent: UiComputedStyle?,
         scope: StyleScope,
         modifiers: List<Modifier>,
         resolvedModifiers: List<Modifier>,
-    ): UiModifierSnapshot {
+    ): UiComputedStyle {
         val key = StyleCacheKey(
             scopeId = scope.id,
             parent = parent,
@@ -151,8 +150,8 @@ class UiModifierResolver(
             return it.snapshot
         }
         val mutable = engineDefaults(node)
-        mutable.merge(resolvedModifiers.toModifierPatch())
-        return mutable.toSnapshot(parent).also { style ->
+        mutable.merge(resolvedModifiers.toStylePatch())
+        return mutable.resolve(parent).also { style ->
             node.layoutState.updateResolvedLayoutFingerprint(style.layoutFingerprint())
             styleCache[node] = StyleCacheEntry(key, style)
         }
@@ -195,8 +194,9 @@ class UiModifierResolver(
         }
     }
 
-    private fun engineDefaults(node: UiNode): UiModifierPatch {
-        val style = UiModifierPatch(transitions = DefaultTransformTransitions)
+    private fun engineDefaults(node: UiNode): UiStylePatch {
+        val style = UiStylePatch()
+        style.transitions = DefaultTransformTransitions
         when (node.type) {
             UiTextType -> {
                 style.foreground = UiColor.White
@@ -253,7 +253,7 @@ private data class StyleScope(
 
 private data class StyleResolveTask(
     val node: UiNode,
-    val parent: UiModifierSnapshot?,
+    val parent: UiComputedStyle?,
     val scope: StyleScope,
 )
 
@@ -284,14 +284,14 @@ private data class NodeStyleSnapshot(
 
 private data class StyleCacheKey(
     val scopeId: Long,
-    val parent: UiModifierSnapshot?,
+    val parent: UiComputedStyle?,
     val node: NodeStyleSnapshot,
     val resolvedModifiers: List<Modifier>,
 )
 
 private data class StyleCacheEntry(
     val key: StyleCacheKey,
-    val snapshot: UiModifierSnapshot,
+    val snapshot: UiComputedStyle,
 )
 
 private data class TreeCacheKey(
@@ -309,7 +309,7 @@ private data class TreeCacheEntry(
     val requiresRefresh: Boolean,
 )
 
-private fun UiModifierSnapshot.requiresModifierRefresh(): Boolean {
+private fun UiComputedStyle.requiresModifierRefresh(): Boolean {
     return animations.any { animation -> animation.totalDurationMillis()?.let { it > 0L } ?: true }
 }
 

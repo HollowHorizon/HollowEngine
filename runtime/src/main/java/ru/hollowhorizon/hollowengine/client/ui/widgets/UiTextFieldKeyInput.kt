@@ -4,8 +4,7 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierPatch
-import ru.hollowhorizon.hollowengine.client.ui.style.UiInputStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 data class UiKeyInput(
     val event: UiEvent,
@@ -26,7 +25,7 @@ data class UiKeyInput(
 }
 
 internal data object TextFieldDefaultKeyInputModifier : InputModifierNode, UiModifierPatchNode {
-    override fun applyPatch(style: UiModifierPatch) {
+    override fun applyPatch(style: UiStylePatch) {
         val input = style.input ?: UiInputStyle()
         style.input = input.copy(focusable = true, hoverable = true)
     }

@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
@@ -34,7 +33,7 @@ internal fun List<MeasuredChild>.maxOfPositionedOuterHeight(referenceWidth: Floa
     } ?: 0f
 }
 
-internal inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (UiModifierSnapshot) -> UiAlign): UiAlign? {
+internal inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (UiComputedStyle) -> UiAlign): UiAlign? {
     if (size != 1) return null
     return selector(first().style).takeUnless { it == UiAlign.AUTO }
 }
@@ -84,7 +83,7 @@ internal fun MeasuredChild.columnWeight(): Float {
 }
 
 private val MeasuredChild.grow: Float
-    get() = (parentData[ParentDataKeys.Grow] as? Float) ?: style.grow
+    get() = style.grow
 
 internal fun UiLength.columnWeight(size: LayoutSize): Float {
     return when (this) {
@@ -117,7 +116,7 @@ internal fun UiConstraints.fixedHeightOrNull(): Float? {
     return if (minHeight == maxHeight) minHeight else null
 }
 
-internal fun replacedIntrinsicSize(node: UiNode, style: UiModifierSnapshot): LayoutSize {
+internal fun replacedIntrinsicSize(node: UiNode, style: UiComputedStyle): LayoutSize {
     return when {
         node is SliderNode -> LayoutSize(DefaultSliderWidth, DefaultWidgetHeight)
         node is CheckboxNode -> LayoutSize(DefaultWidgetHeight, DefaultWidgetHeight)
@@ -178,38 +177,6 @@ private fun UiAlign.alignmentOffset(size: Float): Float {
     }
 }
 
-internal fun UiModifierSnapshot.layoutFingerprint(): Int {
-    return listOf(
-        size,
-        minSize,
-        maxSize,
-        aspectRatio,
-        padding,
-        margin,
-        gap,
-        alignHorizontal,
-        alignVertical,
-        alignItemsHorizontal,
-        alignItemsVertical,
-        alignItems,
-        alignSelf,
-        justifySelf,
-        justifyContent,
-        grow,
-        position,
-        border.width,
-        input.scrollable,
-        scrollbar,
-        textWrap,
-        textAlign,
-        lineSpacing,
-        spaceWidth,
-        fontSize,
-        fontFamily,
-        textField,
-    ).hashCode()
-}
-
 internal fun UiAlign?.mainStartOffset(available: Float, used: Float, count: Int): Float {
     val extra = (available - used).coerceAtLeast(0f)
     return when (this) {
@@ -239,21 +206,21 @@ internal fun UiAlign.crossOffset(available: Float, size: Float, startMargin: Flo
     }.coerceAtLeast(startMargin)
 }
 
-internal fun UiModifierSnapshot.effectiveAlignHorizontal(parent: UiModifierSnapshot?, parentAxis: FlowAxis?): UiAlign? {
+internal fun UiComputedStyle.effectiveAlignHorizontal(parent: UiComputedStyle?, parentAxis: FlowAxis?): UiAlign? {
     return alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignHorizontal(parentAxis)
 }
 
-internal fun UiModifierSnapshot.effectiveAlignVertical(parent: UiModifierSnapshot?, parentAxis: FlowAxis?): UiAlign? {
+internal fun UiComputedStyle.effectiveAlignVertical(parent: UiComputedStyle?, parentAxis: FlowAxis?): UiAlign? {
     return alignVertical.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignVertical(parentAxis)
 }
 
-internal fun UiModifierSnapshot.childAlignHorizontal(parentAxis: FlowAxis?): UiAlign? {
+internal fun UiComputedStyle.childAlignHorizontal(parentAxis: FlowAxis?): UiAlign? {
     return alignItemsHorizontal.takeUnless { it == UiAlign.AUTO }
         ?: if (parentAxis == FlowAxis.Horizontal) justifyContent.takeUnless { it == UiAlign.AUTO }
         else alignItems.takeUnless { it == UiAlign.AUTO }
 }
 
-internal fun UiModifierSnapshot.childAlignVertical(parentAxis: FlowAxis?): UiAlign? {
+internal fun UiComputedStyle.childAlignVertical(parentAxis: FlowAxis?): UiAlign? {
     return alignItemsVertical.takeUnless { it == UiAlign.AUTO }
         ?: if (parentAxis == FlowAxis.Horizontal) alignItems.takeUnless { it == UiAlign.AUTO }
         else justifyContent.takeUnless { it == UiAlign.AUTO }

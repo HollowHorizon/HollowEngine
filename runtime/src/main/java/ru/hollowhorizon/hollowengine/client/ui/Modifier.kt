@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
-import ru.hollowhorizon.hollowengine.client.ui.layout.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
@@ -17,16 +19,14 @@ interface Modifier {
     }
 }
 
+/**
+ * A modifier that contributes style property values. Application is declarative and
+ * order-independent per property (last write wins), so `padding` and `margin` keep
+ * their box-model meaning regardless of modifier order — unlike Compose's chained
+ * modifier semantics.
+ */
 interface UiModifierPatchNode : Modifier {
-    fun applyPatch(style: UiModifierPatch)
-}
-
-interface LayoutModifierNode : Modifier {
-    fun measure(next: UiMeasurable, constraints: UiConstraints): UiPlaceable
-}
-
-interface DrawModifierNode : Modifier {
-    fun UiDrawContext.draw(next: DrawScope)
+    fun applyPatch(style: UiStylePatch)
 }
 
 interface PointerInputModifierNode : Modifier {
@@ -35,318 +35,11 @@ interface PointerInputModifierNode : Modifier {
 
 interface InputModifierNode : Modifier
 
-interface ParentDataModifierNode : Modifier {
-    fun modifyParentData(data: ParentData): ParentData
-}
-
 enum class UiInvalidationPhase {
     Layout,
     Draw,
     Input
 }
-
-fun interface DrawScope {
-    fun draw()
-}
-
-class UiDrawContext internal constructor(
-    val node: UiNode,
-    val style: UiModifierSnapshot,
-    val layoutNode: UiLayoutNode,
-    val layout: UiLayoutResult,
-    val opacity: Float,
-    val filter: UiFilterChain,
-    val backfaceVisibility: UiBackfaceVisibility,
-    private val commands: MutableList<UiRenderCommand>,
-) {
-    fun append(command: UiRenderCommand) {
-        commands += command
-    }
-}
-
-typealias ParentData = Map<String, Any?>
-
-fun Modifier.style(location: String, loader: HssResourceLoader = MinecraftHssResourceLoader) = this then
-        StyleImportModifier(UiStylesheetReference.Resource(location, loader))
-
-fun Modifier.style(stylesheet: CompiledHss) = this then
-        StyleImportModifier(UiStylesheetReference.Compiled(stylesheet))
-
-fun Modifier.size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) = this then
-        StyleModifier(setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT), key = modifierKey("size", width, height)) {
-            it.size = UiSize(width, height)
-        }
-
-fun Modifier.minSize(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) = this then
-        StyleModifier(key = modifierKey("min-size", width, height)) { it.minSize = UiSize(width, height) }
-
-fun Modifier.maxSize(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) = this then
-        StyleModifier(key = modifierKey("max-size", width, height)) { it.maxSize = UiSize(width, height) }
-
-fun Modifier.aspectRatio(value: Float) = this then
-        StyleModifier(key = modifierKey("aspect-ratio", value)) { it.aspectRatio = value }
-
-fun Modifier.padding(value: UiLength) = this then
-        StyleModifier(key = modifierKey("padding", value)) { it.padding = UiInsets.all(value) }
-
-fun Modifier.padding(horizontal: UiLength, vertical: UiLength) = this then
-        StyleModifier(key = modifierKey("padding-hv", horizontal, vertical)) {
-            it.padding = UiInsets.hv(horizontal, vertical)
-        }
-
-fun Modifier.padding(left: UiLength, top: UiLength, right: UiLength, bottom: UiLength) = this then
-        StyleModifier(key = modifierKey("padding-ltrb", left, top, right, bottom)) {
-            it.padding = UiInsets(left, top, right, bottom)
-        }
-
-fun Modifier.margin(value: UiLength) = this then
-        StyleModifier(key = modifierKey("margin", value)) { it.margin = UiInsets.all(value) }
-
-fun Modifier.margin(horizontal: UiLength, vertical: UiLength) = this then
-        StyleModifier(key = modifierKey("margin-hv", horizontal, vertical)) {
-            it.margin = UiInsets.hv(horizontal, vertical)
-        }
-
-fun Modifier.margin(left: UiLength, top: UiLength, right: UiLength, bottom: UiLength) = this then
-        StyleModifier(key = modifierKey("margin-ltrb", left, top, right, bottom)) {
-            it.margin = UiInsets(left, top, right, bottom)
-        }
-
-fun Modifier.gap(value: UiLength) = this then StyleModifier(key = modifierKey("gap", value)) { it.gap = value }
-
-fun Modifier.align(horizontal: UiAlign = UiAlign.AUTO, vertical: UiAlign = UiAlign.AUTO) = this then StyleModifier(
-    key = modifierKey("align", horizontal, vertical),
-) {
-    it.alignHorizontal = horizontal
-    it.alignVertical = vertical
-}
-
-fun Modifier.alignItems(horizontal: UiAlign = UiAlign.AUTO, vertical: UiAlign = UiAlign.AUTO) = this then StyleModifier(
-    key = modifierKey("align-items", horizontal, vertical),
-) {
-    it.alignItemsHorizontal = horizontal
-    it.alignItemsVertical = vertical
-}
-
-fun Modifier.alignChildren(items: UiAlign = UiAlign.AUTO, content: UiAlign = UiAlign.AUTO) = this then StyleModifier(
-    key = modifierKey("align-children", items, content),
-) {
-    it.alignItemsHorizontal = items
-    it.alignItemsVertical = content
-}
-
-fun Modifier.grow(value: Float = 1f) = this then GrowModifier(value)
-
-fun Modifier.position(x: UiLength, y: UiLength, z: Float = 0f) = this then PositionModifier(x, y, z)
-
-fun Modifier.background(color: UiColor) = this then
-        BackgroundModifier(UiPaint.Color(color), modifierKey("background-color", color))
-
-fun Modifier.background(angleDegrees: Float, stops: List<UiGradientStop>) = this then
-        BackgroundModifier(UiPaint.LinearGradient(angleDegrees, stops), modifierKey("background-gradient", angleDegrees, stops))
-
-fun Modifier.background(gradient: UiRadialGradient) = this then
-        BackgroundModifier(UiPaint.RadialGradient(gradient), modifierKey("background-radial-gradient", gradient))
-
-fun Modifier.background(paint: UiPaint) = this then
-        BackgroundModifier(paint, modifierKey("background-paint", paint))
-
-fun Modifier.background(source: UiBoundString) = this then
-        BackgroundModifier(UiPaint.Image(source), modifierKey("background-image", source))
-
-fun Modifier.foreground(color: UiColor) = this then
-        StyleModifier(key = modifierKey("foreground", color), phases = DrawPhases) { it.foreground = color }
-
-fun Modifier.image(source: UiBoundString) =
-    this then StyleModifier(key = modifierKey("image", source), phases = DrawPhases) { it.image = source }
-
-fun Modifier.shader(name: UiBoundString) =
-    this then StyleModifier(key = modifierKey("shader", name), phases = DrawPhases) { it.shader = name }
-
-fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) = this then
-        StyleModifier(key = modifierKey("border", width, color, radius)) {
-            it.border = UiBorder(UiInsets.all(width), color, radius)
-        }
-
-fun Modifier.shadow(vararg shadows: UiShadow) = this then StyleModifier(key = modifierKey("shadow", shadows.toList())) {
-    it.shadows = shadows.toList()
-}
-
-fun Modifier.opacity(value: Float) = this then
-        StyleModifier(key = modifierKey("opacity", value), phases = DrawPhases) { it.opacity = value }
-
-fun Modifier.tint(color: UiColor) = this then
-        StyleModifier(key = modifierKey("tint", color), phases = DrawPhases) { it.tint = color }
-
-fun Modifier.translate(x: Float = 0f, y: Float = 0f, z: Float = 0f) = this then TransformPatch(
-    modifierKey("translate", x, y, z),
-) { current ->
-    current.copy(translate = UiVec3(x, y, z))
-}
-
-fun Modifier.rotate(x: Float = 0f, y: Float = 0f, z: Float = 0f) = this then TransformPatch(
-    modifierKey("rotate", x, y, z),
-) { current ->
-    current.copy(rotate = UiVec3(x, y, z))
-}
-
-fun Modifier.scale(x: Float, y: Float = x, z: Float = 1f) = this then TransformPatch(
-    modifierKey("scale", x, y, z),
-) { current ->
-    current.copy(scale = UiVec3(x, y, z))
-}
-
-fun Modifier.perspective(value: Float) = this then
-        TransformPatch(modifierKey("perspective", value)) { current -> current.copy(perspective = value) }
-
-fun Modifier.pivot(value: UiTransformPivot) = this then
-        TransformPatch(modifierKey("pivot", value)) { current -> current.copy(pivot = value) }
-
-fun Modifier.pivot(x: UiLength, y: UiLength, z: UiLength = 0.px) = this then
-        TransformPatch(modifierKey("pivot-lengths", x, y, z)) { current ->
-            current.copy(pivot = UiTransformPivot(x, y, z))
-        }
-
-fun Modifier.filter(vararg effects: UiFilterEffect) =
-    this then StyleModifier(key = modifierKey("filter", effects.toList())) {
-        it.filter = UiFilterChain(effects.toList())
-    }
-
-fun Modifier.backdropFilter(vararg effects: UiFilterEffect) = this then
-        StyleModifier(key = modifierKey("backdrop-filter", effects.toList())) {
-            it.backdropFilter = UiFilterChain(effects.toList())
-        }
-
-fun Modifier.backfaceVisibility(value: UiBackfaceVisibility) = this then
-        StyleModifier(key = modifierKey("backface-visibility", value)) { it.backfaceVisibility = value }
-
-fun Modifier.input(
-    hoverable: Boolean = false,
-    clickable: Boolean = false,
-    focusable: Boolean = false,
-    draggable: Boolean = false,
-    scrollable: Boolean = false,
-) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, focusable, draggable, scrollable)) {
-    it.input = (it.input ?: UiInputStyle()).merge(
-        UiInputStyle(
-            hoverable = hoverable,
-            clickable = clickable,
-            focusable = focusable,
-            draggable = draggable,
-            scrollable = scrollable,
-        )
-    )
-}
-
-fun Modifier.cursor(shape: UiCursorShape) =
-    this then StyleModifier(key = modifierKey("cursor", shape), phases = InputPhases) { it.cursor = shape }
-
-fun Modifier.clip(enabled: Boolean = true) =
-    this then StyleModifier(key = modifierKey("clip", enabled)) { it.clip = enabled }
-
-fun Modifier.clip(shape: Shape) = this then StyleModifier(key = modifierKey("clip-shape", shape)) {
-    it.clip = true
-    it.clipShape = shape
-}
-
-fun Modifier.shape(shape: Shape) = this then StyleModifier(key = modifierKey("shape", shape)) { it.shape = shape }
-
-fun Modifier.shape(shape: Shape, fill: UiPaint?, stroke: UiPaint? = null, strokeWidth: UiLength = 0.px) = this then
-        StyleModifier(key = modifierKey("shape-paint", shape, fill, stroke, strokeWidth)) {
-            it.shape = shape
-            it.shapeFill = fill
-            it.shapeStroke = stroke
-            it.shapeStrokeWidth = strokeWidth
-        }
-
-fun Modifier.shapeFill(paint: UiPaint) =
-    this then StyleModifier(key = modifierKey("shape-fill", paint)) { it.shapeFill = paint }
-
-fun Modifier.shapeFill(color: UiColor) = shapeFill(UiPaint.Color(color))
-
-fun Modifier.shapeStroke(paint: UiPaint, width: UiLength = 1.px) = this then
-        StyleModifier(key = modifierKey("shape-stroke", paint, width)) {
-            it.shapeStroke = paint
-            it.shapeStrokeWidth = width
-        }
-
-fun Modifier.shapeStroke(color: UiColor, width: UiLength = 1.px) = this then shapeStroke(UiPaint.Color(color), width)
-
-fun Modifier.layer(value: Int) = this then StyleModifier(key = modifierKey("layer", value)) { it.layer = value }
-
-fun Modifier.textWrap(enabled: Boolean = true) = this then
-        StyleModifier(key = modifierKey("text-wrap", enabled)) { it.textWrap = enabled }
-
-fun Modifier.textOverflow(value: UiTextOverflow) = this then
-        StyleModifier(key = modifierKey("text-overflow", value)) { it.textOverflow = value }
-
-fun Modifier.textAlign(value: UiTextAlign) = this then
-        StyleModifier(key = modifierKey("text-align", value)) { it.textAlign = value }
-
-fun Modifier.lineSpacing(value: Float) = this then StyleModifier(key = modifierKey("line-spacing", value)) {
-    it.lineSpacing = value.coerceAtLeast(0f)
-}
-
-fun Modifier.spaceWidth(value: Float?) = this then StyleModifier(key = modifierKey("space-width", value)) {
-    it.spaceWidth = value?.coerceAtLeast(0f)
-}
-
-fun Modifier.fontSize(value: Float) = this then StyleModifier(key = modifierKey("font-size", value)) {
-    it.fontSize = value.coerceAtLeast(0.0001f)
-}
-
-fun Modifier.fontFamily(name: String) =
-    this then StyleModifier(key = modifierKey("font-family", name)) { it.fontFamily = name }
-
-fun Modifier.textEffects(vararg effects: UiTextEffect) = this then
-        StyleModifier(key = modifierKey("text-effects", effects.toList())) {
-            it.textEffects = effects.toList()
-        }
-
-fun Modifier.typing(value: UiTyping?) =
-    this then StyleModifier(key = modifierKey("typing", value)) { it.typing = value }
-
-fun Modifier.transition(vararg transitions: UiTransition) = this then
-        StyleModifier(key = modifierKey("transition", transitions.toList())) {
-            it.transitions = transitions.toList()
-        }
-
-fun Modifier.onInit(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.INIT, handler)
-
-fun Modifier.onUpdate(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.UPDATE, handler)
-
-fun Modifier.onClose(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.CLOSE, handler)
-
-fun Modifier.onEnter(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.ENTER, handler)
-
-fun Modifier.onExit(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.EXIT, handler)
-
-fun Modifier.onHover(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.HOVER, handler)
-
-fun Modifier.onPress(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.PRESS, handler)
-
-fun Modifier.onClick(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.CLICK, handler)
-
-fun Modifier.onRelease(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.RELEASE, handler)
-
-fun Modifier.onDrag(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.DRAG, handler)
-
-fun Modifier.onScroll(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.SCROLL, handler)
-
-fun Modifier.onCharTyped(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.CHAR_TYPED, handler)
-
-fun Modifier.onKeyPressed(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.KEY_PRESSED, handler)
-
-fun Modifier.onKeyInput(handler: (UiKeyInput) -> Boolean) = this then KeyInputModifier(handler)
-
-fun Modifier.onFocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.FOCUS, handler)
-
-fun Modifier.onUnfocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.UNFOCUS, handler)
-
-fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) = this then
-        ScriptEventModifier(kind, source, sink)
-
-fun Modifier.state(vararg states: UiState) = this then StateModifier(states.toSet())
 
 enum class UiStyleProperty {
     WIDTH,
@@ -354,15 +47,35 @@ enum class UiStyleProperty {
     TRANSITIONS
 }
 
+/**
+ * Sets a single style property to a fixed value. The property itself carries all the
+ * logic (defaults, merge, interpolation, invalidation phase), so this modifier is pure
+ * data with value equality for free.
+ */
+data class StylePropModifier<T>(
+    val prop: UiStyleProp<T>,
+    val value: T,
+    val explicit: Set<UiStyleProperty> = emptySet(),
+) : UiModifierPatchNode {
+    override fun applyPatch(style: UiStylePatch) {
+        style[prop] = value
+        if (explicit.isNotEmpty()) style.explicitProperties = style.explicitProperties.orEmpty() + explicit
+    }
+}
+
+/**
+ * Style contribution expressed as a patch-writer lambda; used where a single value
+ * assignment is not enough (read-modify-write like input flags, HSS declarations).
+ */
 class StyleModifier(
     val properties: Set<UiStyleProperty> = emptySet(),
     val phases: Set<UiInvalidationPhase> = LayoutPhases,
     key: Any? = null,
-    private val writer: (UiModifierPatch) -> Unit,
+    private val writer: (UiStylePatch) -> Unit,
 ) : UiModifierPatchNode {
     private val equalityKey = key ?: writer
 
-    override fun applyPatch(style: UiModifierPatch) {
+    override fun applyPatch(style: UiStylePatch) {
         writer(style)
         if (properties.isNotEmpty()) style.explicitProperties = style.explicitProperties.orEmpty() + properties
     }
@@ -405,7 +118,7 @@ data class EventModifier(
     val kind: UiEventKind,
     val handler: (UiEvent) -> Unit,
 ) : PointerInputModifierNode, UiModifierPatchNode {
-    override fun applyPatch(style: UiModifierPatch) {
+    override fun applyPatch(style: UiStylePatch) {
         val input = style.input ?: UiInputStyle()
         style.input = when (kind) {
             UiEventKind.ENTER,
@@ -443,7 +156,7 @@ data class EventModifier(
 data class KeyInputModifier(
     val handler: (UiKeyInput) -> Boolean,
 ) : InputModifierNode, UiModifierPatchNode {
-    override fun applyPatch(style: UiModifierPatch) {
+    override fun applyPatch(style: UiStylePatch) {
         val input = style.input ?: UiInputStyle()
         style.input = input.copy(focusable = true, hoverable = true)
     }
@@ -454,7 +167,7 @@ data class ScriptEventModifier(
     val source: String,
     val sink: UiEventSink,
 ) : UiModifierPatchNode {
-    override fun applyPatch(style: UiModifierPatch) {
+    override fun applyPatch(style: UiStylePatch) {
         EventModifier(kind) {}.applyPatch(style)
     }
 }
@@ -463,84 +176,213 @@ data class StateModifier(
     val states: Set<UiState>,
 ) : Modifier
 
-data class GrowModifier(
-    val value: Float = 1f,
-) : ParentDataModifierNode, UiModifierPatchNode {
-    override fun applyPatch(style: UiModifierPatch) {
-        style.grow = value
-    }
-
-    override fun modifyParentData(data: ParentData): ParentData {
-        return data + (ParentDataKeys.Grow to value)
-    }
-}
-
-data class BackgroundModifier(
-    val paint: UiPaint,
-    private val equalityKey: Any? = paint,
-) : DrawModifierNode {
-    override fun UiDrawContext.draw(next: DrawScope) {
-        if (paint != UiPaint.None) {
-            append(
-                DrawBoxCommand(
-                    node = node,
-                    rect = layoutNode.rect,
-                    paint = paint.resolve(),
-                    border = UiBorder(),
-                    shadows = emptyList(),
-                    opacity = opacity,
-                    tint = style.tint,
-                    transform = layoutNode.worldTransform,
-                    renderToFramebuffer = false,
-                    fit = style.imageFit,
-                    slice = style.imageSlice,
-                    filter = filter,
-                    backfaceVisibility = backfaceVisibility,
-                    phase = UiRenderPhase.BACKGROUND,
-                )
-            )
-        }
-        next.draw()
-    }
-}
-
-internal object ParentDataKeys {
-    const val Grow = "grow"
-}
-
 internal data class RuntimeStateModifier(
     val states: Set<UiState>,
 ) : Modifier
 
-data class PositionModifier(
-    val x: UiLength,
-    val y: UiLength,
-    val z: Float = 0f,
-) : UiModifierPatchNode {
-    override fun applyPatch(style: UiModifierPatch) {
-        style.position = UiPosition(x, y, z)
-    }
+// -- Style DSL --------------------------------------------------------------------------
+
+private fun <T> Modifier.prop(prop: UiStyleProp<T>, value: T): Modifier =
+    this then StylePropModifier(prop, value)
+
+fun Modifier.style(location: String, loader: HssResourceLoader = MinecraftHssResourceLoader) = this then
+        StyleImportModifier(UiStylesheetReference.Resource(location, loader))
+
+fun Modifier.style(stylesheet: CompiledHss) = this then
+        StyleImportModifier(UiStylesheetReference.Compiled(stylesheet))
+
+fun Modifier.size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
+    this then StylePropModifier(UiProps.Width, width, setOf(UiStyleProperty.WIDTH)) then
+            StylePropModifier(UiProps.Height, height, setOf(UiStyleProperty.HEIGHT))
+
+fun Modifier.minSize(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
+    prop(UiProps.MinWidth, width).prop(UiProps.MinHeight, height)
+
+fun Modifier.maxSize(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
+    prop(UiProps.MaxWidth, width).prop(UiProps.MaxHeight, height)
+
+fun Modifier.aspectRatio(value: Float) = prop(UiProps.AspectRatio, value)
+
+fun Modifier.padding(value: UiLength) = prop(UiProps.Padding, UiInsets.all(value))
+
+fun Modifier.padding(horizontal: UiLength, vertical: UiLength) =
+    prop(UiProps.Padding, UiInsets.hv(horizontal, vertical))
+
+fun Modifier.padding(left: UiLength, top: UiLength, right: UiLength, bottom: UiLength) =
+    prop(UiProps.Padding, UiInsets(left, top, right, bottom))
+
+fun Modifier.margin(value: UiLength) = prop(UiProps.Margin, UiInsets.all(value))
+
+fun Modifier.margin(horizontal: UiLength, vertical: UiLength) =
+    prop(UiProps.Margin, UiInsets.hv(horizontal, vertical))
+
+fun Modifier.margin(left: UiLength, top: UiLength, right: UiLength, bottom: UiLength) =
+    prop(UiProps.Margin, UiInsets(left, top, right, bottom))
+
+fun Modifier.gap(value: UiLength) = prop(UiProps.Gap, value)
+
+fun Modifier.align(horizontal: UiAlign = UiAlign.AUTO, vertical: UiAlign = UiAlign.AUTO) =
+    prop(UiProps.AlignHorizontal, horizontal).prop(UiProps.AlignVertical, vertical)
+
+fun Modifier.alignItems(horizontal: UiAlign = UiAlign.AUTO, vertical: UiAlign = UiAlign.AUTO) =
+    prop(UiProps.AlignItemsHorizontal, horizontal).prop(UiProps.AlignItemsVertical, vertical)
+
+fun Modifier.alignChildren(items: UiAlign = UiAlign.AUTO, content: UiAlign = UiAlign.AUTO) =
+    prop(UiProps.AlignItemsHorizontal, items).prop(UiProps.AlignItemsVertical, content)
+
+fun Modifier.grow(value: Float = 1f) = prop(UiProps.Grow, value)
+
+fun Modifier.position(x: UiLength, y: UiLength, z: Float = 0f) = prop(UiProps.Position, UiPosition(x, y, z))
+
+fun Modifier.background(color: UiColor) = prop(UiProps.Background, UiPaint.Color(color))
+
+fun Modifier.background(angleDegrees: Float, stops: List<UiGradientStop>) =
+    prop(UiProps.Background, UiPaint.LinearGradient(angleDegrees, stops))
+
+fun Modifier.background(gradient: UiRadialGradient) = prop(UiProps.Background, UiPaint.RadialGradient(gradient))
+
+fun Modifier.background(paint: UiPaint) = prop(UiProps.Background, paint)
+
+fun Modifier.background(source: UiBoundString) = prop(UiProps.Background, UiPaint.Image(source))
+
+fun Modifier.foreground(color: UiColor) = prop(UiProps.Foreground, color)
+
+fun Modifier.image(source: UiBoundString) = prop(UiProps.Image, source)
+
+fun Modifier.shader(name: UiBoundString) = prop(UiProps.Shader, name)
+
+fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) =
+    prop(UiProps.Border, UiBorder(UiInsets.all(width), color, radius))
+
+fun Modifier.shadow(vararg shadows: UiShadow) = prop(UiProps.Shadows, shadows.toList())
+
+fun Modifier.opacity(value: Float) = prop(UiProps.Opacity, value)
+
+fun Modifier.tint(color: UiColor) = prop(UiProps.Tint, color)
+
+fun Modifier.translate(x: Float = 0f, y: Float = 0f, z: Float = 0f) = prop(UiProps.Translate, UiVec3(x, y, z))
+
+fun Modifier.rotate(x: Float = 0f, y: Float = 0f, z: Float = 0f) = prop(UiProps.Rotate, UiVec3(x, y, z))
+
+fun Modifier.scale(x: Float, y: Float = x, z: Float = 1f) = prop(UiProps.Scale, UiVec3(x, y, z))
+
+fun Modifier.perspective(value: Float) = prop(UiProps.Perspective, value)
+
+fun Modifier.pivot(value: UiTransformPivot) = prop(UiProps.Pivot, value)
+
+fun Modifier.pivot(x: UiLength, y: UiLength, z: UiLength = 0.px) = prop(UiProps.Pivot, UiTransformPivot(x, y, z))
+
+fun Modifier.filter(vararg effects: UiFilterEffect) = prop(UiProps.Filter, UiFilterChain(effects.toList()))
+
+fun Modifier.backdropFilter(vararg effects: UiFilterEffect) =
+    prop(UiProps.BackdropFilter, UiFilterChain(effects.toList()))
+
+fun Modifier.backfaceVisibility(value: UiBackfaceVisibility) = prop(UiProps.BackfaceVisibility, value)
+
+fun Modifier.input(
+    hoverable: Boolean = false,
+    clickable: Boolean = false,
+    focusable: Boolean = false,
+    draggable: Boolean = false,
+    scrollable: Boolean = false,
+) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, focusable, draggable, scrollable)) {
+    it.input = (it.input ?: UiInputStyle()).merge(
+        UiInputStyle(
+            hoverable = hoverable,
+            clickable = clickable,
+            focusable = focusable,
+            draggable = draggable,
+            scrollable = scrollable,
+        )
+    )
 }
 
-class TransformPatch(
-    key: Any? = null,
-    private val patch: (UiTransform) -> UiTransform,
-) : UiModifierPatchNode {
-    private val equalityKey = key ?: patch
+fun Modifier.cursor(shape: UiCursorShape) = prop(UiProps.Cursor, shape)
 
-    override fun applyPatch(style: UiModifierPatch) {
-        style.transform = patch(style.transform ?: UiTransform())
-    }
+fun Modifier.clip(enabled: Boolean = true) = prop(UiProps.Clip, enabled)
 
-    override fun equals(other: Any?): Boolean {
-        return other is TransformPatch && equalityKey == other.equalityKey
-    }
+fun Modifier.clip(shape: Shape) = prop(UiProps.Clip, true).prop(UiProps.ClipShape, shape)
 
-    override fun hashCode(): Int = equalityKey.hashCode()
-}
+fun Modifier.shape(shape: Shape) = prop(UiProps.NodeShape, shape)
 
-fun Iterable<Modifier>.toModifierPatch(): UiModifierPatch {
-    val style = UiModifierPatch()
+fun Modifier.shape(shape: Shape, fill: UiPaint?, stroke: UiPaint? = null, strokeWidth: UiLength = 0.px) =
+    prop(UiProps.NodeShape, shape)
+        .prop(UiProps.ShapeFill, fill)
+        .prop(UiProps.ShapeStroke, stroke)
+        .prop(UiProps.ShapeStrokeWidth, strokeWidth)
+
+fun Modifier.shapeFill(paint: UiPaint) = prop(UiProps.ShapeFill, paint)
+
+fun Modifier.shapeFill(color: UiColor) = shapeFill(UiPaint.Color(color))
+
+fun Modifier.shapeStroke(paint: UiPaint, width: UiLength = 1.px) =
+    prop(UiProps.ShapeStroke, paint).prop(UiProps.ShapeStrokeWidth, width)
+
+fun Modifier.shapeStroke(color: UiColor, width: UiLength = 1.px) = shapeStroke(UiPaint.Color(color), width)
+
+fun Modifier.layer(value: Int) = prop(UiProps.Layer, value)
+
+fun Modifier.textWrap(enabled: Boolean = true) = prop(UiProps.TextWrap, enabled)
+
+fun Modifier.textOverflow(value: UiTextOverflow) = prop(UiProps.TextOverflow, value)
+
+fun Modifier.textAlign(value: UiTextAlign) = prop(UiProps.TextAlign, value)
+
+fun Modifier.lineSpacing(value: Float) = prop(UiProps.LineSpacing, value.coerceAtLeast(0f))
+
+fun Modifier.spaceWidth(value: Float?) = prop(UiProps.SpaceWidth, value?.coerceAtLeast(0f))
+
+fun Modifier.fontSize(value: Float) = prop(UiProps.FontSize, value.coerceAtLeast(0.0001f))
+
+fun Modifier.fontFamily(name: String) = prop(UiProps.FontFamily, name)
+
+fun Modifier.textEffects(vararg effects: UiTextEffect) = prop(UiProps.TextEffects, effects.toList())
+
+fun Modifier.typing(value: UiTyping?) = prop(UiProps.Typing, value)
+
+fun Modifier.transition(vararg transitions: UiTransition) = prop(UiProps.Transitions, transitions.toList())
+
+fun Modifier.onInit(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.INIT, handler)
+
+fun Modifier.onUpdate(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.UPDATE, handler)
+
+fun Modifier.onClose(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.CLOSE, handler)
+
+fun Modifier.onEnter(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.ENTER, handler)
+
+fun Modifier.onExit(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.EXIT, handler)
+
+fun Modifier.onHover(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.HOVER, handler)
+
+fun Modifier.onPress(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.PRESS, handler)
+
+fun Modifier.onClick(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.CLICK, handler)
+
+fun Modifier.onRelease(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.RELEASE, handler)
+
+fun Modifier.onDrag(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.DRAG, handler)
+
+fun Modifier.onScroll(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.SCROLL, handler)
+
+fun Modifier.onCharTyped(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.CHAR_TYPED, handler)
+
+fun Modifier.onKeyPressed(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.KEY_PRESSED, handler)
+
+fun Modifier.onKeyInput(handler: (UiKeyInput) -> Boolean) = this then KeyInputModifier(handler)
+
+fun Modifier.onFocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.FOCUS, handler)
+
+fun Modifier.onUnfocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.UNFOCUS, handler)
+
+fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) = this then
+        ScriptEventModifier(kind, source, sink)
+
+fun Modifier.state(vararg states: UiState) = this then StateModifier(states.toSet())
+
+// -- Modifier utilities ------------------------------------------------------------------
+
+fun Iterable<Modifier>.toStylePatch(): UiStylePatch {
+    val style = UiStylePatch()
     forEach { (it as? UiModifierPatchNode)?.applyPatch(style) }
     return style
 }
@@ -562,10 +404,8 @@ internal fun UiNode.invalidateModifierChange() {
 private fun List<Modifier>.invalidationPhases(): Set<UiInvalidationPhase> {
     return flatMapTo(linkedSetOf()) { modifier ->
         when (modifier) {
+            is StylePropModifier<*> -> modifier.prop.phases
             is StyleModifier -> modifier.phases
-            is LayoutModifierNode,
-            is ParentDataModifierNode -> LayoutPhases
-            is DrawModifierNode -> DrawPhases
             is PointerInputModifierNode,
             is InputModifierNode -> InputPhases
             else -> LayoutPhases
@@ -609,5 +449,4 @@ private data class ModifierKey(
 private fun modifierKey(name: String, vararg values: Any?) = ModifierKey(name, values.toList())
 
 private val LayoutPhases = setOf(UiInvalidationPhase.Layout)
-private val DrawPhases = setOf(UiInvalidationPhase.Draw)
 private val InputPhases = setOf(UiInvalidationPhase.Input)

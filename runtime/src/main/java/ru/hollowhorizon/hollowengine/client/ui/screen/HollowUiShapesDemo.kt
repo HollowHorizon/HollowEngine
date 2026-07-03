@@ -5,9 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgResource
-import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.style.UiRadialGradient
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 @Composable
 internal fun shapesDemo() {

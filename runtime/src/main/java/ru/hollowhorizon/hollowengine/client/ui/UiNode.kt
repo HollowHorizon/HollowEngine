@@ -1,9 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
-import ru.hollowhorizon.hollowengine.client.ui.style.defaultModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import java.util.*
 
@@ -16,7 +14,7 @@ interface UiNode {
     val states: MutableSet<UiState>
     val modifiers: MutableList<Modifier>
     var resolvedModifiers: List<Modifier>
-    var resolvedSnapshot: UiModifierSnapshot
+    var resolvedSnapshot: UiComputedStyle
     val children: UiChildren
     val layoutState: UiNodeLayoutState
 }
@@ -27,7 +25,7 @@ fun UiChildren(): UiChildren = mutableListOf()
 
 val UiNode.root: UiNode get() = this
 
-operator fun UiNode.get(node: UiNode): UiModifierSnapshot = node.resolvedSnapshot
+operator fun UiNode.get(node: UiNode): UiComputedStyle = node.resolvedSnapshot
 
 fun UiNode.firstInSubtree(predicate: (UiNode) -> Boolean): UiNode? {
     val stack = ArrayDeque<UiNode>()
@@ -55,7 +53,7 @@ open class BaseUiNode(
     final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
     final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateModifierChange() }
     final override var resolvedModifiers: List<Modifier> = modifiers.toList()
-    final override var resolvedSnapshot: UiModifierSnapshot = defaultModifierSnapshot()
+    final override var resolvedSnapshot: UiComputedStyle = defaultModifierSnapshot()
     final override val children = UiChildren()
     final override var measurePolicy: UiMeasurePolicy = measurePolicy
         set(value) {

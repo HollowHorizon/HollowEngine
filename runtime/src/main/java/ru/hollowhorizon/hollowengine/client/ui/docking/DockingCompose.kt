@@ -5,7 +5,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 private const val DockTabMinWidth = 72f

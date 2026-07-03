@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.math.abs
 
@@ -54,104 +54,19 @@ internal fun UiLayoutPipeline.measureNode(
     deferFlexibleHeight: Boolean = false,
     allowWidthOverflow: Boolean = false,
     allowHeightOverflow: Boolean = false,
-): LayoutSize {
-    val modifiers = node.resolvedModifiers.filterIsInstance<LayoutModifierNode>()
-    if (modifiers.isEmpty()) {
-        return measureNodeContent(
-            node,
-            resolved,
-            availableWidth,
-            availableHeight,
-            scrollbarReserves,
-            widthOverride,
-            heightOverride,
-            deferFlexibleWidth,
-            deferFlexibleHeight,
-            allowWidthOverflow,
-            allowHeightOverflow,
-        )
-    }
-    val constraints = UiConstraints(
-        minWidth = widthOverride ?: 0f,
-        maxWidth = widthOverride ?: availableWidth.coerceAtLeast(0f),
-        minHeight = heightOverride ?: 0f,
-        maxHeight = heightOverride ?: availableHeight.coerceAtLeast(0f),
-    )
-    val measurable = LayoutModifierMeasurable(
-        pipeline = this,
-        node = node,
-        resolved = resolved,
-        scrollbarReserves = scrollbarReserves,
-        modifiers = modifiers,
-        index = 0,
-        deferFlexibleWidth = deferFlexibleWidth,
-        deferFlexibleHeight = deferFlexibleHeight,
-        allowWidthOverflow = allowWidthOverflow,
-        allowHeightOverflow = allowHeightOverflow,
-    )
-    val placeable = measurable.measure(constraints)
-    return LayoutSize(
-        constraints.constrainWidth(placeable.width),
-        constraints.constrainHeight(placeable.height),
-    )
-}
-
-private class LayoutModifierMeasurable(
-    private val pipeline: UiLayoutPipeline,
-    override val node: UiNode,
-    private val resolved: UiNode,
-    private val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    private val modifiers: List<LayoutModifierNode>,
-    private val index: Int,
-    private val deferFlexibleWidth: Boolean,
-    private val deferFlexibleHeight: Boolean,
-    private val allowWidthOverflow: Boolean,
-    private val allowHeightOverflow: Boolean,
-) : UiMeasurable {
-    override fun measure(constraints: UiConstraints): UiPlaceable {
-        val modifier = modifiers.getOrNull(index)
-        if (modifier != null) {
-            return modifier.measure(next(index + 1), constraints)
-        }
-        val size = pipeline.measureNodeContent(
-            node = node,
-            resolved = resolved,
-            availableWidth = constraints.maxWidth,
-            availableHeight = constraints.maxHeight,
-            scrollbarReserves = scrollbarReserves,
-            widthOverride = constraints.fixedWidthOrNull(),
-            heightOverride = constraints.fixedHeightOrNull(),
-            deferFlexibleWidth = deferFlexibleWidth,
-            deferFlexibleHeight = deferFlexibleHeight,
-            allowWidthOverflow = allowWidthOverflow,
-            allowHeightOverflow = allowHeightOverflow,
-        )
-        return UiPlaceable(
-            width = constraints.constrainWidth(size.width),
-            height = constraints.constrainHeight(size.height),
-            node = node,
-        )
-    }
-
-    private fun next(nextIndex: Int): UiMeasurable {
-        return copy(index = nextIndex)
-    }
-
-    private fun copy(index: Int): LayoutModifierMeasurable {
-        return LayoutModifierMeasurable(
-            pipeline = pipeline,
-            node = node,
-            resolved = resolved,
-            scrollbarReserves = scrollbarReserves,
-            modifiers = modifiers,
-            index = index,
-            deferFlexibleWidth = deferFlexibleWidth,
-            deferFlexibleHeight = deferFlexibleHeight,
-            allowWidthOverflow = allowWidthOverflow,
-            allowHeightOverflow = allowHeightOverflow,
-        )
-    }
-}
+): LayoutSize = measureNodeContent(
+    node,
+    resolved,
+    availableWidth,
+    availableHeight,
+    scrollbarReserves,
+    widthOverride,
+    heightOverride,
+    deferFlexibleWidth,
+    deferFlexibleHeight,
+    allowWidthOverflow,
+    allowHeightOverflow,
+)
 
 internal fun UiLayoutPipeline.measureNodeContent(
     node: UiNode,
@@ -258,7 +173,7 @@ internal fun UiLayoutPipeline.measureNodeContent(
 private fun constrainMeasuredSize(
     width: Float,
     height: Float,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     referenceWidth: Float,
     referenceHeight: Float,
     allowWidthOverflow: Boolean,
@@ -277,7 +192,7 @@ private fun constrainMeasuredSize(
 private fun UiLayoutPipeline.intrinsicSize(
     node: UiNode,
     resolved: UiNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -326,7 +241,7 @@ private fun UiLayoutPipeline.intrinsicSize(
 private fun UiLayoutPipeline.measureTextNode(
     node: TextNode,
     resolved: UiNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -350,7 +265,7 @@ private fun UiLayoutPipeline.measureTextNode(
 private fun UiLayoutPipeline.measureTextFieldNode(
     node: TextFieldNode,
     resolved: UiNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -408,7 +323,7 @@ private fun UiLayoutPipeline.measureCustomContainer(
 private fun UiLayoutPipeline.measureStandardContainer(
     node: UiNode,
     resolved: UiNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -446,7 +361,7 @@ private fun UiLayoutPipeline.measureStandardContainer(
     )
 }
 
-internal fun nodeBoxes(rect: UiRect, style: UiModifierSnapshot, reserve: UiScrollbarReserve): NodeBoxes {
+internal fun nodeBoxes(rect: UiRect, style: UiComputedStyle, reserve: UiScrollbarReserve): NodeBoxes {
     val border = style.border.width.resolve(rect.width, rect.height)
     val padding = style.padding.resolve(rect.width, rect.height)
     val verticalScrollbar = style.scrollbar.resolved(rect.width)

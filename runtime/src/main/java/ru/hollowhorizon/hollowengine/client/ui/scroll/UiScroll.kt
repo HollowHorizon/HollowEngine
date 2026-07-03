@@ -33,6 +33,10 @@ class UiScrollState {
     private val ranges = WeakHashMap<ru.hollowhorizon.hollowengine.client.ui.UiNode, UiScrollOffset>()
     private val durationMillis = 190L
 
+    /** Bumped whenever any effective offset changes; lets frame caches detect scrolling. */
+    var revision: Long = 0L
+        private set
+
     fun offset(node: ru.hollowhorizon.hollowengine.client.ui.UiNode): UiScrollOffset = offsets[node] ?: UiScrollOffset.Zero
 
     fun range(node: ru.hollowhorizon.hollowengine.client.ui.UiNode): UiScrollOffset = ranges[node] ?: UiScrollOffset.Zero
@@ -58,6 +62,7 @@ class UiScrollState {
 
     fun setImmediate(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
         val next = resolveNext(node, x, y)
+        if (offsets[node] != next || targets[node] != next) revision++
         offsets[node] = next
         targets[node] = next
         starts.remove(node)
@@ -78,6 +83,7 @@ class UiScrollState {
         ranges[node] = range
         val current = offset(node)
         val clamped = UiScrollOffset(current.x.coerceIn(0f, range.x), current.y.coerceIn(0f, range.y))
+        if (clamped != current) revision++
         offsets[node] = clamped
         targets[node] =
             (targets[node] ?: clamped).let { UiScrollOffset(it.x.coerceIn(0f, range.x), it.y.coerceIn(0f, range.y)) }
@@ -94,6 +100,7 @@ class UiScrollState {
                 x = start.x + (target.x - start.x) * eased,
                 y = start.y + (target.y - start.y) * eased,
             )
+            if (offsets[node] != next) revision++
             offsets[node] = next
             if (progress >= 1f) {
                 offsets[node] = target
@@ -107,5 +114,6 @@ class UiScrollState {
         starts[node] = offsets[node] ?: UiScrollOffset.Zero
         targets[node] = next
         startedAt[node] = System.currentTimeMillis()
+        revision++
     }
 }

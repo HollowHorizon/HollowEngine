@@ -11,11 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathPoint
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathTriangle
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
 import ru.hollowhorizon.hollowengine.client.ui.shape.flatten
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
-import ru.hollowhorizon.hollowengine.client.ui.style.UiRadialGradient
-import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 

@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 internal val DemoStyles = compileHss(
     """

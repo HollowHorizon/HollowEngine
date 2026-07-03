@@ -6,8 +6,7 @@ import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import kotlin.math.ceil
 
 data class UiRenderTarget(
@@ -57,8 +56,10 @@ internal data class ScissorBounds(
 internal const val LayerSupersampling = 1f
 internal const val LayerTextureSubdivisions = 12
 
-internal fun layerPadding(command: BeginLayerCommand): Float {
-    val blur = command.filter.blurRadius()
+internal fun layerPadding(command: BeginLayerCommand): Float = layerPadding(command.filter)
+
+internal fun layerPadding(filter: UiFilterChain): Float {
+    val blur = filter.blurRadius()
     val guard = 12f
     return ceil(guard + blur * 3f).coerceAtLeast(guard)
 }

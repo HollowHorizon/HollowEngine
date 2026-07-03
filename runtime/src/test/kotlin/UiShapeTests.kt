@@ -15,9 +15,7 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.flatten
 import ru.hollowhorizon.hollowengine.client.ui.shape.resolveSvgTextFont
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgPath
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgResource
-import ru.hollowhorizon.hollowengine.client.ui.style.MutableUiStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.style.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import java.awt.Font
 import java.nio.file.Files
 import java.nio.file.Path

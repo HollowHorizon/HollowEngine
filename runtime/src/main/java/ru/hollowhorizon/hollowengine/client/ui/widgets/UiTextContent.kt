@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.bound
-import ru.hollowhorizon.hollowengine.client.ui.style.TransitionEasing
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 data class UiTextContent(
     val segments: List<UiTextSegment>,

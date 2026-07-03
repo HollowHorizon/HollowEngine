@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import kotlin.math.roundToInt
 
 enum class UiCheckboxVariant {

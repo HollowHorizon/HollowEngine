@@ -5,8 +5,8 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.LocalUiFrameTimeNanos
-import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.common.utils.literal
 
 
@@ -35,7 +35,7 @@ abstract class HollowComposeUiScreen(
         val nowMillis = System.nanoTime()
         if (rebuildEveryFrame()) frameTimeNanos = nowMillis
         val frame = surface.frame(width.toFloat(), height.toFloat(), mouseX.toFloat(), mouseY.toFloat(), nowMillis)
-        renderer.render(frame.commands)
+        renderer.render(frame)
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean =

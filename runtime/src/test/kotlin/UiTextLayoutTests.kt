@@ -12,8 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiRichText
-import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.style.UiStyleResolver
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter

@@ -1,8 +1,5 @@
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.MutableUiStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
-import ru.hollowhorizon.hollowengine.client.ui.style.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.HssScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.UiXmlScriptingAnalyzer
 import kotlin.test.Test

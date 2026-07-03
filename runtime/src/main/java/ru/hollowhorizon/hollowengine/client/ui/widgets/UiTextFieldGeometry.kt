@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 internal const val TextFieldCaretWidth = 1f
 internal const val TextFieldCaretVisibilityPadding = 2f
@@ -11,7 +11,7 @@ private const val TextFieldLineNumberGap = 8f
 
 internal fun textFieldEditLayout(
     node: TextFieldNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     layout: UiLayoutNode,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiTextLayout {
@@ -38,7 +38,7 @@ internal fun textFieldEditLayout(
 
 internal fun textFieldDisplayLayout(
     node: TextFieldNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     layout: UiLayoutNode,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiTextLayout {
@@ -63,20 +63,20 @@ internal fun textFieldDisplayLayout(
     )
 }
 
-internal fun textFieldTextOffset(node: TextFieldNode, style: UiModifierSnapshot): Float {
+internal fun textFieldTextOffset(node: TextFieldNode, style: UiComputedStyle): Float {
     if (style.textField.lineNumbers != true || !node.multiline) return 0f
     val lines = node.value.count { it == '\n' } + 1
     val digits = lines.toString().length.coerceAtLeast(2)
     return digits * style.fontSize * 0.62f + TextFieldLineNumberGap
 }
 
-internal fun textFieldInlayStyle(style: UiModifierSnapshot): UiInlineStyle {
+internal fun textFieldInlayStyle(style: UiComputedStyle): UiInlineStyle {
     return UiInlineStyle().withColor(
         (style.textField.inlayHintColor ?: UiColor(0.66f, 0.72f, 0.82f, 1f)).copy(alpha = 0.95f)
     )
 }
 
-internal fun textFieldTextWidth(node: TextFieldNode, style: UiModifierSnapshot, layout: UiLayoutNode): Float {
+internal fun textFieldTextWidth(node: TextFieldNode, style: UiComputedStyle, layout: UiLayoutNode): Float {
     return (layout.content.width - textFieldTextOffset(node, style)).coerceAtLeast(1f)
 }
 
@@ -84,11 +84,11 @@ internal fun textFieldHorizontalScrollPadding(viewportWidth: Float): Float {
     return maxOf(TextFieldCaretVisibilityPadding, viewportWidth * TextFieldHorizontalVisibilityFraction)
 }
 
-internal fun textFieldWrap(style: UiModifierSnapshot, node: TextFieldNode, constrainedWidth: Boolean): Boolean {
+internal fun textFieldWrap(style: UiComputedStyle, node: TextFieldNode, constrainedWidth: Boolean): Boolean {
     return style.textWrap && node.multiline && constrainedWidth
 }
 
-internal fun textFieldWidthConstrained(style: UiModifierSnapshot, node: TextFieldNode, contentWidth: Float): Boolean {
+internal fun textFieldWidthConstrained(style: UiComputedStyle, node: TextFieldNode, contentWidth: Float): Boolean {
     if (style.size.width !is UiLength.Auto || UiStyleProperty.WIDTH in style.explicitProperties) return true
     val text = node.value.ifEmpty { node.placeholder }
     val naturalWidth = UiTextLayouter.measure(

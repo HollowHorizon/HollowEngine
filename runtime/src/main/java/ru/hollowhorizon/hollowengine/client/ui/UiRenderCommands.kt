@@ -219,7 +219,29 @@ data class DrawTextFieldChromeCommand(
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
+/**
+ * Receives draw commands as the node tree is traversed. Rendering is streaming and
+ * recursive: commands exist only as per-node parameter objects on their way to the
+ * renderer, not as a retained frame-wide list.
+ */
+fun interface UiRenderSink {
+    fun submit(command: UiRenderCommand)
+}
+
+operator fun UiRenderSink.plusAssign(command: UiRenderCommand) = submit(command)
+
 class UiCommandRenderer {
+    /** Recursively walks the resolved tree, streaming each node's commands into [sink]. */
+    fun render(
+        resolved: UiNode,
+        layout: UiLayoutResult,
+        nowMillis: Long,
+        typingState: UiTypingState,
+        sink: UiRenderSink,
+    ) {
+        collectNode(resolved.root, resolved, layout, nowMillis, typingState, sink, activeClip = null)
+    }
+
     fun collect(
         resolved: UiNode,
         layout: UiLayoutResult,
@@ -227,7 +249,7 @@ class UiCommandRenderer {
         typingState: UiTypingState = UiTypingState(),
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        collectNode(resolved.root, resolved, layout, nowMillis, typingState, commands, activeClip = null)
+        render(resolved, layout, nowMillis, typingState) { commands += it }
         return commands
     }
 
@@ -237,7 +259,7 @@ class UiCommandRenderer {
         layout: UiLayoutResult,
         nowMillis: Long,
         typingState: UiTypingState,
-        commands: MutableList<UiRenderCommand>,
+        commands: UiRenderSink,
         activeClip: UiRect?,
     ) {
         val style = resolved[node]
@@ -311,109 +333,78 @@ class UiCommandRenderer {
     private fun drawNodeBody(
         node: UiNode,
         resolved: UiNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
         nowMillis: Long,
         typingState: UiTypingState,
-        commands: MutableList<UiRenderCommand>,
+        commands: UiRenderSink,
         activeClip: UiRect?,
         localOpacity: Float,
         baseFilter: UiFilterChain,
         pushedClip: Boolean,
     ) {
-        val drawModifiers = node.resolvedModifiers.filterIsInstance<DrawModifierNode>()
-        val context = UiDrawContext(
-            node = node,
-            style = style,
-            layoutNode = layoutNode,
-            layout = layout,
-            opacity = localOpacity,
-            filter = baseFilter,
-            backfaceVisibility = style.backfaceVisibility,
-            commands = commands,
-        )
-        drawWithModifiers(drawModifiers, 0, context) {
-            appendBackgroundCommand(node, style, layoutNode, localOpacity, baseFilter, commands)
+        appendBackgroundCommand(node, style, layoutNode, localOpacity, baseFilter, commands)
 
-            if (pushedClip) {
-                commands += PushClipCommand(
-                    node,
-                    layoutNode.content.localTo(layoutNode.rect),
-                    layoutNode.worldTransform,
-                )
-            }
-
-            collectNodeContent(
+        if (pushedClip) {
+            commands += PushClipCommand(
                 node,
-                style,
-                localOpacity,
-                layoutNode,
-                layout,
-                baseFilter,
-                nowMillis,
-                typingState,
-                commands,
+                layoutNode.content.localTo(layoutNode.rect),
+                layoutNode.worldTransform,
             )
-
-            val childClip = when {
-                !pushedClip -> activeClip
-                activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
-                else -> activeClip.visibleIntersection(layoutNode.content)
-            }
-            if (!pushedClip || childClip != null) {
-                node.children
-                    .asSequence()
-                    .filter { it in layout.nodes }
-                    .sortedBy { resolved[it].layer }
-                    .forEach { child ->
-                        collectNode(
-                            child,
-                            resolved,
-                            layout,
-                            nowMillis,
-                            typingState,
-                            commands,
-                            activeClip = childClip.takeUnless { child is PopupNode },
-                        )
-                    }
-            }
-
-            if (pushedClip) commands += PopClipCommand(node)
-            if (style.input.scrollable) {
-                appendScrollbars(node, layoutNode, style, localOpacity, commands)
-            }
         }
-    }
 
-    private fun drawWithModifiers(
-        modifiers: List<DrawModifierNode>,
-        index: Int,
-        context: UiDrawContext,
-        drawContent: () -> Unit,
-    ) {
-        val modifier = modifiers.getOrNull(index)
-        if (modifier == null) {
-            drawContent()
-            return
+        collectNodeContent(
+            node,
+            style,
+            localOpacity,
+            layoutNode,
+            layout,
+            baseFilter,
+            nowMillis,
+            typingState,
+            commands,
+        )
+
+        val childClip = when {
+            !pushedClip -> activeClip
+            activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
+            else -> activeClip.visibleIntersection(layoutNode.content)
         }
-        with(modifier) {
-            context.draw(DrawScope {
-                drawWithModifiers(modifiers, index + 1, context, drawContent)
-            })
+        if (!pushedClip || childClip != null) {
+            node.children
+                .asSequence()
+                .filter { it in layout.nodes }
+                .sortedBy { resolved[it].layer }
+                .forEach { child ->
+                    collectNode(
+                        child,
+                        resolved,
+                        layout,
+                        nowMillis,
+                        typingState,
+                        commands,
+                        activeClip = childClip.takeUnless { child is PopupNode },
+                    )
+                }
+        }
+
+        if (pushedClip) commands += PopClipCommand(node)
+        if (style.input.scrollable) {
+            appendScrollbars(node, layoutNode, style, localOpacity, commands)
         }
     }
 
     private fun collectNodeContent(
         node: UiNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
         filter: UiFilterChain,
         nowMillis: Long,
         typingState: UiTypingState,
-        commands: MutableList<UiRenderCommand>,
+        commands: UiRenderSink,
     ) {
         val contentTransform = layoutNode.worldTransform * UiMatrix4.translation(
             layoutNode.content.x - layoutNode.rect.x,
@@ -517,11 +508,11 @@ class UiCommandRenderer {
 
     private fun appendBackgroundCommand(
         node: UiNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         layoutNode: UiLayoutNode,
         opacity: Float,
         filter: UiFilterChain,
-        commands: MutableList<UiRenderCommand>,
+        commands: UiRenderSink,
     ) {
         val shape = style.shape
         if (shape != null) {
@@ -559,7 +550,7 @@ class UiCommandRenderer {
 
     private fun fallbackTextLayout(
         node: TextNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
     ): UiTextLayout {
@@ -579,7 +570,7 @@ class UiCommandRenderer {
 
     private fun sliderCommand(
         node: SliderNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
         transform: UiMatrix4,
@@ -610,7 +601,7 @@ class UiCommandRenderer {
 
     private fun checkboxCommand(
         node: CheckboxNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
         transform: UiMatrix4,
@@ -634,14 +625,14 @@ class UiCommandRenderer {
 
     private fun appendTextFieldCommands(
         node: TextFieldNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
         transform: UiMatrix4,
         filter: UiFilterChain,
         backface: UiBackfaceVisibility,
-        commands: MutableList<UiRenderCommand>,
+        commands: UiRenderSink,
     ) {
         val text = node.value
         val visible = text.ifEmpty { node.placeholder }
@@ -735,9 +726,9 @@ class UiCommandRenderer {
     private fun appendScrollbars(
         node: UiNode,
         layoutNode: UiLayoutNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         opacity: Float,
-        commands: MutableList<UiRenderCommand>,
+        commands: UiRenderSink,
     ) {
         for (scrollbar in layoutNode.scrollbars) {
             val scrollbarStyle = when (scrollbar.orientation) {
@@ -814,7 +805,7 @@ private fun UiNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiIn
     }.toMap()
 }
 
-private fun UiModifierSnapshot.textEffectsWithShadows(): List<UiTextEffect> {
+private fun UiComputedStyle.textEffectsWithShadows(): List<UiTextEffect> {
     val textShadows = shadows.filterNot { it.inset }.map { it.toTextShadow() }
     return if (textShadows.isEmpty()) textEffects else textEffects + textShadows
 }

@@ -496,7 +496,7 @@ object HollowIdeOverlay {
         val window = Minecraft.getInstance().window
         val frame =
             surface.frame(window.width.toFloat(), window.height.toFloat(), lastMouseX, lastMouseY, System.nanoTime())
-        renderer.render(frame.commands, target)
+        renderer.render(frame, target)
     }
 
     private fun currentBlitTarget(): UiRenderTarget {

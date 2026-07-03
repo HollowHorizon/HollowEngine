@@ -25,11 +25,9 @@ import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.render.render
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.effects.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
-import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.bold
 import ru.hollowhorizon.hollowengine.client.ui.widgets.code
@@ -79,6 +77,8 @@ internal fun svgRasterPixelSize(size: Float, scale: Float): Int {
 }
 
 class MinecraftUiRenderer {
+    private val commandRenderer = UiCommandRenderer()
+    private val segment = ArrayList<UiRenderCommand>()
     private val framebuffers = UiFramebufferPool()
     private val widgets = UiWidgetRenderer(::drawImage, ::markTextBatchDirty, ::flushTextBatch)
     private val layerStack = ArrayDeque<LayerState>()
@@ -91,11 +91,16 @@ class MinecraftUiRenderer {
     private var renderTarget: UiRenderTarget? = null
     private var textBatchDirty = false
 
-    fun render(commands: List<UiRenderCommand>, target: UiRenderTarget? = null) {
+    /**
+     * Renders a frame by recursively walking the resolved node tree; each node's draw
+     * commands are produced on the fly and executed immediately (keeping the segment
+     * batching), so no frame-wide command list is retained.
+     */
+    fun render(frame: HollowUiFrame, target: UiRenderTarget? = null) {
         val previousTarget = renderTarget
         renderTarget = target
         try {
-            prepareFramebuffers(commands)
+            prepareFramebuffers(frame.layout)
             RenderSystem.enableBlend()
             configureUiBlend()
             RenderSystem.disableDepthTest()
@@ -104,19 +109,10 @@ class MinecraftUiRenderer {
                 bindTarget(it.toState())
                 configureLayerProjection(it.logicalWidth, it.logicalHeight)
             }
-            val segment = ArrayList<UiRenderCommand>()
-            commands.forEach { command ->
-                if (isSegmentCommand(command)) {
-                    segment += command
-                } else {
-                    renderSegment(segment)
-                    segment.clear()
-                    render(command)
-                    flushShapeBatch()
-                    flushTextBatch()
-                }
-            }
+            segment.clear()
+            commandRenderer.render(frame.root, frame.layout, frame.nowMillis, frame.typingState, ::submit)
             renderSegment(segment)
+            segment.clear()
             flushTextBatch()
             disableScissor()
             while (layerStack.isNotEmpty()) finishLayer()
@@ -124,6 +120,18 @@ class MinecraftUiRenderer {
         } finally {
             renderTarget = previousTarget
         }
+    }
+
+    private fun submit(command: UiRenderCommand) {
+        if (isSegmentCommand(command)) {
+            segment += command
+            return
+        }
+        renderSegment(segment)
+        segment.clear()
+        render(command)
+        flushShapeBatch()
+        flushTextBatch()
     }
 
     fun close() {
@@ -411,14 +419,15 @@ class MinecraftUiRenderer {
         shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, color, transform)
     }
 
-    private fun prepareFramebuffers(commands: List<UiRenderCommand>) {
+    private fun prepareFramebuffers(layout: UiLayoutResult) {
         val scale = layerScale()
         layerRequests.clear()
-        commands.forEach { command ->
-            if (command !is BeginLayerCommand) return@forEach
-            val padding = layerPadding(command)
-            val width = ceil((command.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
-            val height = ceil((command.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
+        for (node in layout.traversalOrder) {
+            val layoutNode = layout.nodes[node] ?: continue
+            if (!layoutNode.needsFramebuffer) continue
+            val padding = layerPadding(node.resolvedSnapshot.filter)
+            val width = ceil((layoutNode.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
+            val height = ceil((layoutNode.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
             layerRequests += UiLayerRequest(width, height)
         }
         framebuffers.beginFrame(

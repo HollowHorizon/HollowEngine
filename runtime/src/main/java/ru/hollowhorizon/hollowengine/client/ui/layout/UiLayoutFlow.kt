@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 
 private class EngineMeasurable(
@@ -221,18 +221,9 @@ internal fun UiLayoutPipeline.measureFlowChildren(
             style = style,
             size = size,
             margin = margin,
-            parentData = child.parentData(),
         )
     }
     return measured
-}
-
-private fun UiNode.parentData(): ParentData {
-    var data: ParentData = emptyMap()
-    for (modifier in resolvedModifiers.filterIsInstance<ParentDataModifierNode>()) {
-        data = modifier.modifyParentData(data)
-    }
-    return data
 }
 
 internal fun UiLayoutPipeline.measureCustomLayout(
@@ -406,14 +397,14 @@ private fun List<MeasuredChild>.singleChildMainAxisAlign(axis: FlowAxis): UiAlig
     }
 }
 
-private fun UiModifierSnapshot.childMainAlign(parentAxis: FlowAxis?, axis: FlowAxis): UiAlign? {
+private fun UiComputedStyle.childMainAlign(parentAxis: FlowAxis?, axis: FlowAxis): UiAlign? {
     return when (axis) {
         FlowAxis.Horizontal -> childAlignHorizontal(parentAxis)
         FlowAxis.Vertical -> childAlignVertical(parentAxis)
     }
 }
 
-private fun MeasuredChild.crossAlign(parentStyle: UiModifierSnapshot, parentAxis: FlowAxis?, axis: FlowAxis): UiAlign {
+private fun MeasuredChild.crossAlign(parentStyle: UiComputedStyle, parentAxis: FlowAxis?, axis: FlowAxis): UiAlign {
     return when (axis) {
         FlowAxis.Horizontal -> style.alignVertical.takeUnless { it == UiAlign.AUTO }
             ?: parentStyle.childAlignVertical(parentAxis)

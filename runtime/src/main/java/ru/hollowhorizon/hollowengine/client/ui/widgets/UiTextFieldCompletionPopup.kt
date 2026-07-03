@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import kotlin.math.max
 
 internal data class UiTextFieldCompletionPopupGeometry(
@@ -25,7 +25,7 @@ internal data class UiTextFieldCompletionPopupGeometry(
 
 internal fun textFieldCompletionPopupGeometry(
     node: TextFieldNode,
-    style: UiModifierSnapshot,
+    style: UiComputedStyle,
     layoutNode: UiLayoutNode,
 ): UiTextFieldCompletionPopupGeometry? {
     val items = node.visibleCompletionItems(CompletionPopupMeasuredItems)

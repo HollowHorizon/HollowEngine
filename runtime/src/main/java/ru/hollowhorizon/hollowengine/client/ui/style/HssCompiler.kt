@@ -48,8 +48,8 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         return CompiledHss(rules, keyframes)
     }
 
-    private fun compileKeyframeStyle(declarations: List<HssDeclaration>): UiModifierPatch {
-        return declarations.mapNotNull(::compileDeclaration).toModifierPatch()
+    private fun compileKeyframeStyle(declarations: List<HssDeclaration>): UiStylePatch {
+        return declarations.mapNotNull(::compileDeclaration).toStylePatch()
     }
 
     private fun compileKeyframeProperties(declarations: List<HssDeclaration>): Set<String> {
@@ -62,14 +62,14 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         HssModifierRegistry.compile(property, value)?.let { return it }
         return when (property) {
             "size" -> instruction(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT) { it.size = parseSize(value) }
-            "width" -> instruction(UiStyleProperty.WIDTH) { it.size = (it.size ?: UiSize()).copy(width = parseLength(value)) }
-            "height" -> instruction(UiStyleProperty.HEIGHT) { it.size = (it.size ?: UiSize()).copy(height = parseLength(value)) }
+            "width" -> instruction(UiStyleProperty.WIDTH) { it.width = parseLength(value) }
+            "height" -> instruction(UiStyleProperty.HEIGHT) { it.height = parseLength(value) }
             "min-size" -> instruction { it.minSize = parseSize(value) }
-            "min-width" -> instruction { it.minSize = (it.minSize ?: UiSize()).copy(width = parseLength(value)) }
-            "min-height" -> instruction { it.minSize = (it.minSize ?: UiSize()).copy(height = parseLength(value)) }
+            "min-width" -> instruction { it.minWidth = parseLength(value) }
+            "min-height" -> instruction { it.minHeight = parseLength(value) }
             "max-size" -> instruction { it.maxSize = parseSize(value) }
-            "max-width" -> instruction { it.maxSize = (it.maxSize ?: UiSize()).copy(width = parseLength(value)) }
-            "max-height" -> instruction { it.maxSize = (it.maxSize ?: UiSize()).copy(height = parseLength(value)) }
+            "max-width" -> instruction { it.maxWidth = parseLength(value) }
+            "max-height" -> instruction { it.maxHeight = parseLength(value) }
             "aspect-ratio" -> instruction { it.aspectRatio = parseAspectRatio(value) }
             "padding" -> instruction { it.padding = parseInsets(value, allowAuto = false) }
             "padding-left" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = false)) }
@@ -264,9 +264,9 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         }
     }
 
-    private fun instruction(writer: (UiModifierPatch) -> Unit) = StyleModifier(writer = writer)
+    private fun instruction(writer: (UiStylePatch) -> Unit) = StyleModifier(writer = writer)
 
-    private fun instruction(vararg properties: UiStyleProperty, writer: (UiModifierPatch) -> Unit) =
+    private fun instruction(vararg properties: UiStyleProperty, writer: (UiStylePatch) -> Unit) =
         StyleModifier(properties = properties.toSet()) { style ->
             writer(style)
             style.explicitProperties = style.explicitProperties.orEmpty() + properties
@@ -278,9 +278,9 @@ internal object HssModifierRegistry {
     private val handlers = LinkedHashMap<String, (String) -> Modifier>()
 
     init {
-        register("background") { value -> BackgroundModifier(parsePaint(value), "hss-background:$value") }
+        register("background") { value -> StylePropModifier(UiProps.Background, parsePaint(value)) }
         register("background-image") { value ->
-            BackgroundModifier(UiPaint.Image(parseImageSource(value)), "hss-background-image:$value")
+            StylePropModifier(UiProps.Background, UiPaint.Image(parseImageSource(value)))
         }
         register("hoverable") { value -> inputModifier(parseBoolean(value)) { it.copy(hoverable = this) } }
         register("clickable") { value -> inputModifier(parseBoolean(value)) { it.copy(clickable = this) } }
@@ -390,7 +390,7 @@ private fun parseAlign(value: String): UiAlign = when (value.lowercase()) {
     else -> throw IllegalArgumentException("Unknown align '$value'")
 }
 
-private fun applySelfAlignment(style: UiModifierPatch, value: String) {
+private fun applySelfAlignment(style: UiStylePatch, value: String) {
     val parts = splitWhitespace(value)
     val horizontal = parseAlign(parts.first())
     val vertical = parseAlign(parts.getOrElse(1) { parts.first() })
@@ -398,7 +398,7 @@ private fun applySelfAlignment(style: UiModifierPatch, value: String) {
     style.alignVertical = vertical
 }
 
-private fun applyChildAlignment(style: UiModifierPatch, value: String) {
+private fun applyChildAlignment(style: UiStylePatch, value: String) {
     val parts = splitWhitespace(value)
     val horizontal = parseAlign(parts.first())
     val vertical = parseAlign(parts.getOrElse(1) { parts.first() })
@@ -500,7 +500,7 @@ private fun parseImageSource(value: String): UiBoundString {
         ?: UiBoundString(unquote(value))
 }
 
-private fun applyClip(style: UiModifierPatch, value: String) {
+private fun applyClip(style: UiStylePatch, value: String) {
     val cleaned = value.trim()
     if (cleaned.startsWith("path(") || cleaned.startsWith("svg-path(") || cleaned.startsWith("svg(")) {
         style.clip = true

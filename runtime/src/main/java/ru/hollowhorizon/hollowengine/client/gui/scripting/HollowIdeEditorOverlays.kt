@@ -7,9 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.effects.TextColor
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
-import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.generated.Assets
 
@@ -234,7 +232,7 @@ internal class HollowIdeEditorOverlays(
 
     private fun diagnosticTooltipAtPointer(
         node: TextFieldNode,
-        style: UiModifierSnapshot,
+        style: UiComputedStyle,
         layoutNode: UiLayoutNode,
         inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,
         localOriginX: Float,

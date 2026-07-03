@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.style.HssParseException
-import ru.hollowhorizon.hollowengine.client.ui.style.parseHss
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 
 object HssScriptingAnalyzer : ScriptingAnalyzer {

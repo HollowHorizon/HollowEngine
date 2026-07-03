@@ -1,7 +1,5 @@
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.client.ui.style.TransitionEasing
-import ru.hollowhorizon.hollowengine.client.ui.style.TransitionProgress
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
