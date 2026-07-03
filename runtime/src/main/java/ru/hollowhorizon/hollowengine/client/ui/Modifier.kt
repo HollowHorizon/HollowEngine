@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout

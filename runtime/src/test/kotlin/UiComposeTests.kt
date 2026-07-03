@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.render.textFieldIndentGuideColumns
+import ru.hollowhorizon.hollowengine.client.ui.text.selectionRects
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
@@ -674,7 +675,7 @@ class UiComposeTests {
 
     @Test
     fun `text selection fills line gaps and empty lines`() {
-        val layout = UiTextLayouter.layout(
+        val layout = _root_ide_package_.ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter.layout(
             "a\n\nb",
             80f,
             Float.POSITIVE_INFINITY,
@@ -1087,9 +1088,9 @@ class UiComposeTests {
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
             val widgetRun = command.layout.lines
                 .flatMap { line -> line.fragments.map { line to it } }
-                .single { (_, fragment) -> fragment is UiInlineWidgetRun }
+                .single { (_, fragment) -> fragment is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun }
             val line = widgetRun.first
-            val fragment = widgetRun.second as UiInlineWidgetRun
+            val fragment = widgetRun.second as ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 
             assertEquals(24f, frame.layout[badge].rect.width)
             assertEquals(10f, frame.layout[badge].rect.height)
@@ -1152,8 +1153,8 @@ class UiComposeTests {
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val badge = frame.resolved.styles.keys.single { it.id == "badge" }
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
-            val line = command.layout.lines.single { line -> line.fragments.any { it is UiInlineWidgetRun } }
-            val fragment = line.fragments.filterIsInstance<UiInlineWidgetRun>().single()
+            val line = command.layout.lines.single { line -> line.fragments.any { it is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun } }
+            val fragment = line.fragments.filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun>().single()
 
             assertTrue(line.justify)
             assertEquals(frame.layout[text].content.x + line.x + fragment.x, frame.layout[badge].rect.x)
@@ -1236,8 +1237,8 @@ class UiComposeTests {
             )
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
-            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is UiInlineWidgetRun } }
-            val widget = widgetLine.fragments.filterIsInstance<UiInlineWidgetRun>().single()
+            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun } }
+            val widget = widgetLine.fragments.filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun>().single()
             val nextLine = command.layout.lines.first { it.y > widgetLine.y }
 
             assertTrue(nextLine.y >= widgetLine.y + widget.y + widget.height)
@@ -1273,8 +1274,8 @@ class UiComposeTests {
             )
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
-            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is UiInlineWidgetRun } }
-            val widget = widgetLine.fragments.filterIsInstance<UiInlineWidgetRun>().single()
+            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun } }
+            val widget = widgetLine.fragments.filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun>().single()
             val nextLine = command.layout.lines.first { it.y > widgetLine.y }
 
             assertEquals(widgetLine.y + widget.y + widget.height + 5f, nextLine.y)
@@ -1308,8 +1309,8 @@ class UiComposeTests {
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
             val widgetRun = command.layout.lines
                 .flatMap { line -> line.fragments.map { line to it } }
-                .single { (_, fragment) -> fragment is UiInlineWidgetRun }
-            val firstTextRun = command.layout.lines.first().fragments.filterIsInstance<UiTextRun>().first()
+                .single { (_, fragment) -> fragment is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun }
+            val firstTextRun = command.layout.lines.first().fragments.filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun>().first()
 
             assertEquals(42f, frame.layout[aside].rect.width)
             assertEquals(28f, frame.layout[aside].rect.height)
@@ -1346,7 +1347,7 @@ class UiComposeTests {
             )
             val text = frame.resolved.styles.keys.filterIsInstance<TextNode>().single()
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
-            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is UiInlineWidgetRun } }
+            val widgetLine = command.layout.lines.single { line -> line.fragments.any { it is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun } }
             val nextLine = command.layout.lines.first { it.y > widgetLine.y }
 
             assertTrue(command.layout.lines.all { it.x == 0f })
@@ -1396,7 +1397,7 @@ class UiComposeTests {
                 height = 40f,
             )
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single()
-            val space = command.layout.lines.single().fragments.filterIsInstance<UiTextSpaceRun>().single()
+            val space = command.layout.lines.single().fragments.filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.text.UiTextSpaceRun>().single()
 
             assertEquals(18f, space.width)
         }
@@ -1429,7 +1430,7 @@ class UiComposeTests {
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single()
             val first = command.layout.lines[0]
             val second = command.layout.lines[1]
-            val space = command.layout.lines.flatMap { it.fragments }.filterIsInstance<UiTextSpaceRun>().first()
+            val space = command.layout.lines.flatMap { it.fragments }.filterIsInstance<ru.hollowhorizon.hollowengine.client.ui.text.UiTextSpaceRun>().first()
 
             assertEquals(first.height + 5f, second.y - first.y)
             assertEquals(16f, space.width)
@@ -1457,7 +1458,7 @@ class UiComposeTests {
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
             val widgetRun = command.layout.lines
                 .flatMap { line -> line.fragments.map { line to it } }
-                .single { (_, fragment) -> fragment is UiInlineWidgetRun }
+                .single { (_, fragment) -> fragment is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun }
 
             assertEquals(24f, frame.layout[badge].rect.width)
             assertEquals(10f, frame.layout[badge].rect.height)
@@ -1494,7 +1495,7 @@ class UiComposeTests {
             val command = frame.commands.filterIsInstance<DrawTextCommand>().single { it.node == text }
             val widgetRun = command.layout.lines
                 .flatMap { line -> line.fragments.map { line to it } }
-                .single { (_, fragment) -> fragment is UiInlineWidgetRun }
+                .single { (_, fragment) -> fragment is ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun }
 
             assertEquals(36f, frame.layout[aside].rect.width)
             assertEquals(24f, frame.layout[aside].rect.height)

@@ -3,11 +3,13 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.effects.TextColor
+import ru.hollowhorizon.hollowengine.client.ui.text.TextColor
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.generated.Assets
 

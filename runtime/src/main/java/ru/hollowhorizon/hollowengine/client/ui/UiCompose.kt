@@ -8,21 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.detachLayoutParentRecursiv
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
-import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldDefaultKeyInputModifier
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHintsProvider
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldActiveInlayHints
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldInlayWidgetId
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
@@ -47,6 +33,7 @@ class HollowUiComposition(
             HollowEngine.LOGGER.error("Critical error in Compose UI: $e")
         }
     }
+
     @Volatile
     private var observedChangeCount = recomposer.changeCount
 
@@ -113,118 +100,6 @@ class HollowUiApplier(root: BoxNode) : AbstractApplier<UiNode>(root) {
 }
 
 @Composable
-fun Box(
-    id: String? = null,
-    mode: UiBoxMode = UiBoxMode.FREE,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    val measurePolicy = UiMeasurePolicies.box(mode)
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, measurePolicy, tags, modifiers, attributes) },
-        update = {
-            update(measurePolicy) {
-                this.measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
-
-@Composable
-fun Column(
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, UiMeasurePolicies.Column, tags, modifiers, attributes) },
-        update = {
-            update(UiMeasurePolicies.Column) {
-                measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
-
-@Composable
-fun Row(
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, UiMeasurePolicies.Row, tags, modifiers, attributes) },
-        update = {
-            update(UiMeasurePolicies.Row) {
-                measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
-
-@Composable
-fun LazyColumn(
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, UiMeasurePolicies.LazyColumn, tags, modifiers, attributes) },
-        update = {
-            update(UiMeasurePolicies.LazyColumn) {
-                measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
-
-@Composable
-fun LazyRow(
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, UiMeasurePolicies.LazyRow, tags, modifiers, attributes) },
-        update = {
-            update(UiMeasurePolicies.LazyRow) {
-                measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
-
-@Composable
 fun Layout(
     content: HollowUiContent,
     modifier: Modifier? = null,
@@ -246,6 +121,53 @@ fun Layout(
         content = content,
     )
 }
+
+
+@Composable
+fun Box(
+    id: String? = null,
+    mode: UiBoxMode = UiBoxMode.FREE,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.box(mode))
+
+@Composable
+fun Column(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.Column)
+
+@Composable
+fun Row(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.Row)
+
+@Composable
+fun LazyColumn(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.LazyColumn)
+
+@Composable
+fun LazyRow(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent = {},
+) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.LazyRow)
 
 @Composable
 fun Text(

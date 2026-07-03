@@ -1,8 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
-import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.TextNode
+import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.get
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldDisplayLayout
+import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldTextOffset
 
 internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
     val node = task.node

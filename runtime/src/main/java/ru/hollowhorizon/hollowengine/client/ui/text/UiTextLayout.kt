@@ -1,5 +1,7 @@
-package ru.hollowhorizon.hollowengine.client.ui
+package ru.hollowhorizon.hollowengine.client.ui.text
 
+import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.layout.LayoutSize
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -736,7 +738,10 @@ fun UiTextLayout.caretPosition(index: Int, fontSize: Float, fontFamily: String? 
     if (lines.isEmpty()) return UiVec3()
     val line = lines[lineIndexAtCaret(index)]
     val local = (index - line.sourceStart).coerceIn(0, line.sourceLength)
-    return UiVec3(line.xAt(local, fontSize, fontFamily), line.y)
+    return UiVec3(
+        line.xAt(local, fontSize, fontFamily),
+        line.y
+    )
 }
 
 fun UiTextLayout.caretIndexAt(x: Float, y: Float, fontSize: Float, fontFamily: String? = null): Int {

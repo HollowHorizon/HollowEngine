@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.math.abs
 

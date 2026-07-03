@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.ui.effects
+package ru.hollowhorizon.hollowengine.client.ui.text
 
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.platform.TextureUtil

@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.effects.*
+import ru.hollowhorizon.hollowengine.client.ui.text.*
 
 data class UiRichText(
     val items: List<UiInlineItem>,

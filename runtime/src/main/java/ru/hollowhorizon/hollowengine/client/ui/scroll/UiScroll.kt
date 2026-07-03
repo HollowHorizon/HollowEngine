@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.scroll
 
+import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import java.util.*
 
@@ -26,24 +27,24 @@ data class UiScrollbarGeometry(
 )
 
 class UiScrollState {
-    private val offsets = WeakHashMap<ru.hollowhorizon.hollowengine.client.ui.UiNode, UiScrollOffset>()
-    private val targets = WeakHashMap<ru.hollowhorizon.hollowengine.client.ui.UiNode, UiScrollOffset>()
-    private val starts = WeakHashMap<ru.hollowhorizon.hollowengine.client.ui.UiNode, UiScrollOffset>()
-    private val startedAt = WeakHashMap<ru.hollowhorizon.hollowengine.client.ui.UiNode, Long>()
-    private val ranges = WeakHashMap<ru.hollowhorizon.hollowengine.client.ui.UiNode, UiScrollOffset>()
+    private val offsets = WeakHashMap<UiNode, UiScrollOffset>()
+    private val targets = WeakHashMap<UiNode, UiScrollOffset>()
+    private val starts = WeakHashMap<UiNode, UiScrollOffset>()
+    private val startedAt = WeakHashMap<UiNode, Long>()
+    private val ranges = WeakHashMap<UiNode, UiScrollOffset>()
     private val durationMillis = 190L
 
     /** Bumped whenever any effective offset changes; lets frame caches detect scrolling. */
     var revision: Long = 0L
         private set
 
-    fun offset(node: ru.hollowhorizon.hollowengine.client.ui.UiNode): UiScrollOffset = offsets[node] ?: UiScrollOffset.Zero
+    fun offset(node: UiNode): UiScrollOffset = offsets[node] ?: UiScrollOffset.Zero
 
-    fun range(node: ru.hollowhorizon.hollowengine.client.ui.UiNode): UiScrollOffset = ranges[node] ?: UiScrollOffset.Zero
+    fun range(node: UiNode): UiScrollOffset = ranges[node] ?: UiScrollOffset.Zero
 
     fun isAnimating(): Boolean = startedAt.isNotEmpty()
 
-    fun scroll(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {
+    fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {
         val current = targets[node] ?: offset(node)
         val range = range(node)
         val next = UiScrollOffset(
@@ -54,13 +55,13 @@ class UiScrollState {
         return next
     }
 
-    fun set(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
+    fun set(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
         val next = resolveNext(node, x, y)
         animateTo(node, next)
         return next
     }
 
-    fun setImmediate(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
+    fun setImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
         val next = resolveNext(node, x, y)
         if (offsets[node] != next || targets[node] != next) revision++
         offsets[node] = next
@@ -70,7 +71,7 @@ class UiScrollState {
         return next
     }
 
-    private fun resolveNext(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, x: Float? = null, y: Float?): UiScrollOffset {
+    private fun resolveNext(node: UiNode, x: Float? = null, y: Float?): UiScrollOffset {
         val current = targets[node] ?: offset(node)
         val range = range(node)
         return UiScrollOffset(
@@ -79,7 +80,7 @@ class UiScrollState {
         )
     }
 
-    fun clamp(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, range: UiScrollOffset): UiScrollOffset {
+    fun clamp(node: UiNode, range: UiScrollOffset): UiScrollOffset {
         ranges[node] = range
         val current = offset(node)
         val clamped = UiScrollOffset(current.x.coerceIn(0f, range.x), current.y.coerceIn(0f, range.y))
@@ -110,7 +111,7 @@ class UiScrollState {
         }
     }
 
-    private fun animateTo(node: ru.hollowhorizon.hollowengine.client.ui.UiNode, next: UiScrollOffset) {
+    private fun animateTo(node: UiNode, next: UiScrollOffset) {
         starts[node] = offsets[node] ?: UiScrollOffset.Zero
         targets[node] = next
         startedAt[node] = System.currentTimeMillis()

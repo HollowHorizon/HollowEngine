@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import ru.hollowhorizon.hollowengine.client.ui.caretPosition
+import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import kotlin.math.max

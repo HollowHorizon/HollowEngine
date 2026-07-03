@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.scroll
 
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*

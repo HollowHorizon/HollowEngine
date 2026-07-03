@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.ui.effects
+package ru.hollowhorizon.hollowengine.client.ui.text
 
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import kotlin.math.abs

@@ -1,8 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.UiLength
+import ru.hollowhorizon.hollowengine.client.ui.UiStyleProperty
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 
 internal const val TextFieldCaretWidth = 1f
 internal const val TextFieldCaretVisibilityPadding = 2f
@@ -14,7 +17,7 @@ internal fun textFieldEditLayout(
     style: UiComputedStyle,
     layout: UiLayoutNode,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
-): UiTextLayout {
+): ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout {
     val inlayStyle = textFieldInlayStyle(style)
     val fontSize = style.fontSize
     return UiTextLayouter.layout(
@@ -41,7 +44,7 @@ internal fun textFieldDisplayLayout(
     style: UiComputedStyle,
     layout: UiLayoutNode,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
-): UiTextLayout {
+): ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout {
     val inlayStyle = textFieldInlayStyle(style)
     val fontSize = style.fontSize
     return UiTextLayouter.layout(

@@ -1,11 +1,9 @@
-package ru.hollowhorizon.hollowengine.client.ui
+package ru.hollowhorizon.hollowengine.client.ui.text
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hollowengine.client.ui.effects.UiMsdfFont
-import ru.hollowhorizon.hollowengine.client.ui.effects.UiMsdfFontMetrics
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 private val minecraftFont: Font?

@@ -8,6 +8,10 @@ import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
+import ru.hollowhorizon.hollowengine.client.ui.text.selectionRects
+import ru.hollowhorizon.hollowengine.client.ui.text.visibleLineItems
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretWidth
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant

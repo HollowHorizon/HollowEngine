@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSliderStyle

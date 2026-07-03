@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -9,9 +9,11 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
-import ru.hollowhorizon.hollowengine.client.ui.effects.Shadow as TextShadow
+import ru.hollowhorizon.hollowengine.client.ui.text.Shadow as TextShadow
 
 sealed interface UiRenderCommand {
     val node: UiNode

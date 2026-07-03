@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.xml
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.effects.*
+import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineAlign
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent

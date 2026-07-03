@@ -8,6 +8,9 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
+import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*

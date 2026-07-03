@@ -50,10 +50,15 @@ abstract class HollowComposeUiScreen(
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean =
         surface.runtime.mouseScrolled(mouseX.toFloat(), mouseY.toFloat(), scrollX.toFloat(), scrollY.toFloat())
 
-    override fun charTyped(codePoint: Char, modifiers: Int): Boolean = surface.runtime.charTyped(codePoint, modifiers)
+    override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        if (super.charTyped(codePoint, modifiers)) return true
+        return surface.runtime.charTyped(codePoint, modifiers)
+    }
 
-    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean =
-        surface.runtime.keyPressed(keyCode, scanCode, modifiers)
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        if (super.keyPressed(keyCode, scanCode, modifiers)) return true
+        return surface.runtime.keyPressed(keyCode, scanCode, modifiers)
+    }
 
     override fun isPauseScreen(): Boolean = false
 }

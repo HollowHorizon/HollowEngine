@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 import kotlin.math.abs
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
 
 class HollowUiInputController {
     private var hoveredNode: UiNode? = null
