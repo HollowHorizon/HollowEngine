@@ -119,7 +119,7 @@ data class UiKeyframes(
 ) {
     private val sortedFrames = frames.sortedWith(compareBy<UiKeyframe> { it.offset }.thenBy { frames.indexOf(it) })
 
-    fun sample(base: ComputedStyle, progress: Float, easing: TransitionEasing): ComputedStyle {
+    fun sample(base: UiModifierSnapshot, progress: Float, easing: TransitionEasing): UiModifierSnapshot {
         if (sortedFrames.isEmpty()) return base
         val offset = progress.coerceIn(0f, 1f)
         val previous = sortedFrames.lastOrNull { it.offset <= offset } ?: sortedFrames.first()
@@ -133,7 +133,7 @@ data class UiKeyframes(
 
 data class UiKeyframe(
     val offset: Float,
-    val style: MutableUiStyle,
+    val style: UiModifierPatch,
     val properties: Set<String> = emptySet(),
 )
 
@@ -164,7 +164,7 @@ enum class UiTextOverflow {
     SHOW, HIDDEN, DOTS
 }
 
-data class MutableUiStyle(
+data class UiModifierPatch(
     var size: UiSize? = null,
     var minSize: UiSize? = null,
     var maxSize: UiSize? = null,
@@ -222,7 +222,7 @@ data class MutableUiStyle(
     var animations: List<UiAnimation>? = null,
     var explicitProperties: Set<UiStyleProperty>? = null,
 ) {
-    fun merge(other: MutableUiStyle) {
+    fun merge(other: UiModifierPatch) {
         other.size?.let { size = it }
         other.minSize?.let { minSize = it }
         other.maxSize?.let { maxSize = it }
@@ -281,12 +281,12 @@ data class MutableUiStyle(
         other.explicitProperties?.let { explicitProperties = explicitProperties.orEmpty() + it }
     }
 
-    fun toComputed(parent: ComputedStyle? = null): ComputedStyle {
+    fun toSnapshot(parent: UiModifierSnapshot? = null): UiModifierSnapshot {
         val inheritedForeground = parent?.foreground ?: UiColor.White
         val inheritedTextAlign = parent?.textAlign ?: UiTextAlign.LEFT
         val inheritedLineSpacing = parent?.lineSpacing ?: 0f
         val inheritedFontSize = parent?.fontSize ?: DefaultUiFontSize
-        return ComputedStyle(
+        return UiModifierSnapshot(
             size = size ?: UiSize(),
             minSize = minSize ?: UiSize(),
             maxSize = maxSize ?: UiSize(),
@@ -347,7 +347,7 @@ data class MutableUiStyle(
     }
 }
 
-data class ComputedStyle(
+data class UiModifierSnapshot(
     val size: UiSize,
     val minSize: UiSize,
     val maxSize: UiSize,
@@ -406,7 +406,7 @@ data class ComputedStyle(
     val explicitProperties: Set<UiStyleProperty>,
 ) {
 
-    fun interpolate(to: ComputedStyle, progress: TransitionProgress): ComputedStyle {
+    fun interpolate(to: UiModifierSnapshot, progress: TransitionProgress): UiModifierSnapshot {
         return to.copy(
             background = background.interpolate(to.background, progress.background),
             foreground = foreground.interpolate(to.foreground, progress.foreground),
@@ -426,7 +426,9 @@ data class ComputedStyle(
     }
 }
 
-fun ComputedStyle.motionDurationMillis(previous: ComputedStyle?): Long {
+fun defaultModifierSnapshot(): UiModifierSnapshot = UiModifierPatch().toSnapshot()
+
+fun UiModifierSnapshot.motionDurationMillis(previous: UiModifierSnapshot?): Long {
     val transitionDuration = if (previous == null) {
         0L
     } else {
@@ -458,7 +460,7 @@ internal fun List<UiTransition>?.mergeUiTransitions(other: List<UiTransition>): 
     return merged.values.toList()
 }
 
-private fun ComputedStyle.changedForTransition(property: String, target: ComputedStyle): Boolean {
+private fun UiModifierSnapshot.changedForTransition(property: String, target: UiModifierSnapshot): Boolean {
     return when (property) {
         "all" -> TransitionProperties.any { it != "all" && changedForTransition(it, target) }
         "transform" -> transform != target.transform
@@ -497,7 +499,7 @@ private val TransitionProperties = setOf(
     "perspective",
 )
 
-private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
+private fun UiModifierSnapshot.toPatch(): UiModifierPatch = UiModifierPatch(
     size = size,
     minSize = minSize,
     maxSize = maxSize,
@@ -555,11 +557,11 @@ private fun ComputedStyle.toMutable(): MutableUiStyle = MutableUiStyle(
     explicitProperties = explicitProperties,
 )
 
-private fun ComputedStyle.withPatch(patch: MutableUiStyle): ComputedStyle {
-    return toMutable().apply { merge(patch) }.toComputed(null)
+private fun UiModifierSnapshot.withPatch(patch: UiModifierPatch): UiModifierSnapshot {
+    return toPatch().apply { merge(patch) }.toSnapshot(null)
 }
 
-private fun ComputedStyle.withKeyframePatch(frame: UiKeyframe): ComputedStyle {
+private fun UiModifierSnapshot.withKeyframePatch(frame: UiKeyframe): UiModifierSnapshot {
     val patched = withPatch(frame.style)
     val transform = frame.style.transform ?: return patched
     val properties = frame.properties
@@ -840,14 +842,14 @@ data class UiBoundString(val template: String) {
 }
 
 class UiTransitionState {
-    private val rendered = WeakHashMap<UiNode, ComputedStyle>()
-    private val starts = WeakHashMap<UiNode, ComputedStyle>()
-    private val targets = WeakHashMap<UiNode, ComputedStyle>()
+    private val rendered = WeakHashMap<UiNode, UiModifierSnapshot>()
+    private val starts = WeakHashMap<UiNode, UiModifierSnapshot>()
+    private val targets = WeakHashMap<UiNode, UiModifierSnapshot>()
     private val startedAt = WeakHashMap<UiNode, Long>()
     private val activeDurations = WeakHashMap<UiNode, Long>()
     private val startedDurations = WeakHashMap<UiNode, Long>()
 
-    fun apply(node: UiNode, target: ComputedStyle, nowMillis: Long): ComputedStyle {
+    fun apply(node: UiNode, target: UiModifierSnapshot, nowMillis: Long): UiModifierSnapshot {
         startedDurations[node] = 0L
         val current = rendered[node]
         if (current == null) {
@@ -925,7 +927,7 @@ class UiTransitionState {
             ?: firstOrNull { it.property == "all" }?.progress(elapsedMillis) ?: 1f
     }
 
-    private fun ComputedStyle.changed(property: String, target: ComputedStyle): Boolean {
+    private fun UiModifierSnapshot.changed(property: String, target: UiModifierSnapshot): Boolean {
         return when (property) {
             "all" -> TransitionProperties.any { it != "all" && changed(it, target) }
             "transform" -> transform != target.transform
@@ -972,10 +974,10 @@ class UiAnimationState {
 
     fun apply(
         node: UiNode,
-        base: ComputedStyle,
+        base: UiModifierSnapshot,
         keyframes: Map<String, UiKeyframes>,
         nowMillis: Long,
-    ): ComputedStyle {
+    ): UiModifierSnapshot {
         val animations = base.animations.filter { it.playState == UiAnimationPlayState.RUNNING && it.name.isNotBlank() }
         if (animations.isEmpty()) {
             starts.remove(node)

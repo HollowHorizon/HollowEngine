@@ -538,7 +538,7 @@ private fun HollowUiFrame.hasPopupAncestor(node: UiNode): Boolean {
 
 private fun HollowUiFrame.parentOf(child: UiNode): UiNode? {
     val stack = ArrayDeque<UiNode>()
-    stack.add(resolved.root)
+    stack.add(root)
     while (stack.isNotEmpty()) {
         val node = stack.removeLast()
         if (child in node.children) return node

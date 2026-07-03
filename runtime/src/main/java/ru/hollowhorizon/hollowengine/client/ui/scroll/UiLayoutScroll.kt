@@ -4,22 +4,21 @@ import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 
 private const val ScrollOverflowEpsilon = 0.01f
 
 internal fun applyScrollRanges(
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     layouts: Map<UiNode, UiLayoutNode>,
     scrollState: UiScrollState,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiLayoutNode> {
     val result = layouts.toMutableMap()
     for ((node, layout) in layouts) {
-        val style = resolved[node]
+        val style = node.resolvedSnapshot
         if (!style.input.scrollable) continue
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val range = UiScrollOffset(
@@ -39,7 +38,7 @@ internal fun applyScrollRanges(
     return result
 }
 
-private fun scrollbarGeometry(style: ComputedStyle, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
+private fun scrollbarGeometry(style: UiModifierSnapshot, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
     val result = mutableListOf<UiScrollbarGeometry>()
     val verticalStyle = style.scrollbar.resolved(layoutNode.scrollArea.width)
     val horizontalStyle = style.scrollbar.resolved(layoutNode.scrollArea.height)
@@ -92,13 +91,13 @@ private fun scrollbarGeometry(style: ComputedStyle, layoutNode: UiLayoutNode): L
 }
 
 internal fun detectScrollbarReserves(
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     layouts: Map<UiNode, UiLayoutNode>,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiScrollbarReserve> {
     val reserves = linkedMapOf<UiNode, UiScrollbarReserve>()
     for ((node, layout) in layouts) {
-        val style = resolved[node]
+        val style = node.resolvedSnapshot
         if (!style.input.scrollable) continue
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val reserve = UiScrollbarReserve(
@@ -112,7 +111,7 @@ internal fun detectScrollbarReserves(
 
 private fun scrollableContentBounds(
     node: UiNode,
-    style: ComputedStyle,
+    style: UiModifierSnapshot,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
     layoutChildren: (UiNode) -> List<UiNode>,
@@ -163,7 +162,7 @@ private fun scrollableContentBounds(
 
 private fun textLayoutForScrollBounds(
     node: ru.hollowhorizon.hollowengine.client.ui.TextNode,
-    style: ComputedStyle,
+    style: UiModifierSnapshot,
     layout: UiLayoutNode,
     layouts: Map<UiNode, UiLayoutNode>,
     layoutChildren: (UiNode) -> List<UiNode>,

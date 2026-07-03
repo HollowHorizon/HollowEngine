@@ -1,28 +1,24 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.effects.UiTextEffect
-import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
-import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
+import ru.hollowhorizon.hollowengine.client.ui.layout.*
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTyping
 
 interface Modifier {
-    fun applyTo(style: MutableUiStyle)
-
     infix fun then(other: Modifier): Modifier {
         return CompositeModifier(mutableListOf(this, other))
     }
 
     companion object : Modifier {
-        override fun applyTo(style: MutableUiStyle) {}
-
         override fun then(other: Modifier): Modifier = other
     }
+}
+
+interface UiModifierPatchNode : Modifier {
+    fun applyPatch(style: UiModifierPatch)
 }
 
 interface LayoutModifierNode : Modifier {
@@ -55,7 +51,7 @@ fun interface DrawScope {
 
 class UiDrawContext internal constructor(
     val node: UiNode,
-    val style: ComputedStyle,
+    val style: UiModifierSnapshot,
     val layoutNode: UiLayoutNode,
     val layout: UiLayoutResult,
     val opacity: Float,
@@ -362,11 +358,11 @@ class StyleModifier(
     val properties: Set<UiStyleProperty> = emptySet(),
     val phases: Set<UiInvalidationPhase> = LayoutPhases,
     key: Any? = null,
-    private val writer: (MutableUiStyle) -> Unit,
-) : Modifier {
+    private val writer: (UiModifierPatch) -> Unit,
+) : UiModifierPatchNode {
     private val equalityKey = key ?: writer
 
-    override fun applyTo(style: MutableUiStyle) {
+    override fun applyPatch(style: UiModifierPatch) {
         writer(style)
         if (properties.isNotEmpty()) style.explicitProperties = style.explicitProperties.orEmpty() + properties
     }
@@ -396,10 +392,6 @@ data class CompositeModifier(private val values: MutableList<Modifier>) : Modifi
         return this
     }
 
-    override fun applyTo(style: MutableUiStyle) {
-        values.forEach { it.applyTo(style) }
-    }
-
     fun flatten(): List<Modifier> = values.flatMap { modifier ->
         if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
     }
@@ -407,15 +399,13 @@ data class CompositeModifier(private val values: MutableList<Modifier>) : Modifi
 
 data class StyleImportModifier(
     val reference: UiStylesheetReference,
-) : Modifier {
-    override fun applyTo(style: MutableUiStyle) = Unit
-}
+) : Modifier
 
 data class EventModifier(
     val kind: UiEventKind,
     val handler: (UiEvent) -> Unit,
-) : PointerInputModifierNode {
-    override fun applyTo(style: MutableUiStyle) {
+) : PointerInputModifierNode, UiModifierPatchNode {
+    override fun applyPatch(style: UiModifierPatch) {
         val input = style.input ?: UiInputStyle()
         style.input = when (kind) {
             UiEventKind.ENTER,
@@ -452,8 +442,8 @@ data class EventModifier(
 
 data class KeyInputModifier(
     val handler: (UiKeyInput) -> Boolean,
-) : InputModifierNode {
-    override fun applyTo(style: MutableUiStyle) {
+) : InputModifierNode, UiModifierPatchNode {
+    override fun applyPatch(style: UiModifierPatch) {
         val input = style.input ?: UiInputStyle()
         style.input = input.copy(focusable = true, hoverable = true)
     }
@@ -463,22 +453,20 @@ data class ScriptEventModifier(
     val kind: UiEventKind,
     val source: String,
     val sink: UiEventSink,
-) : Modifier {
-    override fun applyTo(style: MutableUiStyle) {
-        EventModifier(kind) {}.applyTo(style)
+) : UiModifierPatchNode {
+    override fun applyPatch(style: UiModifierPatch) {
+        EventModifier(kind) {}.applyPatch(style)
     }
 }
 
 data class StateModifier(
     val states: Set<UiState>,
-) : Modifier {
-    override fun applyTo(style: MutableUiStyle) = Unit
-}
+) : Modifier
 
 data class GrowModifier(
     val value: Float = 1f,
-) : ParentDataModifierNode {
-    override fun applyTo(style: MutableUiStyle) {
+) : ParentDataModifierNode, UiModifierPatchNode {
+    override fun applyPatch(style: UiModifierPatch) {
         style.grow = value
     }
 
@@ -491,8 +479,6 @@ data class BackgroundModifier(
     val paint: UiPaint,
     private val equalityKey: Any? = paint,
 ) : DrawModifierNode {
-    override fun applyTo(style: MutableUiStyle) = Unit
-
     override fun UiDrawContext.draw(next: DrawScope) {
         if (paint != UiPaint.None) {
             append(
@@ -524,16 +510,14 @@ internal object ParentDataKeys {
 
 internal data class RuntimeStateModifier(
     val states: Set<UiState>,
-) : Modifier {
-    override fun applyTo(style: MutableUiStyle) = Unit
-}
+) : Modifier
 
 data class PositionModifier(
     val x: UiLength,
     val y: UiLength,
     val z: Float = 0f,
-) : Modifier {
-    override fun applyTo(style: MutableUiStyle) {
+) : UiModifierPatchNode {
+    override fun applyPatch(style: UiModifierPatch) {
         style.position = UiPosition(x, y, z)
     }
 }
@@ -541,10 +525,10 @@ data class PositionModifier(
 class TransformPatch(
     key: Any? = null,
     private val patch: (UiTransform) -> UiTransform,
-) : Modifier {
+) : UiModifierPatchNode {
     private val equalityKey = key ?: patch
 
-    override fun applyTo(style: MutableUiStyle) {
+    override fun applyPatch(style: UiModifierPatch) {
         style.transform = patch(style.transform ?: UiTransform())
     }
 
@@ -555,9 +539,9 @@ class TransformPatch(
     override fun hashCode(): Int = equalityKey.hashCode()
 }
 
-fun MutableList<Modifier>.style(): MutableUiStyle {
-    val style = MutableUiStyle()
-    forEach { it.applyTo(style) }
+fun Iterable<Modifier>.toModifierPatch(): UiModifierPatch {
+    val style = UiModifierPatch()
+    forEach { (it as? UiModifierPatchNode)?.applyPatch(style) }
     return style
 }
 

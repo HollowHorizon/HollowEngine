@@ -177,7 +177,7 @@ fun interface UiEventSink {
 
 fun UiNode.dispatch(event: UiEvent): Boolean {
     var handled = false
-    modifiers.flattenModifiers().forEach { modifier ->
+    resolvedModifiers.forEach { modifier ->
         if (event.consumed) return@forEach
         when (modifier) {
             is EventModifier -> if (modifier.kind == event.kind) {

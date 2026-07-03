@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import kotlin.math.abs
 
 private const val DirectTextTransformEpsilon = 0.0001f
@@ -17,7 +17,7 @@ internal val UiLength.dependsOnAvailableSpace: Boolean
 
 internal fun UiLength.resolveWidth(
     align: UiAlign,
-    childStyle: ComputedStyle,
+    childStyle: UiModifierSnapshot,
     child: MeasuredChild,
     content: UiRect,
 ): Float {
@@ -56,7 +56,7 @@ internal fun UiLength.resolveWidth(
 
 internal fun UiLength.resolveHeight(
     align: UiAlign,
-    childStyle: ComputedStyle,
+    childStyle: UiModifierSnapshot,
     child: MeasuredChild,
     content: UiRect,
 ): Float {
@@ -107,7 +107,7 @@ private fun UiMatrix4.isDirectTextTransform(): Boolean {
             abs(yDelta.x) <= DirectTextTransformEpsilon && abs(yDelta.z) <= DirectTextTransformEpsilon
 }
 
-internal fun ComputedStyle.outerInsets(width: Float, height: Float, reserve: UiScrollbarReserve): ResolvedUiInsets {
+internal fun UiModifierSnapshot.outerInsets(width: Float, height: Float, reserve: UiScrollbarReserve): ResolvedUiInsets {
     val border = border.width.resolve(width, height)
     val padding = padding.resolve(width, height)
     val verticalScrollbar = scrollbar.resolved(width)

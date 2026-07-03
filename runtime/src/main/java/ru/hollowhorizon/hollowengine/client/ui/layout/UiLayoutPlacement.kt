@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
@@ -156,8 +155,8 @@ private fun UiLayoutPipeline.placeTextFieldInlineChildren(node: TextFieldNode, s
 
 internal fun UiLayoutPipeline.layoutTextNode(
     node: TextNode,
-    resolved: ResolvedUiTree,
-    style: ComputedStyle,
+    resolved: UiNode,
+    style: UiModifierSnapshot,
     content: UiRect,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ): UiTextLayout {
@@ -184,8 +183,8 @@ internal fun UiLayoutPipeline.layoutTextNode(
 
 internal fun UiLayoutPipeline.layoutTextFieldNode(
     node: TextFieldNode,
-    resolved: ResolvedUiTree,
-    style: ComputedStyle,
+    resolved: UiNode,
+    style: UiModifierSnapshot,
     content: UiRect,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ): UiTextLayout {
@@ -253,7 +252,7 @@ internal fun UiLayoutPipeline.placeScopedNode(
     scope: ChildPlacementScope,
     node: UiNode,
     rect: UiRect,
-    parentStyle: ComputedStyle = scope.style,
+    parentStyle: UiModifierSnapshot = scope.style,
     clip: UiRect? = scope.clip,
 ) {
     placeNode(

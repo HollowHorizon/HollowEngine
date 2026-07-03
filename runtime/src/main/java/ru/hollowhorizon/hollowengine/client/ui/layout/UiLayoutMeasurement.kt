@@ -1,15 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.math.abs
 
 private const val ConstraintReflowEpsilon = 0.01f
 
 internal fun UiLayoutPipeline.rootRect(
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     width: Float,
     height: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -45,7 +44,7 @@ internal fun UiLayoutPipeline.rootRect(
 
 internal fun UiLayoutPipeline.measureNode(
     node: UiNode,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -56,7 +55,7 @@ internal fun UiLayoutPipeline.measureNode(
     allowWidthOverflow: Boolean = false,
     allowHeightOverflow: Boolean = false,
 ): LayoutSize {
-    val modifiers = node.modifiers.flattenModifiers().filterIsInstance<LayoutModifierNode>()
+    val modifiers = node.resolvedModifiers.filterIsInstance<LayoutModifierNode>()
     if (modifiers.isEmpty()) {
         return measureNodeContent(
             node,
@@ -100,7 +99,7 @@ internal fun UiLayoutPipeline.measureNode(
 private class LayoutModifierMeasurable(
     private val pipeline: UiLayoutPipeline,
     override val node: UiNode,
-    private val resolved: ResolvedUiTree,
+    private val resolved: UiNode,
     private val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     private val modifiers: List<LayoutModifierNode>,
     private val index: Int,
@@ -156,7 +155,7 @@ private class LayoutModifierMeasurable(
 
 internal fun UiLayoutPipeline.measureNodeContent(
     node: UiNode,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -259,7 +258,7 @@ internal fun UiLayoutPipeline.measureNodeContent(
 private fun constrainMeasuredSize(
     width: Float,
     height: Float,
-    style: ComputedStyle,
+    style: UiModifierSnapshot,
     referenceWidth: Float,
     referenceHeight: Float,
     allowWidthOverflow: Boolean,
@@ -277,8 +276,8 @@ private fun constrainMeasuredSize(
 
 private fun UiLayoutPipeline.intrinsicSize(
     node: UiNode,
-    resolved: ResolvedUiTree,
-    style: ComputedStyle,
+    resolved: UiNode,
+    style: UiModifierSnapshot,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -326,8 +325,8 @@ private fun UiLayoutPipeline.intrinsicSize(
 
 private fun UiLayoutPipeline.measureTextNode(
     node: TextNode,
-    resolved: ResolvedUiTree,
-    style: ComputedStyle,
+    resolved: UiNode,
+    style: UiModifierSnapshot,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -350,8 +349,8 @@ private fun UiLayoutPipeline.measureTextNode(
 
 private fun UiLayoutPipeline.measureTextFieldNode(
     node: TextFieldNode,
-    resolved: ResolvedUiTree,
-    style: ComputedStyle,
+    resolved: UiNode,
+    style: UiModifierSnapshot,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -396,7 +395,7 @@ private fun UiLayoutPipeline.measureTextFieldNode(
 
 private fun UiLayoutPipeline.measureCustomContainer(
     node: UiNode,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     measurePolicy: UiMeasurePolicy,
     availableWidth: Float,
     availableHeight: Float,
@@ -408,8 +407,8 @@ private fun UiLayoutPipeline.measureCustomContainer(
 
 private fun UiLayoutPipeline.measureStandardContainer(
     node: UiNode,
-    resolved: ResolvedUiTree,
-    style: ComputedStyle,
+    resolved: UiNode,
+    style: UiModifierSnapshot,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -447,7 +446,7 @@ private fun UiLayoutPipeline.measureStandardContainer(
     )
 }
 
-internal fun nodeBoxes(rect: UiRect, style: ComputedStyle, reserve: UiScrollbarReserve): NodeBoxes {
+internal fun nodeBoxes(rect: UiRect, style: UiModifierSnapshot, reserve: UiScrollbarReserve): NodeBoxes {
     val border = style.border.width.resolve(rect.width, rect.height)
     val padding = style.padding.resolve(rect.width, rect.height)
     val verticalScrollbar = style.scrollbar.resolved(rect.width)
@@ -471,7 +470,7 @@ internal fun nodeBoxes(rect: UiRect, style: ComputedStyle, reserve: UiScrollbarR
 
 internal fun UiLayoutPipeline.measureInlineWidgetMetrics(
     node: UiNode,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,

@@ -5,16 +5,15 @@ import ru.hollowhorizon.hollowengine.client.ui.PopupNode
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import java.util.*
 
 internal data class NodePlacementTask(
     val node: UiNode,
-    val resolved: ResolvedUiTree,
+    val resolved: UiNode,
     val rect: UiRect,
     val parentRect: UiRect,
-    val parentStyle: ComputedStyle?,
+    val parentStyle: UiModifierSnapshot?,
     val parentClip: UiRect?,
     val parentTransform: UiMatrix4,
     val parentInputTransform: UiMatrix4,
@@ -26,7 +25,7 @@ internal data class NodePlacementTask(
 
 internal data class PopupPlacementTask(
     val node: UiNode,
-    val resolved: ResolvedUiTree,
+    val resolved: UiNode,
     val content: UiRect,
     val parentRect: UiRect,
     val transform: UiMatrix4,

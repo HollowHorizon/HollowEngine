@@ -221,7 +221,7 @@ data class DrawTextFieldChromeCommand(
 
 class UiCommandRenderer {
     fun collect(
-        resolved: ResolvedUiTree,
+        resolved: UiNode,
         layout: UiLayoutResult,
         nowMillis: Long = 0L,
         typingState: UiTypingState = UiTypingState(),
@@ -233,7 +233,7 @@ class UiCommandRenderer {
 
     private fun collectNode(
         node: UiNode,
-        resolved: ResolvedUiTree,
+        resolved: UiNode,
         layout: UiLayoutResult,
         nowMillis: Long,
         typingState: UiTypingState,
@@ -310,8 +310,8 @@ class UiCommandRenderer {
 
     private fun drawNodeBody(
         node: UiNode,
-        resolved: ResolvedUiTree,
-        style: ComputedStyle,
+        resolved: UiNode,
+        style: UiModifierSnapshot,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
         nowMillis: Long,
@@ -322,7 +322,7 @@ class UiCommandRenderer {
         baseFilter: UiFilterChain,
         pushedClip: Boolean,
     ) {
-        val drawModifiers = node.modifiers.flattenModifiers().filterIsInstance<DrawModifierNode>()
+        val drawModifiers = node.resolvedModifiers.filterIsInstance<DrawModifierNode>()
         val context = UiDrawContext(
             node = node,
             style = style,
@@ -406,7 +406,7 @@ class UiCommandRenderer {
 
     private fun collectNodeContent(
         node: UiNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         opacity: Float,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
@@ -517,7 +517,7 @@ class UiCommandRenderer {
 
     private fun appendBackgroundCommand(
         node: UiNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         layoutNode: UiLayoutNode,
         opacity: Float,
         filter: UiFilterChain,
@@ -559,7 +559,7 @@ class UiCommandRenderer {
 
     private fun fallbackTextLayout(
         node: TextNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
     ): UiTextLayout {
@@ -579,7 +579,7 @@ class UiCommandRenderer {
 
     private fun sliderCommand(
         node: SliderNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         opacity: Float,
         layoutNode: UiLayoutNode,
         transform: UiMatrix4,
@@ -610,7 +610,7 @@ class UiCommandRenderer {
 
     private fun checkboxCommand(
         node: CheckboxNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         opacity: Float,
         layoutNode: UiLayoutNode,
         transform: UiMatrix4,
@@ -634,7 +634,7 @@ class UiCommandRenderer {
 
     private fun appendTextFieldCommands(
         node: TextFieldNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         opacity: Float,
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
@@ -735,7 +735,7 @@ class UiCommandRenderer {
     private fun appendScrollbars(
         node: UiNode,
         layoutNode: UiLayoutNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         opacity: Float,
         commands: MutableList<UiRenderCommand>,
     ) {
@@ -814,7 +814,7 @@ private fun UiNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiIn
     }.toMap()
 }
 
-private fun ComputedStyle.textEffectsWithShadows(): List<UiTextEffect> {
+private fun UiModifierSnapshot.textEffectsWithShadows(): List<UiTextEffect> {
     val textShadows = shadows.filterNot { it.inset }.map { it.toTextShadow() }
     return if (textShadows.isEmpty()) textEffects else textEffects + textShadows
 }
@@ -895,7 +895,7 @@ private sealed interface HitTestTask {
 }
 
 class UiHitTester {
-    fun hitTest(resolved: ResolvedUiTree, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
+    fun hitTest(resolved: UiNode, layout: UiLayoutResult, x: Float, y: Float): UiHit? {
         val popups = layout.popupNodes
             .sortedBy { resolved[it].layer }
         for (popup in popups.asReversed()) {
@@ -906,7 +906,7 @@ class UiHitTester {
 
     private fun hitNode(
         node: UiNode,
-        resolved: ResolvedUiTree,
+        resolved: UiNode,
         layout: UiLayoutResult,
         x: Float,
         y: Float,

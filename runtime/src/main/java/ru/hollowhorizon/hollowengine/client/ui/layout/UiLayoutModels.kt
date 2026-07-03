@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarGeometry
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineWidgetMetrics
 
 data class UiRect(
@@ -63,7 +63,7 @@ internal data class LayoutSize(val width: Float, val height: Float)
 
 internal data class MeasuredChild(
     val node: UiNode,
-    val style: ComputedStyle,
+    val style: UiModifierSnapshot,
     val size: LayoutSize,
     val margin: ResolvedUiInsets,
     val parentData: ParentData = emptyMap(),

@@ -2,8 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 
 internal interface ChildLayoutPolicy {
     fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope)
@@ -13,8 +12,8 @@ internal interface ChildLayoutPolicy {
 
 internal data class ChildPlacementScope(
     val node: UiNode,
-    val resolved: ResolvedUiTree,
-    val style: ComputedStyle,
+    val resolved: UiNode,
+    val style: UiModifierSnapshot,
     val measurePolicy: UiMeasurePolicy,
     val content: UiRect,
     val parentRect: UiRect,
@@ -34,7 +33,7 @@ internal data class ChildIntrinsicScope(
     val knownContentWidth: Float?,
     val knownContentHeight: Float?,
     val gap: Float,
-    val resolved: ResolvedUiTree,
+    val resolved: UiNode,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 )
 

@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
@@ -35,7 +34,7 @@ internal fun List<MeasuredChild>.maxOfPositionedOuterHeight(referenceWidth: Floa
     } ?: 0f
 }
 
-internal inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (ComputedStyle) -> UiAlign): UiAlign? {
+internal inline fun List<MeasuredChild>.singleChildMainAxisAlign(selector: (UiModifierSnapshot) -> UiAlign): UiAlign? {
     if (size != 1) return null
     return selector(first().style).takeUnless { it == UiAlign.AUTO }
 }
@@ -118,7 +117,7 @@ internal fun UiConstraints.fixedHeightOrNull(): Float? {
     return if (minHeight == maxHeight) minHeight else null
 }
 
-internal fun replacedIntrinsicSize(node: UiNode, style: ComputedStyle): LayoutSize {
+internal fun replacedIntrinsicSize(node: UiNode, style: UiModifierSnapshot): LayoutSize {
     return when {
         node is SliderNode -> LayoutSize(DefaultSliderWidth, DefaultWidgetHeight)
         node is CheckboxNode -> LayoutSize(DefaultWidgetHeight, DefaultWidgetHeight)
@@ -144,7 +143,7 @@ internal fun Float.coerceIn(min: UiLength, max: UiLength, reference: Float): Flo
 
 internal fun UiPopupAnchor.resolvePopupAnchor(
     parentContent: UiRect,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     layouts: Map<UiNode, UiLayoutNode>,
 ): UiRect {
     return when (this) {
@@ -157,7 +156,7 @@ internal fun UiPopupAnchor.resolvePopupAnchor(
         )
 
         is UiPopupAnchor.Node -> {
-            val anchorNode = resolved.styles.keys.firstOrNull { it.id == id }
+            val anchorNode = resolved.firstInSubtree { it.id == id }
             anchorNode?.let { layouts[it]?.rect } ?: parentContent
         }
     }
@@ -179,7 +178,7 @@ private fun UiAlign.alignmentOffset(size: Float): Float {
     }
 }
 
-internal fun ComputedStyle.layoutFingerprint(): Int {
+internal fun UiModifierSnapshot.layoutFingerprint(): Int {
     return listOf(
         size,
         minSize,
@@ -240,21 +239,21 @@ internal fun UiAlign.crossOffset(available: Float, size: Float, startMargin: Flo
     }.coerceAtLeast(startMargin)
 }
 
-internal fun ComputedStyle.effectiveAlignHorizontal(parent: ComputedStyle?, parentAxis: FlowAxis?): UiAlign? {
+internal fun UiModifierSnapshot.effectiveAlignHorizontal(parent: UiModifierSnapshot?, parentAxis: FlowAxis?): UiAlign? {
     return alignHorizontal.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignHorizontal(parentAxis)
 }
 
-internal fun ComputedStyle.effectiveAlignVertical(parent: ComputedStyle?, parentAxis: FlowAxis?): UiAlign? {
+internal fun UiModifierSnapshot.effectiveAlignVertical(parent: UiModifierSnapshot?, parentAxis: FlowAxis?): UiAlign? {
     return alignVertical.takeUnless { it == UiAlign.AUTO } ?: parent?.childAlignVertical(parentAxis)
 }
 
-internal fun ComputedStyle.childAlignHorizontal(parentAxis: FlowAxis?): UiAlign? {
+internal fun UiModifierSnapshot.childAlignHorizontal(parentAxis: FlowAxis?): UiAlign? {
     return alignItemsHorizontal.takeUnless { it == UiAlign.AUTO }
         ?: if (parentAxis == FlowAxis.Horizontal) justifyContent.takeUnless { it == UiAlign.AUTO }
         else alignItems.takeUnless { it == UiAlign.AUTO }
 }
 
-internal fun ComputedStyle.childAlignVertical(parentAxis: FlowAxis?): UiAlign? {
+internal fun UiModifierSnapshot.childAlignVertical(parentAxis: FlowAxis?): UiAlign? {
     return alignItemsVertical.takeUnless { it == UiAlign.AUTO }
         ?: if (parentAxis == FlowAxis.Horizontal) alignItems.takeUnless { it == UiAlign.AUTO }
         else justifyContent.takeUnless { it == UiAlign.AUTO }

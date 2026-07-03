@@ -69,10 +69,10 @@ class HollowUiInputController {
         if (previousNode === hoveredNode) return false
 
         previousNode
-            ?.takeIf { it in frame.resolved.styles }
+            ?.takeIf { it in frame.nodes }
             ?.let { dispatch(UiEvent(UiEventKind.EXIT, it, x = mouseX, y = mouseY)) }
         hoveredNode
-            ?.takeIf { it in frame.resolved.styles }
+            ?.takeIf { it in frame.nodes }
             ?.let {
                 dispatch(UiEvent(UiEventKind.ENTER, it, x = mouseX, y = mouseY))
         }
@@ -85,7 +85,7 @@ class HollowUiInputController {
         mouseY: Float,
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
-        val node = hoveredNode?.takeIf { it in frame.resolved.styles } ?: return false
+        val node = hoveredNode?.takeIf { it in frame.nodes } ?: return false
         return dispatch(UiEvent(UiEventKind.HOVER, node, x = mouseX, y = mouseY))
     }
 
@@ -100,7 +100,7 @@ class HollowUiInputController {
             return hadFocus
         }
         val node = frame.nodeByIdentifier(nodeKey) ?: return false
-        if (!frame.resolved[node].input.focusable) return false
+        if (!node.resolvedSnapshot.input.focusable) return false
         val previous = focusedNode
         setFocus(frame, node, dispatch)
         return previous !== focusedNode
@@ -155,7 +155,7 @@ class HollowUiInputController {
             return UiInputResult(true, hit.node, hit.node.id, changed = true)
         }
 
-        if (frame.resolved[hit.node].input.draggable && button == 0) {
+        if (hit.node.resolvedSnapshot.input.draggable && button == 0) {
             draggingNode = hit.node
             return UiInputResult(true, hit.node, hit.node.id)
         }
@@ -197,7 +197,7 @@ class HollowUiInputController {
         deltaY: Float,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = draggingNode?.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
+        val node = draggingNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
         var changed = false
         if (button == 0 && node is SliderNode) {
             changed = updateSliderFromMouse(frame, node, mouseX, mouseY)
@@ -244,7 +244,7 @@ class HollowUiInputController {
         button: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val releaseNode = frame.hitTest(mouseX, mouseY)?.node ?: activeNode?.takeIf { it in frame.resolved.styles }
+        val releaseNode = frame.hitTest(mouseX, mouseY)?.node ?: activeNode?.takeIf { it in frame.nodes }
         val handled = releaseNode?.let { node ->
             dispatch(
                 UiEvent(
@@ -270,7 +270,7 @@ class HollowUiInputController {
         setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
     ): UiInputResult {
         val drag = scrollbarDrag ?: return UiInputResult(false)
-        val node = drag.node.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
+        val node = drag.node.takeIf { it in frame.nodes } ?: return UiInputResult(false)
         setScrollImmediate(node, drag.offsetFor(frame.layout[node], mouseX, mouseY))
         return UiInputResult(true, node, node.id, changed = true)
     }
@@ -283,7 +283,7 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = focusedNode?.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
+        val node = focusedNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
         val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
         val handled = dispatch(event)
         val hadCompletions = node is TextFieldNode && node.completionActive
@@ -301,7 +301,7 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = focusedNode?.takeIf { it in frame.resolved.styles } ?: return UiInputResult(false)
+        val node = focusedNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
         val enterPressed = keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER
         val altPressed = modifiers and GLFW.GLFW_MOD_ALT != 0 || enterPressed && isAltPressed()
         val effectiveModifiers = if (altPressed) modifiers or GLFW.GLFW_MOD_ALT else modifiers
@@ -324,7 +324,7 @@ class HollowUiInputController {
     }
 
     private fun updateFocus(frame: HollowUiFrame, node: UiNode, dispatch: (UiEvent) -> Boolean) {
-        if (frame.resolved[node].input.focusable) {
+        if (node.resolvedSnapshot.input.focusable) {
             setFocus(frame, node, dispatch)
         } else {
             setFocus(frame, null, dispatch)
@@ -333,16 +333,16 @@ class HollowUiInputController {
 
     private fun setFocus(frame: HollowUiFrame, nextNode: UiNode?, dispatch: (UiEvent) -> Boolean) {
         if (focusedNode === nextNode) return
-        focusedNode?.takeIf { it in frame.resolved.styles }?.let { node ->
+        focusedNode?.takeIf { it in frame.nodes }?.let { node ->
             if (node is TextFieldNode) node.clearSelection()
             dispatch(UiEvent(UiEventKind.UNFOCUS, node))
         }
         focusedNode = nextNode
-        focusedNode?.takeIf { it in frame.resolved.styles }?.let { dispatch(UiEvent(UiEventKind.FOCUS, it)) }
+        focusedNode?.takeIf { it in frame.nodes }?.let { dispatch(UiEvent(UiEventKind.FOCUS, it)) }
     }
 
     private fun focusNext(frame: HollowUiFrame, dispatch: (UiEvent) -> Boolean): Boolean {
-        val focusables = frame.resolved.styles.keys.filter { frame.resolved[it].input.focusable }
+        val focusables = frame.nodes.filter { it.resolvedSnapshot.input.focusable }
         if (focusables.isEmpty()) return false
         val currentIndex = focusables.indexOfFirst { it === focusedNode }
         val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % focusables.size
@@ -456,7 +456,7 @@ class HollowUiInputController {
 
     private fun textFieldCaretIndexAt(frame: HollowUiFrame, node: TextFieldNode, localX: Float, localY: Float): Int {
         val layout = frame.layout[node]
-        val style = frame.resolved[node]
+        val style = node.resolvedSnapshot
         val textOffset = textFieldTextOffset(node, style)
         val contentX = localX - (layout.content.x - layout.rect.x) - textOffset + layout.scrollOffset.x
         val contentY = localY - (layout.content.y - layout.rect.y) + layout.scrollOffset.y
@@ -466,7 +466,7 @@ class HollowUiInputController {
 
 
     private fun focusedTextField(frame: HollowUiFrame): TextFieldNode? {
-        return focusedNode?.takeIf { it in frame.resolved.styles } as? TextFieldNode
+        return focusedNode?.takeIf { it in frame.nodes } as? TextFieldNode
     }
 
     private fun textClickCount(node: TextFieldNode, index: Int): Int {
@@ -493,7 +493,7 @@ class HollowUiInputController {
     private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
         return focusedNode
             ?.takeIf { it in frame.layout.nodes }
-            ?.takeIf { frame.resolved[it].input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
+            ?.takeIf { it.resolvedSnapshot.input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
@@ -592,7 +592,7 @@ private fun UiNode.forEachTextFields(block: (TextFieldNode) -> Unit) {
 
 private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {
     val stack = ArrayDeque<UiNode>()
-    stack.add(resolved.root)
+    stack.add(root)
     while (stack.isNotEmpty()) {
         val current = stack.removeLast()
         for (child in current.children) {
@@ -618,8 +618,8 @@ private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Floa
 private fun HollowUiFrame.ancestorsOf(node: UiNode): List<UiNode> {
     val parents = linkedMapOf<UiNode, UiNode?>()
     val stack = ArrayDeque<UiNode>()
-    parents[resolved.root] = null
-    stack.add(resolved.root)
+    parents[root] = null
+    stack.add(root)
     while (stack.isNotEmpty()) {
         val current = stack.removeLast()
         if (current === node) break

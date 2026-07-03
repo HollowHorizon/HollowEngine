@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.effects.TextColor
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -144,14 +144,14 @@ internal class HollowIdeEditorOverlays(
     fun update(frame: HollowUiFrame, mouseX: Float, mouseY: Float): Boolean {
         val nextCompletionPopups = linkedMapOf<String, HollowIdeCompletionPopupState>()
         val nextDiagnosticTooltips = linkedMapOf<String, HollowIdeDiagnosticTooltipState>()
-        frame.resolved.styles.keys.filterIsInstance<TextFieldNode>().forEach { node ->
+        frame.nodes.filterIsInstance<TextFieldNode>().forEach { node ->
             val editorId = node.id?.removePrefix("editor-") ?: return@forEach
             if (editorId == node.id) return@forEach
             val stackNode =
-                frame.resolved.styles.keys.firstOrNull { it.id == "editor-stack-$editorId" } ?: return@forEach
+                frame.nodes.firstOrNull { it.id == "editor-stack-$editorId" } ?: return@forEach
             val layoutNode = frame.layout.nodes[node] ?: return@forEach
             val stackLayout = frame.layout.nodes[stackNode] ?: return@forEach
-            val style = frame.resolved[node]
+            val style = node.resolvedSnapshot
             val localOriginX = layoutNode.content.x - stackLayout.content.x
             val localOriginY = layoutNode.content.y - stackLayout.content.y
 
@@ -159,7 +159,7 @@ internal class HollowIdeEditorOverlays(
                 node.visibleCompletionItems(CompletionPopupWindowSize)
                 val totalItems = node.completionItems
                 val selectedIndex = node.completionSelectedIndex.coerceIn(0, totalItems.lastIndex)
-                val listNode = frame.resolved.styles.keys.firstOrNull { it.id == completionListId(editorId) }
+                val listNode = frame.nodes.firstOrNull { it.id == completionListId(editorId) }
                 val scrollOffset = listNode?.let { frame.layout.nodes[it]?.scrollOffset?.y } ?: 0f
                 val previousSelectedIndex = completionPopups[editorId]?.selectedIndex
                 val selectedChanged = previousSelectedIndex != null && previousSelectedIndex != selectedIndex
@@ -234,7 +234,7 @@ internal class HollowIdeEditorOverlays(
 
     private fun diagnosticTooltipAtPointer(
         node: TextFieldNode,
-        style: ComputedStyle,
+        style: UiModifierSnapshot,
         layoutNode: UiLayoutNode,
         inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,
         localOriginX: Float,

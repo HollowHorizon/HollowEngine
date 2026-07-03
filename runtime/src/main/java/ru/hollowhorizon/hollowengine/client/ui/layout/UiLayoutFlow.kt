@@ -2,14 +2,13 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 
 private class EngineMeasurable(
     private val pipeline: UiLayoutPipeline,
     override val node: UiNode,
-    private val resolved: ResolvedUiTree,
+    private val resolved: UiNode,
     private val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ) : UiMeasurable {
     override fun measure(constraints: UiConstraints): UiPlaceable {
@@ -168,7 +167,7 @@ internal fun UiLayoutPipeline.placeFreeChildren(scope: ChildPlacementScope) {
 
 internal fun UiLayoutPipeline.measureFlowChildren(
     node: UiNode,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -192,7 +191,7 @@ internal fun UiLayoutPipeline.measureFlowChildren(
 
 internal fun UiLayoutPipeline.measureFlowChildren(
     children: List<UiNode>,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
@@ -230,7 +229,7 @@ internal fun UiLayoutPipeline.measureFlowChildren(
 
 private fun UiNode.parentData(): ParentData {
     var data: ParentData = emptyMap()
-    for (modifier in modifiers.flattenModifiers().filterIsInstance<ParentDataModifierNode>()) {
+    for (modifier in resolvedModifiers.filterIsInstance<ParentDataModifierNode>()) {
         data = modifier.modifyParentData(data)
     }
     return data
@@ -238,7 +237,7 @@ private fun UiNode.parentData(): ParentData {
 
 internal fun UiLayoutPipeline.measureCustomLayout(
     node: UiNode,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     measurePolicy: UiMeasurePolicy,
     availableWidth: Float,
     availableHeight: Float,
@@ -265,7 +264,7 @@ internal fun UiLayoutPipeline.growRowChildren(
     children: List<MeasuredChild>,
     availableWidth: Float,
     gap: Float,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     allowOverflow: Boolean = false,
 ): List<MeasuredChild> {
@@ -284,7 +283,7 @@ internal fun UiLayoutPipeline.growColumnChildren(
     children: List<MeasuredChild>,
     availableHeight: Float,
     gap: Float,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     allowOverflow: Boolean = false,
 ): List<MeasuredChild> {
@@ -304,7 +303,7 @@ private fun UiLayoutPipeline.growLinearChildren(
     children: List<MeasuredChild>,
     availableMain: Float,
     gap: Float,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     allowOverflow: Boolean,
 ): List<MeasuredChild> {
@@ -366,7 +365,7 @@ private fun UiLayoutPipeline.measureChildMain(
     axis: FlowAxis,
     child: MeasuredChild,
     targetMain: Float,
-    resolved: ResolvedUiTree,
+    resolved: UiNode,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ): LayoutSize {
     return when (axis) {
@@ -407,14 +406,14 @@ private fun List<MeasuredChild>.singleChildMainAxisAlign(axis: FlowAxis): UiAlig
     }
 }
 
-private fun ComputedStyle.childMainAlign(parentAxis: FlowAxis?, axis: FlowAxis): UiAlign? {
+private fun UiModifierSnapshot.childMainAlign(parentAxis: FlowAxis?, axis: FlowAxis): UiAlign? {
     return when (axis) {
         FlowAxis.Horizontal -> childAlignHorizontal(parentAxis)
         FlowAxis.Vertical -> childAlignVertical(parentAxis)
     }
 }
 
-private fun MeasuredChild.crossAlign(parentStyle: ComputedStyle, parentAxis: FlowAxis?, axis: FlowAxis): UiAlign {
+private fun MeasuredChild.crossAlign(parentStyle: UiModifierSnapshot, parentAxis: FlowAxis?, axis: FlowAxis): UiAlign {
     return when (axis) {
         FlowAxis.Horizontal -> style.alignVertical.takeUnless { it == UiAlign.AUTO }
             ?: parentStyle.childAlignVertical(parentAxis)

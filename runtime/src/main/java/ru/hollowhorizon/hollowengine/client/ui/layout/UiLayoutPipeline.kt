@@ -6,15 +6,14 @@ import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.scroll.applyScrollRanges
 import ru.hollowhorizon.hollowengine.client.ui.scroll.detectScrollbarReserves
-import ru.hollowhorizon.hollowengine.client.ui.style.ComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.style.ResolvedUiTree
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierSnapshot
 import java.util.*
 
 class UiLayoutPipeline {
     internal var layoutPass: LayoutPass? = null
 
     fun compute(
-        resolved: ResolvedUiTree,
+        resolved: UiNode,
         width: Float,
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
@@ -29,7 +28,7 @@ class UiLayoutPipeline {
         val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState, ::layoutChildren)
         val traversalOrder = rangedLayouts.keys.toList()
         return UiLayoutResult(
-            root = resolved.root,
+            root = resolved,
             nodes = rangedLayouts,
             traversalOrder = traversalOrder,
             popupNodes = traversalOrder.filterIsInstance<PopupNode>(),
@@ -37,7 +36,7 @@ class UiLayoutPipeline {
     }
 
     private fun computeLayouts(
-        resolved: ResolvedUiTree,
+        resolved: UiNode,
         width: Float,
         height: Float,
         scrollState: UiScrollState,
@@ -47,10 +46,10 @@ class UiLayoutPipeline {
         val viewport = UiRect(0f, 0f, width, height)
         val previousPass = layoutPass
         try {
-            layoutPass = LayoutPass(resolved.root)
+            layoutPass = LayoutPass(resolved)
             val rootRect = rootRect(resolved, width, height, scrollbarReserves)
             placeNode(
-                node = resolved.root,
+                node = resolved,
                 resolved = resolved,
                 rect = rootRect,
                 parentRect = viewport,
@@ -79,10 +78,10 @@ class UiLayoutPipeline {
 
     internal fun placeNode(
         node: UiNode,
-        resolved: ResolvedUiTree,
+        resolved: UiNode,
         rect: UiRect,
         parentRect: UiRect,
-        parentStyle: ComputedStyle?,
+        parentStyle: UiModifierSnapshot?,
         parentClip: UiRect?,
         parentTransform: UiMatrix4,
         parentInputTransform: UiMatrix4,

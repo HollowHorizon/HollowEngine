@@ -2,22 +2,10 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.layoutFingerprint
-import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSliderStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 
-data class ResolvedUiTree(
-    val root: UiNode,
-    val styles: Map<UiNode, ComputedStyle>,
-) {
-    operator fun get(node: UiNode): ComputedStyle = styles.getValue(node)
-}
-
-class UiStyleResolver(
+class UiModifierResolver(
     private val theme: CompiledHss? = null,
     private val stylesheet: CompiledHss? = null,
     private val transitions: UiTransitionState = UiTransitionState(),
@@ -40,7 +28,7 @@ class UiStyleResolver(
         root: UiNode,
         nowMillis: Long = 0L,
         animate: Boolean = true,
-    ): ResolvedUiTree {
+    ): List<UiNode> {
         val stylesheetRevision = root.stylesheetRevision()
         val treeKey = TreeCacheKey(
             root = root,
@@ -50,10 +38,13 @@ class UiStyleResolver(
             stylesheetRevision = stylesheetRevision,
             animate = animate,
         )
-        treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.tree }
-        val styles = linkedMapOf<UiNode, ComputedStyle>()
-        resolveNodes(root, nowMillis, animate, styles)
-        return ResolvedUiTree(root, styles).also { tree ->
+        treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.nodes }
+        val nodes = ArrayList<UiNode>()
+        var requiresRefresh = false
+        resolveNodes(root, nowMillis, animate, nodes) { snapshot ->
+            if (snapshot.requiresModifierRefresh()) requiresRefresh = true
+        }
+        return nodes.also {
             treeCache = TreeCacheEntry(
                 key = treeKey.copy(
                     subtreeLayoutRevision = root.layoutState.subtreeLayoutRevision,
@@ -61,8 +52,8 @@ class UiStyleResolver(
                     subtreeInputRevision = root.layoutState.subtreeInputRevision,
                     stylesheetRevision = stylesheetRevision,
                 ),
-                tree = tree,
-                requiresRefresh = animate && (transitions.hasActiveTransitions() || styles.values.any { it.requiresStyleRefresh() }),
+                nodes = nodes,
+                requiresRefresh = animate && (transitions.hasActiveTransitions() || requiresRefresh),
             )
         }
     }
@@ -71,7 +62,8 @@ class UiStyleResolver(
         root: UiNode,
         nowMillis: Long,
         animate: Boolean,
-        styles: MutableMap<UiNode, ComputedStyle>,
+        nodes: MutableList<UiNode>,
+        visitSnapshot: (UiModifierSnapshot) -> Unit,
     ) {
         val stack = ArrayDeque<StyleResolveTask>()
         stack.add(StyleResolveTask(root, parent = null, scope = rootScope))
@@ -80,18 +72,42 @@ class UiStyleResolver(
             val node = task.node
             val modifiers = node.modifiers.flattenModifiers()
             val scopedScope = scopedStyleScope(node, task.scope, modifiers)
-            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers)
+            val resolvedModifiers = resolveModifiers(node, scopedScope, modifiers)
+            val computed = resolveBaseStyle(node, task.parent, scopedScope, modifiers, resolvedModifiers)
             val transitioned = if (animate) transitions.apply(node, computed, nowMillis) else computed
             val finalStyle = if (animate) {
                 animations.apply(node, transitioned, scopedScope.keyframes, nowMillis)
             } else {
                 transitioned
             }
-            styles[node] = finalStyle
+            nodes += node
+            node.resolvedModifiers = resolvedModifiers
+            node.resolvedSnapshot = finalStyle
+            visitSnapshot(finalStyle)
             for (index in node.children.indices.reversed()) {
                 stack.add(StyleResolveTask(node.children[index], finalStyle, scopedScope))
             }
         }
+    }
+
+    private fun resolveModifiers(
+        node: UiNode,
+        scope: StyleScope,
+        nodeModifiers: List<Modifier>,
+    ): List<Modifier> {
+        val resolved = ArrayList<Modifier>()
+        resolved += ruleModifiers(theme?.rules.orEmpty(), node, StyleOrigin.THEME_DEFAULTS)
+        resolved += ruleModifiers(stylesheet?.rules.orEmpty(), node, StyleOrigin.STYLESHEET)
+        scope.stylesheets.forEach { scoped ->
+            resolved += ruleModifiers(scoped.rules, node, StyleOrigin.STYLESHEET)
+        }
+        resolved += ruleModifiers(stylesheet?.rules.orEmpty(), node, StyleOrigin.STATE_STYLESHEET)
+        scope.stylesheets.forEach { scoped ->
+            resolved += ruleModifiers(scoped.rules, node, StyleOrigin.STATE_STYLESHEET)
+        }
+        resolved += nodeModifiers
+        resolved += attributeModifiers(node)
+        return resolved
     }
 
     private fun scopedStyleScope(
@@ -119,52 +135,40 @@ class UiStyleResolver(
 
     private fun resolveBaseStyle(
         node: UiNode,
-        parent: ComputedStyle?,
+        parent: UiModifierSnapshot?,
         scope: StyleScope,
         modifiers: List<Modifier>,
-    ): ComputedStyle {
+        resolvedModifiers: List<Modifier>,
+    ): UiModifierSnapshot {
         val key = StyleCacheKey(
             scopeId = scope.id,
             parent = parent,
             node = node.styleSnapshot(modifiers),
+            resolvedModifiers = resolvedModifiers,
         )
         styleCache[node]?.takeIf { it.key == key }?.let {
-            node.layoutState.updateResolvedLayoutFingerprint(it.style.layoutFingerprint())
-            return it.style
+            node.layoutState.updateResolvedLayoutFingerprint(it.snapshot.layoutFingerprint())
+            return it.snapshot
         }
         val mutable = engineDefaults(node)
-        applyRules(theme?.rules.orEmpty(), node, mutable, StyleOrigin.THEME_DEFAULTS)
-        applyRules(stylesheet?.rules.orEmpty(), node, mutable, StyleOrigin.STYLESHEET)
-        scope.stylesheets.forEach { scoped ->
-            applyRules(scoped.rules, node, mutable, StyleOrigin.STYLESHEET)
-        }
-        applyRules(stylesheet?.rules.orEmpty(), node, mutable, StyleOrigin.STATE_STYLESHEET)
-        scope.stylesheets.forEach { scoped ->
-            applyRules(scoped.rules, node, mutable, StyleOrigin.STATE_STYLESHEET)
-        }
-        mutable.merge(modifiers.style())
-        applyAttributeStyles(node, mutable)
-        return mutable.toComputed(parent).also { style ->
+        mutable.merge(resolvedModifiers.toModifierPatch())
+        return mutable.toSnapshot(parent).also { style ->
             node.layoutState.updateResolvedLayoutFingerprint(style.layoutFingerprint())
             styleCache[node] = StyleCacheEntry(key, style)
         }
     }
 
-    private fun applyRules(
-        rules: List<StyleRule>,
-        node: UiNode,
-        target: MutableUiStyle,
-        origin: StyleOrigin,
-    ) {
-        rules.asSequence().filter { it.origin == origin && it.matches(node) }
+    private fun ruleModifiers(rules: List<StyleRule>, node: UiNode, origin: StyleOrigin): List<Modifier> {
+        return rules.asSequence()
+            .filter { it.origin == origin && it.matches(node) }
             .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
-            .forEach { it.patch.apply(target) }
+            .flatMap { it.patch.modifiers() }
+            .toList()
     }
 
-    private fun applyAttributeStyles(node: UiNode, target: MutableUiStyle) {
-        node.attributes.forEach { (name, value) ->
-            if (node.isWidgetConfigurationAttribute(name)) return@forEach
-            compileStyleModifier(name, value)?.applyTo(target)
+    private fun attributeModifiers(node: UiNode): List<Modifier> {
+        return node.attributes.mapNotNull { (name, value) ->
+            if (node.isWidgetConfigurationAttribute(name)) null else compileStyleModifier(name, value)
         }
     }
 
@@ -191,8 +195,8 @@ class UiStyleResolver(
         }
     }
 
-    private fun engineDefaults(node: UiNode): MutableUiStyle {
-        val style = MutableUiStyle(transitions = DefaultTransformTransitions)
+    private fun engineDefaults(node: UiNode): UiModifierPatch {
+        val style = UiModifierPatch(transitions = DefaultTransformTransitions)
         when (node.type) {
             UiTextType -> {
                 style.foreground = UiColor.White
@@ -249,7 +253,7 @@ private data class StyleScope(
 
 private data class StyleResolveTask(
     val node: UiNode,
-    val parent: ComputedStyle?,
+    val parent: UiModifierSnapshot?,
     val scope: StyleScope,
 )
 
@@ -280,13 +284,14 @@ private data class NodeStyleSnapshot(
 
 private data class StyleCacheKey(
     val scopeId: Long,
-    val parent: ComputedStyle?,
+    val parent: UiModifierSnapshot?,
     val node: NodeStyleSnapshot,
+    val resolvedModifiers: List<Modifier>,
 )
 
 private data class StyleCacheEntry(
     val key: StyleCacheKey,
-    val style: ComputedStyle,
+    val snapshot: UiModifierSnapshot,
 )
 
 private data class TreeCacheKey(
@@ -300,11 +305,11 @@ private data class TreeCacheKey(
 
 private data class TreeCacheEntry(
     val key: TreeCacheKey,
-    val tree: ResolvedUiTree,
+    val nodes: List<UiNode>,
     val requiresRefresh: Boolean,
 )
 
-private fun ComputedStyle.requiresStyleRefresh(): Boolean {
+private fun UiModifierSnapshot.requiresModifierRefresh(): Boolean {
     return animations.any { animation -> animation.totalDurationMillis()?.let { it > 0L } ?: true }
 }
 
@@ -317,9 +322,3 @@ private fun UiNode.styleSnapshot(modifiers: List<Modifier>) = NodeStyleSnapshot(
     attributes = attributes.toMap(),
     modifiers = modifiers,
 )
-
-private fun List<Modifier>.style(): MutableUiStyle {
-    val style = MutableUiStyle()
-    forEach { it.applyTo(style) }
-    return style
-}

@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
-import ru.hollowhorizon.hollowengine.client.ui.style.MutableUiStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierPatch
 import ru.hollowhorizon.hollowengine.client.ui.style.UiInputStyle
 
 data class UiKeyInput(
@@ -25,8 +25,8 @@ data class UiKeyInput(
     }
 }
 
-internal data object TextFieldDefaultKeyInputModifier : InputModifierNode {
-    override fun applyTo(style: MutableUiStyle) {
+internal data object TextFieldDefaultKeyInputModifier : InputModifierNode, UiModifierPatchNode {
+    override fun applyPatch(style: UiModifierPatch) {
         val input = style.input ?: UiInputStyle()
         style.input = input.copy(focusable = true, hoverable = true)
     }
@@ -151,7 +151,7 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
 private fun TextFieldNode.moveTextFieldVertically(input: UiKeyInput, lineDelta: Int): Boolean {
     val frame = input.frame ?: return false
     val layout = frame.layout[this]
-    val style = frame.resolved[this]
+    val style = this.resolvedSnapshot
     val fontSize = style.fontSize
     val textLayout = textFieldEditLayout(this, style, layout, layout.inlineWidgetMetrics())
     moveCarets({ range ->
@@ -164,7 +164,7 @@ private fun visibleTextFieldLines(input: UiKeyInput): Int {
     val field = input.node as? TextFieldNode ?: return 1
     val frame = input.frame ?: return 1
     val layout = frame.layout[field]
-    val style = frame.resolved[field]
+    val style = field.resolvedSnapshot
     val lineHeight = (style.fontSize + style.lineSpacing).coerceAtLeast(1f)
     return (layout.content.height / lineHeight).toInt().coerceAtLeast(1)
 }

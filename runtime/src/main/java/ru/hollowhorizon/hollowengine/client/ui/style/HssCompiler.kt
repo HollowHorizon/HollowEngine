@@ -6,11 +6,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.SvgPathShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgResource
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSliderStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTyping
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 data class CompiledHss(
     val rules: List<StyleRule>,
@@ -26,14 +22,8 @@ data class StyleRule(
     fun matches(node: UiNode) = selector.matches(node)
 }
 
-class StylePatch(private val instructions: List<StyleInstruction>) {
-    fun apply(style: MutableUiStyle) {
-        instructions.forEach { it.apply(style) }
-    }
-}
-
-fun interface StyleInstruction {
-    fun apply(style: MutableUiStyle)
+class StylePatch(private val modifiers: List<Modifier>) {
+    fun modifiers(): List<Modifier> = modifiers
 }
 
 class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
@@ -58,19 +48,18 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         return CompiledHss(rules, keyframes)
     }
 
-    private fun compileKeyframeStyle(declarations: List<HssDeclaration>): MutableUiStyle {
-        val style = MutableUiStyle()
-        declarations.mapNotNull(::compileDeclaration).forEach { it.apply(style) }
-        return style
+    private fun compileKeyframeStyle(declarations: List<HssDeclaration>): UiModifierPatch {
+        return declarations.mapNotNull(::compileDeclaration).toModifierPatch()
     }
 
     private fun compileKeyframeProperties(declarations: List<HssDeclaration>): Set<String> {
         return declarations.flatMap { keyframeProperties(it.property, it.value) }.toSet()
     }
 
-    internal fun compileDeclaration(declaration: HssDeclaration): StyleInstruction? {
+    internal fun compileDeclaration(declaration: HssDeclaration): Modifier? {
         val property = declaration.property.lowercase()
         val value = declaration.value.trim()
+        HssModifierRegistry.compile(property, value)?.let { return it }
         return when (property) {
             "size" -> instruction(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT) { it.size = parseSize(value) }
             "width" -> instruction(UiStyleProperty.WIDTH) { it.size = (it.size ?: UiSize()).copy(width = parseLength(value)) }
@@ -118,8 +107,6 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "justify", "justify-content" -> instruction { it.justifyContent = parseAlign(value) }
             "grow" -> instruction { it.grow = value.toFloat() }
             "position" -> instruction { it.position = parsePosition(value) }
-            "background" -> instruction { it.background = parsePaint(value) }
-            "background-image" -> instruction { it.background = UiPaint.Image(parseImageSource(value)) }
             "shape" -> instruction { it.shape = parseShape(value) }
             "shape-fill", "fill" -> instruction { it.shapeFill = parsePaint(value) }
             "shape-stroke", "stroke" -> instruction { it.shapeStroke = parsePaint(value) }
@@ -149,11 +136,6 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "filter" -> instruction { it.filter = parseFilterChain(value) }
             "backdrop-filter" -> instruction { it.backdropFilter = parseFilterChain(value) }
             "backface-visibility" -> instruction { it.backfaceVisibility = parseBackfaceVisibility(value) }
-            "hoverable" -> inputInstruction(value) { style, enabled -> style.copy(hoverable = enabled) }
-            "clickable" -> inputInstruction(value) { style, enabled -> style.copy(clickable = enabled) }
-            "focusable" -> inputInstruction(value) { style, enabled -> style.copy(focusable = enabled) }
-            "draggable" -> inputInstruction(value) { style, enabled -> style.copy(draggable = enabled) }
-            "scrollable" -> inputInstruction(value) { style, enabled -> style.copy(scrollable = enabled) }
             "clip", "clip-path" -> instruction { applyClip(it, value) }
             "layer" -> instruction { it.layer = value.toInt() }
             "image-fit", "fit" -> instruction {
@@ -278,59 +260,107 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 it.typing = (it.typing ?: UiTyping()).copy(delayMillis = delay)
             }
             "text-effects", "text-effect" -> instruction { it.textEffects = parseTextEffects(value) }
-            "transition" -> transitionInstruction(value)
-            "animation" -> instruction { it.animations = parseAnimations(value) }
-            "animation-name" -> instruction { style ->
-                style.animations = splitTopLevel(value, ',').map { UiAnimation(unquote(it.trim())) }
-            }
-            "animation-duration" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, duration ->
-                    animation.copy(durationMillis = duration)
-                }
-            }
-            "animation-timing-function" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseEasing)) { animation, easing ->
-                    animation.copy(easing = easing)
-                }
-            }
-            "animation-delay" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, delay ->
-                    animation.copy(delayMillis = delay)
-                }
-            }
-            "animation-iteration-count" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseIterationCount)) { animation, count ->
-                    animation.copy(iterationCount = count)
-                }
-            }
-            "animation-direction" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationDirection)) { animation, direction ->
-                    animation.copy(direction = direction)
-                }
-            }
-            "animation-fill-mode" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationFillMode)) { animation, fillMode ->
-                    animation.copy(fillMode = fillMode)
-                }
-            }
-            "animation-play-state" -> instruction { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationPlayState)) { animation, playState ->
-                    animation.copy(playState = playState)
-                }
-            }
             else -> null
         }
     }
 
-    private fun instruction(writer: (MutableUiStyle) -> Unit) = StyleInstruction { style -> writer(style) }
+    private fun instruction(writer: (UiModifierPatch) -> Unit) = StyleModifier(writer = writer)
 
-    private fun instruction(vararg properties: UiStyleProperty, writer: (MutableUiStyle) -> Unit) =
-        StyleInstruction { style ->
+    private fun instruction(vararg properties: UiStyleProperty, writer: (UiModifierPatch) -> Unit) =
+        StyleModifier(properties = properties.toSet()) { style ->
             writer(style)
             style.explicitProperties = style.explicitProperties.orEmpty() + properties
         }
 
-    private fun transitionInstruction(value: String) = StyleInstruction { style ->
+}
+
+internal object HssModifierRegistry {
+    private val handlers = LinkedHashMap<String, (String) -> Modifier>()
+
+    init {
+        register("background") { value -> BackgroundModifier(parsePaint(value), "hss-background:$value") }
+        register("background-image") { value ->
+            BackgroundModifier(UiPaint.Image(parseImageSource(value)), "hss-background-image:$value")
+        }
+        register("hoverable") { value -> inputModifier(parseBoolean(value)) { it.copy(hoverable = this) } }
+        register("clickable") { value -> inputModifier(parseBoolean(value)) { it.copy(clickable = this) } }
+        register("focusable") { value -> inputModifier(parseBoolean(value)) { it.copy(focusable = this) } }
+        register("draggable") { value -> inputModifier(parseBoolean(value)) { it.copy(draggable = this) } }
+        register("scrollable") { value -> inputModifier(parseBoolean(value)) { it.copy(scrollable = this) } }
+        register("transition") { value -> transitionModifier(value) }
+        register("animation") { value -> StyleModifier { it.animations = parseAnimations(value) } }
+        register("animation-name") { value ->
+            StyleModifier { it.animations = splitTopLevel(value, ',').map { name -> UiAnimation(unquote(name.trim())) } }
+        }
+        register("animation-duration") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, duration ->
+                    animation.copy(durationMillis = duration)
+                }
+            }
+        }
+        register("animation-timing-function") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseEasing)) { animation, easing ->
+                    animation.copy(easing = easing)
+                }
+            }
+        }
+        register("animation-delay") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, delay ->
+                    animation.copy(delayMillis = delay)
+                }
+            }
+        }
+        register("animation-iteration-count") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseIterationCount)) { animation, count ->
+                    animation.copy(iterationCount = count)
+                }
+            }
+        }
+        register("animation-direction") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationDirection)) { animation, direction ->
+                    animation.copy(direction = direction)
+                }
+            }
+        }
+        register("animation-fill-mode") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationFillMode)) { animation, fillMode ->
+                    animation.copy(fillMode = fillMode)
+                }
+            }
+        }
+        register("animation-play-state") { value ->
+            StyleModifier { style ->
+                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationPlayState)) { animation, playState ->
+                    animation.copy(playState = playState)
+                }
+            }
+        }
+    }
+
+    fun register(vararg names: String, handler: (String) -> Modifier): HssModifierRegistry {
+        for (name in names) handlers[name] = handler
+        return this
+    }
+
+    fun compile(property: String, value: String): Modifier? {
+        return handlers[property]?.invoke(value)
+    }
+}
+
+private fun inputModifier(enabled: Boolean, patch: Boolean.(UiInputStyle) -> UiInputStyle): Modifier {
+    return StyleModifier(phases = setOf(UiInvalidationPhase.Input)) { style ->
+        style.input = enabled.patch(style.input ?: UiInputStyle())
+    }
+}
+
+private fun transitionModifier(value: String): Modifier {
+    return StyleModifier { style ->
         val parsed = parseTransitions(value)
         style.transitions = if (UiStyleProperty.TRANSITIONS in style.explicitProperties.orEmpty()) {
             style.transitions.mergeUiTransitions(parsed)
@@ -339,26 +369,13 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         }
         style.explicitProperties = style.explicitProperties.orEmpty() + UiStyleProperty.TRANSITIONS
     }
-
-    private fun inputInstruction(value: String, patch: (UiInputStyle, Boolean) -> UiInputStyle) =
-        instruction { style ->
-            style.input = patch(style.input ?: UiInputStyle(), parseBoolean(value))
-        }
 }
 
 fun compileHss(source: String, origin: StyleOrigin = StyleOrigin.STYLESHEET): CompiledHss =
     HssCompiler(origin).compile(parseHss(source))
 
 fun compileStyleModifier(property: String, value: String): Modifier? {
-    val instruction = HssCompiler().compileDeclaration(HssDeclaration(property, value)) ?: return null
-    return StyleModifier(property.explicitStyleProperties()) { style -> instruction.apply(style) }
-}
-
-private fun String.explicitStyleProperties(): Set<UiStyleProperty> = when (lowercase()) {
-    "size" -> setOf(UiStyleProperty.WIDTH, UiStyleProperty.HEIGHT)
-    "width" -> setOf(UiStyleProperty.WIDTH)
-    "height" -> setOf(UiStyleProperty.HEIGHT)
-    else -> emptySet()
+    return HssCompiler().compileDeclaration(HssDeclaration(property, value))
 }
 
 private fun parseAlign(value: String): UiAlign = when (value.lowercase()) {
@@ -373,7 +390,7 @@ private fun parseAlign(value: String): UiAlign = when (value.lowercase()) {
     else -> throw IllegalArgumentException("Unknown align '$value'")
 }
 
-private fun applySelfAlignment(style: MutableUiStyle, value: String) {
+private fun applySelfAlignment(style: UiModifierPatch, value: String) {
     val parts = splitWhitespace(value)
     val horizontal = parseAlign(parts.first())
     val vertical = parseAlign(parts.getOrElse(1) { parts.first() })
@@ -381,7 +398,7 @@ private fun applySelfAlignment(style: MutableUiStyle, value: String) {
     style.alignVertical = vertical
 }
 
-private fun applyChildAlignment(style: MutableUiStyle, value: String) {
+private fun applyChildAlignment(style: UiModifierPatch, value: String) {
     val parts = splitWhitespace(value)
     val horizontal = parseAlign(parts.first())
     val vertical = parseAlign(parts.getOrElse(1) { parts.first() })
@@ -483,7 +500,7 @@ private fun parseImageSource(value: String): UiBoundString {
         ?: UiBoundString(unquote(value))
 }
 
-private fun applyClip(style: MutableUiStyle, value: String) {
+private fun applyClip(style: UiModifierPatch, value: String) {
     val cleaned = value.trim()
     if (cleaned.startsWith("path(") || cleaned.startsWith("svg-path(") || cleaned.startsWith("svg(")) {
         style.clip = true

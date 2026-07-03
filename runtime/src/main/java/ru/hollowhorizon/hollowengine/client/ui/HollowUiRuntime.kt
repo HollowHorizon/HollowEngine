@@ -7,28 +7,32 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
+import ru.hollowhorizon.hollowengine.client.ui.style.UiTransitionState
+import ru.hollowhorizon.hollowengine.client.ui.style.motionDurationMillis
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
 
 data class HollowUiFrame(
-    val resolved: ResolvedUiTree,
+    val root: UiNode,
+    val nodes: List<UiNode>,
     val layout: UiLayoutResult,
     val commands: List<UiRenderCommand>,
     private val activeTransitionDurations: Map<UiNode, Long> = emptyMap(),
     private val startedTransitionDurations: Map<UiNode, Long> = emptyMap(),
     private val activeScrollAnimation: Boolean = false,
 ) {
-    fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(resolved, layout, x, y)
+    fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(root, layout, x, y)
 
     fun scrollTargetAt(x: Float, y: Float): UiNode? {
         val popups = layout.popupNodes
-            .sortedBy { resolved[it].layer }
+            .sortedBy { it.resolvedSnapshot.layer }
         for (popup in popups.asReversed()) {
             scrollTargetIn(popup, x, y)?.let { return it }
         }
-        return scrollTargetIn(resolved.root, x, y)
+        return scrollTargetIn(root, x, y)
     }
 
     private fun scrollTargetIn(root: UiNode, x: Float, y: Float): UiNode? {
@@ -43,13 +47,13 @@ data class HollowUiFrame(
                     stack.add(ScrollTargetTask.Test(node, task.ancestorClip))
                     val children = node.children
                         .filter { it in layout.nodes }
-                        .sortedWith(compareByDescending<UiNode> { resolved[it].layer }.thenByDescending { layout[it].rect.y })
+                        .sortedWith(compareByDescending<UiNode> { it.resolvedSnapshot.layer }.thenByDescending { layout[it].rect.y })
                     for (child in children) stack.add(ScrollTargetTask.Enter(child, childClip))
                 }
 
                 is ScrollTargetTask.Test -> {
                     val node = task.node
-                    if (!resolved[node].input.scrollable) continue
+                    if (!node.resolvedSnapshot.input.scrollable) continue
                     task.ancestorClip?.let { clip ->
                         if (!clip.contains(x, y)) continue
                     }
@@ -66,7 +70,7 @@ data class HollowUiFrame(
     }
 
     fun nodeByIdentifier(identifier: String): UiNode? =
-        resolved.styles.keys.firstOrNull { it.id == identifier || identifier in it.tags }
+        nodes.firstOrNull { it.id == identifier || identifier in it.tags }
 
     fun nodeByKey(key: String): UiNode? = nodeByIdentifier(key)
 
@@ -77,11 +81,11 @@ data class HollowUiFrame(
     }
 
     fun motionDurationMillis(previous: HollowUiFrame?): Long {
-        val previousStyles = previous?.resolved?.styles.orEmpty()
-        return resolved.styles.maxOfOrNull { (node, style) ->
+        val previousStyles = previous?.nodes.orEmpty().associateWith { it.resolvedSnapshot }
+        return nodes.maxOfOrNull { node ->
             maxOf(
                 startedTransitionDurations[node] ?: 0L,
-                style.motionDurationMillis(previousStyles[node]),
+                node.resolvedSnapshot.motionDurationMillis(previousStyles[node]),
             )
         } ?: 0L
     }
@@ -122,13 +126,13 @@ data class HollowUiFrame(
                 val children = node.children
                     .filterNot { it is PopupNode }
                     .filter { it in layout.nodes }
-                    .sortedByDescending { resolved[it].layer }
+                    .sortedByDescending { it.resolvedSnapshot.layer }
                 for (child in children) stack.add(ScrollbarTraversalTask(child, visited = false))
             }
         }
-        collect(resolved.root)
+        collect(root)
         layout.popupNodes
-            .sortedBy { resolved[it].layer }
+            .sortedBy { it.resolvedSnapshot.layer }
             .forEach(::collect)
         return result
     }
@@ -196,7 +200,7 @@ class HollowUiRuntime(
 ) {
     private val transitionState = UiTransitionState()
     private val typingState = UiTypingState()
-    private val resolver = UiStyleResolver(theme, stylesheet, transitionState)
+    private val resolver = UiModifierResolver(theme, stylesheet, transitionState)
     private val layoutPipeline = UiLayoutPipeline()
     private val commandRenderer = UiCommandRenderer()
     private val ensuredTextFieldCaretRevisions = WeakHashMap<TextFieldNode, Long>()
@@ -231,15 +235,16 @@ class HollowUiRuntime(
     }
 
     private fun buildFrame(root: UiNode, width: Float, height: Float, nowMillis: Long): HollowUiFrame {
-        val resolved = resolver.resolve(root, nowMillis)
-        val transitionDurations = collectTransitionDurations(resolved)
-        var layout = layoutPipeline.compute(resolved, width, height, scrollState)
-        if (ensureFocusedTextFieldsVisible(resolved, layout)) {
-            layout = layoutPipeline.compute(resolved, width, height, scrollState)
+        val nodes = resolver.resolve(root, nowMillis)
+        val transitionDurations = collectTransitionDurations(nodes)
+        var layout = layoutPipeline.compute(root, width, height, scrollState)
+        if (ensureFocusedTextFieldsVisible(nodes, layout)) {
+            layout = layoutPipeline.compute(root, width, height, scrollState)
         }
-        val commands = commandRenderer.collect(resolved, layout, nowMillis, typingState)
+        val commands = commandRenderer.collect(root, layout, nowMillis, typingState)
         return HollowUiFrame(
-            resolved = resolved,
+            root = root,
+            nodes = nodes,
             layout = layout,
             commands = commands,
             activeTransitionDurations = transitionDurations.active,
@@ -327,23 +332,23 @@ class HollowUiRuntime(
     fun setScrollImmediate(node: UiNode, offset: UiScrollOffset): UiScrollOffset =
         scrollState.setImmediate(node, offset.x, offset.y)
 
-    private fun collectTransitionDurations(resolved: ResolvedUiTree): TransitionDurations {
-        if (resolved.styles.values.none { it.transitions.isNotEmpty() }) return TransitionDurations.Empty
+    private fun collectTransitionDurations(nodes: List<UiNode>): TransitionDurations {
+        if (nodes.none { it.resolvedSnapshot.transitions.isNotEmpty() }) return TransitionDurations.Empty
         val active = mutableMapOf<UiNode, Long>()
         val started = mutableMapOf<UiNode, Long>()
-        resolved.styles.keys.forEach { node ->
+        nodes.forEach { node ->
             active[node] = transitionState.activeDurationMillis(node)
             started[node] = transitionState.startedDurationMillis(node)
         }
         return TransitionDurations(active, started)
     }
 
-    private fun ensureFocusedTextFieldsVisible(resolved: ResolvedUiTree, layout: UiLayoutResult): Boolean {
+    private fun ensureFocusedTextFieldsVisible(nodes: List<UiNode>, layout: UiLayoutResult): Boolean {
         var changed = false
-        for (node in resolved.styles.keys.filterIsInstance<TextFieldNode>()) {
+        for (node in nodes.filterIsInstance<TextFieldNode>()) {
             if (UiState.FOCUS !in node.effectiveStates()) continue
             if (ensuredTextFieldCaretRevisions[node] == node.caretVisibilityRevision) continue
-            val style = resolved[node]
+            val style = node.resolvedSnapshot
             if (!style.input.scrollable) {
                 ensuredTextFieldCaretRevisions[node] = node.caretVisibilityRevision
                 continue
