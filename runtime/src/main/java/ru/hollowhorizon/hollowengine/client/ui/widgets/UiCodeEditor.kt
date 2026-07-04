@@ -35,7 +35,7 @@ fun UiCodeEditor(
         onChange = onChange,
         id = id,
         tags = listOf("code-editor") + tags,
-        modifier = modifier.input(scrollable = true).textWrap(false),
+        modifier = modifier.scroll(vertical = true, horizontal = true).textWrap(false),
         attributes = attributes,
     )
 }

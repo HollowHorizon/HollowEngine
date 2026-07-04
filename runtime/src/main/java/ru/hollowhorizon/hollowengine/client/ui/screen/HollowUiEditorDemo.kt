@@ -22,7 +22,7 @@ internal fun HollowUiEditorDemo(
     onKeyLog: (String) -> Unit,
     highlighter: UiSyntaxHighlighter,
 ) {
-    Box(tags = listOf("editor-demo-stage"), modifier = Modifier.input(scrollable = true)) {
+    Box(tags = listOf("editor-demo-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
         Column(tags = listOf("editor-demo-card"), modifier = Modifier.position(0.px, 0.px)) {
             Text("TextField editor mode", tags = listOf("card-title"))
             TextField(
@@ -36,7 +36,7 @@ internal fun HollowUiEditorDemo(
                 placeholder = "Type code here",
                 tags = listOf("editor-text-field"),
                 modifier = Modifier.size(520.px, 210.px)
-                    .input(scrollable = true)
+                    .scroll(vertical = true, horizontal = true)
                     .textWrap(false)
                     .onKeyInput { input ->
                         if (input.key != GLFW.GLFW_KEY_F2) return@onKeyInput
@@ -49,7 +49,7 @@ internal fun HollowUiEditorDemo(
 
         Column(tags = listOf("editor-demo-card", "lazy-column-card"), modifier = Modifier.position(552.px, 0.px)) {
             Text("LazyColumn", tags = listOf("card-title"))
-            LazyColumn(tags = listOf("lazy-column-demo"), modifier = Modifier.input(scrollable = true)) {
+            LazyColumn(tags = listOf("lazy-column-demo"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
                 repeat(120) { index ->
                     Row(tags = listOf("lazy-list-row")) {
                         Text((index + 1).toString().padStart(3, '0'), tags = listOf("lazy-row-index"))
@@ -61,7 +61,7 @@ internal fun HollowUiEditorDemo(
 
         Column(tags = listOf("editor-demo-card", "lazy-row-card"), modifier = Modifier.position(0.px, 282.px)) {
             Text("LazyRow", tags = listOf("card-title"))
-            LazyRow(tags = listOf("lazy-row-demo"), modifier = Modifier.input(scrollable = true)) {
+            LazyRow(tags = listOf("lazy-row-demo"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
                 repeat(64) { index ->
                     Column(tags = listOf("lazy-row-tile")) {
                         Text("#${index + 1}", tags = listOf("lazy-row-tile-title"))

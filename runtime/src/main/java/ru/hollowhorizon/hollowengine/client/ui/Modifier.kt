@@ -137,7 +137,7 @@ data class EventModifier(
 
             UiEventKind.DRAG -> { style.draggable = true; style.hoverable = true }
 
-            UiEventKind.SCROLL -> { style.scrollable = true; style.hoverable = true }
+            UiEventKind.SCROLL -> { style.scroll = ScrollAxes.Both; style.hoverable = true }
 
             UiEventKind.CHAR_TYPED,
             UiEventKind.KEY_PRESSED,
@@ -202,6 +202,26 @@ data class AttributeModifier(
     val name: String,
     val value: String? = null,
 ) : Modifier
+
+/** Which axes a scrollable node may scroll along. */
+data class ScrollAxes(val vertical: Boolean, val horizontal: Boolean) {
+    companion object {
+        val Both = ScrollAxes(vertical = true, horizontal = true)
+    }
+}
+
+/**
+ * Makes a node scrollable along the chosen axes. Enables the scrollable input capability and
+ * records the axes so layout only scrolls / reserves a scrollbar where allowed.
+ */
+data class ScrollModifier(
+    val vertical: Boolean,
+    val horizontal: Boolean,
+) : UiModifierPatchNode {
+    override fun applyPatch(style: UiStylePatch) {
+        style.scroll = ScrollAxes(vertical, horizontal)
+    }
+}
 
 // -- Style DSL --------------------------------------------------------------------------
 
@@ -304,20 +324,20 @@ fun Modifier.backdropFilter(vararg effects: UiFilterEffect) =
 
 fun Modifier.backfaceVisibility(value: UiBackfaceVisibility) = prop(UiProps.BackfaceVisibility, value)
 
+fun Modifier.scroll(vertical: Boolean = true, horizontal: Boolean = false) =
+    this then ScrollModifier(vertical, horizontal)
+
 fun Modifier.input(
     hoverable: Boolean = false,
     clickable: Boolean = false,
     focusable: Boolean = false,
     draggable: Boolean = false,
-    scrollable: Boolean = false,
-) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, focusable, draggable, scrollable)) {
+) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, focusable, draggable)) {
     // Only turn capabilities on, so this composes (OR) with event modifiers and other
-    // input() calls rather than clobbering them.
     if (hoverable) it.hoverable = true
     if (clickable) it.clickable = true
     if (focusable) it.focusable = true
     if (draggable) it.draggable = true
-    if (scrollable) it.scrollable = true
 }
 
 fun Modifier.cursor(shape: UiCursorShape) = prop(UiProps.Cursor, shape)
@@ -440,6 +460,8 @@ private fun List<Modifier>.invalidationPhases(): Set<UiInvalidationPhase> {
         }
     }
 }
+
+internal fun UiNode.scrollAxes(): ScrollAxes = resolvedSnapshot.scrollAxes ?: ScrollAxes.Both
 
 /** Whether the node carries an attribute (via [AttributeModifier] or its legacy XML map). */
 internal fun UiNode.hasAttribute(name: String): Boolean {

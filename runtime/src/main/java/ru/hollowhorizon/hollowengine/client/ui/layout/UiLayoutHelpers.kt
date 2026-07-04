@@ -54,7 +54,7 @@ internal val MeasuredChild.isColumnFlexible: Boolean
     get() = style.size.height is UiLength.Fill ||
             style.size.height is UiLength.Percent ||
             grow > 0f ||
-            node is TextNode && style.input.scrollable && style.size.height is UiLength.Auto
+            node is TextNode && style.scrollable && style.size.height is UiLength.Auto
 
 internal val MeasuredChild.canStretchAutoWidth: Boolean
     get() = node !is TextFieldNode

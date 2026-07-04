@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarThumbType
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarType
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 
@@ -262,7 +264,21 @@ class UiModifierResolver(
                 style.padding = UiInsets.hv(4.px, 3.px)
                 style.foreground = UiColor.White
                 style.input = UiInputStyle(hoverable = true, clickable = true, focusable = true)
+                style.cursor = UiCursorShape.TEXT
                 style.textField = UiTextFieldStyle()
+            }
+
+            UiScrollbarType -> {
+                style.background = UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))
+                style.borderRadius = 3.5f
+            }
+
+            UiScrollbarThumbType -> {
+                style.background = UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.9f))
+                style.borderRadius = 3.5f
+                style.clickable = true
+                style.draggable = true
+                style.hoverable = true
             }
         }
         return style

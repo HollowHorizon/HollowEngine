@@ -20,6 +20,10 @@ class HollowUiInputController {
 
     val focusedKey: String? get() = focusedNode?.id
 
+    /** The cursor shape of the node currently under the pointer (for the window cursor). */
+    val hoveredCursor: UiCursorShape
+        get() = (draggingNode ?: hoveredNode)?.resolvedSnapshot?.cursor ?: UiCursorShape.DEFAULT
+
     var x = 0f
     var y = 0f
 
@@ -194,19 +198,21 @@ class HollowUiInputController {
         setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
     ): UiInputResult {
         if (button != 0) return UiInputResult(false)
-        val scrollbar = frame.scrollbarAt(mouseX, mouseY) ?: return UiInputResult(false)
-        when (scrollbar.pointerAreaAt(mouseX, mouseY)) {
-            UiScrollbarPointerArea.THUMB -> {
-                scrollbarDrag = scrollbar.dragStateAt(mouseX, mouseY)
-                return UiInputResult(true, scrollbar.node, scrollbar.node.id)
+        return when (val hit = frame.hitTest(mouseX, mouseY)?.node) {
+            is ScrollbarThumbNode -> {
+                scrollbarDrag = scrollbarThumbDragState(frame.layout.nodes, hit, mouseX, mouseY)
+                val container = hit.scrollbarContainer()
+                UiInputResult(true, container, container?.id)
             }
 
-            UiScrollbarPointerArea.TRACK -> {
-                setScrollImmediate(scrollbar.node, scrollbar.trackClickOffset(frame.layout[scrollbar.node], mouseX, mouseY))
-                return UiInputResult(true, scrollbar.node, scrollbar.node.id, changed = true)
+            is ScrollbarNode -> {
+                val jump = scrollbarTrackJumpOffset(frame.layout.nodes, hit, mouseX, mouseY)
+                    ?: return UiInputResult(false)
+                setScrollImmediate(jump.first, jump.second)
+                UiInputResult(true, jump.first, jump.first.id, changed = true)
             }
 
-            null -> return UiInputResult(false)
+            else -> UiInputResult(false)
         }
     }
 
@@ -515,7 +521,7 @@ class HollowUiInputController {
     private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
         return focusedNode
             ?.takeIf { it in frame.layout.nodes }
-            ?.takeIf { it.resolvedSnapshot.input.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
+            ?.takeIf { it.resolvedSnapshot.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {

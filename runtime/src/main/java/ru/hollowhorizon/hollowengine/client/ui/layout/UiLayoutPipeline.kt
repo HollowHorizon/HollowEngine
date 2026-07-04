@@ -3,14 +3,16 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import ru.hollowhorizon.hollowengine.client.ui.PopupNode
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarCache
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.scroll.applyScrollRanges
 import ru.hollowhorizon.hollowengine.client.ui.scroll.detectScrollbarReserves
+import ru.hollowhorizon.hollowengine.client.ui.scroll.placeScrollbarNodes
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import java.util.*
 
 class UiLayoutPipeline {
     internal var layoutPass: LayoutPass? = null
+    private val scrollbarCache = ScrollbarCache()
 
     fun compute(
         resolved: UiNode,
@@ -19,19 +21,21 @@ class UiLayoutPipeline {
         scrollState: UiScrollState = UiScrollState(),
     ): UiLayoutResult {
         val initialLayouts = computeLayouts(resolved, width, height, scrollState, emptyMap())
-        val scrollbarReserves = detectScrollbarReserves(resolved, initialLayouts, ::layoutChildren)
+        val scrollbarReserves = detectScrollbarReserves(initialLayouts, ::layoutChildren)
         val layouts = if (scrollbarReserves.isEmpty()) {
             initialLayouts
         } else {
             computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
         }
-        val rangedLayouts = applyScrollRanges(resolved, layouts, scrollState, ::layoutChildren)
-        val traversalOrder = rangedLayouts.keys.toList()
+        val rangedLayouts = applyScrollRanges(layouts, scrollState, ::layoutChildren)
+        val (withScrollbars, scrollbars) = placeScrollbarNodes(rangedLayouts, scrollbarCache)
+        val traversalOrder = withScrollbars.keys.toList()
         return UiLayoutResult(
             root = resolved,
-            nodes = rangedLayouts,
+            nodes = withScrollbars,
             traversalOrder = traversalOrder,
             popupNodes = traversalOrder.filterIsInstance<PopupNode>(),
+            scrollbars = scrollbars,
         )
     }
 

@@ -48,6 +48,12 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
         return CompiledHss(rules, keyframes)
     }
 
+    private fun dedupeDeclarations(declarations: List<HssDeclaration>): List<HssDeclaration> {
+        val byProperty = LinkedHashMap<String, HssDeclaration>()
+        for (declaration in declarations) byProperty[declaration.property.lowercase()] = declaration
+        return byProperty.values.toList()
+    }
+
     private fun compileKeyframeStyle(declarations: List<HssDeclaration>): UiStylePatch {
         return dedupeDeclarations(declarations).mapNotNull(::compileDeclaration).toStylePatch()
     }
@@ -295,7 +301,9 @@ internal object HssModifierRegistry {
         register("clickable") { StylePropModifier(UiProps.Clickable, parseBoolean(it)) }
         register("focusable") { StylePropModifier(UiProps.Focusable, parseBoolean(it)) }
         register("draggable") { StylePropModifier(UiProps.Draggable, parseBoolean(it)) }
-        register("scrollable") { StylePropModifier(UiProps.Scrollable, parseBoolean(it)) }
+        // `scroll: vertical | horizontal | both | none` (and legacy `scrollable: true`).
+        register("scroll") { StylePropModifier(UiProps.Scroll, parseScrollAxes(it)) }
+        register("scrollable") { StylePropModifier(UiProps.Scroll, if (parseBoolean(it)) ScrollAxes.Both else null) }
         register("transition") { value -> transitionModifier(value) }
         register("animation") { value -> StyleModifier { it.animations = parseAnimations(value) } }
         register("animation-name") { value ->
@@ -628,6 +636,14 @@ private fun parseBorder(value: String, previous: UiBorder): UiBorder {
     val width = parseLength(parts.first())
     val color = parts.drop(1).joinToString(" ").takeIf { it.isNotBlank() }?.let(::parseColor) ?: previous.color
     return previous.copy(width = UiInsets.all(width), color = color)
+}
+
+private fun parseScrollAxes(value: String): ScrollAxes? = when (value.trim().lowercase()) {
+    "none", "false", "no", "off" -> null
+    "vertical", "y" -> ScrollAxes(vertical = true, horizontal = false)
+    "horizontal", "x" -> ScrollAxes(vertical = false, horizontal = true)
+    "both", "true", "yes", "on", "" -> ScrollAxes.Both
+    else -> throw IllegalArgumentException("Unknown scroll value '$value'")
 }
 
 private fun parseShadows(value: String): List<UiShadow> {

@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
+import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
@@ -282,7 +283,7 @@ class UiCommandRenderer {
                 style.filter == UiFilterChain.Empty &&
                 style.transform == DirectLayoutTransform
         val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
-        val pushedClip = (style.clip && style.clipShape == null) || style.input.scrollable
+        val pushedClip = (style.clip && style.clipShape == null) || style.scrollable
 
         if (cullNodeCommands && pushedClip) return
 
@@ -392,8 +393,13 @@ class UiCommandRenderer {
         }
 
         if (pushedClip) commands += PopClipCommand(node)
-        if (style.input.scrollable) {
-            appendScrollbars(node, layoutNode, style, localOpacity, commands)
+
+        // Framework-synthesized scrollbars render after the content clip is popped so they sit
+        // in the gutter, on top of content, clipped only by the container's ancestors.
+        layout.scrollbars[node]?.forEach { scrollbar ->
+            if (scrollbar in layout.nodes) {
+                collectNode(scrollbar, resolved, layout, nowMillis, typingState, commands, activeClip = activeClip)
+            }
         }
     }
 
@@ -556,7 +562,7 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         layout: UiLayoutResult,
     ): UiTextLayout {
-        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
+        val textHeight = if (style.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
         return UiTextLayouter.layout(
             node.content.toRichText(node.inlineWidgetMetrics(layout)),
             layoutNode.content.width,
@@ -640,7 +646,7 @@ class UiCommandRenderer {
         val visible = text.ifEmpty { node.placeholder }
         val fontSize = style.fontSize
         val wrap = style.textWrap && node.multiline && textFieldWidthConstrained(style, node, layoutNode.content.width)
-        val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
+        val textHeight = if (style.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
         val widgetMetrics = node.inlineWidgetMetrics(layout)
         val editLayout = textFieldEditLayout(node, style, layoutNode, widgetMetrics)
         val displayLayout = if (text.isEmpty()) {
@@ -725,77 +731,6 @@ class UiCommandRenderer {
         )
     }
 
-    private fun appendScrollbars(
-        node: UiNode,
-        layoutNode: UiLayoutNode,
-        style: UiComputedStyle,
-        opacity: Float,
-        commands: UiRenderSink,
-    ) {
-        for (scrollbar in layoutNode.scrollbars) {
-            val scrollbarStyle = when (scrollbar.orientation) {
-                ScrollbarOrientation.VERTICAL -> style.scrollbar.resolved(layoutNode.scrollArea.width)
-                ScrollbarOrientation.HORIZONTAL -> style.scrollbar.resolved(layoutNode.scrollArea.height)
-            }
-            val thumbOpacity = when (scrollbar.orientation) {
-                ScrollbarOrientation.VERTICAL -> 0.9f
-                ScrollbarOrientation.HORIZONTAL -> 0.82f
-            }
-            commands += scrollbarBoxCommand(
-                node = node,
-                rect = scrollbar.track,
-                paint = scrollbarStyle.track.paint.resolve(UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))),
-                border = scrollbarStyle.track.border ?: UiBorder(radius = scrollbarStyle.track.radius ?: 3.5f),
-                fit = scrollbarStyle.track.fit ?: UiImageFit.STRETCH,
-                slice = scrollbarStyle.track.slice ?: UiInsets.all(4.px),
-                opacity = opacity,
-                transform = layoutNode.worldTransform,
-                backfaceVisibility = style.backfaceVisibility,
-            )
-            commands += scrollbarBoxCommand(
-                node = node,
-                rect = scrollbar.thumb,
-                paint = scrollbarStyle.thumb.paint.resolve(
-                    UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, thumbOpacity)),
-                ),
-                border = scrollbarStyle.thumb.border ?: UiBorder(radius = scrollbarStyle.thumb.radius ?: 3.5f),
-                fit = scrollbarStyle.thumb.fit ?: UiImageFit.STRETCH,
-                slice = scrollbarStyle.thumb.slice ?: UiInsets.all(4.px),
-                opacity = opacity,
-                transform = layoutNode.worldTransform,
-                backfaceVisibility = style.backfaceVisibility,
-            )
-        }
-    }
-
-    private fun scrollbarBoxCommand(
-        node: UiNode,
-        rect: UiRect,
-        paint: UiResolvedPaint,
-        border: UiBorder,
-        fit: UiImageFit,
-        slice: UiInsets,
-        opacity: Float,
-        transform: UiMatrix4,
-        backfaceVisibility: UiBackfaceVisibility,
-    ): DrawBoxCommand {
-        return DrawBoxCommand(
-            node = node,
-            rect = UiRect(0f, 0f, rect.width, rect.height),
-            paint = paint,
-            border = border,
-            shadows = emptyList(),
-            opacity = opacity,
-            tint = UiColor.White,
-            transform = transform * UiMatrix4.translation(rect.x, rect.y, 0f),
-            renderToFramebuffer = false,
-            fit = fit,
-            slice = slice,
-            filter = UiFilterChain.Empty,
-            backfaceVisibility = backfaceVisibility,
-            phase = UiRenderPhase.OVERLAY,
-        )
-    }
 }
 
 private fun UiNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
@@ -919,8 +854,14 @@ class UiHitTester {
                     stack.add(HitTestTask.Test(current, task.ancestorClip))
                     val normalChildren = children.filterNot { it is PopupNode }
                     for (child in normalChildren) stack.add(HitTestTask.Enter(child, effectiveClip))
-                    val popupChildren = children.filterIsInstance<PopupNode>()
-                    for (child in popupChildren) stack.add(HitTestTask.Enter(child, task.ancestorClip))
+                    // Popups and synthesized scrollbars are overlays: they escape this node's
+                    // content clip (scrollbars live in the gutter), so use the outer clip.
+                    for (child in children.filterIsInstance<PopupNode>()) {
+                        stack.add(HitTestTask.Enter(child, task.ancestorClip))
+                    }
+                    layout.scrollbars[current]?.forEach { scrollbar ->
+                        if (scrollbar in layout.nodes) stack.add(HitTestTask.Enter(scrollbar, task.ancestorClip))
+                    }
                 }
 
                 is HitTestTask.Test -> {
@@ -931,7 +872,7 @@ class UiHitTester {
                         !style.input.clickable &&
                         !style.input.focusable &&
                         !style.input.draggable &&
-                        !style.input.scrollable
+                        !style.scrollable
                     ) {
                         continue
                     }

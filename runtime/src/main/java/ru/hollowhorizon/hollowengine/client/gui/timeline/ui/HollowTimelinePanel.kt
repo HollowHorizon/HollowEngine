@@ -86,7 +86,7 @@ private fun TimelineArea(controller: TimelineController, refresh: () -> Unit) {
         modifier = Modifier.size(0.px, 100.percent)
             .grow(1f)
             .background(TimelineColors.Background)
-            .input(scrollable = true)
+            .scroll(vertical = true, horizontal = true)
             .clip()
             .onScroll { event ->
                 if (event.modifiers and GLFW.GLFW_MOD_CONTROL != 0) {

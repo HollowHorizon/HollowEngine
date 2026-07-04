@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarGeometry
 import ru.hollowhorizon.hollowengine.client.ui.style.*
@@ -31,7 +32,6 @@ data class UiLayoutNode(
     val scrollArea: UiRect = content,
     val virtualContentBounds: UiRect? = null,
     val textLayout: UiTextLayout? = null,
-    val scrollbars: List<UiScrollbarGeometry> = emptyList(),
 )
 
 data class UiLayoutResult(
@@ -39,6 +39,8 @@ data class UiLayoutResult(
     val nodes: Map<UiNode, UiLayoutNode>,
     val traversalOrder: List<UiNode> = nodes.keys.toList(),
     val popupNodes: List<PopupNode> = traversalOrder.filterIsInstance<PopupNode>(),
+    /** Framework-synthesized scrollbars per scroll container (not part of node.children). */
+    val scrollbars: Map<UiNode, List<ScrollbarNode>> = emptyMap(),
 ) {
     operator fun get(node: UiNode): UiLayoutNode = nodes.getValue(node)
 }

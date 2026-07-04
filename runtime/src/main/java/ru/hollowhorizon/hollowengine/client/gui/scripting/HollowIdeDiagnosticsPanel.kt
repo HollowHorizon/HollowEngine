@@ -54,7 +54,7 @@ internal fun HollowIdeDiagnosticsPanel(
         )
         LazyColumn(
             tags = listOf("ide-diagnostics-panel"),
-            modifier = Modifier.input(scrollable = true),
+            modifier = Modifier.scroll(vertical = true, horizontal = true),
         ) {
             diagnostics.forEach { diagnostic ->
                 Row(tags = listOf("ide-diagnostic-row", diagnostic.severity.name.lowercase())) {

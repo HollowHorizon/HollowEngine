@@ -25,7 +25,7 @@ fun <T> UiTreeView(
 ) {
     LazyColumn(
         tags = listOf("tree-view") + tags,
-        modifier = modifier.input(scrollable = true)
+        modifier = modifier.scroll(vertical = true, horizontal = true)
     ) {
         items.forEach { item ->
             key(item) {

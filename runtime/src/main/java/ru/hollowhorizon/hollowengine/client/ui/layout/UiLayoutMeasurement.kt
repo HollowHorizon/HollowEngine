@@ -339,8 +339,8 @@ private fun UiLayoutPipeline.measureStandardContainer(
         scrollbarReserves,
         deferFlexibleWidth = style.size.width is UiLength.Auto,
         deferFlexibleHeight = style.size.height is UiLength.Auto,
-        allowWidthOverflow = style.input.scrollable,
-        allowHeightOverflow = style.input.scrollable,
+        allowWidthOverflow = style.scrollable,
+        allowHeightOverflow = style.scrollable,
     )
 
     val layoutAxis = node.measurePolicy.flowAxis()

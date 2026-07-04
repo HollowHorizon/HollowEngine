@@ -61,7 +61,7 @@ internal fun UiLength.resolveHeight(
     content: UiRect,
 ): Float {
     return when (this) {
-        UiLength.Auto -> if (align == UiAlign.STRETCH || childStyle.input.scrollable && child.node is TextNode) {
+        UiLength.Auto -> if (align == UiAlign.STRETCH || childStyle.scrollable && child.node is TextNode) {
             (content.height - child.margin.top - child.margin.bottom).coerceAtLeast(0f)
                 .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)
         } else {

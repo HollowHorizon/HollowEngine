@@ -144,7 +144,7 @@ object UiProps {
     val Clickable = prop("clickable", false, phases = InputPhase)
     val Focusable = prop("focusable", false, phases = InputPhase)
     val Draggable = prop("draggable", false, phases = InputPhase)
-    val Scrollable = prop("scrollable", false, fingerprint = true)
+    val Scroll = prop<ScrollAxes?>("scroll", null, fingerprint = true)
     val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT, phases = InputPhase)
 
     // Widgets
@@ -243,11 +243,11 @@ var UiStylePatch.hoverable by UiProps.Hoverable
 var UiStylePatch.clickable by UiProps.Clickable
 var UiStylePatch.focusable by UiProps.Focusable
 var UiStylePatch.draggable by UiProps.Draggable
-var UiStylePatch.scrollable by UiProps.Scrollable
+var UiStylePatch.scroll by UiProps.Scroll
 var UiStylePatch.cursor by UiProps.Cursor
 
 /**
- * Composite view over the five input capability props. Reading returns the merged flags;
+ * Composite view over the four input capability props. Reading returns the merged flags;
  * writing turns *on* only the flags that are true, so multiple event modifiers accumulate
  * (OR) instead of clobbering each other. To force a flag off (e.g. a `:disabled` rule),
  * set the individual prop (`clickable = false`) rather than assigning `input`.
@@ -258,14 +258,12 @@ var UiStylePatch.input: UiInputStyle
         clickable = this[UiProps.Clickable] ?: false,
         focusable = this[UiProps.Focusable] ?: false,
         draggable = this[UiProps.Draggable] ?: false,
-        scrollable = this[UiProps.Scrollable] ?: false,
     )
     set(value) {
         if (value.hoverable) this[UiProps.Hoverable] = true
         if (value.clickable) this[UiProps.Clickable] = true
         if (value.focusable) this[UiProps.Focusable] = true
         if (value.draggable) this[UiProps.Draggable] = true
-        if (value.scrollable) this[UiProps.Scrollable] = true
     }
 var UiStylePatch.scrollbar by UiProps.Scrollbar
 var UiStylePatch.slider by UiProps.Slider
@@ -384,16 +382,17 @@ val UiComputedStyle.hoverable by UiProps.Hoverable
 val UiComputedStyle.clickable by UiProps.Clickable
 val UiComputedStyle.focusable by UiProps.Focusable
 val UiComputedStyle.draggable by UiProps.Draggable
-val UiComputedStyle.scrollable by UiProps.Scrollable
 
-/** Merged read-only view of the five input capability props (see the patch accessor). */
+val UiComputedStyle.scrollAxes: ScrollAxes? get() = this[UiProps.Scroll]
+
+val UiComputedStyle.scrollable: Boolean get() = this[UiProps.Scroll] != null
+
 val UiComputedStyle.input: UiInputStyle
     get() = UiInputStyle(
         hoverable = this[UiProps.Hoverable],
         clickable = this[UiProps.Clickable],
         focusable = this[UiProps.Focusable],
         draggable = this[UiProps.Draggable],
-        scrollable = this[UiProps.Scrollable],
     )
 val UiComputedStyle.cursor by UiProps.Cursor
 val UiComputedStyle.scrollbar by UiProps.Scrollbar

@@ -1,17 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.ui.scroll
 
+import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.*
+import ru.hollowhorizon.hollowengine.client.ui.scrollAxes
+import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
-import ru.hollowhorizon.hollowengine.client.ui.layout.*
-import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import java.util.*
 
 
 private const val ScrollOverflowEpsilon = 0.01f
 
 internal fun applyScrollRanges(
-    resolved: UiNode,
     layouts: Map<UiNode, UiLayoutNode>,
     scrollState: UiScrollState,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
@@ -19,90 +21,163 @@ internal fun applyScrollRanges(
     val result = layouts.toMutableMap()
     for ((node, layout) in layouts) {
         val style = node.resolvedSnapshot
-        if (!style.input.scrollable) continue
+        if (!style.scrollable) continue
+        val axes = node.scrollAxes()
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val range = UiScrollOffset(
-            x = maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)),
-            y = maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)),
+            x = if (axes.horizontal) maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)) else 0f,
+            y = if (axes.vertical) maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)) else 0f,
         )
         val clamped = scrollState.clamp(node, range)
         val clip = layout.clip?.intersect(layout.content) ?: layout.content
-        val scrolledLayout = layout.copy(
+        result[node] = layout.copy(
             content = layout.content,
             clip = clip,
             scrollOffset = clamped,
             scrollRange = range,
         )
-        result[node] = scrolledLayout.copy(scrollbars = scrollbarGeometry(style, scrolledLayout))
     }
     return result
+}
+
+internal class ScrollbarCache {
+    private val byContainer = WeakHashMap<UiNode, MutableMap<ScrollbarOrientation, ScrollbarNode>>()
+
+    fun scrollbar(container: UiNode, orientation: ScrollbarOrientation): ScrollbarNode {
+        val map = byContainer.getOrPut(container) { mutableMapOf() }
+        return map.getOrPut(orientation) {
+            ScrollbarNode(orientation).also { it.layoutState.attachTo(container) }
+        }
+    }
+}
+
+internal fun placeScrollbarNodes(
+    layouts: Map<UiNode, UiLayoutNode>,
+    cache: ScrollbarCache,
+): Pair<Map<UiNode, UiLayoutNode>, Map<UiNode, List<ScrollbarNode>>> {
+    val result = layouts.toMutableMap()
+    val scrollbars = HashMap<UiNode, List<ScrollbarNode>>()
+    for ((container, containerLayout) in layouts) {
+        if (container.resolvedSnapshot.scrollAxes == null) continue
+        val geometry = scrollbarGeometry(container.resolvedSnapshot, containerLayout)
+        if (geometry.isEmpty()) continue
+        val bars = ArrayList<ScrollbarNode>(geometry.size)
+        for (geom in geometry) {
+            val bar = cache.scrollbar(container, geom.orientation)
+            result[bar] = scrollbarPartLayout(bar, geom.track, containerLayout)
+            result[bar.thumb] = scrollbarPartLayout(bar.thumb, geom.thumb, containerLayout)
+            bars += bar
+        }
+        scrollbars[container] = bars
+    }
+    return result to scrollbars
+}
+
+private fun scrollbarPartLayout(node: UiNode, relativeRect: UiRect, container: UiLayoutNode): UiLayoutNode {
+    val offset = UiMatrix4.translation(relativeRect.x, relativeRect.y, 0f)
+    val absolute = UiRect(
+        container.rect.x + relativeRect.x,
+        container.rect.y + relativeRect.y,
+        relativeRect.width,
+        relativeRect.height,
+    )
+    return UiLayoutNode(
+        node = node,
+        rect = absolute,
+        content = absolute,
+        clip = container.scrollArea,
+        worldTransform = container.worldTransform * offset,
+        inputTransform = container.inputTransform * offset,
+        needsFramebuffer = false,
+    )
 }
 
 private fun scrollbarGeometry(style: UiComputedStyle, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
     val result = mutableListOf<UiScrollbarGeometry>()
-    val verticalStyle = style.scrollbar.resolved(layoutNode.scrollArea.width)
-    val horizontalStyle = style.scrollbar.resolved(layoutNode.scrollArea.height)
-    val hasVerticalScrollbar = layoutNode.scrollRange.y > 0f && layoutNode.scrollArea.height > verticalStyle.gutter
-    val hasHorizontalScrollbar = layoutNode.scrollRange.x > 0f && layoutNode.scrollArea.width > horizontalStyle.gutter
-    if (hasVerticalScrollbar) {
-        val horizontalReserve = if (hasHorizontalScrollbar) horizontalStyle.gutter else 0f
-        val trackHeight = layoutNode.scrollArea.height - verticalStyle.margin * 2f - horizontalReserve
-        if (trackHeight > 0f) {
-            val track = UiRect(
-                x = layoutNode.scrollArea.x - layoutNode.rect.x + layoutNode.scrollArea.width -
-                        verticalStyle.thickness - verticalStyle.margin,
-                y = layoutNode.scrollArea.y - layoutNode.rect.y + verticalStyle.margin,
-                width = verticalStyle.thickness,
-                height = trackHeight,
-            )
-            val contentHeight = layoutNode.content.height + layoutNode.scrollRange.y
-            val thumbHeight =
-                maxOf(verticalStyle.minThumbSize, track.height * layoutNode.content.height / contentHeight)
-            val thumbY = track.y + (track.height - thumbHeight) * (layoutNode.scrollOffset.y / layoutNode.scrollRange.y)
-            result += UiScrollbarGeometry(
-                track = track,
-                thumb = track.copy(y = thumbY, height = thumbHeight),
-                orientation = ScrollbarOrientation.VERTICAL,
-            )
-        }
+    val scrollArea = layoutNode.scrollArea
+    val rect = layoutNode.rect
+    val verticalStyle = style.scrollbar.resolved(scrollArea.width)
+    val horizontalStyle = style.scrollbar.resolved(scrollArea.height)
+    val hasVertical = layoutNode.scrollRange.y > 0f && scrollArea.height > verticalStyle.gutter
+    val hasHorizontal = layoutNode.scrollRange.x > 0f && scrollArea.width > horizontalStyle.gutter
+
+    fun buildScrollbar(
+        orientation: ScrollbarOrientation,
+        isVisible: Boolean,
+        margin: Float,
+        minThumbSize: Float,
+        reserve: Float,
+        scrollRangeAxis: Float,
+        scrollOffsetAxis: Float,
+        scrollAreaSize: Float,
+        contentSize: Float,
+        createGeometry: (trackSize: Float, thumbSize: Float, thumbOffset: Float) -> Pair<UiRect, UiRect>
+    ) {
+        if (!isVisible) return
+
+        val trackSize = scrollAreaSize - margin * 2f - reserve
+        if (trackSize <= 0f) return
+
+        val totalContentSize = contentSize + scrollRangeAxis
+        val thumbSize = maxOf(minThumbSize, trackSize * contentSize / totalContentSize)
+
+        val thumbRatio = if (scrollRangeAxis > 0f) scrollOffsetAxis / scrollRangeAxis else 0f
+        val thumbOffset = (trackSize - thumbSize) * thumbRatio
+
+        val (track, thumb) = createGeometry(trackSize, thumbSize, thumbOffset)
+        result += UiScrollbarGeometry(track, thumb, orientation)
     }
-    if (hasHorizontalScrollbar) {
-        val verticalReserve = if (hasVerticalScrollbar) verticalStyle.gutter else 0f
-        val trackWidth = layoutNode.scrollArea.width - horizontalStyle.margin * 2f - verticalReserve
-        if (trackWidth > 0f) {
-            val track = UiRect(
-                x = layoutNode.scrollArea.x - layoutNode.rect.x + horizontalStyle.margin,
-                y = layoutNode.scrollArea.y - layoutNode.rect.y + layoutNode.scrollArea.height -
-                        horizontalStyle.thickness - horizontalStyle.margin,
-                width = trackWidth,
-                height = horizontalStyle.thickness,
-            )
-            val contentWidth = layoutNode.content.width + layoutNode.scrollRange.x
-            val thumbWidth = maxOf(horizontalStyle.minThumbSize, track.width * layoutNode.content.width / contentWidth)
-            val thumbX = track.x + (track.width - thumbWidth) * (layoutNode.scrollOffset.x / layoutNode.scrollRange.x)
-            result += UiScrollbarGeometry(
-                track = track,
-                thumb = track.copy(x = thumbX, width = thumbWidth),
-                orientation = ScrollbarOrientation.HORIZONTAL,
-            )
-        }
+
+    buildScrollbar(
+        ScrollbarOrientation.VERTICAL, hasVertical,
+        verticalStyle.margin, verticalStyle.minThumbSize,
+        if (hasHorizontal) horizontalStyle.gutter else 0f,
+        layoutNode.scrollRange.y, layoutNode.scrollOffset.y,
+        scrollArea.height, layoutNode.content.height
+    ) { trackSize, thumbSize, thumbOffset ->
+        val track = UiRect(
+            x = scrollArea.x - rect.x + scrollArea.width - verticalStyle.thickness - verticalStyle.margin,
+            y = scrollArea.y - rect.y + verticalStyle.margin,
+            width = verticalStyle.thickness,
+            height = trackSize
+        )
+        val thumb = track.copy(y = track.y + thumbOffset, height = thumbSize)
+        track to thumb
     }
+
+    buildScrollbar(
+        ScrollbarOrientation.HORIZONTAL, hasHorizontal,
+        horizontalStyle.margin, horizontalStyle.minThumbSize,
+        if (hasVertical) verticalStyle.gutter else 0f,
+        layoutNode.scrollRange.x, layoutNode.scrollOffset.x,
+        scrollArea.width, layoutNode.content.width
+    ) { trackSize, thumbSize, thumbOffset ->
+        val track = UiRect(
+            x = scrollArea.x - rect.x + horizontalStyle.margin,
+            y = scrollArea.y - rect.y + scrollArea.height - horizontalStyle.thickness - horizontalStyle.margin,
+            width = trackSize,
+            height = horizontalStyle.thickness
+        )
+        val thumb = track.copy(x = track.x + thumbOffset, width = thumbSize)
+        track to thumb
+    }
+
     return result
 }
 
 internal fun detectScrollbarReserves(
-    resolved: UiNode,
     layouts: Map<UiNode, UiLayoutNode>,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
 ): Map<UiNode, UiScrollbarReserve> {
     val reserves = linkedMapOf<UiNode, UiScrollbarReserve>()
     for ((node, layout) in layouts) {
         val style = node.resolvedSnapshot
-        if (!style.input.scrollable) continue
+        if (!style.scrollable) continue
+        val axes = node.scrollAxes()
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val reserve = UiScrollbarReserve(
-            vertical = (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
-            horizontal = (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
+            vertical = axes.vertical && (childBounds.y + childBounds.height).exceeds(layout.content.y + layout.content.height),
+            horizontal = axes.horizontal && (childBounds.x + childBounds.width).exceeds(layout.content.x + layout.content.width),
         )
         if (reserve.active) reserves[node] = reserve
     }

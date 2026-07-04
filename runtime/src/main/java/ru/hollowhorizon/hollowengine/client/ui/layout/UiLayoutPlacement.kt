@@ -32,7 +32,7 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
         is TextFieldNode -> layoutTextFieldNode(node, resolved, style, boxes.content, scrollbarReserves)
         else -> null
     }
-    val clip = if (style.clip || style.input.scrollable) parentClip.intersect(boxes.content) else parentClip
+    val clip = if (style.clip || style.scrollable) parentClip.intersect(boxes.content) else parentClip
     val localX = rect.x - parentRect.x
     val localY = rect.y - parentRect.y
     val pivot = style.transform.pivot.resolve(rect.width, rect.height)
@@ -82,7 +82,7 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
 private fun UiLayoutPipeline.placeChildren(scope: ChildPlacementScope) {
     val node = scope.node
     if (node.children.isEmpty()) return
-    val viewport = if (scope.style.input.scrollable) {
+    val viewport = if (scope.style.scrollable) {
         val offset = scope.scrollState.offset(node)
         scope.content.copy(x = scope.content.x - offset.x, y = scope.content.y - offset.y)
     } else {
@@ -175,7 +175,7 @@ internal fun UiLayoutPipeline.layoutTextNode(
         content.height,
         scrollbarReserves,
     )
-    val textHeight = if (style.input.scrollable) Float.POSITIVE_INFINITY else content.height
+    val textHeight = if (style.scrollable) Float.POSITIVE_INFINITY else content.height
     return UiTextLayouter.layout(
         node.content.toRichText(widgetMetrics),
         content.width,

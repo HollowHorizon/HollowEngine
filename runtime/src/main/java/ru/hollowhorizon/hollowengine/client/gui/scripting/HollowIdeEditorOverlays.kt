@@ -33,7 +33,7 @@ internal class HollowIdeEditorOverlays(
                 id = completionListId(fileId),
                 tags = listOf("ide-completion-list"),
                 modifier =
-                    Modifier.size(100.percent, state.listHeight.px).input(scrollable = true),
+                    Modifier.size(100.percent, state.listHeight.px).scroll(vertical = true, horizontal = true),
             ) {
                 if (state.firstIndex > 0) {
                     Box(modifier = Modifier.size(100.percent, (state.firstIndex * state.rowHeight).px))

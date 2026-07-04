@@ -72,7 +72,7 @@ internal fun TimelineHeaderList(controller: TimelineController, refresh: () -> U
         id = "timeline-header-scroll",
         modifier = Modifier.size(TimelineHeaderWidth.px, 100.percent)
             .background(TimelineColors.Panel)
-            .input(scrollable = true)
+            .scroll(vertical = true, horizontal = true)
             .clip(),
     ) {
         Box(modifier = Modifier.size(TimelineHeaderWidth.px, contentHeight.px)) {

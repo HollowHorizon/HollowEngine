@@ -6,7 +6,10 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.scroll.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
+import ru.hollowhorizon.hollowengine.client.ui.scroll.hasScrollableAxis
+import ru.hollowhorizon.hollowengine.client.ui.scroll.scrollWheelDelta
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
@@ -54,7 +57,7 @@ data class HollowUiFrame(
 
                 is ScrollTargetTask.Test -> {
                     val node = task.node
-                    if (!node.resolvedSnapshot.input.scrollable) continue
+                    if (!node.resolvedSnapshot.scrollable) continue
                     task.ancestorClip?.let { clip ->
                         if (!clip.contains(x, y)) continue
                     }
@@ -74,12 +77,6 @@ data class HollowUiFrame(
         nodes.firstOrNull { it.id == identifier || identifier in it.tags }
 
     fun nodeByKey(key: String): UiNode? = nodeByIdentifier(key)
-
-    internal fun scrollbarAt(x: Float, y: Float): UiScrollbarHandle? {
-        val scrollbars = scrollbarHandlesInDrawOrder()
-        return scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.THUMB }
-            ?: scrollbars.lastOrNull { it.pointerAreaAt(x, y) == UiScrollbarPointerArea.TRACK }
-    }
 
     fun motionDurationMillis(previous: HollowUiFrame?): Long {
         val previousStyles = previous?.nodes.orEmpty().associateWith { it.resolvedSnapshot }
@@ -107,36 +104,6 @@ data class HollowUiFrame(
             return UiHit(node, local.x, local.y, link)
         }
         return null
-    }
-
-    private fun scrollbarHandlesInDrawOrder(): List<UiScrollbarHandle> {
-        val result = mutableListOf<UiScrollbarHandle>()
-        fun collect(root: UiNode) {
-            val stack = ArrayDeque<ScrollbarTraversalTask>()
-            stack.add(ScrollbarTraversalTask(root, visited = false))
-            while (stack.isNotEmpty()) {
-                val task = stack.removeLast()
-                val node = task.node
-                if (task.visited) {
-                    val layoutNode = layout.nodes[node] ?: continue
-                    for (geometry in layoutNode.scrollbars) {
-                        result += UiScrollbarHandle(node, geometry, layoutNode.worldTransform)
-                    }
-                    continue
-                }
-                stack.add(ScrollbarTraversalTask(node, visited = true))
-                val children = node.children
-                    .filterNot { it is PopupNode }
-                    .filter { it in layout.nodes }
-                    .sortedByDescending { it.resolvedSnapshot.layer }
-                for (child in children) stack.add(ScrollbarTraversalTask(child, visited = false))
-            }
-        }
-        collect(root)
-        layout.popupNodes
-            .sortedBy { it.resolvedSnapshot.layer }
-            .forEach(::collect)
-        return result
     }
 
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
@@ -167,10 +134,6 @@ data class HollowUiFrame(
     }
 }
 
-private data class ScrollbarTraversalTask(
-    val node: UiNode,
-    val visited: Boolean,
-)
 
 private sealed interface ScrollTargetTask {
     data class Enter(
@@ -218,6 +181,9 @@ class HollowUiRuntime(
     val mouseY: Float get() = input.y
     val focusedKey get() = input.focusedKey
     val isAnyFocused get() = focusedKey != null
+
+    /** Cursor shape for the node under the pointer - apply to the window via [UiCursorManager]. */
+    val cursor: UiCursorShape get() = input.hoveredCursor
 
     fun frame(
         root: UiNode,
@@ -366,7 +332,7 @@ class HollowUiRuntime(
             if (UiState.FOCUS !in node.effectiveStates()) continue
             if (ensuredTextFieldCaretRevisions[node] == node.caretVisibilityRevision) continue
             val style = node.resolvedSnapshot
-            if (!style.input.scrollable) {
+            if (!style.scrollable) {
                 ensuredTextFieldCaretRevisions[node] = node.caretVisibilityRevision
                 continue
             }
@@ -401,7 +367,7 @@ class HollowUiRuntime(
         val frame = lastFrame ?: return false
         // Consume any press landing on the UI (interactive or not) to prevent click-through.
         return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button))
-            .orConsumed(frame.scrollbarAt(mouseX, mouseY) != null || frame.hitTest(mouseX, mouseY) != null)
+            .orConsumed(frame.hitTest(mouseX, mouseY) != null)
     }
 
     fun mouseReleased(mouseX: Float, mouseY: Float, button: Int): Boolean =

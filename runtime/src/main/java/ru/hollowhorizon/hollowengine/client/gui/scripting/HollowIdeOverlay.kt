@@ -300,7 +300,7 @@ object HollowIdeOverlay {
 
     @Composable
     private fun ProjectTree() {
-        Column(tags = listOf("ide-panel", "project-tree-panel")) {
+        Column(tags = listOf("ide-panel", "project-tree-panel"), modifier = Modifier.size(100.percent, 100.percent)) {
             Row(tags = listOf("project-filter-row")) {
                 Image(SearchIcon, tags = listOf("project-filter-icon"))
                 TextField(
@@ -349,7 +349,7 @@ object HollowIdeOverlay {
         val inlayHints = editorSession.inlayHints(file.text)
         val fontSize = editorFontSize
         val editorId = "editor-${file.id}"
-        Column(tags = listOf("ide-editor-shell")) {
+        Column(tags = listOf("ide-editor-shell"), modifier = Modifier.size(100.percent, 100.percent)) {
             Box(
                 id = "editor-stack-${file.id}",
                 mode = UiBoxMode.STACK,
@@ -494,9 +494,15 @@ object HollowIdeOverlay {
 
     private fun renderOverlay(target: UiRenderTarget) {
         val window = Minecraft.getInstance().window
-        val frame =
-            surface.frame(window.width.toFloat(), window.height.toFloat(), lastMouseX, lastMouseY, System.nanoTime())
+        val frame = surface.frame(
+            window.guiScaledWidth.toFloat(),
+            window.guiScaledHeight.toFloat(),
+            lastMouseX,
+            lastMouseY,
+            System.nanoTime(),
+        )
         renderer.render(frame, target)
+        UiCursorManager.apply(window.window, surface.runtime.cursor)
     }
 
     private fun currentBlitTarget(): UiRenderTarget {

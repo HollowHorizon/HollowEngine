@@ -48,11 +48,7 @@ internal class LayoutPass(root: UiNode) {
             val layout = ArrayList<UiNode>()
             val popups = ArrayList<PopupNode>()
             for (child in node.children) {
-                if (child is PopupNode) {
-                    popups += child
-                } else {
-                    layout += child
-                }
+                if (child is PopupNode) popups += child else layout += child
             }
             layoutChildren[node] = layout
             popupChildren[node] = popups

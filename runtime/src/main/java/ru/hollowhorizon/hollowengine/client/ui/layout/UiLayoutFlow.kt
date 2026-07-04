@@ -72,8 +72,8 @@ internal fun UiLayoutPipeline.placeLinearChildren(
     val content = scope.content
     val mainAvailable = axis.mainSize(content)
     val gap = style.gap.resolve(mainAvailable)
-    val allowWidthOverflow = style.input.scrollable || lazy && axis == FlowAxis.Horizontal
-    val allowHeightOverflow = style.input.scrollable || lazy && axis == FlowAxis.Vertical
+    val allowWidthOverflow = style.scrollable || lazy && axis == FlowAxis.Horizontal
+    val allowHeightOverflow = style.scrollable || lazy && axis == FlowAxis.Vertical
     val measured = measureFlowChildren(
         node,
         resolved,
@@ -93,7 +93,7 @@ internal fun UiLayoutPipeline.placeLinearChildren(
             gap,
             resolved,
             scope.scrollbarReserves,
-            allowOverflow = style.input.scrollable,
+            allowOverflow = style.scrollable,
         )
     }
     val totalMain = children.sumOfOuterMain(axis) + gap * (children.size - 1).coerceAtLeast(0)
@@ -143,8 +143,8 @@ internal fun UiLayoutPipeline.placeFreeChildren(scope: ChildPlacementScope) {
         content.width,
         content.height,
         scope.scrollbarReserves,
-        allowWidthOverflow = style.input.scrollable,
-        allowHeightOverflow = style.input.scrollable,
+        allowWidthOverflow = style.scrollable,
+        allowHeightOverflow = style.scrollable,
     )) {
         val position = child.style.position.resolve(content.width, content.height)
         val parentAxis = node.measurePolicy.flowAxis()

@@ -119,14 +119,12 @@ data class UiInputStyle(
     val clickable: Boolean = false,
     val focusable: Boolean = false,
     val draggable: Boolean = false,
-    val scrollable: Boolean = false,
 ) {
     fun merge(other: UiInputStyle) = UiInputStyle(
         hoverable = hoverable || other.hoverable,
         clickable = clickable || other.clickable,
         focusable = focusable || other.focusable,
         draggable = draggable || other.draggable,
-        scrollable = scrollable || other.scrollable,
     )
 }
 
