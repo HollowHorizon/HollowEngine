@@ -12,11 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCodeEditor
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeView
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
@@ -83,7 +79,7 @@ object HollowIdeOverlay {
     fun isMouseOver(x: Float, y: Float): Boolean {
         if (!isVisible()) return false
         val point = hollowIdeOverlayPoint(x, y)
-        return if (collapsed) point.x <= 44f && point.y <= ToolbarHeight else true
+        return surface.runtime.lastFrame?.hitsVisible(point.x, point.y) ?: false
     }
 
     fun hasFocusedInput(): Boolean = isVisible() && surface.runtime.isAnyFocused

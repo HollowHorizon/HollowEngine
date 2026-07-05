@@ -357,6 +357,9 @@ fun Modifier.input(
 
 fun Modifier.cursor(shape: UiCursorShape) = prop(UiProps.Cursor, shape)
 
+/** Lets pointer presses over this node's geometry pass through (no click-through blocking). */
+fun Modifier.inputTransparent(value: Boolean = true) = prop(UiProps.InputTransparent, value)
+
 fun Modifier.clip(enabled: Boolean = true) = prop(UiProps.Clip, enabled)
 
 fun Modifier.clip(shape: Shape) = prop(UiProps.Clip, true).prop(UiProps.ClipShape, shape)

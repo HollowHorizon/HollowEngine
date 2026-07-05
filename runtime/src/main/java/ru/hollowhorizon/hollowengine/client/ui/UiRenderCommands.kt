@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarOrientation
+import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarThumbNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
@@ -973,6 +974,51 @@ class UiHitTester {
             }
         }
         return null
+    }
+
+    fun hitsVisible(resolved: UiNode, layout: UiLayoutResult, x: Float, y: Float): Boolean {
+        val popups = layout.popupNodes.sortedBy { resolved[it].layer }
+        for (popup in popups.asReversed()) if (visibleNode(popup, resolved, layout, x, y)) return true
+        return visibleNode(resolved.root, resolved, layout, x, y)
+    }
+
+    private fun visibleNode(node: UiNode, resolved: UiNode, layout: UiLayoutResult, x: Float, y: Float): Boolean {
+        val stack = ArrayDeque<HitTestTask>()
+        stack.add(HitTestTask.Enter(node, null))
+        while (stack.isNotEmpty()) {
+            when (val task = stack.removeLast()) {
+                is HitTestTask.Enter -> {
+                    val current = task.node
+                    val layoutNode = layout[current]
+                    val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
+                    val children = current.children.filter { it in layout.nodes }.sortedBy { resolved[it].layer }
+                    stack.add(HitTestTask.Test(current, task.ancestorClip))
+                    for (child in children.filterNot { it is PopupNode }) stack.add(HitTestTask.Enter(child, effectiveClip))
+                    for (child in children.filterIsInstance<PopupNode>()) stack.add(HitTestTask.Enter(child, task.ancestorClip))
+                    layout.scrollbars[current]?.forEach { if (it in layout.nodes) stack.add(HitTestTask.Enter(it, task.ancestorClip)) }
+                }
+
+                is HitTestTask.Test -> {
+                    val current = task.node
+                    val style = resolved[current]
+                    if (style.inputTransparent || !current.paintsGeometry(style)) continue
+                    task.ancestorClip?.let { if (!it.contains(x, y)) continue }
+                    val layoutNode = layout[current]
+                    if (!layoutNode.inputQuadContains(x, y)) continue
+                    val inverse = layoutNode.inputTransform.inverse() ?: continue
+                    val local = inverse.transform(x, y, 0f)
+                    if (!UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height).contains(local.x, local.y)) continue
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun UiNode.paintsGeometry(style: UiComputedStyle): Boolean = when (this) {
+        is TextNode, is SpanNode, is ImageNode, is ItemNode, is EntityNode,
+        is SliderNode, is CheckboxNode, is TextFieldNode, is ScrollbarNode, is ScrollbarThumbNode -> true
+        else -> style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null
     }
 
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {

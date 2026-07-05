@@ -302,6 +302,7 @@ internal object HssModifierRegistry {
         register("clickable") { StylePropModifier(UiProps.Clickable, parseBoolean(it)) }
         register("focusable") { StylePropModifier(UiProps.Focusable, parseBoolean(it)) }
         register("draggable") { StylePropModifier(UiProps.Draggable, parseBoolean(it)) }
+        register("input-transparent") { StylePropModifier(UiProps.InputTransparent, parseBoolean(it)) }
         // `scroll: vertical | horizontal | both | none` (and legacy `scrollable: true`).
         register("scroll") { StylePropModifier(UiProps.Scroll, parseScrollAxes(it)) }
         register("scrollable") { StylePropModifier(UiProps.Scroll, if (parseBoolean(it)) ScrollAxes.Both else null) }

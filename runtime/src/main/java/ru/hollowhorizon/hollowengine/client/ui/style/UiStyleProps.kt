@@ -145,6 +145,7 @@ object UiProps {
     val Focusable = prop("focusable", false, phases = InputPhase)
     val Draggable = prop("draggable", false, phases = InputPhase)
     val Scroll = prop<ScrollAxes?>("scroll", null, fingerprint = true)
+    val InputTransparent = prop("input-transparent", false, phases = InputPhase)
     val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT, phases = InputPhase)
 
     // Widgets
@@ -245,6 +246,7 @@ var UiStylePatch.clickable by UiProps.Clickable
 var UiStylePatch.focusable by UiProps.Focusable
 var UiStylePatch.draggable by UiProps.Draggable
 var UiStylePatch.scroll by UiProps.Scroll
+var UiStylePatch.inputTransparent by UiProps.InputTransparent
 var UiStylePatch.cursor by UiProps.Cursor
 
 /**
@@ -403,6 +405,7 @@ val UiComputedStyle.checkbox by UiProps.Checkbox
 val UiComputedStyle.textField by UiProps.TextField
 val UiComputedStyle.textWrap by UiProps.TextWrap
 val UiComputedStyle.textOverflow by UiProps.TextOverflow
+val UiComputedStyle.inputTransparent by UiProps.InputTransparent
 val UiComputedStyle.boxDecorationBreak by UiProps.BoxDecorationBreak
 val UiComputedStyle.textAlign by UiProps.TextAlign
 val UiComputedStyle.lineSpacing by UiProps.LineSpacing

@@ -30,6 +30,9 @@ data class HollowUiFrame(
 ) {
     fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(root, layout, x, y)
 
+    /** Whether visible, input-opaque UI geometry is under the point (blocks click-through). */
+    fun hitsVisible(x: Float, y: Float): Boolean = UiHitTester().hitsVisible(root, layout, x, y)
+
     fun scrollTargetAt(x: Float, y: Float): UiNode? {
         val popups = layout.popupNodes
             .sortedBy { it.resolvedSnapshot.layer }
@@ -365,9 +368,8 @@ class HollowUiRuntime(
 
     fun mouseClicked(mouseX: Float, mouseY: Float, button: Int): Boolean {
         val frame = lastFrame ?: return false
-        // Consume any press landing on the UI (interactive or not) to prevent click-through.
         return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button))
-            .orConsumed(frame.hitTest(mouseX, mouseY) != null)
+            .orConsumed(frame.hitsVisible(mouseX, mouseY))
     }
 
     fun mouseReleased(mouseX: Float, mouseY: Float, button: Int): Boolean =
@@ -396,7 +398,8 @@ class HollowUiRuntime(
 
     fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         val frame = lastFrame ?: return false
-        return processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers)).orConsumed(isAnyFocused)
+        val result = processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers))
+        return result.handled || result.changed
     }
 
     fun reset() {
