@@ -307,7 +307,7 @@ class UiAnimationState {
             start.startedAtMillis
         }
         return animations.fold(base) { style, animation ->
-            val frames = keyframes[animation.name] ?: return@fold style
+            val frames = keyframes[animation.name] ?: UiEngineKeyframes.resolve(animation.name) ?: return@fold style
             val progress = animationProgress(animation, nowMillis - startedAt) ?: return@fold style
             frames.sample(style, progress, animation.easing)
         }

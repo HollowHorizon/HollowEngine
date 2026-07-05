@@ -156,6 +156,7 @@ object UiProps {
     // Text
     val TextWrap = prop("text-wrap", true, fingerprint = true)
     val TextOverflow = prop("text-overflow", UiTextOverflow.SHOW)
+    val BoxDecorationBreak = prop("box-decoration-break", UiBoxDecorationBreak.SLICE, fingerprint = true)
     val TextAlign = inheritedProp("text-align", UiTextAlign.LEFT, fingerprint = true)
     val LineSpacing = inheritedProp("line-spacing", 0f, fingerprint = true)
     val SpaceWidth = inheritedProp<Float?>("space-width", null, fingerprint = true)
@@ -271,6 +272,7 @@ var UiStylePatch.checkbox by UiProps.Checkbox
 var UiStylePatch.textField by UiProps.TextField
 var UiStylePatch.textWrap by UiProps.TextWrap
 var UiStylePatch.textOverflow by UiProps.TextOverflow
+var UiStylePatch.boxDecorationBreak by UiProps.BoxDecorationBreak
 var UiStylePatch.textAlign by UiProps.TextAlign
 var UiStylePatch.lineSpacing by UiProps.LineSpacing
 var UiStylePatch.spaceWidth by UiProps.SpaceWidth
@@ -401,6 +403,7 @@ val UiComputedStyle.checkbox by UiProps.Checkbox
 val UiComputedStyle.textField by UiProps.TextField
 val UiComputedStyle.textWrap by UiProps.TextWrap
 val UiComputedStyle.textOverflow by UiProps.TextOverflow
+val UiComputedStyle.boxDecorationBreak by UiProps.BoxDecorationBreak
 val UiComputedStyle.textAlign by UiProps.TextAlign
 val UiComputedStyle.lineSpacing by UiProps.LineSpacing
 val UiComputedStyle.spaceWidth by UiProps.SpaceWidth

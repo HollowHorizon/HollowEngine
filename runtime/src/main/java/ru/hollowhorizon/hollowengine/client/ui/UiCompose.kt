@@ -8,6 +8,8 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.detachLayoutParentRecursiv
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
+import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
+import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.coroutines.CoroutineContext
 
@@ -152,6 +154,39 @@ fun Row(
 ) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.Row)
 
 @Composable
+fun Span(
+    value: String,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+) {
+    val modifiers = modifier.asList()
+    ReusableComposeNode<SpanNode, HollowUiApplier>(
+        factory = { SpanNode(value.bound(), id, tags, modifiers) },
+        update = {
+            update(value) {
+                text = it.bound()
+                invalidateLayout()
+            }
+            updateCommon(modifiers, emptyMap(), tags)
+        },
+    )
+}
+
+@Composable
+fun Caret(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+) = Box(
+    id = id,
+    tags = tags,
+    modifier = Modifier
+        .animation(UiCaretBlinkKeyframes, UiCaretBlinkPeriodMillis, iterationCount = Float.POSITIVE_INFINITY)
+        .then(modifier ?: Modifier),
+)
+
+@Composable
 fun LazyColumn(
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -214,6 +249,15 @@ fun Text(
         content = content,
     )
 }
+
+@Composable
+fun Text(
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+    content: HollowUiContent,
+) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.InlineFlow)
 
 @Composable
 fun InlineWidget(

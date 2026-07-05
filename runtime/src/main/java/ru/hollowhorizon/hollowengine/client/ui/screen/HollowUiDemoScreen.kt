@@ -21,6 +21,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
     private var xmlEventText by mutableStateOf("XML event log is empty")
     private var editorKeyLog by mutableStateOf("F2 is handled by Modifier.onKeyInput")
+    private var textLabWidth by mutableStateOf(300f)
+    private var textLabWrap by mutableStateOf(true)
+    private var textLabEffects by mutableStateOf(true)
+    private var textLabAlign by mutableStateOf(UiTextAlign.LEFT)
     private val editorHighlighter = UiSyntaxHighlighter(::highlightEditorDemoText)
     private val dockingState = DockingState().apply {
         open(DockItem("project", "Project"))
@@ -38,6 +42,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
                 tab("text", "Text", "hollowengine:textures/gui/icons/docs.svg")
+                tab("textlab", "TextLab", "hollowengine:textures/gui/icons/docs.svg")
                 tab("editor", "Editor", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
@@ -48,6 +53,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 when (selectedTab) {
                     "widgets" -> widgets()
                     "text" -> textAndPopupDemo()
+                    "textlab" -> textLab()
                     "editor" -> editorDemo()
                     "layout" -> layout()
                     "docking" -> docking()
@@ -174,6 +180,31 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 }
             }
 
+            Column(tags = listOf("text-demo-card", "textflow-card"), modifier = Modifier.position(352.px, 164.px)) {
+                Text("Rich text (Text {})", tags = listOf("card-title"))
+                Text(tags = listOf("textflow-para")) {
+                    Span("Text{} flows spans, a ")
+                    // A nested Text{} is an inline group: its spans flatten into this line breaking
+                    // while its padded rounded background is sliced continuously across wrap points.
+                    Text(tags = listOf("group-slice")) {
+                        Span("sliced group whose highlight stays continuous across wrapped lines")
+                    }
+                    Span(", a ")
+                    Text(tags = listOf("group-clone")) {
+                        Span("cloned group")
+                    }
+                    Box(mode = UiBoxMode.STACK, tags = listOf("textflow-chip")) {
+                        Text(
+                            "chip",
+                            tags = listOf("textflow-chip-label"),
+                            modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER),
+                        )
+                    }
+                    Span(" and a live ")
+                    Caret(tags = listOf("textflow-caret"))
+                }
+            }
+
             Column(tags = listOf("text-demo-card", "popup-demo-card"), modifier = Modifier.position(0.px, 164.px)) {
                 Text("Popups", tags = listOf("card-title"))
                 Row(
@@ -209,6 +240,101 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     }
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun textLab() {
+        Column(tags = listOf("panel", "textlab-panel"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+            Row(tags = listOf("textlab-controls")) {
+                toggle("wrap", textLabWrap) { textLabWrap = !textLabWrap }
+                toggle("effects", textLabEffects) { textLabEffects = !textLabEffects }
+                pill("align: ${textLabAlign.name.lowercase()}") {
+                    textLabAlign = UiTextAlign.entries[(textLabAlign.ordinal + 1) % UiTextAlign.entries.size]
+                }
+                Text("drag the handle to resize · width ${textLabWidth.toInt()}px", tags = listOf("textlab-hint"))
+            }
+
+            // Resizable stage: drag the right-edge handle to watch wrapping/overflow change.
+            Row(tags = listOf("textlab-stage-row")) {
+                Column(tags = listOf("textlab-card"), modifier = Modifier.size(textLabWidth.px, UiLength.Auto)) {
+                    Text("Flow: wrapping, span sizes, groups, widgets, effects", tags = listOf("card-title"))
+                    // Fill the card width so alignment has room to act; with wrap off, clip the
+                    // single overflowing line to the card instead of letting it spill out.
+                    var paraMod = Modifier.size(100.percent, UiLength.Auto).textAlign(textLabAlign)
+                    if (!textLabWrap) paraMod = paraMod.textWrap(false).clip()
+                    Text(tags = listOf("textlab-para"), modifier = paraMod) {
+                        Span("Mixed ")
+                        Span("sizes", tags = listOf("fx-big"))
+                        Span(" share a line, plus a ")
+                        Text(tags = listOf("group-slice")) { Span("sliced highlight that stays continuous across wraps") }
+                        Span(", a ")
+                        Text(tags = listOf("group-clone")) { Span("cloned group") }
+                        Span(", an inline ")
+                        Box(mode = UiBoxMode.STACK, tags = listOf("textlab-chip")) {
+                            Text("chip", tags = listOf("textlab-chip-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+                        }
+                        Span(" widget")
+                        if (textLabEffects) {
+                            Span(", and effects: ")
+                            Span("bold ", tags = listOf("fx-bold"))
+                            Span("italic ", tags = listOf("fx-italic"))
+                            Span("underline ", tags = listOf("fx-underline"))
+                            Span("strike ", tags = listOf("fx-strike"))
+                            Span("wave ", tags = listOf("fx-wave"))
+                            Span("shake ", tags = listOf("fx-shake"))
+                            Span("rainbow", tags = listOf("fx-rainbow"))
+                        }
+                        Span(". Rendered in an ")
+                        Span("MSDF font", tags = listOf("fx-msdf"))
+                        Span(".\nA hard \\n break always wraps, even when text-wrap is off. ")
+                        Caret(tags = listOf("textflow-caret"))
+                    }
+                }
+                Box(
+                    tags = listOf("textlab-handle"),
+                    // draggable=true so the drag owns the pointer and the resize cursor stays put
+                    // instead of flickering as the mouse leaves the thin handle mid-drag.
+                    modifier = Modifier.input(hoverable = true, draggable = true)
+                        .cursor(UiCursorShape.RESIZE_HORIZONTAL)
+                        .onDrag { textLabWidth = (textLabWidth + it.deltaX).coerceIn(120f, 900f) },
+                )
+            }
+
+            Text("Overflow: fixed height with vertical scroll", tags = listOf("card-title", "textlab-section"))
+            Box(tags = listOf("textlab-scroll"), modifier = Modifier.scroll(vertical = true)) {
+                Text(tags = listOf("textlab-para")) {
+                    Span("This paragraph is intentionally long so it overflows the fixed-height box and must scroll. ".repeat(6))
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun pill(label: String, onClick: () -> Unit) {
+        Row(
+            tags = listOf("textlab-toggle"),
+            modifier = Modifier.input(hoverable = true, clickable = true).onClick { onClick() },
+        ) {
+            Text(label, tags = listOf("textlab-toggle-label"))
+        }
+    }
+
+    @Composable
+    private fun toggle(label: String, checked: Boolean, onToggle: () -> Unit) {
+        // A plain non-interactive indicator (not a Checkbox widget) so the whole row — icon
+        // included — routes the click to onClick instead of the checkbox eating it.
+        Row(
+            tags = listOf("textlab-toggle"),
+            modifier = Modifier.input(hoverable = true, clickable = true).onClick { onToggle() },
+        ) {
+            Box(
+                tags = listOf("textlab-check"),
+                modifier = Modifier.background(
+                    if (checked) UiColor(0.36f, 0.78f, 0.5f, 1f) else UiColor(0.3f, 0.34f, 0.4f, 1f),
+                ),
+            )
+            Text(label, tags = listOf("textlab-toggle-label"))
         }
     }
 

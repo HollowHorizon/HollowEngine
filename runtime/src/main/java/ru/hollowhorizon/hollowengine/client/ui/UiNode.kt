@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.defaultModifierSnapshot
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import java.util.*
 
@@ -61,6 +63,14 @@ open class BaseUiNode(
             field = value
             invalidateLayout()
         }
+
+    /**
+     * Per-line box-decoration geometry computed by a parent inline flow when this node is an inline
+     * group (a span or a nested inline flow). Read back into the layout node so background/border
+     * can be painted per line. Null for nodes that are not part of an inline flow.
+     */
+    var inlineDecoration: InlineGroupDecoration? = null
+        internal set
 
     fun add(vararg modifiers: Modifier): BaseUiNode = apply {
         this.modifiers.addAll(modifiers)

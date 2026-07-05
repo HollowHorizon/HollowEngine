@@ -257,6 +257,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             }
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-overflow" -> instruction { it.textOverflow = parseTextOverflow(value) }
+            "box-decoration-break" -> instruction { it.boxDecorationBreak = parseBoxDecorationBreak(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
             "line-spacing", "text-line-spacing", "leading" -> instruction {
                 it.lineSpacing = parseScalar(value).coerceAtLeast(0f)
@@ -398,6 +399,7 @@ private fun parseAlign(value: String): UiAlign = when (value.lowercase()) {
     "space-between" -> UiAlign.SPACE_BETWEEN
     "space-around" -> UiAlign.SPACE_AROUND
     "space-evenly" -> UiAlign.SPACE_EVENLY
+    "justify" -> UiAlign.JUSTIFY
     else -> throw IllegalArgumentException("Unknown align '$value'")
 }
 
@@ -450,6 +452,12 @@ private fun parseTextOverflow(value: String): UiTextOverflow = when (value.lower
     "hidden", "clip" -> UiTextOverflow.HIDDEN
     "dots", "ellipsis" -> UiTextOverflow.DOTS
     else -> throw IllegalArgumentException("Unknown text-overflow '$value'")
+}
+
+private fun parseBoxDecorationBreak(value: String): UiBoxDecorationBreak = when (value.trim().lowercase()) {
+    "slice" -> UiBoxDecorationBreak.SLICE
+    "clone" -> UiBoxDecorationBreak.CLONE
+    else -> throw IllegalArgumentException("Unknown box-decoration-break '$value'")
 }
 
 private fun parseTextAlign(value: String): UiTextAlign = when (value.lowercase()) {

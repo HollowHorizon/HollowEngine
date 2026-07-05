@@ -2,7 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.lineSpacing
+import ru.hollowhorizon.hollowengine.client.ui.style.textWrap
 
 internal interface ChildLayoutPolicy {
     fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope)
@@ -27,6 +29,7 @@ internal data class ChildPlacementScope(
 )
 
 internal data class ChildIntrinsicScope(
+    val node: UiNode,
     val children: List<MeasuredChild>,
     val availableWidth: Float,
     val availableHeight: Float,
@@ -43,6 +46,7 @@ internal fun UiMeasurePolicy.policy(): ChildLayoutPolicy = when ((this as? UiBui
     UiBuiltInMeasurePolicyKind.LAZY_COLUMN -> LazyColumnPolicy
     UiBuiltInMeasurePolicyKind.LAZY_ROW -> LazyRowPolicy
     UiBuiltInMeasurePolicyKind.BOX -> BoxPolicy
+    UiBuiltInMeasurePolicyKind.INLINE_FLOW -> InlineFlowPolicy
     null -> CustomPolicy
 }
 
@@ -55,6 +59,7 @@ internal fun UiMeasurePolicy.flowAxis(): FlowAxis? {
         UiBuiltInMeasurePolicyKind.LAZY_COLUMN -> FlowAxis.Vertical
 
         UiBuiltInMeasurePolicyKind.BOX,
+        UiBuiltInMeasurePolicyKind.INLINE_FLOW,
         null -> null
     }
 }
@@ -143,6 +148,27 @@ private object BoxPolicy : ChildLayoutPolicy {
             scope.children.maxOfPositionedOuterWidth(scope.availableWidth, scope.availableHeight),
             scope.children.maxOfPositionedOuterHeight(scope.availableWidth, scope.availableHeight),
         )
+    }
+}
+
+private object InlineFlowPolicy : ChildLayoutPolicy {
+    override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
+        pipeline.placeInlineFlowChildren(scope)
+    }
+
+    override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
+        val containerStyle = scope.resolved[scope.node]
+        val flow = pipeline.computeInlineFlow(
+            scope.node,
+            scope.resolved,
+            scope.knownContentWidth ?: scope.availableWidth,
+            scope.availableHeight,
+            UiAlign.START,
+            containerStyle.lineSpacing,
+            wrap = containerStyle.textWrap,
+            scope.scrollbarReserves,
+        )
+        return LayoutSize(flow.width, flow.height)
     }
 }
 

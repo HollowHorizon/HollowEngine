@@ -248,6 +248,10 @@ internal object UiTextLayouter {
         return measureTextWidth(text, fontSize, fontFamily, UiInlineStyle())
     }
 
+    fun measureStyledTextWidth(text: String, fontSize: Float, fontFamily: String?, style: UiInlineStyle): Float {
+        return measureTextWidth(text, fontSize, fontFamily, style)
+    }
+
     fun visibleTextPrefix(
         layout: UiTextLayout,
         visibleCharacters: Int,

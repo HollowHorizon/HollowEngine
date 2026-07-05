@@ -299,9 +299,24 @@ fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) =
 
 fun Modifier.borderRadius(radius: Float) = prop(UiProps.BorderRadius, radius)
 
+/** How this inline group's decoration is drawn when wrapped across lines (slice vs clone). */
+fun Modifier.boxDecorationBreak(value: UiBoxDecorationBreak) = prop(UiProps.BoxDecorationBreak, value)
+
 fun Modifier.shadow(vararg shadows: UiShadow) = prop(UiProps.Shadows, shadows.toList())
 
 fun Modifier.opacity(value: Float) = prop(UiProps.Opacity, value)
+
+/** Plays a named keyframe animation (see engine keyframes / HSS `@keyframes`). */
+fun Modifier.animation(
+    name: String,
+    durationMillis: Long,
+    iterationCount: Float = 1f,
+    easing: TransitionEasing = TransitionEasing.LINEAR,
+    delayMillis: Long = 0L,
+) = prop(
+    UiProps.Animations,
+    listOf(UiAnimation(name, durationMillis, easing, delayMillis, iterationCount)),
+)
 
 fun Modifier.tint(color: UiColor) = prop(UiProps.Tint, color)
 

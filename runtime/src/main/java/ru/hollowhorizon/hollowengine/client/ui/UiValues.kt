@@ -31,6 +31,7 @@ class UiState private constructor(val name: String) {
 
 const val UiBoxType = "box"
 const val UiTextType = "text"
+const val UiSpanType = "span"
 const val UiImageType = "image"
 const val UiItemType = "item"
 const val UiEntityType = "entity"
@@ -49,7 +50,8 @@ enum class UiBuiltInMeasurePolicyKind {
     ROW,
     LAZY_COLUMN,
     LAZY_ROW,
-    BOX
+    BOX,
+    INLINE_FLOW
 }
 
 data class UiConstraints(
@@ -96,6 +98,9 @@ object UiMeasurePolicies {
     val Row = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.ROW)
     val LazyColumn = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.LAZY_COLUMN)
     val LazyRow = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.LAZY_ROW)
+
+    /** Line-wrapping flow: spans/widgets fill each line and the remainder wraps to the next. */
+    val InlineFlow = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.INLINE_FLOW)
 
     fun box(mode: UiBoxMode = UiBoxMode.FREE): UiMeasurePolicy {
         return UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.BOX, mode)
@@ -173,7 +178,21 @@ enum class UiAlign {
     STRETCH,
     SPACE_BETWEEN,
     SPACE_AROUND,
-    SPACE_EVENLY
+    SPACE_EVENLY,
+
+    JUSTIFY
+}
+
+/**
+ * How an inline group's box decoration (background, padding, border) is drawn when the group is
+ * split across several lines by wrapping - mirrors CSS `box-decoration-break`.
+ */
+enum class UiBoxDecorationBreak {
+    /** One logical box sliced at line edges: continuous background, outer padding/rounding only. */
+    SLICE,
+
+    /** Each line fragment is a complete box with its own padding, border and rounding. */
+    CLONE
 }
 
 enum class UiTextAlign {

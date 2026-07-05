@@ -10,8 +10,11 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarOrientation
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.InlineGroupDecoration
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLine
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 import ru.hollowhorizon.hollowengine.client.ui.text.Shadow as TextShadow
@@ -445,6 +448,17 @@ class UiCommandRenderer {
                 )
             }
 
+            is SpanNode -> {
+                val textLayout = layoutNode.textLayout ?: singleRunSpanLayout(node, style, layoutNode)
+                commands += DrawTextCommand(
+                    node, layoutNode.content, node.text.resolve(), style.foreground, opacity, contentTransform,
+                    filter, wrap = false, style.textOverflow, style.textAlign, style.fontSize,
+                    style.fontFamily, emptyList(),
+                    textLayout,
+                    layoutNode.scrollOffset, hoveredLink = null, backface
+                )
+            }
+
             is ImageNode -> commands += DrawImageCommand(
                 node,
                 layoutNode.content,
@@ -522,6 +536,10 @@ class UiCommandRenderer {
         filter: UiFilterChain,
         commands: UiRenderSink,
     ) {
+        layoutNode.inlineDecoration?.let { decoration ->
+            appendInlineDecoration(node, style, layoutNode, decoration, opacity, filter, commands)
+            return
+        }
         val shape = style.shape
         if (shape != null) {
             val fill = (style.shapeFill ?: style.background).resolve()
@@ -556,6 +574,55 @@ class UiCommandRenderer {
         )
     }
 
+    /**
+     * An inline group (a span or a nested inline flow) draws its background/border once PER LINE.
+     * Each line box already runs continuously from the group's first to its last piece on that line
+     * (so internal spaces are painted, never skipped). `box-decoration-break` decides how the border
+     * and rounding are sliced: [UiBoxDecorationBreak.CLONE] gives every line the full border+radius;
+     * [UiBoxDecorationBreak.SLICE] rounds/borders only the outer line ends for one continuous shape.
+     */
+    private fun appendInlineDecoration(
+        node: UiNode,
+        style: UiComputedStyle,
+        layoutNode: UiLayoutNode,
+        decoration: InlineGroupDecoration,
+        opacity: Float,
+        filter: UiFilterChain,
+        commands: UiRenderSink,
+    ) {
+        val paint = style.background.resolve()
+        val hasBorder = style.border.width != UiInsets.Zero
+        if (paint == UiResolvedPaint.None && !hasBorder) return
+        val lines = decoration.lines
+        val clone = decoration.decorationBreak == UiBoxDecorationBreak.CLONE
+        lines.forEachIndexed { index, box ->
+            if (box.width <= 0f || box.height <= 0f) return@forEachIndexed
+            val outerEnd = clone || index == 0 || index == lines.lastIndex
+            val border = if (hasBorder && outerEnd) {
+                style.border
+            } else {
+                // Middle slice lines keep the background continuous but drop rounding/borders.
+                UiBorder(radius = if (outerEnd) style.border.radius else 0f)
+            }
+            commands += DrawBoxCommand(
+                node = node,
+                rect = UiRect(0f, 0f, box.width, box.height),
+                paint = paint,
+                border = border,
+                shadows = emptyList(),
+                opacity = opacity,
+                tint = style.tint,
+                transform = layoutNode.worldTransform * UiMatrix4.translation(box.x, box.y, 0f),
+                renderToFramebuffer = false,
+                fit = style.imageFit,
+                slice = style.imageSlice,
+                filter = filter,
+                backfaceVisibility = style.backfaceVisibility,
+                phase = UiRenderPhase.BACKGROUND,
+            )
+        }
+    }
+
     private fun fallbackTextLayout(
         node: TextNode,
         style: UiComputedStyle,
@@ -574,6 +641,22 @@ class UiCommandRenderer {
             lineSpacing = style.lineSpacing,
             spaceWidth = style.spaceWidth,
         )
+    }
+
+    private fun singleRunSpanLayout(node: SpanNode, style: UiComputedStyle, layoutNode: UiLayoutNode): UiTextLayout {
+        val text = node.text.resolve()
+        val width = UiTextLayouter.measureTextWidth(text, style.fontSize, style.fontFamily)
+        val height = style.fontSize
+        val line = UiTextLine(
+            text = text,
+            x = 0f,
+            y = 0f,
+            width = width,
+            naturalWidth = width,
+            height = height,
+            fragments = listOf(UiTextRun(text, UiInlineStyle(effects = style.textEffects), 0f, 0f, width, height)),
+        )
+        return UiTextLayout(listOf(line), maxOf(width, layoutNode.content.width), height)
     }
 
     private fun sliderCommand(

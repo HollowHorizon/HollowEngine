@@ -220,6 +220,12 @@ private fun UiLayoutPipeline.intrinsicSize(
             scrollbarReserves,
             knownContentWidth,
         )
+
+        is SpanNode -> LayoutSize(
+            UiTextLayouter.measureTextWidth(node.text.resolve(), style.fontSize, style.fontFamily),
+            style.fontSize,
+        )
+
         else -> {
             if (layoutChildren(node).isEmpty()) return replacedIntrinsicSize(node, style)
 
@@ -350,6 +356,7 @@ private fun UiLayoutPipeline.measureStandardContainer(
     return node.measurePolicy.policy().intrinsic(
         this,
         ChildIntrinsicScope(
+            node = node,
             children = children,
             availableWidth = availableWidth,
             availableHeight = availableHeight,

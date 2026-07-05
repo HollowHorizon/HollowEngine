@@ -3,16 +3,15 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import ru.hollowhorizon.hollowengine.client.ui.PopupNode
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarCache
-import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
-import ru.hollowhorizon.hollowengine.client.ui.scroll.applyScrollRanges
-import ru.hollowhorizon.hollowengine.client.ui.scroll.detectScrollbarReserves
-import ru.hollowhorizon.hollowengine.client.ui.scroll.placeScrollbarNodes
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
 
 class UiLayoutPipeline {
     internal var layoutPass: LayoutPass? = null
     private val scrollbarCache = ScrollbarCache()
+
+    internal val inlineFlowChildLayouts = HashMap<UiNode, List<InlinePlacement>>()
+    internal val inlineFlowFlattened = HashSet<UiNode>()
 
     fun compute(
         resolved: UiNode,
@@ -49,6 +48,8 @@ class UiLayoutPipeline {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
         val previousPass = layoutPass
+        inlineFlowChildLayouts.clear()
+        inlineFlowFlattened.clear()
         try {
             layoutPass = LayoutPass(resolved)
             val rootRect = rootRect(resolved, width, height, scrollbarReserves)

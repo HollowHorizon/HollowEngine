@@ -32,6 +32,7 @@ data class UiLayoutNode(
     val scrollArea: UiRect = content,
     val virtualContentBounds: UiRect? = null,
     val textLayout: UiTextLayout? = null,
+    val inlineDecoration: InlineGroupDecoration? = null,
 )
 
 data class UiLayoutResult(

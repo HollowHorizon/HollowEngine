@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
-import ru.hollowhorizon.hollowengine.client.ui.TextNode
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.get
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
@@ -30,6 +27,8 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
     val textLayout = when (node) {
         is TextNode -> layoutTextNode(node, resolved, style, boxes.content, scrollbarReserves)
         is TextFieldNode -> layoutTextFieldNode(node, resolved, style, boxes.content, scrollbarReserves)
+        // Computed by the parent inline flow (wrapping depends on where the span starts in a line)
+        is SpanNode -> node.lineLayout
         else -> null
     }
     val clip = if (style.clip || style.scrollable) parentClip.intersect(boxes.content) else parentClip
@@ -58,6 +57,7 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
         scrollOffset = scrollOffset,
         scrollArea = boxes.scrollArea,
         textLayout = textLayout,
+        inlineDecoration = (node as? BaseUiNode)?.inlineDecoration,
     )
 
     placeChildren(

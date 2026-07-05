@@ -1254,7 +1254,8 @@ class MinecraftUiRenderer {
         shader.safeGetUniform("ShadowOffset")?.set(0f, 0f)
         shader.safeGetUniform("ShadowColor")?.set(0f, 0f, 0f, 0f)
         shader.safeGetUniform("AtlasSize")?.set(atlasWidth, atlasHeight)
-        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
+        configureUiBlend()
+        bufferBuilder.build()?.let { BufferUploader.drawWithShader(it) }
         return true
     }
 
