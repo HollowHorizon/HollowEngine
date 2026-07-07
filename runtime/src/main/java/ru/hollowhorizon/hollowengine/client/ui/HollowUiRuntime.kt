@@ -70,16 +70,6 @@ data class HollowUiFrame(
 
     fun nodeByKey(key: String): UiNode? = nodeByIdentifier(key)
 
-    fun motionDurationMillis(previous: HollowUiFrame?): Long {
-        val previousStyles = previous?.nodes.orEmpty().associateWith { it.resolvedSnapshot }
-        return nodes.maxOfOrNull { node ->
-            maxOf(
-                startedTransitionDurations[node] ?: 0L,
-                node.resolvedSnapshot.motionDurationMillis(previousStyles[node]),
-            )
-        } ?: 0L
-    }
-
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
         val corners = arrayOf(
             inputTransform.transform(0f, 0f),
