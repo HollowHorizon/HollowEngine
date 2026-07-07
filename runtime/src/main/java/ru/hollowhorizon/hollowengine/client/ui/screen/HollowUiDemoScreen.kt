@@ -523,6 +523,8 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
         val demo = parseUiXml(
             """
             <import element="hollowengine:ui/elements/xml_demo_badge.ui" named="demo_badge" />
+            <import element="hollowengine:ui/elements/xml_demo_notice.ui" named="demo_notice" />
+            <import element="hollowengine:ui/elements/xml_demo_metric.ui" named="demo_metric" />
 
             <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
                 <text tags="xml-title">XML + HSS resource</text>
@@ -547,6 +549,8 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     <text>Cancel</text>
                 </column>
                 <demo_badge />
+                <demo_notice id="xml-demo-notice" tone="success" />
+                <demo_metric id="xml-demo-metric" />
             </box>
             """.trimIndent()
         )

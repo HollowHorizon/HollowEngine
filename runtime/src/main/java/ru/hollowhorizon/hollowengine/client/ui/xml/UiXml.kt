@@ -23,6 +23,7 @@ object MinecraftUiResourceLoader : UiResourceLoader {
 data class UiXmlOptions(
     val resources: UiResourceLoader = MinecraftUiResourceLoader,
     val eventSink: UiEventSink = UiEventSink.None,
+    val attributes: UiXmlAttributeRegistry = UiXmlAttributeRegistry.Default,
 )
 
 @Serializable

@@ -125,3 +125,53 @@
     foreground: rgba(210, 246, 226, 0.96);
     height: 16px;
 }
+
+.xml-notice {
+    position: 24px 276px;
+    gap: 5px;
+    size: 248px 64px;
+    padding: 10px;
+    background: rgba(44, 58, 78, 0.92);
+    foreground: rgba(236, 242, 248, 0.94);
+    border-radius: 8px;
+    border: 1px rgba(144, 182, 214, 0.38);
+}
+
+.xml-notice[tone=success] {
+    background: rgba(38, 88, 76, 0.96);
+    border: 1px rgba(160, 246, 216, 0.48);
+}
+
+.xml-notice-title {
+    foreground: white;
+    height: 16px;
+}
+
+.xml-notice-body {
+    foreground: rgba(226, 248, 240, 0.9);
+}
+
+.xml-metric {
+    position: 284px 314px;
+    align-items: center center;
+    size: 248px 26px;
+    padding: 5px 9px;
+    background: rgba(18, 26, 38, 0.66);
+    foreground: rgba(236, 242, 248, 0.96);
+    border-radius: 7px;
+    border: 1px rgba(255, 255, 255, 0.16);
+}
+
+.xml-metric[data-kind=metric] {
+    shadow: 0px 10px 20px -12px rgba(0, 0, 0, 0.65);
+}
+
+.xml-metric-label {
+    foreground: rgba(154, 220, 208, 0.96);
+    width: 92px;
+}
+
+.xml-metric-value {
+    foreground: rgba(246, 250, 254, 0.98);
+    grow: 1;
+}
