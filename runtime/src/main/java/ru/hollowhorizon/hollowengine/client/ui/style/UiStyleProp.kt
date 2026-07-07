@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
-import ru.hollowhorizon.hollowengine.client.ui.UiInvalidationPhase
 import ru.hollowhorizon.hollowengine.client.ui.UiStyleProperty
 import kotlin.reflect.KProperty
 
@@ -20,7 +19,6 @@ import kotlin.reflect.KProperty
 class UiStyleProp<T> internal constructor(
     val name: String,
     val aliases: Set<String> = emptySet(),
-    val phases: Set<UiInvalidationPhase> = setOf(UiInvalidationPhase.Layout),
     val layoutFingerprint: Boolean = false,
     val transitionGroup: String? = null,
     private val defaultValue: UiStyleProp<T>.(parent: UiComputedStyle?) -> T,
@@ -96,6 +94,8 @@ class UiStyleProp<T> internal constructor(
             }
 
         internal val transitionable: List<UiStyleProp<*>> by lazy { all.filter { it.transitionable } }
+
+        internal val layoutFingerprintProps: List<UiStyleProp<*>> by lazy { all.filter { it.layoutFingerprint } }
 
         private val byTransitionProperty: Map<String, List<UiStyleProp<*>>> by lazy {
             val mapping = HashMap<String, MutableList<UiStyleProp<*>>>()
@@ -242,8 +242,9 @@ class UiComputedStyle internal constructor(
     /** Hash over layout-affecting properties; used to gate layout invalidation. */
     fun layoutFingerprint(): Int {
         var result = 1
-        for (prop in UiStyleProp.all) {
-            if (!prop.layoutFingerprint) continue
+        val props = UiStyleProp.layoutFingerprintProps
+        for (index in props.indices) {
+            val prop = props[index]
             result = 31 * result + (values[prop.index]?.hashCode() ?: 0)
         }
         return result

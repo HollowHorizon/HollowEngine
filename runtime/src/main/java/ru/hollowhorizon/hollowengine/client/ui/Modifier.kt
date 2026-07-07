@@ -12,7 +12,7 @@ interface Modifier {
     }
 
     companion object : Modifier {
-        override fun then(other: Modifier): Modifier = other
+        override fun then(other: Modifier): Modifier = CompositeModifier(mutableListOf(other))
     }
 }
 
@@ -31,12 +31,6 @@ interface PointerInputModifierNode : Modifier {
 }
 
 interface InputModifierNode : Modifier
-
-enum class UiInvalidationPhase {
-    Layout,
-    Draw,
-    Input
-}
 
 enum class UiStyleProperty {
     WIDTH,
@@ -68,7 +62,6 @@ data class StylePropModifier<T>(
  */
 class StyleModifier(
     val properties: Set<UiStyleProperty> = emptySet(),
-    val phases: Set<UiInvalidationPhase> = LayoutPhases,
     key: Any? = null,
     private val writer: (UiStylePatch) -> Unit,
 ) : UiModifierPatchNode {
@@ -82,13 +75,11 @@ class StyleModifier(
     override fun equals(other: Any?): Boolean {
         return other is StyleModifier &&
                 properties == other.properties &&
-                phases == other.phases &&
                 equalityKey == other.equalityKey
     }
 
     override fun hashCode(): Int {
         var result = properties.hashCode()
-        result = 31 * result + phases.hashCode()
         result = 31 * result + equalityKey.hashCode()
         return result
     }
@@ -530,5 +521,3 @@ private data class ModifierKey(
 )
 
 private fun modifierKey(name: String, vararg values: Any?) = ModifierKey(name, values.toList())
-
-private val LayoutPhases = setOf(UiInvalidationPhase.Layout)

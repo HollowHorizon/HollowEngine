@@ -50,9 +50,9 @@ open class BaseUiNode(
     final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateDraw() }
     final override val attributes: MutableMap<String, String> =
         InvalidatingMutableMap(attributes) { invalidateDraw() }
-    final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
+    final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateDraw() }
     final override val modifiers: MutableList<Modifier> =
-        InvalidatingMutableList(modifiers) { invalidateModifierChange() }
+        InvalidatingMutableList(modifiers) { invalidateDraw() }
     final override var resolvedModifiers: List<Modifier> = modifiers.toList()
     final override var resolvedSnapshot: UiComputedStyle = defaultModifierSnapshot()
     final override val children = UiChildren()

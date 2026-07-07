@@ -15,15 +15,10 @@ const val DefaultUiFontSize = 10f
  * phase and layout-fingerprint participation.
  */
 object UiProps {
-    private val LayoutPhase = setOf(UiInvalidationPhase.Layout)
-    private val DrawPhase = setOf(UiInvalidationPhase.Draw)
-    private val InputPhase = setOf(UiInvalidationPhase.Input)
-
     private fun <T> prop(
         name: String,
         default: T,
         aliases: Set<String> = emptySet(),
-        phases: Set<UiInvalidationPhase> = LayoutPhase,
         fingerprint: Boolean = false,
         inherit: Boolean = false,
         group: String? = null,
@@ -34,7 +29,6 @@ object UiProps {
     ) = UiStyleProp(
         name = name,
         aliases = aliases,
-        phases = phases,
         layoutFingerprint = fingerprint,
         transitionGroup = group,
         defaultValue =
@@ -53,13 +47,11 @@ object UiProps {
         name: String,
         fallback: T,
         aliases: Set<String> = emptySet(),
-        phases: Set<UiInvalidationPhase> = LayoutPhase,
         fingerprint: Boolean = false,
         interpolate: ((from: T, to: T, progress: Float) -> T)? = null,
     ) = UiStyleProp(
         name = name,
         aliases = aliases,
-        phases = phases,
         layoutFingerprint = fingerprint,
         transitionGroup = null,
         defaultValue = { parent -> if (parent != null) parent[this] else fallback },
@@ -90,29 +82,29 @@ object UiProps {
     val Grow = prop("grow", 0f, fingerprint = true)
     val Position = prop("position", UiPosition(), fingerprint = true)
     val BorderWidth = prop("border-width", UiInsets.Zero, fingerprint = true)
-    val BorderColor = prop("border-color", UiColor.Transparent, phases = DrawPhase)
-    val BorderRadius = prop("border-radius", 0f, phases = DrawPhase)
+    val BorderColor = prop("border-color", UiColor.Transparent)
+    val BorderRadius = prop("border-radius", 0f)
 
     // Visuals
     val Background = prop(
         "background", UiPaint.None,
-        phases = DrawPhase, interpolate = ::interpolatePaint,
+        interpolate = ::interpolatePaint,
     )
     val Foreground = inheritedProp(
         "foreground", UiColor.White,
-        phases = DrawPhase, interpolate = UiColor::interpolate,
+        interpolate = UiColor::interpolate,
     )
-    val Image = prop<String?>("image", null, phases = DrawPhase)
-    val Shader = prop<String?>("shader", null, phases = DrawPhase)
+    val Image = prop<String?>("image", null)
+    val Shader = prop<String?>("shader", null)
     val Shadows = prop(
         "shadow", emptyList(), aliases = setOf("box-shadow"),
         interpolate = ::interpolateShadows,
     )
     val Opacity = prop(
         "opacity", 1f,
-        phases = DrawPhase, interpolate = ::lerp, sanitize = { it.coerceIn(0f, 1f) },
+        interpolate = ::lerp, sanitize = { it.coerceIn(0f, 1f) },
     )
-    val Tint = prop("tint", UiColor.White, phases = DrawPhase, combine = ::mulColor, interpolate = UiColor::interpolate)
+    val Tint = prop("tint", UiColor.White, combine = ::mulColor, interpolate = UiColor::interpolate)
     val Filter = prop("filter", UiFilterChain.Empty, interpolate = UiFilterChain::interpolate)
     val BackdropFilter = prop("backdrop-filter", UiFilterChain.Empty, interpolate = UiFilterChain::interpolate)
     val BackfaceVisibility = prop("backface-visibility", UiBackfaceVisibility.VISIBLE)
@@ -157,14 +149,14 @@ object UiProps {
         aliases = setOf("transform-origin"), fingerprint = true, group = "transform",
     )
     val Perspective = prop("perspective", 0f, fingerprint = true, group = "transform", interpolate = ::lerp)
-    val Hoverable = prop("hoverable", false, phases = InputPhase)
-    val Clickable = prop("clickable", false, phases = InputPhase)
-    val Focusable = prop("focusable", false, phases = InputPhase)
-    val FocusScope = prop("focus-scope", false, phases = InputPhase)
-    val Draggable = prop("draggable", false, phases = InputPhase)
+    val Hoverable = prop("hoverable", false)
+    val Clickable = prop("clickable", false)
+    val Focusable = prop("focusable", false)
+    val FocusScope = prop("focus-scope", false)
+    val Draggable = prop("draggable", false)
     val Scroll = prop<ScrollAxes?>("scroll", null, fingerprint = true)
-    val InputTransparent = prop("input-transparent", false, phases = InputPhase)
-    val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT, phases = InputPhase)
+    val InputTransparent = prop("input-transparent", false)
+    val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT)
 
     // Widgets
     val Scrollbar = prop("scrollbar", UiScrollbarStyle(), fingerprint = true, merge = UiScrollbarStyle::merge)
