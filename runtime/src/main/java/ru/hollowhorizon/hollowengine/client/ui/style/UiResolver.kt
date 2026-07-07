@@ -110,16 +110,16 @@ class UiModifierResolver(
         nodeModifiers: List<Modifier>,
     ): ResolvedModifiers {
         val baseRuleModifiers = ArrayList<Modifier>()
-        baseRuleModifiers += ruleModifiers(theme?.rules.orEmpty(), node, StyleOrigin.THEME_DEFAULTS)
-        baseRuleModifiers += ruleModifiers(stylesheet?.rules.orEmpty(), node, StyleOrigin.STYLESHEET)
+        baseRuleModifiers += ruleModifiers(theme, node, StyleOrigin.THEME_DEFAULTS)
+        baseRuleModifiers += ruleModifiers(stylesheet, node, StyleOrigin.STYLESHEET)
         scope.stylesheets.forEach { scoped ->
-            baseRuleModifiers += ruleModifiers(scoped.rules, node, StyleOrigin.STYLESHEET)
+            baseRuleModifiers += ruleModifiers(scoped, node, StyleOrigin.STYLESHEET)
         }
 
         val stateRules = ArrayList<StyleRule>()
-        stateRules += matchingRules(stylesheet?.rules.orEmpty(), node, StyleOrigin.STATE_STYLESHEET)
+        stylesheet?.let { stateRules += it.matching(node, StyleOrigin.STATE_STYLESHEET) }
         scope.stylesheets.forEach { scoped ->
-            stateRules += matchingRules(scoped.rules, node, StyleOrigin.STATE_STYLESHEET)
+            stateRules += scoped.matching(node, StyleOrigin.STATE_STYLESHEET)
         }
         val orderedStateRules =
             stateRules.sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
@@ -195,14 +195,12 @@ class UiModifierResolver(
         }
     }
 
-    private fun ruleModifiers(rules: List<StyleRule>, node: UiNode, origin: StyleOrigin): List<Modifier> {
-        return matchingRules(rules, node, origin)
+    private fun ruleModifiers(hss: CompiledHss?, node: UiNode, origin: StyleOrigin): List<Modifier> {
+        hss ?: return emptyList()
+        return hss.matching(node, origin)
             .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
             .flatMap { it.patch.modifiers() }
     }
-
-    private fun matchingRules(rules: List<StyleRule>, node: UiNode, origin: StyleOrigin): List<StyleRule> =
-        rules.filter { it.origin == origin && it.matches(node) }
 
     private fun attributeModifiers(node: UiNode): List<Modifier> {
         return node.attributes.mapNotNull { (name, value) ->

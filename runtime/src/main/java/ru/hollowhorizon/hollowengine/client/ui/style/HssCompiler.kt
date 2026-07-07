@@ -14,7 +14,39 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
 data class CompiledHss(
     val rules: List<StyleRule>,
     val keyframes: Map<String, UiKeyframes> = emptyMap(),
-)
+) {
+    private val index by lazy { HssRuleIndex(rules) }
+
+    /** Rules of [origin] that match [node], sourced from the index so only candidates are tested. */
+    fun matching(node: UiNode, origin: StyleOrigin): List<StyleRule> =
+        index.candidates(node).filter { it.origin == origin && it.matches(node) }.toList()
+}
+
+internal class HssRuleIndex(rules: List<StyleRule>) {
+    private val byId = HashMap<String, MutableList<StyleRule>>()
+    private val byTag = HashMap<String, MutableList<StyleRule>>()
+    private val byType = HashMap<String, MutableList<StyleRule>>()
+    private val universal = ArrayList<StyleRule>()
+
+    init {
+        for (rule in rules) {
+            val selector = rule.selector
+            when {
+                selector.id != null -> byId.getOrPut(selector.id) { ArrayList() } += rule
+                selector.tags.isNotEmpty() -> byTag.getOrPut(selector.tags.first()) { ArrayList() } += rule
+                selector.type != null -> byType.getOrPut(selector.type) { ArrayList() } += rule
+                else -> universal += rule
+            }
+        }
+    }
+
+    fun candidates(node: UiNode): Sequence<StyleRule> = sequence {
+        node.id?.let { id -> byId[id]?.let { yieldAll(it) } }
+        for (tag in node.tags) byTag[tag]?.let { yieldAll(it) }
+        byType[node.type]?.let { yieldAll(it) }
+        yieldAll(universal)
+    }
+}
 
 data class StyleRule(
     val selector: HssSelector,
