@@ -47,9 +47,9 @@ open class BaseUiNode(
     measurePolicy: UiMeasurePolicy = UiMeasurePolicies.Column,
 ) : UiNode {
     final override val layoutState = UiNodeLayoutState()
-    final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateLayout() }
+    final override val tags: MutableSet<String> = InvalidatingMutableSet(tags) { invalidateDraw() }
     final override val attributes: MutableMap<String, String> =
-        InvalidatingMutableMap(attributes) { invalidateLayout() }
+        InvalidatingMutableMap(attributes) { invalidateDraw() }
     final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
     final override val modifiers: MutableList<Modifier> =
         InvalidatingMutableList(modifiers) { invalidateModifierChange() }
@@ -73,17 +73,14 @@ open class BaseUiNode(
 
     fun add(vararg modifiers: Modifier): BaseUiNode = apply {
         this.modifiers.addAll(modifiers)
-        invalidateModifierChange()
     }
 
     fun tag(vararg values: String): BaseUiNode = apply {
         tags.addAll(values.map { it.trimTagPrefix() })
-        invalidateLayout()
     }
 
     fun state(vararg values: UiState): BaseUiNode = apply {
         states.addAll(values)
-        invalidateLayout()
     }
 }
 
@@ -193,7 +190,6 @@ fun UiNode.setClosingState(closing: Boolean) {
         } else {
             node.states -= UiState.CLOSING
         }
-        node.invalidateLayout()
         for (index in node.children.indices.reversed()) {
             stack.add(node.children[index])
         }

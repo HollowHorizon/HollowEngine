@@ -610,12 +610,18 @@ class HollowUiInputController {
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
+        val hoverChain = HashSet<UiNode>()
+        var ancestor = hoveredNode
+        while (ancestor != null) {
+            hoverChain += ancestor
+            ancestor = ancestor.layoutState.parentNode
+        }
         val stack = ArrayDeque<UiNode>()
         stack.add(node)
         while (stack.isNotEmpty()) {
             val current = stack.removeLast()
             val states = linkedSetOf<UiState>()
-            if (current === hoveredNode || current.containsNode(hoveredNode)) states += UiState.HOVER
+            if (current in hoverChain) states += UiState.HOVER
             if (current === activeNode) states += UiState.ACTIVE
             if (current in focusByScope.values) states += UiState.FOCUS
             if (current === draggingNode) states += UiState.DRAGGING
@@ -673,20 +679,6 @@ data class UiInputResult(
     val nodeKey: String? = null,
     val changed: Boolean = false,
 )
-
-private fun UiNode.containsNode(target: UiNode?): Boolean {
-    if (target == null) return false
-    val stack = ArrayDeque<UiNode>()
-    children.asReversed().forEach(stack::add)
-    while (stack.isNotEmpty()) {
-        val node = stack.removeLast()
-        if (node === target) return true
-        for (index in node.children.indices.reversed()) {
-            stack.add(node.children[index])
-        }
-    }
-    return false
-}
 
 private fun UiNode.forEachTextFields(block: (TextFieldNode) -> Unit) {
     val stack = ArrayDeque<UiNode>()

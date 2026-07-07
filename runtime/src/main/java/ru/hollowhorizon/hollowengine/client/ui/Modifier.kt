@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
@@ -488,30 +485,6 @@ fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = flatMap { modifier -
     if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
 }
 
-internal fun UiNode.invalidateModifierChange() {
-    val phases = modifiers.flattenModifiers().invalidationPhases()
-    if (phases.isEmpty() || UiInvalidationPhase.Layout in phases) {
-        invalidateLayout()
-        return
-    }
-    if (UiInvalidationPhase.Draw in phases) invalidateDraw()
-    if (UiInvalidationPhase.Input in phases) invalidateInput()
-}
-
-private fun List<Modifier>.invalidationPhases(): Set<UiInvalidationPhase> {
-    return flatMapTo(linkedSetOf()) { modifier ->
-        when (modifier) {
-            is StylePropModifier<*> -> modifier.prop.phases
-            is StyleModifier -> modifier.phases
-            is PointerInputModifierNode,
-            is InputModifierNode,
-                -> InputPhases
-
-            else -> LayoutPhases
-        }
-    }
-}
-
 internal fun UiNode.scrollAxes(): ScrollAxes = resolvedSnapshot.scrollAxes ?: ScrollAxes.Both
 
 /** Whether the node carries an attribute (via [AttributeModifier] or its legacy XML map). */
@@ -549,7 +522,6 @@ internal fun UiNode.setRuntimeStates(next: Set<UiState>) {
     } else {
         modifiers += RuntimeStateModifier(next)
     }
-    invalidateLayout()
 }
 
 private data class ModifierKey(
@@ -560,4 +532,3 @@ private data class ModifierKey(
 private fun modifierKey(name: String, vararg values: Any?) = ModifierKey(name, values.toList())
 
 private val LayoutPhases = setOf(UiInvalidationPhase.Layout)
-private val InputPhases = setOf(UiInvalidationPhase.Input)

@@ -721,17 +721,14 @@ fun <T : BaseUiNode> Updater<T>.updateCommon(
             if (this.tags == it) return@update
             this.tags.clear()
             this.tags += it
-            invalidateLayout()
         }
     }
     update(modifiers) {
         this.modifiers.clear()
         this.modifiers += it
-        invalidateModifierChange()
     }
     update(attributes) {
         replaceCustomAttributes(it)
-        invalidateLayout()
     }
 }
 

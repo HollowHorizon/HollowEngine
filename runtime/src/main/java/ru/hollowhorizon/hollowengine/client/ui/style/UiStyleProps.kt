@@ -116,8 +116,8 @@ object UiProps {
     val Filter = prop("filter", UiFilterChain.Empty, interpolate = UiFilterChain::interpolate)
     val BackdropFilter = prop("backdrop-filter", UiFilterChain.Empty, interpolate = UiFilterChain::interpolate)
     val BackfaceVisibility = prop("backface-visibility", UiBackfaceVisibility.VISIBLE)
-    val Clip = prop("clip", false)
-    val ClipShape = prop<Shape?>("clip-shape", null)
+    val Clip = prop("clip", false, fingerprint = true)
+    val ClipShape = prop<Shape?>("clip-shape", null, fingerprint = true)
     val Layer = prop("layer", 0)
     val ImageFit = prop("image-fit", UiImageFit.STRETCH)
     val ImageSlice = prop("image-slice", UiInsets.all(4.px))
@@ -181,7 +181,8 @@ object UiProps {
     val SpaceWidth = inheritedProp<Float?>("space-width", null, fingerprint = true)
     val FontSize = inheritedProp("font-size", DefaultUiFontSize, fingerprint = true)
     val FontFamily = prop<String?>("font-family", null, fingerprint = true, inherit = true)
-    val TextEffects = prop<List<UiTextEffect>>("text-effects", emptyList(), inherit = true, merge = { a, b -> a + b })
+    val TextEffects =
+        prop<List<UiTextEffect>>("text-effects", emptyList(), fingerprint = true, inherit = true, merge = { a, b -> a + b })
 
     val Transitions = prop<List<UiTransition>>(
         "transition", emptyList(),
