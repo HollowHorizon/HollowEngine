@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTyping
 
 interface Modifier {
     infix fun then(other: Modifier): Modifier {
@@ -133,17 +133,25 @@ data class EventModifier(
             UiEventKind.PRESS,
             UiEventKind.CLICK,
             UiEventKind.RELEASE,
-                -> { style.clickable = true; style.hoverable = true }
+                -> {
+                style.clickable = true; style.hoverable = true
+            }
 
-            UiEventKind.DRAG -> { style.draggable = true; style.hoverable = true }
+            UiEventKind.DRAG -> {
+                style.draggable = true; style.hoverable = true
+            }
 
-            UiEventKind.SCROLL -> { style.scroll = ScrollAxes.Both; style.hoverable = true }
+            UiEventKind.SCROLL -> {
+                style.scroll = ScrollAxes.Both; style.hoverable = true
+            }
 
             UiEventKind.CHAR_TYPED,
             UiEventKind.KEY_PRESSED,
             UiEventKind.FOCUS,
             UiEventKind.UNFOCUS,
-                -> { style.focusable = true; style.hoverable = true }
+                -> {
+                style.focusable = true; style.hoverable = true
+            }
 
             UiEventKind.INIT,
             UiEventKind.UPDATE,
@@ -174,6 +182,13 @@ data class KeyInputModifier(
 }
 
 const val TextFieldDefaultKeyPriority = -1000
+
+/**
+ * Observes the node's final bounds in root coordinates (its `boundsInRoot`) after each layout pass.
+ * The runtime invokes [callback] only when the bounds change, so feeding the rect straight into state.
+ * e.g. to anchor a popup to this node - cannot loop.
+ */
+data class OnPlacedModifier(val callback: (UiRect) -> Unit) : Modifier
 
 data class ScriptEventModifier(
     val kind: UiEventKind,
@@ -234,6 +249,8 @@ fun Modifier.style(location: String, loader: HssResourceLoader = MinecraftHssRes
 fun Modifier.style(stylesheet: CompiledHss) = this then
         StyleImportModifier(UiStylesheetReference.Compiled(stylesheet))
 
+fun Modifier.style(reference: UiStylesheetReference) = this then StyleImportModifier(reference)
+
 fun Modifier.size(width: UiLength = UiLength.Auto, height: UiLength = UiLength.Auto) =
     this then StylePropModifier(UiProps.Width, width, setOf(UiStyleProperty.WIDTH)) then
             StylePropModifier(UiProps.Height, height, setOf(UiStyleProperty.HEIGHT))
@@ -286,13 +303,13 @@ fun Modifier.background(gradient: UiRadialGradient) = prop(UiProps.Background, U
 
 fun Modifier.background(paint: UiPaint) = prop(UiProps.Background, paint)
 
-fun Modifier.background(source: UiBoundString) = prop(UiProps.Background, UiPaint.Image(source))
+fun Modifier.background(source: String) = prop(UiProps.Background, UiPaint.Image(source))
 
 fun Modifier.foreground(color: UiColor) = prop(UiProps.Foreground, color)
 
-fun Modifier.image(source: UiBoundString) = prop(UiProps.Image, source)
+fun Modifier.image(source: String) = prop(UiProps.Image, source)
 
-fun Modifier.shader(name: UiBoundString) = prop(UiProps.Shader, name)
+fun Modifier.shader(name: String) = prop(UiProps.Shader, name)
 
 fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) =
     prop(UiProps.BorderWidth, UiInsets.all(width)).prop(UiProps.BorderColor, color).prop(UiProps.BorderRadius, radius)
@@ -345,15 +362,28 @@ fun Modifier.scroll(vertical: Boolean = true, horizontal: Boolean = false) =
 fun Modifier.input(
     hoverable: Boolean = false,
     clickable: Boolean = false,
-    focusable: Boolean = false,
     draggable: Boolean = false,
-) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, focusable, draggable)) {
+) = this then StyleModifier(key = modifierKey("input", hoverable, clickable, draggable)) {
     // Only turn capabilities on, so this composes (OR) with event modifiers and other
     if (hoverable) it.hoverable = true
     if (clickable) it.clickable = true
-    if (focusable) it.focusable = true
     if (draggable) it.draggable = true
 }
+
+/**
+ * Makes a node focusable within its enclosing [focusScope] (by click or Tab). While focused it
+ * receives key/char events. Each scope holds its own focus independently, so several `focus` nodes
+ * (e.g. a text field and a popup's list) can be active at once — multi-focus.
+ */
+fun Modifier.focus() = prop(UiProps.Focusable, true).input(clickable = true)
+
+/**
+ * A focus scope (the root, popups, dock windows): always key/char-active while composed, and owns
+ * the focus among its [focus] descendants. Key/char input reaches every open scope at once and is
+ * routed from there to that scope's focused child; the scope itself also reacts to keys directly
+ * (e.g. Escape), even with no focused child.
+ */
+fun Modifier.focusScope() = prop(UiProps.FocusScope, true)
 
 fun Modifier.cursor(shape: UiCursorShape) = prop(UiProps.Cursor, shape)
 
@@ -399,8 +429,6 @@ fun Modifier.fontFamily(name: String) = prop(UiProps.FontFamily, name)
 
 fun Modifier.textEffects(vararg effects: UiTextEffect) = prop(UiProps.TextEffects, effects.toList())
 
-fun Modifier.typing(value: UiTyping?) = prop(UiProps.Typing, value)
-
 fun Modifier.transition(vararg transitions: UiTransition) = prop(UiProps.Transitions, transitions.toList())
 
 fun Modifier.onInit(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.INIT, handler)
@@ -435,6 +463,9 @@ fun Modifier.onKeyInput(priority: Int = 0, handler: (UiKeyInput) -> Unit) =
 fun Modifier.onFocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.FOCUS, handler)
 
 fun Modifier.onUnfocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiEventKind.UNFOCUS, handler)
+
+/** Reports this node's bounds in root coordinates after layout; see [OnPlacedModifier]. */
+fun Modifier.onPlaced(callback: (UiRect) -> Unit) = this then OnPlacedModifier(callback)
 
 fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) = this then
         ScriptEventModifier(kind, source, sink)
@@ -473,7 +504,9 @@ private fun List<Modifier>.invalidationPhases(): Set<UiInvalidationPhase> {
             is StylePropModifier<*> -> modifier.prop.phases
             is StyleModifier -> modifier.phases
             is PointerInputModifierNode,
-            is InputModifierNode -> InputPhases
+            is InputModifierNode,
+                -> InputPhases
+
             else -> LayoutPhases
         }
     }
@@ -518,8 +551,6 @@ internal fun UiNode.setRuntimeStates(next: Set<UiState>) {
     }
     invalidateLayout()
 }
-
-fun String.bound() = UiBoundString(this)
 
 private data class ModifierKey(
     val name: String,

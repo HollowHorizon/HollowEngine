@@ -139,8 +139,7 @@ internal fun UiLayoutPipeline.measureNodeContent(
     val widthConstrained = abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon
     val shouldReflowConstrainedWidth =
         widthConstrained &&
-                (node is TextNode ||
-                        heightOverride == null && style.size.height is UiLength.Auto ||
+                (heightOverride == null && style.size.height is UiLength.Auto ||
                         widthOverride == null && style.size.width is UiLength.Auto)
 
     if (!shouldReflowConstrainedWidth) return LayoutSize(constrainedWidth, constrainedHeight)
@@ -201,16 +200,6 @@ private fun UiLayoutPipeline.intrinsicSize(
     knownContentHeight: Float? = null,
 ): LayoutSize {
     return when (node) {
-        is TextNode -> measureTextNode(
-            node,
-            resolved,
-            style,
-            availableWidth,
-            availableHeight,
-            scrollbarReserves,
-            knownContentWidth,
-        )
-
         is TextFieldNode -> measureTextFieldNode(
             node,
             resolved,
@@ -222,7 +211,7 @@ private fun UiLayoutPipeline.intrinsicSize(
         )
 
         is SpanNode -> LayoutSize(
-            UiTextLayouter.measureTextWidth(node.text.resolve(), style.fontSize, style.fontFamily),
+            UiTextLayouter.measureTextWidth(node.text, style.fontSize, style.fontFamily),
             style.fontSize,
         )
 
@@ -239,34 +228,19 @@ private fun UiLayoutPipeline.intrinsicSize(
                     scrollbarReserves,
                 )
             } else {
-                measureStandardContainer(node, resolved, style, availableWidth, availableHeight, scrollbarReserves, knownContentWidth, knownContentHeight)
+                measureStandardContainer(
+                    node,
+                    resolved,
+                    style,
+                    availableWidth,
+                    availableHeight,
+                    scrollbarReserves,
+                    knownContentWidth,
+                    knownContentHeight
+                )
             }
         }
     }
-}
-
-private fun UiLayoutPipeline.measureTextNode(
-    node: TextNode,
-    resolved: UiNode,
-    style: UiComputedStyle,
-    availableWidth: Float,
-    availableHeight: Float,
-    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    knownContentWidth: Float?,
-): LayoutSize {
-    val widgetMetrics = measureInlineWidgetMetrics(
-        node, resolved, availableWidth, availableHeight, scrollbarReserves
-    )
-    return UiTextLayouter.measure(
-        richText = node.content.toRichText(widgetMetrics),
-        availableWidth = availableWidth,
-        knownWidth = knownContentWidth,
-        wrap = style.textWrap,
-        fontSize = style.fontSize,
-        fontFamily = style.fontFamily,
-        lineSpacing = style.lineSpacing,
-        spaceWidth = style.spaceWidth,
-    )
 }
 
 private fun UiLayoutPipeline.measureTextFieldNode(

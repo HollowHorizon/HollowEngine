@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import kotlin.math.roundToInt
 
 enum class UiCheckboxVariant {
@@ -248,7 +248,8 @@ class TextFieldNode(
     var value: String = ""
         set(value) {
             val lineNormalized = value.normalizeEditorLineEndings()
-            val normalized = if (mode == UiTextFieldMode.SINGLE_LINE) lineNormalized.replace('\n', ' ') else lineNormalized
+            val normalized =
+                if (mode == UiTextFieldMode.SINGLE_LINE) lineNormalized.replace('\n', ' ') else lineNormalized
             if (!filter.accepts(normalized)) return
             if (field == normalized) return
             field = normalized
@@ -1023,6 +1024,7 @@ class TextFieldNode(
         val baseIndent: String,
         val previousOpensBlock: Boolean,
     )
+
     private data class TextFieldHistoryEntry(
         val value: String,
         val caret: Int,
@@ -1056,7 +1058,7 @@ private fun completionReplacementRange(text: String, caret: Int): IntRange {
     var end = caret.coerceIn(0, text.length)
     var start = end
     while (start > 0 && text[start - 1].isEditorWordChar()) start--
-    while(end < text.length && text[end].isEditorWordChar()) end++
+    while (end < text.length && text[end].isEditorWordChar()) end++
     return start..end
 }
 
@@ -1076,11 +1078,12 @@ private fun Int.floorMod(modulo: Int): Int {
 internal fun Map<String, String>.readSliderValue(name: String, fallback: Float): Float =
     this[name]?.toFloatOrNull() ?: fallback
 
-internal fun Map<String, String>.readBoolean(name: String, fallback: Boolean = false): Boolean = when (this[name]?.lowercase()) {
-    "true", "yes", "1", "enabled", "checked" -> true
-    "false", "no", "0", "disabled", "unchecked" -> false
-    else -> fallback
-}
+internal fun Map<String, String>.readBoolean(name: String, fallback: Boolean = false): Boolean =
+    when (this[name]?.lowercase()) {
+        "true", "yes", "1", "enabled", "checked" -> true
+        "false", "no", "0", "disabled", "unchecked" -> false
+        else -> fallback
+    }
 
 private fun String.trimUiIdPrefix() = removePrefix("#")
 

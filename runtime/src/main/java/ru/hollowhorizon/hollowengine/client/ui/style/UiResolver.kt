@@ -84,6 +84,10 @@ class UiModifierResolver(
             nodes += node
             node.resolvedModifiers = resolved.flat
             node.resolvedSnapshot = finalStyle
+            // Fingerprint the transitioned + animated style, not the base: an animation on a
+            // layout prop (size/padding/transform) must bump the layout revision so the frame rebuilds
+            // it, while a draw-only animation (colour/opacity) leaves the fingerprint and the layout untouched.
+            node.layoutState.updateResolvedLayoutFingerprint(finalStyle.layoutFingerprint())
             visitSnapshot(finalStyle)
             for (index in node.children.indices.reversed()) {
                 stack.add(StyleResolveTask(node.children[index], finalStyle, scopedScope))
@@ -117,14 +121,16 @@ class UiModifierResolver(
         scope.stylesheets.forEach { scoped ->
             stateRules += matchingRules(scoped.rules, node, StyleOrigin.STATE_STYLESHEET)
         }
-        val orderedStateRules = stateRules.sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
+        val orderedStateRules =
+            stateRules.sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
 
         val attributeModifiers = attributeModifiers(node)
         val baseModifiers = baseRuleModifiers + nodeModifiers + attributeModifiers
 
         // Flat list keeps the historical dispatch order (base rules, then state rules, then
         // node/attribute modifiers).
-        val flat = ArrayList<Modifier>(baseRuleModifiers.size + stateRules.size + nodeModifiers.size + attributeModifiers.size)
+        val flat =
+            ArrayList<Modifier>(baseRuleModifiers.size + stateRules.size + nodeModifiers.size + attributeModifiers.size)
         flat += baseRuleModifiers
         orderedStateRules.forEach { flat += it.patch.modifiers() }
         flat += nodeModifiers
@@ -174,7 +180,6 @@ class UiModifierResolver(
             resolvedModifiers = resolved.flat,
         )
         styleCache[node]?.takeIf { it.key == key }?.let {
-            node.layoutState.updateResolvedLayoutFingerprint(it.snapshot.layoutFingerprint())
             return it.snapshot
         }
         val mutable = engineDefaults(node)
@@ -186,7 +191,6 @@ class UiModifierResolver(
             mutable.merge(combinedStates)
         }
         return mutable.resolve(parent).also { style ->
-            node.layoutState.updateResolvedLayoutFingerprint(style.layoutFingerprint())
             styleCache[node] = StyleCacheEntry(key, style)
         }
     }
@@ -248,13 +252,15 @@ class UiModifierResolver(
 
             UiSliderType -> {
                 style.size = UiSize(120.px, 16.px)
-                style.input = UiInputStyle(hoverable = true, clickable = true, draggable = true, focusable = true)
+                style.input = UiInputStyle(hoverable = true, clickable = true, draggable = true)
+                style.focusable = true
                 style.slider = UiSliderStyle()
             }
 
             UiCheckboxType -> {
                 style.size = UiSize(16.px, 16.px)
-                style.input = UiInputStyle(hoverable = true, clickable = true, focusable = true)
+                style.input = UiInputStyle(hoverable = true, clickable = true)
+                style.focusable = true
                 style.checkbox = UiCheckboxStyle()
             }
 
@@ -263,7 +269,8 @@ class UiModifierResolver(
                 style.minSize = UiSize(0.px, 18.px)
                 style.padding = UiInsets.hv(4.px, 3.px)
                 style.foreground = UiColor.White
-                style.input = UiInputStyle(hoverable = true, clickable = true, focusable = true)
+                style.input = UiInputStyle(hoverable = true, clickable = true)
+                style.focusable = true
                 style.cursor = UiCursorShape.TEXT
                 style.textField = UiTextFieldStyle()
             }

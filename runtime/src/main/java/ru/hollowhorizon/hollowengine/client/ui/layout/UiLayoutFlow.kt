@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 
 private class EngineMeasurable(
     private val pipeline: UiLayoutPipeline,

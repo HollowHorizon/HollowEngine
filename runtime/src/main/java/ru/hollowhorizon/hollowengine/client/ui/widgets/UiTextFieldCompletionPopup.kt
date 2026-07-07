@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.style.fontSize
+import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import kotlin.math.max
 
 internal data class UiTextFieldCompletionPopupGeometry(

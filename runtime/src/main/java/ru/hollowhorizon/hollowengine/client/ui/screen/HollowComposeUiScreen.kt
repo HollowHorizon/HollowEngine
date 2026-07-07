@@ -1,10 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
-import ru.hollowhorizon.hollowengine.client.ui.LocalUiFrameTimeNanos
 import ru.hollowhorizon.hollowengine.client.ui.UiCursorManager
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
@@ -18,7 +17,6 @@ abstract class HollowComposeUiScreen(
 ) : Screen(title.literal) {
     private val surface = HollowUiSurface(stylesheet = stylesheet)
     private val renderer = MinecraftUiRenderer()
-    private var frameTimeNanos by mutableStateOf(0L)
 
     @Composable
     protected abstract fun Content()
@@ -26,16 +24,12 @@ abstract class HollowComposeUiScreen(
     protected open fun rebuildEveryFrame(): Boolean = false
 
     override fun init() {
-        surface.setContent {
-            CompositionLocalProvider(LocalUiFrameTimeNanos provides frameTimeNanos) {
-                Content()
-            }
-        }
+        surface.setContent { Content() }
     }
 
     override fun render(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         val nowMillis = System.nanoTime()
-        if (rebuildEveryFrame()) frameTimeNanos = nowMillis
+        if (rebuildEveryFrame()) surface.advanceFrameTime(nowMillis)
         val frame = surface.frame(width.toFloat(), height.toFloat(), mouseX.toFloat(), mouseY.toFloat(), nowMillis)
         renderer.render(frame)
         UiCursorManager.apply(mc.window.window, surface.runtime.cursor)

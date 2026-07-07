@@ -1,20 +1,18 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSliderStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTyping
 
 const val DefaultUiFontSize = 10f
 
 /**
  * Declarations of every style property. A property is fully described by its single
- * declaration here — defaults/inheritance, merge, transition interpolation, invalidation
- * phase and layout-fingerprint participation. The typed accessors used across the
- * engine are declared right below, next to their property.
+ * declaration here: defaults/inheritance, merge, transition interpolation, invalidation
+ * phase and layout-fingerprint participation.
  */
 object UiProps {
     private val LayoutPhase = setOf(UiInvalidationPhase.Layout)
@@ -27,6 +25,7 @@ object UiProps {
         aliases: Set<String> = emptySet(),
         phases: Set<UiInvalidationPhase> = LayoutPhase,
         fingerprint: Boolean = false,
+        inherit: Boolean = false,
         group: String? = null,
         merge: ((current: T, next: T) -> T)? = null,
         combine: ((current: T, next: T) -> T)? = null,
@@ -38,7 +37,12 @@ object UiProps {
         phases = phases,
         layoutFingerprint = fingerprint,
         transitionGroup = group,
-        defaultValue = { default },
+        defaultValue =
+            if (inherit) {
+                { parent -> parent?.get(this) ?: default }
+            } else {
+                { default }
+            },
         mergeValues = merge,
         combineValues = combine,
         interpolation = interpolate,
@@ -85,15 +89,12 @@ object UiProps {
     val JustifyContent = prop("justify-content", UiAlign.AUTO, fingerprint = true)
     val Grow = prop("grow", 0f, fingerprint = true)
     val Position = prop("position", UiPosition(), fingerprint = true)
-
-    // Border is split so a rule setting `border: 2px color` (width+colour) never wipes a
-    // radius set elsewhere. Only width participates in layout; colour/radius are visual.
     val BorderWidth = prop("border-width", UiInsets.Zero, fingerprint = true)
     val BorderColor = prop("border-color", UiColor.Transparent, phases = DrawPhase)
     val BorderRadius = prop("border-radius", 0f, phases = DrawPhase)
 
     // Visuals
-    val Background = prop<UiPaint>(
+    val Background = prop(
         "background", UiPaint.None,
         phases = DrawPhase, interpolate = ::interpolatePaint,
     )
@@ -101,9 +102,9 @@ object UiProps {
         "foreground", UiColor.White,
         phases = DrawPhase, interpolate = UiColor::interpolate,
     )
-    val Image = prop<UiBoundString?>("image", null, phases = DrawPhase)
-    val Shader = prop<UiBoundString?>("shader", null, phases = DrawPhase)
-    val Shadows = prop<List<UiShadow>>(
+    val Image = prop<String?>("image", null, phases = DrawPhase)
+    val Shader = prop<String?>("shader", null, phases = DrawPhase)
+    val Shadows = prop(
         "shadow", emptyList(), aliases = setOf("box-shadow"),
         interpolate = ::interpolateShadows,
     )
@@ -124,25 +125,42 @@ object UiProps {
     val ShapeFill = prop<UiPaint?>("shape-fill", null)
     val ShapeStroke = prop<UiPaint?>("shape-stroke", null)
     val ShapeStrokeWidth = prop<UiLength?>("shape-stroke-width", null)
-
-    // Transform (split into independent properties; `transform` groups them for transitions).
-    // Only *active states* stack — translate/rotate add, scale multiplies (combine); base and
-    // a single state overlay last-wins (no merge).
-    val Translate = prop("translate", UiVec3(), group = "transform", combine = ::addVec3, interpolate = ::interpolateVec3)
-    val Rotate = prop("rotate", UiVec3(), group = "transform", combine = ::addVec3, interpolate = ::interpolateVec3)
-    val Scale = prop("scale", UiVec3(1f, 1f, 1f), group = "transform", combine = ::mulVec3, interpolate = ::interpolateVec3)
+    val Translate =
+        prop(
+            "translate",
+            UiVec3(),
+            fingerprint = true,
+            group = "transform",
+            combine = ::addVec3,
+            interpolate = ::interpolateVec3
+        )
+    val Rotate =
+        prop(
+            "rotate",
+            UiVec3(),
+            fingerprint = true,
+            group = "transform",
+            combine = ::addVec3,
+            interpolate = ::interpolateVec3
+        )
+    val Scale =
+        prop(
+            "scale",
+            UiVec3(1f, 1f, 1f),
+            fingerprint = true,
+            group = "transform",
+            combine = ::mulVec3,
+            interpolate = ::interpolateVec3
+        )
     val Pivot = prop(
         "pivot", UiTransformPivot.Center,
-        aliases = setOf("transform-origin"), group = "transform",
+        aliases = setOf("transform-origin"), fingerprint = true, group = "transform",
     )
-    val Perspective = prop("perspective", 0f, group = "transform", interpolate = ::lerp)
-
-    // Input — one independent property per capability. Only Scrollable affects layout
-    // (it changes overflow/measurement); the rest are pure input concerns, so a hover or
-    // focusability change no longer forces a relayout.
+    val Perspective = prop("perspective", 0f, fingerprint = true, group = "transform", interpolate = ::lerp)
     val Hoverable = prop("hoverable", false, phases = InputPhase)
     val Clickable = prop("clickable", false, phases = InputPhase)
     val Focusable = prop("focusable", false, phases = InputPhase)
+    val FocusScope = prop("focus-scope", false, phases = InputPhase)
     val Draggable = prop("draggable", false, phases = InputPhase)
     val Scroll = prop<ScrollAxes?>("scroll", null, fingerprint = true)
     val InputTransparent = prop("input-transparent", false, phases = InputPhase)
@@ -162,22 +180,15 @@ object UiProps {
     val LineSpacing = inheritedProp("line-spacing", 0f, fingerprint = true)
     val SpaceWidth = inheritedProp<Float?>("space-width", null, fingerprint = true)
     val FontSize = inheritedProp("font-size", DefaultUiFontSize, fingerprint = true)
-    val FontFamily = prop<String?>("font-family", null, fingerprint = true)
-    val TextEffects = prop<List<UiTextEffect>>("text-effects", emptyList(), merge = { a, b -> a + b })
-    val Typing = prop<UiTyping?>("typing", null)
+    val FontFamily = prop<String?>("font-family", null, fingerprint = true, inherit = true)
+    val TextEffects = prop<List<UiTextEffect>>("text-effects", emptyList(), inherit = true, merge = { a, b -> a + b })
 
-    // Motion
     val Transitions = prop<List<UiTransition>>(
         "transition", emptyList(),
         merge = { current, next -> current.mergeUiTransitions(next) },
     )
     val Animations = prop<List<UiAnimation>>("animation", emptyList())
 }
-
-// Note: the declaration helpers live inside [UiProps] on purpose — its initialization
-// must not touch this file's top-level class, whose static init reads UiProps back.
-
-// -- Patch accessors -------------------------------------------------------------------
 
 var UiStylePatch.width by UiProps.Width
 var UiStylePatch.height by UiProps.Height
@@ -259,13 +270,11 @@ var UiStylePatch.input: UiInputStyle
     get() = UiInputStyle(
         hoverable = this[UiProps.Hoverable] ?: false,
         clickable = this[UiProps.Clickable] ?: false,
-        focusable = this[UiProps.Focusable] ?: false,
         draggable = this[UiProps.Draggable] ?: false,
     )
     set(value) {
         if (value.hoverable) this[UiProps.Hoverable] = true
         if (value.clickable) this[UiProps.Clickable] = true
-        if (value.focusable) this[UiProps.Focusable] = true
         if (value.draggable) this[UiProps.Draggable] = true
     }
 var UiStylePatch.scrollbar by UiProps.Scrollbar
@@ -281,7 +290,6 @@ var UiStylePatch.spaceWidth by UiProps.SpaceWidth
 var UiStylePatch.fontSize by UiProps.FontSize
 var UiStylePatch.fontFamily by UiProps.FontFamily
 var UiStylePatch.textEffects by UiProps.TextEffects
-var UiStylePatch.typing by UiProps.Typing
 var UiStylePatch.transitions by UiProps.Transitions
 var UiStylePatch.animations by UiProps.Animations
 
@@ -385,6 +393,7 @@ val UiComputedStyle.perspective by UiProps.Perspective
 val UiComputedStyle.hoverable by UiProps.Hoverable
 val UiComputedStyle.clickable by UiProps.Clickable
 val UiComputedStyle.focusable by UiProps.Focusable
+val UiComputedStyle.focusScope by UiProps.FocusScope
 val UiComputedStyle.draggable by UiProps.Draggable
 
 val UiComputedStyle.scrollAxes: ScrollAxes? get() = this[UiProps.Scroll]
@@ -395,7 +404,6 @@ val UiComputedStyle.input: UiInputStyle
     get() = UiInputStyle(
         hoverable = this[UiProps.Hoverable],
         clickable = this[UiProps.Clickable],
-        focusable = this[UiProps.Focusable],
         draggable = this[UiProps.Draggable],
     )
 val UiComputedStyle.cursor by UiProps.Cursor
@@ -413,7 +421,6 @@ val UiComputedStyle.spaceWidth by UiProps.SpaceWidth
 val UiComputedStyle.fontSize by UiProps.FontSize
 val UiComputedStyle.fontFamily by UiProps.FontFamily
 val UiComputedStyle.textEffects by UiProps.TextEffects
-val UiComputedStyle.typing by UiProps.Typing
 val UiComputedStyle.transitions by UiProps.Transitions
 val UiComputedStyle.animations by UiProps.Animations
 

@@ -1,14 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
-import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineImageRun
+import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextFragment
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLine
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextSpaceRun
 import ru.hollowhorizon.hollowengine.client.ui.widgets.fontFamily
 
 internal object UiTextOverflowResolver {
@@ -44,6 +38,7 @@ internal object UiTextOverflowResolver {
                 is UiTextSpaceRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }.also {
                     if (it) text.append(' ')
                 }
+
                 is UiInlineImageRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }
                 is UiInlineWidgetRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }
             }
@@ -64,7 +59,12 @@ internal object UiTextOverflowResolver {
         }
 
         fun toLine(line: UiTextLine): UiTextLine {
-            return line.copy(text = text.toString(), width = availableWidth, naturalWidth = availableWidth, fragments = fragments)
+            return line.copy(
+                text = text.toString(),
+                width = availableWidth,
+                naturalWidth = availableWidth,
+                fragments = fragments
+            )
         }
 
         private fun appendText(fragment: UiTextRun): Boolean {

@@ -1,12 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.SvgPathShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgResource
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.client.ui.text.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSliderStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
 
 data class CompiledHss(
     val rules: List<StyleRule>,
@@ -40,7 +43,11 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 keyframes.name,
                 keyframes.frames.flatMap { frame ->
                     frame.offsets.map { offset ->
-                        UiKeyframe(offset, compileKeyframeStyle(frame.declarations), compileKeyframeProperties(frame.declarations))
+                        UiKeyframe(
+                            offset,
+                            compileKeyframeStyle(frame.declarations),
+                            compileKeyframeProperties(frame.declarations)
+                        )
                     }
                 },
             )
@@ -78,31 +85,59 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "max-height" -> instruction { it.maxHeight = parseLength(value) }
             "aspect-ratio" -> instruction { it.aspectRatio = parseAspectRatio(value) }
             "padding" -> instruction { it.padding = parseInsets(value, allowAuto = false) }
-            "padding-left" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = false)) }
-            "padding-top" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(top = parseLength(value, allowAuto = false)) }
-            "padding-right" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(right = parseLength(value, allowAuto = false)) }
-            "padding-bottom" -> instruction { it.padding = (it.padding ?: UiInsets.Zero).copy(bottom = parseLength(value, allowAuto = false)) }
+            "padding-left" -> instruction {
+                it.padding = (it.padding ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = false))
+            }
+
+            "padding-top" -> instruction {
+                it.padding = (it.padding ?: UiInsets.Zero).copy(top = parseLength(value, allowAuto = false))
+            }
+
+            "padding-right" -> instruction {
+                it.padding = (it.padding ?: UiInsets.Zero).copy(right = parseLength(value, allowAuto = false))
+            }
+
+            "padding-bottom" -> instruction {
+                it.padding = (it.padding ?: UiInsets.Zero).copy(bottom = parseLength(value, allowAuto = false))
+            }
+
             "padding-x", "padding-horizontal", "padding-inline" -> instruction {
                 val length = parseLength(value, allowAuto = false)
                 it.padding = (it.padding ?: UiInsets.Zero).copy(left = length, right = length)
             }
+
             "padding-y", "padding-vertical", "padding-block" -> instruction {
                 val length = parseLength(value, allowAuto = false)
                 it.padding = (it.padding ?: UiInsets.Zero).copy(top = length, bottom = length)
             }
+
             "margin" -> instruction { it.margin = parseInsets(value, allowAuto = true) }
-            "margin-left" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = true)) }
-            "margin-top" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(top = parseLength(value, allowAuto = true)) }
-            "margin-right" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(right = parseLength(value, allowAuto = true)) }
-            "margin-bottom" -> instruction { it.margin = (it.margin ?: UiInsets.Zero).copy(bottom = parseLength(value, allowAuto = true)) }
+            "margin-left" -> instruction {
+                it.margin = (it.margin ?: UiInsets.Zero).copy(left = parseLength(value, allowAuto = true))
+            }
+
+            "margin-top" -> instruction {
+                it.margin = (it.margin ?: UiInsets.Zero).copy(top = parseLength(value, allowAuto = true))
+            }
+
+            "margin-right" -> instruction {
+                it.margin = (it.margin ?: UiInsets.Zero).copy(right = parseLength(value, allowAuto = true))
+            }
+
+            "margin-bottom" -> instruction {
+                it.margin = (it.margin ?: UiInsets.Zero).copy(bottom = parseLength(value, allowAuto = true))
+            }
+
             "margin-x", "margin-horizontal", "margin-inline" -> instruction {
                 val length = parseLength(value, allowAuto = true)
                 it.margin = (it.margin ?: UiInsets.Zero).copy(left = length, right = length)
             }
+
             "margin-y", "margin-vertical", "margin-block" -> instruction {
                 val length = parseLength(value, allowAuto = true)
                 it.margin = (it.margin ?: UiInsets.Zero).copy(top = length, bottom = length)
             }
+
             "gap" -> instruction { it.gap = parseLength(value) }
             "align" -> instruction { applySelfAlignment(it, value) }
             "align-items" -> instruction { applyChildAlignment(it, value) }
@@ -116,10 +151,13 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "shape" -> instruction { it.shape = parseShape(value) }
             "shape-fill", "fill" -> instruction { it.shapeFill = parsePaint(value) }
             "shape-stroke", "stroke" -> instruction { it.shapeStroke = parsePaint(value) }
-            "shape-stroke-width", "stroke-width" -> instruction { it.shapeStrokeWidth = parseLength(value, allowAuto = false) }
+            "shape-stroke-width", "stroke-width" -> instruction {
+                it.shapeStrokeWidth = parseLength(value, allowAuto = false)
+            }
+
             "foreground", "color" -> instruction { it.foreground = parseColor(value) }
-            "image" -> instruction { it.image = parseBoundFunction(value, "image") ?: UiBoundString(unquote(value)) }
-            "shader" -> instruction { it.shader = parseBoundFunction(value, "shader") ?: UiBoundString(unquote(value)) }
+            "image" -> instruction { it.image = parseBoundFunction(value, "image") ?: unquote(value) }
+            "shader" -> instruction { it.shader = parseBoundFunction(value, "shader") ?: unquote(value) }
             "border" -> instruction {
                 // Width + colour only — radius stays whatever `border-radius` set (possibly
                 // in another rule/layer), so `:hover { border: ... }` never squares corners.
@@ -127,6 +165,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 it.borderWidth = parsed.width
                 it.borderColor = parsed.color
             }
+
             "border-color" -> instruction { it.borderColor = parseColor(value) }
             "border-width" -> instruction { it.borderWidth = UiInsets.all(parseLength(value, allowAuto = false)) }
             "border-radius" -> instruction { it.borderRadius = parseScalar(value) }
@@ -141,6 +180,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "pivot", "transform-origin" -> instruction {
                 it.transform = (it.transform ?: UiTransform()).copy(pivot = parsePivot(value))
             }
+
             "perspective" -> instruction {
                 it.transform = (it.transform ?: UiTransform()).copy(perspective = parseScalar(value))
             }
@@ -154,107 +194,141 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 it.imageFit = parseImageFit(value)
                 parseImageFitSlice(value)?.let { slice -> it.imageSlice = slice }
             }
+
             "image-slice", "slice" -> instruction { it.imageSlice = parseInsets(value, allowAuto = false) }
             "scrollbar", "scrollbar-width", "scrollbar-thickness" -> instruction {
                 it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(thickness = parseLength(value))
             }
+
             "scrollbar-margin" -> instruction {
                 it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(margin = parseLength(value))
             }
+
             "scrollbar-min-thumb", "scrollbar-min-thumb-size" -> instruction {
                 it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(minThumbSize = parseLength(value))
             }
+
             "scrollbar-track" -> instruction { style ->
-                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(paint = parsePaint(value)) }
+                style.scrollbar =
+                    (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(paint = parsePaint(value)) }
             }
+
             "scrollbar-thumb" -> instruction { style ->
-                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb { it.copy(paint = parsePaint(value)) }
+                style.scrollbar =
+                    (style.scrollbar ?: UiScrollbarStyle()).patchThumb { it.copy(paint = parsePaint(value)) }
             }
+
             "scrollbar-track-border" -> instruction { style ->
                 style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack {
                     it.copy(border = parseBorder(value, it.border ?: UiBorder()))
                 }
             }
+
             "scrollbar-thumb-border" -> instruction { style ->
                 style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb {
                     it.copy(border = parseBorder(value, it.border ?: UiBorder()))
                 }
             }
+
             "scrollbar-track-radius" -> instruction { style ->
-                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(radius = parseScalar(value)) }
+                style.scrollbar =
+                    (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(radius = parseScalar(value)) }
             }
+
             "scrollbar-thumb-radius" -> instruction { style ->
-                style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb { it.copy(radius = parseScalar(value)) }
+                style.scrollbar =
+                    (style.scrollbar ?: UiScrollbarStyle()).patchThumb { it.copy(radius = parseScalar(value)) }
             }
+
             "scrollbar-track-fit" -> instruction { style ->
                 style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack {
                     it.copy(fit = parseImageFit(value), slice = parseImageFitSlice(value) ?: it.slice)
                 }
             }
+
             "scrollbar-thumb-fit" -> instruction { style ->
                 style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb {
                     it.copy(fit = parseImageFit(value), slice = parseImageFitSlice(value) ?: it.slice)
                 }
             }
+
             "scrollbar-track-slice" -> instruction { style ->
                 style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchTrack {
                     it.copy(slice = parseInsets(value, allowAuto = false))
                 }
             }
+
             "scrollbar-thumb-slice" -> instruction { style ->
                 style.scrollbar = (style.scrollbar ?: UiScrollbarStyle()).patchThumb {
                     it.copy(slice = parseInsets(value, allowAuto = false))
                 }
             }
+
             "slider-track-thickness", "slider-track-width" -> instruction { style ->
                 style.slider = (style.slider ?: UiSliderStyle()).copy(trackThickness = parseLength(value))
             }
+
             "slider-track" -> instruction { style ->
                 style.slider = (style.slider ?: UiSliderStyle()).copy(trackPaint = parsePaint(value))
             }
+
             "slider-active-track", "slider-fill" -> instruction { style ->
                 style.slider = (style.slider ?: UiSliderStyle()).copy(activeTrackPaint = parsePaint(value))
             }
+
             "slider-thumb" -> instruction { style ->
                 style.slider = (style.slider ?: UiSliderStyle()).copy(thumbPaint = parsePaint(value))
             }
+
             "slider-thumb-border" -> instruction { style ->
                 val current = style.slider ?: UiSliderStyle()
                 style.slider = current.copy(thumbBorder = parseBorder(value, current.thumbBorder ?: UiBorder()))
             }
+
             "slider-thumb-size" -> instruction { style ->
                 style.slider = (style.slider ?: UiSliderStyle()).copy(thumbSize = parseSize(value))
             }
+
             "slider-radius" -> instruction { style ->
                 style.slider = (style.slider ?: UiSliderStyle()).copy(radius = parseScalar(value))
             }
+
             "checkbox-mark" -> instruction { style ->
                 style.checkbox = (style.checkbox ?: UiCheckboxStyle()).copy(markPaint = parsePaint(value))
             }
+
             "checkbox-active", "checkbox-fill" -> instruction { style ->
                 style.checkbox = (style.checkbox ?: UiCheckboxStyle()).copy(activePaint = parsePaint(value))
             }
+
             "checkbox-variant", "checkbox-style" -> instruction { style ->
                 style.checkbox = (style.checkbox ?: UiCheckboxStyle()).copy(variant = UiCheckboxVariant.from(value))
             }
+
             "caret-color", "text-field-caret" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(caretColor = parseColor(value))
             }
+
             "selection-color", "text-selection" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(selectionColor = parseColor(value))
             }
+
             "line-number-color" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(lineNumberColor = parseColor(value))
             }
+
             "inlay-hint-color" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(inlayHintColor = parseColor(value))
             }
+
             "line-numbers" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(lineNumbers = parseBoolean(value))
             }
+
             "inlay-hints" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(inlayHints = parseBoolean(value))
             }
+
             "text-wrap", "wrap" -> instruction { it.textWrap = parseTextWrap(value) }
             "text-overflow" -> instruction { it.textOverflow = parseTextOverflow(value) }
             "box-decoration-break" -> instruction { it.boxDecorationBreak = parseBoxDecorationBreak(value) }
@@ -262,16 +336,13 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "line-spacing", "text-line-spacing", "leading" -> instruction {
                 it.lineSpacing = parseScalar(value).coerceAtLeast(0f)
             }
+
             "space-width", "text-space-width" -> instruction {
                 it.spaceWidth = parseScalar(value).coerceAtLeast(0f)
             }
+
             "font-size" -> instruction { it.fontSize = parseScalar(value).coerceAtLeast(0.0001f) }
             "font-family" -> instruction { it.fontFamily = value.trim().removeSurrounding("\"").removeSurrounding("'") }
-            "typing" -> instruction { it.typing = parseTyping(value) }
-            "typing-delay" -> instruction {
-                val delay = parseDuration(value)
-                it.typing = (it.typing ?: UiTyping()).copy(delayMillis = delay)
-            }
             "text-effects", "text-effect" -> instruction { it.textEffects = parseTextEffects(value) }
             else -> null
         }
@@ -309,53 +380,90 @@ internal object HssModifierRegistry {
         register("transition") { value -> transitionModifier(value) }
         register("animation") { value -> StyleModifier { it.animations = parseAnimations(value) } }
         register("animation-name") { value ->
-            StyleModifier { it.animations = splitTopLevel(value, ',').map { name -> UiAnimation(unquote(name.trim())) } }
+            StyleModifier {
+                it.animations = splitTopLevel(value, ',').map { name -> UiAnimation(unquote(name.trim())) }
+            }
         }
         register("animation-duration") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, duration ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseDuration)
+                ) { animation, duration ->
                     animation.copy(durationMillis = duration)
                 }
             }
         }
         register("animation-timing-function") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseEasing)) { animation, easing ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseEasing)
+                ) { animation, easing ->
                     animation.copy(easing = easing)
                 }
             }
         }
         register("animation-delay") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseDuration)) { animation, delay ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseDuration)
+                ) { animation, delay ->
                     animation.copy(delayMillis = delay)
                 }
             }
         }
         register("animation-iteration-count") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseIterationCount)) { animation, count ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseIterationCount)
+                ) { animation, count ->
                     animation.copy(iterationCount = count)
                 }
             }
         }
         register("animation-direction") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationDirection)) { animation, direction ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseAnimationDirection)
+                ) { animation, direction ->
                     animation.copy(direction = direction)
                 }
             }
         }
         register("animation-fill-mode") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationFillMode)) { animation, fillMode ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseAnimationFillMode)
+                ) { animation, fillMode ->
                     animation.copy(fillMode = fillMode)
                 }
             }
         }
         register("animation-play-state") { value ->
             StyleModifier { style ->
-                style.animations = style.animations.patchAnimationValues(splitTopLevel(value, ',').map(::parseAnimationPlayState)) { animation, playState ->
+                style.animations = style.animations.patchAnimationValues(
+                    splitTopLevel(
+                        value,
+                        ','
+                    ).map(::parseAnimationPlayState)
+                ) { animation, playState ->
                     animation.copy(playState = playState)
                 }
             }
@@ -514,10 +622,10 @@ private fun parsePaint(value: String): UiPaint {
     return UiPaint.Color(parseColor(value))
 }
 
-private fun parseImageSource(value: String): UiBoundString {
+private fun parseImageSource(value: String): String {
     return parseBoundFunction(value, "image")
         ?: parseBoundFunction(value, "url")
-        ?: UiBoundString(unquote(value))
+        ?: unquote(value)
 }
 
 private fun applyClip(style: UiStylePatch, value: String) {
@@ -702,8 +810,8 @@ private fun parseFilterChain(value: String): UiFilterChain {
         effects += when (name) {
             "grayscale" -> UiFilterEffect.Grayscale(parseFilterAmount(args))
             "blur" -> UiFilterEffect.Blur(parseScalar(args).coerceAtLeast(0f))
-            "shader" -> UiFilterEffect.Shader(UiBoundString(unquote(args)))
-            else -> UiFilterEffect.Shader(UiBoundString(name))
+            "shader" -> UiFilterEffect.Shader(unquote(args))
+            else -> UiFilterEffect.Shader(name)
         }
     }
     return UiFilterChain(effects)
@@ -774,8 +882,14 @@ private fun parseTransform(value: String, base: UiTransform): UiTransform {
         transform = when (name) {
             "translate" -> {
                 val parts = splitTransformArgs(args).map(::parseScalar)
-                transform.copy(translate = UiVec3(parts.getOrElse(0) { 0f }, parts.getOrElse(1) { 0f }, parts.getOrElse(2) { 0f }))
+                transform.copy(
+                    translate = UiVec3(
+                        parts.getOrElse(0) { 0f },
+                        parts.getOrElse(1) { 0f },
+                        parts.getOrElse(2) { 0f })
+                )
             }
+
             "translatex" -> transform.copy(translate = transform.translate.copy(x = parseScalar(args)))
             "translatey" -> transform.copy(translate = transform.translate.copy(y = parseScalar(args)))
             "translatez" -> transform.copy(translate = transform.translate.copy(z = parseScalar(args)))
@@ -784,6 +898,7 @@ private fun parseTransform(value: String, base: UiTransform): UiTransform {
                 val x = parts.getOrElse(0) { 1f }
                 transform.copy(scale = UiVec3(x, parts.getOrElse(1) { x }, parts.getOrElse(2) { 1f }))
             }
+
             "scalex" -> transform.copy(scale = transform.scale.copy(x = parseScalar(args)))
             "scaley" -> transform.copy(scale = transform.scale.copy(y = parseScalar(args)))
             "scalez" -> transform.copy(scale = transform.scale.copy(z = parseScalar(args)))
@@ -891,6 +1006,7 @@ private fun findFunctionClose(value: String, open: Int): Int {
                     inString = true
                     quote = char
                 }
+
                 '(' -> depth++
                 ')' -> {
                     depth--
@@ -931,9 +1047,9 @@ private fun looksLikeImageSource(value: String): Boolean {
     return ":" in cleaned || cleaned.endsWith(".png") || cleaned.endsWith(".jpg") || cleaned.endsWith(".jpeg")
 }
 
-private fun parseBoundFunction(value: String, name: String): UiBoundString? {
+private fun parseBoundFunction(value: String, name: String): String? {
     if (!value.trim().startsWith("$name(")) return null
-    return UiBoundString(unquote(functionArgs(value.trim(), name).joinToString(",").trim()))
+    return unquote(functionArgs(value.trim(), name).joinToString(",").trim())
 }
 
 private fun parseAnimations(value: String): List<UiAnimation> {
@@ -956,7 +1072,9 @@ private fun parseAnimation(value: String): UiAnimation {
             cleaned.isDurationToken() && duration == null -> duration = parseDuration(cleaned)
             cleaned.isDurationToken() -> delay = parseDuration(cleaned)
             cleaned.isEasingToken() -> easing = parseEasing(cleaned)
-            cleaned.equals("infinite", ignoreCase = true) || cleaned.toFloatOrNull() != null -> iterationCount = parseIterationCount(cleaned)
+            cleaned.equals("infinite", ignoreCase = true) || cleaned.toFloatOrNull() != null -> iterationCount =
+                parseIterationCount(cleaned)
+
             parseAnimationDirectionOrNull(cleaned) != null -> direction = parseAnimationDirection(cleaned)
             parseAnimationFillModeOrNull(cleaned) != null -> fillMode = parseAnimationFillMode(cleaned)
             parseAnimationPlayStateOrNull(cleaned) != null -> playState = parseAnimationPlayState(cleaned)
@@ -975,7 +1093,10 @@ private fun parseAnimation(value: String): UiAnimation {
     )
 }
 
-private fun <T> List<UiAnimation>?.patchAnimationValues(values: List<T>, patch: (UiAnimation, T) -> UiAnimation): List<UiAnimation> {
+private fun <T> List<UiAnimation>?.patchAnimationValues(
+    values: List<T>,
+    patch: (UiAnimation, T) -> UiAnimation,
+): List<UiAnimation> {
     if (values.isEmpty()) return orEmpty()
     val base = this?.takeIf { it.isNotEmpty() } ?: List(values.size) { UiAnimation("") }
     return base.mapIndexed { index, animation -> patch(animation, values[index % values.size]) }
@@ -993,20 +1114,6 @@ private fun parseTransitions(value: String): List<UiTransition> {
     }
 }
 
-private fun parseTyping(value: String): UiTyping? {
-    val parts = splitTopLevelWhitespace(value)
-    val duration = parts.firstOrNull() ?: return null
-    if (duration.equals("none", ignoreCase = true) || duration.equals("off", ignoreCase = true)) return null
-    val tail = parts.drop(1)
-    val easing = tail.firstOrNull { it.isEasingToken() }?.let(::parseEasing) ?: TransitionEasing.LINEAR
-    val delay = tail.firstOrNull { it.isDurationToken() }?.let(::parseDuration) ?: 0L
-    return UiTyping(
-        durationMillis = if (duration.equals("auto", ignoreCase = true)) null else parseDuration(duration),
-        easing = easing,
-        delayMillis = delay,
-    )
-}
-
 private fun parseDuration(value: String): Long {
     val cleaned = value.trim()
     if (cleaned.endsWith("ms")) return cleaned.dropLast(2).toLong()
@@ -1015,11 +1122,13 @@ private fun parseDuration(value: String): Long {
 }
 
 private fun parseIterationCount(value: String): Float {
-    return if (value.equals("infinite", ignoreCase = true)) Float.POSITIVE_INFINITY else value.toFloat().coerceAtLeast(0f)
+    return if (value.equals("infinite", ignoreCase = true)) Float.POSITIVE_INFINITY else value.toFloat()
+        .coerceAtLeast(0f)
 }
 
 private fun parseAnimationDirection(value: String): UiAnimationDirection {
-    return parseAnimationDirectionOrNull(value) ?: throw IllegalArgumentException("Unknown animation direction '$value'")
+    return parseAnimationDirectionOrNull(value)
+        ?: throw IllegalArgumentException("Unknown animation direction '$value'")
 }
 
 private fun parseAnimationDirectionOrNull(value: String): UiAnimationDirection? = when (value.lowercase()) {
@@ -1043,7 +1152,8 @@ private fun parseAnimationFillModeOrNull(value: String): UiAnimationFillMode? = 
 }
 
 private fun parseAnimationPlayState(value: String): UiAnimationPlayState {
-    return parseAnimationPlayStateOrNull(value) ?: throw IllegalArgumentException("Unknown animation play state '$value'")
+    return parseAnimationPlayStateOrNull(value)
+        ?: throw IllegalArgumentException("Unknown animation play state '$value'")
 }
 
 private fun parseAnimationPlayStateOrNull(value: String): UiAnimationPlayState? = when (value.lowercase()) {

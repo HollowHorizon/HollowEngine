@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
-import ru.hollowhorizon.hollowengine.client.ui.PopupNode
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
@@ -33,7 +32,6 @@ class UiLayoutPipeline {
             root = resolved,
             nodes = withScrollbars,
             traversalOrder = traversalOrder,
-            popupNodes = traversalOrder.filterIsInstance<PopupNode>(),
             scrollbars = scrollbars,
         )
     }
@@ -74,11 +72,7 @@ class UiLayoutPipeline {
     }
 
     internal fun layoutChildren(node: UiNode): List<UiNode> {
-        return layoutPass?.layoutChildren?.get(node) ?: node.children.filterNot { it is PopupNode }
-    }
-
-    internal fun popupChildren(node: UiNode): List<PopupNode> {
-        return layoutPass?.popupChildren?.get(node) ?: node.children.filterIsInstance<PopupNode>()
+        return layoutPass?.layoutChildren?.get(node) ?: node.children
     }
 
     internal fun placeNode(

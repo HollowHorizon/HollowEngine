@@ -4,21 +4,26 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
+import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 import kotlin.math.abs
-import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
 
 class HollowUiInputController {
     private var hoveredNode: UiNode? = null
-    var hoveredLink: String? = null
-        private set
     private var activeNode: UiNode? = null
-    private var focusedNode: UiNode? = null
     private var draggingNode: UiNode? = null
 
-    val focusedKey: String? get() = focusedNode?.id
+    // Focus is per scope (root, each popup, each dock window): every scope independently owns one
+    // focused `focusable` target, so a popup and a text field stay focused at the same time. The
+    // active scope is the one that last gained focus - Tab cycles within it.
+    private val focusByScope = LinkedHashMap<UiNode, UiNode>()
+    private var activeScope: UiNode? = null
+
+    private fun primaryFocus(): UiNode? = activeScope?.let { focusByScope[it] } ?: focusByScope.values.firstOrNull()
+
+    val focusedKey: String? get() = primaryFocus()?.id
 
     /** The cursor shape of the node currently under the pointer (for the window cursor). */
     val hoveredCursor: UiCursorShape
@@ -40,13 +45,15 @@ class HollowUiInputController {
 
     fun clearInteraction(clearFocus: Boolean = true) {
         hoveredNode = null
-        hoveredLink = null
         activeNode = null
         draggingNode = null
         scrollbarDrag = null
         textAltSelectionAnchor = null
         lastTextClickCount = 0
-        if (clearFocus) focusedNode = null
+        if (clearFocus) {
+            focusByScope.clear()
+            activeScope = null
+        }
     }
 
     fun isHovered(id: String): Boolean = hoveredNode?.id == id
@@ -69,13 +76,28 @@ class HollowUiInputController {
     private fun remapTrackedNodes(root: UiNode) {
         hoveredNode = remapTracked(root, hoveredNode)
         activeNode = remapTracked(root, activeNode)
-        focusedNode = remapTracked(root, focusedNode)
         draggingNode = remapTracked(root, draggingNode)
+        activeScope = remapTracked(root, activeScope)?.takeIf { root.firstInSubtree { n -> n === it } != null }
+        // Re-bind each scope/target to the current instance by id and drop entries whose scope or
+        // target left the tree (e.g. a closed popup), so per-scope focus doesn't accumulate stale nodes.
+        val remappedFocus = focusByScope.entries.mapNotNull { (scope, target) ->
+            val s = relocate(root, scope) ?: return@mapNotNull null
+            val t = relocate(root, target) ?: return@mapNotNull null
+            s to t
+        }
+        focusByScope.clear()
+        remappedFocus.forEach { (s, t) -> focusByScope[s] = t }
     }
 
     private fun remapTracked(root: UiNode, tracked: UiNode?): UiNode? {
         val id = tracked?.id ?: return tracked
         return root.firstInSubtree { it.id == id } ?: tracked
+    }
+
+    /** Re-binds a node to its current instance by id, or null if it left the tree entirely. */
+    private fun relocate(root: UiNode, node: UiNode): UiNode? {
+        node.id?.let { id -> return root.firstInSubtree { it.id == id } }
+        return node.takeIf { root.firstInSubtree { n -> n === it } != null }
     }
 
     fun updateHover(
@@ -87,7 +109,6 @@ class HollowUiInputController {
         val hit = frame.hitTest(mouseX, mouseY)
         val previousNode = hoveredNode
         hoveredNode = hit?.node
-        hoveredLink = hit?.link
 
         x = mouseX
         y = mouseY
@@ -101,7 +122,7 @@ class HollowUiInputController {
             ?.takeIf { it in frame.nodes }
             ?.let {
                 dispatch(UiEvent(UiEventKind.ENTER, it, x = mouseX, y = mouseY))
-        }
+            }
         return true
     }
 
@@ -121,15 +142,16 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
         if (nodeKey == null) {
-            val hadFocus = focusedNode != null
-            setFocus(frame, null, dispatch)
+            val hadFocus = focusByScope.isNotEmpty()
+            clearAllFocus(frame, dispatch)
             return hadFocus
         }
         val node = frame.nodeByIdentifier(nodeKey) ?: return false
-        if (!node.resolvedSnapshot.input.focusable) return false
-        val previous = focusedNode
-        setFocus(frame, node, dispatch)
-        return previous !== focusedNode
+        if (!node.resolvedSnapshot.focusable) return false
+        val scope = node.enclosingFocusScope() ?: return false
+        val previous = focusByScope[scope]
+        setFocus(frame, scope, node, dispatch)
+        return previous !== node
     }
 
     fun scrollTargetAt(frame: HollowUiFrame, x: Float, y: Float): UiNode? {
@@ -142,16 +164,11 @@ class HollowUiInputController {
         mouseY: Float,
         button: Int,
         dispatch: (UiEvent) -> Boolean,
-        openUrl: (String) -> Unit,
         modifiers: Int = 0,
     ): UiInputResult {
         val hit = frame.hitTest(mouseX, mouseY) ?: run {
-            setFocus(frame, null, dispatch)
+            clearAllFocus(frame, dispatch)
             return UiInputResult(false)
-        }
-        if (button == 0 && hit.link != null) {
-            openUrl(hit.link)
-            return UiInputResult(true, hit.node, hit.node.id, changed = false)
         }
 
         val layoutNode = frame.layout[hit.node]
@@ -186,7 +203,8 @@ class HollowUiInputController {
             return UiInputResult(true, hit.node, hit.node.id)
         }
 
-        val clickHandled = dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
+        val clickHandled =
+            dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
         return UiInputResult(clickHandled, hit.node, hit.node.id)
     }
 
@@ -311,15 +329,32 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = focusedNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
-        val event = UiEvent(UiEventKind.CHAR_TYPED, node, modifiers = modifiers, codePoint = codePoint.code)
-        val handled = dispatch(event)
-        val hadCompletions = node is TextFieldNode && node.completionActive
-        if (!event.consumed && node is TextFieldNode && node.typeCharacter(codePoint)) {
-            if (codePoint.isCompletionTrigger() || hadCompletions) node.openCompletions()
-            return UiInputResult(true, node, node.id, changed = true)
+        val targets = focusTargets(frame)
+        var handled = false
+        for (node in targets) {
+            val event =
+                UiEvent(UiEventKind.CHAR_TYPED, node, frame = frame, modifiers = modifiers, codePoint = codePoint.code)
+            if (dispatch(event)) handled = true
+            val hadCompletions = node is TextFieldNode && node.completionActive
+            if (!event.consumed && node is TextFieldNode && node.typeCharacter(codePoint)) {
+                if (codePoint.isCompletionTrigger() || hadCompletions) node.openCompletions()
+                return UiInputResult(true, node, node.id, changed = true)
+            }
+            if (event.consumed) return UiInputResult(true, node, node.id)
         }
-        return UiInputResult(handled, node, node.id)
+        return UiInputResult(handled, primaryFocus(), primaryFocus()?.id)
+    }
+
+    /**
+     * The nodes that currently receive key/char events, most-in-front first. Multi-focus: every open
+     * focus scope (always active — the root, popups, dock windows) plus each scope's focused target.
+     * Higher layer (popups/overlays) gets first refusal.
+     */
+    private fun focusTargets(frame: HollowUiFrame): List<UiNode> {
+        val set = LinkedHashSet<UiNode>()
+        focusByScope.values.forEach { if (it in frame.nodes) set += it }
+        frame.nodes.forEach { if (it.resolvedSnapshot.focusScope) set += it }
+        return set.sortedByDescending { it.resolvedSnapshot.layer }
     }
 
     fun keyPressed(
@@ -329,53 +364,98 @@ class HollowUiInputController {
         modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
-        val node = focusedNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
+        val targets = focusTargets(frame)
         val enterPressed = keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER
         val altPressed = modifiers and GLFW.GLFW_MOD_ALT != 0 || enterPressed && isAltPressed()
         val effectiveModifiers = if (altPressed) modifiers or GLFW.GLFW_MOD_ALT else modifiers
-        val event = UiEvent(
-            UiEventKind.KEY_PRESSED,
-            node,
-            frame = frame,
-            key = keyCode,
-            scanCode = scanCode,
-            modifiers = effectiveModifiers,
-        )
-        val handled = dispatch(event)
-        if (event.changed && node is UiStatefulNode) {
-            return UiInputResult(true, node, node.id, changed = true)
+        var handled = false
+        for (node in targets) {
+            val event = UiEvent(
+                UiEventKind.KEY_PRESSED,
+                node,
+                frame = frame,
+                key = keyCode,
+                scanCode = scanCode,
+                modifiers = effectiveModifiers,
+            )
+            if (dispatch(event)) handled = true
+            if (event.changed && node is UiStatefulNode) {
+                return UiInputResult(true, node, node.id, changed = true)
+            }
+            if (event.consumed) return UiInputResult(true, node, node.id)
         }
-        if (!event.consumed && keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
-            return UiInputResult(true, focusedNode, focusedNode?.id)
+        if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
+            return UiInputResult(true, primaryFocus(), primaryFocus()?.id)
         }
-        return UiInputResult(handled, node, node.id)
+        return UiInputResult(handled, primaryFocus(), primaryFocus()?.id)
     }
 
+    /** On a click, resolve focus within the hit node's nearest enclosing scope. */
     private fun updateFocus(frame: HollowUiFrame, node: UiNode, dispatch: (UiEvent) -> Boolean) {
-        if (node.resolvedSnapshot.input.focusable) {
-            setFocus(frame, node, dispatch)
-        } else {
-            setFocus(frame, null, dispatch)
-        }
+        val scope = node.enclosingFocusScope() ?: return
+        setFocus(frame, scope, node.focusTargetWithin(scope), dispatch)
     }
 
-    private fun setFocus(frame: HollowUiFrame, nextNode: UiNode?, dispatch: (UiEvent) -> Boolean) {
-        if (focusedNode === nextNode) return
-        focusedNode?.takeIf { it in frame.nodes }?.let { node ->
+    /** Sets (or clears, when [target] is null) the focused target of [scope]; other scopes untouched. */
+    private fun setFocus(frame: HollowUiFrame, scope: UiNode, target: UiNode?, dispatch: (UiEvent) -> Boolean) {
+        val old = focusByScope[scope]
+        if (old === target) return
+        old?.takeIf { it in frame.nodes }?.let { node ->
             if (node is TextFieldNode) node.clearSelection()
             dispatch(UiEvent(UiEventKind.UNFOCUS, node))
         }
-        focusedNode = nextNode
-        focusedNode?.takeIf { it in frame.nodes }?.let { dispatch(UiEvent(UiEventKind.FOCUS, it)) }
+        if (target != null) {
+            focusByScope[scope] = target
+            activeScope = scope
+            target.takeIf { it in frame.nodes }?.let { dispatch(UiEvent(UiEventKind.FOCUS, it)) }
+        } else {
+            focusByScope.remove(scope)
+            if (activeScope === scope) activeScope = focusByScope.keys.lastOrNull()
+        }
+    }
+
+    private fun clearAllFocus(frame: HollowUiFrame, dispatch: (UiEvent) -> Boolean) {
+        if (focusByScope.isEmpty()) return
+        focusByScope.values.toList().forEach { node ->
+            if (node in frame.nodes) {
+                if (node is TextFieldNode) node.clearSelection()
+                dispatch(UiEvent(UiEventKind.UNFOCUS, node))
+            }
+        }
+        focusByScope.clear()
+        activeScope = null
     }
 
     private fun focusNext(frame: HollowUiFrame, dispatch: (UiEvent) -> Boolean): Boolean {
-        val focusables = frame.nodes.filter { it.resolvedSnapshot.input.focusable }
-        if (focusables.isEmpty()) return false
-        val currentIndex = focusables.indexOfFirst { it === focusedNode }
-        val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % focusables.size
-        setFocus(frame, focusables[nextIndex], dispatch)
+        val scope = activeScope ?: frame.nodes.lastOrNull { it.resolvedSnapshot.focusScope } ?: return false
+        val targets = frame.nodes.filter { it.resolvedSnapshot.focusable && it.enclosingFocusScope() === scope }
+        if (targets.isEmpty()) return false
+        val current = focusByScope[scope]
+        val currentIndex = targets.indexOfFirst { it === current }
+        val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % targets.size
+        setFocus(frame, scope, targets[nextIndex], dispatch)
         return true
+    }
+
+    /** The nearest ancestor (or self) marked as a focus scope; the root is always one. */
+    private fun UiNode.enclosingFocusScope(): UiNode? {
+        var node: UiNode? = this
+        while (node != null) {
+            if (node.resolvedSnapshot.focusScope) return node
+            node = node.layoutState.parentNode
+        }
+        return null
+    }
+
+    /** The focusable target the receiver belongs to within [scope], or null if it's not on one. */
+    private fun UiNode.focusTargetWithin(scope: UiNode): UiNode? {
+        var node: UiNode? = this
+        while (node != null) {
+            if (node.resolvedSnapshot.focusable) return node
+            if (node === scope) return null
+            node = node.layoutState.parentNode
+        }
+        return null
     }
 
     private fun dispatchClick(
@@ -413,10 +493,12 @@ class HollowUiInputController {
                 node.setFromLocalX(localX, width)
                 true
             }
+
             is CheckboxNode -> {
                 node.toggle()
                 true
             }
+
             is TextFieldNode -> {
                 val index = textFieldCaretIndexAt(frame, node, localX, localY)
                 val altPressed = isAltPressed()
@@ -447,6 +529,7 @@ class HollowUiInputController {
                 rememberTextClick(node, index, clickCount)
                 true
             }
+
             else -> false
         }
         return handled
@@ -494,7 +577,7 @@ class HollowUiInputController {
 
 
     private fun focusedTextField(frame: HollowUiFrame): TextFieldNode? {
-        return focusedNode?.takeIf { it in frame.nodes } as? TextFieldNode
+        return focusByScope.values.filterIsInstance<TextFieldNode>().firstOrNull { it in frame.nodes }
     }
 
     private fun textClickCount(node: TextFieldNode, index: Int): Int {
@@ -519,9 +602,11 @@ class HollowUiInputController {
     }
 
     private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
-        return focusedNode
-            ?.takeIf { it in frame.layout.nodes }
-            ?.takeIf { it.resolvedSnapshot.scrollable && frame.layout[it].scrollRange.hasScrollableAxis() }
+        return focusByScope.values.firstOrNull {
+            it in frame.layout.nodes &&
+                    it.resolvedSnapshot.scrollable &&
+                    frame.layout[it].scrollRange.hasScrollableAxis()
+        }
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
@@ -530,12 +615,9 @@ class HollowUiInputController {
         while (stack.isNotEmpty()) {
             val current = stack.removeLast()
             val states = linkedSetOf<UiState>()
-            if (current is TextNode) {
-                current.hoveredLink = if (current === hoveredNode) hoveredLink else null
-            }
             if (current === hoveredNode || current.containsNode(hoveredNode)) states += UiState.HOVER
             if (current === activeNode) states += UiState.ACTIVE
-            if (current === focusedNode) states += UiState.FOCUS
+            if (current in focusByScope.values) states += UiState.FOCUS
             if (current === draggingNode) states += UiState.DRAGGING
             if (closing) states += UiState.CLOSING
             current.setRuntimeStates(states)

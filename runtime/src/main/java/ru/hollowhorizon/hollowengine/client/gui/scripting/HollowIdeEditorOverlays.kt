@@ -3,11 +3,14 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.text.TextColor
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.style.fontSize
+import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
+import ru.hollowhorizon.hollowengine.client.ui.text.TextColor
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -51,43 +54,17 @@ internal class HollowIdeEditorOverlays(
                     .background(parseColor("#31343D"))
             )
             Row(tags = listOf("ide-completion-hint")) {
-                Text(
-                    UiTextContent(
-                        buildList {
-                            this += UiTextSegment.Image(
-                                UiBoundString(Assets.Hollowengine.Textures.Gui.Icons.COMPLETIONS.toString()),
-                                16f,
-                                16f
-                            )
-
-                            this += UiTextSegment.Text(
-                                UiBoundString("to navigate.  "),
-                                style = UiInlineStyle(listOf(TextColor(parseColor("#5F6677"))))
-                            )
-
-                            this += UiTextSegment.Text(
-                                UiBoundString(" Enter "),
-                                style = UiInlineStyle(listOf(TextColor(parseColor("#C4CBDA"))))
-                            )
-
-                            this += UiTextSegment.Text(
-                                UiBoundString("or"),
-                                style = UiInlineStyle(listOf(TextColor(parseColor("#5F6677"))))
-                            )
-
-                            this += UiTextSegment.Text(
-                                UiBoundString(" Tab "),
-                                style = UiInlineStyle(listOf(TextColor(parseColor("#C4CBDA"))))
-                            )
-
-                            this += UiTextSegment.Text(
-                                UiBoundString("to insert."),
-                                style = UiInlineStyle(listOf(TextColor(parseColor("#5F6677"))))
-                            )
-                        }
-                    ),
-                    modifier = Modifier.textWrap(false)
-                )
+                Text(modifier = Modifier.textWrap(false)) {
+                    Image(
+                        Assets.Hollowengine.Textures.Gui.Icons.COMPLETIONS.toString(),
+                        modifier = Modifier.size(16.px, 16.px),
+                    )
+                    Span("to navigate.  ", modifier = Modifier.foreground(parseColor("#5F6677")))
+                    Span(" Enter ", modifier = Modifier.foreground(parseColor("#C4CBDA")))
+                    Span("or", modifier = Modifier.foreground(parseColor("#5F6677")))
+                    Span(" Tab ", modifier = Modifier.foreground(parseColor("#C4CBDA")))
+                    Span("to insert.", modifier = Modifier.foreground(parseColor("#5F6677")))
+                }
             }
         }
     }

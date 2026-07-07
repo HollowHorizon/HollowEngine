@@ -11,11 +11,8 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.scroll.hasScrollableAxis
 import ru.hollowhorizon.hollowengine.client.ui.scroll.scrollWheelDelta
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
 import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
-import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import java.util.*
 
 data class HollowUiFrame(
@@ -23,24 +20,16 @@ data class HollowUiFrame(
     val nodes: List<UiNode>,
     val layout: UiLayoutResult,
     val nowMillis: Long = 0L,
-    val typingState: UiTypingState = UiTypingState(),
     private val activeTransitionDurations: Map<UiNode, Long> = emptyMap(),
     private val startedTransitionDurations: Map<UiNode, Long> = emptyMap(),
     private val activeScrollAnimation: Boolean = false,
 ) {
-    fun hitTest(x: Float, y: Float): UiHit? = textLinkHit(x, y) ?: UiHitTester().hitTest(root, layout, x, y)
+    fun hitTest(x: Float, y: Float): UiHit? = UiHitTester().hitTest(root, layout, x, y)
 
     /** Whether visible, input-opaque UI geometry is under the point (blocks click-through). */
     fun hitsVisible(x: Float, y: Float): Boolean = UiHitTester().hitsVisible(root, layout, x, y)
 
-    fun scrollTargetAt(x: Float, y: Float): UiNode? {
-        val popups = layout.popupNodes
-            .sortedBy { it.resolvedSnapshot.layer }
-        for (popup in popups.asReversed()) {
-            scrollTargetIn(popup, x, y)?.let { return it }
-        }
-        return scrollTargetIn(root, x, y)
-    }
+    fun scrollTargetAt(x: Float, y: Float): UiNode? = scrollTargetIn(root, x, y)
 
     private fun scrollTargetIn(root: UiNode, x: Float, y: Float): UiNode? {
         val stack = ArrayDeque<ScrollTargetTask>()
@@ -89,24 +78,6 @@ data class HollowUiFrame(
                 node.resolvedSnapshot.motionDurationMillis(previousStyles[node]),
             )
         } ?: 0L
-    }
-
-    private fun textLinkHit(x: Float, y: Float): UiHit? {
-        for (node in layout.traversalOrder.asReversed()) {
-            if (node !is TextNode) continue
-            val layoutNode = layout.nodes[node] ?: continue
-            val textLayout = layoutNode.textLayout ?: continue
-            val inverse = layoutNode.inputTransform.inverse() ?: continue
-            val local = inverse.transform(x, y, 0f)
-            val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
-            if (!rect.contains(local.x, local.y)) continue
-            layoutNode.clip?.let { if (!it.contains(x, y)) continue }
-            val contentX = local.x - (layoutNode.content.x - layoutNode.rect.x) + layoutNode.scrollOffset.x
-            val contentY = local.y - (layoutNode.content.y - layoutNode.rect.y) + layoutNode.scrollOffset.y
-            val link = textLayout.linkAt(contentX, contentY) ?: continue
-            return UiHit(node, local.x, local.y, link)
-        }
-        return null
     }
 
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
@@ -168,13 +139,12 @@ class HollowUiRuntime(
     private val horizontalScrollModifierDown: () -> Boolean = { hasShiftDown() || hasControlDown() },
 ) {
     private val transitionState = UiTransitionState()
-    private val typingState = UiTypingState()
     private val resolver = UiModifierResolver(theme, stylesheet, transitionState)
     private val layoutPipeline = UiLayoutPipeline()
     private val ensuredTextFieldCaretRevisions = WeakHashMap<TextFieldNode, Long>()
     private val stateStore = UiNodeStateStore()
     private val input = HollowUiInputController()
-    private var lastNodes: List<UiNode>? = null
+    private val placedBounds = WeakHashMap<UiNode, UiRect>()
     private var lastLayout: UiLayoutResult? = null
     private var lastLayoutKey: FrameLayoutKey? = null
     var lastFrame: HollowUiFrame? = null
@@ -206,23 +176,26 @@ class HollowUiRuntime(
         return frame
     }
 
-    private fun buildFrame(root: UiNode, width: Float, height: Float, nowMillis: Long): HollowUiFrame {
+    private fun buildFrame(
+        root: UiNode,
+        width: Float,
+        height: Float,
+        nowMillis: Long,
+    ): HollowUiFrame {
         val nodes = resolver.resolve(root, nowMillis)
-        val resolutionReused = nodes === lastNodes
         val transitionDurations = collectTransitionDurations(nodes)
 
-        // Styles resolved during transitions/animations change without bumping node
-        // revisions (transform interpolation feeds placement), so layout reuse is only
-        // safe while motion is idle.
         val layoutKey = FrameLayoutKey(
             width = width,
             height = height,
             scrollRevision = scrollState.revision,
             subtreeLayoutRevision = root.layoutState.subtreeLayoutRevision,
         )
-        val motionIdle = resolutionReused ||
-                (!transitionState.hasActiveTransitions() && nodes.none { it.resolvedSnapshot.animations.isNotEmpty() })
-        val layoutReused = motionIdle && lastLayout?.takeIf { it.root === root } != null && layoutKey == lastLayoutKey
+        // Layout is reused whenever nothing that affects layout changed. The resolver bumps
+        // `subtreeLayoutRevision` only when a layout-fingerprint prop actually changed (see
+        // updateResolvedLayoutFingerprint), so a draw-only animation (colour/opacity) keeps the
+        // key identical and skips relayout, while a width/padding animation forces one.
+        val layoutReused = lastLayout != null && layoutKey == lastLayoutKey
         var layout = if (layoutReused) {
             lastLayout!!
         } else {
@@ -234,14 +207,13 @@ class HollowUiRuntime(
         lastLayout = layout
         // Sample scroll revision after layout: clamping inside the pass may bump it.
         lastLayoutKey = layoutKey.copy(scrollRevision = scrollState.revision)
-        lastNodes = nodes
+        dispatchPlacementCallbacks(layout)
 
         return HollowUiFrame(
             root = root,
             nodes = nodes,
             layout = layout,
             nowMillis = nowMillis,
-            typingState = typingState,
             activeTransitionDurations = transitionDurations.active,
             startedTransitionDurations = transitionDurations.started,
             activeScrollAnimation = scrollState.isAnimating(),
@@ -262,7 +234,7 @@ class HollowUiRuntime(
                     frame, input.mouseX, input.mouseY, input.button, ::setScrollImmediate,
                 )
                 if (scrollbarResult.handled) scrollbarResult else this.input.mouseClicked(
-                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent, ::openUrl,
+                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent,
                 )
             }
 
@@ -307,7 +279,12 @@ class HollowUiRuntime(
             scrollX = delta.x,
             scrollY = delta.y,
         )
-        if (dispatchUiEvent(event) && event.consumed) return UiInputResult(true, target, target.id, changed = event.changed)
+        if (dispatchUiEvent(event) && event.consumed) return UiInputResult(
+            true,
+            target,
+            target.id,
+            changed = event.changed
+        )
         scroll(target, delta.x * 32f, delta.y * 32f)
         return UiInputResult(true, target, target.id, changed = true)
     }
@@ -317,6 +294,22 @@ class HollowUiRuntime(
 
     fun setScrollImmediate(node: UiNode, offset: UiScrollOffset): UiScrollOffset =
         scrollState.setImmediate(node, offset.x, offset.y)
+
+    /**
+     * After layout, hands every [OnPlacedModifier] its node's bounds in root coordinates, but only
+     * when they changed since the last report. The change guard keeps a callback that writes state
+     * (e.g. a popup anchor) from looping: once the bounds settle, it stops firing.
+     */
+    private fun dispatchPlacementCallbacks(layout: UiLayoutResult) {
+        for (node in layout.traversalOrder) {
+            val callbacks = node.resolvedModifiers.filterIsInstance<OnPlacedModifier>()
+            if (callbacks.isEmpty()) continue
+            val rect = layout[node].rect
+            if (placedBounds[node] == rect) continue
+            placedBounds[node] = rect
+            callbacks.forEach { it.callback(rect) }
+        }
+    }
 
     private fun collectTransitionDurations(nodes: List<UiNode>): TransitionDurations {
         if (nodes.none { it.resolvedSnapshot.transitions.isNotEmpty() }) return TransitionDurations.Empty
@@ -392,7 +385,6 @@ class HollowUiRuntime(
 
     fun charTyped(codePoint: Char, modifiers: Int): Boolean {
         val frame = lastFrame ?: return false
-        // A focused field consumes typing so it doesn't leak to game keybinds.
         return processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(isAnyFocused)
     }
 
@@ -404,7 +396,6 @@ class HollowUiRuntime(
 
     fun reset() {
         input.reset()
-        lastNodes = null
         lastLayout = null
         lastLayoutKey = null
     }
@@ -464,13 +455,3 @@ private fun UiScrollOffset.scrollCaretIntoView(
     )
 }
 
-private fun UiTextLayout.linkAt(x: Float, y: Float): String? {
-    val line = lines.firstOrNull { y >= it.y && y <= it.y + it.height } ?: return null
-    return line.fragments.filterIsInstance<UiTextRun>().firstOrNull { fragment ->
-        fragment.style.link != null &&
-                x >= fragment.x &&
-                x <= fragment.x + fragment.width &&
-                y >= line.y + fragment.y &&
-                y <= line.y + fragment.y + fragment.height
-    }?.style?.link
-}

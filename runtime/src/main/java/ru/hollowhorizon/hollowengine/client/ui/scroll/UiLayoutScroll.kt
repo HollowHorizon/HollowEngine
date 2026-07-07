@@ -4,9 +4,11 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
 import ru.hollowhorizon.hollowengine.client.ui.scrollAxes
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.scrollAxes
+import ru.hollowhorizon.hollowengine.client.ui.style.scrollable
+import ru.hollowhorizon.hollowengine.client.ui.style.scrollbar
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 
@@ -25,8 +27,14 @@ internal fun applyScrollRanges(
         val axes = node.scrollAxes()
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val range = UiScrollOffset(
-            x = if (axes.horizontal) maxOf(0f, childBounds.x + childBounds.width - (layout.content.x + layout.content.width)) else 0f,
-            y = if (axes.vertical) maxOf(0f, childBounds.y + childBounds.height - (layout.content.y + layout.content.height)) else 0f,
+            x = if (axes.horizontal) maxOf(
+                0f,
+                childBounds.x + childBounds.width - (layout.content.x + layout.content.width)
+            ) else 0f,
+            y = if (axes.vertical) maxOf(
+                0f,
+                childBounds.y + childBounds.height - (layout.content.y + layout.content.height)
+            ) else 0f,
         )
         val clamped = scrollState.clamp(node, range)
         val clip = layout.clip?.intersect(layout.content) ?: layout.content
@@ -111,7 +119,7 @@ private fun scrollbarGeometry(style: UiComputedStyle, layoutNode: UiLayoutNode):
         scrollOffsetAxis: Float,
         scrollAreaSize: Float,
         contentSize: Float,
-        createGeometry: (trackSize: Float, thumbSize: Float, thumbOffset: Float) -> Pair<UiRect, UiRect>
+        createGeometry: (trackSize: Float, thumbSize: Float, thumbOffset: Float) -> Pair<UiRect, UiRect>,
     ) {
         if (!isVisible) return
 
@@ -192,32 +200,16 @@ private fun scrollableContentBounds(
     layoutChildren: (UiNode) -> List<UiNode>,
 ): UiRect {
     layout.virtualContentBounds?.let { return it }
-    if (node is ru.hollowhorizon.hollowengine.client.ui.TextNode || node is TextFieldNode) {
-        val textLayout = if (node is ru.hollowhorizon.hollowengine.client.ui.TextNode) {
-            layout.textLayout ?: textLayoutForScrollBounds(node, style, layout, layouts, layoutChildren)
-        } else {
-            val field = node as TextFieldNode
-            layout.textLayout ?: textFieldDisplayLayout(
-                field,
-                style,
-                layout,
-                layout.inlineWidgetMetrics(),
-            )
-        }
-        val textOffset = if (node is TextFieldNode) textFieldTextOffset(
+    if (node is TextFieldNode) {
+        val textLayout = layout.textLayout ?: textFieldDisplayLayout(
             node,
-            style
-        ) else 0f
-        val textViewportWidth =
-            if (node is TextFieldNode) textFieldTextWidth(
-                node,
-                style,
-                layout
-            ) else layout.content.width
-        val horizontalPadding =
-            if (node is TextFieldNode) textFieldHorizontalScrollPadding(
-                textViewportWidth
-            ) else TextFieldCaretVisibilityPadding
+            style,
+            layout,
+            layout.inlineWidgetMetrics(),
+        )
+        val textOffset = textFieldTextOffset(node, style)
+        val textViewportWidth = textFieldTextWidth(node, style, layout)
+        val horizontalPadding = textFieldHorizontalScrollPadding(textViewportWidth)
         return UiRect(
             layout.content.x,
             layout.content.y,
@@ -233,31 +225,6 @@ private fun scrollableContentBounds(
     }
     return layoutChildren(node).mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union()
         ?: layout.content
-}
-
-private fun textLayoutForScrollBounds(
-    node: ru.hollowhorizon.hollowengine.client.ui.TextNode,
-    style: UiComputedStyle,
-    layout: UiLayoutNode,
-    layouts: Map<UiNode, UiLayoutNode>,
-    layoutChildren: (UiNode) -> List<UiNode>,
-): UiTextLayout {
-    val widgetMetrics = layoutChildren(node).mapNotNull { child ->
-        val id = child.id ?: return@mapNotNull null
-        val rect = layouts[child]?.rect ?: return@mapNotNull null
-        id to UiInlineWidgetMetrics(rect.width, rect.height)
-    }.toMap()
-    return UiTextLayouter.layout(
-        node.content.toRichText(widgetMetrics),
-        layout.content.width,
-        Float.POSITIVE_INFINITY,
-        style.textWrap,
-        style.textAlign,
-        style.fontSize,
-        style.fontFamily,
-        lineSpacing = style.lineSpacing,
-        spaceWidth = style.spaceWidth,
-    )
 }
 
 private fun UiTextLayout.maxNaturalLineWidth(): Float = maxNaturalLineWidth

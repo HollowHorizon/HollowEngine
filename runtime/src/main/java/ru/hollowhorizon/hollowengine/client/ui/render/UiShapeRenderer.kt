@@ -5,12 +5,7 @@ import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
-import ru.hollowhorizon.hollowengine.client.ui.shape.SvgResourceShape
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathPoint
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathTriangle
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
-import ru.hollowhorizon.hollowengine.client.ui.shape.flatten
+import ru.hollowhorizon.hollowengine.client.ui.shape.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
@@ -124,8 +119,10 @@ internal fun MutableList<UiBatchedTriangle>.appendGradientQuad(
         width = width,
         height = height,
         topLeft = gradientColorAt(0f, 0f, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
-        bottomLeft = gradientColorAt(0f, height, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
-        bottomRight = gradientColorAt(width, height, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
+        bottomLeft = gradientColorAt(0f, height, width, height, angleDegrees, stops).withOpacity(opacity)
+            .filtered(filter),
+        bottomRight = gradientColorAt(width, height, width, height, angleDegrees, stops).withOpacity(opacity)
+            .filtered(filter),
         topRight = gradientColorAt(width, 0f, width, height, angleDegrees, stops).withOpacity(opacity).filtered(filter),
         transform = transform,
     )
@@ -180,8 +177,10 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalRadialGradient(
             width = width,
             height = height,
             topLeft = radialGradientColorAt(0f, 0f, width, height, gradient).withOpacity(opacity).filtered(filter),
-            bottomLeft = radialGradientColorAt(0f, height, width, height, gradient).withOpacity(opacity).filtered(filter),
-            bottomRight = radialGradientColorAt(width, height, width, height, gradient).withOpacity(opacity).filtered(filter),
+            bottomLeft = radialGradientColorAt(0f, height, width, height, gradient).withOpacity(opacity)
+                .filtered(filter),
+            bottomRight = radialGradientColorAt(width, height, width, height, gradient).withOpacity(opacity)
+                .filtered(filter),
             topRight = radialGradientColorAt(width, 0f, width, height, gradient).withOpacity(opacity).filtered(filter),
             transform = transform,
         )
@@ -374,7 +373,8 @@ private fun MutableList<UiBatchedTriangle>.appendRoundedStroke(
         val currentInner = inner[index.coerceAtMost(inner.lastIndex)]
         val nextInner = inner[nextIndex.coerceAtMost(inner.lastIndex)]
         val outerVertex = UiBatchedVertex(transform.transform(outer[index].first, outer[index].second), color)
-        val nextOuterVertex = UiBatchedVertex(transform.transform(outer[nextIndex].first, outer[nextIndex].second), color)
+        val nextOuterVertex =
+            UiBatchedVertex(transform.transform(outer[nextIndex].first, outer[nextIndex].second), color)
         val innerVertex = UiBatchedVertex(transform.transform(currentInner.first, currentInner.second), color)
         val nextInnerVertex = UiBatchedVertex(transform.transform(nextInner.first, nextInner.second), color)
         this += UiBatchedTriangle(outerVertex, innerVertex, nextInnerVertex)
@@ -392,21 +392,49 @@ internal fun drawLocalBorder(width: Float, height: Float, radius: Float, color: 
     drawLocalBorder(width, height, radius, 1f, color, transform)
 }
 
-internal fun drawLocalBorder(width: Float, height: Float, radius: Float, thickness: Float, color: UiColor, transform: UiMatrix4) {
+internal fun drawLocalBorder(
+    width: Float,
+    height: Float,
+    radius: Float,
+    thickness: Float,
+    color: UiColor,
+    transform: UiMatrix4,
+) {
     val border = thickness.coerceAtLeast(1f)
     if (radius > 0f) {
         drawRoundedStroke(width, height, radius, border, color, transform)
         return
     }
     drawLocalPaint(width, border, 0f, color, transform, UiFilterChain.Empty)
-    drawLocalPaint(width, border, 0f, color, transform * UiMatrix4.translation(0f, height - border, 0f), UiFilterChain.Empty)
+    drawLocalPaint(
+        width,
+        border,
+        0f,
+        color,
+        transform * UiMatrix4.translation(0f, height - border, 0f),
+        UiFilterChain.Empty
+    )
     drawLocalPaint(border, height, 0f, color, transform, UiFilterChain.Empty)
-    drawLocalPaint(border, height, 0f, color, transform * UiMatrix4.translation(width - border, 0f, 0f), UiFilterChain.Empty)
+    drawLocalPaint(
+        border,
+        height,
+        0f,
+        color,
+        transform * UiMatrix4.translation(width - border, 0f, 0f),
+        UiFilterChain.Empty
+    )
 }
 
 internal fun drawSolid(rect: UiRect, color: UiColor, transform: UiMatrix4, radius: Float = 0f) {
     if (radius > 0f) {
-        drawLocalPaint(rect.width, rect.height, radius, color, transform * UiMatrix4.translation(rect.x, rect.y, 0f), UiFilterChain.Empty)
+        drawLocalPaint(
+            rect.width,
+            rect.height,
+            radius,
+            color,
+            transform * UiMatrix4.translation(rect.x, rect.y, 0f),
+            UiFilterChain.Empty
+        )
         return
     }
     withCullStatePreserved {
@@ -595,7 +623,8 @@ private fun drawRoundedFan(
         val centerY = height * 0.5f
         val center = transform.transform(centerX, centerY)
         val centerColor = colorAt(centerX, centerY)
-        buffer.addVertex(center.x, center.y, center.z).setColor(centerColor.red, centerColor.green, centerColor.blue, centerColor.alpha)
+        buffer.addVertex(center.x, center.y, center.z)
+            .setColor(centerColor.red, centerColor.green, centerColor.blue, centerColor.alpha)
         for ((x, y) in roundedPerimeter(width, height, radius)) {
             val point = transform.transform(x, y)
             val color = colorAt(x, y)
@@ -636,14 +665,17 @@ private fun drawProjectedShadowGradient(
             val currentOuter = outer[index].withOffset(offsetX, offsetY)
             val nextOuter = outer[index + 1].withOffset(offsetX, offsetY)
             buffer.addVertex(center.x, center.y, center.z).setColor(color.red, color.green, color.blue, innerAlpha)
-            buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(currentInner.x, currentInner.y, 0f)
+                .setColor(color.red, color.green, color.blue, innerAlpha)
             buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
 
-            buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(currentInner.x, currentInner.y, 0f)
+                .setColor(color.red, color.green, color.blue, innerAlpha)
             buffer.addVertex(currentOuter.x, currentOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
             buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
 
-            buffer.addVertex(currentInner.x, currentInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
+            buffer.addVertex(currentInner.x, currentInner.y, 0f)
+                .setColor(color.red, color.green, color.blue, innerAlpha)
             buffer.addVertex(nextOuter.x, nextOuter.y, 0f).setColor(color.red, color.green, color.blue, 0f)
             buffer.addVertex(nextInner.x, nextInner.y, 0f).setColor(color.red, color.green, color.blue, innerAlpha)
         }
@@ -664,7 +696,14 @@ private fun expandFromCenter(point: UiVec3, centerX: Float, centerY: Float, dist
     )
 }
 
-private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickness: Float, color: UiColor, transform: UiMatrix4) {
+private fun drawRoundedStroke(
+    width: Float,
+    height: Float,
+    radius: Float,
+    thickness: Float,
+    color: UiColor,
+    transform: UiMatrix4,
+) {
     val inset = thickness.coerceAtLeast(1f)
     val innerWidth = width - inset * 2f
     val innerHeight = height - inset * 2f
@@ -674,7 +713,12 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
     }
     val segments = roundedSegments(radius)
     val outer = roundedPerimeter(width, height, radius, segments)
-    val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments).map { (x, y) -> x + inset to y + inset }
+    val inner = roundedPerimeter(
+        innerWidth,
+        innerHeight,
+        max(0f, radius - inset),
+        segments
+    ).map { (x, y) -> x + inset to y + inset }
     withCullStatePreserved {
         RenderSystem.disableCull()
         RenderSystem.enableBlend()
@@ -686,14 +730,21 @@ private fun drawRoundedStroke(width: Float, height: Float, radius: Float, thickn
             val innerIndex = index.coerceAtMost(inner.lastIndex)
             val outerPoint = transform.transform(outer[index].first, outer[index].second)
             val innerPoint = transform.transform(inner[innerIndex].first, inner[innerIndex].second)
-            buffer.addVertex(outerPoint.x, outerPoint.y, outerPoint.z).setColor(color.red, color.green, color.blue, color.alpha)
-            buffer.addVertex(innerPoint.x, innerPoint.y, innerPoint.z).setColor(color.red, color.green, color.blue, color.alpha)
+            buffer.addVertex(outerPoint.x, outerPoint.y, outerPoint.z)
+                .setColor(color.red, color.green, color.blue, color.alpha)
+            buffer.addVertex(innerPoint.x, innerPoint.y, innerPoint.z)
+                .setColor(color.red, color.green, color.blue, color.alpha)
         }
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 }
 
-private fun roundedPerimeter(width: Float, height: Float, radius: Float, segmentsOverride: Int? = null): List<Pair<Float, Float>> {
+private fun roundedPerimeter(
+    width: Float,
+    height: Float,
+    radius: Float,
+    segmentsOverride: Int? = null,
+): List<Pair<Float, Float>> {
     val clamped = radius.coerceIn(0f, min(width, height) * 0.5f)
     if (clamped <= 0f) {
         return listOf(0f to 0f, 0f to height, width to height, width to 0f, 0f to 0f)
@@ -719,7 +770,14 @@ private fun roundedPerimeter(width: Float, height: Float, radius: Float, segment
 
 private fun roundedSegments(radius: Float): Int = max(8, min(48, (radius * 0.75f).roundToInt()))
 
-private fun gradientColorAt(x: Float, y: Float, width: Float, height: Float, angleDegrees: Float, stops: List<UiGradientStop>): UiColor {
+private fun gradientColorAt(
+    x: Float,
+    y: Float,
+    width: Float,
+    height: Float,
+    angleDegrees: Float,
+    stops: List<UiGradientStop>,
+): UiColor {
     if (stops.isEmpty()) return UiColor.Transparent
     if (stops.size == 1) return stops.first().color
     val radians = angleDegrees * PI.toFloat() / 180f
@@ -736,7 +794,13 @@ private fun gradientColorAt(x: Float, y: Float, width: Float, height: Float, ang
     return left.color.interpolate(right.color, (clamped - left.offset) / range)
 }
 
-private fun radialGradientColorAt(x: Float, y: Float, width: Float, height: Float, gradient: UiRadialGradient): UiColor {
+private fun radialGradientColorAt(
+    x: Float,
+    y: Float,
+    width: Float,
+    height: Float,
+    gradient: UiRadialGradient,
+): UiColor {
     val stops = gradient.stops
     if (stops.isEmpty()) return UiColor.Transparent
     if (stops.size == 1) return stops.first().color
@@ -789,16 +853,20 @@ private fun UiResolvedPaint.colorAt(x: Float, y: Float, width: Float, height: Fl
     is UiResolvedPaint.LinearGradient -> gradientColorAt(x, y, width, height, angleDegrees, stops)
     is UiResolvedPaint.RadialGradient -> radialGradientColorAt(x, y, width, height, gradient)
     is UiResolvedPaint.Image,
-    is UiResolvedPaint.Shader -> UiColor.Transparent
+    is UiResolvedPaint.Shader,
+        -> UiColor.Transparent
 }
 
 private fun UiResolvedPaint.canDrawAsShapePaint(): Boolean = when (this) {
     UiResolvedPaint.None,
     is UiResolvedPaint.Color,
     is UiResolvedPaint.LinearGradient,
-    is UiResolvedPaint.RadialGradient -> true
+    is UiResolvedPaint.RadialGradient,
+        -> true
+
     is UiResolvedPaint.Image,
-    is UiResolvedPaint.Shader -> false
+    is UiResolvedPaint.Shader,
+        -> false
 }
 
 private fun UiRect.corners(transform: UiMatrix4) = arrayOf(

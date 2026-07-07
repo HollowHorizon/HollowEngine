@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.UiState
-import ru.hollowhorizon.hollowengine.client.ui.attributeValue
-import ru.hollowhorizon.hollowengine.client.ui.effectiveStates
-import ru.hollowhorizon.hollowengine.client.ui.hasAttribute
+import ru.hollowhorizon.hollowengine.client.ui.*
 
 data class HssDocument(
     val rules: List<HssRule>,

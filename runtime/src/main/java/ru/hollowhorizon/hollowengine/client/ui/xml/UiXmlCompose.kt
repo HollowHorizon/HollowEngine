@@ -4,14 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
-import ru.hollowhorizon.hollowengine.client.ui.widgets.readBoolean
-import ru.hollowhorizon.hollowengine.client.ui.widgets.readSliderValue
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.style.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 @Composable
 fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {
@@ -112,15 +108,15 @@ private fun UiXmlElement(
             UiXmlChildren(resolved, document)
         }
 
-        "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes) {
-            UiXmlInlineWidgetChildren(resolved, document)
+        "text" -> Text(id, tags, modifier, customAttributes) {
+            UiXmlInlineContent(resolved, emptyList(), document, inlineWidgets = true)
         }
 
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
         "popup" -> Popup(
-            anchor = attributes.popupAnchor(),
+            anchorBounds = attributes.popupAnchorBounds(LocalPointer.current),
             alignment = attributes.popupAlignment(),
             id = id,
             tags = tags,
@@ -163,7 +159,7 @@ private fun UiXmlElement(
         )
 
         else -> Element(resolved.name, id, tags, modifier, customAttributes) {
-            InlineTextChild(resolved)
+            InlineTextChild(resolved, document)
             UiXmlChildren(resolved, document)
         }
     }
@@ -180,23 +176,59 @@ private fun UiXmlChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
         }
 }
 
+/**
+ * Emits an element's inline text as [Span]s (with accumulated [effects]), inline `<img>` as
+ * [Image] atoms and, when [inlineWidgets] is set (inside `<text>`), any block child as an inline
+ * widget flowing in the line. Inline elements recurse, accumulating their effects onto each span.
+ */
 @Composable
-private fun UiXmlInlineWidgetChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
-    element.children
-        .filterNot { it.isTextLiteral() || it.isTextInlineElement() }
-        .forEachIndexed { index, child ->
-            key(child.composeKey(index)) {
-                UiXmlElement(child.withInlineWidgetId(index), document)
+private fun UiXmlInlineContent(
+    element: UiXmlTree,
+    effects: List<UiTextEffect>,
+    document: UiXmlComposeDocument,
+    inlineWidgets: Boolean,
+) {
+    element.attributes["text"]?.let { literal ->
+        if (literal.isNotEmpty()) Span(literal, modifier = effects.asTextModifier())
+        return
+    }
+    element.children.forEachIndexed { index, child ->
+        key(child.composeKey(index)) {
+            when {
+                child.isTextLiteral() -> {
+                    val text = child.textLiteral()
+                    if (text.isNotEmpty()) Span(text, modifier = effects.asTextModifier())
+                }
+
+                child.isInlineBreak() -> Span("\n", modifier = effects.asTextModifier())
+                child.isInlinePause() -> Unit
+                child.isInlineImage() -> UiXmlInlineImage(child)
+                child.isTextInlineElement() ->
+                    UiXmlInlineContent(child, effects + child.inlineTagEffects(), document, inlineWidgets)
+
+                inlineWidgets -> UiXmlElement(child.withInlineWidgetId(index), document)
             }
         }
+    }
 }
 
 @Composable
-private fun InlineTextChild(element: UiXmlTree) {
+private fun UiXmlInlineImage(element: UiXmlTree) {
+    val image = element.inlineImage()
+    Image(
+        image.source,
+        modifier = Modifier.size(image.width.px, image.height.px).align(vertical = image.align),
+    )
+}
+
+private fun List<UiTextEffect>.asTextModifier(): Modifier? =
+    if (isEmpty()) null else Modifier.textEffects(*toTypedArray())
+
+@Composable
+private fun InlineTextChild(element: UiXmlTree, document: UiXmlComposeDocument) {
     if (element.children.none { it.isTextLiteral() || it.isTextInlineElement() }) return
-    val content = element.toTextContent(onlyDirectText = true).trimBoundaryText()
-    if (content.asTemplate().isNotBlank()) {
-        Text(content)
+    Text {
+        UiXmlInlineContent(element, emptyList(), document, inlineWidgets = false)
     }
 }
 
@@ -287,22 +319,12 @@ private fun Map<String, String>.textFieldMode(): UiTextFieldMode {
     return UiTextFieldMode.from(firstValue("mode", "multiline", "multi-line"))
 }
 
-private fun Map<String, String>.popupAnchor(): UiPopupAnchor {
-    val anchor = firstValue("anchor", "target", "for").ifBlank { "parent" }.trim()
-    return when {
-        anchor.equals("parent", ignoreCase = true) -> UiPopupAnchor.Parent
-        anchor.equals("cursor", ignoreCase = true) -> {
-            val x = firstValue("cursor-x", "x")
-            val y = firstValue("cursor-y", "y")
-            if (x.isBlank() && y.isBlank()) {
-                UiPopupAnchor.Cursor()
-            } else {
-                UiPopupAnchor.Cursor(x.parsePopupFloat(), y.parsePopupFloat())
-            }
-        }
-
-        else -> UiPopupAnchor.Node(anchor.removePrefix("#"))
-    }
+private fun Map<String, String>.popupAnchorBounds(pointer: UiPointer): UiRect {
+    val x = firstValue("cursor-x", "x")
+    val y = firstValue("cursor-y", "y")
+    val px = if (x.isBlank()) pointer.x else x.parsePopupFloat()
+    val py = if (y.isBlank()) pointer.y else y.parsePopupFloat()
+    return UiRect(px, py, 0f, 0f)
 }
 
 private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
@@ -335,23 +357,6 @@ private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
 }
 
 private fun String.parsePopupFloat(): Float = trim().removeSuffix("px").toFloatOrNull() ?: 0f
-
-private fun UiTextSegment.Text.trimStart(): UiTextSegment.Text {
-    return copy(value = value.template.trimStart().bound())
-}
-
-private fun UiTextSegment.Text.trimEnd(): UiTextSegment.Text {
-    return copy(value = value.template.trimEnd().bound())
-}
-
-private fun UiTextContent.trimBoundaryText(): UiTextContent {
-    val next = segments.toMutableList()
-    val firstText = next.indexOfFirst { it is UiTextSegment.Text }
-    if (firstText >= 0) next[firstText] = (next[firstText] as UiTextSegment.Text).trimStart()
-    val lastText = next.indexOfLast { it is UiTextSegment.Text }
-    if (lastText >= 0) next[lastText] = (next[lastText] as UiTextSegment.Text).trimEnd()
-    return UiTextContent(next.filterNot { it is UiTextSegment.Text && it.value.template.isEmpty() })
-}
 
 private val StructuralAttributes = setOf(
     "id",

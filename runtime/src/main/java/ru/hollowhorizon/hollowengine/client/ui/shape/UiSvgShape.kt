@@ -165,7 +165,14 @@ private class SvgParseSession(
             val key = "${baseLocation.orEmptyKey()}#$id"
             require(key !in context.referenceStack) { "Circular SVG reference '$href'" }
             val transform = context.transform * target.viewBoxTransform(viewportWidth, viewportHeight)
-            return collect(target, context.copy(transform = transform, referenceStack = context.referenceStack + key, renderDefinitions = true))
+            return collect(
+                target,
+                context.copy(
+                    transform = transform,
+                    referenceStack = context.referenceStack + key,
+                    renderDefinitions = true
+                )
+            )
         }
 
         val location = resolveExternalLocation(reference.locationPart)
@@ -230,8 +237,12 @@ private class SvgParseSession(
         val clipReference = parseUrlReference(context.style.clipPath)
         val maskReference = parseUrlReference(context.style.mask)
         var result = path
-        if (clipReference != null) referencePathOrNull(clipReference, context)?.let { result = result.intersectedWith(it) }
-        if (maskReference != null) referencePathOrNull(maskReference, context)?.let { result = result.intersectedWith(it) }
+        if (clipReference != null) referencePathOrNull(clipReference, context)?.let {
+            result = result.intersectedWith(it)
+        }
+        if (maskReference != null) referencePathOrNull(maskReference, context)?.let {
+            result = result.intersectedWith(it)
+        }
         return result
     }
 
@@ -246,22 +257,29 @@ private class SvgParseSession(
                     val deviation = parseSvgNumbers(primitive.getAttribute("stdDeviation")).firstOrNull() ?: 0f
                     bounds.expanded(deviation * 3f)
                 }
+
                 "fedropshadow" -> {
                     val deviation = primitive.svgLength("stdDeviation") ?: 0f
                     val dx = primitive.svgLength("dx") ?: 2f
                     val dy = primitive.svgLength("dy") ?: 2f
                     bounds.expanded(deviation * 3f).offset(dx, dy)
                 }
+
                 else -> null
             }
-            if (expanded != null) result = result.unionWith(rectPath(expanded.x, expanded.y, expanded.width, expanded.height))
+            if (expanded != null) result =
+                result.unionWith(rectPath(expanded.x, expanded.y, expanded.width, expanded.height))
         }
         return result
     }
 
     private fun referencePathOrNull(href: String, context: SvgContext): UiPath? {
         return runCatching {
-            combineSvgPaths(collectReference(href, context.copy(style = context.style.withoutGeometryEffects())).map { it.path })
+            combineSvgPaths(
+                collectReference(
+                    href,
+                    context.copy(style = context.style.withoutGeometryEffects())
+                ).map { it.path })
         }.getOrElse { error ->
             if (error.message?.contains("was not found") == true) null else throw error
         }
@@ -383,7 +401,8 @@ private class SvgParseSession(
     private fun resolveExternalLocation(locationPart: String): ResourceLocation {
         val clean = locationPart.trim()
         if (clean.contains(":")) return ResourceLocation.parse(clean)
-        val base = baseLocation ?: throw IllegalArgumentException("External SVG reference '$clean' requires resource location context")
+        val base = baseLocation
+            ?: throw IllegalArgumentException("External SVG reference '$clean' requires resource location context")
         val baseDirectory = base.path.substringBeforeLast('/', "")
         val path = if (baseDirectory.isEmpty()) clean else "$baseDirectory/$clean"
         return ResourceLocation.fromNamespaceAndPath(base.namespace, path)
@@ -530,11 +549,13 @@ private object SvgTextFontResolver {
                 quote != null -> {
                     if (char == quote) quote = null else current.append(char)
                 }
+
                 char == '\'' || char == '"' -> quote = char
                 char == ',' -> {
                     current.normalizedFontFamily()?.let(result::add)
                     current.clear()
                 }
+
                 else -> current.append(char)
             }
         }

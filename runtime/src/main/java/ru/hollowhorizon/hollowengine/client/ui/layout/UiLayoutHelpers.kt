@@ -42,10 +42,10 @@ internal val MeasuredChild.isRowFlexible: Boolean
     get() = style.size.width is UiLength.Fill ||
             style.size.width is UiLength.Percent ||
             grow > 0f ||
-            node is TextNode && style.textWrap && style.size.width is UiLength.Auto
+            node.isInlineFlow() && style.textWrap && style.size.width is UiLength.Auto
 
 internal val MeasuredChild.isWrappedAutoText: Boolean
-    get() = node is TextNode &&
+    get() = node.isInlineFlow() &&
             style.textWrap &&
             style.size.width is UiLength.Auto &&
             grow <= 0f
@@ -54,7 +54,7 @@ internal val MeasuredChild.isColumnFlexible: Boolean
     get() = style.size.height is UiLength.Fill ||
             style.size.height is UiLength.Percent ||
             grow > 0f ||
-            node is TextNode && style.scrollable && style.size.height is UiLength.Auto
+            node.isInlineFlow() && style.scrollable && style.size.height is UiLength.Auto
 
 internal val MeasuredChild.canStretchAutoWidth: Boolean
     get() = node !is TextFieldNode
@@ -140,23 +140,21 @@ internal fun Float.coerceIn(min: UiLength, max: UiLength, reference: Float): Flo
 }
 
 
-internal fun UiPopupAnchor.resolvePopupAnchor(
-    parentContent: UiRect,
-    resolved: UiNode,
-    layouts: Map<UiNode, UiLayoutNode>,
-): UiRect {
-    return when (this) {
-        UiPopupAnchor.Parent -> parentContent
-        is UiPopupAnchor.Cursor -> UiRect(
-            x.takeIf { it.isFinite() } ?: parentContent.x,
-            y.takeIf { it.isFinite() } ?: parentContent.y,
-            0f,
-            0f,
-        )
-
-        is UiPopupAnchor.Node -> {
-            val anchorNode = resolved.firstInSubtree { it.id == id }
-            anchorNode?.let { layouts[it]?.rect } ?: parentContent
+/**
+ * The measure policy of the OverlayHost's popup container: measures each [PopupNode] child freely and
+ * places it at its own [PopupNode.anchorBounds] + [PopupNode.alignment] (root coordinates, since the
+ * container is full-screen at the origin).
+ */
+val PopupOverlayMeasurePolicy = UiMeasurePolicy { measurables, constraints ->
+    val placed = measurables.map { it to it.measure(constraints) }
+    layout(constraints.maxWidth, constraints.maxHeight) {
+        for ((measurable, placeable) in placed) {
+            val popup = measurable.node as? PopupNode ?: continue
+            val rect = popup.alignment.popupRect(
+                popup.anchorBounds,
+                LayoutSize(placeable.width, placeable.height),
+            )
+            placeable.place(rect.x, rect.y)
         }
     }
 }

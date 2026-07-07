@@ -452,7 +452,12 @@ internal object UiTextLayouter {
         fun flush() {
             if (buffer.isEmpty()) return
             val text = buffer.toString()
-            chunks += InlineUnit.Word(text, word.style, measureTextWidth(text, word.height, fontFamily, word.style), word.height)
+            chunks += InlineUnit.Word(
+                text,
+                word.style,
+                measureTextWidth(text, word.height, fontFamily, word.style),
+                word.height
+            )
             buffer.setLength(0)
         }
 
@@ -508,7 +513,11 @@ internal object UiTextLayouter {
                     val size = style.resolvedFontSize(baseFontSize)
                     val resolvedFamily = style.fontFamily ?: fontFamily
                     val lineHeight = UiTextFonts.resolve(resolvedFamily).lineHeight(size)
-                    target += InlineUnit.Space(style, spaceWidth ?: measureTextWidth(" ", size, fontFamily, style), lineHeight)
+                    target += InlineUnit.Space(
+                        style,
+                        spaceWidth ?: measureTextWidth(" ", size, fontFamily, style),
+                        lineHeight
+                    )
                 }
 
                 '\u00A0' -> buffer.append(' ')
@@ -683,6 +692,7 @@ internal object UiTextLayouter {
                 UiInlineAlign.TOP -> 0f
                 UiInlineAlign.BOTTOM -> lineHeight - height
             }
+
             is InlineUnit.Widget -> when (widget.align) {
                 UiInlineAlign.BASELINE -> baseline - height
                 UiInlineAlign.MIDDLE -> (lineHeight - height) / 2f

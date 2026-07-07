@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.parseHssSelector
 import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
@@ -33,7 +33,8 @@ enum class UiEventKind {
             CLICK,
             RELEASE,
             DRAG,
-            SCROLL -> true
+            SCROLL,
+                -> true
 
             INIT,
             UPDATE,
@@ -41,7 +42,8 @@ enum class UiEventKind {
             CHAR_TYPED,
             KEY_PRESSED,
             FOCUS,
-            UNFOCUS -> false
+            UNFOCUS,
+                -> false
         }
 
     val attributeName: String
@@ -124,7 +126,7 @@ data class UiEvent(
             "node.type", "type" -> node.type
             "node.value", "value" -> node.readWidgetValue()
             "node.checked", "checked" -> (node as? CheckboxNode)?.checked
-            "node.text", "text" -> (node as? TextFieldNode)?.value ?: (node as? TextNode)?.text?.template
+            "node.text", "text" -> (node as? TextFieldNode)?.value ?: node.spanText().ifEmpty { null }
             "button" -> button
             "x" -> x
             "y" -> y
@@ -161,9 +163,12 @@ private fun UiNode.readWidgetValue(): Any? = when (this) {
     is SliderNode -> value
     is CheckboxNode -> checked
     is TextFieldNode -> value
-    is TextNode -> text.template
+    is SpanNode -> text
     else -> attributes["value"]
 }
+
+private fun UiNode.spanText(): String =
+    if (this is SpanNode) text else children.joinToString("") { it.spanText() }
 
 fun interface UiEventSink {
     fun emit(payload: CompoundTag)

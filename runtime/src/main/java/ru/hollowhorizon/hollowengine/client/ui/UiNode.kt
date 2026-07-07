@@ -1,10 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
 import ru.hollowhorizon.hollowengine.client.ui.style.defaultModifierSnapshot
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import java.util.*
 
 interface UiNode {
@@ -53,7 +51,8 @@ open class BaseUiNode(
     final override val attributes: MutableMap<String, String> =
         InvalidatingMutableMap(attributes) { invalidateLayout() }
     final override val states: MutableSet<UiState> = InvalidatingMutableSet { invalidateLayout() }
-    final override val modifiers: MutableList<Modifier> = InvalidatingMutableList(modifiers) { invalidateModifierChange() }
+    final override val modifiers: MutableList<Modifier> =
+        InvalidatingMutableList(modifiers) { invalidateModifierChange() }
     final override var resolvedModifiers: List<Modifier> = modifiers.toList()
     final override var resolvedSnapshot: UiComputedStyle = defaultModifierSnapshot()
     final override val children = UiChildren()
@@ -103,46 +102,14 @@ class BoxNode(
     measurePolicy,
 )
 
-class TextNode(
-    content: UiTextContent,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiTextType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var content: UiTextContent = content
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateLayout()
-        }
-
-    constructor(
-        text: UiBoundString,
-        id: String? = null,
-        tags: Iterable<String> = emptyList(),
-        modifiers: Iterable<Modifier> = emptyList(),
-        attributes: Map<String, String> = emptyMap(),
-    ) : this(UiTextContent.plain(text), id, tags, modifiers, attributes)
-
-    var text: UiBoundString
-        get() = UiBoundString(content.asTemplate())
-        set(value) {
-            content = UiTextContent.plain(value)
-            invalidateLayout()
-        }
-
-    var hoveredLink: String? = null
-}
-
 class ImageNode(
-    source: UiBoundString,
+    source: String,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiImageType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var source: UiBoundString = source
+    var source: String = source
         set(value) {
             if (field == value) return
             field = value
@@ -151,13 +118,13 @@ class ImageNode(
 }
 
 class ItemNode(
-    item: UiBoundString,
+    item: String,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiItemType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var item: UiBoundString = item
+    var item: String = item
         set(value) {
             if (field == value) return
             field = value
@@ -166,13 +133,13 @@ class ItemNode(
 }
 
 class EntityNode(
-    entity: UiBoundString,
+    entity: String,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
     attributes: Map<String, String> = emptyMap(),
 ) : BaseUiNode(UiEntityType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var entity: UiBoundString = entity
+    var entity: String = entity
         set(value) {
             if (field == value) return
             field = value
@@ -180,8 +147,14 @@ class EntityNode(
         }
 }
 
+/**
+ * A popup: the content container of an open overlay. It lives only as a child of the OverlayHost's
+ * popup container (see `PopupOverlayMeasurePolicy`), which places it absolutely at [anchorBounds] (its
+ * anchor's bounds in root coordinates, supplied by the caller via `Modifier.onPlaced` or a cursor
+ * point) with [alignment].
+ */
 class PopupNode(
-    anchor: UiPopupAnchor,
+    anchorBounds: UiRect,
     alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -195,7 +168,7 @@ class PopupNode(
     attributes,
     UiMeasurePolicies.Column,
 ) {
-    var anchor: UiPopupAnchor = anchor
+    var anchorBounds: UiRect = anchorBounds
         set(value) {
             if (field == value) return
             field = value

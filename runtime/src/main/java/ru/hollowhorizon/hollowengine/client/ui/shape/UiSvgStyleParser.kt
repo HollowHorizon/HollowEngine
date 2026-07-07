@@ -50,7 +50,10 @@ internal fun UiSvgStyle.applySvgDeclarations(declarations: Map<String, String>):
             "color" -> style.copy(color = parseSvgColor(value, style.color) ?: style.color)
             "opacity" -> style.copy(opacity = value.toFloatOrNull()?.coerceIn(0f, 1f) ?: style.opacity)
             "fill-opacity" -> style.copy(fillOpacity = value.toFloatOrNull()?.coerceIn(0f, 1f) ?: style.fillOpacity)
-            "stroke-opacity" -> style.copy(strokeOpacity = value.toFloatOrNull()?.coerceIn(0f, 1f) ?: style.strokeOpacity)
+            "stroke-opacity" -> style.copy(
+                strokeOpacity = value.toFloatOrNull()?.coerceIn(0f, 1f) ?: style.strokeOpacity
+            )
+
             "font-family" -> style.copy(fontFamily = normalizeFontFamily(value))
             "font-size" -> style.copy(fontSize = parseSvgLength(value) ?: style.fontSize)
             "text-anchor" -> style.copy(textAnchor = parseTextAnchor(value, style.textAnchor))
@@ -77,16 +80,19 @@ internal fun parseSvgTransform(value: String): UiSvgTransform {
                 require(numbers.size == 6) { "SVG matrix() transform expects six numbers" }
                 UiSvgTransform(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5])
             }
+
             "translate" -> UiSvgTransform.translation(numbers.getOrElse(0) { 0f }, numbers.getOrElse(1) { 0f })
             "scale" -> {
                 val x = numbers.getOrElse(0) { 1f }
                 UiSvgTransform.scale(x, numbers.getOrElse(1) { x })
             }
+
             "rotate" -> when (numbers.size) {
                 1 -> UiSvgTransform.rotation(numbers[0])
                 3 -> UiSvgTransform.rotation(numbers[0], numbers[1], numbers[2])
                 else -> throw IllegalArgumentException("SVG rotate() transform expects one or three numbers")
             }
+
             "skewx" -> UiSvgTransform.skewX(numbers.getOrElse(0) { 0f })
             "skewy" -> UiSvgTransform.skewY(numbers.getOrElse(0) { 0f })
             else -> UiSvgTransform.Identity

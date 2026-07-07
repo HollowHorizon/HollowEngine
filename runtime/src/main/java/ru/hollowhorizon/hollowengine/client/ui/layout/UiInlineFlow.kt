@@ -5,6 +5,10 @@ import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 
+/** Sub-pixel slack for the wrap decision so a word that fits its line exactly isn't wrapped by
+ *  float rounding (fit-content width round-trips accumulate a fraction of a pixel of error). */
+private const val WrapEpsilon = 0.5f
+
 /**
  * Per-line box-decoration geometry for an inline group (a [SpanNode] or a nested inline flow).
  * [lines] are the group's per-line boxes relative to the node's own rect origin; the renderer
@@ -117,7 +121,16 @@ internal fun UiLayoutPipeline.computeInlineFlow(
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ): InlineFlowLayout {
     val pieces = ArrayList<Piece>()
-    tokenizeInline(layoutChildren(container), resolved, container, emptyList(), availableWidth, availableHeight, scrollbarReserves, pieces)
+    tokenizeInline(
+        layoutChildren(container),
+        resolved,
+        container,
+        emptyList(),
+        availableWidth,
+        availableHeight,
+        scrollbarReserves,
+        pieces
+    )
     val lines = breakIntoLines(pieces, availableWidth, wrap)
     // Alignment still uses the container width even with wrap off, so a single line can sit
     // centred/right/justified when the container is wider than the text (a fit container just
@@ -126,7 +139,7 @@ internal fun UiLayoutPipeline.computeInlineFlow(
 
     val width = lines.maxOfOrNull { it.naturalWidth } ?: 0f
     val height = lines.sumOf { it.height.toDouble() }.toFloat() +
-        (if (lines.size > 1) lineSpacing * (lines.size - 1) else 0f)
+            (if (lines.size > 1) lineSpacing * (lines.size - 1) else 0f)
 
     val childLayouts = assembleChildLayouts(container, pieces)
     return InlineFlowLayout(width, height, childLayouts)
@@ -185,7 +198,8 @@ private fun groupCtx(
     isSpan: Boolean,
 ): GroupCtx {
     // Spans are pure text runs: no box padding (wrap a fragment in a nested inline flow to pad it).
-    val padding = if (isSpan) ResolvedUiInsets(0f, 0f, 0f, 0f) else style.padding.resolve(availableWidth, availableHeight)
+    val padding =
+        if (isSpan) ResolvedUiInsets(0f, 0f, 0f, 0f) else style.padding.resolve(availableWidth, availableHeight)
     val margin = if (isSpan) ResolvedUiInsets(0f, 0f, 0f, 0f) else style.margin.resolve(availableWidth, availableHeight)
     // A decorated group gets at least its corner radius as horizontal padding so text never runs
     // into the rounded corners / right up to the background edge.
@@ -212,7 +226,6 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
     val effects = style.textEffects
     val inlineStyle = UiInlineStyle(effects = effects)
     val spaceWidth = style.spaceWidth ?: UiTextLayouter.measureStyledTextWidth(" ", fontSize, fontFamily, inlineStyle)
-    val text = span.text.resolve()
     val word = StringBuilder()
     fun flush() {
         if (word.isEmpty()) return
@@ -221,7 +234,7 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
         out += WordPiece(wordText, effects, width, fontSize, groups)
         word.clear()
     }
-    for (ch in text) {
+    for (ch in span.text) {
         when {
             ch == '\n' -> {
                 flush()
@@ -286,7 +299,9 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
             }
 
             is WordPiece, is AtomPiece -> {
-                if (wrapping && breakBefore && line.pieces.isNotEmpty() && line.width + piece.width > wrapWidth) {
+                if (wrapping && breakBefore && line.pieces.isNotEmpty() &&
+                    line.width + piece.width > wrapWidth + WrapEpsilon
+                ) {
                     commit(hard = false)
                 }
                 line.pieces += piece
@@ -374,9 +389,14 @@ private fun assembleChildLayouts(container: UiNode, pieces: List<Piece>): Map<Ui
     for (piece in pieces) {
         if (piece !is AtomPiece) continue
         val margin = piece.child.margin
+        val verticalOffset = when (piece.child.style.alignVertical) {
+            UiAlign.START -> 0f
+            UiAlign.END -> piece.lineHeight - piece.height
+            else -> (piece.lineHeight - piece.height) / 2f
+        }
         val rect = UiRect(
             piece.x + margin.left,
-            piece.lineTop + (piece.lineHeight - piece.height) / 2f + margin.top,
+            piece.lineTop + verticalOffset + margin.top,
             piece.child.size.width,
             piece.child.size.height,
         )

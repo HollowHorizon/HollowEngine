@@ -3,20 +3,18 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
-import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineAlign
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
-import kotlin.math.abs
-import kotlin.math.sign
 
 class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab by mutableStateOf("overview")
     private var popupTooltipVisible by mutableStateOf(false)
+    private var popupAnchorExpanded by mutableStateOf(false)
+    private var popupAnchorBounds by mutableStateOf(UiRect.Zero)
     private val freeNodeOffsets = mutableStateMapOf<Int, DemoOffset>()
     private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
     private var xmlEventText by mutableStateOf("XML event log is empty")
@@ -133,50 +131,43 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun textAndPopupDemo() {
-        val inlineContent = UiTextContent(
-            listOf(
-                UiTextSegment.Text("Inline text can host ".bound()),
-                UiTextSegment.inlineWidget("inline-chip", align = UiInlineAlign.MIDDLE),
-                UiTextSegment.Text(" measured widgets and keep wrapping/justify consistent.".bound()),
-            )
-        )
-        val slotContent = UiTextContent(
-            listOf(
-                UiTextSegment.inlineWidget("inline-note", align = UiInlineAlign.TOP),
-                UiTextSegment.Text(
-                    "Measured slots now travel through the same inline line builder as text and images, so wrapping uses one layout path.".bound(),
-                ),
-            )
-        )
-
         Box(tags = listOf("text-demo-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
             Column(tags = listOf("text-demo-card"), modifier = Modifier.position(0.px, 0.px)) {
                 Text("Inline widget", tags = listOf("card-title"))
                 Text(
-                    textContent = inlineContent,
                     tags = listOf("text-demo-copy"),
                     modifier = Modifier.size(320.px, 64.px).textAlign(UiTextAlign.JUSTIFY),
                 ) {
-                    InlineWidget("inline-chip", tags = listOf("text-inline-chip")) {
+                    Span("Inline text can host ")
+                    InlineWidget(
+                        "inline-chip",
+                        tags = listOf("text-inline-chip"),
+                        modifier = Modifier.align(vertical = UiAlign.CENTER),
+                    ) {
                         Text(
                             "AUTO",
                             tags = listOf("text-inline-chip-label"),
                             modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER),
                         )
                     }
+                    Span(" measured widgets and keep wrapping/justify consistent.")
                 }
             }
 
             Column(tags = listOf("text-demo-card", "text-slot-card"), modifier = Modifier.position(352.px, 0.px)) {
                 Text("Inline slot", tags = listOf("card-title"))
                 Text(
-                    textContent = slotContent,
                     tags = listOf("text-demo-copy"),
                     modifier = Modifier.size(330.px, 116.px),
                 ) {
-                    InlineWidget("inline-note", tags = listOf("text-slot-note")) {
+                    InlineWidget(
+                        "inline-note",
+                        tags = listOf("text-slot-note"),
+                        modifier = Modifier.align(vertical = UiAlign.START),
+                    ) {
                         Text("Measured\nslot", tags = listOf("text-slot-note-label"))
                     }
+                    Span("Measured slots now travel through the same inline line builder as text and images, so wrapping uses one layout path.")
                 }
             }
 
@@ -210,31 +201,37 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 Row(
                     id = "popup-anchor",
                     tags = listOf("popup-anchor"),
-                    modifier = Modifier.input(hoverable = true)
-                        .onEnter {
-                            popupTooltipVisible = true
-                        }.onExit {
-                            popupTooltipVisible = false
+                    modifier = Modifier.input(hoverable = true, clickable = true)
+                        .onPlaced { popupAnchorBounds = it }
+                        .onEnter { popupTooltipVisible = true }
+                        .onExit { popupTooltipVisible = false }
+                        .onClick {
+                            popupAnchorExpanded = !popupAnchorExpanded
+                            it.consume()
                         }
                 ) {
-                    Text("Hover for tooltip", tags = listOf("popup-anchor-label"))
+                    Text("Click: toggle popup · hover: tooltip", tags = listOf("popup-anchor-label"))
                 }
-                Popup(
-                    id = "popup-near-anchor",
-                    anchor = UiPopupAnchor.Node("popup-anchor"),
-                    alignment = UiPopupAlignment(offsetY = 6f),
-                    tags = listOf("popup-panel"),
-                ) {
-                    Text("Node anchored popup", tags = listOf("popup-title"))
-                    Text("Below-start with offset.", tags = listOf("popup-body"))
+                if (popupAnchorExpanded) {
+                    Popup(
+                        id = "popup-near-anchor",
+                        anchorBounds = popupAnchorBounds,
+                        alignment = UiPopupAlignment(offsetY = 6f),
+                        tags = listOf("popup-panel"),
+                        onDismiss = { popupAnchorExpanded = false },
+                    ) {
+                        Text("Node anchored popup", tags = listOf("popup-title"))
+                        Text("Click the widget again or outside to close.", tags = listOf("popup-body"))
+                    }
                 }
                 if (popupTooltipVisible) {
+                    val pointer = LocalPointer.current
                     Popup(
                         id = "popup-near-cursor",
-                        anchor = UiPopupAnchor.Cursor(),
+                        anchorBounds = UiRect(pointer.x, pointer.y, 0f, 0f),
                         alignment = UiPopupAlignment.Cursor,
+                        layer = 100,
                         tags = listOf("popup-panel", "cursor-popup"),
-                        modifier = Modifier.layer(100),
                     ) {
                         Text("Tooltip follows cursor", tags = listOf("popup-title"))
                     }
@@ -245,7 +242,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun textLab() {
-        Column(tags = listOf("panel", "textlab-panel"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+        Column(
+            tags = listOf("panel", "textlab-panel"),
+            modifier = Modifier.scroll(vertical = true, horizontal = true)
+        ) {
             Row(tags = listOf("textlab-controls")) {
                 toggle("wrap", textLabWrap) { textLabWrap = !textLabWrap }
                 toggle("effects", textLabEffects) { textLabEffects = !textLabEffects }
@@ -272,7 +272,11 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                         Text(tags = listOf("group-clone")) { Span("cloned group") }
                         Span(", an inline ")
                         Box(mode = UiBoxMode.STACK, tags = listOf("textlab-chip")) {
-                            Text("chip", tags = listOf("textlab-chip-label"), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+                            Text(
+                                "chip",
+                                tags = listOf("textlab-chip-label"),
+                                modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER)
+                            )
                         }
                         Span(" widget")
                         if (textLabEffects) {
@@ -304,7 +308,11 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             Text("Overflow: fixed height with vertical scroll", tags = listOf("card-title", "textlab-section"))
             Box(tags = listOf("textlab-scroll"), modifier = Modifier.scroll(vertical = true)) {
                 Text(tags = listOf("textlab-para")) {
-                    Span("This paragraph is intentionally long so it overflows the fixed-height box and must scroll. ".repeat(6))
+                    Span(
+                        "This paragraph is intentionally long so it overflows the fixed-height box and must scroll. ".repeat(
+                            6
+                        )
+                    )
                 }
             }
         }
@@ -553,14 +561,9 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
         Column {
             UiXmlContent(demo, options)
-            Text(UiTextContent.plain(xmlEventText.bound()), tags = listOf("xml-log"))
+            Text(xmlEventText, tags = listOf("xml-log"))
         }
     }
-}
-
-private fun Float.easeOutSigned(): Float {
-    val magnitude = abs(this)
-    return sign(this) * (1f - (1f - magnitude) * (1f - magnitude))
 }
 
 private data class DemoOffset(

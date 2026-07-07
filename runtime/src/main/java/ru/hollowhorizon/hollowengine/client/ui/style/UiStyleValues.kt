@@ -1,12 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
-import ru.hollowhorizon.hollowengine.client.ui.UiBorder
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiInsets
-import ru.hollowhorizon.hollowengine.client.ui.UiLength
-import ru.hollowhorizon.hollowengine.client.ui.UiVec3
-import ru.hollowhorizon.hollowengine.client.ui.percent
-import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.*
 
 enum class StyleOrigin(val priority: Int) {
     THEME_DEFAULTS(1), STYLESHEET(2), STATE_STYLESHEET(3),
@@ -29,8 +23,8 @@ sealed interface UiPaint {
     data class Color(val color: UiColor) : UiPaint
     data class LinearGradient(val angleDegrees: Float, val stops: List<UiGradientStop>) : UiPaint
     data class RadialGradient(val gradient: UiRadialGradient) : UiPaint
-    data class Image(val source: UiBoundString) : UiPaint
-    data class Shader(val name: UiBoundString) : UiPaint
+    data class Image(val source: String) : UiPaint
+    data class Shader(val name: String) : UiPaint
 }
 
 data class UiRadialGradient(
@@ -107,7 +101,7 @@ sealed interface UiFilterEffect {
         }
     }
 
-    data class Shader(val name: UiBoundString, val arguments: Map<String, Float> = emptyMap()) : UiFilterEffect {
+    data class Shader(val name: String, val arguments: Map<String, Float> = emptyMap()) : UiFilterEffect {
         override val requiresLayer: Boolean get() = true
 
         override fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect = if (progress >= 1f) to else this
@@ -117,20 +111,8 @@ sealed interface UiFilterEffect {
 data class UiInputStyle(
     val hoverable: Boolean = false,
     val clickable: Boolean = false,
-    val focusable: Boolean = false,
     val draggable: Boolean = false,
-) {
-    fun merge(other: UiInputStyle) = UiInputStyle(
-        hoverable = hoverable || other.hoverable,
-        clickable = clickable || other.clickable,
-        focusable = focusable || other.focusable,
-        draggable = draggable || other.draggable,
-    )
-}
-
-data class UiBoundString(val template: String) {
-    fun resolve(): String = template
-}
+)
 
 data class UiScrollbarStyle(
     val thickness: UiLength? = null,
@@ -202,9 +184,7 @@ internal fun interpolatePaint(from: UiPaint, to: UiPaint, progress: Float): UiPa
             stops = interpolateStops(from.stops, to.stops, progress),
         )
     }
-    if (from is UiPaint.RadialGradient && to is UiPaint.RadialGradient &&
-        from.gradient.stops.size == to.gradient.stops.size
-    ) {
+    if (from is UiPaint.RadialGradient && to is UiPaint.RadialGradient && from.gradient.stops.size == to.gradient.stops.size) {
         return UiPaint.RadialGradient(
             gradient = from.gradient.copy(stops = interpolateStops(from.gradient.stops, to.gradient.stops, progress)),
         )

@@ -3,18 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 import androidx.compose.runtime.Composable
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContext
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHintsProvider
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCompletion
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextHighlight
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withColor
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 @Composable
 internal fun HollowUiEditorDemo(
@@ -49,7 +38,10 @@ internal fun HollowUiEditorDemo(
 
         Column(tags = listOf("editor-demo-card", "lazy-column-card"), modifier = Modifier.position(552.px, 0.px)) {
             Text("LazyColumn", tags = listOf("card-title"))
-            LazyColumn(tags = listOf("lazy-column-demo"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+            LazyColumn(
+                tags = listOf("lazy-column-demo"),
+                modifier = Modifier.scroll(vertical = true, horizontal = true)
+            ) {
                 repeat(120) { index ->
                     Row(tags = listOf("lazy-list-row")) {
                         Text((index + 1).toString().padStart(3, '0'), tags = listOf("lazy-row-index"))

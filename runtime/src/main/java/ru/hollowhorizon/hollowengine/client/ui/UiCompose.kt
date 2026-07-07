@@ -3,19 +3,26 @@ package ru.hollowhorizon.hollowengine.client.ui
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.ui.layout.detachLayoutParentRecursively
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
+import ru.hollowhorizon.hollowengine.client.ui.layout.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
+import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.coroutines.CoroutineContext
 
 typealias HollowUiContent = @Composable () -> Unit
 
 val LocalUiFrameTimeNanos = staticCompositionLocalOf { 0L }
+val LocalStylesheets = staticCompositionLocalOf<List<UiStylesheetReference>> { emptyList() }
+
+private fun Modifier?.styleReferences(): List<UiStylesheetReference> = when (this) {
+    null -> emptyList()
+    is CompositeModifier -> flatten().filterIsInstance<StyleImportModifier>().map { it.reference }
+    is StyleImportModifier -> listOf(reference)
+    else -> emptyList()
+}
 
 class HollowUiComposition(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
@@ -23,7 +30,10 @@ class HollowUiComposition(
     private val frameClock = BroadcastFrameClock()
     private val scope = CoroutineScope(SupervisorJob() + coroutineContext + frameClock)
     private val recomposer = Recomposer(scope.coroutineContext)
-    private val rootNode = BoxNode(measurePolicy = UiMeasurePolicies.Column)
+    private val rootNode = BoxNode(
+        measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK),
+        modifiers = listOf(Modifier.alignItems(UiAlign.STRETCH, UiAlign.STRETCH).focusScope()),
+    )
     private val applier = HollowUiApplier(rootNode)
     private val composition = Composition(applier, recomposer)
     private val recomposerJob: Job = scope.launch {
@@ -111,6 +121,16 @@ fun Layout(
     measurePolicy: UiMeasurePolicy,
 ) {
     val modifiers = modifier.asList()
+    val imports = modifier.styleReferences()
+    val scoped: HollowUiContent =
+        if (imports.isEmpty()) content
+        else {
+            {
+                CompositionLocalProvider(LocalStylesheets provides LocalStylesheets.current + imports) {
+                    content()
+                }
+            }
+        }
     ReusableComposeNode<BoxNode, HollowUiApplier>(
         factory = { BoxNode(id, measurePolicy, tags, modifiers, attributes) },
         update = {
@@ -120,7 +140,7 @@ fun Layout(
             }
             updateCommon(modifiers, attributes, tags)
         },
-        content = content,
+        content = scoped,
     )
 }
 
@@ -162,10 +182,10 @@ fun Span(
 ) {
     val modifiers = modifier.asList()
     ReusableComposeNode<SpanNode, HollowUiApplier>(
-        factory = { SpanNode(value.bound(), id, tags, modifiers) },
+        factory = { SpanNode(value, id, tags, modifiers) },
         update = {
             update(value) {
-                text = it.bound()
+                text = it
                 invalidateLayout()
             }
             updateCommon(modifiers, emptyMap(), tags)
@@ -204,6 +224,11 @@ fun LazyRow(
     content: HollowUiContent = {},
 ) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.LazyRow)
 
+/**
+ * A run of text. Built on the inline-flow framework: the literal becomes a [Span] and any
+ * [content] (inline widgets, images, nested spans) flows alongside it. Text style props set
+ * on the container (font, colour, effects, size) inherit down to the span.
+ */
 @Composable
 fun Text(
     value: String,
@@ -212,44 +237,19 @@ fun Text(
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
     content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<TextNode, HollowUiApplier>(
-        factory = { TextNode(value.bound(), id, tags, modifiers, attributes) },
-        update = {
-            update(value) {
-                text = it.bound()
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
+) = Layout(
+    content = {
+        Span(value)
+        content()
+    },
+    modifier = modifier,
+    id = id,
+    tags = tags,
+    attributes = attributes,
+    measurePolicy = UiMeasurePolicies.InlineFlow,
+)
 
-@Composable
-fun Text(
-    textContent: UiTextContent,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<TextNode, HollowUiApplier>(
-        factory = { TextNode(textContent, id, tags, modifiers, attributes) },
-        update = {
-            update(textContent) {
-                this.content = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = content,
-    )
-}
-
+/** An inline-flow container: compose [Span]s, images and inline widgets inside it directly. */
 @Composable
 fun Text(
     id: String? = null,
@@ -280,10 +280,10 @@ fun Image(
 ) {
     val modifiers = modifier.asList()
     ReusableComposeNode<ImageNode, HollowUiApplier>(
-        factory = { ImageNode(source.bound(), id, tags, modifiers, attributes) },
+        factory = { ImageNode(source, id, tags, modifiers, attributes) },
         update = {
             update(source) {
-                this.source = it.bound()
+                this.source = it
                 invalidateDraw()
             }
             updateCommon(modifiers, attributes, tags)
@@ -474,10 +474,10 @@ fun Item(
 ) {
     val modifiers = modifier.asList()
     ReusableComposeNode<ItemNode, HollowUiApplier>(
-        factory = { ItemNode(item.bound(), id, tags, modifiers, attributes) },
+        factory = { ItemNode(item, id, tags, modifiers, attributes) },
         update = {
             update(item) {
-                this.item = it.bound()
+                this.item = it
                 invalidateDraw()
             }
             updateCommon(modifiers, attributes, tags)
@@ -495,10 +495,10 @@ fun Entity(
 ) {
     val modifiers = modifier.asList()
     ReusableComposeNode<EntityNode, HollowUiApplier>(
-        factory = { EntityNode(entity.bound(), id, tags, modifiers, attributes) },
+        factory = { EntityNode(entity, id, tags, modifiers, attributes) },
         update = {
             update(entity) {
-                this.entity = it.bound()
+                this.entity = it
                 invalidateDraw()
             }
             updateCommon(modifiers, attributes, tags)
@@ -506,20 +506,94 @@ fun Entity(
     )
 }
 
+/** Popups render above everything; the OverlayHost carries this layer so all passes prefer it. */
+const val OverlayLayer = Int.MAX_VALUE / 2
+
+/** Handle passed to a [Popup]'s content so it can close itself (`dismiss()`) without external state. */
+interface PopupScope {
+    fun dismiss()
+}
+
+typealias PopupContent = @Composable PopupScope.() -> Unit
+
+/**
+ * An overlay anchored to [anchorBounds] in root coordinates (from `Modifier.onPlaced` or a cursor
+ * point). Composed out of line by the surface's [OverlayHost] so it is never clipped and sits on top;
+ * registers with the [OverlayManager] so an outside click or Escape closes it (when [dismissOnOutside]).
+ */
 @Composable
 fun Popup(
-    anchor: UiPopupAnchor,
+    anchorBounds: UiRect,
     alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    layer: Int = 0,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
+    dismissOnOutside: Boolean = true,
+    onDismiss: (() -> Unit)? = null,
+    content: PopupContent = {},
 ) {
-    val modifiers = modifier.asList()
-    val values = PopupValues(anchor, alignment)
+    val manager = LocalOverlayManager.current ?: return
+    val anchor = rememberUpdatedState(anchorBounds)
+    val align = rememberUpdatedState(alignment)
+    val popupTags = rememberUpdatedState(tags)
+    val popupModifier = rememberUpdatedState(modifier)
+    val popupAttributes = rememberUpdatedState(attributes)
+    val popupContent = rememberUpdatedState(content)
+    val dismiss = rememberUpdatedState(onDismiss)
+    val stylesheets = rememberUpdatedState(LocalStylesheets.current)
+
+    val scope = remember {
+        object : PopupScope {
+            override fun dismiss() {
+                dismiss.value?.invoke()
+            }
+        }
+    }
+    val entry = remember {
+        PopupEntry(Any()).apply {
+            this.content = {
+                PopupNodeEmitter(
+                    anchorBounds = anchor.value,
+                    alignment = align.value,
+                    id = id,
+                    tags = popupTags.value,
+                    modifier = popupModifier.value,
+                    attributes = popupAttributes.value,
+                    stylesheets = stylesheets.value,
+                ) { popupContent.value.invoke(scope) }
+            }
+        }
+    }
+    SideEffect {
+        entry.layer = layer
+        entry.dismissOnOutside = dismissOnOutside
+        entry.onDismiss = onDismiss
+    }
+    DisposableEffect(manager, entry) {
+        val unregister = manager.register(entry)
+        onDispose { unregister() }
+    }
+}
+
+@Composable
+private fun PopupNodeEmitter(
+    anchorBounds: UiRect,
+    alignment: UiPopupAlignment,
+    id: String?,
+    tags: Iterable<String>,
+    modifier: Modifier?,
+    attributes: Map<String, String>,
+    stylesheets: List<UiStylesheetReference>,
+    content: HollowUiContent,
+) {
+    val modifiers = stylesheets.fold((modifier ?: Modifier).focusScope().input(hoverable = true)) { acc, ref ->
+        acc.style(ref)
+    }.asList()
+    val values = PopupValues(anchorBounds, alignment)
     ReusableComposeNode<PopupNode, HollowUiApplier>(
-        factory = { PopupNode(anchor, alignment, id, tags, modifiers, attributes) },
+        factory = { PopupNode(anchorBounds, alignment, id, tags, modifiers, attributes) },
         update = {
             update(values) {
                 apply(it)
@@ -529,6 +603,42 @@ fun Popup(
         },
         content = content,
     )
+}
+
+/**
+ * Renders the surface's overlays above the content. While any popup is open it composes a top-layer
+ * stack holding: an optional full-screen dismiss catcher (a [focusScope], hence always key-active, so
+ * it closes every dismissable overlay on an outside click or Escape)
+ */
+@Composable
+fun OverlayHost() {
+    val manager = LocalOverlayManager.current ?: return
+    if (manager.popups.isEmpty()) return
+    Box(mode = UiBoxMode.STACK, modifier = Modifier.size(100.percent, 100.percent).layer(OverlayLayer)) {
+        if (manager.hasDismissable) {
+            Box(
+                tags = listOf("overlay-dismiss"),
+                modifier = Modifier.size(100.percent, 100.percent)
+                    .focusScope()
+                    .onClick { manager.dismissAll() }
+                    .onKeyInput { input ->
+                        if (input.key == GLFW.GLFW_KEY_ESCAPE) {
+                            manager.dismissAll()
+                            input.consume()
+                        }
+                    },
+            )
+        }
+        Layout(
+            content = {
+                for (entry in manager.popups.sortedBy { it.layer }) {
+                    key(entry.key) { entry.content() }
+                }
+            },
+            modifier = Modifier.size(100.percent, 100.percent),
+            measurePolicy = PopupOverlayMeasurePolicy,
+        )
+    }
 }
 
 private data class SliderValues(
@@ -562,7 +672,7 @@ private data class TextFieldValues(
 )
 
 private data class PopupValues(
-    val anchor: UiPopupAnchor,
+    val anchorBounds: UiRect,
     val alignment: UiPopupAlignment,
 )
 
@@ -596,7 +706,7 @@ private fun TextFieldNode.apply(values: TextFieldValues) {
 }
 
 private fun PopupNode.apply(values: PopupValues) {
-    anchor = values.anchor
+    anchorBounds = values.anchorBounds
     alignment = values.alignment
 }
 

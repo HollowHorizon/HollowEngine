@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 
 enum class UiDropdownMark {
     CHECKBOX,
@@ -28,12 +29,14 @@ fun UiDropdown(
     icon: String? = null,
     tags: Iterable<String> = emptyList(),
 ) {
+    var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
     Row(
         id = id,
         tags = listOf("dropdown-button") + tags,
         modifier = Modifier.input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
             .alignItems(vertical = UiAlign.CENTER)
+            .onPlaced { anchorBounds = it }
             .onClick { event ->
                 onExpandedChange(!expanded)
                 event.consume()
@@ -46,14 +49,15 @@ fun UiDropdown(
 
     if (!expanded) return
     Popup(
-        anchor = UiPopupAnchor.Node(id),
+        anchorBounds = anchorBounds,
         id = "$id-popup",
         tags = listOf("dropdown-popup"),
+        onDismiss = { onExpandedChange(false) },
     ) {
         items.forEachIndexed { index, item ->
             val itemAction: (UiEvent) -> Unit = { event ->
                 if (item.enabled) {
-                    if (item.closeOnClick) onExpandedChange(false)
+                    if (item.closeOnClick) dismiss()
                     item.onClick()
                     event.consume()
                 }

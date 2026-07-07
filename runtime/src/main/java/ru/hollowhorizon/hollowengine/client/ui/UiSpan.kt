@@ -1,16 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
-import ru.hollowhorizon.hollowengine.client.ui.style.UiBoundString
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 
 class SpanNode(
-    text: UiBoundString,
+    text: String,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifiers: Iterable<Modifier> = emptyList(),
 ) : BaseUiNode(UiSpanType, id, tags, modifiers) {
-    var text: UiBoundString = text
+    var text: String = text
         set(value) {
             if (field == value) return
             field = value

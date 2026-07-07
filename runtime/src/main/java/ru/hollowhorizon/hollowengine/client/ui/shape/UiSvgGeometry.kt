@@ -136,10 +136,12 @@ internal fun UiPath.transformed(transform: UiSvgTransform): UiPath {
                     control2 = command.control2.t(),
                     target = command.target.t(),
                 )
+
                 is UiPathCommand.QuadraticTo -> command.copy(
                     control = command.control.t(),
                     target = command.target.t(),
                 )
+
                 is UiPathCommand.ArcTo -> command
                 UiPathCommand.Close -> UiPathCommand.Close
             }
@@ -214,10 +216,12 @@ internal fun UiPath.toAwtPath(): Path2D.Float {
                 current = command.target
                 subPathStart = command.target
             }
+
             is UiPathCommand.LineTo -> {
                 path.lineTo(command.target.x, command.target.y)
                 current = command.target
             }
+
             is UiPathCommand.CubicTo -> path.curveTo(
                 command.control1.x,
                 command.control1.y,
@@ -226,12 +230,14 @@ internal fun UiPath.toAwtPath(): Path2D.Float {
                 command.target.x,
                 command.target.y,
             ).also { current = command.target }
+
             is UiPathCommand.QuadraticTo -> path.quadTo(
                 command.control.x,
                 command.control.y,
                 command.target.x,
                 command.target.y,
             ).also { current = command.target }
+
             is UiPathCommand.ArcTo -> {
                 val arcPath = UiPath(listOf(UiPathCommand.MoveTo(current), command)).flatten().toPath()
                 arcPath.commands.forEach { arcCommand ->
@@ -239,6 +245,7 @@ internal fun UiPath.toAwtPath(): Path2D.Float {
                 }
                 current = command.target
             }
+
             UiPathCommand.Close -> {
                 path.closePath()
                 current = subPathStart
@@ -262,6 +269,7 @@ internal fun AwtShape.toUiPath(flatness: Double? = null): UiPath {
                 coordinates[2],
                 coordinates[3],
             )
+
             PathIterator.SEG_CUBICTO -> builder.curveTo(
                 coordinates[0],
                 coordinates[1],
@@ -270,6 +278,7 @@ internal fun AwtShape.toUiPath(flatness: Double? = null): UiPath {
                 coordinates[4],
                 coordinates[5],
             )
+
             PathIterator.SEG_CLOSE -> builder.close()
         }
         iterator.next()

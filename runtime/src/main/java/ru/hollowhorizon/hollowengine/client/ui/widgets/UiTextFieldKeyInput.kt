@@ -4,7 +4,9 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.style.fontSize
+import ru.hollowhorizon.hollowengine.client.ui.style.lineSpacing
 import ru.hollowhorizon.hollowengine.client.ui.text.verticalCaretIndex
 
 data class UiKeyInput(
@@ -66,7 +68,9 @@ private fun TextFieldNode.handleCompletionKeyInput(input: UiKeyInput): Boolean {
         GLFW.GLFW_KEY_DOWN -> moveCompletionSelection(1)
         GLFW.GLFW_KEY_TAB,
         GLFW.GLFW_KEY_ENTER,
-        GLFW.GLFW_KEY_KP_ENTER -> acceptCompletion(completionSelectedIndex)
+        GLFW.GLFW_KEY_KP_ENTER,
+            -> acceptCompletion(completionSelectedIndex)
+
         GLFW.GLFW_KEY_ESCAPE -> closeCompletions()
         else -> false
     }
@@ -89,13 +93,20 @@ private fun TextFieldNode.handleCompletionKeyInput(input: UiKeyInput): Boolean {
 
 private fun TextFieldNode.handleClipboardAndSelection(input: UiKeyInput): Boolean {
     return when (input.key) {
-        GLFW.GLFW_KEY_A -> { selectAll(); true }
-        GLFW.GLFW_KEY_C -> { selectedText()?.let { Minecraft.getInstance().keyboardHandler.clipboard = it }; true }
+        GLFW.GLFW_KEY_A -> {
+            selectAll(); true
+        }
+
+        GLFW.GLFW_KEY_C -> {
+            selectedText()?.let { Minecraft.getInstance().keyboardHandler.clipboard = it }; true
+        }
+
         GLFW.GLFW_KEY_X -> {
             val selected = selectedText() ?: return true
             Minecraft.getInstance().keyboardHandler.clipboard = selected
             backspace()
         }
+
         GLFW.GLFW_KEY_V -> Minecraft.getInstance().keyboardHandler.clipboard.let { it.isNotEmpty() && insert(it) }
         GLFW.GLFW_KEY_Z -> if (input.shift) redo() else undo()
         GLFW.GLFW_KEY_Y -> redo()
@@ -114,6 +125,7 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
             }, input.shift)
             true
         }
+
         GLFW.GLFW_KEY_RIGHT -> {
             moveCarets({ range ->
                 if (input.control) wordRight(value, range.position) else range.position + 1
@@ -131,6 +143,7 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
             else moveCarets({ lineStart(value, it.position) }, input.shift)
             true
         }
+
         GLFW.GLFW_KEY_END -> {
             if (input.control || !multiline) moveCaret(value.length, input.shift)
             else moveCarets({ lineEnd(value, it.position) }, input.shift)
@@ -145,6 +158,7 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
                 insertNewlineWithIndent()
             }
         }
+
         GLFW.GLFW_KEY_TAB -> {
             if (!multiline || indentSize == null || input.control || input.alt) {
                 false
@@ -154,6 +168,7 @@ private fun TextFieldNode.handleNavigationAndEditing(input: UiKeyInput): Boolean
                 indent()
             }
         }
+
         else -> false
     }
 }

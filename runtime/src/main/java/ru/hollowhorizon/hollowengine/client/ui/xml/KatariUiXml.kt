@@ -113,9 +113,10 @@ private fun String.encodeDashedXmlNames(): EncodedUiXml {
             val name = substring(nameStart, index)
             val afterName = skipWhitespace(index)
             if (afterName < length && this[afterName] == '=' && '-' in name) {
-                val encoded = attributeNames.entries.firstOrNull { it.value == name }?.key ?: "__hollow_dash_attr_${attributeNames.size}".also {
-                    attributeNames[it] = name
-                }
+                val encoded = attributeNames.entries.firstOrNull { it.value == name }?.key
+                    ?: "__hollow_dash_attr_${attributeNames.size}".also {
+                        attributeNames[it] = name
+                    }
                 output.append(encoded)
             } else {
                 output.append(name)
@@ -155,4 +156,5 @@ private fun String.skipWhitespace(start: Int): Int {
 
 private fun Char.isAttributeNameStart(): Boolean = isLetter() || this == '_'
 
-private fun Char.isAttributeNamePart(): Boolean = isLetterOrDigit() || this == '_' || this == '-' || this == ':' || this == '.'
+private fun Char.isAttributeNamePart(): Boolean =
+    isLetterOrDigit() || this == '_' || this == '-' || this == ':' || this == '.'

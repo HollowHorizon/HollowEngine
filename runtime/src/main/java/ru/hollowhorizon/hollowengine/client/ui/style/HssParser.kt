@@ -119,20 +119,24 @@ class HssParser(private val source: String) {
                     tags += readIdentifier().removePrefix(".")
                     consumed = true
                 }
+
                 '#' -> {
                     index++
                     id = readIdentifier().removePrefix("#")
                     consumed = true
                 }
+
                 ':' -> {
                     index++
                     states += UiState.of(readIdentifier())
                     consumed = true
                 }
+
                 '[' -> {
                     attributes += readAttributeSelector()
                     consumed = true
                 }
+
                 '{', ',', ' ', '\n', '\r', '\t' -> break@selector
                 else -> {
                     type = readIdentifier()
@@ -192,6 +196,7 @@ class HssParser(private val source: String) {
                         inString = true
                         quote = char
                     }
+
                     '(' -> depth++
                     ')' -> depth--
                     ';' -> if (depth == 0) break@value

@@ -4,7 +4,6 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldDisplayLayout
 import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldTextOffset
@@ -25,7 +24,6 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
     val boxes = nodeBoxes(rect, style, scrollbarReserves[node] ?: UiScrollbarReserve.None)
     val scrollOffset = scrollState.offset(node)
     val textLayout = when (node) {
-        is TextNode -> layoutTextNode(node, resolved, style, boxes.content, scrollbarReserves)
         is TextFieldNode -> layoutTextFieldNode(node, resolved, style, boxes.content, scrollbarReserves)
         // Computed by the parent inline flow (wrapping depends on where the span starts in a line)
         is SpanNode -> node.lineLayout
@@ -89,50 +87,11 @@ private fun UiLayoutPipeline.placeChildren(scope: ChildPlacementScope) {
         scope.content
     }
     val childScope = scope.copy(content = viewport)
-    if (node is TextNode) {
-        placeTextInlineChildren(node, childScope)
-        placePopupChildren(scope)
-        return
-    }
     if (node is TextFieldNode) {
         placeTextFieldInlineChildren(node, childScope)
-        placePopupChildren(scope)
         return
     }
     node.measurePolicy.policy().place(this, childScope)
-    placePopupChildren(scope)
-}
-
-private fun UiLayoutPipeline.placeTextInlineChildren(node: TextNode, scope: ChildPlacementScope) {
-    val widgets = layoutChildren(node).associateBy { it.id }
-    if (widgets.isEmpty()) return
-    val content = scope.content
-    val textLayout = scope.layouts[node]?.textLayout
-        ?: layoutTextNode(node, scope.resolved, scope.style, content, scope.scrollbarReserves)
-    val placed = mutableSetOf<UiNode>()
-    for (line in textLayout.lines) {
-        for (fragment in line.fragments) {
-            if (fragment !is UiInlineWidgetRun) continue
-            val child = widgets[fragment.widget.id] ?: continue
-            val margin = scope.resolved[child].margin.resolve(content.width, content.height)
-            placed += child
-            placeScopedNode(
-                scope,
-                child,
-                UiRect(
-                    content.x + line.x + fragment.x + margin.left,
-                    content.y + line.y + fragment.y + margin.top,
-                    (fragment.width - margin.horizontal).coerceAtLeast(0f),
-                    (fragment.height - margin.vertical).coerceAtLeast(0f),
-                ),
-            )
-        }
-    }
-    for (child in layoutChildren(node)) {
-        if (child in placed) continue
-        val measured = measureNode(child, scope.resolved, content.width, content.height, scope.scrollbarReserves)
-        placeScopedNode(scope, child, UiRect(content.x, content.y, measured.width, measured.height))
-    }
 }
 
 private fun UiLayoutPipeline.placeTextFieldInlineChildren(node: TextFieldNode, scope: ChildPlacementScope) {
@@ -161,34 +120,6 @@ private fun UiLayoutPipeline.placeTextFieldInlineChildren(node: TextFieldNode, s
     }
 }
 
-internal fun UiLayoutPipeline.layoutTextNode(
-    node: TextNode,
-    resolved: UiNode,
-    style: UiComputedStyle,
-    content: UiRect,
-    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-): UiTextLayout {
-    val widgetMetrics = measureInlineWidgetMetrics(
-        node,
-        resolved,
-        content.width,
-        content.height,
-        scrollbarReserves,
-    )
-    val textHeight = if (style.scrollable) Float.POSITIVE_INFINITY else content.height
-    return UiTextLayouter.layout(
-        node.content.toRichText(widgetMetrics),
-        content.width,
-        textHeight,
-        style.textWrap,
-        style.textAlign,
-        style.fontSize,
-        style.fontFamily,
-        lineSpacing = style.lineSpacing,
-        spaceWidth = style.spaceWidth,
-    )
-}
-
 internal fun UiLayoutPipeline.layoutTextFieldNode(
     node: TextFieldNode,
     resolved: UiNode,
@@ -205,55 +136,6 @@ internal fun UiLayoutPipeline.layoutTextFieldNode(
         scrollbarReserves,
     )
     return textFieldDisplayLayout(node, style, layout, widgetMetrics)
-}
-
-private fun UiLayoutPipeline.placePopupChildren(scope: ChildPlacementScope) {
-    if (popupChildren(scope.node).isEmpty()) return
-    placePopupChildrenNow(
-        PopupPlacementTask(
-            scope.node,
-            scope.resolved,
-            scope.content,
-            scope.parentRect,
-            scope.transform,
-            scope.inputTransform,
-            scope.insideFramebuffer,
-            scope.scrollState,
-            scope.scrollbarReserves,
-            scope.layouts,
-        )
-    )
-}
-
-internal fun UiLayoutPipeline.placePopupChildrenNow(task: PopupPlacementTask) {
-    val popups = popupChildren(task.node)
-    if (popups.isEmpty()) return
-    val parentStyle = task.resolved[task.node]
-    for (popup in popups) {
-        val measured = measureNode(
-            popup,
-            task.resolved,
-            task.content.width,
-            task.content.height,
-            task.scrollbarReserves,
-        )
-        val anchor = popup.anchor.resolvePopupAnchor(task.content, task.resolved, task.layouts)
-        val rect = popup.alignment.popupRect(anchor, measured)
-        placeNode(
-            popup,
-            task.resolved,
-            rect,
-            task.parentRect,
-            parentStyle,
-            null,
-            task.transform,
-            task.inputTransform,
-            task.insideFramebuffer,
-            task.scrollState,
-            task.scrollbarReserves,
-            task.layouts,
-        )
-    }
 }
 
 internal fun UiLayoutPipeline.placeScopedNode(

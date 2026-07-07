@@ -1,14 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.shape
 
 import java.awt.BasicStroke
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.sin
-import kotlin.math.sqrt
+import kotlin.math.*
 
 data class UiPathContour(
     val points: List<UiPathPoint>,
@@ -76,16 +69,20 @@ fun UiPath.flatten(tolerance: Float = DefaultPathTolerance): UiPathGeometry {
                 add(command.target)
                 subPathStart = command.target
             }
+
             is UiPathCommand.LineTo -> add(command.target)
             is UiPathCommand.CubicTo -> {
                 cubicPoints(current, command, tolerance).forEach(::add)
             }
+
             is UiPathCommand.QuadraticTo -> {
                 quadraticPoints(current, command, tolerance).forEach(::add)
             }
+
             is UiPathCommand.ArcTo -> {
                 arcPoints(current, command, tolerance).forEach(::add)
             }
+
             UiPathCommand.Close -> {
                 add(subPathStart)
                 finish(closed = true)
@@ -115,7 +112,11 @@ private fun cubicPoints(from: UiPathPoint, command: UiPathCommand.CubicTo, toler
     }
 }
 
-private fun quadraticPoints(from: UiPathPoint, command: UiPathCommand.QuadraticTo, tolerance: Float): List<UiPathPoint> {
+private fun quadraticPoints(
+    from: UiPathPoint,
+    command: UiPathCommand.QuadraticTo,
+    tolerance: Float,
+): List<UiPathPoint> {
     val segments = curveSegments(from, command.control, command.target, tolerance = tolerance)
     return (1..segments).map { index ->
         val t = index.toFloat() / segments.toFloat()

@@ -7,16 +7,45 @@ sealed interface UiTextEffect {
     val tag: String
 }
 
-data object Bold : UiTextEffect { override val tag = "bold" }
-data object Italic : UiTextEffect { override val tag = "italic" }
-data object Underline : UiTextEffect { override val tag = "underline" }
-data object Strikethrough : UiTextEffect { override val tag = "strikethrough" }
-data object Code : UiTextEffect { override val tag = "code" }
-data class Link(val url: String) : UiTextEffect { override val tag = "link" }
-data class TextColor(val value: UiColor) : UiTextEffect { override val tag = "color" }
-data class TextSize(val value: Float) : UiTextEffect { override val tag = "fontSize" }
-data class TextFont(val name: String) : UiTextEffect { override val tag = "fontFamily" }
-data object Typewriter : UiTextEffect { override val tag = "typewriter" }
+data object Bold : UiTextEffect {
+    override val tag = "bold"
+}
+
+data object Italic : UiTextEffect {
+    override val tag = "italic"
+}
+
+data object Underline : UiTextEffect {
+    override val tag = "underline"
+}
+
+data object Strikethrough : UiTextEffect {
+    override val tag = "strikethrough"
+}
+
+data object Code : UiTextEffect {
+    override val tag = "code"
+}
+
+data class Link(val url: String) : UiTextEffect {
+    override val tag = "link"
+}
+
+data class TextColor(val value: UiColor) : UiTextEffect {
+    override val tag = "color"
+}
+
+data class TextSize(val value: Float) : UiTextEffect {
+    override val tag = "fontSize"
+}
+
+data class TextFont(val name: String) : UiTextEffect {
+    override val tag = "fontFamily"
+}
+
+data object Typewriter : UiTextEffect {
+    override val tag = "typewriter"
+}
 
 data class Shadow(
     val offsetX: Float = 1.5f,

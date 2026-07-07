@@ -4,8 +4,9 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.VertexSorting
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL11
-import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 
 internal fun blurTexture(
@@ -25,7 +26,14 @@ internal fun blurTexture(
     return vertical
 }
 
-private fun renderBlurPass(target: UiFramebuffer, sourceTexture: Int, width: Int, height: Int, filter: UiFilterChain, horizontal: Boolean) {
+private fun renderBlurPass(
+    target: UiFramebuffer,
+    sourceTexture: Int,
+    width: Int,
+    height: Int,
+    filter: UiFilterChain,
+    horizontal: Boolean,
+) {
     target.bind()
     GL11.glViewport(0, 0, width, height)
     configureBlurProjection(width.toFloat(), height.toFloat())

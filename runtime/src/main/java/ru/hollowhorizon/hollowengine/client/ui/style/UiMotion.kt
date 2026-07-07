@@ -194,7 +194,8 @@ private fun UiComputedStyle.withKeyframePatch(frame: UiKeyframe): UiComputedStyl
     mask.rotate = maskVec3(this[UiProps.Rotate], patched[UiProps.Rotate], properties, "transform.rotate")
     mask.scale = maskVec3(this[UiProps.Scale], patched[UiProps.Scale], properties, "transform.scale")
     mask.pivot = if ("transform.pivot" in properties) patched[UiProps.Pivot] else this[UiProps.Pivot]
-    mask.perspective = if ("transform.perspective" in properties) patched[UiProps.Perspective] else this[UiProps.Perspective]
+    mask.perspective =
+        if ("transform.perspective" in properties) patched[UiProps.Perspective] else this[UiProps.Perspective]
     return patched.with(mask)
 }
 
@@ -275,9 +276,10 @@ class UiTransitionState {
         val fallback = firstOrNull { it.property == "all" }
         val values = HashMap<UiStyleProp<*>, Float>()
         for (prop in UiStyleProp.transitionable) {
-            val transition = firstOrNull { it.property != "all" && prop in UiStyleProp.forTransitionProperty(it.property) }
-                ?: fallback
-                ?: continue
+            val transition =
+                firstOrNull { it.property != "all" && prop in UiStyleProp.forTransitionProperty(it.property) }
+                    ?: fallback
+                    ?: continue
             values[prop] = transition.progress(elapsedMillis)
         }
         return UiTransitionProgress.of(values)

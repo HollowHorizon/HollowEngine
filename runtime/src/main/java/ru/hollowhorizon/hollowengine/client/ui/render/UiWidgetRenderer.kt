@@ -7,7 +7,8 @@ import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.text.selectionRects
@@ -56,7 +57,10 @@ internal class UiWidgetRenderer(
                 command.filter,
             )
         }
-        val thumbX = (width * command.fraction - command.thumbWidth * 0.5f).coerceIn(0f, (width - command.thumbWidth).coerceAtLeast(0f))
+        val thumbX = (width * command.fraction - command.thumbWidth * 0.5f).coerceIn(
+            0f,
+            (width - command.thumbWidth).coerceAtLeast(0f)
+        )
         val thumbY = (height - command.thumbHeight) * 0.5f
         val thumbTransform = transform * UiMatrix4.translation(thumbX, thumbY, 0f)
         drawResolvedPaint(
@@ -298,7 +302,8 @@ internal class UiWidgetRenderer(
         val state = textFieldCaretBlinkStates[node]
             ?.takeIf { it.revision == revision }
             ?: CaretBlinkState(revision, now).also { textFieldCaretBlinkStates[node] = it }
-        val phase = ((now - state.startedAtMillis) % CaretBlinkPeriodMillis).toFloat() / CaretBlinkPeriodMillis.toFloat()
+        val phase =
+            ((now - state.startedAtMillis) % CaretBlinkPeriodMillis).toFloat() / CaretBlinkPeriodMillis.toFloat()
         return phase < 0.55f
     }
 
@@ -367,7 +372,8 @@ internal class UiWidgetRenderer(
         val height = command.rect.height
         val width = maxOf(command.rect.width, height * 1.8f)
         val local = transform * UiMatrix4.translation((command.rect.width - width) * 0.5f, 0f, 0f)
-        val track = if (command.checked) command.activePaint else UiResolvedPaint.Color(UiColor(0.16f, 0.18f, 0.22f, 1f))
+        val track =
+            if (command.checked) command.activePaint else UiResolvedPaint.Color(UiColor(0.16f, 0.18f, 0.22f, 1f))
         drawResolvedPaint(width, height, height * 0.5f, track, command.opacity, local, command.filter)
         val knob = (height - 4f).coerceAtLeast(1f)
         val knobX = if (command.checked) width - knob - 2f else 2f
@@ -407,6 +413,7 @@ internal class UiWidgetRenderer(
                 transform,
                 filter,
             )
+
             is UiResolvedPaint.LinearGradient -> scratchTriangles.appendLocalGradient(
                 width,
                 height,
@@ -417,6 +424,7 @@ internal class UiWidgetRenderer(
                 transform,
                 filter,
             )
+
             is UiResolvedPaint.RadialGradient -> scratchTriangles.appendLocalRadialGradient(
                 width,
                 height,
@@ -426,10 +434,22 @@ internal class UiWidgetRenderer(
                 transform,
                 filter,
             )
+
             is UiResolvedPaint.Image -> {
                 flushScratchTriangles()
-                imageDrawer(width, height, paint.source, opacity, transform, UiImageFit.STRETCH, filter, UiInsets.Zero, UiColor.White)
+                imageDrawer(
+                    width,
+                    height,
+                    paint.source,
+                    opacity,
+                    transform,
+                    UiImageFit.STRETCH,
+                    filter,
+                    UiInsets.Zero,
+                    UiColor.White
+                )
             }
+
             is UiResolvedPaint.Shader -> scratchTriangles.appendLocalPaint(
                 width,
                 height,

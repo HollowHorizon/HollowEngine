@@ -2,23 +2,13 @@ package ru.hollowhorizon.hollowengine.client.ui.xml
 
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
+import ru.hollowhorizon.hollowengine.client.ui.UiAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.UiEventSink
 import ru.hollowhorizon.hollowengine.client.ui.text.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineAlign
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextContent
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSegment
 import ru.hollowhorizon.hollowengine.client.ui.widgets.readBoolean
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withBold
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withCode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withColor
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withFontFamily
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withFontSize
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withItalic
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withLink
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withStrikethrough
-import ru.hollowhorizon.hollowengine.client.ui.widgets.withUnderline
 
 fun interface UiResourceLoader {
     fun readText(location: String): String
@@ -45,134 +35,81 @@ data class UiXmlTree(
 }
 
 
-
 internal fun UiXmlTree.isTextLiteral(): Boolean = name == "#text"
 
-internal fun UiXmlTree.toTextContent(
-    style: UiInlineStyle = UiInlineStyle(),
-    onlyDirectText: Boolean = true,
-): UiTextContent {
-    attributes["text"]?.let { return UiTextContent.plain(it) }
-    val segments = children.flatMapIndexed { index, child ->
-        when {
-            child.isTextLiteral() -> listOf(UiTextSegment.Text(child.attributes.firstValue("#text", "value").normalizeInlineText().bound(), style))
-            child.isTextInlineElement() -> child.toInlineSegments(style)
-            onlyDirectText -> listOf(child.toInlineWidgetSegment(index))
-            else -> child.toInlineSegments(style)
-        }
+internal fun UiXmlTree.isInlineBreak(): Boolean = name.lowercase() in setOf("br", "break")
+
+internal fun UiXmlTree.isInlineImage(): Boolean = name.lowercase() in setOf("img", "image")
+
+internal fun UiXmlTree.isInlinePause(): Boolean = name.lowercase() == "pause"
+
+internal fun UiXmlTree.textLiteral(): String =
+    attributes.firstValue("#text", "value").normalizeInlineText()
+
+internal fun UiXmlTree.inlineTagEffects(): List<UiTextEffect> {
+    val attrEffects = inlineAttributeEffects()
+    val tagEffects: List<UiTextEffect> = when (name.lowercase()) {
+        "span" -> emptyList()
+        "b", "bold" -> listOf(Bold)
+        "i", "italic" -> listOf(Italic)
+        "u", "underline" -> listOf(Underline)
+        "s", "strike", "strikethrough" -> listOf(Strikethrough)
+        "code" -> listOf(Code)
+        "color" -> attributes.firstValue("value", "color").takeIf { it.isNotBlank() }
+            ?.let(::parseInlineColor)?.let { listOf(TextColor(it)) } ?: emptyList()
+
+        "size" -> attributes.firstValue("value", "fontSize", "font-size", "size").parseInlineSize()
+            ?.let { listOf(TextSize(it)) } ?: emptyList()
+
+        "a", "link" -> listOf(Link(attributes.firstValue("href", "to", "value")), Underline)
+        "font" -> attributes.firstValue("family", "name", "value").takeIf { it.isNotBlank() }
+            ?.let { listOf(TextFont(it)) } ?: emptyList()
+        // TODO: Typing/typewriter reveal was removed (to be redone on Compose+coroutines); render as text.
+        "typewriter", "typing" -> emptyList()
+        "shadow" -> listOf(parseShadowEffect(attributes))
+        "outline" -> listOf(parseOutlineEffect(attributes))
+        "glow" -> listOf(parseGlowEffect(attributes))
+        "gradient" -> listOf(parseGradientEffect(attributes))
+        "rainbow" -> listOf(parseRainbowEffect(attributes))
+        "pulse" -> listOf(parsePulseEffect(attributes))
+        "wave" -> listOf(parseWaveEffect(attributes))
+        "shake" -> listOf(parseShakeEffect(attributes))
+        "wiggle" -> listOf(parseWiggleEffect(attributes))
+        "swing" -> listOf(parseSwingEffect(attributes))
+        "scroll" -> listOf(parseScrollEffect(attributes))
+        "glitch" -> listOf(parseGlitchEffect(attributes))
+        else -> emptyList()
     }
-    return UiTextContent(segments).trimBoundaryText()
+    return attrEffects + tagEffects
 }
 
-private fun UiXmlTree.toInlineSegments(style: UiInlineStyle): List<UiTextSegment> {
-    val name = name.lowercase()
-    val styled = style.withInlineAttributes(attributes)
-    return when (name) {
-        "span" -> inlineTextOrChildren(styled)
-        "b", "bold" -> inlineTextOrChildren(styled.withBold())
-        "i", "italic" -> inlineTextOrChildren(styled.withItalic())
-        "u", "underline" -> inlineTextOrChildren(styled.withUnderline())
-        "s", "strike", "strikethrough" -> inlineTextOrChildren(styled.withStrikethrough())
-        "code" -> inlineTextOrChildren(styled.withCode())
-        "color" -> inlineTextOrChildren(
-            attributes.firstValue("value", "color").takeIf { it.isNotBlank() }
-                ?.let(::parseInlineColor)?.let(styled::withColor) ?: styled
-        )
-        "size" -> inlineTextOrChildren(
-            attributes.firstValue("value", "fontSize", "font-size", "size").parseInlineSize()
-                ?.let(styled::withFontSize) ?: styled
-        )
-        "a", "link" -> {
-            val url = attributes.firstValue("href", "to", "value")
-            inlineTextOrChildren(styled.withLink(url).withUnderline())
-        }
-        "font" -> inlineTextOrChildren(
-            attributes.firstValue("family", "name", "value").takeIf { it.isNotBlank() }
-                ?.let(styled::withFontFamily) ?: styled
-        )
-        "typewriter", "typing" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + Typewriter)
-        )
-        "shadow" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseShadowEffect(attributes))
-        )
-        "outline" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseOutlineEffect(attributes))
-        )
-        "glow" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseGlowEffect(attributes))
-        )
-        "gradient" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseGradientEffect(attributes))
-        )
-        "rainbow" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseRainbowEffect(attributes))
-        )
-        "pulse" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parsePulseEffect(attributes))
-        )
-        "wave" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseWaveEffect(attributes))
-        )
-        "shake" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseShakeEffect(attributes))
-        )
-        "wiggle" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseWiggleEffect(attributes))
-        )
-        "swing" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseSwingEffect(attributes))
-        )
-        "scroll" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseScrollEffect(attributes))
-        )
-        "glitch" -> inlineTextOrChildren(
-            styled.copy(effects = styled.effects + parseGlitchEffect(attributes))
-        )
-        "br", "break" -> listOf(UiTextSegment.Text("\n".bound(), styled))
-        "pause" -> listOf(UiTextSegment.Pause(parseInlineDuration(attributes.firstValue("delay", "duration", "value", default = "0ms"))))
-        "img", "image" -> listOf(
-            UiTextSegment.Image(
-                source = attributes.firstValue("source", "src", "image").bound(),
-                width = attributes.firstValue("width", default = "16px").parseInlineSize() ?: 16f,
-                height = attributes.firstValue("height", default = attributes.firstValue("width", default = "16px")).parseInlineSize() ?: 16f,
-                align = parseInlineAlign(attributes.firstValue("align", default = "baseline")),
-                alt = attributes.firstValue("alt"),
-            )
-        )
-
-        else -> listOf(toInlineWidgetSegment())
-    }
-}
-
-private fun UiInlineStyle.withInlineAttributes(attributes: Map<String, String>): UiInlineStyle {
-    var style = this
-    attributes.firstValue("size", "font-size", "fontSize").parseInlineSize()?.let { style = style.withFontSize(it) }
+private fun UiXmlTree.inlineAttributeEffects(): List<UiTextEffect> {
+    val effects = mutableListOf<UiTextEffect>()
+    attributes.firstValue("size", "font-size", "fontSize").parseInlineSize()?.let { effects += TextSize(it) }
     attributes.firstValue("color", "foreground").takeIf { it.isNotBlank() }?.let(::parseInlineColor)?.let {
-        style = style.withColor(it)
+        effects += TextColor(it)
     }
     attributes.firstValue("font", "font-family", "fontFamily").takeIf { it.isNotBlank() }?.let {
-        style = style.withFontFamily(it)
+        effects += TextFont(it)
     }
-    return style
+    return effects
 }
 
-private fun UiXmlTree.inlineTextOrChildren(style: UiInlineStyle): List<UiTextSegment> {
-    val text = attributes.firstValue("text").takeIf { it.isNotEmpty() }
-        ?: return inlineChildren(style)
-    return listOf(UiTextSegment.Text(text.bound(), style))
-}
+internal class XmlInlineImage(
+    val source: String,
+    val width: Float,
+    val height: Float,
+    val align: UiAlign,
+)
 
-private fun UiXmlTree.inlineChildren(style: UiInlineStyle): List<UiTextSegment> {
-    return children.flatMapIndexed { index, child ->
-        if (child.isTextLiteral()) {
-            listOf(UiTextSegment.Text(child.attributes.firstValue("#text", "value").normalizeInlineText().bound(), style))
-        } else if (child.isTextInlineElement()) {
-            child.toInlineSegments(style)
-        } else {
-            listOf(child.toInlineWidgetSegment(index))
-        }
-    }
+internal fun UiXmlTree.inlineImage(): XmlInlineImage {
+    val width = attributes.firstValue("width", default = "16px").parseInlineSize() ?: 16f
+    return XmlInlineImage(
+        source = attributes.firstValue("source", "src", "image"),
+        width = width,
+        height = attributes.firstValue("height", default = "${width}px").parseInlineSize() ?: width,
+        align = parseInlineImageAlign(attributes.firstValue("align", default = "baseline")),
+    )
 }
 
 internal fun UiXmlTree.withInlineWidgetId(index: Int = 0): UiXmlTree {
@@ -182,14 +119,6 @@ internal fun UiXmlTree.withInlineWidgetId(index: Int = 0): UiXmlTree {
 
 internal fun UiXmlTree.inlineWidgetId(index: Int = 0): String {
     return attributes["id"] ?: "__inline_${index}_${name.lowercase()}_${attributes.hashCode().toUInt().toString(16)}"
-}
-
-private fun UiXmlTree.toInlineWidgetSegment(index: Int = 0): UiTextSegment {
-    return UiTextSegment.Widget(
-        id = inlineWidgetId(index),
-        align = parseInlineAlign(attributes.firstValue("align", default = "baseline")),
-        alt = attributes.firstValue("alt"),
-    )
 }
 
 internal fun UiXmlTree.isTextInlineElement(): Boolean {
@@ -219,21 +148,6 @@ private fun String.normalizeInlineText(): String {
     return replace(Regex("[ \\t]*[\\r\\n]+[ \\t\\r\\n]*"), " ")
 }
 
-private fun UiTextContent.trimBoundaryText(): UiTextContent {
-    val next = segments.toMutableList()
-    val firstText = next.indexOfFirst { it is UiTextSegment.Text }
-    if (firstText >= 0) {
-        val segment = next[firstText] as UiTextSegment.Text
-        next[firstText] = segment.copy(value = segment.value.template.trimStart().bound())
-    }
-    val lastText = next.indexOfLast { it is UiTextSegment.Text }
-    if (lastText >= 0) {
-        val segment = next[lastText] as UiTextSegment.Text
-        next[lastText] = segment.copy(value = segment.value.template.trimEnd().bound())
-    }
-    return UiTextContent(next.filterNot { it is UiTextSegment.Text && it.value.template.isEmpty() })
-}
-
 private fun Map<String, String>.firstValue(vararg names: String, default: String = ""): String {
     return names.firstNotNullOfOrNull { this[it] } ?: default
 }
@@ -249,18 +163,11 @@ private fun Map<String, String>.textFieldMode(): UiTextFieldMode {
 
 private fun String.parseInlineSize(): Float? = trim().removeSuffix("px").toFloatOrNull()
 
-private fun parseInlineDuration(value: String): Long {
-    val cleaned = value.trim()
-    if (cleaned.endsWith("ms")) return cleaned.dropLast(2).toLong()
-    if (cleaned.endsWith("s")) return (cleaned.dropLast(1).toFloat() * 1000f).toLong()
-    return cleaned.toLong()
-}
-
-private fun parseInlineAlign(value: String): UiInlineAlign = when (value.lowercase()) {
-    "middle" -> UiInlineAlign.MIDDLE
-    "top" -> UiInlineAlign.TOP
-    "bottom" -> UiInlineAlign.BOTTOM
-    else -> UiInlineAlign.BASELINE
+private fun parseInlineImageAlign(value: String): UiAlign = when (value.lowercase()) {
+    "top" -> UiAlign.START
+    "bottom" -> UiAlign.END
+    // "middle"/"baseline"/default centre the atom on the line.
+    else -> UiAlign.CENTER
 }
 
 private fun parseShadowEffect(attrs: Map<String, String>): Shadow {

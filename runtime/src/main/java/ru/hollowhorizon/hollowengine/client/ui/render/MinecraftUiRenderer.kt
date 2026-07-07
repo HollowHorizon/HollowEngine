@@ -24,19 +24,11 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.render.render
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.bold
-import ru.hollowhorizon.hollowengine.client.ui.widgets.code
-import ru.hollowhorizon.hollowengine.client.ui.widgets.color
-import ru.hollowhorizon.hollowengine.client.ui.widgets.fontFamily
-import ru.hollowhorizon.hollowengine.client.ui.widgets.italic
-import ru.hollowhorizon.hollowengine.client.ui.widgets.link
-import ru.hollowhorizon.hollowengine.client.ui.widgets.strikethrough
-import ru.hollowhorizon.hollowengine.client.ui.widgets.underline
+import ru.hollowhorizon.hollowengine.client.ui.text.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
@@ -110,7 +102,7 @@ class MinecraftUiRenderer {
                 configureLayerProjection(it.logicalWidth, it.logicalHeight)
             }
             segment.clear()
-            commandRenderer.render(frame.root, frame.layout, frame.nowMillis, frame.typingState, ::submit)
+            commandRenderer.render(frame.root, frame.layout, ::submit)
             renderSegment(segment)
             segment.clear()
             flushTextBatch()
@@ -936,8 +928,7 @@ class MinecraftUiRenderer {
         }
 
         val effectiveColor = fragment.style.color ?: if (fragment.style.link != null) {
-            val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-            if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            UiColor(0.34f, 0.67f, 1f, 1f)
         } else {
             command.color
         }
@@ -1038,9 +1029,8 @@ class MinecraftUiRenderer {
             origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble() - 10
         )
         pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
-        val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
         val color = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
-            if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            UiColor(0.34f, 0.67f, 1f, 1f)
         } else {
             command.color
         }
@@ -1117,8 +1107,7 @@ class MinecraftUiRenderer {
 
             if (layerEffects.isNotEmpty()) {
                 val effectiveColor = colorOverride ?: if (fragment.style.link != null) {
-                    val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-                    if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+                    UiColor(0.34f, 0.67f, 1f, 1f)
                 } else {
                     command.color
                 }
@@ -1148,8 +1137,7 @@ class MinecraftUiRenderer {
             val finalLocalY = baseLocalY + charOffsetY
 
             val finalColor = colorOverride ?: if (fragment.style.link != null) {
-                val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
-                if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+                UiColor(0.34f, 0.67f, 1f, 1f)
             } else {
                 command.color
             }
@@ -1194,9 +1182,8 @@ class MinecraftUiRenderer {
         val tessellator = Tesselator.getInstance()
         val bufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
 
-        val linkHovered = fragment.style.link != null && fragment.style.link == command.hoveredLink
         val baseColor = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
-            if (linkHovered) UiColor(0.64f, 0.82f, 1f, 1f) else UiColor(0.34f, 0.67f, 1f, 1f)
+            UiColor(0.34f, 0.67f, 1f, 1f)
         } else {
             command.color
         }
@@ -1545,11 +1532,11 @@ class MinecraftUiRenderer {
     }
 
     private fun localRect(rect: UiRect): UiRect = layerStack.lastOrNull()?.let {
-            rect.copy(
-                x = rect.x - it.rect.x + it.padding,
-                y = rect.y - it.rect.y + it.padding,
-            )
-        } ?: rect
+        rect.copy(
+            x = rect.x - it.rect.x + it.padding,
+            y = rect.y - it.rect.y + it.padding,
+        )
+    } ?: rect
 
     private fun transformedLocalRect(rect: UiRect, transform: UiMatrix4): UiRect {
         val topLeft = transform.transform(rect.x, rect.y)

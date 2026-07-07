@@ -61,7 +61,7 @@ internal fun UiLength.resolveHeight(
     content: UiRect,
 ): Float {
     return when (this) {
-        UiLength.Auto -> if (align == UiAlign.STRETCH || childStyle.scrollable && child.node is TextNode) {
+        UiLength.Auto -> if (align == UiAlign.STRETCH || childStyle.scrollable && child.node.isInlineFlow()) {
             (content.height - child.margin.top - child.margin.bottom).coerceAtLeast(0f)
                 .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)
         } else {
@@ -94,7 +94,7 @@ internal fun UiLength.resolveHeight(
 }
 
 internal fun UiNode.requiresTextLayer(transform: UiMatrix4): Boolean {
-    return this is TextNode && !transform.isDirectTextTransform()
+    return isInlineFlow() && !transform.isDirectTextTransform()
 }
 
 private fun UiMatrix4.isDirectTextTransform(): Boolean {

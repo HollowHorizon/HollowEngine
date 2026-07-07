@@ -53,14 +53,17 @@ internal fun UiMeasurePolicy.policy(): ChildLayoutPolicy = when ((this as? UiBui
 internal fun UiMeasurePolicy.flowAxis(): FlowAxis? {
     return when ((this as? UiBuiltInMeasurePolicy)?.kind) {
         UiBuiltInMeasurePolicyKind.ROW,
-        UiBuiltInMeasurePolicyKind.LAZY_ROW -> FlowAxis.Horizontal
+        UiBuiltInMeasurePolicyKind.LAZY_ROW,
+            -> FlowAxis.Horizontal
 
         UiBuiltInMeasurePolicyKind.COLUMN,
-        UiBuiltInMeasurePolicyKind.LAZY_COLUMN -> FlowAxis.Vertical
+        UiBuiltInMeasurePolicyKind.LAZY_COLUMN,
+            -> FlowAxis.Vertical
 
         UiBuiltInMeasurePolicyKind.BOX,
         UiBuiltInMeasurePolicyKind.INLINE_FLOW,
-        null -> null
+        null,
+            -> null
     }
 }
 

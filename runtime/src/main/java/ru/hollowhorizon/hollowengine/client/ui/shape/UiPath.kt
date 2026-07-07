@@ -38,10 +38,12 @@ data class UiPath(
                     include(command.control2)
                     include(command.target)
                 }
+
                 is UiPathCommand.QuadraticTo -> {
                     include(command.control)
                     include(command.target)
                 }
+
                 is UiPathCommand.ArcTo -> include(command.target)
                 UiPathCommand.Close -> Unit
             }
@@ -61,15 +63,18 @@ data class UiPath(
                     control2 = command.control2.transform(),
                     target = command.target.transform(),
                 )
+
                 is UiPathCommand.QuadraticTo -> command.copy(
                     control = command.control.transform(),
                     target = command.target.transform(),
                 )
+
                 is UiPathCommand.ArcTo -> command.copy(
                     radiusX = command.radiusX * scaleX,
                     radiusY = command.radiusY * scaleY,
                     target = command.target.transform(),
                 )
+
                 UiPathCommand.Close -> UiPathCommand.Close
             }
         }

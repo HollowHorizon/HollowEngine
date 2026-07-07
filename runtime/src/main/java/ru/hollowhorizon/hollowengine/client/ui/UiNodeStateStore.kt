@@ -40,7 +40,7 @@ class UiNodeStateStore {
     private fun UiStatefulNode.stateKey(): String? = id?.let { "$type#$it" }
 }
 
-interface UiStatefulNode: UiNode {
+interface UiStatefulNode : UiNode {
     fun exportState(): UiNodePersistentState
 
     fun importState(state: UiNodePersistentState)

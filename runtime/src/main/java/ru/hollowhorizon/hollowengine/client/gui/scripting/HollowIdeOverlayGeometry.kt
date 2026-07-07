@@ -2,9 +2,6 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.ui.PopupNode
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
-import ru.hollowhorizon.hollowengine.client.ui.UiPopupAnchor
 
 internal data class HollowIdeOverlayPoint(val x: Float, val y: Float)
 
@@ -45,14 +42,4 @@ internal fun hollowIdeModifierMask(window: Long = Minecraft.getInstance().window
         modifiers = modifiers or GLFW.GLFW_MOD_ALT
     }
     return modifiers
-}
-
-internal fun UiNode.hasLiveCursorPopup(): Boolean {
-    return children.any { child ->
-        (child is PopupNode && child.anchor.isLiveCursor()) || child.hasLiveCursorPopup()
-    }
-}
-
-private fun UiPopupAnchor.isLiveCursor(): Boolean {
-    return this is UiPopupAnchor.Cursor && (!x.isFinite() || !y.isFinite())
 }

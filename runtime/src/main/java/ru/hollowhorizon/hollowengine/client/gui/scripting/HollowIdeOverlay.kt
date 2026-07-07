@@ -321,6 +321,7 @@ object HollowIdeOverlay {
                 onPaste = project::pasteInto,
                 onShowInExplorer = project::showInExplorer,
                 onDelete = project::delete,
+                onDismiss = { project.closePopups() },
             )
             HollowIdeProjectNameDialog(
                 dialog = project.nameDialog,

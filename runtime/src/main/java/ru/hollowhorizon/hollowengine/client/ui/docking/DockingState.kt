@@ -70,8 +70,10 @@ class DockingState {
         if (remaining.isEmpty()) {
             floatingWindows.removeAt(index)
         } else {
-            val selected = if (window.stack.selectedItemId == itemId) remaining.first().id else window.stack.selectedItemId
-            floatingWindows[index] = window.copy(stack = window.stack.copy(items = remaining, selectedItemId = selected))
+            val selected =
+                if (window.stack.selectedItemId == itemId) remaining.first().id else window.stack.selectedItemId
+            floatingWindows[index] =
+                window.copy(stack = window.stack.copy(items = remaining, selectedItemId = selected))
         }
         if (focusedItemId == itemId) focusedItemId = firstItemId()
         return true
@@ -514,7 +516,12 @@ private fun DockNode.Split.withFractionPreservingChildren(nextFraction: Float): 
     if (oldFraction == nextFraction) return this
     return copy(
         fraction = nextFraction,
-        first = first.preserveSplitPosition(orientation, oldSpan = oldFraction, nextSpan = nextFraction, startShift = 0f),
+        first = first.preserveSplitPosition(
+            orientation,
+            oldSpan = oldFraction,
+            nextSpan = nextFraction,
+            startShift = 0f
+        ),
         second = second.preserveSplitPosition(
             orientation = orientation,
             oldSpan = 1f - oldFraction,
