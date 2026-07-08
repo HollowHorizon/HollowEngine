@@ -758,6 +758,14 @@ fun UiTextLayout.caretPosition(index: Int, fontSize: Float, fontFamily: String? 
     )
 }
 
+/** The caret's box (content-space) at [index]: a [thickness]-wide bar spanning the line's height. */
+fun UiTextLayout.caretRect(index: Int, fontSize: Float, fontFamily: String? = null, thickness: Float = 1f): UiRect {
+    if (lines.isEmpty()) return UiRect(0f, 0f, thickness, fontSize)
+    val line = lines[lineIndexAtCaret(index)]
+    val local = (index - line.sourceStart).coerceIn(0, line.sourceLength)
+    return UiRect(line.xAt(local, fontSize, fontFamily), line.y, thickness, line.height)
+}
+
 fun UiTextLayout.caretIndexAt(x: Float, y: Float, fontSize: Float, fontFamily: String? = null): Int {
     if (lines.isEmpty()) return 0
     val line = lines.minBy { line ->
