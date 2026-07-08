@@ -365,6 +365,7 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
             "text-overflow" -> instruction { it.textOverflow = parseTextOverflow(value) }
             "box-decoration-break" -> instruction { it.boxDecorationBreak = parseBoxDecorationBreak(value) }
             "text-align" -> instruction { it.textAlign = parseTextAlign(value) }
+            "white-space", "whitespace" -> instruction { it.whitespace = parseWhitespace(value) }
             "line-spacing", "text-line-spacing", "leading" -> instruction {
                 it.lineSpacing = parseScalar(value).coerceAtLeast(0f)
             }
@@ -599,6 +600,12 @@ private fun parseBoxDecorationBreak(value: String): UiBoxDecorationBreak = when 
     "slice" -> UiBoxDecorationBreak.SLICE
     "clone" -> UiBoxDecorationBreak.CLONE
     else -> throw IllegalArgumentException("Unknown box-decoration-break '$value'")
+}
+
+private fun parseWhitespace(value: String): UiWhitespace = when (value.trim().lowercase()) {
+    "normal", "collapse" -> UiWhitespace.COLLAPSE
+    "pre", "preserve", "pre-wrap" -> UiWhitespace.PRESERVE
+    else -> throw IllegalArgumentException("Unknown white-space '$value'")
 }
 
 private fun parseTextAlign(value: String): UiTextAlign = when (value.lowercase()) {

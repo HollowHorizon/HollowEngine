@@ -84,6 +84,8 @@ private class SpacePiece(
     override val width: Float,
     override val height: Float,
     override val groups: List<GroupCtx>,
+    /** Preserved spaces (white-space: pre) keep their advance at line edges and never collapse. */
+    val preserve: Boolean = false,
 ) : Piece()
 
 private class AtomPiece(
@@ -226,6 +228,7 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
     val effects = style.textEffects
     val inlineStyle = UiInlineStyle(effects = effects)
     val spaceWidth = style.spaceWidth ?: UiTextLayouter.measureStyledTextWidth(" ", fontSize, fontFamily, inlineStyle)
+    val preserve = style.whitespace == UiWhitespace.PRESERVE
     val word = StringBuilder()
     fun flush() {
         if (word.isEmpty()) return
@@ -243,7 +246,8 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
 
             ch.isWhitespace() -> {
                 flush()
-                if (out.lastOrNull() !is SpacePiece) out += SpacePiece(spaceWidth, fontSize, groups)
+                if (preserve) out += SpacePiece(spaceWidth, fontSize, groups, preserve = true)
+                else if (out.lastOrNull() !is SpacePiece) out += SpacePiece(spaceWidth, fontSize, groups)
             }
 
             else -> word.append(ch)
@@ -261,7 +265,7 @@ private class FlowLine {
     val naturalWidth: Float get() = width
 
     fun trimTrailingSpaces() {
-        while (pieces.lastOrNull() is SpacePiece) width -= pieces.removeLast().width
+        while (pieces.lastOrNull().let { it is SpacePiece && !it.preserve }) width -= pieces.removeLast().width
     }
 }
 
@@ -286,7 +290,7 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
             }
 
             is SpacePiece -> {
-                if (line.pieces.isNotEmpty()) {
+                if (line.pieces.isNotEmpty() || piece.preserve) {
                     line.pieces += piece
                     line.width += piece.width
                 }
@@ -356,7 +360,9 @@ private fun assembleChildLayouts(container: UiNode, pieces: List<Piece>): Map<Ui
     }
 
     for ((node, ctx) in groupCtxByNode) {
-        val owned = pieces.filter { p -> (p is WordPiece || p is AtomPiece) && p.groups.any { it.node === node } }
+        val owned = pieces.filter { p ->
+            (p is WordPiece || p is AtomPiece || (p is SpacePiece && p.preserve)) && p.groups.any { it.node === node }
+        }
         if (owned.isEmpty()) continue
         val byLine = owned.groupBy { it.lineIndex }.toSortedMap()
         val firstLine = byLine.keys.first()

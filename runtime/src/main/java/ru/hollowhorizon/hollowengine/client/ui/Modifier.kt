@@ -407,6 +407,8 @@ fun Modifier.textOverflow(value: UiTextOverflow) = prop(UiProps.TextOverflow, va
 
 fun Modifier.textAlign(value: UiTextAlign) = prop(UiProps.TextAlign, value)
 
+fun Modifier.whitespace(value: UiWhitespace) = prop(UiProps.Whitespace, value)
+
 fun Modifier.lineSpacing(value: Float) = prop(UiProps.LineSpacing, value.coerceAtLeast(0f))
 
 fun Modifier.spaceWidth(value: Float?) = prop(UiProps.SpaceWidth, value?.coerceAtLeast(0f))

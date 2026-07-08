@@ -196,6 +196,16 @@ enum class UiTextAlign {
     JUSTIFY
 }
 
+/**
+ * How runs of whitespace are treated when laying out text.
+ * [COLLAPSE] folds consecutive spaces into one and drops leading/trailing spaces (prose default);
+ * [PRESERVE] keeps every space verbatim, so indentation and columns survive (code editors).
+ */
+enum class UiWhitespace {
+    COLLAPSE,
+    PRESERVE,
+}
+
 enum class UiCursorShape {
     DEFAULT,
     HAND,

@@ -169,6 +169,7 @@ object UiProps {
     val TextOverflow = prop("text-overflow", UiTextOverflow.SHOW)
     val BoxDecorationBreak = prop("box-decoration-break", UiBoxDecorationBreak.SLICE, fingerprint = true)
     val TextAlign = inheritedProp("text-align", UiTextAlign.LEFT, fingerprint = true)
+    val Whitespace = inheritedProp("white-space", UiWhitespace.COLLAPSE, fingerprint = true)
     val LineSpacing = inheritedProp("line-spacing", 0f, fingerprint = true)
     val SpaceWidth = inheritedProp<Float?>("space-width", null, fingerprint = true)
     val FontSize = inheritedProp("font-size", DefaultUiFontSize, fingerprint = true)
@@ -278,6 +279,7 @@ var UiStylePatch.textWrap by UiProps.TextWrap
 var UiStylePatch.textOverflow by UiProps.TextOverflow
 var UiStylePatch.boxDecorationBreak by UiProps.BoxDecorationBreak
 var UiStylePatch.textAlign by UiProps.TextAlign
+var UiStylePatch.whitespace by UiProps.Whitespace
 var UiStylePatch.lineSpacing by UiProps.LineSpacing
 var UiStylePatch.spaceWidth by UiProps.SpaceWidth
 var UiStylePatch.fontSize by UiProps.FontSize
@@ -409,6 +411,7 @@ val UiComputedStyle.textOverflow by UiProps.TextOverflow
 val UiComputedStyle.inputTransparent by UiProps.InputTransparent
 val UiComputedStyle.boxDecorationBreak by UiProps.BoxDecorationBreak
 val UiComputedStyle.textAlign by UiProps.TextAlign
+val UiComputedStyle.whitespace by UiProps.Whitespace
 val UiComputedStyle.lineSpacing by UiProps.LineSpacing
 val UiComputedStyle.spaceWidth by UiProps.SpaceWidth
 val UiComputedStyle.fontSize by UiProps.FontSize
