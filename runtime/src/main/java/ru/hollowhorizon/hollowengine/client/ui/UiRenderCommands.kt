@@ -37,6 +37,14 @@ data class EndLayerCommand(
     override val node: UiNode,
 ) : UiRenderCommand
 
+/**
+ * A no-op that forces the renderer to flush the current batch. Inserted between overlapping children of
+ * an overlap-capable container so phase batching can't reorder one over the other (see collectNode).
+ */
+data class FlushBarrierCommand(
+    override val node: UiNode,
+) : UiRenderCommand
+
 data class DrawBackdropFilterCommand(
     override val node: UiNode,
     val rect: UiRect,
@@ -356,13 +364,23 @@ class UiCommandRenderer {
             else -> activeClip.visibleIntersection(layoutNode.content)
         }
         if (!pushedClip || childClip != null) {
-            node.children
+            val sorted = node.children
                 .asSequence()
                 .filter { it in layout.nodes }
                 .sortedBy { resolved[it].layer }
-                .forEach { child ->
-                    collectNode(child, resolved, layout, commands, activeClip = childClip)
+                .toList()
+            val queued = if (sorted.size > 1 && node.childrenCanOverlap()) ArrayList<UiRect>() else null
+            sorted.forEach { child ->
+                if (queued != null) {
+                    val rect = layout[child].rect
+                    if (queued.any { it.overlaps(rect) }) {
+                        commands += FlushBarrierCommand(node)
+                        queued.clear()
+                    }
+                    queued += rect
                 }
+                collectNode(child, resolved, layout, commands, activeClip = childClip)
+            }
         }
 
         if (pushedClip) commands += PopClipCommand(node)
@@ -375,6 +393,22 @@ class UiCommandRenderer {
             }
         }
     }
+
+    /**
+     * Whether a container positions its children so they can overlap. Flow layouts (rows/columns/inline)
+     * never overlap; a box (free/stack) or a custom policy (the overlay/popup host) can.
+     */
+    private fun UiNode.childrenCanOverlap(): Boolean =
+        when ((measurePolicy as? UiBuiltInMeasurePolicy)?.kind) {
+            UiBuiltInMeasurePolicyKind.COLUMN,
+            UiBuiltInMeasurePolicyKind.ROW,
+            UiBuiltInMeasurePolicyKind.LAZY_COLUMN,
+            UiBuiltInMeasurePolicyKind.LAZY_ROW,
+            UiBuiltInMeasurePolicyKind.INLINE_FLOW,
+                -> false
+
+            UiBuiltInMeasurePolicyKind.BOX, null -> true
+        }
 
     private fun collectNodeContent(
         node: UiNode,

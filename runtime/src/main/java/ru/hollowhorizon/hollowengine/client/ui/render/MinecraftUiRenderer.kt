@@ -137,6 +137,8 @@ class MinecraftUiRenderer {
         when (command) {
             is BeginLayerCommand -> beginLayer(command)
             is EndLayerCommand -> finishLayer()
+            // The flush already happened in submit()
+            is FlushBarrierCommand -> Unit
             is DrawBackdropFilterCommand -> drawBackdropFilter(command)
             is DrawShadowCommand -> drawShadow(command)
             is PushClipCommand -> pushClip(command.rect, command.transform)

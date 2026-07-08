@@ -17,6 +17,10 @@ data class UiRect(
 ) {
     fun contains(px: Float, py: Float): Boolean = px >= x && py >= y && px <= x + width && py <= y + height
 
+    /** Whether this rectangle shares any area with [other] (touching edges alone do not count). */
+    fun overlaps(other: UiRect): Boolean =
+        x < other.x + other.width && other.x < x + width && y < other.y + other.height && other.y < y + height
+
     companion object {
         val Zero = UiRect(0f, 0f, 0f, 0f)
     }
