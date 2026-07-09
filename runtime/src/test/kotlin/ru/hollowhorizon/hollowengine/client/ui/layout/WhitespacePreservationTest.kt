@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
 import kotlin.test.assertEquals
 
 class WhitespacePreservationTest {
@@ -20,7 +21,8 @@ class WhitespacePreservationTest {
         return layout.nodes.getValue(span)
     }
 
-    private fun UiLayoutNode.wordX(index: Int): Float = textLayout!!.lines[0].fragments[index].x
+    private fun UiLayoutNode.wordX(index: Int): Float =
+        textLayout!!.lines[0].fragments.filterIsInstance<UiTextRun>()[index].x
 
     @Test
     fun `collapse folds an inner run of spaces into one`() {

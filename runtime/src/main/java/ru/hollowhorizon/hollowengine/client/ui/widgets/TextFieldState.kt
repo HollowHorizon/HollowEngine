@@ -3,11 +3,15 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
+import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 
 /**
  * Compose-observable holder for an editable text field. Owns the whole edit model - text plus a
  * list of carets/selections, and exposes edit operations directly. [caretRanges] is the single
- * source of truth; the primary caret is always the last range.
+ * source of truth; the primary caret is always the last range. Also carries the field's view
+ * config (font, wrap, colours) so the widget itself stays a thin `EditableTextField(state)`.
  */
 class TextFieldState(
     initialText: String = "",
@@ -18,9 +22,22 @@ class TextFieldState(
     var indentSize: Int? = 4,
     var autoPairs: Boolean = true,
     var multiCaret: Boolean = true,
+    fontSize: Float = DefaultUiFontSize,
+    fontFamily: String? = null,
+    wrap: Boolean = false,
+    caretColor: UiColor = DefaultTextFieldCaretColor,
+    selectionColor: UiColor = DefaultTextFieldSelectionColor,
+    textShadow: Shadow? = Shadow(offsetX = 1f, offsetY = 1f),
     private val historyMergeWindowNanos: Long = TextFieldStateHistoryMergeWindowNanos,
     private val nanoTime: () -> Long = System::nanoTime,
 ) {
+    var fontSize: Float by mutableStateOf(fontSize)
+    var fontFamily: String? by mutableStateOf(fontFamily)
+    var wrap: Boolean by mutableStateOf(wrap)
+    var caretColor: UiColor by mutableStateOf(caretColor)
+    var selectionColor: UiColor by mutableStateOf(selectionColor)
+    var textShadow: Shadow? by mutableStateOf(textShadow)
+
     var text: String by mutableStateOf(initialText.normalizeEditorLineEndings())
         private set
 
@@ -378,6 +395,9 @@ class TextFieldState(
     private data class NewlineIndentContext(val baseIndent: String, val previousOpensBlock: Boolean)
     private data class TextFieldHistoryEntry(val text: String, val caretRanges: List<UiTextCaret>)
 }
+
+private val DefaultTextFieldCaretColor = UiColor(0.85f, 0.88f, 0.95f, 1f)
+private val DefaultTextFieldSelectionColor = UiColor(0.28f, 0.54f, 0.95f, 0.35f)
 
 private const val TextFieldStateHistoryLimit = 128
 private const val TextFieldStateHistoryMergeWindowNanos = 600_000_000L

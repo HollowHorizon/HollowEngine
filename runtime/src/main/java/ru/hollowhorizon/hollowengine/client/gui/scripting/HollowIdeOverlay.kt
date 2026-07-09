@@ -101,14 +101,14 @@ object HollowIdeOverlay {
 
         return when (action) {
             GLFW.GLFW_PRESS -> {
-                val result = surface.runtime.mouseClicked(point.x, point.y, button)
+                val result = surface.runtime.mouseClicked(point.x, point.y, button, currentUiKeyModifiers())
                 if (result) activeButton = button
                 result
             }
 
             GLFW.GLFW_RELEASE -> {
                 activeButton = null
-                surface.runtime.mouseReleased(point.x, point.y, button)
+                surface.runtime.mouseReleased(point.x, point.y, button, currentUiKeyModifiers())
             }
 
             else -> false

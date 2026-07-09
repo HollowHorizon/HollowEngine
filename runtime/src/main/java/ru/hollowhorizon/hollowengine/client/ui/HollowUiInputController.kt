@@ -178,6 +178,7 @@ class HollowUiInputController {
         val press = UiEvent(
             kind = UiEventKind.PRESS,
             node = hit.node,
+            frame = frame,
             button = button,
             modifiers = modifiers,
             x = mouseX,
@@ -262,6 +263,7 @@ class HollowUiInputController {
         val event = UiEvent(
             kind = UiEventKind.DRAG,
             node = node,
+            frame = frame,
             button = button,
             x = mouseX,
             y = mouseY,
@@ -289,6 +291,7 @@ class HollowUiInputController {
         mouseY: Float,
         button: Int,
         dispatch: (UiEvent) -> Boolean,
+        modifiers: Int = 0,
     ): UiInputResult {
         val releaseNode = frame.hitTest(mouseX, mouseY)?.node ?: activeNode?.takeIf { it in frame.nodes }
         val handled = releaseNode?.let { node ->
@@ -296,7 +299,9 @@ class HollowUiInputController {
                 UiEvent(
                     kind = UiEventKind.RELEASE,
                     node = node,
+                    frame = frame,
                     button = button,
+                    modifiers = modifiers,
                     x = mouseX,
                     y = mouseY,
                     released = true,
@@ -474,6 +479,7 @@ class HollowUiInputController {
             UiEvent(
                 kind = UiEventKind.CLICK,
                 node = node,
+                frame = frame,
                 button = button,
                 modifiers = modifiers,
                 x = mouseX,

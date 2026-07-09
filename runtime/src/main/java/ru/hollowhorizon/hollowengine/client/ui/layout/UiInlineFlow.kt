@@ -74,11 +74,17 @@ private sealed class Piece {
 
 private class WordPiece(
     val text: String,
-    val effects: List<UiTextEffect>,
+    val style: UiInlineStyle,
     override val width: Float,
     override val height: Float,
     override val groups: List<GroupCtx>,
-) : Piece()
+    /** Offset of this word in its span's source text, lets the span layout map caret offsets. */
+    val sourceStart: Int = 0,
+    /** Resolved font family the word was measured with (needed to re-measure when splitting). */
+    val fontFamily: String? = null,
+) : Piece() {
+    val effects: List<UiTextEffect> get() = style.effects
+}
 
 private class SpacePiece(
     override val width: Float,
@@ -86,7 +92,16 @@ private class SpacePiece(
     override val groups: List<GroupCtx>,
     /** Preserved spaces (white-space: pre) keep their advance at line edges and never collapse. */
     val preserve: Boolean = false,
+    /** Offset of this space in its span's source text. */
+    val sourceStart: Int = 0,
 ) : Piece()
+
+/** Offset in the owning span's source text, or null for pieces that carry no text (atoms, pads). */
+private fun Piece.spanSourceStart(): Int? = when (this) {
+    is WordPiece -> sourceStart
+    is SpacePiece -> sourceStart
+    else -> null
+}
 
 private class AtomPiece(
     val child: MeasuredChild,
@@ -230,11 +245,13 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
     val spaceWidth = style.spaceWidth ?: UiTextLayouter.measureStyledTextWidth(" ", fontSize, fontFamily, inlineStyle)
     val preserve = style.whitespace == UiWhitespace.PRESERVE
     val word = StringBuilder()
+    var source = 0
+    var wordStart = 0
     fun flush() {
         if (word.isEmpty()) return
         val wordText = word.toString()
         val width = UiTextLayouter.measureStyledTextWidth(wordText, fontSize, fontFamily, inlineStyle)
-        out += WordPiece(wordText, effects, width, fontSize, groups)
+        out += WordPiece(wordText, inlineStyle, width, fontSize, groups, sourceStart = wordStart, fontFamily = fontFamily)
         word.clear()
     }
     for (ch in span.text) {
@@ -242,15 +259,21 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
             ch == '\n' -> {
                 flush()
                 out += BreakPiece(groups)
+                source++
             }
 
             ch.isWhitespace() -> {
                 flush()
-                if (preserve) out += SpacePiece(spaceWidth, fontSize, groups, preserve = true)
-                else if (out.lastOrNull() !is SpacePiece) out += SpacePiece(spaceWidth, fontSize, groups)
+                if (preserve) out += SpacePiece(spaceWidth, fontSize, groups, preserve = true, sourceStart = source)
+                else if (out.lastOrNull() !is SpacePiece) out += SpacePiece(spaceWidth, fontSize, groups, sourceStart = source)
+                source++
             }
 
-            else -> word.append(ch)
+            else -> {
+                if (word.isEmpty()) wordStart = source
+                word.append(ch)
+                source++
+            }
         }
     }
     flush()
@@ -303,19 +326,49 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
             }
 
             is WordPiece, is AtomPiece -> {
-                if (wrapping && breakBefore && line.pieces.isNotEmpty() &&
-                    line.width + piece.width > wrapWidth + WrapEpsilon
-                ) {
-                    commit(hard = false)
+                if (wrapping && piece is WordPiece && piece.width > wrapWidth + WrapEpsilon) {
+                    if (line.pieces.isNotEmpty()) commit(hard = false)
+                    splitOversizedWordPiece(piece, wrapWidth).forEachIndexed { index, chunk ->
+                        if (index > 0) commit(hard = false)
+                        line.pieces += chunk
+                        line.width += chunk.width
+                    }
+                } else {
+                    if (wrapping && breakBefore && line.pieces.isNotEmpty() &&
+                        line.width + piece.width > wrapWidth + WrapEpsilon
+                    ) {
+                        commit(hard = false)
+                    }
+                    line.pieces += piece
+                    line.width += piece.width
                 }
-                line.pieces += piece
-                line.width += piece.width
                 breakBefore = false
             }
         }
     }
     if (line.pieces.isNotEmpty() || lines.isEmpty()) commit(hard = true)
     return lines
+}
+
+/** Splits a word wider than [width] into glyph-boundary chunks, keeping source offsets intact. */
+private fun splitOversizedWordPiece(word: WordPiece, width: Float): List<WordPiece> {
+    fun measure(text: String) = UiTextLayouter.measureStyledTextWidth(text, word.height, word.fontFamily, word.style)
+    val chunks = mutableListOf<WordPiece>()
+    val buffer = StringBuilder()
+    var chunkStart = word.sourceStart
+    fun flush() {
+        if (buffer.isEmpty()) return
+        val text = buffer.toString()
+        chunks += WordPiece(text, word.style, measure(text), word.height, word.groups, chunkStart, word.fontFamily)
+        chunkStart += text.length
+        buffer.setLength(0)
+    }
+    for (char in word.text) {
+        if (buffer.isNotEmpty() && measure(buffer.toString() + char) > width + WrapEpsilon) flush()
+        buffer.append(char)
+    }
+    flush()
+    return chunks.ifEmpty { listOf(word) }
 }
 
 
@@ -387,7 +440,11 @@ private fun assembleChildLayouts(container: UiNode, pieces: List<Piece>): Map<Ui
             lines = lineBoxes.map { UiRect(it.x - boundLeft, it.y - boundTop, it.width, it.height) },
             decorationBreak = ctx.decorationBreak,
         )
-        val textLayout = if (ctx.isSpan) spanTextLayout(byLine, boundLeft, boundTop) else null
+        val textLayout = if (ctx.isSpan) {
+            spanTextLayout(byLine, boundLeft, boundTop, (node as? SpanNode)?.text?.length ?: 0)
+        } else {
+            null
+        }
 
         placementByNode[node] = InlinePlacement(node, bounds, textLayout, decoration)
     }
@@ -428,36 +485,59 @@ private fun parentOf(
     return atom?.parent ?: container
 }
 
+/**
+ * Builds a span's [UiTextLayout] from its placed pieces. Preserved spaces become [UiTextSpaceRun]
+ * fragments and each line carries its source offset, so `caretPosition`/`caretIndexAt` over the
+ * layout are exact (indentation, columns, multi-line)
+ */
 private fun spanTextLayout(
     byLine: Map<Int, List<Piece>>,
     boundLeft: Float,
     boundTop: Float,
+    spanLength: Int,
 ): UiTextLayout {
-    val textLines = byLine.values.map { linePieces ->
-        val words = linePieces.filterIsInstance<WordPiece>()
-        val lineLeft = words.minOfOrNull { it.x } ?: 0f
-        val lineRight = words.maxOfOrNull { it.x + it.width } ?: 0f
-        val lineTop = linePieces.first().lineTop
-        val lineHeight = linePieces.first().lineHeight
+    val orderedLines = byLine.entries.sortedBy { it.key }.map { entry ->
+        entry.value.filter { it is WordPiece || it is SpacePiece }.sortedBy { it.x }
+    }
+    val lineStarts = IntArray(orderedLines.size)
+    var nextKnownStart = spanLength
+    for (index in orderedLines.indices.reversed()) {
+        nextKnownStart = orderedLines[index].mapNotNull { it.spanSourceStart() }.minOrNull() ?: nextKnownStart
+        lineStarts[index] = nextKnownStart
+    }
+    val textLines = orderedLines.mapIndexed { index, linePieces ->
+        val reference = linePieces.firstOrNull() ?: byLine.entries.sortedBy { it.key }[index].value.first()
+        val lineHeight = reference.lineHeight
+        val sourceStart = lineStarts[index]
+        val nextStart = lineStarts.getOrElse(index + 1) { spanLength }
+        val hasSpaces = linePieces.any { it is SpacePiece }
+        val fragments = linePieces.map { piece ->
+            val y = ((lineHeight - piece.height) / 2f).coerceAtLeast(0f)
+            when (piece) {
+                is SpacePiece -> UiTextSpaceRun(UiInlineStyle(), piece.x - boundLeft, y, piece.width, piece.height)
+                else -> {
+                    val word = piece as WordPiece
+                    UiTextRun(word.text, UiInlineStyle(effects = word.effects), word.x - boundLeft, y, word.width, word.height)
+                }
+            }
+        }
+        val text = if (hasSpaces) {
+            buildString { linePieces.forEach { append(if (it is SpacePiece) " " else (it as WordPiece).text) } }
+        } else {
+            linePieces.filterIsInstance<WordPiece>().joinToString(" ") { it.text }
+        }
+        val left = fragments.minOfOrNull { it.x } ?: 0f
+        val right = fragments.maxOfOrNull { it.x + it.width } ?: 0f
         UiTextLine(
-            text = words.joinToString(" ") { it.text },
+            text = text,
             x = 0f,
-            y = lineTop - boundTop,
-            width = lineRight - lineLeft,
-            naturalWidth = lineRight - lineLeft,
+            y = reference.lineTop - boundTop,
+            width = right - left,
+            naturalWidth = right - left,
             height = lineHeight,
-            fragments = words.map { word ->
-                UiTextRun(
-                    text = word.text,
-                    style = UiInlineStyle(effects = word.effects),
-                    x = word.x - boundLeft,
-                    // Words centre within the line height — same rule atoms use — so mixed-height
-                    // lines (text + a taller inline group/chip) stay vertically aligned.
-                    y = (lineHeight - word.height) / 2f,
-                    width = word.width,
-                    height = word.height,
-                )
-            },
+            sourceStart = sourceStart,
+            sourceLength = (nextStart - sourceStart).coerceAtLeast(0),
+            fragments = fragments,
         )
     }
     val width = textLines.maxOfOrNull { it.width } ?: 0f

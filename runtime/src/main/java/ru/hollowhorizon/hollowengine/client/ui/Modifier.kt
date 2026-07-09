@@ -3,7 +3,9 @@ package ru.hollowhorizon.hollowengine.client.ui
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 
 interface Modifier {
@@ -178,6 +180,13 @@ const val TextFieldDefaultKeyPriority = -1000
  */
 data class OnPlacedModifier(val callback: (UiRect) -> Unit) : Modifier
 
+/**
+ * Observes the node's laid-out text after each layout pass (a [SpanNode]'s line layout or a text
+ * field's own layout). The runtime invokes [callback] only when the layout changes, so a field can
+ * feed it straight into state to place the caret over the glyphs and map clicks to offsets.
+ */
+data class OnTextLayoutModifier(val callback: (UiTextLayout) -> Unit) : Modifier
+
 data class ScriptEventModifier(
     val kind: UiEventKind,
     val source: String,
@@ -220,6 +229,8 @@ data class ScrollAxes(val vertical: Boolean, val horizontal: Boolean) {
 data class ScrollModifier(
     val vertical: Boolean,
     val horizontal: Boolean,
+    /** Optional hoisted scroll state the runtime syncs each frame (offset out, requests in). */
+    val state: UiScrollHandle? = null,
 ) : UiModifierPatchNode {
     override fun applyPatch(style: UiStylePatch) {
         style.scroll = ScrollAxes(vertical, horizontal)
@@ -344,8 +355,8 @@ fun Modifier.backdropFilter(vararg effects: UiFilterEffect) =
 
 fun Modifier.backfaceVisibility(value: UiBackfaceVisibility) = prop(UiProps.BackfaceVisibility, value)
 
-fun Modifier.scroll(vertical: Boolean = true, horizontal: Boolean = false) =
-    this then ScrollModifier(vertical, horizontal)
+fun Modifier.scroll(vertical: Boolean = true, horizontal: Boolean = false, state: UiScrollHandle? = null) =
+    this then ScrollModifier(vertical, horizontal, state)
 
 fun Modifier.input(
     hoverable: Boolean = false,
@@ -456,6 +467,9 @@ fun Modifier.onUnfocus(handler: (UiEvent) -> Unit) = this then EventModifier(UiE
 
 /** Reports this node's bounds in root coordinates after layout; see [OnPlacedModifier]. */
 fun Modifier.onPlaced(callback: (UiRect) -> Unit) = this then OnPlacedModifier(callback)
+
+/** Reports this node's laid-out text after layout; see [OnTextLayoutModifier]. */
+fun Modifier.onTextLayout(callback: (UiTextLayout) -> Unit) = this then OnTextLayoutModifier(callback)
 
 fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) = this then
         ScriptEventModifier(kind, source, sink)

@@ -214,12 +214,12 @@ internal fun wordRight(text: String, position: Int): Int {
     return index
 }
 
-private fun lineStart(text: String, position: Int): Int {
+internal fun lineStart(text: String, position: Int): Int {
     if (position <= 0) return 0
     return text.lastIndexOf('\n', (position - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
 }
 
-private fun lineEnd(text: String, position: Int): Int {
+internal fun lineEnd(text: String, position: Int): Int {
     val nextNewline = text.indexOf('\n', position.coerceIn(0, text.length))
     return if (nextNewline < 0) text.length else nextNewline
 }

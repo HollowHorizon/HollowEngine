@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -61,6 +61,31 @@ internal fun HollowUiEditorDemo(
                     }
                 }
             }
+        }
+
+        Column(tags = listOf("editor-demo-card"), modifier = Modifier.position(552.px, 282.px)) {
+            Text("EditableTextField (new)", tags = listOf("card-title"))
+            val editableState = remember {
+                TextFieldState(
+                    initialText = EditorDemoText,
+                    multiline = true,
+                    indentSize = 4,
+                    autoPairs = true,
+                    multiCaret = true,
+                )
+            }
+            Text(
+                if (editableState.wrap) "wrap: on (click to toggle)" else "wrap: off (click to toggle)",
+                tags = listOf("body"),
+                modifier = Modifier.onClick { editableState.wrap = !editableState.wrap },
+            )
+            EditableTextField(
+                state = editableState,
+                tags = listOf("editable-text-field"),
+                modifier = Modifier.size(500.px, 180.px)
+                    .background(UiColor(0.1f, 0.11f, 0.13f, 1f))
+                    .padding(6.px),
+            )
         }
     }
 }

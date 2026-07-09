@@ -71,8 +71,9 @@ internal fun UiLayoutPipeline.placeLinearChildren(
     val content = scope.content
     val mainAvailable = axis.mainSize(content)
     val gap = style.gap.resolve(mainAvailable)
-    val allowWidthOverflow = style.scrollable || lazy && axis == FlowAxis.Horizontal
-    val allowHeightOverflow = style.scrollable || lazy && axis == FlowAxis.Vertical
+    val axes = style.scrollAxes
+    val allowWidthOverflow = axes?.horizontal == true || lazy && axis == FlowAxis.Horizontal
+    val allowHeightOverflow = axes?.vertical == true || lazy && axis == FlowAxis.Vertical
     val measured = measureFlowChildren(
         node,
         resolved,
@@ -122,7 +123,8 @@ internal fun UiLayoutPipeline.placeLinearChildren(
         val position = child.style.position.resolve(content.width, content.height)
         val align = child.crossAlign(style, parentAxis, axis)
         val mainSize = child.placedMainSize(axis, content, lazy)
-        val crossSize = child.placedCrossSize(axis, content, align)
+        val crossOverflow = if (axis == FlowAxis.Vertical) allowWidthOverflow else allowHeightOverflow
+        val crossSize = child.placedCrossSize(axis, content, align, crossOverflow)
         val rect = axis.placedRect(content, child, position, main, mainSize, crossSize, align)
         if (!lazy || axis.intersectsMain(rect, visibleStart, visibleEnd)) {
             placeScopedNode(scope, child.node, rect)
@@ -421,11 +423,18 @@ private fun MeasuredChild.placedMainSize(axis: FlowAxis, content: UiRect, lazy: 
     return if (lazy) size else size.coerceAtMost(available)
 }
 
-private fun MeasuredChild.placedCrossSize(axis: FlowAxis, content: UiRect, align: UiAlign): Float {
+private fun MeasuredChild.placedCrossSize(axis: FlowAxis, content: UiRect, align: UiAlign, allowOverflow: Boolean): Float {
     return when (axis) {
-        FlowAxis.Horizontal -> style.size.height.resolveHeight(align, style, this, content)
-        FlowAxis.Vertical -> style.size.width.resolveWidth(align, style, this, content)
-            .coerceAtMost((content.width - margin.left - margin.right).coerceAtLeast(0f))
+        FlowAxis.Horizontal -> {
+            val resolved = style.size.height.resolveHeight(align, style, this, content)
+            if (allowOverflow) maxOf(resolved, size.height) else resolved
+        }
+
+        FlowAxis.Vertical -> {
+            val resolved = style.size.width.resolveWidth(align, style, this, content)
+            if (allowOverflow) maxOf(resolved, size.width)
+            else resolved.coerceAtMost((content.width - margin.left - margin.right).coerceAtLeast(0f))
+        }
     }
 }
 

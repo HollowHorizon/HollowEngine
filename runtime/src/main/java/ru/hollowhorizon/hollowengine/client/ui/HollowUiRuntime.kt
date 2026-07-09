@@ -6,11 +6,9 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
-import ru.hollowhorizon.hollowengine.client.ui.scroll.hasScrollableAxis
-import ru.hollowhorizon.hollowengine.client.ui.scroll.scrollWheelDelta
+import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
@@ -135,6 +133,7 @@ class HollowUiRuntime(
     private val stateStore = UiNodeStateStore()
     private val input = HollowUiInputController()
     private val placedBounds = WeakHashMap<UiNode, UiRect>()
+    private val reportedTextLayouts = WeakHashMap<UiNode, UiTextLayout>()
     private var lastLayout: UiLayoutResult? = null
     private var lastLayoutKey: FrameLayoutKey? = null
     var lastFrame: HollowUiFrame? = null
@@ -174,6 +173,7 @@ class HollowUiRuntime(
     ): HollowUiFrame {
         val nodes = resolver.resolve(root, nowMillis)
         val transitionDurations = collectTransitionDurations(nodes)
+        applyPendingScrollRequests(nodes)
 
         val layoutKey = FrameLayoutKey(
             width = width,
@@ -198,6 +198,8 @@ class HollowUiRuntime(
         // Sample scroll revision after layout: clamping inside the pass may bump it.
         lastLayoutKey = layoutKey.copy(scrollRevision = scrollState.revision)
         dispatchPlacementCallbacks(layout)
+        dispatchTextLayoutCallbacks(layout)
+        syncScrollHandles(nodes, layout)
 
         return HollowUiFrame(
             root = root,
@@ -224,12 +226,14 @@ class HollowUiRuntime(
                     frame, input.mouseX, input.mouseY, input.button, ::setScrollImmediate,
                 )
                 if (scrollbarResult.handled) scrollbarResult else this.input.mouseClicked(
-                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent,
+                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent, input.modifiers,
                 )
             }
 
             is QueuedUiInput.MouseReleased ->
-                this.input.mouseReleased(frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent)
+                this.input.mouseReleased(
+                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent, input.modifiers,
+                )
 
             is QueuedUiInput.MouseDragged -> {
                 val scrollbarResult = this.input.scrollbarMouseDragged(
@@ -286,6 +290,34 @@ class HollowUiRuntime(
         scrollState.setImmediate(node, offset.x, offset.y)
 
     /**
+     * Applies scroll offsets requested through hoisted [UiScrollHandle]s before layout runs, so the
+     * bumped scroll revision forces a fresh pass that places content at the requested offset.
+     */
+    private fun applyPendingScrollRequests(nodes: List<UiNode>) {
+        for (node in nodes) {
+            val handle = node.scrollHandle() ?: continue
+            if (handle.pendingX == null && handle.pendingY == null) continue
+            scrollState.setImmediate(node, handle.pendingX, handle.pendingY)
+            handle.pendingX = null
+            handle.pendingY = null
+        }
+    }
+
+    /** Mirrors each scroll container's clamped offset and content viewport into its [UiScrollHandle]. */
+    private fun syncScrollHandles(nodes: List<UiNode>, layout: UiLayoutResult) {
+        for (node in nodes) {
+            val handle = node.scrollHandle() ?: continue
+            val layoutNode = layout.nodes[node] ?: continue
+            handle.offsetX = layoutNode.scrollOffset.x
+            handle.offsetY = layoutNode.scrollOffset.y
+            handle.viewport = layoutNode.content
+        }
+    }
+
+    private fun UiNode.scrollHandle(): UiScrollHandle? =
+        resolvedModifiers.firstNotNullOfOrNull { (it as? ScrollModifier)?.state }
+
+    /**
      * After layout, hands every [OnPlacedModifier] its node's bounds in root coordinates, but only
      * when they changed since the last report. The change guard keeps a callback that writes state
      * (e.g. a popup anchor) from looping: once the bounds settle, it stops firing.
@@ -298,6 +330,17 @@ class HollowUiRuntime(
             if (placedBounds[node] == rect) continue
             placedBounds[node] = rect
             callbacks.forEach { it.callback(rect) }
+        }
+    }
+
+    private fun dispatchTextLayoutCallbacks(layout: UiLayoutResult) {
+        for (node in layout.traversalOrder) {
+            val callbacks = node.resolvedModifiers.filterIsInstance<OnTextLayoutModifier>()
+            if (callbacks.isEmpty()) continue
+            val textLayout = layout[node].textLayout ?: continue
+            if (reportedTextLayouts[node] == textLayout) continue
+            reportedTextLayouts[node] = textLayout
+            callbacks.forEach { it.callback(textLayout) }
         }
     }
 
@@ -349,14 +392,14 @@ class HollowUiRuntime(
         return changed
     }
 
-    fun mouseClicked(mouseX: Float, mouseY: Float, button: Int): Boolean {
+    fun mouseClicked(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean {
         val frame = lastFrame ?: return false
-        return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button))
+        return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button, modifiers))
             .orConsumed(frame.hitsVisible(mouseX, mouseY))
     }
 
-    fun mouseReleased(mouseX: Float, mouseY: Float, button: Int): Boolean =
-        dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button))
+    fun mouseReleased(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean =
+        dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button, modifiers))
 
     fun mouseDragged(mouseX: Float, mouseY: Float, button: Int, dragX: Float, dragY: Float): Boolean =
         dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY))

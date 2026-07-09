@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.UiCursorManager
+import ru.hollowhorizon.hollowengine.client.ui.currentUiKeyModifiers
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.utils.mc
@@ -36,10 +37,10 @@ abstract class HollowComposeUiScreen(
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean =
-        surface.runtime.mouseClicked(mouseX.toFloat(), mouseY.toFloat(), button)
+        surface.runtime.mouseClicked(mouseX.toFloat(), mouseY.toFloat(), button, currentUiKeyModifiers())
 
     override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean =
-        surface.runtime.mouseReleased(mouseX.toFloat(), mouseY.toFloat(), button)
+        surface.runtime.mouseReleased(mouseX.toFloat(), mouseY.toFloat(), button, currentUiKeyModifiers())
 
     override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, dragX: Double, dragY: Double): Boolean =
         surface.runtime.mouseDragged(mouseX.toFloat(), mouseY.toFloat(), button, dragX.toFloat(), dragY.toFloat())
