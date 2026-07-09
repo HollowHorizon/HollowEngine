@@ -50,6 +50,9 @@ class TextFieldState(
     var caretVisibilityRevision: Int by mutableStateOf(0)
         private set
 
+    var focused: Boolean by mutableStateOf(false)
+        private set
+
     val primaryCaret: UiTextCaret get() = caretRanges.last()
     val caret: Int get() = primaryCaret.position
     val selectionAnchor: Int? get() = primaryCaret.selectionAnchor
@@ -65,6 +68,36 @@ class TextFieldState(
         val normalized = insertion.normalizeEditorLineEndings()
         val sanitized = if (multiline) normalized else normalized.replace('\n', ' ')
         return replaceSelectedRanges(sanitized)
+    }
+
+    fun paste(insertion: String): Boolean {
+        if (readOnly || insertion.isEmpty()) return false
+        val normalized = insertion.normalizeEditorLineEndings()
+        val sanitized = if (multiline) normalized else normalized.replace('\n', ' ')
+        val ranges = activeCaretRanges()
+        val lines = if (multiline) sanitized.split('\n') else emptyList()
+        return if (lines.size == ranges.size && ranges.size > 1) {
+            replaceRangesIndividually(
+                ranges.map { TextEditRange(it.selectionStart, it.selectionEnd) },
+                lines,
+                selectInserted = false,
+            )
+        } else {
+            replaceSelectedRanges(sanitized)
+        }
+    }
+
+    fun duplicateSelections(): Boolean {
+        if (readOnly) return false
+        val selections = activeCaretRanges()
+            .filter { it.hasSelection }
+            .sortedWith(compareBy<UiTextCaret> { it.selectionStart }.thenBy { it.selectionEnd })
+        if (selections.isEmpty()) return false
+        return replaceRangesIndividually(
+            selections.map { TextEditRange(it.selectionEnd, it.selectionEnd) },
+            selections.map { text.substring(it.selectionStart, it.selectionEnd) },
+            selectInserted = true,
+        )
     }
 
     fun typeCharacter(char: Char): Boolean {
@@ -210,11 +243,39 @@ class TextFieldState(
     fun addCaretRange(range: UiTextCaret) {
         if (!multiCaret) return setCarets(listOf(range))
         val normalized = range.coerceIn(text.length)
-        val next = activeCaretRanges().filterNot { existing ->
-            (!existing.hasSelection && existing.position in normalized.selectionStart..normalized.selectionEnd) ||
-                    (existing.selectionStart == normalized.selectionStart && existing.selectionEnd == normalized.selectionEnd)
-        } + normalized
+        val next = activeCaretRanges().filterNot { it.conflictsWith(normalized) } + normalized
         setCarets(next.ifEmpty { listOf(normalized) })
+    }
+
+    fun removeCaretRangeAt(position: Int): Boolean {
+        val normalized = position.coerceIn(0, text.length)
+        val ranges = activeCaretRanges()
+        val index = ranges.indexOfFirst { range ->
+            if (range.hasSelection) normalized in range.selectionStart..range.selectionEnd else range.position == normalized
+        }
+        if (index < 0) return false
+        val next = ranges.toMutableList().also { it.removeAt(index) }
+        setCarets(next.ifEmpty { listOf(UiTextCaret(normalized)) })
+        return true
+    }
+
+    fun removeCaretRange(range: UiTextCaret): Boolean {
+        val normalized = range.coerceIn(text.length)
+        val ranges = activeCaretRanges()
+        val index = ranges.indexOfFirst { existing ->
+            existing.selectionStart == normalized.selectionStart && existing.selectionEnd == normalized.selectionEnd
+        }
+        if (index < 0) return false
+        val next = ranges.toMutableList().also { it.removeAt(index) }
+        setCarets(next.ifEmpty { listOf(UiTextCaret(normalized.position)) })
+        return true
+    }
+
+    fun updateLastCaretRange(anchor: Int, active: Int) {
+        val range = UiTextCaret(active.coerceIn(0, text.length), anchor.coerceIn(0, text.length))
+        if (!multiCaret) return setCarets(listOf(range))
+        val ranges = activeCaretRanges().dropLast(1).filterNot { it.conflictsWith(range) } + range
+        setCarets(ranges.ifEmpty { listOf(range) })
     }
 
     fun setSelection(anchor: Int, active: Int) {
@@ -225,6 +286,16 @@ class TextFieldState(
     fun selectAll() = setCarets(listOf(UiTextCaret(text.length, 0)))
 
     fun clearSelection() = setCarets(activeCaretRanges().map { UiTextCaret(it.position) })
+
+    fun focus() {
+        if (focused) return
+        focused = true
+        caretVisibilityRevision++
+    }
+
+    fun unfocus() {
+        focused = false
+    }
 
     fun selectedText(): String? {
         val selections = activeCaretRanges().filter { it.hasSelection }
@@ -293,8 +364,62 @@ class TextFieldState(
             UiTextCaret(position)
         }
         text = nextValue
-        setCarets(nextCarets)
+        setCaretsAfterEdit(nextCarets)
         return true
+    }
+
+    private fun replaceRangesIndividually(
+        ranges: List<TextEditRange>,
+        replacements: List<String>,
+        selectInserted: Boolean,
+    ): Boolean {
+        if (readOnly || ranges.size != replacements.size) return false
+        val edits = ranges.zip(replacements)
+            .map { (range, replacement) ->
+                TextEdit(
+                    range = TextEditRange(range.start.coerceIn(0, text.length), range.end.coerceIn(0, text.length)),
+                    replacement = replacement,
+                )
+            }
+            .filter { it.range.start != it.range.end || it.replacement.isNotEmpty() }
+            .sortedWith(compareBy<TextEdit> { it.range.start }.thenBy { it.range.end })
+        if (edits.isEmpty()) return false
+        if (edits.zipWithNext().any { (left, right) -> right.range.start < left.range.end }) return false
+
+        val nextValue = buildString {
+            var cursor = 0
+            for (edit in edits) {
+                append(text, cursor, edit.range.start)
+                append(edit.replacement)
+                cursor = edit.range.end
+            }
+            append(text, cursor, text.length)
+        }
+        if (!filter.accepts(nextValue)) return false
+        recordHistorySnapshot()
+
+        var offset = 0
+        val nextCarets = edits.map { edit ->
+            val insertStart = edit.range.start + offset
+            val position = insertStart + edit.replacement.length
+            offset += edit.replacement.length - (edit.range.end - edit.range.start)
+            if (selectInserted && edit.replacement.isNotEmpty()) UiTextCaret(position, insertStart) else UiTextCaret(position)
+        }
+        text = nextValue
+        setCaretsAfterEdit(nextCarets)
+        return true
+    }
+
+    private fun setCaretsAfterEdit(ranges: List<UiTextCaret>) {
+        val previousRevision = caretVisibilityRevision
+        setCarets(ranges)
+        if (caretVisibilityRevision == previousRevision) caretVisibilityRevision++
+    }
+
+    private fun UiTextCaret.conflictsWith(other: UiTextCaret): Boolean {
+        if (!other.hasSelection) return !hasSelection && position == other.position
+        if (!hasSelection) return position in other.selectionStart..other.selectionEnd
+        return selectionStart < other.selectionEnd && other.selectionStart < selectionEnd
     }
 
     private fun applyCaretRanges(ranges: List<UiTextCaret>) {
@@ -392,6 +517,7 @@ class TextFieldState(
     }
 
     private data class TextEditRange(val start: Int, val end: Int)
+    private data class TextEdit(val range: TextEditRange, val replacement: String)
     private data class NewlineIndentContext(val baseIndent: String, val previousOpensBlock: Boolean)
     private data class TextFieldHistoryEntry(val text: String, val caretRanges: List<UiTextCaret>)
 }

@@ -95,6 +95,72 @@ internal class EditableFieldLayout(
             UiVec3(UiTextLayouter.measureTextWidth(line.text.take(column), fontSize, fontFamily), offsets[index])
         }
     }
+
+    fun visualCaretMove(offset: Int, delta: Int): Int {
+        if (delta == 0 || lines.isEmpty()) return offset.coerceIn(0, lines.last().end)
+        val visualLines = visualLines()
+        if (visualLines.isEmpty()) return offset.coerceIn(0, lines.last().end)
+        val currentIndex = visualLines.lineIndexAtCaret(offset)
+        val current = visualLines[currentIndex]
+        val targetIndex = (currentIndex + delta).coerceIn(0, visualLines.lastIndex)
+        val target = visualLines[targetIndex]
+        if (targetIndex == currentIndex) return if (delta < 0) target.start else target.end
+        return target.offsetNearestX(current.xAt(offset, fontSize, fontFamily), fontSize, fontFamily)
+    }
+
+    private fun visualLines(): List<EditableFieldVisualLine> = buildList {
+        for (lineIndex in lines.indices) {
+            val line = lines[lineIndex]
+            val layout = lineLayouts[lineIndex]
+            if (layout == null || layout.lines.isEmpty()) {
+                add(EditableFieldVisualLine(line.start, line.end, line.text, 0f))
+            } else {
+                layout.lines.forEach { visual ->
+                    add(
+                        EditableFieldVisualLine(
+                            start = line.start + visual.sourceStart,
+                            end = line.start + visual.sourceStart + visual.sourceLength,
+                            text = visual.text,
+                            x = visual.x,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class EditableFieldVisualLine(
+    val start: Int,
+    val end: Int,
+    val text: String,
+    val x: Float,
+) {
+    fun xAt(offset: Int, fontSize: Float, fontFamily: String?): Float {
+        val column = (offset - start).coerceIn(0, text.length)
+        return x + UiTextLayouter.measureTextWidth(text.take(column), fontSize, fontFamily)
+    }
+
+    fun offsetNearestX(targetX: Float, fontSize: Float, fontFamily: String?): Int {
+        var bestOffset = 0
+        var bestDistance = Float.POSITIVE_INFINITY
+        for (offset in 0..(end - start).coerceAtLeast(0)) {
+            val distance = abs(x + UiTextLayouter.measureTextWidth(text.take(offset), fontSize, fontFamily) - targetX)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestOffset = offset
+            }
+        }
+        return start + bestOffset
+    }
+}
+
+private fun List<EditableFieldVisualLine>.lineIndexAtCaret(offset: Int): Int {
+    val target = offset.coerceAtLeast(0)
+    indexOfFirst { it.start == target && it.end == target }.takeIf { it >= 0 }?.let { return it }
+    indexOfFirst { it.start == target && it.end > it.start }.takeIf { it >= 0 }?.let { return it }
+    indexOfFirst { it.start < target && target <= it.end }.takeIf { it >= 0 }?.let { return it }
+    return indexOfLast { it.start <= target }.coerceIn(0, lastIndex)
 }
 
 internal fun computeEditableFieldLayout(
@@ -171,6 +237,7 @@ fun EditableTextField(
         computeEditableFieldLayout(text, fontSize, fontFamily, wrap, viewportWidth)
     }
     val autoScroll = remember { EditableFieldAutoScroll() }
+    val pointerState = remember { EditableFieldPointerState() }
     SideEffect { autoScroll.follow(state, layout, scrollState) }
 
     val visible = layout.visibleRange(scrollState.offsetY, scrollState.viewport.height, overscan = fontSize * 4f)
@@ -186,17 +253,24 @@ fun EditableTextField(
             .fontSize(fontSize)
             .let { if (fontFamily != null) it.fontFamily(fontFamily) else it }
             .let { state.textShadow?.let { shadow -> it.textEffects(shadow) } ?: it }
+            .onFocus { state.focus() }
+            .onUnfocus { state.unfocus() }
             .onCharTyped { event ->
                 val char = event.codePoint.toChar()
                 if (event.codePoint != 0 && !char.isISOControl() && state.typeCharacter(char)) event.consume()
             }
-            .onKeyInput { input -> if (handleEditableFieldKey(state, input)) input.consume() }
+            .onKeyInput { input -> if (handleEditableFieldKey(state, input, layout)) input.consume() }
             .onPress { event ->
+                state.focus()
                 val offset = clickOffset(event, layout)
-                autoScroll.dragAnchor = offset
-                if (event.modifiers and GLFW.GLFW_MOD_ALT != 0) state.addCaret(offset) else state.moveCaret(offset)
+                val clickCount = pointerState.clickCount(offset)
+                val altPressed = event.modifiers and GLFW.GLFW_MOD_ALT != 0
+                pointerState.beginPress(state.text, offset, clickCount, altPressed)
+                handleEditableFieldPress(state, offset, clickCount, event.modifiers, pointerState)
             }
-            .onDrag { event -> state.setSelection(autoScroll.dragAnchor, clickOffset(event, layout)) }
+            .onDrag { event ->
+                handleEditableFieldDrag(state, clickOffset(event, layout), pointerState)
+            }
             .then(modifier ?: Modifier),
     ) {
         Box(mode = UiBoxMode.STACK, modifier = Modifier.size(layout.contentWidth.px, layout.height.px)) {
@@ -208,6 +282,158 @@ fun EditableTextField(
         }
     }
 }
+
+internal fun handleEditableFieldPress(
+    state: TextFieldState,
+    offset: Int,
+    clickCount: Int,
+    modifiers: Int,
+    pointerState: EditableFieldPointerState = EditableFieldPointerState().also {
+        it.beginPress(state.text, offset, clickCount, modifiers and GLFW.GLFW_MOD_ALT != 0)
+    },
+) {
+    val altPressed = modifiers and GLFW.GLFW_MOD_ALT != 0
+    when {
+        clickCount >= 3 -> toggleOrAddPointerSelection(state, pointerState, offset, altPressed)
+        clickCount == 2 -> toggleOrAddPointerSelection(state, pointerState, offset, altPressed)
+        altPressed && state.removeCaretRangeAt(offset) -> pointerState.cancelDrag()
+        altPressed -> state.addCaret(offset)
+        else -> state.moveCaret(offset)
+    }
+}
+
+internal fun handleEditableFieldDrag(state: TextFieldState, offset: Int, pointerState: EditableFieldPointerState) {
+    val selection = pointerState.dragSelection(state.text, offset) ?: return
+    applyPointerSelection(state, selection, pointerState.altPressed)
+}
+
+private fun toggleOrAddPointerSelection(
+    state: TextFieldState,
+    pointerState: EditableFieldPointerState,
+    offset: Int,
+    altPressed: Boolean,
+) {
+    val selection = pointerState.dragSelection(state.text, offset) ?: return
+    if (altPressed && state.removeCaretRange(selection)) {
+        pointerState.cancelDrag()
+        return
+    }
+    addPointerSelection(state, selection, altPressed)
+}
+
+private fun addPointerSelection(state: TextFieldState, selection: UiTextCaret?, altPressed: Boolean) {
+    selection ?: return
+    val anchor = selection.selectionAnchor ?: selection.position
+    if (altPressed) state.addCaretRange(UiTextCaret(selection.position, anchor))
+    else state.setSelection(anchor, selection.position)
+}
+
+private fun applyPointerSelection(state: TextFieldState, selection: UiTextCaret?, altPressed: Boolean) {
+    selection ?: return
+    val anchor = selection.selectionAnchor ?: selection.position
+    if (altPressed) state.updateLastCaretRange(anchor, selection.position)
+    else state.setSelection(anchor, selection.position)
+}
+
+internal class EditableFieldPointerState {
+    var altPressed = false
+        private set
+
+    private var anchor = 0
+    private var mode = EditableFieldSelectionMode.CHARACTER
+    private var anchorRange = EditableTextRange(0, 0)
+    private var dragEnabled = false
+    private var lastClickAtMillis = 0L
+    private var lastClickOffset = -1
+    private var lastClickCount = 0
+
+    fun beginPress(text: String, offset: Int, clickCount: Int, altPressed: Boolean) {
+        this.altPressed = altPressed
+        anchor = offset.coerceIn(0, text.length)
+        mode = when {
+            clickCount >= 3 -> EditableFieldSelectionMode.LINE
+            clickCount == 2 -> EditableFieldSelectionMode.WORD
+            else -> EditableFieldSelectionMode.CHARACTER
+        }
+        anchorRange = selectionUnitAt(text, anchor, mode)
+        dragEnabled = true
+    }
+
+    fun cancelDrag() {
+        dragEnabled = false
+    }
+
+    fun dragSelection(text: String, offset: Int): UiTextCaret? {
+        if (!dragEnabled) return null
+        val active = offset.coerceIn(0, text.length)
+        if (mode == EditableFieldSelectionMode.CHARACTER) return UiTextCaret(active, anchor)
+
+        val activeRange = selectionUnitAt(text, active, mode)
+        return if (active < anchorRange.start) {
+            UiTextCaret(activeRange.start, anchorRange.end)
+        } else {
+            UiTextCaret(activeRange.end, anchorRange.start)
+        }
+    }
+
+    fun clickCount(offset: Int): Int {
+        val now = System.currentTimeMillis()
+        val continues = now - lastClickAtMillis <= EditableFieldDoubleClickMillis &&
+                abs(lastClickOffset - offset) <= 1
+        val count = if (continues) (lastClickCount + 1).coerceAtMost(3) else 1
+        lastClickAtMillis = now
+        lastClickOffset = offset
+        lastClickCount = count
+        return count
+    }
+}
+
+private enum class EditableFieldSelectionMode {
+    CHARACTER,
+    WORD,
+    LINE,
+}
+
+private data class EditableTextRange(val start: Int, val end: Int)
+
+private fun selectionUnitAt(text: String, offset: Int, mode: EditableFieldSelectionMode): EditableTextRange {
+    return when (mode) {
+        EditableFieldSelectionMode.CHARACTER -> {
+            val index = offset.coerceIn(0, text.length)
+            EditableTextRange(index, index)
+        }
+
+        EditableFieldSelectionMode.WORD -> wordRangeAt(text, offset)
+        EditableFieldSelectionMode.LINE -> realLineRangeAt(text, offset)
+    }
+}
+
+private fun wordRangeAt(text: String, offset: Int): EditableTextRange {
+    if (text.isEmpty()) return EditableTextRange(0, 0)
+    val index = offset.coerceIn(0, text.length)
+    val characterIndex = if (index < text.length) index else text.lastIndex
+    val character = text[characterIndex]
+    val predicate: (Char) -> Boolean = when {
+        character.isEditableFieldWordChar() -> Char::isEditableFieldWordChar
+        character.isWhitespace() -> Char::isWhitespace
+        else -> { candidate -> candidate == character }
+    }
+    var start = characterIndex
+    var end = characterIndex + 1
+    while (start > 0 && predicate(text[start - 1])) start--
+    while (end < text.length && predicate(text[end])) end++
+    return EditableTextRange(start, end)
+}
+
+private fun realLineRangeAt(text: String, offset: Int): EditableTextRange {
+    if (text.isEmpty()) return EditableTextRange(0, 0)
+    val index = offset.coerceIn(0, text.length)
+    val start = text.lastIndexOf('\n', (index - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+    return EditableTextRange(start, end)
+}
+
+private fun Char.isEditableFieldWordChar(): Boolean = this == '_' || isLetterOrDigit()
 
 @Composable
 private fun EditableFieldRow(state: TextFieldState, index: Int, layout: EditableFieldLayout) {
@@ -249,7 +475,7 @@ private fun EditableFieldRow(state: TextFieldState, index: Int, layout: Editable
         Text(modifier = Modifier.position(0.px, top.px).textWrap(false)) { Span(line.text) }
     }
 
-    key(state.caretVisibilityRevision) {
+    if (state.focused) key(state.caretVisibilityRevision) {
         ranges.filter { it.position in line.start..line.end }.forEachIndexed { caretIndex, range ->
             val caret = layout.caretAt(range.position)
             key("caret", caretIndex) {
@@ -266,7 +492,7 @@ private fun EditableFieldRow(state: TextFieldState, index: Int, layout: Editable
     }
 }
 
-private fun selectionRectsForRow(
+internal fun selectionRectsForRow(
     line: EditableFieldLine,
     lineLayout: UiTextLayout?,
     localStart: Int,
@@ -278,7 +504,11 @@ private fun selectionRectsForRow(
 ): List<UiRect> {
     if (lineLayout != null) {
         val rects = lineLayout.selectionRects(localStart, localEnd, fontSize, fontFamily, fillLineGaps = true)
-        if (!crossesNewline || rects.isEmpty()) return rects
+        if (!crossesNewline) return rects
+        if (rects.isEmpty()) {
+            return if (line.text.isEmpty()) listOf(UiRect(0f, 0f, fullWidth, maxOf(lineLayout.height, fontSize)))
+            else emptyList()
+        }
         val last = rects.last()
         return rects + UiRect(last.x + last.width, last.y, (fullWidth - (last.x + last.width)).coerceAtLeast(0f), fontSize)
     }
@@ -299,7 +529,6 @@ private fun clickOffset(event: UiEvent, layout: EditableFieldLayout): Int {
 
 /** Follows the primary caret with the scroll so it stays inside the viewport (with a margin). */
 private class EditableFieldAutoScroll {
-    var dragAnchor = 0
     private var lastRevision = Int.MIN_VALUE
 
     fun follow(state: TextFieldState, layout: EditableFieldLayout, scrollState: UiScrollHandle) {
@@ -331,18 +560,21 @@ private class EditableFieldAutoScroll {
 /**
  * Maps a key press to a [TextFieldState] edit/navigation operation. Returns whether the field handled the key.
  */
-internal fun handleEditableFieldKey(state: TextFieldState, input: UiKeyInput): Boolean {
+internal fun handleEditableFieldKey(state: TextFieldState, input: UiKeyInput, layout: EditableFieldLayout? = null): Boolean {
     val text = state.text
     // Ctrl+Alt+Up/Down drops an extra caret on the line above/below the primary one.
     if (input.control && input.alt && (input.key == GLFW.GLFW_KEY_UP || input.key == GLFW.GLFW_KEY_DOWN)) {
         val delta = if (input.key == GLFW.GLFW_KEY_UP) -1 else 1
-        state.addCaret(verticalCaretMove(text, state.primaryCaret.position, delta))
+        val position = layout?.visualCaretMove(state.primaryCaret.position, delta)
+            ?: verticalCaretMove(text, state.primaryCaret.position, delta)
+        state.addCaret(position)
         return true
     }
     if (input.command) {
         when (input.key) {
             GLFW.GLFW_KEY_A -> return state.selectAll().let { true }
             GLFW.GLFW_KEY_C -> return copySelection(state)
+            GLFW.GLFW_KEY_D -> return state.duplicateSelections()
             GLFW.GLFW_KEY_X -> return cutSelection(state)
             GLFW.GLFW_KEY_V -> return pasteClipboard(state)
             GLFW.GLFW_KEY_Z -> return if (input.shift) state.redo() else state.undo()
@@ -354,22 +586,32 @@ internal fun handleEditableFieldKey(state: TextFieldState, input: UiKeyInput): B
         GLFW.GLFW_KEY_DELETE -> state.deleteForward(word = input.control)
 
         GLFW.GLFW_KEY_LEFT -> {
-            state.moveCarets({ if (input.control) wordLeft(text, it.position) else it.position - 1 }, input.shift)
+            state.moveCarets({
+                if (!input.shift && it.hasSelection) it.selectionStart
+                else if (input.control) wordLeft(text, it.position) else it.position - 1
+            }, input.shift)
             true
         }
 
         GLFW.GLFW_KEY_RIGHT -> {
-            state.moveCarets({ if (input.control) wordRight(text, it.position) else it.position + 1 }, input.shift)
+            state.moveCarets({
+                if (!input.shift && it.hasSelection) it.selectionEnd
+                else if (input.control) wordRight(text, it.position) else it.position + 1
+            }, input.shift)
             true
         }
 
         GLFW.GLFW_KEY_UP -> {
-            state.moveCarets({ verticalCaretMove(text, it.position, -1) }, input.shift)
+            state.moveCarets({
+                layout?.visualCaretMove(it.position, -1) ?: verticalCaretMove(text, it.position, -1)
+            }, input.shift)
             true
         }
 
         GLFW.GLFW_KEY_DOWN -> {
-            state.moveCarets({ verticalCaretMove(text, it.position, 1) }, input.shift)
+            state.moveCarets({
+                layout?.visualCaretMove(it.position, 1) ?: verticalCaretMove(text, it.position, 1)
+            }, input.shift)
             true
         }
 
@@ -420,5 +662,7 @@ private fun cutSelection(state: TextFieldState): Boolean {
 
 private fun pasteClipboard(state: TextFieldState): Boolean {
     val clipboard = Minecraft.getInstance().keyboardHandler.clipboard
-    return clipboard.isNotEmpty() && state.insert(clipboard)
+    return clipboard.isNotEmpty() && state.paste(clipboard)
 }
+
+private const val EditableFieldDoubleClickMillis = 350L

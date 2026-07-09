@@ -225,6 +225,32 @@ class TextFieldStateTest {
         assertEquals("a\ne", state.selectedText())
     }
 
+    @Test
+    fun `paste distributes matching clipboard lines across carets`() {
+        val state = field("A\nB")
+        state.setCarets(listOf(UiTextCaret(1), UiTextCaret(3)))
+        assertTrue(state.paste("1\n2"))
+        assertEquals("A1\nB2", state.text)
+        assertEquals(listOf(2, 5), state.caretRanges.map { it.position })
+    }
+
+    @Test
+    fun `duplicate selections inserts each selected text after itself and selects inserted copies`() {
+        val state = field("foo bar")
+        state.setCarets(listOf(UiTextCaret(3, 0), UiTextCaret(7, 4)))
+        assertTrue(state.duplicateSelections())
+        assertEquals("foofoo barbar", state.text)
+        assertEquals(listOf(UiTextCaret(6, 3), UiTextCaret(13, 10)), state.caretRanges)
+        assertEquals("foo\nbar", state.selectedText())
+    }
+
+    @Test
+    fun `duplicate selections is a no-op without selection`() {
+        val state = field("foo")
+        assertFalse(state.duplicateSelections())
+        assertEquals("foo", state.text)
+    }
+
     // --- auto pairs -----------------------------------------------------------------------------
 
     @Test
@@ -304,5 +330,48 @@ class TextFieldStateTest {
         assertFalse(state.hasSelection)
         assertEquals(4, state.caret)
         assertNull(state.selectionAnchor)
+    }
+
+    @Test
+    fun `caret ranges can be removed and the last range can be updated`() {
+        val state = field("abcdef", caret = 0)
+        state.addCaretRange(UiTextCaret(4, 1))
+        assertEquals("bcd", state.selectedText())
+
+        state.updateLastCaretRange(anchor = 2, active = 5)
+        assertEquals("cde", state.selectedText())
+
+        assertTrue(state.removeCaretRange(UiTextCaret(5, 2)))
+        assertEquals(listOf(UiTextCaret(0)), state.caretRanges)
+        assertFalse(state.removeCaretRange(UiTextCaret(5, 2)))
+
+        state.addCaretRange(UiTextCaret(4, 1))
+        assertTrue(state.removeCaretRangeAt(3))
+        assertEquals(listOf(UiTextCaret(0)), state.caretRanges)
+        assertFalse(state.removeCaretRangeAt(3))
+    }
+
+    @Test
+    fun `adding a selection range removes overlapping ranges`() {
+        val state = field("foo bar", caret = 0)
+        state.addCaretRange(UiTextCaret(3, 0))
+        state.addCaretRange(UiTextCaret(7, 0))
+        assertEquals(listOf(UiTextCaret(7, 0)), state.caretRanges)
+        assertEquals("foo bar", state.selectedText())
+    }
+
+    @Test
+    fun `focus state controls caret visibility without changing selection`() {
+        val state = field("abcdef")
+        state.setSelection(anchor = 1, active = 4)
+        assertFalse(state.focused)
+
+        state.focus()
+        assertTrue(state.focused)
+        assertEquals("bcd", state.selectedText())
+
+        state.unfocus()
+        assertFalse(state.focused)
+        assertEquals("bcd", state.selectedText())
     }
 }
