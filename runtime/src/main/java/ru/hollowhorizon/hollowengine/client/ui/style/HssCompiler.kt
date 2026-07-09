@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.layout.readOnlyIterator
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.SvgPathShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgResource
@@ -42,7 +43,8 @@ internal class HssRuleIndex(rules: List<StyleRule>) {
 
     fun candidates(node: UiNode): Sequence<StyleRule> = sequence {
         node.id?.let { id -> byId[id]?.let { yieldAll(it) } }
-        for (tag in node.tags) byTag[tag]?.let { yieldAll(it) }
+        val tags = node.tags.readOnlyIterator()
+        while (tags.hasNext()) byTag[tags.next()]?.let { yieldAll(it) }
         byType[node.type]?.let { yieldAll(it) }
         yieldAll(universal)
     }

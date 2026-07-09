@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 
@@ -339,12 +340,14 @@ private fun MutableList<UiBatchedTriangle>.appendRoundedFill(
     val center = UiBatchedVertex(transform.transform(centerX, centerY), colorAt(centerX, centerY))
     val perimeter = roundedPerimeter(width, height, radius)
     for (index in 0 until perimeter.lastIndex) {
-        val first = perimeter[index]
-        val second = perimeter[index + 1]
+        val firstX = perimeter.x(index)
+        val firstY = perimeter.y(index)
+        val secondX = perimeter.x(index + 1)
+        val secondY = perimeter.y(index + 1)
         this += UiBatchedTriangle(
             center,
-            UiBatchedVertex(transform.transform(first.first, first.second), colorAt(first.first, first.second)),
-            UiBatchedVertex(transform.transform(second.first, second.second), colorAt(second.first, second.second)),
+            UiBatchedVertex(transform.transform(firstX, firstY), colorAt(firstX, firstY)),
+            UiBatchedVertex(transform.transform(secondX, secondY), colorAt(secondX, secondY)),
         )
     }
 }
@@ -367,16 +370,21 @@ private fun MutableList<UiBatchedTriangle>.appendRoundedStroke(
     val segments = roundedSegments(radius)
     val outer = roundedPerimeter(width, height, radius, segments)
     val inner = roundedPerimeter(innerWidth, innerHeight, max(0f, radius - inset), segments)
-        .map { (x, y) -> x + inset to y + inset }
     for (index in 0 until outer.lastIndex) {
         val nextIndex = index + 1
-        val currentInner = inner[index.coerceAtMost(inner.lastIndex)]
-        val nextInner = inner[nextIndex.coerceAtMost(inner.lastIndex)]
-        val outerVertex = UiBatchedVertex(transform.transform(outer[index].first, outer[index].second), color)
+        val currentInnerIndex = index.coerceAtMost(inner.lastIndex)
+        val nextInnerIndex = nextIndex.coerceAtMost(inner.lastIndex)
+        val outerVertex = UiBatchedVertex(transform.transform(outer.x(index), outer.y(index)), color)
         val nextOuterVertex =
-            UiBatchedVertex(transform.transform(outer[nextIndex].first, outer[nextIndex].second), color)
-        val innerVertex = UiBatchedVertex(transform.transform(currentInner.first, currentInner.second), color)
-        val nextInnerVertex = UiBatchedVertex(transform.transform(nextInner.first, nextInner.second), color)
+            UiBatchedVertex(transform.transform(outer.x(nextIndex), outer.y(nextIndex)), color)
+        val innerVertex = UiBatchedVertex(
+            transform.transform(inner.x(currentInnerIndex) + inset, inner.y(currentInnerIndex) + inset),
+            color,
+        )
+        val nextInnerVertex = UiBatchedVertex(
+            transform.transform(inner.x(nextInnerIndex) + inset, inner.y(nextInnerIndex) + inset),
+            color,
+        )
         this += UiBatchedTriangle(outerVertex, innerVertex, nextInnerVertex)
         this += UiBatchedTriangle(outerVertex, nextInnerVertex, nextOuterVertex)
     }
@@ -524,7 +532,11 @@ internal fun drawProjectedShadow(
     transform: UiMatrix4,
     filter: UiFilterChain,
 ) {
-    val outline = roundedPerimeter(width, height, radius).map { (x, y) -> transform.transform(x, y) }
+    val perimeter = roundedPerimeter(width, height, radius)
+    val outline = ArrayList<UiVec3>(perimeter.size)
+    for (index in 0 until perimeter.size) {
+        outline += transform.transform(perimeter.x(index), perimeter.y(index))
+    }
     val corners = localCorners(width, height, transform)
     val projectedScale = projectedScale(corners, width, height)
     val facing = facingAmount(width, height, transform)
@@ -625,7 +637,10 @@ private fun drawRoundedFan(
         val centerColor = colorAt(centerX, centerY)
         buffer.addVertex(center.x, center.y, center.z)
             .setColor(centerColor.red, centerColor.green, centerColor.blue, centerColor.alpha)
-        for ((x, y) in roundedPerimeter(width, height, radius)) {
+        val perimeter = roundedPerimeter(width, height, radius)
+        for (index in 0 until perimeter.size) {
+            val x = perimeter.x(index)
+            val y = perimeter.y(index)
             val point = transform.transform(x, y)
             val color = colorAt(x, y)
             buffer.addVertex(point.x, point.y, point.z).setColor(color.red, color.green, color.blue, color.alpha)
@@ -718,7 +733,7 @@ private fun drawRoundedStroke(
         innerHeight,
         max(0f, radius - inset),
         segments
-    ).map { (x, y) -> x + inset to y + inset }
+    )
     withCullStatePreserved {
         RenderSystem.disableCull()
         RenderSystem.enableBlend()
@@ -726,10 +741,10 @@ private fun drawRoundedStroke(
         RenderSystem.setShader(GameRenderer::getPositionColorShader)
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR)
-        for (index in outer.indices) {
+        for (index in 0 until outer.size) {
             val innerIndex = index.coerceAtMost(inner.lastIndex)
-            val outerPoint = transform.transform(outer[index].first, outer[index].second)
-            val innerPoint = transform.transform(inner[innerIndex].first, inner[innerIndex].second)
+            val outerPoint = transform.transform(outer.x(index), outer.y(index))
+            val innerPoint = transform.transform(inner.x(innerIndex) + inset, inner.y(innerIndex) + inset)
             buffer.addVertex(outerPoint.x, outerPoint.y, outerPoint.z)
                 .setColor(color.red, color.green, color.blue, color.alpha)
             buffer.addVertex(innerPoint.x, innerPoint.y, innerPoint.z)
@@ -744,31 +759,65 @@ private fun roundedPerimeter(
     height: Float,
     radius: Float,
     segmentsOverride: Int? = null,
-): List<Pair<Float, Float>> {
+): RoundedPerimeter {
     val clamped = radius.coerceIn(0f, min(width, height) * 0.5f)
-    if (clamped <= 0f) {
-        return listOf(0f to 0f, 0f to height, width to height, width to 0f, 0f to 0f)
+    val segments = if (clamped <= 0f) 0 else segmentsOverride ?: roundedSegments(clamped)
+    val key = RoundedPerimeterKey(width, height, clamped, segments)
+    return roundedPerimeterCache.getOrPut(key) { buildRoundedPerimeter(width, height, clamped, segments) }
+}
+
+private fun buildRoundedPerimeter(width: Float, height: Float, radius: Float, segments: Int): RoundedPerimeter {
+    if (radius <= 0f) {
+        return RoundedPerimeter(floatArrayOf(0f, 0f, 0f, height, width, height, width, 0f, 0f, 0f))
     }
-    val segments = segmentsOverride ?: roundedSegments(clamped)
-    val corners = listOf(
-        Corner(clamped, clamped, PI.toFloat() * 1.5f, PI.toFloat()),
-        Corner(clamped, height - clamped, PI.toFloat(), PI.toFloat() * 0.5f),
-        Corner(width - clamped, height - clamped, PI.toFloat() * 0.5f, 0f),
-        Corner(width - clamped, clamped, 0f, -PI.toFloat() * 0.5f),
-    )
-    val points = mutableListOf<Pair<Float, Float>>()
-    for (corner in corners) {
+    val points = FloatArray((4 * (segments + 1) + 1) * 2)
+    var offset = 0
+
+    fun appendCorner(x: Float, y: Float, start: Float, end: Float) {
         for (index in 0..segments) {
             val progress = index.toFloat() / segments.toFloat()
-            val angle = corner.start + (corner.end - corner.start) * progress
-            points += corner.x + cos(angle) * clamped to corner.y + sin(angle) * clamped
+            val angle = start + (end - start) * progress
+            points[offset++] = x + cos(angle) * radius
+            points[offset++] = y + sin(angle) * radius
         }
     }
-    points += points.first()
-    return points
+
+    val pi = PI.toFloat()
+    appendCorner(radius, radius, pi * 1.5f, pi)
+    appendCorner(radius, height - radius, pi, pi * 0.5f)
+    appendCorner(width - radius, height - radius, pi * 0.5f, 0f)
+    appendCorner(width - radius, radius, 0f, -pi * 0.5f)
+    points[offset++] = points[0]
+    points[offset] = points[1]
+    return RoundedPerimeter(points)
 }
 
 private fun roundedSegments(radius: Float): Int = max(8, min(48, (radius * 0.75f).roundToInt()))
+
+private data class RoundedPerimeterKey(
+    val width: Float,
+    val height: Float,
+    val radius: Float,
+    val segments: Int,
+)
+
+private class RoundedPerimeter(private val points: FloatArray) {
+    val size: Int = points.size / 2
+    val lastIndex: Int = size - 1
+
+    fun x(index: Int): Float = points[index * 2]
+
+    fun y(index: Int): Float = points[index * 2 + 1]
+}
+
+private const val MaxRoundedPerimeterCacheEntries = 512
+
+private val roundedPerimeterCache = object :
+    LinkedHashMap<RoundedPerimeterKey, RoundedPerimeter>(MaxRoundedPerimeterCacheEntries, 0.75f, true) {
+    override fun removeEldestEntry(
+        eldest: MutableMap.MutableEntry<RoundedPerimeterKey, RoundedPerimeter>?,
+    ): Boolean = size > MaxRoundedPerimeterCacheEntries
+}
 
 private fun gradientColorAt(
     x: Float,
@@ -887,10 +936,3 @@ internal fun UiColor.filtered(filter: UiFilterChain): UiColor {
         alpha = alpha,
     )
 }
-
-private data class Corner(
-    val x: Float,
-    val y: Float,
-    val start: Float,
-    val end: Float,
-)

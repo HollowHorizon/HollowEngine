@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.copyToStableSet
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarThumbType
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarType
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -377,7 +378,7 @@ private fun UiNode.styleSnapshot(modifiers: List<Modifier>) = NodeStyleSnapshot(
     nodeClass = javaClass,
     type = type,
     id = id,
-    tags = tags.toSet(),
+    tags = tags.copyToStableSet(),
     states = effectiveStates(),
     attributes = attributes.toMap(),
     modifiers = modifiers,

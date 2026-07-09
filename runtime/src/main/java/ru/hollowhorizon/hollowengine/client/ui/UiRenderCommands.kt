@@ -757,7 +757,7 @@ class UiCommandRenderer {
             diagnosticErrorColor = UiColor(1f, 0.33f, 0.33f, 0.9f),
             diagnosticWarningColor = UiColor(1f, 0.72f, 0.26f, 0.88f),
             diagnosticInfoColor = UiColor(0.38f, 0.66f, 1f, 0.84f),
-            showCaret = UiState.FOCUS in node.effectiveStates(),
+            showCaret = node.hasEffectiveState(UiState.FOCUS),
             showLineNumbers = field.lineNumbers == true,
             showInlayHints = field.inlayHints == true,
             diagnostics = node.diagnostics,
@@ -870,7 +870,7 @@ class UiHitTester {
                 is HitTestTask.Test -> {
                     val current = task.node
                     val style = resolved[current]
-                    if (UiState.DISABLED in current.effectiveStates()) continue
+                    if (current.hasEffectiveState(UiState.DISABLED)) continue
                     if (!style.input.hoverable &&
                         !style.input.clickable &&
                         !style.focusable &&

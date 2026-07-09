@@ -358,7 +358,7 @@ class HollowUiRuntime(
     private fun ensureFocusedTextFieldsVisible(nodes: List<UiNode>, layout: UiLayoutResult): Boolean {
         var changed = false
         for (node in nodes.filterIsInstance<TextFieldNode>()) {
-            if (UiState.FOCUS !in node.effectiveStates()) continue
+            if (!node.hasEffectiveState(UiState.FOCUS)) continue
             if (ensuredTextFieldCaretRevisions[node] == node.caretVisibilityRevision) continue
             val style = node.resolvedSnapshot
             if (!style.scrollable) {

@@ -57,7 +57,7 @@ data class HssSelector(
         if (type != null && node.type != type) return false
         if (id != null && node.id != id) return false
         if (!node.tags.containsAll(tags)) return false
-        if (!node.effectiveStates().containsAll(states)) return false
+        if (!node.hasEffectiveStates(states)) return false
         if (attributes.any { !it.matches(node) }) return false
         return true
     }

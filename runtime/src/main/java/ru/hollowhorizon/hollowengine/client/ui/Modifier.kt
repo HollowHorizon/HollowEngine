@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.layout.copyToStableSet
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
@@ -514,8 +515,27 @@ internal fun UiNode.effectiveStates(): Set<UiState> {
     val runtimeStates = flattened
         .filterIsInstance<RuntimeStateModifier>()
         .flatMapTo(linkedSetOf()) { it.states }
-    if (modifierStates.isEmpty() && runtimeStates.isEmpty()) return states.toSet()
-    return states + modifierStates + runtimeStates
+    if (modifierStates.isEmpty() && runtimeStates.isEmpty()) return states.copyToStableSet()
+    return states.copyToStableSet() + modifierStates + runtimeStates
+}
+
+internal fun UiNode.hasEffectiveState(state: UiState): Boolean {
+    if (state in states) return true
+    return modifiers.flattenModifiers().any { modifier ->
+        when (modifier) {
+            is StateModifier -> state in modifier.states
+            is RuntimeStateModifier -> state in modifier.states
+            else -> false
+        }
+    }
+}
+
+internal fun UiNode.hasEffectiveStates(required: Set<UiState>): Boolean {
+    if (required.isEmpty()) return true
+    for (state in required) {
+        if (!hasEffectiveState(state)) return false
+    }
+    return true
 }
 
 internal fun UiNode.setRuntimeStates(next: Set<UiState>) {

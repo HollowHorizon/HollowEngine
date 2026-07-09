@@ -9,9 +9,11 @@ import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
@@ -59,8 +61,18 @@ private data class SvgRasterQuad(
     val transform: UiMatrix4,
 )
 
+private data class TextVisualOrderKey(
+    val text: String,
+    val bold: Boolean,
+    val italic: Boolean,
+    val underline: Boolean,
+    val strikethrough: Boolean,
+    val colorRgb: Int,
+)
+
 private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
+private const val MaxTextVisualOrderCacheEntries = 256
 
 internal fun svgRasterPixelSize(size: Float, scale: Float): Int {
     val requiredSize = ceil(size * scale).toInt().coerceIn(1, MaxSvgRasterSize)
@@ -79,6 +91,13 @@ class MinecraftUiRenderer {
     private val layerRequests = mutableListOf<UiLayerRequest>()
     private val brokenSvgSources = mutableSetOf<String>()
     private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
+    private val textVisualOrderCache = object :
+        LinkedHashMap<TextVisualOrderKey, FormattedCharSequence>(MaxTextVisualOrderCacheEntries, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<TextVisualOrderKey, FormattedCharSequence>?,
+        ): Boolean = size > MaxTextVisualOrderCacheEntries
+    }
+    private var textVisualOrderLanguage: Language? = null
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var textBatchDirty = false
@@ -1026,11 +1045,11 @@ class MinecraftUiRenderer {
         val mc = Minecraft.getInstance()
         val fontScale = fontSize / mc.font.lineHeight.toFloat()
         val origin = transform.transform(localX, localY)
-        val pose = PoseStack()
-        pose.translate(
+        POSE_STACK.pushPose()
+        POSE_STACK.translate(
             origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble() - 10
         )
-        pose.scale(scaleX * fontScale, scaleY * fontScale, 1f)
+        POSE_STACK.scale(scaleX * fontScale, scaleY * fontScale, 1f)
         val color = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
             UiColor(0.34f, 0.67f, 1f, 1f)
         } else {
@@ -1038,25 +1057,44 @@ class MinecraftUiRenderer {
         }
         val finalAlpha = command.opacity * alphaMultiplier * color.alpha
         val finalColor = UiColor(color.red, color.green, color.blue, finalAlpha)
-        val component = Component.literal(fragment.text).withStyle { style ->
-            style.withBold(fragment.style.bold).withItalic(fragment.style.italic)
-                .withUnderlined(fragment.style.underline || fragment.style.link != null)
-                .withStrikethrough(fragment.style.strikethrough)
-                .withColor(TextColor.fromRgb(finalColor.argb() and 0xFFFFFF))
-        }
         mc.font.drawInBatch(
-            component.visualOrderText,
+            visualOrderText(fragment, finalColor.argb() and 0xFFFFFF),
             0f,
             0f,
             finalColor.filtered(command.filter).argb(),
             false,
-            pose.last().pose(),
+            POSE_STACK.last().pose(),
             mc.renderBuffers().bufferSource(),
             DisplayMode.SEE_THROUGH,
             0,
             15728880,
         )
+        POSE_STACK.popPose()
         markTextBatchDirty()
+    }
+
+    private fun visualOrderText(fragment: UiTextRun, colorRgb: Int): FormattedCharSequence {
+        val language = Language.getInstance()
+        if (textVisualOrderLanguage !== language) {
+            textVisualOrderCache.clear()
+            textVisualOrderLanguage = language
+        }
+        val key = TextVisualOrderKey(
+            text = fragment.text,
+            bold = fragment.style.bold,
+            italic = fragment.style.italic,
+            underline = fragment.style.underline || fragment.style.link != null,
+            strikethrough = fragment.style.strikethrough,
+            colorRgb = colorRgb,
+        )
+        return textVisualOrderCache.getOrPut(key) {
+            Component.literal(key.text).withStyle { style ->
+                style.withBold(key.bold).withItalic(key.italic)
+                    .withUnderlined(key.underline)
+                    .withStrikethrough(key.strikethrough)
+                    .withColor(TextColor.fromRgb(key.colorRgb))
+            }.visualOrderText
+        }
     }
 
     private fun drawAnimatedTextRun(
@@ -1406,14 +1444,14 @@ class MinecraftUiRenderer {
     }
 
     private fun renderEntity(entity: LivingEntity, rect: UiRect) {
-        val stack = PoseStack()
+        POSE_STACK.pushPose()
         val xOffset = rect.x + rect.width / 2f
         val yOffset = rect.y + rect.height
-        stack.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
+        POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
         val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
-        stack.mulPose(Axis.ZP.rotationDegrees(180f))
-        stack.scale(scale, scale, scale)
-        stack.mulPose(Quaternionf().rotateY(25f * Mth.DEG_TO_RAD))
+        POSE_STACK.mulPose(Axis.ZP.rotationDegrees(180f))
+        POSE_STACK.scale(scale, scale, scale)
+        POSE_STACK.mulPose(Quaternionf().rotateY(25f * Mth.DEG_TO_RAD))
 
         val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
         val light1 = Vector3f(0.3f, -1f, -1f).normalize()
@@ -1424,11 +1462,12 @@ class MinecraftUiRenderer {
         val buffers = mc.renderBuffers().bufferSource()
         dispatcher.setRenderShadow(false)
         RenderSystem.runAsFancy {
-            dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, stack, buffers, LightTexture.FULL_BRIGHT)
+            dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
         }
         buffers.endBatch()
         dispatcher.setRenderShadow(true)
         Lighting.setupFor3DItems()
+        POSE_STACK.popPose()
     }
 
     private fun drawWidget(command: DrawSliderCommand) {
@@ -1636,3 +1675,6 @@ class MinecraftUiRenderer {
     }
 
 }
+
+// Чтобы он каждый кадр не выделял на это память
+private val POSE_STACK = PoseStack()

@@ -70,6 +70,25 @@ internal class InvalidatingMutableSet<E>(
             }
         }
     }
+
+    internal fun readOnlyIterator(): Iterator<E> = items.iterator()
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun <E> Set<E>.readOnlyIterator(): Iterator<E> {
+    return if (this is InvalidatingMutableSet<*>) {
+        (this as InvalidatingMutableSet<E>).readOnlyIterator()
+    } else {
+        iterator()
+    }
+}
+
+internal fun <E> Set<E>.copyToStableSet(): Set<E> {
+    if (isEmpty()) return emptySet()
+    val copy = LinkedHashSet<E>(size)
+    val iterator = readOnlyIterator()
+    while (iterator.hasNext()) copy += iterator.next()
+    return copy
 }
 
 internal class InvalidatingMutableMap<K, V>(

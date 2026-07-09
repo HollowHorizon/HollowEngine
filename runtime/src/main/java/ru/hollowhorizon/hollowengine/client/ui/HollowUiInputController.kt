@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
+import ru.hollowhorizon.hollowengine.client.ui.layout.readOnlyIterator
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
@@ -718,7 +719,8 @@ private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Floa
     ancestors.forEach { ancestor ->
         val local = layout[ancestor].inputTransform.inverse()?.transform(x, y, 0f) ?: return@forEach
         ancestor.id?.let { positions[it] = local }
-        ancestor.tags.forEach { tag -> positions[tag] = local }
+        val tags = ancestor.tags.readOnlyIterator()
+        while (tags.hasNext()) positions[tags.next()] = local
     }
     return positions
 }

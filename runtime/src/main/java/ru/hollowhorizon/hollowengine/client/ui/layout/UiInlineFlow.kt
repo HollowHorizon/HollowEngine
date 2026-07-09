@@ -496,53 +496,110 @@ private fun spanTextLayout(
     boundTop: Float,
     spanLength: Int,
 ): UiTextLayout {
-    val orderedLines = byLine.entries.sortedBy { it.key }.map { entry ->
-        entry.value.filter { it is WordPiece || it is SpacePiece }.sortedBy { it.x }
+    val sortedEntries = byLine.entries.sortedBy { it.key }
+    val linesCount = sortedEntries.size
+    if (linesCount == 0) return UiTextLayout(emptyList(), 0f, 0f)
+
+    val orderedLines = ArrayList<List<Piece>>(linesCount)
+    for (entry in sortedEntries) {
+        val filteredAndSorted = entry.value
+            .filter { it is WordPiece || it is SpacePiece }
+            .sortedBy { it.x }
+        orderedLines.add(filteredAndSorted)
     }
-    val lineStarts = IntArray(orderedLines.size)
+
+    val lineStarts = IntArray(linesCount)
     var nextKnownStart = spanLength
-    for (index in orderedLines.indices.reversed()) {
-        nextKnownStart = orderedLines[index].mapNotNull { it.spanSourceStart() }.minOrNull() ?: nextKnownStart
+    for (index in linesCount - 1 downTo 0) {
+        val linePieces = orderedLines[index]
+        var minStart = Int.MAX_VALUE
+        for (piece in linePieces) {
+            val start = piece.spanSourceStart()
+            if (start != null && start < minStart) {
+                minStart = start
+            }
+        }
+        if (minStart != Int.MAX_VALUE) {
+            nextKnownStart = minStart
+        }
         lineStarts[index] = nextKnownStart
     }
-    val textLines = orderedLines.mapIndexed { index, linePieces ->
-        val reference = linePieces.firstOrNull() ?: byLine.entries.sortedBy { it.key }[index].value.first()
+
+    var totalLayoutHeight = 0f
+    var maxLayoutWidth = 0f
+
+    val textLines = ArrayList<UiTextLine>(linesCount)
+
+    for (index in 0 until linesCount) {
+        val linePieces = orderedLines[index]
+        val reference = linePieces.firstOrNull() ?: sortedEntries[index].value.first()
         val lineHeight = reference.lineHeight
-        val sourceStart = lineStarts[index]
-        val nextStart = lineStarts.getOrElse(index + 1) { spanLength }
-        val hasSpaces = linePieces.any { it is SpacePiece }
-        val fragments = linePieces.map { piece ->
+
+        var left = Float.MAX_VALUE
+        var right = -Float.MAX_VALUE
+        var hasSpaces = false
+
+        val fragments = ArrayList<UiTextFragment>(linePieces.size)
+
+        for (piece in linePieces) {
             val y = ((lineHeight - piece.height) / 2f).coerceAtLeast(0f)
-            when (piece) {
-                is SpacePiece -> UiTextSpaceRun(UiInlineStyle(), piece.x - boundLeft, y, piece.width, piece.height)
-                else -> {
-                    val word = piece as WordPiece
-                    UiTextRun(word.text, UiInlineStyle(effects = word.effects), word.x - boundLeft, y, word.width, word.height)
+            val fragmentX = piece.x - boundLeft
+            val fragmentRight = fragmentX + piece.width
+
+            if (fragmentX < left) left = fragmentX
+            if (fragmentRight > right) right = fragmentRight
+
+            if (piece is SpacePiece) {
+                hasSpaces = true
+                fragments.add(UiTextSpaceRun(UiInlineStyle(), fragmentX, y, piece.width, piece.height))
+            } else {
+                val word = piece as WordPiece
+                fragments.add(UiTextRun(word.text, UiInlineStyle(effects = word.effects), fragmentX, y, word.width, word.height))
+            }
+        }
+
+        if (left == Float.MAX_VALUE) left = 0f
+        if (right == -Float.MAX_VALUE) right = 0f
+
+        val text = buildString {
+            for (i in linePieces.indices) {
+                val piece = linePieces[i]
+                if (piece is SpacePiece) {
+                    append(" ")
+                } else {
+                    append((piece as WordPiece).text)
+                    if (!hasSpaces && i < linePieces.lastIndex) {
+                        append(" ")
+                    }
                 }
             }
         }
-        val text = if (hasSpaces) {
-            buildString { linePieces.forEach { append(if (it is SpacePiece) " " else (it as WordPiece).text) } }
-        } else {
-            linePieces.filterIsInstance<WordPiece>().joinToString(" ") { it.text }
+
+        val sourceStart = lineStarts[index]
+        val nextStart = if (index + 1 < linesCount) lineStarts[index + 1] else spanLength
+        val lineWidth = right - left
+
+        if (lineWidth > maxLayoutWidth) {
+            maxLayoutWidth = lineWidth
         }
-        val left = fragments.minOfOrNull { it.x } ?: 0f
-        val right = fragments.maxOfOrNull { it.x + it.width } ?: 0f
-        UiTextLine(
-            text = text,
-            x = 0f,
-            y = reference.lineTop - boundTop,
-            width = right - left,
-            naturalWidth = right - left,
-            height = lineHeight,
-            sourceStart = sourceStart,
-            sourceLength = (nextStart - sourceStart).coerceAtLeast(0),
-            fragments = fragments,
+        totalLayoutHeight += lineHeight
+
+        textLines.add(
+            UiTextLine(
+                text = text,
+                x = 0f,
+                y = reference.lineTop - boundTop,
+                width = lineWidth,
+                naturalWidth = lineWidth,
+                height = lineHeight,
+                sourceStart = sourceStart,
+                sourceLength = (nextStart - sourceStart).coerceAtLeast(0),
+                fragments = fragments,
+            )
         )
     }
-    val width = textLines.maxOfOrNull { it.width } ?: 0f
-    val height = textLines.sumOf { it.height.toDouble() }.toFloat()
-    return UiTextLayout(textLines, width, height)
+
+    return UiTextLayout(textLines, maxLayoutWidth, totalLayoutHeight)
 }
 
 internal fun UiLayoutPipeline.placeInlineFlowChildren(scope: ChildPlacementScope) {
