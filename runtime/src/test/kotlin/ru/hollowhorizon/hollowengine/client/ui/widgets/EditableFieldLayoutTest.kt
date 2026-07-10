@@ -45,6 +45,43 @@ class EditableFieldLayoutTest {
         assertEquals(big.lines[4999].start, big.offsetAt(0f, lastTop + 1f), "click on the last row")
     }
 
+
+    @Test
+    fun `caret x and vertical movement include inlay width at the same offset`() {
+        val plain = layout("a\nzzzzzzzzzz")
+        val withInlay = computeEditableFieldLayout(
+            text = "a\nzzzzzzzzzz",
+            fontSize = fontSize,
+            fontFamily = null,
+            wrap = false,
+            viewportWidth = 0f,
+            inlayHints = listOf(UiInlayHint(offset = 1, text = ": Int")),
+        )
+
+        assertTrue(withInlay.caretAt(1).x > plain.caretAt(1).x + 20f, "caret accounts for trailing inlay")
+        assertTrue(withInlay.visualCaretMove(1, 1) > 3, "down movement keeps the inlay-adjusted visual x")
+    }
+
+    @Test
+    fun `non-wrapped empty line selection uses viewport width when text is narrower`() {
+        val l = layout("x\n", wrap = false, viewportWidth = 120f)
+        val emptyLine = l.lines[1]
+        val emptyLineLayout = l.lineLayouts[1]
+        val rects = selectionRectsForRow(
+            line = emptyLine,
+            lineLayout = emptyLineLayout,
+            localStart = 0,
+            localEnd = 0,
+            crossesNewline = true,
+            fontSize = fontSize,
+            fontFamily = null,
+            fullWidth = l.contentWidth,
+        )
+
+        assertEquals(120f, l.contentWidth, 0.5f)
+        assertEquals(120f, rects.single().width, 0.5f)
+    }
+
     @Test
     fun `the visible range is a band around the scroll offset, not the whole document`() {
         val l = layout((0 until 5000).joinToString("\n") { "l$it" })

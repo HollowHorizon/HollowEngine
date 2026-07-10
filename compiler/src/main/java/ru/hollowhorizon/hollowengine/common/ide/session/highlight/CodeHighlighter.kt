@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hollowengine.common.ide.session.inlays.provideHints
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
+import ru.hollowhorizon.hollowengine.common.scripting.ide.OccurrenceRange
 import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
@@ -54,9 +55,7 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
     val lineCount = code.lines().size
     val builder = LineBuilder(arrayListOf())
 
-    val safeOffset = offset.coerceIn(0, file.textLength)
-    val elementAtCaret = file.findElementAt(safeOffset).takeIfSelectable()
-        ?: if (safeOffset > 0) file.findElementAt(safeOffset - 1).takeIfSelectable() else null
+    val elementAtCaret = file.findElementAtCaret(offset)
 
     analyze(file) {
         val hints = provideHints(file)
@@ -84,13 +83,85 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
 
     return builder.lines
 }
-
-private val selectable: List<IElementType> = buildList {
+// Comments and strings are excluded so a caret inside them does not highlight the whole element.
+private val nonSelectableCaretTokens: List<IElementType> = buildList {
     add(KtTokens.DOT)
     addAll(KtTokens.ALL_ASSIGNMENTS.types)
+    addAll(KtTokens.COMMENTS.types)
+    addAll(KtTokens.STRINGS.types)
+    add(KtTokens.OPEN_QUOTE)
+    add(KtTokens.CLOSING_QUOTE)
 }
 
-private fun PsiElement?.takeIfSelectable() = takeIf { it !is PsiWhiteSpace && it?.node?.elementType !in selectable }
+/**
+ * Occurrence ranges (matching bracket, same-symbol identifiers) for the element at [offset].
+ * Unlike [highlightCode] this resolves only identifiers with the same text, so it is cheap
+ * enough to run on every caret move.
+ */
+fun occurrencesCode(file: KtFile, offset: Int): List<OccurrenceRange> {
+    val target = file.findElementAtCaret(offset) ?: return emptyList()
+    val targetRange = target.textRange.toOccurrence()
+
+    matchingBracketFor(target)?.let { match ->
+        return listOf(targetRange, match.textRange.toOccurrence()).sortedBy { it.start }
+    }
+    if (target.node.elementType != KtTokens.IDENTIFIER) {
+        return if (target.node.elementType in bracketTokens) listOf(targetRange) else emptyList()
+    }
+
+    val targetText = target.text
+    val ranges = ArrayList<OccurrenceRange>()
+    analyze(file) {
+        val expression = target.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
+        val caretKeys = expression?.let { resolveSymbolsForHighlight(it) }
+            ?.map { normalizeToKey(it) }?.toSet().orEmpty()
+
+        var leaf: PsiElement? = file.findElementAt(0)
+        while (leaf != null) {
+            if (leaf.node?.elementType == KtTokens.IDENTIFIER && leaf.text == targetText) {
+                val matches = leaf == target || caretKeys.isNotEmpty() && run {
+                    val leafExpression = leaf.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
+                    val symbols = leafExpression?.let { resolveSymbolsForHighlight(it) }.orEmpty()
+                    symbols.any { normalizeToKey(it) in caretKeys }
+                }
+                if (matches) ranges += leaf.textRange.toOccurrence()
+            }
+            leaf = PsiTreeUtil.nextLeaf(leaf)
+        }
+    }
+    if (ranges.isEmpty()) ranges += targetRange
+    return ranges
+}
+
+private fun TextRange.toOccurrence() = OccurrenceRange(startOffset, endOffset)
+
+private val bracketTokens: Set<IElementType> = setOf(
+    KtTokens.LPAR, KtTokens.RPAR,
+    KtTokens.LBRACE, KtTokens.RBRACE,
+    KtTokens.LBRACKET, KtTokens.RBRACKET,
+)
+
+private fun matchingBracketFor(target: PsiElement): PsiElement? {
+    if (target.node.elementType !in bracketTokens) return null
+    val parent = target.parent ?: return null
+    val other = when (target) {
+        parent.firstChild -> parent.lastChild
+        parent.lastChild -> parent.firstChild
+        else -> null
+    } ?: return null
+    return other.takeIf { target.isOtherParenthesis(it) }
+}
+
+private fun PsiFile.findElementAtCaret(offset: Int): PsiElement? {
+    if (offset < 0) return null
+    val safeOffset = offset.coerceIn(0, textLength)
+    return findElementAt(safeOffset).takeIfCaretSelectable()
+        ?: if (safeOffset > 0) findElementAt(safeOffset - 1).takeIfCaretSelectable() else null
+}
+
+private fun PsiElement?.takeIfCaretSelectable() = takeIf {
+    it !is PsiWhiteSpace && it?.node?.elementType !in nonSelectableCaretTokens
+}
 
 context(session: KaSession)
 private fun LineBuilder.SpanBuilder.renderPsiElement(
@@ -158,6 +229,8 @@ private fun shouldHighlight(
         if (target.isOtherParenthesis(current)) return true
 
         if (current.node.elementType != target.node.elementType) return false
+        // Different identifier text can never resolve to the same symbol; skip the costly resolve.
+        if (current.node.elementType == KtTokens.IDENTIFIER && current.text != target.text) return false
 
         if (caretKeys.isEmpty()) return false
 

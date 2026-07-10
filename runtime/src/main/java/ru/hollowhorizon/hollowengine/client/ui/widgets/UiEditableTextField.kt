@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
+import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import kotlin.math.abs
 
@@ -41,6 +42,9 @@ internal class EditableFieldLayout(
     val fontSize: Float,
     val fontFamily: String?,
     val contentWidth: Float,
+    val inlayTexts: Map<String, String> = emptyMap(),
+    internal val layoutWidth: Float = Float.POSITIVE_INFINITY,
+    internal val lineInputs: Array<EditableFieldLineInput?> = arrayOfNulls(lines.size),
 ) {
     private val trailingMargin = fontSize
     val height: Float get() = (offsets.lastOrNull() ?: 0f) + trailingMargin
@@ -113,15 +117,16 @@ internal class EditableFieldLayout(
             val line = lines[lineIndex]
             val layout = lineLayouts[lineIndex]
             if (layout == null || layout.lines.isEmpty()) {
-                add(EditableFieldVisualLine(line.start, line.end, line.text, 0f))
+                add(EditableFieldVisualLine.Plain(line.start, line.end, line.text, 0f))
             } else {
                 layout.lines.forEach { visual ->
                     add(
-                        EditableFieldVisualLine(
+                        EditableFieldVisualLine.Rich(
                             start = line.start + visual.sourceStart,
                             end = line.start + visual.sourceStart + visual.sourceLength,
-                            text = visual.text,
-                            x = visual.x,
+                            lineStart = line.start,
+                            layout = layout,
+                            visual = visual,
                         ),
                     )
                 }
@@ -130,28 +135,55 @@ internal class EditableFieldLayout(
     }
 }
 
-private data class EditableFieldVisualLine(
+private sealed class EditableFieldVisualLine(
     val start: Int,
     val end: Int,
-    val text: String,
-    val x: Float,
 ) {
-    fun xAt(offset: Int, fontSize: Float, fontFamily: String?): Float {
-        val column = (offset - start).coerceIn(0, text.length)
-        return x + UiTextLayouter.measureTextWidth(text.take(column), fontSize, fontFamily)
+    abstract fun xAt(offset: Int, fontSize: Float, fontFamily: String?): Float
+
+    abstract fun offsetNearestX(targetX: Float, fontSize: Float, fontFamily: String?): Int
+
+    class Plain(
+        start: Int,
+        end: Int,
+        private val text: String,
+        private val x: Float,
+    ) : EditableFieldVisualLine(start, end) {
+        override fun xAt(offset: Int, fontSize: Float, fontFamily: String?): Float {
+            val column = (offset - start).coerceIn(0, text.length)
+            return x + UiTextLayouter.measureTextWidth(text.take(column), fontSize, fontFamily)
+        }
+
+        override fun offsetNearestX(targetX: Float, fontSize: Float, fontFamily: String?): Int {
+            var bestOffset = 0
+            var bestDistance = Float.POSITIVE_INFINITY
+            for (offset in 0..(end - start).coerceAtLeast(0)) {
+                val distance = abs(x + UiTextLayouter.measureTextWidth(text.take(offset), fontSize, fontFamily) - targetX)
+                if (distance < bestDistance) {
+                    bestDistance = distance
+                    bestOffset = offset
+                }
+            }
+            return start + bestOffset
+        }
     }
 
-    fun offsetNearestX(targetX: Float, fontSize: Float, fontFamily: String?): Int {
-        var bestOffset = 0
-        var bestDistance = Float.POSITIVE_INFINITY
-        for (offset in 0..(end - start).coerceAtLeast(0)) {
-            val distance = abs(x + UiTextLayouter.measureTextWidth(text.take(offset), fontSize, fontFamily) - targetX)
-            if (distance < bestDistance) {
-                bestDistance = distance
-                bestOffset = offset
-            }
+    class Rich(
+        start: Int,
+        end: Int,
+        private val lineStart: Int,
+        private val layout: UiTextLayout,
+        private val visual: UiTextLine,
+    ) : EditableFieldVisualLine(start, end) {
+        override fun xAt(offset: Int, fontSize: Float, fontFamily: String?): Float {
+            val localOffset = (offset - lineStart).coerceIn(0, visual.sourceStart + visual.sourceLength)
+            return layout.caretPosition(localOffset, fontSize, fontFamily).x
         }
-        return start + bestOffset
+
+        override fun offsetNearestX(targetX: Float, fontSize: Float, fontFamily: String?): Int {
+            val y = visual.y + visual.height / 2f
+            return lineStart + layout.caretIndexAt(targetX, y, fontSize, fontFamily)
+        }
     }
 }
 
@@ -163,43 +195,152 @@ private fun List<EditableFieldVisualLine>.lineIndexAtCaret(offset: Int): Int {
     return indexOfLast { it.start <= target }.coerceIn(0, lastIndex)
 }
 
+internal data class EditableFieldLineInput(
+    val text: String,
+    val highlights: List<UiTextHighlight>,
+    val inlays: List<UiInlayHint>,
+)
+
 internal fun computeEditableFieldLayout(
     text: String,
     fontSize: Float,
     fontFamily: String?,
     wrap: Boolean,
     viewportWidth: Float,
+    highlights: List<UiTextHighlight> = emptyList(),
+    inlayHints: List<UiInlayHint> = emptyList(),
+    inlayStyle: UiInlineStyle = EditableFieldDefaultInlayStyle,
+    previous: EditableFieldLayout? = null,
 ): EditableFieldLayout {
     val lines = editableFieldLines(text)
     val offsets = FloatArray(lines.size + 1)
     val layouts = arrayOfNulls<UiTextLayout>(lines.size)
+    val lineInputs = arrayOfNulls<EditableFieldLineInput>(lines.size)
+    val inlayTexts = linkedMapOf<String, String>()
     val uniformHeight = UiTextLayouter.layout(
         "X", Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, false, UiTextAlign.LEFT, fontSize, fontFamily,
         preserveWhitespace = true,
     ).height
     val wrapping = wrap && viewportWidth > 0f
+    val layoutWidth = if (wrapping) viewportWidth else Float.POSITIVE_INFINITY
+    val highlightBuckets = bucketHighlightsByLine(lines, highlights)
+    val inlayBuckets = bucketInlaysByLine(lines, inlayHints)
+    val reusable = previous?.takeIf {
+        it.fontSize == fontSize && it.fontFamily == fontFamily && it.layoutWidth == layoutWidth
+    }?.reusableLineLayouts()
     var maxWidth = 0f
     var y = 0f
+
     for (index in lines.indices) {
+        val line = lines[index]
         offsets[index] = y
-        if (wrapping) {
-            val layout = UiTextLayouter.layout(
-                lines[index].text, viewportWidth, Float.POSITIVE_INFINITY, true, UiTextAlign.LEFT, fontSize, fontFamily,
+
+        val localHighlights = highlightBuckets[index]
+        val localInlays = inlayBuckets[index]
+        localInlays.forEachIndexed { hintIndex, hint ->
+            inlayTexts[textFieldInlayWidgetId(hint, hintIndex)] = hint.text
+        }
+
+        val input = EditableFieldLineInput(line.text, localHighlights, localInlays)
+        lineInputs[index] = input
+        val layout = reusable?.get(input) ?: run {
+            val metrics = localInlayWidgetMetrics(localInlays, inlayStyle, fontSize, fontFamily)
+            val richText = line.text.toHighlightedRichText(
+                highlights = localHighlights,
+                inlayHints = localInlays,
+                inlayStyle = inlayStyle,
+                inlayWidgetMetrics = metrics,
+            )
+            UiTextLayouter.layout(
+                richText,
+                layoutWidth,
+                Float.POSITIVE_INFINITY,
+                wrapping,
+                UiTextAlign.LEFT,
+                fontSize,
+                fontFamily,
                 preserveWhitespace = true,
             )
-            layouts[index] = layout
-            y += maxOf(layout.height, uniformHeight)
-        } else {
-            maxWidth = maxOf(maxWidth, UiTextLayouter.measureTextWidth(lines[index].text, fontSize, fontFamily))
-            y += uniformHeight
         }
+        layouts[index] = layout
+        maxWidth = maxOf(maxWidth, layout.maxNaturalLineWidth)
+        y += maxOf(layout.height, uniformHeight)
     }
+
     offsets[lines.size] = y
     // A trailing margin (one glyph) so the scroll runs a touch past the last column/line.
-    val contentWidth = if (wrapping) viewportWidth else maxWidth + fontSize
-    return EditableFieldLayout(lines, offsets, layouts, fontSize, fontFamily, contentWidth)
+    val contentWidth = if (wrapping) viewportWidth else maxOf(maxWidth + fontSize, viewportWidth)
+    return EditableFieldLayout(lines, offsets, layouts, fontSize, fontFamily, contentWidth, inlayTexts, layoutWidth, lineInputs)
 }
 
+private fun EditableFieldLayout.reusableLineLayouts(): Map<EditableFieldLineInput, UiTextLayout> {
+    val map = HashMap<EditableFieldLineInput, UiTextLayout>(lineInputs.size * 2)
+    for (index in lineInputs.indices) {
+        val input = lineInputs[index] ?: continue
+        val layout = lineLayouts[index] ?: continue
+        map.putIfAbsent(input, layout)
+    }
+    return map
+}
+
+private fun bucketHighlightsByLine(
+    lines: List<EditableFieldLine>,
+    highlights: List<UiTextHighlight>,
+): Array<List<UiTextHighlight>> {
+    val buckets = arrayOfNulls<MutableList<UiTextHighlight>>(lines.size)
+    // Highlights are sorted by start, so a single forward pass distributes them.
+    var lineIndex = 0
+    for (highlight in highlights) {
+        while (lineIndex < lines.size && lines[lineIndex].end < highlight.start) lineIndex++
+        var index = lineIndex
+        while (index < lines.size && lines[index].start < highlight.end) {
+            val line = lines[index]
+            val start = maxOf(highlight.start, line.start)
+            val end = minOf(highlight.end, line.end)
+            if (start < end) {
+                val bucket = buckets[index] ?: ArrayList<UiTextHighlight>().also { buckets[index] = it }
+                bucket += highlight.copy(start = start - line.start, end = end - line.start)
+            }
+            index++
+        }
+    }
+    return Array(lines.size) { buckets[it] ?: emptyList() }
+}
+
+private fun bucketInlaysByLine(
+    lines: List<EditableFieldLine>,
+    inlayHints: List<UiInlayHint>,
+): Array<List<UiInlayHint>> {
+    if (inlayHints.isEmpty()) return Array(lines.size) { emptyList() }
+    val buckets = arrayOfNulls<MutableList<UiInlayHint>>(lines.size)
+    var lineIndex = 0
+    for (hint in inlayHints.sortedBy { it.offset }) {
+        while (lineIndex < lines.size && lines[lineIndex].end < hint.offset) lineIndex++
+        if (lineIndex == lines.size) break
+        val line = lines[lineIndex]
+        if (hint.offset >= line.start) {
+            val bucket = buckets[lineIndex] ?: ArrayList<UiInlayHint>().also { buckets[lineIndex] = it }
+            bucket += hint.copy(offset = hint.offset - line.start)
+        }
+    }
+    return Array(lines.size) { buckets[it] ?: emptyList() }
+}
+
+private fun localInlayWidgetMetrics(
+    inlays: List<UiInlayHint>,
+    inlayStyle: UiInlineStyle,
+    fontSize: Float,
+    fontFamily: String?,
+): Map<String, UiInlineWidgetMetrics> {
+    if (inlays.isEmpty()) return emptyMap()
+    val size = inlayStyle.resolvedFontSize(fontSize)
+    val height = size + EditableFieldInlayPaddingY * 2f
+    return inlays.mapIndexed { index, hint ->
+        val width = UiTextLayouter.measureStyledTextWidth(hint.text, size, fontFamily, inlayStyle) +
+                EditableFieldInlayPaddingX * 2f
+        textFieldInlayWidgetId(hint, index) to UiInlineWidgetMetrics(width, height)
+    }.toMap()
+}
 /** Nearest caret column to [x] within [text] (prefix-width scan, non-wrapped lines). */
 private fun nearestColumn(text: String, x: Float, fontSize: Float, fontFamily: String?): Int {
     var best = 0
@@ -226,15 +367,39 @@ fun EditableTextField(
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     scrollState: UiScrollHandle = rememberScrollState(),
+    syntaxHighlighter: UiSyntaxHighlighter? = null,
+    inlayHints: List<UiInlayHint> = emptyList(),
+    inlayHintsProvider: UiInlayHintsProvider? = null,
+    inlayRevision: Long = 0L,
 ) {
     val text = state.text
     val fontSize = state.fontSize
     val fontFamily = state.fontFamily
     val wrap = state.wrap
+    // Occurrence highlight follows the caret only while the field is focused.
+    val caret = if (state.focused) state.caret else UiNoCaretOffset
     state.caretVisibilityRevision
-    val viewportWidth = if (wrap) scrollState.viewport.width else 0f
-    val layout = remember(text, fontSize, fontFamily, wrap, viewportWidth) {
-        computeEditableFieldLayout(text, fontSize, fontFamily, wrap, viewportWidth)
+    val presentation = rememberEditableTextPresentation(
+        text = text,
+        caret = caret,
+        highlighter = syntaxHighlighter,
+        inlayHints = inlayHints,
+        inlayHintsProvider = inlayHintsProvider,
+        inlayRevision = inlayRevision,
+    )
+    val viewportWidth = scrollState.viewport.width
+    val layoutHolder = remember { EditableFieldLayoutHolder() }
+    val layout = remember(text, fontSize, fontFamily, wrap, viewportWidth, presentation.highlights, presentation.inlayHints) {
+        computeEditableFieldLayout(
+            text = text,
+            fontSize = fontSize,
+            fontFamily = fontFamily,
+            wrap = wrap,
+            viewportWidth = viewportWidth,
+            highlights = presentation.highlights,
+            inlayHints = presentation.inlayHints,
+            previous = layoutHolder.last,
+        ).also { layoutHolder.last = it }
     }
     val autoScroll = remember { EditableFieldAutoScroll() }
     val pointerState = remember { EditableFieldPointerState() }
@@ -394,7 +559,7 @@ private enum class EditableFieldSelectionMode {
     LINE,
 }
 
-private data class EditableTextRange(val start: Int, val end: Int)
+internal data class EditableTextRange(val start: Int, val end: Int)
 
 private fun selectionUnitAt(text: String, offset: Int, mode: EditableFieldSelectionMode): EditableTextRange {
     return when (mode) {
@@ -436,7 +601,11 @@ private fun realLineRangeAt(text: String, offset: Int): EditableTextRange {
 private fun Char.isEditableFieldWordChar(): Boolean = this == '_' || isLetterOrDigit()
 
 @Composable
-private fun EditableFieldRow(state: TextFieldState, index: Int, layout: EditableFieldLayout) {
+private fun EditableFieldRow(
+    state: TextFieldState,
+    index: Int,
+    layout: EditableFieldLayout,
+) {
     val line = layout.lines[index]
     val top = layout.lineTop(index)
     val lineLayout = layout.lineLayouts[index]
@@ -462,17 +631,7 @@ private fun EditableFieldRow(state: TextFieldState, index: Int, layout: Editable
     }
 
     if (lineLayout != null) {
-        lineLayout.lines.forEach { visual ->
-            if (visual.text.isNotEmpty()) {
-                key("v", visual.y) {
-                    Text(modifier = Modifier.position(visual.x.px, (top + visual.y).px).textWrap(false)) {
-                        Span(visual.text)
-                    }
-                }
-            }
-        }
-    } else if (line.text.isNotEmpty()) {
-        Text(modifier = Modifier.position(0.px, top.px).textWrap(false)) { Span(line.text) }
+        EditableFieldLineFragments(lineLayout, layout, top, fontSize, fontFamily)
     }
 
     if (state.focused) key(state.caretVisibilityRevision) {
@@ -487,6 +646,95 @@ private fun EditableFieldRow(state: TextFieldState, index: Int, layout: Editable
                         .layer(1)
                         .animation(UiCaretBlinkKeyframes, UiCaretBlinkPeriodMillis, iterationCount = Float.POSITIVE_INFINITY),
                 )
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun EditableFieldLineFragments(
+    lineLayout: UiTextLayout,
+    fieldLayout: EditableFieldLayout,
+    top: Float,
+    fontSize: Float,
+    fontFamily: String?,
+) {
+    lineLayout.lines.forEachIndexed { visualIndex, visual ->
+        visual.fragments.forEachIndexed { fragmentIndex, fragment ->
+            val x = visual.x + fragment.x
+            val y = top + visual.y + fragment.y
+            when (fragment) {
+                is UiTextRun -> {
+                    fragment.style.background?.let { color ->
+                        key("run-bg", visualIndex, fragmentIndex) {
+                            Box(
+                                modifier = Modifier
+                                    .position(x.px, y.px)
+                                    .size(fragment.width.px, fragment.height.px)
+                                    .background(color),
+                            )
+                        }
+                    }
+                    if (fragment.text.isNotEmpty()) {
+                        key("run", visualIndex, fragmentIndex) {
+                            val family = fragment.style.fontFamily ?: fontFamily
+                            Text(
+                                fragment.text,
+                                modifier = Modifier
+                                    .position(x.px, y.px)
+                                    .fontSize(fragment.style.resolvedFontSize(fontSize))
+                                    .let { if (family != null) it.fontFamily(family) else it }
+                                    .textEffects(*fragment.style.effects.toTypedArray())
+                                    .textWrap(false),
+                            )
+                        }
+                    }
+                }
+
+                is UiTextSpaceRun -> {
+                    fragment.style.background?.let { color ->
+                        key("space-bg", visualIndex, fragmentIndex) {
+                            Box(
+                                modifier = Modifier
+                                    .position(x.px, y.px)
+                                    .size(fragment.width.px, fragment.height.px)
+                                    .background(color),
+                            )
+                        }
+                    }
+                }
+
+                is UiInlineWidgetRun -> {
+                    val hint = fieldLayout.inlayTexts[fragment.widget.id].orEmpty()
+                    if (hint.isNotEmpty() && fragment.width > 0f && fragment.height > 0f) {
+                        key("inlay", visualIndex, fragmentIndex, fragment.widget.id) {
+                            val boxWidth = (fragment.width - EditableFieldInlayMarginLeft -
+                                    EditableFieldInlayMarginRight).coerceAtLeast(0f)
+                            Box(
+                                tags = listOf("editable-text-field-inlay", "code-editor-inlay"),
+                                modifier = Modifier
+                                    .position((x + EditableFieldInlayMarginLeft).px, y.px)
+                                    .size(boxWidth.px, fragment.height.px)
+                                    .background(EditableFieldInlayBackground)
+                                    .borderRadius(EditableFieldInlayRadius)
+                                    .shadow(EditableFieldInlayShadow),
+                            ) {
+                                Text(
+                                    hint,
+                                    tags = listOf("editable-text-field-inlay-text", "code-editor-inlay-text"),
+                                    modifier = Modifier
+                                        .position(EditableFieldInlayPaddingX.px, 0.px)
+                                        .fontSize(fontSize)
+                                        .textEffects(*EditableFieldDefaultInlayStyle.effects.toTypedArray())
+                                        .textWrap(false),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is UiInlineImageRun -> Unit
             }
         }
     }
@@ -525,6 +773,11 @@ private fun clickOffset(event: UiEvent, layout: EditableFieldLayout): Int {
     val x = event.localX - (fieldLayout.content.x - fieldLayout.rect.x) + fieldLayout.scrollOffset.x
     val y = event.localY - (fieldLayout.content.y - fieldLayout.rect.y) + fieldLayout.scrollOffset.y
     return layout.offsetAt(x, y)
+}
+
+
+private class EditableFieldLayoutHolder {
+    var last: EditableFieldLayout? = null
 }
 
 /** Follows the primary caret with the scroll so it stays inside the viewport (with a margin). */
@@ -666,3 +919,17 @@ private fun pasteClipboard(state: TextFieldState): Boolean {
 }
 
 private const val EditableFieldDoubleClickMillis = 350L
+
+private const val EditableFieldInlayPaddingX = 3f
+private const val EditableFieldInlayPaddingY = 0f
+private const val EditableFieldInlayMarginLeft = 2f
+private const val EditableFieldInlayMarginRight = 4f
+private const val EditableFieldInlayRadius = 3f
+private val EditableFieldInlayBackground = UiColor(0.118f, 0.122f, 0.133f, 1f)
+private val EditableFieldInlayShadow = UiShadow(
+    offset = UiVec3(0f, 1f, 0f),
+    blur = 1f,
+    spread = 1f,
+    color = UiColor(0f, 0f, 0f, 0.27f),
+)
+private val EditableFieldDefaultInlayStyle = UiInlineStyle().withColor(UiColor(0.56f, 0.6f, 0.67f, 0.9f))

@@ -88,6 +88,7 @@ class UiStyleProp<T> internal constructor(
         }
 
         internal val all: List<UiStyleProp<*>>
+            @Suppress("UNUSED_EXPRESSION")
             get() {
                 UiProps // force full property registration before first use
                 return registered
@@ -195,6 +196,8 @@ class UiComputedStyle internal constructor(
 ) {
     private var hash: Int = 0
     private var hashComputed = false
+    private var layoutHash: Int = 0
+    private var layoutHashComputed = false
 
     @Suppress("UNCHECKED_CAST")
     operator fun <T> get(prop: UiStyleProp<T>): T = values[prop.index] as T
@@ -241,13 +244,17 @@ class UiComputedStyle internal constructor(
 
     /** Hash over layout-affecting properties; used to gate layout invalidation. */
     fun layoutFingerprint(): Int {
-        var result = 1
-        val props = UiStyleProp.layoutFingerprintProps
-        for (index in props.indices) {
-            val prop = props[index]
-            result = 31 * result + (values[prop.index]?.hashCode() ?: 0)
+        if (!layoutHashComputed) {
+            var result = 1
+            val props = UiStyleProp.layoutFingerprintProps
+            for (index in props.indices) {
+                val prop = props[index]
+                result = 31 * result + (values[prop.index]?.hashCode() ?: 0)
+            }
+            layoutHash = result
+            layoutHashComputed = true
         }
-        return result
+        return layoutHash
     }
 
     override fun equals(other: Any?): Boolean {

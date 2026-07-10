@@ -5,7 +5,6 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
@@ -23,7 +22,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var textLabWrap by mutableStateOf(true)
     private var textLabEffects by mutableStateOf(true)
     private var textLabAlign by mutableStateOf(UiTextAlign.LEFT)
-    private val editorHighlighter = UiSyntaxHighlighter(::highlightEditorDemoText)
     private val dockingState = DockingState().apply {
         open(DockItem("project", "Project"))
         open(DockItem("editor", "Editor"))
@@ -351,7 +349,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
         HollowUiEditorDemo(
             keyLog = editorKeyLog,
             onKeyLog = { editorKeyLog = it },
-            highlighter = editorHighlighter,
         )
     }
 

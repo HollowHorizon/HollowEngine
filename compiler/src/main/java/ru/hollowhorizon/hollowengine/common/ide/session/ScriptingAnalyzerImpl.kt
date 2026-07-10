@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.ide.session.completion.createComplet
 import ru.hollowhorizon.hollowengine.common.ide.session.definition.findDefinition
 import ru.hollowhorizon.hollowengine.common.ide.session.diagnostic.diagnosticCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.highlightCode
+import ru.hollowhorizon.hollowengine.common.ide.session.highlight.occurrencesCode
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
@@ -103,6 +104,12 @@ class ScriptingAnalyzerImpl(
     ): List<TextLine> {
         val file = getOrCreateFile(name, text)
         return highlightCode(file, offset)
+    }
+
+    @Synchronized
+    override fun occurrences(name: String, text: String, offset: Int): List<OccurrenceRange> {
+        val file = getOrCreateFile(name, text)
+        return occurrencesCode(file, offset)
     }
 
     @Synchronized

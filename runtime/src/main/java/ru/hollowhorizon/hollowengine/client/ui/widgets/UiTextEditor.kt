@@ -38,10 +38,16 @@ fun interface UiSyntaxHighlighter {
     fun highlight(text: String): List<UiTextHighlight>
 }
 
+const val UiNoCaretOffset: Int = -1
+
 interface UiCaretAwareSyntaxHighlighter : UiSyntaxHighlighter {
     fun highlight(text: String, caret: Int): List<UiTextHighlight>
 
-    override fun highlight(text: String): List<UiTextHighlight> = highlight(text, 0)
+    override fun highlight(text: String): List<UiTextHighlight> = highlight(text, UiNoCaretOffset)
+}
+
+interface UiDeferredSyntaxHighlighter : UiCaretAwareSyntaxHighlighter {
+    fun exactHighlight(text: String, caret: Int): List<UiTextHighlight>?
 }
 
 data class UiCompletionContext(
@@ -81,6 +87,12 @@ data class UiTextDiagnostic(
 data class UiInlayHint(
     val offset: Int,
     val text: String,
+)
+
+data class UiTextAnalysis(
+    val highlights: List<UiTextHighlight>,
+    val inlayHints: List<UiInlayHint> = emptyList(),
+    val exact: Boolean = true,
 )
 
 internal fun String.normalizeEditorLineEndings(): String {
@@ -137,23 +149,36 @@ fun interface UiInlayHintsProvider {
     fun hints(text: String): List<UiInlayHint>
 }
 
+interface UiDeferredTextAnalyzer : UiDeferredSyntaxHighlighter, UiInlayHintsProvider {
+    fun cachedAnalysis(text: String, caret: Int): UiTextAnalysis?
+
+    fun deferredAnalysis(text: String, caret: Int): UiTextAnalysis? = cachedAnalysis(text, caret)
+
+    override fun exactHighlight(text: String, caret: Int): List<UiTextHighlight>? {
+        return cachedAnalysis(text, caret)?.highlights
+    }
+
+    override fun hints(text: String): List<UiInlayHint> {
+        return cachedAnalysis(text, UiNoCaretOffset)?.inlayHints.orEmpty()
+    }
+}
+
 internal fun String.toHighlightedRichText(
     highlighter: UiSyntaxHighlighter?,
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayStyle: UiInlineStyle = UiInlineStyle(),
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiRichText {
-    if (isEmpty() || (highlighter == null && inlayHints.isEmpty())) {
+    if (inlayHints.isEmpty() && (isEmpty() || highlighter == null)) {
         return UiRichText.plain(this)
     }
 
-    val cacheKey = HighlightedRichTextCacheKey(this, highlighter, inlayHints.toList(), inlayStyle, inlayWidgetMetrics)
+    val cleanInlays = sanitizeInlayHints(length, inlayHints)
+    val cacheKey = HighlightedRichTextCacheKey(this, highlighter, cleanInlays, inlayStyle, inlayWidgetMetrics)
     highlightedRichTextCache[cacheKey]?.let { return it }
 
     val cleanHighlights = prepareHighlights(highlighter)
-    val inlaysByOffset = inlayHints
-        .filter { it.text.isNotBlank() }
-        .groupBy { it.offset.coerceIn(0, length) }
+    val inlaysByOffset = cleanInlays.groupBy { it.offset }
 
     if (cleanHighlights.isEmpty() && inlaysByOffset.isEmpty()) {
         return UiRichText.plain(this)
@@ -165,14 +190,96 @@ internal fun String.toHighlightedRichText(
     return UiRichText(items).also { highlightedRichTextCache[cacheKey] = it }
 }
 
+internal fun String.toHighlightedRichText(
+    highlights: List<UiTextHighlight>,
+    inlayHints: List<UiInlayHint> = emptyList(),
+    inlayStyle: UiInlineStyle = UiInlineStyle(),
+    inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
+): UiRichText {
+    if (inlayHints.isEmpty() && (isEmpty() || highlights.isEmpty())) {
+        return UiRichText.plain(this)
+    }
+
+    val cleanHighlights = prepareHighlights(highlights)
+    val cleanInlays = sanitizeInlayHints(length, inlayHints)
+    val inlaysByOffset = cleanInlays.groupBy { it.offset }
+
+    if (cleanHighlights.isEmpty() && inlaysByOffset.isEmpty()) {
+        return UiRichText.plain(this)
+    }
+
+    val segments = buildTextSegments(cleanHighlights)
+    val items = mergeTextWithInlays(segments, inlaysByOffset, inlayWidgetMetrics)
+    return UiRichText(items)
+}
+
 private fun String.prepareHighlights(highlighter: UiSyntaxHighlighter?): List<UiTextHighlight> {
-    return highlighter?.highlight(this).orEmpty()
-        .mapNotNull { highlight ->
-            val start = highlight.start.coerceIn(0, length)
-            val end = highlight.end.coerceIn(start, length)
-            if (start == end) null else highlight.copy(start = start, end = end)
+    return prepareHighlights(highlighter?.highlight(this).orEmpty())
+}
+
+private fun String.prepareHighlights(highlights: List<UiTextHighlight>): List<UiTextHighlight> {
+    return sanitizeTextHighlights(length, highlights)
+}
+
+private val UiTextHighlightOrder = compareBy<UiTextHighlight> { it.start }.thenBy { it.end }
+
+internal fun sanitizeTextHighlights(textLength: Int, highlights: List<UiTextHighlight>): List<UiTextHighlight> {
+    if (highlights.isEmpty()) return emptyList()
+
+    var previousStart = -1
+    var previousEnd = -1
+    var needsCopy = false
+    for (highlight in highlights) {
+        val start = highlight.start.coerceIn(0, textLength)
+        val end = highlight.end.coerceIn(start, textLength)
+        if (start == end || start != highlight.start || end != highlight.end ||
+            start < previousStart || start == previousStart && end < previousEnd
+        ) {
+            needsCopy = true
+            break
         }
-        .sortedWith(compareBy<UiTextHighlight> { it.start }.thenBy { it.end })
+        previousStart = start
+        previousEnd = end
+    }
+    if (!needsCopy) return highlights
+
+    val clean = ArrayList<UiTextHighlight>(highlights.size)
+    for (highlight in highlights) {
+        val start = highlight.start.coerceIn(0, textLength)
+        val end = highlight.end.coerceIn(start, textLength)
+        if (start != end) {
+            clean += if (start == highlight.start && end == highlight.end) {
+                highlight
+            } else {
+                highlight.copy(start = start, end = end)
+            }
+        }
+    }
+    if (clean.isEmpty()) return emptyList()
+    clean.sortWith(UiTextHighlightOrder)
+    return clean
+}
+
+internal fun sanitizeInlayHints(textLength: Int, inlayHints: List<UiInlayHint>): List<UiInlayHint> {
+    if (inlayHints.isEmpty()) return emptyList()
+
+    var needsCopy = false
+    for (hint in inlayHints) {
+        val offset = hint.offset.coerceIn(0, textLength)
+        if (hint.text.isBlank() || offset != hint.offset) {
+            needsCopy = true
+            break
+        }
+    }
+    if (!needsCopy) return inlayHints
+
+    val clean = ArrayList<UiInlayHint>(inlayHints.size)
+    for (hint in inlayHints) {
+        if (hint.text.isBlank()) continue
+        val offset = hint.offset.coerceIn(0, textLength)
+        clean += if (offset == hint.offset) hint else hint.copy(offset = offset)
+    }
+    return if (clean.isEmpty()) emptyList() else clean
 }
 
 private fun String.buildTextSegments(highlights: List<UiTextHighlight>): List<TextStyleSpan> {
@@ -203,36 +310,37 @@ private fun String.mergeTextWithInlays(
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,
 ): List<UiInlineItem> {
     val items = mutableListOf<UiInlineItem>()
-    val emittedInlays = mutableSetOf<Int>()
+    val inlayOffsets = inlaysByOffset.keys.sorted()
+    var emittedOffset: Int? = null
+    var inlayOffsetIndex = 0
     var inlayIndex = 0
 
     fun emitInlaysAt(offset: Int) {
-        if (emittedInlays.add(offset)) {
-            inlaysByOffset[offset]?.forEach { hint ->
-                val id = textFieldInlayWidgetId(hint, inlayIndex++)
-                val metrics = inlayWidgetMetrics[id]
-                items += UiInlineItem.Widget(
-                    id = id,
-                    width = metrics?.width ?: 0f,
-                    height = metrics?.height ?: 0f,
-                    align = UiInlineAlign.MIDDLE,
-                    alt = "",
-                    sourceLength = 0,
-                )
-            }
+        if (emittedOffset == offset) return
+        emittedOffset = offset
+        inlaysByOffset[offset]?.forEach { hint ->
+            val id = textFieldInlayWidgetId(hint, inlayIndex++)
+            val metrics = inlayWidgetMetrics[id]
+            items += UiInlineItem.Widget(
+                id = id,
+                width = metrics?.width ?: 0f,
+                height = metrics?.height ?: 0f,
+                align = UiInlineAlign.MIDDLE,
+                alt = "",
+                sourceLength = 0,
+            )
         }
     }
-
-    val inlayOffsets = inlaysByOffset.keys
 
     for (segment in segments) {
         var cursor = segment.start
         emitInlaysAt(cursor)
 
         while (cursor < segment.end) {
-            val nextInlay = inlayOffsets
-                .filter { it > cursor && it <= segment.end }
-                .minOrNull() ?: segment.end
+            while (inlayOffsetIndex < inlayOffsets.size && inlayOffsets[inlayOffsetIndex] <= cursor) {
+                inlayOffsetIndex++
+            }
+            val nextInlay = inlayOffsets.getOrNull(inlayOffsetIndex)?.takeIf { it <= segment.end } ?: segment.end
 
             if (cursor < nextInlay) {
                 items += UiInlineItem.Text(substring(cursor, nextInlay), segment.style)
@@ -264,9 +372,7 @@ internal fun textFieldActiveInlayHints(
     provider: UiInlayHintsProvider?,
 ): List<UiInlayHint> {
     val hints = provider?.hints(text) ?: inlayHints
-    return hints
-        .filter { it.text.isNotBlank() }
-        .map { hint -> hint.copy(offset = hint.offset.coerceIn(0, text.length)) }
+    return sanitizeInlayHints(text.length, hints)
 }
 
 private data class TextStyleSpan(

@@ -174,15 +174,16 @@ class UiModifierResolver(
         modifiers: List<Modifier>,
         resolved: ResolvedModifiers,
     ): UiComputedStyle {
+        val nodeSnapshot = node.styleSnapshot(modifiers)
+        styleCache[node]?.takeIf { it.key.matches(scope.id, parent, nodeSnapshot, resolved.flat) }?.let {
+            return it.snapshot
+        }
         val key = StyleCacheKey(
             scopeId = scope.id,
             parent = parent,
-            node = node.styleSnapshot(modifiers),
+            node = nodeSnapshot,
             resolvedModifiers = resolved.flat,
         )
-        styleCache[node]?.takeIf { it.key == key }?.let {
-            return it.snapshot
-        }
         val mutable = engineDefaults(node)
         mutable.merge(resolved.baseModifiers.toStylePatch())
         if (resolved.stateRulePatches.isNotEmpty()) {
@@ -343,12 +344,33 @@ private data class NodeStyleSnapshot(
     val modifiers: List<Modifier>,
 )
 
-private data class StyleCacheKey(
+private class StyleCacheKey(
     val scopeId: Long,
     val parent: UiComputedStyle?,
     val node: NodeStyleSnapshot,
     val resolvedModifiers: List<Modifier>,
-)
+) {
+    fun matches(
+        scopeId: Long,
+        parent: UiComputedStyle?,
+        node: NodeStyleSnapshot,
+        resolvedModifiers: List<Modifier>,
+    ): Boolean {
+        return this.scopeId == scopeId &&
+                this.parent === parent &&
+                this.node == node &&
+                sameModifiers(this.resolvedModifiers, resolvedModifiers)
+    }
+
+    private fun sameModifiers(left: List<Modifier>, right: List<Modifier>): Boolean {
+        if (left === right) return true
+        if (left.size != right.size) return false
+        for (index in left.indices) {
+            if (left[index] != right[index]) return false
+        }
+        return true
+    }
+}
 
 private data class StyleCacheEntry(
     val key: StyleCacheKey,

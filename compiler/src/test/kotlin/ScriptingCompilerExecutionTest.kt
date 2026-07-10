@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import java.io.File
+import kotlin.script.experimental.api.constructorArgs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -32,11 +33,15 @@ class ScriptingCompilerExecutionTest {
                 """output += "Hello, World!"""",
             ).getOrThrow()
 
-            script.execute<Any>(output).getOrThrow()
+            script.execute<Any> {
+                constructorArgs(output as Any)
+            }.getOrThrow()
 
             assertEquals(listOf("Hello, World!"), output)
         } finally {
             ScriptingEnvironment.clear()
+            environment.close()
+            File("hollowengine").deleteRecursively()
         }
     }
 

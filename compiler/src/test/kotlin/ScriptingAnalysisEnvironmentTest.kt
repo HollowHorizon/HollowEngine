@@ -4,6 +4,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 abstract class AnalysisScript
@@ -53,6 +55,126 @@ class ScriptingAnalysisEnvironmentTest {
     }
 
     @Test
+    fun `highlight selects the matching brace pair under caret`() {
+        withEnvironment { environment ->
+            val text = "fun run() { repeat(3) {} }"
+            val innerOpen = text.indexOf("{}")
+            val lines = environment.analyzer.highlight(
+                "brace-pair.analysis.kts",
+                text,
+                innerOpen + 1,
+            )
+
+            val spans = lines.flatMap { line -> line.spans }
+            val highlightedBraces = spans.count { (segment, style) ->
+                (segment == "{" || segment == "}") && style.highlight
+            }
+            assertEquals(2, highlightedBraces, spans.toString())
+        }
+    }
+
+    @Test
+    fun `highlight without caret does not select the first brace pair`() {
+        withEnvironment { environment ->
+            val text = "fun run() { repeat(3) {} }"
+            val full = environment.analyzer.highlight(
+                "no-caret-full.analysis.kts",
+                text,
+                -1,
+            )
+
+            assertFalse(full.flatMap { it.spans }.any { (_, style) -> style.highlight }, full.toString())
+        }
+    }
+
+    @Test
+    fun `occurrences returns all usages of the variable under caret`() {
+        withEnvironment { environment ->
+            val text = "val answer = 42\nval copy = answer + answer"
+            val ranges = environment.analyzer.occurrences(
+                "occurrences.analysis.kts",
+                text,
+                text.indexOf("answer") + 2,
+            )
+
+            val expected = listOf(
+                text.indexOf("answer"),
+                text.indexOf("answer", text.indexOf("copy")),
+                text.lastIndexOf("answer"),
+            ).map { start -> start to start + "answer".length }
+
+            assertEquals(expected, ranges.map { it.start to it.end }, ranges.toString())
+        }
+    }
+
+    @Test
+    fun `occurrences returns matching bracket pair`() {
+        withEnvironment { environment ->
+            val text = "fun run() { repeat(3) {} }"
+            val innerOpen = text.indexOf("{}")
+            val ranges = environment.analyzer.occurrences(
+                "occurrences-brackets.analysis.kts",
+                text,
+                innerOpen + 1,
+            )
+
+            assertEquals(
+                listOf(innerOpen to innerOpen + 1, innerOpen + 1 to innerOpen + 2),
+                ranges.map { it.start to it.end },
+                ranges.toString(),
+            )
+        }
+    }
+
+    @Test
+    fun `occurrences inside comment is empty`() {
+        withEnvironment { environment ->
+            val text = "// comment\nval answer = 42"
+            val ranges = environment.analyzer.occurrences("occurrences-comment.analysis.kts", text, 3)
+
+            assertTrue(ranges.isEmpty(), ranges.toString())
+        }
+    }
+
+    @Test
+    fun `caret inside comment does not highlight the comment`() {
+        withEnvironment { environment ->
+            val text = "// comment\nval answer = 42"
+            val lines = environment.analyzer.highlight(
+                "comment-caret.analysis.kts",
+                text,
+                3,
+            )
+
+            assertFalse(lines.flatMap { it.spans }.any { (_, style) -> style.highlight }, lines.toString())
+        }
+    }
+
+    @Test
+    fun `full highlight resolves edited declarations and inlay hints`() {
+        withEnvironment { environment ->
+            val text = "val answer = 42\nval copy = answer"
+            val lines = environment.analyzer.highlight(
+                "edited-full.analysis.kts",
+                text,
+                text.lastIndexOf("answer"),
+            )
+
+            val spans = lines.flatMap { line -> line.spans }
+            val secondLineHints = lines.getOrNull(1)?.hints.orEmpty()
+
+            assertTrue(
+                spans.any { (segment, style) -> segment == "answer" && style.color in setOf(TokenType.VARIABLE, TokenType.PROPERTY_IDENTIFIER) && style.highlight },
+                spans.toString(),
+            )
+            assertTrue(
+                secondLineHints.any { hint -> hint.index == "val copy".length && hint.text.contains("Int") },
+                secondLineHints.toString(),
+            )
+        }
+    }
+
+    @Test
     fun `completion sees declarations from current script`() {
         withEnvironment { environment ->
             val text = """
@@ -86,6 +208,7 @@ class ScriptingAnalysisEnvironmentTest {
             block(environment)
         } finally {
             environment.close()
+            File("hollowengine").deleteRecursively()
         }
     }
 

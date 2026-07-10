@@ -1005,7 +1005,7 @@ private fun UiTextLine.xAt(offset: Int, fontSize: Float, fontFamily: String?): F
         when (fragment) {
             is UiInlineImageRun -> {
                 val imageTextLength = fragment.image.alt.ifBlank { "\uFFFC" }.length
-                if (remaining <= imageTextLength) return x + cursor
+                if (remaining < imageTextLength) return x + cursor
                 remaining -= imageTextLength
                 cursor = fragment.x + fragment.width
             }
@@ -1016,19 +1016,19 @@ private fun UiTextLine.xAt(offset: Int, fontSize: Float, fontFamily: String?): F
                     cursor = fragment.x + fragment.width
                     continue
                 }
-                if (remaining <= widgetTextLength) return x + cursor
+                if (remaining < widgetTextLength) return x + cursor
                 remaining -= widgetTextLength
                 cursor = fragment.x + fragment.width
             }
 
             is UiTextSpaceRun -> {
-                if (remaining <= 1) return x + fragment.x + if (remaining == 0) 0f else fragment.width
+                if (remaining == 0) return x + fragment.x
                 remaining -= 1
                 cursor = fragment.x + fragment.width
             }
 
             is UiTextRun -> {
-                if (remaining <= fragment.text.length) {
+                if (remaining < fragment.text.length) {
                     val size = fragment.style.resolvedFontSize(fontSize)
                     return x + fragment.x + UiTextLayouter.measureTextWidth(
                         fragment.text.take(remaining),
