@@ -419,7 +419,7 @@ class UiCommandRenderer {
         filter: UiFilterChain,
         commands: UiRenderSink,
     ) {
-        val contentTransform = layoutNode.worldTransform * UiMatrix4.translation(
+        val contentTransform = layoutNode.worldTransform.translated(
             layoutNode.content.x - layoutNode.rect.x,
             layoutNode.content.y - layoutNode.rect.y,
             0f
@@ -591,7 +591,7 @@ class UiCommandRenderer {
                 shadows = emptyList(),
                 opacity = opacity,
                 tint = style.tint,
-                transform = layoutNode.worldTransform * UiMatrix4.translation(box.x, box.y, 0f),
+                transform = layoutNode.worldTransform.translated(box.x, box.y),
                 renderToFramebuffer = false,
                 fit = style.imageFit,
                 slice = style.imageSlice,
@@ -729,7 +729,7 @@ class UiCommandRenderer {
                 0.65f
             ) else style.foreground,
             opacity = opacity,
-            transform = transform * UiMatrix4.translation(textOffset, 0f, 0f),
+            transform = transform.translated(textOffset, 0f),
             filter = filter,
             wrap = wrap,
             overflow = UiTextOverflow.HIDDEN,

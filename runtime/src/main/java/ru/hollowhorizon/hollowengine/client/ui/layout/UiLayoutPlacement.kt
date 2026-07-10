@@ -33,10 +33,13 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
     val localX = rect.x - parentRect.x
     val localY = rect.y - parentRect.y
     val pivot = style.transform.pivot.resolve(rect.width, rect.height)
-    val transform = parentTransform * UiMatrix4.translation(localX, localY, style.position.z) *
-            style.transform.matrix(pivot)
-    val inputTransform = parentInputTransform * UiMatrix4.translation(localX, localY, style.position.z) *
-            style.transform.matrix(pivot)
+    val localTransform = style.transform.matrix(pivot, localX, localY, style.position.z)
+    val transform = parentTransform * localTransform
+    val inputTransform = if (parentInputTransform === parentTransform) {
+        transform
+    } else {
+        parentInputTransform * localTransform
+    }
     val opacityNeedsLayer = style.opacity < 1f && node.children.isNotEmpty()
     val needsFramebuffer = opacityNeedsLayer ||
             style.transform.needsFramebuffer || !insideFramebuffer && node.requiresTextLayer(transform) ||

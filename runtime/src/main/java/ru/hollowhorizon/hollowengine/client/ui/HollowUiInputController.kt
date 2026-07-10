@@ -20,6 +20,8 @@ class HollowUiInputController {
     // focused `focusable` target, so a popup and a text field stay focused at the same time. The
     // active scope is the one that last gained focus - Tab cycles within it.
     private val focusByScope = LinkedHashMap<UiNode, UiNode>()
+    private val hoverChain = HashSet<UiNode>()
+    private val runtimeStack = ArrayDeque<UiNode>()
     private var activeScope: UiNode? = null
 
     private fun primaryFocus(): UiNode? = activeScope?.let { focusByScope[it] } ?: focusByScope.values.firstOrNull()
@@ -617,16 +619,18 @@ class HollowUiInputController {
     }
 
     private fun applyRuntimeStates(node: UiNode, closing: Boolean) {
-        val hoverChain = HashSet<UiNode>()
+        hoverChain.clear()
+
         var ancestor = hoveredNode
         while (ancestor != null) {
             hoverChain += ancestor
             ancestor = ancestor.layoutState.parentNode
         }
-        val stack = ArrayDeque<UiNode>()
-        stack.add(node)
-        while (stack.isNotEmpty()) {
-            val current = stack.removeLast()
+
+        runtimeStack.clear()
+        runtimeStack.add(node)
+        while (runtimeStack.isNotEmpty()) {
+            val current = runtimeStack.removeLast()
             val states = linkedSetOf<UiState>()
             if (current in hoverChain) states += UiState.HOVER
             if (current === activeNode) states += UiState.ACTIVE
@@ -635,7 +639,7 @@ class HollowUiInputController {
             if (closing) states += UiState.CLOSING
             current.setRuntimeStates(states)
             for (index in current.children.indices.reversed()) {
-                stack.add(current.children[index])
+                runtimeStack.add(current.children[index])
             }
         }
     }

@@ -165,8 +165,9 @@ interface UiDeferredTextAnalyzer : UiDeferredSyntaxHighlighter, UiInlayHintsProv
 
 internal fun String.toHighlightedRichText(
     highlighter: UiSyntaxHighlighter?,
+    caret: Int = UiNoCaretOffset,
     inlayHints: List<UiInlayHint> = emptyList(),
-    inlayStyle: UiInlineStyle = UiInlineStyle(),
+    inlayStyle: UiInlineStyle = UiInlineStyle.Empty,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiRichText {
     if (inlayHints.isEmpty() && (isEmpty() || highlighter == null)) {
@@ -174,10 +175,13 @@ internal fun String.toHighlightedRichText(
     }
 
     val cleanInlays = sanitizeInlayHints(length, inlayHints)
-    val cacheKey = HighlightedRichTextCacheKey(this, highlighter, cleanInlays, inlayStyle, inlayWidgetMetrics)
+    val highlightCaret = if (highlighter is UiCaretAwareSyntaxHighlighter) caret else UiNoCaretOffset
+    val cacheKey = HighlightedRichTextCacheKey(
+        this, highlighter, highlightCaret, cleanInlays, inlayStyle, inlayWidgetMetrics,
+    )
     highlightedRichTextCache[cacheKey]?.let { return it }
 
-    val cleanHighlights = prepareHighlights(highlighter)
+    val cleanHighlights = prepareHighlights(highlighter, highlightCaret)
     val inlaysByOffset = cleanInlays.groupBy { it.offset }
 
     if (cleanHighlights.isEmpty() && inlaysByOffset.isEmpty()) {
@@ -193,7 +197,7 @@ internal fun String.toHighlightedRichText(
 internal fun String.toHighlightedRichText(
     highlights: List<UiTextHighlight>,
     inlayHints: List<UiInlayHint> = emptyList(),
-    inlayStyle: UiInlineStyle = UiInlineStyle(),
+    inlayStyle: UiInlineStyle = UiInlineStyle.Empty,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiRichText {
     if (inlayHints.isEmpty() && (isEmpty() || highlights.isEmpty())) {
@@ -213,8 +217,13 @@ internal fun String.toHighlightedRichText(
     return UiRichText(items)
 }
 
-private fun String.prepareHighlights(highlighter: UiSyntaxHighlighter?): List<UiTextHighlight> {
-    return prepareHighlights(highlighter?.highlight(this).orEmpty())
+private fun String.prepareHighlights(highlighter: UiSyntaxHighlighter?, caret: Int): List<UiTextHighlight> {
+    val highlights = when (highlighter) {
+        is UiCaretAwareSyntaxHighlighter -> highlighter.highlight(this, caret)
+        null -> emptyList()
+        else -> highlighter.highlight(this)
+    }
+    return prepareHighlights(highlights)
 }
 
 private fun String.prepareHighlights(highlights: List<UiTextHighlight>): List<UiTextHighlight> {
@@ -289,17 +298,17 @@ private fun String.buildTextSegments(highlights: List<UiTextHighlight>): List<Te
     for (highlight in highlights) {
         if (highlight.start < index) continue
         if (index < highlight.start) {
-            segments += TextStyleSpan(index, highlight.start, UiInlineStyle())
+            segments += TextStyleSpan(index, highlight.start, UiInlineStyle.Empty)
         }
         segments += TextStyleSpan(highlight.start, highlight.end, highlight.style)
         index = highlight.end
     }
 
     if (index < length) {
-        segments += TextStyleSpan(index, length, UiInlineStyle())
+        segments += TextStyleSpan(index, length, UiInlineStyle.Empty)
     }
     if (segments.isEmpty()) {
-        segments += TextStyleSpan(0, length, UiInlineStyle())
+        segments += TextStyleSpan(0, length, UiInlineStyle.Empty)
     }
     return segments
 }
@@ -356,6 +365,7 @@ private fun String.mergeTextWithInlays(
 private data class HighlightedRichTextCacheKey(
     val text: String,
     val highlighter: UiSyntaxHighlighter?,
+    val caret: Int,
     val inlayHints: List<UiInlayHint>,
     val inlayStyle: UiInlineStyle,
     val inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,

@@ -92,6 +92,7 @@ object UiMsdfFont {
         fonts.clear()
         metrics.clear()
         missingFonts.clear()
+        UiTextFonts.clearResolvedFonts()
     }
 
     private fun loadMetrics(fontPath: String): UiMsdfFontMetrics {

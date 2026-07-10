@@ -210,27 +210,21 @@ class UiTransitionState {
     private val starts = WeakHashMap<UiNode, UiComputedStyle>()
     private val targets = WeakHashMap<UiNode, UiComputedStyle>()
     private val startedAt = WeakHashMap<UiNode, Long>()
-    private val activeDurations = WeakHashMap<UiNode, Long>()
-    private val startedDurations = WeakHashMap<UiNode, Long>()
+    private val activeNodes = Collections.newSetFromMap(WeakHashMap<UiNode, Boolean>())
 
     fun apply(node: UiNode, target: UiComputedStyle, nowMillis: Long): UiComputedStyle {
-        startedDurations[node] = 0L
         val current = rendered[node]
         if (current == null) {
             rendered[node] = target
             targets[node] = target
-            activeDurations[node] = 0L
             return target
         }
         val oldTarget = targets[node]
-        var targetChanged = false
         if (oldTarget != target) {
             starts[node] = current
             targets[node] = target
             startedAt[node] = nowMillis
-            targetChanged = true
         } else if (!startedAt.containsKey(node)) {
-            activeDurations[node] = 0L
             return target
         }
         val startStyle = starts[node] ?: current
@@ -242,12 +236,10 @@ class UiTransitionState {
             targets[node] = target
             starts.remove(node)
             startedAt.remove(node)
-            activeDurations[node] = 0L
-            startedDurations[node] = 0L
+            activeNodes.remove(node)
         }
         val duration = transitions.maxOfOrNull { it.durationMillis } ?: 0L
-        activeDurations[node] = duration
-        if (targetChanged) startedDurations[node] = duration
+        if (duration > 0L) activeNodes += node else activeNodes.remove(node)
         val start = startedAt[node] ?: nowMillis
         val elapsed = max(0L, nowMillis - start)
         val progress = transitions.progressAt(elapsed)
@@ -260,17 +252,12 @@ class UiTransitionState {
             targets[node] = target
             starts.remove(node)
             startedAt.remove(node)
-            activeDurations[node] = 0L
-            startedDurations[node] = 0L
+            activeNodes.remove(node)
         }
         return result
     }
 
-    fun activeDurationMillis(node: UiNode): Long = activeDurations[node] ?: 0L
-
-    fun startedDurationMillis(node: UiNode): Long = startedDurations[node] ?: 0L
-
-    fun hasActiveTransitions(): Boolean = activeDurations.values.any { it > 0L }
+    fun hasActiveTransitions(): Boolean = activeNodes.isNotEmpty()
 
     private fun List<UiTransition>.progressAt(elapsedMillis: Long): UiTransitionProgress {
         val fallback = firstOrNull { it.property == "all" }

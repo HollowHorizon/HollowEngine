@@ -932,4 +932,4 @@ private val EditableFieldInlayShadow = UiShadow(
     spread = 1f,
     color = UiColor(0f, 0f, 0f, 0.27f),
 )
-private val EditableFieldDefaultInlayStyle = UiInlineStyle().withColor(UiColor(0.56f, 0.6f, 0.67f, 0.9f))
+private val EditableFieldDefaultInlayStyle = UiInlineStyle.Empty.withColor(UiColor(0.56f, 0.6f, 0.67f, 0.9f))

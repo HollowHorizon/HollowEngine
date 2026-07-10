@@ -98,7 +98,7 @@ internal object UiTextureEffects {
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         val placement = imagePlacement(width, height, fit, texture)
         val finalTint = tint.withOpacity(opacity).filtered(filter)
-        val quadTransform = transform * UiMatrix4.translation(placement.x, placement.y, 0f)
+        val quadTransform = transform.translated(placement.x, placement.y)
         if (fit.isSliced) {
             addSlicedTexturedQuad(buffer, quadTransform, placement, texture, fit, slice, flipY, finalTint)
             BufferUploader.drawWithShader(buffer.buildOrThrow())
@@ -123,7 +123,7 @@ internal object UiTextureEffects {
         for (quad in quads) {
             val placement = imagePlacement(quad.width, quad.height, quad.fit, textureSize)
             val finalTint = quad.tint.withOpacity(quad.opacity).filtered(filter)
-            val quadTransform = quad.transform * UiMatrix4.translation(placement.x, placement.y, 0f)
+            val quadTransform = quad.transform.translated(placement.x, placement.y)
             if (quad.fit.isSliced) {
                 addSlicedTexturedQuad(
                     buffer,

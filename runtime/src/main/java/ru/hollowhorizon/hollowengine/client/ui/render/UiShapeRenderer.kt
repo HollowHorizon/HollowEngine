@@ -21,17 +21,6 @@ internal data class UiBatchedQuad(
     val topRight: UiColor,
 )
 
-internal data class UiBatchedTriangle(
-    val first: UiBatchedVertex,
-    val second: UiBatchedVertex,
-    val third: UiBatchedVertex,
-)
-
-internal data class UiBatchedVertex(
-    val position: UiVec3,
-    val color: UiColor,
-)
-
 internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
     if (quads.isEmpty()) return
     withCullStatePreserved {
@@ -52,24 +41,6 @@ internal fun drawBatchedQuads(quads: List<UiBatchedQuad>) {
                 }
                 buffer.addVertex(corner.x, corner.y, corner.z).setColor(color.red, color.green, color.blue, color.alpha)
             }
-        }
-        BufferUploader.drawWithShader(buffer.buildOrThrow())
-    }
-}
-
-internal fun drawBatchedTriangles(triangles: List<UiBatchedTriangle>) {
-    if (triangles.isEmpty()) return
-    withCullStatePreserved {
-        RenderSystem.disableCull()
-        RenderSystem.enableBlend()
-        configureUiBlend()
-        RenderSystem.setShader(GameRenderer::getPositionColorShader)
-        val tessellator = Tesselator.getInstance()
-        val buffer = tessellator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR)
-        triangles.forEach { triangle ->
-            buffer.add(triangle.first)
-            buffer.add(triangle.second)
-            buffer.add(triangle.third)
         }
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
@@ -98,7 +69,7 @@ internal fun gradientQuad(
     )
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendSolidQuad(
+internal fun UiTriangleBatch.appendSolidQuad(
     width: Float,
     height: Float,
     color: UiColor,
@@ -107,7 +78,7 @@ internal fun MutableList<UiBatchedTriangle>.appendSolidQuad(
     appendGradientQuad(width, height, color, color, color, color, transform)
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendGradientQuad(
+internal fun UiTriangleBatch.appendGradientQuad(
     width: Float,
     height: Float,
     angleDegrees: Float,
@@ -129,7 +100,7 @@ internal fun MutableList<UiBatchedTriangle>.appendGradientQuad(
     )
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendLocalPaint(
+internal fun UiTriangleBatch.appendLocalPaint(
     width: Float,
     height: Float,
     radius: Float,
@@ -145,7 +116,7 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalPaint(
     appendRoundedFill(width, height, radius, transform) { _, _ -> filtered }
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendLocalGradient(
+internal fun UiTriangleBatch.appendLocalGradient(
     width: Float,
     height: Float,
     radius: Float,
@@ -164,7 +135,7 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalGradient(
     }
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendLocalRadialGradient(
+internal fun UiTriangleBatch.appendLocalRadialGradient(
     width: Float,
     height: Float,
     radius: Float,
@@ -192,7 +163,7 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalRadialGradient(
     }
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendLocalBorder(
+internal fun UiTriangleBatch.appendLocalBorder(
     width: Float,
     height: Float,
     radius: Float,
@@ -206,12 +177,12 @@ internal fun MutableList<UiBatchedTriangle>.appendLocalBorder(
         return
     }
     appendSolidQuad(width, border, color, transform)
-    appendSolidQuad(width, border, color, transform * UiMatrix4.translation(0f, height - border, 0f))
+    appendSolidQuad(width, border, color, transform.translated(0f, height - border))
     appendSolidQuad(border, height, color, transform)
-    appendSolidQuad(border, height, color, transform * UiMatrix4.translation(width - border, 0f, 0f))
+    appendSolidQuad(border, height, color, transform.translated(width - border, 0f))
 }
 
-internal fun MutableList<UiBatchedTriangle>.appendLocalShape(
+internal fun UiTriangleBatch.appendLocalShape(
     shape: Shape,
     width: Float,
     height: Float,
@@ -304,7 +275,7 @@ private data class UiShapeMesh(
     val stroke: List<UiPathTriangle>,
 )
 
-private fun MutableList<UiBatchedTriangle>.appendGradientQuad(
+private fun UiTriangleBatch.appendGradientQuad(
     width: Float,
     height: Float,
     topLeft: UiColor,
@@ -313,13 +284,8 @@ private fun MutableList<UiBatchedTriangle>.appendGradientQuad(
     topRight: UiColor,
     transform: UiMatrix4,
 ) {
-    val corners = localCorners(width, height, transform)
-    val first = UiBatchedVertex(corners[0], topLeft)
-    val second = UiBatchedVertex(corners[1], bottomLeft)
-    val third = UiBatchedVertex(corners[2], bottomRight)
-    val fourth = UiBatchedVertex(corners[3], topRight)
-    this += UiBatchedTriangle(first, second, third)
-    this += UiBatchedTriangle(first, third, fourth)
+    addTriangle(transform, 0f, 0f, topLeft, 0f, height, bottomLeft, width, height, bottomRight)
+    addTriangle(transform, 0f, 0f, topLeft, width, height, bottomRight, width, 0f, topRight)
 }
 
 private fun BufferBuilder.addColoredQuad(corners: Array<UiVec3>, color: UiColor) {
@@ -328,7 +294,7 @@ private fun BufferBuilder.addColoredQuad(corners: Array<UiVec3>, color: UiColor)
     }
 }
 
-private fun MutableList<UiBatchedTriangle>.appendRoundedFill(
+private fun UiTriangleBatch.appendRoundedFill(
     width: Float,
     height: Float,
     radius: Float,
@@ -337,22 +303,29 @@ private fun MutableList<UiBatchedTriangle>.appendRoundedFill(
 ) {
     val centerX = width * 0.5f
     val centerY = height * 0.5f
-    val center = UiBatchedVertex(transform.transform(centerX, centerY), colorAt(centerX, centerY))
+    val centerColor = colorAt(centerX, centerY)
     val perimeter = roundedPerimeter(width, height, radius)
     for (index in 0 until perimeter.lastIndex) {
         val firstX = perimeter.x(index)
         val firstY = perimeter.y(index)
         val secondX = perimeter.x(index + 1)
         val secondY = perimeter.y(index + 1)
-        this += UiBatchedTriangle(
-            center,
-            UiBatchedVertex(transform.transform(firstX, firstY), colorAt(firstX, firstY)),
-            UiBatchedVertex(transform.transform(secondX, secondY), colorAt(secondX, secondY)),
+        addTriangle(
+            transform,
+            centerX,
+            centerY,
+            centerColor,
+            firstX,
+            firstY,
+            colorAt(firstX, firstY),
+            secondX,
+            secondY,
+            colorAt(secondX, secondY),
         )
     }
 }
 
-private fun MutableList<UiBatchedTriangle>.appendRoundedStroke(
+private fun UiTriangleBatch.appendRoundedStroke(
     width: Float,
     height: Float,
     radius: Float,
@@ -374,26 +347,17 @@ private fun MutableList<UiBatchedTriangle>.appendRoundedStroke(
         val nextIndex = index + 1
         val currentInnerIndex = index.coerceAtMost(inner.lastIndex)
         val nextInnerIndex = nextIndex.coerceAtMost(inner.lastIndex)
-        val outerVertex = UiBatchedVertex(transform.transform(outer.x(index), outer.y(index)), color)
-        val nextOuterVertex =
-            UiBatchedVertex(transform.transform(outer.x(nextIndex), outer.y(nextIndex)), color)
-        val innerVertex = UiBatchedVertex(
-            transform.transform(inner.x(currentInnerIndex) + inset, inner.y(currentInnerIndex) + inset),
-            color,
-        )
-        val nextInnerVertex = UiBatchedVertex(
-            transform.transform(inner.x(nextInnerIndex) + inset, inner.y(nextInnerIndex) + inset),
-            color,
-        )
-        this += UiBatchedTriangle(outerVertex, innerVertex, nextInnerVertex)
-        this += UiBatchedTriangle(outerVertex, nextInnerVertex, nextOuterVertex)
+        val outerX = outer.x(index)
+        val outerY = outer.y(index)
+        val nextOuterX = outer.x(nextIndex)
+        val nextOuterY = outer.y(nextIndex)
+        val innerX = inner.x(currentInnerIndex) + inset
+        val innerY = inner.y(currentInnerIndex) + inset
+        val nextInnerX = inner.x(nextInnerIndex) + inset
+        val nextInnerY = inner.y(nextInnerIndex) + inset
+        addTriangle(transform, outerX, outerY, color, innerX, innerY, color, nextInnerX, nextInnerY, color)
+        addTriangle(transform, outerX, outerY, color, nextInnerX, nextInnerY, color, nextOuterX, nextOuterY, color)
     }
-}
-
-private fun VertexConsumer.add(vertex: UiBatchedVertex) {
-    val color = vertex.color
-    val position = vertex.position
-    addVertex(position.x, position.y, position.z).setColor(color.red, color.green, color.blue, color.alpha)
 }
 
 internal fun drawLocalBorder(width: Float, height: Float, radius: Float, color: UiColor, transform: UiMatrix4) {
@@ -419,7 +383,7 @@ internal fun drawLocalBorder(
         border,
         0f,
         color,
-        transform * UiMatrix4.translation(0f, height - border, 0f),
+        transform.translated(0f, height - border),
         UiFilterChain.Empty
     )
     drawLocalPaint(border, height, 0f, color, transform, UiFilterChain.Empty)
@@ -428,7 +392,7 @@ internal fun drawLocalBorder(
         height,
         0f,
         color,
-        transform * UiMatrix4.translation(width - border, 0f, 0f),
+        transform.translated(width - border, 0f),
         UiFilterChain.Empty
     )
 }
@@ -440,7 +404,7 @@ internal fun drawSolid(rect: UiRect, color: UiColor, transform: UiMatrix4, radiu
             rect.height,
             radius,
             color,
-            transform * UiMatrix4.translation(rect.x, rect.y, 0f),
+            transform.translated(rect.x, rect.y),
             UiFilterChain.Empty
         )
         return
@@ -866,7 +830,7 @@ private fun radialGradientColorAt(
     return left.color.interpolate(right.color, (offset - left.offset) / range)
 }
 
-private fun MutableList<UiBatchedTriangle>.appendColoredTriangle(
+private fun UiTriangleBatch.appendColoredTriangle(
     triangle: UiPathTriangle,
     paint: UiResolvedPaint,
     width: Float,
@@ -875,26 +839,30 @@ private fun MutableList<UiBatchedTriangle>.appendColoredTriangle(
     transform: UiMatrix4,
     filter: UiFilterChain,
 ) {
-    this += UiBatchedTriangle(
-        first = triangle.first.toVertex(paint, width, height, opacity, transform, filter),
-        second = triangle.second.toVertex(paint, width, height, opacity, transform, filter),
-        third = triangle.third.toVertex(paint, width, height, opacity, transform, filter),
+    val firstColor = triangle.first.colorAt(paint, width, height, opacity, filter)
+    val secondColor = triangle.second.colorAt(paint, width, height, opacity, filter)
+    val thirdColor = triangle.third.colorAt(paint, width, height, opacity, filter)
+    addTriangle(
+        transform,
+        triangle.first.x,
+        triangle.first.y,
+        firstColor,
+        triangle.second.x,
+        triangle.second.y,
+        secondColor,
+        triangle.third.x,
+        triangle.third.y,
+        thirdColor,
     )
 }
 
-private fun UiPathPoint.toVertex(
+private fun UiPathPoint.colorAt(
     paint: UiResolvedPaint,
     width: Float,
     height: Float,
     opacity: Float,
-    transform: UiMatrix4,
     filter: UiFilterChain,
-): UiBatchedVertex {
-    return UiBatchedVertex(
-        position = transform.transform(x, y),
-        color = paint.colorAt(x, y, width, height).withOpacity(opacity).filtered(filter),
-    )
-}
+): UiColor = paint.colorAt(x, y, width, height).withOpacity(opacity).filtered(filter)
 
 private fun UiResolvedPaint.colorAt(x: Float, y: Float, width: Float, height: Float): UiColor = when (this) {
     UiResolvedPaint.None -> UiColor.Transparent

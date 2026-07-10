@@ -49,4 +49,21 @@ class HssRuleIndexTest {
         resolve(outer, ".outer .inner { scale: 5; }")
         assertEquals(UiVec3(5f, 5f, 1f), inner.resolvedSnapshot.scale)
     }
+
+    @Test
+    fun `a cached descendant is re-resolved when its ancestor selector context changes`() {
+        val inner = BoxNode(tags = listOf("inner"))
+        val outer = BoxNode().also {
+            it.children.add(inner)
+            inner.layoutState.attachTo(it)
+        }
+        val resolver = UiModifierResolver(stylesheet = compileHss(".outer .inner { scale: 5; }"))
+
+        resolver.resolve(outer, animate = false)
+        assertEquals(UiVec3(1f, 1f, 1f), inner.resolvedSnapshot.scale)
+
+        outer.tags += "outer"
+        resolver.resolve(outer, animate = false)
+        assertEquals(UiVec3(5f, 5f, 1f), inner.resolvedSnapshot.scale)
+    }
 }

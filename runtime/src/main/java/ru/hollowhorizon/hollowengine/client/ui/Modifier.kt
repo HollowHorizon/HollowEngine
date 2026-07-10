@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.copyToStableSet
+import ru.hollowhorizon.hollowengine.client.ui.layout.readOnlyIterator
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
@@ -88,7 +89,7 @@ class StyleModifier(
     }
 }
 
-data class CompositeModifier(private val values: MutableList<Modifier>) : Modifier {
+data class CompositeModifier(internal val values: MutableList<Modifier>) : Modifier {
     override fun then(other: Modifier): Modifier {
         if (other is CompositeModifier) {
             values.addAll(other.values)
@@ -98,8 +99,8 @@ data class CompositeModifier(private val values: MutableList<Modifier>) : Modifi
         return this
     }
 
-    fun flatten(): List<Modifier> = values.flatMap { modifier ->
-        if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
+    fun flatten(): List<Modifier> = ArrayList<Modifier>(values.size).also { result ->
+        values.appendFlattenedTo(result)
     }
 }
 
@@ -489,45 +490,36 @@ fun Iterable<Modifier>.toStylePatch(): UiStylePatch {
     return style
 }
 
-fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = flatMap { modifier ->
-    if (modifier is CompositeModifier) modifier.flatten() else listOf(modifier)
+fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = ArrayList<Modifier>().also { result ->
+    appendFlattenedTo(result)
 }
 
 internal fun UiNode.scrollAxes(): ScrollAxes = resolvedSnapshot.scrollAxes ?: ScrollAxes.Both
 
 /** Whether the node carries an attribute (via [AttributeModifier] or its legacy XML map). */
 internal fun UiNode.hasAttribute(name: String): Boolean {
-    if (modifiers.flattenModifiers().any { it is AttributeModifier && it.name == name }) return true
+    if (modifiers.findAttribute(name) != null) return true
     return attributes.containsKey(name)
 }
 
 /** The value of a named attribute, from [AttributeModifier]s first, then the legacy XML map. */
 internal fun UiNode.attributeValue(name: String): String? {
-    modifiers.flattenModifiers().forEach { if (it is AttributeModifier && it.name == name) return it.value }
+    modifiers.findAttribute(name)?.let { return it.value }
     return attributes[name]
 }
 
 internal fun UiNode.effectiveStates(): Set<UiState> {
-    val flattened = modifiers.flattenModifiers()
-    val modifierStates = flattened
-        .filterIsInstance<StateModifier>()
-        .flatMapTo(linkedSetOf()) { it.states }
-    val runtimeStates = flattened
-        .filterIsInstance<RuntimeStateModifier>()
-        .flatMapTo(linkedSetOf()) { it.states }
-    if (modifierStates.isEmpty() && runtimeStates.isEmpty()) return states.copyToStableSet()
-    return states.copyToStableSet() + modifierStates + runtimeStates
+    if (!modifiers.hasStateModifiers()) return states.copyToStableSet()
+    val result = LinkedHashSet<UiState>()
+    val statesIterator = states.readOnlyIterator()
+    while (statesIterator.hasNext()) result += statesIterator.next()
+    modifiers.appendModifierStatesTo(result)
+    return result
 }
 
 internal fun UiNode.hasEffectiveState(state: UiState): Boolean {
     if (state in states) return true
-    return modifiers.flattenModifiers().any { modifier ->
-        when (modifier) {
-            is StateModifier -> state in modifier.states
-            is RuntimeStateModifier -> state in modifier.states
-            else -> false
-        }
-    }
+    return modifiers.containsModifierState(state)
 }
 
 internal fun UiNode.hasEffectiveStates(required: Set<UiState>): Boolean {
@@ -549,6 +541,57 @@ internal fun UiNode.setRuntimeStates(next: Set<UiState>) {
     } else {
         modifiers += RuntimeStateModifier(next)
     }
+}
+
+private fun Iterable<Modifier>.appendFlattenedTo(result: MutableList<Modifier>) {
+    for (modifier in this) {
+        if (modifier is CompositeModifier) {
+            modifier.values.appendFlattenedTo(result)
+        } else {
+            result += modifier
+        }
+    }
+}
+
+private fun Iterable<Modifier>.findAttribute(name: String): AttributeModifier? {
+    for (modifier in this) {
+        when (modifier) {
+            is AttributeModifier -> if (modifier.name == name) return modifier
+            is CompositeModifier -> modifier.values.findAttribute(name)?.let { return it }
+        }
+    }
+    return null
+}
+
+private fun Iterable<Modifier>.hasStateModifiers(): Boolean {
+    for (modifier in this) {
+        when (modifier) {
+            is StateModifier, is RuntimeStateModifier -> return true
+            is CompositeModifier -> if (modifier.values.hasStateModifiers()) return true
+        }
+    }
+    return false
+}
+
+private fun Iterable<Modifier>.appendModifierStatesTo(result: MutableSet<UiState>) {
+    for (modifier in this) {
+        when (modifier) {
+            is StateModifier -> result.addAll(modifier.states)
+            is RuntimeStateModifier -> result.addAll(modifier.states)
+            is CompositeModifier -> modifier.values.appendModifierStatesTo(result)
+        }
+    }
+}
+
+private fun Iterable<Modifier>.containsModifierState(state: UiState): Boolean {
+    for (modifier in this) {
+        when (modifier) {
+            is StateModifier -> if (state in modifier.states) return true
+            is RuntimeStateModifier -> if (state in modifier.states) return true
+            is CompositeModifier -> if (modifier.values.containsModifierState(state)) return true
+        }
+    }
+    return false
 }
 
 private data class ModifierKey(

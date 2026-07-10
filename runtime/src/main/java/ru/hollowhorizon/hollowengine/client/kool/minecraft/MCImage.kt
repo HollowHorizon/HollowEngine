@@ -14,9 +14,18 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.util.LinkedHashMap
+
+private const val MaxCachedImageLocations = 512
 
 object ImageManager : ResourceManagerReloadListener {
     private val IMAGES = Object2ObjectOpenHashMap<ResourceLocation, Texture2d>()
+    private val locations = object : LinkedHashMap<String, ResourceLocation>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ResourceLocation>?): Boolean =
+            size > MaxCachedImageLocations
+    }
+
+    fun location(value: String): ResourceLocation = locations.getOrPut(value) { value.rl }
 
     fun load(location: ResourceLocation, mode: SamplerMode): Texture2d = IMAGES.getOrPut(location) {
         Texture2d(
@@ -44,7 +53,8 @@ fun UiScope.Image(location: ResourceLocation, mode: SamplerMode = SamplerMode.NE
         block()
     }
 
-fun UiScope.Image(location: String, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) = Image(location.rl, mode, block)
+fun UiScope.Image(location: String, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) =
+    Image(ImageManager.location(location), mode, block)
 
 enum class SamplerMode {
     NEAREST, LINEAR

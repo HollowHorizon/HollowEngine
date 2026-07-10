@@ -56,6 +56,20 @@ class InlineFlowTest {
     }
 
     @Test
+    fun `an oversized word keeps placed chunks and source offsets`() {
+        val s = span("abcdef")
+        val (layout, container) = flow(18f, s)
+        val textLayout = layout.nodes.getValue(s).textLayout!!
+
+        assertEquals(2, textLayout.lines.size)
+        assertEquals(20f, layout.nodes.getValue(container).rect.height, 0.6f)
+        assertEquals(0, textLayout.lines[0].sourceStart)
+        assertEquals(3, textLayout.lines[0].sourceLength)
+        assertEquals(3, textLayout.lines[1].sourceStart)
+        assertEquals(3, textLayout.lines[1].sourceLength)
+    }
+
+    @Test
     fun `a fit-content padded box does not wrap its own text at fractional glyph widths`() {
         for (fontSize in listOf(10f, 13f, 17f, 23f, 29f)) {
             val label = span("align: right", Modifier.fontSize(fontSize))

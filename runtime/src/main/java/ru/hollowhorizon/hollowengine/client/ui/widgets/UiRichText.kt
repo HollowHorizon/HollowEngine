@@ -19,7 +19,7 @@ data class UiInlineWidgetMetrics(
 sealed interface UiInlineItem {
     data class Text(
         val value: String,
-        val style: UiInlineStyle = UiInlineStyle(),
+        val style: UiInlineStyle = UiInlineStyle.Empty,
     ) : UiInlineItem
 
     data class Image(
@@ -45,6 +45,10 @@ data class UiInlineStyle(
     val background: UiColor? = null,
 ) {
 
+    companion object {
+        val Empty = UiInlineStyle()
+    }
+
     fun resolvedFontSize(baseFontSize: Float): Float = fontSize ?: baseFontSize.coerceAtLeast(0.0001f)
 }
 
@@ -53,10 +57,18 @@ val UiInlineStyle.italic: Boolean get() = effects.any { it is Italic }
 val UiInlineStyle.underline: Boolean get() = effects.any { it is Underline }
 val UiInlineStyle.strikethrough: Boolean get() = effects.any { it is Strikethrough }
 val UiInlineStyle.code: Boolean get() = effects.any { it is Code }
-val UiInlineStyle.link: String? get() = effects.filterIsInstance<Link>().lastOrNull()?.url
-val UiInlineStyle.color: UiColor? get() = effects.filterIsInstance<TextColor>().lastOrNull()?.value
-val UiInlineStyle.fontSize: Float? get() = effects.filterIsInstance<TextSize>().lastOrNull()?.value
-val UiInlineStyle.fontFamily: String? get() = effects.filterIsInstance<TextFont>().lastOrNull()?.name
+val UiInlineStyle.link: String? get() = effects.lastEffect<Link>()?.url
+val UiInlineStyle.color: UiColor? get() = effects.lastEffect<TextColor>()?.value
+val UiInlineStyle.fontSize: Float? get() = effects.lastEffect<TextSize>()?.value
+val UiInlineStyle.fontFamily: String? get() = effects.lastEffect<TextFont>()?.name
+
+private inline fun <reified T : UiTextEffect> List<UiTextEffect>.lastEffect(): T? {
+    for (index in indices.reversed()) {
+        val effect = this[index]
+        if (effect is T) return effect
+    }
+    return null
+}
 
 fun UiInlineStyle.withBold(): UiInlineStyle = copy(effects = effects + Bold)
 fun UiInlineStyle.withItalic(): UiInlineStyle = copy(effects = effects + Italic)

@@ -29,7 +29,7 @@ internal class UiWidgetRenderer(
     private val flushTextBatch: () -> Unit,
 ) {
     private val scratchQuads = mutableListOf<UiBatchedQuad>()
-    private val scratchTriangles = mutableListOf<UiBatchedTriangle>()
+    private val scratchTriangles = UiTriangleBatch()
     private val textFieldCaretBlinkStates = WeakHashMap<TextFieldNode, CaretBlinkState>()
 
     fun drawSlider(command: DrawSliderCommand, transform: UiMatrix4) {
@@ -42,7 +42,7 @@ internal class UiWidgetRenderer(
             command.radius,
             command.trackPaint,
             command.opacity,
-            transform * UiMatrix4.translation(0f, trackY, 0f),
+            transform.translated(0f, trackY),
             command.filter,
         )
         val activeWidth = width * command.fraction
@@ -53,7 +53,7 @@ internal class UiWidgetRenderer(
                 command.radius,
                 command.activeTrackPaint,
                 command.opacity,
-                transform * UiMatrix4.translation(0f, trackY, 0f),
+                transform.translated(0f, trackY),
                 command.filter,
             )
         }
@@ -62,7 +62,7 @@ internal class UiWidgetRenderer(
             (width - command.thumbWidth).coerceAtLeast(0f)
         )
         val thumbY = (height - command.thumbHeight) * 0.5f
-        val thumbTransform = transform * UiMatrix4.translation(thumbX, thumbY, 0f)
+        val thumbTransform = transform.translated(thumbX, thumbY)
         drawResolvedPaint(
             command.thumbWidth,
             command.thumbHeight,
@@ -146,7 +146,7 @@ internal class UiWidgetRenderer(
                     width = 1f,
                     height = height,
                     color = color,
-                    transform = transform * UiMatrix4.translation(x, y, 0f),
+                    transform = transform.translated(x, y),
                 )
             }
         }
@@ -172,7 +172,7 @@ internal class UiWidgetRenderer(
                     width = clipped.width,
                     height = clipped.height,
                     color = command.selectionColor.withOpacity(command.opacity).filtered(command.filter),
-                    transform = transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
+                    transform = transform.translated(clipped.x, clipped.y),
                 )
             }
         }
@@ -282,7 +282,7 @@ internal class UiWidgetRenderer(
                 clipped.width,
                 clipped.height,
                 command.caretColor.withOpacity(command.opacity).filtered(command.filter),
-                transform * UiMatrix4.translation(clipped.x, clipped.y, 0f),
+                transform.translated(clipped.x, clipped.y),
             )
         }
     }
@@ -338,7 +338,7 @@ internal class UiWidgetRenderer(
             1.5f,
             command.markPaint,
             command.opacity,
-            local * UiMatrix4.translation(size * 0.25f, size * 0.25f, 0f),
+            local.translated(size * 0.25f, size * 0.25f),
             command.filter,
         )
     }
@@ -363,7 +363,7 @@ internal class UiWidgetRenderer(
             dot * 0.5f,
             command.markPaint,
             command.opacity,
-            local * UiMatrix4.translation((size - dot) * 0.5f, (size - dot) * 0.5f, 0f),
+            local.translated((size - dot) * 0.5f, (size - dot) * 0.5f),
             command.filter,
         )
     }
@@ -371,7 +371,7 @@ internal class UiWidgetRenderer(
     private fun drawSwitch(command: DrawCheckboxCommand, transform: UiMatrix4) {
         val height = command.rect.height
         val width = maxOf(command.rect.width, height * 1.8f)
-        val local = transform * UiMatrix4.translation((command.rect.width - width) * 0.5f, 0f, 0f)
+        val local = transform.translated((command.rect.width - width) * 0.5f, 0f)
         val track =
             if (command.checked) command.activePaint else UiResolvedPaint.Color(UiColor(0.16f, 0.18f, 0.22f, 1f))
         drawResolvedPaint(width, height, height * 0.5f, track, command.opacity, local, command.filter)
@@ -383,7 +383,7 @@ internal class UiWidgetRenderer(
             knob * 0.5f,
             command.markPaint,
             command.opacity,
-            local * UiMatrix4.translation(knobX, 2f, 0f),
+            local.translated(knobX, 2f),
             command.filter,
         )
     }
@@ -391,7 +391,7 @@ internal class UiWidgetRenderer(
     private fun centeredSquare(command: DrawCheckboxCommand, size: Float, transform: UiMatrix4): UiMatrix4 {
         val x = (command.rect.width - size) * 0.5f
         val y = (command.rect.height - size) * 0.5f
-        return transform * UiMatrix4.translation(x, y, 0f)
+        return transform.translated(x, y)
     }
 
     private fun drawResolvedPaint(

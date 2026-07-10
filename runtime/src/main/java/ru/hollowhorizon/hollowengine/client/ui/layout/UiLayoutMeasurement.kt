@@ -266,11 +266,12 @@ private fun UiLayoutPipeline.measureTextFieldNode(
     val textOffset = textFieldTextOffset(node, style)
     val textWidth = (availableWidth - textOffset).coerceAtLeast(1f)
     val knownTextWidth = knownContentWidth?.let { (it - textOffset).coerceAtLeast(1f) }
+    val inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList()
     val measured = UiTextLayouter.measure(
         richText = node.value.ifEmpty { node.placeholder }.toHighlightedRichText(
             highlighter = null,
-            inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
-            inlayStyle = textFieldInlayStyle(style),
+            inlayHints = inlayHints,
+            inlayStyle = if (inlayHints.isEmpty()) UiInlineStyle.Empty else textFieldInlayStyle(style),
             inlayWidgetMetrics = widgetMetrics,
         ),
         availableWidth = textWidth,

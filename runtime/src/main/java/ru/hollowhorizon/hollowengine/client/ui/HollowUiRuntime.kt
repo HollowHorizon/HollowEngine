@@ -18,9 +18,6 @@ data class HollowUiFrame(
     val nodes: List<UiNode>,
     val layout: UiLayoutResult,
     val nowMillis: Long = 0L,
-    private val activeTransitionDurations: Map<UiNode, Long> = emptyMap(),
-    private val startedTransitionDurations: Map<UiNode, Long> = emptyMap(),
-    private val activeScrollAnimation: Boolean = false,
 ) {
     fun hitTest(x: Float, y: Float): UiHit? = UiHitTester().hitTest(root, layout, x, y)
 
@@ -172,7 +169,6 @@ class HollowUiRuntime(
         nowMillis: Long,
     ): HollowUiFrame {
         val nodes = resolver.resolve(root, nowMillis)
-        val transitionDurations = collectTransitionDurations(nodes)
         applyPendingScrollRequests(nodes)
 
         val layoutKey = FrameLayoutKey(
@@ -206,9 +202,6 @@ class HollowUiRuntime(
             nodes = nodes,
             layout = layout,
             nowMillis = nowMillis,
-            activeTransitionDurations = transitionDurations.active,
-            startedTransitionDurations = transitionDurations.started,
-            activeScrollAnimation = scrollState.isAnimating(),
         )
     }
 
@@ -344,17 +337,6 @@ class HollowUiRuntime(
         }
     }
 
-    private fun collectTransitionDurations(nodes: List<UiNode>): TransitionDurations {
-        if (nodes.none { it.resolvedSnapshot.transitions.isNotEmpty() }) return TransitionDurations.Empty
-        val active = mutableMapOf<UiNode, Long>()
-        val started = mutableMapOf<UiNode, Long>()
-        nodes.forEach { node ->
-            active[node] = transitionState.activeDurationMillis(node)
-            started[node] = transitionState.startedDurationMillis(node)
-        }
-        return TransitionDurations(active, started)
-    }
-
     private fun ensureFocusedTextFieldsVisible(nodes: List<UiNode>, layout: UiLayoutResult): Boolean {
         var changed = false
         for (node in nodes.filterIsInstance<TextFieldNode>()) {
@@ -443,15 +425,6 @@ class HollowUiRuntime(
 
     fun unfocus() {
         input.focus(lastFrame ?: return, null, ::dispatchUiEvent)
-    }
-}
-
-private data class TransitionDurations(
-    val active: Map<UiNode, Long>,
-    val started: Map<UiNode, Long>,
-) {
-    companion object {
-        val Empty = TransitionDurations(emptyMap(), emptyMap())
     }
 }
 

@@ -5,6 +5,7 @@ import net.minecraft.client.gui.Font
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import java.util.concurrent.ConcurrentHashMap
 
 private val minecraftFont: Font?
     get() = runCatching { Minecraft.getInstance()?.font }.getOrNull()
@@ -21,18 +22,20 @@ internal sealed interface UiTextFont {
 
 internal object UiTextFonts {
     private const val EstimatedGlyphWidth = 6f
+    private val resolvedFonts = ConcurrentHashMap<String, UiTextFont>()
 
     fun resolve(fontFamily: String?): UiTextFont {
-        val normalized = fontFamily?.takeIf { it.isNotBlank() }
-        val metrics = normalized?.let { UiMsdfFont.getMetrics(it) }
-        return if (metrics != null) {
-            MsdfTextFont(normalized, metrics)
-        } else {
-            VanillaTextFont
+        val normalized = fontFamily?.takeIf { it.isNotBlank() } ?: return VanillaTextFont
+        return resolvedFonts.computeIfAbsent(normalized) { family ->
+            UiMsdfFont.getMetrics(family)?.let { MsdfTextFont(family, it) } ?: VanillaTextFont
         }
     }
 
     fun signature(fontFamily: String?): Int = resolve(fontFamily).signature
+
+    fun clearResolvedFonts() {
+        resolvedFonts.clear()
+    }
 
     private data object VanillaTextFont : UiTextFont {
         override val signature: Int
@@ -45,8 +48,14 @@ internal object UiTextFonts {
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float {
             val activeFont = minecraftFont
-            val width = activeFont?.width(text.component(style))?.toFloat()
-                ?: text.sumOf { estimatedAdvance(style).toDouble() }.toFloat()
+            val width = if (activeFont == null) {
+                val advance = estimatedAdvance(style)
+                text.length * advance
+            } else if (style.bold) {
+                activeFont.width(text.boldComponent()).toFloat()
+            } else {
+                activeFont.width(text).toFloat()
+            }
             return width * (fontSize / (activeFont?.lineHeight?.toFloat() ?: DefaultUiFontSize))
         }
 
@@ -73,11 +82,8 @@ internal object UiTextFonts {
     }
 }
 
-private fun String.component(style: UiInlineStyle): Component {
+private fun String.boldComponent(): Component {
     return Component.literal(this).withStyle {
-        it.withBold(style.bold)
-            .withItalic(style.italic)
-            .withUnderlined(style.underline || style.link != null)
-            .withStrikethrough(style.strikethrough)
+        it.withBold(true)
     }
 }

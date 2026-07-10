@@ -2,8 +2,10 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * An interaction state, matched by HSS `:name` selectors. Open by design: any name is a
@@ -339,26 +341,22 @@ data class UiTransform(
     val needsFramebuffer: Boolean get() = !rotate.x.isAlmostZero() || !rotate.y.isAlmostZero()
 
     private fun Float.isAlmostZero(epsilon: Float = 0.0001f): Boolean =
-        kotlin.math.abs(this) <= epsilon
+        abs(this) <= epsilon
 
-    fun matrix(pivotPoint: UiVec3 = pivot.resolve(0f, 0f)): UiMatrix4 {
-        var result = UiMatrix4.identity()
-        result *= UiMatrix4.translation(translate.x, translate.y, translate.z)
-        result *= UiMatrix4.translation(pivotPoint.x, pivotPoint.y, pivotPoint.z)
-        if (perspective != 0f) result *= UiMatrix4.perspective(perspective)
-        result *= UiMatrix4.rotationX(rotate.x.degreesToRadians())
-        result *= UiMatrix4.rotationY(rotate.y.degreesToRadians())
-        result *= UiMatrix4.rotationZ(rotate.z.degreesToRadians())
-        result *= UiMatrix4.scale(scale.x, scale.y, scale.z)
-        result *= UiMatrix4.translation(-pivotPoint.x, -pivotPoint.y, -pivotPoint.z)
-        return result
-    }
+    fun matrix(
+        pivotPoint: UiVec3 = pivot.resolve(0f, 0f),
+        offsetX: Float = 0f,
+        offsetY: Float = 0f,
+        offsetZ: Float = 0f,
+    ): UiMatrix4 = UiMatrix4.compose(this, pivotPoint, offsetX, offsetY, offsetZ)
 }
 
 private fun Float.degreesToRadians(): Float = this * PI.toFloat() / 180f
 
 class UiMatrix4(private val values: FloatArray) {
     operator fun times(other: UiMatrix4): UiMatrix4 {
+        if (this === Identity) return other
+        if (other === Identity) return this
         val result = FloatArray(16)
         for (row in 0 until 4) {
             for (column in 0 until 4) {
@@ -372,6 +370,11 @@ class UiMatrix4(private val values: FloatArray) {
         return UiMatrix4(result)
     }
 
+    fun translated(x: Float, y: Float, z: Float = 0f): UiMatrix4 {
+        if (x == 0f && y == 0f && z == 0f) return this
+        return UiMatrix4(values.copyOf()).also { it.appendTranslation(x, y, z) }
+    }
+
     fun transform(x: Float, y: Float, z: Float = 0f): UiVec3 {
         val tx = values[0] * x + values[1] * y + values[2] * z + values[3]
         val ty = values[4] * x + values[5] * y + values[6] * z + values[7]
@@ -381,7 +384,49 @@ class UiMatrix4(private val values: FloatArray) {
         return UiVec3(tx / tw, ty / tw, tz / tw)
     }
 
+    internal fun transform(x: Float, y: Float, z: Float, destination: FloatArray, offset: Int) {
+        val tx = values[0] * x + values[1] * y + values[2] * z + values[3]
+        val ty = values[4] * x + values[5] * y + values[6] * z + values[7]
+        val tz = values[8] * x + values[9] * y + values[10] * z + values[11]
+        val tw = values[12] * x + values[13] * y + values[14] * z + values[15]
+        if (tw == 0f || tw == 1f) {
+            destination[offset] = tx
+            destination[offset + 1] = ty
+            destination[offset + 2] = tz
+        } else {
+            destination[offset] = tx / tw
+            destination[offset + 1] = ty / tw
+            destination[offset + 2] = tz / tw
+        }
+    }
+
+    internal fun axisScales(destination: FloatArray) {
+        val originW = values[15]
+        val originX = if (originW == 0f || originW == 1f) values[3] else values[3] / originW
+        val originY = if (originW == 0f || originW == 1f) values[7] else values[7] / originW
+
+        val xW = values[12] + values[15]
+        val xPointX = values[0] + values[3]
+        val xPointY = values[4] + values[7]
+        val resolvedX = if (xW == 0f || xW == 1f) xPointX else xPointX / xW
+        val resolvedXY = if (xW == 0f || xW == 1f) xPointY else xPointY / xW
+
+        val yW = values[13] + values[15]
+        val yPointX = values[1] + values[3]
+        val yPointY = values[5] + values[7]
+        val resolvedYX = if (yW == 0f || yW == 1f) yPointX else yPointX / yW
+        val resolvedY = if (yW == 0f || yW == 1f) yPointY else yPointY / yW
+
+        val xDelta = resolvedX - originX
+        val xDeltaY = resolvedXY - originY
+        val yDeltaX = resolvedYX - originX
+        val yDelta = resolvedY - originY
+        destination[0] = sqrt(xDelta * xDelta + xDeltaY * xDeltaY)
+        destination[1] = sqrt(yDeltaX * yDeltaX + yDelta * yDelta)
+    }
+
     fun inverse(): UiMatrix4? {
+        if (this === Identity) return this
         val m = values
         val inv = FloatArray(16)
         inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] +
@@ -424,7 +469,7 @@ class UiMatrix4(private val values: FloatArray) {
     }
 
     companion object {
-        fun identity() = UiMatrix4(
+        private val Identity = UiMatrix4(
             floatArrayOf(
                 1f, 0f, 0f, 0f,
                 0f, 1f, 0f, 0f,
@@ -433,40 +478,31 @@ class UiMatrix4(private val values: FloatArray) {
             )
         )
 
-        fun translation(x: Float, y: Float, z: Float) = UiMatrix4(
-            floatArrayOf(
-                1f, 0f, 0f, x,
-                0f, 1f, 0f, y,
-                0f, 0f, 1f, z,
-                0f, 0f, 0f, 1f,
-            )
-        )
+        fun identity(): UiMatrix4 = Identity
 
-        fun scale(x: Float, y: Float, z: Float) = UiMatrix4(
-            floatArrayOf(
-                x, 0f, 0f, 0f,
-                0f, y, 0f, 0f,
-                0f, 0f, z, 0f,
-                0f, 0f, 0f, 1f,
-            )
-        )
+        fun translation(x: Float, y: Float, z: Float): UiMatrix4 {
+            if (x == 0f && y == 0f && z == 0f) return Identity
+            return mutableIdentity().also { it.appendTranslation(x, y, z) }
+        }
+
+        fun scale(x: Float, y: Float, z: Float): UiMatrix4 {
+            if (x == 1f && y == 1f && z == 1f) return Identity
+            return mutableIdentity().also { it.appendScale(x, y, z) }
+        }
 
         fun rotationX(radians: Float): UiMatrix4 {
-            val c = cos(radians)
-            val s = sin(radians)
-            return UiMatrix4(floatArrayOf(1f, 0f, 0f, 0f, 0f, c, -s, 0f, 0f, s, c, 0f, 0f, 0f, 0f, 1f))
+            if (radians == 0f) return Identity
+            return mutableIdentity().also { it.appendRotationX(radians) }
         }
 
         fun rotationY(radians: Float): UiMatrix4 {
-            val c = cos(radians)
-            val s = sin(radians)
-            return UiMatrix4(floatArrayOf(c, 0f, s, 0f, 0f, 1f, 0f, 0f, -s, 0f, c, 0f, 0f, 0f, 0f, 1f))
+            if (radians == 0f) return Identity
+            return mutableIdentity().also { it.appendRotationY(radians) }
         }
 
         fun rotationZ(radians: Float): UiMatrix4 {
-            val c = cos(radians)
-            val s = sin(radians)
-            return UiMatrix4(floatArrayOf(c, -s, 0f, 0f, s, c, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f))
+            if (radians == 0f) return Identity
+            return mutableIdentity().also { it.appendRotationZ(radians) }
         }
 
         fun perspective(distance: Float) = UiMatrix4(
@@ -477,5 +513,98 @@ class UiMatrix4(private val values: FloatArray) {
                 0f, 0f, -1f / distance, 1f,
             )
         )
+
+        internal fun compose(
+            transform: UiTransform,
+            pivot: UiVec3,
+            offsetX: Float,
+            offsetY: Float,
+            offsetZ: Float,
+        ): UiMatrix4 {
+            val translateX = offsetX + transform.translate.x
+            val translateY = offsetY + transform.translate.y
+            val translateZ = offsetZ + transform.translate.z
+            val noRotation = transform.rotate.x == 0f && transform.rotate.y == 0f && transform.rotate.z == 0f
+            val noScale = transform.scale.x == 1f && transform.scale.y == 1f && transform.scale.z == 1f
+            if (translateX == 0f && translateY == 0f && translateZ == 0f &&
+                noRotation && noScale && transform.perspective == 0f
+            ) {
+                return Identity
+            }
+
+            val result = mutableIdentity()
+            result.appendTranslation(translateX, translateY, translateZ)
+            result.appendTranslation(pivot.x, pivot.y, pivot.z)
+            if (transform.perspective != 0f) result.appendPerspective(transform.perspective)
+            if (transform.rotate.x != 0f) result.appendRotationX(transform.rotate.x.degreesToRadians())
+            if (transform.rotate.y != 0f) result.appendRotationY(transform.rotate.y.degreesToRadians())
+            if (transform.rotate.z != 0f) result.appendRotationZ(transform.rotate.z.degreesToRadians())
+            if (!noScale) result.appendScale(transform.scale.x, transform.scale.y, transform.scale.z)
+            result.appendTranslation(-pivot.x, -pivot.y, -pivot.z)
+            return result
+        }
+
+        private fun mutableIdentity(): UiMatrix4 = UiMatrix4(Identity.values.copyOf())
+    }
+
+    private fun appendTranslation(x: Float, y: Float, z: Float) {
+        if (x == 0f && y == 0f && z == 0f) return
+        for (row in 0 until 4) {
+            val offset = row * 4
+            values[offset + 3] += values[offset] * x + values[offset + 1] * y + values[offset + 2] * z
+        }
+    }
+
+    private fun appendScale(x: Float, y: Float, z: Float) {
+        for (row in 0 until 4) {
+            val offset = row * 4
+            values[offset] *= x
+            values[offset + 1] *= y
+            values[offset + 2] *= z
+        }
+    }
+
+    private fun appendRotationX(radians: Float) {
+        val c = cos(radians)
+        val s = sin(radians)
+        for (row in 0 until 4) {
+            val offset = row * 4
+            val y = values[offset + 1]
+            val z = values[offset + 2]
+            values[offset + 1] = y * c + z * s
+            values[offset + 2] = z * c - y * s
+        }
+    }
+
+    private fun appendRotationY(radians: Float) {
+        val c = cos(radians)
+        val s = sin(radians)
+        for (row in 0 until 4) {
+            val offset = row * 4
+            val x = values[offset]
+            val z = values[offset + 2]
+            values[offset] = x * c - z * s
+            values[offset + 2] = x * s + z * c
+        }
+    }
+
+    private fun appendRotationZ(radians: Float) {
+        val c = cos(radians)
+        val s = sin(radians)
+        for (row in 0 until 4) {
+            val offset = row * 4
+            val x = values[offset]
+            val y = values[offset + 1]
+            values[offset] = x * c + y * s
+            values[offset + 1] = y * c - x * s
+        }
+    }
+
+    private fun appendPerspective(distance: Float) {
+        val inverseDistance = -1f / distance
+        for (row in 0 until 4) {
+            val offset = row * 4
+            values[offset + 2] += values[offset + 3] * inverseDistance
+        }
     }
 }

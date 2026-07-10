@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiStyleProperty
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 
 internal const val TextFieldCaretWidth = 1f
@@ -17,13 +18,14 @@ internal fun textFieldEditLayout(
     style: UiComputedStyle,
     layout: UiLayoutNode,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
-): ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout {
-    val inlayStyle = textFieldInlayStyle(style)
+): UiTextLayout {
+    val inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList()
+    val inlayStyle = if (inlayHints.isEmpty()) UiInlineStyle.Empty else textFieldInlayStyle(style)
     val fontSize = style.fontSize
     return UiTextLayouter.layout(
         richText = node.value.toHighlightedRichText(
             highlighter = null,
-            inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
+            inlayHints = inlayHints,
             inlayStyle = inlayStyle,
             inlayWidgetMetrics = inlayWidgetMetrics,
         ),
@@ -44,13 +46,15 @@ internal fun textFieldDisplayLayout(
     style: UiComputedStyle,
     layout: UiLayoutNode,
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
-): ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout {
-    val inlayStyle = textFieldInlayStyle(style)
+): UiTextLayout {
+    val inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList()
+    val inlayStyle = if (inlayHints.isEmpty()) UiInlineStyle.Empty else textFieldInlayStyle(style)
     val fontSize = style.fontSize
     return UiTextLayouter.layout(
         richText = node.value.toHighlightedRichText(
-            highlighter = node.syntaxHighlighter?.forCaret(node.caret),
-            inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList(),
+            highlighter = node.syntaxHighlighter,
+            caret = node.caret,
+            inlayHints = inlayHints,
             inlayStyle = inlayStyle,
             inlayWidgetMetrics = inlayWidgetMetrics,
         ),
@@ -74,7 +78,7 @@ internal fun textFieldTextOffset(node: TextFieldNode, style: UiComputedStyle): F
 }
 
 internal fun textFieldInlayStyle(style: UiComputedStyle): UiInlineStyle {
-    return UiInlineStyle().withColor(
+    return UiInlineStyle.Empty.withColor(
         (style.textField.inlayHintColor ?: UiColor(0.66f, 0.72f, 0.82f, 1f)).copy(alpha = 0.95f)
     )
 }
@@ -106,9 +110,4 @@ internal fun textFieldWidthConstrained(style: UiComputedStyle, node: TextFieldNo
         spaceWidth = style.spaceWidth,
     ).width
     return contentWidth + 0.5f < naturalWidth
-}
-
-private fun UiSyntaxHighlighter.forCaret(caret: Int): UiSyntaxHighlighter {
-    if (this !is UiCaretAwareSyntaxHighlighter) return this
-    return UiSyntaxHighlighter { text -> highlight(text, caret) }
 }

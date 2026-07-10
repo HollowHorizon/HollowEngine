@@ -20,7 +20,7 @@ data class CompiledHss(
 
     /** Rules of [origin] that match [node], sourced from the index so only candidates are tested. */
     fun matching(node: UiNode, origin: StyleOrigin): List<StyleRule> =
-        index.candidates(node).filter { it.origin == origin && it.matches(node) }.toList()
+        index.matching(node, origin)
 }
 
 internal class HssRuleIndex(rules: List<StyleRule>) {
@@ -41,12 +41,26 @@ internal class HssRuleIndex(rules: List<StyleRule>) {
         }
     }
 
-    fun candidates(node: UiNode): Sequence<StyleRule> = sequence {
-        node.id?.let { id -> byId[id]?.let { yieldAll(it) } }
+    fun matching(node: UiNode, origin: StyleOrigin): List<StyleRule> {
+        val matches = ArrayList<StyleRule>()
+        node.id?.let { id -> appendMatching(byId[id], node, origin, matches) }
         val tags = node.tags.readOnlyIterator()
-        while (tags.hasNext()) byTag[tags.next()]?.let { yieldAll(it) }
-        byType[node.type]?.let { yieldAll(it) }
-        yieldAll(universal)
+        while (tags.hasNext()) appendMatching(byTag[tags.next()], node, origin, matches)
+        appendMatching(byType[node.type], node, origin, matches)
+        appendMatching(universal, node, origin, matches)
+        return matches.ifEmpty { emptyList() }
+    }
+
+    private fun appendMatching(
+        candidates: List<StyleRule>?,
+        node: UiNode,
+        origin: StyleOrigin,
+        result: MutableList<StyleRule>,
+    ) {
+        candidates ?: return
+        for (rule in candidates) {
+            if (rule.origin == origin && rule.matches(node)) result += rule
+        }
     }
 }
 

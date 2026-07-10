@@ -29,7 +29,7 @@ internal object UiTextOverflowResolver {
         private val fragments = mutableListOf<UiTextFragment>()
         private val text = StringBuilder()
         private var cursorX = 0f
-        private var ellipsisStyle = UiInlineStyle()
+        private var ellipsisStyle = UiInlineStyle.Empty
         private var ellipsisHeight = command.fontSize
 
         fun append(fragment: UiTextFragment): Boolean {
@@ -129,7 +129,7 @@ internal object UiTextOverflowResolver {
 private fun UiTextLine.asTextRun(command: DrawTextCommand): UiTextRun {
     return UiTextRun(
         text = text,
-        style = UiInlineStyle(),
+        style = UiInlineStyle.Empty,
         x = 0f,
         y = 0f,
         width = naturalWidth,

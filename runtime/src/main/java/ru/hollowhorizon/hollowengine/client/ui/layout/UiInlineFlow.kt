@@ -52,13 +52,47 @@ internal fun inlineFlowAlign(style: UiComputedStyle): UiAlign {
 private class GroupCtx(
     val node: UiNode,
     val parent: UiNode,
+    val enclosing: GroupCtx?,
     val leadPad: Float,
     val trailPad: Float,
     val padTop: Float,
     val padBottom: Float,
     val decorationBreak: UiBoxDecorationBreak,
     val isSpan: Boolean,
-)
+) {
+    val lines = ArrayList<GroupLine?>()
+
+    fun include(piece: Piece) {
+        while (lines.size <= piece.lineIndex) lines += null
+        val line = lines[piece.lineIndex] ?: GroupLine(isSpan).also { lines[piece.lineIndex] = it }
+        line.include(piece)
+    }
+}
+
+private class GroupLine(collectText: Boolean) {
+    var left = Float.MAX_VALUE
+    var right = -Float.MAX_VALUE
+    var top = 0f
+    var height = 0f
+    var reference: Piece? = null
+    var sourceStart = 0
+    var sourceEnd = 0
+    var minSourceStart = Int.MAX_VALUE
+    val textPieces: MutableList<Piece>? = if (collectText) ArrayList() else null
+
+    fun include(piece: Piece) {
+        if (reference == null) {
+            reference = piece
+            top = piece.lineTop
+            height = piece.lineHeight
+        }
+        left = minOf(left, piece.x)
+        right = maxOf(right, piece.x + piece.width)
+        val sourceStart = piece.spanSourceStart()
+        if (sourceStart != null) minSourceStart = minOf(minSourceStart, sourceStart)
+        if (piece is WordPiece || piece is SpacePiece) textPieces?.add(piece)
+    }
+}
 
 private sealed class Piece {
     var x = 0f
@@ -68,8 +102,8 @@ private sealed class Piece {
     abstract val width: Float
     abstract val height: Float
 
-    /** Enclosing groups, outer -> inner; the innermost of a word is its span. */
-    abstract val groups: List<GroupCtx>
+    /** Innermost enclosing group; [GroupCtx.enclosing] links towards the outer flow. */
+    abstract val group: GroupCtx?
 }
 
 private class WordPiece(
@@ -77,19 +111,17 @@ private class WordPiece(
     val style: UiInlineStyle,
     override val width: Float,
     override val height: Float,
-    override val groups: List<GroupCtx>,
+    override val group: GroupCtx?,
     /** Offset of this word in its span's source text, lets the span layout map caret offsets. */
     val sourceStart: Int = 0,
     /** Resolved font family the word was measured with (needed to re-measure when splitting). */
     val fontFamily: String? = null,
-) : Piece() {
-    val effects: List<UiTextEffect> get() = style.effects
-}
+) : Piece()
 
 private class SpacePiece(
     override val width: Float,
     override val height: Float,
-    override val groups: List<GroupCtx>,
+    override val group: GroupCtx?,
     /** Preserved spaces (white-space: pre) keep their advance at line edges and never collapse. */
     val preserve: Boolean = false,
     /** Offset of this space in its span's source text. */
@@ -108,18 +140,18 @@ private class AtomPiece(
     val parent: UiNode,
     override val width: Float,
     override val height: Float,
-    override val groups: List<GroupCtx>,
+    override val group: GroupCtx?,
 ) : Piece()
 
 /** A group's leading/trailing padding advance - zero-height, part of the group's extent. */
 private class PadPiece(
     override val width: Float,
-    override val groups: List<GroupCtx>,
+    override val group: GroupCtx?,
 ) : Piece() {
     override val height: Float get() = 0f
 }
 
-private class BreakPiece(override val groups: List<GroupCtx>) : Piece() {
+private class BreakPiece(override val group: GroupCtx?) : Piece() {
     override val width: Float get() = 0f
     override val height: Float get() = 0f
 }
@@ -138,15 +170,17 @@ internal fun UiLayoutPipeline.computeInlineFlow(
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 ): InlineFlowLayout {
     val pieces = ArrayList<Piece>()
+    val groups = ArrayList<GroupCtx>()
     tokenizeInline(
         layoutChildren(container),
         resolved,
         container,
-        emptyList(),
+        enclosingGroup = null,
         availableWidth,
         availableHeight,
         scrollbarReserves,
-        pieces
+        pieces,
+        groups,
     )
     val lines = breakIntoLines(pieces, availableWidth, wrap)
     // Alignment still uses the container width even with wrap off, so a single line can sit
@@ -158,7 +192,7 @@ internal fun UiLayoutPipeline.computeInlineFlow(
     val height = lines.sumOf { it.height.toDouble() }.toFloat() +
             (if (lines.size > 1) lineSpacing * (lines.size - 1) else 0f)
 
-    val childLayouts = assembleChildLayouts(container, pieces)
+    val childLayouts = assembleChildLayouts(groups, lines)
     return InlineFlowLayout(width, height, childLayouts)
 }
 
@@ -166,29 +200,35 @@ private fun UiLayoutPipeline.tokenizeInline(
     nodes: List<UiNode>,
     resolved: UiNode,
     parent: UiNode,
-    groups: List<GroupCtx>,
+    enclosingGroup: GroupCtx?,
     availableWidth: Float,
     availableHeight: Float,
     scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     out: MutableList<Piece>,
+    groups: MutableList<GroupCtx>,
 ) {
     for (child in nodes) {
         val style = resolved[child]
         when {
             child is SpanNode -> {
-                val group = groupCtx(child, parent, style, availableWidth, availableHeight, isSpan = true)
-                tokenizeSpanWords(child, style, groups + group, out)
+                val group = groupCtx(
+                    child, parent, enclosingGroup, style, availableWidth, availableHeight, isSpan = true,
+                )
+                groups += group
+                tokenizeSpanWords(child, style, group, out)
             }
 
             child.isInlineFlow() -> {
-                val group = groupCtx(child, parent, style, availableWidth, availableHeight, isSpan = false)
-                val inner = groups + group
-                if (group.leadPad > 0f) out += PadPiece(group.leadPad, inner)
-                tokenizeInline(
-                    layoutChildren(child), resolved, child, inner,
-                    availableWidth, availableHeight, scrollbarReserves, out,
+                val group = groupCtx(
+                    child, parent, enclosingGroup, style, availableWidth, availableHeight, isSpan = false,
                 )
-                if (group.trailPad > 0f) out += PadPiece(group.trailPad, inner)
+                groups += group
+                if (group.leadPad > 0f) out += PadPiece(group.leadPad, group)
+                tokenizeInline(
+                    layoutChildren(child), resolved, child, group,
+                    availableWidth, availableHeight, scrollbarReserves, out, groups,
+                )
+                if (group.trailPad > 0f) out += PadPiece(group.trailPad, group)
             }
 
             else -> {
@@ -199,7 +239,7 @@ private fun UiLayoutPipeline.tokenizeInline(
                     parent,
                     size.width + margin.horizontal,
                     size.height + margin.vertical,
-                    groups,
+                    enclosingGroup,
                 )
             }
         }
@@ -209,6 +249,7 @@ private fun UiLayoutPipeline.tokenizeInline(
 private fun groupCtx(
     node: UiNode,
     parent: UiNode,
+    enclosing: GroupCtx?,
     style: UiComputedStyle,
     availableWidth: Float,
     availableHeight: Float,
@@ -225,6 +266,7 @@ private fun groupCtx(
     return GroupCtx(
         node = node,
         parent = parent,
+        enclosing = enclosing,
         leadPad = maxOf(padding.left, minSidePad) + margin.left,
         trailPad = maxOf(padding.right, minSidePad) + margin.right,
         padTop = padding.top,
@@ -234,7 +276,7 @@ private fun groupCtx(
     )
 }
 
-private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: List<GroupCtx>, out: MutableList<Piece>) {
+private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, group: GroupCtx, out: MutableList<Piece>) {
     val fontSize = style.fontSize
     val fontFamily = style.fontFamily
     // The span's effects (bold/italic/underline/strike/wave/etc.) ride on each run's inline style,
@@ -244,40 +286,39 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, groups: Li
     val inlineStyle = UiInlineStyle(effects = effects)
     val spaceWidth = style.spaceWidth ?: UiTextLayouter.measureStyledTextWidth(" ", fontSize, fontFamily, inlineStyle)
     val preserve = style.whitespace == UiWhitespace.PRESERVE
-    val word = StringBuilder()
-    var source = 0
-    var wordStart = 0
-    fun flush() {
-        if (word.isEmpty()) return
-        val wordText = word.toString()
+    val text = span.text
+    var wordStart = -1
+    fun flush(end: Int) {
+        if (wordStart < 0) return
+        val wordText = text.substring(wordStart, end)
         val width = UiTextLayouter.measureStyledTextWidth(wordText, fontSize, fontFamily, inlineStyle)
-        out += WordPiece(wordText, inlineStyle, width, fontSize, groups, sourceStart = wordStart, fontFamily = fontFamily)
-        word.clear()
+        out += WordPiece(wordText, inlineStyle, width, fontSize, group, sourceStart = wordStart, fontFamily = fontFamily)
+        wordStart = -1
     }
-    for (ch in span.text) {
+    for (index in text.indices) {
+        val ch = text[index]
         when {
             ch == '\n' -> {
-                flush()
-                out += BreakPiece(groups)
-                source++
+                flush(index)
+                out += BreakPiece(group)
             }
 
-            ch.isWhitespace() -> {
-                flush()
-                if (preserve) out += SpacePiece(spaceWidth, fontSize, groups, preserve = true, sourceStart = source)
-                else if (out.lastOrNull() !is SpacePiece) out += SpacePiece(spaceWidth, fontSize, groups, sourceStart = source)
-                source++
+            ch.isInlineWhitespace() -> {
+                flush(index)
+                if (preserve) {
+                    out += SpacePiece(spaceWidth, fontSize, group, preserve = true, sourceStart = index)
+                } else if (out.lastOrNull() !is SpacePiece) {
+                    out += SpacePiece(spaceWidth, fontSize, group, sourceStart = index)
+                }
             }
 
-            else -> {
-                if (word.isEmpty()) wordStart = source
-                word.append(ch)
-                source++
-            }
+            wordStart < 0 -> wordStart = index
         }
     }
-    flush()
+    flush(text.length)
 }
+
+private fun Char.isInlineWhitespace(): Boolean = this == ' ' || this == '\t' || this == '\r' || isWhitespace()
 
 private class FlowLine {
     val pieces = ArrayList<Piece>()
@@ -359,7 +400,7 @@ private fun splitOversizedWordPiece(word: WordPiece, width: Float): List<WordPie
     fun flush() {
         if (buffer.isEmpty()) return
         val text = buffer.toString()
-        chunks += WordPiece(text, word.style, measure(text), word.height, word.groups, chunkStart, word.fontFamily)
+            chunks += WordPiece(text, word.style, measure(text), word.height, word.group, chunkStart, word.fontFamily)
         chunkStart += text.length
         buffer.setLength(0)
     }
@@ -404,85 +445,97 @@ private fun positionLines(lines: List<FlowLine>, wrapWidth: Float, align: UiAlig
     }
 }
 
-private fun assembleChildLayouts(container: UiNode, pieces: List<Piece>): Map<UiNode, List<InlinePlacement>> {
-    val placementByNode = LinkedHashMap<UiNode, InlinePlacement>()
-    val groupCtxByNode = LinkedHashMap<UiNode, GroupCtx>()
-
-    for (piece in pieces) {
-        for (group in piece.groups) groupCtxByNode.putIfAbsent(group.node, group)
-    }
-
-    for ((node, ctx) in groupCtxByNode) {
-        val owned = pieces.filter { p ->
-            (p is WordPiece || p is AtomPiece || (p is SpacePiece && p.preserve)) && p.groups.any { it.node === node }
+private fun assembleChildLayouts(
+    groups: List<GroupCtx>,
+    lines: List<FlowLine>,
+): Map<UiNode, List<InlinePlacement>> {
+    for (line in lines) {
+        for (piece in line.pieces) {
+            if (!piece.contributesToGroupBounds()) continue
+            var group = piece.group
+            while (group != null) {
+                group.include(piece)
+                group = group.enclosing
+            }
         }
-        if (owned.isEmpty()) continue
-        val byLine = owned.groupBy { it.lineIndex }.toSortedMap()
-        val firstLine = byLine.keys.first()
-        val lastLine = byLine.keys.last()
-
-        val lineBoxes = byLine.entries.map { (lineIndex, linePieces) ->
-            val padLeft = if (lineIndex == firstLine) ctx.leadPad else 0f
-            val padRight = if (lineIndex == lastLine) ctx.trailPad else 0f
-            val left = linePieces.minOf { it.x } - padLeft
-            val right = linePieces.maxOf { it.x + it.width } + padRight
-            val top = linePieces.first().lineTop - ctx.padTop
-            val height = linePieces.first().lineHeight + ctx.padTop + ctx.padBottom
-            UiRect(left, top, right - left, height)
-        }
-        val boundLeft = lineBoxes.minOf { it.x }
-        val boundTop = lineBoxes.minOf { it.y }
-        val boundRight = lineBoxes.maxOf { it.x + it.width }
-        val boundBottom = lineBoxes.maxOf { it.y + it.height }
-        val bounds = UiRect(boundLeft, boundTop, boundRight - boundLeft, boundBottom - boundTop)
-
-        val decoration = InlineGroupDecoration(
-            lines = lineBoxes.map { UiRect(it.x - boundLeft, it.y - boundTop, it.width, it.height) },
-            decorationBreak = ctx.decorationBreak,
-        )
-        val textLayout = if (ctx.isSpan) {
-            spanTextLayout(byLine, boundLeft, boundTop, (node as? SpanNode)?.text?.length ?: 0)
-        } else {
-            null
-        }
-
-        placementByNode[node] = InlinePlacement(node, bounds, textLayout, decoration)
-    }
-
-    for (piece in pieces) {
-        if (piece !is AtomPiece) continue
-        val margin = piece.child.margin
-        val verticalOffset = when (piece.child.style.alignVertical) {
-            UiAlign.START -> 0f
-            UiAlign.END -> piece.lineHeight - piece.height
-            else -> (piece.lineHeight - piece.height) / 2f
-        }
-        val rect = UiRect(
-            piece.x + margin.left,
-            piece.lineTop + verticalOffset + margin.top,
-            piece.child.size.width,
-            piece.child.size.height,
-        )
-        placementByNode[piece.child.node] = InlinePlacement(piece.child.node, rect)
     }
 
     val result = LinkedHashMap<UiNode, MutableList<InlinePlacement>>()
-    for ((node, placement) in placementByNode) {
-        val parent = parentOf(node, groupCtxByNode, pieces, container)
-        result.getOrPut(parent) { ArrayList() } += placement
+    for (group in groups) {
+        val placement = group.toPlacement() ?: continue
+        result.getOrPut(group.parent) { ArrayList() } += placement
+    }
+
+    for (line in lines) {
+        for (piece in line.pieces) {
+            if (piece !is AtomPiece) continue
+            val margin = piece.child.margin
+            val verticalOffset = when (piece.child.style.alignVertical) {
+                UiAlign.START -> 0f
+                UiAlign.END -> piece.lineHeight - piece.height
+                else -> (piece.lineHeight - piece.height) / 2f
+            }
+            val rect = UiRect(
+                piece.x + margin.left,
+                piece.lineTop + verticalOffset + margin.top,
+                piece.child.size.width,
+                piece.child.size.height,
+            )
+            result.getOrPut(piece.parent) { ArrayList() } += InlinePlacement(piece.child.node, rect)
+        }
     }
     return result
 }
 
-private fun parentOf(
-    node: UiNode,
-    groupCtxByNode: Map<UiNode, GroupCtx>,
-    pieces: List<Piece>,
-    container: UiNode,
-): UiNode {
-    groupCtxByNode[node]?.let { return it.parent }
-    val atom = pieces.firstOrNull { it is AtomPiece && it.child.node === node } as? AtomPiece
-    return atom?.parent ?: container
+private fun Piece.contributesToGroupBounds(): Boolean =
+    this is WordPiece || this is AtomPiece || this is SpacePiece && preserve
+
+private fun GroupCtx.toPlacement(): InlinePlacement? {
+    var firstLine = -1
+    var lastLine = -1
+    for (index in lines.indices) {
+        if (lines[index] == null) continue
+        if (firstLine < 0) firstLine = index
+        lastLine = index
+    }
+    if (firstLine < 0) return null
+
+    var boundLeft = Float.MAX_VALUE
+    var boundTop = Float.MAX_VALUE
+    var boundRight = -Float.MAX_VALUE
+    var boundBottom = -Float.MAX_VALUE
+    var lineCount = 0
+    for (index in firstLine..lastLine) {
+        val line = lines[index] ?: continue
+        val left = line.left - if (index == firstLine) leadPad else 0f
+        val right = line.right + if (index == lastLine) trailPad else 0f
+        val top = line.top - padTop
+        val bottom = line.top + line.height + padBottom
+        boundLeft = minOf(boundLeft, left)
+        boundTop = minOf(boundTop, top)
+        boundRight = maxOf(boundRight, right)
+        boundBottom = maxOf(boundBottom, bottom)
+        lineCount++
+    }
+
+    val lineBoxes = ArrayList<UiRect>(lineCount)
+    for (index in firstLine..lastLine) {
+        val line = lines[index] ?: continue
+        val left = line.left - if (index == firstLine) leadPad else 0f
+        val right = line.right + if (index == lastLine) trailPad else 0f
+        val top = line.top - padTop
+        val height = line.height + padTop + padBottom
+        lineBoxes += UiRect(left - boundLeft, top - boundTop, right - left, height)
+    }
+
+    val bounds = UiRect(boundLeft, boundTop, boundRight - boundLeft, boundBottom - boundTop)
+    val decoration = InlineGroupDecoration(lineBoxes, decorationBreak)
+    val textLayout = if (isSpan) {
+        spanTextLayout(lines, lineCount, boundLeft, boundTop, (node as SpanNode).text.length)
+    } else {
+        null
+    }
+    return InlinePlacement(node, bounds, textLayout, decoration)
 }
 
 /**
@@ -491,54 +544,34 @@ private fun parentOf(
  * layout are exact (indentation, columns, multi-line)
  */
 private fun spanTextLayout(
-    byLine: Map<Int, List<Piece>>,
+    lines: List<GroupLine?>,
+    linesCount: Int,
     boundLeft: Float,
     boundTop: Float,
     spanLength: Int,
 ): UiTextLayout {
-    val sortedEntries = byLine.entries.sortedBy { it.key }
-    val linesCount = sortedEntries.size
     if (linesCount == 0) return UiTextLayout(emptyList(), 0f, 0f)
 
-    val orderedLines = ArrayList<List<Piece>>(linesCount)
-    for (entry in sortedEntries) {
-        val filteredAndSorted = entry.value
-            .filter { it is WordPiece || it is SpacePiece }
-            .sortedBy { it.x }
-        orderedLines.add(filteredAndSorted)
-    }
-
-    val lineStarts = IntArray(linesCount)
     var nextKnownStart = spanLength
-    for (index in linesCount - 1 downTo 0) {
-        val linePieces = orderedLines[index]
-        var minStart = Int.MAX_VALUE
-        for (piece in linePieces) {
-            val start = piece.spanSourceStart()
-            if (start != null && start < minStart) {
-                minStart = start
-            }
-        }
-        if (minStart != Int.MAX_VALUE) {
-            nextKnownStart = minStart
-        }
-        lineStarts[index] = nextKnownStart
+    for (index in lines.indices.reversed()) {
+        val line = lines[index] ?: continue
+        line.sourceEnd = nextKnownStart
+        if (line.minSourceStart != Int.MAX_VALUE) nextKnownStart = line.minSourceStart
+        line.sourceStart = nextKnownStart
     }
 
     var totalLayoutHeight = 0f
     var maxLayoutWidth = 0f
-
     val textLines = ArrayList<UiTextLine>(linesCount)
 
-    for (index in 0 until linesCount) {
-        val linePieces = orderedLines[index]
-        val reference = linePieces.firstOrNull() ?: sortedEntries[index].value.first()
+    for (line in lines) {
+        line ?: continue
+        val linePieces = line.textPieces.orEmpty()
+        val reference = line.reference ?: continue
         val lineHeight = reference.lineHeight
-
         var left = Float.MAX_VALUE
         var right = -Float.MAX_VALUE
         var hasSpaces = false
-
         val fragments = ArrayList<UiTextFragment>(linePieces.size)
 
         for (piece in linePieces) {
@@ -551,10 +584,10 @@ private fun spanTextLayout(
 
             if (piece is SpacePiece) {
                 hasSpaces = true
-                fragments.add(UiTextSpaceRun(UiInlineStyle(), fragmentX, y, piece.width, piece.height))
+                fragments.add(UiTextSpaceRun(UiInlineStyle.Empty, fragmentX, y, piece.width, piece.height))
             } else {
                 val word = piece as WordPiece
-                fragments.add(UiTextRun(word.text, UiInlineStyle(effects = word.effects), fragmentX, y, word.width, word.height))
+                fragments.add(UiTextRun(word.text, word.style, fragmentX, y, word.width, word.height))
             }
         }
 
@@ -575,8 +608,6 @@ private fun spanTextLayout(
             }
         }
 
-        val sourceStart = lineStarts[index]
-        val nextStart = if (index + 1 < linesCount) lineStarts[index + 1] else spanLength
         val lineWidth = right - left
 
         if (lineWidth > maxLayoutWidth) {
@@ -592,14 +623,14 @@ private fun spanTextLayout(
                 width = lineWidth,
                 naturalWidth = lineWidth,
                 height = lineHeight,
-                sourceStart = sourceStart,
-                sourceLength = (nextStart - sourceStart).coerceAtLeast(0),
+                sourceStart = line.sourceStart,
+                sourceLength = (line.sourceEnd - line.sourceStart).coerceAtLeast(0),
                 fragments = fragments,
             )
         )
     }
 
-    return UiTextLayout(textLines, maxLayoutWidth, totalLayoutHeight)
+    return UiTextLayout(textLines, maxLayoutWidth, totalLayoutHeight, maxLayoutWidth)
 }
 
 internal fun UiLayoutPipeline.placeInlineFlowChildren(scope: ChildPlacementScope) {

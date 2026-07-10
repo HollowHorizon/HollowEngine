@@ -77,4 +77,23 @@ class StyleInvalidationTest {
         assertTrue(UiState.HOVER in child.effectiveStates(), "the hovered leaf is hovered")
         assertTrue(UiState.HOVER in parent.effectiveStates(), "its ancestor is hovered too")
     }
+
+    @Test
+    fun `an active sibling transition reuses an unchanged base style`() {
+        val animated = BoxNode(modifiers = listOf(Modifier.scale(1f)))
+        val stable = BoxNode(modifiers = listOf(Modifier.size(20.px, 20.px)))
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also {
+            it.children.add(animated)
+            it.children.add(stable)
+        }.attached()
+        val resolver = UiModifierResolver()
+        resolver.resolve(root, nowMillis = 0L)
+
+        animated.modifiers[0] = Modifier.scale(2f)
+        resolver.resolve(root, nowMillis = 0L)
+        val stableStyle = stable.resolvedSnapshot
+
+        resolver.resolve(root, nowMillis = 50L)
+        assertSame(stableStyle, stable.resolvedSnapshot)
+    }
 }
