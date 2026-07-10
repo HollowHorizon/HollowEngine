@@ -55,19 +55,85 @@ internal fun UiLayoutPipeline.measureNode(
     deferFlexibleHeight: Boolean = false,
     allowWidthOverflow: Boolean = false,
     allowHeightOverflow: Boolean = false,
-): LayoutSize = measureNodeContent(
-    node,
-    resolved,
-    availableWidth,
-    availableHeight,
-    scrollbarReserves,
-    widthOverride,
-    heightOverride,
-    deferFlexibleWidth,
-    deferFlexibleHeight,
-    allowWidthOverflow,
-    allowHeightOverflow,
+): LayoutSize {
+    val cache = measureCacheFor(node)
+    val revision = node.layoutState.subtreeLayoutRevision
+    val key = MeasureCacheKey(
+        availableWidth = availableWidth,
+        availableHeight = availableHeight,
+        widthOverride = widthOverride,
+        heightOverride = heightOverride,
+        flags = measureFlags(deferFlexibleWidth, deferFlexibleHeight, allowWidthOverflow, allowHeightOverflow),
+        scrollbarReserves = scrollbarReserves,
+    )
+    cache.get(revision, key)?.let { return it }
+    return measureNodeContent(
+        node,
+        resolved,
+        availableWidth,
+        availableHeight,
+        scrollbarReserves,
+        widthOverride,
+        heightOverride,
+        deferFlexibleWidth,
+        deferFlexibleHeight,
+        allowWidthOverflow,
+        allowHeightOverflow,
+    ).also { cache.put(revision, key, it) }
+}
+
+private fun measureFlags(
+    deferFlexibleWidth: Boolean,
+    deferFlexibleHeight: Boolean,
+    allowWidthOverflow: Boolean,
+    allowHeightOverflow: Boolean,
+): Int {
+    var flags = 0
+    if (deferFlexibleWidth) flags = flags or 1
+    if (deferFlexibleHeight) flags = flags or 2
+    if (allowWidthOverflow) flags = flags or 4
+    if (allowHeightOverflow) flags = flags or 8
+    return flags
+}
+
+internal data class MeasureCacheKey(
+    val availableWidth: Float,
+    val availableHeight: Float,
+    val widthOverride: Float?,
+    val heightOverride: Float?,
+    val flags: Int,
+    val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
 )
+
+internal class NodeMeasureCache {
+    private var revision = Long.MIN_VALUE
+    private val keys = ArrayList<MeasureCacheKey>(MaxEntries)
+    private val sizes = ArrayList<LayoutSize>(MaxEntries)
+
+    fun get(revision: Long, key: MeasureCacheKey): LayoutSize? {
+        if (this.revision != revision) return null
+        val index = keys.indexOf(key)
+        return if (index >= 0) sizes[index] else null
+    }
+
+    fun put(revision: Long, key: MeasureCacheKey, size: LayoutSize) {
+        if (this.revision != revision) {
+            this.revision = revision
+            keys.clear()
+            sizes.clear()
+        }
+        if (keys.size >= MaxEntries) {
+            keys.removeAt(0)
+            sizes.removeAt(0)
+        }
+        keys.add(key)
+        sizes.add(size)
+    }
+
+    private companion object {
+        const val MaxEntries = 6
+    }
+}
 
 internal fun UiLayoutPipeline.measureNodeContent(
     node: UiNode,

@@ -4,13 +4,18 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import java.util.WeakHashMap
 
 class UiLayoutPipeline {
     internal var layoutPass: LayoutPass? = null
     private val scrollbarCache = ScrollbarCache()
+    private val measureCache = WeakHashMap<UiNode, NodeMeasureCache>()
 
     internal val inlineFlowChildLayouts = HashMap<UiNode, List<InlinePlacement>>()
     internal val inlineFlowFlattened = HashSet<UiNode>()
+
+    internal fun measureCacheFor(node: UiNode): NodeMeasureCache =
+        measureCache.getOrPut(node) { NodeMeasureCache() }
 
     fun compute(
         resolved: UiNode,

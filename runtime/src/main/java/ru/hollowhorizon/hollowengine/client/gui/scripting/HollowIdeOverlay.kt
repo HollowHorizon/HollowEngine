@@ -44,6 +44,9 @@ object HollowIdeOverlay {
     private val dock = DockingState()
     private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
+    private val pipeline = PipelinedUiFrameBuilder()
+
+    private const val PIPELINE_FRAMES = true
     private var initialized = false
     private var activeButton: Int? = null
     private var collapsed by mutableStateOf(true)
@@ -86,6 +89,7 @@ object HollowIdeOverlay {
 
     fun handleMouseMove(x: Float, y: Float): Boolean {
         if (!isVisible()) return false
+        pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
         val deltaX = point.x - lastMouseX
         val deltaY = point.y - lastMouseY
@@ -97,6 +101,7 @@ object HollowIdeOverlay {
 
     fun handleMouseButton(x: Float, y: Float, button: Int, action: Int): Boolean {
         if (!isVisible()) return false
+        pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
 
         return when (action) {
@@ -117,12 +122,14 @@ object HollowIdeOverlay {
 
     fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
         if (!isVisible()) return false
+        pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
         return surface.runtime.mouseScrolled(point.x, point.y, scrollX.toFloat(), scrollY.toFloat())
     }
 
     fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (!isVisible()) return false
+        pipeline.await()
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
         if (action == GLFW.GLFW_PRESS && project.handleNameDialogKey(key)) return true
         if (action == GLFW.GLFW_PRESS && project.handleShortcut(key, modifiers)) return true
@@ -144,6 +151,7 @@ object HollowIdeOverlay {
 
     fun handleChar(codePoint: Int, modifiers: Int): Boolean {
         if (!isVisible()) return false
+        pipeline.await()
         val result = surface.runtime.charTyped(codePoint.toChar(), modifiers)
         if (result) {
             editorOverlays.update(surface.runtime.lastFrame ?: return true, lastMouseX, lastMouseY)
@@ -480,6 +488,7 @@ object HollowIdeOverlay {
 
     private fun focusEditorAt(file: HollowIdeOpenFile, offset: Int) {
         Minecraft.getInstance().execute {
+            pipeline.await()
             val frame = surface.runtime.lastFrame ?: return@execute
             val editorKey = "editor-${file.id}"
             val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return@execute
@@ -491,15 +500,19 @@ object HollowIdeOverlay {
 
     private fun renderOverlay(target: UiRenderTarget) {
         val window = Minecraft.getInstance().window
-        val frame = surface.frame(
-            window.guiScaledWidth.toFloat(),
-            window.guiScaledHeight.toFloat(),
-            lastMouseX,
-            lastMouseY,
-            System.nanoTime(),
-        )
+        val frameWidth = window.guiScaledWidth.toFloat()
+        val frameHeight = window.guiScaledHeight.toFloat()
+        val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
+            ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame, target)
         UiCursorManager.apply(window.window, surface.runtime.cursor)
+        if (PIPELINE_FRAMES) {
+            val mouseX = lastMouseX
+            val mouseY = lastMouseY
+            pipeline.schedule(frameWidth, frameHeight) {
+                surface.frame(frameWidth, frameHeight, mouseX, mouseY, System.nanoTime())
+            }
+        }
     }
 
     private fun currentBlitTarget(): UiRenderTarget {

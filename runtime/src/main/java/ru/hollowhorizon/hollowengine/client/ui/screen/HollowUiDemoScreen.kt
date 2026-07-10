@@ -30,6 +30,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
         openFloating(DockItem("inspector", "Inspector"), x = 430f, y = 72f, width = 260f, height = 190f)
     }
 
+    override fun pipelineFrames(): Boolean {
+        return true
+    }
+
     @Composable
     override fun Content() {
         Column(id = "demo-root") {

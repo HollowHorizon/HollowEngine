@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.compositionLocalOf
 
 /** Live pointer position provided by [HollowUiSurface]; read it to place cursor-following UI. */
 data class UiPointer(val x: Float, val y: Float) {
@@ -11,4 +11,4 @@ data class UiPointer(val x: Float, val y: Float) {
     }
 }
 
-val LocalPointer = staticCompositionLocalOf { UiPointer.Unknown }
+val LocalPointer = compositionLocalOf { UiPointer.Unknown }
