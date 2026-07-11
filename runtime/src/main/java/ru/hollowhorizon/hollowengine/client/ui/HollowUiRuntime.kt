@@ -126,7 +126,6 @@ class HollowUiRuntime(
     private val transitionState = UiTransitionState()
     private val resolver = UiModifierResolver(theme, stylesheet, transitionState)
     private val layoutPipeline = UiLayoutPipeline()
-    private val ensuredTextFieldCaretRevisions = WeakHashMap<TextFieldNode, Long>()
     private val stateStore = UiNodeStateStore()
     private val input = HollowUiInputController()
     private val placedBounds = WeakHashMap<UiNode, UiRect>()
@@ -186,9 +185,6 @@ class HollowUiRuntime(
             lastLayout!!
         } else {
             layoutPipeline.compute(root, width, height, scrollState)
-        }
-        if (ensureFocusedTextFieldsVisible(nodes, layout)) {
-            layout = layoutPipeline.compute(root, width, height, scrollState)
         }
         lastLayout = layout
         // Sample scroll revision after layout: clamping inside the pass may bump it.
@@ -337,43 +333,6 @@ class HollowUiRuntime(
         }
     }
 
-    private fun ensureFocusedTextFieldsVisible(nodes: List<UiNode>, layout: UiLayoutResult): Boolean {
-        var changed = false
-        for (node in nodes.filterIsInstance<TextFieldNode>()) {
-            if (!node.hasEffectiveState(UiState.FOCUS)) continue
-            if (ensuredTextFieldCaretRevisions[node] == node.caretVisibilityRevision) continue
-            val style = node.resolvedSnapshot
-            if (!style.scrollable) {
-                ensuredTextFieldCaretRevisions[node] = node.caretVisibilityRevision
-                continue
-            }
-            val layoutNode = layout[node]
-            if (!layoutNode.scrollRange.hasScrollableAxis()) {
-                ensuredTextFieldCaretRevisions[node] = node.caretVisibilityRevision
-                continue
-            }
-            val fontSize = style.fontSize
-            val caret =
-                textFieldEditLayout(node, style, layoutNode).caretPosition(node.caret, fontSize, style.fontFamily)
-            val textOffset = textFieldTextOffset(node, style)
-            val next = layoutNode.scrollOffset.scrollCaretIntoView(
-                caretX = caret.x,
-                caretY = caret.y,
-                caretWidth = TextFieldCaretWidth,
-                caretHeight = fontSize,
-                viewportWidth = (layoutNode.content.width - textOffset).coerceAtLeast(1f),
-                viewportHeight = layoutNode.content.height,
-                range = layoutNode.scrollRange,
-            )
-            if (next != layoutNode.scrollOffset) {
-                scrollState.setImmediate(node, next.x, next.y)
-                changed = true
-            }
-            ensuredTextFieldCaretRevisions[node] = node.caretVisibilityRevision
-        }
-        return changed
-    }
-
     fun mouseClicked(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean {
         val frame = lastFrame ?: return false
         return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button, modifiers))
@@ -435,29 +394,4 @@ private data class FrameLayoutKey(
     val subtreeLayoutRevision: Long,
 )
 
-private fun UiScrollOffset.scrollCaretIntoView(
-    caretX: Float,
-    caretY: Float,
-    caretWidth: Float,
-    caretHeight: Float,
-    viewportWidth: Float,
-    viewportHeight: Float,
-    range: UiScrollOffset,
-): UiScrollOffset {
-    var nextX = x
-    var nextY = y
-    val horizontalPadding = textFieldHorizontalScrollPadding(viewportWidth)
-    val left = x + horizontalPadding
-    val right = x + viewportWidth - horizontalPadding
-    val top = y + TextFieldCaretVisibilityPadding
-    val bottom = y + viewportHeight - TextFieldCaretVisibilityPadding
-    if (caretX < left) nextX = caretX - horizontalPadding
-    if (caretX + caretWidth > right) nextX = caretX + caretWidth + horizontalPadding - viewportWidth
-    if (caretY < top) nextY = caretY - TextFieldCaretVisibilityPadding
-    if (caretY + caretHeight > bottom) nextY = caretY + caretHeight + TextFieldCaretVisibilityPadding - viewportHeight
-    return UiScrollOffset(
-        x = nextX.coerceIn(0f, range.x),
-        y = nextY.coerceIn(0f, range.y),
-    )
-}
 

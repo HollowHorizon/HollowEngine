@@ -6,7 +6,9 @@ import kotlinx.coroutines.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.layout.*
+import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
+import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -366,6 +368,11 @@ fun Checkbox(
     )
 }
 
+/**
+ * Value/onChange convenience wrapper over [EditableTextField]: owns a [TextFieldState], mirrors
+ * external [value] changes into it and reports edits back through [onChange]. The state (carets,
+ * selection, undo history) lives for as long as the composition does.
+ */
 @Composable
 fun TextField(
     value: String = "",
@@ -381,87 +388,93 @@ fun TextField(
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
     inlayRevision: Long = 0L,
+    completionRevision: Long = 0L,
     placeholder: String = "",
+    wrap: Boolean? = null,
+    fontSize: Float = DefaultUiFontSize,
+    fontFamily: String? = null,
+    textShadow: Shadow? = Shadow(offsetX = 1f, offsetY = 1f),
+    caretColor: UiColor? = null,
+    selectionColor: UiColor? = null,
+    lineNumbers: Boolean = false,
+    lineNumberColor: UiColor? = null,
+    indentGuides: Boolean = false,
+    indentGuideColor: UiColor? = null,
     onChange: ((String) -> Unit)? = null,
+    state: TextFieldState? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
 ) {
-    val modifiers = modifier.asList()
-    val textFieldModifiers = modifiers + TextFieldDefaultKeyInputModifier
-    val values = TextFieldValues(
-        value,
-        mode,
-        filter,
-        multiCaret,
-        syntaxHighlighter,
-        completionContributor,
-        indentSize,
-        autoPairs,
-        readOnly,
-        diagnostics,
-        inlayHints,
-        inlayHintsProvider,
-        inlayRevision,
-        placeholder,
-        onChange,
-    )
-    ReusableComposeNode<TextFieldNode, HollowUiApplier>(
-        factory = {
-            TextFieldNode(
-                value,
-                mode,
-                filter,
-                multiCaret,
-                syntaxHighlighter,
-                completionContributor,
-                indentSize,
-                autoPairs,
-                readOnly,
-                diagnostics,
-                inlayHints,
-                inlayHintsProvider,
-                onChange,
-                id,
-                tags,
-                textFieldModifiers,
-                attributes,
-            )
-                .also { it.placeholder = placeholder }
-        },
-        update = {
-            update(values) {
-                apply(it)
-                invalidateLayout()
-            }
-            updateCommon(textFieldModifiers, attributes, tags)
-        },
-        content = {
-            TextFieldInlayWidgets(value, inlayHints, inlayHintsProvider, inlayRevision)
-        },
+    val multiline = mode == UiTextFieldMode.MULTI_LINE
+    val internalState = remember {
+        state ?: TextFieldState(
+            initialText = value,
+            multiline = multiline,
+            readOnly = readOnly,
+            filter = filter,
+            indentSize = indentSize,
+            autoPairs = autoPairs,
+            multiCaret = multiCaret,
+            fontSize = fontSize,
+            fontFamily = fontFamily,
+            wrap = wrap ?: multiline,
+        )
+    }
+    val fieldState = state ?: internalState
+    fieldState.multiline = multiline
+    fieldState.readOnly = readOnly
+    fieldState.filter = filter
+    fieldState.indentSize = indentSize
+    fieldState.autoPairs = autoPairs
+    fieldState.multiCaret = multiCaret
+    fieldState.fontSize = fontSize
+    fieldState.fontFamily = fontFamily
+    fieldState.wrap = wrap ?: multiline
+    fieldState.textShadow = textShadow
+    if (caretColor != null) fieldState.caretColor = caretColor
+    if (selectionColor != null) fieldState.selectionColor = selectionColor
+
+    val sync = remember { TextFieldValueSync(value) }
+    // Adopt an external value only when the parameter itself changed; edits made here win otherwise.
+    if (value != sync.lastExternal && value != fieldState.text) {
+        fieldState.setText(value, moveCaretToEnd = false)
+        sync.lastNotified = fieldState.text
+    }
+    sync.lastExternal = value
+    val text = fieldState.text
+    SideEffect {
+        if (text != sync.lastNotified) {
+            sync.lastNotified = text
+            onChange?.invoke(text)
+        }
+    }
+
+    EditableTextField(
+        state = fieldState,
+        modifier = modifier,
+        id = id,
+        tags = tags,
+        syntaxHighlighter = syntaxHighlighter,
+        inlayHints = inlayHints,
+        inlayHintsProvider = inlayHintsProvider,
+        inlayRevision = inlayRevision,
+        completionContributor = completionContributor,
+        completionRevision = completionRevision,
+        diagnostics = diagnostics,
+        placeholder = placeholder,
+        lineNumbers = lineNumbers,
+        lineNumberColor = lineNumberColor ?: EditableFieldLineNumberColor,
+        indentGuides = indentGuides,
+        indentGuideColor = indentGuideColor ?: EditableFieldIndentGuideColor,
+        attributes = attributes,
     )
 }
 
-@Composable
-@Suppress("UNUSED_PARAMETER")
-private fun TextFieldInlayWidgets(
-    value: String,
-    inlayHints: List<UiInlayHint>,
-    provider: UiInlayHintsProvider?,
-    revision: Long,
-) {
-    textFieldActiveInlayHints(value, inlayHints, provider).forEachIndexed { index, hint ->
-        val widgetId = textFieldInlayWidgetId(hint, index)
-        key(widgetId) {
-            InlineWidget(
-                id = widgetId,
-                tags = listOf("text-field-inlay", "code-editor-inlay"),
-            ) {
-                Text(hint.text, tags = listOf("text-field-inlay-text", "code-editor-inlay-text"))
-            }
-        }
-    }
+private class TextFieldValueSync(initial: String) {
+    var lastExternal: String = initial
+    var lastNotified: String = initial
 }
 
 @Composable
@@ -653,24 +666,6 @@ private data class CheckboxValues(
     val variant: UiCheckboxVariant,
 )
 
-private data class TextFieldValues(
-    val value: String,
-    val mode: UiTextFieldMode,
-    val filter: UiTextInputFilter,
-    val multiCaret: Boolean,
-    val syntaxHighlighter: UiSyntaxHighlighter?,
-    val completionContributor: UiCompletionContributor?,
-    val indentSize: Int?,
-    val autoPairs: Boolean,
-    val readOnly: Boolean,
-    val diagnostics: List<UiTextDiagnostic>,
-    val inlayHints: List<UiInlayHint>,
-    val inlayHintsProvider: UiInlayHintsProvider?,
-    val inlayRevision: Long,
-    val placeholder: String,
-    val onChange: ((String) -> Unit)?,
-)
-
 private data class PopupValues(
     val anchorBounds: UiRect,
     val alignment: UiPopupAlignment,
@@ -686,23 +681,6 @@ private fun SliderNode.apply(values: SliderValues) {
 private fun CheckboxNode.apply(values: CheckboxValues) {
     variant = values.variant
     checked = values.checked
-}
-
-private fun TextFieldNode.apply(values: TextFieldValues) {
-    mode = values.mode
-    filter = values.filter
-    multiCaret = values.multiCaret
-    syntaxHighlighter = values.syntaxHighlighter
-    completionContributor = values.completionContributor
-    indentSize = values.indentSize
-    autoPairs = values.autoPairs
-    readOnly = values.readOnly
-    diagnostics = values.diagnostics
-    inlayHints = values.inlayHints
-    inlayHintsProvider = values.inlayHintsProvider
-    placeholder = values.placeholder
-    onChange = values.onChange
-    applyExternalValue(values.value)
 }
 
 private fun PopupNode.apply(values: PopupValues) {
@@ -743,7 +721,6 @@ private fun BaseUiNode.replaceCustomAttributes(attributes: Map<String, String>) 
 private fun BaseUiNode.builtInAttributeNames(): Set<String> = when (type) {
     UiSliderType -> setOf("value", "min", "max", "step")
     UiCheckboxType -> setOf("checked", "variant")
-    UiTextFieldType -> setOf("value", "placeholder", "mode", "filter", "multi-caret")
     else -> emptySet()
 }
 

@@ -10,13 +10,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
-import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
-import ru.hollowhorizon.hollowengine.client.ui.text.selectionRects
-import ru.hollowhorizon.hollowengine.client.ui.text.visibleLineItems
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldCaretWidth
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
 import java.util.*
 import kotlin.math.atan2
 import kotlin.math.max
@@ -30,7 +24,6 @@ internal class UiWidgetRenderer(
 ) {
     private val scratchQuads = mutableListOf<UiBatchedQuad>()
     private val scratchTriangles = UiTriangleBatch()
-    private val textFieldCaretBlinkStates = WeakHashMap<TextFieldNode, CaretBlinkState>()
 
     fun drawSlider(command: DrawSliderCommand, transform: UiMatrix4) {
         val width = command.rect.width
@@ -95,198 +88,6 @@ internal class UiWidgetRenderer(
         flushScratchTriangles()
     }
 
-    fun drawTextFieldChrome(command: DrawTextFieldChromeCommand, transform: UiMatrix4) {
-        appendSelectionQuads(command, transform, scratchQuads)
-        flushScratchQuads()
-        if (command.showLineNumbers) {
-            command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (index, line) ->
-                drawPlainText(
-                    (index + 1).toString(),
-                    0f,
-                    line.y - command.scrollOffset.y,
-                    command.fontSize,
-                    command.lineNumberColor,
-                    command.opacity,
-                    transform,
-                    command.filter,
-                )
-            }
-            flushTextBatch()
-        }
-        appendIndentGuideQuads(command, transform, scratchQuads)
-        flushScratchQuads()
-        appendDiagnostics(command, transform, scratchQuads)
-        flushScratchQuads()
-        if (command.showCaret && textFieldCaretVisible(command.node, command.caretVisibilityRevision)) {
-            appendCaretQuads(command, transform, scratchQuads)
-            flushScratchQuads()
-        }
-    }
-
-    private fun appendIndentGuideQuads(
-        command: DrawTextFieldChromeCommand,
-        transform: UiMatrix4,
-        quads: MutableList<UiBatchedQuad>,
-    ) {
-        val indentSize = command.node.indentSize ?: return
-        val color = command.inlayHintColor.withOpacity(command.opacity * 0.22f).filtered(command.filter)
-        val visibleLines = command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).toList()
-        visibleLines.forEachIndexed { visibleIndex, (_, line) ->
-            for (column in textFieldIndentGuideColumns(line.text, indentSize)) {
-                val x = command.textOffset +
-                        line.x +
-                        UiTextLayouter.measureTextWidth(" ".repeat(column), command.fontSize, command.fontFamily) -
-                        command.scrollOffset.x
-                if (x < command.textOffset || x > command.rect.width) continue
-                val y = line.y - command.scrollOffset.y
-                if (y + line.height < 0f || y > command.rect.height) continue
-                val nextLine = visibleLines.getOrNull(visibleIndex + 1)?.value
-                val height = ((nextLine?.y ?: (line.y + line.height)) - line.y).coerceAtLeast(line.height)
-                quads += solidQuad(
-                    width = 1f,
-                    height = height,
-                    color = color,
-                    transform = transform.translated(x, y),
-                )
-            }
-        }
-    }
-
-    private fun appendSelectionQuads(
-        command: DrawTextFieldChromeCommand,
-        transform: UiMatrix4,
-        quads: MutableList<UiBatchedQuad>,
-    ) {
-        command.carets.forEach { caretRange ->
-            command.layout.selectionRects(
-                caretRange.selectionStart,
-                caretRange.selectionEnd,
-                command.fontSize,
-                command.fontFamily,
-                fillLineGaps = true,
-            ).forEach { rect ->
-                val clipped = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
-                    .clipHorizontally(command.textOffset, command.rect.width)
-                    ?: return@forEach
-                quads += solidQuad(
-                    width = clipped.width,
-                    height = clipped.height,
-                    color = command.selectionColor.withOpacity(command.opacity).filtered(command.filter),
-                    transform = transform.translated(clipped.x, clipped.y),
-                )
-            }
-        }
-    }
-
-    private fun appendDiagnostics(
-        command: DrawTextFieldChromeCommand,
-        transform: UiMatrix4,
-        quads: MutableList<UiBatchedQuad>,
-    ) {
-        command.diagnostics.forEach { diagnostic ->
-            val color = when (diagnostic.severity) {
-                UiTextDiagnosticSeverity.ERROR -> command.diagnosticErrorColor
-                UiTextDiagnosticSeverity.WARNING -> command.diagnosticWarningColor
-                UiTextDiagnosticSeverity.INFO -> command.diagnosticInfoColor
-            }
-            command.layout.selectionRects(
-                diagnostic.start,
-                diagnostic.end.coerceAtLeast(diagnostic.start + 1),
-                command.fontSize,
-                command.fontFamily,
-            ).forEach { rect ->
-                val underline = rect.translated(command.textOffset - command.scrollOffset.x, -command.scrollOffset.y)
-                    .clipHorizontally(command.textOffset, command.rect.width)
-                    ?: return@forEach
-                appendZigZagUnderlineQuads(
-                    quads = quads,
-                    rect = underline,
-                    color = color.withOpacity(command.opacity).filtered(command.filter),
-                    transform = transform,
-                )
-            }
-        }
-    }
-
-    private fun appendZigZagUnderlineQuads(
-        quads: MutableList<UiBatchedQuad>,
-        rect: UiRect,
-        color: UiColor,
-        transform: UiMatrix4,
-    ) {
-        if (rect.width <= 1f) return
-        val step = 3f
-        val amplitude = 2f
-        val thickness = 1.25f
-        val baseY = rect.y + rect.height
-        val right = rect.x + rect.width
-        var startX = rect.x
-        var startY = baseY
-        var nextHigh = true
-        while (startX < right) {
-            val endX = min(startX + step, right)
-            val endY = baseY + if (nextHigh) -amplitude else amplitude
-            zigZagSegmentQuad(
-                startX = startX,
-                startY = startY,
-                endX = endX,
-                endY = endY,
-                thickness = thickness,
-                color = color,
-                transform = transform,
-            )?.let(quads::add)
-            startX = endX
-            startY = endY
-            nextHigh = !nextHigh
-        }
-    }
-
-    private fun zigZagSegmentQuad(
-        startX: Float,
-        startY: Float,
-        endX: Float,
-        endY: Float,
-        thickness: Float,
-        color: UiColor,
-        transform: UiMatrix4,
-    ): UiBatchedQuad? {
-        val dx = endX - startX
-        val dy = endY - startY
-        val length = sqrt(dx * dx + dy * dy)
-        if (length <= 0.1f) return null
-        return solidQuad(
-            length,
-            thickness,
-            color,
-            transform *
-                    UiMatrix4.translation(startX, startY, 0f) *
-                    UiMatrix4.rotationZ(atan2(dy, dx)) *
-                    UiMatrix4.translation(0f, -thickness * 0.5f, 0f),
-        )
-    }
-
-    private fun appendCaretQuads(
-        command: DrawTextFieldChromeCommand,
-        transform: UiMatrix4,
-        quads: MutableList<UiBatchedQuad>,
-    ) {
-        command.carets.forEach { caretRange ->
-            val caret = command.layout.caretPosition(caretRange.position, command.fontSize, command.fontFamily)
-            val clipped = UiRect(
-                command.textOffset + caret.x - command.scrollOffset.x,
-                caret.y - command.scrollOffset.y,
-                TextFieldCaretWidth,
-                command.fontSize,
-            ).clipHorizontally(command.textOffset, command.rect.width) ?: return@forEach
-            quads += solidQuad(
-                clipped.width,
-                clipped.height,
-                command.caretColor.withOpacity(command.opacity).filtered(command.filter),
-                transform.translated(clipped.x, clipped.y),
-            )
-        }
-    }
-
     private fun flushScratchQuads() {
         drawBatchedQuads(scratchQuads)
         scratchQuads.clear()
@@ -295,16 +96,6 @@ internal class UiWidgetRenderer(
     private fun flushScratchTriangles() {
         drawBatchedTriangles(scratchTriangles)
         scratchTriangles.clear()
-    }
-
-    private fun textFieldCaretVisible(node: TextFieldNode, revision: Long): Boolean {
-        val now = System.currentTimeMillis()
-        val state = textFieldCaretBlinkStates[node]
-            ?.takeIf { it.revision == revision }
-            ?: CaretBlinkState(revision, now).also { textFieldCaretBlinkStates[node] = it }
-        val phase =
-            ((now - state.startedAtMillis) % CaretBlinkPeriodMillis).toFloat() / CaretBlinkPeriodMillis.toFloat()
-        return phase < 0.55f
     }
 
     private fun UiRect.translated(deltaX: Float, deltaY: Float): UiRect {
@@ -500,17 +291,3 @@ internal class UiWidgetRenderer(
     }
 }
 
-internal fun textFieldIndentGuideColumns(line: String, indentSize: Int): List<Int> {
-    val normalizedIndent = indentSize.coerceAtLeast(1)
-    val leadingSpaces = line.takeWhile { it == ' ' }.length
-    if (leadingSpaces < normalizedIndent * 2) return emptyList()
-    val levels = leadingSpaces / normalizedIndent
-    return (1 until levels).map { level -> level * normalizedIndent }
-}
-
-private data class CaretBlinkState(
-    val revision: Long,
-    val startedAtMillis: Long,
-)
-
-private const val CaretBlinkPeriodMillis = 900L

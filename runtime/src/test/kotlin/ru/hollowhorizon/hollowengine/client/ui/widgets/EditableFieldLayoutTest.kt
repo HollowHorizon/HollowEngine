@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -60,6 +61,29 @@ class EditableFieldLayoutTest {
 
         assertTrue(withInlay.caretAt(1).x > plain.caretAt(1).x + 20f, "caret accounts for trailing inlay")
         assertTrue(withInlay.visualCaretMove(1, 1) > 3, "down movement keeps the inlay-adjusted visual x")
+    }
+
+    @Test
+    fun `clicking an inlay chooses the caret side from the hint midpoint`() {
+        val withInlay = computeEditableFieldLayout(
+            text = "a",
+            fontSize = fontSize,
+            fontFamily = null,
+            wrap = false,
+            viewportWidth = 0f,
+            inlayHints = listOf(UiInlayHint(offset = 1, text = ": Int")),
+        )
+        val visual = withInlay.lineLayouts.single()!!.lines.single()
+        val hint = visual.fragments.filterIsInstance<UiInlineWidgetRun>().single()
+        val leftQuarter = visual.x + hint.x + hint.width * 0.25f
+        val rightQuarter = visual.x + hint.x + hint.width * 0.75f
+
+        assertEquals(EditableFieldCaretHit(1, UiInlayCaretAffinity.BEFORE), withInlay.caretHitAt(leftQuarter, visual.y))
+        assertEquals(EditableFieldCaretHit(1, UiInlayCaretAffinity.AFTER), withInlay.caretHitAt(rightQuarter, visual.y))
+        assertTrue(
+            withInlay.caretAt(1, UiInlayCaretAffinity.BEFORE).x <
+                    withInlay.caretAt(1, UiInlayCaretAffinity.AFTER).x,
+        )
     }
 
     @Test

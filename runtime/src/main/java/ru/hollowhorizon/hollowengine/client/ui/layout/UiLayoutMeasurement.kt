@@ -266,16 +266,6 @@ private fun UiLayoutPipeline.intrinsicSize(
     knownContentHeight: Float? = null,
 ): LayoutSize {
     return when (node) {
-        is TextFieldNode -> measureTextFieldNode(
-            node,
-            resolved,
-            style,
-            availableWidth,
-            availableHeight,
-            scrollbarReserves,
-            knownContentWidth,
-        )
-
         is SpanNode -> LayoutSize(
             UiTextLayouter.measureTextWidth(node.text, style.fontSize, style.fontFamily),
             style.fontSize,
@@ -306,53 +296,6 @@ private fun UiLayoutPipeline.intrinsicSize(
                 )
             }
         }
-    }
-}
-
-private fun UiLayoutPipeline.measureTextFieldNode(
-    node: TextFieldNode,
-    resolved: UiNode,
-    style: UiComputedStyle,
-    availableWidth: Float,
-    availableHeight: Float,
-    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    knownContentWidth: Float?,
-): LayoutSize {
-    val widgetMetrics = measureInlineWidgetMetrics(
-        node,
-        resolved,
-        availableWidth,
-        availableHeight,
-        scrollbarReserves,
-    )
-    val layout = temporaryTextFieldLayoutNode(
-        node,
-        UiRect(0f, 0f, availableWidth, availableHeight),
-    )
-    val textOffset = textFieldTextOffset(node, style)
-    val textWidth = (availableWidth - textOffset).coerceAtLeast(1f)
-    val knownTextWidth = knownContentWidth?.let { (it - textOffset).coerceAtLeast(1f) }
-    val inlayHints = if (style.textField.inlayHints == true) node.currentInlayHints() else emptyList()
-    val measured = UiTextLayouter.measure(
-        richText = node.value.ifEmpty { node.placeholder }.toHighlightedRichText(
-            highlighter = null,
-            inlayHints = inlayHints,
-            inlayStyle = if (inlayHints.isEmpty()) UiInlineStyle.Empty else textFieldInlayStyle(style),
-            inlayWidgetMetrics = widgetMetrics,
-        ),
-        availableWidth = textWidth,
-        knownWidth = knownTextWidth,
-        wrap = textFieldWrap(style, node, knownTextWidth != null),
-        fontSize = style.fontSize,
-        fontFamily = style.fontFamily,
-        preserveWhitespace = true,
-        lineSpacing = style.lineSpacing,
-        spaceWidth = style.spaceWidth,
-    )
-    return if (knownContentWidth == null) {
-        measured.copy(width = textOffset + measured.width + TextFieldCaretWidth + TextFieldCaretVisibilityPadding)
-    } else {
-        measured
     }
 }
 
@@ -432,34 +375,3 @@ internal fun nodeBoxes(rect: UiRect, style: UiComputedStyle, reserve: UiScrollba
     )
 }
 
-internal fun UiLayoutPipeline.measureInlineWidgetMetrics(
-    node: UiNode,
-    resolved: UiNode,
-    availableWidth: Float,
-    availableHeight: Float,
-    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-): Map<String, UiInlineWidgetMetrics> {
-    val children = layoutChildren(node)
-    if (children.isEmpty()) return emptyMap()
-    val metrics = LinkedHashMap<String, UiInlineWidgetMetrics>()
-    for (child in children) {
-        val id = child.id ?: continue
-        val margin = resolved[child].margin.resolve(availableWidth, availableHeight)
-        val size =
-            measureNode(child, resolved, availableWidth, availableHeight, scrollbarReserves)
-        metrics[id] = UiInlineWidgetMetrics(size.width + margin.horizontal, size.height + margin.vertical)
-    }
-    return metrics
-}
-
-internal fun temporaryTextFieldLayoutNode(node: TextFieldNode, content: UiRect): UiLayoutNode {
-    return UiLayoutNode(
-        node = node,
-        rect = content,
-        content = content,
-        clip = null,
-        worldTransform = UiMatrix4.identity(),
-        inputTransform = UiMatrix4.identity(),
-        needsFramebuffer = false,
-    )
-}

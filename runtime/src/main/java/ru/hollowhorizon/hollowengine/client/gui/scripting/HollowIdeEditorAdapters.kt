@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorLanguageService
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.PlainEditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCaretAwareSyntaxHighlighter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDeferredTextAnalyzer
@@ -257,7 +258,7 @@ internal class HollowIdeEditorSession(
     }
 
     private fun currentAnalyzer(): ScriptingAnalyzer {
-        return languageService?.analyzer ?: UnavailableKotlinScriptingAnalyzer
+        return languageService.analyzer
     }
 }
 
@@ -510,10 +511,10 @@ internal fun shiftInlayHintsForEditedText(
     }
 }
 
-private fun languageServiceFor(path: String): EditorLanguageService? {
+private fun languageServiceFor(path: String): EditorLanguageService {
     return runCatching {
         EditorLanguageService(path.substringAfterLast('.', ""))
-    }.getOrNull()
+    }.getOrNull() ?: PlainEditorLanguageService
 }
 
 private fun List<TextLine>.toHighlights(text: String, lineStarts: List<Int>): List<UiTextHighlight> {

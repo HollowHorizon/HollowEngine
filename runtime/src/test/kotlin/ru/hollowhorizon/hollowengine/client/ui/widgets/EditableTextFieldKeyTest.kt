@@ -53,6 +53,61 @@ class EditableTextFieldKeyTest {
     }
 
     @Test
+    fun `arrow keys expose both caret sides of an inlay`() {
+        val layout = computeEditableFieldLayout(
+            text = "a",
+            fontSize = 10f,
+            fontFamily = null,
+            wrap = false,
+            viewportWidth = 0f,
+            inlayHints = listOf(UiInlayHint(offset = 1, text = ": Int")),
+        )
+        val state = state("a", caret = 0)
+
+        assertTrue(state.press(GLFW.GLFW_KEY_RIGHT, layout = layout))
+        assertEquals(1, state.caret)
+        assertEquals(UiInlayCaretAffinity.BEFORE, state.primaryCaret.inlayAffinity)
+        assertTrue(layout.caretAt(state.caret, state.primaryCaret.inlayAffinity).x < 10f)
+
+        assertTrue(state.press(GLFW.GLFW_KEY_RIGHT, layout = layout))
+        assertEquals(1, state.caret)
+        assertEquals(UiInlayCaretAffinity.AFTER, state.primaryCaret.inlayAffinity)
+        assertTrue(layout.caretAt(state.caret, state.primaryCaret.inlayAffinity).x > 20f)
+
+        assertTrue(state.press(GLFW.GLFW_KEY_LEFT, layout = layout))
+        assertEquals(1, state.caret)
+        assertEquals(UiInlayCaretAffinity.BEFORE, state.primaryCaret.inlayAffinity)
+
+        assertTrue(state.press(GLFW.GLFW_KEY_LEFT, layout = layout))
+        assertEquals(0, state.caret)
+    }
+
+    @Test
+    fun `click keeps the inlay side without changing its text offset`() {
+        val state = state("a")
+
+        handleEditableFieldPress(
+            state,
+            offset = 1,
+            clickCount = 1,
+            modifiers = 0,
+            inlayAffinity = UiInlayCaretAffinity.BEFORE,
+        )
+        assertEquals(1, state.caret)
+        assertEquals(UiInlayCaretAffinity.BEFORE, state.primaryCaret.inlayAffinity)
+
+        handleEditableFieldPress(
+            state,
+            offset = 1,
+            clickCount = 1,
+            modifiers = 0,
+            inlayAffinity = UiInlayCaretAffinity.AFTER,
+        )
+        assertEquals(1, state.caret)
+        assertEquals(UiInlayCaretAffinity.AFTER, state.primaryCaret.inlayAffinity)
+    }
+
+    @Test
     fun `up and down keep the column across lines`() {
         state("abc\nxy\nlonger", caret = 10).let {
             // caret at column 3 of "longer" -> "xy" clamps to its length

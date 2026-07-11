@@ -198,6 +198,24 @@ class TextFieldState(
         }
     }
 
+    /**
+     * Applies a programmatic edit (e.g. accepting a completion item) as a single undoable step:
+     * the whole next text plus the carets it should leave behind.
+     */
+    fun applyEdit(next: String, carets: List<UiTextCaret>): Boolean {
+        if (readOnly) return false
+        val normalized = next.normalizeEditorLineEndings()
+        if (!filter.accepts(normalized)) return false
+        if (normalized == text) {
+            setCarets(carets)
+            return false
+        }
+        recordHistorySnapshot()
+        text = normalized
+        setCaretsAfterEdit(carets)
+        return true
+    }
+
     /** Replaces the whole text (e.g. external/programmatic change); resets undo history. */
     fun setText(next: String, moveCaretToEnd: Boolean = true) {
         val normalized = next.normalizeEditorLineEndings()
@@ -213,10 +231,14 @@ class TextFieldState(
         else setCarets(caretRanges.map { it.coerceIn(text.length) })
     }
 
-    fun moveCaret(position: Int, select: Boolean = false) {
+    fun moveCaret(
+        position: Int,
+        select: Boolean = false,
+        inlayAffinity: UiInlayCaretAffinity = UiInlayCaretAffinity.AFTER,
+    ) {
         val previous = primaryCaret
         val anchor = if (select) previous.selectionAnchor ?: previous.position else null
-        setCarets(listOf(UiTextCaret(position.coerceIn(0, text.length), anchor)))
+        setCarets(listOf(UiTextCaret(position.coerceIn(0, text.length), anchor, inlayAffinity)))
         if (caretRanges.last() != previous) breakHistoryGroup()
     }
 
@@ -228,9 +250,20 @@ class TextFieldState(
         setCarets(next)
     }
 
-    fun addCaret(position: Int) {
-        if (!multiCaret) return moveCaret(position)
-        val caret = UiTextCaret(position.coerceIn(0, text.length))
+    internal fun moveCaretsWithAffinity(
+        transform: (UiTextCaret) -> UiTextCaret,
+        select: Boolean = false,
+    ) {
+        val next = activeCaretRanges().map { range ->
+            val moved = transform(range).coerceIn(text.length)
+            moved.copy(selectionAnchor = if (select) range.selectionAnchor ?: range.position else null)
+        }
+        setCarets(next)
+    }
+
+    fun addCaret(position: Int, inlayAffinity: UiInlayCaretAffinity = UiInlayCaretAffinity.AFTER) {
+        if (!multiCaret) return moveCaret(position, inlayAffinity = inlayAffinity)
+        val caret = UiTextCaret(position.coerceIn(0, text.length), inlayAffinity = inlayAffinity)
         val ranges = activeCaretRanges()
         val next = if (ranges.any { !it.hasSelection && it.position == caret.position }) {
             ranges.filterNot { !it.hasSelection && it.position == caret.position }

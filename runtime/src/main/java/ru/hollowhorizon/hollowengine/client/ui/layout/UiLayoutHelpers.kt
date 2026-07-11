@@ -4,7 +4,6 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 
 
 internal fun List<MeasuredChild>.sumOfOuterWidth(): Float =
@@ -57,7 +56,7 @@ internal val MeasuredChild.isColumnFlexible: Boolean
             node.isInlineFlow() && style.scrollable && style.size.height is UiLength.Auto
 
 internal val MeasuredChild.canStretchAutoWidth: Boolean
-    get() = node !is TextFieldNode
+    get() = true
 
 internal fun MeasuredChild.rowWeight(): Float {
     if (grow > 0f) return grow

@@ -39,7 +39,6 @@ const val UiItemType = "item"
 const val UiEntityType = "entity"
 const val UiSliderType = "slider"
 const val UiCheckboxType = "checkbox"
-const val UiTextFieldType = "text-field"
 const val UiPopupType = "popup"
 
 enum class UiBoxMode {

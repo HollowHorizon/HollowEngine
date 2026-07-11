@@ -195,35 +195,6 @@ data class DrawCheckboxCommand(
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
-data class DrawTextFieldChromeCommand(
-    override val node: TextFieldNode,
-    val rect: UiRect,
-    val layout: UiTextLayout,
-    val scrollOffset: UiScrollOffset,
-    val carets: List<UiTextCaret>,
-    val caretVisibilityRevision: Long,
-    val textOffset: Float,
-    val caretColor: UiColor,
-    val selectionColor: UiColor,
-    val lineNumberColor: UiColor,
-    val inlayHintColor: UiColor,
-    val diagnosticErrorColor: UiColor,
-    val diagnosticWarningColor: UiColor,
-    val diagnosticInfoColor: UiColor,
-    val showCaret: Boolean,
-    val showLineNumbers: Boolean,
-    val showInlayHints: Boolean,
-    val diagnostics: List<UiTextDiagnostic>,
-    val inlayHints: List<UiInlayHint>,
-    val placeholder: String,
-    val opacity: Float,
-    val fontSize: Float,
-    val fontFamily: String?,
-    val transform: UiMatrix4,
-    val filter: UiFilterChain,
-    val backfaceVisibility: UiBackfaceVisibility,
-) : UiRenderCommand
-
 /**
  * Receives draw commands as the node tree is traversed. Rendering is streaming and
  * recursive: commands exist only as per-node parameter objects on their way to the
@@ -266,11 +237,7 @@ class UiCommandRenderer {
         val isFramebuffer = layoutNode.needsFramebuffer
         val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
         val localOpacity = if (isFramebuffer) 1f else style.opacity
-        val visibleShadows = if (node is TextFieldNode) {
-            emptyList()
-        } else {
-            style.shadows.filterNot { it.inset }
-        }
+        val visibleShadows = style.shadows.filterNot { it.inset }
         val canCullNode = activeClip != null &&
                 !isFramebuffer &&
                 visibleShadows.isEmpty() &&
@@ -493,17 +460,6 @@ class UiCommandRenderer {
                 backface
             )
 
-            is TextFieldNode -> appendTextFieldCommands(
-                node,
-                style,
-                opacity,
-                layoutNode,
-                layout,
-                contentTransform,
-                filter,
-                backface,
-                commands,
-            )
         }
     }
 
@@ -673,120 +629,9 @@ class UiCommandRenderer {
         )
     }
 
-    private fun appendTextFieldCommands(
-        node: TextFieldNode,
-        style: UiComputedStyle,
-        opacity: Float,
-        layoutNode: UiLayoutNode,
-        layout: UiLayoutResult,
-        transform: UiMatrix4,
-        filter: UiFilterChain,
-        backface: UiBackfaceVisibility,
-        commands: UiRenderSink,
-    ) {
-        val text = node.value
-        val visible = text.ifEmpty { node.placeholder }
-        val fontSize = style.fontSize
-        val wrap = style.textWrap && node.multiline && textFieldWidthConstrained(style, node, layoutNode.content.width)
-        val textHeight = if (style.scrollable) Float.POSITIVE_INFINITY else layoutNode.content.height
-        val widgetMetrics = node.inlineWidgetMetrics(layout)
-        val editLayout = textFieldEditLayout(node, style, layoutNode, widgetMetrics)
-        val displayLayout = if (text.isEmpty()) {
-            UiTextLayouter.layout(
-                visible,
-                textFieldTextWidth(node, style, layoutNode),
-                textHeight,
-                wrap,
-                style.textAlign,
-                fontSize,
-                style.fontFamily,
-                lineSpacing = style.lineSpacing,
-                spaceWidth = style.spaceWidth,
-            )
-        } else {
-            textFieldDisplayLayout(node, style, layoutNode, widgetMetrics)
-        }
-        val field = style.textField
-        val textOffset = textFieldTextOffset(node, style)
-        commands += PushClipCommand(
-            node = node,
-            rect = UiRect(
-                textOffset,
-                0f,
-                (layoutNode.content.width - textOffset).coerceAtLeast(0f),
-                layoutNode.content.height,
-            ),
-            transform = transform,
-        )
-        commands += DrawTextCommand(
-            node = node,
-            rect = layoutNode.content,
-            text = visible,
-            color = if (text.isEmpty()) field.inlayHintColor ?: UiColor(
-                0.56f,
-                0.6f,
-                0.66f,
-                0.65f
-            ) else style.foreground,
-            opacity = opacity,
-            transform = transform.translated(textOffset, 0f),
-            filter = filter,
-            wrap = wrap,
-            overflow = UiTextOverflow.HIDDEN,
-            align = style.textAlign,
-            fontSize = fontSize,
-            fontFamily = style.fontFamily,
-            textEffects = style.textEffectsWithShadows(),
-            layout = displayLayout,
-            scrollOffset = layoutNode.scrollOffset,
-            backfaceVisibility = backface,
-        )
-        commands += PopClipCommand(node)
-        commands += DrawTextFieldChromeCommand(
-            node = node,
-            rect = layoutNode.content,
-            layout = editLayout,
-            scrollOffset = layoutNode.scrollOffset,
-            carets = node.caretRanges.toList(),
-            caretVisibilityRevision = node.caretVisibilityRevision,
-            textOffset = textOffset,
-            caretColor = field.caretColor ?: style.foreground,
-            selectionColor = field.selectionColor ?: UiColor(0.28f, 0.54f, 0.95f, 0.35f),
-            lineNumberColor = field.lineNumberColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.78f),
-            inlayHintColor = field.inlayHintColor ?: UiColor(0.56f, 0.6f, 0.66f, 0.55f),
-            diagnosticErrorColor = UiColor(1f, 0.33f, 0.33f, 0.9f),
-            diagnosticWarningColor = UiColor(1f, 0.72f, 0.26f, 0.88f),
-            diagnosticInfoColor = UiColor(0.38f, 0.66f, 1f, 0.84f),
-            showCaret = node.hasEffectiveState(UiState.FOCUS),
-            showLineNumbers = field.lineNumbers == true,
-            showInlayHints = field.inlayHints == true,
-            diagnostics = node.diagnostics,
-            inlayHints = node.currentInlayHints(),
-            placeholder = node.placeholder,
-            opacity = opacity,
-            fontSize = fontSize,
-            fontFamily = style.fontFamily,
-            transform = transform,
-            filter = filter,
-            backfaceVisibility = backface,
-        )
-    }
-
 }
 
-private fun UiNode.inlineWidgetMetrics(layout: UiLayoutResult): Map<String, UiInlineWidgetMetrics> {
-    layout.nodes[this]?.inlineWidgetMetrics()?.takeIf { it.isNotEmpty() }?.let { return it }
-    return children.mapNotNull { child ->
-        val id = child.id ?: return@mapNotNull null
-        val rect = layout.nodes[child]?.rect ?: return@mapNotNull null
-        id to UiInlineWidgetMetrics(rect.width, rect.height)
-    }.toMap()
-}
 
-private fun UiComputedStyle.textEffectsWithShadows(): List<UiTextEffect> {
-    val textShadows = shadows.filterNot { it.inset }.map { it.toTextShadow() }
-    return if (textShadows.isEmpty()) textEffects else textEffects + textShadows
-}
 
 private fun UiShadow.toTextShadow() = TextShadow(
     offsetX = offset.x,
@@ -946,7 +791,7 @@ class UiHitTester {
 
     private fun UiNode.paintsGeometry(style: UiComputedStyle): Boolean = when (this) {
         is SpanNode, is ImageNode, is ItemNode, is EntityNode,
-        is SliderNode, is CheckboxNode, is TextFieldNode, is ScrollbarNode, is ScrollbarThumbNode,
+        is SliderNode, is CheckboxNode, is ScrollbarNode, is ScrollbarThumbNode,
             -> true
 
         else -> style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null

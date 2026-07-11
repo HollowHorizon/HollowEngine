@@ -171,7 +171,6 @@ class MinecraftUiRenderer {
             is DrawEntityCommand -> drawEntity(command)
             is DrawSliderCommand -> drawWidget(command)
             is DrawCheckboxCommand -> drawWidget(command)
-            is DrawTextFieldChromeCommand -> drawWidget(command)
         }
     }
 
@@ -1486,12 +1485,6 @@ class MinecraftUiRenderer {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         widgets.drawCheckbox(command, transform)
-    }
-
-    private fun drawWidget(command: DrawTextFieldChromeCommand) {
-        val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        widgets.drawTextFieldChrome(command, transform)
     }
 
     private fun pushClip(rect: UiRect, transform: UiMatrix4) {

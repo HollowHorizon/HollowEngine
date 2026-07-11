@@ -284,20 +284,6 @@ class UiModifierResolver(
         return when (this) {
             is SliderNode -> normalized in setOf("value", "min", "max", "step")
             is CheckboxNode -> normalized in setOf("value", "checked", "variant", "style", "type")
-            is TextFieldNode -> normalized in setOf(
-                "value",
-                "text",
-                "mode",
-                "multiline",
-                "multi-line",
-                "filter",
-                "input-filter",
-                "multi-caret",
-                "multicaret",
-                "placeholder",
-                "hint",
-            )
-
             else -> false
         }
     }
@@ -331,17 +317,6 @@ class UiModifierResolver(
                 style.input = UiInputStyle(hoverable = true, clickable = true)
                 style.focusable = true
                 style.checkbox = UiCheckboxStyle()
-            }
-
-            UiTextFieldType -> {
-                style.size = UiSize(UiLength.Auto, UiLength.Auto)
-                style.minSize = UiSize(0.px, 18.px)
-                style.padding = UiInsets.hv(4.px, 3.px)
-                style.foreground = UiColor.White
-                style.input = UiInputStyle(hoverable = true, clickable = true)
-                style.focusable = true
-                style.cursor = UiCursorShape.TEXT
-                style.textField = UiTextFieldStyle()
             }
 
             UiScrollbarType -> {

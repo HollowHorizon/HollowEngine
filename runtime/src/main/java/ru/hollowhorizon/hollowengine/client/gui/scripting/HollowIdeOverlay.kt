@@ -68,7 +68,7 @@ object HollowIdeOverlay {
     private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
-    private val editorOverlays = HollowIdeEditorOverlays(surface.runtime)
+    private val editorStates = mutableMapOf<String, TextFieldState>()
 
     private var lastMouseX = 0f
     private var lastMouseY = 0f
@@ -142,21 +142,13 @@ object HollowIdeOverlay {
         if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition()) {
             return true
         }
-        val result = surface.runtime.keyPressed(key, scanCode, modifiers)
-        if (result) {
-            editorOverlays.update(surface.runtime.lastFrame ?: return true, lastMouseX, lastMouseY)
-        }
-        return result
+        return surface.runtime.keyPressed(key, scanCode, modifiers)
     }
 
     fun handleChar(codePoint: Int, modifiers: Int): Boolean {
         if (!isVisible()) return false
         pipeline.await()
-        val result = surface.runtime.charTyped(codePoint.toChar(), modifiers)
-        if (result) {
-            editorOverlays.update(surface.runtime.lastFrame ?: return true, lastMouseX, lastMouseY)
-        }
-        return result
+        return surface.runtime.charTyped(codePoint.toChar(), modifiers)
     }
 
     @SubscribeEvent
@@ -349,6 +341,7 @@ object HollowIdeOverlay {
                 }
             }
         }
+        val editorState = editorStates.getOrPut(file.path) { TextFieldState(file.text, multiline = true) }
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
         val inlayHints = editorSession.inlayHints(file.text)
@@ -374,16 +367,15 @@ object HollowIdeOverlay {
                     inlayHints = inlayHints,
                     inlayRevision = analysisRevision,
                     readOnly = file.readOnly,
+                    fontSize = fontSize,
+                    state = editorState,
                     id = editorId,
                     attributes = mapOf("analysis-revision" to analysisRevision.toString()),
                     modifier = Modifier.size(100.percent, 100.percent)
-                        .fontSize(fontSize)
                         .onFocus {
                             dock.focus(file.id)
                         }
                 )
-                editorOverlays.CompletionPopup(file.id)
-                editorOverlays.DiagnosticTooltip(file.id)
                 HollowIdeDiagnosticsBadge(file.id, diagnostics) { id ->
                     diagnosticsPanels[id] = diagnosticsPanels[id] != true
                 }
@@ -441,8 +433,7 @@ object HollowIdeOverlay {
     private fun goToDefinition(): Boolean {
         val file = focusedEditorFile() ?: return false
         val editorKey = "editor-${file.id}"
-        val frame = surface.runtime.lastFrame ?: return false
-        val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return false
+        val editor = editorStates[file.path] ?: return false
         if (surface.runtime.focusedKey != editorKey) surface.runtime.focus(editorKey)
         val session = editorSessions.getOrPut(file.path) {
             HollowIdeEditorSession(file.path) {
@@ -489,11 +480,9 @@ object HollowIdeOverlay {
     private fun focusEditorAt(file: HollowIdeOpenFile, offset: Int) {
         Minecraft.getInstance().execute {
             pipeline.await()
-            val frame = surface.runtime.lastFrame ?: return@execute
             val editorKey = "editor-${file.id}"
-            val editor = frame.nodeByKey(editorKey) as? TextFieldNode ?: return@execute
+            val editor = editorStates.getOrPut(file.path) { TextFieldState(file.text, multiline = true) }
             editor.moveCaret(offset)
-            surface.runtime.saveState(editor)
             surface.runtime.focus(editorKey)
         }
     }

@@ -15,6 +15,7 @@ private val highlightedRichTextCache = object : LinkedHashMap<HighlightedRichTex
 data class UiTextCaret(
     val position: Int,
     val selectionAnchor: Int? = null,
+    val inlayAffinity: UiInlayCaretAffinity = UiInlayCaretAffinity.AFTER,
 ) {
     val selectionStart: Int get() = minOf(position, selectionAnchor ?: position)
     val selectionEnd: Int get() = maxOf(position, selectionAnchor ?: position)
@@ -24,8 +25,14 @@ data class UiTextCaret(
         return UiTextCaret(
             position = position.coerceIn(0, length),
             selectionAnchor = selectionAnchor?.coerceIn(0, length),
+            inlayAffinity = inlayAffinity,
         )
     }
+}
+
+enum class UiInlayCaretAffinity {
+    BEFORE,
+    AFTER,
 }
 
 data class UiTextHighlight(
@@ -374,15 +381,6 @@ private data class HighlightedRichTextCacheKey(
 internal fun textFieldInlayWidgetId(hint: UiInlayHint, index: Int): String {
     val hash = hint.text.hashCode().toUInt().toString(16)
     return "inlay-${hint.offset}-$index-$hash"
-}
-
-internal fun textFieldActiveInlayHints(
-    text: String,
-    inlayHints: List<UiInlayHint>,
-    provider: UiInlayHintsProvider?,
-): List<UiInlayHint> {
-    val hints = provider?.hints(text) ?: inlayHints
-    return sanitizeInlayHints(text.length, hints)
 }
 
 private data class TextStyleSpan(

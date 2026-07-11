@@ -2,11 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
-import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldDisplayLayout
-import ru.hollowhorizon.hollowengine.client.ui.widgets.textFieldTextOffset
 
 internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
     val node = task.node
@@ -23,12 +18,8 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
     val style = resolved[node]
     val boxes = nodeBoxes(rect, style, scrollbarReserves[node] ?: UiScrollbarReserve.None)
     val scrollOffset = scrollState.offset(node)
-    val textLayout = when (node) {
-        is TextFieldNode -> layoutTextFieldNode(node, resolved, style, boxes.content, scrollbarReserves)
-        // Computed by the parent inline flow (wrapping depends on where the span starts in a line)
-        is SpanNode -> node.lineLayout
-        else -> null
-    }
+    // Computed by the parent inline flow (wrapping depends on where the span starts in a line)
+    val textLayout = (node as? SpanNode)?.lineLayout
     val clip = if (style.clip || style.scrollable) parentClip.intersect(boxes.content) else parentClip
     val localX = rect.x - parentRect.x
     val localY = rect.y - parentRect.y
@@ -90,55 +81,7 @@ private fun UiLayoutPipeline.placeChildren(scope: ChildPlacementScope) {
         scope.content
     }
     val childScope = scope.copy(content = viewport)
-    if (node is TextFieldNode) {
-        placeTextFieldInlineChildren(node, childScope)
-        return
-    }
     node.measurePolicy.policy().place(this, childScope)
-}
-
-private fun UiLayoutPipeline.placeTextFieldInlineChildren(node: TextFieldNode, scope: ChildPlacementScope) {
-    val widgets = layoutChildren(node).associateBy { it.id }
-    if (widgets.isEmpty() || scope.style.textField.inlayHints != true) return
-    val content = scope.content
-    val textLayout = scope.layouts[node]?.textLayout
-        ?: layoutTextFieldNode(node, scope.resolved, scope.style, content, scope.scrollbarReserves)
-    val textOffset = textFieldTextOffset(node, scope.style)
-    for (line in textLayout.lines) {
-        for (fragment in line.fragments) {
-            if (fragment !is UiInlineWidgetRun) continue
-            val child = widgets[fragment.widget.id] ?: continue
-            val margin = scope.resolved[child].margin.resolve(content.width, content.height)
-            placeScopedNode(
-                scope,
-                child,
-                UiRect(
-                    content.x + textOffset + line.x + fragment.x + margin.left,
-                    content.y + line.y + fragment.y + margin.top,
-                    (fragment.width - margin.horizontal).coerceAtLeast(0f),
-                    (fragment.height - margin.vertical).coerceAtLeast(0f),
-                ),
-            )
-        }
-    }
-}
-
-internal fun UiLayoutPipeline.layoutTextFieldNode(
-    node: TextFieldNode,
-    resolved: UiNode,
-    style: UiComputedStyle,
-    content: UiRect,
-    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-): UiTextLayout {
-    val layout = temporaryTextFieldLayoutNode(node, content)
-    val widgetMetrics = measureInlineWidgetMetrics(
-        node,
-        resolved,
-        content.width,
-        content.height,
-        scrollbarReserves,
-    )
-    return textFieldDisplayLayout(node, style, layout, widgetMetrics)
 }
 
 internal fun UiLayoutPipeline.placeScopedNode(

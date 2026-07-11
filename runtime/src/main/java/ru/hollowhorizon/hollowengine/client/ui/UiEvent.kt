@@ -4,7 +4,6 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.ui.style.parseHssSelector
 import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldNode
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 
 enum class UiEventKind {
@@ -126,7 +125,7 @@ data class UiEvent(
             "node.type", "type" -> node.type
             "node.value", "value" -> node.readWidgetValue()
             "node.checked", "checked" -> (node as? CheckboxNode)?.checked
-            "node.text", "text" -> (node as? TextFieldNode)?.value ?: node.spanText().ifEmpty { null }
+            "node.text", "text" -> node.spanText().ifEmpty { null }
             "button" -> button
             "x" -> x
             "y" -> y
@@ -162,7 +161,6 @@ data class UiEvent(
 private fun UiNode.readWidgetValue(): Any? = when (this) {
     is SliderNode -> value
     is CheckboxNode -> checked
-    is TextFieldNode -> value
     is SpanNode -> text
     else -> attributes["value"]
 }

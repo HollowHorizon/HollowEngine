@@ -1,0 +1,180 @@
+package ru.hollowhorizon.hollowengine.client.ui.widgets
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
+/**
+ * Compose-observable completion model for an [EditableTextField]: the popup items, the selected
+ * row and the replacement range the accepted item will overwrite. The widget drives it from
+ * typing/key/frame hooks; it owns no UI. The popup stays open while the caret remains on the
+ * line it was invoked on, re-querying the [contributor] as the text or [analysis revision]
+ * [onFrame] changes.
+ */
+class TextFieldCompletionState(
+    private val state: TextFieldState,
+) {
+    /** Completion source; when null the popup never opens. */
+    var contributor: UiCompletionContributor? = null
+
+    var items: List<UiTextCompletion> by mutableStateOf(emptyList())
+        private set
+    var selectedIndex: Int by mutableStateOf(0)
+        private set
+
+    /** Document offset the popup is anchored to (the caret at the time it opened). */
+    var anchor: Int by mutableStateOf(0)
+        private set
+
+    val active: Boolean get() = items.isNotEmpty()
+
+    private var opened = false
+    private var autoOpenPending = false
+    private var replacementStart = 0
+    private var replacementEnd = 0
+    private var lineStart = 0
+    private var lineEnd = 0
+    private var lastText: String? = null
+    private var lastRevision = Long.MIN_VALUE
+
+    /** Opens (or re-queries) the popup at the current caret. */
+    fun open(): Boolean {
+        if (state.readOnly) return false
+        val contributor = contributor ?: return false
+        val text = state.text
+        val caret = state.caret
+        lastText = text
+        val found = contributor.complete(UiCompletionContext(text, caret))
+            .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+        val replacement = completionWordRange(text, caret)
+        val line = completionLineRange(text, caret)
+        anchor = caret
+        replacementStart = replacement.first
+        replacementEnd = replacement.last
+        lineStart = line.first
+        lineEnd = line.last
+        if (found.isEmpty()) {
+            // Nothing yet (e.g. analysis still running) - keep retrying while the caret stays put.
+            autoOpenPending = true
+            items = emptyList()
+            opened = false
+            selectedIndex = 0
+            return false
+        }
+        val changed = !opened || items != found
+        items = found
+        opened = true
+        autoOpenPending = false
+        selectedIndex = if (changed) 0 else selectedIndex.coerceIn(0, found.lastIndex)
+        return changed
+    }
+
+    fun close(): Boolean {
+        val hadState = items.isNotEmpty() || opened || autoOpenPending
+        items = emptyList()
+        opened = false
+        autoOpenPending = false
+        selectedIndex = 0
+        return hadState
+    }
+
+    fun moveSelection(delta: Int): Boolean {
+        if (items.isEmpty()) return false
+        val previous = selectedIndex
+        selectedIndex = (selectedIndex + delta).floorMod(items.size)
+        return previous != selectedIndex
+    }
+
+    fun select(index: Int): Boolean {
+        if (items.isEmpty()) return false
+        val normalized = index.coerceIn(0, items.lastIndex)
+        if (selectedIndex == normalized) return false
+        selectedIndex = normalized
+        return true
+    }
+
+    /** Inserts the chosen item over the replacement range (adding its import when it carries one). */
+    fun accept(index: Int = selectedIndex): Boolean {
+        if (state.readOnly) return false
+        val item = items.getOrNull(index) ?: return false
+        val insertText = item.insertText.ifEmpty { item.label }
+
+        val text = state.text
+        val originalStart = replacementStart.coerceIn(0, text.length)
+        val importResult = item.importFqName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { text.withSortedKotlinImport(it, originalStart) }
+            ?: UiTextImportResult(text, 0)
+        val imported = importResult.text
+        val start = (originalStart + importResult.shiftBeforeReference).coerceIn(0, imported.length)
+        val end = (replacementEnd + importResult.shiftBeforeReference).coerceIn(start, imported.length)
+        val next = imported.substring(0, start) + insertText + imported.substring(end)
+        val caret = start + (item.caretOffset ?: insertText.length).coerceIn(0, insertText.length)
+        val changed = state.applyEdit(next, listOf(UiTextCaret(caret)))
+        close()
+        return changed
+    }
+
+    /**
+     * Reacts to a typed character (after the state applied it): a trigger character or an already
+     * open/pending popup re-queries the contributor at the new caret.
+     */
+    fun onCharTyped(char: Char) {
+        if (char.isCompletionTrigger() || opened || autoOpenPending) open()
+        else lastText = state.text
+    }
+
+    /**
+     * Per-composition upkeep: closes after non-typing edits or when the caret leaves the invocation
+     * line, retries a pending auto-open, and re-queries when the analysis [revision] advances.
+     */
+    fun onFrame(revision: Long = 0L) {
+        if (!opened && !autoOpenPending) {
+            lastText = state.text
+            lastRevision = revision
+            return
+        }
+        val textChanged = lastText != null && state.text != lastText
+        lastText = state.text
+        if (textChanged) {
+            // Edits made by typing re-open from onCharTyped before we get here; anything else
+            // (backspace, paste, undo...) drops the popup like the old field did.
+            close()
+            lastRevision = revision
+            return
+        }
+        if (state.caret < lineStart || state.caret > lineEnd) {
+            close()
+            lastRevision = revision
+            return
+        }
+        if (autoOpenPending || (opened && revision != lastRevision)) open()
+        lastRevision = revision
+    }
+}
+
+internal fun Char.isCompletionTrigger(): Boolean = this == '.' || this == '_' || isLetterOrDigit()
+
+/** The word around [caret] that an accepted completion replaces. */
+internal fun completionWordRange(text: String, caret: Int): IntRange {
+    var end = caret.coerceIn(0, text.length)
+    var start = end
+    while (start > 0 && text[start - 1].isCompletionWordChar()) start--
+    while (end < text.length && text[end].isCompletionWordChar()) end++
+    return start..end
+}
+
+private fun completionLineRange(text: String, caret: Int): IntRange {
+    val index = caret.coerceIn(0, text.length)
+    val start = text.lastIndexOf('\n', (index - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+    return start..end
+}
+
+private fun Char.isCompletionWordChar(): Boolean = this == '_' || isLetterOrDigit()
+
+private fun Int.floorMod(modulo: Int): Int {
+    if (modulo <= 0) return 0
+    val result = this % modulo
+    return if (result < 0) result + modulo else result
+}

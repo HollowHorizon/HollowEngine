@@ -200,34 +200,9 @@ private fun scrollableContentBounds(
     layoutChildren: (UiNode) -> List<UiNode>,
 ): UiRect {
     layout.virtualContentBounds?.let { return it }
-    if (node is TextFieldNode) {
-        val textLayout = layout.textLayout ?: textFieldDisplayLayout(
-            node,
-            style,
-            layout,
-            layout.inlineWidgetMetrics(),
-        )
-        val textOffset = textFieldTextOffset(node, style)
-        val textViewportWidth = textFieldTextWidth(node, style, layout)
-        val horizontalPadding = textFieldHorizontalScrollPadding(textViewportWidth)
-        return UiRect(
-            layout.content.x,
-            layout.content.y,
-            maxOf(
-                layout.content.width,
-                textOffset + textLayout.maxNaturalLineWidth() + TextFieldCaretWidth + horizontalPadding
-            ),
-            maxOf(
-                layout.content.height,
-                textLayout.height + TextFieldCaretVisibilityPadding
-            ),
-        )
-    }
     return layoutChildren(node).mapNotNull { layouts[it]?.rect?.withScroll(layout.scrollOffset) }.union()
         ?: layout.content
 }
-
-private fun UiTextLayout.maxNaturalLineWidth(): Float = maxNaturalLineWidth
 
 private fun layoutChildren(node: UiNode): List<UiNode> {
     return node.children.filterNot { it is ru.hollowhorizon.hollowengine.client.ui.PopupNode }
