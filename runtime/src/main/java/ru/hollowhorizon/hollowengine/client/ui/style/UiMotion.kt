@@ -180,7 +180,10 @@ internal fun List<UiTransition>?.mergeUiTransitions(other: List<UiTransition>): 
     if (other.isEmpty()) return emptyList()
     val merged = linkedMapOf<String, UiTransition>()
     orEmpty().forEach { merged[it.property] = it }
-    other.forEach { merged[it.property] = it }
+    other.forEach { transition ->
+        if (transition.property == "all") merged.clear()
+        merged[transition.property] = transition
+    }
     return merged.values.toList()
 }
 

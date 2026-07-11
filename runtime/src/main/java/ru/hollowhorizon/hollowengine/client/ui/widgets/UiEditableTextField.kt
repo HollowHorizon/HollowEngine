@@ -1,12 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
@@ -419,7 +413,7 @@ private fun localInlayWidgetMetrics(
         // Reserve the pill's full inline footprint: text + padding + the outer margins.
         val width = UiTextLayouter.measureStyledTextWidth(hint.text, size, fontFamily, inlayStyle) +
                 EditableFieldInlayPaddingX * 2f +
-                EditableFieldInlayMarginLeft + EditableFieldInlayMarginRight
+                EditableFieldInlayMarginRight
         textFieldInlayWidgetId(hint, index) to UiInlineWidgetMetrics(width, height)
     }.toMap()
 }
@@ -935,12 +929,11 @@ private fun EditableFieldLineFragments(
                     val hint = fieldLayout.inlayTexts[fragment.widget.id].orEmpty()
                     if (hint.isNotEmpty() && fragment.width > 0f && fragment.height > 0f) {
                         key("inlay", visualIndex, fragmentIndex, fragment.widget.id) {
-                            val boxWidth = (fragment.width - EditableFieldInlayMarginLeft -
-                                    EditableFieldInlayMarginRight).coerceAtLeast(0f)
+                            val boxWidth = (fragment.width - EditableFieldInlayMarginRight).coerceAtLeast(0f)
                             Row(
                                 tags = listOf("editable-text-field-inlay", "code-editor-inlay"),
                                 modifier = Modifier
-                                    .position((x + EditableFieldInlayMarginLeft).px, y.px)
+                                    .position(x.px, y.px)
                                     .size(boxWidth.px, fragment.height.px),
                             ) {
                                 Text(
@@ -1222,7 +1215,6 @@ internal val EditableFieldIndentGuideColor = UiColor(0.56f, 0.6f, 0.66f, 0.22f)
 internal val EditableFieldPlaceholderColor = UiColor(0.56f, 0.6f, 0.66f, 0.65f)
 
 private const val EditableFieldInlayPaddingX = 3f
-private const val EditableFieldInlayPaddingY = 0f
-private const val EditableFieldInlayMarginLeft = 2f
+private const val EditableFieldInlayPaddingY = 2f
 private const val EditableFieldInlayMarginRight = 4f
 private val EditableFieldDefaultInlayStyle = UiInlineStyle.Empty.withColor(UiColor(0.56f, 0.6f, 0.67f, 0.9f))

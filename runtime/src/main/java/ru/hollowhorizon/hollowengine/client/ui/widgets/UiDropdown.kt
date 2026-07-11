@@ -48,6 +48,16 @@ fun UiDropdown(
     }
 
     if (!expanded) return
+    ContextMenu(id, anchorBounds, items, onExpandedChange)
+}
+
+@Composable
+fun ContextMenu(
+    id: String,
+    anchorBounds: UiRect,
+    items: List<UiDropdownItem>,
+    onExpandedChange: (Boolean) -> Unit = {},
+) {
     Popup(
         anchorBounds = anchorBounds,
         id = "$id-popup",

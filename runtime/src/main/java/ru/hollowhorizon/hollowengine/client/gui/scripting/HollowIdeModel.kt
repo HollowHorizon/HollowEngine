@@ -371,7 +371,7 @@ internal class HollowIdeFileTree {
     }
 
     fun refresh() {
-        root.refresh()
+        root.refresh(root.expandedPaths())
     }
 
     fun toggle(path: String) {
@@ -396,9 +396,8 @@ internal class HollowIdeFileNode(
     val children = mutableStateListOf<HollowIdeFileNode>()
     var expanded by mutableStateOf(false)
 
-    fun refresh() {
+    fun refresh(expandedPaths: Set<String> = expandedPaths()) {
         if (!isDirectory) return
-        val previous = children.associateBy({ it.path }, { it.expanded })
         val files = path.fromReadablePath().listFiles().orEmpty()
         children.clear()
         children += files
@@ -406,10 +405,15 @@ internal class HollowIdeFileNode(
             .map { file ->
                 val childPath = if (path.isEmpty()) file.name else "$path/${file.name}"
                 HollowIdeFileNode(file.name, childPath, depth + 1, file.isDirectory).apply {
-                    expanded = previous[childPath] == true
-                    if (expanded) refresh()
+                    expanded = childPath in expandedPaths
+                    if (expanded) refresh(expandedPaths)
                 }
             }
+    }
+
+    fun expandedPaths(): Set<String> = buildSet {
+        if (expanded) add(path)
+        children.forEach { addAll(it.expandedPaths()) }
     }
 
     fun find(targetPath: String): HollowIdeFileNode? {

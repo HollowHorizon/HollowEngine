@@ -38,9 +38,8 @@ import ru.hollowhorizon.hollowengine.logE
 fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
     val safeOffset = offset.coerceIn(0, file.textLength)
     val file = createFileForCompletion(file, safeOffset)
-    val element = file.findElementAt(safeOffset)
-        ?: (if (safeOffset > 0) file.findElementAt(safeOffset - 1) else null)
-        ?: return emptyList()
+    val element = file.findElementAt(safeOffset) ?: (if (safeOffset > 0) file.findElementAt(safeOffset - 1) else null)
+    ?: return emptyList()
     val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
 
     try {
@@ -55,11 +54,9 @@ fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<Com
 private fun ScriptingAnalyzerImpl.createFileForCompletion(original: KtFile, offset: Int): KtFile {
     val safeOffset = offset.coerceIn(0, original.textLength)
     val textWithInsertedFakeIdentifier = original.text.replaceRange(safeOffset, safeOffset, COMPLETION_FAKE_IDENTIFIER)
-    val copyKtFile =
-        KtPsiFactory(original.project, markGenerated = true, eventSystemEnabled = true).createFile(
-            original.name,
-            textWithInsertedFakeIdentifier
-        )
+    val copyKtFile = KtPsiFactory(original.project, markGenerated = true, eventSystemEnabled = true).createFile(
+        original.name, textWithInsertedFakeIdentifier
+    )
 
     copyKtFile.contextModule = KaScriptModule(
         copyKtFile,
@@ -77,45 +74,40 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
         val position = getPosition(parentKtElement) ?: run {
             return completeKeywords(element, position = null)
         }
-        val filter =
-            when (val prefix = position.prefix) {
-                null -> { _: Name -> true }
-                else -> { name: Name -> matchesPrefix(prefix, name.asString()) }
-            }
+        val filter = when (val prefix = position.prefix) {
+            null -> { _: Name -> true }
+            else -> { name: Name -> matchesPrefix(prefix, name.asString()) }
+        }
 
-        val applicabilityChecker =
-            when (position) {
-                is CompletionPosition.AfterDot ->
-                    position.nameExpression?.let { createExtensionCandidateChecker(ktFile, it, position.receiver) }
-                        ?: return null
+        val applicabilityChecker = when (position) {
+            is CompletionPosition.AfterDot -> position.nameExpression?.let {
+                createExtensionCandidateChecker(
+                    ktFile, it, position.receiver
+                )
+            } ?: return null
 
-                is CompletionPosition.Identifier ->
-                    createExtensionCandidateChecker(
-                        ktFile,
-                        parentKtElement as KtSimpleNameExpression,
-                        explicitReceiver = null,
-                    )
+            is CompletionPosition.Identifier -> createExtensionCandidateChecker(
+                ktFile,
+                parentKtElement as KtSimpleNameExpression,
+                explicitReceiver = null,
+            )
 
-                else -> null
-            }
-        val visibilityChecker =
-            when (position) {
-                is CompletionPosition.AfterDot ->
-                    createUseSiteVisibilityChecker(
-                        ktFile.symbol,
-                        position.receiver,
-                        position.nameExpression ?: position.receiver
-                    )
+            else -> null
+        }
+        val visibilityChecker = when (position) {
+            is CompletionPosition.AfterDot -> createUseSiteVisibilityChecker(
+                ktFile.symbol, position.receiver, position.nameExpression ?: position.receiver
+            )
 
-                is CompletionPosition.Identifier -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
+            is CompletionPosition.Identifier -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
 
-                is CompletionPosition.NestedType -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
+            is CompletionPosition.NestedType -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
 
-                is CompletionPosition.Type -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
+            is CompletionPosition.Type -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
 
-                // Для пакетов проверка видимости не актуальна
-                is CompletionPosition.Package -> null
-            }
+            // Для пакетов проверка видимости не актуальна
+            is CompletionPosition.Package -> null
+        }
 
         val symbolFilter: CompletionItemsCollector.SymbolFilter = when (position) {
             is CompletionPosition.Type if position.isAnnotation -> CompletionItemsCollector.SymbolFilter { symbol ->
@@ -128,6 +120,12 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                 }
             }
 
+            is CompletionPosition.AfterDot -> CompletionItemsCollector.SymbolFilter { symbol ->
+                if (position.isInfixContext) {
+                    symbol is KaNamedFunctionSymbol && symbol.isInfix
+                } else true
+            }
+
             else -> CompletionItemsCollector.SymbolFilter { true }
         }
 
@@ -135,10 +133,7 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
         with(collector) {
             when (position) {
                 is CompletionPosition.AfterDot -> completeAfterDot(
-                    position,
-                    ktFile,
-                    parentKtElement,
-                    element.parentOfType<KtPackageDirective>(withSelf = true) != null
+                    position, ktFile, parentKtElement, element.parentOfType<KtPackageDirective>(withSelf = true) != null
                 )
 
                 is CompletionPosition.Identifier -> {
@@ -295,15 +290,13 @@ private fun CompletionItemsCollector.completeAfterDot(
                 completeScope(receiverTarget.combinedMemberScope)
             }
 
-            receiverTarget.staticDeclaredMemberScope.classifiers
-                .filterIsInstance<KaClassSymbol>()
-                .forEach {
-                    if (it.classKind == KaClassKind.COMPANION_OBJECT) {
-                        completeScope(it.combinedMemberScope)
-                    } else {
-                        add(it)
-                    }
+            receiverTarget.staticDeclaredMemberScope.classifiers.filterIsInstance<KaClassSymbol>().forEach {
+                if (it.classKind == KaClassKind.COMPANION_OBJECT) {
+                    completeScope(it.combinedMemberScope)
+                } else {
+                    add(it)
                 }
+            }
         }
 
         is KaPackageSymbol -> {
@@ -365,8 +358,7 @@ context(session: KaSession)
 private fun getKotlinDeclarationsFromIndex(ktFile: KtFile, filter: (Name) -> Boolean): Sequence<KaDeclarationSymbol> {
     with(session) {
         val factory = KotlinDeclarationProviderFactory.getInstance(ktFile.project)
-        val declarationProvider =
-            factory.createDeclarationProvider(analysisScope, useSiteModule)
+        val declarationProvider = factory.createDeclarationProvider(analysisScope, useSiteModule)
         val kotlinClasses = sequence {
             for (packageName in declarationProvider.computePackageNamesWithTopLevelCallables()!!) {
                 val packageFqName = FqName(packageName)
@@ -416,16 +408,14 @@ private fun CompletionItemsCollector.completePackage(
     val declarationProvider = KotlinDeclarationProviderFactory.getInstance(ktFile.project)
         .createDeclarationProvider(analysisScope, useSiteModule)
 
-    val allKotlinPackages = (declarationProvider.computePackageNamesWithTopLevelCallables().orEmpty() +
-            declarationProvider.computePackageNamesWithTopLevelClassifiers().orEmpty())
+    val allKotlinPackages = (declarationProvider.computePackageNamesWithTopLevelCallables()
+        .orEmpty() + declarationProvider.computePackageNamesWithTopLevelClassifiers().orEmpty())
 
     val parentSegmentsSize = fqName.pathSegments().size
-    allKotlinPackages.asSequence()
-        .map { FqName(it) }
+    allKotlinPackages.asSequence().map { FqName(it) }
         .filter { it != fqName && !it.isRoot && (fqName.isRoot || it.startsWith(fqName)) }
         .mapNotNull { it.pathSegments().getOrNull(parentSegmentsSize)?.asString() }
-        .filter { filter(Name.identifier(it)) }
-        .forEach { subPackageNames.add(it) }
+        .filter { filter(Name.identifier(it)) }.forEach { subPackageNames.add(it) }
 
     for (pkgName in subPackageNames) {
         add(listOf(declarationCompletionItem {
@@ -463,18 +453,17 @@ private fun CompletionItemsCollector.completeType(file: KtFile, element: KtEleme
 
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeNestedType(position: CompletionPosition.NestedType) = with(kaSession) {
-    val classifiers =
-        when (val symbol = position.receiver.referenceExpression?.mainReference?.resolveToSymbol()) {
-            is KaTypeAliasSymbol -> symbol.expandedType.scope?.getClassifierSymbols(nameFilter)
-            is KaDeclarationContainerSymbol -> symbol.combinedMemberScope.classifiers(nameFilter)
-            // Поддержка вложенных типов через полное имя пакета в UserType
-            is KaPackageSymbol -> {
-                completePackage(position.receiver.containingKtFile, symbol.fqName, nameFilter, false)
-                return
-            }
+    val classifiers = when (val symbol = position.receiver.referenceExpression?.mainReference?.resolveToSymbol()) {
+        is KaTypeAliasSymbol -> symbol.expandedType.scope?.getClassifierSymbols(nameFilter)
+        is KaDeclarationContainerSymbol -> symbol.combinedMemberScope.classifiers(nameFilter)
+        // Поддержка вложенных типов через полное имя пакета в UserType
+        is KaPackageSymbol -> {
+            completePackage(position.receiver.containingKtFile, symbol.fqName, nameFilter, false)
+            return
+        }
 
-            else -> null
-        } ?: return
+        else -> null
+    } ?: return
     add(classifiers)
 }
 
@@ -520,6 +509,7 @@ private fun getPosition(element: KtElement): CompletionPosition? {
             when (val parent = element.parent) {
                 is KtDotQualifiedExpression if parent.selectorExpression == element -> getPosition(parent)
                 is KtUserType if parent.referenceExpression == element -> getPositionByUserType(parent)
+                is KtCallExpression if parent.parent is KtElement -> getPosition(parent.parent as KtElement)
                 else -> CompletionPosition.Identifier(
                     element.getReferencedName().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER)
                 )
@@ -528,12 +518,27 @@ private fun getPosition(element: KtElement): CompletionPosition? {
 
         is KtQualifiedExpression -> {
             val selector = element.selectorExpression
+            fun resolveName(element: KtElement?): String? {
+                return when (element) {
+                    is KtNameReferenceExpression -> element.getReferencedName()
+                    is KtCallExpression -> resolveName(element.calleeExpression)
+                    else -> null
+                }
+            }
             CompletionPosition.AfterDot(
-                (selector as? KtNameReferenceExpression)
-                    ?.getReferencedName()
-                    ?.removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
+                resolveName(selector)?.removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
                 element.receiverExpression,
             )
+        }
+
+        is KtOperationReferenceExpression -> {
+            val binaryExpression = element.parent as? KtBinaryExpression
+            val left = binaryExpression?.left
+            if (left != null) {
+                CompletionPosition.AfterDot(
+                    element.getReferencedName().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER), left, true
+                )
+            } else null
         }
 
         is KtUserType -> getPositionByUserType(element)
@@ -576,8 +581,7 @@ private fun Sequence<KaCallableSignature<*>>.filterShadowedJavaFieldsInSignature
         val syntheticPropertyNames = hashSetOf<Name>()
 
         for (signature in this@filterShadowedJavaFieldsInSignatures) {
-            val symbol = signature.symbol
-            when (symbol) {
+            when (val symbol = signature.symbol) {
                 is KaSyntheticJavaPropertySymbol -> {
                     syntheticPropertyNames.add(symbol.name)
                     yield(signature)
@@ -601,21 +605,19 @@ private fun Sequence<KaCallableSignature<*>>.filterShadowedJavaFieldsInSignature
     }
 
 
-private fun getPositionByUserType(element: KtUserType) =
-    when (val qualifier = element.qualifier) {
-        null -> CompletionPosition.Type(
-            element.referencedName.orEmpty().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
-            element.isAnnotation()
-        )
+private fun getPositionByUserType(element: KtUserType) = when (val qualifier = element.qualifier) {
+    null -> CompletionPosition.Type(
+        element.referencedName.orEmpty().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER), element.isAnnotation()
+    )
 
-        else ->
-            CompletionPosition.NestedType(
-                element.referencedName.orEmpty().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
-                qualifier,
-            )
-    }
+    else -> CompletionPosition.NestedType(
+        element.referencedName.orEmpty().removeFakeIdentifier(COMPLETION_FAKE_IDENTIFIER),
+        qualifier,
+    )
+}
 
-private fun String.removeFakeIdentifier(suffix: String) = runCatching { substring(0, indexOf(suffix)) }.getOrElse { this }
+private fun String.removeFakeIdentifier(suffix: String) =
+    runCatching { substring(0, indexOf(suffix)) }.getOrElse { this }
 
 fun KtUserType.isAnnotation(): Boolean {
     val typeReference = parent as? KtTypeReference ?: return false
@@ -628,11 +630,17 @@ private sealed interface CompletionPosition {
 
     class Identifier(override val prefix: String) : CompletionPosition
 
-    class AfterDot(override val prefix: String?, val receiver: KtExpression) : CompletionPosition {
+    class AfterDot(override val prefix: String?, val receiver: KtExpression, val isInfixContext: Boolean = false) :
+        CompletionPosition {
         val nameExpression: KtSimpleNameExpression?
-            get() = when (val selector = (receiver.parent as KtQualifiedExpression).selectorExpression) {
-                is KtSimpleNameExpression -> selector
-                is KtCallExpression -> selector.getCallNameExpression()
+            get() = when (val parent = receiver.parent) {
+                is KtQualifiedExpression -> when (val selector = parent.selectorExpression) {
+                    is KtSimpleNameExpression -> selector
+                    is KtCallExpression -> selector.getCallNameExpression()
+                    else -> null
+                }
+
+                is KtBinaryExpression -> parent.operationReference
                 else -> null
             }
     }

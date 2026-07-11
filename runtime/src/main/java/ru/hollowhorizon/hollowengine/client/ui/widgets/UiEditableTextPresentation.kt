@@ -181,10 +181,11 @@ internal data class EditableTextPresentation(
                 inlayHints = if (nextInlayHintsProvider == null) staticInlayHints else emptyList(),
             )
         }
-        val shiftedInlays = if (nextInlayHintsProvider == null) {
-            staticInlayHints
-        } else {
-            shiftInlayHints(text, nextText, inlayHints)
+        val shiftedInlays = when {
+            nextInlayRevision != inlayRevision -> staticInlayHints
+            nextInlayHintsProvider != null || nextHighlighter is UiDeferredTextAnalyzer ->
+                shiftInlayHints(text, nextText, inlayHints)
+            else -> staticInlayHints
         }
         return exact(
             text = nextText,

@@ -19,10 +19,11 @@ internal object CompletionShortNamesRenderer {
 
     context(_: KaSession)
     @OptIn(KaExperimentalApi::class)
-    fun renderFunctionalTypeParameters(functionalType: KaFunctionType): String = functionalType.parameterTypes.joinToString(
-        prefix = "(",
-        postfix = ")",
-    ) { it.renderVerbose() }
+    fun renderFunctionalTypeParameters(functionalType: KaFunctionType): String =
+        functionalType.parameterTypes.joinToString(
+            prefix = "(",
+            postfix = ")",
+        ) { it.renderVerbose() }
 
     context(_: KaSession)
     fun renderVariable(variable: KaVariableSignature<*>): String {
@@ -96,6 +97,7 @@ internal object CompletionShortNamesRenderer {
         expandedTypeRenderingMode = KaExpandedTypeRenderingMode.RENDER_ABBREVIATED_TYPE_WITH_EXPANDED_TYPE_COMMENT
     }
 }
+
 object TailTextProvider {
     context(session: KaSession)
     fun getTailText(
@@ -103,9 +105,12 @@ object TailTextProvider {
         useFqName: Boolean = false,
     ): String = with(session) {
         buildString {
-            symbol.receiverType?.let { renderReceiverType(it) }
+            symbol.getContainerOrAliasPresentation(useFqName = useFqName)?.let {
+                append(it)
+                return@buildString
+            }
 
-            symbol.getContainerOrAliasPresentation(useFqName = useFqName)?.let { append(it) }
+            symbol.receiverType?.let { renderReceiverType(it) }
         }
     }
 
@@ -144,7 +149,10 @@ object TailTextProvider {
     }
 
     context(_: KaSession)
-    private fun KaCallableSymbol.getContainerOrAliasPresentation(isFunctionalVariableCall: Boolean = false, useFqName: Boolean = false): String? {
+    private fun KaCallableSymbol.getContainerOrAliasPresentation(
+        isFunctionalVariableCall: Boolean = false,
+        useFqName: Boolean = false,
+    ): String? {
         return if (useFqName) {
             val callableId = callableId ?: return null
             val renderedAliasName = callableId.asSingleFqName().asStringForTailText()

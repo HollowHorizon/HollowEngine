@@ -438,15 +438,18 @@ fun TextField(
 
     val sync = remember { TextFieldValueSync(value) }
     // Adopt an external value only when the parameter itself changed; edits made here win otherwise.
-    if (value != sync.lastExternal && value != fieldState.text) {
-        fieldState.setText(value, moveCaretToEnd = false)
-        sync.lastNotified = fieldState.text
+    if (value != sync.lastExternal) {
+        val echoedNotification = sync.acknowledge(value)
+        if (!echoedNotification && value != fieldState.text) {
+            fieldState.setText(value, moveCaretToEnd = false)
+            sync.reset(fieldState.text)
+        }
     }
-    sync.lastExternal = value
+    sync.updateExternal(value)
     val text = fieldState.text
     SideEffect {
         if (text != sync.lastNotified) {
-            sync.lastNotified = text
+            sync.recordNotification(text)
             onChange?.invoke(text)
         }
     }
@@ -470,11 +473,6 @@ fun TextField(
         indentGuideColor = indentGuideColor ?: EditableFieldIndentGuideColor,
         attributes = attributes,
     )
-}
-
-private class TextFieldValueSync(initial: String) {
-    var lastExternal: String = initial
-    var lastNotified: String = initial
 }
 
 @Composable

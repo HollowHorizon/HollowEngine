@@ -28,7 +28,7 @@ fun <T> UiTreeView(
         modifier = modifier.scroll(vertical = true, horizontal = true)
     ) {
         items.forEach { item ->
-            key(item) {
+            key(item.id) {
                 UiTreeRow(item, onToggle, onSelect)
             }
         }

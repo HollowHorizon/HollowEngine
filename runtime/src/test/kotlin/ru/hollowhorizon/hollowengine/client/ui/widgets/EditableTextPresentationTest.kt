@@ -241,6 +241,16 @@ class EditableTextPresentationTest {
             assertEquals(listOf(UiTextHighlight(4, 5, style)), presentation.highlights)
             assertEquals(listOf(UiInlayHint(5, ": Int")), presentation.inlayHints)
 
+            text.value = "x${text.value}"
+            composition.applyPendingChanges()
+            assertEquals("xval a = 1", presentation.text)
+            assertEquals(listOf(UiInlayHint(6, ": Int")), presentation.inlayHints)
+
+            text.value = text.value.removePrefix("x")
+            composition.applyPendingChanges()
+            assertEquals("val a = 1", presentation.text)
+            assertEquals(listOf(UiInlayHint(5, ": Int")), presentation.inlayHints)
+
             text.value = "val answer = 1"
             analyses[text.value] = UiTextAnalysis(
                 highlights = listOf(UiTextHighlight(0, 3, style)),

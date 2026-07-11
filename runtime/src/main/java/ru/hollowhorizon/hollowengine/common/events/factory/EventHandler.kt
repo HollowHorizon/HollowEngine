@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.events.factory
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.suspendCancellableCoroutine
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
@@ -90,4 +92,30 @@ suspend inline fun <reified T : Event> EventHandler<T>.await(
             unregister(listener)
         }
     }
+}
+
+context(scope: CoroutineScope)
+fun <T : Event> EventHandler<T>.subscribe(priority: Int = 0, listener: (T) -> Unit): EventListener<T> {
+    val job = scope.coroutineContext[Job]
+        ?: error("CoroutineScope must contain a Job")
+
+    val scopedListener = object : EventListener<T> {
+        override val priority = priority
+
+        override fun invoke(event: T) {
+            if (job.isActive) {
+                listener(event)
+            }
+        }
+    }
+
+    if (!job.isActive) return scopedListener
+
+    register(scopedListener)
+
+    job.invokeOnCompletion {
+        unregister(scopedListener)
+    }
+
+    return scopedListener
 }

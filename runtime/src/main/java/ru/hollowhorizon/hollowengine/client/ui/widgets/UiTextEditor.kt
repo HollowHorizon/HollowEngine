@@ -121,7 +121,12 @@ internal fun String.withSortedKotlinImport(fqName: String, referenceOffset: Int)
     if (lines.any { it.trim() == importLine }) return UiTextImportResult(this, 0)
 
     val packageIndex = lines.indexOfFirst { it.trimStart().startsWith("package ") }
-    val headerEnd = if (packageIndex >= 0) packageIndex + 1 else 0
+    val firstImportIndex = lines.indexOfFirst { it.trimStart().startsWith("import ") }
+    val headerEnd = when {
+        packageIndex >= 0 -> packageIndex + 1
+        firstImportIndex >= 0 -> firstImportIndex
+        else -> lines.kotlinFileHeaderEnd()
+    }
     var importScan = headerEnd
     while (importScan < lines.size && lines[importScan].isBlank()) importScan++
 
@@ -137,7 +142,7 @@ internal fun String.withSortedKotlinImport(fqName: String, referenceOffset: Int)
         .sorted()
 
     val rebuilt = buildList {
-        addAll(lines.take(headerEnd))
+        addAll(lines.take(headerEnd).dropLastWhile(String::isBlank))
         if (isNotEmpty()) add("")
         addAll(imports)
         if (bodyStart < lines.size) {
@@ -150,6 +155,64 @@ internal fun String.withSortedKotlinImport(fqName: String, referenceOffset: Int)
     val originalBodyOffset = lines.take(bodyStart).sumOf { it.length + 1 }.coerceAtMost(length)
     val shift = if (reference >= originalBodyOffset) rebuilt.length - length else 0
     return UiTextImportResult(rebuilt, shift)
+}
+
+private fun List<String>.kotlinFileHeaderEnd(): Int {
+    var index = 0
+    var inBlockComment = false
+
+    fun skipTrivia() {
+        while (index < size) {
+            val trimmed = this[index].trim()
+            if (inBlockComment) {
+                inBlockComment = !trimmed.contains("*/")
+                index++
+            } else if (trimmed.isEmpty() || trimmed.startsWith("//")) {
+                index++
+            } else if (trimmed.startsWith("/*")) {
+                inBlockComment = trimmed.indexOf("*/", startIndex = 2) < 0
+                index++
+            } else {
+                break
+            }
+        }
+    }
+
+    skipTrivia()
+    while (index < size && this[index].trimStart().startsWith("@file:")) {
+        var depth = 0
+        do {
+            depth += this[index].annotationDelimiterDelta()
+            index++
+        } while (index < size && depth > 0)
+        skipTrivia()
+    }
+    return index
+}
+
+private fun String.annotationDelimiterDelta(): Int {
+    var delta = 0
+    var quote: Char? = null
+    var escaped = false
+    for (char in this) {
+        if (escaped) {
+            escaped = false
+            continue
+        }
+        if (char == '\\' && quote != null) {
+            escaped = true
+            continue
+        }
+        if (char == '\"' || char == '\'') {
+            if (quote == char) quote = null else if (quote == null) quote = char
+            continue
+        }
+        if (quote == null) {
+            if (char == '(' || char == '[') delta++
+            if (char == ')' || char == ']') delta--
+        }
+    }
+    return delta
 }
 
 fun interface UiInlayHintsProvider {

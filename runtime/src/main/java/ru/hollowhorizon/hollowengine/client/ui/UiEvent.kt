@@ -158,6 +158,10 @@ data class UiEvent(
     }
 }
 
+fun UiEvent.isLeftClick(): Boolean = button == 0
+fun UiEvent.isRightClick(): Boolean = button == 1
+fun UiEvent.isMiddleClick(): Boolean = button == 2
+
 private fun UiNode.readWidgetValue(): Any? = when (this) {
     is SliderNode -> value
     is CheckboxNode -> checked
