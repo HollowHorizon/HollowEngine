@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 
 internal val DemoStyles = compileHss(
     """
@@ -146,7 +146,7 @@ internal val DemoStyles = compileHss(
         size: 72px 72px;
     }
 
-    .canvas-preview {
+    .visual-preview {
         size: 120px 54px;
     }
 
@@ -205,6 +205,180 @@ internal val DemoStyles = compileHss(
     .text-slot-note-label {
         foreground: rgba(24, 32, 46, 0.98);
         font-size: 9px;
+    }
+
+    .textflow-card {
+        size: 354px 172px;
+    }
+
+    .textflow-para {
+        size: 330px 128px;
+        foreground: rgba(226, 230, 238, 0.92);
+        align-items: justify start;
+        line-spacing: 4px;
+        font-size: 10px;
+    }
+
+    .group-slice {
+        background: rgba(90, 166, 154, 0.42);
+        border-radius: 4px;
+        padding: 1px 5px;
+        box-decoration-break: slice;
+        foreground: #eafff9;
+    }
+
+    .group-clone {
+        background: rgba(120, 128, 214, 0.5);
+        border-radius: 5px;
+        padding: 1px 6px;
+        box-decoration-break: clone;
+        foreground: #eef1ff;
+    }
+
+    .textflow-chip {
+        padding: 1px 6px;
+        margin: 0px 3px;
+        background: rgba(90, 120, 200, 0.92);
+        border-radius: 5px;
+    }
+
+    .textflow-chip-label {
+        foreground: white;
+        font-size: 9px;
+        height: 12px;
+    }
+
+    .textflow-caret {
+        size: 2px 12px;
+        margin: 0px 1px;
+        background: #ffd479;
+    }
+
+    .textlab-panel {
+        size: 100% 100%;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .textlab-controls {
+        gap: 10px;
+        height: 20px;
+        align-items: start center;
+    }
+
+    .textlab-toggle {
+        gap: 5px;
+        padding: 2px 6px;
+        background: rgba(40, 46, 58, 0.8);
+        border-radius: 6px;
+        align-items: start center;
+    }
+
+    .textlab-toggle-label {
+        foreground: #c8ddff;
+    }
+
+    .textlab-check {
+        size: 12px 12px;
+        border-radius: 3px;
+    }
+
+    .textlab-hint {
+        foreground: rgba(180, 190, 205, 0.8);
+    }
+
+    .textlab-stage-row {
+        gap: 0px;
+    }
+
+    .textlab-card {
+        gap: 8px;
+        padding: 12px;
+        background: rgba(30, 34, 44, 0.9);
+        border-radius: 10px;
+        border: 1px rgba(120, 140, 170, 0.35);
+    }
+
+    .textlab-handle {
+        size: 8px 100%;
+        min-size: 8px 60px;
+        background: rgba(120, 140, 170, 0.5);
+        border-radius: 4px;
+    }
+
+    .textlab-handle:hover {
+        background: rgba(150, 175, 215, 0.85);
+    }
+
+    .textlab-para {
+        foreground: rgba(226, 230, 238, 0.92);
+        line-spacing: 4px;
+        font-size: 10px;
+    }
+
+    .textlab-section {
+        margin: 6px 0px 0px 0px;
+    }
+
+    .textlab-scroll {
+        size: 360px 70px;
+        padding: 8px;
+        background: rgba(24, 28, 38, 0.9);
+        border-radius: 8px;
+    }
+
+    .textlab-chip {
+        padding: 1px 6px;
+        margin: 0px 3px;
+        background: rgba(90, 120, 200, 0.92);
+        border-radius: 5px;
+    }
+
+    .textlab-chip-label {
+        foreground: white;
+        font-size: 9px;
+    }
+
+    .fx-big {
+        font-size: 16px;
+        foreground: #ffd479;
+    }
+
+    .fx-bold {
+        text-effects: bold;
+    }
+
+    .fx-italic {
+        text-effects: italic;
+        foreground: #a9d0ff;
+    }
+
+    .fx-underline {
+        text-effects: underline;
+    }
+
+    .fx-strike {
+        text-effects: strikethrough;
+        foreground: rgba(226, 230, 238, 0.7);
+    }
+
+    .fx-wave {
+        text-effects: wave;
+        foreground: #7fe0c0;
+    }
+
+    .fx-shake {
+        text-effects: shake;
+        foreground: #ff9d7f;
+    }
+
+    .fx-rainbow {
+        text-effects: rainbow;
+    }
+
+    .fx-msdf {
+        font-family: hollowengine:fonts/hack;
+        foreground: #ffd479;
     }
 
     .popup-anchor {

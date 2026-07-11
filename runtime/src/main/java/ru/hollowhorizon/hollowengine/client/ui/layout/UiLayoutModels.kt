@@ -1,0 +1,98 @@
+package ru.hollowhorizon.hollowengine.client.ui.layout
+
+import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineWidgetMetrics
+
+data class UiRect(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+) {
+    fun contains(px: Float, py: Float): Boolean = px >= x && py >= y && px <= x + width && py <= y + height
+
+    /** Whether this rectangle shares any area with [other] (touching edges alone do not count). */
+    fun overlaps(other: UiRect): Boolean =
+        x < other.x + other.width && other.x < x + width && y < other.y + other.height && other.y < y + height
+
+    companion object {
+        val Zero = UiRect(0f, 0f, 0f, 0f)
+    }
+}
+
+
+data class UiLayoutNode(
+    val node: UiNode,
+    val rect: UiRect,
+    val content: UiRect,
+    val clip: UiRect?,
+    val worldTransform: UiMatrix4,
+    val inputTransform: UiMatrix4,
+    val needsFramebuffer: Boolean,
+    val scrollOffset: UiScrollOffset = UiScrollOffset.Zero,
+    val scrollRange: UiScrollOffset = UiScrollOffset.Zero,
+    val scrollArea: UiRect = content,
+    val virtualContentBounds: UiRect? = null,
+    val textLayout: UiTextLayout? = null,
+    val inlineDecoration: InlineGroupDecoration? = null,
+)
+
+data class UiLayoutResult(
+    val root: UiNode,
+    val nodes: Map<UiNode, UiLayoutNode>,
+    val traversalOrder: List<UiNode> = nodes.keys.toList(),
+    /** Framework-synthesized scrollbars per scroll container (not part of node.children). */
+    val scrollbars: Map<UiNode, List<ScrollbarNode>> = emptyMap(),
+) {
+    operator fun get(node: UiNode): UiLayoutNode = nodes.getValue(node)
+}
+
+internal fun UiLayoutNode.inlineWidgetMetrics(): Map<String, UiInlineWidgetMetrics> {
+    val layout = textLayout ?: return emptyMap()
+    return layout.lines
+        .flatMap { line -> line.fragments.filterIsInstance<UiInlineWidgetRun>() }
+        .associate { fragment -> fragment.widget.id to UiInlineWidgetMetrics(fragment.width, fragment.height) }
+}
+
+
+internal data class UiScrollbarReserve(
+    val vertical: Boolean = false,
+    val horizontal: Boolean = false,
+) {
+    val active: Boolean get() = vertical || horizontal
+
+    companion object {
+        val None = UiScrollbarReserve()
+    }
+}
+
+internal data class LayoutSize(val width: Float, val height: Float)
+
+internal data class MeasuredChild(
+    val node: UiNode,
+    val style: UiComputedStyle,
+    val size: LayoutSize,
+    val margin: ResolvedUiInsets,
+)
+
+internal data class NodeBoxes(
+    val scrollArea: UiRect,
+    val content: UiRect,
+)
+
+
+internal data class ResolvedUiInsets(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+) {
+    val horizontal: Float get() = left + right
+    val vertical: Float get() = top + bottom
+}

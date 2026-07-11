@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.client.kool
+package ru.hollowhorizon.hollowengine.client.kool
 
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.UiScale

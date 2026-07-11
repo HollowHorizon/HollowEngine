@@ -1,0 +1,4 @@
+<column tags="xml-notice" data-kind="notice">
+    <text tags="xml-notice-title">Registry-backed attributes</text>
+    <text tags="xml-notice-body">Unknown XML attributes are available to HSS selectors.</text>
+</column>

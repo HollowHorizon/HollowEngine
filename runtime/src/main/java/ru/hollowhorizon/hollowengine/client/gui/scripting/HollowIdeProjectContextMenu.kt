@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FILE
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FOLDER
@@ -22,13 +23,15 @@ internal fun HollowIdeProjectContextMenu(
     onPaste: (String) -> Unit,
     onShowInExplorer: (String) -> Unit,
     onDelete: (String) -> Unit,
+    onDismiss: () -> Unit,
 ) {
     if (menu == null) return
     Popup(
-        anchor = UiPopupAnchor.Cursor(menu.x, menu.y),
+        anchorBounds = UiRect(menu.x, menu.y, 0f, 0f),
         alignment = UiPopupAlignment.Cursor,
         id = "project-context-menu",
         tags = listOf("dropdown-popup", "project-context-menu"),
+        onDismiss = onDismiss,
     ) {
         ProjectMenuItem("New File", "Ctrl+N", CREATE_FILE.toString()) { onCreateFile(menu.path) }
         ProjectMenuItem("New Folder", "Ctrl+Shift+N", CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
@@ -50,7 +53,7 @@ internal fun HollowIdeProjectNameDialog(
 ) {
     if (dialog == null) return
     Popup(
-        anchor = UiPopupAnchor.Cursor(dialog.x, dialog.y),
+        anchorBounds = UiRect(dialog.x, dialog.y, 0f, 0f),
         alignment = UiPopupAlignment.Cursor,
         id = "project-name-dialog",
         tags = listOf("dropdown-popup", "project-name-dialog"),
@@ -74,15 +77,13 @@ internal fun HollowIdeProjectNameDialog(
 private fun ProjectMenuItem(label: String, shortcut: String, icon: String? = null, action: () -> Unit) {
     Row(
         tags = listOf("dropdown-item", "project-context-menu-item"),
-        modifier = Modifier.then(
-            Modifier.input(hoverable = true, clickable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.alignItems(vertical = UiAlign.CENTER),
-            Modifier.onClick { event ->
+        modifier = Modifier.input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .alignItems(vertical = UiAlign.CENTER)
+            .onClick { event ->
                 action()
                 event.consume()
-            },
-        ),
+            }
     ) {
         if (icon != null) Image(icon, tags = listOf("dropdown-item-icon", "project-context-menu-icon"))
         Text(label, tags = listOf("dropdown-item-label", "project-context-menu-label"))

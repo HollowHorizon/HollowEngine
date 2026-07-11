@@ -77,7 +77,6 @@ import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
 import ru.hollowhorizon.hollowengine.common.config.Config
@@ -789,7 +788,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         cameraY: Double,
         cameraZ: Double,
     ) {
-        IrisRenderManager.renderIrisShadowCasters(poseStack, bufferSource, partialTick, frustum, cameraX, cameraY, cameraZ)
+        IrisRenderManager.renderIrisShadowCasters(
+            poseStack,
+            bufferSource,
+            partialTick,
+            frustum,
+            cameraX,
+            cameraY,
+            cameraZ
+        )
     }
 
     override fun onIrisShadowRenderEnd() {
@@ -842,14 +849,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         }
 
         return HollowIdeOverlay.handleKey(key, scanCode, action, modifiers) || HollowIdeOverlay.hasFocusedInput() ||
-                KatariUiOverlays.handleKey(key, scanCode, action, modifiers) || KatariUiOverlays.hasFocusedInput() ||
                 isAnyFocusNodeInput()
     }
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
         KeyboardInput.handleCharTyped(codePoint.toChar())
         return HollowIdeOverlay.handleChar(codePoint, modifiers) || HollowIdeOverlay.hasFocusedInput() ||
-                KatariUiOverlays.handleChar(codePoint, modifiers) || KatariUiOverlays.hasFocusedInput() ||
                 isAnyFocusNodeInput()
     }
 
@@ -865,8 +870,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedY = (yPos * scaleFactor).toFloat()
 
         KoolInputBridge.handleMouseMove(convertedX, convertedY)
-        val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY) ||
-                KatariUiOverlays.handleMouseMove(convertedX, convertedY)
+        val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
         val isScreenOpen = minecraft.screen != null
         val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
@@ -887,8 +891,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val pressed = action == org.lwjgl.glfw.GLFW.GLFW_PRESS
         KoolInputBridge.handleMouseButtonEvent(button, pressed)
 
-        return HollowIdeOverlay.handleMouseButton(x, y, button, action, modifiers) ||
-                KatariUiOverlays.handleMouseButton(x, y, button, action, modifiers) ||
+        return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
                 isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
@@ -904,7 +907,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
 
         return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
-                KatariUiOverlays.handleMouseScroll(x, y, xOffset, yOffset) ||
                 isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }

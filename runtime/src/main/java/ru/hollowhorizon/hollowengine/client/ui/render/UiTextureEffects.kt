@@ -5,7 +5,13 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.UiInsets
+import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathPoint
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import kotlin.math.abs
 
@@ -92,7 +98,7 @@ internal object UiTextureEffects {
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         val placement = imagePlacement(width, height, fit, texture)
         val finalTint = tint.withOpacity(opacity).filtered(filter)
-        val quadTransform = transform * UiMatrix4.translation(placement.x, placement.y, 0f)
+        val quadTransform = transform.translated(placement.x, placement.y)
         if (fit.isSliced) {
             addSlicedTexturedQuad(buffer, quadTransform, placement, texture, fit, slice, flipY, finalTint)
             BufferUploader.drawWithShader(buffer.buildOrThrow())
@@ -117,9 +123,18 @@ internal object UiTextureEffects {
         for (quad in quads) {
             val placement = imagePlacement(quad.width, quad.height, quad.fit, textureSize)
             val finalTint = quad.tint.withOpacity(quad.opacity).filtered(filter)
-            val quadTransform = quad.transform * UiMatrix4.translation(placement.x, placement.y, 0f)
+            val quadTransform = quad.transform.translated(placement.x, placement.y)
             if (quad.fit.isSliced) {
-                addSlicedTexturedQuad(buffer, quadTransform, placement, texture, quad.fit, quad.slice, quad.flipY, finalTint)
+                addSlicedTexturedQuad(
+                    buffer,
+                    quadTransform,
+                    placement,
+                    texture,
+                    quad.fit,
+                    quad.slice,
+                    quad.flipY,
+                    finalTint
+                )
             } else {
                 addTexturedQuad(buffer, quadTransform, placement, quad.flipY, finalTint)
             }
@@ -168,21 +183,16 @@ internal object UiTextureEffects {
             sampleHeight = abs(v1 - v0),
         )
         val tessellator = Tesselator.getInstance()
-        val segments = subdivisions.coerceAtLeast(1)
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         val finalTint = tint.withOpacity(opacity)
-        for (yIndex in 0 until segments) {
-            val y0 = yIndex.toFloat() / segments.toFloat()
-            val y1 = (yIndex + 1).toFloat() / segments.toFloat()
-            for (xIndex in 0 until segments) {
-                val x0 = xIndex.toFloat() / segments.toFloat()
-                val x1 = (xIndex + 1).toFloat() / segments.toFloat()
-                addTexturedVertex(buffer, transform, width, height, x0, y0, u0, v0, u1, v1, flipY, finalTint)
-                addTexturedVertex(buffer, transform, width, height, x0, y1, u0, v0, u1, v1, flipY, finalTint)
-                addTexturedVertex(buffer, transform, width, height, x1, y1, u0, v0, u1, v1, flipY, finalTint)
-                addTexturedVertex(buffer, transform, width, height, x1, y0, u0, v0, u1, v1, flipY, finalTint)
-            }
-        }
+        addTexturedQuad(
+            buffer,
+            transform,
+            ImagePlacement(0f, 0f, width, height, u0, v0, u1, v1),
+            flipY,
+            finalTint,
+            subdivisions,
+        )
         BufferUploader.drawWithShader(buffer.buildOrThrow())
     }
 
@@ -220,7 +230,8 @@ internal object UiTextureEffects {
                 sampleWidth = abs(u1 - u0),
                 sampleHeight = abs(v1 - v0),
             )
-            val buffer = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR)
+            val buffer =
+                Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR)
             val finalTint = tint.withOpacity(opacity)
             triangles.forEach { triangle ->
                 addShapeVertex(buffer, transform, width, height, triangle.first, u0, v0, u1, v1, flipY, finalTint)
@@ -416,7 +427,8 @@ internal object UiTextureEffects {
         tint: UiColor,
     ) {
         val textureSize = texture?.let(::textureSize) ?: (placement.width to placement.height)
-        val slices = slice.resolve(placement.width, placement.height).clamp(placement.width, placement.height, textureSize)
+        val slices =
+            slice.resolve(placement.width, placement.height).clamp(placement.width, placement.height, textureSize)
         val horizontal = when (fit) {
             UiImageFit.THREE_SLICE_VERTICAL -> listOf(SliceSpan(0f, placement.width, 0f, 1f))
             else -> sliceSpans(placement.width, textureSize.first, slices.left, slices.right)

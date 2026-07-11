@@ -5,6 +5,7 @@ import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.modules.ui2.UiSurface
 import net.minecraft.client.Minecraft
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
@@ -83,13 +84,45 @@ class CutsceneEditorSession {
         }
     }
 
-    private fun syncPlaybackFromTimeline() {
+    fun onHollowUiKey(key: Int, modifiers: Int): Boolean {
+        val ctrl = modifiers and GLFW.GLFW_MOD_CONTROL != 0
+        val shift = modifiers and GLFW.GLFW_MOD_SHIFT != 0
+        return when {
+            ctrl && key == GLFW.GLFW_KEY_Z -> {
+                if (shift) timeline.redo() else timeline.undo()
+                true
+            }
+            ctrl && key == GLFW.GLFW_KEY_Y -> {
+                timeline.redo()
+                true
+            }
+            key == GLFW.GLFW_KEY_DELETE -> {
+                timeline.deleteSelectedKeyframes()
+                true
+            }
+            key == GLFW.GLFW_KEY_ESCAPE -> {
+                timeline.clearSelection()
+                true
+            }
+            key == GLFW.GLFW_KEY_HOME -> {
+                timeline.setCurrentTime(0f)
+                true
+            }
+            key == GLFW.GLFW_KEY_SPACE -> {
+                timeline.togglePlayback()
+                true
+            }
+            else -> false
+        }
+    }
+
+    fun syncPlaybackFromTimeline() {
         playback.setDuration(timeline.workAreaEnd.value)
         playback.seek(timeline.currentTime.value)
         updatePreviewState()
     }
 
-    private fun updatePreviewState() {
+    fun updatePreviewState() {
         if (timeline.isCameraPreviewEnabled.value) {
             CutsceneCameraSystem.preview(playback)
         } else if (CutsceneCameraSystem.activeController === playback) {

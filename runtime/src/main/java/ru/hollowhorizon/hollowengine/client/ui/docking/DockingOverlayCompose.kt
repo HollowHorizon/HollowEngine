@@ -9,15 +9,13 @@ internal fun FloatingResizeHandle(window: FloatingDockWindow, state: DockingStat
         Box(
             id = "${window.id}-resize-${edge.name.lowercase()}",
             tags = listOf(DockTags.ResizeHandle),
-            modifier = Modifier.then(
-                resizeHandleModifier(edge),
-                Modifier.input(hoverable = true, draggable = true),
-                Modifier.cursor(edge.cursorShape),
-                Modifier.onDrag { event ->
+            modifier = Modifier.resizeHandleModifier(edge)
+                .input(hoverable = true, draggable = true)
+                .cursor(edge.cursorShape)
+                .onDrag { event ->
                     state.resizeFloating(window.id, edge, event.deltaX, event.deltaY)
                     event.consume()
-                },
-            ),
+                }
         )
     }
 }
@@ -27,10 +25,8 @@ internal fun DockDropOverlay(state: DockingState) {
     Box(
         id = "dock-drop-overlay",
         tags = listOf(DockTags.DropOverlay),
-        modifier = Modifier.then(
-            Modifier.size(100.percent, 100.percent),
-            Modifier.layer(10_000),
-        ),
+        modifier = Modifier.size(100.percent, 100.percent)
+            .layer(10_000)
     ) {
         val root = state.root
         if (root == null) {
@@ -122,74 +118,53 @@ private fun DockDropZone(
     Box(
         id = "dock-drop-${target.anchorId ?: "root"}-${target.placement.name.lowercase()}",
         tags = listOf(DockTags.DropZone),
-        modifier = Modifier.then(
-            Modifier.size(width, height),
-            Modifier.layer(layer),
-            Modifier.background(if (active) DockColors.DropZoneActive else DockColors.DropZone),
-            Modifier.border(1.px, if (active) DockColors.DropZoneBorderActive else DockColors.DropZoneBorder),
-            Modifier.input(hoverable = true, clickable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.onHover {
+        modifier = Modifier.size(width, height)
+            .layer(layer)
+            .background(if (active) DockColors.DropZoneActive else DockColors.DropZone)
+            .border(1.px, if (active) DockColors.DropZoneBorderActive else DockColors.DropZoneBorder)
+            .input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .onHover {
                 state.previewDock(target)
-            },
-            Modifier.onExit {
+            }
+            .onExit {
                 if (state.previewTarget == target) state.previewDock(null)
-            },
-            Modifier.onRelease { event ->
+            }
+            .onRelease { event ->
                 state.dockDraggedWindow(target)
                 event.consume()
-            },
-            if (x == null || y == null) {
-                if (target.placement == DockPlacement.LEFT || target.placement == DockPlacement.RIGHT) {
-                    Modifier.align(
-                        horizontal = if (target.placement == DockPlacement.RIGHT) UiAlign.END else UiAlign.START,
-                        vertical = UiAlign.CENTER,
-                    )
-                } else {
-                    Modifier.align(
-                        horizontal = UiAlign.CENTER,
-                        vertical = if (target.placement == DockPlacement.BOTTOM) UiAlign.END else UiAlign.START,
-                    )
-                }
-            } else Modifier.position(x, y)
-
-        ),
+            }.then(
+                if (x == null || y == null) {
+                    if (target.placement == DockPlacement.LEFT || target.placement == DockPlacement.RIGHT) {
+                        Modifier.align(
+                            horizontal = if (target.placement == DockPlacement.RIGHT) UiAlign.END else UiAlign.START,
+                            vertical = UiAlign.CENTER,
+                        )
+                    } else {
+                        Modifier.align(
+                            horizontal = UiAlign.CENTER,
+                            vertical = if (target.placement == DockPlacement.BOTTOM) UiAlign.END else UiAlign.START,
+                        )
+                    }
+                } else Modifier.position(x, y)
+            )
     )
 }
 
-private fun resizeHandleModifier(edge: DockResizeEdge): Modifier {
+private fun Modifier.resizeHandleModifier(edge: DockResizeEdge): Modifier {
     val thickness = 2.px
     val corner = 6.px
-    val layer = if (edge.isCorner) Modifier.layer(1) else Modifier.layer(0)
-    return Modifier.then(
-        layer, when (edge) {
-            DockResizeEdge.LEFT -> Modifier.then(Modifier.position(0.px, 0.px), Modifier.size(thickness, 100.percent))
-            DockResizeEdge.RIGHT -> Modifier.then(
-                Modifier.align(UiAlign.END, UiAlign.START),
-                Modifier.size(thickness, 100.percent)
-            )
-
-            DockResizeEdge.TOP -> Modifier.then(Modifier.position(0.px, 0.px), Modifier.size(100.percent, thickness))
-            DockResizeEdge.BOTTOM -> Modifier.then(
-                Modifier.align(UiAlign.START, UiAlign.END),
-                Modifier.size(100.percent, thickness)
-            )
-
-            DockResizeEdge.TOP_LEFT -> Modifier.then(Modifier.position(0.px, 0.px), Modifier.size(corner, corner))
-            DockResizeEdge.TOP_RIGHT -> Modifier.then(
-                Modifier.align(UiAlign.END, UiAlign.START),
-                Modifier.size(corner, corner)
-            )
-
-            DockResizeEdge.BOTTOM_LEFT -> Modifier.then(
-                Modifier.align(UiAlign.START, UiAlign.END),
-                Modifier.size(corner, corner)
-            )
-
-            DockResizeEdge.BOTTOM_RIGHT -> Modifier.then(
-                Modifier.align(UiAlign.END, UiAlign.END),
-                Modifier.size(corner, corner)
-            )
+    val layer = if (edge.isCorner) layer(1) else layer(0)
+    return layer.then(
+        when (edge) {
+            DockResizeEdge.LEFT -> Modifier.position(0.px, 0.px).size(thickness, 100.percent)
+            DockResizeEdge.RIGHT -> Modifier.align(UiAlign.END, UiAlign.START).size(thickness, 100.percent)
+            DockResizeEdge.TOP -> Modifier.position(0.px, 0.px).size(100.percent, thickness)
+            DockResizeEdge.BOTTOM -> Modifier.align(UiAlign.START, UiAlign.END).size(100.percent, thickness)
+            DockResizeEdge.TOP_LEFT -> Modifier.position(0.px, 0.px).size(corner, corner)
+            DockResizeEdge.TOP_RIGHT -> Modifier.align(UiAlign.END, UiAlign.START).size(corner, corner)
+            DockResizeEdge.BOTTOM_LEFT -> Modifier.align(UiAlign.START, UiAlign.END).size(corner, corner)
+            DockResizeEdge.BOTTOM_RIGHT -> Modifier.align(UiAlign.END, UiAlign.END).size(corner, corner)
         }
     )
 }

@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.cutscene
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.UiScope
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.gui.timeline.*
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CameraCutsceneTracks
@@ -15,12 +14,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class CutsceneTest {
-
-    private val testJson = Json {
-        prettyPrint = true
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
 
     @Test
     fun `easing registry resolves all names`() {

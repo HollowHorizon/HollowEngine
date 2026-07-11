@@ -1,15 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
 import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineImageRun
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.UiInlineWidgetRun
-import ru.hollowhorizon.hollowengine.client.ui.UiTextFragment
-import ru.hollowhorizon.hollowengine.client.ui.UiTextLayouter
-import ru.hollowhorizon.hollowengine.client.ui.UiTextLine
-import ru.hollowhorizon.hollowengine.client.ui.UiTextRun
-import ru.hollowhorizon.hollowengine.client.ui.UiTextSpaceRun
-import ru.hollowhorizon.hollowengine.client.ui.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.text.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
+import ru.hollowhorizon.hollowengine.client.ui.widgets.fontFamily
 
 internal object UiTextOverflowResolver {
     private const val ELLIPSIS = "…"
@@ -35,7 +29,7 @@ internal object UiTextOverflowResolver {
         private val fragments = mutableListOf<UiTextFragment>()
         private val text = StringBuilder()
         private var cursorX = 0f
-        private var ellipsisStyle = UiInlineStyle()
+        private var ellipsisStyle = UiInlineStyle.Empty
         private var ellipsisHeight = command.fontSize
 
         fun append(fragment: UiTextFragment): Boolean {
@@ -44,6 +38,7 @@ internal object UiTextOverflowResolver {
                 is UiTextSpaceRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }.also {
                     if (it) text.append(' ')
                 }
+
                 is UiInlineImageRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }
                 is UiInlineWidgetRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }
             }
@@ -64,7 +59,12 @@ internal object UiTextOverflowResolver {
         }
 
         fun toLine(line: UiTextLine): UiTextLine {
-            return line.copy(text = text.toString(), width = availableWidth, naturalWidth = availableWidth, fragments = fragments)
+            return line.copy(
+                text = text.toString(),
+                width = availableWidth,
+                naturalWidth = availableWidth,
+                fragments = fragments
+            )
         }
 
         private fun appendText(fragment: UiTextRun): Boolean {
@@ -129,7 +129,7 @@ internal object UiTextOverflowResolver {
 private fun UiTextLine.asTextRun(command: DrawTextCommand): UiTextRun {
     return UiTextRun(
         text = text,
-        style = UiInlineStyle(),
+        style = UiInlineStyle.Empty,
         x = 0f,
         y = 0f,
         width = naturalWidth,

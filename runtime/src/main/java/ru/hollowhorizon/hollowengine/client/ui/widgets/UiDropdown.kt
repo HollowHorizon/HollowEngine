@@ -1,19 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import androidx.compose.runtime.Composable
-import ru.hollowhorizon.hollowengine.client.ui.Box
-import ru.hollowhorizon.hollowengine.client.ui.Checkbox
-import ru.hollowhorizon.hollowengine.client.ui.Image
-import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Popup
-import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.Text
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.UiCheckboxVariant
-import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
-import ru.hollowhorizon.hollowengine.client.ui.UiEvent
-import ru.hollowhorizon.hollowengine.client.ui.UiPopupAnchor
-import ru.hollowhorizon.hollowengine.client.ui.px
+import androidx.compose.runtime.*
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 
 enum class UiDropdownMark {
     CHECKBOX,
@@ -40,18 +29,18 @@ fun UiDropdown(
     icon: String? = null,
     tags: Iterable<String> = emptyList(),
 ) {
+    var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
     Row(
         id = id,
         tags = listOf("dropdown-button") + tags,
-        modifier = Modifier.then(
-            Modifier.input(hoverable = true, clickable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.alignItems(vertical = UiAlign.CENTER),
-            Modifier.onClick { event ->
+        modifier = Modifier.input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .alignItems(vertical = UiAlign.CENTER)
+            .onPlaced { anchorBounds = it }
+            .onClick { event ->
                 onExpandedChange(!expanded)
                 event.consume()
-            },
-        ),
+            }
     ) {
         if (icon != null) Image(icon, tags = listOf("dropdown-button-icon"))
         Text(label, tags = listOf("dropdown-button-label"))
@@ -60,14 +49,15 @@ fun UiDropdown(
 
     if (!expanded) return
     Popup(
-        anchor = UiPopupAnchor.Node(id),
+        anchorBounds = anchorBounds,
         id = "$id-popup",
         tags = listOf("dropdown-popup"),
+        onDismiss = { onExpandedChange(false) },
     ) {
         items.forEachIndexed { index, item ->
             val itemAction: (UiEvent) -> Unit = { event ->
                 if (item.enabled) {
-                    if (item.closeOnClick) onExpandedChange(false)
+                    if (item.closeOnClick) dismiss()
                     item.onClick()
                     event.consume()
                 }
@@ -75,12 +65,10 @@ fun UiDropdown(
             Row(
                 id = "$id-item-$index",
                 tags = if (item.enabled) listOf("dropdown-item") else listOf("dropdown-item", "disabled"),
-                modifier = Modifier.then(
-                    Modifier.input(hoverable = item.enabled, clickable = item.enabled),
-                    Modifier.cursor(if (item.enabled) UiCursorShape.HAND else UiCursorShape.DEFAULT),
-                    Modifier.alignItems(vertical = UiAlign.CENTER),
-                    Modifier.onClick(itemAction),
-                ),
+                modifier = Modifier.input(hoverable = item.enabled, clickable = item.enabled)
+                    .cursor(if (item.enabled) UiCursorShape.HAND else UiCursorShape.DEFAULT)
+                    .alignItems(vertical = UiAlign.CENTER)
+                    .onClick(itemAction)
             ) {
                 if (item.mark != null) {
                     Checkbox(

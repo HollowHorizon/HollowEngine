@@ -7,6 +7,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Script
 
 interface ScriptingAnalyzer {
     fun highlight(name: String, text: String, offset: Int): List<TextLine>
+
+    /** Ranges to highlight for the symbol/bracket at [offset]; cheap compared to [highlight]. */
+    fun occurrences(name: String, text: String, offset: Int): List<OccurrenceRange> = emptyList()
+
     fun lightweightHighlightLine(name: String, line: String): TextLine {
         return TextLine(listOf(line to SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)), ArrayList())
     }
@@ -15,6 +19,11 @@ interface ScriptingAnalyzer {
     fun definition(name: String, text: String, offset: Int): DefinitionLocation? = null
     fun diagnostic(name: String, text: String): List<Diagnostic>
 }
+
+data class OccurrenceRange(
+    val start: Int,
+    val end: Int,
+)
 
 data class DefinitionLocation(
     val path: String,

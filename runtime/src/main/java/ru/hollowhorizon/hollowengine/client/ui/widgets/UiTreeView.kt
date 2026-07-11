@@ -25,10 +25,7 @@ fun <T> UiTreeView(
 ) {
     LazyColumn(
         tags = listOf("tree-view") + tags,
-        modifier = Modifier.then(
-            modifier,
-            Modifier.input(scrollable = true),
-        ),
+        modifier = modifier.scroll(vertical = true, horizontal = true)
     ) {
         items.forEach { item ->
             key(item) {
@@ -47,16 +44,14 @@ private fun <T> UiTreeRow(
     Row(
         id = "tree-item-${item.id}",
         tags = if (item.selected) listOf("tree-item", "selected") else listOf("tree-item"),
-        modifier = Modifier.then(
-            Modifier.size(100.percent, 24.px),
-            Modifier.alignItems(vertical = UiAlign.CENTER),
-            Modifier.input(hoverable = true, clickable = true),
-            Modifier.cursor(UiCursorShape.HAND),
-            Modifier.onClick { event ->
+        modifier = Modifier.size(100.percent, 24.px)
+            .alignItems(vertical = UiAlign.CENTER)
+            .input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .onClick { event ->
                 onSelect(item, event)
                 event.consume()
-            },
-        ),
+            }
     ) {
         repeat(item.depth) {
             Box(tags = listOf("tree-indent"))

@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.client.ui.hss.parseHssSelector
+import ru.hollowhorizon.hollowengine.client.ui.style.parseHssSelector
+import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 
 enum class UiEventKind {
     INIT,
@@ -19,6 +22,28 @@ enum class UiEventKind {
     KEY_PRESSED,
     FOCUS,
     UNFOCUS;
+
+    val isPointerEvent: Boolean
+        get() = when (this) {
+            ENTER,
+            EXIT,
+            HOVER,
+            PRESS,
+            CLICK,
+            RELEASE,
+            DRAG,
+            SCROLL,
+                -> true
+
+            INIT,
+            UPDATE,
+            CLOSE,
+            CHAR_TYPED,
+            KEY_PRESSED,
+            FOCUS,
+            UNFOCUS,
+                -> false
+        }
 
     val attributeName: String
         get() = name.lowercase().split('_').joinToString("-")
@@ -80,8 +105,6 @@ data class UiEvent(
     var changed: Boolean = false
         private set
 
-    var variables: CompoundTag = CompoundTag()
-
     fun consume() {
         consumed = true
     }
@@ -102,7 +125,7 @@ data class UiEvent(
             "node.type", "type" -> node.type
             "node.value", "value" -> node.readWidgetValue()
             "node.checked", "checked" -> (node as? CheckboxNode)?.checked
-            "node.text", "text" -> (node as? TextFieldNode)?.value ?: (node as? TextNode)?.text?.template
+            "node.text", "text" -> node.spanText().ifEmpty { null }
             "button" -> button
             "x" -> x
             "y" -> y
@@ -138,10 +161,12 @@ data class UiEvent(
 private fun UiNode.readWidgetValue(): Any? = when (this) {
     is SliderNode -> value
     is CheckboxNode -> checked
-    is TextFieldNode -> value
-    is TextNode -> text.template
+    is SpanNode -> text
     else -> attributes["value"]
 }
+
+private fun UiNode.spanText(): String =
+    if (this is SpanNode) text else children.joinToString("") { it.spanText() }
 
 fun interface UiEventSink {
     fun emit(payload: CompoundTag)
@@ -153,22 +178,30 @@ fun interface UiEventSink {
 
 fun UiNode.dispatch(event: UiEvent): Boolean {
     var handled = false
-    modifiers.flattenModifiers().forEach { modifier ->
+    // Key events go to onKeyInput handlers first, ordered by priority; each may consume the
+    // event to stop lower-priority handlers (including built-in widget keymaps).
+    if (event.kind == UiEventKind.KEY_PRESSED) {
+        val keyInput = UiKeyInput(event)
+        val keyHandlers = resolvedModifiers
+            .filterIsInstance<KeyInputModifier>()
+            .sortedByDescending { it.priority }
+        for (modifier in keyHandlers) {
+            if (event.consumed) break
+            handled = true
+            modifier.handler(keyInput)
+        }
+    }
+    resolvedModifiers.forEach { modifier ->
         if (event.consumed) return@forEach
         when (modifier) {
             is EventModifier -> if (modifier.kind == event.kind) {
                 handled = true
-                modifier.handler(event)
+                if (event.kind.isPointerEvent) modifier.onPointerEvent(event) else modifier.handler(event)
             }
 
-            is KeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED) {
+            is PointerInputModifierNode -> if (event.kind.isPointerEvent) {
                 handled = true
-                if (modifier.handler(UiKeyInput(event))) event.consume()
-            }
-
-            TextFieldDefaultKeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED && this is TextFieldNode) {
-                handled = true
-                if (handleDefaultTextFieldKeyInput(UiKeyInput(event))) event.consume()
+                modifier.onPointerEvent(event)
             }
 
             else -> Unit

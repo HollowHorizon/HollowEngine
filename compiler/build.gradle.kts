@@ -146,6 +146,8 @@ dependencies {
     testRuntimeOnly(files(patchedLightTreeJar.flatMap { it.archiveFile }))
     testRuntimeOnly("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     testRuntimeOnly("org.apache.logging.log4j:log4j-api:2.23.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

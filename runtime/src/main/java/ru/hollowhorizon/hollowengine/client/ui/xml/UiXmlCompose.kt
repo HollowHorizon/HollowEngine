@@ -2,13 +2,17 @@ package ru.hollowhorizon.hollowengine.client.ui.xml
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileStyleModifier
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
+import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 
 @Composable
 fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {
-    val document = remember(root, options) { UiXmlComposeCompiler(options).compile(root) }
+    val anchorBounds = remember(root) { mutableStateMapOf<String, UiRect>() }
+    val document = remember(root, options, anchorBounds) { UiXmlComposeCompiler(options, anchorBounds).compile(root) }
 
     val rootElement = document.resolve(document.root)
     if (rootElement.name.isLayoutContainer()) {
@@ -20,33 +24,71 @@ fun UiXmlContent(root: UiXmlTree, options: UiXmlOptions = UiXmlOptions()) {
     }
 }
 
-private class UiXmlComposeCompiler(private val options: UiXmlOptions) {
+private class UiXmlComposeCompiler(
+    private val options: UiXmlOptions,
+    private val anchorBounds: MutableMap<String, UiRect>,
+) {
+    private val imports = linkedMapOf<String, UiXmlTree>()
+
     fun compile(root: UiXmlTree): UiXmlComposeDocument {
-        val imports = linkedMapOf<String, UiXmlTree>()
+        imports.clear()
         val roots = mutableListOf<UiXmlTree>()
         val documents = if (root.name == DocumentElementName) root.children else listOf(root)
         for (element in documents) {
             when {
                 element.name.equals("import", ignoreCase = true) -> {
                     val name = element.attributes["named"] ?: element.attributes["name"]
-                        ?: throw IllegalArgumentException("UI import requires 'named'")
+                    ?: throw IllegalArgumentException("UI import requires 'named'")
                     val location = element.attributes["element"]
                         ?: throw IllegalArgumentException("UI import '$name' requires 'element'")
                     imports[name] = loadImportedElement(location)
                 }
 
+                element.name.equals("script", ignoreCase = true) -> Unit
+
                 else -> roots += element
             }
         }
         require(roots.size == 1) { "UI document must contain exactly one root element" }
-        return UiXmlComposeDocument(roots.single(), imports, options)
+        val rootElement = roots.single()
+        return UiXmlComposeDocument(
+            rootElement,
+            imports,
+            options,
+            anchorBounds,
+            collectPopupAnchorIds(rootElement),
+        )
     }
 
     private fun loadImportedElement(location: String): UiXmlTree {
         val document = parseUiXml(options.resources.readText(location), location)
-        val elements = document.children.filterNot { it.name.equals("import", true) }
+        val elements = document.children.filterNot { it.name.equals("import", true) || it.name.equals("script", true) }
         require(elements.size == 1) { "Imported UI '$location' must contain exactly one element root" }
         return elements.single()
+    }
+
+    private fun collectPopupAnchorIds(element: UiXmlTree): Set<String> {
+        val anchors = linkedSetOf<String>()
+        collectPopupAnchorIds(element, anchors)
+        return anchors
+    }
+
+    private fun collectPopupAnchorIds(element: UiXmlTree, anchors: MutableSet<String>) {
+        val resolved = resolve(element)
+        if (resolved.name.equals("popup", ignoreCase = true)) {
+            resolved.attributes.firstValue("anchor", "anchor-id", "anchorId")
+                .takeIf { it.isNotBlank() }
+                ?.let { anchors += it }
+        }
+        resolved.children.forEach { child -> collectPopupAnchorIds(child, anchors) }
+    }
+
+    private fun resolve(element: UiXmlTree): UiXmlTree {
+        val imported = imports[element.name] ?: return element
+        return imported.copy(
+            attributes = imported.attributes + element.attributes,
+            children = element.children.ifEmpty { imported.children },
+        )
     }
 
     private companion object {
@@ -58,6 +100,8 @@ private data class UiXmlComposeDocument(
     val root: UiXmlTree,
     val imports: Map<String, UiXmlTree>,
     val options: UiXmlOptions,
+    val anchorBounds: MutableMap<String, UiRect>,
+    val anchorIds: Set<String>,
 ) {
     fun resolve(element: UiXmlTree): UiXmlTree {
         val imported = imports[element.name] ?: return element
@@ -79,10 +123,12 @@ private fun UiXmlElement(
         "UI <button> was removed; use <box> with event handlers and nested <text> instead"
     }
     val attributes = resolved.attributes
-    val modifiers = attributes.toModifiers(document.options) + extraModifiers
-    val modifier = modifiers.asModifier()
-    val customAttributes = attributes.customAttributes()
+    val resolvedAttributes = document.options.attributes.resolve(attributes, document.options)
+    val modifiers = (resolvedAttributes.modifiers + extraModifiers).toMutableList()
+    val customAttributes = resolvedAttributes.customAttributes
     val id = attributes["id"]
+    modifiers.trackXmlAnchor(id, document)
+    val modifier = CompositeModifier(modifiers)
     val tags = attributes.tags(resolved.name)
     when (resolved.name.lowercase()) {
         "box" -> Box(id, attributes.boxMode(), tags, modifier, customAttributes) {
@@ -105,15 +151,15 @@ private fun UiXmlElement(
             UiXmlChildren(resolved, document)
         }
 
-        "text" -> Text(resolved.toTextContent(), id, tags, modifier, customAttributes) {
-            UiXmlInlineWidgetChildren(resolved, document)
+        "text" -> Text(id, tags, modifier, customAttributes) {
+            UiXmlInlineContent(resolved, emptyList(), document, inlineWidgets = true)
         }
+
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
-        "canvas" -> Canvas(attributes["renderer"], id, tags, modifier, customAttributes)
         "popup" -> Popup(
-            anchor = attributes.popupAnchor(),
+            anchorBounds = attributes.popupAnchorBounds(document, LocalPointer.current),
             alignment = attributes.popupAlignment(),
             id = id,
             tags = tags,
@@ -156,10 +202,15 @@ private fun UiXmlElement(
         )
 
         else -> Element(resolved.name, id, tags, modifier, customAttributes) {
-            InlineTextChild(resolved)
+            InlineTextChild(resolved, document)
             UiXmlChildren(resolved, document)
         }
     }
+}
+
+private fun MutableList<Modifier>.trackXmlAnchor(id: String?, document: UiXmlComposeDocument) {
+    if (id == null || id !in document.anchorIds) return
+    add(Modifier.onPlaced { bounds -> document.anchorBounds[id] = bounds })
 }
 
 @Composable
@@ -173,60 +224,65 @@ private fun UiXmlChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
         }
 }
 
+/**
+ * Emits an element's inline text as [Span]s (with accumulated [effects]), inline `<img>` as
+ * [Image] atoms and, when [inlineWidgets] is set (inside `<text>`), any block child as an inline
+ * widget flowing in the line. Inline elements recurse, accumulating their effects onto each span.
+ */
 @Composable
-private fun UiXmlInlineWidgetChildren(element: UiXmlTree, document: UiXmlComposeDocument) {
-    element.children
-        .filterNot { it.isTextLiteral() || it.isTextInlineElement() }
-        .forEachIndexed { index, child ->
-            key(child.composeKey(index)) {
-                UiXmlElement(child.withInlineWidgetId(index), document)
+private fun UiXmlInlineContent(
+    element: UiXmlTree,
+    effects: List<UiTextEffect>,
+    document: UiXmlComposeDocument,
+    inlineWidgets: Boolean,
+) {
+    element.attributes["text"]?.let { literal ->
+        if (literal.isNotEmpty()) Span(literal, modifier = effects.asTextModifier())
+        return
+    }
+    element.children.forEachIndexed { index, child ->
+        key(child.composeKey(index)) {
+            when {
+                child.isTextLiteral() -> {
+                    val text = child.textLiteral()
+                    if (text.isNotEmpty()) Span(text, modifier = effects.asTextModifier())
+                }
+
+                child.isInlineBreak() -> Span("\n", modifier = effects.asTextModifier())
+                child.isInlinePause() -> Unit
+                child.isInlineImage() -> UiXmlInlineImage(child)
+                child.isTextInlineElement() ->
+                    UiXmlInlineContent(child, effects + child.inlineTagEffects(), document, inlineWidgets)
+
+                inlineWidgets -> UiXmlElement(child.withInlineWidgetId(index), document)
             }
         }
+    }
 }
 
 @Composable
-private fun InlineTextChild(element: UiXmlTree) {
+private fun UiXmlInlineImage(element: UiXmlTree) {
+    val image = element.inlineImage()
+    Image(
+        image.source,
+        modifier = Modifier.size(image.width.px, image.height.px).align(vertical = image.align),
+    )
+}
+
+private fun List<UiTextEffect>.asTextModifier(): Modifier? =
+    if (isEmpty()) null else Modifier.textEffects(*toTypedArray())
+
+@Composable
+private fun InlineTextChild(element: UiXmlTree, document: UiXmlComposeDocument) {
     if (element.children.none { it.isTextLiteral() || it.isTextInlineElement() }) return
-    val content = element.toTextContent(onlyDirectText = true).trimBoundaryText()
-    if (content.asTemplate().isNotBlank()) {
-        Text(content)
+    Text {
+        UiXmlInlineContent(element, emptyList(), document, inlineWidgets = false)
     }
 }
 
 private fun UiXmlTree.composeKey(index: Int): String {
-    return attributes["id"] ?: "$index:${name.lowercase()}:${attributes["tag"]}:${attributes["tags"]}:${attributes["class"]}"
-}
-
-private fun Map<String, String>.toModifiers(options: UiXmlOptions): List<Modifier> {
-    val modifiers = mutableListOf<Modifier>()
-    for ((rawName, rawValue) in this) {
-        val name = rawName.toModifierName()
-        when {
-            name in StructuralAttributes -> Unit
-            name == "style" -> modifiers += Modifier.style(rawValue)
-            name.toEventKind() != null -> modifiers += eventModifier(name.toEventKind()!!, rawValue, options)
-            else -> compileStyleModifier(name, rawValue)?.let { modifiers += it }
-        }
-    }
-    return modifiers
-}
-
-private fun Map<String, String>.customAttributes(): Map<String, String> {
-    return filterKeys { rawName ->
-        val name = rawName.toModifierName()
-        name !in StructuralAttributes &&
-                name != "style" &&
-                name.toEventKind() == null &&
-                compileStyleModifier(name, getValue(rawName)) == null
-    }
-}
-
-private fun eventModifier(kind: UiEventKind, rawValue: String, options: UiXmlOptions): Modifier {
-    val trimmed = rawValue.trim()
-    if (trimmed.startsWith("{")) {
-        return Modifier.emitOn(kind, UiEventPayloadTemplate.parse(trimmed), options.eventSink)
-    }
-    return Modifier.eventScript(kind, trimmed, options.eventSink)
+    return attributes["id"]
+        ?: "$index:${name.lowercase()}:${attributes["tag"]}:${attributes["tags"]}:${attributes["class"]}"
 }
 
 private fun Map<String, String>.tags(elementName: String): List<String> {
@@ -235,21 +291,6 @@ private fun Map<String, String>.tags(elementName: String): List<String> {
         .filter { it.isNotBlank() }
     return (explicit + elementName.lowercase()).distinct()
 }
-
-private fun String.toModifierName(): String {
-    val result = StringBuilder()
-    forEachIndexed { index, char ->
-        if (char.isUpperCase()) {
-            if (index > 0) result.append('-')
-            result.append(char.lowercaseChar())
-        } else {
-            result.append(char.lowercaseChar())
-        }
-    }
-    return result.toString()
-}
-
-private fun String.toEventKind(): UiEventKind? = UiEventKind.fromAttribute(this)
 
 private fun String.isLayoutContainer(): Boolean {
     return equals("box", ignoreCase = true) ||
@@ -269,12 +310,6 @@ private fun Map<String, String>.boxMode(): UiBoxMode {
     }
 }
 
-private fun List<Modifier>.asModifier(): Modifier? = when (size) {
-    0 -> null
-    1 -> single()
-    else -> Modifier.then(*toTypedArray())
-}
-
 private fun Map<String, String>.firstValue(vararg names: String): String {
     return names.firstNotNullOfOrNull { this[it] } ?: ""
 }
@@ -288,22 +323,15 @@ private fun Map<String, String>.textFieldMode(): UiTextFieldMode {
     return UiTextFieldMode.from(firstValue("mode", "multiline", "multi-line"))
 }
 
-private fun Map<String, String>.popupAnchor(): UiPopupAnchor {
-    val anchor = firstValue("anchor", "target", "for").ifBlank { "parent" }.trim()
-    return when {
-        anchor.equals("parent", ignoreCase = true) -> UiPopupAnchor.Parent
-        anchor.equals("cursor", ignoreCase = true) -> {
-            val x = firstValue("cursor-x", "x")
-            val y = firstValue("cursor-y", "y")
-            if (x.isBlank() && y.isBlank()) {
-                UiPopupAnchor.Cursor()
-            } else {
-                UiPopupAnchor.Cursor(x.parsePopupFloat(), y.parsePopupFloat())
-            }
-        }
+private fun Map<String, String>.popupAnchorBounds(document: UiXmlComposeDocument, pointer: UiPointer): UiRect {
+    val anchorId = firstValue("anchor", "anchor-id", "anchorId")
+    if (anchorId.isNotBlank()) return document.anchorBounds[anchorId] ?: UiRect.Zero
 
-        else -> UiPopupAnchor.Node(anchor.removePrefix("#"))
-    }
+    val x = firstValue("cursor-x", "x")
+    val y = firstValue("cursor-y", "y")
+    val px = if (x.isBlank()) pointer.x else x.parsePopupFloat()
+    val py = if (y.isBlank()) pointer.y else y.parsePopupFloat()
+    return UiRect(px, py, 0f, 0f)
 }
 
 private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
@@ -336,40 +364,6 @@ private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
 }
 
 private fun String.parsePopupFloat(): Float = trim().removeSuffix("px").toFloatOrNull() ?: 0f
-
-private fun UiTextSegment.Text.trimStart(): UiTextSegment.Text {
-    return copy(value = value.template.trimStart().bound())
-}
-
-private fun UiTextSegment.Text.trimEnd(): UiTextSegment.Text {
-    return copy(value = value.template.trimEnd().bound())
-}
-
-private fun UiTextContent.trimBoundaryText(): UiTextContent {
-    val next = segments.toMutableList()
-    val firstText = next.indexOfFirst { it is UiTextSegment.Text }
-    if (firstText >= 0) next[firstText] = (next[firstText] as UiTextSegment.Text).trimStart()
-    val lastText = next.indexOfLast { it is UiTextSegment.Text }
-    if (lastText >= 0) next[lastText] = (next[lastText] as UiTextSegment.Text).trimEnd()
-    return UiTextContent(next.filterNot { it is UiTextSegment.Text && it.value.template.isEmpty() })
-}
-
-private val StructuralAttributes = setOf(
-    "id",
-    "tag",
-    "tags",
-    "class",
-    "value",
-    "#text",
-    "source",
-    "src",
-    "image",
-    "text",
-    "item",
-    "entity",
-    "renderer",
-    "mode",
-)
 
 private val SliderAttributes = setOf("value", "min", "max", "step")
 private val CheckboxAttributes = setOf("checked", "value", "variant", "style", "type")
