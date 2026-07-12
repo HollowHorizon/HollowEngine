@@ -63,6 +63,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerLightCommands()
             registerUtilityCommands()
             registerScriptingCommands()
+            registerAddonCommands()
         }
     }
 }

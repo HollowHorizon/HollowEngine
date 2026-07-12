@@ -39,7 +39,21 @@ include("bootstrap:fabric")
 include("bootstrap:neoforge")
 include("runtime")
 include("bridge")
-include("compiler")
+
+val addonsDirectory = file("addons")
+if (addonsDirectory.isDirectory) {
+    addonsDirectory.walkTopDown()
+        .filter { it.isFile && it.name == "build.gradle.kts" }
+        .map { it.parentFile }
+        .forEach { addonDirectory ->
+            val projectPath = addonDirectory.relativeTo(rootDir)
+                .invariantSeparatorsPath
+                .split('/')
+                .joinToString(separator = ":", prefix = ":")
+            include(projectPath)
+            project(projectPath).projectDir = addonDirectory
+        }
+}
 
 project(":bootstrap").buildFileName = "parent.gradle.kts"
 project(":bootstrap:fabric").projectDir = file("bootstrap-fabric")

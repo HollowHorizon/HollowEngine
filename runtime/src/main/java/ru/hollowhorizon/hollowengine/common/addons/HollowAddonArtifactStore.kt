@@ -1,0 +1,110 @@
+package ru.hollowhorizon.hollowengine.common.addons
+
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.util.jar.JarFile
+
+internal data class HollowAddonCandidate(
+    val sourceFile: File,
+    val sourceLength: Long,
+    val sourceModifiedAt: Long,
+    val artifactFile: File,
+    val fingerprint: String,
+    val descriptor: HollowAddonDescriptor,
+    val requiresBootstrapLibraries: Boolean,
+)
+
+internal class HollowAddonArtifactStore(private val cacheRoot: File) {
+    private val hostLibraries = listOf(
+        "kotlin-stdlib",
+        "kotlin-reflect",
+        "kotlinx-coroutines",
+        "koin-core",
+        "slf4j-",
+        "log4j-",
+        "annotations-",
+    ) + AddonBootstrapContract.HOST_NATIVE_LIBRARY_PREFIXES
+
+    fun stage(sourceFile: File): HollowAddonCandidate {
+        require(sourceFile.isFile && sourceFile.extension.equals("jar", ignoreCase = true)) {
+            "Addon artifact is not a jar: ${sourceFile.absolutePath}"
+        }
+        val sourceLength = sourceFile.length()
+        val sourceModifiedAt = sourceFile.lastModified()
+        val fingerprint = sourceFile.sha256()
+        val stagingDirectory = cacheRoot.resolve("artifacts").resolve(fingerprint)
+        val stagedFile = stagingDirectory.resolve("addon.jar")
+        if (!stagedFile.isFile || stagedFile.length() != sourceFile.length()) {
+            stagingDirectory.mkdirs()
+            Files.copy(sourceFile.toPath(), stagedFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+        val sourceChanged = sourceFile.length() != sourceLength || sourceFile.lastModified() != sourceModifiedAt
+        val stagedFingerprint = stagedFile.sha256()
+        if (sourceChanged || stagedFingerprint != fingerprint) {
+            Files.deleteIfExists(stagedFile.toPath())
+            throw IllegalStateException("Addon jar changed while it was being staged: ${sourceFile.name}")
+        }
+        val candidate = HollowAddonCandidate(
+            sourceFile = sourceFile.canonicalFile,
+            sourceLength = sourceLength,
+            sourceModifiedAt = sourceModifiedAt,
+            artifactFile = stagedFile,
+            fingerprint = fingerprint,
+            descriptor = HollowAddonDescriptorReader.read(stagedFile),
+            requiresBootstrapLibraries = containsBootstrapLibraries(stagedFile),
+        )
+        return HollowAddonDevelopmentRemapper.remapIfRequired(candidate, cacheRoot)
+    }
+
+    private fun containsBootstrapLibraries(file: File): Boolean = JarFile(file).use { jar ->
+        jar.entries().asSequence().any { entry ->
+            !entry.isDirectory &&
+                entry.name.startsWith(AddonBootstrapContract.BOOTSTRAP_LIBRARY_PATH) &&
+                entry.name.endsWith(".jar")
+        }
+    }
+
+    fun extractLibraries(candidate: HollowAddonCandidate): List<File> {
+        val libraryDirectory = cacheRoot.resolve("libraries").resolve(candidate.fingerprint)
+        libraryDirectory.mkdirs()
+        return JarFile(candidate.artifactFile).use { jar ->
+            jar.entries().asSequence()
+                .filter { !it.isDirectory && it.name.startsWith(LIBRARY_PATH) && it.name.endsWith(".jar") }
+                .mapNotNull { entry ->
+                    val fileName = entry.name.substringAfterLast('/')
+                    if (hostLibraries.any(fileName::startsWith)) return@mapNotNull null
+                    val outputFile = libraryDirectory.resolve(fileName).canonicalFile
+                    require(outputFile.parentFile == libraryDirectory.canonicalFile) {
+                        "Illegal bundled library path '${entry.name}'"
+                    }
+                    if (!outputFile.isFile || outputFile.length() != entry.size) {
+                        jar.getInputStream(entry).use { input ->
+                            Files.copy(input, outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                        }
+                    }
+                    outputFile
+                }
+                .toList()
+        }
+    }
+
+    private fun File.sha256(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        inputStream().buffered().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private companion object {
+        const val LIBRARY_PATH = AddonBootstrapContract.REGULAR_LIBRARY_PATH
+    }
+}

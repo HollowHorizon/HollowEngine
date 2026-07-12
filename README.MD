@@ -43,12 +43,12 @@ HollowEngine is a content creation engine for Minecraft. It combines Kotlin scri
 - `bootstrap/`: shared bootstrap code and resources
 - `bootstrap-fabric/`: Fabric bootstrap implementation
 - `bootstrap-neoforge/`: NeoForge bootstrap implementation
-- `compiler/`: scripting/compiler module
+- `addons/compiler/`: scripting compiler addon
 
 ## Quick Start
 
 1. Install the platform-specific HollowEngine jar for Fabric or NeoForge into your `mods/` folder.
-2. If you use the compiler workflow, place `HollowEngineCompiler.jar` in the `hollowengine/` directory.
+2. If you use the compiler workflow, place `HollowEngineCompiler.jar` in the `hollowengine/addons/` directory. The compiler is loaded and managed as a HollowEngine addon.
 3. Start Minecraft.
 4. Open the in-game editor and begin creating content.
 
@@ -60,7 +60,8 @@ Use the Gradle wrapper from the repository root:
 - `.\gradlew.bat test` - run JVM tests
 - `.\gradlew.bat :runtime:build` - build the runtime module
 - `.\gradlew.bat :bridge:build` - build the bridge module
-- `.\gradlew.bat :compiler:build` - build the compiler module
+- `.\gradlew.bat :addons:compiler:build` - build only the compiler addon
+- `.\gradlew.bat buildAddons` - build and collect every addon, including the compiler
 - `.\gradlew.bat :bootstrap:fabric:build` - build the Fabric bootstrap
 - `.\gradlew.bat :bootstrap:neoforge:build` - build the NeoForge bootstrap
 - `.\gradlew.bat projects` - inspect the current project graph

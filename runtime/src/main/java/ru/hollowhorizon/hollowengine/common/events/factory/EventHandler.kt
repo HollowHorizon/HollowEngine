@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.events.factory
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.suspendCancellableCoroutine
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
@@ -24,10 +26,28 @@ open class EventHandler<T : Event> {
         return listener
     }
 
-    fun register(listener: EventListener<T>): EventListener<T> {
+    open fun register(listener: EventListener<T>): EventListener<T> {
         handlers.add(listener)
         update()
         return listener
+    }
+
+    open fun register(scope: CoroutineScope, listener: EventListener<T>): EventListener<T> {
+        val job = requireNotNull(scope.coroutineContext[Job]) {
+            "Event subscriptions require a CoroutineScope with a Job"
+        }
+        register(listener)
+        job.invokeOnCompletion { unregister(listener) }
+        return listener
+    }
+
+    fun subscribe(
+        scope: CoroutineScope,
+        priority: Int = 0,
+        listener: (T) -> Unit,
+    ): EventListener<T> {
+        val registered = eventListenerOf(priority, listener)
+        return register(scope, registered)
     }
 
     fun unregister(listener: EventListener<T>) {
@@ -45,7 +65,7 @@ open class EventHandler<T : Event> {
         listeners = handlers.sortedByDescending { it.priority }.toTypedArray()
     }
 
-    fun post(event: T): T {
+    open fun post(event: T): T {
         val currentListeners = listeners
         val cancellable = event as? Cancellable
 

@@ -28,6 +28,7 @@ val architecturyApiVersion: String by rootProject.properties
 val parchmentVersion: String by rootProject.properties
 val kotlinVersion: String by rootProject.properties
 val koolVersion: String by rootProject.properties
+val koinVersion: String by rootProject.properties
 val hollowcore: String by rootProject.properties
 
 group = modGroup
@@ -118,6 +119,7 @@ dependencies {
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    addShadow("io.insert-koin:koin-core:$koinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")

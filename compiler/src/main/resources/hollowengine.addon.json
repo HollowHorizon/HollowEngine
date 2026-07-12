@@ -1,9 +1,0 @@
-{
-  "id": "hollowengine-compiler",
-  "version": "${version}",
-  "name": "HollowEngine Kotlin Compiler",
-  "entrypoint": "ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentInitializerImpl",
-  "requiredClasses": [
-    "org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy"
-  ]
-}

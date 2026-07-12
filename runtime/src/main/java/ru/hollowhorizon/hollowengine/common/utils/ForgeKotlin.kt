@@ -49,6 +49,8 @@ private object RandomSourceHolder {
  */
 lateinit var currentServer: MinecraftServer
 
+fun currentServerOrNull(): MinecraftServer? = if (::currentServer.isInitialized) currentServer else null
+
 /**
  * Converts a string to a Minecraft resource location.
  */

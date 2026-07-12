@@ -96,6 +96,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractE
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
@@ -512,6 +513,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onServerStopped(server: MinecraftServer) {
+        RegisterCommandsEvent.clearReplay()
         RuntimeDispatcherState.stopServer(server)
         ServerRuntimeState.remove(server)
     }
