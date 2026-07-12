@@ -5,14 +5,18 @@ import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.ui.layout.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.PopupOverlayMeasurePolicy
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.layout.detachLayoutParentRecursively
+import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
-import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
+import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.roundToInt
 
 typealias HollowUiContent = @Composable () -> Unit
 
@@ -34,7 +38,9 @@ class HollowUiComposition(
     private val recomposer = Recomposer(scope.coroutineContext)
     private val rootNode = BoxNode(
         measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK),
-        modifiers = listOf(Modifier.alignItems(UiAlign.STRETCH, UiAlign.STRETCH).focusScope()),
+        modifiers = listOf(
+            Modifier.size(UiLength.Fill, UiLength.Fill).alignItems(UiAlign.STRETCH, UiAlign.STRETCH).focusScope(),
+        ),
     )
     private val applier = HollowUiApplier(rootNode)
     private val composition = Composition(applier, recomposer)
@@ -279,19 +285,7 @@ fun Image(
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<ImageNode, HollowUiApplier>(
-        factory = { ImageNode(source, id, tags, modifiers, attributes) },
-        update = {
-            update(source) {
-                this.source = it
-                invalidateDraw()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-    )
-}
+) = ContentNode(UiImageType, Modifier.image(source), id, tags, modifier, attributes)
 
 @Composable
 fun Element(
@@ -319,54 +313,154 @@ fun Element(
     )
 }
 
+
 @Composable
 fun Slider(
     value: Float = 0f,
     min: Float = 0f,
     max: Float = 1f,
     step: Float = 0f,
+    onValueChange: ((Float) -> Unit)? = null,
+    /** Fired once when the drag/click ends, with the final value for changes too costly to apply live. */
+    onValueCommit: ((Float) -> Unit)? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
 ) {
-    val modifiers = modifier.asList()
-    val values = SliderValues(value, min, max, step)
-    ReusableComposeNode<SliderNode, HollowUiApplier>(
-        factory = { SliderNode(value, min, max, step, id, tags, modifiers, attributes) },
-        update = {
-            update(values) {
-                apply(it)
-                invalidateInput()
-                invalidateDraw()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-    )
+    var current by remember { mutableStateOf(normalizeSlider(value, min, max, step)) }
+    var lastExternal by remember { mutableStateOf(value) }
+    if (value != lastExternal) {
+        lastExternal = value
+        current = normalizeSlider(value, min, max, step)
+    }
+    val safeCurrent = normalizeSlider(current, min, max, step)
+    val range = max - min
+    val fraction = if (range == 0f) 0f else ((safeCurrent - min) / range).coerceIn(0f, 1f)
+
+    fun setFromPointer(localX: Float, width: Float) {
+        val ratio = (localX / width.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        val next = normalizeSlider(min + range * ratio, min, max, step)
+        if (next != current) {
+            current = next
+            onValueChange?.invoke(next)
+        }
+    }
+
+    Box(
+        id = id,
+        mode = UiBoxMode.STACK,
+        tags = tags + "slider",
+        modifier = Modifier.size(120.px, 16.px)
+            .cursor(UiCursorShape.HAND)
+            .onPress { setFromPointer(it.localX, it.width) }
+            .onDrag { setFromPointer(it.localX, it.width) }
+            .onRelease { onValueCommit?.invoke(current) }
+            .then(modifier ?: Modifier),
+    ) {
+        Box(
+            tags = listOf("slider-track"),
+            modifier = Modifier.size(100.percent, 4.px).align(vertical = UiAlign.CENTER)
+                .background(SliderTrackColor).borderRadius(2f),
+        )
+        Box(
+            tags = listOf("slider-active"),
+            modifier = Modifier.size((fraction * 100f).percent, 4.px).align(vertical = UiAlign.CENTER)
+                .background(WidgetAccentColor).borderRadius(2f),
+        )
+        Box(
+            tags = listOf("slider-thumb"),
+            modifier = Modifier.size(12.px, 12.px).align(vertical = UiAlign.CENTER)
+                .position((fraction * 100f).percent - 6.px, 0.px)
+                .background(UiColor.White).border(1.px, WidgetThumbBorderColor, radius = 6f),
+        )
+    }
 }
 
+/**
+ * A checkbox / radio / switch. The checked flag lives in Compose state ([remember]);
+ * [checked] is adopted when the caller changes it, and clicks report back through
+ * [onCheckedChange]. While checked the box carries [UiState.SELECTED] for `:selected` styling.
+ */
 @Composable
 fun Checkbox(
     checked: Boolean = false,
     variant: UiCheckboxVariant = UiCheckboxVariant.CHECKBOX,
+    onCheckedChange: ((Boolean) -> Unit)? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
 ) {
-    val modifiers = modifier.asList()
-    val values = CheckboxValues(checked, variant)
-    ReusableComposeNode<CheckboxNode, HollowUiApplier>(
-        factory = { CheckboxNode(checked, variant, id, tags, modifiers, attributes) },
-        update = {
-            update(values) {
-                apply(it)
-                invalidateDraw()
+    var current by remember { mutableStateOf(checked) }
+    var lastExternal by remember { mutableStateOf(checked) }
+    if (checked != lastExternal) {
+        lastExternal = checked
+        current = checked
+    }
+
+    val toggle: (UiEvent) -> Unit = {
+        val next = if (variant == UiCheckboxVariant.RADIO) true else !current
+        if (next != current) {
+            current = next
+            onCheckedChange?.invoke(next)
+        }
+    }
+    val base = Modifier.cursor(UiCursorShape.HAND).onClick(toggle)
+        .let { if (current) it.state(UiState.SELECTED) else it }
+
+    when (variant) {
+        UiCheckboxVariant.SWITCH -> Box(
+            id = id,
+            mode = UiBoxMode.STACK,
+            tags = tags + "checkbox",
+            modifier = base.size(28.px, 16.px).borderRadius(8f)
+                .background(if (current) WidgetAccentColor else CheckboxTrackColor)
+                .then(modifier ?: Modifier),
+        ) {
+            Box(
+                tags = listOf("checkbox-mark"),
+                modifier = Modifier.size(12.px, 12.px).align(vertical = UiAlign.CENTER)
+                    .position(if (current) 14.px else 2.px, 0.px)
+                    .background(UiColor.White).borderRadius(6f),
+            )
+        }
+
+        else -> {
+            val circle = variant == UiCheckboxVariant.RADIO
+            Box(
+                id = id,
+                mode = UiBoxMode.STACK,
+                tags = tags + "checkbox",
+                modifier = base.size(16.px, 16.px).borderRadius(if (circle) 8f else 3f)
+                    .background(if (current) WidgetAccentColor else UiColor.Transparent)
+                    .border(1.px, WidgetCheckboxBorderColor, radius = if (circle) 8f else 3f)
+                    .then(modifier ?: Modifier),
+            ) {
+                if (current) {
+                    Box(
+                        tags = listOf("checkbox-mark"),
+                        modifier = Modifier.size(8.px, 8.px).align(UiAlign.CENTER, UiAlign.CENTER)
+                            .background(UiColor.White).borderRadius(if (circle) 4f else 2f),
+                    )
+                }
             }
-            updateCommon(modifiers, attributes, tags)
-        },
-    )
+        }
+    }
 }
+
+private fun normalizeSlider(raw: Float, min: Float, max: Float, step: Float): Float {
+    val low = minOf(min, max)
+    val high = maxOf(min, max)
+    val clamped = raw.coerceIn(low, high)
+    if (step <= 0f) return clamped
+    val stepped = min + ((clamped - min) / step).roundToInt() * step
+    return stepped.coerceIn(low, high)
+}
+
+private val SliderTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
+private val CheckboxTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
+private val WidgetAccentColor = UiColor(0.36f, 0.62f, 0.95f, 1f)
+private val WidgetThumbBorderColor = UiColor(0.06f, 0.07f, 0.08f, 0.45f)
+private val WidgetCheckboxBorderColor = UiColor(0.55f, 0.6f, 0.68f, 1f)
 
 /**
  * Value/onChange convenience wrapper over [EditableTextField]: owns a [TextFieldState], mirrors
@@ -438,15 +532,18 @@ fun TextField(
 
     val sync = remember { TextFieldValueSync(value) }
     // Adopt an external value only when the parameter itself changed; edits made here win otherwise.
-    if (value != sync.lastExternal && value != fieldState.text) {
-        fieldState.setText(value, moveCaretToEnd = false)
-        sync.lastNotified = fieldState.text
+    if (value != sync.lastExternal) {
+        val echoedNotification = sync.acknowledge(value)
+        if (!echoedNotification && value != fieldState.text) {
+            fieldState.setText(value, moveCaretToEnd = false)
+            sync.reset(fieldState.text)
+        }
     }
-    sync.lastExternal = value
+    sync.updateExternal(value)
     val text = fieldState.text
     SideEffect {
         if (text != sync.lastNotified) {
-            sync.lastNotified = text
+            sync.recordNotification(text)
             onChange?.invoke(text)
         }
     }
@@ -472,11 +569,6 @@ fun TextField(
     )
 }
 
-private class TextFieldValueSync(initial: String) {
-    var lastExternal: String = initial
-    var lastNotified: String = initial
-}
-
 @Composable
 fun Item(
     item: String,
@@ -484,19 +576,7 @@ fun Item(
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
-) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<ItemNode, HollowUiApplier>(
-        factory = { ItemNode(item, id, tags, modifiers, attributes) },
-        update = {
-            update(item) {
-                this.item = it
-                invalidateDraw()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-    )
-}
+) = ContentNode(UiItemType, Modifier.item(item), id, tags, modifier, attributes)
 
 @Composable
 fun Entity(
@@ -505,17 +585,24 @@ fun Entity(
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
+) = ContentNode(UiEntityType, Modifier.entity(entity), id, tags, modifier, attributes)
+
+
+@Composable
+private fun ContentNode(
+    type: String,
+    contentModifier: Modifier,
+    id: String?,
+    tags: Iterable<String>,
+    modifier: Modifier?,
+    attributes: Map<String, String>,
 ) {
-    val modifiers = modifier.asList()
-    ReusableComposeNode<EntityNode, HollowUiApplier>(
-        factory = { EntityNode(entity, id, tags, modifiers, attributes) },
-        update = {
-            update(entity) {
-                this.entity = it
-                invalidateDraw()
-            }
-            updateCommon(modifiers, attributes, tags)
+    val modifiers = listOf(if (modifier == null) contentModifier else contentModifier then modifier)
+    ReusableComposeNode<BaseUiNode, HollowUiApplier>(
+        factory = {
+            BaseUiNode(type, id?.removePrefix("#"), tags.map { it.removePrefix(".") }, modifiers, attributes)
         },
+        update = { updateCommon(modifiers, attributes, tags) },
     )
 }
 
@@ -654,34 +741,10 @@ fun OverlayHost() {
     }
 }
 
-private data class SliderValues(
-    val value: Float,
-    val min: Float,
-    val max: Float,
-    val step: Float,
-)
-
-private data class CheckboxValues(
-    val checked: Boolean,
-    val variant: UiCheckboxVariant,
-)
-
 private data class PopupValues(
     val anchorBounds: UiRect,
     val alignment: UiPopupAlignment,
 )
-
-private fun SliderNode.apply(values: SliderValues) {
-    min = values.min
-    max = values.max
-    step = values.step
-    value = values.value
-}
-
-private fun CheckboxNode.apply(values: CheckboxValues) {
-    variant = values.variant
-    checked = values.checked
-}
 
 private fun PopupNode.apply(values: PopupValues) {
     anchorBounds = values.anchorBounds
@@ -711,17 +774,8 @@ fun <T : BaseUiNode> Updater<T>.updateCommon(
 }
 
 private fun BaseUiNode.replaceCustomAttributes(attributes: Map<String, String>) {
-    val builtInAttributes = builtInAttributeNames()
-    val retained = this.attributes.filterKeys { it in builtInAttributes }
     this.attributes.clear()
-    this.attributes += retained
-    this.attributes += attributes.filterKeys { it !in builtInAttributes }
-}
-
-private fun BaseUiNode.builtInAttributeNames(): Set<String> = when (type) {
-    UiSliderType -> setOf("value", "min", "max", "step")
-    UiCheckboxType -> setOf("checked", "variant")
-    else -> emptySet()
+    this.attributes += attributes
 }
 
 private fun Modifier?.asList(): List<Modifier> = this?.let(::listOf).orEmpty()

@@ -116,48 +116,96 @@ private fun segmentsIntersectAny(
 private fun triangulateSimple(points: List<UiPathPoint>): List<UiPathTriangle> {
     val polygon = orient(points, clockwise = false).withoutCollinear()
     if (polygon.size < 3) return emptyList()
-    val indices = polygon.indices.toMutableList()
+    if (polygon.isConvex()) {
+        return List(polygon.size - 2) { index ->
+            UiPathTriangle(polygon[0], polygon[index + 1], polygon[index + 2])
+        }
+    }
+
+    val previous = IntArray(polygon.size) { (it - 1 + polygon.size) % polygon.size }
+    val next = IntArray(polygon.size) { (it + 1) % polygon.size }
+    val active = BooleanArray(polygon.size) { true }
     val triangles = ArrayList<UiPathTriangle>(polygon.size - 2)
     var guard = polygon.size * polygon.size
+    var remaining = polygon.size
+    var current = 0
 
-    while (indices.size > 3 && guard-- > 0) {
+    while (remaining > 3 && guard-- > 0) {
         var clipped = false
-        for (position in indices.indices) {
-            if (isEar(polygon, indices, position)) {
-                val previous = indices[(position - 1 + indices.size) % indices.size]
-                val current = indices[position]
-                val next = indices[(position + 1) % indices.size]
-                triangles += UiPathTriangle(polygon[previous], polygon[current], polygon[next])
-                indices.removeAt(position)
+        var attempts = remaining
+        while (attempts-- > 0) {
+            val before = previous[current]
+            val after = next[current]
+            if (isEar(polygon, active, before, current, after)) {
+                triangles += UiPathTriangle(polygon[before], polygon[current], polygon[after])
+                active[current] = false
+                next[before] = after
+                previous[after] = before
+                current = after
+                remaining--
                 clipped = true
                 break
             }
+            current = after
         }
         if (!clipped) break
     }
 
-    if (indices.size == 3 && abs(cross(polygon[indices[0]], polygon[indices[1]], polygon[indices[2]])) > Epsilon) {
-        triangles += UiPathTriangle(polygon[indices[0]], polygon[indices[1]], polygon[indices[2]])
+    if (remaining == 3) {
+        val first = active.indexOfFirst { it }
+        val second = next[first]
+        val third = next[second]
+        if (abs(cross(polygon[first], polygon[second], polygon[third])) > Epsilon) {
+            triangles += UiPathTriangle(polygon[first], polygon[second], polygon[third])
+        }
     }
     return triangles
 }
 
-private fun isEar(points: List<UiPathPoint>, indices: List<Int>, position: Int): Boolean {
-    val previous = indices[(position - 1 + indices.size) % indices.size]
-    val current = indices[position]
-    val next = indices[(position + 1) % indices.size]
+private fun isEar(
+    points: List<UiPathPoint>,
+    active: BooleanArray,
+    previous: Int,
+    current: Int,
+    next: Int,
+): Boolean {
     val a = points[previous]
     val b = points[current]
     val c = points[next]
     if (cross(a, b, c) <= Epsilon) return false
 
-    for (index in indices) {
+    for (index in points.indices) {
+        if (!active[index]) continue
         if (index == previous || index == current || index == next) continue
         val point = points[index]
         if (point == a || point == b || point == c) continue
         if (pointInTriangle(point, a, b, c)) return false
     }
     return true
+}
+
+/**
+ * True only for a *simple* convex polygon: every turn is a left turn AND the vertices wind exactly
+ * once (total turning == 2π). The turning check is what separates a real convex polygon from a
+ * self-intersecting all-left-turns loop (e.g. a stroke outline that folds over itself, winding 2π·k)
+ * - the latter would fan into overlapping, inverted triangles.
+ */
+private fun List<UiPathPoint>.isConvex(): Boolean {
+    if (size < 3) return false
+    var totalTurn = 0.0
+    for (index in indices) {
+        val current = this[index]
+        val next = this[(index + 1) % size]
+        val after = this[(index + 2) % size]
+        val turn = cross(current, next, after)
+        if (turn <= Epsilon) return false
+        val d1x = next.x - current.x
+        val d1y = next.y - current.y
+        val d2x = after.x - next.x
+        val d2y = after.y - next.y
+        totalTurn += kotlin.math.atan2(turn.toDouble(), (d1x * d2x + d1y * d2y).toDouble())
+    }
+    return abs(totalTurn - 2.0 * kotlin.math.PI) < 1e-2
 }
 
 private fun List<UiPathPoint>.cleanedRing(): List<UiPathPoint> {

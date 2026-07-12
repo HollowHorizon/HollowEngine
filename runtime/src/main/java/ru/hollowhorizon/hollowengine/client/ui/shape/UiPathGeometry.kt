@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui.shape
 
-import java.awt.BasicStroke
 import kotlin.math.*
 
 data class UiPathContour(
@@ -13,17 +12,22 @@ data class UiPathGeometry(
 ) {
     fun fillTriangles(): List<UiPathTriangle> = triangulatePath(contours)
 
+    /**
+     * Tessellates the stroke by offsetting each flattened contour directly: a quad per segment,
+     * a fan per join, and caps on open ends. This never builds a stroke *outline* to fill - which
+     * for sharp polylines (e.g. the diagnostic zig-zag) self-intersects and can't be ear-clipped -
+     * and it skips AWT stroking entirely, so it's both correct and much cheaper.
+     */
     fun strokeTriangles(
         width: Float,
         lineCap: UiPathStrokeLineCap = UiPathStrokeLineCap.Round,
         lineJoin: UiPathStrokeLineJoin = UiPathStrokeLineJoin.Round,
     ): List<UiPathTriangle> {
-        if (width <= 0f || contours.none { it.points.size >= 2 }) return emptyList()
-        return BasicStroke(
-            width,
-            lineCap.toAwtStrokeCap(),
-            lineJoin.toAwtStrokeJoin(),
-        ).createStrokedShape(toPath().toAwtPath()).toUiPath(flatness = 0.35).flatten().fillTriangles()
+        if (width <= 0f) return emptyList()
+        val half = width * 0.5f
+        val triangles = ArrayList<UiPathTriangle>()
+        contours.forEach { strokeContour(it, half, lineCap, lineJoin, triangles) }
+        return triangles
     }
 }
 
@@ -208,20 +212,162 @@ private fun UiPathPoint.distanceTo(other: UiPathPoint): Float {
     return sqrt(dx * dx + dy * dy)
 }
 
-private fun UiPathStrokeLineCap.toAwtStrokeCap(): Int {
-    return when (this) {
-        UiPathStrokeLineCap.Butt -> BasicStroke.CAP_BUTT
-        UiPathStrokeLineCap.Round -> BasicStroke.CAP_ROUND
-        UiPathStrokeLineCap.Square -> BasicStroke.CAP_SQUARE
+private fun strokeContour(
+    contour: UiPathContour,
+    half: Float,
+    lineCap: UiPathStrokeLineCap,
+    lineJoin: UiPathStrokeLineJoin,
+    out: MutableList<UiPathTriangle>,
+) {
+    val points = ArrayList<UiPathPoint>(contour.points.size)
+    contour.points.forEach { if (points.lastOrNull() != it) points += it }
+    if (contour.closed && points.size > 1 && points.first() == points.last()) points.removeAt(points.lastIndex)
+    if (points.size < 2) {
+        if (points.size == 1 && lineCap == UiPathStrokeLineCap.Round) addDisc(points[0], half, out)
+        return
+    }
+
+    val size = points.size
+    val closed = contour.closed
+    val segments = if (closed) size else size - 1
+    for (i in 0 until segments) addSegmentQuad(points[i], points[(i + 1) % size], half, out)
+
+    val firstJoin = if (closed) 0 else 1
+    val lastJoin = if (closed) size - 1 else size - 2
+    for (i in firstJoin..lastJoin) {
+        addJoin(points[(i - 1 + size) % size], points[i], points[(i + 1) % size], half, lineJoin, out)
+    }
+
+    if (!closed) {
+        addCap(points[1], points[0], half, lineCap, out)
+        addCap(points[size - 2], points[size - 1], half, lineCap, out)
     }
 }
 
-private fun UiPathStrokeLineJoin.toAwtStrokeJoin(): Int {
-    return when (this) {
-        UiPathStrokeLineJoin.Miter -> BasicStroke.JOIN_MITER
-        UiPathStrokeLineJoin.Round -> BasicStroke.JOIN_ROUND
-        UiPathStrokeLineJoin.Bevel -> BasicStroke.JOIN_BEVEL
+/** A segment [a]->[b] widened to [half] on each side: two triangles covering the offset rectangle. */
+private fun addSegmentQuad(a: UiPathPoint, b: UiPathPoint, half: Float, out: MutableList<UiPathTriangle>) {
+    val dx = b.x - a.x
+    val dy = b.y - a.y
+    val length = sqrt(dx * dx + dy * dy)
+    if (length < StrokeEpsilon) return
+    val nx = -dy / length * half
+    val ny = dx / length * half
+    val a1 = UiPathPoint(a.x + nx, a.y + ny)
+    val a2 = UiPathPoint(a.x - nx, a.y - ny)
+    val b1 = UiPathPoint(b.x + nx, b.y + ny)
+    val b2 = UiPathPoint(b.x - nx, b.y - ny)
+    out += UiPathTriangle(a1, b1, b2)
+    out += UiPathTriangle(a1, b2, a2)
+}
+
+/** Fills the wedge left open on the outer side of the corner at [corner]. */
+private fun addJoin(
+    previous: UiPathPoint,
+    corner: UiPathPoint,
+    next: UiPathPoint,
+    half: Float,
+    join: UiPathStrokeLineJoin,
+    out: MutableList<UiPathTriangle>,
+) {
+    val inX = corner.x - previous.x
+    val inY = corner.y - previous.y
+    val outX = next.x - corner.x
+    val outY = next.y - corner.y
+    val inLength = sqrt(inX * inX + inY * inY)
+    val outLength = sqrt(outX * outX + outY * outY)
+    if (inLength < StrokeEpsilon || outLength < StrokeEpsilon) return
+    val turn = inX * outY - inY * outX
+    if (abs(turn) < StrokeEpsilon) return // straight - the segment quads already meet flush
+
+    // Outer side of the turn: right normals for a left turn, left normals for a right turn.
+    val sign = if (turn > 0f) -1f else 1f
+    val inNormalX = -inY / inLength * half * sign
+    val inNormalY = inX / inLength * half * sign
+    val outNormalX = -outY / outLength * half * sign
+    val outNormalY = outX / outLength * half * sign
+    val start = UiPathPoint(corner.x + inNormalX, corner.y + inNormalY)
+    val end = UiPathPoint(corner.x + outNormalX, corner.y + outNormalY)
+
+    if (join == UiPathStrokeLineJoin.Round) {
+        val startAngle = atan2(start.y - corner.y, start.x - corner.x)
+        val endAngle = atan2(end.y - corner.y, end.x - corner.x)
+        addArc(corner, half, startAngle, shortSweep(startAngle, endAngle), out)
+    } else {
+        // Bevel (and miter, approximated): a single triangle spanning the outer gap.
+        out += UiPathTriangle(corner, start, end)
     }
 }
 
+/** Round/square/butt cap centred on [end], the outer terminal of a segment coming from [inner]. */
+private fun addCap(
+    inner: UiPathPoint,
+    end: UiPathPoint,
+    half: Float,
+    cap: UiPathStrokeLineCap,
+    out: MutableList<UiPathTriangle>,
+) {
+    if (cap == UiPathStrokeLineCap.Butt) return
+    val dx = end.x - inner.x
+    val dy = end.y - inner.y
+    val length = sqrt(dx * dx + dy * dy)
+    if (length < StrokeEpsilon) return
+    val ux = dx / length
+    val uy = dy / length
+    val nx = -uy * half
+    val ny = ux * half
+    if (cap == UiPathStrokeLineCap.Square) {
+        val e1 = UiPathPoint(end.x + nx, end.y + ny)
+        val e2 = UiPathPoint(end.x - nx, end.y - ny)
+        val f1 = UiPathPoint(e1.x + ux * half, e1.y + uy * half)
+        val f2 = UiPathPoint(e2.x + ux * half, e2.y + uy * half)
+        out += UiPathTriangle(e1, f1, f2)
+        out += UiPathTriangle(e1, f2, e2)
+        return
+    }
+    // Round: a semicircle fanned from the left corner, through the tip, to the right corner.
+    val steps = 8
+    var previous = UiPathPoint(end.x + nx, end.y + ny)
+    for (step in 1..steps) {
+        val phi = PI * step / steps
+        val c = cos(phi).toFloat()
+        val s = sin(phi).toFloat()
+        val point = UiPathPoint(end.x + nx * c + ux * half * s, end.y + ny * c + uy * half * s)
+        out += UiPathTriangle(end, previous, point)
+        previous = point
+    }
+}
+
+/** A filled circle around [center] - the round cap of a zero-length (single-point) contour. */
+private fun addDisc(center: UiPathPoint, radius: Float, out: MutableList<UiPathTriangle>) {
+    val steps = 16
+    var previous = UiPathPoint(center.x + radius, center.y)
+    for (step in 1..steps) {
+        val angle = PI * 2.0 * step / steps
+        val point = UiPathPoint(center.x + cos(angle).toFloat() * radius, center.y + sin(angle).toFloat() * radius)
+        out += UiPathTriangle(center, previous, point)
+        previous = point
+    }
+}
+
+/** Fans a circular sector of [radius] around [center] sweeping [sweep] radians from [startAngle]. */
+private fun addArc(center: UiPathPoint, radius: Float, startAngle: Float, sweep: Float, out: MutableList<UiPathTriangle>) {
+    val steps = max(1, ceil(abs(sweep) / (PI / 8.0)).toInt())
+    var previous = UiPathPoint(center.x + cos(startAngle) * radius, center.y + sin(startAngle) * radius)
+    for (step in 1..steps) {
+        val angle = startAngle + sweep * step / steps
+        val point = UiPathPoint(center.x + cos(angle) * radius, center.y + sin(angle) * radius)
+        out += UiPathTriangle(center, previous, point)
+        previous = point
+    }
+}
+
+/** Signed shortest sweep (in (-PI, PI]) from [from] to [to] - the outer corner wedge is always < PI. */
+private fun shortSweep(from: Float, to: Float): Float {
+    var sweep = to - from
+    while (sweep <= -PI) sweep += (PI * 2f).toFloat()
+    while (sweep > PI) sweep -= (PI * 2f).toFloat()
+    return sweep
+}
+
+private const val StrokeEpsilon = 1e-5f
 private const val DefaultPathTolerance = 0.35f

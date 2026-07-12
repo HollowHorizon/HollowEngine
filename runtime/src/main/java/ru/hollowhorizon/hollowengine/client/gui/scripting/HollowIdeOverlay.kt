@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditor
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -30,11 +31,6 @@ internal const val CodeIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
 internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
 internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
-private const val ToolbarHeight = 32f
-private const val StylesheetCheckIntervalMillis = 250L
-private const val NanosPerMillisecond = 1_000_000L
-private const val MinEditorFontSize = 6f
-private const val MaxEditorFontSize = 36f
 
 @ClientOnly
 object HollowIdeOverlay {
@@ -199,17 +195,48 @@ object HollowIdeOverlay {
 
     @Composable
     private fun GearButton() {
+        var popup by remember { mutableStateOf(false) }
+        var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
         Box(
             id = "ide-logo",
             modifier = Modifier.input(hoverable = true, clickable = true)
                 .cursor(UiCursorShape.HAND)
                 .onClick { event ->
-                    collapsed = !collapsed
-                    openDropdown = null
-                    event.consume()
+                    if (event.isLeftClick()) {
+                        collapsed = !collapsed
+                        openDropdown = null
+                        event.consume()
+                    } else if (event.isRightClick()) {
+                        popup = true
+                    }
+                }
+                .onPlaced {
+                    anchorBounds = it
                 }
         ) {
             Image(LogoIcon, tags = listOf("ide-logo-icon"))
+        }
+        if (popup) {
+            ContextMenu(
+                "ide-editor-menu", anchorBounds, listOf(
+                UiDropdownItem("Show always") {
+                    HollowEngineConfig.editMode = EditMode.ENABLED
+                    if (collapsed) {
+                        collapsed = false
+                    }
+                },
+                UiDropdownItem("Collapse") {
+                    if (!collapsed) {
+                        collapsed = true
+                    }
+                },
+                UiDropdownItem("Hide") {
+                    HollowEngineConfig.editMode = EditMode.DISABLED
+                },
+                UiDropdownItem("Show only in chat menu") {
+                    HollowEngineConfig.editMode = EditMode.CHAT_ONLY
+                }
+            )) { popup = it}
         }
     }
 
@@ -489,8 +516,8 @@ object HollowIdeOverlay {
 
     private fun renderOverlay(target: UiRenderTarget) {
         val window = Minecraft.getInstance().window
-        val frameWidth = window.guiScaledWidth.toFloat()
-        val frameHeight = window.guiScaledHeight.toFloat()
+        val frameWidth = HollowIdeScale.scaledWidth()
+        val frameHeight = HollowIdeScale.scaledHeight()
         val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
             ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame, target)
@@ -507,9 +534,8 @@ object HollowIdeOverlay {
     private fun currentBlitTarget(): UiRenderTarget {
         val viewport = IntArray(4)
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport)
-        val window = Minecraft.getInstance().window
-        val logicalWidth = window.guiScaledWidth.toFloat()
-        val logicalHeight = window.guiScaledHeight.toFloat()
+        val logicalWidth = HollowIdeScale.scaledWidth()
+        val logicalHeight = HollowIdeScale.scaledHeight()
         return UiRenderTarget(
             framebufferId = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),
             x = viewport[0],
@@ -530,28 +556,6 @@ object HollowIdeOverlay {
         }
     }
 
-}
-
-private fun HollowUiFrame.hasPopupAncestor(node: UiNode): Boolean {
-    var current: UiNode? = node
-    while (current != null) {
-        if (current is PopupNode) return true
-        current = parentOf(current)
-    }
-    return false
-}
-
-private fun HollowUiFrame.parentOf(child: UiNode): UiNode? {
-    val stack = ArrayDeque<UiNode>()
-    stack.add(root)
-    while (stack.isNotEmpty()) {
-        val node = stack.removeLast()
-        if (child in node.children) return node
-        for (index in node.children.indices.reversed()) {
-            stack.add(node.children[index])
-        }
-    }
-    return null
 }
 
 private const val DefaultDiagnosticsPanelHeight = 160f

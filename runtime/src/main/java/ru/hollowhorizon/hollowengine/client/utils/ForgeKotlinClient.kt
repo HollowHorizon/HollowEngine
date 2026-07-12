@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInsta
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.VanillaInstancingBackend
 import ru.hollowhorizon.hollowengine.common.utils.HollowJavaUtils
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import java.io.InputStream
 
 // Only Client utils
@@ -24,12 +25,12 @@ enum class Axis(val x: Float, val y: Float, val z: Float) {
 
 var instancingBackendProvider: () -> ModelInstancingBackend = { VanillaInstancingBackend }
 var instancingEntityInfoProvider: () -> InstancingEntityInfo = { InstancingEntityInfo() }
-var areShadersEnabled_: () -> Boolean = { false }
-var shouldOverrideShaders: () -> Boolean = { false }
+
+val shouldOverrideShaders: () -> Boolean = { IrisHelper.shouldOverrideShaders() }
 
 val instancingBackend get() = instancingBackendProvider()
 val instancingEntityInfo get() = instancingEntityInfoProvider()
-val areShadersEnabled get() = areShadersEnabled_()
+val areShadersEnabled get() = IrisHelper.areShadersEnabled()
 
 data class InstancingEntityInfo(
     val entity: Int = -1,

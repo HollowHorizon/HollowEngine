@@ -19,5 +19,6 @@
   "viewport": "Viewport",
   "ui_preview": "UI Preview",
   "tools": "Tools",
-  "help": "Help"
+  "help": "Help",
+  "gui_scale": "IDE Gui Scale"
 }

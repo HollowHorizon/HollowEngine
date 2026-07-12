@@ -5,8 +5,10 @@ import com.intellij.psi.impl.PsiFileEx
 import com.intellij.psi.impl.PsiManagerEx
 import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.psi.KtUserType
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.createCompletions
 import ru.hollowhorizon.hollowengine.common.ide.session.definition.findDefinition
@@ -79,14 +81,17 @@ class ScriptingAnalyzerImpl(
     }
 
     private fun resolveImports(file: KtFile): List<KtFile> {
-        val localPath = file.virtualFile.path.replace(File.separatorChar, '/').removePrefix("/").removePrefix("hollowengine/")
+        val localPath =
+            file.virtualFile.path.replace(File.separatorChar, '/').removePrefix("/").removePrefix("hollowengine/")
         val baseDir = DirectoryManager.HOLLOW_ENGINE.resolve(localPath).parent.toFile()
 
-        return file.annotationEntries.mapNotNull {
+        return file.annotationEntries.filter { it.typeName == "Import" }.mapNotNull {
             val path = it.valueArguments[0].getArgumentExpression()?.text?.trim('"') ?: return@mapNotNull null
-            val fsFile = baseDir.resolve(path)
+            runCatching {
+                val fsFile = baseDir.resolve(path)
 
-            createPsiFile(fsFile.relativeTo(DirectoryManager.HOLLOW_ENGINE.toFile()).toString(), fsFile.readText())
+                createPsiFile(fsFile.relativeTo(DirectoryManager.HOLLOW_ENGINE.toFile()).toString(), fsFile.readText())
+            }.getOrNull()
         }
     }
 
@@ -136,3 +141,5 @@ private fun removeFromPsiManager(file: KtFile) {
     val fileManager = psiManager.fileManager
     fileManager.setViewProvider(file.virtualFile, null)
 }
+
+val KtAnnotationEntry.typeName: String? get() = (typeReference?.typeElement as? KtUserType)?.referencedName

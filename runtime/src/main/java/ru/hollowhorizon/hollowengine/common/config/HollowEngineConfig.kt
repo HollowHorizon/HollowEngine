@@ -12,6 +12,10 @@ object HollowEngineConfig : Config() {
     @PropertyName("ide_editor_font_size")
     @PropertyRange(6.0f, 36.0f)
     var ideEditorFontSize by property(12f)
+
+    @PropertyComment("Mods that be available inside scripting & compilation")
+    @PropertyName("scripting_mods")
+    var scriptingMods by list("hollowengine")
 }
 
 enum class EditMode {

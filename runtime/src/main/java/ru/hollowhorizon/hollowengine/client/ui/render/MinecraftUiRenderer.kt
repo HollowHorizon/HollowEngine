@@ -40,7 +40,6 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
-import kotlin.math.sqrt
 
 private data class SvgRasterKey(
     val location: ResourceLocation,
@@ -84,7 +83,6 @@ class MinecraftUiRenderer {
     private val commandRenderer = UiCommandRenderer()
     private val segment = ArrayList<UiRenderCommand>()
     private val framebuffers = UiFramebufferPool()
-    private val widgets = UiWidgetRenderer(::drawImage, ::markTextBatchDirty, ::flushTextBatch)
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
     private val shapeBatch = UiTriangleBatch()
@@ -169,8 +167,6 @@ class MinecraftUiRenderer {
             is DrawImageCommand -> drawImage(command)
             is DrawItemCommand -> drawItem(command)
             is DrawEntityCommand -> drawEntity(command)
-            is DrawSliderCommand -> drawWidget(command)
-            is DrawCheckboxCommand -> drawWidget(command)
         }
     }
 
@@ -1473,18 +1469,6 @@ class MinecraftUiRenderer {
         dispatcher.setRenderShadow(true)
         Lighting.setupFor3DItems()
         POSE_STACK.popPose()
-    }
-
-    private fun drawWidget(command: DrawSliderCommand) {
-        val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        widgets.drawSlider(command, transform)
-    }
-
-    private fun drawWidget(command: DrawCheckboxCommand) {
-        val transform = effective(command.transform)
-        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        widgets.drawCheckbox(command, transform)
     }
 
     private fun pushClip(rect: UiRect, transform: UiMatrix4) {

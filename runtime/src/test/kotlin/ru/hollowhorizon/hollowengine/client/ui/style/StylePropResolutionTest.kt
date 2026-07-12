@@ -49,8 +49,6 @@ class StylePropResolutionTest {
         assertTrue(style.clickable)
         assertFalse(style.scrollable)
         assertFalse(style.focusable)
-        // Composite view still reflects the same flags.
-        assertTrue(style.input.clickable)
     }
 
     @Test

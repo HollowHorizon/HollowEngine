@@ -187,19 +187,21 @@ internal fun UiLayoutPipeline.measureNodeContent(
     style.aspectRatio?.let { ratio ->
         val resolvedWidth = width
         val resolvedHeight = height
-        if (style.size.width is UiLength.Auto && style.size.height !is UiLength.Auto) {
+        if (style.size.width.isContentSized && !style.size.height.isContentSized) {
             width = resolvedHeight * ratio
         }
-        if (style.size.height is UiLength.Auto && style.size.width !is UiLength.Auto) {
+        if (style.size.height.isContentSized && !style.size.width.isContentSized) {
             height = resolvedWidth / ratio
         }
     }
     val finalWidth = requireNotNull(width)
     val finalHeight = requireNotNull(height)
     val widthReference =
-        if (allowWidthOverflow && style.size.width is UiLength.Auto) Float.POSITIVE_INFINITY else referenceWidth
+        if (style.size.width is UiLength.Fit || allowWidthOverflow && style.size.width is UiLength.Auto)
+            Float.POSITIVE_INFINITY else referenceWidth
     val heightReference =
-        if (allowHeightOverflow && style.size.height is UiLength.Auto) Float.POSITIVE_INFINITY else referenceHeight
+        if (style.size.height is UiLength.Fit || allowHeightOverflow && style.size.height is UiLength.Auto)
+            Float.POSITIVE_INFINITY else referenceHeight
     var constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, widthReference)
     var constrainedHeight = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, heightReference)
     val widthConstrained = abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon
@@ -246,9 +248,11 @@ private fun constrainMeasuredSize(
     allowHeightOverflow: Boolean,
 ): LayoutSize {
     val widthReference =
-        if (allowWidthOverflow && style.size.width is UiLength.Auto) Float.POSITIVE_INFINITY else referenceWidth
+        if (style.size.width is UiLength.Fit || allowWidthOverflow && style.size.width is UiLength.Auto)
+            Float.POSITIVE_INFINITY else referenceWidth
     val heightReference =
-        if (allowHeightOverflow && style.size.height is UiLength.Auto) Float.POSITIVE_INFINITY else referenceHeight
+        if (style.size.height is UiLength.Fit || allowHeightOverflow && style.size.height is UiLength.Auto)
+            Float.POSITIVE_INFINITY else referenceHeight
     return LayoutSize(
         width = width.coerceIn(style.minSize.width, style.maxSize.width, widthReference),
         height = height.coerceIn(style.minSize.height, style.maxSize.height, heightReference),
@@ -327,8 +331,8 @@ private fun UiLayoutPipeline.measureStandardContainer(
         availableWidth,
         availableHeight,
         scrollbarReserves,
-        deferFlexibleWidth = style.size.width is UiLength.Auto,
-        deferFlexibleHeight = style.size.height is UiLength.Auto,
+        deferFlexibleWidth = style.size.width.isContentSized,
+        deferFlexibleHeight = style.size.height.isContentSized,
         allowWidthOverflow = style.scrollable,
         allowHeightOverflow = style.scrollable,
     )

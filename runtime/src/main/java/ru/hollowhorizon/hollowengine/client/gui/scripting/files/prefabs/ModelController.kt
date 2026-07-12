@@ -19,7 +19,6 @@ import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
-import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowCore
@@ -42,7 +41,6 @@ import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_1
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -512,7 +510,7 @@ inline fun UiScope.Model(
         val baseSize = min(width, height)
         val newScale = baseSize * modelConfig.scale
 
-        stack.mulPoseMatrix(Matrix4f().scaling(newScale, -newScale, newScale))
+        stack.scale(newScale, -newScale, newScale)
         stack.mulPose(Quaternionf().rotateX(modelConfig.pitch * Mth.DEG_TO_RAD))
         stack.mulPose(Quaternionf().rotateY(modelConfig.yaw * Mth.DEG_TO_RAD))
 

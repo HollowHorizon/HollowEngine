@@ -61,6 +61,44 @@ class TextFieldCompletionStateTest {
     }
 
     @Test
+    fun `import stays after file annotation without package directive`() {
+        val source = "@file:Suppress(\"unused\")\n\nfun main() { Vec }"
+        val (state, completion) = editor(source, caret = source.indexOf("Vec") + 3)
+        completion.contributor = UiCompletionContributor {
+            listOf(UiTextCompletion(label = "Vec3", importFqName = "org.example.Vec3"))
+        }
+
+        completion.open()
+        assertTrue(completion.accept())
+
+        assertTrue(state.text.startsWith("@file:Suppress(\"unused\")\n\nimport org.example.Vec3"))
+        assertTrue(state.text.contains("fun main() { Vec3 }"))
+    }
+
+    @Test
+    fun `import stays after multiline file annotation and package directive`() {
+        val source = """@file:Suppress(
+            |    "unused",
+            |)
+            |
+            |package sample
+            |
+            |fun main() { Vec }
+        """.trimMargin()
+        val (state, completion) = editor(source, caret = source.indexOf("Vec") + 3)
+        completion.contributor = UiCompletionContributor {
+            listOf(UiTextCompletion(label = "Vec3", importFqName = "org.example.Vec3"))
+        }
+
+        completion.open()
+        assertTrue(completion.accept())
+
+        assertTrue(state.text.indexOf("@file:Suppress") < state.text.indexOf("package sample"))
+        assertTrue(state.text.indexOf("package sample") < state.text.indexOf("import org.example.Vec3"))
+        assertTrue(state.text.contains("fun main() { Vec3 }"))
+    }
+
+    @Test
     fun `escape closes and arrows navigate with wrap-around`() {
         val (state, completion) = editor("ab")
         completion.contributor = contributorOf("abc", "abd", "abe")

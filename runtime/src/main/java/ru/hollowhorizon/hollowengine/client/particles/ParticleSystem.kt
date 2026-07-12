@@ -13,7 +13,6 @@ import ru.hollowhorizon.hollowengine.client.particles.light.LightProvider
 import ru.hollowhorizon.hollowengine.client.particles.light.WorldLightProvider
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateSelfBy
-import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 import ru.hollowhorizon.hollowengine.client.utils.use
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Query
 import java.util.*
@@ -88,7 +87,7 @@ class ParticleSystem(
         cameraUuid: UUID,
         isFirstPerson: Boolean,
     ) = stack.use {
-        mulPoseMatrix(Matrix4f().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z))
+        mulPose(Matrix4f().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z))
 
         val cameraFacing = Vec3f(0f, 0f, -1f).rotateBy(cameraRot)
         for ((renderPass, particles) in billboardRenderPasses.entries.sortedBy { it.key.material.needsSorting }) {

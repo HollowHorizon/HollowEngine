@@ -111,3 +111,29 @@ suspend inline fun <reified T : Event> EventHandler<T>.await(
         }
     }
 }
+
+context(scope: CoroutineScope)
+fun <T : Event> EventHandler<T>.subscribe(priority: Int = 0, listener: (T) -> Unit): EventListener<T> {
+    val job = scope.coroutineContext[Job]
+        ?: error("CoroutineScope must contain a Job")
+
+    val scopedListener = object : EventListener<T> {
+        override val priority = priority
+
+        override fun invoke(event: T) {
+            if (job.isActive) {
+                listener(event)
+            }
+        }
+    }
+
+    if (!job.isActive) return scopedListener
+
+    register(scopedListener)
+
+    job.invokeOnCompletion {
+        unregister(scopedListener)
+    }
+
+    return scopedListener
+}

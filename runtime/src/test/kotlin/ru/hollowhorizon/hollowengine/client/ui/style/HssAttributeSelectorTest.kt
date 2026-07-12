@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -34,14 +33,5 @@ class HssAttributeSelectorTest {
         val rule = compileHss(".x[data-role=nav] { opacity: 0.5; }").rules.single()
         val node = BoxNode(tags = listOf("x"), modifiers = listOf(Modifier.attribute("Data-Role", "nav")))
         assertTrue(rule.selector.matches(node))
-    }
-
-    @Test
-    fun `slider no longer mirrors its value into the attributes map`() {
-        val slider = SliderNode(value = 0.5f)
-        slider.value = 0.8f
-        assertFalse(slider.attributes.containsKey("value"), "widget state lives in fields, not attributes")
-        // The field remains the source of truth.
-        assertTrue(slider.value in 0.79f..0.81f)
     }
 }

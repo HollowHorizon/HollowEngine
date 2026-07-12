@@ -48,6 +48,7 @@ object DefaultScriptDefinitions {
                     "net.minecraft.core.BlockPos",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
+                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.entities.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",
                     "ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode",

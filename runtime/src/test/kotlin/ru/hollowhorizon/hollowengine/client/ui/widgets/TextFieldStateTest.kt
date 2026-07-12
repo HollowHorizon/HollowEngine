@@ -291,6 +291,22 @@ class TextFieldStateTest {
     // --- undo / redo ----------------------------------------------------------------------------
 
     @Test
+    fun `rapid typing stays ordered and undoes as one history group`() {
+        var clock = 0L
+        val state = TextFieldState(historyMergeWindowNanos = 1_000L, nanoTime = { clock++ })
+
+        repeat(200) { state.insert("a") }
+
+        assertEquals("a".repeat(200), state.text)
+        assertEquals(200, state.caret)
+        assertTrue(state.undo())
+        assertEquals("", state.text)
+        assertTrue(state.redo())
+        assertEquals("a".repeat(200), state.text)
+        assertEquals(200, state.caret)
+    }
+
+    @Test
     fun `undo reverts an edit and redo re-applies it`() {
         // Distinct, strictly-increasing timestamps + zero merge window => one group per edit.
         var clock = 0L

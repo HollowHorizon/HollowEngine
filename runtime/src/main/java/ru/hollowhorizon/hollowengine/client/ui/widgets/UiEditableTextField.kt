@@ -1,12 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
@@ -413,13 +407,13 @@ private fun localInlayWidgetMetrics(
     fontFamily: String?,
 ): Map<String, UiInlineWidgetMetrics> {
     if (inlays.isEmpty()) return emptyMap()
-    val size = inlayStyle.resolvedFontSize(fontSize)
-    val height = size + EditableFieldInlayPaddingY * 2f
+    val size = inlayStyle.resolvedFontSize(fontSize) * EditableFieldInlayFontScale
+    val height = size
     return inlays.mapIndexed { index, hint ->
         // Reserve the pill's full inline footprint: text + padding + the outer margins.
         val width = UiTextLayouter.measureStyledTextWidth(hint.text, size, fontFamily, inlayStyle) +
                 EditableFieldInlayPaddingX * 2f +
-                EditableFieldInlayMarginLeft + EditableFieldInlayMarginRight
+                EditableFieldInlayMarginRight
         textFieldInlayWidgetId(hint, index) to UiInlineWidgetMetrics(width, height)
     }.toMap()
 }
@@ -574,9 +568,15 @@ fun EditableTextField(
             .onExit { hoverTooltip = null }
             .then(modifier ?: Modifier),
     ) {
+        val placeholderWidth = if (text.isEmpty() && placeholder.isNotEmpty()) {
+            UiTextLayouter.measureTextWidth(placeholder, fontSize, fontFamily) + fontSize
+        } else {
+            0f
+        }
+        val innerWidth = maxOf(layout.contentWidth, placeholderWidth)
         Box(
             mode = UiBoxMode.STACK,
-            modifier = Modifier.position(gutterWidth.px, 0.px).size(layout.contentWidth.px, layout.height.px),
+            modifier = Modifier.position(gutterWidth.px, 0.px).size(innerWidth.px, layout.height.px),
         ) {
             if (text.isEmpty() && placeholder.isNotEmpty()) {
                 Text(
@@ -935,19 +935,17 @@ private fun EditableFieldLineFragments(
                     val hint = fieldLayout.inlayTexts[fragment.widget.id].orEmpty()
                     if (hint.isNotEmpty() && fragment.width > 0f && fragment.height > 0f) {
                         key("inlay", visualIndex, fragmentIndex, fragment.widget.id) {
-                            val boxWidth = (fragment.width - EditableFieldInlayMarginLeft -
-                                    EditableFieldInlayMarginRight).coerceAtLeast(0f)
                             Row(
                                 tags = listOf("editable-text-field-inlay", "code-editor-inlay"),
                                 modifier = Modifier
-                                    .position((x + EditableFieldInlayMarginLeft).px, y.px)
-                                    .size(boxWidth.px, fragment.height.px),
+                                    .position(x.px, y.px)
+                                    .size(UiLength.Fit, fragment.height.px),
                             ) {
                                 Text(
                                     hint,
                                     tags = listOf("editable-text-field-inlay-text", "code-editor-inlay-text"),
                                     modifier = Modifier
-                                        .fontSize(fontSize)
+                                        .fontSize(fontSize * EditableFieldInlayFontScale)
                                         .textEffects(
                                             *(EditableFieldDefaultInlayStyle.effects + listOfNotNull(textShadow)).toTypedArray(),
                                         )
@@ -1222,7 +1220,7 @@ internal val EditableFieldIndentGuideColor = UiColor(0.56f, 0.6f, 0.66f, 0.22f)
 internal val EditableFieldPlaceholderColor = UiColor(0.56f, 0.6f, 0.66f, 0.65f)
 
 private const val EditableFieldInlayPaddingX = 3f
-private const val EditableFieldInlayPaddingY = 0f
-private const val EditableFieldInlayMarginLeft = 2f
 private const val EditableFieldInlayMarginRight = 4f
+/** Inlay hints render at this fraction of the code font, so they stay within the line height. */
+private const val EditableFieldInlayFontScale = 0.85f
 private val EditableFieldDefaultInlayStyle = UiInlineStyle.Empty.withColor(UiColor(0.56f, 0.6f, 0.67f, 0.9f))

@@ -55,8 +55,10 @@ class HollowUiSurface(
     ): HollowUiFrame {
         check(hasContent) { "UI content has not been set" }
         pointer = UiPointer(x, y)
+        val nowMillis = nowNanos / NanosPerMillisecond
+        runtime.prepareFrame(nowMillis)
         val root = composition.frameRoot(nowNanos)
-        return runtime.frame(root, width, height, x, y, nowNanos / NanosPerMillisecond)
+        return runtime.frame(root, width, height, x, y, nowMillis)
     }
 
     override fun close() {

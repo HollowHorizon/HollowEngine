@@ -22,7 +22,6 @@ import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.kool.EntityModifier
 import ru.hollowhorizon.hollowengine.client.utils.color
-import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 import ru.hollowhorizon.hollowengine.client.utils.vertex
 import kotlin.math.min
 
@@ -133,7 +132,7 @@ fun LivingEntity.render(
     val yOffset = y + height + modifier.offset.y
     stack.translate(xOffset, yOffset, 0f)
     val newScale = min(width / bbWidth, height / bbHeight) * 0.95f * modifier.scale
-    stack.mulPoseMatrix(Matrix4f().scaling(newScale, -newScale, newScale))
+    stack.scale(newScale, -newScale, newScale)
 
     RenderSystem.setShaderLights(
         CUSTOM_IMGUI_LIGHT_0,

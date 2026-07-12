@@ -108,12 +108,6 @@ sealed interface UiFilterEffect {
     }
 }
 
-data class UiInputStyle(
-    val hoverable: Boolean = false,
-    val clickable: Boolean = false,
-    val draggable: Boolean = false,
-)
-
 data class UiScrollbarStyle(
     val thickness: UiLength? = null,
     val margin: UiLength? = null,

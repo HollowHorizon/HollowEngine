@@ -126,12 +126,12 @@ class HollowUiRuntime(
     private val transitionState = UiTransitionState()
     private val resolver = UiModifierResolver(theme, stylesheet, transitionState)
     private val layoutPipeline = UiLayoutPipeline()
-    private val stateStore = UiNodeStateStore()
     private val input = HollowUiInputController()
     private val placedBounds = WeakHashMap<UiNode, UiRect>()
     private val reportedTextLayouts = WeakHashMap<UiNode, UiTextLayout>()
     private var lastLayout: UiLayoutResult? = null
     private var lastLayoutKey: FrameLayoutKey? = null
+    private var preparedAtMillis: Long? = null
     var lastFrame: HollowUiFrame? = null
         private set
 
@@ -151,14 +151,24 @@ class HollowUiRuntime(
         mouseY: Float,
         nowMillis: Long = 0L,
     ): HollowUiFrame {
-        stateStore.apply(root)
         input.prepareRoot(root, false)
-        scrollState.update(nowMillis)
+        if (preparedAtMillis == nowMillis) {
+            preparedAtMillis = null
+        } else {
+            scrollState.update(nowMillis)
+        }
         val frame = buildFrame(root, width, height, nowMillis)
         input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         input.dispatchHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         lastFrame = frame
         return frame
+    }
+
+    internal fun prepareFrame(nowMillis: Long) {
+        lastLayout?.let { layout -> applyPendingScrollRequests(layout.nodes.keys) }
+        scrollState.update(nowMillis)
+        lastLayout?.let(::syncScrollHandlesFromState)
+        preparedAtMillis = nowMillis
     }
 
     private fun buildFrame(
@@ -168,7 +178,11 @@ class HollowUiRuntime(
         nowMillis: Long,
     ): HollowUiFrame {
         val nodes = resolver.resolve(root, nowMillis)
-        applyPendingScrollRequests(nodes)
+        // Pending scroll requests are applied in prepareFrame, BEFORE composition, so composition
+        // and this frame's layout read the same offset. Applying them here (after composition) would
+        // desync a scroll requested during composition itself - e.g. the editor's caret-follow, which
+        // runs in a composition SideEffect - making pinned overlays (line-number gutter) jitter for a
+        // frame. Such requests instead take effect on the next frame's prepareFrame.
 
         val layoutKey = FrameLayoutKey(
             width = width,
@@ -282,7 +296,7 @@ class HollowUiRuntime(
      * Applies scroll offsets requested through hoisted [UiScrollHandle]s before layout runs, so the
      * bumped scroll revision forces a fresh pass that places content at the requested offset.
      */
-    private fun applyPendingScrollRequests(nodes: List<UiNode>) {
+    private fun applyPendingScrollRequests(nodes: Iterable<UiNode>) {
         for (node in nodes) {
             val handle = node.scrollHandle() ?: continue
             if (handle.pendingX == null && handle.pendingY == null) continue
@@ -299,6 +313,16 @@ class HollowUiRuntime(
             val layoutNode = layout.nodes[node] ?: continue
             handle.offsetX = layoutNode.scrollOffset.x
             handle.offsetY = layoutNode.scrollOffset.y
+            handle.viewport = layoutNode.content
+        }
+    }
+
+    private fun syncScrollHandlesFromState(layout: UiLayoutResult) {
+        for ((node, layoutNode) in layout.nodes) {
+            val handle = node.scrollHandle() ?: continue
+            val offset = scrollState.offset(node)
+            handle.offsetX = offset.x
+            handle.offsetY = offset.y
             handle.viewport = layoutNode.content
         }
     }
@@ -372,10 +396,6 @@ class HollowUiRuntime(
         input.reset()
         lastLayout = null
         lastLayoutKey = null
-    }
-
-    fun saveState(node: UiStatefulNode) {
-        stateStore.save(node)
     }
 
     fun focus(editorKey: String) {

@@ -28,6 +28,8 @@ object IrisHelper {
 
     val hasIris = ModList.isLoaded("iris") || ModList.isLoaded("oculus")
 
+    fun areShadersEnabled() = IrisApi.getInstance().config.areShadersEnabled()
+
     fun isShadowRendering() = hasIris && IrisApi.getInstance().isRenderingShadowPass
 
     fun isShaderPackInUse() = hasIris && IrisApi.getInstance().isShaderPackInUse
