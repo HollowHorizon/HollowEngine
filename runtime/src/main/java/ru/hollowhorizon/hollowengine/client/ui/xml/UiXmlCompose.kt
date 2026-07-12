@@ -156,6 +156,16 @@ private fun UiXmlElement(
         }
 
         "image" -> Image(attributes.firstValue("source", "src", "image"), id, tags, modifier, customAttributes)
+        "video" -> Video(
+            source = attributes.firstValue("source", "src", "video"),
+            id = id,
+            tags = tags,
+            modifier = modifier,
+            controls = attributes.readBoolean("controls", fallback = true),
+            autoPlay = attributes.readBoolean("autoplay", fallback = true),
+            volume = attributes.readSliderValue("volume", 1f),
+        )
+
         "item" -> Item(attributes.firstValue("item", "value"), id, tags, modifier, customAttributes)
         "entity" -> Entity(attributes.firstValue("entity", "value"), id, tags, modifier, customAttributes)
         "popup" -> Popup(

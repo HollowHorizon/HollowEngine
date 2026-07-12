@@ -310,6 +310,8 @@ fun Modifier.foreground(color: UiColor) = prop(UiProps.Foreground, color)
 
 fun Modifier.image(source: String) = prop(UiProps.Image, source)
 
+fun Modifier.imageFit(value: UiImageFit) = prop(UiProps.ImageFit, value)
+
 fun Modifier.item(source: String) = prop(UiProps.Item, source)
 
 fun Modifier.entity(source: String) = prop(UiProps.Entity, source)

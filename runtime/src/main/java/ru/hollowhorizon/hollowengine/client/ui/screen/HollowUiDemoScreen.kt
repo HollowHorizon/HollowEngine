@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
+import ru.hollowhorizon.hollowengine.client.ui.widgets.Video
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
 import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
 import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
@@ -48,6 +49,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("effects", "Эффекты", "hollowengine:textures/gui/npc_menu/character.png")
                 tab("shapes", "Shapes", "hollowengine:textures/gui/icons/code_editor.svg")
+                tab("video", "Видео", "hollowengine:textures/gui/icons/play.svg")
             }
             Box(id = "content", tags = listOf("content")) {
                 when (selectedTab) {
@@ -60,6 +62,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     "effects" -> effects()
                     "shapes" -> shapesDemo()
                     "xml" -> xmlDemo()
+                    "video" -> videoDemo()
                     else -> overview()
                 }
             }
@@ -515,6 +518,23 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 Text("Карточка с размытием", tags = listOf("card-title", "soft-title"))
                 Text("А теперь её видно нормально!", tags = listOf("body", "soft-body"))
             }
+        }
+    }
+
+    @Composable
+    private fun videoDemo() {
+        Column(tags = listOf("panel"), modifier = Modifier.padding(12.px).gap(8.px)) {
+            Text("Видео-плеер", tags = listOf("title"))
+            Text(
+                "Виджет Video поверх видео-аддона: ховер показывает контролы, попап громкости открывается наведением. Без аддона здесь будет заглушка.",
+                tags = listOf("body"),
+            )
+            Video(
+                source = "2026-06-21 20-01-15.mp4",
+                id = "demo-video",
+                autoPlay = false,
+                modifier = Modifier.size(100.percent, UiLength.Auto).grow().borderRadius(6f),
+            )
         }
     }
 
