@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.rendering
 
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.math.MutableMat3f
 import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
@@ -16,10 +15,11 @@ import ru.hollowhorizon.hollowengine.client.models.internal.utils.VboWrapper
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.toFloatBuffer
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled
 import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfo
-import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import java.util.*
+import kotlin.math.abs
+import kotlin.math.cbrt
 
 class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     private var vao = -1
@@ -129,8 +129,8 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         tanBuffer = VboWrapper.createArrayBuffer().apply {
             allocate(vertexCount * 4 * 4L, GL33.GL_DYNAMIC_COPY)
-            GL33.glVertexAttribPointer(9, 4, GL33.GL_FLOAT, false, 0, 0)
-            GL33.glEnableVertexAttribArray(9)
+            GL33.glVertexAttribPointer(8, 4, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(8)
         }
     }
 
@@ -370,12 +370,15 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     }
 
     private fun RenderContext.captureInstance(node: MatrixGetter): SubmittedInstance {
-        val matrix = node()
-        val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
-        modelView.mul(matrix.asMatrix4f())
+        val nodeMatrix = node().asMatrix4f()
 
-        val normal = Matrix3f(stack.last().normal())
-        normal.mul(matrix.getUpperLeft(MutableMat3f()).asMatrix3f())
+        val modelView = Matrix4f(RenderSystem.getModelViewMatrix())
+            .mul(stack.last().pose())
+            .mul(nodeMatrix)
+
+        val normal = normalMatrixOf(RenderSystem.getModelViewMatrix())
+            .mul(stack.last().normal())
+            .mul(normalMatrixOf(nodeMatrix))
 
         return SubmittedInstance(
             modelView = modelView,
@@ -537,7 +540,7 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
     private fun RenderContext.renderVAO(node: MatrixGetter) {
         val shader = RenderSystem.getShader() ?: return
-        val matrix = node()
+        val nodeMatrix = node().asMatrix4f()
 
         applyMaterial(shader, primitive.material)
 
@@ -546,13 +549,14 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         indexBuffer?.bind()
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
-        modelView.mul(matrix.asMatrix4f())
+        modelView.mul(nodeMatrix)
         shader.MODEL_VIEW_MATRIX?.set(modelView)
         shader.MODEL_VIEW_MATRIX?.upload()
 
         shader.getUniform("NormalMat")?.let {
-            val normal = Matrix3f(stack.last().normal())
-            normal.mul(matrix.getUpperLeft(MutableMat3f()).asMatrix3f())
+            val normal = normalMatrixOf(RenderSystem.getModelViewMatrix())
+            normal.mul(stack.last().normal())
+            normal.mul(normalMatrixOf(nodeMatrix))
             it.set(normal)
             it.upload()
         }
@@ -651,4 +655,22 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     }
 
     private data class InstancedShaderBinding(val vao: Int, val colorLocation: Int)
+}
+
+private fun normalMatrixOf(matrix: Matrix4f): Matrix3f {
+    val linear = Matrix3f(matrix)
+    val determinant = linear.determinant()
+
+    if (!determinant.isFinite() || abs(determinant) < 1e-8f) {
+        return Matrix3f()
+    }
+
+    val result = linear
+        .invert()
+        .transpose()
+
+    val uniformCompensation = cbrt(abs(determinant))
+
+    result.scale(uniformCompensation)
+    return result
 }

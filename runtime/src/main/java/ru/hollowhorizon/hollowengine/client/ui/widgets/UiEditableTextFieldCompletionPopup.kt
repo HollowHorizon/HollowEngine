@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
+import kotlinx.coroutines.isActive
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
+import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
+import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.generated.Assets
@@ -125,13 +127,15 @@ internal fun EditableFieldCompletionPopup(
                 Box(modifier = Modifier.size(100.percent, (firstIndex * geometry.rowHeight).px))
             }
             windowed.forEachIndexed { offset, item ->
-                CompletionPopupRow(
-                    completion = completion,
-                    index = firstIndex + offset,
-                    item = item,
-                    selected = firstIndex + offset == selectedIndex,
-                    rowHeight = geometry.rowHeight,
-                )
+                key(firstIndex + offset) {
+                    CompletionPopupRow(
+                        completion = completion,
+                        index = firstIndex + offset,
+                        item = item,
+                        selected = firstIndex + offset == selectedIndex,
+                        rowHeight = geometry.rowHeight,
+                    )
+                }
             }
             val remaining = items.size - firstIndex - windowed.size
             if (remaining > 0) {
@@ -166,10 +170,20 @@ private fun CompletionPopupRow(
     selected: Boolean,
     rowHeight: Float,
 ) {
+    var hovered by remember { mutableStateOf(false) }
+    val active = selected || hovered
+    val fadeColor = when {
+        selected && hovered -> CompletionSelectedHoverBg
+        selected -> CompletionSelectedBg
+        hovered -> CompletionHoverBg
+        else -> CompletionPopupBg
+    }
     Row(
         tags = listOf("ide-completion-row", if (selected) "selected" else "idle"),
         modifier = Modifier.size(100.percent, rowHeight.px)
             .input(clickable = true, hoverable = true)
+            .onEnter { hovered = true }
+            .onExit { hovered = false }
             .onClick { event ->
                 completion.accept(index)
                 event.consume()
@@ -178,16 +192,176 @@ private fun CompletionPopupRow(
         item.icon?.let { icon ->
             Image(icon, tags = listOf("ide-completion-icon"))
         }
-        Text(item.label, tags = listOf("ide-completion-label"))
-        if (item.detail.isNotBlank()) {
-            Text(item.detail, tags = listOf("ide-completion-detail"))
+        CompletionRowContent(item.label, item.detail, item.tail, active, fadeColor)
+    }
+}
+
+@Composable
+private fun CompletionRowContent(
+    label: String,
+    detail: String,
+    tail: String,
+    active: Boolean,
+    fadeColor: UiColor,
+) {
+    var viewportWidth by remember { mutableStateOf(0f) }
+    var leadingWidth by remember { mutableStateOf(0f) }
+    var tailWidth by remember { mutableStateOf(0f) }
+    val hasTail = tail.isNotBlank()
+    val inlineTail = hasTail && !completionTailFitsSeparately(viewportWidth, leadingWidth, tailWidth)
+    val textWidth = leadingWidth + if (inlineTail) CompletionTailGap + tailWidth else 0f
+    val overflow = (textWidth - viewportWidth).coerceAtLeast(0f)
+    val marquee = active && overflow > 0.5f
+    val travelMs = (overflow * CompletionMarqueeMsPerPixel).toLong().coerceIn(700L, 6000L)
+    var atEnd by remember { mutableStateOf(false) }
+    LaunchedEffect(marquee, travelMs) {
+        atEnd = false
+        if (!marquee) return@LaunchedEffect
+        val cycleMs = 2L * CompletionMarqueePauseMs + 2L * travelMs
+        var baseNanos = -1L
+        while (isActive) {
+            withFrameNanos { now ->
+                if (baseNanos < 0L) baseNanos = now
+                val elapsed = (now - baseNanos) / 1_000_000L % cycleMs
+                atEnd = elapsed in CompletionMarqueePauseMs until CompletionMarqueePauseMs + travelMs + CompletionMarqueePauseMs
+            }
         }
-        Box(modifier = Modifier.size(100.percent, 100.percent).grow(1f))
-        if (item.tail.isNotBlank()) {
-            Text(item.tail, tags = listOf("ide-completion-tail"))
+    }
+    val shift = if (atEnd) overflow else 0f
+    Box(
+        tags = listOf("ide-completion-main"),
+        modifier = Modifier.grow(1f).clip().onPlaced { viewportWidth = it.width },
+    ) {
+        Row(
+            tags = listOf("ide-completion-text"),
+            modifier = Modifier
+                .gap(CompletionTailGap.px)
+                .translate(x = -shift)
+                .transition(UiTransition("translate", durationMillis = travelMs))
+                .clip(false),
+        ) {
+            Row(
+                modifier = Modifier.onPlaced { leadingWidth = it.width }.clip(false),
+            ) {
+                Text(label, tags = listOf("ide-completion-label"))
+                if (detail.isNotBlank()) {
+                    CompletionDetail(detail, active)
+                }
+            }
+            if (inlineTail) {
+                CompletionTail(tail, UiAlign.START) { tailWidth = it }
+            }
+        }
+        if (hasTail && !inlineTail) {
+            CompletionTail(tail, UiAlign.END) { tailWidth = it }
+        }
+        if (overflow > 0.5f) {
+            Box(
+                tags = listOf("ide-completion-fade"),
+                modifier = Modifier.size(CompletionFadeWidth.px, 100.percent)
+                    .align(UiAlign.END, UiAlign.CENTER)
+                    .position(CompletionFadeOvershoot.px, 0.px)
+                    .opacity(if (atEnd) 0f else 1f)
+                    .transition(UiTransition("opacity", durationMillis = CompletionFadeDurationMillis))
+                    .background(0f, completionFadeStops(fadeColor)),
+            )
+            Box(
+                tags = listOf("ide-completion-fade"),
+                modifier = Modifier.size(CompletionFadeWidth.px, 100.percent)
+                    .align(UiAlign.START, UiAlign.CENTER)
+                    .position((-CompletionFadeOvershoot).px, 0.px)
+                    .opacity(if (atEnd) 1f else 0f)
+                    .transition(UiTransition("opacity", durationMillis = CompletionFadeDurationMillis))
+                    .background(180f, completionFadeStops(fadeColor)),
+            )
         }
     }
 }
+
+@Composable
+private fun CompletionTail(tail: String, horizontalAlign: UiAlign, onWidthChanged: (Float) -> Unit) {
+    Text(
+        tail,
+        tags = listOf("ide-completion-tail"),
+        modifier = Modifier.align(horizontalAlign, UiAlign.CENTER).onPlaced { onWidthChanged(it.width) },
+    )
+}
+
+internal fun completionTailFitsSeparately(viewportWidth: Float, leadingWidth: Float, tailWidth: Float): Boolean {
+    if (viewportWidth <= 0f || tailWidth <= 0f) return true
+    return leadingWidth + CompletionTailGap + tailWidth <= viewportWidth + 0.5f
+}
+
+@Composable
+private fun CompletionDetail(detail: String, active: Boolean) {
+    val factor = if (active) 1f else 0.72f
+    Row(
+        tags = listOf("ide-completion-detail"),
+        modifier = Modifier.textWrap(false).whitespace(UiWhitespace.PRESERVE).clip(false),
+    ) {
+        for (segment in completionDetailSegments(detail)) {
+            Text(
+                segment.text,
+                tags = listOf("ide-completion-detail-seg"),
+                modifier = Modifier
+                    .foreground(segment.color.copy(alpha = segment.color.alpha * factor))
+                    .textWrap(false),
+            )
+        }
+    }
+}
+
+private data class CompletionSegment(val text: String, val color: UiColor)
+
+private val CompletionTokenRegex = Regex("""[A-Za-z_][A-Za-z0-9_]*|\s+|[^A-Za-z0-9_\s]""")
+
+private fun completionDetailSegments(detail: String): List<CompletionSegment> {
+    val result = ArrayList<CompletionSegment>()
+    for (match in CompletionTokenRegex.findAll(detail)) {
+        val token = match.value
+        val first = token.first()
+        val color = when {
+            first.isWhitespace() -> CompletionPunctuationColor
+            first.isLetter() && first.isUpperCase() -> CompletionTypeColor
+            first.isLetter() || first == '_' -> CompletionNameColor
+            else -> CompletionPunctuationColor
+        }
+        val last = result.lastOrNull()
+        if (last != null && last.color == color) {
+            result[result.lastIndex] = last.copy(text = last.text + token)
+        } else {
+            result += CompletionSegment(token, color)
+        }
+    }
+    return result
+}
+
+private val CompletionTypeColor = parseColor("#A9B7C6")
+private val CompletionNameColor = parseColor("#57AAF7")
+private val CompletionPunctuationColor = parseColor("#6E7686")
+
+private const val CompletionFadeWidth = 16f
+private const val CompletionFadeDurationMillis = 300L
+private const val CompletionFadeOvershoot = 2f
+private val CompletionPopupBg = parseColor("#24272E")
+private val CompletionSelectedBg = UiColor(67f / 255f, 106f / 255f, 154f / 255f, 0.62f).over(CompletionPopupBg)
+private val CompletionSelectedHoverBg = UiColor(84f / 255f, 124f / 255f, 176f / 255f, 0.72f).over(CompletionPopupBg)
+private val CompletionHoverBg = UiColor(67f / 255f, 92f / 255f, 132f / 255f, 0.34f).over(CompletionPopupBg)
+
+private fun completionFadeStops(color: UiColor) = listOf(
+    UiGradientStop(0f, color.copy(alpha = 0f)),
+    UiGradientStop(0.82f, color),
+    UiGradientStop(1f, color),
+)
+
+private fun UiColor.over(base: UiColor): UiColor {
+    val a = alpha
+    return UiColor(red * a + base.red * (1f - a), green * a + base.green * (1f - a), blue * a + base.blue * (1f - a), 1f)
+}
+
+private const val CompletionMarqueePauseMs = 900L
+private const val CompletionMarqueeMsPerPixel = 16f
+private const val CompletionTailGap = 6f
 
 private class CompletionSelectionFollow {
     var lastSelectedIndex = -1

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.editor
 
+import androidx.compose.runtime.mutableStateOf as composeStateOf
 import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.PassData
 import de.fabmax.kool.ViewData
@@ -89,8 +90,8 @@ object TransformGizmoEditor {
     private val overlayLabelState = mutableStateOf<OverlayLabelState?>(null)
     private val inspectorState = TransformGizmoInspectorState(::applySnapshotUpdate)
 
-    val enabledState = mutableStateOf(false)
-    val modeState = mutableStateOf(GizmoEditMode.TRANSLATE)
+    val enabledState = composeStateOf(false)
+    val modeState = composeStateOf(GizmoEditMode.TRANSLATE)
 
     val isEnabled: Boolean get() = enabledState.value
     val mode: GizmoEditMode get() = modeState.value
@@ -138,31 +139,38 @@ object TransformGizmoEditor {
         }
     }
 
-    init {
-        enabledState.onChange { _, enabled ->
-            KeyValueStore.setBoolean(ENABLED_KEY, enabled)
-            if (!enabled) {
-                cancelInteraction()
-                entries.values.forEach { it.node.isVisible = false }
-            } else {
-                entries.values.forEach {
-                    it.refreshFromRuntime()
-                    it.node.isVisible = true
-                }
+    private fun applyEnabled(enabled: Boolean) {
+        KeyValueStore.setBoolean(ENABLED_KEY, enabled)
+        if (!enabled) {
+            cancelInteraction()
+            entries.values.forEach { it.node.isVisible = false }
+        } else {
+            entries.values.forEach {
+                it.refreshFromRuntime()
+                it.node.isVisible = true
             }
-            updateInputBlockingState()
         }
-        modeState.onChange { _, mode ->
-            KeyValueStore.setInt(MODE_KEY, mode.ordinal)
-            entries.values.forEach { it.configureMode(mode) }
-        }
+        updateInputBlockingState()
     }
 
-    fun toggleEnabled() = enabledState.set(!isEnabled)
+    private fun applyMode(mode: GizmoEditMode) {
+        KeyValueStore.setInt(MODE_KEY, mode.ordinal)
+        entries.values.forEach { it.configureMode(mode) }
+    }
 
-    fun setEnabled(enabled: Boolean) = enabledState.set(enabled)
+    fun toggleEnabled() = setEnabled(!isEnabled)
 
-    fun setMode(mode: GizmoEditMode) = modeState.set(mode)
+    fun setEnabled(enabled: Boolean) {
+        if (enabledState.value == enabled) return
+        enabledState.value = enabled
+        applyEnabled(enabled)
+    }
+
+    fun setMode(mode: GizmoEditMode) {
+        if (modeState.value == mode) return
+        modeState.value = mode
+        applyMode(mode)
+    }
 
     fun shouldBlockScreenInput(x: Float, y: Float): Boolean {
         if (!isInitialized) return false
@@ -175,10 +183,13 @@ object TransformGizmoEditor {
     @SubscribeEvent
     fun onKoolInit(event: KoolInitEvent) {
         if (!isInitialized) {
-            enabledState.set(KeyValueStore.getBoolean(ENABLED_KEY))
-            modeState.set(
+            val storedEnabled = KeyValueStore.getBoolean(ENABLED_KEY)
+            val storedMode =
                 GizmoEditMode.entries.getOrElse(KeyValueStore.getInt(MODE_KEY, 0)) { GizmoEditMode.TRANSLATE }
-            )
+            enabledState.value = storedEnabled
+            modeState.value = storedMode
+            applyEnabled(storedEnabled)
+            applyMode(storedMode)
             isInitialized = true
         }
         updateInputBlockingState()

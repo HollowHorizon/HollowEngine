@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.CheckboxNode
-import ru.hollowhorizon.hollowengine.client.ui.widgets.SliderNode
 
 
 internal fun List<MeasuredChild>.sumOfOuterWidth(): Float =
@@ -69,7 +67,7 @@ internal fun UiLength.rowWeight(size: LayoutSize): Float {
         UiLength.Fill -> 1f
         is UiLength.Percent -> value
         UiLength.Auto -> size.width.coerceAtLeast(1f)
-        is UiLength.Px -> 0f
+        UiLength.Fit, is UiLength.Px -> 0f
         is UiLength.Addition -> first.rowWeight(size) + second.rowWeight(size)
         is UiLength.Substraction -> (first.rowWeight(size) - second.rowWeight(size)).coerceAtLeast(0f)
     }
@@ -89,14 +87,14 @@ internal fun UiLength.columnWeight(size: LayoutSize): Float {
         UiLength.Fill -> 1f
         is UiLength.Percent -> value
         UiLength.Auto -> size.height.coerceAtLeast(1f)
-        is UiLength.Px -> 0f
+        UiLength.Fit, is UiLength.Px -> 0f
         is UiLength.Addition -> first.columnWeight(size) + second.columnWeight(size)
         is UiLength.Substraction -> (first.columnWeight(size) - second.columnWeight(size)).coerceAtLeast(0f)
     }
 }
 
 internal fun UiLength.resolveOrNull(reference: Float, deferFlexible: Boolean = false): Float? = when (this) {
-    UiLength.Auto -> null
+    UiLength.Auto, UiLength.Fit -> null
     UiLength.Fill -> if (deferFlexible) null else reference
     is UiLength.Px -> value
     is UiLength.Percent -> if (deferFlexible) null else reference * value
@@ -117,9 +115,8 @@ internal fun UiConstraints.fixedHeightOrNull(): Float? {
 
 internal fun replacedIntrinsicSize(node: UiNode, style: UiComputedStyle): LayoutSize {
     return when {
-        node is SliderNode -> LayoutSize(DefaultSliderWidth, DefaultWidgetHeight)
-        node is CheckboxNode -> LayoutSize(DefaultWidgetHeight, DefaultWidgetHeight)
-        node is ImageNode || style.background is UiPaint.Image -> LayoutSize(
+        style.image != null || style.item != null || style.entity != null ||
+                style.background is UiPaint.Image -> LayoutSize(
             DefaultReplacedElementSize,
             DefaultReplacedElementSize
         )
@@ -129,8 +126,6 @@ internal fun replacedIntrinsicSize(node: UiNode, style: UiComputedStyle): Layout
 }
 
 private const val DefaultReplacedElementSize = 32f
-private const val DefaultSliderWidth = 120f
-private const val DefaultWidgetHeight = 16f
 
 internal fun Float.coerceIn(min: UiLength, max: UiLength, reference: Float): Float {
     val minValue = min.resolve(reference, 0f)

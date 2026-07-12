@@ -177,7 +177,6 @@ private fun UiXmlElement(
             id = id,
             tags = tags,
             modifier = modifier,
-            attributes = customAttributes + attributes.onlyWidgetAttributes(SliderAttributes),
         )
 
         "checkbox" -> Checkbox(
@@ -186,7 +185,6 @@ private fun UiXmlElement(
             id = id,
             tags = tags,
             modifier = modifier,
-            attributes = customAttributes + attributes.onlyWidgetAttributes(CheckboxAttributes),
         )
 
         "text-field", "textfield", "input", "textarea" -> TextField(
@@ -365,8 +363,6 @@ private fun Map<String, String>.popupAlignment(): UiPopupAlignment {
 
 private fun String.parsePopupFloat(): Float = trim().removeSuffix("px").toFloatOrNull() ?: 0f
 
-private val SliderAttributes = setOf("value", "min", "max", "step")
-private val CheckboxAttributes = setOf("checked", "value", "variant", "style", "type")
 private val TextFieldAttributes = setOf(
     "value",
     "text",

@@ -274,18 +274,7 @@ class UiModifierResolver(
     }
 
     private fun attributeModifiers(node: UiNode): List<Modifier> {
-        return node.attributes.mapNotNull { (name, value) ->
-            if (node.isWidgetConfigurationAttribute(name)) null else compileStyleModifier(name, value)
-        }
-    }
-
-    private fun UiNode.isWidgetConfigurationAttribute(name: String): Boolean {
-        val normalized = name.replace('_', '-')
-        return when (this) {
-            is SliderNode -> normalized in setOf("value", "min", "max", "step")
-            is CheckboxNode -> normalized in setOf("value", "checked", "variant", "style", "type")
-            else -> false
-        }
+        return node.attributes.mapNotNull { (name, value) -> compileStyleModifier(name, value) }
     }
 
     private fun engineDefaults(node: UiNode): UiStylePatch {
@@ -303,20 +292,6 @@ class UiModifierResolver(
             UiEntityType,
                 -> {
                 style.size = UiSize(16.px, 16.px)
-            }
-
-            UiSliderType -> {
-                style.size = UiSize(120.px, 16.px)
-                style.input = UiInputStyle(hoverable = true, clickable = true, draggable = true)
-                style.focusable = true
-                style.slider = UiSliderStyle()
-            }
-
-            UiCheckboxType -> {
-                style.size = UiSize(16.px, 16.px)
-                style.input = UiInputStyle(hoverable = true, clickable = true)
-                style.focusable = true
-                style.checkbox = UiCheckboxStyle()
             }
 
             UiScrollbarType -> {

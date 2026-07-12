@@ -126,7 +126,6 @@ class HollowUiRuntime(
     private val transitionState = UiTransitionState()
     private val resolver = UiModifierResolver(theme, stylesheet, transitionState)
     private val layoutPipeline = UiLayoutPipeline()
-    private val stateStore = UiNodeStateStore()
     private val input = HollowUiInputController()
     private val placedBounds = WeakHashMap<UiNode, UiRect>()
     private val reportedTextLayouts = WeakHashMap<UiNode, UiTextLayout>()
@@ -152,7 +151,6 @@ class HollowUiRuntime(
         mouseY: Float,
         nowMillis: Long = 0L,
     ): HollowUiFrame {
-        stateStore.apply(root)
         input.prepareRoot(root, false)
         if (preparedAtMillis == nowMillis) {
             preparedAtMillis = null
@@ -398,10 +396,6 @@ class HollowUiRuntime(
         input.reset()
         lastLayout = null
         lastLayoutKey = null
-    }
-
-    fun saveState(node: UiStatefulNode) {
-        stateStore.save(node)
     }
 
     fun focus(editorKey: String) {

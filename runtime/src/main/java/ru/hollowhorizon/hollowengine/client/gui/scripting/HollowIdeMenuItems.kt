@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownSlider
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
@@ -109,6 +110,18 @@ internal fun hollowIdeToolMenuItems(): List<UiDropdownItem> {
         ) {
             TransformGizmoEditor.setMode(GizmoEditMode.SCALE)
         },
+        UiDropdownItem(
+            label = "hollowengine.gui.ide.gui_scale".lang,
+            slider = UiDropdownSlider(
+                value = HollowIdeScale.guiScale.toFloat(),
+                min = 0f,
+                max = HollowIdeScale.MaxScale.toFloat(),
+                step = 1f,
+                valueLabel = { HollowIdeScale.label(it.toInt()) },
+                onCommit = { HollowIdeScale.guiScale = it.toInt() },
+            ),
+            closeOnClick = false,
+        ),
     )
 }
 

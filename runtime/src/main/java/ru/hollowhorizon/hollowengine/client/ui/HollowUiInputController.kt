@@ -184,15 +184,7 @@ class HollowUiInputController {
         val pressHandled = dispatch(press)
         if (pressHandled && press.consumed) return UiInputResult(true, hit.node, hit.node.id)
 
-        if (button == 0 && applyBuiltInPointerPress(frame, hit.node, hit.localX, hit.localY)) {
-            dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
-            if (hit.node is SliderNode) {
-                draggingNode = hit.node
-            }
-            return UiInputResult(true, hit.node, hit.node.id, changed = true)
-        }
-
-        if (hit.node.resolvedSnapshot.input.draggable && button == 0) {
+        if (hit.node.resolvedSnapshot.draggable && button == 0) {
             draggingNode = hit.node
             return UiInputResult(true, hit.node, hit.node.id)
         }
@@ -238,10 +230,6 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
         val node = draggingNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
-        var changed = false
-        if (button == 0 && node is SliderNode) {
-            changed = updateSliderFromMouse(frame, node, mouseX, mouseY)
-        }
         val local = frame.layout[node].inputTransform.inverse()?.transform(mouseX, mouseY, 0f)
         val layoutNode = frame.layout[node]
         val parent = frame.parentOf(node)
@@ -272,7 +260,7 @@ class HollowUiInputController {
             deltaY = deltaY,
         )
         val handled = dispatch(event)
-        return UiInputResult(changed || handled, node, node.id, changed)
+        return UiInputResult(handled, node, node.id)
     }
 
     fun mouseReleased(
@@ -283,7 +271,9 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
         modifiers: Int = 0,
     ): UiInputResult {
-        val releaseNode = frame.hitTest(mouseX, mouseY)?.node ?: activeNode?.takeIf { it in frame.nodes }
+        val releaseNode = draggingNode?.takeIf { it in frame.nodes }
+            ?: frame.hitTest(mouseX, mouseY)?.node
+            ?: activeNode?.takeIf { it in frame.nodes }
         val handled = releaseNode?.let { node ->
             dispatch(
                 UiEvent(
@@ -369,9 +359,6 @@ class HollowUiInputController {
                 modifiers = effectiveModifiers,
             )
             if (dispatch(event)) handled = true
-            if (event.changed && node is UiStatefulNode) {
-                return UiInputResult(true, node, node.id, changed = true)
-            }
             if (event.consumed) return UiInputResult(true, node, node.id)
         }
         if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
@@ -473,32 +460,6 @@ class HollowUiInputController {
                 height = layoutNode.rect.height,
             )
         )
-    }
-
-    private fun applyBuiltInPointerPress(frame: HollowUiFrame, node: UiNode, localX: Float, localY: Float): Boolean {
-        val handled = when (node) {
-            is SliderNode -> {
-                val width = frame.layout.nodes[node]?.rect?.width ?: return false
-                node.setFromLocalX(localX, width)
-                true
-            }
-
-            is CheckboxNode -> {
-                node.toggle()
-                true
-            }
-
-            else -> false
-        }
-        return handled
-    }
-
-    private fun updateSliderFromMouse(frame: HollowUiFrame, node: SliderNode, mouseX: Float, mouseY: Float): Boolean {
-        val layout = frame.layout[node]
-        val inverse = layout.inputTransform.inverse() ?: return false
-        val local = inverse.transform(mouseX, mouseY, 0f)
-        val changed = node.setFromLocalX(local.x, layout.rect.width)
-        return changed
     }
 
     private fun isAltPressed(): Boolean {

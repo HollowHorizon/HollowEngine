@@ -516,8 +516,8 @@ object HollowIdeOverlay {
 
     private fun renderOverlay(target: UiRenderTarget) {
         val window = Minecraft.getInstance().window
-        val frameWidth = window.guiScaledWidth.toFloat()
-        val frameHeight = window.guiScaledHeight.toFloat()
+        val frameWidth = HollowIdeScale.scaledWidth()
+        val frameHeight = HollowIdeScale.scaledHeight()
         val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
             ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame, target)
@@ -534,9 +534,8 @@ object HollowIdeOverlay {
     private fun currentBlitTarget(): UiRenderTarget {
         val viewport = IntArray(4)
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport)
-        val window = Minecraft.getInstance().window
-        val logicalWidth = window.guiScaledWidth.toFloat()
-        val logicalHeight = window.guiScaledHeight.toFloat()
+        val logicalWidth = HollowIdeScale.scaledWidth()
+        val logicalHeight = HollowIdeScale.scaledHeight()
         return UiRenderTarget(
             framebufferId = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),
             x = viewport[0],

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoader
@@ -40,7 +41,7 @@ object CommonEnvironment {
             }
         }
 
-        if (isProduction) classpath += ModsEnvironment("hollowengine").setup(mappings, outputDir)
+        if (isProduction) classpath += ModsEnvironment(*HollowEngineConfig.scriptingMods.toTypedArray()).setup(mappings, outputDir)
 
         return mappings to classpath
     }

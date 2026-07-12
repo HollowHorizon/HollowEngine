@@ -310,6 +310,10 @@ fun Modifier.foreground(color: UiColor) = prop(UiProps.Foreground, color)
 
 fun Modifier.image(source: String) = prop(UiProps.Image, source)
 
+fun Modifier.item(source: String) = prop(UiProps.Item, source)
+
+fun Modifier.entity(source: String) = prop(UiProps.Entity, source)
+
 fun Modifier.shader(name: String) = prop(UiProps.Shader, name)
 
 fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) =

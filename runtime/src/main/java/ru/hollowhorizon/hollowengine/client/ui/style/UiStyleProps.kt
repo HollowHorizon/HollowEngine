@@ -61,8 +61,8 @@ object UiProps {
     )
 
     // Sizing / layout
-    val Width = prop<UiLength>("width", UiLength.Auto, fingerprint = true)
-    val Height = prop<UiLength>("height", UiLength.Auto, fingerprint = true)
+    val Width = prop<UiLength>("width", UiLength.Fit, fingerprint = true)
+    val Height = prop<UiLength>("height", UiLength.Fit, fingerprint = true)
     val MinWidth = prop<UiLength>("min-width", UiLength.Auto, fingerprint = true)
     val MinHeight = prop<UiLength>("min-height", UiLength.Auto, fingerprint = true)
     val MaxWidth = prop<UiLength>("max-width", UiLength.Auto, fingerprint = true)
@@ -95,6 +95,8 @@ object UiProps {
         interpolate = UiColor::interpolate,
     )
     val Image = prop<String?>("image", null)
+    val Item = prop<String?>("item", null)
+    val Entity = prop<String?>("entity", null)
     val Shader = prop<String?>("shader", null)
     val Shadows = prop(
         "shadow", emptyList(), aliases = setOf("box-shadow"),
@@ -225,6 +227,8 @@ var UiStylePatch.border: UiBorder?
 var UiStylePatch.background by UiProps.Background
 var UiStylePatch.foreground by UiProps.Foreground
 var UiStylePatch.image by UiProps.Image
+var UiStylePatch.item by UiProps.Item
+var UiStylePatch.entity by UiProps.Entity
 var UiStylePatch.shader by UiProps.Shader
 var UiStylePatch.shadows by UiProps.Shadows
 var UiStylePatch.opacity by UiProps.Opacity
@@ -254,23 +258,6 @@ var UiStylePatch.scroll by UiProps.Scroll
 var UiStylePatch.inputTransparent by UiProps.InputTransparent
 var UiStylePatch.cursor by UiProps.Cursor
 
-/**
- * Composite view over the four input capability props. Reading returns the merged flags;
- * writing turns *on* only the flags that are true, so multiple event modifiers accumulate
- * (OR) instead of clobbering each other. To force a flag off (e.g. a `:disabled` rule),
- * set the individual prop (`clickable = false`) rather than assigning `input`.
- */
-var UiStylePatch.input: UiInputStyle
-    get() = UiInputStyle(
-        hoverable = this[UiProps.Hoverable] ?: false,
-        clickable = this[UiProps.Clickable] ?: false,
-        draggable = this[UiProps.Draggable] ?: false,
-    )
-    set(value) {
-        if (value.hoverable) this[UiProps.Hoverable] = true
-        if (value.clickable) this[UiProps.Clickable] = true
-        if (value.draggable) this[UiProps.Draggable] = true
-    }
 var UiStylePatch.scrollbar by UiProps.Scrollbar
 var UiStylePatch.slider by UiProps.Slider
 var UiStylePatch.checkbox by UiProps.Checkbox
@@ -364,6 +351,8 @@ val UiComputedStyle.border: UiBorder
 val UiComputedStyle.background by UiProps.Background
 val UiComputedStyle.foreground by UiProps.Foreground
 val UiComputedStyle.image by UiProps.Image
+val UiComputedStyle.item by UiProps.Item
+val UiComputedStyle.entity by UiProps.Entity
 val UiComputedStyle.shader by UiProps.Shader
 val UiComputedStyle.shadows by UiProps.Shadows
 val UiComputedStyle.opacity by UiProps.Opacity
@@ -395,12 +384,6 @@ val UiComputedStyle.scrollAxes: ScrollAxes? get() = this[UiProps.Scroll]
 
 val UiComputedStyle.scrollable: Boolean get() = this[UiProps.Scroll] != null
 
-val UiComputedStyle.input: UiInputStyle
-    get() = UiInputStyle(
-        hoverable = this[UiProps.Hoverable],
-        clickable = this[UiProps.Clickable],
-        draggable = this[UiProps.Draggable],
-    )
 val UiComputedStyle.cursor by UiProps.Cursor
 val UiComputedStyle.scrollbar by UiProps.Scrollbar
 val UiComputedStyle.slider by UiProps.Slider

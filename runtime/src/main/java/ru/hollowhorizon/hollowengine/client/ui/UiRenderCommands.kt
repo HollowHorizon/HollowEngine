@@ -163,38 +163,6 @@ data class DrawEntityCommand(
     val backfaceVisibility: UiBackfaceVisibility,
 ) : UiRenderCommand
 
-data class DrawSliderCommand(
-    override val node: SliderNode,
-    val rect: UiRect,
-    val value: Float,
-    val fraction: Float,
-    val trackThickness: Float,
-    val trackPaint: UiResolvedPaint,
-    val activeTrackPaint: UiResolvedPaint,
-    val thumbPaint: UiResolvedPaint,
-    val thumbBorder: UiBorder,
-    val thumbWidth: Float,
-    val thumbHeight: Float,
-    val radius: Float,
-    val opacity: Float,
-    val transform: UiMatrix4,
-    val filter: UiFilterChain,
-    val backfaceVisibility: UiBackfaceVisibility,
-) : UiRenderCommand
-
-data class DrawCheckboxCommand(
-    override val node: CheckboxNode,
-    val rect: UiRect,
-    val checked: Boolean,
-    val variant: UiCheckboxVariant,
-    val activePaint: UiResolvedPaint,
-    val markPaint: UiResolvedPaint,
-    val opacity: Float,
-    val transform: UiMatrix4,
-    val filter: UiFilterChain,
-    val backfaceVisibility: UiBackfaceVisibility,
-) : UiRenderCommand
-
 /**
  * Receives draw commands as the node tree is traversed. Rendering is streaming and
  * recursive: commands exist only as per-node parameter objects on their way to the
@@ -213,7 +181,14 @@ class UiCommandRenderer {
         layout: UiLayoutResult,
         sink: UiRenderSink,
     ) {
-        collectNode(resolved.root, resolved, layout, sink, activeClip = null)
+        collectNode(
+            resolved.root,
+            resolved,
+            layout,
+            sink,
+            activeClip = null,
+            layoutBoundsMatchVisualBounds = true,
+        )
     }
 
     fun collect(
@@ -231,6 +206,7 @@ class UiCommandRenderer {
         layout: UiLayoutResult,
         commands: UiRenderSink,
         activeClip: UiRect?,
+        layoutBoundsMatchVisualBounds: Boolean,
     ) {
         val style = resolved[node]
         val layoutNode = layout[node]
@@ -238,12 +214,14 @@ class UiCommandRenderer {
         val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
         val localOpacity = if (isFramebuffer) 1f else style.opacity
         val visibleShadows = style.shadows.filterNot { it.inset }
+        val nodeLayoutBoundsMatchVisualBounds =
+            layoutBoundsMatchVisualBounds && style.transform == DirectLayoutTransform
         val canCullNode = activeClip != null &&
+                nodeLayoutBoundsMatchVisualBounds &&
                 !isFramebuffer &&
                 visibleShadows.isEmpty() &&
                 style.backdropFilter.effects.isEmpty() &&
-                style.filter == UiFilterChain.Empty &&
-                style.transform == DirectLayoutTransform
+                style.filter == UiFilterChain.Empty
         val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
         val pushedClip = (style.clip && style.clipShape == null) || style.scrollable
 
@@ -288,6 +266,7 @@ class UiCommandRenderer {
                 localOpacity,
                 baseFilter,
                 pushedClip,
+                nodeLayoutBoundsMatchVisualBounds,
             )
             if (isFramebuffer) commands += EndLayerCommand(node)
         }
@@ -304,6 +283,7 @@ class UiCommandRenderer {
         localOpacity: Float,
         baseFilter: UiFilterChain,
         pushedClip: Boolean,
+        layoutBoundsMatchVisualBounds: Boolean,
     ) {
         appendBackgroundCommand(node, style, layoutNode, localOpacity, baseFilter, commands)
 
@@ -346,7 +326,14 @@ class UiCommandRenderer {
                     }
                     queued += rect
                 }
-                collectNode(child, resolved, layout, commands, activeClip = childClip)
+                collectNode(
+                    child,
+                    resolved,
+                    layout,
+                    commands,
+                    activeClip = childClip,
+                    layoutBoundsMatchVisualBounds = layoutBoundsMatchVisualBounds,
+                )
             }
         }
 
@@ -356,7 +343,14 @@ class UiCommandRenderer {
         // in the gutter, on top of content, clipped only by the container's ancestors.
         layout.scrollbars[node]?.forEach { scrollbar ->
             if (scrollbar in layout.nodes) {
-                collectNode(scrollbar, resolved, layout, commands, activeClip = activeClip)
+                collectNode(
+                    scrollbar,
+                    resolved,
+                    layout,
+                    commands,
+                    activeClip = activeClip,
+                    layoutBoundsMatchVisualBounds = layoutBoundsMatchVisualBounds,
+                )
             }
         }
     }
@@ -405,61 +399,24 @@ class UiCommandRenderer {
                 )
             }
 
-            is ImageNode -> commands += DrawImageCommand(
-                node,
-                layoutNode.content,
-                node.source,
-                opacity,
-                style.tint,
-                contentTransform,
-                false,
-                style.imageFit,
-                style.imageSlice,
-                filter,
-                backface
-            )
-
-            is ItemNode -> commands += DrawItemCommand(
-                node,
-                layoutNode.content,
-                node.item,
-                opacity,
-                contentTransform,
-                filter,
-                backface
-            )
-
-            is EntityNode -> commands += DrawEntityCommand(
-                node,
-                layoutNode.content,
-                node.entity,
-                opacity,
-                contentTransform,
-                false,
-                filter,
-                backface
-            )
-
-            is SliderNode -> commands += sliderCommand(
-                node,
-                style,
-                opacity,
-                layoutNode,
-                contentTransform,
-                filter,
-                backface
-            )
-
-            is CheckboxNode -> commands += checkboxCommand(
-                node,
-                style,
-                opacity,
-                layoutNode,
-                contentTransform,
-                filter,
-                backface
-            )
-
+            else -> {
+                style.image?.let {
+                    commands += DrawImageCommand(
+                        node, layoutNode.content, it, opacity, style.tint, contentTransform,
+                        false, style.imageFit, style.imageSlice, filter, backface,
+                    )
+                }
+                style.item?.let {
+                    commands += DrawItemCommand(
+                        node, layoutNode.content, it, opacity, contentTransform, filter, backface,
+                    )
+                }
+                style.entity?.let {
+                    commands += DrawEntityCommand(
+                        node, layoutNode.content, it, opacity, contentTransform, false, filter, backface,
+                    )
+                }
+            }
         }
     }
 
@@ -574,61 +531,6 @@ class UiCommandRenderer {
         return UiTextLayout(listOf(line), maxOf(width, layoutNode.content.width), height)
     }
 
-    private fun sliderCommand(
-        node: SliderNode,
-        style: UiComputedStyle,
-        opacity: Float,
-        layoutNode: UiLayoutNode,
-        transform: UiMatrix4,
-        filter: UiFilterChain,
-        backface: UiBackfaceVisibility,
-    ): DrawSliderCommand {
-        val slider = style.slider
-        val thumb = slider.thumbSize ?: UiSize(12.px, 12.px)
-        return DrawSliderCommand(
-            node = node,
-            rect = layoutNode.content,
-            value = node.value,
-            fraction = node.fraction,
-            trackThickness = (slider.trackThickness ?: 4.px).resolve(layoutNode.content.height),
-            trackPaint = slider.trackPaint.resolve(UiPaint.Color(UiColor(0.24f, 0.27f, 0.32f, 1f))),
-            activeTrackPaint = slider.activeTrackPaint.resolve(UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
-            thumbPaint = slider.thumbPaint.resolve(UiPaint.Color(UiColor.White)),
-            thumbBorder = slider.thumbBorder ?: UiBorder(UiInsets.all(1.px), UiColor(0.06f, 0.07f, 0.08f, 0.45f), 6f),
-            thumbWidth = thumb.width.resolve(layoutNode.content.width, 12f),
-            thumbHeight = thumb.height.resolve(layoutNode.content.height, 12f),
-            radius = slider.radius ?: 4f,
-            opacity = opacity,
-            transform = transform,
-            filter = filter,
-            backfaceVisibility = backface,
-        )
-    }
-
-    private fun checkboxCommand(
-        node: CheckboxNode,
-        style: UiComputedStyle,
-        opacity: Float,
-        layoutNode: UiLayoutNode,
-        transform: UiMatrix4,
-        filter: UiFilterChain,
-        backface: UiBackfaceVisibility,
-    ): DrawCheckboxCommand {
-        val checkbox = style.checkbox
-        return DrawCheckboxCommand(
-            node = node,
-            rect = layoutNode.content,
-            checked = node.checked,
-            variant = checkbox.variant ?: node.variant,
-            activePaint = checkbox.activePaint.resolve(UiPaint.Color(UiColor(0.36f, 0.62f, 0.95f, 1f))),
-            markPaint = checkbox.markPaint.resolve(UiPaint.Color(UiColor.White)),
-            opacity = opacity,
-            transform = transform,
-            filter = filter,
-            backfaceVisibility = backface,
-        )
-    }
-
 }
 
 
@@ -699,7 +601,7 @@ class UiHitTester {
                     val current = task.node
                     val layoutNode = layout[current]
                     val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
-                    val children = current.children
+                    val children = current.children.toList()
                         .filter { it in layout.nodes }
                         .sortedBy { resolved[it].layer }
 
@@ -716,10 +618,10 @@ class UiHitTester {
                     val current = task.node
                     val style = resolved[current]
                     if (current.hasEffectiveState(UiState.DISABLED)) continue
-                    if (!style.input.hoverable &&
-                        !style.input.clickable &&
+                    if (!style.hoverable &&
+                        !style.clickable &&
                         !style.focusable &&
-                        !style.input.draggable &&
+                        !style.draggable &&
                         !style.scrollable
                     ) {
                         continue
@@ -753,7 +655,7 @@ class UiHitTester {
                     val current = task.node
                     val layoutNode = layout[current]
                     val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
-                    val children = current.children.filter { it in layout.nodes }.sortedBy { resolved[it].layer }
+                    val children = current.children.toList().filter { it in layout.nodes }.sortedBy { resolved[it].layer }
                     stack.add(HitTestTask.Test(current, task.ancestorClip))
                     for (child in children) {
                         stack.add(HitTestTask.Enter(child, effectiveClip))
@@ -790,11 +692,11 @@ class UiHitTester {
     }
 
     private fun UiNode.paintsGeometry(style: UiComputedStyle): Boolean = when (this) {
-        is SpanNode, is ImageNode, is ItemNode, is EntityNode,
-        is SliderNode, is CheckboxNode, is ScrollbarNode, is ScrollbarThumbNode,
+        is SpanNode, is ScrollbarNode, is ScrollbarThumbNode,
             -> true
 
-        else -> style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null
+        else -> style.image != null || style.item != null || style.entity != null ||
+                style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null
     }
 
     private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {

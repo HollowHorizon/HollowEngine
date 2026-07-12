@@ -11,8 +11,8 @@ internal fun hollowIdeOverlayPoint(x: Float, y: Float): HollowIdeOverlayPoint {
     val sourceWidth = minecraft.mainRenderTarget.width.takeIf { it > 0 }?.toFloat() ?: window.width.toFloat()
     val sourceHeight = minecraft.mainRenderTarget.height.takeIf { it > 0 }?.toFloat() ?: window.height.toFloat()
     return HollowIdeOverlayPoint(
-        x = x * window.guiScaledWidth.toFloat() / sourceWidth,
-        y = y * window.guiScaledHeight.toFloat() / sourceHeight,
+        x = x * HollowIdeScale.scaledWidth() / sourceWidth,
+        y = y * HollowIdeScale.scaledHeight() / sourceHeight,
     )
 }
 

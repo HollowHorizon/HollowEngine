@@ -9,7 +9,7 @@ private const val DirectTextTransformEpsilon = 0.0001f
 internal val UiLength.dependsOnAvailableSpace: Boolean
     get() = when (this) {
         UiLength.Auto, UiLength.Fill, is UiLength.Percent -> true
-        is UiLength.Px -> false
+        UiLength.Fit, is UiLength.Px -> false
         is UiLength.Addition -> first.dependsOnAvailableSpace || second.dependsOnAvailableSpace
         is UiLength.Substraction -> first.dependsOnAvailableSpace || second.dependsOnAvailableSpace
     }
@@ -28,6 +28,8 @@ internal fun UiLength.resolveWidth(
         } else {
             child.size.width
         }
+
+        UiLength.Fit -> child.size.width
 
         UiLength.Fill -> (content.width - child.margin.left - child.margin.right).coerceAtLeast(0f)
             .coerceIn(childStyle.minSize.width, childStyle.maxSize.width, content.width)
@@ -67,6 +69,8 @@ internal fun UiLength.resolveHeight(
         } else {
             child.size.height
         }
+
+        UiLength.Fit -> child.size.height
 
         UiLength.Fill -> (content.height - child.margin.top - child.margin.bottom).coerceAtLeast(0f)
             .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)

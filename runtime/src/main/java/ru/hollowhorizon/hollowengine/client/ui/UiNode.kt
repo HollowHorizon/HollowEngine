@@ -99,51 +99,6 @@ class BoxNode(
     measurePolicy,
 )
 
-class ImageNode(
-    source: String,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiImageType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var source: String = source
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateDraw()
-        }
-}
-
-class ItemNode(
-    item: String,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiItemType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var item: String = item
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateDraw()
-        }
-}
-
-class EntityNode(
-    entity: String,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiEntityType, id?.trimIdPrefix(), tags.map { it.trimTagPrefix() }, modifiers, attributes) {
-    var entity: String = entity
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateDraw()
-        }
-}
-
 /**
  * A popup: the content container of an open overlay. It lives only as a child of the OverlayHost's
  * popup container (see `PopupOverlayMeasurePolicy`), which places it absolutely at [anchorBounds] (its

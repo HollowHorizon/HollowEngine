@@ -88,6 +88,7 @@ internal val DemoStyles = compileHss(
         gap: 8px;
         padding: 8px;
         height: 48px;
+        width: 100%;
         background: rgba(32, 36, 46, 0.78);
         border-radius: 8px;
     }
@@ -509,6 +510,21 @@ internal val DemoStyles = compileHss(
     .editor-key-log {
         foreground: rgba(160, 184, 220, 0.92);
         height: 16px;
+    }
+
+    .code-editor-inlay {
+        height: fit;
+        padding: 0px 3px;
+        align-items: center center;
+        background: #1E1F22;
+        margin-left: 2px;
+        margin-right: 4px;
+        border-radius: 3px;
+    }
+
+    .code-editor-inlay-text {
+        foreground: rgba(142, 153, 171, 0.9);
+        text-wrap: false;
     }
 
     .lazy-column-card {

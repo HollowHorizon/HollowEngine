@@ -197,9 +197,24 @@
     background: rgba(67, 106, 154, 0.62);
 }
 
+.ide-completion-row.selected:hover {
+    background: rgba(84, 124, 176, 0.72);
+}
+
 .ide-completion-icon {
     size: 14px 14px;
     tint: rgba(160, 188, 230, 0.96);
+}
+
+.ide-completion-main {
+    grow: 1;
+    clip: true;
+    align-items: start center;
+}
+
+.ide-completion-text {
+    gap: 0px;
+    align-items: start center;
 }
 
 .ide-completion-label {
@@ -210,7 +225,6 @@
 .ide-completion-detail {
     foreground: rgba(169, 181, 198, 0.88);
     text-wrap: false;
-    translate: -4px 0 0;
 }
 
 .ide-completion-tail {

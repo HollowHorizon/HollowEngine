@@ -133,7 +133,7 @@ object GltfModelLoader : ModelLoader {
                                     }
 
                                     GltfMesh.Primitive.ATTRIBUTE_TANGENT -> {
-                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z, 1f) }
+                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z) }
                                             .toFloatArray()
                                     }
 

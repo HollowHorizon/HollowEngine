@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateDraw
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateInput
-import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
-import kotlin.math.roundToInt
 
 enum class UiCheckboxVariant {
     CHECKBOX,
@@ -103,126 +99,6 @@ data class UiTextFieldStyle(
     )
 }
 
-class SliderNode(
-    value: Float = 0f,
-    min: Float = 0f,
-    max: Float = 1f,
-    step: Float = 0f,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiSliderType, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
-    UiStatefulNode {
-    var min: Float = min
-        set(value) {
-            if (field == value) return
-            field = value
-            this.value = this.value
-            invalidateInput()
-            invalidateDraw()
-        }
-
-    var max: Float = max
-        set(value) {
-            if (field == value) return
-            field = value
-            this.value = this.value
-            invalidateInput()
-            invalidateDraw()
-        }
-
-    var step: Float = step.coerceAtLeast(0f)
-        set(value) {
-            val normalized = value.coerceAtLeast(0f)
-            if (field == normalized) return
-            field = normalized
-            this.value = this.value
-            invalidateInput()
-        }
-
-    var value: Float = 0f
-        set(value) {
-            val normalized = normalize(value)
-            if (field == normalized) return
-            field = normalized
-            invalidateDraw()
-        }
-
-    init {
-        this.value = value
-    }
-
-    val fraction: Float
-        get() {
-            val range = max - min
-            if (range == 0f) return 0f
-            return ((value - min) / range).coerceIn(0f, 1f)
-        }
-
-    fun setFromLocalX(localX: Float, width: Float): Boolean {
-        val old = value
-        value = min + (max - min) * (localX / width.coerceAtLeast(1f)).coerceIn(0f, 1f)
-        return old != value
-    }
-
-    override fun exportState(): UiNodePersistentState = SliderPersistentState(value)
-
-    override fun importState(state: UiNodePersistentState) {
-        if (state is SliderPersistentState) value = state.value
-    }
-
-    private fun normalize(raw: Float): Float {
-        val low = minOf(min, max)
-        val high = maxOf(min, max)
-        val clamped = raw.coerceIn(low, high)
-        if (step <= 0f) return clamped
-        val stepped = min + ((clamped - min) / step).roundToInt() * step
-        return stepped.coerceIn(low, high)
-    }
-}
-
-class CheckboxNode(
-    checked: Boolean = false,
-    variant: UiCheckboxVariant = UiCheckboxVariant.CHECKBOX,
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifiers: Iterable<Modifier> = emptyList(),
-    attributes: Map<String, String> = emptyMap(),
-) : BaseUiNode(UiCheckboxType, id?.trimUiIdPrefix(), tags.map { it.trimUiTagPrefix() }, modifiers, attributes),
-    UiStatefulNode {
-    var checked: Boolean = checked
-        set(value) {
-            if (field == value) return
-            field = value
-            if (value) states += UiState.SELECTED else states -= UiState.SELECTED
-            invalidateDraw()
-        }
-
-    var variant: UiCheckboxVariant = variant
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateDraw()
-        }
-
-    init {
-        this.variant = variant
-        this.checked = checked
-    }
-
-    fun toggle(): Boolean {
-        checked = !checked
-        return checked
-    }
-
-    override fun exportState(): UiNodePersistentState = CheckboxPersistentState(checked)
-
-    override fun importState(state: UiNodePersistentState) {
-        if (state is CheckboxPersistentState) checked = state.checked
-    }
-}
-
 internal fun Map<String, String>.readSliderValue(name: String, fallback: Float): Float =
     this[name]?.toFloatOrNull() ?: fallback
 
@@ -232,7 +108,3 @@ internal fun Map<String, String>.readBoolean(name: String, fallback: Boolean = f
         "false", "no", "0", "disabled", "unchecked" -> false
         else -> fallback
     }
-
-private fun String.trimUiIdPrefix() = removePrefix("#")
-
-private fun String.trimUiTagPrefix() = removePrefix(".")

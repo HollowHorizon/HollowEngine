@@ -9,14 +9,25 @@ enum class UiDropdownMark {
     RADIO
 }
 
+data class UiDropdownSlider(
+    val value: Float,
+    val min: Float = 0f,
+    val max: Float = 1f,
+    val step: Float = 0f,
+    val valueLabel: (Float) -> String = { it.toString() },
+    val onChange: ((Float) -> Unit)? = null,
+    val onCommit: ((Float) -> Unit)? = null,
+)
+
 data class UiDropdownItem(
     val label: String,
     val icon: String? = null,
     val enabled: Boolean = true,
     val checked: Boolean = false,
     val mark: UiDropdownMark? = null,
+    val slider: UiDropdownSlider? = null,
     val closeOnClick: Boolean = true,
-    val onClick: () -> Unit,
+    val onClick: () -> Unit = {},
 )
 
 @Composable
@@ -65,6 +76,10 @@ fun ContextMenu(
         onDismiss = { onExpandedChange(false) },
     ) {
         items.forEachIndexed { index, item ->
+            if (item.slider != null) {
+                DropdownSliderRow("$id-item-$index", item.label, item.slider)
+                return@forEachIndexed
+            }
             val itemAction: (UiEvent) -> Unit = { event ->
                 if (item.enabled) {
                     if (item.closeOnClick) dismiss()
@@ -98,5 +113,28 @@ fun ContextMenu(
                 Text(item.label, tags = listOf("dropdown-item-label"))
             }
         }
+    }
+}
+
+@Composable
+private fun DropdownSliderRow(id: String, label: String, slider: UiDropdownSlider) {
+    var live by remember(slider.value) { mutableStateOf(slider.value) }
+    Row(
+        id = id,
+        tags = listOf("dropdown-item", "dropdown-slider-item"),
+        modifier = Modifier.alignItems(vertical = UiAlign.CENTER),
+    ) {
+        Text(label, tags = listOf("dropdown-item-label"))
+        Slider(
+            value = slider.value,
+            min = slider.min,
+            max = slider.max,
+            step = slider.step,
+            onValueChange = { live = it; slider.onChange?.invoke(it) },
+            onValueCommit = { slider.onCommit?.invoke(it) },
+            tags = listOf("dropdown-item-slider"),
+            modifier = Modifier.grow(),
+        )
+        Text(slider.valueLabel(live), tags = listOf("dropdown-item-value"))
     }
 }

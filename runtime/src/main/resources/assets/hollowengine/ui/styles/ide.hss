@@ -36,7 +36,7 @@
 }
 
 .project-filter-row {
-    size: fit fit;
+    size: fill fit;
     padding: 0px 4px;
     gap: 4px;
     align-items: start center;
@@ -50,7 +50,7 @@
 }
 
 .project-filter {
-    width: 100%;
+    grow: 1;
     margin-top: 2px;
     align: center center;
     caret-color: #f0f6ff;

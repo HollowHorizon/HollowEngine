@@ -219,7 +219,15 @@ enum class UiCursorShape {
 }
 
 sealed interface UiLength {
+    /** Content-sized, but may shrink to the available space and stretch under `align: stretch`. */
     data object Auto : UiLength
+
+    /**
+     * Fit-content: the box is exactly as large as its children/content and never shrinks to the
+     * available space nor stretches. This is the default for `width`/`height`, so a `Row` of text
+     * keeps its natural size instead of being squeezed. Use [Auto]/[Fill]/percent for flexible boxes.
+     */
+    data object Fit : UiLength
     data object Fill : UiLength
     data class Px(val value: Float) : UiLength
     data class Percent(val value: Float) : UiLength
@@ -227,7 +235,7 @@ sealed interface UiLength {
     data class Substraction(val first: UiLength, val second: UiLength) : UiLength
 
     fun resolve(reference: Float, autoValue: Float = 0f): Float = when (this) {
-        Auto -> autoValue
+        Auto, Fit -> autoValue
         Fill -> reference
         is Px -> value
         is Percent -> reference * value
@@ -235,6 +243,9 @@ sealed interface UiLength {
         is Substraction -> first.resolve(reference, autoValue) - second.resolve(reference, autoValue)
     }
 }
+
+/** Content-sized axes ([UiLength.Auto] and [UiLength.Fit]) whose size is driven by their content. */
+val UiLength.isContentSized: Boolean get() = this is UiLength.Auto || this is UiLength.Fit
 
 operator fun UiLength.plus(other: UiLength): UiLength = Addition(this, other)
 operator fun UiLength.minus(other: UiLength): UiLength = Substraction(this, other)

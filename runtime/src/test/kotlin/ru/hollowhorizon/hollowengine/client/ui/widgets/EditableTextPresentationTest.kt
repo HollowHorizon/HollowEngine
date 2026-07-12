@@ -269,6 +269,7 @@ class EditableTextPresentationTest {
             )
             revision.value++
             composition.applyPendingChanges()
+            assertEquals(listOf(UiInlayHint(10, ": Int")), presentation.inlayHints)
             composition.settleDeferredPresentation(AtomicInteger(), calls)
             assertEquals(listOf(UiTextHighlight(4, 10, style)), presentation.highlights)
             assertEquals(listOf(UiInlayHint(10, ": Int")), presentation.inlayHints)
