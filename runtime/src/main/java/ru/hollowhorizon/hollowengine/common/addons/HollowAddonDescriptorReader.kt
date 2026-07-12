@@ -6,7 +6,6 @@ import java.util.jar.JarFile
 
 internal object HollowAddonDescriptorReader {
     private const val DESCRIPTOR_PATH = "META-INF/plugin.properties"
-    private const val MAPPING_NAMESPACE_ATTRIBUTE = "HollowEngine-Mapping-Namespace"
     private val addonIdPattern = Regex("[a-z0-9_.-]+")
 
     fun read(file: File): HollowAddonDescriptor = JarFile(file).use { jar ->
@@ -16,10 +15,6 @@ internal object HollowAddonDescriptorReader {
             jar.getInputStream(entry).use(::load)
         }
         val id = properties.required("id")
-        val mappingNamespace = jar.manifest?.mainAttributes
-            ?.getValue(MAPPING_NAMESPACE_ATTRIBUTE)
-            ?.let(HollowAddonMappingNamespace::parse)
-            ?: HollowAddonMappingNamespace.AGNOSTIC
         HollowAddonDescriptor(
             id = id,
             version = properties.getProperty("version", "1.0.0").trim(),
@@ -31,7 +26,6 @@ internal object HollowAddonDescriptorReader {
                 .uppercase()
                 .let(HollowAddonEnvironment::valueOf),
             requiredClasses = properties.list("requiredClasses"),
-            mappingNamespace = mappingNamespace,
         ).also(::validate)
     }
 

@@ -26,7 +26,6 @@ pluginManagement {
         id("dev.architectury.loom") version architecturyLoomVersion
         id("com.gradleup.shadow") version shadowVersion
         id("me.fallenbreath.yamlang") version yamlangVersion
-        id("com.google.devtools.ksp") version "2.3.0"
         id("me.modmuss50.mod-publish-plugin") version modPublishPluginVersion
     }
 }

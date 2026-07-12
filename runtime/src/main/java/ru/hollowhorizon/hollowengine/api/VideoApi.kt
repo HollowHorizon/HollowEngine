@@ -1,26 +1,17 @@
 package ru.hollowhorizon.hollowengine.api
 
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonManager
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import java.nio.file.Path
 
 interface VideoApi {
     fun play(path: Path, options: VideoPlaybackOptions = VideoPlaybackOptions())
 
     fun play(source: String, options: VideoPlaybackOptions = VideoPlaybackOptions()) =
-        play(Path.of(source), options)
+        play(source.fromReadablePath().toPath(), options)
 
     companion object {
-        @Volatile
-        private var legacyInstance: VideoApi? = null
-
-        @Deprecated("Use VideoApi.find()", ReplaceWith("VideoApi.find()"))
-        var INSTANCE: VideoApi?
-            get() = find()
-            set(value) {
-                legacyInstance = value
-            }
-
-        fun find(): VideoApi? = HollowAddonManager.find() ?: legacyInstance
+        fun find(): VideoApi? = HollowAddonManager.find()
     }
 }
 

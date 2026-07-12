@@ -64,6 +64,7 @@ import ru.hollowhorizon.hollowengine.api.extensions.FakePlayerFactory
 import ru.hollowhorizon.hollowengine.api.extensions.ItemStackHelper
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.EventBridge
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimePlatform
 import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
@@ -78,6 +79,7 @@ import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRuntimeEnvironment
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDispatcherState
@@ -127,6 +129,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         if (RuntimeAnnotationEnvironment.annotationIndex === EmptyRuntimeAnnotationIndex) {
             RuntimeAnnotationEnvironment.annotationIndex = ClassGraphRuntimeAnnotationIndex.create()
         }
+    }
+
+    override fun setPlatform(platform: RuntimePlatform) {
+        HollowAddonRuntimeEnvironment.platform = platform
     }
 
     override fun setProduction(production: Boolean) {

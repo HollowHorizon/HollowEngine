@@ -27,10 +27,5 @@ enum class HollowAddonMappingNamespace(val id: String) {
     AGNOSTIC("agnostic"),
     OFFICIAL("official"),
     INTERMEDIARY("intermediary"),
-    NAMED("named");
-
-    companion object {
-        fun parse(value: String): HollowAddonMappingNamespace = entries.firstOrNull { it.id == value.lowercase() }
-            ?: throw IllegalArgumentException("Unsupported addon mapping namespace '$value'")
-    }
+    NAMED("named"),
 }

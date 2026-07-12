@@ -2,14 +2,10 @@ package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.ui.layout.inlineWidgetMetrics
 import ru.hollowhorizon.hollowengine.client.ui.layout.readOnlyIterator
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.text.caretIndexAt
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
-import kotlin.math.abs
 
 class HollowUiInputController {
     private var hoveredNode: UiNode? = null
@@ -271,11 +267,9 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
         modifiers: Int = 0,
     ): UiInputResult {
-        val releaseNode = draggingNode?.takeIf { it in frame.nodes }
-            ?: frame.hitTest(mouseX, mouseY)?.node
-            ?: activeNode?.takeIf { it in frame.nodes }
-        val handled = releaseNode?.let { node ->
-            dispatch(
+        var received = false
+        fun dispatch(node: UiNode): Boolean {
+            val event =
                 UiEvent(
                     kind = UiEventKind.RELEASE,
                     node = node,
@@ -284,14 +278,21 @@ class HollowUiInputController {
                     modifiers = modifiers,
                     x = mouseX,
                     y = mouseY,
-                    released = true,
+                    released = true
                 )
-            )
-        } ?: false
+            received = dispatch(event) || received
+            return event.consumed
+        }
+
+        val handled = (frame.hitTest(mouseX, mouseY)?.node
+            ?: activeNode?.takeIf { it in frame.nodes })?.let { dispatch(it) } ?: false
+
+        val releaseNode = draggingNode?.takeIf { it in frame.nodes }
+        if(!handled) releaseNode?.let { node -> dispatch(node) }
         activeNode = null
         draggingNode = null
         scrollbarDrag = null
-        return UiInputResult(handled, releaseNode, releaseNode?.id)
+        return UiInputResult(received, releaseNode, releaseNode?.id)
     }
 
     fun scrollbarMouseDragged(

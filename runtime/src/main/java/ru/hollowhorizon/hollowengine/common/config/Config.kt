@@ -8,6 +8,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
 import net.peanuuutz.tomlkt.TomlTable
 import org.apache.logging.log4j.LogManager
+import ru.hollowhorizon.hollowengine.common.config.properties.ConfigProperty
 import ru.hollowhorizon.hollowengine.common.config.properties.Properties
 import ru.hollowhorizon.hollowengine.common.utils.ObservableList
 import ru.hollowhorizon.hollowengine.common.utils.ObservableMap
@@ -151,14 +152,14 @@ open class Config {
     }
 
     fun <T> property(value: T) = properties.add(value)
-    inline fun <reified T : Any> list(vararg value: T) =
-        properties.add(ObservableList(mutableListOf(*value), onChange = { markDirty() }, T::class.serializer()))
+    inline fun <reified T : Any> list(vararg value: T): ConfigProperty<List<T>> =
+        properties.add<List<T>>(ObservableList(mutableListOf(*value), onChange = { markDirty() }, T::class.serializer()))
 
-    inline fun <reified T : Any> set(vararg value: T) =
-        properties.add(ObservableSet(mutableSetOf(*value), onChange = { markDirty() }, T::class.serializer()))
+    inline fun <reified T : Any> set(vararg value: T): ConfigProperty<Set<T>> =
+        properties.add<Set<T>>(ObservableSet(mutableSetOf(*value), onChange = { markDirty() }, T::class.serializer()))
 
-    inline fun <reified K : Any, reified V : Any> map(vararg pair: Pair<K, V>) =
-        properties.add(
+    inline fun <reified K : Any, reified V : Any> map(vararg pair: Pair<K, V>): ConfigProperty<Map<K, V>> =
+        properties.add<Map<K, V>>(
             ObservableMap(
                 mutableMapOf(*pair),
                 onChange = { markDirty() },

@@ -9,8 +9,11 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.createEventListener
 import ru.hollowhorizon.hollowengine.common.events.createStaticEventListener
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
+import ru.hollowhorizon.hollowengine.common.network.HollowAddonPacket
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
+import ru.hollowhorizon.hollowengine.network.HollowAddonPacketRegistry
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
@@ -21,10 +24,11 @@ internal object HollowAddonEventRegistrar {
     fun register(
         artifactFile: File,
         classLoader: ClassLoader,
+        addonId: String,
         entrypoint: HollowAddonEntrypoint,
         scope: CoroutineScope,
     ) {
-        val annotatedClasses = ClassGraph()
+        val (annotatedListeners, annotatedPackets) = ClassGraph()
             .enableClassInfo()
             .enableAnnotationInfo()
             .enableMethodInfo()
@@ -32,12 +36,22 @@ internal object HollowAddonEventRegistrar {
             .ignoreParentClassLoaders()
             .overrideClassLoaders(classLoader)
             .overrideClasspath(artifactFile)
-            .scan()
-            .use { scan -> scan.getClassesWithMethodAnnotation(SubscribeEvent::class.java.name).names.toList() }
+            .scan().use { scan ->
+                scan.getClassesWithMethodAnnotation(SubscribeEvent::class.java.name).names.toList() to
+                    scan.getClassesWithAnnotation(HollowPacketHandler::class.java.name).names.toList()
+            }
 
-        annotatedClasses.forEach { className ->
+        annotatedListeners.forEach { className ->
             val type = Class.forName(className, false, classLoader)
             registerType(type, entrypoint, scope)
+        }
+
+        annotatedPackets.forEach { className ->
+            val type = Class.forName(className, false, classLoader)
+            require(HollowAddonPacket::class.java.isAssignableFrom(type)) {
+                "Addon packet must implement HollowAddonPacket: ${type.name}"
+            }
+            HollowAddonPacketRegistry.register(addonId, type.asSubclass(HollowAddonPacket::class.java))
         }
     }
 

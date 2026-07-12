@@ -156,14 +156,14 @@ tasks.named<Jar>("jar") {
     archiveClassifier.set("dev")
 }
 
-tasks.named<ProcessResources>("processResources") {
+val processAddonResources = tasks.named<ProcessResources>("processResources") {
     filesMatching("META-INF/plugin.properties") {
         expand("version" to version)
     }
 }
 
-tasks.named<ShadowJar>("shadowJar") {
-    archiveClassifier.set("")
+val compilerClassesJar = tasks.named<ShadowJar>("shadowJar") {
+    archiveClassifier.set("classes-agnostic")
     mergeServiceFiles()
 
     dependencies {
@@ -187,8 +187,23 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("org.benf.cfr", "ru.hollowhorizon.hollowengine.repackaged.cfr")
 }
 
+val addonJar = tasks.register<Jar>("addonJar") {
+    dependsOn(processAddonResources, compilerClassesJar)
+    archiveClassifier.set("")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest.attributes(
+        "HollowEngine-Addon-Format" to "2",
+        "HollowEngine-Variant-Common-Agnostic" to "META-INF/hollowengine/variants/agnostic.jar",
+    )
+    from(processAddonResources)
+    from(compilerClassesJar.flatMap { it.archiveFile }) {
+        into("META-INF/hollowengine/variants")
+        rename { "agnostic.jar" }
+    }
+}
+
 tasks.build {
-    dependsOn("shadowJar")
+    dependsOn(addonJar)
 }
 
 tasks.withType<KotlinCompile>().configureEach {

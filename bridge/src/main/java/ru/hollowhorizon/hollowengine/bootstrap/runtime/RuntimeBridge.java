@@ -68,6 +68,7 @@ import java.util.function.Supplier;
 public interface RuntimeBridge extends AutoCloseable {
     EventBridge events();
 
+    void setPlatform(RuntimePlatform platform);
     void setProduction(boolean production);
     void setClient(boolean physicalClient);
 

@@ -11,7 +11,6 @@ plugins {
     id("architectury-plugin")
     id("dev.architectury.loom")
     id("com.gradleup.shadow")
-    id("com.google.devtools.ksp")
     kotlin("jvm")
     kotlin("plugin.serialization")
     kotlin("plugin.compose")
@@ -191,10 +190,6 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 tasks.named<KotlinCompile>("compileKotlin") {
-    dependsOn("generateAssets")
-}
-
-tasks.matching { it.name.startsWith("ksp") }.configureEach {
     dependsOn("generateAssets")
 }
 

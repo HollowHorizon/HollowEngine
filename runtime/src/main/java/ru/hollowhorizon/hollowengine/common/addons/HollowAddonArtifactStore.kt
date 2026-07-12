@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimePlatform
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
@@ -12,12 +14,17 @@ internal data class HollowAddonCandidate(
     val sourceLength: Long,
     val sourceModifiedAt: Long,
     val artifactFile: File,
+    val classesFile: File,
     val fingerprint: String,
     val descriptor: HollowAddonDescriptor,
     val requiresBootstrapLibraries: Boolean,
 )
 
-internal class HollowAddonArtifactStore(private val cacheRoot: File) {
+internal class HollowAddonArtifactStore(
+    private val cacheRoot: File,
+    private val platform: RuntimePlatform = HollowAddonRuntimeEnvironment.platform,
+    private val runtimeNamespace: HollowAddonMappingNamespace = HollowAddonRuntimeEnvironment.mappingNamespace(),
+) {
     private val hostLibraries = listOf(
         "kotlin-stdlib",
         "kotlin-reflect",
@@ -47,16 +54,56 @@ internal class HollowAddonArtifactStore(private val cacheRoot: File) {
             Files.deleteIfExists(stagedFile.toPath())
             throw IllegalStateException("Addon jar changed while it was being staged: ${sourceFile.name}")
         }
-        val candidate = HollowAddonCandidate(
+        val descriptor = HollowAddonDescriptorReader.read(stagedFile)
+        val variant = HollowAddonVariants.select(
+            stagedFile,
+            platform,
+            runtimeNamespace,
+        )
+        val classesFile = extractVariant(stagedFile, fingerprint, variant)
+        return HollowAddonCandidate(
             sourceFile = sourceFile.canonicalFile,
             sourceLength = sourceLength,
             sourceModifiedAt = sourceModifiedAt,
             artifactFile = stagedFile,
+            classesFile = classesFile,
             fingerprint = fingerprint,
-            descriptor = HollowAddonDescriptorReader.read(stagedFile),
+            descriptor = descriptor.copy(mappingNamespace = runtimeNamespace),
             requiresBootstrapLibraries = containsBootstrapLibraries(stagedFile),
         )
-        return HollowAddonDevelopmentRemapper.remapIfRequired(candidate, cacheRoot)
+    }
+
+    private fun extractVariant(
+        artifact: File,
+        fingerprint: String,
+        variant: HollowAddonVariant,
+    ): File {
+        val variantCacheKey = "${platform.id()}-${runtimeNamespace.id}"
+        val outputDirectory = cacheRoot.resolve("variants").resolve(fingerprint).resolve(variantCacheKey)
+        val outputFile = outputDirectory.resolve("classes.jar")
+        JarFile(artifact).use { jar ->
+            val entry = requireNotNull(jar.getJarEntry(variant.entryPath)) {
+                "Addon variant '${variant.entryPath}' disappeared from ${artifact.name}"
+            }
+            if (outputFile.isFile && outputFile.length() == entry.size) return outputFile
+
+            outputDirectory.mkdirs()
+            val temporaryFile = outputDirectory.resolve("classes.jar.tmp")
+            jar.getInputStream(entry).use { input ->
+                Files.copy(input, temporaryFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+            try {
+                Files.move(
+                    temporaryFile.toPath(),
+                    outputFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE,
+                )
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(temporaryFile.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+        return outputFile
     }
 
     private fun containsBootstrapLibraries(file: File): Boolean = JarFile(file).use { jar ->

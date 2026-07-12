@@ -1,5 +1,4 @@
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import dev.architectury.plugin.ArchitectPluginExtension
 import me.modmuss50.mpp.ReleaseType
 import net.fabricmc.loom.api.LoomGradleExtensionAPI
@@ -15,7 +14,6 @@ plugins {
     id("architectury-plugin") apply false
     id("dev.architectury.loom") apply false
     id("com.gradleup.shadow") apply false
-    id("com.google.devtools.ksp") apply false
     id("me.modmuss50.mod-publish-plugin")
     kotlin("jvm") apply false
     kotlin("plugin.serialization") apply false
@@ -100,20 +98,46 @@ fun Project.configureHollowAddon() {
         add("compileOnly", project(path = ":runtime", configuration = "namedElements"))
         add("testImplementation", project(path = ":runtime", configuration = "namedElements"))
         add("compileOnly", "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+        add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+        add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
         add("compileOnly", "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
         add("compileOnly", "io.insert-koin:koin-core:$koinVersion")
         add("testImplementation", kotlin("test"))
     }
 
-    tasks.named<ProcessResources>("processResources") {
+    val processAddonResources = tasks.named<ProcessResources>("processResources") {
         filesMatching("META-INF/plugin.properties") {
             expand("version" to version)
         }
     }
-    val addonJar = tasks.named<Jar>("jar") {
-        archiveClassifier.set("neoforge")
+    val namedClassesJar = tasks.named<Jar>("jar") {
+        archiveClassifier.set("classes-named")
+        include("**/*.class")
+    }
+    val intermediaryClassesJar = tasks.named<RemapJarTask>("remapJar") {
+        dependsOn(namedClassesJar)
+        inputFile.set(namedClassesJar.flatMap { it.archiveFile })
+        archiveClassifier.set("classes-intermediary")
+    }
+    val addonJar = tasks.register<Jar>("addonJar") {
+        dependsOn(processAddonResources, namedClassesJar, intermediaryClassesJar)
+        archiveClassifier.set("")
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        manifest.attributes["HollowEngine-Mapping-Namespace"] = "official"
+        manifest.attributes(
+            "HollowEngine-Addon-Format" to "2",
+            "HollowEngine-Variant-Common-Named" to "META-INF/hollowengine/variants/named.jar",
+            "HollowEngine-Variant-Fabric-Intermediary" to "META-INF/hollowengine/variants/intermediary.jar",
+            "HollowEngine-Variant-Neoforge-Official" to "META-INF/hollowengine/variants/named.jar",
+        )
+        from(processAddonResources)
+        from(namedClassesJar.flatMap { it.archiveFile }) {
+            into("META-INF/hollowengine/variants")
+            rename { "named.jar" }
+        }
+        from(intermediaryClassesJar.flatMap { it.archiveFile }) {
+            into("META-INF/hollowengine/variants")
+            rename { "intermediary.jar" }
+        }
         from(addonLibraries) {
             into("hollowengine-addon-libs")
             exclude { details -> isHostProvidedAddonLibrary(details.file.name) }
@@ -136,11 +160,8 @@ fun Project.configureHollowAddon() {
             }
         }
     }
-    tasks.named<RemapJarTask>("remapJar") {
+    tasks.named("assemble") {
         dependsOn(addonJar)
-        inputFile.set(addonJar.flatMap { it.archiveFile })
-        archiveClassifier.set("fabric")
-        manifest.attributes["HollowEngine-Mapping-Namespace"] = "intermediary"
     }
     tasks.matching { it.name.startsWith("transformProduction") }.configureEach {
         enabled = false
@@ -333,14 +354,14 @@ tasks.named<Sync>("buildAndCollect") {
         dependsOn(remapJar)
         from(remapJar.flatMap { it.archiveFile })
     }
-    val compilerJar = project(":addons:compiler").tasks.named<ShadowJar>("shadowJar")
+    val compilerJar = project(":addons:compiler").tasks.named<Jar>("addonJar")
     dependsOn(compilerJar)
     from(compilerJar.flatMap { it.archiveFile })
 }
 
 val buildAddons = tasks.register<Sync>("buildAddons") {
     group = "build"
-    description = "Builds every addon discovered under addons/ and collects platform jars."
+    description = "Builds every addon discovered under addons/ and collects universal jars."
     into(layout.buildDirectory.dir("addon-jars"))
 }
 
@@ -348,16 +369,14 @@ gradle.projectsEvaluated {
     subprojects
         .filter(Project::usesHollowAddonConvention)
         .forEach { addonProject ->
-            val addonJar = addonProject.tasks.named<Jar>("jar")
-            val fabricJar = addonProject.tasks.named<RemapJarTask>("remapJar")
+            val addonJar = addonProject.tasks.named<Jar>("addonJar")
             buildAddons.configure {
-                dependsOn(addonJar, fabricJar)
+                dependsOn(addonJar)
                 from(addonJar.flatMap { it.archiveFile })
-                from(fabricJar.flatMap { it.archiveFile })
             }
         }
 
-    val compilerJar = project(":addons:compiler").tasks.named<ShadowJar>("shadowJar")
+    val compilerJar = project(":addons:compiler").tasks.named<Jar>("addonJar")
     buildAddons.configure {
         dependsOn(compilerJar)
         from(compilerJar.flatMap { it.archiveFile })

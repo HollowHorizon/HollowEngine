@@ -231,7 +231,6 @@ private fun FloatingHeader(
             }
             .onRelease { event ->
                 state.finishDraggingWindow()
-                event.consume()
             },
     ) {
         Box(

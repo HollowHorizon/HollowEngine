@@ -1,10 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.config
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.serializer
 import net.peanuuutz.tomlkt.TomlTable
 import ru.hollowhorizon.hollowengine.common.config.properties.ConfigProperty
 import ru.hollowhorizon.hollowengine.common.config.properties.Properties
+import ru.hollowhorizon.hollowengine.common.utils.ObservableList
+import ru.hollowhorizon.hollowengine.common.utils.ObservableMap
+import ru.hollowhorizon.hollowengine.common.utils.ObservableSet
 import ru.hollowhorizon.hollowengine.common.utils.toml.toml
 import kotlin.test.*
 
@@ -84,6 +89,54 @@ class ConfigPropertyTests {
         prop2.name = "testKey"
         prop2.deserialize(element!!)
         assertEquals("hello", prop2.getValue(host, TestHost::noAnnotation))
+    }
+
+    @Test
+    fun `deserialize preserves observable list`() {
+        var changes = 0
+        val property = ConfigProperty(ObservableList(mutableListOf("default"), { changes++ }, serializer<String>()), {})
+        val element = toml.encodeToTomlElement(ListSerializer(serializer<String>()), listOf("loaded"))
+
+        assertTrue(property.deserialize(element))
+        assertEquals(listOf("loaded"), property.getValue(null, TestHost::noAnnotation))
+        assertEquals(0, changes)
+
+        property.getValue(null, TestHost::noAnnotation).add("added")
+        assertEquals(1, changes)
+    }
+
+    @Test
+    fun `deserialize preserves observable set`() {
+        var changes = 0
+        val property = ConfigProperty(ObservableSet(mutableSetOf("default"), { changes++ }, serializer<String>()), {})
+        val element = toml.encodeToTomlElement(ListSerializer(serializer<String>()), listOf("loaded"))
+
+        assertTrue(property.deserialize(element))
+        assertEquals(setOf("loaded"), property.getValue(null, TestHost::noAnnotation))
+        assertEquals(0, changes)
+
+        property.getValue(null, TestHost::noAnnotation).add("added")
+        assertEquals(1, changes)
+    }
+
+    @Test
+    fun `deserialize preserves observable map`() {
+        var changes = 0
+        val property = ConfigProperty(
+            ObservableMap(mutableMapOf("default" to 0), { changes++ }, serializer<String>(), serializer<Int>()),
+            {}
+        )
+        val element = toml.encodeToTomlElement(
+            MapSerializer(serializer<String>(), serializer<Int>()),
+            mapOf("loaded" to 1)
+        )
+
+        assertTrue(property.deserialize(element))
+        assertEquals(mapOf("loaded" to 1), property.getValue(null, TestHost::noAnnotation))
+        assertEquals(0, changes)
+
+        property.getValue(null, TestHost::noAnnotation)["added"] = 2
+        assertEquals(1, changes)
     }
 }
 
@@ -181,6 +234,34 @@ class PropertiesTests {
         val table = TomlTable()
         props.deserialize(table)
         assertEquals("defaultValue", prop.getValue(host, TestHost::knownKey))
+    }
+}
+
+class ConfigCollectionTests {
+
+    private class TestConfig : Config() {
+        var listValues: List<String> by list("default")
+        var setValues: Set<String> by set("default")
+        var mapValues: Map<String, Int> by map("default" to 0)
+    }
+
+    @Test
+    fun `loading observable collections keeps delegated property types`() {
+        val config = TestConfig()
+        val table = TomlTable(
+            "listValues" to toml.encodeToTomlElement(ListSerializer(serializer<String>()), listOf("list")),
+            "setValues" to toml.encodeToTomlElement(ListSerializer(serializer<String>()), listOf("set")),
+            "mapValues" to toml.encodeToTomlElement(
+                MapSerializer(serializer<String>(), serializer<Int>()),
+                mapOf("map" to 1)
+            )
+        )
+
+        config.properties.deserialize(table)
+
+        assertEquals(listOf("list"), config.listValues)
+        assertEquals(setOf("set"), config.setValues)
+        assertEquals(mapOf("map" to 1), config.mapValues)
     }
 }
 

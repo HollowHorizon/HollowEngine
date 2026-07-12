@@ -13,6 +13,7 @@ import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
+import ru.hollowhorizon.hollowengine.network.HollowAddonPacketRegistry
 import java.io.File
 
 internal class HollowAddonRuntime(
@@ -364,7 +365,10 @@ internal class HollowAddonRuntime(
             loadedAddons.getValue(dependencyId).classLoader
         }
         val libraries = withContext(Dispatchers.IO) { artifactStore.extractLibraries(candidate) }
-        val urls = (listOf(candidate.artifactFile) + libraries).map { it.toURI().toURL() }.toTypedArray()
+        val urls = (listOf(candidate.classesFile, candidate.artifactFile) + libraries)
+            .distinct()
+            .map { it.toURI().toURL() }
+            .toTypedArray()
         val classLoader = HollowAddonClassLoader(
             urls = urls,
             parent = HollowAddonEntrypoint::class.java.classLoader,
@@ -401,7 +405,7 @@ internal class HollowAddonRuntime(
             )
             withContext(Dispatchers.Default + ClassLoaderContextElement(classLoader)) {
                 entrypoint.load(context, addonScope)
-                HollowAddonEventRegistrar.register(candidate.artifactFile, classLoader, entrypoint, addonScope)
+                HollowAddonEventRegistrar.register(candidate.classesFile, classLoader, descriptor.id, entrypoint, addonScope)
             }
             loadedAddons[descriptor.id] = LoadedHollowAddon(
                 candidate = candidate,
@@ -418,6 +422,7 @@ internal class HollowAddonRuntime(
         }.onFailure { error ->
             HollowEngine.LOGGER.error("Failed to load addon '${descriptor.id}'", error)
             addonJob?.cancelAndJoin()
+            HollowAddonPacketRegistry.unregister(descriptor.id)
             koinApplication?.close()
             hostServices.cleanup()
             classLoader.close()
@@ -427,6 +432,7 @@ internal class HollowAddonRuntime(
     private suspend fun unloadSingle(addon: LoadedHollowAddon) {
         val id = addon.candidate.descriptor.id
         addon.job.cancelAndJoin()
+        HollowAddonPacketRegistry.unregister(id)
         runCatching {
             withContext(Dispatchers.Default + ClassLoaderContextElement(addon.classLoader)) {
                 addon.entrypoint.unload(addon.context)
