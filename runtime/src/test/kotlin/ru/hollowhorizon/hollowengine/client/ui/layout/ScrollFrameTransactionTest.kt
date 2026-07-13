@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll
 import ru.hollowhorizon.hollowengine.client.ui.size
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ScrollFrameTransactionTest {
     @Test
@@ -77,6 +78,59 @@ class ScrollFrameTransactionTest {
             }
             // And it followed the caret (clamped to the 200px scroll range).
             assertEquals(50f, composedOffset)
+        }
+    }
+
+    @Test
+    fun `animated scroll progresses without jumping to its target`() {
+        val scroll = UiScrollHandle()
+
+        HollowUiSurface().use { surface ->
+            surface.setContent {
+                Box(
+                    id = "viewport",
+                    modifier = Modifier.size(100.px, 100.px).scroll(vertical = true, state = scroll),
+                ) {
+                    Box(modifier = Modifier.size(100.px, 300.px))
+                }
+            }
+            surface.frame(200f, 200f, -1f, -1f, 0L)
+
+            scroll.animateScrollBy(deltaY = 80f)
+            val firstFrame = surface.frame(200f, 200f, -1f, -1f, 16_000_000L)
+            val firstViewport = firstFrame.nodes.single { it.id == "viewport" }
+            val firstOffset = firstFrame.layout[firstViewport].scrollOffset.y
+            assertTrue(firstOffset in 0f..<80f)
+
+            val finalFrame = surface.frame(200f, 200f, -1f, -1f, 240_000_000L)
+            val finalViewport = finalFrame.nodes.single { it.id == "viewport" }
+            assertEquals(80f, finalFrame.layout[finalViewport].scrollOffset.y)
+        }
+    }
+
+    @Test
+    fun `animated scroll deltas accumulate against the active target`() {
+        val scroll = UiScrollHandle()
+
+        HollowUiSurface().use { surface ->
+            surface.setContent {
+                Box(
+                    id = "viewport",
+                    modifier = Modifier.size(100.px, 100.px).scroll(vertical = true, state = scroll),
+                ) {
+                    Box(modifier = Modifier.size(100.px, 300.px))
+                }
+            }
+            surface.frame(200f, 200f, -1f, -1f, 0L)
+
+            scroll.animateScrollBy(deltaY = 40f)
+            surface.frame(200f, 200f, -1f, -1f, 16_000_000L)
+            scroll.animateScrollBy(deltaY = 40f)
+            surface.frame(200f, 200f, -1f, -1f, 32_000_000L)
+
+            val finalFrame = surface.frame(200f, 200f, -1f, -1f, 240_000_000L)
+            val finalViewport = finalFrame.nodes.single { it.id == "viewport" }
+            assertEquals(80f, finalFrame.layout[finalViewport].scrollOffset.y)
         }
     }
 }

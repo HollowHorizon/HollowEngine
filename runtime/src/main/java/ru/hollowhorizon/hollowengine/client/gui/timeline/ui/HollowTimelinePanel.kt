@@ -241,7 +241,7 @@ private fun handleTimelineScroll(
     }
     if (modifiers and GLFW.GLFW_MOD_CONTROL != 0) {
         val oldZoom = controller.pixelsPerSecond.value
-        val newZoom = (oldZoom + wheel * TimelineZoomWheelStep).coerceIn(TimelineMinZoom, TimelineMaxZoom)
+        val newZoom = (oldZoom - wheel * TimelineZoomWheelStep).coerceIn(TimelineMinZoom, TimelineMaxZoom)
         if (newZoom != oldZoom) {
             val cursorInViewport = event.x - viewport.x
             val cursorContentX = cursorInViewport + scroll.offsetX
@@ -254,11 +254,11 @@ private fun handleTimelineScroll(
         event.consume()
         return
     }
-    val amount = -wheel * TimelineScrollStep
+    val amount = wheel * TimelineScrollStep
     if (modifiers and GLFW.GLFW_MOD_SHIFT != 0) {
-        scroll.scrollBy(deltaY = amount)
+        scroll.animateScrollBy(deltaY = amount)
     } else {
-        scroll.scrollBy(deltaX = amount)
+        scroll.animateScrollBy(deltaX = amount)
     }
     refresh()
     event.consume()

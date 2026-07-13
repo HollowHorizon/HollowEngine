@@ -127,11 +127,13 @@ internal class UiCommandCanvasScope(
         fit: UiImageFit,
         slice: UiInsets,
     ) {
-        if (!rect.isDrawable()) return
+        if (!rect.isDrawable() || opacity <= 0f) return
+        val resolvedPaint = paint.resolve()
+        if (!resolvedPaint.hasVisiblePixels() && !border.hasVisiblePixels()) return
         sink += DrawBoxCommand(
             node = node,
             rect = rect.toCommandRect(),
-            paint = paint.resolve(),
+            paint = resolvedPaint,
             border = border.copy(radius = radius.coerceAtLeast(0f)),
             shadows = emptyList(),
             opacity = opacity,
@@ -152,8 +154,9 @@ internal class UiCommandCanvasScope(
         paint: UiPaint,
         style: UiDrawStyle,
     ) {
-        if (!rect.isDrawable() || paint == UiPaint.None) return
+        if (!rect.isDrawable() || opacity <= 0f || paint == UiPaint.None) return
         val resolvedPaint = paint.resolve()
+        if (!resolvedPaint.hasVisiblePixels()) return
         val fill = if (style == UiDrawStyle.Fill) resolvedPaint else UiResolvedPaint.None
         val stroke = if (style is UiDrawStyle.Stroke) resolvedPaint else UiResolvedPaint.None
         sink += DrawShapeCommand(

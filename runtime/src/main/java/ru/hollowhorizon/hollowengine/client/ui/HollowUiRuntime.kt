@@ -299,10 +299,16 @@ class HollowUiRuntime(
     private fun applyPendingScrollRequests(nodes: Iterable<UiNode>) {
         for (node in nodes) {
             val handle = node.scrollHandle() ?: continue
-            if (handle.pendingX == null && handle.pendingY == null) continue
-            scrollState.setImmediate(node, handle.pendingX, handle.pendingY)
-            handle.pendingX = null
-            handle.pendingY = null
+            if (handle.pendingX != null || handle.pendingY != null) {
+                scrollState.setImmediate(node, handle.pendingX, handle.pendingY)
+                handle.pendingX = null
+                handle.pendingY = null
+            }
+            if (handle.pendingAnimatedDeltaX != 0f || handle.pendingAnimatedDeltaY != 0f) {
+                scrollState.scroll(node, handle.pendingAnimatedDeltaX, handle.pendingAnimatedDeltaY)
+                handle.pendingAnimatedDeltaX = 0f
+                handle.pendingAnimatedDeltaY = 0f
+            }
         }
     }
 

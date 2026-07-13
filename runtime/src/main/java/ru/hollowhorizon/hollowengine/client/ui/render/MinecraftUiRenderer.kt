@@ -97,6 +97,15 @@ internal fun svgRasterPixelSize(size: Float, scale: Float): Int {
     return Integer.highestOneBit(requiredSize - 1).shl(1).coerceAtMost(MaxSvgRasterSize)
 }
 
+internal fun UiRenderCommand.isSegmentBatchable(): Boolean = when (this) {
+    is DrawShadowCommand -> shape != null
+    is DrawBoxCommand -> !renderToFramebuffer
+    is DrawShapeCommand -> true
+    is DrawImageCommand -> !renderToFramebuffer && filter == UiFilterChain.Empty
+    is DrawTextCommand -> true
+    else -> false
+}
+
 class MinecraftUiRenderer {
     private val commandRenderer = UiCommandRenderer()
     private val segment = ArrayList<UiRenderCommand>()
@@ -156,7 +165,7 @@ class MinecraftUiRenderer {
     }
 
     private fun submit(command: UiRenderCommand) {
-        if (isSegmentCommand(command)) {
+        if (command.isSegmentBatchable()) {
             segment += command
             return
         }
@@ -196,14 +205,6 @@ class MinecraftUiRenderer {
         }
     }
 
-    private fun isSegmentCommand(command: UiRenderCommand): Boolean = when (command) {
-        is DrawBoxCommand -> !command.renderToFramebuffer
-        is DrawShapeCommand -> true
-        is DrawImageCommand -> !command.renderToFramebuffer && command.filter == UiFilterChain.Empty
-        is DrawTextCommand -> true
-        else -> false
-    }
-
     private fun renderSegment(commands: List<UiRenderCommand>) {
         if (commands.isEmpty()) return
         for (phase in UiRenderPhase.entries) renderPhase(commands, phase)
@@ -216,6 +217,16 @@ class MinecraftUiRenderer {
 
         commands.forEach { command ->
             when (command) {
+                is DrawShadowCommand -> if (phase == UiRenderPhase.BACKGROUND) {
+                    flushImageBatches(imageBatches)
+                    flushTextBatch()
+                    flushAnalyticRectBatch()
+                    if (!appendShapeShadows(command)) {
+                        flushGeometryBatches()
+                        drawShadow(command)
+                    }
+                }
+
                 is DrawBoxCommand -> if (command.phase == phase) {
                     flushImageBatches(imageBatches)
                     flushTextBatch()
@@ -826,22 +837,22 @@ class MinecraftUiRenderer {
     private fun drawShadow(command: DrawShadowCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        val shape = command.shape
-        if (shape == null) {
-            command.shadows.forEach { shadow ->
-                drawProjectedShadow(
-                    command.rect.width,
-                    command.rect.height,
-                    command.radius,
-                    shadow,
-                    command.opacity,
-                    transform,
-                    command.filter
-                )
-            }
-            return
+        command.shadows.forEach { shadow ->
+            drawProjectedShadow(
+                command.rect.width,
+                command.rect.height,
+                command.radius,
+                shadow,
+                command.opacity,
+                transform,
+                command.filter,
+            )
         }
+    }
 
+    private fun appendShapeShadows(command: DrawShadowCommand): Boolean {
+        val shape = command.shape ?: return false
+        if (!pathTileRenderer.isAvailable) return false
         command.shadows.forEach { shadow ->
             val shadowTransform = UiMatrix4.translation(
                 shadow.offset.x,
@@ -863,20 +874,9 @@ class MinecraftUiRenderer {
                 blurRadius = shadow.blur.coerceAtLeast(0f),
                 spreadRadius = shadow.spread,
             )
-            if (!appendPathTile(shapeCommand)) {
-                flushPathTileBatch()
-                drawProjectedShadow(
-                    command.rect.width,
-                    command.rect.height,
-                    command.radius,
-                    shadow,
-                    command.opacity,
-                    transform,
-                    command.filter,
-                )
-            }
+            check(appendPathTile(shapeCommand)) { "Shape shadow unexpectedly rejected by the path tile batch" }
         }
-        flushPathTileBatch()
+        return true
     }
 
     private fun drawBox(command: DrawBoxCommand) {

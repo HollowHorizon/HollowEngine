@@ -16,6 +16,8 @@ class UiScrollHandle {
 
     internal var pendingX: Float? = null
     internal var pendingY: Float? = null
+    internal var pendingAnimatedDeltaX = 0f
+    internal var pendingAnimatedDeltaY = 0f
 
     fun scrollTo(x: Float? = null, y: Float? = null) {
         if (x != null) pendingX = x
@@ -23,7 +25,15 @@ class UiScrollHandle {
     }
 
     fun scrollBy(deltaX: Float = 0f, deltaY: Float = 0f) {
-        scrollTo(offsetX + deltaX, offsetY + deltaY)
+        scrollTo(
+            x = (pendingX ?: offsetX) + deltaX,
+            y = (pendingY ?: offsetY) + deltaY,
+        )
+    }
+
+    fun animateScrollBy(deltaX: Float = 0f, deltaY: Float = 0f) {
+        pendingAnimatedDeltaX += deltaX
+        pendingAnimatedDeltaY += deltaY
     }
 }
 

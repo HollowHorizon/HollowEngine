@@ -40,8 +40,8 @@ data class EndLayerCommand(
 ) : UiRenderCommand
 
 /**
- * A no-op that forces the renderer to flush the current batch. Inserted between overlapping children of
- * an overlap-capable container so phase batching can't reorder one over the other (see collectNode).
+ * A no-op that forces the renderer to flush the current batch. Inserted between overlapping visual
+ * subtrees of an overlap-capable container so phase batching can't reorder one over the other.
  */
 data class FlushBarrierCommand(
     override val node: UiNode,
@@ -180,6 +180,69 @@ fun interface UiRenderSink {
 }
 
 operator fun UiRenderSink.plusAssign(command: UiRenderCommand) = submit(command)
+
+private class OverlappingChildSink(
+    private val delegate: UiRenderSink,
+    private val parent: UiNode,
+) : UiRenderSink {
+    private val visibleBounds = ArrayList<UiRect>()
+    private var pendingStructuralCommands: ArrayList<UiRenderCommand>? = null
+    private var childBounds = UiRect.Zero
+    private var childStartedDrawing = false
+
+    fun beginChild(bounds: UiRect) {
+        childBounds = bounds
+        childStartedDrawing = false
+        pendingStructuralCommands?.clear()
+    }
+
+    override fun submit(command: UiRenderCommand) {
+        if (childStartedDrawing) {
+            delegate.submit(command)
+            return
+        }
+        if (!command.drawsPixels()) {
+            if (command !is FlushBarrierCommand) {
+                val pending = pendingStructuralCommands ?: ArrayList<UiRenderCommand>(4).also {
+                    pendingStructuralCommands = it
+                }
+                pending += command
+            }
+            return
+        }
+
+        if (visibleBounds.any { it.overlaps(childBounds) }) {
+            delegate.submit(FlushBarrierCommand(parent))
+            visibleBounds.clear()
+        }
+        visibleBounds += childBounds
+        pendingStructuralCommands?.let { pending ->
+            for (structuralCommand in pending) delegate.submit(structuralCommand)
+            pending.clear()
+        }
+        childStartedDrawing = true
+        delegate.submit(command)
+    }
+}
+
+private fun UiRenderCommand.drawsPixels(): Boolean = when (this) {
+    is DrawBackdropFilterCommand,
+    is DrawShadowCommand,
+    is DrawBoxCommand,
+    is DrawShapeCommand,
+    is DrawTextCommand,
+    is DrawImageCommand,
+    is DrawItemCommand,
+    is DrawEntityCommand,
+        -> true
+
+    is BeginLayerCommand,
+    is EndLayerCommand,
+    is FlushBarrierCommand,
+    is PushClipCommand,
+    is PopClipCommand,
+        -> false
+}
 
 class UiCommandRenderer {
     /** Recursively walks the resolved tree, streaming each node's commands into [sink]. */
@@ -333,21 +396,18 @@ class UiCommandRenderer {
                 .filter { it in layout.nodes }
                 .sortedBy { resolved[it].layer }
                 .toList()
-            val queued = if (sorted.size > 1 && node.childrenCanOverlap()) ArrayList<UiRect>() else null
+            val overlappingChildSink = if (sorted.size > 1 && node.childrenCanOverlap()) {
+                OverlappingChildSink(commands, node)
+            } else {
+                null
+            }
             sorted.forEach { child ->
-                if (queued != null) {
-                    val rect = layout[child].rect
-                    if (queued.any { it.overlaps(rect) }) {
-                        commands += FlushBarrierCommand(node)
-                        queued.clear()
-                    }
-                    queued += rect
-                }
+                overlappingChildSink?.beginChild(layout[child].rect)
                 collectNode(
                     child,
                     resolved,
                     layout,
-                    commands,
+                    overlappingChildSink ?: commands,
                     activeClip = childClip,
                     layoutBoundsMatchVisualBounds = layoutBoundsMatchVisualBounds,
                 )
@@ -622,6 +682,19 @@ sealed interface UiResolvedPaint {
     data class Image(val source: String) : UiResolvedPaint
     data class Shader(val name: String) : UiResolvedPaint
 }
+
+internal fun UiResolvedPaint.hasVisiblePixels(): Boolean = when (this) {
+    UiResolvedPaint.None -> false
+    is UiResolvedPaint.Color -> color.alpha > 0f
+    is UiResolvedPaint.LinearGradient -> stops.any { it.color.alpha > 0f }
+    is UiResolvedPaint.RadialGradient -> gradient.stops.any { it.color.alpha > 0f }
+    is UiResolvedPaint.Image,
+    is UiResolvedPaint.Shader,
+        -> true
+}
+
+internal fun UiBorder.hasVisiblePixels(): Boolean =
+    color.alpha > 0f && width != UiInsets.Zero
 
 internal fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None

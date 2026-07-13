@@ -70,7 +70,6 @@ import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStrea
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HollowIdeOverlay
-import ru.hollowhorizon.hollowengine.client.gui.scripting.isAnyFocusNodeInput
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
@@ -97,8 +96,8 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
-import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
@@ -856,14 +855,14 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
         }
 
-        return HollowIdeOverlay.handleKey(key, scanCode, action, modifiers) || HollowIdeOverlay.hasFocusedInput() ||
-                isAnyFocusNodeInput()
+        HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)
+        return false
     }
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
         KeyboardInput.handleCharTyped(codePoint.toChar())
-        return HollowIdeOverlay.handleChar(codePoint, modifiers) || HollowIdeOverlay.hasFocusedInput() ||
-                isAnyFocusNodeInput()
+        HollowIdeOverlay.handleChar(codePoint, modifiers)
+        return false
     }
 
     override fun onMouseMove(
