@@ -2,12 +2,17 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.shape.SvgPathShape
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgPathDocument
 import ru.hollowhorizon.hollowengine.client.ui.shape.svgResource
+import ru.hollowhorizon.hollowengine.client.ui.shape.svgResourceDocument
 import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.UiRadialGradient
+import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 
 @Composable
 internal fun shapesDemo() {
@@ -39,10 +44,10 @@ internal fun shapesDemo() {
     val engineLogo = svgResource("hollowengine:textures/gui/logo/logo.svg")
     val nbtIcon = svgResource("hollowengine:textures/gui/icons/nbt.svg")
     val consoleIcon = svgResource("hollowengine:textures/gui/icons/console.svg")
-    val lightSpotIcon = svgResource("hollowengine:textures/gui/icons/light_spot.svg")
-    val pipelineSvg = svgResource("hollowengine:ui/shapes/demo-pipeline.svg")
-    val questMapSvg = svgResource("hollowengine:ui/shapes/demo-quest-map.svg")
-    val viewportStackSvg = svgResource("hollowengine:ui/shapes/demo-viewport-stack.svg")
+    val lightSpotIcon = svgResourceDocument("hollowengine:textures/gui/icons/light_spot.svg")
+    val pipelineSvg = svgResourceDocument("hollowengine:ui/shapes/demo-pipeline.svg")
+    val questMapSvg = svgResourceDocument("hollowengine:ui/shapes/demo-quest-map.svg")
+    val viewportStackSvg = svgResourceDocument("hollowengine:ui/shapes/demo-viewport-stack.svg")
 
     Box(tags = listOf("shapes-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
         Column(tags = listOf("shape-card", "hss-path-card"), modifier = Modifier.position(20.px, 20.px)) {
@@ -53,7 +58,14 @@ internal fun shapesDemo() {
             tags = listOf("shape-card"),
             modifier = Modifier.position(230.px, 20.px)
                 .size(188.px, 126.px)
-                .shape(bevel, radial, UiPaint.Color(UiColor(0.82f, 0.94f, 1f, 0.8f)), 2.px)
+                .drawBehind {
+                    drawShape(bevel, radial)
+                    drawShape(
+                        bevel,
+                        UiPaint.Color(UiColor(0.82f, 0.94f, 1f, 0.8f)),
+                        UiDrawStyle.Stroke(2f),
+                    )
+                }
         ) {
             Text(
                 "GenericShape",
@@ -101,6 +113,30 @@ internal fun shapesDemo() {
                     strokeWidth = 2.px
                 )
         ) {
+        }
+        Box(
+            modifier = Modifier.position(650.px, 20.px)
+                .size(188.px, 126.px)
+                .drawBehind {
+                    drawRect(
+                        paint = UiPaint.LinearGradient(
+                            35f,
+                            listOf(
+                                UiGradientStop(0f, UiColor(0.22f, 0.72f, 0.92f, 0.96f)),
+                                UiGradientStop(1f, UiColor(0.42f, 0.22f, 0.72f, 0.96f)),
+                            ),
+                        ),
+                        radius = 28f,
+                        border = UiBorder(width = UiInsets.all(2.px), color = UiColor(0.88f, 0.96f, 1f)),
+                    )
+                    drawRect(
+                        rect = UiRect(18f, 88f, 152f, 18f),
+                        paint = UiPaint.Color(UiColor(0.08f, 0.12f, 0.2f, 0.72f)),
+                        radius = 9f,
+                    )
+                },
+        ) {
+            Text("Canvas SDF rect", tags = listOf("shape-label"), modifier = Modifier.position(28.px, 18.px))
         }
         Box(
             tags = listOf("shape-card"),
@@ -235,59 +271,61 @@ internal fun shapesDemo() {
             stroke = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.6f)),
             strokeWidth = 1.px,
         )
-        SvgDemoCard(
+        SvgDocumentDemoCard(
             label = "Existing round stroke",
-            shape = lightSpotIcon,
+            document = lightSpotIcon,
             x = 440,
             y = 464,
-            fill = UiPaint.Color(UiColor(1f, 0.84f, 0.42f, 0.92f)),
-            stroke = UiPaint.Color(UiColor(1f, 0.96f, 0.72f, 0.62f)),
-            strokeWidth = 1.px,
+            shadow = UiShadow(
+                offset = UiVec3(5f, 6f),
+                blur = 6f,
+                spread = 1f,
+                color = UiColor(0f, 0f, 0f, 0.75f),
+            ),
         )
-        SvgDemoCard(
+        SvgDocumentDemoCard(
             label = "Custom pipeline",
-            shape = pipelineSvg,
+            document = pipelineSvg,
             x = 20,
             y = 608,
             width = 398,
-            fill = UiPaint.RadialGradient(
-                UiRadialGradient(
-                    centerX = 32.percent,
-                    centerY = 34.percent,
-                    radius = 86.percent,
-                    stops = listOf(
-                        UiGradientStop(0f, UiColor(1f, 0.84f, 0.42f, 0.95f)),
-                        UiGradientStop(1f, UiColor(0.22f, 0.75f, 0.72f, 0.88f)),
-                    ),
-                ),
-            ),
-            stroke = UiPaint.Color(UiColor(0.96f, 0.98f, 1f, 0.54f)),
-            strokeWidth = 1.px,
         )
-        SvgDemoCard(
+        SvgDocumentDemoCard(
             label = "Custom quest map",
-            shape = questMapSvg,
+            document = questMapSvg,
             x = 440,
             y = 608,
-            fill = UiPaint.LinearGradient(
-                45f,
-                listOf(
-                    UiGradientStop(0f, UiColor(0.36f, 0.62f, 0.95f, 0.92f)),
-                    UiGradientStop(1f, UiColor(0.28f, 0.88f, 0.62f, 0.86f)),
-                ),
-            ),
-            stroke = UiPaint.Color(UiColor(0.92f, 0.98f, 1f, 0.64f)),
-            strokeWidth = 1.px,
         )
-        SvgDemoCard(
+        SvgDocumentDemoCard(
             label = "Custom viewport",
-            shape = viewportStackSvg,
+            document = viewportStackSvg,
             x = 650,
             y = 608,
-            fill = UiPaint.Color(UiColor(0.76f, 0.86f, 1f, 0.94f)),
-            stroke = UiPaint.Color(UiColor(1f, 0.8f, 0.42f, 0.62f)),
-            strokeWidth = 1.px,
         )
+    }
+}
+
+@Composable
+private fun SvgDocumentDemoCard(
+    label: String,
+    document: UiSvgPathDocument,
+    x: Int,
+    y: Int,
+    width: Int = 188,
+    height: Int = 126,
+    shadow: UiShadow? = null,
+) {
+    var cardModifier: Modifier = Modifier.position(x.px, y.px).size(width.px, height.px)
+    if (shadow != null) {
+        cardModifier = cardModifier
+            .shape(SvgPathShape(document.path, document.viewBox), UiPaint.None)
+            .shadow(shadow)
+    }
+    Box(
+        tags = listOf("shape-card"),
+        modifier = cardModifier.drawBehind { drawSvg(document) },
+    ) {
+        Text(label, tags = listOf("shape-label"), modifier = Modifier.position(14.px, 8.px))
     }
 }
 
@@ -307,7 +345,12 @@ private fun SvgDemoCard(
         tags = listOf("shape-card"),
         modifier = Modifier.position(x.px, y.px)
             .size(width.px, height.px)
-            .shape(shape, fill = fill, stroke = stroke, strokeWidth = strokeWidth),
+            .drawBehind {
+                if (fill != UiPaint.None) drawShape(shape, fill)
+                if (stroke != null && stroke != UiPaint.None) {
+                    drawShape(shape, stroke, UiDrawStyle.Stroke(strokeWidth.resolve(size.width)))
+                }
+            },
     ) {
         Text(label, tags = listOf("shape-label"), modifier = Modifier.position(14.px, 8.px))
     }

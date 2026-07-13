@@ -60,11 +60,17 @@ data class UiFilterChain(
 ) {
     val requiresLayer: Boolean get() = effects.any { it.requiresLayer }
 
-    fun grayscaleAmount(): Float =
-        effects.filterIsInstance<UiFilterEffect.Grayscale>().sumOf { it.amount.toDouble() }.toFloat().coerceIn(0f, 1f)
+    fun grayscaleAmount(): Float {
+        var amount = 0f
+        for (effect in effects) if (effect is UiFilterEffect.Grayscale) amount += effect.amount
+        return amount.coerceIn(0f, 1f)
+    }
 
-    fun blurRadius(): Float =
-        effects.filterIsInstance<UiFilterEffect.Blur>().sumOf { it.radius.toDouble() }.toFloat().coerceAtLeast(0f)
+    fun blurRadius(): Float {
+        var radius = 0f
+        for (effect in effects) if (effect is UiFilterEffect.Blur) radius += effect.radius
+        return radius.coerceAtLeast(0f)
+    }
 
     fun withoutBlur(): UiFilterChain = UiFilterChain(effects.filterNot { it is UiFilterEffect.Blur })
 

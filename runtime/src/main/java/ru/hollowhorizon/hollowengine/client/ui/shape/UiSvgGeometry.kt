@@ -6,8 +6,13 @@ import java.awt.geom.Area
 import java.awt.geom.Path2D
 import java.awt.geom.PathIterator
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.math.tan
 import java.awt.Shape as AwtShape
 
@@ -16,7 +21,19 @@ data class UiSvgPathElement(
     val style: UiSvgStyle = UiSvgStyle.Default,
     val id: String? = null,
     val paint: UiColor? = style.fillColor(),
+    val filterEffects: List<UiSvgFilterEffect> = emptyList(),
 )
+
+sealed interface UiSvgFilterEffect {
+    data class GaussianBlur(val standardDeviation: Float) : UiSvgFilterEffect
+
+    data class DropShadow(
+        val offsetX: Float,
+        val offsetY: Float,
+        val standardDeviation: Float,
+        val color: UiColor,
+    ) : UiSvgFilterEffect
+}
 
 enum class UiSvgStrokeLineCap {
     BUTT,
@@ -124,29 +141,58 @@ data class UiSvgTransform(
 
 internal fun UiPath.transformed(transform: UiSvgTransform): UiPath {
     if (transform.isIdentity()) return this
-    if (commands.any { it is UiPathCommand.ArcTo }) return flatten().toPath(transform)
     fun UiPathPoint.t() = transform.transform(this)
-    return UiPath(
-        commands.map { command ->
-            when (command) {
-                is UiPathCommand.MoveTo -> command.copy(target = command.target.t())
-                is UiPathCommand.LineTo -> command.copy(target = command.target.t())
-                is UiPathCommand.CubicTo -> command.copy(
+    val transformed = ArrayList<UiPathCommand>(commands.size)
+    var current = UiPathPoint(0f, 0f)
+    var subPathStart = current
+    commands.forEach { command ->
+        when (command) {
+            is UiPathCommand.MoveTo -> {
+                transformed += command.copy(target = command.target.t())
+                current = command.target
+                subPathStart = current
+            }
+
+            is UiPathCommand.LineTo -> {
+                transformed += command.copy(target = command.target.t())
+                current = command.target
+            }
+
+            is UiPathCommand.CubicTo -> {
+                transformed += command.copy(
                     control1 = command.control1.t(),
                     control2 = command.control2.t(),
                     target = command.target.t(),
                 )
+                current = command.target
+            }
 
-                is UiPathCommand.QuadraticTo -> command.copy(
+            is UiPathCommand.QuadraticTo -> {
+                transformed += command.copy(
                     control = command.control.t(),
                     target = command.target.t(),
                 )
-
-                is UiPathCommand.ArcTo -> command
-                UiPathCommand.Close -> UiPathCommand.Close
+                current = command.target
             }
-        },
-    )
+
+            is UiPathCommand.ArcTo -> {
+                arcToCubics(current, command).forEach { cubic ->
+                    transformed += cubic.copy(
+                        control1 = cubic.control1.t(),
+                        control2 = cubic.control2.t(),
+                        target = cubic.target.t(),
+                    )
+                }
+                current = command.target
+            }
+
+            UiPathCommand.Close -> {
+                transformed += UiPathCommand.Close
+                current = subPathStart
+            }
+        }
+    }
+    return UiPath(transformed)
 }
 
 internal fun UiPathGeometry.toPath(transform: UiSvgTransform = UiSvgTransform.Identity): UiPath {
@@ -166,7 +212,11 @@ internal fun UiPathGeometry.toPath(transform: UiSvgTransform = UiSvgTransform.Id
 }
 
 internal fun combineSvgPaths(paths: List<UiPath>): UiPath {
-    return UiPath(paths.flatMap { it.commands })
+    if (paths.isEmpty()) return UiPath(emptyList())
+    if (paths.size == 1) return paths.first()
+    val area = Area()
+    for (path in paths) area.add(Area(path.toAwtPath()))
+    return area.toUiPath()
 }
 
 internal fun UiPath.toSvgStrokePath(style: UiSvgStyle): UiPath? {
@@ -176,7 +226,7 @@ internal fun UiPath.toSvgStrokePath(style: UiSvgStyle): UiPath? {
         strokeWidth,
         style.strokeLineCap.toAwtStrokeCap(),
         style.strokeLineJoin.toAwtStrokeJoin(),
-    ).createStrokedShape(toAwtPath()).toUiPath(flatness = 0.5)
+    ).createStrokedShape(toAwtPath()).toUiPath()
 }
 
 internal fun rectPath(x: Float, y: Float, width: Float, height: Float): UiPath {
@@ -239,9 +289,15 @@ internal fun UiPath.toAwtPath(): Path2D.Float {
             ).also { current = command.target }
 
             is UiPathCommand.ArcTo -> {
-                val arcPath = UiPath(listOf(UiPathCommand.MoveTo(current), command)).flatten().toPath()
-                arcPath.commands.forEach { arcCommand ->
-                    if (arcCommand is UiPathCommand.LineTo) path.lineTo(arcCommand.target.x, arcCommand.target.y)
+                arcToCubics(current, command).forEach { cubic ->
+                    path.curveTo(
+                        cubic.control1.x,
+                        cubic.control1.y,
+                        cubic.control2.x,
+                        cubic.control2.y,
+                        cubic.target.x,
+                        cubic.target.y,
+                    )
                 }
                 current = command.target
             }
@@ -255,9 +311,108 @@ internal fun UiPath.toAwtPath(): Path2D.Float {
     return path
 }
 
-internal fun AwtShape.toUiPath(flatness: Double? = null): UiPath {
+private fun arcToCubics(from: UiPathPoint, command: UiPathCommand.ArcTo): List<UiPathCommand.CubicTo> {
+    var radiusX = abs(command.radiusX).toDouble()
+    var radiusY = abs(command.radiusY).toDouble()
+    val target = command.target
+    if (radiusX <= 0.0 || radiusY <= 0.0 || from == target) {
+        val first = UiPathPoint(
+            from.x + (target.x - from.x) / 3f,
+            from.y + (target.y - from.y) / 3f,
+        )
+        val second = UiPathPoint(
+            from.x + (target.x - from.x) * 2f / 3f,
+            from.y + (target.y - from.y) * 2f / 3f,
+        )
+        return listOf(UiPathCommand.CubicTo(first, second, target))
+    }
+
+    val phi = command.xAxisRotation.toDouble() * PI / 180.0
+    val cosPhi = cos(phi)
+    val sinPhi = sin(phi)
+    val dx = (from.x - target.x).toDouble() * 0.5
+    val dy = (from.y - target.y).toDouble() * 0.5
+    val x1p = cosPhi * dx + sinPhi * dy
+    val y1p = -sinPhi * dx + cosPhi * dy
+    val lambda = x1p * x1p / (radiusX * radiusX) + y1p * y1p / (radiusY * radiusY)
+    if (lambda > 1.0) {
+        val scale = sqrt(lambda)
+        radiusX *= scale
+        radiusY *= scale
+    }
+
+    val rx2 = radiusX * radiusX
+    val ry2 = radiusY * radiusY
+    val numerator = max(0.0, rx2 * ry2 - rx2 * y1p * y1p - ry2 * x1p * x1p)
+    val denominator = (rx2 * y1p * y1p + ry2 * x1p * x1p).coerceAtLeast(0.000001)
+    val sign = if (command.largeArc == command.sweep) -1.0 else 1.0
+    val coefficient = sign * sqrt(numerator / denominator)
+    val cxp = coefficient * radiusX * y1p / radiusY
+    val cyp = coefficient * -radiusY * x1p / radiusX
+    val centerX = cosPhi * cxp - sinPhi * cyp + (from.x + target.x) * 0.5
+    val centerY = sinPhi * cxp + cosPhi * cyp + (from.y + target.y) * 0.5
+    val startAngle = atan2((y1p - cyp) / radiusY, (x1p - cxp) / radiusX)
+    var sweepAngle = atan2(
+        (x1p - cxp) / radiusX * (-y1p - cyp) / radiusY -
+                (y1p - cyp) / radiusY * (-x1p - cxp) / radiusX,
+        (x1p - cxp) / radiusX * (-x1p - cxp) / radiusX +
+                (y1p - cyp) / radiusY * (-y1p - cyp) / radiusY,
+    )
+    if (!command.sweep && sweepAngle > 0.0) sweepAngle -= PI * 2.0
+    if (command.sweep && sweepAngle < 0.0) sweepAngle += PI * 2.0
+
+    val segmentCount = ceil(abs(sweepAngle) / (PI * 0.5)).toInt().coerceAtLeast(1)
+    val step = sweepAngle / segmentCount
+    return List(segmentCount) { index ->
+        val firstAngle = startAngle + step * index
+        val lastAngle = firstAngle + step
+        val alpha = 4.0 / 3.0 * tan(step * 0.25)
+        val firstPoint = ellipsePoint(centerX, centerY, radiusX, radiusY, cosPhi, sinPhi, firstAngle)
+        val lastPoint = if (index == segmentCount - 1) target else
+            ellipsePoint(centerX, centerY, radiusX, radiusY, cosPhi, sinPhi, lastAngle)
+        val firstDerivative = ellipseDerivative(radiusX, radiusY, cosPhi, sinPhi, firstAngle)
+        val lastDerivative = ellipseDerivative(radiusX, radiusY, cosPhi, sinPhi, lastAngle)
+        UiPathCommand.CubicTo(
+            UiPathPoint(
+                (firstPoint.x + alpha * firstDerivative.x).toFloat(),
+                (firstPoint.y + alpha * firstDerivative.y).toFloat(),
+            ),
+            UiPathPoint(
+                (lastPoint.x - alpha * lastDerivative.x).toFloat(),
+                (lastPoint.y - alpha * lastDerivative.y).toFloat(),
+            ),
+            lastPoint,
+        )
+    }
+}
+
+private fun ellipsePoint(
+    centerX: Double,
+    centerY: Double,
+    radiusX: Double,
+    radiusY: Double,
+    cosPhi: Double,
+    sinPhi: Double,
+    angle: Double,
+) = UiPathPoint(
+    (centerX + cosPhi * radiusX * cos(angle) - sinPhi * radiusY * sin(angle)).toFloat(),
+    (centerY + sinPhi * radiusX * cos(angle) + cosPhi * radiusY * sin(angle)).toFloat(),
+)
+
+private fun ellipseDerivative(
+    radiusX: Double,
+    radiusY: Double,
+    cosPhi: Double,
+    sinPhi: Double,
+    angle: Double,
+) = UiPathPoint(
+    (-cosPhi * radiusX * sin(angle) - sinPhi * radiusY * cos(angle)).toFloat(),
+    (-sinPhi * radiusX * sin(angle) + cosPhi * radiusY * cos(angle)).toFloat(),
+)
+
+internal fun AwtShape.toUiPath(): UiPath {
     val builder = UiPathBuilder()
-    val iterator = if (flatness == null) getPathIterator(null) else getPathIterator(null, flatness)
+    val iterator = getPathIterator(null)
     val coordinates = FloatArray(6)
     while (!iterator.isDone) {
         when (iterator.currentSegment(coordinates)) {

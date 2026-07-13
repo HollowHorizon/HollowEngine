@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.shape
 
+import java.awt.BasicStroke
 import kotlin.math.*
 
 data class UiPathContour(
@@ -41,6 +42,25 @@ enum class UiPathStrokeLineJoin {
     Miter,
     Round,
     Bevel,
+}
+
+internal fun UiPath.strokedPath(
+    width: Float,
+    lineCap: UiPathStrokeLineCap,
+    lineJoin: UiPathStrokeLineJoin,
+): UiPath {
+    if (width <= 0f || isEmpty()) return UiPath(emptyList())
+    val cap = when (lineCap) {
+        UiPathStrokeLineCap.Butt -> BasicStroke.CAP_BUTT
+        UiPathStrokeLineCap.Round -> BasicStroke.CAP_ROUND
+        UiPathStrokeLineCap.Square -> BasicStroke.CAP_SQUARE
+    }
+    val join = when (lineJoin) {
+        UiPathStrokeLineJoin.Miter -> BasicStroke.JOIN_MITER
+        UiPathStrokeLineJoin.Round -> BasicStroke.JOIN_ROUND
+        UiPathStrokeLineJoin.Bevel -> BasicStroke.JOIN_BEVEL
+    }
+    return BasicStroke(width, cap, join).createStrokedShape(toAwtPath()).toUiPath()
 }
 
 data class UiPathTriangle(
@@ -99,21 +119,17 @@ fun UiPath.flatten(tolerance: Float = DefaultPathTolerance): UiPathGeometry {
 }
 
 private fun cubicPoints(from: UiPathPoint, command: UiPathCommand.CubicTo, tolerance: Float): List<UiPathPoint> {
-    val segments = curveSegments(from, command.control1, command.control2, command.target, tolerance = tolerance)
-    return (1..segments).map { index ->
-        val t = index.toFloat() / segments.toFloat()
-        val inverse = 1f - t
-        UiPathPoint(
-            x = inverse * inverse * inverse * from.x +
-                    3f * inverse * inverse * t * command.control1.x +
-                    3f * inverse * t * t * command.control2.x +
-                    t * t * t * command.target.x,
-            y = inverse * inverse * inverse * from.y +
-                    3f * inverse * inverse * t * command.control1.y +
-                    3f * inverse * t * t * command.control2.y +
-                    t * t * t * command.target.y,
-        )
-    }
+    val result = ArrayList<UiPathPoint>()
+    flattenCubic(
+        from,
+        command.control1,
+        command.control2,
+        command.target,
+        tolerance.coerceAtLeast(MinimumPathTolerance),
+        0,
+        result,
+    )
+    return result
 }
 
 private fun quadraticPoints(
@@ -121,15 +137,60 @@ private fun quadraticPoints(
     command: UiPathCommand.QuadraticTo,
     tolerance: Float,
 ): List<UiPathPoint> {
-    val segments = curveSegments(from, command.control, command.target, tolerance = tolerance)
-    return (1..segments).map { index ->
-        val t = index.toFloat() / segments.toFloat()
-        val inverse = 1f - t
-        UiPathPoint(
-            x = inverse * inverse * from.x + 2f * inverse * t * command.control.x + t * t * command.target.x,
-            y = inverse * inverse * from.y + 2f * inverse * t * command.control.y + t * t * command.target.y,
-        )
+    val result = ArrayList<UiPathPoint>()
+    flattenQuadratic(
+        from,
+        command.control,
+        command.target,
+        tolerance.coerceAtLeast(MinimumPathTolerance),
+        0,
+        result,
+    )
+    return result
+}
+
+private fun flattenCubic(
+    first: UiPathPoint,
+    control1: UiPathPoint,
+    control2: UiPathPoint,
+    last: UiPathPoint,
+    tolerance: Float,
+    depth: Int,
+    result: MutableList<UiPathPoint>,
+) {
+    if (depth >= MaximumSubdivisionDepth ||
+        max(distanceToLine(control1, first, last), distanceToLine(control2, first, last)) <= tolerance
+    ) {
+        result += last
+        return
     }
+    val firstControl = midpoint(first, control1)
+    val centerControl = midpoint(control1, control2)
+    val lastControl = midpoint(control2, last)
+    val firstMiddle = midpoint(firstControl, centerControl)
+    val lastMiddle = midpoint(centerControl, lastControl)
+    val center = midpoint(firstMiddle, lastMiddle)
+    flattenCubic(first, firstControl, firstMiddle, center, tolerance, depth + 1, result)
+    flattenCubic(center, lastMiddle, lastControl, last, tolerance, depth + 1, result)
+}
+
+private fun flattenQuadratic(
+    first: UiPathPoint,
+    control: UiPathPoint,
+    last: UiPathPoint,
+    tolerance: Float,
+    depth: Int,
+    result: MutableList<UiPathPoint>,
+) {
+    if (depth >= MaximumSubdivisionDepth || distanceToLine(control, first, last) <= tolerance) {
+        result += last
+        return
+    }
+    val firstControl = midpoint(first, control)
+    val lastControl = midpoint(control, last)
+    val center = midpoint(firstControl, lastControl)
+    flattenQuadratic(first, firstControl, center, tolerance, depth + 1, result)
+    flattenQuadratic(center, lastControl, last, tolerance, depth + 1, result)
 }
 
 private fun arcPoints(from: UiPathPoint, command: UiPathCommand.ArcTo, tolerance: Float): List<UiPathPoint> {
@@ -178,9 +239,10 @@ private fun arcPoints(from: UiPathPoint, command: UiPathCommand.ArcTo, tolerance
 
     val maxStep = PI / 8.0
     val radius = max(radiusX, radiusY).toDouble()
-    val byTolerance = ceil(max(abs(sweepAngle) * radius / tolerance.coerceAtLeast(0.25f).toDouble(), 1.0)).toInt()
-    val byAngle = ceil(abs(sweepAngle) / maxStep).toInt().coerceAtLeast(1)
-    val segments = max(byTolerance, byAngle).coerceIn(1, 256)
+    val effectiveTolerance = tolerance.coerceAtLeast(MinimumPathTolerance).toDouble().coerceAtMost(radius)
+    val toleranceStep = 2.0 * acos((1.0 - effectiveTolerance / radius).coerceIn(-1.0, 1.0))
+    val step = min(maxStep, toleranceStep.coerceAtLeast(MinimumArcStep))
+    val segments = ceil(abs(sweepAngle) / step).toInt().coerceIn(1, 256)
     val points = (1..segments).map { index ->
         val theta = startAngle + sweepAngle * index.toDouble() / segments.toDouble()
         val x = cosPhi * radiusXd * cos(theta) - sinPhi * radiusYd * sin(theta) + centerX
@@ -188,11 +250,6 @@ private fun arcPoints(from: UiPathPoint, command: UiPathCommand.ArcTo, tolerance
         UiPathPoint(x.toFloat(), y.toFloat())
     }
     return points.dropLast(1) + target
-}
-
-private fun curveSegments(vararg points: UiPathPoint, tolerance: Float): Int {
-    val length = points.asList().zipWithNext().sumOf { (start, end) -> start.distanceTo(end).toDouble() }.toFloat()
-    return ceil(length / tolerance.coerceAtLeast(0.1f)).toInt().coerceIn(8, 256)
 }
 
 private fun angle(ux: Double, uy: Double, vx: Double, vy: Double): Double {
@@ -206,10 +263,22 @@ private fun List<UiPathPoint>.withoutRepeatedLast(): List<UiPathPoint> {
     return this
 }
 
-private fun UiPathPoint.distanceTo(other: UiPathPoint): Float {
-    val dx = other.x - x
-    val dy = other.y - y
-    return sqrt(dx * dx + dy * dy)
+private fun midpoint(first: UiPathPoint, second: UiPathPoint) = UiPathPoint(
+    (first.x + second.x) * 0.5f,
+    (first.y + second.y) * 0.5f,
+)
+
+private fun distanceToLine(point: UiPathPoint, first: UiPathPoint, last: UiPathPoint): Float {
+    val dx = last.x - first.x
+    val dy = last.y - first.y
+    val lengthSquared = dx * dx + dy * dy
+    if (lengthSquared <= 0.000001f) {
+        val pointDx = point.x - first.x
+        val pointDy = point.y - first.y
+        return sqrt(pointDx * pointDx + pointDy * pointDy)
+    }
+    return abs(dy * point.x - dx * point.y + last.x * first.y - last.y * first.x) /
+            sqrt(lengthSquared)
 }
 
 private fun strokeContour(
@@ -371,3 +440,6 @@ private fun shortSweep(from: Float, to: Float): Float {
 
 private const val StrokeEpsilon = 1e-5f
 private const val DefaultPathTolerance = 0.35f
+private const val MinimumPathTolerance = 0.05f
+private const val MaximumSubdivisionDepth = 12
+private const val MinimumArcStep = 0.01

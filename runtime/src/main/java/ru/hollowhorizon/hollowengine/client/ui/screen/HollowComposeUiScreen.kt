@@ -58,6 +58,8 @@ abstract class HollowComposeUiScreen(
 
     override fun removed() {
         pipeline.reset()
+        renderer.close()
+        surface.close()
         super.removed()
     }
 

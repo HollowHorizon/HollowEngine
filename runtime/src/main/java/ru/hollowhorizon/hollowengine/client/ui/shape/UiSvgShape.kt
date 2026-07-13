@@ -58,8 +58,10 @@ object SvgFileParser {
 }
 
 fun svgResource(location: ResourceLocation): Shape = SvgResourceShape(location)
-
 fun svgResource(location: String): Shape = SvgResourceShape(parseSvgResourceLocation(location))
+
+fun svgResourceDocument(location: ResourceLocation): UiSvgPathDocument = UiSvgResourceLoader.load(location)
+fun svgResourceDocument(location: String): UiSvgPathDocument = svgResourceDocument(parseSvgResourceLocation(location))
 
 private class SvgParseSession(
     source: String,
@@ -227,9 +229,14 @@ private class SvgParseSession(
     ) {
         val transformed = sourcePath.transformed(context.transform)
         val clipped = applyClipAndMask(transformed, context)
-        val filtered = applyFilterGeometry(clipped, context)
-        if (!filtered.isEmpty()) {
-            result += UiSvgPathElement(path = filtered, style = context.style, id = id, paint = color)
+        if (!clipped.isEmpty()) {
+            result += UiSvgPathElement(
+                path = clipped,
+                style = context.style,
+                id = id,
+                paint = color,
+                filterEffects = parseSvgFilterEffects(context.style.filter, idIndex::get),
+            )
         }
     }
 
@@ -242,33 +249,6 @@ private class SvgParseSession(
         }
         if (maskReference != null) referencePathOrNull(maskReference, context)?.let {
             result = result.intersectedWith(it)
-        }
-        return result
-    }
-
-    private fun applyFilterGeometry(path: UiPath, context: SvgContext): UiPath {
-        val filterReference = parseUrlReference(context.style.filter) ?: return path
-        val filter = SvgReference.parse(filterReference).id?.let(idIndex::get) ?: return path
-        val bounds = path.bounds() ?: return path
-        var result = path
-        filter.children().forEach { primitive ->
-            val expanded = when (primitive.svgName()) {
-                "fegaussianblur" -> {
-                    val deviation = parseSvgNumbers(primitive.getAttribute("stdDeviation")).firstOrNull() ?: 0f
-                    bounds.expanded(deviation * 3f)
-                }
-
-                "fedropshadow" -> {
-                    val deviation = primitive.svgLength("stdDeviation") ?: 0f
-                    val dx = primitive.svgLength("dx") ?: 2f
-                    val dy = primitive.svgLength("dy") ?: 2f
-                    bounds.expanded(deviation * 3f).offset(dx, dy)
-                }
-
-                else -> null
-            }
-            if (expanded != null) result =
-                result.unionWith(rectPath(expanded.x, expanded.y, expanded.width, expanded.height))
         }
         return result
     }
@@ -494,15 +474,6 @@ private fun Element.children(): List<Element> {
 
 private fun Element.href(): String {
     return getAttribute("href").ifBlank { getAttribute("xlink:href") }.trim()
-}
-
-private fun UiRect.expanded(amount: Float): UiRect {
-    val expansion = amount.coerceAtLeast(0f)
-    return UiRect(x - expansion, y - expansion, width + expansion * 2f, height + expansion * 2f)
-}
-
-private fun UiRect.offset(dx: Float, dy: Float): UiRect {
-    return UiRect(x + dx, y + dy, width, height)
 }
 
 private fun ResourceLocation?.orEmptyKey(): String {

@@ -44,5 +44,5 @@
         <use href="#pin" x="24" y="72" width="28" height="36"/>
         <use href="#pin" x="174" y="54" width="28" height="36" transform="rotate(8 188 72)"/>
     </g>
-    <rect class="panel" x="10" y="10" width="200" height="120" rx="14"/>
+    <rect class="panel" x="10" y="10" width="200" height="120" rx="14" fill="none"/>
 </svg>

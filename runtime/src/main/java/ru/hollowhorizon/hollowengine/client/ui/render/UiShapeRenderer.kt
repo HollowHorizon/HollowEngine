@@ -189,6 +189,8 @@ internal fun UiTriangleBatch.appendLocalShape(
     fill: UiResolvedPaint,
     stroke: UiResolvedPaint,
     strokeWidth: Float,
+    strokeLineCap: UiPathStrokeLineCap,
+    strokeLineJoin: UiPathStrokeLineJoin,
     opacity: Float,
     transform: UiMatrix4,
     filter: UiFilterChain,
@@ -199,6 +201,8 @@ internal fun UiTriangleBatch.appendLocalShape(
         width = width,
         height = height,
         strokeWidth = strokeWidth,
+        strokeLineCap = strokeLineCap,
+        strokeLineJoin = strokeLineJoin,
         includeFill = fill != UiResolvedPaint.None,
         includeStroke = stroke != UiResolvedPaint.None && strokeWidth > 0f,
     )
@@ -221,6 +225,8 @@ internal fun cachedFillTriangles(shape: Shape, width: Float, height: Float): Lis
         width = width,
         height = height,
         strokeWidth = 0f,
+        strokeLineCap = UiPathStrokeLineCap.Round,
+        strokeLineJoin = UiPathStrokeLineJoin.Round,
         includeFill = true,
         includeStroke = false,
     ).fill
@@ -234,6 +240,8 @@ private object UiShapeMeshCache {
         width: Float,
         height: Float,
         strokeWidth: Float,
+        strokeLineCap: UiPathStrokeLineCap,
+        strokeLineJoin: UiPathStrokeLineJoin,
         includeFill: Boolean,
         includeStroke: Boolean,
     ): UiShapeMesh {
@@ -243,6 +251,8 @@ private object UiShapeMeshCache {
             width = width,
             height = height,
             strokeWidth = strokeWidth,
+            strokeLineCap = strokeLineCap,
+            strokeLineJoin = strokeLineJoin,
             includeFill = includeFill,
             includeStroke = includeStroke,
         )
@@ -250,7 +260,11 @@ private object UiShapeMeshCache {
             val geometry = shape.createPath(UiShapeSize(width, height)).flatten()
             UiShapeMesh(
                 fill = if (includeFill) geometry.fillTriangles() else emptyList(),
-                stroke = if (includeStroke) geometry.strokeTriangles(strokeWidth) else emptyList(),
+                stroke = if (includeStroke) {
+                    geometry.strokeTriangles(strokeWidth, strokeLineCap, strokeLineJoin)
+                } else {
+                    emptyList()
+                },
             )
         }
     }
@@ -266,6 +280,8 @@ private data class UiShapeMeshKey(
     val width: Float,
     val height: Float,
     val strokeWidth: Float,
+    val strokeLineCap: UiPathStrokeLineCap,
+    val strokeLineJoin: UiPathStrokeLineJoin,
     val includeFill: Boolean,
     val includeStroke: Boolean,
 )

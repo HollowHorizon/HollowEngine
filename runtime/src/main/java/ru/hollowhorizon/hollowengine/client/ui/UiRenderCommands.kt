@@ -5,6 +5,8 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarThumbNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineCap
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineJoin
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
@@ -59,6 +61,7 @@ data class DrawShadowCommand(
     override val node: UiNode,
     val rect: UiRect,
     val radius: Float,
+    val shape: Shape?,
     val shadows: List<UiShadow>,
     val opacity: Float,
     val transform: UiMatrix4,
@@ -105,6 +108,10 @@ data class DrawShapeCommand(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+    val strokeLineCap: UiPathStrokeLineCap = UiPathStrokeLineCap.Round,
+    val strokeLineJoin: UiPathStrokeLineJoin = UiPathStrokeLineJoin.Round,
+    val blurRadius: Float = 0f,
+    val spreadRadius: Float = 0f,
 ) : UiRenderCommand
 
 data class DrawTextCommand(
@@ -238,6 +245,7 @@ class UiCommandRenderer {
         if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
             commands += DrawShadowCommand(
                 node = node, rect = layoutNode.rect, radius = style.border.radius,
+                shape = style.shape ?: style.clipShape.takeIf { style.clip },
                 shadows = visibleShadows, opacity = style.opacity,
                 transform = layoutNode.worldTransform, filter = baseFilter,
                 backfaceVisibility = style.backfaceVisibility
@@ -286,6 +294,15 @@ class UiCommandRenderer {
         layoutBoundsMatchVisualBounds: Boolean,
     ) {
         appendBackgroundCommand(node, style, layoutNode, localOpacity, baseFilter, commands)
+        appendCanvasModifiers(
+            node,
+            layoutNode,
+            localOpacity,
+            baseFilter,
+            UiCanvasDrawLayer.BEHIND,
+            UiRenderPhase.BACKGROUND,
+            commands,
+        )
 
         if (pushedClip) {
             commands += PushClipCommand(
@@ -337,6 +354,16 @@ class UiCommandRenderer {
             }
         }
 
+        appendCanvasModifiers(
+            node,
+            layoutNode,
+            localOpacity,
+            baseFilter,
+            UiCanvasDrawLayer.OVERLAY,
+            UiRenderPhase.OVERLAY,
+            commands,
+        )
+
         if (pushedClip) commands += PopClipCommand(node)
 
         // Framework-synthesized scrollbars render after the content clip is popped so they sit
@@ -352,6 +379,25 @@ class UiCommandRenderer {
                     layoutBoundsMatchVisualBounds = layoutBoundsMatchVisualBounds,
                 )
             }
+        }
+    }
+
+    private fun appendCanvasModifiers(
+        node: UiNode,
+        layoutNode: UiLayoutNode,
+        opacity: Float,
+        filter: UiFilterChain,
+        layer: UiCanvasDrawLayer,
+        phase: UiRenderPhase,
+        commands: UiRenderSink,
+    ) {
+        var scope: UiCommandCanvasScope? = null
+        for (modifier in node.resolvedModifiers) {
+            if (modifier !is UiCanvasModifier || modifier.layer != layer) continue
+            val activeScope = scope ?: canvasScope(node, layoutNode, opacity, filter, phase, commands).also {
+                scope = it
+            }
+            activeScope.run(modifier.block)
         }
     }
 
@@ -434,37 +480,63 @@ class UiCommandRenderer {
         }
         val shape = style.shape
         if (shape != null) {
-            val fill = (style.shapeFill ?: style.background).resolve()
+            val fill = style.shapeFill ?: style.background
             val strokePaint =
                 style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
-            val stroke = strokePaint.resolve(UiPaint.None)
             val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
-            if (fill != UiResolvedPaint.None || stroke != UiResolvedPaint.None && strokeWidth > 0f) {
-                commands += DrawShapeCommand(
-                    node = node,
-                    rect = layoutNode.rect,
-                    shape = shape,
-                    fill = fill,
-                    stroke = stroke,
-                    strokeWidth = strokeWidth,
-                    opacity = opacity,
-                    transform = layoutNode.worldTransform,
-                    filter = filter,
-                    backfaceVisibility = style.backfaceVisibility,
-                    phase = UiRenderPhase.BACKGROUND,
-                )
+            val hasFill = fill != UiPaint.None
+            val hasStroke = strokePaint != null && strokePaint != UiPaint.None && strokeWidth > 0f
+            if (!hasFill && !hasStroke) return
+            val canvas = canvasScope(
+                node,
+                layoutNode,
+                opacity,
+                filter,
+                UiRenderPhase.BACKGROUND,
+                commands,
+            )
+            if (fill != UiPaint.None) canvas.drawShape(shape, fill)
+            if (hasStroke) {
+                checkNotNull(strokePaint)
+                canvas.drawShape(shape, strokePaint, UiDrawStyle.Stroke(strokeWidth))
             }
             return
         }
         if (style.background == UiPaint.None && style.border.width == UiInsets.Zero) return
-        commands += DrawBoxCommand(
-            node = node, rect = layoutNode.rect, paint = style.background.resolve(),
-            border = style.border, shadows = emptyList(), opacity = opacity, tint = style.tint,
-            transform = layoutNode.worldTransform, renderToFramebuffer = false,
-            fit = style.imageFit, slice = style.imageSlice, filter = filter,
-            backfaceVisibility = style.backfaceVisibility, phase = UiRenderPhase.BACKGROUND
+        val canvas = canvasScope(
+            node,
+            layoutNode,
+            opacity,
+            filter,
+            UiRenderPhase.BACKGROUND,
+            commands,
+        )
+        canvas.drawRect(
+            paint = style.background,
+            radius = style.border.radius,
+            border = style.border,
+            tint = style.tint,
+            fit = style.imageFit,
+            slice = style.imageSlice,
         )
     }
+
+    private fun canvasScope(
+        node: UiNode,
+        layoutNode: UiLayoutNode,
+        opacity: Float,
+        filter: UiFilterChain,
+        phase: UiRenderPhase,
+        commands: UiRenderSink,
+    ) = UiCommandCanvasScope(
+        node = node,
+        layoutNode = layoutNode,
+        opacity = opacity,
+        filter = filter,
+        backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
+        phase = phase,
+        sink = commands,
+    )
 
     /**
      * An inline group (a span or a nested inline flow) draws its background/border once PER LINE.
@@ -482,9 +554,16 @@ class UiCommandRenderer {
         filter: UiFilterChain,
         commands: UiRenderSink,
     ) {
-        val paint = style.background.resolve()
         val hasBorder = style.border.width != UiInsets.Zero
-        if (paint == UiResolvedPaint.None && !hasBorder) return
+        if (style.background == UiPaint.None && !hasBorder) return
+        val canvas = canvasScope(
+            node = node,
+            layoutNode = layoutNode,
+            opacity = opacity,
+            filter = filter,
+            phase = UiRenderPhase.BACKGROUND,
+            commands = commands,
+        )
         val lines = decoration.lines
         val clone = decoration.decorationBreak == UiBoxDecorationBreak.CLONE
         lines.forEachIndexed { index, box ->
@@ -496,21 +575,14 @@ class UiCommandRenderer {
                 // Middle slice lines keep the background continuous but drop rounding/borders.
                 UiBorder(radius = if (outerEnd) style.border.radius else 0f)
             }
-            commands += DrawBoxCommand(
-                node = node,
-                rect = UiRect(0f, 0f, box.width, box.height),
-                paint = paint,
+            canvas.drawRect(
+                rect = UiRect(box.x, box.y, box.width, box.height),
+                paint = style.background,
+                radius = border.radius,
                 border = border,
-                shadows = emptyList(),
-                opacity = opacity,
                 tint = style.tint,
-                transform = layoutNode.worldTransform.translated(box.x, box.y),
-                renderToFramebuffer = false,
                 fit = style.imageFit,
                 slice = style.imageSlice,
-                filter = filter,
-                backfaceVisibility = style.backfaceVisibility,
-                phase = UiRenderPhase.BACKGROUND,
             )
         }
     }
@@ -559,9 +631,6 @@ internal fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     is UiPaint.Image -> UiResolvedPaint.Image(source)
     is UiPaint.Shader -> UiResolvedPaint.Shader(name)
 }
-
-private fun UiPaint?.resolve(fallback: UiPaint): UiResolvedPaint =
-    (this ?: fallback).resolve()
 
 data class UiHit(
     val node: UiNode,

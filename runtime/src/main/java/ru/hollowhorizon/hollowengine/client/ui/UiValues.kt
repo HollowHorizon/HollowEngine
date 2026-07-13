@@ -410,6 +410,10 @@ class UiMatrix4(private val values: FloatArray) {
         }
     }
 
+    internal fun writeValues(destination: FloatArray, offset: Int) {
+        values.copyInto(destination, offset)
+    }
+
     internal fun axisScales(destination: FloatArray) {
         val originW = values[15]
         val originX = if (originW == 0f || originW == 1f) values[3] else values[3] / originW

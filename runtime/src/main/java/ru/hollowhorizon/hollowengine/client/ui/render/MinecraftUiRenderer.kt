@@ -37,6 +37,7 @@ import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
@@ -72,6 +73,23 @@ private data class TextVisualOrderKey(
 private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
 private const val MaxTextVisualOrderCacheEntries = 256
+private const val TextClipEpsilon = 0.01f
+
+internal fun requiresTextClip(
+    overflow: UiTextOverflow,
+    contentWidth: Float,
+    contentHeight: Float,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    scrollX: Float,
+    scrollY: Float,
+): Boolean {
+    if (overflow == UiTextOverflow.SHOW) return false
+    return abs(scrollX) > TextClipEpsilon ||
+            abs(scrollY) > TextClipEpsilon ||
+            contentWidth > viewportWidth + TextClipEpsilon ||
+            contentHeight > viewportHeight + TextClipEpsilon
+}
 
 internal fun svgRasterPixelSize(size: Float, scale: Float): Int {
     val requiredSize = ceil(size * scale).toInt().coerceIn(1, MaxSvgRasterSize)
@@ -86,6 +104,11 @@ class MinecraftUiRenderer {
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
     private val shapeBatch = UiTriangleBatch()
+    private val analyticRectBatch = UiAnalyticRectBatch()
+    private val analyticRectRenderer = UiAnalyticRectRenderer()
+    private val pathTileBatch = UiPathTileBatch()
+    private val pathTileRenderer = UiPathTileRenderer()
+    private val msdfTextBatch = UiMsdfTextBatch()
     private val layerRequests = mutableListOf<UiLayerRequest>()
     private val brokenSvgSources = mutableSetOf<String>()
     private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
@@ -140,7 +163,7 @@ class MinecraftUiRenderer {
         renderSegment(segment)
         segment.clear()
         render(command)
-        flushShapeBatch()
+        flushGeometryBatches()
         flushTextBatch()
     }
 
@@ -148,6 +171,9 @@ class MinecraftUiRenderer {
         while (layerStack.isNotEmpty()) finishLayer()
         svgRasterTextures.values.forEach { it.texture.close() }
         svgRasterTextures.clear()
+        analyticRectRenderer.close()
+        pathTileRenderer.close()
+        msdfTextBatch.close()
         framebuffers.close()
     }
 
@@ -181,7 +207,7 @@ class MinecraftUiRenderer {
     private fun renderSegment(commands: List<UiRenderCommand>) {
         if (commands.isEmpty()) return
         for (phase in UiRenderPhase.entries) renderPhase(commands, phase)
-        flushShapeBatch()
+        flushGeometryBatches()
         flushTextBatch()
     }
 
@@ -192,7 +218,11 @@ class MinecraftUiRenderer {
             when (command) {
                 is DrawBoxCommand -> if (command.phase == phase) {
                     flushImageBatches(imageBatches)
-                    if (!appendBatchedShapes(command)) {
+                    flushTextBatch()
+                    if (!appendAnalyticRect(command)) {
+                        flushAnalyticRectBatch()
+                        flushPathTileBatch()
+                        if (appendBatchedShapes(command)) return@forEach
                         flushShapeBatch()
                         flushTextBatch()
                         drawBox(command)
@@ -201,7 +231,11 @@ class MinecraftUiRenderer {
 
                 is DrawShapeCommand -> if (command.phase == phase) {
                     flushImageBatches(imageBatches)
-                    if (!appendBatchedShapes(command)) {
+                    flushTextBatch()
+                    flushAnalyticRectBatch()
+                    if (!appendPathTile(command)) {
+                        flushPathTileBatch()
+                        if (appendBatchedShapes(command)) return@forEach
                         flushShapeBatch()
                         flushTextBatch()
                         drawShape(command)
@@ -209,14 +243,14 @@ class MinecraftUiRenderer {
                 }
 
                 is DrawImageCommand -> if (command.phase == phase) {
-                    flushShapeBatch()
+                    flushGeometryBatches()
                     flushTextBatch()
                     if (!appendSvgImage(command, imageBatches)) appendImageBatch(command, imageBatches)
                 }
 
                 is DrawTextCommand -> if (command.phase == phase) {
                     flushImageBatches(imageBatches)
-                    flushShapeBatch()
+                    flushGeometryBatches()
                     drawText(command)
                 }
 
@@ -225,7 +259,7 @@ class MinecraftUiRenderer {
         }
 
         flushImageBatches(imageBatches)
-        flushShapeBatch()
+        flushGeometryBatches()
         flushTextBatch()
     }
 
@@ -338,14 +372,39 @@ class MinecraftUiRenderer {
         shapeBatch.clear()
     }
 
+    private fun flushAnalyticRectBatch() {
+        if (!analyticRectBatch.isEmpty) analyticRectRenderer.draw(analyticRectBatch)
+        analyticRectBatch.clear()
+    }
+
+    private fun flushPathTileBatch() {
+        if (!pathTileBatch.isEmpty) pathTileRenderer.draw(pathTileBatch)
+        pathTileBatch.clear()
+    }
+
+    private fun flushGeometryBatches() {
+        flushAnalyticRectBatch()
+        flushPathTileBatch()
+        flushShapeBatch()
+    }
+
     private fun markTextBatchDirty() {
         textBatchDirty = true
     }
 
-    private fun flushTextBatch() {
+    private fun flushVanillaTextBatch() {
         if (!textBatchDirty) return
         Minecraft.getInstance().renderBuffers().bufferSource().endBatch()
         textBatchDirty = false
+    }
+
+    private fun flushMsdfTextBatch() {
+        msdfTextBatch.flush()
+    }
+
+    private fun flushTextBatch() {
+        flushMsdfTextBatch()
+        flushVanillaTextBatch()
     }
 
     private fun appendBatchedShapes(command: UiRenderCommand): Boolean {
@@ -412,10 +471,39 @@ class MinecraftUiRenderer {
             fill = command.fill,
             stroke = command.stroke,
             strokeWidth = command.strokeWidth,
+            strokeLineCap = command.strokeLineCap,
+            strokeLineJoin = command.strokeLineJoin,
             opacity = command.opacity,
             transform = transform,
             filter = command.filter,
         )
+    }
+
+    private fun appendAnalyticRect(command: DrawBoxCommand): Boolean {
+        if (!analyticRectBatch.canAppend(command) || !analyticRectRenderer.isAvailable) return false
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return true
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(
+                command.rect.width, command.rect.height, transform, command.backfaceVisibility
+            )
+        ) return true
+        flushPathTileBatch()
+        flushShapeBatch()
+        analyticRectBatch.append(command, transform)
+        return true
+    }
+
+    private fun appendPathTile(command: DrawShapeCommand): Boolean {
+        if (!pathTileBatch.canAppend(command) || !pathTileRenderer.isAvailable) return false
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return true
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(
+                command.rect.width, command.rect.height, transform, command.backfaceVisibility
+            )
+        ) return true
+        flushShapeBatch()
+        pathTileBatch.append(command, transform)
+        return true
     }
 
     private fun appendBorderShapes(command: DrawBoxCommand, transform: UiMatrix4) {
@@ -737,19 +825,58 @@ class MinecraftUiRenderer {
 
     private fun drawShadow(command: DrawShadowCommand) {
         val transform = effective(command.transform)
-        if (!isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) {
-            command.shadows.forEach {
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        val shape = command.shape
+        if (shape == null) {
+            command.shadows.forEach { shadow ->
                 drawProjectedShadow(
                     command.rect.width,
                     command.rect.height,
                     command.radius,
-                    it,
+                    shadow,
                     command.opacity,
                     transform,
                     command.filter
                 )
             }
+            return
         }
+
+        command.shadows.forEach { shadow ->
+            val shadowTransform = UiMatrix4.translation(
+                shadow.offset.x,
+                shadow.offset.y,
+                shadow.offset.z,
+            ) * command.transform
+            val shapeCommand = DrawShapeCommand(
+                node = command.node,
+                rect = command.rect,
+                shape = shape,
+                fill = UiResolvedPaint.Color(shadow.color),
+                stroke = UiResolvedPaint.None,
+                strokeWidth = 0f,
+                opacity = command.opacity,
+                transform = shadowTransform,
+                filter = command.filter,
+                backfaceVisibility = command.backfaceVisibility,
+                phase = UiRenderPhase.BACKGROUND,
+                blurRadius = shadow.blur.coerceAtLeast(0f),
+                spreadRadius = shadow.spread,
+            )
+            if (!appendPathTile(shapeCommand)) {
+                flushPathTileBatch()
+                drawProjectedShadow(
+                    command.rect.width,
+                    command.rect.height,
+                    command.radius,
+                    shadow,
+                    command.opacity,
+                    transform,
+                    command.filter,
+                )
+            }
+        }
+        flushPathTileBatch()
     }
 
     private fun drawBox(command: DrawBoxCommand) {
@@ -842,7 +969,15 @@ class MinecraftUiRenderer {
         val scaleX = textAxisScales[0]
         val scaleY = textAxisScales[1]
         val now = TickHandler.time / 20f
-        val clipped = command.overflow != UiTextOverflow.SHOW
+        val clipped = requiresTextClip(
+            overflow = command.overflow,
+            contentWidth = command.layout.maxNaturalLineWidth,
+            contentHeight = command.layout.height,
+            viewportWidth = command.rect.width,
+            viewportHeight = command.rect.height,
+            scrollX = command.scrollOffset.x,
+            scrollY = command.scrollOffset.y,
+        )
         if (clipped) {
             flushTextBatch()
             pushClip(UiRect(0f, 0f, command.rect.width, command.rect.height), command.transform)
@@ -1042,6 +1177,7 @@ class MinecraftUiRenderer {
             return
         }
 
+        flushMsdfTextBatch()
         val mc = Minecraft.getInstance()
         val fontScale = fontSize / mc.font.lineHeight.toFloat()
         val origin = transform.transform(localX, localY)
@@ -1112,14 +1248,12 @@ class MinecraftUiRenderer {
         layerEffects: List<UiTextEffect>,
     ) {
         val totalChars = fragment.text.length
+        var charLocalX = baseLocalX
 
         for (charIndex in fragment.text.indices) {
             val char = fragment.text[charIndex]
             val charWidth = UiTextLayouter.measureTextWidth(char.toString(), fontSize, fontFamily)
             val charPos = charIndex.toFloat() / totalChars.coerceAtLeast(1).toFloat()
-            val prefixText = fragment.text.substring(0, charIndex)
-            val prefixWidth = UiTextLayouter.measureTextWidth(prefixText, fontSize, fontFamily)
-            val charLocalX = baseLocalX + prefixWidth
             val charFragment = fragment.copy(text = char.toString(), x = charLocalX, width = charWidth)
 
             val ctx = UiEffectContext(
@@ -1167,7 +1301,7 @@ class MinecraftUiRenderer {
                             fontSize,
                             fontFamily,
                             passColor,
-                            command.opacity * alphaMul,
+                            alphaMul * pass.alphaMultiplier,
                         )
                     }
                 }
@@ -1192,8 +1326,9 @@ class MinecraftUiRenderer {
                 fontSize,
                 fontFamily,
                 finalColor,
-                command.opacity * alphaMul,
+                alphaMul,
             )
+            charLocalX += charWidth
         }
     }
 
@@ -1209,18 +1344,14 @@ class MinecraftUiRenderer {
         alphaMultiplier: Float,
     ): Boolean {
         val fontData = UiMsdfFont.getOrLoadFontData(fontFamily) ?: return false
-        val shader = ModShaders.MSDF_TEXT ?: return false
-        flushTextBatch()
+        if (ModShaders.MSDF_TEXT == null) return false
+        flushVanillaTextBatch()
         val atlasInfo = fontData.meta.atlas
         val metrics = fontData.meta.metrics
-        val distanceRange = atlasInfo.distanceRange
         val atlasWidth = atlasInfo.width.toFloat()
         val atlasHeight = atlasInfo.height.toFloat()
         val pxPerEm = fontSize
         val baselineY = metrics.ascender * pxPerEm
-
-        val tessellator = Tesselator.getInstance()
-        val bufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
 
         val baseColor = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
             UiColor(0.34f, 0.67f, 1f, 1f)
@@ -1256,33 +1387,22 @@ class MinecraftUiRenderer {
             val topRight = transform.transform(localX + x1, localY + yTop)
             val bottomRight = transform.transform(localX + x1, localY + yBottom)
 
-            val r = color.red
-            val g = color.green
-            val b = color.blue
-            val a = color.alpha
-
-            bufferBuilder.addVertex(bottomRight.x, bottomRight.y, bottomRight.z).setColor(r, g, b, a).setUv(u1, v0)
-            bufferBuilder.addVertex(topRight.x, topRight.y, topRight.z).setColor(r, g, b, a).setUv(u1, v1)
-            bufferBuilder.addVertex(topLeft.x, topLeft.y, topLeft.z).setColor(r, g, b, a).setUv(u0, v1)
-            bufferBuilder.addVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z).setColor(r, g, b, a).setUv(u0, v0)
+            msdfTextBatch.appendQuad(
+                fontData,
+                bottomRight,
+                topRight,
+                topLeft,
+                bottomLeft,
+                u0,
+                v0,
+                u1,
+                v1,
+                color,
+            )
 
             penX += glyph.advance * pxPerEm
         }
 
-        RenderSystem.setShader { shader }
-        RenderSystem.setShaderTexture(0, fontData.textureId)
-
-        shader.safeGetUniform("DistanceRange")?.set(distanceRange)
-        shader.safeGetUniform("Softness")?.set(0.15f)
-        shader.safeGetUniform("OutlineWidth")?.set(0f)
-        shader.safeGetUniform("OutlineColor")?.set(0f, 0f, 0f, 0f)
-        shader.safeGetUniform("GlowRadius")?.set(0f)
-        shader.safeGetUniform("GlowColor")?.set(0f, 0f, 0f, 0f)
-        shader.safeGetUniform("ShadowOffset")?.set(0f, 0f)
-        shader.safeGetUniform("ShadowColor")?.set(0f, 0f, 0f, 0f)
-        shader.safeGetUniform("AtlasSize")?.set(atlasWidth, atlasHeight)
-        configureUiBlend()
-        bufferBuilder.build()?.let { BufferUploader.drawWithShader(it) }
         return true
     }
 
