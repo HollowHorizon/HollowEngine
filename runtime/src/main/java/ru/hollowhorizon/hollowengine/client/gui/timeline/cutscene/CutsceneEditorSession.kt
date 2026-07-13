@@ -1,30 +1,21 @@
 package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 
-import de.fabmax.kool.input.KeyEvent
-import de.fabmax.kool.input.KeyboardInput
-import de.fabmax.kool.input.UniversalKeyCode
-import de.fabmax.kool.modules.ui2.UiSurface
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 class CutsceneEditorSession {
-    companion object {
-        private val KEY_UNDO = UniversalKeyCode('Z')
-        private val KEY_REDO = UniversalKeyCode('Y')
-        private val KEY_PLAY_PAUSE = UniversalKeyCode(' ')
-    }
-
-    var _propertiesSurface: () -> UiSurface? = { null }
-    val propertiesSurface: UiSurface? get() = _propertiesSurface()
     val playback = CutscenePlaybackController()
     val timeline = TimelineController()
+
+    val uiRevision = androidx.compose.runtime.mutableStateOf(0)
+
+    fun invalidateUi() {
+        uiRevision.value++
+    }
 
     init {
         loadTimelineIcons()
@@ -37,8 +28,11 @@ class CutsceneEditorSession {
         timeline.onPreviewChanged = ::updatePreviewState
     }
 
-    fun update() {
-        timeline.onUpdate()
+    fun update() = update(null)
+
+    /** [deltaSeconds] = null falls back to Kool's clock; the new-UI editor passes the Compose frame delta. */
+    fun update(deltaSeconds: Float?) {
+        if (deltaSeconds == null) timeline.onUpdate() else timeline.onUpdate(deltaSeconds)
         syncPlaybackFromTimeline()
     }
 
@@ -52,42 +46,10 @@ class CutsceneEditorSession {
         updatePreviewState()
     }
 
-    fun buildTrackMenu(menu: ItemPopupMenu<AnimTrack<*>>): SubMenuItem<AnimTrack<*>> {
-        return SubMenuItem("Track") {
-            item("Add keyframe") { track ->
-                val time = timeline.trackContextMenuTime ?: timeline.currentTime.value
-                timeline.addKeyframe(track, time)
-                menu.hide()
-            }
-            item("Capture frame") { track ->
-                captureFrame(timeline.currentTime.value)
-            }
-            item("Delete selected") {
-                timeline.deleteSelectedKeyframes()
-                menu.hide()
-            }
-        }
-    }
-
-    fun onKeyInput(event: KeyEvent) {
-        if (!event.isPressed) return
-
-        when {
-            event.isCtrlDown && event.keyCode == KEY_UNDO -> {
-                if (event.isShiftDown) timeline.redo() else timeline.undo()
-            }
-            event.isCtrlDown && event.keyCode == KEY_REDO -> timeline.redo()
-            event.keyCode == KeyboardInput.KEY_DEL -> timeline.deleteSelectedKeyframes()
-            event.keyCode == KeyboardInput.KEY_ESC -> timeline.clearSelection()
-            event.keyCode == KeyboardInput.KEY_HOME -> timeline.setCurrentTime(0f)
-            event.keyCode == KEY_PLAY_PAUSE -> timeline.togglePlayback()
-        }
-    }
-
     fun onHollowUiKey(key: Int, modifiers: Int): Boolean {
         val ctrl = modifiers and GLFW.GLFW_MOD_CONTROL != 0
         val shift = modifiers and GLFW.GLFW_MOD_SHIFT != 0
-        return when {
+        val handled = when {
             ctrl && key == GLFW.GLFW_KEY_Z -> {
                 if (shift) timeline.redo() else timeline.undo()
                 true
@@ -96,8 +58,20 @@ class CutsceneEditorSession {
                 timeline.redo()
                 true
             }
-            key == GLFW.GLFW_KEY_DELETE -> {
+            key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE -> {
                 timeline.deleteSelectedKeyframes()
+                true
+            }
+            ctrl && key == GLFW.GLFW_KEY_D -> {
+                timeline.duplicateSelectedKeyframes()
+                true
+            }
+            key == GLFW.GLFW_KEY_LEFT -> {
+                moveSelectionOrPlayhead(if (shift) -KEYFRAME_NUDGE_LARGE else -KEYFRAME_NUDGE_SMALL)
+                true
+            }
+            key == GLFW.GLFW_KEY_RIGHT -> {
+                moveSelectionOrPlayhead(if (shift) KEYFRAME_NUDGE_LARGE else KEYFRAME_NUDGE_SMALL)
                 true
             }
             key == GLFW.GLFW_KEY_ESCAPE -> {
@@ -113,6 +87,16 @@ class CutsceneEditorSession {
                 true
             }
             else -> false
+        }
+        if (handled) invalidateUi()
+        return handled
+    }
+
+    private fun moveSelectionOrPlayhead(deltaSeconds: Float) {
+        if (timeline.selectedKeyframes.isEmpty()) {
+            timeline.setCurrentTime(timeline.currentTime.value + deltaSeconds)
+        } else {
+            timeline.nudgeSelectedKeyframes(deltaSeconds)
         }
     }
 
@@ -169,6 +153,9 @@ class CutsceneEditorSession {
         SamplerMode.NEAREST,
     )
 }
+
+private const val KEYFRAME_NUDGE_SMALL = 0.05f
+private const val KEYFRAME_NUDGE_LARGE = 0.25f
 
 object CutsceneEditorSessions {
     val default = CutsceneEditorSession()

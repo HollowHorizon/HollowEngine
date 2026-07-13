@@ -148,7 +148,9 @@ val PopupOverlayMeasurePolicy = UiMeasurePolicy { measurables, constraints ->
                 popup.anchorBounds,
                 LayoutSize(placeable.width, placeable.height),
             )
-            placeable.place(rect.x, rect.y)
+            val maxX = (constraints.maxWidth - placeable.width).coerceAtLeast(0f)
+            val maxY = (constraints.maxHeight - placeable.height).coerceAtLeast(0f)
+            placeable.place(rect.x.coerceIn(0f, maxX), rect.y.coerceIn(0f, maxY))
         }
     }
 }

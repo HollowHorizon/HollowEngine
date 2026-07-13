@@ -80,9 +80,18 @@ fun Video(
     }
 
     var bounds by remember { mutableStateOf(UiRect.Zero) }
-    var volumeOpen by remember { mutableStateOf(false) }
+    val activePlayer = player
 
-    VideoPlaceholder(id, tags, modifier, Modifier.onPlaced { bounds = it }) {
+    val frameClickModifier = if (controls && activePlayer != null) {
+        Modifier.input(clickable = true).onClick { event ->
+            if (activePlayer.playing) activePlayer.pause() else activePlayer.play()
+            event.consume()
+        }
+    } else {
+        Modifier
+    }
+
+    VideoPlaceholder(id, tags, modifier, Modifier.onPlaced { bounds = it }.then(frameClickModifier)) {
         val texture = state.texture
         if (texture != null) {
             Image(
@@ -95,17 +104,15 @@ fun Video(
             Text("hollowengine.gui.video.playback_failed".lang, tags = listOf("video-message"))
         }
 
-        val activePlayer = player
         if (controls && !state.failed && activePlayer != null) {
             val pointer = LocalPointer.current
             val hovered = pointer.isKnown && bounds.contains(pointer.x, pointer.y)
-            if (hovered || volumeOpen) {
-                VideoControlsBar(
-                    player = activePlayer,
-                    state = state,
-                    volumeOpen = volumeOpen,
-                    onVolumeOpenChange = { volumeOpen = it },
-                )
+            AnimatedVisibility(
+                visible = hovered,
+                modifier = Modifier.size(100.percent, UiLength.Auto).align(vertical = UiAlign.END),
+                slideY = 8f,
+            ) {
+                VideoControlsBar(player = activePlayer, state = state)
             }
         }
     }
@@ -138,16 +145,16 @@ private fun VideoPlaceholder(
 private fun VideoControlsBar(
     player: VideoPlayer,
     state: VideoWidgetState,
-    volumeOpen: Boolean,
-    onVolumeOpenChange: (Boolean) -> Unit,
 ) {
     Column(
         tags = listOf("video-controls"),
         modifier = Modifier.size(100.percent, UiLength.Auto)
-            .align(vertical = UiAlign.END)
             .background(ScrimAngleDegrees, ScrimStops)
             .padding(10.px, 6.px)
-            .gap(2.px),
+            .gap(2.px)
+            // Swallow clicks on the bar's empty areas so they don't reach the frame play/pause toggle.
+            .input(clickable = true)
+            .onClick { it.consume() },
     ) {
         VideoTimeline(player, state)
         Row(
@@ -163,7 +170,7 @@ private fun VideoControlsBar(
             ) {
                 if (playing) player.pause() else player.play()
             }
-            VideoVolumeControl(player, volumeOpen, onVolumeOpenChange)
+            VideoVolumeControl(player)
             Text(
                 "${formatTime(state.positionSeconds)} / ${formatTime(state.durationSeconds)}",
                 tags = listOf("video-controls-time"),
@@ -200,6 +207,8 @@ private fun VideoIconButton(
 @Composable
 private fun VideoTimeline(player: VideoPlayer, state: VideoWidgetState) {
     var seekPreview by remember { mutableStateOf<Double?>(null) }
+    // nanoTime of the last live seek dispatched during a scrub, for throttling the decoder.
+    val lastSeekNanos = remember { longArrayOf(0L) }
     val duration = state.durationSeconds
     val position = state.positionSeconds
     seekPreview?.let { preview ->
@@ -210,12 +219,26 @@ private fun VideoTimeline(player: VideoPlayer, state: VideoWidgetState) {
     VideoBarSlider(
         fraction = fraction,
         tag = "video-timeline",
-        onScrub = { if (duration > 0.0) seekPreview = it * duration },
-        onCommit = {
+        // Seek live while scrubbing (throttled) so the picture tracks the cursor instead of only
+        // jumping on release. The press that starts a scrub also seeks immediately, so a single
+        // click on the timeline is instant.
+        onScrub = { fraction ->
             if (duration > 0.0) {
-                val target = it * duration
+                val target = fraction * duration
+                seekPreview = target
+                val now = System.nanoTime()
+                if (now - lastSeekNanos[0] >= LiveSeekIntervalNanos) {
+                    lastSeekNanos[0] = now
+                    player.seek(target)
+                }
+            }
+        },
+        onCommit = { fraction ->
+            if (duration > 0.0) {
+                val target = fraction * duration
                 player.seek(target)
                 seekPreview = target
+                lastSeekNanos[0] = System.nanoTime()
             }
         },
     )
@@ -283,67 +306,74 @@ private fun VideoBarSlider(
                     .position((clamped * 100f).percent - 4.px, 0.px)
                     .background(ThumbColor)
                     .borderRadius(4.5f)
-                    .shadow(UiShadow(offset = UiVec3(0f, 1f, 0f), blur = 3f, color = UiColor(0f, 0f, 0f, 0.5f))),
+                    .shadow(UiShadow(offset = UiVec3(0f, 1f, 0f), blur = 1.2f, color = UiColor(0f, 0f, 0f, 0.5f))),
             )
         }
     }
 }
 
 @Composable
-private fun VideoVolumeControl(
-    player: VideoPlayer,
-    open: Boolean,
-    onOpenChange: (Boolean) -> Unit,
-) {
-    var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
-    var popupBounds by remember { mutableStateOf(UiRect.Zero) }
+private fun VideoVolumeControl(player: VideoPlayer) {
+    var groupBounds by remember { mutableStateOf(UiRect.Zero) }
     var level by remember { mutableStateOf(player.volume) }
+    var dragging by remember { mutableStateOf(false) }
+    // Volume before the last mute, restored when the icon is clicked again.
+    val lastAudibleLevel = remember { floatArrayOf(if (player.volume > 0f) player.volume else 1f) }
 
-    VideoIconButton(
-        source = VolumeIcon,
-        tag = "video-controls-volume",
-        extraModifier = Modifier.input(hoverable = true)
-            .onPlaced { anchorBounds = it }
-            .onEnter { onOpenChange(true) },
-    ) {
-        onOpenChange(!open)
-    }
+    val pointer = LocalPointer.current
+    // The slider expands out of the icon while the pointer is over the icon+slider group, and stays
+    // open while a drag is in progress even if the pointer wanders off — no click needed, no popup.
+    val hovered = pointer.isKnown && groupBounds.contains(pointer.x, pointer.y)
+    val expanded = hovered || dragging
+    val reveal by animateFloatAsState(if (expanded) 1f else 0f, durationMillis = 150L)
+    val revealWidth = reveal * VolumeSliderWidth
 
-    if (!open) return
-    Popup(
-        anchorBounds = anchorBounds,
-        alignment = AboveStart,
-        tags = listOf("video-volume-popup"),
-        modifier = Modifier.background(PopupBackgroundColor)
-            .border(1.px, PopupBorderColor, radius = 6f)
-            .padding(10.px, 8.px)
-            .gap(6.px)
-            .onPlaced { popupBounds = it }
-            .onExit { event ->
-                if (!popupBounds.contains(event.x, event.y)) onOpenChange(false)
-            },
-        onDismiss = { onOpenChange(false) },
+    Row(
+        tags = listOf("video-volume"),
+        modifier = Modifier.size(UiLength.Auto, 12.px)
+            .alignItems(vertical = UiAlign.CENTER)
+            .gap(if (revealWidth > 0.5f) 4.px else 0.px)
+            .input(hoverable = true)
+            .onPlaced { groupBounds = it },
     ) {
-        Row(modifier = Modifier.alignItems(vertical = UiAlign.CENTER).gap(6.px)) {
-            Box(modifier = Modifier.size(72.px, 12.px)) {
+        VideoIconButton(
+            source = VolumeIcon,
+            tag = "video-controls-volume",
+            extraModifier = Modifier.opacity(if (level > 0f) 1f else 0.5f),
+        ) {
+            if (level > 0f) {
+                lastAudibleLevel[0] = level
+                level = 0f
+            } else {
+                level = lastAudibleLevel[0]
+            }
+            player.setVolume(level)
+        }
+        // Fixed-width slider clipped by an animated-width box so the track wipes in instead of
+        // squashing; the slider is inset (padding) so the thumb never touches — and gets cut by — the
+        // clip edge. Kept mounted while revealed or dragging.
+        Box(modifier = Modifier.size(revealWidth.px, 14.px).clip()) {
+            if (revealWidth > 0.5f) {
                 VideoBarSlider(
                     fraction = level,
                     tag = "video-volume-slider",
+                    modifier = Modifier.size(VolumeSliderWidth.px, 14.px)
+                        .padding(VolumeThumbInset.px, 0.px)
+                        .align(vertical = UiAlign.CENTER),
                     onScrub = {
+                        dragging = true
                         level = it
+                        if (it > 0f) lastAudibleLevel[0] = it
                         player.setVolume(it)
                     },
                     onCommit = {
+                        dragging = false
                         level = it
+                        if (it > 0f) lastAudibleLevel[0] = it
                         player.setVolume(it)
                     },
                 )
             }
-            Text(
-                "${(level * 100).toInt()}%",
-                tags = listOf("video-volume-value"),
-                modifier = Modifier.fontSize(9f).foreground(TimeTextColor),
-            )
         }
     }
 }
@@ -370,15 +400,13 @@ private fun formatTime(seconds: Double): String {
     }
 }
 
-private val AboveStart = UiPopupAlignment(anchorVertical = UiAlign.START, popupVertical = UiAlign.END, offsetY = -4f)
 private val VideoBackgroundColor = UiColor(0f, 0f, 0f, 1f)
 
-private val AccentColor = UiColor(0.996f, 0.682f, 0.247f, 1f)
+// Neutral, player-agnostic accent (was warm orange) so the widget doesn't read as any one site's brand.
+private val AccentColor = UiColor(1f, 1f, 1f, 0.92f)
 private val SliderTrackColor = UiColor(1f, 1f, 1f, 0.25f)
 private val ThumbColor = UiColor(1f, 1f, 1f, 1f)
 private val TimeTextColor = UiColor(1f, 1f, 1f, 0.85f)
-private val PopupBackgroundColor = UiColor(0.09f, 0.1f, 0.12f, 0.95f)
-private val PopupBorderColor = UiColor(1f, 1f, 1f, 0.12f)
 
 private const val ScrimAngleDegrees = 90f
 private val ScrimStops = listOf(
@@ -389,4 +417,7 @@ private val ScrimStops = listOf(
 private const val PlayIcon = "hollowengine:textures/gui/icons/play.svg"
 private const val PauseIcon = "hollowengine:textures/gui/icons/pause.svg"
 private const val VolumeIcon = "hollowengine:textures/gui/icons/volume.svg"
-private const val SeekPreviewReleaseSeconds = 0.3
+private const val SeekPreviewReleaseSeconds = 0.12
+private const val VolumeSliderWidth = 68f
+private const val VolumeThumbInset = 6f
+private const val LiveSeekIntervalNanos = 40_000_000L

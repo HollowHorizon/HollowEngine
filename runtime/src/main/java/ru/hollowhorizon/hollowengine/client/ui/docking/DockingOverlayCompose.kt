@@ -1,19 +1,28 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
 
 @Composable
 internal fun FloatingResizeHandle(window: FloatingDockWindow, state: DockingState) {
     DockResizeEdge.entries.forEach { edge ->
+        val dragStart = remember(window.id, edge) { arrayOf(window) }
         Box(
             id = "${window.id}-resize-${edge.name.lowercase()}",
             tags = listOf(DockTags.ResizeHandle),
             modifier = Modifier.resizeHandleModifier(edge)
                 .input(hoverable = true, draggable = true)
                 .cursor(edge.cursorShape)
+                .onPress { dragStart[0] = window }
                 .onDrag { event ->
-                    state.resizeFloating(window.id, edge, event.deltaX, event.deltaY)
+                    state.resizeFloatingFrom(
+                        window.id,
+                        edge,
+                        dragStart[0],
+                        event.dragTotalX,
+                        event.dragTotalY,
+                    )
                     event.consume()
                 }
         )

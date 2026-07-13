@@ -2,5 +2,6 @@
   "copy": "§6[§bHollow Engine§6] §7Value: %s copied.",
   "model_animations": "§6[§bHollow Engine§6] Model %s animations:",
   "model_textures": "§6[§bHollow Engine§6] Model %s textures:",
-  "tags": "§6[§bHollow Engine§6] §7Item tags: "
+  "tags": "§6[§bHollow Engine§6] §7Item tags: ",
+  "scripting_state_requires_node_script": "Cannot use an initial state with '%s': states are supported only by .node.kts scripts. Use a .node.kts script or run the .kts script without the state argument."
 }

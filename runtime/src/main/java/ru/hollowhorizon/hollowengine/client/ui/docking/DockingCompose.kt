@@ -113,19 +113,21 @@ private fun Splitter(
     horizontal: Boolean,
 ) {
     val size = 3.px
+    val dragStartFraction = remember(split.id) { floatArrayOf(split.fraction) }
     Box(
         id = "${split.id}-splitter",
         tags = listOf(DockTags.Splitter),
         modifier = Modifier.size(if (horizontal) size else 100.percent, if (horizontal) 100.percent else size)
             .input(hoverable = true, draggable = true)
             .cursor(if (horizontal) UiCursorShape.RESIZE_HORIZONTAL else UiCursorShape.RESIZE_VERTICAL)
+            .onPress { dragStartFraction[0] = split.fraction }
             .onDrag { event ->
                 val parentSize = if (horizontal) event.parentWidth else event.parentHeight
                 val splitterSize = size.value
                 val paneSize = parentSize - splitterSize
                 if (paneSize > 0f) {
-                    val delta = if (horizontal) event.deltaX else event.deltaY
-                    state.resizeSplitByFraction(split.id, delta / paneSize)
+                    val total = if (horizontal) event.dragTotalX else event.dragTotalY
+                    state.setSplitFraction(split.id, dragStartFraction[0] + total / paneSize)
                 }
                 event.consume()
             }

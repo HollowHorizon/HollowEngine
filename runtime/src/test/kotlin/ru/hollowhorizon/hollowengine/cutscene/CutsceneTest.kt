@@ -119,6 +119,53 @@ class CutsceneTest {
     }
 
     @Test
+    fun `group drag preserves spacing when clamped to the work area`() {
+        val controller = TimelineController().apply { workAreaEnd.set(10f) }
+        val first = Keyframe(2f, 0f)
+        val second = Keyframe(5f, 0f)
+        val track = floatTrack(first, second)
+        controller.addTrack("Test", track)
+        controller.selectedKeyframes.addAll(listOf(first, second))
+
+        controller.beginKeyframeDrag(second)
+        controller.applyKeyframeDrag(-10f)
+        controller.endKeyframeDrag()
+
+        assertEquals(0f, first.time, 0.001f)
+        assertEquals(3f, second.time, 0.001f)
+    }
+
+    @Test
+    fun `group drag is atomic when one keyframe collides`() {
+        val controller = TimelineController().apply { workAreaEnd.set(10f) }
+        val first = Keyframe(1f, 0f)
+        val second = Keyframe(3f, 0f)
+        val blocker = Keyframe(4f, 0f)
+        val track = floatTrack(first, second, blocker)
+        controller.addTrack("Test", track)
+        controller.selectedKeyframes.addAll(listOf(first, second))
+
+        controller.beginKeyframeDrag(second)
+        controller.applyKeyframeDrag(1f)
+        controller.endKeyframeDrag()
+
+        assertEquals(1f, first.time, 0.001f)
+        assertEquals(3f, second.time, 0.001f)
+    }
+
+    private fun floatTrack(vararg keyframes: Keyframe<Float>): AnimTrack<Float> {
+        val driver = object : PropertyDriver<Float> {
+            override fun interpolate(start: Float, end: Float, fraction: Float): Float =
+                start + (end - start) * fraction
+
+            override fun apply(value: Float) = Unit
+
+            override fun UiScope.drawEditor(value: Float, onChange: (Float) -> Unit) = Unit
+        }
+        return AnimTrack("Test", driver, 0f, keyframes.toMutableList())
+    }
+
+    @Test
     fun `playback controller reads generic camera tracks`() {
         val source = CutscenePlaybackController()
         source.positionTrack.keyframes.add(Keyframe(0f, Vec3f(1f, 2f, 3f)))

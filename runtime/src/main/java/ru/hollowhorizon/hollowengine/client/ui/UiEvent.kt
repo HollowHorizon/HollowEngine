@@ -89,6 +89,8 @@ data class UiEvent(
     val ancestorLocalPositions: Map<String, UiVec3> = emptyMap(),
     val deltaX: Float = 0f,
     val deltaY: Float = 0f,
+    val dragTotalX: Float = 0f,
+    val dragTotalY: Float = 0f,
     val scrollX: Float = 0f,
     val scrollY: Float = 0f,
     val key: Int = 0,

@@ -56,6 +56,20 @@ class ScrollbarSynthesisTest {
     }
 
     @Test
+    fun `overlay scrollbar keeps the full content width`() {
+        val (reservedLayout, reservedViewport) = layout(UiSize(80.px, 300.px))
+        val (overlayLayout, overlayViewport) = layout(
+            UiSize(80.px, 300.px),
+            Modifier.scroll(vertical = true, overlay = true),
+        )
+
+        val reservedWidth = reservedLayout.nodes.getValue(reservedViewport).content.width
+        val overlayWidth = overlayLayout.nodes.getValue(overlayViewport).content.width
+        assertTrue(overlayWidth > reservedWidth, "overlay must not consume the scrollbar gutter")
+        assertTrue(!overlayLayout.scrollbars[overlayViewport].isNullOrEmpty(), "overlay still synthesizes a scrollbar")
+    }
+
+    @Test
     fun `identity of a synthesized scrollbar is stable across recomputes`() {
         val viewport = BoxNode(
             id = "v", measurePolicy = UiMeasurePolicies.box(),

@@ -9,6 +9,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.components.ComponentScript
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider as Provider
 
+const val NODE_SCRIPT_EXTENSION = "node.kts"
+
 object DefaultScriptDefinitions {
     fun providers(): List<Provider> {
         return buildList {
@@ -31,7 +33,7 @@ object DefaultScriptDefinitions {
                 )
             )
             this += Provider(
-                extension = "node.kts",
+                extension = NODE_SCRIPT_EXTENSION,
                 baseClass = ComponentScript::class.qualifiedName!!,
                 defaultImports = listOf(
                     "ru.hollowhorizon.hollowengine.common.coroutines.*",

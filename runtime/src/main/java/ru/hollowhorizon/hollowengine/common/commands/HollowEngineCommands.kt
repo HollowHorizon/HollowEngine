@@ -46,6 +46,7 @@ import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.components.addNode
 import ru.hollowhorizon.hollowengine.common.scripting.components.removeNode
+import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
@@ -670,6 +671,11 @@ private fun CommandExtension.registerScriptingCommands() {
         ) {
             executes {
                 val path = StringArgumentType.getString(this, "path")
+                if (!isNodeScriptPath(path)) {
+                    return@executes sendFailure(
+                        "hollowengine.commands.scripting_state_requires_node_script".mcTranslate(path)
+                    )
+                }
                 source.server.addNode(
                     path,
                     context = StateContext(nextState = StringArgumentType.getString(this, "state"))
@@ -703,6 +709,8 @@ private fun CommandExtension.registerScriptingCommands() {
         }
     }
 }
+
+internal fun isNodeScriptPath(path: String): Boolean = path.endsWith(".$NODE_SCRIPT_EXTENSION")
 
 // region Particle Functions
 private fun spawnParticleAtPosition(particleName: String, pos: Vec3) {

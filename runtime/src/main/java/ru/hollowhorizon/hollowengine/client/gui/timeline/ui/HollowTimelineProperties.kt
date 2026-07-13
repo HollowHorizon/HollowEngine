@@ -3,9 +3,9 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
-import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.easingTypes
@@ -35,7 +35,6 @@ internal fun HollowTimelineProperties(
         when {
             selectedKey != null && selectedTrack != null -> KeyframeSection(
                 selectedKey,
-                selectedTrack,
                 controller,
                 refresh
             )
@@ -74,37 +73,42 @@ private fun PreviewSection(controller: TimelineController, refresh: () -> Unit) 
 @Composable
 private fun KeyframeSection(
     keyframe: Keyframe<*>,
-    track: AnimTrack<*>,
     controller: TimelineController,
     refresh: () -> Unit,
 ) {
-    Section("Keyframe") {
+    val selectionCount = controller.selectedKeyframes.size
+    Section(if (selectionCount == 1) "Keyframe" else "$selectionCount Keyframes") {
         FloatField("Time", keyframe.time, 0f, controller.workAreaEnd.value) { time ->
-            controller.moveKeyframe(track, keyframe, time)
+            controller.nudgeSelectedKeyframes(time - keyframe.time)
             refresh()
         }
         ValueEditor(keyframe, controller, refresh)
     }
     Section("Easing") {
         val active = easingTypes.firstOrNull { category -> category.variants.any { it.function == keyframe.easing } }
-        easingTypes.forEach { category ->
-            val selected = active == category
-            TogglePill(category.name, selected) {
-                val variant = category.variants.getOrNull(2) ?: category.variants.first()
-                keyframe.easing = variant.function
-                controller.onChanged?.invoke()
-                refresh()
+        EasingPreview(keyframe)
+        EasingFlow {
+            easingTypes.forEach { category ->
+                EasingPill(category.name, active == category) {
+                    val variant = category.variants.getOrNull(2) ?: category.variants.first()
+                    updateSelectedEasing(controller, variant.function)
+                    refresh()
+                }
             }
         }
-        active?.variants?.takeIf { it.size > 1 }?.forEach { variant ->
-            TogglePill(variant.name, keyframe.easing == variant.function) {
-                keyframe.easing = variant.function
-                controller.onChanged?.invoke()
-                refresh()
+        active?.variants?.takeIf { it.size > 1 }?.let { variants ->
+            Text("Curve", modifier = Modifier.fontSize(9f).foreground(TimelineColors.Muted))
+            EasingFlow {
+                variants.forEach { variant ->
+                    EasingPill(variant.name, keyframe.easing == variant.function) {
+                        updateSelectedEasing(controller, variant.function)
+                        refresh()
+                    }
+                }
             }
         }
     }
-    ToolbarButton("Delete key", "timeline-properties-delete", TimelineColors.Danger) {
+    ToolbarButton(if (selectionCount == 1) "Delete key" else "Delete keys", "timeline-properties-delete", TimelineColors.Danger) {
         controller.deleteSelectedKeyframes()
         refresh()
     }
@@ -141,37 +145,101 @@ private fun ValueEditor(
 ) {
     when (val value = keyframe.value) {
         is Float -> FloatField("Value", value, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-            updateValue(keyframe, controller, next)
+            updateSelectedValues(controller) { current -> if (current is Float) next else current }
             refresh()
         }
 
         is Vec2f -> {
             FloatField("X", value.x, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-                updateValue(keyframe, controller, Vec2f(next, value.y))
+                updateSelectedValues(controller) { current ->
+                    if (current is Vec2f) Vec2f(next, current.y) else current
+                }
                 refresh()
             }
             FloatField("Y", value.y, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-                updateValue(keyframe, controller, Vec2f(value.x, next))
+                updateSelectedValues(controller) { current ->
+                    if (current is Vec2f) Vec2f(current.x, next) else current
+                }
                 refresh()
             }
         }
 
         is Vec3f -> {
             FloatField("X", value.x, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-                updateValue(keyframe, controller, Vec3f(next, value.y, value.z))
+                updateSelectedValues(controller) { current ->
+                    if (current is Vec3f) Vec3f(next, current.y, current.z) else current
+                }
                 refresh()
             }
             FloatField("Y", value.y, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-                updateValue(keyframe, controller, Vec3f(value.x, next, value.z))
+                updateSelectedValues(controller) { current ->
+                    if (current is Vec3f) Vec3f(current.x, next, current.z) else current
+                }
                 refresh()
             }
             FloatField("Z", value.z, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-                updateValue(keyframe, controller, Vec3f(value.x, value.y, next))
+                updateSelectedValues(controller) { current ->
+                    if (current is Vec3f) Vec3f(current.x, current.y, next) else current
+                }
                 refresh()
             }
         }
 
         else -> PropertyLine("Value", value.toString())
+    }
+}
+
+@Composable
+private fun EasingPreview(keyframe: Keyframe<*>) {
+    Box(
+        modifier = Modifier.size(100.percent, 46.px)
+            .background(TimelineColors.Background)
+            .border(1.px, TimelineColors.Border, 3f)
+            .clip(),
+    ) {
+        val samples = 36
+        for (i in 0..samples) {
+            val t = i / samples.toFloat()
+            val eased = keyframe.easing.eased(t).coerceIn(0f, 1f)
+            val xPercent = 8f + t * 84f
+            val yPercent = 6f + (1f - eased) * 88f
+            Box(
+                modifier = Modifier.position(xPercent.percent - 1.5f.px, yPercent.percent - 1.5f.px)
+                    .size(3.px, 3.px)
+                    .background(TimelineColors.Blue)
+                    .borderRadius(1.5f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EasingFlow(content: HollowUiContent) {
+    Layout(
+        content = content,
+        modifier = Modifier.size(100.percent, UiLength.Auto).gap(4.px),
+        measurePolicy = UiMeasurePolicies.InlineFlow,
+    )
+}
+
+@Composable
+private fun EasingPill(label: String, active: Boolean, onClick: () -> Unit) {
+    InlineWidget(
+        id = "easing-$label",
+        modifier = Modifier.background(if (active) TimelineColors.Blue else TimelineColors.Background)
+            .border(1.px, if (active) UiColor.White else TimelineColors.Border, 4f)
+            .padding(8.px, 3.px)
+            .input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
+            .onClick {
+                onClick()
+                it.consume()
+            },
+    ) {
+        Text(
+            label,
+            modifier = Modifier.fontSize(10f).foreground(TimelineColors.Text).textWrap(false),
+        )
     }
 }
 
@@ -280,13 +348,18 @@ private fun TogglePill(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Suppress("UNCHECKED_CAST")
-private fun <T> updateValue(
-    keyframe: Keyframe<*>,
-    controller: TimelineController,
-    value: T,
-) {
-    val typedKey = keyframe as Keyframe<T>
+private fun updateSelectedValues(controller: TimelineController, update: (Any?) -> Any?) {
     controller.updateSelectedValues("Edit keyframe value") {
-        typedKey.value = value
+        controller.selectedKeyframes.forEach { keyframe ->
+            val current = keyframe.value
+            val next = update(current)
+            if (next !== current) (keyframe as Keyframe<Any?>).value = next
+        }
+    }
+}
+
+private fun updateSelectedEasing(controller: TimelineController, easing: Easing.Easing) {
+    controller.updateSelectedValues("Edit keyframe easing") {
+        controller.selectedKeyframes.forEach { it.easing = easing }
     }
 }

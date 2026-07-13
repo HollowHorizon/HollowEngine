@@ -8,6 +8,7 @@ import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSessions
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -26,6 +27,7 @@ import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 internal const val ProjectTreeId = "ide-project-tree"
 internal const val EditorWelcomeId = "ide-code-editor"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
+internal const val CutscenePropertiesId = "ide-cutscene-properties"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val CodeIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
@@ -316,6 +318,7 @@ object HollowIdeOverlay {
             ProjectTreeId -> ProjectTree()
             EditorWelcomeId -> EmptyEditor()
             CutsceneTimelineId -> CutsceneTimelineDock(CutsceneEditorSessions.default)
+            CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) }
                 ?: EmptyEditor()
         }
@@ -409,13 +412,11 @@ object HollowIdeOverlay {
             }
             if (diagnosticsPanels[file.id] == true) {
                 val height = diagnosticsPanelHeights[file.id] ?: DefaultDiagnosticsPanelHeight
-                HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, delta ->
-                    diagnosticsPanelHeights[id] =
-                        ((diagnosticsPanelHeights[id] ?: DefaultDiagnosticsPanelHeight) + delta)
-                            .coerceIn(
-                                MinDiagnosticsPanelHeight,
-                                MaxDiagnosticsPanelHeight,
-                            )
+                HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, requestedHeight ->
+                    diagnosticsPanelHeights[id] = requestedHeight.coerceIn(
+                        MinDiagnosticsPanelHeight,
+                        MaxDiagnosticsPanelHeight,
+                    )
                 }
             }
         }

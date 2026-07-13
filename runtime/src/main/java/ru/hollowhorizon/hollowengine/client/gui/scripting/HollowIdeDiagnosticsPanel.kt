@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
@@ -42,13 +43,15 @@ internal fun HollowIdeDiagnosticsPanel(
     height: Float,
     onResize: (String, Float) -> Unit,
 ) {
+    val dragStartHeight = remember(fileId) { floatArrayOf(height) }
     Column(tags = listOf("ide-diagnostics-wrap"), modifier = Modifier.size(100.percent, height.px)) {
         Box(
             tags = listOf("ide-diagnostics-resizer"),
             modifier = Modifier.input(clickable = true, hoverable = true)
                 .cursor(UiCursorShape.RESIZE_VERTICAL)
+                .onPress { dragStartHeight[0] = height }
                 .onDrag { event ->
-                    onResize(fileId, -event.deltaY)
+                    onResize(fileId, dragStartHeight[0] - event.dragTotalY)
                     event.consume()
                 }
         )

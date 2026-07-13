@@ -363,8 +363,15 @@ fun Modifier.backdropFilter(vararg effects: UiFilterEffect) =
 
 fun Modifier.backfaceVisibility(value: UiBackfaceVisibility) = prop(UiProps.BackfaceVisibility, value)
 
-fun Modifier.scroll(vertical: Boolean = true, horizontal: Boolean = false, state: UiScrollHandle? = null) =
-    this then ScrollModifier(vertical, horizontal, state)
+fun Modifier.scroll(
+    vertical: Boolean = true,
+    horizontal: Boolean = false,
+    state: UiScrollHandle? = null,
+    overlay: Boolean = false,
+): Modifier {
+    val scroll = this then ScrollModifier(vertical, horizontal, state)
+    return if (overlay) scroll.prop(UiProps.Scrollbar, UiScrollbarStyle(overlay = true)) else scroll
+}
 
 fun Modifier.input(
     hoverable: Boolean = false,

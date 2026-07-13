@@ -256,6 +256,10 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(minThumbSize = parseLength(value))
             }
 
+            "scrollbar-overlay" -> instruction {
+                it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(overlay = parseBoolean(value))
+            }
+
             "scrollbar-track" -> instruction { style ->
                 style.scrollbar =
                     (style.scrollbar ?: UiScrollbarStyle()).patchTrack { it.copy(paint = parsePaint(value)) }

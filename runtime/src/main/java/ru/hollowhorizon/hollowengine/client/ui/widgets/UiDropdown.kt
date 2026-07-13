@@ -54,7 +54,7 @@ fun UiDropdown(
             }
     ) {
         if (icon != null) Image(icon, tags = listOf("dropdown-button-icon"))
-        Text(label, tags = listOf("dropdown-button-label"))
+        if (label.isNotEmpty()) Text(label, tags = listOf("dropdown-button-label"))
         Box(tags = listOf("dropdown-button-arrow"))
     }
 
@@ -69,6 +69,7 @@ fun ContextMenu(
     items: List<UiDropdownItem>,
     onExpandedChange: (Boolean) -> Unit = {},
 ) {
+    val anyLeading = items.any { it.icon != null || it.mark != null }
     Popup(
         anchorBounds = anchorBounds,
         id = "$id-popup",
@@ -107,7 +108,7 @@ fun ContextMenu(
                     )
                 } else if (item.icon != null) {
                     Image(item.icon, tags = listOf("dropdown-item-icon"))
-                } else {
+                } else if (anyLeading) {
                     Box(modifier = Modifier.size(16.px, 16.px))
                 }
                 Text(item.label, tags = listOf("dropdown-item-label"))

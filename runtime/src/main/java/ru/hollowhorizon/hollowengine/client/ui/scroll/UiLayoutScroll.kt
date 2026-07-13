@@ -100,14 +100,16 @@ private fun scrollbarPartLayout(node: UiNode, relativeRect: UiRect, container: U
     )
 }
 
+private const val ScrollbarOverflowEpsilon = 1f
+
 private fun scrollbarGeometry(style: UiComputedStyle, layoutNode: UiLayoutNode): List<UiScrollbarGeometry> {
     val result = mutableListOf<UiScrollbarGeometry>()
     val scrollArea = layoutNode.scrollArea
     val rect = layoutNode.rect
     val verticalStyle = style.scrollbar.resolved(scrollArea.width)
     val horizontalStyle = style.scrollbar.resolved(scrollArea.height)
-    val hasVertical = layoutNode.scrollRange.y > 0f && scrollArea.height > verticalStyle.gutter
-    val hasHorizontal = layoutNode.scrollRange.x > 0f && scrollArea.width > horizontalStyle.gutter
+    val hasVertical = layoutNode.scrollRange.y > ScrollbarOverflowEpsilon && scrollArea.height > verticalStyle.gutter
+    val hasHorizontal = layoutNode.scrollRange.x > ScrollbarOverflowEpsilon && scrollArea.width > horizontalStyle.gutter
 
     fun buildScrollbar(
         orientation: ScrollbarOrientation,
@@ -181,6 +183,7 @@ internal fun detectScrollbarReserves(
     for ((node, layout) in layouts) {
         val style = node.resolvedSnapshot
         if (!style.scrollable) continue
+        if (style.scrollbar.overlay == true) continue
         val axes = node.scrollAxes()
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
         val reserve = UiScrollbarReserve(

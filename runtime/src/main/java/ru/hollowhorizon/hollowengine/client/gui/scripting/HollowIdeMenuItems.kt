@@ -20,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.utils.openUrl
 private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"
 private const val SaveIcon = "hollowengine:textures/gui/icons/save.svg"
 private const val DocsIcon = "hollowengine:textures/gui/icons/docs.svg"
+private const val OptionsIcon = "hollowengine:textures/gui/icons/options.svg"
 
 internal fun hollowIdeFileMenuItems(
     model: HollowIdeModel,
@@ -72,6 +73,20 @@ internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState)
                 )
             }
             dock.focus(CutsceneTimelineId)
+        },
+        UiDropdownItem("Cutscene Properties", OptionsIcon) {
+            if (!dock.contains(CutscenePropertiesId)) {
+                val anchor = if (dock.contains(CutsceneTimelineId)) {
+                    CutsceneTimelineId
+                } else {
+                    model.files.values.firstOrNull { dock.contains(it.id) }?.id ?: EditorWelcomeId
+                }
+                dock.open(
+                    DockItem(CutscenePropertiesId, "Cutscene Properties", OptionsIcon, closable = true, minWidth = 240f, minHeight = 260f),
+                    DockTarget(anchor, DockPlacement.RIGHT),
+                )
+            }
+            dock.focus(CutscenePropertiesId)
         },
     )
 }

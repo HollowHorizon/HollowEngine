@@ -91,9 +91,15 @@ class TimelineController {
         return group ?: error("Timeline group path is empty")
     }
 
-    fun onUpdate() {
+    fun onUpdate() = onUpdate(Time.deltaT)
+
+    /**
+     * Advances playback by an explicit [deltaSeconds]. The new-UI editor drives this from the Compose
+     * frame clock rather than Kool's [Time.deltaT], which is only ticked while a Kool surface renders.
+     */
+    fun onUpdate(deltaSeconds: Float) {
         if (isPlaying.value) {
-            setCurrentTime(currentTime.value + Time.deltaT * playbackSpeed.value)
+            setCurrentTime(currentTime.value + deltaSeconds * playbackSpeed.value)
 
             val end = workAreaEnd.value
             if (currentTime.value >= end) {
@@ -217,6 +223,92 @@ class TimelineController {
         keyframe.time = clamped
         onChanged?.invoke()
         return true
+    }
+
+    /** Times of every selected keyframe captured at drag start, so a drag can move the whole group. */
+    var dragStartTimes: Map<Keyframe<*>, Float>? = null
+        private set
+    var dragFocusKeyframe: Keyframe<*>? = null
+        private set
+
+    fun beginKeyframeDrag(focus: Keyframe<*>) {
+        beginHistoryTransaction("Move keyframes")
+        dragStartTimes = selectedKeyframes.associateWith { it.time }
+        dragFocusKeyframe = focus
+    }
+
+    /**
+     * Moves every dragged keyframe to `start + [deltaSeconds]` (clamped to the work area). The delta is
+     * the total offset from the grab point, not an increment, so hitting a bound and coming back stays
+     * in sync with the cursor. A move is skipped only when a non-dragged key already holds that slot.
+     */
+    fun applyKeyframeDrag(deltaSeconds: Float) {
+        val starts = dragStartTimes ?: return
+        if (moveKeyframesFromStarts(starts, deltaSeconds)) onChanged?.invoke()
+    }
+
+    fun endKeyframeDrag() {
+        dragStartTimes = null
+        dragFocusKeyframe = null
+        commitHistoryTransaction()
+    }
+
+    /** Shifts every selected keyframe by [deltaSeconds] (clamped), recorded as one undo step. */
+    fun nudgeSelectedKeyframes(deltaSeconds: Float) {
+        if (selectedKeyframes.isEmpty()) return
+        history.record("Nudge keyframes") {
+            val starts = selectedKeyframes.associateWith { it.time }
+            if (moveKeyframesFromStarts(starts, deltaSeconds)) onChanged?.invoke()
+        }
+    }
+
+    private fun moveKeyframesFromStarts(starts: Map<Keyframe<*>, Float>, deltaSeconds: Float): Boolean {
+        if (starts.isEmpty()) return false
+        val clampedDelta = deltaSeconds.coerceIn(
+            minimumValue = -starts.values.min(),
+            maximumValue = workAreaEnd.value - starts.values.max(),
+        )
+        val dragged = starts.keys
+        val targets = starts.mapValues { (_, startTime) -> startTime + clampedDelta }
+        val blocked = targets.any { (keyframe, target) ->
+            findTrack(keyframe)?.keyframes?.any { other ->
+                other !in dragged && abs(other.time - target) <= KEYFRAME_TIME_EPSILON
+            } == true
+        }
+        if (blocked) return false
+
+        var changed = false
+        targets.forEach { (keyframe, target) ->
+            if (keyframe.time != target) {
+                keyframe.time = target
+                changed = true
+            }
+        }
+        return changed
+    }
+
+    /** Duplicates every selected keyframe just after itself, selecting the new copies. */
+    @Suppress("UNCHECKED_CAST")
+    fun duplicateSelectedKeyframes() {
+        val originals = selectedKeyframes.toList()
+        if (originals.isEmpty()) return
+        history.record("Duplicate keyframes") {
+            val created = mutableListOf<Keyframe<*>>()
+            for (original in originals) {
+                val track = findTrack(original) ?: continue
+                val target = findFreeTime(track, original.time + KEYFRAME_TIME_EPSILON * 2f)
+                val typedTrack = track as AnimTrack<Any?>
+                if (typedTrack.hasKeyAt(target)) continue
+                val typedKey = original as Keyframe<Any?>
+                val copy = Keyframe(target, copyValue(typedKey.value), typedKey.easing)
+                typedTrack.keyframes.add(copy)
+                created += copy
+            }
+            selectedKeyframes.clear()
+            selectedKeyframes.addAll(created)
+            isWorkAreaSelected.set(false)
+            onChanged?.invoke()
+        }
     }
 
     fun beginHistoryTransaction(label: String) {

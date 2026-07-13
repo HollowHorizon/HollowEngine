@@ -118,6 +118,7 @@ data class UiScrollbarStyle(
     val thickness: UiLength? = null,
     val margin: UiLength? = null,
     val minThumbSize: UiLength? = null,
+    val overlay: Boolean? = null,
     val track: UiScrollbarPartStyle = UiScrollbarPartStyle(),
     val thumb: UiScrollbarPartStyle = UiScrollbarPartStyle(),
 ) {
@@ -125,6 +126,7 @@ data class UiScrollbarStyle(
         thickness = other.thickness ?: thickness,
         margin = other.margin ?: margin,
         minThumbSize = other.minThumbSize ?: minThumbSize,
+        overlay = other.overlay ?: overlay,
         track = track.merge(other.track),
         thumb = thumb.merge(other.thumb),
     )

@@ -11,6 +11,8 @@ class HollowUiInputController {
     private var hoveredNode: UiNode? = null
     private var activeNode: UiNode? = null
     private var draggingNode: UiNode? = null
+    private var dragStartX = 0f
+    private var dragStartY = 0f
 
     // Focus is per scope (root, each popup, each dock window): every scope independently owns one
     // focused `focusable` target, so a popup and a text field stay focused at the same time. The
@@ -182,6 +184,8 @@ class HollowUiInputController {
 
         if (hit.node.resolvedSnapshot.draggable && button == 0) {
             draggingNode = hit.node
+            dragStartX = mouseX
+            dragStartY = mouseY
             return UiInputResult(true, hit.node, hit.node.id)
         }
 
@@ -254,6 +258,8 @@ class HollowUiInputController {
             ancestorLocalPositions = frame.ancestorLocalPositions(node, mouseX, mouseY),
             deltaX = deltaX,
             deltaY = deltaY,
+            dragTotalX = mouseX - dragStartX,
+            dragTotalY = mouseY - dragStartY,
         )
         val handled = dispatch(event)
         return UiInputResult(handled, node, node.id)

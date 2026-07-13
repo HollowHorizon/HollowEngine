@@ -210,14 +210,27 @@ class DockingState {
     ): Boolean {
         val index = floatingWindows.indexOfFirst { it.id == windowId }
         if (index < 0) return false
-        val window = floatingWindows[index]
-        var nextX = window.x
-        var nextY = window.y
-        var nextWidth = window.width
-        var nextHeight = window.height
+        return resizeFloatingFrom(windowId, edge, floatingWindows[index], deltaX, deltaY, minWidth, minHeight)
+    }
+
+    fun resizeFloatingFrom(
+        windowId: String,
+        edge: DockResizeEdge,
+        start: FloatingDockWindow,
+        deltaX: Float,
+        deltaY: Float,
+        minWidth: Float = 160f,
+        minHeight: Float = 120f,
+    ): Boolean {
+        val index = floatingWindows.indexOfFirst { it.id == windowId }
+        if (index < 0) return false
+        var nextX = start.x
+        var nextY = start.y
+        var nextWidth = start.width
+        var nextHeight = start.height
 
         if (edge.resizesLeft) {
-            val applied = deltaX.coerceAtMost(window.width - minWidth)
+            val applied = deltaX.coerceAtMost(start.width - minWidth)
             nextX += applied
             nextWidth -= applied
         }
@@ -225,7 +238,7 @@ class DockingState {
             nextWidth = (nextWidth + deltaX).coerceAtLeast(minWidth)
         }
         if (edge.resizesTop) {
-            val applied = deltaY.coerceAtMost(window.height - minHeight)
+            val applied = deltaY.coerceAtMost(start.height - minHeight)
             nextY += applied
             nextHeight -= applied
         }
@@ -233,7 +246,9 @@ class DockingState {
             nextHeight = (nextHeight + deltaY).coerceAtLeast(minHeight)
         }
 
-        floatingWindows[index] = window.copy(x = nextX, y = nextY, width = nextWidth, height = nextHeight)
+        val current = floatingWindows[index]
+        val next = current.copy(x = nextX, y = nextY, width = nextWidth, height = nextHeight)
+        if (next != current) floatingWindows[index] = next
         return true
     }
 

@@ -10,25 +10,40 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.TrackGroup
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 
 internal const val TimelineHeaderWidth = 220f
-internal const val TimelineRulerHeight = 30f
-internal const val TimelineGroupRowHeight = 30f
-internal const val TimelineTrackRowHeight = 40f
+internal const val TimelineRulerHeight = 28f
+internal const val TimelineGroupRowHeight = 22f
+internal const val TimelineTrackRowHeight = 24f
 internal const val TimelineLeftPadding = 24f
 internal const val TimelineMinContentWidth = 600f
 internal const val TimelineMaxZoom = 500f
 internal const val TimelineMinZoom = 10f
+private const val TimelineAutoPanEdge = 48f
+internal const val TimelineScrollbarClearance = 12f
 
 internal val TimelineDiamondShape: Shape = GenericShape { size ->
     moveTo(size.width * 0.5f, 0f)
     lineTo(size.width, size.height * 0.5f)
     lineTo(size.width * 0.5f, size.height)
     lineTo(0f, size.height * 0.5f)
+    close()
+}
+
+/** Downward-pointing playhead head that sits at the top of the ruler. */
+internal val PlayheadHeadShape: Shape = GenericShape { size ->
+    moveTo(0f, 0f)
+    lineTo(size.width, 0f)
+    lineTo(size.width, size.height * 0.55f)
+    lineTo(size.width * 0.5f, size.height)
+    lineTo(0f, size.height * 0.55f)
     close()
 }
 
@@ -110,6 +125,19 @@ internal fun timelineTimeAt(localX: Float, pixelsPerSecond: Float, workAreaEnd: 
 
 internal fun timelineTimeDelta(deltaX: Float, pixelsPerSecond: Float): Float {
     return deltaX / pixelsPerSecond.coerceAtLeast(1f)
+}
+
+internal fun autoPanToContentX(scroll: UiScrollHandle, viewport: UiRect, contentX: Float) {
+    if (viewport.width <= 0f) return
+    val edge = min(TimelineAutoPanEdge, viewport.width * 0.25f)
+    val visibleStart = scroll.offsetX
+    val visibleEnd = visibleStart + viewport.width
+    val target = when {
+        contentX < visibleStart + edge -> contentX - edge
+        contentX > visibleEnd - edge -> contentX - viewport.width + edge
+        else -> return
+    }
+    if (abs(target - scroll.offsetX) > 0.5f) scroll.scrollTo(x = target.coerceAtLeast(0f))
 }
 
 internal fun timelineRulerSeconds(scrollX: Float, viewWidth: Float, pixelsPerSecond: Float): IntRange {

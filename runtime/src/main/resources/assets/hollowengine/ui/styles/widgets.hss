@@ -39,8 +39,9 @@
 
 .dropdown-popup {
     min-width: 156px;
-    padding: 5px;
+    padding: 3px;
     gap: 2px;
+    align-items: stretch;
     background: #24272E;
     border: 1px #5F6677;
     border-radius: 5px;
@@ -49,15 +50,30 @@
 
 .dropdown-item {
     gap: 4px;
-    padding-vertical: 4px;
+    padding-vertical: 3px;
+    padding-horizontal: 8px;
     border-radius: 4px;
     background: #31343D00;
     transition:
         background 80ms ease-out;
 }
 
+.dropdown-item-label {
+    grow: 1;
+}
+
 .dropdown-item:hover {
     background: #31343D;
+}
+
+.timeline-scroll {
+    scrollbar-overlay: true;
+    scrollbar-thickness: 5px;
+    scrollbar-margin: 3px;
+    scrollbar-track: #00000000;
+    scrollbar-thumb: #A8B0BF66;
+    scrollbar-track-radius: 2.5;
+    scrollbar-thumb-radius: 2.5;
 }
 
 .dropdown-item.disabled {
