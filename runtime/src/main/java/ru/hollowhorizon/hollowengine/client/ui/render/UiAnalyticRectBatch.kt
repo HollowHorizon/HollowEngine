@@ -1,9 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
+import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.resolve
 import java.nio.FloatBuffer
 import kotlin.math.abs
@@ -59,6 +61,37 @@ internal class UiAnalyticRectBatch {
         appendVertex(width, 0f, transform, recordIndex)
     }
 
+    fun appendShadow(
+        command: DrawShadowCommand,
+        shadow: UiShadow,
+        transform: UiMatrix4,
+    ) {
+        val width = command.rect.width
+        val height = command.rect.height
+        if (width <= 0f || height <= 0f || command.opacity <= 0f || shadow.color.alpha <= 0f) return
+        val blurRadius = shadow.blur.coerceAtLeast(0f)
+        val spreadRadius = shadow.spread
+        val rasterMargin = abs(spreadRadius) + blurRadius * BlurExtentFactor + AntialiasMargin
+        val paintIndex = paintEncoder.append(
+            UiResolvedPaint.Color(shadow.color),
+            command.opacity,
+            command.filter,
+            width,
+            height,
+        )
+        val radius = command.radius.coerceIn(0f, min(width, height) * 0.5f)
+        val recordIndex = records.size / RecordStride
+        records.add(width, height, radius, 0f)
+        records.add(paintIndex.toFloat(), blurRadius, spreadRadius, ShadowMode)
+        records.add(0f, 0f, 0f, 0f)
+        appendVertex(-rasterMargin, -rasterMargin, transform, recordIndex)
+        appendVertex(-rasterMargin, height + rasterMargin, transform, recordIndex)
+        appendVertex(width + rasterMargin, height + rasterMargin, transform, recordIndex)
+        appendVertex(-rasterMargin, -rasterMargin, transform, recordIndex)
+        appendVertex(width + rasterMargin, height + rasterMargin, transform, recordIndex)
+        appendVertex(width + rasterMargin, -rasterMargin, transform, recordIndex)
+    }
+
     fun clear() {
         vertices.clear()
         records.clear()
@@ -94,6 +127,9 @@ internal class UiAnalyticRectBatch {
         const val VertexStride = 6
         const val RecordStride = 12
         const val NoPaint = -1
+        private const val ShadowMode = 1f
+        private const val BlurExtentFactor = 3f
+        private const val AntialiasMargin = 1f
         private const val BorderEpsilon = 0.001f
     }
 }

@@ -65,30 +65,60 @@ class HollowUiInputController {
      * snapping back on click) and dropping press→release on re-parented nodes.
      */
     private fun remapTrackedNodes(root: UiNode) {
-        hoveredNode = remapTracked(root, hoveredNode)
-        activeNode = remapTracked(root, activeNode)
-        draggingNode = remapTracked(root, draggingNode)
-        activeScope = remapTracked(root, activeScope)?.takeIf { root.firstInSubtree { n -> n === it } != null }
-        // Re-bind each scope/target to the current instance by id and drop entries whose scope or
-        // target left the tree (e.g. a closed popup), so per-scope focus doesn't accumulate stale nodes.
-        val remappedFocus = focusByScope.entries.mapNotNull { (scope, target) ->
-            val s = relocate(root, scope) ?: return@mapNotNull null
-            val t = relocate(root, target) ?: return@mapNotNull null
-            s to t
+        val hovered = hoveredNode
+        val active = activeNode
+        val dragging = draggingNode
+        val scope = activeScope
+        if (hovered == null && active == null && dragging == null && scope == null && focusByScope.isEmpty()) return
+
+        val wantedIds = HashSet<String>(8)
+        val identityChecked = HashSet<UiNode>(8)
+        fun want(node: UiNode?) {
+            node ?: return
+            val id = node.id
+            if (id != null) wantedIds += id else identityChecked += node
         }
-        focusByScope.clear()
-        remappedFocus.forEach { (s, t) -> focusByScope[s] = t }
-    }
+        want(hovered)
+        want(active)
+        want(dragging)
+        want(scope)
+        scope?.let { identityChecked += it }
+        for ((focusScope, target) in focusByScope) {
+            want(focusScope)
+            want(target)
+        }
 
-    private fun remapTracked(root: UiNode, tracked: UiNode?): UiNode? {
-        val id = tracked?.id ?: return tracked
-        return root.firstInSubtree { it.id == id } ?: tracked
-    }
+        val firstById = HashMap<String, UiNode>(wantedIds.size * 2)
+        val present = HashSet<UiNode>(identityChecked.size * 2)
+        val walk = runtimeStack
+        walk.clear()
+        walk.add(root)
+        while (walk.isNotEmpty()) {
+            val node = walk.removeLast()
+            node.id?.let { if (it in wantedIds) firstById.putIfAbsent(it, node) }
+            if (node in identityChecked) present += node
+            for (index in node.children.indices.reversed()) walk.add(node.children[index])
+        }
 
-    /** Re-binds a node to its current instance by id, or null if it left the tree entirely. */
-    private fun relocate(root: UiNode, node: UiNode): UiNode? {
-        node.id?.let { id -> return root.firstInSubtree { it.id == id } }
-        return node.takeIf { root.firstInSubtree { n -> n === it } != null }
+        fun remap(node: UiNode?): UiNode? = node?.id?.let { firstById[it] ?: node } ?: node
+        fun inTree(node: UiNode): Boolean = node.id?.let { firstById[it] === node } ?: (node in present)
+
+        hoveredNode = remap(hovered)
+        activeNode = remap(active)
+        draggingNode = remap(dragging)
+        activeScope = remap(scope)?.takeIf { inTree(it) }
+        if (focusByScope.isNotEmpty()) {
+            fun relocate(node: UiNode): UiNode? =
+                node.id?.let { firstById[it] } ?: node.takeIf { it in present }
+
+            val remappedFocus = focusByScope.entries.mapNotNull { (focusScope, target) ->
+                val s = relocate(focusScope) ?: return@mapNotNull null
+                val t = relocate(target) ?: return@mapNotNull null
+                s to t
+            }
+            focusByScope.clear()
+            remappedFocus.forEach { (s, t) -> focusByScope[s] = t }
+        }
     }
 
     fun updateHover(
@@ -492,17 +522,27 @@ class HollowUiInputController {
             ancestor = ancestor.layoutState.parentNode
         }
 
+        val focusTargets = if (focusByScope.isEmpty()) emptySet() else HashSet(focusByScope.values)
+
         runtimeStack.clear()
         runtimeStack.add(node)
         while (runtimeStack.isNotEmpty()) {
             val current = runtimeStack.removeLast()
-            val states = linkedSetOf<UiState>()
-            if (current in hoverChain) states += UiState.HOVER
-            if (current === activeNode) states += UiState.ACTIVE
-            if (current in focusByScope.values) states += UiState.FOCUS
-            if (current === draggingNode) states += UiState.DRAGGING
-            if (closing) states += UiState.CLOSING
-            current.setRuntimeStates(states)
+            val hover = current in hoverChain
+            val active = current === activeNode
+            val focus = focusTargets.isNotEmpty() && current in focusTargets
+            val dragging = current === draggingNode
+            if (!hover && !active && !focus && !dragging && !closing) {
+                current.setRuntimeStates(emptySet())
+            } else {
+                val states = linkedSetOf<UiState>()
+                if (hover) states += UiState.HOVER
+                if (active) states += UiState.ACTIVE
+                if (focus) states += UiState.FOCUS
+                if (dragging) states += UiState.DRAGGING
+                if (closing) states += UiState.CLOSING
+                current.setRuntimeStates(states)
+            }
             for (index in current.children.indices.reversed()) {
                 runtimeStack.add(current.children[index])
             }
@@ -518,16 +558,7 @@ data class UiInputResult(
 )
 
 private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {
-    val stack = ArrayDeque<UiNode>()
-    stack.add(root)
-    while (stack.isNotEmpty()) {
-        val current = stack.removeLast()
-        for (child in current.children) {
-            if (child === node) return current
-            stack.add(child)
-        }
-    }
-    return null
+    return node.layoutState.parentNode?.takeIf { node !== root }
 }
 
 private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Float): Map<String, UiVec3> {
@@ -544,24 +575,12 @@ private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Floa
 }
 
 private fun HollowUiFrame.ancestorsOf(node: UiNode): List<UiNode> {
-    val parents = linkedMapOf<UiNode, UiNode?>()
-    val stack = ArrayDeque<UiNode>()
-    parents[root] = null
-    stack.add(root)
-    while (stack.isNotEmpty()) {
-        val current = stack.removeLast()
-        if (current === node) break
-        for (child in current.children) {
-            parents[child] = current
-            stack.add(child)
-        }
-    }
-    if (node !in parents) return emptyList()
+    var current = node.layoutState.parentNode ?: return emptyList()
     val result = ArrayDeque<UiNode>()
-    var current = parents[node]
-    while (current != null) {
+    while (true) {
         result.addFirst(current)
-        current = parents[current]
+        if (current === root) break
+        current = current.layoutState.parentNode ?: break
     }
     return result.toList()
 }

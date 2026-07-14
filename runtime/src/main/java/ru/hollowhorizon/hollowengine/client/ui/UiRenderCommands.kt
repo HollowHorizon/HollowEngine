@@ -1,6 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.layout.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.InlineGroupDecoration
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarThumbNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
@@ -9,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineCap
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineJoin
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import java.util.*
 import ru.hollowhorizon.hollowengine.client.ui.text.Shadow as TextShadow
 
@@ -283,7 +286,8 @@ class UiCommandRenderer {
         val isFramebuffer = layoutNode.needsFramebuffer
         val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
         val localOpacity = if (isFramebuffer) 1f else style.opacity
-        val visibleShadows = style.shadows.filterNot { it.inset }
+        val visibleShadows =
+            if (style.shadows.isEmpty()) emptyList() else style.shadows.filterNot { it.inset }
         val nodeLayoutBoundsMatchVisualBounds =
             layoutBoundsMatchVisualBounds && style.transform == DirectLayoutTransform
         val canCullNode = activeClip != null &&
@@ -391,17 +395,13 @@ class UiCommandRenderer {
             else -> activeClip.visibleIntersection(layoutNode.content)
         }
         if (!pushedClip || childClip != null) {
-            val sorted = node.children
-                .asSequence()
-                .filter { it in layout.nodes }
-                .sortedBy { resolved[it].layer }
-                .toList()
+            val sorted = orderedVisibleChildren(node, layout)
             val overlappingChildSink = if (sorted.size > 1 && node.childrenCanOverlap()) {
                 OverlappingChildSink(commands, node)
             } else {
                 null
             }
-            sorted.forEach { child ->
+            for (child in sorted) {
                 overlappingChildSink?.beginChild(layout[child].rect)
                 collectNode(
                     child,
@@ -538,46 +538,52 @@ class UiCommandRenderer {
             appendInlineDecoration(node, style, layoutNode, decoration, opacity, filter, commands)
             return
         }
+        val rect = layoutNode.rect
+        if (!rect.isDrawable() || opacity <= 0f) return
         val shape = style.shape
         if (shape != null) {
-            val fill = style.shapeFill ?: style.background
+            val fill = (style.shapeFill ?: style.background).resolve()
             val strokePaint =
                 style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
             val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
-            val hasFill = fill != UiPaint.None
-            val hasStroke = strokePaint != null && strokePaint != UiPaint.None && strokeWidth > 0f
+            val stroke = strokePaint?.resolve() ?: UiResolvedPaint.None
+            val hasFill = fill.hasVisiblePixels()
+            val hasStroke = stroke.hasVisiblePixels() && strokeWidth > 0f
             if (!hasFill && !hasStroke) return
-            val canvas = canvasScope(
-                node,
-                layoutNode,
-                opacity,
-                filter,
-                UiRenderPhase.BACKGROUND,
-                commands,
+            commands += DrawShapeCommand(
+                node = node,
+                rect = rect,
+                shape = shape,
+                fill = fill.takeIf { hasFill } ?: UiResolvedPaint.None,
+                stroke = stroke.takeIf { hasStroke } ?: UiResolvedPaint.None,
+                strokeWidth = strokeWidth.takeIf { hasStroke } ?: 0f,
+                opacity = opacity,
+                transform = layoutNode.worldTransform,
+                filter = filter,
+                backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
+                phase = UiRenderPhase.BACKGROUND,
             )
-            if (fill != UiPaint.None) canvas.drawShape(shape, fill)
-            if (hasStroke) {
-                checkNotNull(strokePaint)
-                canvas.drawShape(shape, strokePaint, UiDrawStyle.Stroke(strokeWidth))
-            }
             return
         }
         if (style.background == UiPaint.None && style.border.width == UiInsets.Zero) return
-        val canvas = canvasScope(
-            node,
-            layoutNode,
-            opacity,
-            filter,
-            UiRenderPhase.BACKGROUND,
-            commands,
-        )
-        canvas.drawRect(
-            paint = style.background,
-            radius = style.border.radius,
-            border = style.border,
+        val paint = style.background.resolve()
+        val border = style.border.withNormalizedRadius()
+        if (!paint.hasVisiblePixels() && !border.hasVisiblePixels()) return
+        commands += DrawBoxCommand(
+            node = node,
+            rect = rect,
+            paint = paint,
+            border = border,
+            shadows = emptyList(),
+            opacity = opacity,
             tint = style.tint,
+            transform = layoutNode.worldTransform,
+            renderToFramebuffer = false,
             fit = style.imageFit,
             slice = style.imageSlice,
+            filter = filter,
+            backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
+            phase = UiRenderPhase.BACKGROUND,
         )
     }
 
@@ -616,36 +622,51 @@ class UiCommandRenderer {
     ) {
         val hasBorder = style.border.width != UiInsets.Zero
         if (style.background == UiPaint.None && !hasBorder) return
-        val canvas = canvasScope(
-            node = node,
-            layoutNode = layoutNode,
-            opacity = opacity,
-            filter = filter,
-            phase = UiRenderPhase.BACKGROUND,
-            commands = commands,
-        )
+        if (opacity <= 0f) return
+        val paint = style.background.resolve()
         val lines = decoration.lines
         val clone = decoration.decorationBreak == UiBoxDecorationBreak.CLONE
         lines.forEachIndexed { index, box ->
-            if (box.width <= 0f || box.height <= 0f) return@forEachIndexed
+            if (!box.width.isFinite() || !box.height.isFinite() || box.width <= 0f || box.height <= 0f) {
+                return@forEachIndexed
+            }
             val outerEnd = clone || index == 0 || index == lines.lastIndex
             val border = if (hasBorder && outerEnd) {
                 style.border
             } else {
                 // Middle slice lines keep the background continuous but drop rounding/borders.
                 UiBorder(radius = if (outerEnd) style.border.radius else 0f)
-            }
-            canvas.drawRect(
-                rect = UiRect(box.x, box.y, box.width, box.height),
-                paint = style.background,
-                radius = border.radius,
+            }.withNormalizedRadius()
+            if (!paint.hasVisiblePixels() && !border.hasVisiblePixels()) return@forEachIndexed
+            commands += DrawBoxCommand(
+                node = node,
+                rect = UiRect(
+                    layoutNode.rect.x + box.x,
+                    layoutNode.rect.y + box.y,
+                    box.width,
+                    box.height,
+                ),
+                paint = paint,
                 border = border,
+                shadows = emptyList(),
+                opacity = opacity,
                 tint = style.tint,
+                transform = layoutNode.worldTransform.translated(box.x, box.y),
+                renderToFramebuffer = false,
                 fit = style.imageFit,
                 slice = style.imageSlice,
+                filter = filter,
+                backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
+                phase = UiRenderPhase.BACKGROUND,
             )
         }
     }
+
+    private fun UiRect.isDrawable(): Boolean =
+        width.isFinite() && height.isFinite() && width > 0f && height > 0f
+
+    private fun UiBorder.withNormalizedRadius(): UiBorder =
+        if (radius >= 0f) this else copy(radius = 0f)
 
     private fun singleRunSpanLayout(node: SpanNode, style: UiComputedStyle, layoutNode: UiLayoutNode): UiTextLayout {
         val text = node.text
@@ -741,14 +762,10 @@ class UiHitTester {
             when (val task = stack.removeLast()) {
                 is HitTestTask.Enter -> {
                     val current = task.node
-                    val layoutNode = layout[current]
+                    val layoutNode = layout.nodes[current] ?: continue
                     val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
-                    val children = current.children.toList()
-                        .filter { it in layout.nodes }
-                        .sortedBy { resolved[it].layer }
-
                     stack.add(HitTestTask.Test(current, task.ancestorClip))
-                    for (child in children) {
+                    for (child in orderedVisibleChildren(current, layout)) {
                         stack.add(HitTestTask.Enter(child, effectiveClip))
                     }
                     layout.scrollbars[current]?.forEach { scrollbar ->
@@ -759,7 +776,6 @@ class UiHitTester {
                 is HitTestTask.Test -> {
                     val current = task.node
                     val style = resolved[current]
-                    if (current.hasEffectiveState(UiState.DISABLED)) continue
                     if (!style.hoverable &&
                         !style.clickable &&
                         !style.focusable &&
@@ -768,15 +784,14 @@ class UiHitTester {
                     ) {
                         continue
                     }
+                    if (current.hasEffectiveState(UiState.DISABLED)) continue
                     task.ancestorClip?.let { clip ->
                         if (!clip.contains(x, y)) continue
                     }
                     val layoutNode = layout[current]
-                    if (!layoutNode.inputQuadContains(x, y)) continue
+                    if (!layoutNode.inputContains(x, y)) continue
                     val inverse = layoutNode.inputTransform.inverse() ?: continue
                     val local = inverse.transform(x, y, 0f)
-                    val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
-                    if (!rect.contains(local.x, local.y)) continue
                     return UiHit(current, local.x, local.y)
                 }
             }
@@ -795,11 +810,10 @@ class UiHitTester {
             when (val task = stack.removeLast()) {
                 is HitTestTask.Enter -> {
                     val current = task.node
-                    val layoutNode = layout[current]
+                    val layoutNode = layout.nodes[current] ?: continue
                     val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
-                    val children = current.children.toList().filter { it in layout.nodes }.sortedBy { resolved[it].layer }
                     stack.add(HitTestTask.Test(current, task.ancestorClip))
-                    for (child in children) {
+                    for (child in orderedVisibleChildren(current, layout)) {
                         stack.add(HitTestTask.Enter(child, effectiveClip))
                     }
                     layout.scrollbars[current]?.forEach {
@@ -818,14 +832,7 @@ class UiHitTester {
                     if (style.inputTransparent || !current.paintsGeometry(style)) continue
                     task.ancestorClip?.let { if (!it.contains(x, y)) continue }
                     val layoutNode = layout[current]
-                    if (!layoutNode.inputQuadContains(x, y)) continue
-                    val inverse = layoutNode.inputTransform.inverse() ?: continue
-                    val local = inverse.transform(x, y, 0f)
-                    if (!UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height).contains(
-                            local.x,
-                            local.y
-                        )
-                    ) continue
+                    if (!layoutNode.inputContains(x, y)) continue
                     return true
                 }
             }
@@ -840,36 +847,38 @@ class UiHitTester {
         else -> style.image != null || style.item != null || style.entity != null ||
                 style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null
     }
-
-    private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
-        val corners = arrayOf(
-            inputTransform.transform(0f, 0f),
-            inputTransform.transform(0f, rect.height),
-            inputTransform.transform(rect.width, rect.height),
-            inputTransform.transform(rect.width, 0f),
-        )
-        return pointInConvexPolygon(x, y, corners)
-    }
-
-    private fun pointInConvexPolygon(x: Float, y: Float, corners: Array<UiVec3>): Boolean {
-        if (corners.size < 3) return false
-        var sign = 0f
-        for (index in corners.indices) {
-            val current = corners[index]
-            val next = corners[(index + 1) % corners.size]
-            val cross = (next.x - current.x) * (y - current.y) - (next.y - current.y) * (x - current.x)
-            if (cross == 0f) continue
-            if (sign == 0f) {
-                sign = cross
-            } else if (sign * cross < 0f) {
-                return false
-            }
-        }
-        return true
-    }
 }
 
 private val DirectLayoutTransform = UiTransform()
+
+private val ChildLayerComparator = compareBy<UiNode> { it.resolvedSnapshot.layer }
+
+private fun orderedVisibleChildren(node: UiNode, layout: UiLayoutResult): List<UiNode> {
+    val children = node.children
+    if (children.isEmpty()) return children
+    var allPresent = true
+    var uniformLayer = true
+    var first = true
+    var firstLayer = 0
+    for (child in children) {
+        if (child !in layout.nodes) {
+            allPresent = false
+            continue
+        }
+        val layer = child.resolvedSnapshot.layer
+        if (first) {
+            firstLayer = layer
+            first = false
+        } else if (layer != firstLayer) {
+            uniformLayer = false
+        }
+    }
+    if (allPresent && uniformLayer) return children
+    val result = ArrayList<UiNode>(children.size)
+    for (child in children) if (child in layout.nodes) result += child
+    if (!uniformLayer) result.sortWith(ChildLayerComparator)
+    return result
+}
 
 private fun UiRect.hasVisibleArea(): Boolean {
     return width > 0f && height > 0f

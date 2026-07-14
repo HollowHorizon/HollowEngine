@@ -99,7 +99,9 @@ class UiScrollState {
     fun update(nowMillis: Long) {
         clockMillis = nowMillis
         clockInitialized = true
-        for ((node, target) in targets.toMap()) {
+        if (startedAt.isEmpty()) return
+        for (node in startedAt.keys.toList()) {
+            val target = targets[node] ?: continue
             val startTime = startedAt[node] ?: continue
             val start = starts[node] ?: offsets[node] ?: UiScrollOffset.Zero
             val progress = ((nowMillis - startTime).toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)

@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
-import kotlin.test.assertFalse
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class UiRenderSegmentTest {
@@ -28,8 +28,18 @@ class UiRenderSegmentTest {
     }
 
     @Test
-    fun `projected rectangle shadow remains an immediate command`() {
-        assertFalse(shadowCommand(hasShape = false).isSegmentBatchable())
+    fun `rectangle shadow stays in the analytic sdf segment`() {
+        assertTrue(shadowCommand(hasShape = false).isSegmentBatchable())
+    }
+
+    @Test
+    fun `layer texture subdivides only transforms with planar perspective`() {
+        assertEquals(1, layerTextureSubdivisions(UiMatrix4.identity()))
+        assertEquals(1, layerTextureSubdivisions(UiMatrix4.rotationX(0.5f)))
+        assertEquals(
+            12,
+            layerTextureSubdivisions(UiMatrix4.perspective(500f) * UiMatrix4.rotationX(0.5f)),
+        )
     }
 
     private fun shadowCommand(hasShape: Boolean) = DrawShadowCommand(

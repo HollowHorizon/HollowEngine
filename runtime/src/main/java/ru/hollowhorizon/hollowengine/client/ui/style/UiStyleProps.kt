@@ -31,6 +31,7 @@ object UiProps {
         aliases = aliases,
         layoutFingerprint = fingerprint,
         transitionGroup = group,
+        inherited = inherit,
         defaultValue =
             if (inherit) {
                 { parent -> parent?.get(this) ?: default }
@@ -54,6 +55,7 @@ object UiProps {
         aliases = aliases,
         layoutFingerprint = fingerprint,
         transitionGroup = null,
+        inherited = true,
         defaultValue = { parent -> if (parent != null) parent[this] else fallback },
         mergeValues = null,
         interpolation = interpolate,

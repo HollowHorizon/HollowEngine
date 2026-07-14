@@ -15,13 +15,15 @@ import java.util.*
 
 private const val ScrollOverflowEpsilon = 0.01f
 
+/** Computes scroll ranges/offsets for scrollable containers, updating [layouts] in place. */
 internal fun applyScrollRanges(
-    layouts: Map<UiNode, UiLayoutNode>,
+    layouts: MutableMap<UiNode, UiLayoutNode>,
     scrollState: UiScrollState,
     layoutChildren: (UiNode) -> List<UiNode> = ::layoutChildren,
-): Map<UiNode, UiLayoutNode> {
-    val result = layouts.toMutableMap()
-    for ((node, layout) in layouts) {
+) {
+    for (entry in layouts.entries) {
+        val node = entry.key
+        val layout = entry.value
         val style = node.resolvedSnapshot
         if (!style.scrollable) continue
         val axes = node.scrollAxes()
@@ -38,14 +40,15 @@ internal fun applyScrollRanges(
         )
         val clamped = scrollState.clamp(node, range)
         val clip = layout.clip?.intersect(layout.content) ?: layout.content
-        result[node] = layout.copy(
-            content = layout.content,
-            clip = clip,
-            scrollOffset = clamped,
-            scrollRange = range,
+        entry.setValue(
+            layout.copy(
+                content = layout.content,
+                clip = clip,
+                scrollOffset = clamped,
+                scrollRange = range,
+            )
         )
     }
-    return result
 }
 
 internal class ScrollbarCache {
@@ -59,26 +62,29 @@ internal class ScrollbarCache {
     }
 }
 
+/** Synthesizes scrollbar node layouts, appending them to [layouts] in place. */
 internal fun placeScrollbarNodes(
-    layouts: Map<UiNode, UiLayoutNode>,
+    layouts: MutableMap<UiNode, UiLayoutNode>,
     cache: ScrollbarCache,
-): Pair<Map<UiNode, UiLayoutNode>, Map<UiNode, List<ScrollbarNode>>> {
-    val result = layouts.toMutableMap()
-    val scrollbars = HashMap<UiNode, List<ScrollbarNode>>()
+): Map<UiNode, List<ScrollbarNode>> {
+    var scrollbars: HashMap<UiNode, List<ScrollbarNode>>? = null
+    var additions: ArrayList<UiLayoutNode>? = null
     for ((container, containerLayout) in layouts) {
         if (container.resolvedSnapshot.scrollAxes == null) continue
         val geometry = scrollbarGeometry(container.resolvedSnapshot, containerLayout)
         if (geometry.isEmpty()) continue
         val bars = ArrayList<ScrollbarNode>(geometry.size)
+        val pending = additions ?: ArrayList<UiLayoutNode>().also { additions = it }
         for (geom in geometry) {
             val bar = cache.scrollbar(container, geom.orientation)
-            result[bar] = scrollbarPartLayout(bar, geom.track, containerLayout)
-            result[bar.thumb] = scrollbarPartLayout(bar.thumb, geom.thumb, containerLayout)
+            pending += scrollbarPartLayout(bar, geom.track, containerLayout)
+            pending += scrollbarPartLayout(bar.thumb, geom.thumb, containerLayout)
             bars += bar
         }
-        scrollbars[container] = bars
+        (scrollbars ?: HashMap<UiNode, List<ScrollbarNode>>().also { scrollbars = it })[container] = bars
     }
-    return result to scrollbars
+    additions?.forEach { layouts[it.node] = it }
+    return scrollbars ?: emptyMap()
 }
 
 private fun scrollbarPartLayout(node: UiNode, relativeRect: UiRect, container: UiLayoutNode): UiLayoutNode {

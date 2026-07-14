@@ -2,7 +2,8 @@ package ru.hollowhorizon.hollowengine.client.ui.render
 
 import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.*
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.VertexSorting
 import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font.DisplayMode
@@ -37,10 +38,7 @@ import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.min
+import kotlin.math.*
 
 private data class SvgRasterKey(
     val location: ResourceLocation,
@@ -74,6 +72,10 @@ private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
 private const val MaxTextVisualOrderCacheEntries = 256
 private const val TextClipEpsilon = 0.01f
+private const val ProjectiveLayerTextureSubdivisions = 12
+
+internal fun layerTextureSubdivisions(transform: UiMatrix4): Int =
+    if (transform.hasPlanarPerspective) ProjectiveLayerTextureSubdivisions else 1
 
 internal fun requiresTextClip(
     overflow: UiTextOverflow,
@@ -98,11 +100,12 @@ internal fun svgRasterPixelSize(size: Float, scale: Float): Int {
 }
 
 internal fun UiRenderCommand.isSegmentBatchable(): Boolean = when (this) {
-    is DrawShadowCommand -> shape != null
+    is DrawShadowCommand -> true
     is DrawBoxCommand -> !renderToFramebuffer
     is DrawShapeCommand -> true
     is DrawImageCommand -> !renderToFramebuffer && filter == UiFilterChain.Empty
     is DrawTextCommand -> true
+    is PushClipCommand, is PopClipCommand -> true
     else -> false
 }
 
@@ -119,6 +122,7 @@ class MinecraftUiRenderer {
     private val pathTileRenderer = UiPathTileRenderer()
     private val msdfTextBatch = UiMsdfTextBatch()
     private val layerRequests = mutableListOf<UiLayerRequest>()
+    private val preparedLayers = IdentityHashMap<UiNode, PreparedUiLayer>()
     private val brokenSvgSources = mutableSetOf<String>()
     private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
     private val textVisualOrderCache = object :
@@ -131,35 +135,116 @@ class MinecraftUiRenderer {
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var textBatchDirty = false
+    private var preparingLayerAtlas = false
     private val textAxisScales = FloatArray(2)
 
-    /**
-     * Renders a frame by recursively walking the resolved node tree; each node's draw
-     * commands are produced on the fly and executed immediately (keeping the segment
-     * batching), so no frame-wide command list is retained.
-     */
+    private val analyticBatchBounds = UiBatchBounds()
+    private val pathTileBatchBounds = UiBatchBounds()
+    private val shapeBatchBounds = UiBatchBounds()
+    private val imageBatchBounds = UiBatchBounds()
+    private val textBatchBounds = UiBatchBounds()
+    private val phaseImageBatches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
+    private var quadMinX = 0f
+    private var quadMinY = 0f
+    private var quadMaxX = 0f
+    private var quadMaxY = 0f
+
+    private val phaseClipStack = ArrayDeque<UiRect>()
+    private val segmentBaseClips = ArrayList<UiRect>()
+    private var phaseClip: UiRect? = null
+    private var analyticBatchClip: UiRect? = null
+    private var pathTileBatchClip: UiRect? = null
+    private var shapeBatchClip: UiRect? = null
+    private var imageBatchClip: UiRect? = null
+    private var textBatchClip: UiRect? = null
+    private val segmentPhases = BooleanArray(UiRenderPhase.entries.size)
+
+    private var scissorState: Any? = ScissorUnknown
+
+    private fun setScissor(clip: UiRect?) {
+        if (scissorState !== ScissorUnknown && scissorState == clip) return
+        if (clip != null) {
+            applyScissor(clip)
+        } else {
+            disableScissor()
+            scissorState = null
+        }
+    }
+
+    private enum class UiBatchKind { ANALYTIC_RECT, PATH_TILE, SHAPE, IMAGE, TEXT }
+
+    /** Screen-space AABB of a (0,0,width,height) quad under [transform] into quadMin/Max fields. */
+    private fun computeQuadBounds(width: Float, height: Float, transform: UiMatrix4, padding: Float = 0f) {
+        if (transform.isAxisAligned) {
+            val x0 = transform.transformX(0f)
+            val x1 = transform.transformX(width)
+            val y0 = transform.transformY(0f)
+            val y1 = transform.transformY(height)
+            quadMinX = min(x0, x1) - padding
+            quadMaxX = max(x0, x1) + padding
+            quadMinY = min(y0, y1) - padding
+            quadMaxY = max(y0, y1) + padding
+            return
+        }
+        val c0 = transform.transform(0f, 0f)
+        val c1 = transform.transform(width, 0f)
+        val c2 = transform.transform(width, height)
+        val c3 = transform.transform(0f, height)
+        quadMinX = min(min(c0.x, c1.x), min(c2.x, c3.x)) - padding
+        quadMaxX = max(max(c0.x, c1.x), max(c2.x, c3.x)) + padding
+        quadMinY = min(min(c0.y, c1.y), min(c2.y, c3.y)) - padding
+        quadMaxY = max(max(c0.y, c1.y), max(c2.y, c3.y)) + padding
+    }
+
+    /** Flushes every pending batch (except [except]) whose pixels the current quad overlaps. */
+    private fun flushBatchesOverlappingQuad(except: UiBatchKind?) {
+        if (except != UiBatchKind.ANALYTIC_RECT &&
+            analyticBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        ) flushAnalyticRectBatch()
+        if (except != UiBatchKind.PATH_TILE &&
+            pathTileBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        ) flushPathTileBatch()
+        if (except != UiBatchKind.SHAPE &&
+            shapeBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        ) flushShapeBatch()
+        if (except != UiBatchKind.IMAGE &&
+            imageBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        ) flushPhaseImageBatches()
+        if (except != UiBatchKind.TEXT &&
+            textBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        ) flushTextBatch()
+    }
+
+    /** Renders directly unless framebuffer layers require a collected atlas pre-pass. */
     fun render(frame: HollowUiFrame, target: UiRenderTarget? = null) {
         val previousTarget = renderTarget
         renderTarget = target
         try {
-            prepareFramebuffers(frame.layout)
+            releasePreparedLayers()
+            val hasFramebufferLayers = prepareFramebuffers(frame.layout)
             RenderSystem.enableBlend()
             configureUiBlend()
             RenderSystem.disableDepthTest()
             GL11.glDepthMask(false)
-            renderTarget?.let {
-                bindTarget(it.toState())
-                configureLayerProjection(it.logicalWidth, it.logicalHeight)
+            bindRootTarget()
+            clearSegment()
+            if (hasFramebufferLayers) {
+                val plan = UiLayerRenderPlan.create(commandRenderer.collect(frame.root, frame.layout))
+                prepareLayerAtlas(plan)
+                bindRootTarget()
+                renderPreparedRoot(plan)
+            } else {
+                commandRenderer.render(frame.root, frame.layout, ::submit)
             }
-            segment.clear()
-            commandRenderer.render(frame.root, frame.layout, ::submit)
             renderSegment(segment)
-            segment.clear()
+            clearSegment()
             flushTextBatch()
             disableScissor()
+            scissorState = null
             while (layerStack.isNotEmpty()) finishLayer()
             GL11.glDepthMask(true)
         } finally {
+            releasePreparedLayers()
             renderTarget = previousTarget
         }
     }
@@ -167,13 +252,26 @@ class MinecraftUiRenderer {
     private fun submit(command: UiRenderCommand) {
         if (command.isSegmentBatchable()) {
             segment += command
+            when (command) {
+                is DrawShadowCommand -> segmentPhases[UiRenderPhase.BACKGROUND.ordinal] = true
+                is DrawBoxCommand -> segmentPhases[command.phase.ordinal] = true
+                is DrawShapeCommand -> segmentPhases[command.phase.ordinal] = true
+                is DrawImageCommand -> segmentPhases[command.phase.ordinal] = true
+                is DrawTextCommand -> segmentPhases[command.phase.ordinal] = true
+                else -> Unit
+            }
             return
         }
         renderSegment(segment)
-        segment.clear()
+        clearSegment()
         render(command)
         flushGeometryBatches()
         flushTextBatch()
+    }
+
+    private fun clearSegment() {
+        segment.clear()
+        segmentPhases.fill(false)
     }
 
     fun close() {
@@ -189,7 +287,7 @@ class MinecraftUiRenderer {
     private fun render(command: UiRenderCommand) {
         when (command) {
             is BeginLayerCommand -> beginLayer(command)
-            is EndLayerCommand -> finishLayer()
+            is EndLayerCommand -> finishLayer(preparingLayerAtlas && layerStack.size == 1)
             // The flush already happened in submit()
             is FlushBarrierCommand -> Unit
             is DrawBackdropFilterCommand -> drawBackdropFilter(command)
@@ -205,73 +303,197 @@ class MinecraftUiRenderer {
         }
     }
 
+    private fun prepareLayerAtlas(plan: UiLayerRenderPlan) {
+        preparingLayerAtlas = true
+        try {
+            for (layer in plan.layers) {
+                clipStack.clear()
+                clearSegment()
+                for (index in layer.startIndex..layer.endIndex) submit(plan.commands[index])
+                renderSegment(segment)
+                clearSegment()
+                check(layerStack.isEmpty()) { "Framebuffer layer pre-pass left an unfinished nested layer" }
+            }
+        } finally {
+            preparingLayerAtlas = false
+            clipStack.clear()
+            phaseClipStack.clear()
+            flushPhaseImageBatches()
+            flushGeometryBatches()
+            flushTextBatch()
+            restoreMainProjection()
+        }
+    }
+
+    private fun renderPreparedRoot(plan: UiLayerRenderPlan) {
+        var index = 0
+        for (layer in plan.layers) {
+            while (index < layer.startIndex) submit(plan.commands[index++])
+            renderSegment(segment)
+            clearSegment()
+            compositePreparedLayer(layer.command.node)
+            index = layer.endIndex + 1
+        }
+        while (index < plan.commands.size) submit(plan.commands[index++])
+    }
+
+    private fun compositePreparedLayer(node: UiNode) {
+        val prepared = preparedLayers.remove(node) ?: return
+        setScissor(clipStack.lastOrNull())
+        val transform = calculateRootTransform(prepared.layer)
+        drawLayerTexture(
+            prepared.layer,
+            prepared.source.texture,
+            prepared.source.width,
+            prepared.source.height,
+            prepared.source.u0,
+            prepared.source.v0,
+            prepared.source.u1,
+            prepared.source.v1,
+            prepared.layer.filter.withoutBlur(),
+            transform,
+        )
+        prepared.ownedSource?.let(framebuffers::release)
+        RenderSystem.disableDepthTest()
+        GL11.glDepthMask(false)
+    }
+
+    private fun releasePreparedLayers() {
+        preparedLayers.values.forEach { it.ownedSource?.let(framebuffers::release) }
+        preparedLayers.clear()
+    }
+
     private fun renderSegment(commands: List<UiRenderCommand>) {
         if (commands.isEmpty()) return
-        for (phase in UiRenderPhase.entries) renderPhase(commands, phase)
+        segmentBaseClips.clear()
+        segmentBaseClips.addAll(clipStack)
+        for (phase in UiRenderPhase.entries) {
+            if (segmentPhases[phase.ordinal]) renderPhase(commands, phase)
+        }
+        commitSegmentClips(commands)
+        flushPhaseImageBatches()
         flushGeometryBatches()
         flushTextBatch()
+        setScissor(clipStack.lastOrNull())
+    }
+
+    /** Replays the segment's clip commands into the persistent [clipStack]. */
+    private fun commitSegmentClips(commands: List<UiRenderCommand>) {
+        clipStack.clear()
+        clipStack.addAll(segmentBaseClips)
+        for (command in commands) {
+            when (command) {
+                is PushClipCommand -> {
+                    val local = transformedLocalRect(command.rect, effective(command.transform))
+                    clipStack.addLast(clipStack.lastOrNull()?.intersect(local) ?: local)
+                }
+
+                is PopClipCommand -> if (clipStack.isNotEmpty()) clipStack.removeLast()
+                else -> Unit
+            }
+        }
     }
 
     private fun renderPhase(commands: List<UiRenderCommand>, phase: UiRenderPhase) {
-        val imageBatches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
-
+        phaseClipStack.clear()
+        phaseClipStack.addAll(segmentBaseClips)
+        phaseClip = phaseClipStack.lastOrNull()
         commands.forEach { command ->
             when (command) {
+                is PushClipCommand -> {
+                    val local = transformedLocalRect(command.rect, effective(command.transform))
+                    val next = phaseClipStack.lastOrNull()?.intersect(local) ?: local
+                    phaseClipStack.addLast(next)
+                    phaseClip = next
+                }
+
+                is PopClipCommand -> {
+                    if (phaseClipStack.isNotEmpty()) phaseClipStack.removeLast()
+                    phaseClip = phaseClipStack.lastOrNull()
+                }
+
                 is DrawShadowCommand -> if (phase == UiRenderPhase.BACKGROUND) {
-                    flushImageBatches(imageBatches)
-                    flushTextBatch()
-                    flushAnalyticRectBatch()
                     if (!appendShapeShadows(command)) {
-                        flushGeometryBatches()
+                        var padding = 0f
+                        for (shadow in command.shadows) {
+                            padding = max(
+                                padding,
+                                max(abs(shadow.offset.x), abs(shadow.offset.y)) +
+                                        shadow.blur.coerceAtLeast(0f) + shadow.spread.coerceAtLeast(0f),
+                            )
+                        }
+                        computeQuadBounds(
+                            command.rect.width, command.rect.height, effective(command.transform), padding,
+                        )
+                        flushBatchesOverlappingQuad(except = null)
+                        setScissor(phaseClip)
                         drawShadow(command)
                     }
                 }
 
                 is DrawBoxCommand -> if (command.phase == phase) {
-                    flushImageBatches(imageBatches)
-                    flushTextBatch()
-                    if (!appendAnalyticRect(command)) {
-                        flushAnalyticRectBatch()
-                        flushPathTileBatch()
-                        if (appendBatchedShapes(command)) return@forEach
-                        flushShapeBatch()
-                        flushTextBatch()
+                    if (!appendAnalyticRect(command) && !appendBatchedShapes(command)) {
+                        computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
+                        flushBatchesOverlappingQuad(except = null)
+                        setScissor(phaseClip)
                         drawBox(command)
                     }
                 }
 
                 is DrawShapeCommand -> if (command.phase == phase) {
-                    flushImageBatches(imageBatches)
-                    flushTextBatch()
-                    flushAnalyticRectBatch()
-                    if (!appendPathTile(command)) {
-                        flushPathTileBatch()
-                        if (appendBatchedShapes(command)) return@forEach
-                        flushShapeBatch()
-                        flushTextBatch()
+                    if (!appendPathTile(command) && !appendBatchedShapes(command)) {
+                        computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
+                        flushBatchesOverlappingQuad(except = null)
+                        setScissor(phaseClip)
                         drawShape(command)
                     }
                 }
 
                 is DrawImageCommand -> if (command.phase == phase) {
-                    flushGeometryBatches()
-                    flushTextBatch()
-                    if (!appendSvgImage(command, imageBatches)) appendImageBatch(command, imageBatches)
+                    appendPhaseImage(command)
                 }
 
                 is DrawTextCommand -> if (command.phase == phase) {
-                    flushImageBatches(imageBatches)
-                    flushGeometryBatches()
-                    drawText(command)
+                    appendPhaseText(command)
                 }
 
                 else -> Unit
             }
         }
+        flushPhaseImageBatches()
+        phaseClip = phaseClipStack.lastOrNull()
+    }
 
-        flushImageBatches(imageBatches)
-        flushGeometryBatches()
-        flushTextBatch()
+    private fun appendPhaseImage(command: DrawImageCommand) {
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
+        flushBatchesOverlappingQuad(UiBatchKind.IMAGE)
+        if (phaseImageBatches.isNotEmpty() && imageBatchClip != phaseClip) flushPhaseImageBatches()
+        if (!appendSvgImage(command, phaseImageBatches)) appendImageBatch(command, phaseImageBatches)
+        imageBatchClip = phaseClip
+        imageBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+    }
+
+    private fun appendPhaseText(command: DrawTextCommand) {
+        val boundsWidth = max(command.rect.width, command.layout.maxNaturalLineWidth)
+        val boundsHeight = max(command.rect.height, command.layout.height)
+        computeQuadBounds(boundsWidth, boundsHeight, effective(command.transform))
+        flushBatchesOverlappingQuad(UiBatchKind.TEXT)
+        if (hasPendingText() && textBatchClip != phaseClip) flushTextBatch()
+        textBatchClip = phaseClip
+        clipStack.clear()
+        clipStack.addAll(phaseClipStack)
+        setScissor(phaseClip)
+        drawText(command)
+        textBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+    }
+
+    private fun hasPendingText(): Boolean = textBatchDirty || !msdfTextBatch.isEmpty
+
+    private fun flushPhaseImageBatches() {
+        if (phaseImageBatches.isNotEmpty()) setScissor(imageBatchClip)
+        flushImageBatches(phaseImageBatches)
+        imageBatchBounds.clear()
     }
 
     private fun flushImageBatches(imageBatches: MutableMap<ResourceLocation, MutableList<UiTexturedQuad>>) {
@@ -378,18 +600,28 @@ class MinecraftUiRenderer {
     }
 
     private fun flushShapeBatch() {
+        shapeBatchBounds.clear()
         if (shapeBatch.isEmpty) return
+        setScissor(shapeBatchClip)
         drawBatchedTriangles(shapeBatch)
         shapeBatch.clear()
     }
 
     private fun flushAnalyticRectBatch() {
-        if (!analyticRectBatch.isEmpty) analyticRectRenderer.draw(analyticRectBatch)
+        analyticBatchBounds.clear()
+        if (!analyticRectBatch.isEmpty) {
+            setScissor(analyticBatchClip)
+            analyticRectRenderer.draw(analyticRectBatch)
+        }
         analyticRectBatch.clear()
     }
 
     private fun flushPathTileBatch() {
-        if (!pathTileBatch.isEmpty) pathTileRenderer.draw(pathTileBatch)
+        pathTileBatchBounds.clear()
+        if (!pathTileBatch.isEmpty) {
+            setScissor(pathTileBatchClip)
+            pathTileRenderer.draw(pathTileBatch)
+        }
         pathTileBatch.clear()
     }
 
@@ -414,6 +646,8 @@ class MinecraftUiRenderer {
     }
 
     private fun flushTextBatch() {
+        textBatchBounds.clear()
+        if (hasPendingText()) setScissor(textBatchClip)
         flushMsdfTextBatch()
         flushVanillaTextBatch()
     }
@@ -423,11 +657,17 @@ class MinecraftUiRenderer {
         if (command !is DrawBoxCommand) return false
         if (command.rect.width <= 0f || command.rect.height <= 0f) return false
         if (command.renderToFramebuffer) return false
+        if (command.paint is UiResolvedPaint.Image || command.paint is UiResolvedPaint.Shader) return false
         val transform = effective(command.transform)
         if (isBackfaceHidden(
                 command.rect.width, command.rect.height, transform, command.backfaceVisibility
             )
         ) return true
+        computeQuadBounds(command.rect.width, command.rect.height, transform)
+        flushBatchesOverlappingQuad(UiBatchKind.SHAPE)
+        if (!shapeBatch.isEmpty && shapeBatchClip != phaseClip) flushShapeBatch()
+        shapeBatchClip = phaseClip
+        shapeBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         when (val paint = command.paint) {
             UiResolvedPaint.None -> Unit
             is UiResolvedPaint.Image,
@@ -475,6 +715,13 @@ class MinecraftUiRenderer {
                 command.rect.width, command.rect.height, transform, command.backfaceVisibility
             )
         ) return true
+        val padding = command.strokeWidth.coerceAtLeast(0f) +
+                command.blurRadius.coerceAtLeast(0f) + command.spreadRadius.coerceAtLeast(0f)
+        computeQuadBounds(command.rect.width, command.rect.height, transform, padding)
+        flushBatchesOverlappingQuad(UiBatchKind.SHAPE)
+        if (!shapeBatch.isEmpty && shapeBatchClip != phaseClip) flushShapeBatch()
+        shapeBatchClip = phaseClip
+        shapeBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         return shapeBatch.appendLocalShape(
             shape = command.shape,
             width = command.rect.width,
@@ -498,9 +745,12 @@ class MinecraftUiRenderer {
                 command.rect.width, command.rect.height, transform, command.backfaceVisibility
             )
         ) return true
-        flushPathTileBatch()
-        flushShapeBatch()
+        computeQuadBounds(command.rect.width, command.rect.height, transform)
+        flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
+        if (!analyticRectBatch.isEmpty && analyticBatchClip != phaseClip) flushAnalyticRectBatch()
         analyticRectBatch.append(command, transform)
+        analyticBatchClip = phaseClip
+        analyticBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         return true
     }
 
@@ -512,8 +762,14 @@ class MinecraftUiRenderer {
                 command.rect.width, command.rect.height, transform, command.backfaceVisibility
             )
         ) return true
-        flushShapeBatch()
+        val padding = command.strokeWidth.coerceAtLeast(0f) +
+                command.blurRadius.coerceAtLeast(0f) + command.spreadRadius.coerceAtLeast(0f)
+        computeQuadBounds(command.rect.width, command.rect.height, transform, padding)
+        flushBatchesOverlappingQuad(UiBatchKind.PATH_TILE)
+        if (!pathTileBatch.isEmpty && pathTileBatchClip != phaseClip) flushPathTileBatch()
         pathTileBatch.append(command, transform)
+        pathTileBatchClip = phaseClip
+        pathTileBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         return true
     }
 
@@ -527,7 +783,7 @@ class MinecraftUiRenderer {
         shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, color, transform)
     }
 
-    private fun prepareFramebuffers(layout: UiLayoutResult) {
+    private fun prepareFramebuffers(layout: UiLayoutResult): Boolean {
         val scale = layerScale()
         layerRequests.clear()
         for (node in layout.traversalOrder) {
@@ -543,9 +799,11 @@ class MinecraftUiRenderer {
             1,
             1,
         )
+        return layerRequests.isNotEmpty()
     }
 
     private fun beginLayer(command: BeginLayerCommand) {
+        scissorState = ScissorUnknown
         val scale = layerScale()
         val padding = layerPadding(command)
         val logicalWidth = command.rect.width + padding * 2f
@@ -566,6 +824,7 @@ class MinecraftUiRenderer {
         RenderSystem.disableDepthTest()
         layerStack.addLast(
             LayerState(
+                node = command.node,
                 rect = command.rect,
                 radius = command.radius,
                 clipShape = command.clipShape,
@@ -590,7 +849,14 @@ class MinecraftUiRenderer {
         val u1: Float, val v1: Float,
     )
 
-    private fun finishLayer() {
+    private class PreparedUiLayer(
+        val layer: LayerState,
+        val source: RenderSource,
+        val ownedSource: UiFramebuffer?,
+    )
+
+    private fun finishLayer(deferRootComposite: Boolean = false) {
+        scissorState = ScissorUnknown
         val layer = layerStack.removeLast()
         val parentLayer = layerStack.lastOrNull()
 
@@ -602,6 +868,18 @@ class MinecraftUiRenderer {
 
         val source = resolveRenderSource(layer, copiedSource, blurredSource)
         val compositeFilter = layer.filter.withoutBlur()
+
+        if (deferRootComposite && parentLayer == null) {
+            if (blurredSource != null) copiedSource?.let(framebuffers::release)
+            preparedLayers[layer.node] = PreparedUiLayer(
+                layer = layer,
+                source = source,
+                ownedSource = blurredSource ?: copiedSource,
+            )
+            RenderSystem.disableDepthTest()
+            GL11.glDepthMask(false)
+            return
+        }
 
         val transform = if (parentLayer != null) {
             setupParentLayerContext(parentLayer)
@@ -745,7 +1023,7 @@ class MinecraftUiRenderer {
                 filter = filter,
                 textureWidth = textureWidth,
                 textureHeight = textureHeight,
-                subdivisions = LayerTextureSubdivisions,
+                subdivisions = layerTextureSubdivisions(transform),
                 maskRadius = layer.radius,
                 maskPadding = layer.padding,
                 maskScale = layer.scale,
@@ -756,6 +1034,7 @@ class MinecraftUiRenderer {
     private fun copyLayerToScratch(layer: LayerState): UiFramebuffer {
         val scratch = framebuffers.acquire(layer.framebuffer.width, layer.framebuffer.height)
         disableScissor()
+        scissorState = null
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, layer.framebuffer.framebuffer)
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scratch.framebuffer)
         GL30.glBlitFramebuffer(
@@ -774,11 +1053,13 @@ class MinecraftUiRenderer {
     }
 
     private fun drawBackdropFilter(command: DrawBackdropFilterCommand) {
+        scissorState = ScissorUnknown
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val target = currentTarget()
         val scratch = framebuffers.acquire(target.width, target.height, exclude = target.framebuffer)
         disableScissor()
+        scissorState = null
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, target.framebufferId)
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scratch.framebuffer)
         GL30.glBlitFramebuffer(
@@ -826,7 +1107,7 @@ class MinecraftUiRenderer {
             filter = compositeFilter,
             textureWidth = target.width,
             textureHeight = target.height,
-            subdivisions = LayerTextureSubdivisions,
+            subdivisions = 1,
             maskRadius = command.radius,
             maskScale = target.scale,
         )
@@ -851,7 +1132,7 @@ class MinecraftUiRenderer {
     }
 
     private fun appendShapeShadows(command: DrawShadowCommand): Boolean {
-        val shape = command.shape ?: return false
+        val shape = command.shape ?: return appendAnalyticRectShadows(command)
         if (!pathTileRenderer.isAvailable) return false
         command.shadows.forEach { shadow ->
             val shadowTransform = UiMatrix4.translation(
@@ -875,6 +1156,30 @@ class MinecraftUiRenderer {
                 spreadRadius = shadow.spread,
             )
             check(appendPathTile(shapeCommand)) { "Shape shadow unexpectedly rejected by the path tile batch" }
+        }
+        return true
+    }
+
+    private fun appendAnalyticRectShadows(command: DrawShadowCommand): Boolean {
+        if (!analyticRectRenderer.isAvailable) return false
+        for (shadow in command.shadows) {
+            val transform = effective(
+                UiMatrix4.translation(shadow.offset.x, shadow.offset.y, shadow.offset.z) * command.transform
+            )
+            if (isBackfaceHidden(
+                    command.rect.width,
+                    command.rect.height,
+                    transform,
+                    command.backfaceVisibility,
+                )
+            ) continue
+            val padding = abs(shadow.spread) + shadow.blur.coerceAtLeast(0f) * 3f + 1f
+            computeQuadBounds(command.rect.width, command.rect.height, transform, padding)
+            flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
+            if (!analyticRectBatch.isEmpty && analyticBatchClip != phaseClip) flushAnalyticRectBatch()
+            analyticRectBatch.appendShadow(command, shadow, transform)
+            analyticBatchClip = phaseClip
+            analyticBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         }
         return true
     }
@@ -979,8 +1284,11 @@ class MinecraftUiRenderer {
             scrollY = command.scrollOffset.y,
         )
         if (clipped) {
+            flushPhaseImageBatches()
+            flushGeometryBatches()
             flushTextBatch()
             pushClip(UiRect(0f, 0f, command.rect.width, command.rect.height), command.transform)
+            textBatchClip = clipStack.lastOrNull()
         }
         command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
             val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(
@@ -991,6 +1299,7 @@ class MinecraftUiRenderer {
         if (clipped) {
             flushTextBatch()
             popClip()
+            textBatchClip = phaseClip
         }
     }
 
@@ -1519,28 +1828,26 @@ class MinecraftUiRenderer {
     }
 
     private fun drawItem(command: DrawItemCommand) {
-        if (layerStack.isNotEmpty()) return
         if (isBackfaceHidden(
                 command.rect.width, command.rect.height, effective(command.transform), command.backfaceVisibility
             )
         ) return
         val location = ResourceLocation.tryParse(command.item) ?: return
         val item = BuiltInRegistries.ITEM.getOptional(location).orElse(null) ?: return
-        ItemStack(item).render(command.rect.x, command.rect.y, command.rect.width, command.rect.height)
+        val rect = localRect(command.rect)
+        ItemStack(item).render(rect.x, rect.y, rect.width, rect.height)
     }
 
     private fun drawEntity(command: DrawEntityCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        if (layerStack.isEmpty()) {
-            val entity = when (command.entity) {
-                "player" -> Minecraft.getInstance().player
-                else -> null
-            }
-            if (entity != null) {
-                renderEntity(entity, command.rect)
-                return
-            }
+        val entity = when (command.entity) {
+            "player" -> Minecraft.getInstance().player
+            else -> null
+        }
+        if (entity != null) {
+            renderEntity(entity, localRect(command.rect))
+            return
         }
         drawEntityPlaceholder(command)
     }
@@ -1565,30 +1872,42 @@ class MinecraftUiRenderer {
     }
 
     private fun renderEntity(entity: LivingEntity, rect: UiRect) {
+        val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
+        val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         POSE_STACK.pushPose()
-        val xOffset = rect.x + rect.width / 2f
-        val yOffset = rect.y + rect.height
-        POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
-        val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
-        POSE_STACK.mulPose(Axis.ZP.rotationDegrees(180f))
-        POSE_STACK.scale(scale, scale, scale)
-        POSE_STACK.mulPose(Quaternionf().rotateY(25f * Mth.DEG_TO_RAD))
+        try {
+            val xOffset = rect.x + rect.width / 2f
+            val yOffset = rect.y + rect.height
+            POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
+            val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
+            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(180f))
+            POSE_STACK.scale(scale, scale, scale)
+            POSE_STACK.mulPose(Quaternionf().rotateY(25f * Mth.DEG_TO_RAD))
 
-        val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
-        val light1 = Vector3f(0.3f, -1f, -1f).normalize()
-        RenderSystem.setShaderLights(light0, light1)
+            val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
+            val light1 = Vector3f(0.3f, -1f, -1f).normalize()
+            RenderSystem.setShaderLights(light0, light1)
 
-        val mc = Minecraft.getInstance()
-        val dispatcher = mc.entityRenderDispatcher
-        val buffers = mc.renderBuffers().bufferSource()
-        dispatcher.setRenderShadow(false)
-        RenderSystem.runAsFancy {
-            dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
+            val mc = Minecraft.getInstance()
+            val dispatcher = mc.entityRenderDispatcher
+            val buffers = mc.renderBuffers().bufferSource()
+            dispatcher.setRenderShadow(false)
+            RenderSystem.enableDepthTest()
+            GL11.glDepthMask(true)
+            try {
+                RenderSystem.runAsFancy {
+                    dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
+                }
+                buffers.endBatch()
+            } finally {
+                dispatcher.setRenderShadow(true)
+            }
+        } finally {
+            Lighting.setupFor3DItems()
+            POSE_STACK.popPose()
+            if (!depthEnabled) RenderSystem.disableDepthTest()
+            GL11.glDepthMask(depthMask)
         }
-        buffers.endBatch()
-        dispatcher.setRenderShadow(true)
-        Lighting.setupFor3DItems()
-        POSE_STACK.popPose()
     }
 
     private fun pushClip(rect: UiRect, transform: UiMatrix4) {
@@ -1599,10 +1918,17 @@ class MinecraftUiRenderer {
 
     private fun popClip() {
         if (clipStack.isNotEmpty()) clipStack.removeLast()
-        clipStack.lastOrNull()?.let(::applyScissor) ?: disableScissor()
+        val top = clipStack.lastOrNull()
+        if (top != null) {
+            applyScissor(top)
+        } else {
+            disableScissor()
+            scissorState = null
+        }
     }
 
     private fun applyScissor(rect: UiRect) {
+        scissorState = rect
         val layer = layerStack.lastOrNull()
         if (layer != null) {
             val bounds = rect.toScissorBounds(layer.scale, layer.scale)
@@ -1705,7 +2031,13 @@ class MinecraftUiRenderer {
     }
 
     private fun restoreActiveClip() {
-        clipStack.lastOrNull()?.let(::applyScissor) ?: disableScissor()
+        val top = clipStack.lastOrNull()
+        if (top != null) {
+            applyScissor(top)
+        } else {
+            disableScissor()
+            scissorState = null
+        }
     }
 
     private fun bindTarget(target: RenderTargetState) {
@@ -1777,6 +2109,35 @@ class MinecraftUiRenderer {
         )
     }
 
+}
+
+private data object ScissorUnknown
+
+/** Accumulated screen-space AABB of a batch's pending, not-yet-flushed pixels. */
+private class UiBatchBounds {
+    private var minX = Float.POSITIVE_INFINITY
+    private var minY = Float.POSITIVE_INFINITY
+    private var maxX = Float.NEGATIVE_INFINITY
+    private var maxY = Float.NEGATIVE_INFINITY
+
+    fun clear() {
+        minX = Float.POSITIVE_INFINITY
+        minY = Float.POSITIVE_INFINITY
+        maxX = Float.NEGATIVE_INFINITY
+        maxY = Float.NEGATIVE_INFINITY
+    }
+
+    fun add(minX: Float, minY: Float, maxX: Float, maxY: Float) {
+        if (minX < this.minX) this.minX = minX
+        if (minY < this.minY) this.minY = minY
+        if (maxX > this.maxX) this.maxX = maxX
+        if (maxY > this.maxY) this.maxY = maxY
+    }
+
+    fun overlaps(minX: Float, minY: Float, maxX: Float, maxY: Float): Boolean {
+        if (this.minX > this.maxX) return false
+        return this.minX < maxX && minX < this.maxX && this.minY < maxY && minY < this.maxY
+    }
 }
 
 // Чтобы он каждый кадр не выделял на это память

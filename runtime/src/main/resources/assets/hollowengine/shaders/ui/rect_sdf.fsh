@@ -25,6 +25,13 @@ float sdfCoverage(float distance) {
     return clamp(0.5 - distance / width, 0.0, 1.0);
 }
 
+float softenedCoverage(float edge, float blurRadius) {
+    float aa = max(fwidth(edge), 0.0001);
+    if (blurRadius <= 0.0001) return clamp(0.5 - edge / aa, 0.0, 1.0);
+    float extent = max(blurRadius * 2.0, aa);
+    return 1.0 - smoothstep(-extent, extent, edge);
+}
+
 vec4 gradientStop(int stopIndex) {
     return texelFetch(StopBuffer, stopIndex * 2);
 }
@@ -84,9 +91,19 @@ void main() {
     vec2 size = geometry.xy;
     float radius = geometry.z;
     float borderWidth = geometry.w;
-    int paintIndex = int(texelFetch(RecordBuffer, base + 1).x);
+    vec4 effect = texelFetch(RecordBuffer, base + 1);
+    int paintIndex = int(effect.x);
     vec4 borderColor = texelFetch(RecordBuffer, base + 2);
-    float outerCoverage = sdfCoverage(roundedRectDistance(localPosition, size, radius));
+    float distance = roundedRectDistance(localPosition, size, radius);
+    if (effect.w > 0.5) {
+        float shadowCoverage = softenedCoverage(distance - effect.z, effect.y);
+        vec4 shadowColor = samplePaint(paintIndex);
+        shadowColor.a *= shadowCoverage;
+        if (shadowColor.a <= 0.0) discard;
+        fragColor = shadowColor;
+        return;
+    }
+    float outerCoverage = sdfCoverage(distance);
     if (outerCoverage <= 0.0) discard;
 
     float borderCoverage = 0.0;

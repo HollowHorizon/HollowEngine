@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiVec3
-import java.util.*
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -208,59 +206,70 @@ private fun maskVec3(base: UiVec3, next: UiVec3, properties: Set<String>, prefix
     z = if ("$prefix.z" in properties) next.z else base.z,
 )
 
-class UiTransitionState {
-    private val rendered = WeakHashMap<UiNode, UiComputedStyle>()
-    private val starts = WeakHashMap<UiNode, UiComputedStyle>()
-    private val targets = WeakHashMap<UiNode, UiComputedStyle>()
-    private val startedAt = WeakHashMap<UiNode, Long>()
-    private val activeNodes = Collections.newSetFromMap(WeakHashMap<UiNode, Boolean>())
+internal class UiNodeMotionState {
+    var rendered: UiComputedStyle? = null
+    var transitionStart: UiComputedStyle? = null
+    var transitionTarget: UiComputedStyle? = null
+    var transitionStartedAt: Long = NoTimestamp
+    var animationSignature: List<UiAnimation>? = null
+    var animationStartedAt: Long = 0L
 
-    fun apply(node: UiNode, target: UiComputedStyle, nowMillis: Long): UiComputedStyle {
-        val current = rendered[node]
+    companion object {
+        const val NoTimestamp = Long.MIN_VALUE
+    }
+}
+
+class UiTransitionState {
+    /** Whether any transition advanced during the current resolve pass (reset per pass). */
+    internal var activeDuringResolve = false
+        private set
+
+    internal fun beginResolve() {
+        activeDuringResolve = false
+    }
+
+    internal fun apply(state: UiNodeMotionState, target: UiComputedStyle, nowMillis: Long): UiComputedStyle {
+        val current = state.rendered
         if (current == null) {
-            rendered[node] = target
-            targets[node] = target
+            state.rendered = target
+            state.transitionTarget = target
             return target
         }
-        val oldTarget = targets[node]
-        if (oldTarget != target) {
-            starts[node] = current
-            targets[node] = target
-            startedAt[node] = nowMillis
-        } else if (!startedAt.containsKey(node)) {
+        val oldTarget = state.transitionTarget
+        if (oldTarget !== target && oldTarget != target) {
+            state.transitionStart = current
+            state.transitionTarget = target
+            state.transitionStartedAt = nowMillis
+        } else if (state.transitionStartedAt == UiNodeMotionState.NoTimestamp) {
             return target
         }
-        val startStyle = starts[node] ?: current
+        val startStyle = state.transitionStart ?: current
         val transitions = target.transitions.filter { transition ->
             startStyle.changed(transition.property, target)
         }
-        if (transitions.isEmpty()) return target.also {
-            rendered[node] = target
-            targets[node] = target
-            starts.remove(node)
-            startedAt.remove(node)
-            activeNodes.remove(node)
-        }
+        if (transitions.isEmpty()) return target.also { state.settleAt(target) }
         val duration = transitions.maxOfOrNull { it.durationMillis } ?: 0L
-        if (duration > 0L) activeNodes += node else activeNodes.remove(node)
-        val start = startedAt[node] ?: nowMillis
+        val start = state.transitionStartedAt.takeIf { it != UiNodeMotionState.NoTimestamp } ?: nowMillis
         val elapsed = max(0L, nowMillis - start)
         val progress = transitions.progressAt(elapsed)
         val result = startStyle.interpolate(target, progress)
-        rendered[node] = result
+        state.rendered = result
         // Completion is time-based: eased progress may overshoot or sit above 1.0
         // mid-flight for back/bezier easings without meaning the transition is done.
         if (transitions.all { it.complete(elapsed) }) {
-            rendered[node] = target
-            targets[node] = target
-            starts.remove(node)
-            startedAt.remove(node)
-            activeNodes.remove(node)
+            state.settleAt(target)
+        } else if (duration > 0L) {
+            activeDuringResolve = true
         }
         return result
     }
 
-    fun hasActiveTransitions(): Boolean = activeNodes.isNotEmpty()
+    private fun UiNodeMotionState.settleAt(target: UiComputedStyle) {
+        rendered = target
+        transitionTarget = target
+        transitionStart = null
+        transitionStartedAt = UiNodeMotionState.NoTimestamp
+    }
 
     private fun List<UiTransition>.progressAt(elapsedMillis: Long): UiTransitionProgress {
         val fallback = firstOrNull { it.property == "all" }
@@ -277,26 +286,28 @@ class UiTransitionState {
 }
 
 class UiAnimationState {
-    private val starts = WeakHashMap<UiNode, AnimationStart>()
-
-    fun apply(
-        node: UiNode,
+    internal fun apply(
+        state: UiNodeMotionState,
         base: UiComputedStyle,
         keyframes: Map<String, UiKeyframes>,
         nowMillis: Long,
     ): UiComputedStyle {
+        if (base.animations.isEmpty()) {
+            state.animationSignature = null
+            return base
+        }
         val animations = base.animations.filter { it.playState == UiAnimationPlayState.RUNNING && it.name.isNotBlank() }
         if (animations.isEmpty()) {
-            starts.remove(node)
+            state.animationSignature = null
             return base
         }
         val signature = animations
-        val start = starts[node]
-        val startedAt = if (start == null || start.signature != signature) {
-            starts[node] = AnimationStart(signature, nowMillis)
+        val startedAt = if (state.animationSignature != signature) {
+            state.animationSignature = signature
+            state.animationStartedAt = nowMillis
             nowMillis
         } else {
-            start.startedAtMillis
+            state.animationStartedAt
         }
         return animations.fold(base) { style, animation ->
             val frames = keyframes[animation.name] ?: UiEngineKeyframes.resolve(animation.name) ?: return@fold style
@@ -342,9 +353,4 @@ class UiAnimationState {
         }
         return if (reverse) 1f - local else local
     }
-
-    private data class AnimationStart(
-        val signature: List<UiAnimation>,
-        val startedAtMillis: Long,
-    )
 }

@@ -364,6 +364,45 @@ data class UiTransform(
 private fun Float.degreesToRadians(): Float = this * PI.toFloat() / 180f
 
 class UiMatrix4(private val values: FloatArray) {
+    /**
+     * Cached [inverse] result. Matrices are immutable after construction, and input handling +
+     * rendering invert the same placement matrices every event/frame, so the inversion runs once.
+     * Volatile: computed lazily from both the frame-builder and render threads.
+     */
+    @Volatile
+    private var inverseCache: Any? = null
+
+    /** Lazily computed "translation+scale only" flag: 0 unknown, 1 yes, 2 no. */
+    @Volatile
+    private var axisAlignedState: Byte = 0
+
+    /**
+     * Whether the matrix maps axis-aligned rectangles to axis-aligned rectangles (no rotation,
+     * shear or perspective). The common case for UI transforms; enables allocation-free point
+     * containment tests.
+     */
+    val isAxisAligned: Boolean
+        get() {
+            val state = axisAlignedState
+            if (state != 0.toByte()) return state == 1.toByte()
+            val aligned = values[1] == 0f && values[2] == 0f &&
+                    values[4] == 0f && values[6] == 0f &&
+                    values[8] == 0f && values[9] == 0f &&
+                    values[12] == 0f && values[13] == 0f && values[14] == 0f && values[15] == 1f
+            axisAlignedState = if (aligned) 1 else 2
+            return aligned
+        }
+
+    /** Whether perspective division varies across points in the local XY plane. */
+    internal val hasPlanarPerspective: Boolean
+        get() = values[12] != 0f || values[13] != 0f
+
+    /** X of the transformed point without allocating a [UiVec3]; valid when [isAxisAligned]. */
+    fun transformX(x: Float): Float = values[0] * x + values[3]
+
+    /** Y of the transformed point without allocating a [UiVec3]; valid when [isAxisAligned]. */
+    fun transformY(y: Float): Float = values[5] * y + values[7]
+
     operator fun times(other: UiMatrix4): UiMatrix4 {
         if (this === Identity) return other
         if (other === Identity) return this
@@ -441,6 +480,14 @@ class UiMatrix4(private val values: FloatArray) {
 
     fun inverse(): UiMatrix4? {
         if (this === Identity) return this
+        when (val cached = inverseCache) {
+            SingularInverse -> return null
+            is UiMatrix4 -> return cached
+        }
+        return computeInverse().also { inverseCache = it ?: SingularInverse }
+    }
+
+    private fun computeInverse(): UiMatrix4? {
         val m = values
         val inv = FloatArray(16)
         inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] +
@@ -483,6 +530,9 @@ class UiMatrix4(private val values: FloatArray) {
     }
 
     companion object {
+        /** Sentinel marking a computed-but-singular inverse in [inverseCache]. */
+        private val SingularInverse = Any()
+
         private val Identity = UiMatrix4(
             floatArrayOf(
                 1f, 0f, 0f, 0f,

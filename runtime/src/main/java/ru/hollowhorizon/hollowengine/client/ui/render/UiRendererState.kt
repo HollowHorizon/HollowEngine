@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.ui.BeginLayerCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
@@ -35,6 +36,7 @@ internal data class RenderTargetState(
 )
 
 internal data class LayerState(
+    val node: UiNode,
     val rect: UiRect,
     val radius: Float,
     val clipShape: Shape?,
@@ -56,8 +58,6 @@ internal data class ScissorBounds(
 )
 
 internal const val LayerSupersampling = 1f
-internal const val LayerTextureSubdivisions = 12
-
 internal fun layerPadding(command: BeginLayerCommand): Float = layerPadding(command.filter)
 
 internal fun layerPadding(filter: UiFilterChain): Float {

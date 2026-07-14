@@ -10,6 +10,7 @@ class UiLayoutPipeline {
     internal var layoutPass: LayoutPass? = null
     private val scrollbarCache = ScrollbarCache()
     private val measureCache = WeakHashMap<UiNode, NodeMeasureCache>()
+    private var lastScrollbarReserves: Map<UiNode, UiScrollbarReserve> = emptyMap()
 
     internal val inlineFlowChildLayouts = HashMap<UiNode, List<InlinePlacement>>()
     internal val inlineFlowFlattened = HashSet<UiNode>()
@@ -23,19 +24,31 @@ class UiLayoutPipeline {
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
     ): UiLayoutResult {
-        val initialLayouts = computeLayouts(resolved, width, height, scrollState, emptyMap())
-        val scrollbarReserves = detectScrollbarReserves(initialLayouts, ::layoutChildren)
-        val layouts = if (scrollbarReserves.isEmpty()) {
-            initialLayouts
+        val warmReserves = lastScrollbarReserves
+        val warmLayouts = computeLayouts(resolved, width, height, scrollState, warmReserves)
+        val layouts: MutableMap<UiNode, UiLayoutNode>
+        if (detectScrollbarReserves(warmLayouts, ::layoutChildren) == warmReserves) {
+            layouts = warmLayouts
         } else {
-            computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
+            val initialLayouts = if (warmReserves.isEmpty()) {
+                warmLayouts
+            } else {
+                computeLayouts(resolved, width, height, scrollState, emptyMap())
+            }
+            val scrollbarReserves = detectScrollbarReserves(initialLayouts, ::layoutChildren)
+            layouts = if (scrollbarReserves.isEmpty()) {
+                initialLayouts
+            } else {
+                computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
+            }
+            lastScrollbarReserves = scrollbarReserves
         }
-        val rangedLayouts = applyScrollRanges(layouts, scrollState, ::layoutChildren)
-        val (withScrollbars, scrollbars) = placeScrollbarNodes(rangedLayouts, scrollbarCache)
-        val traversalOrder = withScrollbars.keys.toList()
+        applyScrollRanges(layouts, scrollState, ::layoutChildren)
+        val scrollbars = placeScrollbarNodes(layouts, scrollbarCache)
+        val traversalOrder = layouts.keys.toList()
         return UiLayoutResult(
             root = resolved,
-            nodes = withScrollbars,
+            nodes = layouts,
             traversalOrder = traversalOrder,
             scrollbars = scrollbars,
         )
@@ -47,7 +60,7 @@ class UiLayoutPipeline {
         height: Float,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    ): Map<UiNode, UiLayoutNode> {
+    ): MutableMap<UiNode, UiLayoutNode> {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
         val previousPass = layoutPass

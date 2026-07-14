@@ -172,6 +172,13 @@ internal class InvalidatingMutableMap<K, V>(
 }
 
 class UiNodeLayoutState internal constructor() {
+    /**
+     * Per-node scratch state owned by the style resolver (caches + motion state). Living on the
+     * node instead of resolver-side WeakHashMaps removes several weak-map lookups per node per
+     * frame and lets the state die with the node. Opaque here to avoid a package cycle.
+     */
+    internal var styleResolverState: Any? = null
+
     private var parent: UiNode? = null
     private var resolvedLayoutFingerprint = 0
     private var localLayoutRevision = UiLayoutRevision.next()

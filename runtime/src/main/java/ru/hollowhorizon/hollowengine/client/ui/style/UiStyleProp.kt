@@ -21,6 +21,8 @@ class UiStyleProp<T> internal constructor(
     val aliases: Set<String> = emptySet(),
     val layoutFingerprint: Boolean = false,
     val transitionGroup: String? = null,
+    /** Whether the default reads the parent style; drives inheritance-aware cache keys. */
+    val inherited: Boolean = false,
     private val defaultValue: UiStyleProp<T>.(parent: UiComputedStyle?) -> T,
     private val mergeValues: ((current: T, next: T) -> T)? = null,
     private val combineValues: ((current: T, next: T) -> T)? = null,
@@ -97,6 +99,8 @@ class UiStyleProp<T> internal constructor(
         internal val transitionable: List<UiStyleProp<*>> by lazy { all.filter { it.transitionable } }
 
         internal val layoutFingerprintProps: List<UiStyleProp<*>> by lazy { all.filter { it.layoutFingerprint } }
+
+        internal val inheritedProps: List<UiStyleProp<*>> by lazy { all.filter { it.inherited } }
 
         private val byTransitionProperty: Map<String, List<UiStyleProp<*>>> by lazy {
             val mapping = HashMap<String, MutableList<UiStyleProp<*>>>()
@@ -240,6 +244,16 @@ class UiComputedStyle internal constructor(
         return UiStyleProp.forTransitionProperty(property).any { prop ->
             values[prop.index] != target.values[prop.index]
         }
+    }
+
+    internal fun inheritedValuesEqual(other: UiComputedStyle): Boolean {
+        if (this === other) return true
+        val props = UiStyleProp.inheritedProps
+        for (index in props.indices) {
+            val slot = props[index].index
+            if (values[slot] != other.values[slot]) return false
+        }
+        return true
     }
 
     /** Hash over layout-affecting properties; used to gate layout invalidation. */

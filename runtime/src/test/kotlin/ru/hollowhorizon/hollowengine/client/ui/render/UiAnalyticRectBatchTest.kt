@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.render
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
+import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
 import ru.hollowhorizon.hollowengine.client.ui.UiBorder
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiInsets
@@ -13,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -53,6 +55,28 @@ class UiAnalyticRectBatchTest {
     @Test
     fun `plain rectangle remains on cheap geometry batch`() {
         assertFalse(UiAnalyticRectBatch().canAppend(command()))
+    }
+
+    @Test
+    fun `rounded shadow uses one expanded analytic quad`() {
+        val node = BoxNode()
+        val command = DrawShadowCommand(
+            node = node,
+            rect = UiRect(0f, 0f, 80f, 48f),
+            radius = 12f,
+            shape = null,
+            shadows = emptyList(),
+            opacity = 0.8f,
+            transform = UiMatrix4.identity(),
+            filter = UiFilterChain.Empty,
+            backfaceVisibility = UiBackfaceVisibility.VISIBLE,
+        )
+
+        val batch = UiAnalyticRectBatch()
+        batch.appendShadow(command, UiShadow(blur = 6f, spread = 2f, color = UiColor.Black), command.transform)
+
+        assertEquals(6, batch.vertexCount)
+        assertEquals(UiAnalyticRectBatch.RecordStride, batch.recordFloatCount)
     }
 
     private fun command(

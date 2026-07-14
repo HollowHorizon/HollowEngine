@@ -6,11 +6,12 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.scroll.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
+import ru.hollowhorizon.hollowengine.client.ui.scroll.scrollWheelDelta
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 
 data class HollowUiFrame(
@@ -19,6 +20,15 @@ data class HollowUiFrame(
     val layout: UiLayoutResult,
     val nowMillis: Long = 0L,
 ) {
+    private val nodesByIdentifier: Map<String, UiNode> by lazy {
+        val index = HashMap<String, UiNode>(nodes.size * 2)
+        for (node in nodes) {
+            node.id?.let { index.putIfAbsent(it, node) }
+            for (tag in node.tags) index.putIfAbsent(tag, node)
+        }
+        index
+    }
+
     fun hitTest(x: Float, y: Float): UiHit? = UiHitTester().hitTest(root, layout, x, y)
 
     /** Whether visible, input-opaque UI geometry is under the point (blocks click-through). */
@@ -33,13 +43,21 @@ data class HollowUiFrame(
             when (val task = stack.removeLast()) {
                 is ScrollTargetTask.Enter -> {
                     val node = task.node
-                    val layoutNode = layout[node]
+                    val layoutNode = layout.nodes[node] ?: continue
                     val childClip = task.ancestorClip.intersect(layoutNode.clip)
                     stack.add(ScrollTargetTask.Test(node, task.ancestorClip))
                     val children = node.children
-                        .filter { it in layout.nodes }
-                        .sortedWith(compareByDescending<UiNode> { it.resolvedSnapshot.layer }.thenByDescending { layout[it].rect.y })
-                    for (child in children) stack.add(ScrollTargetTask.Enter(child, childClip))
+                    if (children.size == 1) {
+                        stack.add(ScrollTargetTask.Enter(children[0], childClip))
+                    } else if (children.size > 1) {
+                        val sorted = ArrayList<UiNode>(children.size)
+                        for (child in children) if (child in layout.nodes) sorted += child
+                        sorted.sortWith(
+                            compareByDescending<UiNode> { it.resolvedSnapshot.layer }
+                                .thenByDescending { layout[it].rect.y }
+                        )
+                        for (child in sorted) stack.add(ScrollTargetTask.Enter(child, childClip))
+                    }
                 }
 
                 is ScrollTargetTask.Test -> {
@@ -49,48 +67,58 @@ data class HollowUiFrame(
                         if (!clip.contains(x, y)) continue
                     }
                     val layoutNode = layout[node]
-                    if (!layoutNode.inputQuadContains(x, y)) continue
-                    val inverse = layoutNode.inputTransform.inverse() ?: continue
-                    val local = inverse.transform(x, y, 0f)
-                    val rect = UiRect(0f, 0f, layoutNode.rect.width, layoutNode.rect.height)
-                    if (rect.contains(local.x, local.y)) return node
+                    if (!layoutNode.inputContains(x, y)) continue
+                    return node
                 }
             }
         }
         return null
     }
 
-    fun nodeByIdentifier(identifier: String): UiNode? =
-        nodes.firstOrNull { it.id == identifier || identifier in it.tags }
+    fun nodeByIdentifier(identifier: String): UiNode? = nodesByIdentifier[identifier]
 
     fun nodeByKey(key: String): UiNode? = nodeByIdentifier(key)
+}
 
-    private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
-        val corners = arrayOf(
-            inputTransform.transform(0f, 0f),
-            inputTransform.transform(0f, rect.height),
-            inputTransform.transform(rect.width, rect.height),
-            inputTransform.transform(rect.width, 0f),
-        )
-        return pointInConvexPolygon(x, y, corners)
+internal fun UiLayoutNode.inputContains(x: Float, y: Float): Boolean {
+    val transform = inputTransform
+    if (transform.isAxisAligned) {
+        val inverse = transform.inverse() ?: return false
+        val localX = inverse.transformX(x)
+        val localY = inverse.transformY(y)
+        return localX >= 0f && localY >= 0f && localX <= rect.width && localY <= rect.height
     }
+    if (!inputQuadContains(x, y)) return false
+    val inverse = transform.inverse() ?: return false
+    val local = inverse.transform(x, y, 0f)
+    return local.x >= 0f && local.y >= 0f && local.x <= rect.width && local.y <= rect.height
+}
 
-    private fun pointInConvexPolygon(x: Float, y: Float, corners: Array<UiVec3>): Boolean {
-        if (corners.size < 3) return false
-        var sign = 0f
-        for (index in corners.indices) {
-            val current = corners[index]
-            val next = corners[(index + 1) % corners.size]
-            val cross = (next.x - current.x) * (y - current.y) - (next.y - current.y) * (x - current.x)
-            if (cross == 0f) continue
-            if (sign == 0f) {
-                sign = cross
-            } else if (sign * cross < 0f) {
-                return false
-            }
+private fun UiLayoutNode.inputQuadContains(x: Float, y: Float): Boolean {
+    val corners = arrayOf(
+        inputTransform.transform(0f, 0f),
+        inputTransform.transform(0f, rect.height),
+        inputTransform.transform(rect.width, rect.height),
+        inputTransform.transform(rect.width, 0f),
+    )
+    return pointInConvexPolygon(x, y, corners)
+}
+
+private fun pointInConvexPolygon(x: Float, y: Float, corners: Array<UiVec3>): Boolean {
+    if (corners.size < 3) return false
+    var sign = 0f
+    for (index in corners.indices) {
+        val current = corners[index]
+        val next = corners[(index + 1) % corners.size]
+        val cross = (next.x - current.x) * (y - current.y) - (next.y - current.y) * (x - current.x)
+        if (cross == 0f) continue
+        if (sign == 0f) {
+            sign = cross
+        } else if (sign * cross < 0f) {
+            return false
         }
-        return true
     }
+    return true
 }
 
 
@@ -343,23 +371,33 @@ class HollowUiRuntime(
      */
     private fun dispatchPlacementCallbacks(layout: UiLayoutResult) {
         for (node in layout.traversalOrder) {
-            val callbacks = node.resolvedModifiers.filterIsInstance<OnPlacedModifier>()
-            if (callbacks.isEmpty()) continue
-            val rect = layout[node].rect
-            if (placedBounds[node] == rect) continue
-            placedBounds[node] = rect
-            callbacks.forEach { it.callback(rect) }
+            var rect: UiRect? = null
+            for (modifier in node.resolvedModifiers) {
+                if (modifier !is OnPlacedModifier) continue
+                if (rect == null) {
+                    val current = layout[node].rect
+                    if (placedBounds[node] == current) break
+                    placedBounds[node] = current
+                    rect = current
+                }
+                modifier.callback(rect)
+            }
         }
     }
 
     private fun dispatchTextLayoutCallbacks(layout: UiLayoutResult) {
         for (node in layout.traversalOrder) {
-            val callbacks = node.resolvedModifiers.filterIsInstance<OnTextLayoutModifier>()
-            if (callbacks.isEmpty()) continue
-            val textLayout = layout[node].textLayout ?: continue
-            if (reportedTextLayouts[node] == textLayout) continue
-            reportedTextLayouts[node] = textLayout
-            callbacks.forEach { it.callback(textLayout) }
+            var textLayout: UiTextLayout? = null
+            for (modifier in node.resolvedModifiers) {
+                if (modifier !is OnTextLayoutModifier) continue
+                if (textLayout == null) {
+                    val current = layout[node].textLayout ?: break
+                    if (reportedTextLayouts[node] == current) break
+                    reportedTextLayouts[node] = current
+                    textLayout = current
+                }
+                modifier.callback(textLayout)
+            }
         }
     }
 

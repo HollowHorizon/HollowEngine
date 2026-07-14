@@ -21,6 +21,12 @@ data class CompiledHss(
     /** Rules of [origin] that match [node], sourced from the index so only candidates are tested. */
     fun matching(node: UiNode, origin: StyleOrigin): List<StyleRule> =
         index.matching(node, origin)
+
+    /**
+     * Appends every matching rule (any origin) to [into] in one index walk, so the resolver
+     * can partition base/state rules itself instead of walking the index once per origin.
+     */
+    fun matchingInto(node: UiNode, into: MutableList<StyleRule>) = index.matchingInto(node, into)
 }
 
 internal class HssRuleIndex(rules: List<StyleRule>) {
@@ -51,15 +57,23 @@ internal class HssRuleIndex(rules: List<StyleRule>) {
         return matches.ifEmpty { emptyList() }
     }
 
+    fun matchingInto(node: UiNode, into: MutableList<StyleRule>) {
+        node.id?.let { id -> appendMatching(byId[id], node, origin = null, into) }
+        val tags = node.tags.readOnlyIterator()
+        while (tags.hasNext()) appendMatching(byTag[tags.next()], node, origin = null, into)
+        appendMatching(byType[node.type], node, origin = null, into)
+        appendMatching(universal, node, origin = null, into)
+    }
+
     private fun appendMatching(
         candidates: List<StyleRule>?,
         node: UiNode,
-        origin: StyleOrigin,
+        origin: StyleOrigin?,
         result: MutableList<StyleRule>,
     ) {
         candidates ?: return
         for (rule in candidates) {
-            if (rule.origin == origin && rule.matches(node)) result += rule
+            if ((origin == null || rule.origin == origin) && rule.matches(node)) result += rule
         }
     }
 }
@@ -75,6 +89,12 @@ data class StyleRule(
 
 class StylePatch(private val modifiers: List<Modifier>) {
     fun modifiers(): List<Modifier> = modifiers
+
+    /**
+     * The compiled style patch of this rule. Rules are immutable after compilation, so the
+     * patch is built once instead of per style-cache miss; consumers must not mutate it.
+     */
+    internal val compiledPatch: UiStylePatch by lazy { modifiers.toStylePatch() }
 }
 
 class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {

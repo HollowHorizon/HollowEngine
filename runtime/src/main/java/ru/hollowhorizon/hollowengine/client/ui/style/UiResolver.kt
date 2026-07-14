@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarThumbType
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollbarType
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import java.util.*
 
 class UiModifierResolver(
@@ -12,12 +11,10 @@ class UiModifierResolver(
     private val transitions: UiTransitionState = UiTransitionState(),
     private val animations: UiAnimationState = UiAnimationState(),
 ) {
-    private val styleCache = WeakHashMap<UiNode, StyleCacheEntry>()
-    private val modifierCache = WeakHashMap<UiNode, ModifierCacheEntry>()
-    private val scopeCache = WeakHashMap<UiNode, ScopeCacheEntry>()
     private val resolveStack = StyleResolveStack()
     private val stylesheetStack = ArrayDeque<UiNode>()
     private val stylesheetReferences = ArrayList<UiStylesheetReference>()
+    private val matchedRulesScratch = ArrayList<StyleRule>()
     private var stylesheetRoot: UiNode? = null
     private var stylesheetTreeDrawRevision = Long.MIN_VALUE
     private var treeCache: TreeCacheEntry? = null
@@ -46,11 +43,9 @@ class UiModifierResolver(
             animate = animate,
         )
         treeCache?.takeIf { it.key == treeKey && !it.requiresRefresh }?.let { return it.nodes }
-        val nodes = ArrayList<UiNode>()
-        var requiresRefresh = false
-        resolveNodes(root, nowMillis, animate, nodes) { snapshot ->
-            if (snapshot.requiresModifierRefresh()) requiresRefresh = true
-        }
+        transitions.beginResolve()
+        val nodes = ArrayList<UiNode>(treeCache?.nodes?.size ?: 64)
+        val requiresRefresh = resolveNodes(root, nowMillis, animate, nodes)
         return nodes.also {
             treeCache = TreeCacheEntry(
                 key = treeKey.copy(
@@ -60,7 +55,7 @@ class UiModifierResolver(
                     stylesheetRevision = stylesheetRevision,
                 ),
                 nodes = nodes,
-                requiresRefresh = animate && (transitions.hasActiveTransitions() || requiresRefresh),
+                requiresRefresh = animate && (transitions.activeDuringResolve || requiresRefresh),
             )
         }
     }
@@ -70,8 +65,8 @@ class UiModifierResolver(
         nowMillis: Long,
         animate: Boolean,
         nodes: MutableList<UiNode>,
-        visitSnapshot: (UiComputedStyle) -> Unit,
-    ) {
+    ): Boolean {
+        var requiresRefresh = false
         val stack = resolveStack
         stack.clear()
         stack.push(root, parent = null, scope = rootScope, ancestorRevision = 0L)
@@ -82,9 +77,11 @@ class UiModifierResolver(
             val inheritedScope = stack.currentScope
             val ancestorRevision = stack.currentAncestorRevision
             val layoutState = node.layoutState
-            val modifiers = flattenedModifiers(node, layoutState.drawRevision)
-            val scopedScope = scopedStyleScope(node, inheritedScope, modifiers)
+            val state = stateFor(node)
+            val modifiers = flattenedModifiers(state, node, layoutState.drawRevision)
+            val scopedScope = scopedStyleScope(state, inheritedScope, modifiers)
             val resolved = resolveBaseStyle(
+                state,
                 node,
                 parent,
                 scopedScope,
@@ -92,9 +89,10 @@ class UiModifierResolver(
                 ancestorRevision,
                 layoutState.drawRevision,
             )
-            val transitioned = if (animate) transitions.apply(node, resolved.snapshot, nowMillis) else resolved.snapshot
+            val transitioned =
+                if (animate) transitions.apply(state.motion, resolved.snapshot, nowMillis) else resolved.snapshot
             val finalStyle = if (animate) {
-                animations.apply(node, transitioned, scopedScope.keyframes, nowMillis)
+                animations.apply(state.motion, transitioned, scopedScope.keyframes, nowMillis)
             } else {
                 transitioned
             }
@@ -105,7 +103,7 @@ class UiModifierResolver(
             // layout prop (size/padding/transform) must bump the layout revision so the frame rebuilds
             // it, while a draw-only animation (colour/opacity) leaves the fingerprint and the layout untouched.
             node.layoutState.updateResolvedLayoutFingerprint(finalStyle.layoutFingerprint())
-            visitSnapshot(finalStyle)
+            if (!requiresRefresh && finalStyle.requiresModifierRefresh()) requiresRefresh = true
             val descendantRevision = maxOf(
                 ancestorRevision,
                 layoutState.drawRevision,
@@ -114,17 +112,25 @@ class UiModifierResolver(
                 stack.push(node.children[index], finalStyle, scopedScope, descendantRevision)
             }
         }
+        return requiresRefresh
+    }
+
+    private fun stateFor(node: UiNode): NodeResolveState {
+        val existing = node.layoutState.styleResolverState as? NodeResolveState
+        if (existing != null && existing.owner === this) return existing
+        return NodeResolveState(this).also { node.layoutState.styleResolverState = it }
     }
 
     private fun flattenedModifiers(
+        state: NodeResolveState,
         node: UiNode,
         drawRevision: Long,
     ): List<Modifier> {
         // Modifier/tags/state/attribute collections invalidate drawRevision. layoutRevision also
         // changes for every frame of a layout animation, so using it here would defeat this cache.
-        modifierCache[node]?.takeIf { it.drawRevision == drawRevision }?.let { return it.modifiers }
+        state.modifierEntry?.takeIf { it.drawRevision == drawRevision }?.let { return it.modifiers }
         return node.modifiers.flattenModifiers().also { modifiers ->
-            modifierCache[node] = ModifierCacheEntry(drawRevision, modifiers)
+            state.modifierEntry = ModifierCacheEntry(drawRevision, modifiers)
         }
     }
 
@@ -140,7 +146,7 @@ class UiModifierResolver(
             stylesheetStack.add(root)
             while (stylesheetStack.isNotEmpty()) {
                 val node = stylesheetStack.removeLast()
-                for (modifier in flattenedModifiers(node, node.layoutState.drawRevision)) {
+                for (modifier in flattenedModifiers(stateFor(node), node, node.layoutState.drawRevision)) {
                     if (modifier is StyleImportModifier) stylesheetReferences += modifier.reference
                 }
                 for (child in node.children) stylesheetStack.add(child)
@@ -167,27 +173,30 @@ class UiModifierResolver(
         nodeModifiers: List<Modifier>,
     ): ResolvedModifiers {
         val baseRuleModifiers = ArrayList<Modifier>()
-        baseRuleModifiers += ruleModifiers(theme, node, StyleOrigin.THEME_DEFAULTS)
-        baseRuleModifiers += ruleModifiers(stylesheet, node, StyleOrigin.STYLESHEET)
-        scope.stylesheets.forEach { scoped ->
-            baseRuleModifiers += ruleModifiers(scoped, node, StyleOrigin.STYLESHEET)
+        val stateRules = ArrayList<StyleRule>()
+        // One index walk per stylesheet; base/state rules are partitioned from the same matches.
+        theme?.let { appendMatchedRules(it, node, StyleOrigin.THEME_DEFAULTS, baseRuleModifiers, stateSink = null) }
+        stylesheet?.let { appendMatchedRules(it, node, StyleOrigin.STYLESHEET, baseRuleModifiers, stateRules) }
+        for (scoped in scope.stylesheets) {
+            appendMatchedRules(scoped, node, StyleOrigin.STYLESHEET, baseRuleModifiers, stateRules)
         }
 
-        val stateRules = ArrayList<StyleRule>()
-        stylesheet?.let { stateRules += it.matching(node, StyleOrigin.STATE_STYLESHEET) }
-        scope.stylesheets.forEach { scoped ->
-            stateRules += scoped.matching(node, StyleOrigin.STATE_STYLESHEET)
+        val orderedStateRules = when {
+            stateRules.size > 1 -> stateRules.apply { sortWith(RuleOrderComparator) }
+            else -> stateRules
         }
-        val orderedStateRules =
-            stateRules.sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
 
         val attributeModifiers = attributeModifiers(node)
-        val baseModifiers = baseRuleModifiers + nodeModifiers + attributeModifiers
+        val baseModifiers =
+            ArrayList<Modifier>(baseRuleModifiers.size + nodeModifiers.size + attributeModifiers.size)
+        baseModifiers += baseRuleModifiers
+        baseModifiers += nodeModifiers
+        baseModifiers += attributeModifiers
 
         // Flat list keeps the historical dispatch order (base rules, then state rules, then
         // node/attribute modifiers).
         val flat =
-            ArrayList<Modifier>(baseRuleModifiers.size + stateRules.size + nodeModifiers.size + attributeModifiers.size)
+            ArrayList<Modifier>(baseRuleModifiers.size + orderedStateRules.size + nodeModifiers.size + attributeModifiers.size)
         flat += baseRuleModifiers
         orderedStateRules.forEach { flat += it.patch.modifiers() }
         flat += nodeModifiers
@@ -196,12 +205,37 @@ class UiModifierResolver(
         return ResolvedModifiers(
             flat = flat,
             baseModifiers = baseModifiers,
-            stateRulePatches = orderedStateRules.map { it.patch.modifiers().toStylePatch() },
+            stateRulePatches = orderedStateRules.map { it.patch.compiledPatch },
         )
     }
 
-    private fun scopedStyleScope(
+    private fun appendMatchedRules(
+        hss: CompiledHss,
         node: UiNode,
+        baseOrigin: StyleOrigin,
+        baseSink: MutableList<Modifier>,
+        stateSink: MutableList<StyleRule>?,
+    ) {
+        val matched = matchedRulesScratch
+        matched.clear()
+        hss.matchingInto(node, matched)
+        if (matched.isEmpty()) return
+        var baseRules: ArrayList<StyleRule>? = null
+        for (rule in matched) {
+            when (rule.origin) {
+                baseOrigin -> (baseRules ?: ArrayList<StyleRule>(matched.size).also { baseRules = it }) += rule
+                StyleOrigin.STATE_STYLESHEET -> stateSink?.add(rule)
+                else -> Unit
+            }
+        }
+        matched.clear()
+        val rules = baseRules ?: return
+        if (rules.size > 1) rules.sortWith(RuleOrderComparator)
+        for (rule in rules) baseSink += rule.patch.modifiers()
+    }
+
+    private fun scopedStyleScope(
+        state: NodeResolveState,
         inheritedScope: StyleScope,
         modifiers: List<Modifier>,
     ): StyleScope {
@@ -212,7 +246,7 @@ class UiModifierResolver(
             imports += modifier
         }
         val resolvedImports = imports ?: return inheritedScope
-        scopeCache[node]?.takeIf { it.matches(inheritedScope.id, resolvedImports) }?.let { return it.scope }
+        state.scopeEntry?.takeIf { it.matches(inheritedScope.id, resolvedImports) }?.let { return it.scope }
         val snapshots = resolvedImports.map { StyleImportSnapshot(it.reference, it.reference.revision()) }
         val key = ScopeCacheKey(inheritedScope.id, snapshots)
         val stylesheets = ArrayList<CompiledHss>(inheritedScope.stylesheets.size + resolvedImports.size)
@@ -224,11 +258,12 @@ class UiModifierResolver(
             keyframes.putAll(stylesheet.keyframes)
         }
         return StyleScope(stylesheets, keyframes, nextScopeId++).also { scope ->
-            scopeCache[node] = ScopeCacheEntry(key, scope)
+            state.scopeEntry = ScopeCacheEntry(key, scope)
         }
     }
 
     private fun resolveBaseStyle(
+        state: NodeResolveState,
         node: UiNode,
         parent: UiComputedStyle?,
         scope: StyleScope,
@@ -236,7 +271,7 @@ class UiModifierResolver(
         ancestorRevision: Long,
         drawRevision: Long,
     ): ResolvedNodeStyle {
-        styleCache[node]?.takeIf {
+        state.styleEntry?.takeIf {
             it.key.matches(
                 scope.id,
                 parent,
@@ -262,18 +297,12 @@ class UiModifierResolver(
             mutable.merge(combinedStates)
         }
         return ResolvedNodeStyle(resolved, mutable.resolve(parent)).also { style ->
-            styleCache[node] = StyleCacheEntry(key, style)
+            state.styleEntry = StyleCacheEntry(key, style)
         }
     }
 
-    private fun ruleModifiers(hss: CompiledHss?, node: UiNode, origin: StyleOrigin): List<Modifier> {
-        hss ?: return emptyList()
-        return hss.matching(node, origin)
-            .sortedWith(compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order })
-            .flatMap { it.patch.modifiers() }
-    }
-
     private fun attributeModifiers(node: UiNode): List<Modifier> {
+        if (node.attributes.isEmpty()) return emptyList()
         return node.attributes.mapNotNull { (name, value) -> compileStyleModifier(name, value) }
     }
 
@@ -317,7 +346,17 @@ class UiModifierResolver(
             UiTransition("scale", 200L, TransitionEasing.EASE_OUT),
             UiTransition("perspective", 200L, TransitionEasing.EASE_OUT),
         )
+
+        private val RuleOrderComparator =
+            compareBy<StyleRule> { it.selector.specificity }.thenBy { it.order }
     }
+}
+
+private class NodeResolveState(val owner: UiModifierResolver) {
+    var modifierEntry: ModifierCacheEntry? = null
+    var scopeEntry: ScopeCacheEntry? = null
+    var styleEntry: StyleCacheEntry? = null
+    val motion = UiNodeMotionState()
 }
 
 private class ResolvedModifiers(
@@ -374,10 +413,16 @@ private class StyleCacheKey(
         ancestorRevision: Long,
         drawRevision: Long,
     ): Boolean {
-        return this.scopeId == scopeId &&
-                this.parent === parent &&
-                this.ancestorRevision == ancestorRevision &&
-                this.drawRevision == drawRevision
+        if (this.scopeId != scopeId ||
+            this.ancestorRevision != ancestorRevision ||
+            this.drawRevision != drawRevision
+        ) {
+            return false
+        }
+        val cachedParent = this.parent
+        if (cachedParent === parent) return true
+        if (cachedParent == null || parent == null) return false
+        return cachedParent.inheritedValuesEqual(parent)
     }
 }
 
@@ -464,5 +509,7 @@ private data class TreeCacheEntry(
 )
 
 private fun UiComputedStyle.requiresModifierRefresh(): Boolean {
+    val animations = animations
+    if (animations.isEmpty()) return false
     return animations.any { animation -> animation.totalDurationMillis()?.let { it > 0L } ?: true }
 }
