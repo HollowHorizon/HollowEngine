@@ -28,10 +28,49 @@ class UiAnalyticRectBatchTest {
         )
 
         assertTrue(batch.canAppend(command))
-        batch.append(command, UiMatrix4.identity())
+        batch.append(command, UiMatrix4.identity(), UiShaderClip.None)
 
-        assertEquals(6, batch.vertexCount)
+        assertEquals(1, batch.instanceCount)
         assertEquals(UiAnalyticRectBatch.RecordStride, batch.recordFloatCount)
+    }
+
+    @Test
+    fun `each record carries its clip rectangle`() {
+        val batch = UiAnalyticRectBatch()
+        val command = command(
+            border = UiBorder(width = UiInsets.all(2.px), color = UiColor.White, radius = 12f),
+        )
+        val clip = UiShaderClip(4f, 8f, 40f, 30f)
+        batch.append(command, UiMatrix4.identity(), clip)
+
+        // The clip rect is the last texel (floats 12..15) of the 16-float record.
+        val records = FloatArray(batch.recordFloatCount)
+        val buffer = java.nio.FloatBuffer.wrap(records)
+        batch.writeRecords(buffer)
+        assertEquals(clip.minX, records[12])
+        assertEquals(clip.minY, records[13])
+        assertEquals(clip.maxX, records[14])
+        assertEquals(clip.maxY, records[15])
+    }
+
+    @Test
+    fun `an instance encodes the row-major transform then the local quad bounds`() {
+        val batch = UiAnalyticRectBatch()
+        batch.append(
+            command(border = UiBorder(width = UiInsets.all(2.px), color = UiColor.White, radius = 12f)),
+            UiMatrix4.identity(),
+            UiShaderClip.None,
+        )
+
+        val instance = FloatArray(batch.instanceFloatCount)
+        batch.writeInstances(java.nio.FloatBuffer.wrap(instance))
+        assertEquals(UiAnalyticRectBatch.InstanceStride, instance.size)
+        // Rows 0-3 of the identity matrix.
+        val identity = floatArrayOf(1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f)
+        identity.forEachIndexed { index, value -> assertEquals(value, instance[index], "row float $index") }
+        // Local bounds (0,0)-(w,h).
+        assertEquals(0f, instance[16]); assertEquals(0f, instance[17])
+        assertEquals(80f, instance[18]); assertEquals(48f, instance[19])
     }
 
     @Test
@@ -53,8 +92,15 @@ class UiAnalyticRectBatchTest {
     }
 
     @Test
-    fun `plain rectangle remains on cheap geometry batch`() {
-        assertFalse(UiAnalyticRectBatch().canAppend(command()))
+    fun `plain solid fill joins the unified SDF pipeline`() {
+        // A flat colour rect (no radius, no border) is a buffer paint, so it now instances through
+        // the SDF batch instead of the vanilla triangle batch.
+        assertTrue(UiAnalyticRectBatch().canAppend(command()))
+    }
+
+    @Test
+    fun `image fill stays off the SDF pipeline`() {
+        assertFalse(UiAnalyticRectBatch().canAppend(command(paint = UiResolvedPaint.Image("test:image"))))
     }
 
     @Test
@@ -73,9 +119,11 @@ class UiAnalyticRectBatchTest {
         )
 
         val batch = UiAnalyticRectBatch()
-        batch.appendShadow(command, UiShadow(blur = 6f, spread = 2f, color = UiColor.Black), command.transform)
+        batch.appendShadow(
+            command, UiShadow(blur = 6f, spread = 2f, color = UiColor.Black), command.transform, UiShaderClip.None,
+        )
 
-        assertEquals(6, batch.vertexCount)
+        assertEquals(1, batch.instanceCount)
         assertEquals(UiAnalyticRectBatch.RecordStride, batch.recordFloatCount)
     }
 

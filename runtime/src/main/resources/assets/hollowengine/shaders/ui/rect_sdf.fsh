@@ -5,6 +5,7 @@ uniform samplerBuffer PaintBuffer;
 uniform samplerBuffer StopBuffer;
 
 in vec2 localPosition;
+in vec2 clipPosition;
 flat in int recordIndex;
 
 layout(location = 0) out vec4 fragColor;
@@ -86,7 +87,14 @@ vec4 samplePaint(int paintIndex) {
 }
 
 void main() {
-    int base = recordIndex * 3;
+    int base = recordIndex * 4;
+    // Per-record clip rectangle (effective screen space); discard fragments outside it. This
+    // replaces the GL scissor, so one batch can carry primitives under many different clips.
+    vec4 clip = texelFetch(RecordBuffer, base + 3);
+    if (clipPosition.x < clip.x || clipPosition.y < clip.y ||
+        clipPosition.x > clip.z || clipPosition.y > clip.w) {
+        discard;
+    }
     vec4 geometry = texelFetch(RecordBuffer, base);
     vec2 size = geometry.xy;
     float radius = geometry.z;

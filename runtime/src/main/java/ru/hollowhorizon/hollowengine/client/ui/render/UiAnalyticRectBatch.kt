@@ -1,26 +1,22 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
-import ru.hollowhorizon.hollowengine.client.ui.DrawBoxCommand
-import ru.hollowhorizon.hollowengine.client.ui.DrawShadowCommand
-import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
-import ru.hollowhorizon.hollowengine.client.ui.UiResolvedPaint
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.render.UiShaderClip.Companion.None
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.resolve
 import java.nio.FloatBuffer
 import kotlin.math.abs
 import kotlin.math.min
 
 internal class UiAnalyticRectBatch {
-    private val vertices = UiFloatArrayBuilder()
+    private val instances = UiFloatArrayBuilder()
     private val records = UiFloatArrayBuilder()
     private val paints = UiFloatArrayBuilder()
     private val stops = UiFloatArrayBuilder()
     private val paintEncoder = UiPaintBufferEncoder(paints, stops)
 
-    val isEmpty: Boolean get() = vertices.size == 0
-    val vertexCount: Int get() = vertices.size / VertexStride
-    val vertexFloatCount: Int get() = vertices.size
+    val isEmpty: Boolean get() = instances.size == 0
+    val instanceCount: Int get() = instances.size / InstanceStride
+    val instanceFloatCount: Int get() = instances.size
     val recordFloatCount: Int get() = records.size
     val paintFloatCount: Int get() = paints.size
     val stopFloatCount: Int get() = stops.size
@@ -29,10 +25,10 @@ internal class UiAnalyticRectBatch {
         if (command.renderToFramebuffer) return false
         if (command.paint != UiResolvedPaint.None && !command.paint.isBufferPaint()) return false
         val borderWidth = uniformBorderWidth(command) ?: return false
-        return command.border.radius > 0f || borderWidth > 0f
+        return command.border.radius > 0f || borderWidth > 0f || command.paint.isBufferPaint()
     }
 
-    fun append(command: DrawBoxCommand, transform: UiMatrix4) {
+    fun append(command: DrawBoxCommand, transform: UiMatrix4, clip: UiShaderClip) {
         val width = command.rect.width
         val height = command.rect.height
         if (width <= 0f || height <= 0f || command.opacity <= 0f) return
@@ -49,22 +45,18 @@ internal class UiAnalyticRectBatch {
             UiColor.Transparent
         }
         val radius = command.border.radius.coerceIn(0f, min(width, height) * 0.5f)
-        val recordIndex = records.size / RecordStride
         records.add(width, height, radius, borderWidth)
         records.add(paintIndex.toFloat(), 0f, 0f, 0f)
         records.add(borderColor.red, borderColor.green, borderColor.blue, borderColor.alpha)
-        appendVertex(0f, 0f, transform, recordIndex)
-        appendVertex(0f, height, transform, recordIndex)
-        appendVertex(width, height, transform, recordIndex)
-        appendVertex(0f, 0f, transform, recordIndex)
-        appendVertex(width, height, transform, recordIndex)
-        appendVertex(width, 0f, transform, recordIndex)
+        records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
+        appendInstance(transform, 0f, 0f, width, height)
     }
 
     fun appendShadow(
         command: DrawShadowCommand,
         shadow: UiShadow,
         transform: UiMatrix4,
+        clip: UiShaderClip,
     ) {
         val width = command.rect.width
         val height = command.rect.height
@@ -80,33 +72,34 @@ internal class UiAnalyticRectBatch {
             height,
         )
         val radius = command.radius.coerceIn(0f, min(width, height) * 0.5f)
-        val recordIndex = records.size / RecordStride
         records.add(width, height, radius, 0f)
         records.add(paintIndex.toFloat(), blurRadius, spreadRadius, ShadowMode)
         records.add(0f, 0f, 0f, 0f)
-        appendVertex(-rasterMargin, -rasterMargin, transform, recordIndex)
-        appendVertex(-rasterMargin, height + rasterMargin, transform, recordIndex)
-        appendVertex(width + rasterMargin, height + rasterMargin, transform, recordIndex)
-        appendVertex(-rasterMargin, -rasterMargin, transform, recordIndex)
-        appendVertex(width + rasterMargin, height + rasterMargin, transform, recordIndex)
-        appendVertex(width + rasterMargin, -rasterMargin, transform, recordIndex)
+        records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
+        appendInstance(
+            transform,
+            -rasterMargin,
+            -rasterMargin,
+            width + rasterMargin,
+            height + rasterMargin,
+        )
     }
 
     fun clear() {
-        vertices.clear()
+        instances.clear()
         records.clear()
         paints.clear()
         stops.clear()
     }
 
-    fun writeVertices(destination: FloatBuffer) = vertices.writeTo(destination)
+    fun writeInstances(destination: FloatBuffer) = instances.writeTo(destination)
     fun writeRecords(destination: FloatBuffer) = records.writeTo(destination)
     fun writePaints(destination: FloatBuffer) = paints.writeTo(destination)
     fun writeStops(destination: FloatBuffer) = stops.writeTo(destination)
 
-    private fun appendVertex(x: Float, y: Float, transform: UiMatrix4, recordIndex: Int) {
-        val point = transform.transform(x, y)
-        vertices.add(point.x, point.y, point.z, x, y, recordIndex.toFloat())
+    private fun appendInstance(transform: UiMatrix4, minX: Float, minY: Float, maxX: Float, maxY: Float) {
+        instances.addMatrix(transform)
+        instances.add(minX, minY, maxX, maxY)
     }
 
     private fun uniformBorderWidth(command: DrawBoxCommand): Float? {
@@ -124,12 +117,29 @@ internal class UiAnalyticRectBatch {
     }
 
     companion object {
-        const val VertexStride = 6
-        const val RecordStride = 12
+        const val InstanceStride = 20
+        const val RecordStride = 16
         const val NoPaint = -1
         private const val ShadowMode = 1f
         private const val BlurExtentFactor = 3f
         private const val AntialiasMargin = 1f
         private const val BorderEpsilon = 0.001f
+    }
+}
+
+/**
+ * An axis-aligned clip rectangle in the batch's effective (pre-projection) screen space, encoded
+ * per primitive so the fragment shader can discard out-of-bounds pixels, replacing the GL scissor
+ * and letting a batch span multiple clip regions in one draw. [None] disables clipping.
+ */
+internal data class UiShaderClip(
+    val minX: Float,
+    val minY: Float,
+    val maxX: Float,
+    val maxY: Float,
+) {
+    companion object {
+        /** No clipping: bounds far outside any UI coordinate so the shader never discards. */
+        val None = UiShaderClip(-1e9f, -1e9f, 1e9f, 1e9f)
     }
 }

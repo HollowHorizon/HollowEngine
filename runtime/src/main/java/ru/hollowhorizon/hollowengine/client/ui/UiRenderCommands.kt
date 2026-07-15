@@ -10,6 +10,8 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineCap
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineJoin
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgPathDocument
+import ru.hollowhorizon.hollowengine.client.ui.shape.svgResourceDocument
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
@@ -531,11 +533,23 @@ class UiCommandRenderer {
             }
 
             else -> {
-                style.image?.let {
-                    commands += DrawImageCommand(
-                        node, layoutNode.content, it, opacity, style.tint, contentTransform,
-                        false, style.imageFit, style.imageSlice, filter, backface,
-                    )
+                style.image?.let { source ->
+                    val svg = svgImageGeometry(source)
+                    if (svg != null) {
+                        val contentLocal = UiRect(
+                            layoutNode.content.x - layoutNode.rect.x,
+                            layoutNode.content.y - layoutNode.rect.y,
+                            layoutNode.content.width,
+                            layoutNode.content.height,
+                        )
+                        canvasScope(node, layoutNode, opacity, filter, UiRenderPhase.CONTENT, commands)
+                            .drawSvg(svg, contentLocal, style.tint)
+                    } else {
+                        commands += DrawImageCommand(
+                            node, layoutNode.content, source, opacity, style.tint, contentTransform,
+                            false, style.imageFit, style.imageSlice, filter, backface,
+                        )
+                    }
                 }
                 style.item?.let {
                     commands += DrawItemCommand(
@@ -549,6 +563,12 @@ class UiCommandRenderer {
                 }
             }
         }
+    }
+
+    /** The parsed (cached) vector document for an `.svg` image source, or null for raster images. */
+    private fun svgImageGeometry(source: String): UiSvgPathDocument? {
+        if (!source.endsWith(".svg", ignoreCase = true)) return null
+        return runCatching { svgResourceDocument(source) }.getOrNull()
     }
 
     private fun appendBackgroundCommand(

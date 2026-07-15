@@ -124,6 +124,17 @@ internal abstract class UiSdfRenderer(
         vertexArray = GL30.glGenVertexArrays()
         GL30.glBindVertexArray(vertexArray)
         vertexBuffer.bind()
+        setupVertexAttributes()
+        GL30.glBindVertexArray(previousVertexArray)
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, previousArrayBuffer)
+    }
+
+    /**
+     * Configures the vertex-array attribute layout for [vertexBuffer] (bound as GL_ARRAY_BUFFER when
+     * called). The default is the per-vertex `pos3/uv2/tile1` layout; instanced renderers override it
+     * to bind per-instance attributes with a divisor.
+     */
+    protected open fun setupVertexAttributes() {
         val stride = vertexStrideFloats * Float.SIZE_BYTES
         GL20.glEnableVertexAttribArray(0)
         GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, stride, 0L)
@@ -131,8 +142,6 @@ internal abstract class UiSdfRenderer(
         GL20.glVertexAttribPointer(1, 2, GL11.GL_FLOAT, false, stride, 3L * Float.SIZE_BYTES)
         GL20.glEnableVertexAttribArray(2)
         GL20.glVertexAttribPointer(2, 1, GL11.GL_FLOAT, false, stride, 5L * Float.SIZE_BYTES)
-        GL30.glBindVertexArray(previousVertexArray)
-        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, previousArrayBuffer)
     }
 
     protected fun bindProgram() = GL20.glUseProgram(program)

@@ -74,7 +74,7 @@ interface UiCanvasDrawScope {
         style: UiDrawStyle = UiDrawStyle.Fill,
     ) = drawShape(shape, bounds, paint, style)
 
-    fun drawSvg(document: UiSvgPathDocument, rect: UiRect)
+    fun drawSvg(document: UiSvgPathDocument, rect: UiRect, tint: UiColor = UiColor.White)
 
     fun drawSvg(document: UiSvgPathDocument) = drawSvg(document, bounds)
 
@@ -195,7 +195,7 @@ internal class UiCommandCanvasScope(
         )
     }
 
-    override fun drawSvg(document: UiSvgPathDocument, rect: UiRect) {
+    override fun drawSvg(document: UiSvgPathDocument, rect: UiRect, tint: UiColor) {
         if (!rect.isDrawable()) return
         val viewBox = document.viewBox
         val scale = min(
@@ -241,10 +241,15 @@ internal class UiCommandCanvasScope(
             submitSvgShape(
                 shape = shape,
                 rect = contentRect,
-                color = color,
+                color = color.tintedBy(tint),
                 blurRadius = blurRadius,
             )
         }
+    }
+
+    private fun UiColor.tintedBy(tint: UiColor): UiColor {
+        if (tint == UiColor.White) return this
+        return UiColor(red * tint.red, green * tint.green, blue * tint.blue, alpha * tint.alpha)
     }
 
     private fun submitSvgShape(

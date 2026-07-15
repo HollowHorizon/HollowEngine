@@ -132,7 +132,6 @@ class MinecraftUiRenderer {
     private val phaseClipStack = ArrayDeque<UiRect>()
     private val segmentBaseClips = ArrayList<UiRect>()
     private var phaseClip: UiRect? = null
-    private var analyticBatchClip: UiRect? = null
     private var pathTileBatchClip: UiRect? = null
     private var shapeBatchClip: UiRect? = null
     private var imageBatchClip: UiRect? = null
@@ -609,11 +608,17 @@ class MinecraftUiRenderer {
     private fun flushAnalyticRectBatch() {
         analyticBatchBounds.clear()
         if (!analyticRectBatch.isEmpty) {
-            setScissor(analyticBatchClip)
+            setScissor(null)
             activeProfile?.analyticRectDraws++
             analyticRectRenderer.draw(analyticRectBatch)
         }
         analyticRectBatch.clear()
+    }
+
+    /** The active phase clip as a shader-space rect (or [UiShaderClip.None] when unclipped). */
+    private fun phaseShaderClip(): UiShaderClip {
+        val clip = phaseClip ?: return UiShaderClip.None
+        return UiShaderClip(clip.x, clip.y, clip.x + clip.width, clip.y + clip.height)
     }
 
     private fun flushPathTileBatch() {
@@ -738,9 +743,7 @@ class MinecraftUiRenderer {
         ) return true
         computeQuadBounds(command.rect.width, command.rect.height, transform)
         flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
-        if (!analyticRectBatch.isEmpty && analyticBatchClip != phaseClip) flushAnalyticRectBatch()
-        analyticRectBatch.append(command, transform)
-        analyticBatchClip = phaseClip
+        analyticRectBatch.append(command, transform, phaseShaderClip())
         analyticBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         return true
     }
@@ -1168,9 +1171,7 @@ class MinecraftUiRenderer {
             val padding = abs(shadow.spread) + shadow.blur.coerceAtLeast(0f) * 3f + 1f
             computeQuadBounds(command.rect.width, command.rect.height, transform, padding)
             flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
-            if (!analyticRectBatch.isEmpty && analyticBatchClip != phaseClip) flushAnalyticRectBatch()
-            analyticRectBatch.appendShadow(command, shadow, transform)
-            analyticBatchClip = phaseClip
+            analyticRectBatch.appendShadow(command, shadow, transform, phaseShaderClip())
             analyticBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
         }
         return true
