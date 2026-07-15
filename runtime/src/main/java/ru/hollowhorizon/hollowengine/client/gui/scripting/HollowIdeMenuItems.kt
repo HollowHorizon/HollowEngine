@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ReloadServerResourcesPacket
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
+import ru.hollowhorizon.hollowengine.client.ui.UiProfiler
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
@@ -91,8 +92,27 @@ internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState)
     )
 }
 
-internal fun hollowIdeToolMenuItems(): List<UiDropdownItem> {
+internal fun hollowIdeToolMenuItems(dock: DockingState, profiler: UiProfiler): List<UiDropdownItem> {
     return listOf(
+        UiDropdownItem(
+            label = "UI Profiler",
+            checked = dock.contains(UiProfilerId),
+            mark = UiDropdownMark.CHECKBOX,
+            closeOnClick = false,
+        ) {
+            if (dock.contains(UiProfilerId)) {
+                dock.close(UiProfilerId)
+                profiler.enabled = false
+            } else {
+                val anchor = if (dock.contains(CutsceneTimelineId)) CutsceneTimelineId else EditorWelcomeId
+                dock.open(
+                    DockItem(UiProfilerId, "UI Profiler", OptionsIcon, closable = true, minWidth = 360f, minHeight = 260f),
+                    DockTarget(anchor, DockPlacement.BOTTOM),
+                )
+                dock.focus(UiProfilerId)
+                profiler.enabled = true
+            }
+        },
         UiDropdownItem(
             label = "hollowengine.gui.ide.gizmo".lang,
             checked = TransformGizmoEditor.isEnabled,

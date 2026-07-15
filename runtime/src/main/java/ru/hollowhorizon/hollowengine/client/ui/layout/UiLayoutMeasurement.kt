@@ -56,6 +56,46 @@ internal fun UiLayoutPipeline.measureNode(
     allowWidthOverflow: Boolean = false,
     allowHeightOverflow: Boolean = false,
 ): LayoutSize {
+    val profile = activeProfile
+    if (profile == null) return measureNodeCached(
+        node, resolved, availableWidth, availableHeight, scrollbarReserves,
+        widthOverride, heightOverride, deferFlexibleWidth, deferFlexibleHeight,
+        allowWidthOverflow, allowHeightOverflow,
+    )
+    val outerMeasurement = measureDepth == 0
+    val measureStartedAt = if (outerMeasurement) System.nanoTime() else 0L
+    profile.measureCalls++
+    profile.recordMeasuredNode(node)
+    if (node is SpanNode) profile.textNodeMeasurements++
+    measureDepth++
+    if (measureDepth > profile.maxMeasureDepth) profile.maxMeasureDepth = measureDepth
+    try {
+        return measureNodeCached(
+            node, resolved, availableWidth, availableHeight, scrollbarReserves,
+            widthOverride, heightOverride, deferFlexibleWidth, deferFlexibleHeight,
+            allowWidthOverflow, allowHeightOverflow,
+            onCacheHit = { profile.measureCacheHits++ },
+        )
+    } finally {
+        measureDepth--
+        if (outerMeasurement) profile.measureNanos += System.nanoTime() - measureStartedAt
+    }
+}
+
+private inline fun UiLayoutPipeline.measureNodeCached(
+    node: UiNode,
+    resolved: UiNode,
+    availableWidth: Float,
+    availableHeight: Float,
+    scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
+    widthOverride: Float?,
+    heightOverride: Float?,
+    deferFlexibleWidth: Boolean,
+    deferFlexibleHeight: Boolean,
+    allowWidthOverflow: Boolean,
+    allowHeightOverflow: Boolean,
+    onCacheHit: () -> Unit = {},
+): LayoutSize {
     val cache = measureCacheFor(node)
     val revision = node.layoutState.subtreeLayoutRevision
     val key = MeasureCacheKey(
@@ -66,7 +106,10 @@ internal fun UiLayoutPipeline.measureNode(
         flags = measureFlags(deferFlexibleWidth, deferFlexibleHeight, allowWidthOverflow, allowHeightOverflow),
         scrollbarReserves = scrollbarReserves,
     )
-    cache.get(revision, key)?.let { return it }
+    cache.get(revision, key)?.let {
+        onCacheHit()
+        return it
+    }
     return measureNodeContent(
         node,
         resolved,

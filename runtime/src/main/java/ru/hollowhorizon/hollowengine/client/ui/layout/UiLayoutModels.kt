@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
 import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineWidgetMetrics
+import java.util.IdentityHashMap
 
 data class UiRect(
     val x: Float,
@@ -49,8 +50,32 @@ data class UiLayoutResult(
     val traversalOrder: List<UiNode> = nodes.keys.toList(),
     /** Framework-synthesized scrollbars per scroll container (not part of node.children). */
     val scrollbars: Map<UiNode, List<ScrollbarNode>> = emptyMap(),
+    /** Child edges captured by the layout pass. Completed frames never traverse the live Compose tree. */
+    val childrenByNode: Map<UiNode, List<UiNode>> = snapshotVisibleChildren(nodes),
 ) {
     operator fun get(node: UiNode): UiLayoutNode = nodes.getValue(node)
+
+    fun childrenOf(node: UiNode): List<UiNode> = childrenByNode[node].orEmpty()
+}
+
+internal fun snapshotVisibleChildren(
+    layouts: Map<UiNode, UiLayoutNode>,
+    childrenOf: (UiNode) -> List<UiNode> = { node -> node.children },
+): Map<UiNode, List<UiNode>> {
+    var result: IdentityHashMap<UiNode, List<UiNode>>? = null
+    for (node in layouts.keys) {
+        val source = childrenOf(node)
+        if (source.isEmpty()) continue
+        var visible: ArrayList<UiNode>? = null
+        for (child in source) {
+            if (child !in layouts) continue
+            (visible ?: ArrayList<UiNode>(source.size).also { visible = it }).add(child)
+        }
+        if (visible != null) {
+            (result ?: IdentityHashMap<UiNode, List<UiNode>>().also { result = it })[node] = visible
+        }
+    }
+    return result ?: emptyMap()
 }
 
 internal fun UiLayoutNode.inlineWidgetMetrics(): Map<String, UiInlineWidgetMetrics> {

@@ -5,7 +5,9 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
-import java.util.*
+import java.util.ArrayDeque
+import java.util.ArrayList
+import java.util.IdentityHashMap
 
 internal data class NodePlacementTask(
     val node: UiNode,
@@ -30,9 +32,10 @@ internal class LayoutPass(root: UiNode) {
         stack.add(root)
         while (stack.isNotEmpty()) {
             val node = stack.removeLast()
-            layoutChildren[node] = ArrayList(node.children)
-            for (index in node.children.indices.reversed()) {
-                stack.add(node.children[index])
+            val children = ArrayList(node.children)
+            layoutChildren[node] = children
+            for (index in children.indices.reversed()) {
+                stack.add(children[index])
             }
         }
     }

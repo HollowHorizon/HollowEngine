@@ -138,6 +138,9 @@ class MinecraftUiRenderer {
     private var preparingLayerAtlas = false
     private val textAxisScales = FloatArray(2)
 
+    /** The profile frame collecting GPU-submission counts, live only during [render]. */
+    private var activeProfile: UiProfileFrame? = null
+
     private val analyticBatchBounds = UiBatchBounds()
     private val pathTileBatchBounds = UiBatchBounds()
     private val shapeBatchBounds = UiBatchBounds()
@@ -163,6 +166,7 @@ class MinecraftUiRenderer {
 
     private fun setScissor(clip: UiRect?) {
         if (scissorState !== ScissorUnknown && scissorState == clip) return
+        activeProfile?.scissorChanges++
         if (clip != null) {
             applyScissor(clip)
         } else {
@@ -217,6 +221,9 @@ class MinecraftUiRenderer {
 
     /** Renders directly unless framebuffer layers require a collected atlas pre-pass. */
     fun render(frame: HollowUiFrame, target: UiRenderTarget? = null) {
+        val profile = frame.profile
+        val renderStartedAt = if (profile != null) System.nanoTime() else 0L
+        activeProfile = profile
         val previousTarget = renderTarget
         renderTarget = target
         try {
@@ -229,12 +236,12 @@ class MinecraftUiRenderer {
             bindRootTarget()
             clearSegment()
             if (hasFramebufferLayers) {
-                val plan = UiLayerRenderPlan.create(commandRenderer.collect(frame.root, frame.layout))
+                val plan = UiLayerRenderPlan.create(commandRenderer.collect(frame.root, frame.layout, profile))
                 prepareLayerAtlas(plan)
                 bindRootTarget()
                 renderPreparedRoot(plan)
             } else {
-                commandRenderer.render(frame.root, frame.layout, ::submit)
+                commandRenderer.render(frame.root, frame.layout, ::submit, profile)
             }
             renderSegment(segment)
             clearSegment()
@@ -246,6 +253,11 @@ class MinecraftUiRenderer {
         } finally {
             releasePreparedLayers()
             renderTarget = previousTarget
+            activeProfile = null
+            if (profile != null) {
+                profile.renderNanos += System.nanoTime() - renderStartedAt
+                profile.owner.complete(profile)
+            }
         }
     }
 
@@ -498,6 +510,7 @@ class MinecraftUiRenderer {
 
     private fun flushImageBatches(imageBatches: MutableMap<ResourceLocation, MutableList<UiTexturedQuad>>) {
         if (imageBatches.isEmpty()) return
+        activeProfile?.let { it.imageDraws += imageBatches.size }
         imageBatches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads) }
         imageBatches.clear()
     }
@@ -603,6 +616,7 @@ class MinecraftUiRenderer {
         shapeBatchBounds.clear()
         if (shapeBatch.isEmpty) return
         setScissor(shapeBatchClip)
+        activeProfile?.shapeDraws++
         drawBatchedTriangles(shapeBatch)
         shapeBatch.clear()
     }
@@ -611,6 +625,7 @@ class MinecraftUiRenderer {
         analyticBatchBounds.clear()
         if (!analyticRectBatch.isEmpty) {
             setScissor(analyticBatchClip)
+            activeProfile?.analyticRectDraws++
             analyticRectRenderer.draw(analyticRectBatch)
         }
         analyticRectBatch.clear()
@@ -620,6 +635,7 @@ class MinecraftUiRenderer {
         pathTileBatchBounds.clear()
         if (!pathTileBatch.isEmpty) {
             setScissor(pathTileBatchClip)
+            activeProfile?.pathTileDraws++
             pathTileRenderer.draw(pathTileBatch)
         }
         pathTileBatch.clear()
@@ -637,11 +653,13 @@ class MinecraftUiRenderer {
 
     private fun flushVanillaTextBatch() {
         if (!textBatchDirty) return
+        activeProfile?.vanillaTextFlushes++
         Minecraft.getInstance().renderBuffers().bufferSource().endBatch()
         textBatchDirty = false
     }
 
     private fun flushMsdfTextBatch() {
+        if (!msdfTextBatch.isEmpty) activeProfile?.msdfTextDraws++
         msdfTextBatch.flush()
     }
 
@@ -987,6 +1005,7 @@ class MinecraftUiRenderer {
         val width = layer.rect.width + layer.padding * 2f
         val height = layer.rect.height + layer.padding * 2f
         if (isBackfaceHidden(width, height, transform, layer.backfaceVisibility)) return
+        activeProfile?.layerComposites++
         val clipShape = layer.clipShape
         if (clipShape != null) {
             val horizontalPadding = layer.padding / width.coerceAtLeast(0.0001f)

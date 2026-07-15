@@ -4,6 +4,11 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
+    val profile = activeProfile
+    if (profile != null) {
+        profile.placedNodes++
+        profile.matrixCalculations++
+    }
     val node = task.node
     val resolved = task.resolved
     val rect = task.rect
@@ -37,6 +42,10 @@ internal fun UiLayoutPipeline.placeNodeNow(task: NodePlacementTask) {
             style.filter.requiresLayer ||
             style.backdropFilter.requiresLayer ||
             style.clipShape != null && style.clip
+    if (profile != null) {
+        if (needsFramebuffer) profile.framebufferNodes++
+        if (textLayout != null) profile.recordTextLayout(textLayout)
+    }
 
     layouts[node] = UiLayoutNode(
         node = node,

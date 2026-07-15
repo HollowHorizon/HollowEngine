@@ -20,6 +20,8 @@ data class HollowUiFrame(
     val layout: UiLayoutResult,
     val nowMillis: Long = 0L,
 ) {
+    internal var profile: UiProfileFrame? = null
+
     private val nodesByIdentifier: Map<String, UiNode> by lazy {
         val index = HashMap<String, UiNode>(nodes.size * 2)
         for (node in nodes) {
@@ -46,12 +48,12 @@ data class HollowUiFrame(
                     val layoutNode = layout.nodes[node] ?: continue
                     val childClip = task.ancestorClip.intersect(layoutNode.clip)
                     stack.add(ScrollTargetTask.Test(node, task.ancestorClip))
-                    val children = node.children
+                    val children = layout.childrenOf(node)
                     if (children.size == 1) {
                         stack.add(ScrollTargetTask.Enter(children[0], childClip))
                     } else if (children.size > 1) {
                         val sorted = ArrayList<UiNode>(children.size)
-                        for (child in children) if (child in layout.nodes) sorted += child
+                        sorted.addAll(children)
                         sorted.sortWith(
                             compareByDescending<UiNode> { it.resolvedSnapshot.layer }
                                 .thenByDescending { layout[it].rect.y }
@@ -150,6 +152,7 @@ class HollowUiRuntime(
     stylesheet: CompiledHss? = null,
     private val scrollState: UiScrollState = UiScrollState(),
     private val horizontalScrollModifierDown: () -> Boolean = { hasShiftDown() || hasControlDown() },
+    val profiler: UiProfiler = UiProfiler(),
 ) {
     private val transitionState = UiTransitionState()
     private val resolver = UiModifierResolver(theme, stylesheet, transitionState)
@@ -178,6 +181,16 @@ class HollowUiRuntime(
         mouseX: Float,
         mouseY: Float,
         nowMillis: Long = 0L,
+    ): HollowUiFrame = frame(root, width, height, mouseX, mouseY, nowMillis, profiler.beginFrame())
+
+    internal fun frame(
+        root: UiNode,
+        width: Float,
+        height: Float,
+        mouseX: Float,
+        mouseY: Float,
+        nowMillis: Long,
+        profile: UiProfileFrame?,
     ): HollowUiFrame {
         input.prepareRoot(root, false)
         if (preparedAtMillis == nowMillis) {
@@ -185,9 +198,11 @@ class HollowUiRuntime(
         } else {
             scrollState.update(nowMillis)
         }
-        val frame = buildFrame(root, width, height, nowMillis)
+        val frame = buildFrame(root, width, height, nowMillis, profile)
+        val inputStartedAt = if (profile != null) System.nanoTime() else 0L
         input.updateHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         input.dispatchHover(frame, mouseX, mouseY, ::dispatchUiEvent)
+        if (profile != null) profile.inputNanos += System.nanoTime() - inputStartedAt
         lastFrame = frame
         return frame
     }
@@ -204,8 +219,11 @@ class HollowUiRuntime(
         width: Float,
         height: Float,
         nowMillis: Long,
+        profile: UiProfileFrame?,
     ): HollowUiFrame {
-        val nodes = resolver.resolve(root, nowMillis)
+        val styleStartedAt = if (profile != null) System.nanoTime() else 0L
+        val nodes = resolver.resolve(root, nowMillis, profile = profile)
+        if (profile != null) profile.styleNanos += System.nanoTime() - styleStartedAt
         // Pending scroll requests are applied in prepareFrame, BEFORE composition, so composition
         // and this frame's layout read the same offset. Applying them here (after composition) would
         // desync a scroll requested during composition itself - e.g. the editor's caret-follow, which
@@ -224,9 +242,10 @@ class HollowUiRuntime(
         // key identical and skips relayout, while a width/padding animation forces one.
         val layoutReused = lastLayout != null && layoutKey == lastLayoutKey
         var layout = if (layoutReused) {
+            if (profile != null) profile.layoutReuses++
             lastLayout!!
         } else {
-            layoutPipeline.compute(root, width, height, scrollState)
+            layoutPipeline.compute(root, width, height, scrollState, profile)
         }
         lastLayout = layout
         // Sample scroll revision after layout: clamping inside the pass may bump it.
@@ -240,7 +259,7 @@ class HollowUiRuntime(
             nodes = nodes,
             layout = layout,
             nowMillis = nowMillis,
-        )
+        ).also { it.profile = profile }
     }
 
     /**
@@ -401,21 +420,21 @@ class HollowUiRuntime(
         }
     }
 
-    fun mouseClicked(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean {
-        val frame = lastFrame ?: return false
-        return processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button, modifiers))
+    fun mouseClicked(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean = profileInput {
+        val frame = lastFrame ?: return@profileInput false
+        processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button, modifiers))
             .orConsumed(frame.hitsVisible(mouseX, mouseY))
     }
 
     fun mouseReleased(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean =
-        dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button, modifiers))
+        profileInput { dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button, modifiers)) }
 
     fun mouseDragged(mouseX: Float, mouseY: Float, button: Int, dragX: Float, dragY: Float): Boolean =
-        dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY))
+        profileInput { dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY)) }
 
-    fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float): Boolean {
-        val frame = lastFrame ?: return false
-        return processInput(frame, QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY))
+    fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float): Boolean = profileInput {
+        val frame = lastFrame ?: return@profileInput false
+        processInput(frame, QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY))
             .orConsumed(input.scrollTargetAt(frame, mouseX, mouseY) != null)
     }
 
@@ -425,15 +444,25 @@ class HollowUiRuntime(
         return handled
     }
 
-    fun charTyped(codePoint: Char, modifiers: Int): Boolean {
-        val frame = lastFrame ?: return false
-        return processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(isAnyFocused)
+    fun charTyped(codePoint: Char, modifiers: Int): Boolean = profileInput {
+        val frame = lastFrame ?: return@profileInput false
+        processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(isAnyFocused)
     }
 
-    fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        val frame = lastFrame ?: return false
+    fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean = profileInput {
+        val frame = lastFrame ?: return@profileInput false
         val result = processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers))
-        return result.handled || result.changed
+        result.handled || result.changed
+    }
+
+    private inline fun profileInput(block: () -> Boolean): Boolean {
+        if (!profiler.enabled) return block()
+        val startedAt = System.nanoTime()
+        return try {
+            block()
+        } finally {
+            profiler.recordInput(System.nanoTime() - startedAt)
+        }
     }
 
     fun reset() {

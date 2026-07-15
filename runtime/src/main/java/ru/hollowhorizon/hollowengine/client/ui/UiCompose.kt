@@ -62,8 +62,14 @@ class HollowUiComposition(
         return rootNode
     }
 
-    fun frameRoot(nowNanos: Long = System.nanoTime()): BoxNode {
-        applyPendingChanges(nowNanos)
+    fun frameRoot(nowNanos: Long = System.nanoTime(), profile: UiProfileFrame? = null): BoxNode {
+        val startedAt = if (profile != null) System.nanoTime() else 0L
+        val changed = applyPendingChanges(nowNanos)
+        if (profile != null) {
+            profile.composeNanos += System.nanoTime() - startedAt
+            profile.composePasses++
+            if (changed) profile.recomposedFrames++
+        }
         return rootNode
     }
 

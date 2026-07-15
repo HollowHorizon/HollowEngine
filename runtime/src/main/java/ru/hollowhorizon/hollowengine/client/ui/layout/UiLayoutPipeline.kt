@@ -2,12 +2,15 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.UiProfileFrame
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
 import java.util.WeakHashMap
 
 class UiLayoutPipeline {
     internal var layoutPass: LayoutPass? = null
+    internal var activeProfile: UiProfileFrame? = null
+    internal var measureDepth = 0
     private val scrollbarCache = ScrollbarCache()
     private val measureCache = WeakHashMap<UiNode, NodeMeasureCache>()
     private var lastScrollbarReserves: Map<UiNode, UiScrollbarReserve> = emptyMap()
@@ -23,35 +26,47 @@ class UiLayoutPipeline {
         width: Float,
         height: Float,
         scrollState: UiScrollState = UiScrollState(),
+        profile: UiProfileFrame? = null,
     ): UiLayoutResult {
-        val warmReserves = lastScrollbarReserves
-        val warmLayouts = computeLayouts(resolved, width, height, scrollState, warmReserves)
-        val layouts: MutableMap<UiNode, UiLayoutNode>
-        if (detectScrollbarReserves(warmLayouts, ::layoutChildren) == warmReserves) {
-            layouts = warmLayouts
-        } else {
-            val initialLayouts = if (warmReserves.isEmpty()) {
-                warmLayouts
+        val previousProfile = activeProfile
+        activeProfile = profile
+        try {
+            val warmReserves = lastScrollbarReserves
+            val warmLayout = computeLayouts(resolved, width, height, scrollState, warmReserves)
+            val finalLayout = if (detectScrollbarReserves(warmLayout.nodes, warmLayout::childrenOf) == warmReserves) {
+                warmLayout
             } else {
-                computeLayouts(resolved, width, height, scrollState, emptyMap())
+                val initialLayout = if (warmReserves.isEmpty()) {
+                    warmLayout
+                } else {
+                    computeLayouts(resolved, width, height, scrollState, emptyMap())
+                }
+                val scrollbarReserves = detectScrollbarReserves(initialLayout.nodes, initialLayout::childrenOf)
+                val resolvedLayout = if (scrollbarReserves.isEmpty()) {
+                    initialLayout
+                } else {
+                    computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
+                }
+                lastScrollbarReserves = scrollbarReserves
+                resolvedLayout
             }
-            val scrollbarReserves = detectScrollbarReserves(initialLayouts, ::layoutChildren)
-            layouts = if (scrollbarReserves.isEmpty()) {
-                initialLayouts
-            } else {
-                computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
+            applyScrollRanges(finalLayout.nodes, scrollState, finalLayout::childrenOf)
+            val scrollbars = placeScrollbarNodes(finalLayout.nodes, scrollbarCache)
+            val traversalOrder = finalLayout.nodes.keys.toList()
+            val childrenByNode = snapshotVisibleChildren(finalLayout.nodes) { node ->
+                finalLayout.children[node] ?: node.children
             }
-            lastScrollbarReserves = scrollbarReserves
+            return UiLayoutResult(
+                root = resolved,
+                nodes = finalLayout.nodes,
+                traversalOrder = traversalOrder,
+                scrollbars = scrollbars,
+                childrenByNode = childrenByNode,
+            )
+        } finally {
+            activeProfile = previousProfile
+            measureDepth = 0
         }
-        applyScrollRanges(layouts, scrollState, ::layoutChildren)
-        val scrollbars = placeScrollbarNodes(layouts, scrollbarCache)
-        val traversalOrder = layouts.keys.toList()
-        return UiLayoutResult(
-            root = resolved,
-            nodes = layouts,
-            traversalOrder = traversalOrder,
-            scrollbars = scrollbars,
-        )
     }
 
     private fun computeLayouts(
@@ -60,15 +75,23 @@ class UiLayoutPipeline {
         height: Float,
         scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-    ): MutableMap<UiNode, UiLayoutNode> {
+    ): LayoutComputation {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
         val viewport = UiRect(0f, 0f, width, height)
         val previousPass = layoutPass
+        val pass = LayoutPass(resolved)
         inlineFlowChildLayouts.clear()
         inlineFlowFlattened.clear()
         try {
-            layoutPass = LayoutPass(resolved)
+            layoutPass = pass
+            val profile = activeProfile
+            if (profile != null) {
+                profile.measurePasses++
+                profile.placementPasses++
+            }
             val rootRect = rootRect(resolved, width, height, scrollbarReserves)
+            val placementStartedAt = if (profile != null) System.nanoTime() else 0L
+            val measureBeforePlacement = profile?.measureNanos ?: 0L
             placeNode(
                 node = resolved,
                 resolved = resolved,
@@ -83,10 +106,14 @@ class UiLayoutPipeline {
                 scrollbarReserves = scrollbarReserves,
                 layouts = layouts,
             )
+            if (profile != null) {
+                val nestedMeasureNanos = profile.measureNanos - measureBeforePlacement
+                profile.placementNanos += (System.nanoTime() - placementStartedAt - nestedMeasureNanos).coerceAtLeast(0L)
+            }
         } finally {
             layoutPass = previousPass
         }
-        return layouts
+        return LayoutComputation(layouts, pass.layoutChildren)
     }
 
     internal fun layoutChildren(node: UiNode): List<UiNode> {
@@ -125,4 +152,11 @@ class UiLayoutPipeline {
         )
     }
 
+}
+
+private data class LayoutComputation(
+    val nodes: MutableMap<UiNode, UiLayoutNode>,
+    val children: Map<UiNode, List<UiNode>>,
+) {
+    fun childrenOf(node: UiNode): List<UiNode> = children[node].orEmpty()
 }

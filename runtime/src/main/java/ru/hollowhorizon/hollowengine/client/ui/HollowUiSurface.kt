@@ -15,8 +15,9 @@ class HollowUiSurface(
     scrollState: UiScrollState = UiScrollState(),
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
 ) : AutoCloseable {
+    private val profiler = UiProfiler()
     private val composition = HollowUiComposition(coroutineContext)
-    val runtime = HollowUiRuntime(theme, stylesheet, scrollState)
+    val runtime = HollowUiRuntime(theme, stylesheet, scrollState, profiler = profiler)
     private var hasContent = false
 
     private var frameTimeNanos by mutableStateOf(0L)
@@ -54,11 +55,12 @@ class HollowUiSurface(
         nowNanos: Long = 0L,
     ): HollowUiFrame {
         check(hasContent) { "UI content has not been set" }
+        val profile = profiler.beginFrame()
         pointer = UiPointer(x, y)
         val nowMillis = nowNanos / NanosPerMillisecond
         runtime.prepareFrame(nowMillis)
-        val root = composition.frameRoot(nowNanos)
-        return runtime.frame(root, width, height, x, y, nowMillis)
+        val root = composition.frameRoot(nowNanos, profile)
+        return runtime.frame(root, width, height, x, y, nowMillis, profile)
     }
 
     override fun close() {

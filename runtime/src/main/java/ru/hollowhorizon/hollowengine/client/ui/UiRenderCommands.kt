@@ -253,12 +253,22 @@ class UiCommandRenderer {
         resolved: UiNode,
         layout: UiLayoutResult,
         sink: UiRenderSink,
+        profile: UiProfileFrame? = null,
     ) {
+        if (profile != null) profile.commandCollections++
+        val profiledSink = if (profile == null) {
+            sink
+        } else {
+            UiRenderSink { command ->
+                profile.recordCommand(command)
+                sink.submit(command)
+            }
+        }
         collectNode(
             resolved.root,
             resolved,
             layout,
-            sink,
+            profiledSink,
             activeClip = null,
             layoutBoundsMatchVisualBounds = true,
         )
@@ -267,9 +277,10 @@ class UiCommandRenderer {
     fun collect(
         resolved: UiNode,
         layout: UiLayoutResult,
+        profile: UiProfileFrame? = null,
     ): List<UiRenderCommand> {
         val commands = mutableListOf<UiRenderCommand>()
-        render(resolved, layout) { commands += it }
+        render(resolved, layout, { commands += it }, profile)
         return commands
     }
 
@@ -854,29 +865,20 @@ private val DirectLayoutTransform = UiTransform()
 private val ChildLayerComparator = compareBy<UiNode> { it.resolvedSnapshot.layer }
 
 private fun orderedVisibleChildren(node: UiNode, layout: UiLayoutResult): List<UiNode> {
-    val children = node.children
-    if (children.isEmpty()) return children
-    var allPresent = true
+    val children = layout.childrenOf(node)
+    if (children.size < 2) return children
+    val firstLayer = children[0].resolvedSnapshot.layer
     var uniformLayer = true
-    var first = true
-    var firstLayer = 0
-    for (child in children) {
-        if (child !in layout.nodes) {
-            allPresent = false
-            continue
-        }
-        val layer = child.resolvedSnapshot.layer
-        if (first) {
-            firstLayer = layer
-            first = false
-        } else if (layer != firstLayer) {
+    for (index in 1 until children.size) {
+        if (children[index].resolvedSnapshot.layer != firstLayer) {
             uniformLayer = false
+            break
         }
     }
-    if (allPresent && uniformLayer) return children
+    if (uniformLayer) return children
     val result = ArrayList<UiNode>(children.size)
-    for (child in children) if (child in layout.nodes) result += child
-    if (!uniformLayer) result.sortWith(ChildLayerComparator)
+    result.addAll(children)
+    result.sortWith(ChildLayerComparator)
     return result
 }
 

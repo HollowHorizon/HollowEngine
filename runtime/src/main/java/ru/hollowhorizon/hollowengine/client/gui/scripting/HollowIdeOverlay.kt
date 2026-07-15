@@ -28,6 +28,7 @@ internal const val ProjectTreeId = "ide-project-tree"
 internal const val EditorWelcomeId = "ide-code-editor"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
 internal const val CutscenePropertiesId = "ide-cutscene-properties"
+internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val CodeIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
@@ -277,7 +278,7 @@ object HollowIdeOverlay {
                 label = "hollowengine.gui.ide.tools".lang,
                 expanded = openDropdown == "tools",
                 onExpandedChange = { openDropdown = if (it) "tools" else null },
-                items = hollowIdeToolMenuItems(),
+                items = hollowIdeToolMenuItems(dock, surface.runtime.profiler),
             )
         }
         UiDropdown(
@@ -319,6 +320,7 @@ object HollowIdeOverlay {
             EditorWelcomeId -> EmptyEditor()
             CutsceneTimelineId -> CutsceneTimelineDock(CutsceneEditorSessions.default)
             CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
+            UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) }
                 ?: EmptyEditor()
         }

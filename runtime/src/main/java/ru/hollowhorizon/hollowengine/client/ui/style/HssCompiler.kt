@@ -27,6 +27,9 @@ data class CompiledHss(
      * can partition base/state rules itself instead of walking the index once per origin.
      */
     fun matchingInto(node: UiNode, into: MutableList<StyleRule>) = index.matchingInto(node, into)
+
+    internal fun matchingIntoProfiled(node: UiNode, into: MutableList<StyleRule>): Int =
+        index.matchingIntoProfiled(node, into)
 }
 
 internal class HssRuleIndex(rules: List<StyleRule>) {
@@ -65,16 +68,27 @@ internal class HssRuleIndex(rules: List<StyleRule>) {
         appendMatching(universal, node, origin = null, into)
     }
 
+    fun matchingIntoProfiled(node: UiNode, into: MutableList<StyleRule>): Int {
+        var checks = 0
+        node.id?.let { id -> checks += appendMatching(byId[id], node, origin = null, into) }
+        val tags = node.tags.readOnlyIterator()
+        while (tags.hasNext()) checks += appendMatching(byTag[tags.next()], node, origin = null, into)
+        checks += appendMatching(byType[node.type], node, origin = null, into)
+        checks += appendMatching(universal, node, origin = null, into)
+        return checks
+    }
+
     private fun appendMatching(
         candidates: List<StyleRule>?,
         node: UiNode,
         origin: StyleOrigin?,
         result: MutableList<StyleRule>,
-    ) {
-        candidates ?: return
+    ): Int {
+        candidates ?: return 0
         for (rule in candidates) {
             if ((origin == null || rule.origin == origin) && rule.matches(node)) result += rule
         }
+        return candidates.size
     }
 }
 

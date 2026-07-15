@@ -66,6 +66,44 @@
     height: 16px;
 }
 
+.ui-profiler-panel {
+    gap: 4px;
+}
+
+.ui-profiler-toolbar {
+    width: 100%;
+    height: fit;
+    gap: 4px;
+}
+
+.ui-profiler-button {
+    width: fit;
+    height: fit;
+    padding: 3px 8px;
+    background: #31343D;
+    border-radius: 3px;
+    foreground: #d7deea;
+}
+
+.ui-profiler-button:hover {
+    background: #414653;
+}
+
+.ui-profiler-scroll {
+    width: 100%;
+    background: #1d2026;
+    padding: 6px;
+}
+
+.ui-profiler-report {
+    width: fit;
+    height: fit;
+    white-space: pre;
+    font-family: minecraft:default;
+    font-size: 10px;
+    foreground: #d7deea;
+}
+
 .project-context-menu {
     padding: 4px;
     gap: 1px;
