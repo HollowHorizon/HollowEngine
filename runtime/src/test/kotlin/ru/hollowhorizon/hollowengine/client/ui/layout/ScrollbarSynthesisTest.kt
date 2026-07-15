@@ -7,6 +7,8 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarThumbNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ScrollbarSynthesisTest {
@@ -28,13 +30,12 @@ class ScrollbarSynthesisTest {
         val bars = layout.scrollbars[viewport]
         assertTrue(!bars.isNullOrEmpty(), "overflow should synthesize a scrollbar")
 
-        val bar = bars!!.single()
-        val barLayout = layout.nodes[bar]
-        val thumbLayout = layout.nodes[bar.thumb]
-        assertTrue(barLayout != null && thumbLayout != null, "scrollbar + thumb are placed")
-        assertTrue(barLayout!!.rect.width < 10f, "vertical track is thin")
+        val bar = assertNotNull(bars).single()
+        val barLayout = assertNotNull(layout.nodes[bar], "scrollbar is placed")
+        val thumbLayout = assertNotNull(layout.nodes[bar.thumb], "scrollbar thumb is placed")
+        assertTrue(barLayout.rect.width < 10f, "vertical track is thin")
         assertTrue(barLayout.rect.height > 40f, "track spans most of the viewport")
-        assertTrue(thumbLayout!!.rect.height < barLayout.rect.height, "thumb is shorter than the track")
+        assertTrue(thumbLayout.rect.height < barLayout.rect.height, "thumb is shorter than the track")
         assertTrue(barLayout.rect.x > 80f, "track is at the right edge (x=${barLayout.rect.x})")
     }
 
@@ -56,7 +57,7 @@ class ScrollbarSynthesisTest {
     }
 
     @Test
-    fun `overlay scrollbar keeps the full content width`() {
+    fun `reserving scrollbar adds a gutter while overlay keeps the original outer size`() {
         val (reservedLayout, reservedViewport) = layout(UiSize(80.px, 300.px))
         val (overlayLayout, overlayViewport) = layout(
             UiSize(80.px, 300.px),
@@ -65,8 +66,43 @@ class ScrollbarSynthesisTest {
 
         val reservedWidth = reservedLayout.nodes.getValue(reservedViewport).content.width
         val overlayWidth = overlayLayout.nodes.getValue(overlayViewport).content.width
-        assertTrue(overlayWidth > reservedWidth, "overlay must not consume the scrollbar gutter")
+        assertEquals(overlayWidth, reservedWidth, 0.01f, "the reserved gutter must not steal usable width")
+        assertTrue(
+            reservedLayout.nodes.getValue(reservedViewport).rect.width >
+                    overlayLayout.nodes.getValue(overlayViewport).rect.width,
+            "a reserving scrollbar must contribute its gutter to the outer layout size",
+        )
         assertTrue(!overlayLayout.scrollbars[overlayViewport].isNullOrEmpty(), "overlay still synthesizes a scrollbar")
+    }
+
+    @Test
+    fun `horizontal scrollbar reservation does not displace centered content`() {
+        fun horizontalLayout(childWidth: Float): Triple<UiLayoutResult, BoxNode, BoxNode> {
+            val child = BoxNode(
+                id = "content",
+                modifiers = listOf(Modifier.size(childWidth.px, 10.px).align(vertical = UiAlign.CENTER)),
+            )
+            val viewport = BoxNode(
+                id = "viewport",
+                measurePolicy = UiMeasurePolicies.box(),
+                modifiers = listOf(Modifier.size(100.px, 22.px).scroll(vertical = false, horizontal = true)),
+            ).also { it.children.add(child) }
+            val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }
+            UiModifierResolver().resolve(root)
+            return Triple(UiLayoutPipeline().compute(root, 300f, 300f, UiScrollState()), viewport, child)
+        }
+
+        val (fittingLayout, fittingViewport, fittingChild) = horizontalLayout(80f)
+        val (overflowLayout, overflowViewport, overflowChild) = horizontalLayout(180f)
+        val fittingY = fittingLayout.nodes.getValue(fittingChild).rect.y -
+                fittingLayout.nodes.getValue(fittingViewport).rect.y
+        val overflowY = overflowLayout.nodes.getValue(overflowChild).rect.y -
+                overflowLayout.nodes.getValue(overflowViewport).rect.y
+        val overflowViewportLayout = overflowLayout.nodes.getValue(overflowViewport)
+
+        assertEquals(fittingY, overflowY, 0.01f, "adding a scrollbar must not move centred content")
+        assertEquals(22f, overflowViewportLayout.content.height, 0.01f)
+        assertTrue(overflowLayout.scrollbars[overflowViewport].orEmpty().isNotEmpty())
     }
 
     @Test

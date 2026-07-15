@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -138,7 +139,6 @@ private fun ToolbarIcon(
         modifier = Modifier.size(24.px, 24.px)
             .background(background)
             .border(1.px, if (active) TimelineColors.Accent else TimelineColors.Border, 4f)
-            .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
             .onEnter { hovered = true }
             .onExit { hovered = false }
@@ -147,12 +147,14 @@ private fun ToolbarIcon(
                 event.consume()
             },
     ) {
-        Image(
-            icon,
-            modifier = Modifier.size(14.px, 14.px)
-                .align(UiAlign.CENTER, UiAlign.CENTER)
-                .opacity(if (active || hovered) 1f else 0.8f),
-        )
+        key(icon) {
+            Image(
+                icon,
+                modifier = Modifier.size(14.px, 14.px)
+                    .align(UiAlign.CENTER, UiAlign.CENTER)
+                    .opacity(if (active || hovered) 1f else 0.8f),
+            )
+        }
     }
 }
 
@@ -224,7 +226,6 @@ private fun TimelineHeaderRow(row: TimelineRow, controller: TimelineController, 
         modifier = Modifier.position(0.px, top.px)
             .size(TimelineHeaderWidth.px, row.height.px)
             .background(color)
-            .input(hoverable = true, clickable = true)
             .onClick {
                 if (row.group != null) {
                     row.group.isCollapsed.set(!row.group.isCollapsed.value)
@@ -310,7 +311,6 @@ private fun HeaderIconToggle(icon: String, active: Boolean, accent: Boolean, onC
             .align(vertical = UiAlign.CENTER)
             .background(if (hovered) TimelineColors.PanelAlt else UiColor.Transparent)
             .borderRadius(3f)
-            .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
             .onEnter { hovered = true }
             .onExit { hovered = false }
@@ -337,7 +337,6 @@ internal fun ToolbarButton(label: String, id: String, color: UiColor = TimelineC
             .background(color)
             .border(1.px, TimelineColors.Border, 3f)
             .padding(10.px, 0.px)
-            .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
             .onClick { event ->
                 onClick()

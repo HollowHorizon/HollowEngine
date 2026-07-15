@@ -9,6 +9,7 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSessions
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneViewportDock
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -25,12 +26,11 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 
 internal const val ProjectTreeId = "ide-project-tree"
-internal const val EditorWelcomeId = "ide-code-editor"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
 internal const val CutscenePropertiesId = "ide-cutscene-properties"
+internal const val CutsceneViewportId = "ide-cutscene-viewport"
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
-internal const val CodeIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
 internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
 internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
@@ -71,7 +71,6 @@ object HollowIdeOverlay {
 
     private var lastMouseX = 0f
     private var lastMouseY = 0f
-
     init {
         initialize()
     }
@@ -95,7 +94,7 @@ object HollowIdeOverlay {
         lastMouseX = point.x
         lastMouseY = point.y
         val button = activeButton ?: return false
-        return surface.runtime.mouseDragged(point.x, point.y, button, deltaX, deltaY)
+        return surface.runtime.mouseDragged(point.x, point.y, button, deltaX, deltaY, currentUiKeyModifiers())
     }
 
     fun handleMouseButton(x: Float, y: Float, button: Int, action: Int): Boolean {
@@ -105,6 +104,7 @@ object HollowIdeOverlay {
 
         return when (action) {
             GLFW.GLFW_PRESS -> {
+                focusDockContentAt(point.x, point.y)
                 val result = surface.runtime.mouseClicked(point.x, point.y, button, currentUiKeyModifiers())
                 if (result) activeButton = button
                 result
@@ -128,20 +128,18 @@ object HollowIdeOverlay {
 
     fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (!isVisible()) return false
+        if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return false
         pipeline.await()
-        if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return hasFocusedInput()
-        if (action == GLFW.GLFW_PRESS && project.handleNameDialogKey(key)) return true
-        if (action == GLFW.GLFW_PRESS && project.handleShortcut(key, modifiers)) return true
-        if (action == GLFW.GLFW_PRESS && handleDockShortcut(key, modifiers)) return true
-        if (action == GLFW.GLFW_PRESS && dock.focusedItemId == CutsceneTimelineId &&
-            CutsceneEditorSessions.default.onHollowUiKey(key, modifiers)
-        ) {
-            return true
+        return surface.runtime.keyPressed(key, scanCode, modifiers, repeat = action == GLFW.GLFW_REPEAT)
+    }
+
+    private fun focusDockContentAt(x: Float, y: Float) {
+        var node = surface.runtime.lastFrame?.hitTest(x, y)?.node ?: return
+        while (true) {
+            val id = node.id
+            if (id != null && id.endsWith("-content") && dock.focusContent(id)) return
+            node = node.layoutState.parentNode ?: return
         }
-        if (action == GLFW.GLFW_PRESS && key == GLFW.GLFW_KEY_F4 && goToDefinition()) {
-            return true
-        }
-        return surface.runtime.keyPressed(key, scanCode, modifiers)
     }
 
     fun handleChar(codePoint: Int, modifiers: Int): Boolean {
@@ -159,15 +157,7 @@ object HollowIdeOverlay {
     private fun initialize() {
         if (initialized) return
         initialized = true
-        dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon, closable = false))
-        val projectStack = dock.stackIdOf(ProjectTreeId)
-        dock.open(
-            DockItem(EditorWelcomeId, "Code Editor", CodeIcon, closable = false),
-            DockTarget(projectStack, DockPlacement.RIGHT),
-        )
-        (dock.root as? DockNode.Split)?.let { split ->
-            dock.setSplitFraction(split.id, 0.28f)
-        }
+        dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon))
         surface.setContent { Content() }
     }
 
@@ -178,6 +168,16 @@ object HollowIdeOverlay {
             modifier = Modifier.style("hollowengine:ui/styles/ide.hss")
                 .style("hollowengine:ui/styles/widgets.hss")
                 .size(100.percent, 100.percent)
+                .focusScope()
+                .onKeyInput { input ->
+                    val handled = !input.repeat && (
+                            project.handleNameDialogKey(input.key) ||
+                                    project.handleShortcut(input.key, input.modifiers) ||
+                                    handleDockShortcut(input.key, input.modifiers) ||
+                                    input.key == GLFW.GLFW_KEY_F4 && goToDefinition()
+                            )
+                    if (handled) input.consume()
+                }
         ) {
             if (collapsed) {
                 GearButton()
@@ -202,8 +202,7 @@ object HollowIdeOverlay {
         var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
         Box(
             id = "ide-logo",
-            modifier = Modifier.input(hoverable = true, clickable = true)
-                .cursor(UiCursorShape.HAND)
+            modifier = Modifier.cursor(UiCursorShape.HAND)
                 .onClick { event ->
                     if (event.isLeftClick()) {
                         collapsed = !collapsed
@@ -317,9 +316,12 @@ object HollowIdeOverlay {
     private fun DockContent(item: DockItem) {
         when (item.id) {
             ProjectTreeId -> ProjectTree()
-            EditorWelcomeId -> EmptyEditor()
-            CutsceneTimelineId -> CutsceneTimelineDock(CutsceneEditorSessions.default)
+            CutsceneTimelineId -> CutsceneTimelineDock(
+                session = CutsceneEditorSessions.default,
+                keyboardActive = dock.focusedItemId == CutsceneTimelineId,
+            )
             CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
+            CutsceneViewportId -> CutsceneViewportDock()
             UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) }
                 ?: EmptyEditor()
@@ -435,13 +437,15 @@ object HollowIdeOverlay {
     private fun openFileDockItem(file: HollowIdeOpenFile) {
         statusText = ""
         if (!dock.contains(file.id)) {
-            val anchor = editorAnchor()
-            dock.open(file.dockItem(), anchor?.let { DockTarget(it) } ?: DockTarget.Root)
+            val hadOpenEditor = model.files.values.any { dock.contains(it.id) }
+            dock.open(file.dockItem(), editorTarget())
+            if (!hadOpenEditor) {
+                (dock.root as? DockNode.Split)?.let { split -> dock.setSplitFraction(split.id, 0.28f) }
+            }
         } else {
             dock.updateItem(file.dockItem())
             dock.focus(file.id)
         }
-        if (dock.contains(EditorWelcomeId)) dock.close(EditorWelcomeId)
     }
 
     private fun handleDockShortcut(key: Int, modifiers: Int): Boolean {
@@ -450,9 +454,12 @@ object HollowIdeOverlay {
         return dock.closeFocused()
     }
 
-    private fun editorAnchor(): String? {
-        return dock.stackIdOf(EditorWelcomeId)
-            ?: model.files.values.firstOrNull { dock.contains(it.id) }?.let { dock.stackIdOf(it.id) }
+    private fun editorTarget(): DockTarget {
+        model.files.values.firstOrNull { dock.contains(it.id) }
+            ?.let { dock.stackIdOf(it.id) }
+            ?.let { return DockTarget(it) }
+        dock.stackIdOf(ProjectTreeId)?.let { return DockTarget(it, DockPlacement.RIGHT) }
+        return DockTarget.Root
     }
 
     private fun focusedFile(): HollowIdeOpenFile? {

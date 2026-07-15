@@ -38,6 +38,7 @@ internal class EditableFieldLayout(
     val fontSize: Float,
     val fontFamily: String?,
     val contentWidth: Float,
+    val naturalWidth: Float,
     val inlayTexts: Map<String, String> = emptyMap(),
     private val inlayOffsets: Set<Int> = emptySet(),
     internal val layoutWidth: Float = Float.POSITIVE_INFINITY,
@@ -338,10 +339,11 @@ internal fun computeEditableFieldLayout(
     }
 
     offsets[lines.size] = y
-    // A trailing margin (one glyph) so the scroll runs a touch past the last column/line.
-    val contentWidth = if (wrapping) viewportWidth else maxOf(maxWidth + fontSize, viewportWidth)
+    val trailingMargin = if (multiline) fontSize else 0f
+    val naturalWidth = if (wrapping) viewportWidth else maxWidth + trailingMargin
+    val contentWidth = maxOf(naturalWidth, viewportWidth)
     return EditableFieldLayout(
-        lines, offsets, layouts, fontSize, fontFamily, contentWidth, inlayTexts,
+        lines, offsets, layouts, fontSize, fontFamily, contentWidth, naturalWidth, inlayTexts,
         inlayHints.mapTo(HashSet(inlayHints.size)) { it.offset }, layoutWidth, lineInputs,
         verticalOverscroll = multiline,
     )
@@ -573,10 +575,13 @@ fun EditableTextField(
         } else {
             0f
         }
-        val innerWidth = maxOf(layout.contentWidth, placeholderWidth)
+        val innerWidth = maxOf(layout.naturalWidth, placeholderWidth)
+        val contentModifier = Modifier.size(innerWidth.px, layout.height.px).let { base ->
+            if (multiline) base.position(gutterWidth.px, 0.px) else base.align(UiAlign.START, UiAlign.CENTER)
+        }
         Box(
             mode = UiBoxMode.STACK,
-            modifier = Modifier.position(gutterWidth.px, 0.px).size(innerWidth.px, layout.height.px),
+            modifier = contentModifier,
         ) {
             if (text.isEmpty() && placeholder.isNotEmpty()) {
                 Text(

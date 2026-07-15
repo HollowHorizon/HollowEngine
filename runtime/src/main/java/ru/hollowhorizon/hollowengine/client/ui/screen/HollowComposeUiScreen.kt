@@ -75,7 +75,9 @@ abstract class HollowComposeUiScreen(
 
     override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, dragX: Double, dragY: Double): Boolean {
         pipeline.await()
-        return surface.runtime.mouseDragged(mouseX.toFloat(), mouseY.toFloat(), button, dragX.toFloat(), dragY.toFloat())
+        return surface.runtime.mouseDragged(
+            mouseX.toFloat(), mouseY.toFloat(), button, dragX.toFloat(), dragY.toFloat(), currentUiKeyModifiers(),
+        )
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {

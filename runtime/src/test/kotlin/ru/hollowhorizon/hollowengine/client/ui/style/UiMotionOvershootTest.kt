@@ -49,4 +49,23 @@ class UiMotionOvershootTest {
         assertTrue(node.resolvedSnapshot.scale.x > 1.2f, "scale was ${node.resolvedSnapshot.scale.x}")
         assertTrue(node.resolvedSnapshot.rotate.z > 360f, "rotation was ${node.resolvedSnapshot.rotate.z}")
     }
+
+    @Test
+    fun `stroke alias participates in hss transitions`() {
+        val stylesheet = compileHss(
+            """
+                .key { stroke: #000000; transition: stroke 200ms linear; }
+                .key:hover { stroke: #ffffff; }
+            """.trimIndent(),
+        )
+        val node = BoxNode(tags = listOf("key"))
+        val resolver = UiModifierResolver(stylesheet = stylesheet)
+        resolver.resolve(node, nowMillis = 0L)
+        node.states += UiState.HOVER
+        resolver.resolve(node, nowMillis = 1L)
+        resolver.resolve(node, nowMillis = 101L)
+
+        val color = (node.resolvedSnapshot.shapeStroke as UiPaint.Color).color
+        assertTrue(color.red in 0.45f..0.55f, "stroke changed without interpolation: ${color.red}")
+    }
 }

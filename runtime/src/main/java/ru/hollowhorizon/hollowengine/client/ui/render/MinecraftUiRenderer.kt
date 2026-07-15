@@ -287,6 +287,7 @@ class MinecraftUiRenderer {
             is DrawShapeCommand -> drawShape(command)
             is DrawTextCommand -> drawText(command)
             is DrawImageCommand -> drawImage(command)
+            is DrawRawTextureCommand -> drawRawTexture(command)
             is DrawItemCommand -> drawItem(command)
             is DrawEntityCommand -> drawEntity(command)
         }
@@ -440,6 +441,13 @@ class MinecraftUiRenderer {
 
                 is DrawImageCommand -> if (command.phase == phase) {
                     appendPhaseImage(command)
+                }
+
+                is DrawRawTextureCommand -> if (command.phase == phase) {
+                    computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
+                    flushBatchesOverlappingQuad(except = null)
+                    setScissor(phaseClip)
+                    drawRawTexture(command)
                 }
 
                 is DrawTextCommand -> if (command.phase == phase) {
@@ -1233,6 +1241,21 @@ class MinecraftUiRenderer {
                 command.rect.width, command.rect.height, command.border.radius, borderWidth, borderColor, transform
             )
         }
+    }
+
+    private fun drawRawTexture(command: DrawRawTextureCommand) {
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        UiTextureEffects.drawTexture(
+            texture = command.textureId,
+            width = command.rect.width,
+            height = command.rect.height,
+            transform = transform,
+            opacity = command.opacity,
+            flipY = command.flipY,
+            filter = command.filter,
+        )
     }
 
     private fun drawShape(command: DrawShapeCommand) {

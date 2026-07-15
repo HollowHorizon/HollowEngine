@@ -257,6 +257,7 @@ class HollowUiInputController {
         button: Int,
         deltaX: Float,
         deltaY: Float,
+        modifiers: Int,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
         val node = draggingNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
@@ -290,6 +291,7 @@ class HollowUiInputController {
             deltaY = deltaY,
             dragTotalX = mouseX - dragStartX,
             dragTotalY = mouseY - dragStartY,
+            modifiers = modifiers,
         )
         val handled = dispatch(event)
         return UiInputResult(handled, node, node.id)
@@ -357,7 +359,7 @@ class HollowUiInputController {
             val event =
                 UiEvent(UiEventKind.CHAR_TYPED, node, frame = frame, modifiers = modifiers, codePoint = codePoint.code)
             if (dispatch(event)) handled = true
-            if (event.consumed) return UiInputResult(true, node, node.id)
+            if (event.consumed) return UiInputResult(true, node, node.id, consumed = true)
         }
         return UiInputResult(handled, primaryFocus(), primaryFocus()?.id)
     }
@@ -379,6 +381,7 @@ class HollowUiInputController {
         keyCode: Int,
         scanCode: Int,
         modifiers: Int,
+        repeat: Boolean,
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
         val targets = focusTargets(frame)
@@ -394,12 +397,13 @@ class HollowUiInputController {
                 key = keyCode,
                 scanCode = scanCode,
                 modifiers = effectiveModifiers,
+                repeat = repeat,
             )
             if (dispatch(event)) handled = true
-            if (event.consumed) return UiInputResult(true, node, node.id)
+            if (event.consumed) return UiInputResult(true, node, node.id, consumed = true)
         }
         if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
-            return UiInputResult(true, primaryFocus(), primaryFocus()?.id)
+            return UiInputResult(true, primaryFocus(), primaryFocus()?.id, consumed = true)
         }
         return UiInputResult(handled, primaryFocus(), primaryFocus()?.id)
     }
@@ -555,6 +559,7 @@ data class UiInputResult(
     val node: UiNode? = null,
     val nodeKey: String? = null,
     val changed: Boolean = false,
+    val consumed: Boolean = false,
 )
 
 private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {

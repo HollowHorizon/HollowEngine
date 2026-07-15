@@ -4,16 +4,28 @@ import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.UiScope
 import org.junit.jupiter.api.Test
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.gui.timeline.*
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CameraCutsceneTracks
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutscenePlaybackController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneTrackRegistry
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.EasingRegistry
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.snapTimelineTime
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class CutsceneTest {
+
+    @Test
+    fun `timeline snapping follows drag modifiers`() {
+        assertEquals(1f, snapTimelineTime(1.24f, GLFW.GLFW_MOD_ALT))
+        assertEquals(2f, snapTimelineTime(1.76f, GLFW.GLFW_MOD_ALT))
+        assertEquals(1f, snapTimelineTime(1.24f, GLFW.GLFW_MOD_SHIFT))
+        assertEquals(1.5f, snapTimelineTime(1.26f, GLFW.GLFW_MOD_SHIFT))
+        assertEquals(1.24f, snapTimelineTime(1.24f, GLFW.GLFW_MOD_CONTROL))
+        assertEquals(1.24f, snapTimelineTime(1.24f, 0))
+    }
 
     @Test
     fun `easing registry resolves all names`() {

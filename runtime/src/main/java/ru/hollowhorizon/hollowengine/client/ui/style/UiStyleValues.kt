@@ -194,6 +194,11 @@ internal fun interpolatePaint(from: UiPaint, to: UiPaint, progress: Float): UiPa
     return if (progress >= 1f) to else from
 }
 
+internal fun interpolateOptionalPaint(from: UiPaint?, to: UiPaint?, progress: Float): UiPaint? {
+    if (from == null || to == null) return if (progress >= 1f) to else from
+    return interpolatePaint(from, to, progress)
+}
+
 private fun interpolateStops(from: List<UiGradientStop>, to: List<UiGradientStop>, progress: Float) =
     from.zip(to) { start, target ->
         UiGradientStop(

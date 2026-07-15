@@ -118,8 +118,12 @@ object UiProps {
     val ImageFit = prop("image-fit", UiImageFit.STRETCH)
     val ImageSlice = prop("image-slice", UiInsets.all(4.px))
     val NodeShape = prop<Shape?>("shape", null)
-    val ShapeFill = prop<UiPaint?>("shape-fill", null)
-    val ShapeStroke = prop<UiPaint?>("shape-stroke", null)
+    val ShapeFill = prop<UiPaint?>(
+        "shape-fill", null, aliases = setOf("fill"), interpolate = ::interpolateOptionalPaint,
+    )
+    val ShapeStroke = prop<UiPaint?>(
+        "shape-stroke", null, aliases = setOf("stroke"), interpolate = ::interpolateOptionalPaint,
+    )
     val ShapeStrokeWidth = prop<UiLength?>("shape-stroke-width", null)
     val Translate =
         prop(

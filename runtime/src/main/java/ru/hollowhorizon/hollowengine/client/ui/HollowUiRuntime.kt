@@ -290,7 +290,8 @@ class HollowUiRuntime(
                     frame, input.mouseX, input.mouseY, ::setScrollImmediate,
                 )
                 if (scrollbarResult.handled) scrollbarResult else this.input.mouseDragged(
-                    frame, input.mouseX, input.mouseY, input.button, input.dragX, input.dragY, ::dispatchUiEvent,
+                    frame, input.mouseX, input.mouseY, input.button, input.dragX, input.dragY,
+                    input.modifiers, ::dispatchUiEvent,
                 )
             }
 
@@ -299,7 +300,9 @@ class HollowUiRuntime(
                 this.input.charTyped(frame, input.codePoint, input.modifiers, ::dispatchUiEvent)
 
             is QueuedUiInput.KeyPressed ->
-                this.input.keyPressed(frame, input.keyCode, input.scanCode, input.modifiers, ::dispatchUiEvent)
+                this.input.keyPressed(
+                    frame, input.keyCode, input.scanCode, input.modifiers, input.repeat, ::dispatchUiEvent,
+                )
         }
     }
 
@@ -429,8 +432,16 @@ class HollowUiRuntime(
     fun mouseReleased(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean =
         profileInput { dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button, modifiers)) }
 
-    fun mouseDragged(mouseX: Float, mouseY: Float, button: Int, dragX: Float, dragY: Float): Boolean =
-        profileInput { dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY)) }
+    fun mouseDragged(
+        mouseX: Float,
+        mouseY: Float,
+        button: Int,
+        dragX: Float,
+        dragY: Float,
+        modifiers: Int = currentUiKeyModifiers(),
+    ): Boolean = profileInput {
+        dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY, modifiers))
+    }
 
     fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float): Boolean = profileInput {
         val frame = lastFrame ?: return@profileInput false
@@ -449,10 +460,10 @@ class HollowUiRuntime(
         processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(isAnyFocused)
     }
 
-    fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean = profileInput {
+    fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int, repeat: Boolean = false): Boolean = profileInput {
         val frame = lastFrame ?: return@profileInput false
-        val result = processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers))
-        result.handled || result.changed
+        val result = processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers, repeat))
+        result.consumed || result.changed
     }
 
     private inline fun profileInput(block: () -> Boolean): Boolean {

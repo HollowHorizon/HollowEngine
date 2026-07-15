@@ -4,7 +4,6 @@ import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderArmEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
@@ -66,12 +65,11 @@ object CutsceneCameraSystem {
 
     @SubscribeEvent
     fun onRenderOverlays(event: RenderOverlayEvent.Pre) {
-        if (event.overlay == GuiOverlay.CHAT_PANEL) return
-        if (controller?.isPlaying == true) event.isCanceled = true
+        if (controller != null) event.isCanceled = true
     }
 
     @SubscribeEvent
     fun onRenderHand(event: RenderArmEvent) {
-        if (controller?.isPlaying == true) event.isCanceled = true
+        if (controller != null) event.isCanceled = true
     }
 }

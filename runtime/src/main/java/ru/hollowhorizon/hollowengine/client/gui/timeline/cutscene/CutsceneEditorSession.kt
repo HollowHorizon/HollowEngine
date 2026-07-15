@@ -3,9 +3,6 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
-import ru.hollowhorizon.hollowengine.common.utils.rl
 
 class CutsceneEditorSession {
     val playback = CutscenePlaybackController()
@@ -18,21 +15,26 @@ class CutsceneEditorSession {
     }
 
     init {
-        loadTimelineIcons()
         timeline.workAreaEnd.set(playback.duration)
         timeline.addTrack(listOf("Camera", "Transform"), playback.positionTrack)
         timeline.addTrack(listOf("Camera", "Transform"), playback.rotationTrack)
         timeline.addTrack(listOf("Camera", "Lens"), playback.fovTrack)
-        timeline.onChanged = ::syncPlaybackFromTimeline
-        timeline.onTimeChanged = ::syncPlaybackFromTimeline
-        timeline.onPreviewChanged = ::updatePreviewState
+        timeline.onChanged = {
+            syncPlaybackFromTimeline()
+            invalidateUi()
+        }
+        timeline.onTimeChanged = {
+            syncPlaybackFromTimeline()
+            invalidateUi()
+        }
+        timeline.onPreviewChanged = {
+            updatePreviewState()
+            invalidateUi()
+        }
     }
 
-    fun update() = update(null)
-
-    /** [deltaSeconds] = null falls back to Kool's clock; the new-UI editor passes the Compose frame delta. */
-    fun update(deltaSeconds: Float?) {
-        if (deltaSeconds == null) timeline.onUpdate() else timeline.onUpdate(deltaSeconds)
+    fun update(deltaSeconds: Float) {
+        timeline.onUpdate(deltaSeconds)
         syncPlaybackFromTimeline()
     }
 
@@ -114,25 +116,6 @@ class CutsceneEditorSession {
         }
     }
 
-    private fun loadTimelineIcons() {
-        timeline.iconPrev = loadIcon("step_backward.svg")
-        timeline.iconPlay = loadIcon("play.svg")
-        timeline.iconPause = loadIcon("pause.svg")
-        timeline.iconNext = loadIcon("step_forward.svg")
-        timeline.iconZoomOut = loadIcon("zoom_out.svg")
-        timeline.iconZoomIn = loadIcon("zoom_in.svg")
-        timeline.iconPulse = loadIcon("pulse.svg")
-        timeline.iconFilm = loadIcon("film.svg")
-        timeline.iconCompress = loadIcon("compress.svg")
-        timeline.iconSave = loadIcon("save.svg")
-        timeline.iconLoad = loadIcon("load.svg")
-        timeline.visible = loadIcon("visible.svg")
-        timeline.invisible = loadIcon("invisible.svg")
-        timeline.unlocked = loadIcon("unlocked.svg")
-        timeline.locked = loadIcon("locked.svg")
-        timeline.arrow = loadIcon("arrow.svg")
-    }
-
     fun exportCutscene(path: String, name: String) {
         CutsceneStorage.save(path, name, playback.toData(name))
     }
@@ -147,11 +130,6 @@ class CutsceneEditorSession {
         timeline.clearHistory()
         updatePreviewState()
     }
-
-    private fun loadIcon(name: String) = ImageManager.load(
-        "hollowengine:textures/gui/icons/$name".rl,
-        SamplerMode.NEAREST,
-    )
 }
 
 private const val KEYFRAME_NUDGE_SMALL = 0.05f

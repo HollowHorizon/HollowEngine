@@ -55,3 +55,8 @@ fun Texture2d.rebindIfDepth(target: RenderTarget) {
         }
     }
 }
+
+fun cutsceneViewportTextureId(): Int {
+    CUTSCENE_VIEWPORT.rebindIfDepth(Minecraft.getInstance().mainRenderTarget)
+    return (CUTSCENE_VIEWPORT.gpuTexture as LoadedTextureGl).glTexture.handle
+}

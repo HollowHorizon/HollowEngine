@@ -16,7 +16,6 @@ internal sealed interface UiTextFont {
 
 internal object UiTextFonts {
     private const val EstimatedGlyphWidth = 6f
-    private const val LegacyDefaultFamily = "minecraft:default"
     private val resolvedFonts = ConcurrentHashMap<String, UiTextFont>()
 
     fun defaultedFamily(fontFamily: String?): String {

@@ -122,7 +122,11 @@ internal fun UiLayoutPipeline.placeLinearChildren(
     for (child in children) {
         val position = child.style.position.resolve(content.width, content.height)
         val align = child.crossAlign(style, parentAxis, axis)
-        val mainSize = child.placedMainSize(axis, content, lazy)
+        val mainOverflow = when (axis) {
+            FlowAxis.Horizontal -> allowWidthOverflow
+            FlowAxis.Vertical -> allowHeightOverflow
+        }
+        val mainSize = child.placedMainSize(axis, content, lazy || mainOverflow)
         val crossOverflow = if (axis == FlowAxis.Vertical) allowWidthOverflow else allowHeightOverflow
         val crossSize = child.placedCrossSize(axis, content, align, crossOverflow)
         val rect = axis.placedRect(content, child, position, main, mainSize, crossSize, align)
@@ -417,10 +421,10 @@ private fun MeasuredChild.crossAlign(parentStyle: UiComputedStyle, parentAxis: F
     }
 }
 
-private fun MeasuredChild.placedMainSize(axis: FlowAxis, content: UiRect, lazy: Boolean): Float {
+private fun MeasuredChild.placedMainSize(axis: FlowAxis, content: UiRect, allowOverflow: Boolean): Float {
     val available = (axis.mainSize(content) - mainMargins(axis)).coerceAtLeast(0f)
     val size = mainSize(axis)
-    return if (lazy) size else size.coerceAtMost(available)
+    return if (allowOverflow) size else size.coerceAtMost(available)
 }
 
 private fun MeasuredChild.placedCrossSize(axis: FlowAxis, content: UiRect, align: UiAlign, allowOverflow: Boolean): Float {
@@ -564,7 +568,7 @@ private fun MeasuredChild.outerCross(axis: FlowAxis): Float {
 
 private fun MeasuredChild.hasFixedMain(axis: FlowAxis): Boolean {
     return when (axis) {
-        FlowAxis.Horizontal -> style.size.width is UiLength.Px
-        FlowAxis.Vertical -> style.size.height is UiLength.Px
+        FlowAxis.Horizontal -> style.size.width is UiLength.Px || style.size.width is UiLength.Fit
+        FlowAxis.Vertical -> style.size.height is UiLength.Px || style.size.height is UiLength.Fit
     }
 }

@@ -10,6 +10,8 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.easingTypes
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 
 @Composable
@@ -28,7 +30,7 @@ internal fun HollowTimelineProperties(
             .border(1.px, TimelineColors.Border)
             .padding(10.px)
             .gap(8.px)
-            .scroll(vertical = true, horizontal = true)
+            .scroll(vertical = true)
     ) {
         Text("Properties", modifier = Modifier.fontSize(13f).foreground(TimelineColors.Text))
         PreviewSection(controller, refresh)
@@ -79,15 +81,15 @@ private fun KeyframeSection(
     val selectionCount = controller.selectedKeyframes.size
     Section(if (selectionCount == 1) "Keyframe" else "$selectionCount Keyframes") {
         FloatField("Time", keyframe.time, 0f, controller.workAreaEnd.value) { time ->
-            controller.nudgeSelectedKeyframes(time - keyframe.time)
+            controller.nudgeSelectedKeyframes(snapTimelineTime(time, currentUiKeyModifiers()) - keyframe.time)
             refresh()
         }
         ValueEditor(keyframe, controller, refresh)
     }
-    Section("Easing") {
+    Section("Easing", id = "timeline-easing-section") {
         val active = easingTypes.firstOrNull { category -> category.variants.any { it.function == keyframe.easing } }
         EasingPreview(keyframe)
-        EasingFlow {
+        EasingFlow(id = "timeline-easing-categories") {
             easingTypes.forEach { category ->
                 EasingPill(category.name, active == category) {
                     val variant = category.variants.getOrNull(2) ?: category.variants.first()
@@ -98,7 +100,7 @@ private fun KeyframeSection(
         }
         active?.variants?.takeIf { it.size > 1 }?.let { variants ->
             Text("Curve", modifier = Modifier.fontSize(9f).foreground(TimelineColors.Muted))
-            EasingFlow {
+            EasingFlow(id = "timeline-easing-variants") {
                 variants.forEach { variant ->
                     EasingPill(variant.name, keyframe.easing == variant.function) {
                         updateSelectedEasing(controller, variant.function)
@@ -118,7 +120,7 @@ private fun KeyframeSection(
 private fun WorkAreaSection(controller: TimelineController, refresh: () -> Unit) {
     Section("Work Area") {
         FloatField("End", controller.workAreaEnd.value, 0.1f, Float.POSITIVE_INFINITY) { time ->
-            controller.workAreaEnd.set(time.coerceAtLeast(0.1f))
+            controller.workAreaEnd.set(snapTimelineTime(time, currentUiKeyModifiers()).coerceAtLeast(0.1f))
             if (controller.currentTime.value > controller.workAreaEnd.value) controller.setCurrentTime(0f)
             refresh()
         }
@@ -191,33 +193,41 @@ private fun ValueEditor(
 
 @Composable
 private fun EasingPreview(keyframe: Keyframe<*>) {
-    Box(
-        modifier = Modifier.size(100.percent, 46.px)
-            .background(TimelineColors.Background)
-            .border(1.px, TimelineColors.Border, 3f)
-            .clip(),
-    ) {
-        val samples = 36
-        for (i in 0..samples) {
-            val t = i / samples.toFloat()
-            val eased = keyframe.easing.eased(t).coerceIn(0f, 1f)
-            val xPercent = 8f + t * 84f
-            val yPercent = 6f + (1f - eased) * 88f
-            Box(
-                modifier = Modifier.position(xPercent.percent - 1.5f.px, yPercent.percent - 1.5f.px)
-                    .size(3.px, 3.px)
-                    .background(TimelineColors.Blue)
-                    .borderRadius(1.5f),
-            )
-        }
-    }
+    EasingPreview(keyframe.easing)
 }
 
 @Composable
-private fun EasingFlow(content: HollowUiContent) {
+internal fun EasingPreview(easing: Easing.Easing) {
+    val curve = remember(easing) {
+        GenericShape { size ->
+            val samples = 64
+            for (i in 0..samples) {
+                val t = i / samples.toFloat()
+                val eased = easing.eased(t).coerceIn(0f, 1f)
+                val x = size.width * (0.08f + t * 0.84f)
+                val y = size.height * (0.06f + (1f - eased) * 0.88f)
+                if (i == 0) moveTo(x, y) else lineTo(x, y)
+            }
+        }
+    }
+    Box(
+        id = "timeline-easing-preview",
+        modifier = Modifier.size(100.percent, 200.px)
+            .background(TimelineColors.Background)
+            .border(1.px, TimelineColors.Border, 3f)
+            .clip()
+            .draw(key = easing) {
+                drawShape(curve, UiPaint.Color(TimelineColors.Blue), UiDrawStyle.Stroke(1.5f))
+            },
+    )
+}
+
+@Composable
+private fun EasingFlow(id: String? = null, content: HollowUiContent) {
     Layout(
+        id = id,
         content = content,
-        modifier = Modifier.size(100.percent, UiLength.Auto).gap(4.px),
+        modifier = Modifier.size(100.percent, UiLength.Fit).gap(4.px).lineSpacing(4f).textWrap(),
         measurePolicy = UiMeasurePolicies.InlineFlow,
     )
 }
@@ -229,7 +239,6 @@ private fun EasingPill(label: String, active: Boolean, onClick: () -> Unit) {
         modifier = Modifier.background(if (active) TimelineColors.Blue else TimelineColors.Background)
             .border(1.px, if (active) UiColor.White else TimelineColors.Border, 4f)
             .padding(8.px, 3.px)
-            .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
             .onClick {
                 onClick()
@@ -244,9 +253,10 @@ private fun EasingPill(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+private fun Section(title: String, id: String? = null, content: @Composable () -> Unit) {
     Column(
-        modifier = Modifier.size(100.percent, UiLength.Auto)
+        id = id,
+        modifier = Modifier.size(100.percent, UiLength.Fit)
             .background(TimelineColors.PanelAlt)
             .border(1.px, TimelineColors.Border, 4f)
             .padding(8.px)
@@ -289,7 +299,8 @@ private fun FloatField(
     val text = remember(label, formatted) { mutableStateOf(formatted) }
     Row(
         modifier =
-            Modifier.size(100.percent, 24.px)
+            Modifier.size(100.percent, UiLength.Fit)
+                .minSize(height = 24.px)
                 .alignItems(vertical = UiAlign.CENTER)
                 .gap(8.px)
     ) {
@@ -314,7 +325,7 @@ private fun FloatField(
                 .grow(1f)
                 .background(TimelineColors.Background)
                 .border(1.px, TimelineColors.Border, 3f)
-                .padding(5.px, 2.px)
+                .padding(5.px, 0.px)
                 .foreground(TimelineColors.Text)
                 .fontSize(10f)
                 .textAlign(UiTextAlign.RIGHT),
@@ -328,7 +339,6 @@ private fun TogglePill(label: String, active: Boolean, onClick: () -> Unit) {
         modifier = Modifier.size(88.px, 22.px)
             .background(if (active) TimelineColors.Blue else TimelineColors.Background)
             .border(1.px, if (active) UiColor.White else TimelineColors.Border, 4f)
-            .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
             .onClick {
                 onClick()

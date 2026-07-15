@@ -3,13 +3,8 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.PointerEvent
-import de.fabmax.kool.modules.ui2.ScrollState
 import de.fabmax.kool.modules.ui2.mutableStateListOf
 import de.fabmax.kool.modules.ui2.mutableStateOf
-import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.util.Time
-import kotlinx.coroutines.Job
 import kotlin.math.abs
 
 class TimelineController {
@@ -27,46 +22,16 @@ class TimelineController {
     val playbackSpeed = mutableStateOf(1f)
 
     val pixelsPerSecond = mutableStateOf(100f)
-    val scrollState = ScrollState()
-    val propertiesPanelWidth = mutableStateOf(250f)
 
     val selectedKeyframes = mutableStateListOf<Keyframe<*>>()
     val isWorkAreaSelected = mutableStateOf(false)
     val isCameraPreviewEnabled = mutableStateOf(false)
 
-    val isEasingListExpanded = mutableStateOf(true)
-
-    var activeDragKeyframe: Keyframe<*>? = null
-    var isDraggingWorkAreaEnd = false
-    var seekJob: Job? = null
     val history = TimelineHistory(this)
 
     var onChanged: (() -> Unit)? = null
     var onTimeChanged: (() -> Unit)? = null
     var onPreviewChanged: (() -> Unit)? = null
-    var onTrackContextMenu: ((PointerEvent, AnimTrack<*>) -> Unit)? = null
-    var onTrackHeaderContextMenu: ((PointerEvent, AnimTrack<*>) -> Unit)? = null
-    var onTrackLaneContextMenu: ((PointerEvent, AnimTrack<*>) -> Unit)? = null
-    var trackContextMenuTime: Float? = null
-
-    lateinit var iconPrev: Texture2d
-    lateinit var iconPlay: Texture2d
-    lateinit var iconPause: Texture2d
-    lateinit var iconNext: Texture2d
-    lateinit var iconZoomOut: Texture2d
-    lateinit var iconZoomIn: Texture2d
-    lateinit var iconPulse: Texture2d
-    lateinit var iconFilm: Texture2d
-    lateinit var iconCompress: Texture2d
-    lateinit var iconSave: Texture2d
-    lateinit var iconLoad: Texture2d
-    lateinit var visible: Texture2d
-    lateinit var invisible: Texture2d
-    lateinit var unlocked: Texture2d
-    lateinit var locked: Texture2d
-    lateinit var arrow: Texture2d
-
-
     fun addTrack(groupName: String, track: BaseAnimTrack) = addTrack(listOf(groupName), track)
 
     fun addTrack(groupPath: List<String>, track: BaseAnimTrack) {
@@ -91,12 +56,6 @@ class TimelineController {
         return group ?: error("Timeline group path is empty")
     }
 
-    fun onUpdate() = onUpdate(Time.deltaT)
-
-    /**
-     * Advances playback by an explicit [deltaSeconds]. The new-UI editor drives this from the Compose
-     * frame clock rather than Kool's [Time.deltaT], which is only ticked while a Kool surface renders.
-     */
     fun onUpdate(deltaSeconds: Float) {
         if (isPlaying.value) {
             setCurrentTime(currentTime.value + deltaSeconds * playbackSpeed.value)

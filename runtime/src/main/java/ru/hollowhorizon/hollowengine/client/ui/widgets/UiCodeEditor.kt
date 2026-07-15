@@ -59,7 +59,7 @@ fun UiCodeEditor(
     )
 }
 
-private const val CodeEditorFontFamily = "minecraft:default"
+private const val CodeEditorFontFamily = "hollowengine:fonts/monocraft"
 
 private val CodeEditorTextShadow = Shadow(offsetX = 0f, offsetY = 1f, blur = 2f, color = UiColor(1f, 1f, 1f, 0.4f))
 private val CodeEditorCaretColor = UiColor(0.941f, 0.965f, 1f, 1f)

@@ -77,6 +77,10 @@ interface UiCanvasDrawScope {
     fun drawSvg(document: UiSvgPathDocument, rect: UiRect)
 
     fun drawSvg(document: UiSvgPathDocument) = drawSvg(document, bounds)
+
+    fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false)
+
+    fun drawTexture(textureId: Int, flipY: Boolean = false) = drawTexture(bounds, textureId, flipY)
 }
 
 enum class UiCanvasDrawLayer {
@@ -173,6 +177,21 @@ internal class UiCommandCanvasScope(
             phase = phase,
             strokeLineCap = (style as? UiDrawStyle.Stroke)?.lineCap ?: UiPathStrokeLineCap.Round,
             strokeLineJoin = (style as? UiDrawStyle.Stroke)?.lineJoin ?: UiPathStrokeLineJoin.Round,
+        )
+    }
+
+    override fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean) {
+        if (!rect.isDrawable() || textureId == 0 || opacity <= 0f) return
+        sink += DrawRawTextureCommand(
+            node = node,
+            rect = rect.toCommandRect(),
+            textureId = textureId,
+            opacity = opacity,
+            flipY = flipY,
+            transform = layoutNode.worldTransform.translated(rect.x, rect.y),
+            filter = filter,
+            backfaceVisibility = backfaceVisibility,
+            phase = phase,
         )
     }
 

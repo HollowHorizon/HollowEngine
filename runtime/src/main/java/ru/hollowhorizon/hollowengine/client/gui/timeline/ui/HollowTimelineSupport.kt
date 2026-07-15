@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.BaseAnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
@@ -17,6 +18,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.round
 
 internal const val TimelineHeaderWidth = 220f
 internal const val TimelineRulerHeight = 28f
@@ -118,9 +120,16 @@ internal fun timelineContentWidth(
     return max(TimelineMinContentWidth, max(max(endWidth, keyWidth), viewportWidth))
 }
 
-internal fun timelineTimeAt(localX: Float, pixelsPerSecond: Float, workAreaEnd: Float): Float {
-    return ((localX - TimelineLeftPadding) / pixelsPerSecond)
-        .coerceIn(0f, workAreaEnd)
+internal fun timelineTimeAt(localX: Float, pixelsPerSecond: Float, workAreaEnd: Float, modifiers: Int = 0): Float =
+    snapTimelineTime((localX - TimelineLeftPadding) / pixelsPerSecond, modifiers).coerceIn(0f, workAreaEnd)
+
+internal fun snapTimelineTime(time: Float, modifiers: Int): Float {
+    val step = when {
+        modifiers and GLFW.GLFW_MOD_ALT != 0 -> 1f
+        modifiers and GLFW.GLFW_MOD_SHIFT != 0 -> 0.5f
+        else -> return time
+    }
+    return round(time / step) * step
 }
 
 internal fun timelineTimeDelta(deltaX: Float, pixelsPerSecond: Float): Float {

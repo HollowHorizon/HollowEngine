@@ -11,6 +11,7 @@ data class UiKeyInput(
     val key: Int get() = event.key
     val scanCode: Int get() = event.scanCode
     val modifiers: Int get() = event.modifiers
+    val repeat: Boolean get() = event.repeat
     val shift: Boolean get() = modifiers and GLFW.GLFW_MOD_SHIFT != 0
     val control: Boolean get() = modifiers and GLFW.GLFW_MOD_CONTROL != 0
     val alt: Boolean get() = modifiers and GLFW.GLFW_MOD_ALT != 0

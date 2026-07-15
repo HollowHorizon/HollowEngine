@@ -97,6 +97,14 @@ class DockingState {
         return true
     }
 
+    fun focusContent(contentNodeId: String): Boolean {
+        val containerId = contentNodeId.removeSuffix("-content")
+        val stack = findStack(containerId)
+            ?: floatingWindows.firstOrNull { it.id == containerId }?.stack
+            ?: return false
+        return stack.selectedItem?.let { focus(it.id) } ?: false
+    }
+
     fun select(itemId: String): Boolean = focus(itemId)
 
     fun dock(itemId: String, target: DockTarget): Boolean {

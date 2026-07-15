@@ -151,6 +151,14 @@ private class PadPiece(
     override val height: Float get() = 0f
 }
 
+/** A container gap. It may be discarded at a line edge, unlike preserved whitespace. */
+private class GapPiece(
+    override val width: Float,
+    override val group: GroupCtx?,
+) : Piece() {
+    override val height: Float get() = 0f
+}
+
 private class BreakPiece(override val group: GroupCtx?) : Piece() {
     override val width: Float get() = 0f
     override val height: Float get() = 0f
@@ -207,7 +215,10 @@ private fun UiLayoutPipeline.tokenizeInline(
     out: MutableList<Piece>,
     groups: MutableList<GroupCtx>,
 ) {
+    val gap = resolved[parent].gap.resolve(availableWidth).coerceAtLeast(0f)
+    var hasPreviousChild = false
     for (child in nodes) {
+        if (hasPreviousChild && gap > 0f) out += GapPiece(gap, enclosingGroup)
         val style = resolved[child]
         when {
             child is SpanNode -> {
@@ -243,6 +254,7 @@ private fun UiLayoutPipeline.tokenizeInline(
                 )
             }
         }
+        hasPreviousChild = true
     }
 }
 
@@ -328,8 +340,10 @@ private class FlowLine {
     var top = 0f
     val naturalWidth: Float get() = width
 
-    fun trimTrailingSpaces() {
-        while (pieces.lastOrNull().let { it is SpacePiece && !it.preserve }) width -= pieces.removeLast().width
+    fun trimTrailingBreakables() {
+        while (pieces.lastOrNull().let { it is GapPiece || it is SpacePiece && !it.preserve }) {
+            width -= pieces.removeLast().width
+        }
     }
 }
 
@@ -339,7 +353,7 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
     var line = FlowLine()
 
     fun commit(hard: Boolean) {
-        line.trimTrailingSpaces()
+        line.trimTrailingBreakables()
         line.hardBreak = hard
         lines += line
         line = FlowLine()
@@ -353,12 +367,13 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
                 breakBefore = false
             }
 
-            is SpacePiece -> {
-                if (line.pieces.isNotEmpty() || piece.preserve) {
+            is SpacePiece, is GapPiece -> {
+                val preserve = piece is SpacePiece && piece.preserve
+                if (line.pieces.isNotEmpty() || preserve) {
                     line.pieces += piece
                     line.width += piece.width
                 }
-                breakBefore = true
+                breakBefore = !preserve
             }
 
             is PadPiece -> {

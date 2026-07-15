@@ -152,6 +152,19 @@ data class DrawImageCommand(
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
+/** Draws an existing OpenGL texture without registering it as a Minecraft resource. */
+data class DrawRawTextureCommand(
+    override val node: UiNode,
+    val rect: UiRect,
+    val textureId: Int,
+    val opacity: Float,
+    val flipY: Boolean,
+    val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+) : UiRenderCommand
+
 data class DrawItemCommand(
     override val node: UiNode,
     val rect: UiRect,
@@ -235,6 +248,7 @@ private fun UiRenderCommand.drawsPixels(): Boolean = when (this) {
     is DrawShapeCommand,
     is DrawTextCommand,
     is DrawImageCommand,
+    is DrawRawTextureCommand,
     is DrawItemCommand,
     is DrawEntityCommand,
         -> true

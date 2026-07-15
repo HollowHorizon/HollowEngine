@@ -194,10 +194,16 @@ internal fun UiLayoutPipeline.measureNodeContent(
     val style = resolved[node]
     val referenceWidth = availableWidth.coerceAtLeast(0f)
     val referenceHeight = availableHeight.coerceAtLeast(0f)
-    val insets =
-        style.outerInsets(referenceWidth, referenceHeight, scrollbarReserves[node] ?: UiScrollbarReserve.None)
+    val reserve = scrollbarReserves[node] ?: UiScrollbarReserve.None
+    val insets = style.outerInsets(referenceWidth, referenceHeight, reserve)
     var width = widthOverride ?: style.size.width.resolveOrNull(referenceWidth, deferFlexibleWidth)
     var height = heightOverride ?: style.size.height.resolveOrNull(referenceHeight, deferFlexibleHeight)
+    if (widthOverride == null && width != null && style.size.width is UiLength.Px && reserve.vertical) {
+        width += style.scrollbar.resolved(referenceWidth).gutter
+    }
+    if (heightOverride == null && height != null && style.size.height is UiLength.Px && reserve.horizontal) {
+        height += style.scrollbar.resolved(referenceHeight).gutter
+    }
     style.aspectRatio?.let { ratio ->
         if (width == null && height != null) width = height * ratio
         if (height == null && width != null) height = width / ratio

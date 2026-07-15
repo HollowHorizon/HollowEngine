@@ -840,6 +840,8 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
+        if (HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)) return true
+
         val event = when (action) {
             org.lwjgl.glfw.GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN
             org.lwjgl.glfw.GLFW.GLFW_REPEAT -> KeyboardInput.KEY_EV_DOWN or KeyboardInput.KEY_EV_REPEATED
@@ -855,13 +857,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
         }
 
-        HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)
         return false
     }
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
+        if (HollowIdeOverlay.handleChar(codePoint, modifiers)) return true
         KeyboardInput.handleCharTyped(codePoint.toChar())
-        HollowIdeOverlay.handleChar(codePoint, modifiers)
         return false
     }
 

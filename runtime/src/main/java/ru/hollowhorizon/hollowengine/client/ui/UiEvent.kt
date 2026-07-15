@@ -96,6 +96,7 @@ data class UiEvent(
     val key: Int = 0,
     val scanCode: Int = 0,
     val modifiers: Int = 0,
+    val repeat: Boolean = false,
     val codePoint: Int = 0,
     val released: Boolean = false,
 ) {
@@ -121,6 +122,7 @@ data class UiEvent(
         val normalized = path.removePrefix("it.").removePrefix("event.")
         return when (normalized) {
             "kind" -> kind.name.lowercase()
+            "repeat" -> repeat
             "node.id", "id" -> node.id.orEmpty()
             "node.type", "type" -> node.type
             "node.value", "value" -> node.readWidgetValue()

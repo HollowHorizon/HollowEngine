@@ -155,7 +155,7 @@
     line-numbers: true;
     line-number-color: #556070;
     inlay-hint-color: #687588;
-    font-family: minecraft:default;
+    font-family: hollowengine:fonts/monocraft;
     font-size: 10px;
     scrollbar: 7px;
     scrollbar-track: rgba(255, 255, 255, 0.03);
@@ -264,4 +264,27 @@
     foreground: #edf3ff;
     font-size: 11px;
     text-wrap: true;
+}
+
+.timeline-keyframe-visual {
+    scale: 1;
+    stroke: #17191f;
+    stroke-width: 1px;
+    shadow: 0px 0px 2px 0px rgba(130, 164, 220, 0.28);
+    transition:
+        scale 160ms ease-out,
+        stroke 160ms ease-out,
+        shadow 160ms ease-out;
+}
+
+.timeline-keyframe:hover .timeline-keyframe-visual {
+    scale: 1.12;
+    stroke: #dbe5f5;
+    shadow: 0px 0px 3px 0px rgba(145, 183, 242, 0.48);
+}
+
+.timeline-keyframe.selected .timeline-keyframe-visual {
+    scale: 1.12;
+    stroke: #ffffff;
+    shadow: 0px 0px 4px 0px rgba(165, 201, 255, 0.72);
 }
