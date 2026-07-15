@@ -17,14 +17,20 @@ data class UiMsdfFontData(
 ) {
     val meta: MsdfMeta get() = metrics.meta
     val glyphMap: Map<Char, MsdfGlyph> get() = metrics.glyphMap
+
+    /** The glyph for [char], or the atlas fallback glyph when the codepoint is not covered. */
+    fun glyphOrFallback(char: Char): MsdfGlyph? = metrics.glyphOrFallback(char)
 }
 
 data class UiMsdfFontMetrics(
     val meta: MsdfMeta,
     val glyphMap: Map<Char, MsdfGlyph>,
 ) {
+    fun glyphOrFallback(char: Char): MsdfGlyph? =
+        glyphMap[char] ?: glyphMap[UiMsdfFont.FallbackGlyph] ?: glyphMap[LegacyFallbackGlyph]
+
     fun advance(char: Char, fontSize: Float): Float {
-        val glyph = glyphMap[char] ?: glyphMap[FallbackGlyph] ?: glyphMap[SpaceGlyph]
+        val glyph = glyphMap[char] ?: glyphOrFallback(char) ?: glyphMap[SpaceGlyph]
         return (glyph?.advance ?: FallbackAdvance) * fontSize
     }
 
@@ -33,26 +39,31 @@ data class UiMsdfFontMetrics(
     fun lineHeight(fontSize: Float): Float = meta.metrics.lineHeight * fontSize
 
     companion object {
-        private const val FallbackGlyph = '?'
+        private const val LegacyFallbackGlyph = '?'
         private const val SpaceGlyph = ' '
         private const val FallbackAdvance = 0.5f
     }
 }
 
 object UiMsdfFont {
+    const val DefaultFontFamily = "hollowengine:fonts/monocraft"
+
+    /** Rendered in place of any codepoint the atlas lacks, so text is never silently dropped. */
+    const val FallbackGlyph = '�'
 
     private val fonts = ConcurrentHashMap<String, UiMsdfFontData>()
     private val metrics = ConcurrentHashMap<String, UiMsdfFontMetrics>()
-    private val missingFonts = ConcurrentHashMap.newKeySet<String>()
+
+    private val missingTextures = ConcurrentHashMap.newKeySet<String>()
 
     fun isLoaded(fontPath: String): Boolean = fonts.containsKey(fontPath)
 
     fun loadFont(fontPath: String) {
-        if (fontPath in missingFonts) return
+        if (fontPath in missingTextures) return
         if (fonts.containsKey(fontPath)) return
 
         runCatching {
-            val fontMetrics = loadMetrics(fontPath)
+            val fontMetrics = loadMetrics(fontPath) ?: error("MSDF metrics for $fontPath are unavailable")
             val imageStream = "$fontPath.png".rl.stream
             val nativeImage = NativeImage.read(imageStream)
             nativeImage.flipY()
@@ -68,22 +79,24 @@ object UiMsdfFont {
                 textureId = textureId,
             )
         }.onFailure {
-            missingFonts += fontPath
+            missingTextures += fontPath
         }.getOrThrow()
     }
 
     fun getOrLoadFontData(fontPath: String): UiMsdfFontData? {
-        if (fontPath in missingFonts) return null
+        if (fontPath in missingTextures) return null
         return runCatching {
             loadFont(fontPath)
             fonts[fontPath]
         }.getOrNull()
     }
 
-    fun getMetrics(fontPath: String): UiMsdfFontMetrics? {
-        if (fontPath in missingFonts) return null
-        return runCatching { loadMetrics(fontPath) }.getOrNull()
-    }
+    /**
+     * MSDF metrics for [fontPath], or null if the atlas metadata cannot be read yet. Metrics are
+     * cheap JSON and NOT permanently blacklisted on failure: a call before the resource manager is
+     * ready (e.g. headless tests, early init) returns null but a later call still succeeds.
+     */
+    fun getMetrics(fontPath: String): UiMsdfFontMetrics? = loadMetrics(fontPath)
 
     fun unloadAll() {
         fonts.values.forEach { entry ->
@@ -91,14 +104,12 @@ object UiMsdfFont {
         }
         fonts.clear()
         metrics.clear()
-        missingFonts.clear()
+        missingTextures.clear()
         UiTextFonts.clearResolvedFonts()
     }
 
-    private fun loadMetrics(fontPath: String): UiMsdfFontMetrics {
-        if (fontPath in missingFonts) error("MSDF font $fontPath is not available")
+    private fun loadMetrics(fontPath: String): UiMsdfFontMetrics? {
         metrics[fontPath]?.let { return it }
-
         return runCatching {
             val metaStream = "$fontPath.json".rl.stream
             val fontInfo: MsdfMeta = JsonFormat.decodeFromStream(metaStream)
@@ -107,8 +118,6 @@ object UiMsdfFont {
             }
             val glyphMap = glyphs.associateBy { it.unicode.toChar() }
             UiMsdfFontMetrics(fontInfo, glyphMap).also { metrics[fontPath] = it }
-        }.onFailure {
-            missingFonts += fontPath
-        }.getOrThrow()
+        }.getOrNull()
     }
 }

@@ -8,10 +8,6 @@ import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Headless font fallback: 6px per glyph scaled by fontSize/10. With fontSize=10 a word of N
- * chars is N*6 px wide and a space is 6 px; line height = fontSize = 10.
- */
 class InlineFlowTest {
     private fun span(text: String, vararg mods: Modifier) =
         SpanNode(text, modifiers = mods.toList())
@@ -58,7 +54,7 @@ class InlineFlowTest {
     @Test
     fun `an oversized word keeps placed chunks and source offsets`() {
         val s = span("abcdef")
-        val (layout, container) = flow(18f, s)
+        val (layout, container) = flow(21f, s)
         val textLayout = layout.nodes.getValue(s).textLayout!!
 
         assertEquals(2, textLayout.lines.size)
@@ -155,8 +151,8 @@ class InlineFlowTest {
             return layout.nodes.getValue(s).rect.x - layout.nodes.getValue(container).content.x
         }
         assertEquals(0f, wordX("left"), 0.5f)
-        assertEquals(44f, wordX("center"), 1f)   // (100 - 12) / 2
-        assertEquals(88f, wordX("right"), 1f)     // 100 - 12
+        assertEquals(43.333f, wordX("center"), 1f)   // (100 - 13.333) / 2
+        assertEquals(86.667f, wordX("right"), 1f)     // 100 - 13.333
     }
 
     @Test
@@ -174,7 +170,7 @@ class InlineFlowTest {
     fun `a comma glued to the previous word does not wrap alone`() {
         val word = span("aaaaaaaaaa")
         val comma = span(",")
-        val (layout, container) = flow(60f, word, comma)
+        val (layout, container) = flow(67f, word, comma)
         assertEquals(10f, layout.nodes.getValue(container).rect.height, 0.6f, "single line — comma glued to the word")
     }
 
@@ -185,6 +181,6 @@ class InlineFlowTest {
         val (layout, container) = flow(500f, small, big)
         assertEquals(20f, layout.nodes.getValue(container).rect.height, 0.6f, "line height = tallest span")
         val bigRect = layout.nodes.getValue(big).rect
-        assertEquals(24f, bigRect.width, 1.0f)
+        assertEquals(26.667f, bigRect.width, 1.0f)
     }
 }

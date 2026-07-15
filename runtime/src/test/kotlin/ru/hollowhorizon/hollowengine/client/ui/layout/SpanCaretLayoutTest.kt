@@ -33,9 +33,9 @@ class SpanCaretLayoutTest {
     fun `caret offsets fall on glyph boundaries through preserved spaces`() {
         val (layout, size) = spanLayout("a  b")
         assertEquals(0f, layout.caretPosition(0, size).x, 0.5f)
-        assertEquals(6f, layout.caretPosition(1, size).x, 0.5f, "after 'a'")
-        assertEquals(18f, layout.caretPosition(3, size).x, 0.5f, "after 'a' + two spaces")
-        assertEquals(24f, layout.caretPosition(4, size).x, 0.5f, "after 'b'")
+        assertEquals(6.667f, layout.caretPosition(1, size).x, 0.5f, "after 'a'")
+        assertEquals(20f, layout.caretPosition(3, size).x, 0.5f, "after 'a' + two spaces")
+        assertEquals(26.667f, layout.caretPosition(4, size).x, 0.5f, "after 'b'")
     }
 
     @Test

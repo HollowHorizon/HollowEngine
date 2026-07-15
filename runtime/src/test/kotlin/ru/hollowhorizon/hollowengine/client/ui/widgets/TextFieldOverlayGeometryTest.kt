@@ -8,9 +8,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Caret/selection overlay geometry over the headless font fallback (6px/glyph, 6px space, line
- * height = fontSize). Positions come straight from the laid-out text, so the caret sits on the
- * glyph boundaries without displacing them.
+ * Caret/selection overlay geometry over the default MonoCraft MSDF font (6.667px/glyph, 6.667px
+ * space, 10.898px line height). Positions come straight from the laid-out text, so the caret sits
+ * on the glyph boundaries without displacing them.
  */
 class TextFieldOverlayGeometryTest {
     private val fontSize = 10f
@@ -33,14 +33,14 @@ class TextFieldOverlayGeometryTest {
         val g = geometry("abc", UiTextCaret(0), UiTextCaret(3))
         assertEquals(2, g.carets.size)
         assertEquals(0f, g.carets[0].x, 0.5f)
-        assertEquals(18f, g.carets[1].x, 0.5f, "3 glyphs * 6px")
-        assertEquals(fontSize, g.carets[0].height, 0.5f)
+        assertEquals(20f, g.carets[1].x, 0.5f, "3 glyphs * 6.667px")
+        assertEquals(10.898f, g.carets[0].height, 0.5f, "caret spans the glyph line height")
     }
 
     @Test
     fun `leading spaces push the caret to the right`() {
         val g = geometry("  a", UiTextCaret(2))
-        assertEquals(12f, g.carets[0].x, 0.5f, "two 6px spaces")
+        assertEquals(13.333f, g.carets[0].x, 0.5f, "two 6.667px spaces")
     }
 
     @Test
@@ -54,14 +54,14 @@ class TextFieldOverlayGeometryTest {
         val g = geometry("abcdef", UiTextCaret(4, selectionAnchor = 1))
         assertEquals(1, g.selections.size)
         val rect = g.selections.single()
-        assertEquals(6f, rect.x, 0.5f, "starts after 'a'")
-        assertEquals(18f, rect.width, 0.5f, "covers 'bcd'")
+        assertEquals(6.667f, rect.x, 0.5f, "starts after 'a'")
+        assertEquals(20f, rect.width, 0.5f, "covers 'bcd'")
     }
 
     @Test
     fun `a multi-line selection highlights each line and the caret drops a row`() {
         val g = geometry("ab\ncd", UiTextCaret(5, selectionAnchor = 0))
         assertEquals(2, g.selections.size, "one rect per line")
-        assertEquals(fontSize, g.carets[0].y, 0.5f, "caret on the second line")
+        assertEquals(10.898f, g.carets[0].y, 0.5f, "caret on the second line")
     }
 }

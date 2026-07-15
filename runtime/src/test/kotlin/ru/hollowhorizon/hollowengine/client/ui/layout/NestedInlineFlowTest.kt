@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Fallback font: 6px/glyph @ fontSize 10, 6px space, line height = fontSize 10. */
+/** Default MonoCraft MSDF font: 6.667px/glyph @ fontSize 10, 6.667px space, line height = fontSize 10. */
 class NestedInlineFlowTest {
     private fun span(text: String, vararg mods: Modifier) = SpanNode(text, modifiers = mods.toList())
 
@@ -39,7 +39,7 @@ class NestedInlineFlowTest {
         }
         assertEquals(10f, layout.nodes.getValue(container).rect.height, 0.6f)
         val groupRect = layout.nodes.getValue(group).rect
-        assertEquals(30f, groupRect.width, 1.5f)
+        assertEquals(33.333f, groupRect.width, 1.5f)
         assertEquals(10f, groupRect.height, 0.6f)
     }
 

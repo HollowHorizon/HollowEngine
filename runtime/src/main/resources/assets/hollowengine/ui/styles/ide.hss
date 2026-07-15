@@ -99,7 +99,6 @@
     width: fit;
     height: fit;
     white-space: pre;
-    font-family: minecraft:default;
     font-size: 10px;
     foreground: #d7deea;
 }

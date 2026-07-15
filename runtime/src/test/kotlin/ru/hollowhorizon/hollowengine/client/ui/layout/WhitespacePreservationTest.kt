@@ -27,13 +27,13 @@ class WhitespacePreservationTest {
     @Test
     fun `collapse folds an inner run of spaces into one`() {
         // "a" (6) + one space (6) => "b" at 12.
-        assertEquals(12f, span("a  b", preserve = false).wordX(1), 0.5f)
+        assertEquals(13.333f, span("a  b", preserve = false).wordX(1), 0.5f)
     }
 
     @Test
     fun `preserve keeps every inner space`() {
         // "a" (6) + two spaces (12) => "b" at 18.
-        assertEquals(18f, span("a  b", preserve = true).wordX(1), 0.5f)
+        assertEquals(20f, span("a  b", preserve = true).wordX(1), 0.5f)
     }
 
     @Test
@@ -44,7 +44,7 @@ class WhitespacePreservationTest {
     @Test
     fun `preserve keeps leading indentation and the span box covers it`() {
         val node = span("  a", preserve = true)
-        assertEquals(12f, node.wordX(0), 0.5f, "'a' sits after two 6px spaces")
-        assertEquals(18f, node.rect.width, 0.5f, "box spans the indent plus the glyph")
+        assertEquals(13.333f, node.wordX(0), 0.5f, "'a' sits after two 6.667px spaces")
+        assertEquals(20f, node.rect.width, 0.5f, "box spans the indent plus the glyph")
     }
 }

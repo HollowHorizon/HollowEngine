@@ -6,15 +6,10 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexSorting
 import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.Font.DisplayMode
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.locale.Language
-import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
@@ -59,18 +54,8 @@ private data class SvgRasterQuad(
     val transform: UiMatrix4,
 )
 
-private data class TextVisualOrderKey(
-    val text: String,
-    val bold: Boolean,
-    val italic: Boolean,
-    val underline: Boolean,
-    val strikethrough: Boolean,
-    val colorRgb: Int,
-)
-
 private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
-private const val MaxTextVisualOrderCacheEntries = 256
 private const val TextClipEpsilon = 0.01f
 private const val ProjectiveLayerTextureSubdivisions = 12
 
@@ -125,16 +110,8 @@ class MinecraftUiRenderer {
     private val preparedLayers = IdentityHashMap<UiNode, PreparedUiLayer>()
     private val brokenSvgSources = mutableSetOf<String>()
     private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
-    private val textVisualOrderCache = object :
-        LinkedHashMap<TextVisualOrderKey, FormattedCharSequence>(MaxTextVisualOrderCacheEntries, 0.75f, true) {
-        override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<TextVisualOrderKey, FormattedCharSequence>?,
-        ): Boolean = size > MaxTextVisualOrderCacheEntries
-    }
-    private var textVisualOrderLanguage: Language? = null
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
-    private var textBatchDirty = false
     private var preparingLayerAtlas = false
     private val textAxisScales = FloatArray(2)
 
@@ -500,7 +477,7 @@ class MinecraftUiRenderer {
         textBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
     }
 
-    private fun hasPendingText(): Boolean = textBatchDirty || !msdfTextBatch.isEmpty
+    private fun hasPendingText(): Boolean = !msdfTextBatch.isEmpty
 
     private fun flushPhaseImageBatches() {
         if (phaseImageBatches.isNotEmpty()) setScissor(imageBatchClip)
@@ -647,17 +624,6 @@ class MinecraftUiRenderer {
         flushShapeBatch()
     }
 
-    private fun markTextBatchDirty() {
-        textBatchDirty = true
-    }
-
-    private fun flushVanillaTextBatch() {
-        if (!textBatchDirty) return
-        activeProfile?.vanillaTextFlushes++
-        Minecraft.getInstance().renderBuffers().bufferSource().endBatch()
-        textBatchDirty = false
-    }
-
     private fun flushMsdfTextBatch() {
         if (!msdfTextBatch.isEmpty) activeProfile?.msdfTextDraws++
         msdfTextBatch.flush()
@@ -667,7 +633,6 @@ class MinecraftUiRenderer {
         textBatchBounds.clear()
         if (hasPendingText()) setScissor(textBatchClip)
         flushMsdfTextBatch()
-        flushVanillaTextBatch()
     }
 
     private fun appendBatchedShapes(command: UiRenderCommand): Boolean {
@@ -1490,75 +1455,17 @@ class MinecraftUiRenderer {
             )
         }
 
-        if (!fontFamily.isNullOrBlank() && drawMsdfTextRun(
-                command,
-                fragment,
-                transform,
-                localX,
-                localY,
-                fontSize,
-                fontFamily,
-                colorOverride,
-                alphaMultiplier,
-            )
-        ) {
-            return
-        }
-
-        flushMsdfTextBatch()
-        val mc = Minecraft.getInstance()
-        val fontScale = fontSize / mc.font.lineHeight.toFloat()
-        val origin = transform.transform(localX, localY)
-        POSE_STACK.pushPose()
-        POSE_STACK.translate(
-            origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble() - 10
+        drawMsdfTextRun(
+            command,
+            fragment,
+            transform,
+            localX,
+            localY,
+            fontSize,
+            UiTextFonts.defaultedFamily(fontFamily),
+            colorOverride,
+            alphaMultiplier,
         )
-        POSE_STACK.scale(scaleX * fontScale, scaleY * fontScale, 1f)
-        val color = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
-            UiColor(0.34f, 0.67f, 1f, 1f)
-        } else {
-            command.color
-        }
-        val finalAlpha = command.opacity * alphaMultiplier * color.alpha
-        val finalColor = UiColor(color.red, color.green, color.blue, finalAlpha)
-        mc.font.drawInBatch(
-            visualOrderText(fragment, finalColor.argb() and 0xFFFFFF),
-            0f,
-            0f,
-            finalColor.filtered(command.filter).argb(),
-            false,
-            POSE_STACK.last().pose(),
-            mc.renderBuffers().bufferSource(),
-            DisplayMode.SEE_THROUGH,
-            0,
-            15728880,
-        )
-        POSE_STACK.popPose()
-        markTextBatchDirty()
-    }
-
-    private fun visualOrderText(fragment: UiTextRun, colorRgb: Int): FormattedCharSequence {
-        val language = Language.getInstance()
-        if (textVisualOrderLanguage !== language) {
-            textVisualOrderCache.clear()
-            textVisualOrderLanguage = language
-        }
-        val key = TextVisualOrderKey(
-            text = fragment.text,
-            bold = fragment.style.bold,
-            italic = fragment.style.italic,
-            underline = fragment.style.underline || fragment.style.link != null,
-            strikethrough = fragment.style.strikethrough,
-            colorRgb = colorRgb,
-        )
-        return textVisualOrderCache.getOrPut(key) {
-            Component.literal(key.text).withStyle { style ->
-                style.withBold(key.bold).withItalic(key.italic)
-                    .withUnderlined(key.underline)
-                    .withStrikethrough(key.strikethrough)
-                    .withColor(TextColor.fromRgb(key.colorRgb))
-            }.visualOrderText
-        }
     }
 
     private fun drawAnimatedTextRun(
@@ -1673,7 +1580,6 @@ class MinecraftUiRenderer {
     ): Boolean {
         val fontData = UiMsdfFont.getOrLoadFontData(fontFamily) ?: return false
         if (ModShaders.MSDF_TEXT == null) return false
-        flushVanillaTextBatch()
         val atlasInfo = fontData.meta.atlas
         val metrics = fontData.meta.metrics
         val atlasWidth = atlasInfo.width.toFloat()
@@ -1691,7 +1597,9 @@ class MinecraftUiRenderer {
 
         var penX = 0f
         for (char in fragment.text) {
-            val glyph = fontData.glyphMap[char]
+            // Codepoints the atlas lacks render as the fallback glyph (never silently dropped),
+            // matching the fallback advance measurement used.
+            val glyph = fontData.glyphOrFallback(char)
             if (glyph == null) {
                 penX += fontData.metrics.advance(char, fontSize)
                 continue

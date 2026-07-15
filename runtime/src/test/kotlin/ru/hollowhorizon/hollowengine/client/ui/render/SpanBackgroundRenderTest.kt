@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.opacity
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Fallback font: 6px/glyph @ fontSize 10, 6px space, line height = fontSize. */
+/** Default MonoCraft MSDF font: 6.667px/glyph @ fontSize 10, 6.667px space, line height = fontSize. */
 class SpanBackgroundRenderTest {
     private fun render(
         width: Float,
@@ -44,7 +44,7 @@ class SpanBackgroundRenderTest {
         val s = span("aa bb", Modifier.background(UiColor(0f, 1f, 0f, 0.5f)))
         val boxes = spanBoxes(render(400f, s))
         assertEquals(1, boxes.size, "one line => one background box")
-        assertEquals(30f, boxes.single().rect.width, 0.6f, "box spans word-to-word incl. the space")
+        assertEquals(33.333f, boxes.single().rect.width, 0.6f, "box spans word-to-word incl. the space")
     }
 
     @Test
@@ -53,8 +53,8 @@ class SpanBackgroundRenderTest {
         val boxes = spanBoxes(render(60f, s))
         assertEquals(2, boxes.size, "one background box per wrapped line")
         val widths = boxes.map { it.rect.width }.sortedDescending()
-        assertEquals(54f, widths[0], 1f)
-        assertEquals(24f, widths[1], 1f)
+        assertEquals(60f, widths[0], 1f)
+        assertEquals(26.667f, widths[1], 1f)
     }
 
     @Test
