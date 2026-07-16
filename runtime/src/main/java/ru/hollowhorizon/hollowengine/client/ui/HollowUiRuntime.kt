@@ -14,6 +14,8 @@ import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import java.util.*
 
+private const val ScrollTargetRangeEpsilon = 0.5f
+
 data class HollowUiFrame(
     val root: UiNode,
     val nodes: List<UiNode>,
@@ -41,6 +43,7 @@ data class HollowUiFrame(
     private fun scrollTargetIn(root: UiNode, x: Float, y: Float): UiNode? {
         val stack = ArrayDeque<ScrollTargetTask>()
         stack.add(ScrollTargetTask.Enter(root, ancestorClip = null))
+        var fallback: UiNode? = null
         while (stack.isNotEmpty()) {
             when (val task = stack.removeLast()) {
                 is ScrollTargetTask.Enter -> {
@@ -70,11 +73,13 @@ data class HollowUiFrame(
                     }
                     val layoutNode = layout[node]
                     if (!layoutNode.inputContains(x, y)) continue
-                    return node
+                    val range = layoutNode.scrollRange
+                    if (range.x > ScrollTargetRangeEpsilon || range.y > ScrollTargetRangeEpsilon) return node
+                    if (fallback == null) fallback = node
                 }
             }
         }
-        return null
+        return fallback
     }
 
     fun nodeByIdentifier(identifier: String): UiNode? = nodesByIdentifier[identifier]

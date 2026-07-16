@@ -1,0 +1,266 @@
+package ru.hollowhorizon.hollowengine.client.ui.widgets
+
+import androidx.compose.runtime.*
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
+import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.Time
+import kotlinx.coroutines.flow.StateFlow
+import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.LightTexture
+import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.util.Mth
+import org.joml.Quaternionf
+import org.lwjgl.opengl.GL33
+import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
+import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_0
+import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_1
+import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.common.utils.isValidRL
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.math.min
+
+/**
+ * Holds everything a [Model] preview needs: which model to show, the orbit-camera parameters (yaw /
+ * pitch / zoom / pan) and the display toggles.
+ */
+@Stable
+class ModelViewerState(model: String) {
+    var model: String by mutableStateOf(model)
+        private set
+
+    var attachment: ModelAttachment by mutableStateOf(loadAttachment(model))
+        private set
+
+    var yaw by mutableStateOf(0f)
+    var pitch by mutableStateOf(0f)
+    var zoom by mutableStateOf(1f)
+    var offsetX by mutableStateOf(0f)
+    var offsetY by mutableStateOf(0f)
+
+    var showGrid by mutableStateOf(true)
+    var showBoundingBox by mutableStateOf(false)
+    var showWireframe by mutableStateOf(false)
+    var autoRotate by mutableStateOf(false)
+
+    var selectedAnimation by mutableStateOf(0)
+
+    private val playing = mutableStateListOf<Int>()
+
+    var nodeVisibilityRevision by mutableStateOf(0)
+        private set
+
+    val modelFlow: StateFlow<AnimatedModel> get() = attachment.flow
+
+    /** The model's runtime node hierarchy (roots), for inspection UIs. */
+    val nodes: List<RuntimeNode>
+        get() {
+            attachment.pipeline // touch to force compilation of the freshly-streamed model
+            return attachment.nodes
+        }
+
+    /** Snapshot of the loaded animations (empty while the model is still streaming in). */
+    val animations: List<AnimationInstance>
+        get() {
+            attachment.pipeline
+            return attachment.animations.toList()
+        }
+
+    val triangles: Int
+        get() {
+            attachment.pipeline
+            return attachment.triangles
+        }
+
+    val shapekeys: Int
+        get() {
+            attachment.pipeline
+            return attachment.shapekeys
+        }
+
+    val currentAnimation: AnimationInstance? get() = animations.getOrNull(selectedAnimation)
+
+    fun isPlaying(index: Int): Boolean = index in playing
+
+    /** Whether anything is still moving (auto-rotate, active playback, or a weight still fading). */
+    fun isAnimating(): Boolean =
+        autoRotate || playing.isNotEmpty() || attachment.animations.any { it.weight > 0.001f }
+
+    fun changeModel(model: String) {
+        this.model = model
+        attachment = loadAttachment(model)
+        selectedAnimation = 0
+        playing.clear()
+    }
+
+    fun selectAnimation(index: Int) {
+        val count = animations.size
+        if (count == 0) {
+            selectedAnimation = 0
+            return
+        }
+        selectedAnimation = ((index % count) + count) % count
+    }
+
+    /** Toggles playback of the current animation; render() fades its weight in/out over [AnimBlendTime]. */
+    fun togglePlayback() {
+        val index = selectedAnimation
+        if (animations.getOrNull(index) == null) return
+        if (index in playing) {
+            playing.remove(index)
+        } else {
+            playing.add(index)
+            animations[index].wrapMode = WrapMode.Loop
+        }
+    }
+
+    /** Toggles a node's visibility (cascades to its children) and refreshes any tree UI. */
+    fun toggleNodeVisibility(node: RuntimeNode) {
+        node.isVisible = !node.isVisible
+        nodeVisibilityRevision++
+    }
+
+    /** Renders the model into [rect] using [stack]; called from a `drawGl` block on the render thread. */
+    fun render(rect: UiRect, stack: PoseStack) {
+        if (autoRotate) yaw = (yaw + 20f * Time.deltaT) % 360f
+
+        val step = if (AnimBlendTime > 0f) (Time.deltaT / AnimBlendTime).coerceIn(0f, 1f) else 1f
+        attachment.animations.forEachIndexed { index, animation ->
+            val target = if (index in playing) 1f else 0f
+            animation.weight += (target - animation.weight) * step
+        }
+
+        GL33.glDepthFunc(GL33.GL_LEQUAL)
+
+        val centerX = rect.x + rect.width / 2f
+        val centerY = rect.y + rect.height / 2f
+        stack.translate(centerX + offsetX * zoom, centerY + offsetY * zoom, 0f)
+
+        val baseSize = min(rect.width, rect.height)
+        val scale = baseSize * zoom
+        stack.scale(scale, -scale, scale)
+        stack.mulPose(Quaternionf().rotateX(pitch * Mth.DEG_TO_RAD))
+        stack.mulPose(Quaternionf().rotateY(yaw * Mth.DEG_TO_RAD))
+
+        val attachment = attachment
+        val bounds = if (showBoundingBox) attachment.calculateBounds() else null
+
+        if (showWireframe) GL33.glPolygonMode(GL33.GL_FRONT_AND_BACK, GL33.GL_LINE)
+        val savedTextures = if (showWireframe) {
+            attachment.materials.map { material ->
+                val old = material.texture
+                material.texture = "${HollowCore.MODID}:default_color_map".rl
+                material to old
+            }
+        } else emptyList()
+
+        RenderSystem.setShaderLights(CUSTOM_IMGUI_LIGHT_0, CUSTOM_IMGUI_LIGHT_1)
+
+        val bufferSource = Minecraft.getInstance().renderBuffers().bufferSource()
+        attachment.pipeline.render(
+            RenderContext(stack, bufferSource, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY)
+        )
+        bufferSource.endBatch()
+
+        if (showWireframe) {
+            GL33.glPolygonMode(GL33.GL_FRONT_AND_BACK, GL33.GL_FILL)
+            savedTextures.forEach { (material, texture) -> material.texture = texture }
+        }
+
+        bounds?.let { (minCorner, maxCorner) ->
+            OpenGLUtils.renderBoundingBox(stack, minCorner, maxCorner, Color.WHITE.withAlpha(0.75f))
+        }
+    }
+
+    private fun loadAttachment(model: String): ModelAttachment = try {
+        require(model.isValidRL()) { "Invalid model id: $model" }
+        ModelAttachment(model)
+    } catch (_: Exception) {
+        ModelAttachment(FALLBACK_MODEL)
+    }
+
+    companion object {
+        private const val FALLBACK_MODEL = "hollowengine:models/entity/player_model.gltf"
+    }
+}
+
+/** Seconds an animation takes to fade fully in or out when toggled. */
+private const val AnimBlendTime = 0.25f
+
+private const val ModelGridSpacing = 36f
+private val ModelGridColor = UiColor(0.62f, 0.7f, 0.85f, 0.14f)
+
+/**
+ * A 3D model preview: renders [state]'s [ModelAttachment] through the raw-GL
+ * canvas primitive ([drawBehind] + `drawGl`).
+ */
+@Composable
+fun Model(
+    state: ModelViewerState,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+) {
+    Box(
+        id = id,
+        tags = tags,
+        modifier = Modifier
+            .input(hoverable = true, draggable = true)
+            .cursor(UiCursorShape.HAND)
+            .onDrag { event ->
+                if (event.button == 1) {
+                    val scale = state.zoom.coerceAtLeast(0.0001f)
+                    state.offsetX += event.deltaX / scale
+                    state.offsetY += event.deltaY / scale
+                } else {
+                    state.yaw = (state.yaw + event.deltaX / 3f) % 360f
+                    state.pitch = (state.pitch + event.deltaY / 3f).coerceIn(-90f, 90f)
+                }
+                event.consume()
+            }
+            .onScroll { event ->
+                val factor = if (event.scrollY > 0f) 0.9f else 1.1f
+                state.zoom = (state.zoom * factor).coerceIn(0.1f, 10f)
+                event.consume()
+            }
+            .drawBehind(key = state) {
+                if (state.showGrid) drawGrid(state)
+                drawGl { state.render(rect, poseStack) }
+            }
+            .then(modifier ?: Modifier),
+    )
+}
+
+/** Draws a faint pan/zoom-following reference grid behind the model, in node-local coordinates. */
+private fun UiCanvasDrawScope.drawGrid(state: ModelViewerState) {
+    val width = size.width
+    val height = size.height
+    if (width <= 0f || height <= 0f) return
+
+    val spacing = (ModelGridSpacing * state.zoom).coerceIn(8f, 512f)
+    val paint = UiPaint.Color(ModelGridColor)
+
+    var x = (state.offsetX * state.zoom + width / 2f) % spacing
+    if (x < 0f) x += spacing
+    while (x < width) {
+        drawRect(UiRect(x, 0f, 1f, height), paint)
+        x += spacing
+    }
+
+    var y = (state.offsetY * state.zoom + height / 2f) % spacing
+    if (y < 0f) y += spacing
+    while (y < height) {
+        drawRect(UiRect(0f, y, width, 1f), paint)
+        y += spacing
+    }
+}

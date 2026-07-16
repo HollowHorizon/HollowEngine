@@ -163,6 +163,20 @@ data class DrawRawTextureCommand(
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
 ) : UiRenderCommand
 
+/**
+ * Runs a caller-supplied OpenGL [block] for a node, emitted by `Modifier.draw`/`drawBehind`'s `drawGl`.
+ */
+data class DrawCanvasGlCommand(
+    override val node: UiNode,
+    val rect: UiRect,
+    val opacity: Float,
+    val transform: UiMatrix4,
+    val filter: UiFilterChain,
+    val backfaceVisibility: UiBackfaceVisibility,
+    val block: UiGlDrawScope.() -> Unit,
+    val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+) : UiRenderCommand
+
 data class DrawItemCommand(
     override val node: UiNode,
     val rect: UiRect,
@@ -269,6 +283,7 @@ private fun UiRenderCommand.renderPhaseOrdinal(): Int = when (this) {
     is DrawTextCommand -> phase.ordinal
     is DrawImageCommand -> phase.ordinal
     is DrawRawTextureCommand -> phase.ordinal
+    is DrawCanvasGlCommand -> phase.ordinal
     is DrawShadowCommand, is DrawBackdropFilterCommand -> UiRenderPhase.BACKGROUND.ordinal
     else -> UiRenderPhase.CONTENT.ordinal
 }
@@ -283,6 +298,7 @@ private fun UiRenderCommand.drawsPixels(): Boolean = when (this) {
     is DrawRawTextureCommand,
     is DrawItemCommand,
     is DrawEntityCommand,
+    is DrawCanvasGlCommand,
         -> true
 
     is BeginLayerCommand,
@@ -453,21 +469,30 @@ class UiCommandRenderer {
         }
         if (!pushedClip || childClip != null) {
             val sorted = orderedVisibleChildren(node, layout)
-            val overlappingChildSink = if (sorted.size > 1 && node.childrenCanOverlap()) {
-                OverlapOrderingSink(commands, node)
-            } else {
-                null
-            }
-            for (child in sorted) {
-                overlappingChildSink?.beginChild(layout[child].rect)
-                collectNode(
-                    child,
-                    resolved,
-                    layout,
-                    overlappingChildSink ?: commands,
-                    activeClip = childClip,
-                    layoutBoundsMatchVisualBounds = layoutBoundsMatchVisualBounds,
-                )
+            var start = 0
+            while (start < sorted.size) {
+                val groupLayer = sorted[start].resolvedSnapshot.layer
+                var end = start + 1
+                while (end < sorted.size && sorted[end].resolvedSnapshot.layer == groupLayer) end++
+                if (start > 0) commands += FlushBarrierCommand(node)
+                val groupSink = if (end - start > 1 && node.childrenCanOverlap()) {
+                    OverlapOrderingSink(commands, node)
+                } else {
+                    null
+                }
+                for (index in start until end) {
+                    val child = sorted[index]
+                    groupSink?.beginChild(layout[child].rect)
+                    collectNode(
+                        child,
+                        resolved,
+                        layout,
+                        groupSink ?: commands,
+                        activeClip = childClip,
+                        layoutBoundsMatchVisualBounds = layoutBoundsMatchVisualBounds,
+                    )
+                }
+                start = end
             }
         }
 

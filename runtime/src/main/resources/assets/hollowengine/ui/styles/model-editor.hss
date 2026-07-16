@@ -1,0 +1,303 @@
+/* Styling for the model editor dock panel (client/gui/scripting/panels/ModelEditorPanel.kt).
+   Palette follows ColorTheme: bg #1E1F22/#24272E/#31343D, accent #5F6677, text #C4CBDA,
+   main accent #D77F1C. */
+
+.model-editor-root {
+    size: fill fill;
+    gap: 6px;
+}
+
+.model-viewer-pane {
+    grow: 1;
+    size: 0px 100%;
+    min-size: 0px 0px;
+    background: #1E1F22;
+    border-radius: 6px;
+    border: 1px #31343D;
+    clip: true;
+}
+
+.model-title {
+    align: center start;
+    margin: 8px;
+    padding: 3px 9px;
+    layer: 1000;
+    foreground: #C4CBDA;
+    font-size: 11px;
+    background: rgba(30, 32, 38, 0.78);
+    border-radius: 6px;
+    border: 1px #31343D;
+    wrap: false;
+    //backdrop-filter: blur(9px);
+}
+
+/* ---- toolbar (display toggles, stacked vertically) ---- */
+
+.model-toolbar {
+    align: start start;
+    margin: 8px;
+    gap: 5px;
+    layer: 1000;
+}
+
+.model-chip {
+    size: 28px 28px;
+    align-items: center center;
+    background: #24272E20;
+    border-radius: 7px;
+    border: 1px #31343D;
+    hoverable: true;
+    clickable: true;
+    transition: background 140ms ease-out, border 140ms ease-out;
+    //backdrop-filter: blur(9px);
+}
+
+.model-chip:hover {
+    background: #31343D20;
+}
+
+.model-chip.selected {
+    background: rgba(215, 127, 28, 0.22);
+    border: 1px #D77F1C;
+}
+
+.model-chip-icon {
+    size: 16px 16px;
+    tint: #C4CBDA;
+}
+
+.model-chip-icon.selected {
+    tint: #D77F1C;
+}
+
+/* ---- animation control bar ---- */
+
+.model-anim-bar {
+    align: start end;
+    margin: 10px;
+    padding: 9px;
+    gap: 7px;
+    width: 300px;
+    layer: 1000;
+    background: #24272E;
+    border-radius: 8px;
+    border: 1px #31343D;
+}
+
+.model-anim-title {
+    foreground: #8B93A5;
+    font-size: 10px;
+    height: 13px;
+}
+
+.model-anim-controls {
+    gap: 6px;
+    width: 100%;
+    align-items: start center;
+}
+
+.model-anim-dropdown {
+    grow: 1;
+    height: 26px;
+    padding: 0px 8px;
+    background: #1E1F22;
+    border-radius: 6px;
+    border: 1px #31343D;
+}
+
+/* Let the label fill the button so the arrow sits flush against the right edge. */
+.model-anim-dropdown .dropdown-button-label {
+    grow: 1;
+    wrap: false;
+}
+
+.model-play {
+    size: 26px 26px;
+    align-items: center center;
+    background: #31343D;
+    border-radius: 6px;
+    border: 1px #3B3F49;
+    hoverable: true;
+    clickable: true;
+    transition: background 140ms ease-out, border 140ms ease-out;
+}
+
+.model-play:hover {
+    background: #3B3F49;
+}
+
+.model-play.active {
+    background: rgba(215, 127, 28, 0.9);
+    border: 1px #E8912E;
+}
+
+.model-play-icon {
+    size: 14px 14px;
+    tint: #C4CBDA;
+}
+
+.model-play.active .model-play-icon {
+    tint: #1E1F22;
+}
+
+.model-progress-track {
+    width: 100%;
+    height: 4px;
+    background: #1E1F22;
+    border-radius: 2px;
+    clip: true;
+}
+
+.model-progress-fill {
+    height: 100%;
+    background: #D77F1C;
+    border-radius: 2px;
+}
+
+/* ---- splitter between preview and sidebar ---- */
+
+.model-splitter {
+    size: 5px 100%;
+    background: rgba(95, 102, 119, 0.0);
+    border-radius: 3px;
+    hoverable: true;
+    transition: background 140ms ease-out;
+}
+
+.model-splitter:hover {
+    background: rgba(215, 127, 28, 0.55);
+}
+
+.model-splitter:dragging {
+    background: #D77F1C;
+}
+
+/* ---- sidebar (collapsible sections) ---- */
+
+.model-sidebar {
+    min-size: 190px 0px;
+    gap: 4px;
+    padding: 6px;
+    background: #24272E;
+    border-radius: 6px;
+    border: 1px #31343D;
+    scrollable: true;
+    clip: true;
+}
+
+.model-section {
+    width: 100%;
+    gap: 2px;
+}
+
+.model-section-header {
+    width: 100%;
+    height: 26px;
+    padding: 0px 6px;
+    gap: 6px;
+    align-items: start center;
+    background: #2A2D35;
+    border-radius: 5px;
+    hoverable: true;
+    clickable: true;
+    transition: background 160ms ease-out;
+}
+
+.model-section-header:hover {
+    background: #31343D;
+}
+
+.model-section-arrow {
+    size: 12px 12px;
+    shape: path("M 3 2 L 8 6 L 3 10", 12 12);
+    fill: none;
+    stroke: #C4CBDA;
+    stroke-width: 1.5px;
+    transition: rotate 160ms ease-out;
+}
+
+.model-section-arrow[expanded="false"] {
+    rotate: 0px 0px 0px;
+}
+
+.model-section-arrow[expanded="true"] {
+    rotate: 0px 0px 90px;
+}
+
+.model-section-title {
+    grow: 1;
+    foreground: #C4CBDA;
+    font-size: 11px;
+    wrap: false;
+}
+
+.model-section-body {
+    width: 100%;
+    gap: 2px;
+    padding: 2px 4px 6px 4px;
+}
+
+.model-info-row {
+    width: 100%;
+    height: 19px;
+    align-items: space-between center;
+    padding: 0px 4px;
+}
+
+.model-info-label {
+    foreground: #8B93A5;
+    font-size: 11px;
+}
+
+.model-info-value {
+    foreground: #C4CBDA;
+    font-size: 11px;
+    wrap: false;
+}
+
+.model-node-tree {
+    width: 100%;
+    height: 220px;
+    min-size: 0px 0px;
+}
+
+/* The node-tree eye icon is a button: dim by default, accent on hover. */
+.model-node-tree .tree-icon-button {
+    tint: #8B93A5;
+    transition: tint 120ms ease-out;
+}
+
+.model-node-tree .tree-icon-button:hover {
+    tint: #D77F1C;
+}
+
+.model-anim-item {
+    width: 100%;
+    height: 22px;
+    padding: 0px 8px;
+    align-items: start center;
+    background: rgba(255, 255, 255, 0);
+    foreground: #AEB8CA;
+    border-radius: 4px;
+    hoverable: true;
+    clickable: true;
+    transition:
+        background 160ms ease-out,
+        foreground 160ms ease-out;
+}
+
+.model-anim-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    foreground: #ffffff;
+}
+
+.model-anim-item.selected {
+    background: rgba(215, 127, 28, 0.28);
+    foreground: #ffffff;
+}
+
+.model-empty {
+    foreground: #5F6677;
+    font-size: 11px;
+    padding: 2px 4px;
+}

@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.isModelEditorFile
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.normalizeEditorLineEndings
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
@@ -94,7 +95,14 @@ internal class HollowIdeModel {
     fun openFile(path: String): HollowIdeOpenResult {
         selectedTreePath = path
         val file = path.fromReadablePath()
-        if (!file.isFile || file.isProbablyBinary()) return HollowIdeOpenResult.Unsupported
+        if (!file.isFile) return HollowIdeOpenResult.Unsupported
+        if (path.isModelEditorFile()) {
+            files[path]?.let { return HollowIdeOpenResult.File(it, created = false) }
+            val opened = HollowIdeOpenFile(path, "", readOnly = true)
+            files[path] = opened
+            return HollowIdeOpenResult.File(opened, created = true)
+        }
+        if (file.isProbablyBinary()) return HollowIdeOpenResult.Unsupported
         files[path]?.let { opened ->
             if (!opened.dirty) opened.refresh(file.readText().normalizeEditorLineEndings())
             return HollowIdeOpenResult.File(opened, created = false)

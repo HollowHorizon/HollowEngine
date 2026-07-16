@@ -22,6 +22,8 @@ fun <T> UiTreeView(
     onSelect: (UiTreeItem<T>, UiEvent) -> Unit,
     modifier: Modifier = Modifier.size(100.percent, 100.percent),
     tags: Iterable<String> = emptyList(),
+    onIconClick: ((UiTreeItem<T>) -> Unit)? = null,
+    fillRowWidth: Boolean = true,
 ) {
     LazyColumn(
         tags = listOf("tree-view") + tags,
@@ -29,7 +31,7 @@ fun <T> UiTreeView(
     ) {
         items.forEach { item ->
             key(item.id) {
-                UiTreeRow(item, onToggle, onSelect)
+                UiTreeRow(item, onToggle, onSelect, onIconClick, fillRowWidth)
             }
         }
     }
@@ -40,11 +42,13 @@ private fun <T> UiTreeRow(
     item: UiTreeItem<T>,
     onToggle: (UiTreeItem<T>) -> Unit,
     onSelect: (UiTreeItem<T>, UiEvent) -> Unit,
+    onIconClick: ((UiTreeItem<T>) -> Unit)?,
+    fillRowWidth: Boolean,
 ) {
     Row(
         id = "tree-item-${item.id}",
         tags = if (item.selected) listOf("tree-item", "selected") else listOf("tree-item"),
-        modifier = Modifier.size(100.percent, 24.px)
+        modifier = Modifier.size(if (fillRowWidth) 100.percent else UiLength.Auto, 24.px)
             .alignItems(vertical = UiAlign.CENTER)
             .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
@@ -66,7 +70,21 @@ private fun <T> UiTreeRow(
                 event.consume()
             },
         )
-        if (item.icon != null) Image(item.icon, tags = listOf("tree-icon"))
+        if (item.icon != null) {
+            val iconModifier = if (onIconClick != null) {
+                Modifier.input(hoverable = true, clickable = true)
+                    .cursor(UiCursorShape.HAND)
+                    .onClick { event ->
+                        onIconClick(item)
+                        event.consume()
+                    }
+            } else null
+            Image(
+                item.icon,
+                tags = if (onIconClick != null) listOf("tree-icon", "tree-icon-button") else listOf("tree-icon"),
+                modifier = iconModifier,
+            )
+        }
         Text(item.label, tags = listOf("tree-label"))
     }
 }

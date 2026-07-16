@@ -1,14 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
-import ru.hollowhorizon.hollowengine.client.ui.shape.SvgPathShape
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineCap
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineJoin
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgFilterEffect
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgPathDocument
+import ru.hollowhorizon.hollowengine.client.ui.shape.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
@@ -81,6 +76,27 @@ interface UiCanvasDrawScope {
     fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false)
 
     fun drawTexture(textureId: Int, flipY: Boolean = false) = drawTexture(bounds, textureId, flipY)
+
+    /**
+     * Escapes to raw OpenGL for [rect] (node-local coordinates; defaults to the whole node). Unlike the
+     * vector/text primitives above, [block] does not record a batchable command, it runs at render
+     * time, after pending UI batches are flushed and depth testing is enabled, so it can draw 3D content
+     * (models, entities, custom GL) that the 2D canvas can't express. See [UiGlDrawScope].
+     */
+    fun drawGl(rect: UiRect, block: UiGlDrawScope.() -> Unit)
+
+    fun drawGl(block: UiGlDrawScope.() -> Unit) = drawGl(bounds, block)
+}
+
+interface UiGlDrawScope {
+    /** The node's draw rect in the active projection's coordinate space (already layer-local). */
+    val rect: UiRect
+
+    /** The node's effective opacity, for callers that blend manually. */
+    val opacity: Float
+
+    /** A fresh, identity pose stack sharing the UI's current projection matrix. */
+    val poseStack: PoseStack
 }
 
 enum class UiCanvasDrawLayer {
@@ -192,6 +208,20 @@ internal class UiCommandCanvasScope(
             filter = filter,
             backfaceVisibility = backfaceVisibility,
             phase = phase,
+        )
+    }
+
+    override fun drawGl(rect: UiRect, block: UiGlDrawScope.() -> Unit) {
+        if (!rect.isDrawable() || opacity <= 0f) return
+        sink += DrawCanvasGlCommand(
+            node = node,
+            rect = rect.toCommandRect(),
+            opacity = opacity,
+            transform = layoutNode.worldTransform.translated(rect.x, rect.y),
+            filter = filter,
+            backfaceVisibility = backfaceVisibility,
+            phase = phase,
+            block = block,
         )
     }
 

@@ -10,6 +10,8 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditor
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneViewportDock
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.ModelEditorPanel
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.isModelEditorFile
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -323,8 +325,9 @@ object HollowIdeOverlay {
             CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
             CutsceneViewportId -> CutsceneViewportDock()
             UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
-            else -> model.files.values.firstOrNull { it.id == item.id }?.let { file -> FileEditor(file) }
-                ?: EmptyEditor()
+            else -> model.files.values.firstOrNull { it.id == item.id }?.let { file ->
+                if (file.path.isModelEditorFile()) ModelEditorPanel(file.path) else FileEditor(file)
+            } ?: EmptyEditor()
         }
     }
 

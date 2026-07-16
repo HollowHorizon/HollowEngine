@@ -297,6 +297,7 @@ class MinecraftUiRenderer {
             is DrawRawTextureCommand -> drawRawTexture(command)
             is DrawItemCommand -> drawItem(command)
             is DrawEntityCommand -> drawEntity(command)
+            is DrawCanvasGlCommand -> drawCanvasGl(command)
         }
     }
 
@@ -1878,6 +1879,30 @@ class MinecraftUiRenderer {
         )
     }
 
+    private fun drawCanvasGl(command: DrawCanvasGlCommand) {
+        if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        val rect = localRect(command.rect)
+        val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
+        val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
+        POSE_STACK.pushPose()
+        RenderSystem.enableDepthTest()
+        GL11.glDepthMask(true)
+        try {
+            command.block(UiGlDrawScopeImpl(rect, command.opacity, POSE_STACK))
+        } catch (e: Throwable) {
+            HollowEngine.LOGGER.error("Error in Modifier.drawGl block", e)
+        } finally {
+            Lighting.setupFor3DItems()
+            POSE_STACK.popPose()
+            if (depthEnabled) RenderSystem.enableDepthTest() else RenderSystem.disableDepthTest()
+            GL11.glDepthMask(depthMask)
+            RenderSystem.enableBlend()
+            configureUiBlend()
+        }
+    }
+
     private fun renderEntity(entity: LivingEntity, rect: UiRect) {
         val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
@@ -2170,3 +2195,9 @@ private fun collectTextEffects(
 }
 
 private val POSE_STACK = PoseStack()
+
+private class UiGlDrawScopeImpl(
+    override val rect: UiRect,
+    override val opacity: Float,
+    override val poseStack: PoseStack,
+) : UiGlDrawScope

@@ -28,15 +28,25 @@ internal fun applyScrollRanges(
         if (!style.scrollable) continue
         val axes = node.scrollAxes()
         val childBounds = scrollableContentBounds(node, style, layout, layouts, layoutChildren)
+        val scrollArea = layout.scrollArea
+        val contentRight = childBounds.x + childBounds.width
+        val contentBottom = childBounds.y + childBounds.height
+        val overlay = style.scrollbar.overlay == true
+        val verticalGutter = if (overlay) 0f else style.scrollbar.resolved(layout.rect.width).gutter
+        val horizontalGutter = if (overlay) 0f else style.scrollbar.resolved(layout.rect.height).gutter
+        var verticalBar = false
+        var horizontalBar = false
+        repeat(2) {
+            val viewportWidth = scrollArea.width - if (verticalBar) verticalGutter else 0f
+            val viewportHeight = scrollArea.height - if (horizontalBar) horizontalGutter else 0f
+            verticalBar = axes.vertical && contentBottom.exceeds(scrollArea.y + viewportHeight)
+            horizontalBar = axes.horizontal && contentRight.exceeds(scrollArea.x + viewportWidth)
+        }
+        val viewportWidth = scrollArea.width - if (verticalBar) verticalGutter else 0f
+        val viewportHeight = scrollArea.height - if (horizontalBar) horizontalGutter else 0f
         val range = UiScrollOffset(
-            x = if (axes.horizontal) maxOf(
-                0f,
-                childBounds.x + childBounds.width - (layout.content.x + layout.content.width)
-            ) else 0f,
-            y = if (axes.vertical) maxOf(
-                0f,
-                childBounds.y + childBounds.height - (layout.content.y + layout.content.height)
-            ) else 0f,
+            x = if (axes.horizontal) maxOf(0f, contentRight - (scrollArea.x + viewportWidth)) else 0f,
+            y = if (axes.vertical) maxOf(0f, contentBottom - (scrollArea.y + viewportHeight)) else 0f,
         )
         val clamped = scrollState.clamp(node, range)
         val clip = layout.clip?.intersect(layout.content) ?: layout.content

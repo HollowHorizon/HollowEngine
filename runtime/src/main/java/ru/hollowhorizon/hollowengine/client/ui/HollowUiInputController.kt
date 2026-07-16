@@ -212,7 +212,7 @@ class HollowUiInputController {
         val pressHandled = dispatch(press)
         if (pressHandled && press.consumed) return UiInputResult(true, hit.node, hit.node.id)
 
-        if (hit.node.resolvedSnapshot.draggable && button == 0) {
+        if (hit.node.resolvedSnapshot.draggable && button in 0..2) {
             draggingNode = hit.node
             dragStartX = mouseX
             dragStartY = mouseY
