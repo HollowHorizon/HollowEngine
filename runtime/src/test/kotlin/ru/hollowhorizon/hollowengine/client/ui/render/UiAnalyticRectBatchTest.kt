@@ -74,6 +74,32 @@ class UiAnalyticRectBatchTest {
     }
 
     @Test
+    fun `a glyph encodes marker, uv, colour and clip into its record and tracks the atlas`() {
+        val batch = UiAnalyticRectBatch()
+        val clip = UiShaderClip(1f, 2f, 3f, 4f)
+        batch.appendGlyph(
+            UiMatrix4.identity(),
+            10f, 20f, 30f, 40f,          // local bounds
+            0.1f, 0.2f, 0.3f, 0.4f,       // uv rect
+            UiColor(0.5f, 0.6f, 0.7f, 0.8f),
+            clip,
+            atlas = 42, distanceRange = 2f, atlasWidth = 512f, atlasHeight = 8192f,
+        )
+
+        assertEquals(1, batch.instanceCount)
+        assertEquals(42, batch.atlasTextureId)
+        assertTrue(batch.acceptsGlyphAtlas(42))
+        assertFalse(batch.acceptsGlyphAtlas(7))
+
+        val records = FloatArray(batch.recordFloatCount)
+        batch.writeRecords(java.nio.FloatBuffer.wrap(records))
+        assertEquals(UiAnalyticRectBatch.GlyphMarker, records[0], "glyph marker in texel 0")
+        assertEquals(0.1f, records[4]); assertEquals(0.4f, records[7]) // uv rect (texel 1)
+        assertEquals(0.5f, records[8]); assertEquals(0.8f, records[11]) // colour (texel 2)
+        assertEquals(1f, records[12]); assertEquals(4f, records[15]) // clip (texel 3)
+    }
+
+    @Test
     fun `nonuniform border remains on geometry fallback`() {
         val command = command(
             border = UiBorder(
@@ -92,10 +118,20 @@ class UiAnalyticRectBatchTest {
     }
 
     @Test
-    fun `plain solid fill joins the unified SDF pipeline`() {
-        // A flat colour rect (no radius, no border) is a buffer paint, so it now instances through
-        // the SDF batch instead of the vanilla triangle batch.
-        assertTrue(UiAnalyticRectBatch().canAppend(command()))
+    fun `plain fill joins the analytic batch and is hard-filled by the shader`() {
+        // A flat colour rect (no radius, no border) batches here; the shader hard-fills it so abutting
+        // opaque fills stay seam-free while still sharing one instanced draw with rounded/bordered rects.
+        val batch = UiAnalyticRectBatch()
+        val command = command()
+
+        assertTrue(batch.canAppend(command))
+        batch.append(command, UiMatrix4.identity(), UiShaderClip.None)
+
+        assertEquals(1, batch.instanceCount)
+        val records = FloatArray(batch.recordFloatCount)
+        batch.writeRecords(java.nio.FloatBuffer.wrap(records))
+        assertEquals(0f, records[2], "radius")
+        assertEquals(0f, records[3], "border width")
     }
 
     @Test

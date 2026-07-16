@@ -106,6 +106,8 @@ class MinecraftUiRenderer {
     private val pathTileBatch = UiPathTileBatch()
     private val pathTileRenderer = UiPathTileRenderer()
     private val msdfTextBatch = UiMsdfTextBatch()
+    private var emitUnifiedGlyphs = false
+    private var glyphClip = UiShaderClip.None
     private val layerRequests = mutableListOf<UiLayerRequest>()
     private val preparedLayers = IdentityHashMap<UiNode, PreparedUiLayer>()
     private val brokenSvgSources = mutableSetOf<String>()
@@ -464,7 +466,10 @@ class MinecraftUiRenderer {
         if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
         computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
         flushBatchesOverlappingQuad(UiBatchKind.IMAGE)
-        if (phaseImageBatches.isNotEmpty() && imageBatchClip != phaseClip) flushPhaseImageBatches()
+        val overlapsPendingImages = imageBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        if (phaseImageBatches.isNotEmpty() && (imageBatchClip != phaseClip || overlapsPendingImages)) {
+            flushPhaseImageBatches()
+        }
         if (!appendSvgImage(command, phaseImageBatches)) appendImageBatch(command, phaseImageBatches)
         imageBatchClip = phaseClip
         imageBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
@@ -474,17 +479,23 @@ class MinecraftUiRenderer {
         val boundsWidth = max(command.rect.width, command.layout.maxNaturalLineWidth)
         val boundsHeight = max(command.rect.height, command.layout.height)
         computeQuadBounds(boundsWidth, boundsHeight, effective(command.transform))
-        flushBatchesOverlappingQuad(UiBatchKind.TEXT)
-        if (hasPendingText() && textBatchClip != phaseClip) flushTextBatch()
-        textBatchClip = phaseClip
-        clipStack.clear()
-        clipStack.addAll(phaseClipStack)
-        setScissor(phaseClip)
-        drawText(command)
-        textBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        if (analyticRectRenderer.isAvailable) {
+            flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
+            clipStack.clear()
+            clipStack.addAll(phaseClipStack)
+            drawText(command)
+            analyticBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        } else {
+            flushBatchesOverlappingQuad(UiBatchKind.TEXT)
+            if (!msdfTextBatch.isEmpty && textBatchClip != phaseClip) flushMsdfTextBatch()
+            textBatchClip = phaseClip
+            clipStack.clear()
+            clipStack.addAll(phaseClipStack)
+            setScissor(phaseClip)
+            drawText(command)
+            textBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        }
     }
-
-    private fun hasPendingText(): Boolean = !msdfTextBatch.isEmpty
 
     private fun flushPhaseImageBatches() {
         if (phaseImageBatches.isNotEmpty()) setScissor(imageBatchClip)
@@ -621,6 +632,24 @@ class MinecraftUiRenderer {
         return UiShaderClip(clip.x, clip.y, clip.x + clip.width, clip.y + clip.height)
     }
 
+    /**
+     * The screen-space AABB of a node's local `(0,0)-(w,h)` viewport under [transform], as a shader
+     * clip. Used to bound overflow-clipped text to its content box without a GL scissor. For rotated
+     * transforms this is the loose axis-aligned bound, matching what the scissor would have clipped.
+     */
+    private fun localViewportClip(rect: UiRect, transform: UiMatrix4): UiShaderClip {
+        val c0 = transform.transform(0f, 0f)
+        val c1 = transform.transform(rect.width, 0f)
+        val c2 = transform.transform(rect.width, rect.height)
+        val c3 = transform.transform(0f, rect.height)
+        return UiShaderClip(
+            minOf(c0.x, c1.x, c2.x, c3.x),
+            minOf(c0.y, c1.y, c2.y, c3.y),
+            maxOf(c0.x, c1.x, c2.x, c3.x),
+            maxOf(c0.y, c1.y, c2.y, c3.y),
+        )
+    }
+
     private fun flushPathTileBatch() {
         pathTileBatchBounds.clear()
         if (!pathTileBatch.isEmpty) {
@@ -638,13 +667,15 @@ class MinecraftUiRenderer {
     }
 
     private fun flushMsdfTextBatch() {
-        if (!msdfTextBatch.isEmpty) activeProfile?.msdfTextDraws++
+        if (msdfTextBatch.isEmpty) return
+        setScissor(textBatchClip)
+        activeProfile?.msdfTextDraws++
         msdfTextBatch.flush()
     }
 
     private fun flushTextBatch() {
         textBatchBounds.clear()
-        if (hasPendingText()) setScissor(textBatchClip)
+        flushAnalyticRectBatch()
         flushMsdfTextBatch()
     }
 
@@ -1291,6 +1322,13 @@ class MinecraftUiRenderer {
             scrollX = command.scrollOffset.x,
             scrollY = command.scrollOffset.y,
         )
+        val useAnalytic = analyticRectRenderer.isAvailable
+        emitUnifiedGlyphs = useAnalytic
+        glyphClip = when {
+            !useAnalytic -> UiShaderClip.None
+            clipped -> phaseShaderClip().intersect(localViewportClip(command.rect, transform))
+            else -> phaseShaderClip()
+        }
         if (clipped) {
             flushPhaseImageBatches()
             flushGeometryBatches()
@@ -1619,6 +1657,10 @@ class MinecraftUiRenderer {
         val alpha = command.opacity * alphaMultiplier
         val color = baseColor.withOpacity(alpha).filtered(command.filter)
 
+        if (emitUnifiedGlyphs && !analyticRectBatch.acceptsGlyphAtlas(fontData.textureId)) {
+            flushAnalyticRectBatch()
+        }
+
         var penX = 0f
         for (char in fragment.text) {
             // Codepoints the atlas lacks render as the fallback glyph (never silently dropped),
@@ -1642,23 +1684,23 @@ class MinecraftUiRenderer {
             val yTop = baselineY - pb.top * pxPerEm
             val yBottom = baselineY - pb.bottom * pxPerEm
 
-            val bottomLeft = transform.transform(localX + x0, localY + yBottom)
-            val topLeft = transform.transform(localX + x0, localY + yTop)
-            val topRight = transform.transform(localX + x1, localY + yTop)
-            val bottomRight = transform.transform(localX + x1, localY + yBottom)
-
-            msdfTextBatch.appendQuad(
-                fontData,
-                bottomRight,
-                topRight,
-                topLeft,
-                bottomLeft,
-                u0,
-                v0,
-                u1,
-                v1,
-                color,
-            )
+            if (emitUnifiedGlyphs) {
+                // Local quad bounds (minY = top since yTop < yBottom); UV maps top→v1, bottom→v0,
+                // reproducing the MSDF batch's corner mapping.
+                analyticRectBatch.appendGlyph(
+                    transform,
+                    localX + x0, localY + yTop, localX + x1, localY + yBottom,
+                    u0, v1, u1, v0,
+                    color, glyphClip,
+                    fontData.textureId, atlasInfo.distanceRange, atlasWidth, atlasHeight,
+                )
+            } else {
+                val bottomLeft = transform.transform(localX + x0, localY + yBottom)
+                val topLeft = transform.transform(localX + x0, localY + yTop)
+                val topRight = transform.transform(localX + x1, localY + yTop)
+                val bottomRight = transform.transform(localX + x1, localY + yBottom)
+                msdfTextBatch.appendQuad(fontData, bottomRight, topRight, topLeft, bottomLeft, u0, v0, u1, v1, color)
+            }
 
             penX += glyph.advance * pxPerEm
         }

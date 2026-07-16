@@ -384,7 +384,7 @@ internal val DemoStyles = compileHss(
 
     .popup-anchor {
         padding: 7px 12px;
-        width: 136px;
+        width: 156px;
         height: 28px;
         background: rgba(72, 150, 142, 0.96);
         border-radius: 7px;
@@ -398,7 +398,7 @@ internal val DemoStyles = compileHss(
     .popup-panel {
         gap: 4px;
         padding: 9px;
-        size: 154px auto;
+        size: 176px auto;
         background: rgba(244, 248, 255, 0.96);
         foreground: rgba(26, 34, 48, 0.98);
         border-radius: 8px;
@@ -407,7 +407,7 @@ internal val DemoStyles = compileHss(
     }
 
     .cursor-popup {
-        size: 150px auto;
+        size: 172px auto;
     }
 
     .popup-title {

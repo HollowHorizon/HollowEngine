@@ -1,9 +1,9 @@
 #version 330 core
 
-// Instanced: one instance per rounded rect / shadow. The base quad is 6 corners from gl_VertexID,
-// and per-instance attributes carry the row-major CPU transform and the local-space quad bounds
-// (rects span (0,0)-(w,h); shadows expand by their raster margin). The per-record data (size,
-// radius, border, paint, clip) lives in RecordBuffer, indexed by gl_InstanceID.
+// Instanced, unified primitive pipeline: one instance per rounded rect / shadow / glyph. The base
+// quad is 6 corners from gl_VertexID; per-instance attributes carry the row-major CPU transform and
+// the local-space quad bounds. Per-primitive data lives in RecordBuffer (indexed by gl_InstanceID);
+// for glyphs, record texel 1 holds the atlas UV rect, sampled in the fragment shader.
 layout(location = 0) in vec4 TransformRow0;
 layout(location = 1) in vec4 TransformRow1;
 layout(location = 2) in vec4 TransformRow2;
@@ -12,9 +12,11 @@ layout(location = 4) in vec4 LocalBounds; // minX, minY, maxX, maxY
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
+uniform samplerBuffer RecordBuffer;
 
 out vec2 localPosition;
 out vec2 clipPosition;
+out vec2 glyphUv;
 flat out int recordIndex;
 
 const vec2 CORNERS[6] = vec2[6](
@@ -39,5 +41,9 @@ void main() {
     localPosition = local;
     // Effective screen position for the per-record clip test in the fragment shader.
     clipPosition = transformed.xy;
+    // Glyph atlas UV, interpolated from the record's UV rect (texel 1). Unused (and harmless) for
+    // rect/shadow instances, whose texel 1 holds effect data instead.
+    vec4 uvRect = texelFetch(RecordBuffer, gl_InstanceID * 4 + 1);
+    glyphUv = mix(uvRect.xy, uvRect.zw, corner);
     recordIndex = gl_InstanceID;
 }

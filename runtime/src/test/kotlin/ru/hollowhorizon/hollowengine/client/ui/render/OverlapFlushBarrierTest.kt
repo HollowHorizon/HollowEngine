@@ -4,11 +4,11 @@ import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
- * Overlapping visual subtrees of an overlap-capable container get a flush barrier so phase batching
- * can't reorder one over another; empty, flow-layout and separated children batch without one.
+ * Overlapping visual subtrees of an overlap-capable container get a flush barrier only when phase
+ * batching would reorder them, a later sibling painting in an earlier phase (e.g. an opaque
+ * background) under an earlier sibling's text.
  */
 class OverlapFlushBarrierTest {
     private fun commandsFor(root: BoxNode): List<UiRenderCommand> {
@@ -22,10 +22,33 @@ class OverlapFlushBarrierTest {
     )
 
     @Test
-    fun `overlapping stack children get a flush barrier between them`() {
+    fun `later background over earlier text gets a flush barrier`() {
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK))
+            .also { it.children.add(SpanNode("under")); it.children.add(box("cover")) }
+        assertEquals(1, commandsFor(root).count { it is FlushBarrierCommand }, "background inverts text")
+    }
+
+    @Test
+    fun `clip inside an overlap sibling survives after its background`() {
+        val clipped = BoxNode(
+            id = "clipped",
+            modifiers = listOf(Modifier.size(60.px, 60.px).background(UiColor.White).clip()),
+        ).also { it.children += box("inner") }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK)).also { node ->
+            node.children += box("a")
+            node.children += clipped
+        }
+
+        val commands = commandsFor(root)
+        assertEquals(1, commands.count { it is PushClipCommand }, "clip push survives")
+        assertEquals(1, commands.count { it is PopClipCommand }, "clip pop survives")
+    }
+
+    @Test
+    fun `overlapping same-phase backgrounds batch without a barrier`() {
         val root = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK))
             .also { it.children.add(box("a")); it.children.add(box("b")) }
-        assertTrue(commandsFor(root).any { it is FlushBarrierCommand }, "stacked children overlap")
+        assertFalse(commandsFor(root).any { it is FlushBarrierCommand }, "same phase needs no barrier")
     }
 
     @Test
@@ -95,9 +118,9 @@ class OverlapFlushBarrierTest {
     @Test
     fun `empty child does not add barriers between visual siblings`() {
         val root = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK)).also { node ->
-            node.children += box("a")
+            node.children += SpanNode("under")
             node.children += BoxNode(id = "empty", modifiers = listOf(Modifier.size(60.px, 60.px)))
-            node.children += box("b")
+            node.children += box("cover")
         }
 
         assertEquals(1, commandsFor(root).count { it is FlushBarrierCommand })
@@ -111,7 +134,7 @@ class OverlapFlushBarrierTest {
             modifiers = listOf(Modifier.size(60.px, 60.px)),
         ).also { it.children += box("nested") }
         val root = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK)).also { node ->
-            node.children += box("a")
+            node.children += SpanNode("under")
             node.children += wrapper
         }
 

@@ -7,11 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarThumbNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
-import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineCap
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathStrokeLineJoin
-import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgPathDocument
-import ru.hollowhorizon.hollowengine.client.ui.shape.svgResourceDocument
+import ru.hollowhorizon.hollowengine.client.ui.shape.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
@@ -199,28 +195,38 @@ fun interface UiRenderSink {
 
 operator fun UiRenderSink.plusAssign(command: UiRenderCommand) = submit(command)
 
-private class OverlappingChildSink(
+private class OverlapOrderingSink(
     private val delegate: UiRenderSink,
     private val parent: UiNode,
 ) : UiRenderSink {
-    private val visibleBounds = ArrayList<UiRect>()
+    private val siblingBounds = ArrayList<UiRect>()
+    private val siblingMaxPhase = ArrayList<Int>()
     private var pendingStructuralCommands: ArrayList<UiRenderCommand>? = null
     private var childBounds = UiRect.Zero
+    private var childMaxPhase = -1
     private var childStartedDrawing = false
 
     fun beginChild(bounds: UiRect) {
+        commitCurrentChild()
         childBounds = bounds
+        childMaxPhase = -1
         childStartedDrawing = false
         pendingStructuralCommands?.clear()
     }
 
-    override fun submit(command: UiRenderCommand) {
-        if (childStartedDrawing) {
-            delegate.submit(command)
-            return
+    private fun commitCurrentChild() {
+        if (childMaxPhase >= 0) {
+            siblingBounds += childBounds
+            siblingMaxPhase += childMaxPhase
         }
+    }
+
+    override fun submit(command: UiRenderCommand) {
         if (!command.drawsPixels()) {
-            if (command !is FlushBarrierCommand) {
+            if (command is FlushBarrierCommand) return
+            if (childStartedDrawing) {
+                delegate.submit(command)
+            } else {
                 val pending = pendingStructuralCommands ?: ArrayList<UiRenderCommand>(4).also {
                     pendingStructuralCommands = it
                 }
@@ -228,19 +234,43 @@ private class OverlappingChildSink(
             }
             return
         }
-
-        if (visibleBounds.any { it.overlaps(childBounds) }) {
+        val phase = command.renderPhaseOrdinal()
+        if (phase < maxOverlappingSiblingPhase()) {
             delegate.submit(FlushBarrierCommand(parent))
-            visibleBounds.clear()
+            siblingBounds.clear()
+            siblingMaxPhase.clear()
         }
-        visibleBounds += childBounds
-        pendingStructuralCommands?.let { pending ->
-            for (structuralCommand in pending) delegate.submit(structuralCommand)
-            pending.clear()
+        childMaxPhase = maxOf(childMaxPhase, phase)
+        if (!childStartedDrawing) {
+            pendingStructuralCommands?.let { pending ->
+                for (structuralCommand in pending) delegate.submit(structuralCommand)
+                pending.clear()
+            }
+            childStartedDrawing = true
         }
-        childStartedDrawing = true
         delegate.submit(command)
     }
+
+    /** The highest phase any earlier sibling overlapping the current child has drawn (-1 if none). */
+    private fun maxOverlappingSiblingPhase(): Int {
+        var max = -1
+        for (index in siblingBounds.indices) {
+            if (siblingMaxPhase[index] > max && siblingBounds[index].overlaps(childBounds)) {
+                max = siblingMaxPhase[index]
+            }
+        }
+        return max
+    }
+}
+
+private fun UiRenderCommand.renderPhaseOrdinal(): Int = when (this) {
+    is DrawBoxCommand -> phase.ordinal
+    is DrawShapeCommand -> phase.ordinal
+    is DrawTextCommand -> phase.ordinal
+    is DrawImageCommand -> phase.ordinal
+    is DrawRawTextureCommand -> phase.ordinal
+    is DrawShadowCommand, is DrawBackdropFilterCommand -> UiRenderPhase.BACKGROUND.ordinal
+    else -> UiRenderPhase.CONTENT.ordinal
 }
 
 private fun UiRenderCommand.drawsPixels(): Boolean = when (this) {
@@ -424,7 +454,7 @@ class UiCommandRenderer {
         if (!pushedClip || childClip != null) {
             val sorted = orderedVisibleChildren(node, layout)
             val overlappingChildSink = if (sorted.size > 1 && node.childrenCanOverlap()) {
-                OverlappingChildSink(commands, node)
+                OverlapOrderingSink(commands, node)
             } else {
                 null
             }

@@ -26,7 +26,18 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
     private var paintData: FloatBuffer? = null
     private var stopData: FloatBuffer? = null
 
+    private var fontAtlasLocation = -1
+    private var glyphDistanceRangeLocation = -1
+    private var glyphAtlasSizeLocation = -1
+
     override val vertexStrideFloats get() = UiAnalyticRectBatch.InstanceStride
+
+    override fun onProgramReady() {
+        HollowEngine.LOGGER.info("Initialized UI analytic rectangle renderer (GL 3.3 instanced, unified glyphs)")
+        fontAtlasLocation = GL20.glGetUniformLocation(program, "FontAtlas")
+        glyphDistanceRangeLocation = GL20.glGetUniformLocation(program, "GlyphDistanceRange")
+        glyphAtlasSizeLocation = GL20.glGetUniformLocation(program, "GlyphAtlasSize")
+    }
 
     /** Per-instance attributes: the 4×4 row-major transform (locations 0-3) + local bounds (4). */
     override fun setupVertexAttributes() {
@@ -56,9 +67,14 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
                 uploadMatrices()
                 bindVertexArray()
                 bindTextureBuffers(arrayOf(recordBuffer, paintBuffer, stopBuffer))
+                bindGlyphAtlas(batch)
                 GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batch.instanceCount)
             }
         } finally {
+            if (batch.atlasTextureId != 0) {
+                GL13.glActiveTexture(GL13.GL_TEXTURE0 + GlyphAtlasUnit)
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0)
+            }
             restoreTextureBufferBindings(previousTextureBuffers, previousActiveTexture)
             GL30.glBindVertexArray(previousVertexArray)
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, previousArrayBuffer)
@@ -66,8 +82,14 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
         }
     }
 
-    override fun onProgramReady() {
-        HollowEngine.LOGGER.info("Initialized UI analytic rectangle renderer (GL 3.3 buffer textures)")
+    /** Binds the batch's MSDF glyph atlas (unit 3, past the three buffer textures) when it has glyphs. */
+    private fun bindGlyphAtlas(batch: UiAnalyticRectBatch) {
+        if (batch.atlasTextureId == 0) return
+        GL13.glActiveTexture(GL13.GL_TEXTURE0 + GlyphAtlasUnit)
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, batch.atlasTextureId)
+        GL20.glUniform1i(fontAtlasLocation, GlyphAtlasUnit)
+        GL20.glUniform1f(glyphDistanceRangeLocation, batch.glyphDistanceRange)
+        GL20.glUniform2f(glyphAtlasSizeLocation, batch.glyphAtlasWidth, batch.glyphAtlasHeight)
     }
 
     override fun onClose() {
@@ -104,6 +126,9 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
     }
 
     private companion object {
+        /** Texture unit for the glyph atlas, past the RecordBuffer/PaintBuffer/StopBuffer units (0-2). */
+        const val GlyphAtlasUnit = 3
+
         val VertexShaderPath = ResourceLocation.fromNamespaceAndPath(
             HollowEngine.MODID,
             "shaders/ui/rect_sdf.vsh",

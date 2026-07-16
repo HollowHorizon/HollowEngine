@@ -457,7 +457,7 @@ class HollowUiRuntime(
 
     fun charTyped(codePoint: Char, modifiers: Int): Boolean = profileInput {
         val frame = lastFrame ?: return@profileInput false
-        processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(isAnyFocused)
+        processInput(frame, QueuedUiInput.CharTyped(codePoint, modifiers)).orConsumed(false)
     }
 
     fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int, repeat: Boolean = false): Boolean = profileInput {

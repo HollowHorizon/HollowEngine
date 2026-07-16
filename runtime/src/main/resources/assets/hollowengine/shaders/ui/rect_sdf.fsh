@@ -4,8 +4,14 @@ uniform samplerBuffer RecordBuffer;
 uniform samplerBuffer PaintBuffer;
 uniform samplerBuffer StopBuffer;
 
+// Glyph atlas (MSDF). Sampled only for glyph instances; ignored by rect/shadow instances.
+uniform sampler2D FontAtlas;
+uniform float GlyphDistanceRange;
+uniform vec2 GlyphAtlasSize;
+
 in vec2 localPosition;
 in vec2 clipPosition;
+in vec2 glyphUv;
 flat in int recordIndex;
 
 layout(location = 0) out vec4 fragColor;
@@ -13,6 +19,13 @@ layout(location = 0) out vec4 fragColor;
 const int PAINT_SOLID = 0;
 const int PAINT_LINEAR_GRADIENT = 1;
 const int PAINT_RADIAL_GRADIENT = 2;
+
+// Record texel 0 x-component < 0 marks a glyph instance; rects always have a positive width there.
+const float GLYPH_MARKER = -1.0;
+
+float median3(float r, float g, float b) {
+    return max(min(r, g), min(max(r, g), b));
+}
 
 float roundedRectDistance(vec2 point, vec2 size, float radius) {
     vec2 halfSize = size * 0.5;
@@ -88,6 +101,7 @@ vec4 samplePaint(int paintIndex) {
 
 void main() {
     int base = recordIndex * 4;
+    vec4 geometry = texelFetch(RecordBuffer, base);
     // Per-record clip rectangle (effective screen space); discard fragments outside it. This
     // replaces the GL scissor, so one batch can carry primitives under many different clips.
     vec4 clip = texelFetch(RecordBuffer, base + 3);
@@ -95,13 +109,39 @@ void main() {
         clipPosition.x > clip.z || clipPosition.y > clip.w) {
         discard;
     }
-    vec4 geometry = texelFetch(RecordBuffer, base);
+
+    // Glyph instances sample the MSDF atlas at the interpolated UV; texel 2 holds the fill colour.
+    // The coverage formula matches msdf_text.fsh so unified glyphs and the MSDF-batch fallback for
+    // overflow-clipped text look identical.
+    if (geometry.x < 0.0) {
+        vec3 sample3 = texture(FontAtlas, glyphUv).rgb;
+        float sdPx = (median3(sample3.r, sample3.g, sample3.b) - 0.5);
+        vec2 unitRange = vec2(GlyphDistanceRange) / GlyphAtlasSize;
+        vec2 screenTexSize = vec2(1.0) / fwidth(glyphUv);
+        float pxRange = max(0.5 * dot(unitRange, screenTexSize), 2.0);
+        float edgeSoftness = 1.15; // 1.0 + MsdfSoftness (0.15)
+        float coverage = clamp(sdPx * pxRange / edgeSoftness + 0.5, 0.0, 1.0);
+        vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
+        float alpha = glyphColor.a * coverage;
+        if (alpha <= 0.0) discard;
+        fragColor = vec4(glyphColor.rgb, alpha);
+        return;
+    }
+
     vec2 size = geometry.xy;
     float radius = geometry.z;
     float borderWidth = geometry.w;
     vec4 effect = texelFetch(RecordBuffer, base + 1);
     int paintIndex = int(effect.x);
     vec4 borderColor = texelFetch(RecordBuffer, base + 2);
+
+    if (radius <= 0.0 && borderWidth <= 0.0 && effect.w <= 0.5) {
+        vec4 fill = samplePaint(paintIndex);
+        if (fill.a <= 0.0) discard;
+        fragColor = fill;
+        return;
+    }
+
     float distance = roundedRectDistance(localPosition, size, radius);
     if (effect.w > 0.5) {
         float shadowCoverage = softenedCoverage(distance - effect.z, effect.y);

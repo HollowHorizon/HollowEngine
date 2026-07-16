@@ -21,11 +21,24 @@ internal class UiAnalyticRectBatch {
     val paintFloatCount: Int get() = paints.size
     val stopFloatCount: Int get() = stops.size
 
+    /** Font-atlas texture bound for glyph instances in this batch, or 0 when it carries no glyphs. */
+    var atlasTextureId: Int = 0
+        private set
+    var glyphDistanceRange: Float = 0f
+        private set
+    var glyphAtlasWidth: Float = 0f
+        private set
+    var glyphAtlasHeight: Float = 0f
+        private set
+
+    /** Whether [atlas] can share this batch: a batch carries glyphs from at most one atlas. */
+    fun acceptsGlyphAtlas(atlas: Int): Boolean = atlasTextureId == 0 || atlasTextureId == atlas
+
     fun canAppend(command: DrawBoxCommand): Boolean {
         if (command.renderToFramebuffer) return false
         if (command.paint != UiResolvedPaint.None && !command.paint.isBufferPaint()) return false
-        val borderWidth = uniformBorderWidth(command) ?: return false
-        return command.border.radius > 0f || borderWidth > 0f || command.paint.isBufferPaint()
+        uniformBorderWidth(command) ?: return false
+        return true
     }
 
     fun append(command: DrawBoxCommand, transform: UiMatrix4, clip: UiShaderClip) {
@@ -85,11 +98,48 @@ internal class UiAnalyticRectBatch {
         )
     }
 
+    /**
+     * A single MSDF glyph quad. [minX]..[maxY] are the glyph's local-space bounds (the shared run
+     * [transform] maps them to screen), [u0]..[v1] the atlas UV rect, drawn in [color] and clipped
+     * by [clip]. All glyphs in a batch must share one [atlas] (see [acceptsGlyphAtlas]).
+     */
+    fun appendGlyph(
+        transform: UiMatrix4,
+        minX: Float,
+        minY: Float,
+        maxX: Float,
+        maxY: Float,
+        u0: Float,
+        v0: Float,
+        u1: Float,
+        v1: Float,
+        color: UiColor,
+        clip: UiShaderClip,
+        atlas: Int,
+        distanceRange: Float,
+        atlasWidth: Float,
+        atlasHeight: Float,
+    ) {
+        atlasTextureId = atlas
+        glyphDistanceRange = distanceRange
+        glyphAtlasWidth = atlasWidth
+        glyphAtlasHeight = atlasHeight
+        records.add(GlyphMarker, 0f, 0f, 0f)
+        records.add(u0, v0, u1, v1)
+        records.add(color.red, color.green, color.blue, color.alpha)
+        records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
+        appendInstance(transform, minX, minY, maxX, maxY)
+    }
+
     fun clear() {
         instances.clear()
         records.clear()
         paints.clear()
         stops.clear()
+        atlasTextureId = 0
+        glyphDistanceRange = 0f
+        glyphAtlasWidth = 0f
+        glyphAtlasHeight = 0f
     }
 
     fun writeInstances(destination: FloatBuffer) = instances.writeTo(destination)
@@ -120,6 +170,9 @@ internal class UiAnalyticRectBatch {
         const val InstanceStride = 20
         const val RecordStride = 16
         const val NoPaint = -1
+
+        /** Record texel-0 x sentinel marking a glyph (rects always have positive width there). */
+        const val GlyphMarker = -1f
         private const val ShadowMode = 1f
         private const val BlurExtentFactor = 3f
         private const val AntialiasMargin = 1f
@@ -138,6 +191,17 @@ internal data class UiShaderClip(
     val maxX: Float,
     val maxY: Float,
 ) {
+    /**
+     * The tighter clip common to both rectangles. An empty result (min ≥ max) makes the shader
+     * discard every pixel, which is the correct outcome for two non-overlapping clip regions.
+     */
+    fun intersect(other: UiShaderClip): UiShaderClip = UiShaderClip(
+        maxOf(minX, other.minX),
+        maxOf(minY, other.minY),
+        minOf(maxX, other.maxX),
+        minOf(maxY, other.maxY),
+    )
+
     companion object {
         /** No clipping: bounds far outside any UI coordinate so the shader never discards. */
         val None = UiShaderClip(-1e9f, -1e9f, 1e9f, 1e9f)
