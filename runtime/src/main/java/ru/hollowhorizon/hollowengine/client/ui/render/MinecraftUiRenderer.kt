@@ -178,6 +178,12 @@ class MinecraftUiRenderer {
         quadMaxY = max(max(c0.y, c1.y), max(c2.y, c3.y)) + padding
     }
 
+    private fun quadFullyClipped(): Boolean {
+        val clip = phaseClip ?: return false
+        return quadMaxX <= clip.x || quadMinX >= clip.x + clip.width ||
+                quadMaxY <= clip.y || quadMinY >= clip.y + clip.height
+    }
+
     /** Flushes every pending batch (except [except]) whose pixels the current quad overlaps. */
     private fun flushBatchesOverlappingQuad(except: UiBatchKind?) {
         if (except != UiBatchKind.ANALYTIC_RECT &&
@@ -465,6 +471,7 @@ class MinecraftUiRenderer {
     private fun appendPhaseImage(command: DrawImageCommand) {
         if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
         computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
+        if (quadFullyClipped()) return
         flushBatchesOverlappingQuad(UiBatchKind.IMAGE)
         val overlapsPendingImages = imageBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
         if (phaseImageBatches.isNotEmpty() && (imageBatchClip != phaseClip || overlapsPendingImages)) {
@@ -479,6 +486,7 @@ class MinecraftUiRenderer {
         val boundsWidth = max(command.rect.width, command.layout.maxNaturalLineWidth)
         val boundsHeight = max(command.rect.height, command.layout.height)
         computeQuadBounds(boundsWidth, boundsHeight, effective(command.transform))
+        if (quadFullyClipped()) return
         if (analyticRectRenderer.isAvailable) {
             flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
             clipStack.clear()
@@ -691,6 +699,7 @@ class MinecraftUiRenderer {
             )
         ) return true
         computeQuadBounds(command.rect.width, command.rect.height, transform)
+        if (quadFullyClipped()) return true
         flushBatchesOverlappingQuad(UiBatchKind.SHAPE)
         if (!shapeBatch.isEmpty && shapeBatchClip != phaseClip) flushShapeBatch()
         shapeBatchClip = phaseClip
@@ -745,6 +754,7 @@ class MinecraftUiRenderer {
         val padding = command.strokeWidth.coerceAtLeast(0f) +
                 command.blurRadius.coerceAtLeast(0f) + command.spreadRadius.coerceAtLeast(0f)
         computeQuadBounds(command.rect.width, command.rect.height, transform, padding)
+        if (quadFullyClipped()) return true
         flushBatchesOverlappingQuad(UiBatchKind.SHAPE)
         if (!shapeBatch.isEmpty && shapeBatchClip != phaseClip) flushShapeBatch()
         shapeBatchClip = phaseClip
@@ -773,6 +783,7 @@ class MinecraftUiRenderer {
             )
         ) return true
         computeQuadBounds(command.rect.width, command.rect.height, transform)
+        if (quadFullyClipped()) return true
         flushBatchesOverlappingQuad(UiBatchKind.ANALYTIC_RECT)
         analyticRectBatch.append(command, transform, phaseShaderClip())
         analyticBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
@@ -790,6 +801,7 @@ class MinecraftUiRenderer {
         val padding = command.strokeWidth.coerceAtLeast(0f) +
                 command.blurRadius.coerceAtLeast(0f) + command.spreadRadius.coerceAtLeast(0f)
         computeQuadBounds(command.rect.width, command.rect.height, transform, padding)
+        if (quadFullyClipped()) return true
         flushBatchesOverlappingQuad(UiBatchKind.PATH_TILE)
         if (!pathTileBatch.isEmpty && pathTileBatchClip != phaseClip) flushPathTileBatch()
         pathTileBatch.append(command, transform)
@@ -1336,12 +1348,14 @@ class MinecraftUiRenderer {
             pushClip(UiRect(0f, 0f, command.rect.width, command.rect.height), command.transform)
             textBatchClip = clipStack.lastOrNull()
         }
-        command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height).forEach { (_, line) ->
-            val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(
-                command, line
-            ) else line
-            drawTextLine(command, displayLine, transform, scaleX, scaleY, now)
-        }
+        val lineOverscan = if (clipped) 0f else DefaultLineOverscan
+        command.layout.visibleLineItems(command.scrollOffset.y, command.rect.height, lineOverscan)
+            .forEach { (_, line) ->
+                val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(
+                    command, line
+                ) else line
+                drawTextLine(command, displayLine, transform, scaleX, scaleY, now)
+            }
         if (clipped) {
             flushTextBatch()
             popClip()

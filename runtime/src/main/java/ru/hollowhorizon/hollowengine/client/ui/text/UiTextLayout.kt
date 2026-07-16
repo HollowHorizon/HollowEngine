@@ -947,10 +947,13 @@ private fun UiTextLine.selectionRects(
     return rects
 }
 
+/** Extra margin above/below the viewport for [visibleLineItems] to keep laid out during scroll. */
+internal const val DefaultLineOverscan = 24f
+
 internal fun UiTextLayout.visibleLineItems(
     scrollY: Float,
     viewportHeight: Float,
-    overscan: Float = 48f,
+    overscan: Float = DefaultLineOverscan,
 ): Sequence<IndexedValue<UiTextLine>> {
     if (lines.isEmpty()) return emptySequence()
     val top = scrollY - overscan
