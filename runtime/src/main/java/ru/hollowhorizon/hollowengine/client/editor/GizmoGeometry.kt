@@ -89,7 +89,6 @@ object GizmoGeometry {
 
     fun buildHandles(translation: Vec3f, rotation: QuatF, mode: GizmoEditMode, cullRings: Boolean = true): List<GizmoHandle> {
         val projector = WorldToScreenProjector
-        if (!projector.isValid) return emptyList()
 
         val origin = Vec3(translation.x.toDouble(), translation.y.toDouble(), translation.z.toDouble())
         val basis = if (mode == GizmoEditMode.TRANSLATE) QuatF.IDENTITY else rotation

@@ -137,7 +137,7 @@ object TransformGizmoEditor {
 
     private fun renderGizmo() {
         ensureInitialized()
-        if (!isEditorAvailable() || !WorldToScreenProjector.isValid) return
+        if (!isEditorAvailable()) return
         syncVisibleEntries()
         if (crosshairMode()) {
             val drag = currentDrag
@@ -373,7 +373,7 @@ object TransformGizmoEditor {
     )
 
     private fun drawGizmoLayer(scope: UiCanvasDrawScope) {
-        if (!isEditorAvailable() || !WorldToScreenProjector.isValid) return
+        if (!isEditorAvailable()) return
         for ((entryId, entry) in entries) {
             if (!entry.visible) continue
             val boundsColor = when (entryId) {
