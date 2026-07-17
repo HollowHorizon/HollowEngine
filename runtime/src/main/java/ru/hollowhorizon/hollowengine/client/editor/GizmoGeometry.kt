@@ -330,7 +330,6 @@ object GizmoGeometry {
     /** The 12 edges of [bounds] projected into screen space, or empty when any corner is off-screen. */
     fun buildBoundsEdges(bounds: AABB): List<List<Pt>> {
         val projector = WorldToScreenProjector
-        if (!projector.isValid) return emptyList()
         val corners = arrayOf(
             Vec3(bounds.minX, bounds.minY, bounds.minZ), Vec3(bounds.maxX, bounds.minY, bounds.minZ),
             Vec3(bounds.maxX, bounds.minY, bounds.maxZ), Vec3(bounds.minX, bounds.minY, bounds.maxZ),
