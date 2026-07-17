@@ -13,9 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.isModelEditorFile
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
-import ru.hollowhorizon.hollowengine.client.ui.widgets.normalizeEditorLineEndings
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -29,10 +27,11 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.Base64
 
-private const val BinarySampleSize = 8192
 private const val AutoSaveDelayMillis = 900L
 
-internal class HollowIdeModel {
+internal class HollowIdeModel(
+    private val fileTypes: HollowIdeFileTypeRegistry,
+) {
     val tree = HollowIdeFileTree()
     val files = mutableStateMapOf<String, HollowIdeOpenFile>()
     val selectedTreePaths = mutableStateListOf<String>()
@@ -96,28 +95,32 @@ internal class HollowIdeModel {
         selectedTreePath = path
         val file = path.fromReadablePath()
         if (!file.isFile) return HollowIdeOpenResult.Unsupported
-        if (path.isModelEditorFile()) {
-            files[path]?.let { return HollowIdeOpenResult.File(it, created = false) }
-            val opened = HollowIdeOpenFile(path, "", readOnly = true)
-            files[path] = opened
-            return HollowIdeOpenResult.File(opened, created = true)
-        }
-        if (file.isProbablyBinary()) return HollowIdeOpenResult.Unsupported
         files[path]?.let { opened ->
-            if (!opened.dirty) opened.refresh(file.readText().normalizeEditorLineEndings())
+            if (!opened.dirty) opened.refresh(file.readBytes())
             return HollowIdeOpenResult.File(opened, created = false)
         }
-        val opened = HollowIdeOpenFile(path, file.readText().normalizeEditorLineEndings())
+        val bytes = file.readBytes()
+        val fileType = fileTypes.find(path, bytes) ?: return HollowIdeOpenResult.Unsupported
+        val opened = runCatching { openFile(fileType, path, bytes) }.getOrNull()
+            ?: return HollowIdeOpenResult.Unsupported
         files[path] = opened
         return HollowIdeOpenResult.File(opened, created = true)
     }
 
     fun openReadOnly(path: String, text: String): HollowIdeOpenFile {
         files[path]?.let { opened ->
-            opened.refreshReadOnly(text)
-            return opened
+            if (opened.textOrNull != null) {
+                opened.refreshReadOnly(text)
+                return opened
+            }
+            files.remove(path)
+            opened.close()
         }
-        return HollowIdeOpenFile(path, text.normalizeEditorLineEndings(), readOnly = true).also { opened ->
+        val textType = requireNotNull(fileTypes.find(BuiltinTextFileTypeId)) {
+            "The built-in text file type is not registered"
+        }
+        return HollowIdeOpenFile(path, textType, HollowIdeTextDocument(text, readOnly = true)).also { opened ->
+            opened.attachSaveHandler { save(path) }
             files[path] = opened
         }
     }
@@ -131,7 +134,7 @@ internal class HollowIdeModel {
     fun save(path: String): Boolean {
         val file = files[path]?.takeUnless { it.readOnly } ?: return false
         pendingSaves.remove(path)?.cancel()
-        path.fromReadablePath().writeText(file.text)
+        path.fromReadablePath().writeBytes(file.encode())
         file.markSaved()
         tree.refresh()
         return true
@@ -173,10 +176,18 @@ internal class HollowIdeModel {
         if (!Files.exists(source)) return HollowIdeFileOperationResult.NotFound
         val target = source.parent.resolve(cleanName).normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
         if (Files.exists(target)) return HollowIdeFileOperationResult.AlreadyExists
+        val opened = files[path]
+        if (opened?.dirty == true && !save(path)) return HollowIdeFileOperationResult.NotFound
         Files.move(source, target)
         val targetPath = target.toReadablePathInsideRoot()
-        files.remove(path)?.let { opened ->
-            files[targetPath] = opened.renamed(targetPath)
+        files.remove(path)
+        if (opened != null) {
+            val bytes = Files.readAllBytes(target)
+            val targetType = fileTypes.find(targetPath, bytes)
+            opened.close()
+            if (targetType != null) {
+                runCatching { openFile(targetType, targetPath, bytes) }.getOrNull()?.let { files[targetPath] = it }
+            }
         }
         tree.refresh()
         selectPath(targetPath)
@@ -191,7 +202,7 @@ internal class HollowIdeModel {
         targets.forEach { path -> path.toFile().deleteRecursively() }
         val removedReadable = targets.map { it.toReadablePathInsideRoot() }
         files.keys.filter { openPath -> removedReadable.any { openPath == it || openPath.startsWith("$it/") } }
-            .forEach(files::remove)
+            .forEach { path -> files.remove(path)?.close() }
         tree.refresh()
         selectedTreePaths.clear()
         selectedTreePath = ""
@@ -238,7 +249,7 @@ internal class HollowIdeModel {
 
     private fun scheduleSave(path: String) {
         val file = files[path]?.takeIf { it.dirty } ?: return
-        val text = file.text
+        val text = file.textOrNull ?: return
         pendingSaves.remove(path)?.cancel()
         pendingSaves[path] = saveScope.launch {
             delay(AutoSaveDelayMillis)
@@ -253,6 +264,9 @@ internal class HollowIdeModel {
             }
         }
     }
+
+    private fun openFile(type: HollowIdeFileType, path: String, bytes: ByteArray): HollowIdeOpenFile =
+        type.open(path, bytes).also { file -> file.attachSaveHandler { save(path) } }
 }
 
 internal sealed interface HollowIdeOpenResult {
@@ -268,16 +282,18 @@ internal enum class HollowIdeFileOperationResult {
     NotFound,
 }
 
-internal class HollowIdeOpenFile(
+class HollowIdeOpenFile internal constructor(
     val path: String,
-    initialText: String,
-    val readOnly: Boolean = false,
+    val type: HollowIdeFileType,
+    val document: HollowIdeFileDocument,
 ) {
-    var text by mutableStateOf(initialText.normalizeEditorLineEndings())
-        private set
     var dirty by mutableStateOf(false)
         private set
+    private var saveHandler: (() -> Boolean)? = null
 
+    val readOnly: Boolean get() = document.readOnly
+    val text: String get() = requireNotNull(textOrNull) { "File '$path' is not a text document" }
+    internal val textOrNull: String? get() = (document as? HollowIdeTextDocument)?.text
     val id: String = fileDockItemId(path)
     val title: String get() = path.substringAfterLast('/').ifEmpty { path }
 
@@ -286,15 +302,27 @@ internal class HollowIdeOpenFile(
     }
 
     fun update(next: String) {
-        if (readOnly) return
-        val normalized = next.normalizeEditorLineEndings()
-        if (text == normalized) return
-        text = normalized
-        dirty = true
+        val textDocument = document as? HollowIdeTextDocument ?: return
+        if (textDocument.update(next)) dirty = true
+    }
+
+    fun markDirty() {
+        if (!readOnly) dirty = true
+    }
+
+    fun updateDirty(modified: Boolean) {
+        if (!readOnly) dirty = modified
+    }
+
+    fun save(): Boolean = saveHandler?.invoke() == true
+
+    internal fun attachSaveHandler(handler: () -> Boolean) {
+        saveHandler = handler
     }
 
     fun markSaved() {
         if (readOnly) return
+        document.markSaved()
         dirty = false
     }
 
@@ -303,26 +331,21 @@ internal class HollowIdeOpenFile(
         if (text == savedText) dirty = false
     }
 
-    fun refresh(next: String) {
-        if (readOnly) return
-        val normalized = next.normalizeEditorLineEndings()
-        if (dirty || text == normalized) return
-        text = normalized
+    fun refresh(bytes: ByteArray) {
+        if (dirty) return
+        document.reload(bytes)
     }
 
     fun refreshReadOnly(next: String) {
+        val textDocument = document as? HollowIdeTextDocument ?: return
         if (!readOnly) return
-        val normalized = next.normalizeEditorLineEndings()
-        if (text == normalized) return
-        text = normalized
+        textDocument.refresh(next)
         dirty = false
     }
 
-    fun renamed(nextPath: String): HollowIdeOpenFile {
-        return HollowIdeOpenFile(nextPath, text, readOnly).also { renamed ->
-            renamed.dirty = dirty
-        }
-    }
+    fun encode(): ByteArray = document.encode()
+
+    fun close() = document.close()
 }
 
 private data class HollowIdeClipboardPayload(
@@ -445,17 +468,6 @@ internal class HollowIdeFileNode(
 
 internal fun fileDockItemId(path: String): String {
     return "ide-file-" + Base64.getUrlEncoder().withoutPadding().encodeToString(path.toByteArray())
-}
-
-private fun File.isProbablyBinary(): Boolean {
-    val bytes = inputStream().use { it.readNBytes(BinarySampleSize) }
-    if (bytes.isEmpty()) return false
-    val nullBytes = bytes.count { it.toInt() == 0 }
-    val controlBytes = bytes.count { byte ->
-        val value = byte.toInt() and 0xFF
-        value < 32 && value != 9 && value != 10 && value != 13
-    }
-    return nullBytes > bytes.size / 100 || controlBytes > bytes.size / 10
 }
 
 private fun targetDirectory(path: String): File {

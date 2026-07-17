@@ -27,8 +27,13 @@ internal sealed interface QueuedUiInput {
         val modifiers: Int = 0,
     ) : QueuedUiInput
 
-    data class MouseScrolled(val mouseX: Float, val mouseY: Float, val scrollX: Float, val scrollY: Float) :
-        QueuedUiInput
+    data class MouseScrolled(
+        val mouseX: Float,
+        val mouseY: Float,
+        val scrollX: Float,
+        val scrollY: Float,
+        val modifiers: Int = 0,
+    ) : QueuedUiInput
 
     data class CharTyped(val codePoint: Char, val modifiers: Int) : QueuedUiInput
     data class KeyPressed(val keyCode: Int, val scanCode: Int, val modifiers: Int, val repeat: Boolean = false) : QueuedUiInput

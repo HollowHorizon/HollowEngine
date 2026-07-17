@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
-import net.minecraft.client.gui.screens.Screen.hasControlDown
 import net.minecraft.client.gui.screens.Screen.hasShiftDown
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
@@ -156,7 +156,7 @@ class HollowUiRuntime(
     theme: CompiledHss? = null,
     stylesheet: CompiledHss? = null,
     private val scrollState: UiScrollState = UiScrollState(),
-    private val horizontalScrollModifierDown: () -> Boolean = { hasShiftDown() || hasControlDown() },
+    private val horizontalScrollModifierDown: () -> Boolean = { hasShiftDown() },
     val profiler: UiProfiler = UiProfiler(),
 ) {
     private val transitionState = UiTransitionState()
@@ -322,7 +322,9 @@ class HollowUiRuntime(
     private fun handleQueuedScroll(frame: HollowUiFrame, input: QueuedUiInput.MouseScrolled): UiInputResult {
         val target = this.input.scrollTargetAt(frame, input.mouseX, input.mouseY) ?: return UiInputResult(false)
         val range = frame.layout[target].scrollRange
-        val delta = scrollWheelDelta(range, input.scrollX, input.scrollY, horizontalScrollModifierDown())
+        val horizontalModifier = input.modifiers and GLFW.GLFW_MOD_SHIFT != 0 ||
+                input.modifiers == 0 && horizontalScrollModifierDown()
+        val delta = scrollWheelDelta(range, input.scrollX, input.scrollY, horizontalModifier)
         val event = UiEvent(
             kind = UiEventKind.SCROLL,
             node = target,
@@ -330,6 +332,9 @@ class HollowUiRuntime(
             y = input.mouseY,
             scrollX = delta.x,
             scrollY = delta.y,
+            rawScrollX = input.scrollX,
+            rawScrollY = input.scrollY,
+            modifiers = input.modifiers,
         )
         if (dispatchUiEvent(event) && event.consumed) return UiInputResult(
             true,
@@ -448,9 +453,15 @@ class HollowUiRuntime(
         dispatchInput(QueuedUiInput.MouseDragged(mouseX, mouseY, button, dragX, dragY, modifiers))
     }
 
-    fun mouseScrolled(mouseX: Float, mouseY: Float, scrollX: Float, scrollY: Float): Boolean = profileInput {
+    fun mouseScrolled(
+        mouseX: Float,
+        mouseY: Float,
+        scrollX: Float,
+        scrollY: Float,
+        modifiers: Int = currentUiKeyModifiers(),
+    ): Boolean = profileInput {
         val frame = lastFrame ?: return@profileInput false
-        processInput(frame, QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY))
+        processInput(frame, QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY, modifiers))
             .orConsumed(input.scrollTargetAt(frame, mouseX, mouseY) != null)
     }
 

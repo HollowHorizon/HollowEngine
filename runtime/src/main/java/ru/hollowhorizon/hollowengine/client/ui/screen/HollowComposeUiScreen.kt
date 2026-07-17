@@ -82,7 +82,13 @@ abstract class HollowComposeUiScreen(
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         pipeline.await()
-        return surface.runtime.mouseScrolled(mouseX.toFloat(), mouseY.toFloat(), scrollX.toFloat(), scrollY.toFloat())
+        return surface.runtime.mouseScrolled(
+            mouseX.toFloat(),
+            mouseY.toFloat(),
+            scrollX.toFloat(),
+            scrollY.toFloat(),
+            currentUiKeyModifiers(),
+        )
     }
 
     override fun charTyped(codePoint: Char, modifiers: Int): Boolean {

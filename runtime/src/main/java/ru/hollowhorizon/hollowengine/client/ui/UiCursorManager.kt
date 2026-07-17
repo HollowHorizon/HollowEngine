@@ -30,6 +30,7 @@ object UiCursorManager {
         UiCursorShape.HAND -> GLFW_POINTING_HAND_CURSOR
         UiCursorShape.MOVE -> GLFW_RESIZE_ALL_CURSOR
         UiCursorShape.TEXT -> GLFW_IBEAM_CURSOR
+        UiCursorShape.CROSSHAIR -> GLFW_CROSSHAIR_CURSOR
         UiCursorShape.RESIZE_HORIZONTAL -> GLFW_RESIZE_EW_CURSOR
         UiCursorShape.RESIZE_VERTICAL -> GLFW_RESIZE_NS_CURSOR
         UiCursorShape.RESIZE_NESW -> GLFW_RESIZE_NESW_CURSOR

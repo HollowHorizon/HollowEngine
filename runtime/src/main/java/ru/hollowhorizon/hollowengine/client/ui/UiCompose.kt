@@ -326,7 +326,8 @@ fun Slider(
     val fraction = if (range == 0f) 0f else ((safeCurrent - min) / range).coerceIn(0f, 1f)
 
     fun setFromPointer(localX: Float, width: Float) {
-        val ratio = (localX / width.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        val interactiveWidth = (width - SliderThumbSize).coerceAtLeast(1f)
+        val ratio = ((localX - SliderThumbRadius) / interactiveWidth).coerceIn(0f, 1f)
         val next = normalizeSlider(min + range * ratio, min, max, step)
         if (next != current) {
             current = next
@@ -345,22 +346,32 @@ fun Slider(
             .onRelease { onValueCommit?.invoke(current) }
             .then(modifier ?: Modifier),
     ) {
-        Box(
-            tags = listOf("slider-track"),
-            modifier = Modifier.size(100.percent, 4.px).align(vertical = UiAlign.CENTER)
-                .background(SliderTrackColor).borderRadius(2f),
-        )
-        Box(
-            tags = listOf("slider-active"),
-            modifier = Modifier.size((fraction * 100f).percent, 4.px).align(vertical = UiAlign.CENTER)
-                .background(WidgetAccentColor).borderRadius(2f),
-        )
-        Box(
-            tags = listOf("slider-thumb"),
-            modifier = Modifier.size(12.px, 12.px).align(vertical = UiAlign.CENTER)
-                .position((fraction * 100f).percent - 6.px, 0.px)
-                .background(UiColor.White).border(1.px, WidgetThumbBorderColor, radius = 6f),
-        )
+        Row(modifier = Modifier.size(100.percent, 100.percent)) {
+            Box(modifier = Modifier.size(SliderThumbRadius.px, 1.px))
+            Box(
+                mode = UiBoxMode.STACK,
+                modifier = Modifier.size(0.px, 100.percent).grow(1f),
+            ) {
+                Box(
+                    tags = listOf("slider-track"),
+                    modifier = Modifier.size(100.percent, 4.px).align(vertical = UiAlign.CENTER)
+                        .background(SliderTrackColor).borderRadius(2f),
+                )
+                Box(
+                    tags = listOf("slider-active"),
+                    modifier = Modifier.size((fraction * 100f).percent, 4.px).align(vertical = UiAlign.CENTER)
+                        .background(WidgetAccentColor).borderRadius(2f),
+                )
+                Box(
+                    tags = listOf("slider-thumb"),
+                    modifier = Modifier.size(SliderThumbSize.px, SliderThumbSize.px).align(vertical = UiAlign.CENTER)
+                        .position((fraction * 100f).percent - SliderThumbRadius.px, 0.px)
+                        .background(UiColor.White)
+                        .border(1.px, WidgetThumbBorderColor, radius = SliderThumbRadius),
+                )
+            }
+            Box(modifier = Modifier.size(SliderThumbRadius.px, 1.px))
+        }
     }
 }
 
@@ -445,6 +456,8 @@ private fun normalizeSlider(raw: Float, min: Float, max: Float, step: Float): Fl
 }
 
 private val SliderTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
+private const val SliderThumbSize = 12f
+private const val SliderThumbRadius = SliderThumbSize / 2f
 private val CheckboxTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
 private val WidgetAccentColor = UiColor(0.36f, 0.62f, 0.95f, 1f)
 private val WidgetThumbBorderColor = UiColor(0.06f, 0.07f, 0.08f, 0.45f)

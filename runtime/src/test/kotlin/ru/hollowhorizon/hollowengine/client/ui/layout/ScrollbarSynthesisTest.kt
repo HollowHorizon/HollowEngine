@@ -76,6 +76,29 @@ class ScrollbarSynthesisTest {
     }
 
     @Test
+    fun `scrollbar stays at the outer edge when the container has padding`() {
+        val viewport = BoxNode(
+            id = "padded-viewport",
+            measurePolicy = UiMeasurePolicies.box(),
+            modifiers = listOf(
+                Modifier.size(100.px, 100.px).padding(10.px).scroll(vertical = true),
+            ),
+        ).also { it.children.add(BoxNode(modifiers = listOf(Modifier.size(80.px, 300.px)))) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }
+        UiModifierResolver().resolve(root)
+        val layout = UiLayoutPipeline().compute(root, 300f, 300f, UiScrollState())
+        val viewportRect = layout.nodes.getValue(viewport).rect
+        val scrollbar = layout.scrollbars.getValue(viewport).single()
+        val scrollbarRect = layout.nodes.getValue(scrollbar).rect
+
+        assertEquals(
+            viewportRect.x + viewportRect.width - 3f,
+            scrollbarRect.x + scrollbarRect.width,
+            0.01f,
+        )
+    }
+
+    @Test
     fun `horizontal scrollbar reservation does not displace centered content`() {
         fun horizontalLayout(childWidth: Float): Triple<UiLayoutResult, BoxNode, BoxNode> {
             val child = BoxNode(

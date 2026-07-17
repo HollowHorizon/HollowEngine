@@ -155,7 +155,7 @@ class HollowIdeEditorAdaptersTest {
 
     @Test
     fun openFileModelNormalizesLineEndings() {
-        val file = HollowIdeOpenFile("test.kts", "first\r\nsecond\rthird")
+        val file = testTextFile("test.kts", "first\r\nsecond\rthird")
 
         assertEquals("first\nsecond\nthird", file.text)
     }

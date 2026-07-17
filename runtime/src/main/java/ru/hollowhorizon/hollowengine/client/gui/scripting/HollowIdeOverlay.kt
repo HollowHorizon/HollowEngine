@@ -10,8 +10,8 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditor
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneViewportDock
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.image.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.ModelEditorPanel
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.isModelEditorFile
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -41,7 +41,14 @@ internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
 object HollowIdeOverlay {
     var useHollowUiOverlay: Boolean = true
 
-    private val model = HollowIdeModel()
+    private val fileTypes = HollowIdeFileTypeRegistry().apply {
+        registerBuiltinFileTypes(
+            modelEditor = { file -> ModelEditorPanel(file.path) },
+            imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+            textEditor = { file -> FileEditor(file) },
+        )
+    }
+    private val model = HollowIdeModel(fileTypes)
     private val dock = DockingState()
     private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
@@ -75,6 +82,11 @@ object HollowIdeOverlay {
     private var lastMouseY = 0f
     init {
         initialize()
+    }
+
+    /** Registers a new IDE file type. IDs must be unique; higher priorities are matched first. */
+    fun registerFileType(type: HollowIdeFileType) {
+        fileTypes.register(type)
     }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
@@ -125,7 +137,13 @@ object HollowIdeOverlay {
         if (!isVisible()) return false
         pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
-        return surface.runtime.mouseScrolled(point.x, point.y, scrollX.toFloat(), scrollY.toFloat())
+        return surface.runtime.mouseScrolled(
+            point.x,
+            point.y,
+            scrollX.toFloat(),
+            scrollY.toFloat(),
+            currentUiKeyModifiers(),
+        )
     }
 
     fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
@@ -326,7 +344,10 @@ object HollowIdeOverlay {
             CutsceneViewportId -> CutsceneViewportDock()
             UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file ->
-                if (file.path.isModelEditorFile()) ModelEditorPanel(file.path) else FileEditor(file)
+                file.type.editor(file)
+                LaunchedEffect(file.dirty) {
+                    dock.updateItem(file.dockItem())
+                }
             } ?: EmptyEditor()
         }
     }
@@ -432,7 +453,7 @@ object HollowIdeOverlay {
     @Composable
     private fun EmptyEditor() {
         Column(tags = listOf("ide-empty-editor")) {
-            Text("Open a text file from Project Tree", tags = listOf("ide-empty-title"))
+            Text("Open a file from Project Tree", tags = listOf("ide-empty-title"))
             Text(statusText, tags = listOf("ide-status"))
         }
     }
@@ -494,9 +515,9 @@ object HollowIdeOverlay {
     private fun focusedEditorFile(): HollowIdeOpenFile? {
         surface.runtime.focusedKey?.removePrefix("editor-")?.takeIf { it != surface.runtime.focusedKey }
             ?.let { editorFileId ->
-                model.files.values.firstOrNull { it.id == editorFileId }?.let { return it }
+                model.files.values.firstOrNull { it.id == editorFileId && it.textOrNull != null }?.let { return it }
             }
-        return focusedFile()
+        return focusedFile()?.takeIf { it.textOrNull != null }
     }
 
     private fun openDefinition(definition: DefinitionLocation) {

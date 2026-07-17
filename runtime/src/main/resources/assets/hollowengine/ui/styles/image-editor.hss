@@ -1,0 +1,71 @@
+.image-editor-root {
+    gap: 5px;
+    padding: 5px;
+    background: #24272E;
+}
+
+.image-editor-tool {
+    padding: 3px 5px;
+    align-items: center center;
+    background: #3A3E48;
+    border: 1px #555D6C;
+    border-radius: 4px;
+    foreground: #D7DEEA;
+}
+
+.image-editor-tool:hover {
+    background: #454B58;
+}
+
+.image-editor-tool.selected {
+    background: #45648E;
+    border: 1px #6D94C9;
+    foreground: #FFFFFF;
+}
+
+.image-editor-tool.disabled {
+    opacity: 0.42;
+}
+
+.image-editor-tool-label,
+.image-editor-label {
+    height: fit;
+    text-wrap: false;
+}
+
+.image-editor-canvas-scroll {
+    background: #17191E;
+    scrollbar: 7px;
+    scrollbar-margin: 0px;
+    scrollbar-track: rgba(255, 255, 255, 0.03);
+    scrollbar-thumb: rgba(155, 169, 194, 0.42);
+    scrollbar-thumb-radius: 3px;
+}
+
+.image-editor-sidebar {
+    gap: 7px;
+    padding: 8px 10px 8px 12px;
+    background: #2B2E36;
+    border-radius: 4px;
+    scrollbar: 6px;
+    scrollbar-margin: 0px;
+    scrollbar-track: rgba(255, 255, 255, 0.02);
+    scrollbar-thumb: rgba(155, 169, 194, 0.38);
+    scrollbar-thumb-radius: 3px;
+}
+
+.image-editor-sidebar-title {
+    height: fit;
+    margin: 4px 0px 0px 0px;
+    foreground: #EEF3FB;
+}
+
+.image-editor-setting {
+    foreground: #D7DEEA;
+}
+
+.image-editor-info {
+    height: fit;
+    foreground: #9FAABD;
+    text-wrap: true;
+}

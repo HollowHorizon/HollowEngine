@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class HollowIdeModelTests {
     @Test
     fun `focus selection keeps existing multi selection when target is selected`() {
-        val model = HollowIdeModel()
+        val model = HollowIdeModel(testFileTypes())
         val first = HollowIdeFileNode("first.kts", "first.kts", 0, false)
         val second = HollowIdeFileNode("second.kts", "second.kts", 0, false)
 
@@ -29,7 +29,7 @@ class HollowIdeModelTests {
             root.mkdirs()
             file.writeText("val value = 1")
 
-            val model = HollowIdeModel()
+            val model = HollowIdeModel(testFileTypes())
             val path = "${root.name}/${file.name}"
 
             assertEquals(HollowIdeFileOperationResult.Success, model.delete(listOf(path)))

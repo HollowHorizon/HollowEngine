@@ -208,6 +208,7 @@ enum class UiCursorShape {
     HAND,
     MOVE,
     TEXT,
+    CROSSHAIR,
     RESIZE_HORIZONTAL,
     RESIZE_VERTICAL,
     RESIZE_NESW,

@@ -12,11 +12,11 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 
 interface Modifier {
     infix fun then(other: Modifier): Modifier {
-        return CompositeModifier(mutableListOf(this, other))
+        return CompositeModifier(listOf(this, other))
     }
 
     companion object : Modifier {
-        override fun then(other: Modifier): Modifier = CompositeModifier(mutableListOf(other))
+        override fun then(other: Modifier): Modifier = CompositeModifier(listOf(other))
     }
 }
 
@@ -89,14 +89,11 @@ class StyleModifier(
     }
 }
 
-data class CompositeModifier(internal val values: MutableList<Modifier>) : Modifier {
+data class CompositeModifier(internal val values: List<Modifier>) : Modifier {
     override fun then(other: Modifier): Modifier {
-        if (other is CompositeModifier) {
-            values.addAll(other.values)
-        } else {
-            values.add(other)
-        }
-        return this
+        return CompositeModifier(
+            if (other is CompositeModifier) values + other.values else values + other,
+        )
     }
 
     fun flatten(): List<Modifier> = ArrayList<Modifier>(values.size).also { result ->

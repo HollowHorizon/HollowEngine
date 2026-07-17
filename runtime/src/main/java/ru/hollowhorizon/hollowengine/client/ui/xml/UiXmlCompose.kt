@@ -128,7 +128,7 @@ private fun UiXmlElement(
     val customAttributes = resolvedAttributes.customAttributes
     val id = attributes["id"]
     modifiers.trackXmlAnchor(id, document)
-    val modifier = CompositeModifier(modifiers)
+    val modifier = CompositeModifier(modifiers.toList())
     val tags = attributes.tags(resolved.name)
     when (resolved.name.lowercase()) {
         "box" -> Box(id, attributes.boxMode(), tags, modifier, customAttributes) {

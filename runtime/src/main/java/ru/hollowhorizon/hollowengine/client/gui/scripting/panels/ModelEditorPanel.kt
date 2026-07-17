@@ -15,11 +15,6 @@ private const val VisibleIcon = "hollowengine:textures/gui/icons/visible.svg"
 private const val InvisibleIcon = "hollowengine:textures/gui/icons/invisible.svg"
 private const val NodeIcon = "hollowengine:textures/gui/icons/file_model.svg"
 
-private val ModelEditorExtensions = listOf(".gltf", ".glb", ".fbx", ".geo.json")
-
-internal fun String.isModelEditorFile(): Boolean =
-    ModelEditorExtensions.any { endsWith(it, ignoreCase = true) }
-
 private fun String.toModelId(): String = substringAfter("assets/").replaceFirst("/", ":")
 
 /**

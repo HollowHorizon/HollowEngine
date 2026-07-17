@@ -93,6 +93,9 @@ data class UiEvent(
     val dragTotalY: Float = 0f,
     val scrollX: Float = 0f,
     val scrollY: Float = 0f,
+    /** Wheel input before it is routed to the scrollable axes of the target container. */
+    val rawScrollX: Float = scrollX,
+    val rawScrollY: Float = scrollY,
     val key: Int = 0,
     val scanCode: Int = 0,
     val modifiers: Int = 0,
@@ -142,6 +145,8 @@ data class UiEvent(
             "rootLocalY", "root-local-y" -> rootLocalY
             "deltaX", "delta-x" -> deltaX
             "deltaY", "delta-y" -> deltaY
+            "rawScrollX", "raw-scroll-x" -> rawScrollX
+            "rawScrollY", "raw-scroll-y" -> rawScrollY
             "isReleased", "released" -> released
             else -> null
         }

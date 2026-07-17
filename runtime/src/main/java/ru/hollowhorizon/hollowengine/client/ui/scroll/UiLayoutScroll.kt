@@ -162,7 +162,7 @@ private fun scrollbarGeometry(style: UiComputedStyle, layoutNode: UiLayoutNode):
         scrollArea.height, layoutNode.content.height
     ) { trackSize, thumbSize, thumbOffset ->
         val track = UiRect(
-            x = scrollArea.x - rect.x + scrollArea.width - verticalStyle.thickness - verticalStyle.margin,
+            x = rect.width - verticalStyle.thickness - verticalStyle.margin,
             y = scrollArea.y - rect.y + verticalStyle.margin,
             width = verticalStyle.thickness,
             height = trackSize
@@ -180,7 +180,7 @@ private fun scrollbarGeometry(style: UiComputedStyle, layoutNode: UiLayoutNode):
     ) { trackSize, thumbSize, thumbOffset ->
         val track = UiRect(
             x = scrollArea.x - rect.x + horizontalStyle.margin,
-            y = scrollArea.y - rect.y + scrollArea.height - horizontalStyle.thickness - horizontalStyle.margin,
+            y = rect.height - horizontalStyle.thickness - horizontalStyle.margin,
             width = trackSize,
             height = horizontalStyle.thickness
         )
