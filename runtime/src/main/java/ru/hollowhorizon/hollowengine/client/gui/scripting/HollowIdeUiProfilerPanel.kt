@@ -36,7 +36,7 @@ internal fun HollowIdeUiProfilerPanel(profiler: UiProfiler) {
                 Minecraft.getInstance().keyboardHandler.clipboard = snapshot.report
             }
         }
-        LazyColumn(
+        Column(
             tags = listOf("ui-profiler-scroll"),
             modifier = Modifier.size(100.percent, 0.percent).grow(1f).scroll(vertical = true, horizontal = true),
         ) {

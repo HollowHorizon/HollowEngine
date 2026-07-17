@@ -49,8 +49,6 @@ enum class UiBoxMode {
 enum class UiBuiltInMeasurePolicyKind {
     COLUMN,
     ROW,
-    LAZY_COLUMN,
-    LAZY_ROW,
     BOX,
     INLINE_FLOW
 }
@@ -97,8 +95,6 @@ data class UiBuiltInMeasurePolicy(
 object UiMeasurePolicies {
     val Column = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.COLUMN)
     val Row = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.ROW)
-    val LazyColumn = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.LAZY_COLUMN)
-    val LazyRow = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.LAZY_ROW)
 
     /** Line-wrapping flow: spans/widgets fill each line and the remainder wraps to the next. */
     val InlineFlow = UiBuiltInMeasurePolicy(UiBuiltInMeasurePolicyKind.INLINE_FLOW)

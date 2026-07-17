@@ -55,7 +55,7 @@ internal fun HollowIdeDiagnosticsPanel(
                     event.consume()
                 }
         )
-        LazyColumn(
+        Column(
             tags = listOf("ide-diagnostics-panel"),
             modifier = Modifier.scroll(vertical = true, horizontal = true),
         ) {

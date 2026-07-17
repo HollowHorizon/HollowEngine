@@ -67,13 +67,10 @@ internal fun HollowUiEditorDemo(
 
         Column(tags = listOf("editor-demo-card", "lazy-column-card"), modifier = Modifier.position(552.px, 0.px)) {
             Text("LazyColumn", tags = listOf("card-title"))
-            LazyColumn(
-                tags = listOf("lazy-column-demo"),
-                modifier = Modifier.scroll(vertical = true, horizontal = true)
-            ) {
-                repeat(120) { index ->
+            LazyColumn(tags = listOf("lazy-column-demo"), gap = 5f) {
+                items(10_000) { index ->
                     Row(tags = listOf("lazy-list-row")) {
-                        Text((index + 1).toString().padStart(3, '0'), tags = listOf("lazy-row-index"))
+                        Text((index + 1).toString().padStart(5, '0'), tags = listOf("lazy-row-index"))
                         Text("Virtualized row ${index + 1}", tags = listOf("body"))
                     }
                 }
@@ -82,8 +79,8 @@ internal fun HollowUiEditorDemo(
 
         Column(tags = listOf("editor-demo-card", "lazy-row-card"), modifier = Modifier.position(0.px, 282.px)) {
             Text("LazyRow", tags = listOf("card-title"))
-            LazyRow(tags = listOf("lazy-row-demo"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
-                repeat(64) { index ->
+            LazyRow(tags = listOf("lazy-row-demo"), gap = 8f) {
+                items(10_000) { index ->
                     Column(tags = listOf("lazy-row-tile")) {
                         Text("#${index + 1}", tags = listOf("lazy-row-tile-title"))
                         Text("tile", tags = listOf("body"))

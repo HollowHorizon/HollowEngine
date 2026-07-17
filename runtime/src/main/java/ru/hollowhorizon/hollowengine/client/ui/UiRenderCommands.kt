@@ -551,8 +551,6 @@ class UiCommandRenderer {
         when ((measurePolicy as? UiBuiltInMeasurePolicy)?.kind) {
             UiBuiltInMeasurePolicyKind.COLUMN,
             UiBuiltInMeasurePolicyKind.ROW,
-            UiBuiltInMeasurePolicyKind.LAZY_COLUMN,
-            UiBuiltInMeasurePolicyKind.LAZY_ROW,
             UiBuiltInMeasurePolicyKind.INLINE_FLOW,
                 -> false
 

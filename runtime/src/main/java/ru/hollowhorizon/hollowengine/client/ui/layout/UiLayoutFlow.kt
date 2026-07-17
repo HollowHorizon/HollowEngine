@@ -63,7 +63,6 @@ internal fun UiLayoutPipeline.placeCustomChildren(scope: ChildPlacementScope, me
 internal fun UiLayoutPipeline.placeLinearChildren(
     axis: FlowAxis,
     scope: ChildPlacementScope,
-    lazy: Boolean,
 ) {
     val node = scope.node
     val resolved = scope.resolved
@@ -72,8 +71,8 @@ internal fun UiLayoutPipeline.placeLinearChildren(
     val mainAvailable = axis.mainSize(content)
     val gap = style.gap.resolve(mainAvailable)
     val axes = style.scrollAxes
-    val allowWidthOverflow = axes?.horizontal == true || lazy && axis == FlowAxis.Horizontal
-    val allowHeightOverflow = axes?.vertical == true || lazy && axis == FlowAxis.Vertical
+    val allowWidthOverflow = axes?.horizontal == true
+    val allowHeightOverflow = axes?.vertical == true
     val measured = measureFlowChildren(
         node,
         resolved,
@@ -83,42 +82,22 @@ internal fun UiLayoutPipeline.placeLinearChildren(
         allowWidthOverflow = allowWidthOverflow,
         allowHeightOverflow = allowHeightOverflow,
     )
-    val children = if (lazy) {
-        measured
-    } else {
-        growLinearChildren(
-            axis,
-            measured,
-            mainAvailable,
-            gap,
-            resolved,
-            scope.scrollbarReserves,
-            allowOverflow = style.scrollable,
-        )
-    }
+    val children = growLinearChildren(
+        axis,
+        measured,
+        mainAvailable,
+        gap,
+        resolved,
+        scope.scrollbarReserves,
+        allowOverflow = style.scrollable,
+    )
     val totalMain = children.sumOfOuterMain(axis) + gap * (children.size - 1).coerceAtLeast(0)
     val parentAxis = node.measurePolicy.flowAxis()
     val mainAlign = children.singleChildMainAxisAlign(axis) ?: style.childMainAlign(parentAxis, axis)
     val mainOffset = mainAlign.mainStartOffset(mainAvailable, totalMain, children.size)
-    val scrollOffset = scope.scrollState.offset(node)
-    if (lazy) {
-        scope.layouts[node]?.let { layoutNode ->
-            scope.layouts[node] = layoutNode.copy(
-                virtualContentBounds = axis.virtualContentBounds(
-                    content,
-                    scrollOffset,
-                    mainOffset,
-                    totalMain,
-                    children.maxOfOuterCross(axis),
-                )
-            )
-        }
-    }
 
     var main = axis.mainStart(content) + mainOffset
     val actualGap = mainAlign.mainGap(mainAvailable, totalMain, children.size, gap)
-    val visibleStart = axis.mainStart(content) + axis.scrollMain(scrollOffset)
-    val visibleEnd = visibleStart + mainAvailable
     for (child in children) {
         val position = child.style.position.resolve(content.width, content.height)
         val align = child.crossAlign(style, parentAxis, axis)
@@ -126,13 +105,11 @@ internal fun UiLayoutPipeline.placeLinearChildren(
             FlowAxis.Horizontal -> allowWidthOverflow
             FlowAxis.Vertical -> allowHeightOverflow
         }
-        val mainSize = child.placedMainSize(axis, content, lazy || mainOverflow)
+        val mainSize = child.placedMainSize(axis, content, mainOverflow)
         val crossOverflow = if (axis == FlowAxis.Vertical) allowWidthOverflow else allowHeightOverflow
         val crossSize = child.placedCrossSize(axis, content, align, crossOverflow)
         val rect = axis.placedRect(content, child, position, main, mainSize, crossSize, align)
-        if (!lazy || axis.intersectsMain(rect, visibleStart, visibleEnd)) {
-            placeScopedNode(scope, child.node, rect)
-        }
+        placeScopedNode(scope, child.node, rect)
         main += child.mainMarginStart(axis) + mainSize + child.mainMarginEnd(axis) + actualGap
     }
 }
@@ -389,10 +366,6 @@ private fun List<MeasuredChild>.sumOfOuterMain(axis: FlowAxis): Float {
     return sumOf { child -> child.outerMain(axis).toDouble() }.toFloat()
 }
 
-private fun List<MeasuredChild>.maxOfOuterCross(axis: FlowAxis): Float {
-    return maxOfOrNull { child -> child.outerCross(axis) } ?: 0f
-}
-
 private fun List<MeasuredChild>.singleChildMainAxisAlign(axis: FlowAxis): UiAlign? {
     return singleChildMainAxisAlign { style ->
         when (axis) {
@@ -464,37 +437,6 @@ private fun FlowAxis.placedRect(
     }
 }
 
-private fun FlowAxis.virtualContentBounds(
-    content: UiRect,
-    scrollOffset: UiScrollOffset,
-    mainOffset: Float,
-    totalMain: Float,
-    maxCross: Float,
-): UiRect {
-    return when (this) {
-        FlowAxis.Horizontal -> UiRect(
-            content.x + scrollOffset.x + mainOffset,
-            content.y + scrollOffset.y,
-            totalMain,
-            maxCross,
-        )
-
-        FlowAxis.Vertical -> UiRect(
-            content.x + scrollOffset.x,
-            content.y + scrollOffset.y + mainOffset,
-            maxCross,
-            totalMain,
-        )
-    }
-}
-
-private fun FlowAxis.intersectsMain(rect: UiRect, visibleStart: Float, visibleEnd: Float): Boolean {
-    return when (this) {
-        FlowAxis.Horizontal -> rect.x + rect.width > visibleStart && rect.x < visibleEnd
-        FlowAxis.Vertical -> rect.y + rect.height > visibleStart && rect.y < visibleEnd
-    }
-}
-
 private fun FlowAxis.mainStart(content: UiRect): Float {
     return when (this) {
         FlowAxis.Horizontal -> content.x
@@ -506,13 +448,6 @@ private fun FlowAxis.mainSize(content: UiRect): Float {
     return when (this) {
         FlowAxis.Horizontal -> content.width
         FlowAxis.Vertical -> content.height
-    }
-}
-
-private fun FlowAxis.scrollMain(scrollOffset: UiScrollOffset): Float {
-    return when (this) {
-        FlowAxis.Horizontal -> scrollOffset.x
-        FlowAxis.Vertical -> scrollOffset.y
     }
 }
 
@@ -557,13 +492,6 @@ private fun MeasuredChild.mainMarginEnd(axis: FlowAxis): Float {
 
 private fun MeasuredChild.outerMain(axis: FlowAxis): Float {
     return mainMarginStart(axis) + mainSize(axis) + mainMarginEnd(axis)
-}
-
-private fun MeasuredChild.outerCross(axis: FlowAxis): Float {
-    return when (axis) {
-        FlowAxis.Horizontal -> margin.top + size.height + margin.bottom
-        FlowAxis.Vertical -> margin.left + size.width + margin.right
-    }
 }
 
 private fun MeasuredChild.hasFixedMain(axis: FlowAxis): Boolean {

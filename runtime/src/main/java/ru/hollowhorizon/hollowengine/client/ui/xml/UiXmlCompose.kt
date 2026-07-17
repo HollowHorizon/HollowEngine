@@ -139,15 +139,7 @@ private fun UiXmlElement(
             UiXmlChildren(resolved, document)
         }
 
-        "lazy-column", "lazycolumn" -> LazyColumn(id, tags, modifier, customAttributes) {
-            UiXmlChildren(resolved, document)
-        }
-
         "row" -> Row(id, tags, modifier, customAttributes) {
-            UiXmlChildren(resolved, document)
-        }
-
-        "lazy-row", "lazyrow" -> LazyRow(id, tags, modifier, customAttributes) {
             UiXmlChildren(resolved, document)
         }
 

@@ -534,8 +534,6 @@ internal val DemoStyles = compileHss(
     .lazy-column-demo {
         size: 100% 216px;
         min-size: 0px 0px;
-        gap: 5px;
-        scrollable: true;
         clip: true;
     }
 
@@ -560,8 +558,6 @@ internal val DemoStyles = compileHss(
     .lazy-row-demo {
         size: 100% 88px;
         min-size: 0px 0px;
-        gap: 8px;
-        scrollable: true;
         clip: true;
     }
 

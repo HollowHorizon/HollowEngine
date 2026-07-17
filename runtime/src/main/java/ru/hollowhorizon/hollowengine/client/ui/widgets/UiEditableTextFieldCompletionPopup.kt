@@ -118,7 +118,7 @@ internal fun EditableFieldCompletionPopup(
             .layer(30)
             .input(clickable = true, hoverable = true),
     ) {
-        LazyColumn(
+        Column(
             tags = listOf("ide-completion-list"),
             modifier = Modifier.size(100.percent, geometry.listHeight.px)
                 .scroll(vertical = true, horizontal = true, state = listScroll),

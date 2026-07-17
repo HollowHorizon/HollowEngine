@@ -43,8 +43,6 @@ internal data class ChildIntrinsicScope(
 internal fun UiMeasurePolicy.policy(): ChildLayoutPolicy = when ((this as? UiBuiltInMeasurePolicy)?.kind) {
     UiBuiltInMeasurePolicyKind.ROW -> RowPolicy
     UiBuiltInMeasurePolicyKind.COLUMN -> ColumnPolicy
-    UiBuiltInMeasurePolicyKind.LAZY_COLUMN -> LazyColumnPolicy
-    UiBuiltInMeasurePolicyKind.LAZY_ROW -> LazyRowPolicy
     UiBuiltInMeasurePolicyKind.BOX -> BoxPolicy
     UiBuiltInMeasurePolicyKind.INLINE_FLOW -> InlineFlowPolicy
     null -> CustomPolicy
@@ -52,13 +50,8 @@ internal fun UiMeasurePolicy.policy(): ChildLayoutPolicy = when ((this as? UiBui
 
 internal fun UiMeasurePolicy.flowAxis(): FlowAxis? {
     return when ((this as? UiBuiltInMeasurePolicy)?.kind) {
-        UiBuiltInMeasurePolicyKind.ROW,
-        UiBuiltInMeasurePolicyKind.LAZY_ROW,
-            -> FlowAxis.Horizontal
-
-        UiBuiltInMeasurePolicyKind.COLUMN,
-        UiBuiltInMeasurePolicyKind.LAZY_COLUMN,
-            -> FlowAxis.Vertical
+        UiBuiltInMeasurePolicyKind.ROW -> FlowAxis.Horizontal
+        UiBuiltInMeasurePolicyKind.COLUMN -> FlowAxis.Vertical
 
         UiBuiltInMeasurePolicyKind.BOX,
         UiBuiltInMeasurePolicyKind.INLINE_FLOW,
@@ -69,7 +62,7 @@ internal fun UiMeasurePolicy.flowAxis(): FlowAxis? {
 
 private object RowPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeLinearChildren(FlowAxis.Horizontal, scope, lazy = false)
+        pipeline.placeLinearChildren(FlowAxis.Horizontal, scope)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -93,7 +86,7 @@ private object RowPolicy : ChildLayoutPolicy {
 
 private object ColumnPolicy : ChildLayoutPolicy {
     override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeLinearChildren(FlowAxis.Vertical, scope, lazy = false)
+        pipeline.placeLinearChildren(FlowAxis.Vertical, scope)
     }
 
     override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
@@ -111,32 +104,6 @@ private object ColumnPolicy : ChildLayoutPolicy {
         return LayoutSize(
             columnChildren.maxOfOuterWidth(),
             columnChildren.sumOfOuterHeight() + scope.gap * (columnChildren.size - 1).coerceAtLeast(0),
-        )
-    }
-}
-
-private object LazyColumnPolicy : ChildLayoutPolicy {
-    override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeLinearChildren(FlowAxis.Vertical, scope, lazy = true)
-    }
-
-    override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
-        return LayoutSize(
-            scope.children.maxOfOuterWidth(),
-            scope.children.sumOfOuterHeight() + scope.gap * (scope.children.size - 1).coerceAtLeast(0),
-        )
-    }
-}
-
-private object LazyRowPolicy : ChildLayoutPolicy {
-    override fun place(pipeline: UiLayoutPipeline, scope: ChildPlacementScope) {
-        pipeline.placeLinearChildren(FlowAxis.Horizontal, scope, lazy = true)
-    }
-
-    override fun intrinsic(pipeline: UiLayoutPipeline, scope: ChildIntrinsicScope): LayoutSize {
-        return LayoutSize(
-            scope.children.sumOfOuterWidth() + scope.gap * (scope.children.size - 1).coerceAtLeast(0),
-            scope.children.maxOfOuterHeight(),
         )
     }
 }

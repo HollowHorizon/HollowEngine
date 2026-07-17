@@ -25,7 +25,7 @@ fun <T> UiTreeView(
     onIconClick: ((UiTreeItem<T>) -> Unit)? = null,
     fillRowWidth: Boolean = true,
 ) {
-    LazyColumn(
+    Column(
         tags = listOf("tree-view") + tags,
         modifier = modifier.scroll(vertical = true, horizontal = true)
     ) {

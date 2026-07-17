@@ -58,7 +58,7 @@ class ScrollCrossGutterTest {
 
     @Test
     fun `auto rows - lazy column`() =
-        assertEquals(expectedRangeX, rangeX(UiMeasurePolicies.LazyColumn, { autoRow(40f) }, 10), 1f)
+        assertEquals(expectedRangeX, rangeX(UiMeasurePolicies.Column, { autoRow(40f) }, 10), 1f)
 
     @Test
     fun `auto rows - mutual trigger (horizontal bar reveals a vertical one)`() =
@@ -78,7 +78,7 @@ class ScrollCrossGutterTest {
 
         val node = BoxNode(
             id = "s",
-            measurePolicy = UiMeasurePolicies.LazyColumn,
+            measurePolicy = UiMeasurePolicies.Column,
             modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
         )
         repeat(10) { node.children.add(label()) }
@@ -93,7 +93,7 @@ class ScrollCrossGutterTest {
     fun `lazy column counts the widest row even when off-screen`() {
         val node = BoxNode(
             id = "s",
-            measurePolicy = UiMeasurePolicies.LazyColumn,
+            measurePolicy = UiMeasurePolicies.Column,
             modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
         )
         repeat(20) { i -> node.children.add(BoxNode(modifiers = listOf(Modifier.size((if (i == 15) 600f else 50f).px, 24.px)))) }
@@ -108,7 +108,7 @@ class ScrollCrossGutterTest {
     fun `tree nested in a scrollable sidebar clears its own vertical scrollbar`() {
         val tree = BoxNode(
             id = "tree",
-            measurePolicy = UiMeasurePolicies.LazyColumn,
+            measurePolicy = UiMeasurePolicies.Column,
             modifiers = listOf(Modifier.size(100.percent, 120.px).scroll(vertical = true, horizontal = true)),
         )
         repeat(20) { tree.children.add(BoxNode(modifiers = listOf(Modifier.size(600.px, 24.px)))) }
@@ -129,7 +129,7 @@ class ScrollRangeStabilityTest {
     fun `horizontal range does not shrink as you scroll`() {
         val node = BoxNode(
             id = "s",
-            measurePolicy = UiMeasurePolicies.LazyColumn,
+            measurePolicy = UiMeasurePolicies.Column,
             modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
         )
         repeat(10) { node.children.add(BoxNode(modifiers = listOf(Modifier.size(600.px, 40.px)))) }

@@ -220,24 +220,6 @@ fun Caret(
         .then(modifier ?: Modifier),
 )
 
-@Composable
-fun LazyColumn(
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.LazyColumn)
-
-@Composable
-fun LazyRow(
-    id: String? = null,
-    tags: Iterable<String> = emptyList(),
-    modifier: Modifier? = null,
-    attributes: Map<String, String> = emptyMap(),
-    content: HollowUiContent = {},
-) = Layout(content, modifier, id, tags, attributes, UiMeasurePolicies.LazyRow)
-
 /**
  * A run of text. Built on the inline-flow framework: the literal becomes a [Span] and any
  * [content] (inline widgets, images, nested spans) flows alongside it. Text style props set
