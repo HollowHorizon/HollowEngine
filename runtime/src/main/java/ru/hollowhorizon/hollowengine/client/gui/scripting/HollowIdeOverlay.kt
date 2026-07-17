@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.image.HollowIdeI
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.video.HollowIdeVideoEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.HollowIdeConsolePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.ModelEditorPanel
+import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -561,7 +562,12 @@ object HollowIdeOverlay {
         val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
             ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame, target)
-        UiCursorManager.apply(window.window, surface.runtime.cursor)
+        val overIde = surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) == true || surface.runtime.isAnyFocused
+        when {
+            overIde -> UiCursorManager.apply(window.window, surface.runtime.cursor)
+            !TransformGizmoEditor.ownsWorldCursor() -> UiCursorManager.apply(window.window, surface.runtime.cursor)
+            else -> Unit
+        }
         if (PIPELINE_FRAMES) {
             val mouseX = lastMouseX
             val mouseY = lastMouseY

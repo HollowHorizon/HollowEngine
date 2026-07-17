@@ -841,6 +841,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)) return true
+        if (TransformGizmoEditor.handleKey(key, scanCode, action, modifiers)) return true
 
         val event = when (action) {
             org.lwjgl.glfw.GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN
@@ -862,6 +863,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleChar(codePoint, modifiers)) return true
+        if (TransformGizmoEditor.handleChar(codePoint, modifiers)) return true
         KeyboardInput.handleCharTyped(codePoint.toChar())
         return false
     }
@@ -879,10 +881,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
         KoolInputBridge.handleMouseMove(convertedX, convertedY)
         val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
+        val isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(convertedX, convertedY)
         val isScreenOpen = minecraft.screen != null
         val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
+        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
@@ -900,6 +903,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         KoolInputBridge.handleMouseButtonEvent(button, pressed)
 
         return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
+                TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
                 isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
@@ -915,6 +919,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
 
         return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
+                TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
                 isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
