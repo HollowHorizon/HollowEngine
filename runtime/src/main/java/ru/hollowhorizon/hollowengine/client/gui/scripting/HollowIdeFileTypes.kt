@@ -30,12 +30,16 @@ class HollowIdeFileType(
     private val matcher: (path: String, bytes: ByteArray) -> Boolean,
     private val loader: (path: String, bytes: ByteArray) -> HollowIdeFileDocument,
     val editor: HollowIdeFileEditor,
+    private val pathMatcher: ((path: String) -> Boolean)? = null,
+    internal val requiresContent: Boolean = true,
 ) {
     init {
         require(id.isNotBlank()) { "File type ID cannot be blank" }
     }
 
     fun matches(path: String, bytes: ByteArray): Boolean = matcher(path, bytes)
+
+    internal fun matchesPath(path: String): Boolean? = pathMatcher?.invoke(path)
 
     fun open(path: String, bytes: ByteArray): HollowIdeOpenFile =
         HollowIdeOpenFile(path, this, loader(path, bytes))
@@ -45,6 +49,7 @@ class HollowIdeFileType(
             id: String,
             extensions: Collection<String>,
             priority: Int = 0,
+            requiresContent: Boolean = true,
             loader: (path: String, bytes: ByteArray) -> HollowIdeFileDocument,
             editor: HollowIdeFileEditor,
         ): HollowIdeFileType {
@@ -57,6 +62,8 @@ class HollowIdeFileType(
                 matcher = { path, _ -> normalized.any { path.endsWith(it, ignoreCase = true) } },
                 loader = loader,
                 editor = editor,
+                pathMatcher = { path -> normalized.any { path.endsWith(it, ignoreCase = true) } },
+                requiresContent = requiresContent,
             )
         }
 
@@ -66,7 +73,13 @@ class HollowIdeFileType(
             matcher: (path: String, bytes: ByteArray) -> Boolean,
             loader: (path: String, bytes: ByteArray) -> HollowIdeFileDocument,
             editor: HollowIdeFileEditor,
-        ) = HollowIdeFileType(id, priority, matcher, loader, editor)
+        ) = HollowIdeFileType(
+            id = id,
+            priority = priority,
+            matcher = matcher,
+            loader = loader,
+            editor = editor,
+        )
     }
 }
 
@@ -90,9 +103,24 @@ class HollowIdeFileTypeRegistry {
     @Synchronized
     fun find(id: String): HollowIdeFileType? = entries.firstOrNull { it.type.id == id }?.type
 
+    fun open(path: String, readContent: () -> ByteArray): HollowIdeOpenFile? {
+        val types = synchronized(this) { entries.map(Entry::type) }
+        var content: ByteArray? = null
+        fun content(): ByteArray = content ?: readContent().also { content = it }
+
+        for (type in types) {
+            val matches = type.matchesPath(path) ?: type.matches(path, content())
+            if (!matches) continue
+            return type.open(path, if (type.requiresContent) content() else EmptyFileContent)
+        }
+        return null
+    }
+
     @Synchronized
     fun registeredTypes(): List<HollowIdeFileType> = entries.map(Entry::type)
 }
+
+private val EmptyFileContent = ByteArray(0)
 
 internal class HollowIdeTextDocument(
     initialText: String,

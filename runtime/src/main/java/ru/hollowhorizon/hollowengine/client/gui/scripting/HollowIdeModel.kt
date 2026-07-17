@@ -96,12 +96,14 @@ internal class HollowIdeModel(
         val file = path.fromReadablePath()
         if (!file.isFile) return HollowIdeOpenResult.Unsupported
         files[path]?.let { opened ->
-            if (!opened.dirty) opened.refresh(file.readBytes())
+            if (!opened.dirty && opened.type.requiresContent) opened.refresh(file.readBytes())
             return HollowIdeOpenResult.File(opened, created = false)
         }
-        val bytes = file.readBytes()
-        val fileType = fileTypes.find(path, bytes) ?: return HollowIdeOpenResult.Unsupported
-        val opened = runCatching { openFile(fileType, path, bytes) }.getOrNull()
+        val opened = runCatching {
+            fileTypes.open(path, file::readBytes)?.also { opened ->
+                opened.attachSaveHandler { save(path) }
+            }
+        }.getOrNull()
             ?: return HollowIdeOpenResult.Unsupported
         files[path] = opened
         return HollowIdeOpenResult.File(opened, created = true)
@@ -182,12 +184,12 @@ internal class HollowIdeModel(
         val targetPath = target.toReadablePathInsideRoot()
         files.remove(path)
         if (opened != null) {
-            val bytes = Files.readAllBytes(target)
-            val targetType = fileTypes.find(targetPath, bytes)
             opened.close()
-            if (targetType != null) {
-                runCatching { openFile(targetType, targetPath, bytes) }.getOrNull()?.let { files[targetPath] = it }
-            }
+            runCatching {
+                fileTypes.open(targetPath) { Files.readAllBytes(target) }?.also { reopened ->
+                    reopened.attachSaveHandler { save(targetPath) }
+                }
+            }.getOrNull()?.let { files[targetPath] = it }
         }
         tree.refresh()
         selectPath(targetPath)
@@ -265,8 +267,6 @@ internal class HollowIdeModel(
         }
     }
 
-    private fun openFile(type: HollowIdeFileType, path: String, bytes: ByteArray): HollowIdeOpenFile =
-        type.open(path, bytes).also { file -> file.attachSaveHandler { save(path) } }
 }
 
 internal sealed interface HollowIdeOpenResult {

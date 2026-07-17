@@ -59,6 +59,24 @@ internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState)
             }
             dock.focus(ProjectTreeId)
         },
+        UiDropdownItem("hollowengine.gui.ide.console".lang, ConsoleIcon) {
+            if (!dock.contains(ConsoleId)) {
+                val anchor = model.files.values.firstOrNull { dock.contains(it.id) }?.id
+                    ?: ProjectTreeId.takeIf(dock::contains)
+                dock.open(
+                    DockItem(
+                        ConsoleId,
+                        "hollowengine.gui.ide.console".lang,
+                        ConsoleIcon,
+                        closable = true,
+                        minWidth = 360f,
+                        minHeight = 180f,
+                    ),
+                    DockTarget(anchor, DockPlacement.BOTTOM),
+                )
+            }
+            dock.focus(ConsoleId)
+        },
         UiDropdownItem("Cutscene Timeline", CutsceneIcon) {
             if (!dock.contains(CutsceneTimelineId)) {
                 val anchor = model.files.values.firstOrNull { dock.contains(it.id) }?.id

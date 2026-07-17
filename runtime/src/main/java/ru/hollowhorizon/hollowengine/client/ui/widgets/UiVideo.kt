@@ -32,6 +32,7 @@ fun Video(
     autoPlay: Boolean = true,
     volume: Float = 1f,
     startSeconds: Double = 0.0,
+    fit: UiImageFit = UiImageFit.CONTAIN,
     onEnded: (() -> Unit)? = null,
 ) {
     val api = remember { VideoApi.find() }
@@ -97,7 +98,7 @@ fun Video(
             Image(
                 texture,
                 tags = listOf("video-frame"),
-                modifier = Modifier.size(100.percent, 100.percent).imageFit(UiImageFit.CONTAIN),
+                modifier = Modifier.size(100.percent, 100.percent).imageFit(fit),
             )
         }
         if (state.failed) {

@@ -105,8 +105,9 @@ fun LazyColumn(
     overscan: Int = 4,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
+    crossAxisScroll: Boolean = false,
     content: LazyListScope.() -> Unit,
-) = LazyList(horizontal = false, modifier, state, gap, overscan, id, tags, content)
+) = LazyList(horizontal = false, modifier, state, gap, overscan, id, tags, crossAxisScroll, content)
 
 @Composable
 fun LazyRow(
@@ -116,8 +117,9 @@ fun LazyRow(
     overscan: Int = 4,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
+    crossAxisScroll: Boolean = false,
     content: LazyListScope.() -> Unit,
-) = LazyList(horizontal = true, modifier, state, gap, overscan, id, tags, content)
+) = LazyList(horizontal = true, modifier, state, gap, overscan, id, tags, crossAxisScroll, content)
 
 @Composable
 private fun LazyList(
@@ -128,6 +130,7 @@ private fun LazyList(
     overscan: Int,
     id: String?,
     tags: Iterable<String>,
+    crossAxisScroll: Boolean,
     content: LazyListScope.() -> Unit,
 ) {
     val scope = LazyListScopeImpl().apply(content)
@@ -146,7 +149,11 @@ private fun LazyList(
     val trailing = (count - last).coerceAtLeast(0) * slot
 
     val listModifier = (modifier ?: Modifier).gap(0.px)
-        .scroll(vertical = !horizontal, horizontal = horizontal, state = state.scroll)
+        .scroll(
+            vertical = !horizontal || crossAxisScroll,
+            horizontal = horizontal || crossAxisScroll,
+            state = state.scroll,
+        )
     val body: HollowUiContent = {
         if (leading > 0f) Spacer(horizontal, leading)
         val windowModifier = Modifier.gap(gap.px).onPlaced { rect ->

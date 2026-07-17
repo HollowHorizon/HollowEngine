@@ -38,6 +38,7 @@ object IconHelper {
                     "kts", "kt", "ktr" -> Icons.FILE_KTS
                     "png", "jpg", "jpeg", "gif" -> Icons.FILE_IMAGE
                     "ogg", "mp3", "wav" -> Icons.FILE_SOUND
+                    "mp4", "avi", "mov" -> Icons.FILM
                     else -> Icons.FILE
                 }
             }

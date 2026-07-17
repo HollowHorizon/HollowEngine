@@ -11,6 +11,8 @@ import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneViewportDock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.image.HollowIdeImageEditor
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.video.HollowIdeVideoEditor
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.HollowIdeConsolePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.ModelEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
@@ -28,12 +30,14 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 
 internal const val ProjectTreeId = "ide-project-tree"
+internal const val ConsoleId = "ide-console"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
 internal const val CutscenePropertiesId = "ide-cutscene-properties"
 internal const val CutsceneViewportId = "ide-cutscene-viewport"
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
+internal const val ConsoleIcon = "hollowengine:textures/gui/icons/console.svg"
 internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
 internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
 
@@ -45,6 +49,7 @@ object HollowIdeOverlay {
         registerBuiltinFileTypes(
             modelEditor = { file -> ModelEditorPanel(file.path) },
             imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+            videoEditor = { file -> HollowIdeVideoEditor(file) },
             textEditor = { file -> FileEditor(file) },
         )
     }
@@ -336,6 +341,7 @@ object HollowIdeOverlay {
     private fun DockContent(item: DockItem) {
         when (item.id) {
             ProjectTreeId -> ProjectTree()
+            ConsoleId -> HollowIdeConsolePanel()
             CutsceneTimelineId -> CutsceneTimelineDock(
                 session = CutsceneEditorSessions.default,
                 keyboardActive = dock.focusedItemId == CutsceneTimelineId,
