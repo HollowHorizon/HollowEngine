@@ -474,13 +474,13 @@ private fun FlowAxis.virtualContentBounds(
     return when (this) {
         FlowAxis.Horizontal -> UiRect(
             content.x + scrollOffset.x + mainOffset,
-            content.y,
+            content.y + scrollOffset.y,
             totalMain,
             maxCross,
         )
 
         FlowAxis.Vertical -> UiRect(
-            content.x,
+            content.x + scrollOffset.x,
             content.y + scrollOffset.y + mainOffset,
             maxCross,
             totalMain,
