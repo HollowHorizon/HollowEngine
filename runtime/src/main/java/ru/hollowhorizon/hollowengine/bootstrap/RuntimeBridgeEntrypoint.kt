@@ -976,12 +976,8 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     private fun isClassPresent(name: String): Boolean {
-        return try {
-            Class.forName(name, false, javaClass.classLoader)
-            true
-        } catch (_: ClassNotFoundException) {
-            false
-        }
+        val classPath = name.replace('.', '/') + ".class"
+        return javaClass.classLoader.getResource(classPath) != null
     }
 
     private fun loadSoundBuffer(path: String, inputStream: InputStream): SoundBuffer {
