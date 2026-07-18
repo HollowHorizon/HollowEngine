@@ -284,7 +284,7 @@ private fun completeKeywords(
             }
         }
         return result
-    }.getOrHandleException { logAnalysisException(it) }
+    }
 
     return emptyList() // do not fail the whole completion when one item fails, not well tested
 }
