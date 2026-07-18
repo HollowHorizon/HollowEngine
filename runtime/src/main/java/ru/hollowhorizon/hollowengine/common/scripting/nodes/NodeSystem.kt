@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.scripting.components
+package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
@@ -55,7 +55,7 @@ class ComponentSystem(val server: MinecraftServer) {
         }
     }
 
-    fun addNode(node: ComponentScript, context: StateContext?) {
+    fun addNode(node: NodeScript, context: StateContext?) {
         val executor = StateExecutor(server.coroutineScope)
         node.prepareExecutor(executor)
         components[node.path] = Component(node, node.prepareTickers(), executor, context)
@@ -72,7 +72,7 @@ class ComponentSystem(val server: MinecraftServer) {
     }
 
     private class Component(
-        val script: ComponentScript,
+        val script: NodeScript,
         val ticker: Runnable? = null,
         val executor: StateExecutor,
         val context: StateContext?,
@@ -91,7 +91,7 @@ fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: Sta
     }
 
     val script = runCatching {
-        scripting.compiler.compile(path.fromReadablePath()).getOrThrow().execute<ComponentScript> {
+        scripting.compiler.compile(path.fromReadablePath()).getOrThrow().execute<NodeScript> {
             constructorArgs(path)
             implicitReceivers(this@addNode)
         }.getOrThrow()

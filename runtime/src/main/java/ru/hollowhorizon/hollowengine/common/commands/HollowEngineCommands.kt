@@ -44,8 +44,8 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
-import ru.hollowhorizon.hollowengine.common.scripting.components.addNode
-import ru.hollowhorizon.hollowengine.common.scripting.components.removeNode
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.removeNode
 import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.utils.*

@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.scripting.components
+package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Every
@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.common.utils.LambdaGenerator
 import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools
 import java.lang.invoke.MethodHandles
 
-fun ComponentScript.prepareTickers(): () -> Unit {
+fun NodeScript.prepareTickers(): () -> Unit {
     val lookup = MethodHandles.privateLookupIn(javaClass, UnsafeTools.lookup)
 
     val runnables = javaClass.declaredMethods
@@ -26,7 +26,7 @@ fun ComponentScript.prepareTickers(): () -> Unit {
     }
 }
 
-fun ComponentScript.prepareExecutor(executor: StateExecutor) {
+fun NodeScript.prepareExecutor(executor: StateExecutor) {
     val lookup = MethodHandles.privateLookupIn(javaClass, UnsafeTools.lookup)
 
     javaClass.declaredMethods

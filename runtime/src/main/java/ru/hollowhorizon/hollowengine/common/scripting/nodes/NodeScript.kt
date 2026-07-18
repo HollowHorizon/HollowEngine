@@ -1,9 +1,9 @@
-package ru.hollowhorizon.hollowengine.common.scripting.components
+package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 
-abstract class ComponentScript(val path: String) {
+abstract class NodeScript(val path: String) {
     open fun onSave(context: SerializationContext) {}
     open fun onLoad(context: SerializationContext) {}
     open fun onStart() {}

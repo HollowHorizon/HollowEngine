@@ -34,7 +34,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.components.addNode
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal

@@ -4,7 +4,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
-import ru.hollowhorizon.hollowengine.common.scripting.components.ComponentSystem
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.ComponentSystem
 
 class ServerRuntimeContext(
     private val server: MinecraftServer,

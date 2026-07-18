@@ -5,7 +5,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
-import ru.hollowhorizon.hollowengine.common.scripting.components.ComponentScript
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeScript
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider as Provider
 
@@ -34,7 +34,7 @@ object DefaultScriptDefinitions {
             )
             this += Provider(
                 extension = NODE_SCRIPT_EXTENSION,
-                baseClass = ComponentScript::class.qualifiedName!!,
+                baseClass = NodeScript::class.qualifiedName!!,
                 defaultImports = listOf(
                     "ru.hollowhorizon.hollowengine.common.coroutines.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",
