@@ -237,7 +237,6 @@ private class OverlapOrderingSink(
 
     override fun submit(command: UiRenderCommand) {
         if (!command.drawsPixels()) {
-            if (command is FlushBarrierCommand) return
             if (childStartedDrawing) {
                 delegate.submit(command)
             } else {

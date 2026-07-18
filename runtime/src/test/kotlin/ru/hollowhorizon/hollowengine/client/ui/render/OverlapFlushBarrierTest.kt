@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Overlapping visual subtrees of an overlap-capable container get a flush barrier only when phase
@@ -20,6 +21,52 @@ class OverlapFlushBarrierTest {
         id = id,
         modifiers = listOf(Modifier.size(60.px, 60.px).position(x.px, y.px).background(UiColor.White)),
     )
+
+    @Test
+    fun `higher-layer popup renders after earlier overlapping text`() {
+        val popup = BoxNode(
+            id = "popup",
+            modifiers = listOf(Modifier.size(60.px, 60.px).position(0.px, 0.px).background(UiColor.White).layer(30)),
+        ).also { it.children += SpanNode("popuptext") }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK)).also { node ->
+            node.children += SpanNode("editortext")
+            node.children += popup
+        }
+
+        val cmds = commandsFor(root)
+        val barrier = cmds.indexOfFirst { it is FlushBarrierCommand }
+        val editorText = cmds.indexOfFirst { it is DrawTextCommand }
+        val popupBackground = cmds.indexOfFirst { it is DrawBoxCommand }
+
+        assertTrue(barrier >= 0, "expected a flush barrier between the layers")
+        assertTrue(editorText in 0 until barrier, "editor text must render before the barrier")
+        assertTrue(popupBackground > barrier, "popup background must render after the barrier, over the text")
+    }
+
+    @Test
+    fun `nested layer barrier survives inside an overlap-ordering parent`() {
+        // A "field" with its own layers: editor text (layer 0) under a popup (layer 30).
+        val field = BoxNode(id = "field", measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK)).also { node ->
+            node.children += SpanNode("editortext")
+            node.children += BoxNode(
+                id = "popup",
+                modifiers = listOf(Modifier.size(60.px, 60.px).position(0.px, 0.px).background(UiColor.White).layer(30)),
+            ).also { it.children += SpanNode("popuptext") }
+        }
+        // A panel whose children overlap on the same layer, so it wraps them in overlap ordering.
+        val panel = BoxNode(measurePolicy = UiMeasurePolicies.box(UiBoxMode.STACK)).also { node ->
+            node.children += field
+            node.children += box("sibling")
+        }
+
+        val cmds = commandsFor(panel)
+        val editorText = cmds.indexOfFirst { it is DrawTextCommand }
+        val popupBackground = cmds.indexOfFirst { it is DrawBoxCommand && it.node.id == "popup" }
+        val barrierBetween = cmds.withIndex().any { (i, c) -> c is FlushBarrierCommand && i in editorText until popupBackground }
+
+        assertTrue(popupBackground > editorText, "popup must still paint after the editor text")
+        assertTrue(barrierBetween, "the field's internal layer barrier must survive the parent overlap sink")
+    }
 
     @Test
     fun `later background over earlier text gets a flush barrier`() {

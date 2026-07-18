@@ -5,6 +5,7 @@ import com.intellij.ide.highlighter.JavaClassFileType
 import com.intellij.lang.LanguageExtensionPoint
 import com.intellij.mock.MockApplication
 import com.intellij.mock.MockProject
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.extensions.DefaultPluginDescriptor
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.extensions.LoadingOrder
@@ -80,6 +81,8 @@ class AnalysisEnvironment(
     init {
         // Установка временной директории для Idea
         setupIdeaHome()
+
+        Logger.setFactory { EmptyLogger }
 
         // Создание окружения проекта
         kotlinCoreProjectEnvironment = StandaloneProjectFactory.createProjectEnvironment(

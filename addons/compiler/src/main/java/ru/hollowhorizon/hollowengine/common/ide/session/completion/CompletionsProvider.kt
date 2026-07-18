@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.analysis.api.scopes.KaTypeScope
 import org.jetbrains.kotlin.analysis.api.signatures.KaCallableSignature
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaDeclarationContainerSymbol
+import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
@@ -33,7 +34,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
-import ru.hollowhorizon.hollowengine.logE
 
 fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
     val safeOffset = offset.coerceIn(0, file.textLength)
@@ -168,7 +168,7 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
     for (implicitReceiver in scopeContext.implicitReceivers) {
         val receiverType = implicitReceiver.type
         val typeText = receiverType.render(position = Variance.IN_VARIANCE)
-        val className = implicitReceiver.ownerSymbol.name?.asString() ?: "Unknown"
+        val className = receiverThisLabel(implicitReceiver.ownerSymbol, receiverType)
 
         val thisName = if (first) "this" else "this@$className"
 
@@ -186,6 +186,25 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
 
     completeQualifiedThis(file, element)
 }
+
+context(kaSession: KaSession)
+private fun receiverThisLabel(ownerSymbol: KaSymbol, receiverType: KaType): String = with(kaSession) {
+    val typeName = receiverType.expandedSymbol?.name?.asString()
+
+    val isScriptReceiver = typeName == null || !typeName.isKotlinIdentifier()
+    if (isScriptReceiver) {
+        return receiverType.directSupertypes
+            .firstNotNullOfOrNull { it.expandedSymbol?.name?.asString()?.takeIf { name -> name != "Any" } }
+            ?: typeName
+            ?: ownerSymbol.name?.asString()
+            ?: "Unknown"
+    }
+
+    return typeName
+}
+
+private fun String.isKotlinIdentifier(): Boolean =
+    isNotEmpty() && this[0].isJavaIdentifierStart() && all { it.isJavaIdentifierPart() }
 
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeQualifiedThis(file: KtFile, element: KtElement) = with(kaSession) {
@@ -265,7 +284,7 @@ private fun completeKeywords(
             }
         }
         return result
-    }.getOrHandleException { logE(it) }
+    }.getOrHandleException { logAnalysisException(it) }
 
     return emptyList() // do not fail the whole completion when one item fails, not well tested
 }

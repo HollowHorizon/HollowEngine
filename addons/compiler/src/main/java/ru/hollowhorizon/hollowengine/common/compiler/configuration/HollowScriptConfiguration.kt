@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.compiler.configuration
 
+import ru.hollowhorizon.hollowengine.common.scripting.annotations.Attach
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
@@ -29,9 +30,11 @@ open class HollowScriptConfiguration(classpath: List<File>, body: Builder.() -> 
     }
 
     defaultImports(Import::class)
+    defaultImports(Attach::class)
 
     refineConfiguration {
         onAnnotations(Import::class, handler = HollowScriptConfigurator())
+        onAnnotations(Attach::class, handler = AttachConfigurator())
     }
 
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }

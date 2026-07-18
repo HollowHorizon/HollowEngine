@@ -153,7 +153,7 @@ object HollowIdeOverlay {
     }
 
     fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
-        if (!isVisible()) return false
+        if (!isVisible() || collapsed) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return false
         pipeline.await()
         return surface.runtime.keyPressed(key, scanCode, modifiers, repeat = action == GLFW.GLFW_REPEAT)
@@ -169,7 +169,7 @@ object HollowIdeOverlay {
     }
 
     fun handleChar(codePoint: Int, modifiers: Int): Boolean {
-        if (!isVisible()) return false
+        if (!isVisible() || collapsed) return false
         pipeline.await()
         return surface.runtime.charTyped(codePoint.toChar(), modifiers)
     }

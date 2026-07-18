@@ -38,6 +38,7 @@ object DefaultScriptDefinitions {
                 defaultImports = listOf(
                     "ru.hollowhorizon.hollowengine.common.coroutines.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",
+                    "ru.hollowhorizon.hollowengine.common.scripting.nodes.*",
                     "kotlinx.coroutines.delay",
                     "kotlinx.coroutines.yield",
                     ResourceLocation::class.qualifiedName!!,

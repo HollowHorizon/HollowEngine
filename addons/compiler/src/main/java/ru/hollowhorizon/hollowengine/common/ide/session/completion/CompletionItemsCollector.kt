@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DeclarationCompletionItemBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
-import ru.hollowhorizon.hollowengine.logE
 import kotlin.contracts.contract
 
 internal class CompletionItemsCollector(
@@ -128,7 +127,7 @@ internal class CompletionItemsCollector(
             if (!symbolFilter.accepts(symbol)) return false
 
             return true
-        }.getOrHandleException { logE(it) }
+        }
 
         return false
     }
@@ -141,7 +140,7 @@ internal class CompletionItemsCollector(
                 is KaExtensionApplicabilityResult.Applicable -> substitute(applicability.substitutor)
                 else -> null
             }
-        }.getOrHandleException { logE(it) }
+        }.getOrNull()
     }
 
     fun build(): Collection<CompletionItem> {

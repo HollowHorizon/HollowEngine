@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -44,6 +45,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.removeNode
 import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
@@ -707,7 +709,96 @@ private fun CommandExtension.registerScriptingCommands() {
                 SUCCESS
             }
         }
+
+        "attach"(
+            arg("entity", EntityArgument.entity()),
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            },
+            arg("state", StringArgumentType.string())
+        ) {
+            executes {
+                attachEntityNode(
+                    EntityArgument.getEntity(this, "entity"),
+                    StringArgumentType.getString(this, "path"),
+                    StringArgumentType.getString(this, "state"),
+                )
+            }
+        }
+
+        "attach"(
+            arg("entity", EntityArgument.entity()),
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            }
+        ) {
+            executes {
+                attachEntityNode(
+                    EntityArgument.getEntity(this, "entity"),
+                    StringArgumentType.getString(this, "path"),
+                    state = null,
+                )
+            }
+        }
+
+        "detach"(
+            arg("entity", EntityArgument.entity()),
+            arg("path", StringArgumentType.greedyString())
+        ) {
+            executes {
+                val entity = EntityArgument.getEntity(this, "entity")
+                val path = StringArgumentType.getString(this, "path")
+                if (EntityNodeRuntime.detach(entity, path)) SUCCESS
+                else sendFailure("Node '$path' is not attached to ${entity.name.string}".literal)
+            }
+        }
+
+        "list" {
+            executes { listServerNodes(source) }
+
+            "entity"(arg("entity", EntityArgument.entity())) {
+                executes { listEntityNodes(source, EntityArgument.getEntity(this, "entity")) }
+            }
+        }
     }
+}
+
+private fun com.mojang.brigadier.context.CommandContext<CommandSourceStack>.attachEntityNode(
+    entity: net.minecraft.world.entity.Entity,
+    path: String,
+    state: String?,
+): Int {
+    if (!isNodeScriptPath(path)) {
+        return sendFailure("hollowengine.commands.scripting_state_requires_node_script".mcTranslate(path))
+    }
+    val context = state?.let { StateContext(nextState = it) }
+    return if (EntityNodeRuntime.attach(entity, path, context = context)) {
+        sendSuccess(true) { "Attached node '$path' to ${entity.name.string}".literal }
+    } else {
+        sendFailure("Failed to attach node '$path' to ${entity.name.string}".literal)
+    }
+}
+
+private fun listServerNodes(source: CommandSourceStack): Int {
+    val paths = source.server.runtimeContext.nodes.paths().sorted()
+    if (paths.isEmpty()) {
+        source.sendFailure("No server nodes are running".literal)
+        return 0
+    }
+    source.sendSuccess({ "Server nodes:".literal }, false)
+    paths.forEach { source.sendSuccess({ "- $it".literal }, false) }
+    return paths.size
+}
+
+private fun listEntityNodes(source: CommandSourceStack, entity: net.minecraft.world.entity.Entity): Int {
+    val paths = EntityNodeRuntime.paths(entity).sorted()
+    if (paths.isEmpty()) {
+        source.sendFailure("No nodes are attached to ${entity.name.string}".literal)
+        return 0
+    }
+    source.sendSuccess({ "Nodes on ${entity.name.string}:".literal }, false)
+    paths.forEach { source.sendSuccess({ "- $it".literal }, false) }
+    return paths.size
 }
 
 internal fun isNodeScriptPath(path: String): Boolean = path.endsWith(".$NODE_SCRIPT_EXTENSION")

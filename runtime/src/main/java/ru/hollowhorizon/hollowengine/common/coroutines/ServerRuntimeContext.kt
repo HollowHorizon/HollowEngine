@@ -4,7 +4,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
-import ru.hollowhorizon.hollowengine.common.scripting.nodes.ComponentSystem
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeManager
 
 class ServerRuntimeContext(
     private val server: MinecraftServer,
@@ -13,23 +13,23 @@ class ServerRuntimeContext(
         server.dispatcher + SupervisorJob(server.coroutineScope.coroutineContext[Job]),
         ::markDirty,
     )
-    val components = ComponentSystem(server)
+    val nodes = NodeManager(server)
 
     private var dirty = false
 
     fun serialize(tag: CompoundTag) {
         tag.put("scope", CompoundTag().also(scope::serialize))
-        tag.put("components", CompoundTag().also(components::serialize))
+        tag.put("nodes", CompoundTag().also(nodes::serialize))
     }
 
     fun deserialize(tag: CompoundTag) {
         scope.deserialize(tag.getCompound("scope"))
-        components.deserialize(tag.getCompound("components"))
+        nodes.deserialize(tag.getCompound(if (tag.contains("nodes")) "nodes" else "components"))
         dirty = false
     }
 
     fun dispose() {
-        components.dispose()
+        nodes.dispose()
         scope.cancelAll()
     }
 
