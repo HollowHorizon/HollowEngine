@@ -1,10 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.bedrock
 
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
+import de.fabmax.kool.math.*
 import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
@@ -88,7 +87,7 @@ object BedrockModelLoader : ModelLoader {
         transform.translate(translation)
 
         if (bone.rotation != Vec3f.ZERO) {
-            transform.rotate(bone.rotation.x.deg, bone.rotation.y.deg, bone.rotation.z.deg)
+            transform.rotate((-bone.rotation.x).deg, bone.rotation.y.deg, (-bone.rotation.z).deg)
         }
 
         val primitives = bone.cubes.map { cube ->
@@ -133,13 +132,13 @@ object BedrockModelLoader : ModelLoader {
         val indices: List<Int>,
     )
 
-    fun BedrockFile.Cube.toMeshData(pivot: Vec3f, textureWidth: Int, textureHeight: Int): MeshData {
+    fun BedrockFile.Cube.toMeshData(bonePivot: Vec3f, textureWidth: Int, textureHeight: Int): MeshData {
         val vertices = mutableListOf<Vec3f>()
         val normals = mutableListOf<Vec3f>()
         val uvsOut = mutableListOf<Vec2f>()
         val indices = mutableListOf<Int>()
 
-        val (ox, oy, oz) = origin - pivot
+        val (ox, oy, oz) = origin - bonePivot
         val (sx, sy, sz) = size
         val inf = inflate
 
@@ -149,10 +148,23 @@ object BedrockModelLoader : ModelLoader {
         val x1 = ox + sx + inf
         val y1 = oy + sy + inf
         val z1 = oz + sz + inf
+        
+        val rotMat = rotation.takeIf { it != Vec3f.ZERO }
+            ?.let { MutableMat3f().rotate((-it.x).deg, it.y.deg, (-it.z).deg) }
+        val cubePivotLocal = pivot - bonePivot
+
+        fun place(v: Vec3f): Vec3f {
+            if (rotMat == null) return v
+            val local = MutableVec3f(v.x - cubePivotLocal.x, v.y - cubePivotLocal.y, v.z - cubePivotLocal.z)
+            rotMat.transform(local)
+            return Vec3f(local.x + cubePivotLocal.x, local.y + cubePivotLocal.y, local.z + cubePivotLocal.z)
+        }
+
+        fun turn(n: Vec3f): Vec3f = if (rotMat == null) n else rotMat.transform(MutableVec3f(n.x, n.y, n.z))
 
         val p = arrayOf(
-            Vec3f(x0, y0, z0), Vec3f(x1, y0, z0), Vec3f(x1, y1, z0), Vec3f(x0, y1, z0), // front
-            Vec3f(x0, y0, z1), Vec3f(x1, y0, z1), Vec3f(x1, y1, z1), Vec3f(x0, y1, z1)  // back
+            place(Vec3f(x0, y0, z0)), place(Vec3f(x1, y0, z0)), place(Vec3f(x1, y1, z0)), place(Vec3f(x0, y1, z0)), // front
+            place(Vec3f(x0, y0, z1)), place(Vec3f(x1, y0, z1)), place(Vec3f(x1, y1, z1)), place(Vec3f(x0, y1, z1))  // back
         )
         val faces = listOf(
             listOf(0, 1, 2, 3) to Vec3f(0f, 0f, -16f) to "north",
@@ -170,7 +182,7 @@ object BedrockModelLoader : ModelLoader {
                 "up" to uv.up, "down" to uv.down
             )
 
-            is BedrockFile.Uvs.Box -> generateBoxUVs(uv.uv)
+            is BedrockFile.Uvs.Box -> generateBoxUVs(uv.uv, size)
         }
 
         for ((faceWithNormal, name) in faces) {
@@ -198,9 +210,11 @@ object BedrockModelLoader : ModelLoader {
 
             val indicesForFace = listOf(0, 1, 2, 2, 3, 0)
 
+            val faceNormal = turn(normal)
+
             for (i in 0..3) {
                 vertices += p[face[i]]
-                normals += normal
+                normals += faceNormal
                 uvsOut += if (mirror == true && (name == "west" || name == "east")) {
                     Vec2f(1f - uvCoords[i].x / textureWidth, uvCoords[i].y / textureHeight)
                 } else uvCoords[i] / Vec2f(textureWidth.toFloat(), textureHeight.toFloat())
@@ -211,20 +225,19 @@ object BedrockModelLoader : ModelLoader {
         return MeshData(vertices, normals, uvsOut, indices)
     }
 
-    fun generateBoxUVs(boxUv: FloatArray): Map<String, BedrockFile.UvFace> {
+    fun generateBoxUVs(boxUv: FloatArray, size: Vec3f): Map<String, BedrockFile.UvFace> {
         val (u, v) = boxUv
-        val faceSize = 16f
+        val w = kotlin.math.abs(size.x)
+        val h = kotlin.math.abs(size.y)
+        val d = kotlin.math.abs(size.z)
 
         return mapOf(
-            "north" to BedrockFile.UvFace(floatArrayOf(u + faceSize, v + faceSize), floatArrayOf(faceSize, faceSize)),
-            "south" to BedrockFile.UvFace(floatArrayOf(u, v + faceSize), floatArrayOf(faceSize, faceSize)),
-            "west" to BedrockFile.UvFace(floatArrayOf(u, v), floatArrayOf(faceSize, faceSize)),
-            "east" to BedrockFile.UvFace(floatArrayOf(u + faceSize * 2, v), floatArrayOf(faceSize, faceSize)),
-            "up" to BedrockFile.UvFace(floatArrayOf(u + faceSize, v), floatArrayOf(faceSize, faceSize)),
-            "down" to BedrockFile.UvFace(
-                floatArrayOf(u + faceSize, v + faceSize * 2),
-                floatArrayOf(faceSize, faceSize)
-            ),
+            "up" to BedrockFile.UvFace(floatArrayOf(u + d, v), floatArrayOf(w, d)),
+            "down" to BedrockFile.UvFace(floatArrayOf(u + d + w, v), floatArrayOf(w, d)),
+            "east" to BedrockFile.UvFace(floatArrayOf(u, v + d), floatArrayOf(d, h)),
+            "north" to BedrockFile.UvFace(floatArrayOf(u + d, v + d), floatArrayOf(w, h)),
+            "west" to BedrockFile.UvFace(floatArrayOf(u + d + w, v + d), floatArrayOf(d, h)),
+            "south" to BedrockFile.UvFace(floatArrayOf(u + d + w + d, v + d), floatArrayOf(w, h)),
         )
     }
 
@@ -234,7 +247,13 @@ object BedrockModelLoader : ModelLoader {
 
             anim.bones.forEach { (boneName, channels) ->
 
-                val boneId = parsedModel.findNodeByName(boneName)!!.index
+                val boneId = parsedModel.findNodeByName(boneName)?.index ?: run {
+                    HollowEngine.LOGGER.warn(
+                        "Animation '{}' targets bone '{}', which does not exist in this model - skipping",
+                        name, boneName
+                    )
+                    return@forEach
+                }
 
                 val translation = channels.position?.let {
                     BedrockInterpolator(it.frames, BedrockInterpolator.Vec3Converter)

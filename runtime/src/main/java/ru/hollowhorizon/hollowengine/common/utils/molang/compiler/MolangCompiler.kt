@@ -17,6 +17,7 @@ import org.objectweb.asm.Label
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes.*
 import org.objectweb.asm.Type
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.utils.molang.lexer.Lexer
 import ru.hollowhorizon.hollowengine.common.utils.molang.lexer.Token
 import ru.hollowhorizon.hollowengine.common.utils.molang.parser.*
@@ -282,7 +283,15 @@ object MolangCompiler {
             for (i in 1 until path.size) {
                 val propName = path[i]
                 val property = currentClass.memberProperties.find { it.name == propName }
-                    ?: error("Property $propName not found in ${currentClass.simpleName}!")
+                if (property == null) {
+                    HollowEngine.LOGGER.warn(
+                        "Molang: query property '{}' not found in {}, defaulting to 0",
+                        propName, currentClass.simpleName
+                    )
+                    mv.visitInsn(POP) // discard the current query object left on the stack
+                    if (isBoolean) mv.visitInsn(ICONST_0) else mv.visitInsn(FCONST_0)
+                    return
+                }
 
                 val getter = property.javaGetter
                     ?: error("Property '$propName' has no getter in ${currentClass.simpleName}")

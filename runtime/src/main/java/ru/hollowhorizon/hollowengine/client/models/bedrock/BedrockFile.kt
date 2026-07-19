@@ -60,6 +60,8 @@ class BedrockFile(
         val uv: Uvs,
         val mirror: Boolean? = null,
         val inflate: Float = 0f,
+        val pivot: Vec3f = Vec3f.ZERO,
+        val rotation: Vec3f = Vec3f.ZERO,
     )
 
     @Serializable(with = UvsSerializer::class)
