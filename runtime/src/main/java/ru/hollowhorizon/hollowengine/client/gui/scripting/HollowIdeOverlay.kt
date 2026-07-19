@@ -6,15 +6,15 @@ import net.minecraft.client.gui.screens.ChatScreen
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSessions
-import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
-import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
-import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneViewportDock
+import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.image.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.video.HollowIdeVideoEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.HollowIdeConsolePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.ModelEditorPanel
-import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
+import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSessions
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutscenePropertiesDock
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneTimelineDock
+import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.CutsceneViewportDock
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -28,7 +28,6 @@ import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
-import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 
 internal const val ProjectTreeId = "ide-project-tree"
 internal const val ConsoleId = "ide-console"
@@ -86,6 +85,7 @@ object HollowIdeOverlay {
 
     private var lastMouseX = 0f
     private var lastMouseY = 0f
+
     init {
         initialize()
     }
@@ -247,24 +247,24 @@ object HollowIdeOverlay {
         if (popup) {
             ContextMenu(
                 "ide-editor-menu", anchorBounds, listOf(
-                UiDropdownItem("Show always") {
-                    HollowEngineConfig.editMode = EditMode.ENABLED
-                    if (collapsed) {
-                        collapsed = false
+                    UiDropdownItem("Show always") {
+                        HollowEngineConfig.editMode = EditMode.ENABLED
+                        if (collapsed) {
+                            collapsed = false
+                        }
+                    },
+                    UiDropdownItem("Collapse") {
+                        if (!collapsed) {
+                            collapsed = true
+                        }
+                    },
+                    UiDropdownItem("Hide") {
+                        HollowEngineConfig.editMode = EditMode.DISABLED
+                    },
+                    UiDropdownItem("Show only in chat menu") {
+                        HollowEngineConfig.editMode = EditMode.CHAT_ONLY
                     }
-                },
-                UiDropdownItem("Collapse") {
-                    if (!collapsed) {
-                        collapsed = true
-                    }
-                },
-                UiDropdownItem("Hide") {
-                    HollowEngineConfig.editMode = EditMode.DISABLED
-                },
-                UiDropdownItem("Show only in chat menu") {
-                    HollowEngineConfig.editMode = EditMode.CHAT_ONLY
-                }
-            )) { popup = it}
+                )) { popup = it }
         }
     }
 
@@ -297,15 +297,13 @@ object HollowIdeOverlay {
             onExpandedChange = { openDropdown = if (it) "windows" else null },
             items = hollowIdeWindowMenuItems(model, dock),
         )
-        if (Minecraft.getInstance().player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true) {
-            UiDropdown(
-                id = "ide-tools-menu",
-                label = "hollowengine.gui.ide.tools".lang,
-                expanded = openDropdown == "tools",
-                onExpandedChange = { openDropdown = if (it) "tools" else null },
-                items = hollowIdeToolMenuItems(dock, surface.runtime.profiler),
-            )
-        }
+        UiDropdown(
+            id = "ide-tools-menu",
+            label = "hollowengine.gui.ide.tools".lang,
+            expanded = openDropdown == "tools",
+            onExpandedChange = { openDropdown = if (it) "tools" else null },
+            items = hollowIdeToolMenuItems(dock, surface.runtime.profiler),
+        )
         UiDropdown(
             id = "ide-help-menu",
             label = "hollowengine.gui.ide.help".lang,
@@ -347,6 +345,7 @@ object HollowIdeOverlay {
                 session = CutsceneEditorSessions.default,
                 keyboardActive = dock.focusedItemId == CutsceneTimelineId,
             )
+
             CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
             CutsceneViewportId -> CutsceneViewportDock()
             UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
@@ -562,7 +561,8 @@ object HollowIdeOverlay {
         val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
             ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame, target)
-        val overIde = surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) == true || surface.runtime.isAnyFocused
+        val overIde =
+            surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) == true || surface.runtime.isAnyFocused
         when {
             overIde -> UiCursorManager.apply(window.window, surface.runtime.cursor)
             !TransformGizmoEditor.ownsWorldCursor() -> UiCursorManager.apply(window.window, surface.runtime.cursor)

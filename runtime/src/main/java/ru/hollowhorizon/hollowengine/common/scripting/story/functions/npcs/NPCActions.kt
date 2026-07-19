@@ -1,25 +1,38 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
+import com.mojang.brigadier.StringReader
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import net.minecraft.commands.arguments.item.ItemParser
 import net.minecraft.core.BlockPos
-import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.Direction
+import net.minecraft.core.component.DataComponentPatch
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.TagParser
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
+import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.level.ClipContext
+import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
+import ru.hollowhorizon.hollowengine.common.coroutines.Ref
+import ru.hollowhorizon.hollowengine.common.coroutines.entityRef
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
+import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcAction
+import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionKeys
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.*
+import ru.hollowhorizon.hollowengine.common.scripting.state.waitPersistent
+import ru.hollowhorizon.hollowengine.common.scripting.state.waitRealtime
+import ru.hollowhorizon.hollowengine.common.scripting.state.waitUntil
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.time.Instant
 import java.util.*
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -29,17 +42,16 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param dist Минимальное расстояние до сущности, при достижении которого движение прекращается.
  * @param speed Скорость перемещения NPC.
  */
-suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
-    while (distanceTo(entity) > dist) {
-        withContext(currentServer.dispatcher) {
-            navigation.moveTo(entity.x, entity.y, entity.z, 0, speed)
-        }
-        delay(50.milliseconds)
+suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0): MoveResult =
+    with(server ?: currentServer) {
+        move(entity.entityRef, MoveOptions(arrivalDistance = dist, speed = speed))
     }
-    withContext(currentServer.dispatcher) {
-        navigation.stop()
-    }
-}
+
+suspend fun NpcEntity.move(target: Ref<out Entity>, options: MoveOptions = MoveOptions()): MoveResult =
+    startMove(target, options).await()
+
+fun NpcEntity.startMove(target: Ref<out Entity>, options: MoveOptions = MoveOptions()): NpcAction<MoveResult> =
+    actions.start(NpcActionKeys.MOVEMENT) { moveToEntity(target, options) }
 
 /**
  * Перемещает NPC к указанной сущности с настройками по умолчанию. (Можно указать через пробел)
@@ -47,7 +59,7 @@ suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1
  * @param mob Сущность, к которой нужно переместиться.
  */
 // @ScriptBinding
-suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
+suspend infix fun NpcEntity.move(mob: Entity): MoveResult = move(entity = mob)
 
 /**
  * Перемещает NPC к указанной позиции до тех пор, пока расстояние не станет меньше или равно заданному.
@@ -56,18 +68,14 @@ suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
  * @param dist Минимальное расстояние до позиции, при достижении которого движение прекращается.
  * @param speed Скорость перемещения NPC.
  */
-suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
-    while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
-        withContext(currentServer.dispatcher) {
-            navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
-        }
-        delay(50.milliseconds)
-    }
+suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0): MoveResult =
+    move(pos, MoveOptions(arrivalDistance = dist, speed = speed))
 
-    withContext(currentServer.dispatcher) {
-        navigation.stop()
-    }
-}
+suspend fun NpcEntity.move(pos: Vec3, options: MoveOptions = MoveOptions()): MoveResult =
+    startMove(pos, options).await()
+
+fun NpcEntity.startMove(pos: Vec3, options: MoveOptions = MoveOptions()): NpcAction<MoveResult> =
+    actions.start(NpcActionKeys.MOVEMENT) { moveToPosition({ pos }, options) }
 
 /**
  * Перемещает NPC к указанной позиции с настройками по умолчанию. (Можно указать через пробел)
@@ -75,17 +83,35 @@ suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
  * @param position Позиция, к которой нужно переместиться.
  */
 // @ScriptBinding
-suspend infix fun NpcEntity.move(position: Vec3): Unit = move(pos = position)
+suspend infix fun NpcEntity.move(position: Vec3): MoveResult = move(pos = position)
+
+fun NpcEntity.stopMoving() {
+    actions.cancel(NpcActionKeys.MOVEMENT)
+    navigation.stop()
+}
 
 /**
  * Заставляет NPC посмотреть на указанную позицию за 30 тиков.
  *
  * @param position Позиция, на которую нужно смотреть.
  */
+fun NpcEntity.lookAtNow(position: Vec3, maxAngularSpeed: Float = 360f): Boolean =
+    faceTowards(position, maxAngularSpeed)
+
+fun NpcEntity.startLookingAt(
+    position: Vec3,
+    duration: Duration = DEFAULT_LOOK_DURATION,
+    maxAngularSpeed: Float = 360f,
+): NpcAction<Unit> = actions.start(NpcActionKeys.LOOK) {
+    rotate({ position }, duration.inWholeMilliseconds, maxAngularSpeed = maxAngularSpeed)
+}
+
+suspend fun NpcEntity.lookAt(position: Vec3, duration: Duration, maxAngularSpeed: Float = 360f) {
+    startLookingAt(position, duration, maxAngularSpeed).await()
+}
+
 suspend infix fun NpcEntity.lookAt(position: Vec3) {
-    withContext(currentServer.dispatcher) {
-        rotate({ position }, 1500)
-    }
+    lookAt(position, DEFAULT_LOOK_DURATION)
 }
 
 /**
@@ -93,10 +119,33 @@ suspend infix fun NpcEntity.lookAt(position: Vec3) {
  *
  * @param entity Сущность, на которую нужно смотреть.
  */
+fun NpcEntity.lookAtNow(entity: Entity, maxAngularSpeed: Float = 360f): Boolean =
+    faceTowards(entity, maxAngularSpeed)
+
+fun NpcEntity.startLookingAt(
+    target: Ref<out Entity>,
+    duration: Duration = DEFAULT_LOOK_DURATION,
+    maxAngularSpeed: Float = 360f,
+): NpcAction<Unit> = actions.start(NpcActionKeys.LOOK) {
+    rotate({ target.resolve().eyePosition }, duration.inWholeMilliseconds, maxAngularSpeed = maxAngularSpeed)
+}
+
+suspend fun NpcEntity.lookAt(
+    target: Ref<out Entity>,
+    duration: Duration,
+    maxAngularSpeed: Float = 360f,
+) {
+    startLookingAt(target, duration, maxAngularSpeed).await()
+}
+
 suspend infix fun NpcEntity.lookAt(entity: Entity) {
-    withContext(currentServer.dispatcher) {
-        rotate({ entity.eyePosition }, 1500)
+    with(server ?: currentServer) {
+        lookAt(entity.entityRef, DEFAULT_LOOK_DURATION)
     }
+}
+
+fun NpcEntity.clearLookTarget() {
+    actions.cancel(NpcActionKeys.LOOK)
 }
 
 /**
@@ -105,12 +154,56 @@ suspend infix fun NpcEntity.lookAt(entity: Entity) {
  *
  * @param pos Позиция блока, который нужно использовать.
  */
-suspend infix fun NpcEntity.useBlock(pos: Vec3) {
-    lookAt(pos)
-    val hit = level().clip(ClipContext(pos, pos, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, this))
-    swing(InteractionHand.MAIN_HAND)
-    val state = level().getBlockState(hit.blockPos)
-    state.useItemOn(mainHandItem, level(), fakePlayer, InteractionHand.MAIN_HAND, hit)
+suspend infix fun NpcEntity.useBlock(pos: Vec3): InteractionResult = useBlock(pos, InteractionHand.MAIN_HAND)
+
+suspend fun NpcEntity.useBlock(
+    pos: Vec3,
+    hand: InteractionHand = InteractionHand.MAIN_HAND,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+    face: Direction? = null,
+): InteractionResult = startUseBlock(pos, hand, reach, face).await()
+
+fun NpcEntity.startUseBlock(
+    pos: Vec3,
+    hand: InteractionHand = InteractionHand.MAIN_HAND,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+    face: Direction? = null,
+): NpcAction<InteractionResult> {
+    require(reach > 0.0) { "Interaction reach must be greater than zero" }
+    return actions.start(NpcActionKeys.HANDS) {
+        val target = Vec3.atCenterOf(BlockPos.containing(pos))
+        val movement = startMove(target, MoveOptions(arrivalDistance = reach * 0.8f))
+        try {
+            if (movement.await() != MoveResult.Arrived) return@start InteractionResult.FAIL
+            rotate({ target }, DEFAULT_LOOK_DURATION.inWholeMilliseconds)
+            useBlockAt(target, hand, face)
+        } finally {
+            if (movement.isActive) movement.cancel()
+        }
+    }
+}
+
+fun NpcEntity.useBlockNow(
+    pos: Vec3,
+    hand: InteractionHand = InteractionHand.MAIN_HAND,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+    face: Direction? = null,
+): InteractionResult {
+    val blockPos = BlockPos.containing(pos)
+    val target = Vec3.atCenterOf(blockPos)
+    if (eyePosition.distanceToSqr(target) > reach * reach) return InteractionResult.FAIL
+
+    return useBlockAt(target, hand, face)
+}
+
+private fun NpcEntity.useBlockAt(target: Vec3, hand: InteractionHand, face: Direction?): InteractionResult {
+    val blockPos = BlockPos.containing(target)
+    syncFakePlayer()
+    val hit = BlockHitResult(target, face ?: interactionFace(target), blockPos, false)
+    swing(hand)
+    val result = fakePlayer.gameMode.useItemOn(fakePlayer, level(), fakePlayer.getItemInHand(hand), hand, hit)
+    setItemInHand(hand, fakePlayer.getItemInHand(hand).copy())
+    return result
 }
 
 /**
@@ -119,13 +212,111 @@ suspend infix fun NpcEntity.useBlock(pos: Vec3) {
  *
  * @param pos Позиция блока, который нужно разрушить.
  */
-suspend infix fun NpcEntity.destroyBlock(pos: Vec3) {
-    move(pos)
-    lookAt(pos)
-    val manager = fakePlayer.gameMode
+suspend infix fun NpcEntity.destroyBlock(pos: Vec3): Boolean = startDestroyBlock(pos).await()
 
-    manager.destroyBlock(BlockPos(pos.x.toInt(), pos.y.toInt(), pos.z.toInt()))
-    swing(InteractionHand.MAIN_HAND)
+fun NpcEntity.startDestroyBlock(
+    pos: Vec3,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+    requireCorrectTool: Boolean = true,
+): NpcAction<Boolean> = actions.start(NpcActionKeys.HANDS) {
+    val blockPos = BlockPos.containing(pos)
+    val target = Vec3.atCenterOf(blockPos)
+    val movement = startMove(target, MoveOptions(arrivalDistance = reach * 0.8f))
+    try {
+        if (movement.await() != MoveResult.Arrived) return@start false
+        rotate({ target }, DEFAULT_LOOK_DURATION.inWholeMilliseconds)
+        syncFakePlayer()
+        val initialState = level().getBlockState(blockPos)
+        if (initialState.isAir || initialState.getDestroyProgress(fakePlayer, level(), blockPos) <= 0f) {
+            return@start false
+        }
+        if (requireCorrectTool && !fakePlayer.hasCorrectToolForDrops(initialState)) return@start false
+
+        val face = interactionFace(target)
+        fakePlayer.gameMode.handleBlockBreakAction(blockPos, START_DESTROY_BLOCK, face, level().maxBuildHeight, 0)
+        try {
+            var elapsedTicks = 0
+            while (level().getBlockState(blockPos) == initialState) {
+                fakePlayer.gameMode.tick()
+                elapsedTicks++
+                faceTowards(target)
+                swing(InteractionHand.MAIN_HAND)
+                val progress = initialState.getDestroyProgress(fakePlayer, level(), blockPos)
+                if (progress * (elapsedTicks + 1) >= 1f) {
+                    fakePlayer.gameMode.handleBlockBreakAction(
+                        blockPos,
+                        STOP_DESTROY_BLOCK,
+                        face,
+                        level().maxBuildHeight,
+                        0,
+                    )
+                    break
+                }
+                delay(TICK_DURATION)
+            }
+            level().getBlockState(blockPos).isAir
+        } finally {
+            if (!level().getBlockState(blockPos).isAir) {
+                fakePlayer.gameMode.handleBlockBreakAction(
+                    blockPos,
+                    ABORT_DESTROY_BLOCK,
+                    face,
+                    level().maxBuildHeight,
+                    0,
+                )
+            }
+            level().destroyBlockProgress(fakePlayer.id, blockPos, -1)
+            setItemInHand(InteractionHand.MAIN_HAND, fakePlayer.mainHandItem.copy())
+        }
+    } finally {
+        if (movement.isActive) movement.cancel()
+    }
+}
+
+private fun NpcEntity.interactionFace(target: Vec3): Direction = Direction.getNearest(eyePosition.subtract(target))
+
+fun NpcEntity.interactNow(
+    target: Entity,
+    hand: InteractionHand = InteractionHand.MAIN_HAND,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+): InteractionResult {
+    if (target.level() !== level() || distanceToSqr(target) > reach * reach) return InteractionResult.FAIL
+    syncFakePlayer()
+    val result = fakePlayer.interactOn(target, hand)
+    setItemInHand(hand, fakePlayer.getItemInHand(hand).copy())
+    swing(hand)
+    return result
+}
+
+fun NpcEntity.startInteract(
+    target: Ref<out Entity>,
+    hand: InteractionHand = InteractionHand.MAIN_HAND,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+): NpcAction<InteractionResult> = actions.start(NpcActionKeys.HANDS) {
+    val movement = startMove(target, MoveOptions(arrivalDistance = reach))
+    try {
+        if (movement.await() != MoveResult.Arrived) return@start InteractionResult.FAIL
+        val entity = target.resolve()
+        rotate({ entity.eyePosition }, DEFAULT_LOOK_DURATION.inWholeMilliseconds)
+        interactNow(entity, hand, reach)
+    } finally {
+        if (movement.isActive) movement.cancel()
+    }
+}
+
+suspend fun NpcEntity.interact(
+    target: Ref<out Entity>,
+    hand: InteractionHand = InteractionHand.MAIN_HAND,
+    reach: Double = DEFAULT_INTERACTION_REACH,
+): InteractionResult = startInteract(target, hand, reach).await()
+
+private fun NpcEntity.syncFakePlayer() {
+    val level = level() as ServerLevel
+    fakePlayer.gameMode.setLevel(level)
+    fakePlayer.moveTo(x, y, z, yRot, xRot)
+    InteractionHand.entries.forEach { currentHand ->
+        fakePlayer.setItemInHand(currentHand, getItemInHand(currentHand).copy())
+    }
 }
 
 /**
@@ -153,6 +344,21 @@ suspend fun wait(time: Int) {
     delay((time * 50L).milliseconds)
 }
 
+/** Waits for loaded server ticks inside `@State` and resumes the same countdown after a restart. */
+suspend fun wait(time: Int, name: String) {
+    waitPersistent(name, time)
+}
+
+/** Waits inside `@State` for wall-clock time, including time for which the game was not running. */
+suspend fun wait(time: Duration, name: String) {
+    waitRealtime(name, time)
+}
+
+/** Waits inside `@State` until an absolute date and resumes the same deadline after a restart. */
+suspend fun wait(time: Instant, name: String) {
+    waitUntil(name, time)
+}
+
 fun uuid(uuid: String): UUID = UUID.fromString(uuid)
 
 /**
@@ -163,7 +369,12 @@ fun uuid(uuid: String): UUID = UUID.fromString(uuid)
  * @param nbt Строковое представление NBT-тега.
  * @return ItemStack с заданными параметрами.
  */
-fun item(item: String, count: Int = 1, nbt: String) = item(item, count, TagParser.parseTag(nbt))
+@Deprecated(
+    message = "Legacy item NBT was replaced by data components. Put components in the item specification or pass DataComponentPatch.",
+    level = DeprecationLevel.ERROR,
+)
+fun item(item: String, count: Int, nbt: String): Nothing =
+    error("Legacy item NBT is not supported: $item x$count ($nbt)")
 
 /**
  * Создает ItemStack с указанным предметом, количеством и NBT-тегом.
@@ -173,15 +384,27 @@ fun item(item: String, count: Int = 1, nbt: String) = item(item, count, TagParse
  * @param nbt NBT-тег для предмета.
  * @return ItemStack с заданными параметрами.
  */
-fun item(item: String, count: Int = 1, nbt: CompoundTag? = null): ItemStack {
-    assert(BuiltInRegistries.ITEM.containsKey(item.rl)) { "Item $item not found!" }
-    assert(count > 0) { "Item must be non-zero!" }
+fun item(item: String, count: Int = 1): ItemStack = item(item, count, DataComponentPatch.EMPTY)
 
-    return ItemStack(
-        BuiltInRegistries.ITEM.get(item.rl),
-        count
-    )
+fun item(item: String, count: Int = 1, components: DataComponentPatch): ItemStack {
+    require(count > 0) { "Item count must be greater than zero" }
+    val reader = StringReader(item)
+    val parsed = runCatching { ItemParser(currentServer.registryAccess()).parse(reader) }
+        .getOrElse { error -> throw IllegalArgumentException("Invalid item specification '$item'", error) }
+    require(!reader.canRead()) { "Unexpected trailing data in item specification '$item'" }
+
+    return ItemStack(parsed.item, count).apply {
+        applyComponents(parsed.components)
+        applyComponents(components)
+    }
 }
+
+@Deprecated(
+    message = "Legacy item NBT was replaced by data components. Use item(specification, count) or DataComponentPatch.",
+    level = DeprecationLevel.ERROR,
+)
+fun item(item: String, count: Int, nbt: CompoundTag): Nothing =
+    error("Legacy item NBT is not supported: $item x$count ($nbt)")
 
 /**
  * Переменная-геттер, которая переводит секунды в тики.
@@ -196,6 +419,10 @@ val Int.sec get() = this * 20
 
 val Double.sec get() = (this * 20).toInt()
 
+private val DEFAULT_LOOK_DURATION = 1500.milliseconds
+private val TICK_DURATION = 50.milliseconds
+private const val DEFAULT_INTERACTION_REACH = 3.0
+
 /**
  * Заставляет NPC "сказать" текст, отправляя сообщение всем игрокам на сервере.
  *
@@ -206,7 +433,4 @@ infix fun NpcEntity.say(text: String) {
         it.sendSystemMessage("[$name]: $text".literal)
     }
 }
-
-
-
 

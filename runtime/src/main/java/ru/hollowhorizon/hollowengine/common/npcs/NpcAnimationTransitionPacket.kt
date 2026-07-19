@@ -44,6 +44,12 @@ fun onNpcAnimationServerTick(event: TickEvent.Server) {
 }
 
 object NpcAnimationRuntime {
+    fun animationDuration(entity: Entity, animation: String): Float? {
+        val model = GearyRuntimeState.componentsById(entity).values.filterIsInstance<Model>().firstOrNull()?.model
+            ?: return null
+        return ServerModelAnimationMetadata.animationDuration(model, animation)
+    }
+
     fun apply(
         entity: Entity,
         from: String?,
@@ -88,6 +94,21 @@ object NpcAnimationRuntime {
         val components = GearyRuntimeState.componentsById(entity)
         val current = components[animatorId] as? AnimatorComponent ?: return
         val updated = current.withoutLayer(layerId)
+        if (updated == current) return
+
+        components[animatorId] = updated
+        val serverEntity = entity.takeIf { !it.level().isClientSide } ?: return
+        EntitySnapshotPacket(
+            serverEntity.id,
+            snapshotOf(serverEntity),
+        ).sendTrackingEntityAndSelf(serverEntity)
+    }
+
+    fun clear(entity: Entity) {
+        val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
+        val components = GearyRuntimeState.componentsById(entity)
+        val current = components[animatorId] as? AnimatorComponent ?: return
+        val updated = current.copy(layers = current.layers.filterNot { it is ClipAnimationLayerSpec })
         if (updated == current) return
 
         components[animatorId] = updated

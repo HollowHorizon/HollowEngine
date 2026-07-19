@@ -17,7 +17,8 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
     companion object {
         private const val MIN_DISTANCE_FOR_TURN_SQ = 0.04
         private const val BODY_TURN_DEAD_ZONE = 3f
-        private const val MAX_BODY_TURN = 35f
+        private const val MAX_BODY_TURN = 15f
+        private const val MAX_HEAD_TURN = 20f
     }
 
     override fun tick() {
@@ -70,6 +71,7 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
                         val bodyYaw = rotlerp(mob.yBodyRot, targetYaw, MAX_BODY_TURN)
                         mob.yRot = bodyYaw
                         mob.setYBodyRot(bodyYaw)
+                        mob.yHeadRot = rotlerp(mob.yHeadRot, bodyYaw, MAX_HEAD_TURN)
                     }
                 }
                 mob.speed = (this.speedModifier * mob.getAttributeValue(Attributes.MOVEMENT_SPEED)).toFloat()

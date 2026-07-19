@@ -6,7 +6,7 @@ import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
-import java.util.*
+import java.util.UUID
 
 interface Ref<T> {
     val isLinkAlive: Boolean
@@ -17,26 +17,29 @@ interface Ref<T> {
     suspend fun update(action: T.() -> Unit) = resolve().action()
 }
 
-@Suppress("UNCHECKED_CAST")
 context(server: MinecraftServer)
-fun <T : Entity> entityRef(uuid: UUID): Ref<T> {
+fun <T : Entity> entityRef(uuid: UUID, type: Class<T>): Ref<T> {
     return object : Ref<T> {
         override val isLinkAlive: Boolean
-            get() = server.allLevels.any { it.getEntity(uuid) != null }
+            get() = server.allLevels.any { type.isInstance(it.getEntity(uuid)) }
 
         override suspend fun resolve(): T {
             server.allLevels.forEach { level ->
-                level.getEntity(uuid)?.let { return it as T }
+                level.getEntity(uuid)?.let { entity -> return type.castEntity(uuid, entity) }
             }
 
-            return EntityLoadedEvent.await { it.entity.uuid == uuid }.entity as T
+            val entity = EntityLoadedEvent.await { it.entity.uuid == uuid }.entity
+            return type.castEntity(uuid, entity)
         }
     }
 }
 
 context(server: MinecraftServer)
-val <T: Entity> T.entityRef: Ref<T>
-    get() = entityRef(this.uuid)
+inline fun <reified T : Entity> entityRef(uuid: UUID): Ref<T> = entityRef(uuid, T::class.java)
+
+context(server: MinecraftServer)
+inline val <reified T : Entity> T.entityRef: Ref<T>
+    get() = entityRef(uuid)
 
 context(server: MinecraftServer)
 fun playerRef(name: String) = object : Ref<ServerPlayer> {
@@ -77,17 +80,24 @@ suspend fun <A, B, C> borrow(first: Ref<A>, second: Ref<B>, action: (first: A, s
 suspend fun <A, B, C, D> borrow(
     first: Ref<A>,
     second: Ref<B>,
-    thrid: Ref<C>,
-    action: (first: A, second: B, thrid: C) -> D,
+    third: Ref<C>,
+    action: (first: A, second: B, third: C) -> D,
 ): D {
     while (true) {
         val f = first.resolve()
         val s = second.resolve()
-        val t = thrid.resolve()
+        val t = third.resolve()
 
         // За время получения второй сущности вторая могла устареть
-        if (first.isLinkAlive && second.isLinkAlive && thrid.isLinkAlive) {
+        if (first.isLinkAlive && second.isLinkAlive && third.isLinkAlive) {
             return action(f, s, t)
         }
     }
+}
+
+private fun <T : Entity> Class<T>.castEntity(uuid: UUID, entity: Entity): T {
+    require(isInstance(entity)) {
+        "Entity $uuid has type ${entity.javaClass.name}, expected $name"
+    }
+    return cast(entity)
 }

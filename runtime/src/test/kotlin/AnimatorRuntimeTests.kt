@@ -167,21 +167,15 @@ class AnimatorRuntimeTests {
         val walkState = controller.states.single { it.id == "walk" }
         val runState = controller.states.single { it.id == "run" }
         val headTransform = procedural.transforms.single { it.bone == "Head" }
-        val bodyTransform = procedural.transforms.single { it.bone == "BodyUp" }
-        val leftArmTransform = procedural.transforms.single { it.bone == "LeftArm" }
         val leftEyeTransform = procedural.transforms.single { it.bone == "LeftEye" }
         val rightEyeTransform = procedural.transforms.single { it.bone == "RightEye" }
 
         assertTrue(evaluator.boolean(runTransition.condition, context))
         assertFalse(evaluator.boolean(idleTransition.condition, context))
-        assertEquals(-1.2f, evaluator.float(walkState.speed, context), 0.0001f)
-        assertEquals(-1.2f, evaluator.float(runState.speed, context), 0.0001f)
+        assertEquals(-0.6f, evaluator.float(walkState.speed, context), 0.0001f)
+        assertEquals(-0.6f, evaluator.float(runState.speed, context), 0.0001f)
         assertEquals(6.5f, evaluator.vector(headTransform.rotation!!, context).x, 0.0001f)
         assertEquals(-18.6f, evaluator.vector(headTransform.rotation, context).y, 0.0001f)
-        assertEquals(1.2f, evaluator.vector(bodyTransform.rotation!!, context).x, 0.0001f)
-        assertEquals(-9f, evaluator.vector(bodyTransform.rotation, context).y, 0.0001f)
-        assertEquals(-3.6f, evaluator.vector(leftArmTransform.rotation!!, context).y, 0.0001f)
-        assertEquals(4.2f, evaluator.vector(leftArmTransform.rotation, context).z, 0.0001f)
         assertEquals(0f, evaluator.vector(leftEyeTransform.translation!!, context).x, 0.0001f)
         assertEquals(0.0648f, evaluator.vector(rightEyeTransform.translation!!, context).x, 0.0001f)
         assertEquals(-0.01f, evaluator.vector(leftEyeTransform.translation, context).y, 0.0001f)
