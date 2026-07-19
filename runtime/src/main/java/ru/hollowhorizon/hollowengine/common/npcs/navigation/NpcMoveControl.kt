@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.npcs.navigation
 
-import net.minecraft.core.Direction
-import net.minecraft.tags.BlockTags
+import net.minecraft.core.BlockPos
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.control.MoveControl
@@ -11,7 +10,6 @@ import net.minecraft.world.level.pathfinder.PathfindingContext
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.sqrt
 
 class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
     companion object {
@@ -19,6 +17,10 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
         private const val BODY_TURN_DEAD_ZONE = 3f
         private const val MAX_BODY_TURN = 15f
         private const val MAX_HEAD_TURN = 20f
+        private const val MAX_JUMP_ANGLE = 30f
+        private const val TURNING_SPEED_FACTOR = 0.35f
+        private const val HEIGHT_EPSILON = 1.0e-3
+        private const val DIAGONAL_JUMP_DISTANCE_SQ = 2.25
     }
 
     override fun tick() {
@@ -64,9 +66,10 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
                     return
                 }
 
+                var yawDelta = 0f
                 if (horizontalDistSq >= MIN_DISTANCE_FOR_TURN_SQ) {
                     val targetYaw = (Mth.atan2(dz, dx) * (180 / Math.PI) - 90.0).toFloat()
-                    val yawDelta = Mth.wrapDegrees(targetYaw - mob.yBodyRot)
+                    yawDelta = Mth.wrapDegrees(targetYaw - mob.yBodyRot)
                     if (abs(yawDelta) >= BODY_TURN_DEAD_ZONE) {
                         val bodyYaw = rotlerp(mob.yBodyRot, targetYaw, MAX_BODY_TURN)
                         mob.yRot = bodyYaw
@@ -76,19 +79,24 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
                 }
                 mob.speed = (this.speedModifier * mob.getAttributeValue(Attributes.MOVEMENT_SPEED)).toFloat()
 
-                val pos = mob.blockPosition()
-                val state = mob.level().getBlockState(pos)
-                val shape = state.getCollisionShape(mob.level(), pos)
-
-                val needsJump = dy > mob.maxUpStep() && dx * dx + dz * dz < max(
-                    sqrt(3.0),
-                    mob.bbWidth.toDouble()
-                ) // квадрат сравниваем с квадратом
-
-                // Если высота отличается больше, чем maxUpStep, а коллизии нет — прыгаем
-                if (needsJump || (!shape.isEmpty && mob.y < shape.max(Direction.Axis.Y) + pos.y
-                            && !state.`is`(BlockTags.DOORS) && !state.`is`(BlockTags.FENCES))
-                ) {
+                val diagonalApproach = abs(dx) > mob.bbWidth * 0.5 && abs(dz) > mob.bbWidth * 0.5
+                val jumpDistanceSq = if (diagonalApproach) {
+                    DIAGONAL_JUMP_DISTANCE_SQ
+                } else {
+                    max(1.0, mob.bbWidth.toDouble())
+                }
+                val surfacePos = BlockPos.containing(wantedX, wantedY - HEIGHT_EPSILON, wantedZ)
+                val hasStepableSurface = NpcNavigationGeometry.hasStepableSurface(
+                    mob.level(),
+                    surfacePos,
+                    mob.maxUpStep().toDouble(),
+                    mob.position(),
+                )
+                val needsJump = dy > mob.maxUpStep() + HEIGHT_EPSILON &&
+                        horizontalDistSq < jumpDistanceSq && !hasStepableSurface
+                if (needsJump && abs(yawDelta) > MAX_JUMP_ANGLE) {
+                    mob.speed *= TURNING_SPEED_FACTOR
+                } else if (needsJump) {
                     mob.jumpControl.jump()
                     this.operation = Operation.JUMPING
                 }
