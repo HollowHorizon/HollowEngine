@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.autoPanToContentX
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import kotlin.test.assertEquals

@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.editor
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import org.joml.Vector4f
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HollowIdeScale
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeScale
 import kotlin.math.tan
 
 /**

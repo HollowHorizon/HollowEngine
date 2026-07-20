@@ -5,8 +5,8 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HollowIdeScale
-import ru.hollowhorizon.hollowengine.client.gui.scripting.hollowIdeOverlayPoint
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeScale
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeOverlayPoint
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss

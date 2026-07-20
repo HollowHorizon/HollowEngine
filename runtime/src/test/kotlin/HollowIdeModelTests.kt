@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeFileNode
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeFileOperationResult
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeModel
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import androidx.compose.runtime.*
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HollowIdeEditorSession
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeEditorSession
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 

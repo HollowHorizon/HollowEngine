@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.image
 
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageHistory
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdePixelChange
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse

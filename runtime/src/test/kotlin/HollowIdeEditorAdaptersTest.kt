@@ -5,6 +5,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.ide.mergeHighlightsForEditedText
+import ru.hollowhorizon.hollowengine.client.ui.ide.overlayOccurrences
+import ru.hollowhorizon.hollowengine.client.ui.ide.shiftDiagnosticsForEditedText
+import ru.hollowhorizon.hollowengine.client.ui.ide.shiftInlayHintsForEditedText
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlayHint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic

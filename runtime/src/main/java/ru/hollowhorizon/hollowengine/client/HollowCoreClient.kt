@@ -3,8 +3,6 @@ package ru.hollowhorizon.hollowengine.client
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.KeyMapping
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
-import ru.hollowhorizon.hollowengine.client.kool.gl.render
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
@@ -18,8 +16,6 @@ import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityRenderersEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
@@ -66,11 +62,5 @@ object HollowCoreClient {
         if (HollowEngineConfig.debugMode && KEY_V.isDown) {
             HollowUiDemoScreen().open()
         }
-    }
-
-    @SubscribeEvent
-    fun onRenderOverlay(event: RenderOverlayEvent.Pre) {
-        if (event.overlay != GuiOverlay.HOTBAR) return
-        CompilationStatus.overlay.render()
     }
 }

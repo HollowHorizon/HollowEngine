@@ -69,8 +69,8 @@ import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HollowIdeOverlay
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneCameraSystem
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent

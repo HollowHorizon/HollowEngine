@@ -4,11 +4,11 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiSurface
 import de.fabmax.kool.scene.Node
-import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 
 fun isKoolPointerInputCaptured(x: Float, y: Float): Boolean {
     val position = Vec2f(x, y)
-    if (isMouseOverDock(x, y)) return true
+    if (HollowIdeOverlay.isMouseOver(x, y)) return true
 
     return KoolManager.context.scenes.any { scene ->
         scene.isVisible && scene.isNodeCapturingPointerInput(position)

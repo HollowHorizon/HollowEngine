@@ -16,13 +16,15 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.gui.scripting.*
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.render.ResolvedNodeTransform
 import ru.hollowhorizon.hollowengine.client.render.buildNodeRenderBounds
 import ru.hollowhorizon.hollowengine.client.render.resolveNodeTransform
 import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeModifierMask
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeOverlayPoint
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
@@ -230,7 +232,7 @@ object TransformGizmoEditor {
         if (!isInitialized || !isEditorAvailable()) return false
         if (draggingKey != null) return true
         if (!crosshairMode()) {
-            if (isMouseOverDock(physX, physY) || pointerOverIde(physX, physY)) return false
+            if (HollowIdeOverlay.isMouseOver(physX, physY) || pointerOverIde(physX, physY)) return false
             if (overlay.isMouseOver(physX, physY)) return true
         }
         val (x, y) = pointerLogical(physX, physY)
@@ -529,7 +531,7 @@ object TransformGizmoEditor {
         return isEnabled &&
             minecraft.level != null &&
             minecraft.player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true &&
-            (minecraft.screen == null || minecraft.screen is ChatScreen || !ScriptingEnvironmentOverlay.isCollapsed)
+            (minecraft.screen == null || minecraft.screen is ChatScreen)
     }
 
     internal fun resolveTarget(model: Model?, light: LightComponent?): TransformGizmoTarget {
