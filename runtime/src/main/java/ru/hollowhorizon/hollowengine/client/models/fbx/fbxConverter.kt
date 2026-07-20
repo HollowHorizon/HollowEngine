@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.fbx.TransformationComp
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Linear
@@ -102,7 +103,7 @@ fun Document.convert(location: ResourceLocation): InternalModel {
 }
 
 context(doc: Document)
-fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
+fun convertAnimationStackIntermediate(st: AnimationStack): ImportedAnimation? {
     val channels = mutableListOf<Channel>()
 
     // FBX stores time in "FBX time units" where 1 second = 46186158000 FBX time units
@@ -175,7 +176,7 @@ fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
         .removePrefix("AnimationStack::")
 
     // Создаем промежуточную анимацию
-    return Animation(cleanName, channels)
+    return ImportedAnimation(cleanName, channels)
 }
 
 fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<NodeDefinition> {
@@ -680,7 +681,7 @@ fun frameRateToDouble(fp: FileGlobalSettings.FrameRate, customFPSVal: Double = -
 }
 
 context(doc: Document)
-fun convertAnimationStack(st: AnimationStack): ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation? {
+fun convertAnimationStack(st: AnimationStack): AnimationClip? {
     val channels = mutableListOf<Channel>()
 
     // FBX stores time in "FBX time units" where 1 second = 46186158000 FBX time units
@@ -754,8 +755,6 @@ fun convertAnimationStack(st: AnimationStack): ru.hollowhorizon.hollowengine.cli
     if (channels.isEmpty()) return null
 
     // Создаем промежуточную анимацию
-    // val animation = ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation(st.name, channels)
-
     // Конвертируем в финальный формат (нужен доступ к узлам, который будет позже)
     // Возвращаем null, так как для создания финальной анимации нужны узлы
     return null

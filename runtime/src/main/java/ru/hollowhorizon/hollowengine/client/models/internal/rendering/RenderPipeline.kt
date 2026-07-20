@@ -16,7 +16,6 @@ interface RenderPipeline {
     fun addBatchedRenderable(action: Renderable)
     fun addInstancedRenderable(action: Renderable)
     fun addVAORenderable(action: Renderable)
-    fun onUpdate(action: () -> Unit)
     fun addSkinnable(action: () -> Unit)
 
 
@@ -40,7 +39,6 @@ class ListRenderPipeline : RenderPipeline {
     private val batchedCommands = ArrayList<Renderable>()
     private val instancedCommands = ArrayList<Renderable>()
     private val vaoCommands = ArrayList<Renderable>()
-    private val commands = ArrayList<() -> Unit>()
     private val skinCommands = ArrayList<() -> Unit>()
 
     override fun addBatchedRenderable(action: Renderable) {
@@ -55,23 +53,17 @@ class ListRenderPipeline : RenderPipeline {
         vaoCommands.add(action)
     }
 
-    override fun onUpdate(action: () -> Unit) {
-        commands.add(action)
-    }
-
     override fun addSkinnable(action: () -> Unit) {
         skinCommands.add(action)
     }
 
     override fun render(context: RenderContext) {
-        for (action in commands) action()
         for (action in batchedCommands) action(context)
         if (instancedCommands.isNotEmpty()) renderInstanced(context)
         if (vaoCommands.isNotEmpty()) renderVAO(context)
     }
 
     override fun clear() {
-        commands.clear()
         batchedCommands.clear()
         instancedCommands.clear()
         vaoCommands.clear()

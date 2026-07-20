@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.toQuatF
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import ru.hollowhorizon.hollowengine.client.models.internal.ChannelData
+import ru.hollowhorizon.hollowengine.client.models.internal.ImportedAnimation
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.*
 
@@ -16,8 +17,8 @@ object AnimationLoader {
     @Suppress("UNCHECKED_CAST")
     fun createAnimation(
         nodes: Map<Int, NodeDefinition>,
-        animationModel: ru.hollowhorizon.hollowengine.client.models.internal.Animation,
-    ): Animation {
+        animationModel: ImportedAnimation,
+    ): AnimationClip {
         val animData = animationModel.channels
             .map { channel ->
                 val node = nodes[channel.node]
@@ -49,7 +50,7 @@ object AnimationLoader {
             }
         }
 
-        return Animation(animationModel.name ?: "Unnamed", result)
+        return AnimationClip(animationModel.name ?: "Unnamed", result)
     }
 
     private fun readAnimationData(

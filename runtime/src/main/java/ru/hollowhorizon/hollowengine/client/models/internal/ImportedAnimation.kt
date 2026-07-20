@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-data class Animation(
+data class ImportedAnimation(
     val name: String?,
     val channels: List<Channel>,
 )

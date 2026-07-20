@@ -13,6 +13,7 @@ import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.VboWrapper
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.toFloatBuffer
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.PrimitiveInstance
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled
 import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfo
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
@@ -24,6 +25,8 @@ import kotlin.math.cbrt
 class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     private var vao = -1
     private var instancedVao = -1
+    private var instancedShaderId = -1
+    private var instancedColorLocation = -1
     private val runtimeInstancedBindings = LinkedHashMap<Int, InstancedShaderBinding>()
 
     private var posBuffer: VboWrapper? = null
@@ -37,7 +40,6 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
     private val isDynamic = primitive.hasSkinning || primitive.morphTargets.isNotEmpty()
     private val supportsInstancing = !isDynamic
-    val isTranslucent get() = primitive.material.blend == Material.Blend.BLEND
     private val sortCenter = primitive.localBounds?.let { (min, max) ->
         Vec3f((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, (min.z + max.z) * 0.5f)
     } ?: Vec3f.ZERO
@@ -187,46 +189,37 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         instanceCapacity = initialCapacity
     }
 
-    private fun initInstancedVao() {
+    private fun initInstancedVao(shader: ShaderInstance = INSTANCED_SHADER) {
+        if (instancedVao != -1) GL33.glDeleteVertexArrays(instancedVao)
         instancedVao = GL33.glGenVertexArrays()
+        instancedShaderId = shader.id
         GL33.glBindVertexArray(instancedVao)
 
-        posBuffer?.bind()
-        GL33.glVertexAttribPointer(0, 3, GL33.GL_FLOAT, false, 0, 0)
-        GL33.glEnableVertexAttribArray(0)
-
-        uvBuffer?.bind()
-        GL33.glVertexAttribPointer(2, 2, GL33.GL_FLOAT, false, 0, 0)
-        GL33.glEnableVertexAttribArray(2)
+        bindVertexAttribute(shader, "Position", posBuffer, 3, GL33.GL_FLOAT)
+        bindVertexAttribute(shader, "UV0", uvBuffer, 2, GL33.GL_FLOAT)
+        bindVertexAttribute(shader, "Normal", norBuffer, 3, GL33.GL_FLOAT)
 
         instanceModelViewBuffer?.bind()
-        for (i in INSTANCE_MODEL_VIEW_LOCATIONS.indices) {
-            val location = INSTANCE_MODEL_VIEW_LOCATIONS[i]
+        for (i in 0 until 4) {
+            val location = GL33.glGetAttribLocation(shader.id, "InstanceModelView$i")
+            if (location == -1) continue
             GL33.glVertexAttribPointer(location, 4, GL33.GL_FLOAT, false, MODEL_VIEW_STRIDE_BYTES, (i * 16).toLong())
             GL33.glEnableVertexAttribArray(location)
             GL33.glVertexAttribDivisor(location, 1)
         }
 
-        norBuffer?.bind()
-        GL33.glVertexAttribPointer(5, 3, GL33.GL_FLOAT, false, 0, 0)
-        GL33.glEnableVertexAttribArray(5)
-
         instanceNormalBuffer?.bind()
         for (i in 0 until 3) {
-            GL33.glVertexAttribPointer(8 + i, 3, GL33.GL_FLOAT, false, NORMAL_STRIDE_BYTES, (i * 12).toLong())
-            GL33.glEnableVertexAttribArray(8 + i)
-            GL33.glVertexAttribDivisor(8 + i, 1)
+            val location = GL33.glGetAttribLocation(shader.id, "InstanceNormal$i")
+            if (location == -1) continue
+            GL33.glVertexAttribPointer(location, 3, GL33.GL_FLOAT, false, NORMAL_STRIDE_BYTES, (i * 12).toLong())
+            GL33.glEnableVertexAttribArray(location)
+            GL33.glVertexAttribDivisor(location, 1)
         }
 
-        instanceOverlayBuffer?.bind()
-        GL33.glVertexAttribIPointer(11, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 0L)
-        GL33.glEnableVertexAttribArray(11)
-        GL33.glVertexAttribDivisor(11, 1)
-
-        instanceLightBuffer?.bind()
-        GL33.glVertexAttribIPointer(12, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 0L)
-        GL33.glEnableVertexAttribArray(12)
-        GL33.glVertexAttribDivisor(12, 1)
+        bindIntegerAttribute(shader, "InstanceUV1", instanceOverlayBuffer, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 1)
+        bindIntegerAttribute(shader, "InstanceUV2", instanceLightBuffer, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 1)
+        instancedColorLocation = firstAttribLocation(shader.id, "Color")
 
         indexBuffer?.bind()
         GL33.glBindVertexArray(0)
@@ -234,7 +227,8 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
     private fun getInstancedBinding(shader: ShaderInstance, layoutMode: InstancedShaderLayoutMode): InstancedShaderBinding {
         if (layoutMode == InstancedShaderLayoutMode.FIXED) {
-            return InstancedShaderBinding(instancedVao, 1)
+            if (instancedShaderId != shader.id) initInstancedVao(shader)
+            return InstancedShaderBinding(instancedVao, instancedColorLocation)
         }
 
         return runtimeInstancedBindings.getOrPut(shader.id) {
@@ -339,53 +333,54 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
     override fun setupPipeline(
         pipeline: RenderPipeline,
-        skinGetter: SkinGetter,
-        matrixGetter: MatrixGetter,
-        visibilityGetter: VisibilityGetter
+        instance: PrimitiveInstance,
     ) {
         if (isDynamic && deformer != null) {
             pipeline.addSkinnable {
-                if (visibilityGetter()) {
-                    deformer!!.compute(skinGetter)
+                if (instance.isVisible) {
+                    deformer!!.compute(instance)
                 }
             }
         }
 
         if (supportsInstancing) {
             pipeline.addInstancedRenderable {
-                if (!visibilityGetter()) return@addInstancedRenderable
+                if (!instance.isVisible) return@addInstancedRenderable
 
                 if (allowInstancing && InstanceBatchManager.canBatch()) {
-                    InstanceBatchManager.submit(this@PipelineRenderer, captureInstance(matrixGetter))
+                    InstanceBatchManager.submit(this@PipelineRenderer, captureInstance(instance))
                 } else {
-                    renderVAO(matrixGetter)
+                    renderVAO(instance)
                 }
             }
         } else {
             pipeline.addVAORenderable {
-                if (!visibilityGetter()) return@addVAORenderable
-                renderVAO(matrixGetter)
+                if (!instance.isVisible) return@addVAORenderable
+                renderVAO(instance)
             }
         }
     }
 
-    private fun RenderContext.captureInstance(node: MatrixGetter): SubmittedInstance {
-        val nodeMatrix = node().asMatrix4f()
+    private fun RenderContext.captureInstance(instance: PrimitiveInstance): SubmittedInstance {
+        val nodeMatrix = instance.matrix.asMatrix4f()
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix())
             .mul(stack.last().pose())
             .mul(nodeMatrix)
 
-        val normal = normalMatrixOf(RenderSystem.getModelViewMatrix())
-            .mul(stack.last().normal())
+        val modelNormal = Matrix3f(stack.last().normal())
             .mul(normalMatrixOf(nodeMatrix))
+        val modelViewNormal = normalMatrixOf(RenderSystem.getModelViewMatrix())
+            .mul(modelNormal)
 
         return SubmittedInstance(
             modelView = modelView,
-            normal = normal,
+            modelNormal = modelNormal,
+            modelViewNormal = modelViewNormal,
             overlay = overlay,
             light = light,
             sortKey = computeSortKey(modelView),
+            material = instance.material,
             entityInfo = instancingEntityInfo
         )
     }
@@ -396,8 +391,11 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         return center.lengthSquared()
     }
 
-    fun shouldUseInstancing(instanceCount: Int): Boolean {
-        return supportsInstancing && primitive.prefersInstancing(instanceCount, isTranslucent)
+    fun shouldUseInstancing(instanceCount: Int, material: Material): Boolean {
+        return supportsInstancing && primitive.prefersInstancing(
+            instanceCount,
+            material.blend == Material.Blend.BLEND,
+        )
     }
 
     fun renderInstanced(
@@ -407,11 +405,16 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     ) {
         if (instances.isEmpty()) return
 
-        val drawInstances = if (isTranslucent) instances.sortedByDescending(SubmittedInstance::sortKey) else instances
-        updateInstanceBuffers(drawInstances)
+        val material = instances.first().material
+        val drawInstances = if (material.blend == Material.Blend.BLEND) {
+            instances.sortedByDescending(SubmittedInstance::sortKey)
+        } else {
+            instances
+        }
+        updateInstanceBuffers(drawInstances, layoutMode)
 
         val binding = getInstancedBinding(shader, layoutMode)
-        applyMaterial(shader, primitive.material, binding.colorLocation)
+        applyMaterial(shader, material, binding.colorLocation)
 
         RenderSystem.glBindVertexArray(binding.vao)
 
@@ -427,8 +430,12 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         GL33.glBindVertexArray(0)
     }
 
-    fun renderCapturedInstance(instance: SubmittedInstance, shader: ShaderInstance) {
-        applyMaterial(shader, primitive.material)
+    fun renderCapturedInstance(
+        instance: SubmittedInstance,
+        shader: ShaderInstance,
+        layoutMode: InstancedShaderLayoutMode = InstancedShaderLayoutMode.FIXED,
+    ) {
+        applyMaterial(shader, instance.material)
 
         GL33.glVertexAttribI2i(3, instance.overlay and FFFF, instance.overlay shr 16 and FFFF)
         GL33.glVertexAttribI2i(4, instance.light and FFFF, instance.light shr 16 and FFFF)
@@ -441,7 +448,7 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         shader.MODEL_VIEW_MATRIX?.upload()
 
         shader.getUniform("NormalMat")?.let {
-            it.set(instance.normal)
+            it.set(instance.normalFor(layoutMode))
             it.upload()
         }
 
@@ -454,7 +461,10 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         GL33.glBindVertexArray(0)
     }
-    private fun updateInstanceBuffers(instances: List<SubmittedInstance>) {
+    private fun updateInstanceBuffers(
+        instances: List<SubmittedInstance>,
+        layoutMode: InstancedShaderLayoutMode,
+    ) {
         ensureInstanceCapacity(instances.size)
 
         val modelViews = BufferUtils.createFloatBuffer(instances.size * 16)
@@ -465,7 +475,7 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         for (instance in instances) {
             putModelView(modelViews, instance.modelView)
-            putNormal(normals, instance.normal)
+            putNormal(normals, instance.normalFor(layoutMode))
             overlays.put(instance.overlay and FFFF).put(instance.overlay shr 16 and FFFF)
             lights.put(instance.light and FFFF).put(instance.light shr 16 and FFFF)
             entities.put(instance.entityInfo.entity).put(instance.entityInfo.blockEntity).put(instance.entityInfo.item)
@@ -538,11 +548,11 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         buffer.put(matrix.m20()).put(matrix.m21()).put(matrix.m22())
     }
 
-    private fun RenderContext.renderVAO(node: MatrixGetter) {
+    private fun RenderContext.renderVAO(instance: PrimitiveInstance) {
         val shader = RenderSystem.getShader() ?: return
-        val nodeMatrix = node().asMatrix4f()
+        val nodeMatrix = instance.matrix.asMatrix4f()
 
-        applyMaterial(shader, primitive.material)
+        applyMaterial(shader, instance.material)
 
         RenderSystem.glBindVertexArray(vao)
 
@@ -554,9 +564,13 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         shader.MODEL_VIEW_MATRIX?.upload()
 
         shader.getUniform("NormalMat")?.let {
-            val normal = normalMatrixOf(RenderSystem.getModelViewMatrix())
-            normal.mul(stack.last().normal())
-            normal.mul(normalMatrixOf(nodeMatrix))
+            val modelNormal = Matrix3f(stack.last().normal())
+                .mul(normalMatrixOf(nodeMatrix))
+            val normal = if (areShadersEnabled) {
+                normalMatrixOf(RenderSystem.getModelViewMatrix()).mul(modelNormal)
+            } else {
+                modelNormal
+            }
             it.set(normal)
             it.upload()
         }
@@ -638,7 +652,6 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         private const val INT2_STRIDE_BYTES = 2 * Int.SIZE_BYTES
         private const val ENTITY_INFO_STRIDE_BYTES = 3 * Int.SIZE_BYTES
         private const val FFFF = '\uffff'.code
-        private val INSTANCE_MODEL_VIEW_LOCATIONS = intArrayOf(3, 4, 6, 7)
         private val RENDERERS = Collections.newSetFromMap(WeakHashMap<PipelineRenderer, Boolean>())
 
         fun invalidateRuntimeInstancedBindings() {

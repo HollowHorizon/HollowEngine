@@ -13,8 +13,8 @@ import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
@@ -26,6 +26,11 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.min
@@ -56,6 +61,7 @@ class ModelViewerState(model: String) {
     var selectedAnimation by mutableStateOf(0)
 
     private val playing = mutableStateListOf<Int>()
+    private val animationWeights = mutableMapOf<String, Float>()
 
     var nodeVisibilityRevision by mutableStateOf(0)
         private set
@@ -70,7 +76,7 @@ class ModelViewerState(model: String) {
         }
 
     /** Snapshot of the loaded animations (empty while the model is still streaming in). */
-    val animations: List<AnimationInstance>
+    val animations: List<AnimationClip>
         get() {
             attachment.pipeline
             return attachment.animations.toList()
@@ -88,19 +94,28 @@ class ModelViewerState(model: String) {
             return attachment.shapekeys
         }
 
-    val currentAnimation: AnimationInstance? get() = animations.getOrNull(selectedAnimation)
+    val currentAnimation: AnimationClip? get() = animations.getOrNull(selectedAnimation)
+
+    val currentAnimationProgress: Float
+        get() {
+            val animation = currentAnimation ?: return 0f
+            if (animation.duration <= 0f) return 0f
+            return ((attachment.animationTime(previewLayerId(animation.name)) ?: 0f) / animation.duration)
+                .coerceIn(0f, 1f)
+        }
 
     fun isPlaying(index: Int): Boolean = index in playing
 
     /** Whether anything is still moving (auto-rotate, active playback, or a weight still fading). */
     fun isAnimating(): Boolean =
-        autoRotate || playing.isNotEmpty() || attachment.animations.any { it.weight > 0.001f }
+        autoRotate || playing.isNotEmpty() || animationWeights.values.any { it > ANIMATION_WEIGHT_EPSILON }
 
     fun changeModel(model: String) {
         this.model = model
         attachment = loadAttachment(model)
         selectedAnimation = 0
         playing.clear()
+        animationWeights.clear()
     }
 
     fun selectAnimation(index: Int) {
@@ -120,7 +135,6 @@ class ModelViewerState(model: String) {
             playing.remove(index)
         } else {
             playing.add(index)
-            animations[index].wrapMode = WrapMode.Loop
         }
     }
 
@@ -135,10 +149,40 @@ class ModelViewerState(model: String) {
         if (autoRotate) yaw = (yaw + 20f * TickHandler.deltaFrameTime) % 360f
 
         val step = if (AnimBlendTime > 0f) (TickHandler.deltaFrameTime / AnimBlendTime).coerceIn(0f, 1f) else 1f
-        attachment.animations.forEachIndexed { index, animation ->
+        val animations = animations
+        val activeAnimationNames = animations.mapTo(HashSet()) { it.name }
+        animationWeights.keys.removeIf { it !in activeAnimationNames }
+        animations.forEachIndexed { index, animation ->
             val target = if (index in playing) 1f else 0f
-            animation.weight += (target - animation.weight) * step
+            val weight = animationWeights[animation.name] ?: 0f
+            val nextWeight = weight + (target - weight) * step
+            if (target == 0f && nextWeight <= ANIMATION_WEIGHT_EPSILON) {
+                animationWeights.remove(animation.name)
+            } else {
+                animationWeights[animation.name] = nextWeight
+            }
         }
+
+        attachment.configureAnimator(
+            animator = AnimatorComponent(
+                layers = animations.mapNotNull { animation ->
+                    val weight = animationWeights[animation.name] ?: return@mapNotNull null
+                    ClipAnimationLayerSpec(
+                        id = previewLayerId(animation.name),
+                        animation = animation.name,
+                        playMode = AnimationPlayMode.Loop,
+                        weight = AnimationExpression(weight.toString()),
+                        blendMode = LayerBlendMode.Additive,
+                    )
+                },
+            ),
+            key = null,
+            context = AnimatorEvaluationContext(
+                deltaTime = 0f,
+                time = TickHandler.gameTime,
+            ),
+        )
+        attachment.prepareFrame(TickHandler.deltaFrameTime)
 
         GL33.glDepthFunc(GL33.GL_LEQUAL)
 
@@ -194,8 +238,11 @@ class ModelViewerState(model: String) {
     }
 }
 
+private fun previewLayerId(animation: String): String = "preview:$animation"
+
 /** Seconds an animation takes to fade fully in or out when toggled. */
 private const val AnimBlendTime = 0.25f
+private const val ANIMATION_WEIGHT_EPSILON = 0.001f
 
 private const val ModelGridSpacing = 36f
 private val ModelGridColor = UiColor(0.62f, 0.7f, 0.85f, 0.14f)

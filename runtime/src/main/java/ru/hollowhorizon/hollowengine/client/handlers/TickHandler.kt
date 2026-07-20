@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.update
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
 
@@ -22,6 +23,9 @@ object TickHandler {
         get() = Minecraft.getInstance().timer.realtimeDeltaTicks / 20f
     val gameTime get() = currentFrame + partialTick
 
+    var renderFrame: Long = 0L
+        private set
+
     var clientFrame: Int = 0
         internal set(value) {
             field = value
@@ -30,6 +34,11 @@ object TickHandler {
     private val _frameFlow = MutableStateFlow(0)
     val frameFlow: StateFlow<Int> = _frameFlow.asStateFlow()
 
+    @SubscribeEvent
+    @ClientOnly
+    fun onRenderFrame(event: RenderTickEvent.Pre) {
+        renderFrame++
+    }
 
     @SubscribeEvent
     @ClientOnly

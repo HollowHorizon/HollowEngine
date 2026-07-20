@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.RenderManager.flushNodeBatches
 import ru.hollowhorizon.hollowengine.client.render.RenderManager.renderNodeModels
 
@@ -146,6 +147,7 @@ object IrisRenderManager {
             allowInstancing = allowInstancing,
         )
         flushNodeBatches(bufferSource, renderStats)
+        if (allowInstancing) InstanceBatchManager.flush()
     }
 
     fun renderIrisShadowCasters(
@@ -164,7 +166,7 @@ object IrisRenderManager {
             cameraPosition = Vec3(cameraX, cameraY, cameraZ),
             frustum = frustum,
             packedLight = LightTexture.FULL_BRIGHT,
-            allowInstancing = false,
+            allowInstancing = true,
         )
     }
 }

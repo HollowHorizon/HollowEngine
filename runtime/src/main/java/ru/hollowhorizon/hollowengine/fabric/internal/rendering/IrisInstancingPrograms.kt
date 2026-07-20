@@ -144,7 +144,8 @@ object IrisInstancingPrograms {
             isIntensity,
             isFullbright,
             isGlint,
-            isText
+            isText,
+            false,
         )
     }
 
@@ -166,7 +167,8 @@ object IrisInstancingPrograms {
             IrisVertexFormats.ENTITY,
             isIntensity,
             isFullbright,
-            isText
+            isText,
+            false,
         )
     }
 }

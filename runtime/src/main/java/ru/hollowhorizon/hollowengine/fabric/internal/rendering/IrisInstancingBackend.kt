@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.fabric.internal.rendering
 
 import ru.hollowhorizon.hollowengine.client.models.internal.SHADER
+import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.drawWithShader
 import ru.hollowhorizon.hollowengine.client.models.internal.opaqueShaderState
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.*
@@ -12,37 +13,48 @@ object IrisInstancingBackend : ModelInstancingBackend {
 
     override fun flush(batches: Map<PipelineRenderer, List<SubmittedInstance>>) {
         if (batches.isEmpty()) return
+        val materialBatches = groupByMaterial(batches)
 
         withInstancingRenderState {
-            renderOpaque(batches, SHADER) { renderer, instances, _ ->
+            renderOpaque(materialBatches, SHADER) { renderer, instances, _ ->
                 renderRenderer(renderer, instances)
             }
-            renderTranslucent(batches, SHADER) { renderer, instances, _ ->
+            renderTranslucent(materialBatches, SHADER) { renderer, instances, _ ->
                 renderRenderer(renderer, instances)
             }
         }
     }
 
     private fun renderRenderer(renderer: PipelineRenderer, instances: List<SubmittedInstance>) {
-        if (!renderer.shouldUseInstancing(instances.size)) {
-            drawWithShader(SHADER, if (renderer.isTranslucent) translucentShaderState() else opaqueShaderState()) {
-                fallbackToCapturedDraws(renderer, instances)
+        val material = instances.first().material
+        val isTranslucent = material.blend == Material.Blend.BLEND
+        if (!renderer.shouldUseInstancing(instances.size, material)) {
+            drawWithShader(SHADER, if (isTranslucent) translucentShaderState() else opaqueShaderState()) {
+                fallbackToCapturedDraws(
+                    renderer,
+                    instances,
+                    layoutMode = InstancedShaderLayoutMode.RUNTIME,
+                )
             }
             return
         }
 
         val shader = IrisInstancingPrograms.shaderFor(
-            translucent = renderer.isTranslucent,
+            translucent = isTranslucent,
             shadow = IrisHelper.isShadowRendering()
         )
 
         if (shader != null) {
-            drawWithShader(shader, if (renderer.isTranslucent) translucentShaderState() else opaqueShaderState()) {
+            drawWithShader(shader, if (isTranslucent) translucentShaderState() else opaqueShaderState()) {
                 renderer.renderInstanced(instances, shader, InstancedShaderLayoutMode.RUNTIME)
             }
         } else {
-            drawWithShader(SHADER, if (renderer.isTranslucent) translucentShaderState() else opaqueShaderState()) {
-                fallbackToCapturedDraws(renderer, instances)
+            drawWithShader(SHADER, if (isTranslucent) translucentShaderState() else opaqueShaderState()) {
+                fallbackToCapturedDraws(
+                    renderer,
+                    instances,
+                    layoutMode = InstancedShaderLayoutMode.RUNTIME,
+                )
             }
         }
     }

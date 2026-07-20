@@ -1,8 +1,5 @@
 package ru.hollowhorizon.hollowengine.cutscene
 
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.UiScope
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
@@ -15,6 +12,8 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutscenePla
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneTrackRegistry
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.EasingRegistry
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.snapTimelineTime
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -110,8 +109,6 @@ class CutsceneTest {
                 lastValue = value
             }
 
-            override fun UiScope.drawEditor(value: Float, onChange: (Float) -> Unit) {
-            }
         }
 
         val track = AnimTrack(
@@ -136,7 +133,7 @@ class CutsceneTest {
 
     @Test
     fun `group drag preserves spacing when clamped to the work area`() {
-        val controller = TimelineController().apply { workAreaEnd.set(10f) }
+        val controller = TimelineController().apply { workAreaEnd = 10f }
         val first = Keyframe(2f, 0f)
         val second = Keyframe(5f, 0f)
         val track = floatTrack(first, second)
@@ -153,7 +150,7 @@ class CutsceneTest {
 
     @Test
     fun `group drag is atomic when one keyframe collides`() {
-        val controller = TimelineController().apply { workAreaEnd.set(10f) }
+        val controller = TimelineController().apply { workAreaEnd = 10f }
         val first = Keyframe(1f, 0f)
         val second = Keyframe(3f, 0f)
         val blocker = Keyframe(4f, 0f)
@@ -176,7 +173,6 @@ class CutsceneTest {
 
             override fun apply(value: Float) = Unit
 
-            override fun UiScope.drawEditor(value: Float, onChange: (Float) -> Unit) = Unit
         }
         return AnimTrack("Test", driver, 0f, keyframes.toMutableList())
     }

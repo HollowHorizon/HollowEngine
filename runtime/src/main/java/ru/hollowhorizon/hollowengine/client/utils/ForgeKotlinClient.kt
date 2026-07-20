@@ -28,8 +28,8 @@ var instancingEntityInfoProvider: () -> InstancingEntityInfo = { InstancingEntit
 
 val shouldOverrideShaders: () -> Boolean = { IrisHelper.shouldOverrideShaders() }
 
-val instancingBackend get() = instancingBackendProvider()
-val instancingEntityInfo get() = instancingEntityInfoProvider()
+val instancingBackend get() = if (IrisHelper.shouldOverrideShaders()) IrisHelper.instancingBackend() else VanillaInstancingBackend
+val instancingEntityInfo get() = if (IrisHelper.shouldOverrideShaders()) IrisHelper.capturedEntityInfo() else InstancingEntityInfo()
 val areShadersEnabled get() = IrisHelper.areShadersEnabled()
 
 data class InstancingEntityInfo(

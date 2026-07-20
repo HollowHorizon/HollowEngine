@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.models.internal.controller
+package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
 import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
@@ -13,9 +13,9 @@ private const val TURN_ANIMATION_SPEED = 0.8f
 const val MOVEMENT_FACTOR = 1 / 256f
 
 fun calculateSpeedViaDeltaMovement(entity: LivingEntity): Float {
-    val vel = entity.deltaMovement
-    val dx = vel.x.toFloat()
-    val dz = vel.z.toFloat()
+    val velocity = entity.deltaMovement
+    val dx = velocity.x.toFloat()
+    val dz = velocity.z.toFloat()
 
     val yawRad = Math.toRadians(entity.yBodyRot.toDouble()).toFloat()
     val forwardX = -Mth.sin(yawRad)

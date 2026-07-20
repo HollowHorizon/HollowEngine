@@ -1,8 +1,8 @@
-import de.fabmax.kool.math.QuatF
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.render.lighting.*
 import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import kotlin.math.sqrt
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -75,7 +75,7 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveResult",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.UnavailableTargetPolicy",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.UnreachablePolicy",
-                    "ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode",
+                    "ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode",
                 ),
                 implicitReceivers = listOf(
                     MinecraftServer::class

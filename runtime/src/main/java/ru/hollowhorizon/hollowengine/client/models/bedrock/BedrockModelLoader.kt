@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
@@ -12,7 +13,6 @@ import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
 
 object BedrockModelLoader : ModelLoader {
     override val supportedFormats = setOf("geo.json")
@@ -240,7 +240,7 @@ object BedrockModelLoader : ModelLoader {
         )
     }
 
-    private fun convertAnimations(file: BedrockAnimationFile, parsedModel: Model): List<InternalAnimation> {
+    private fun convertAnimations(file: BedrockAnimationFile, parsedModel: Model): List<AnimationClip> {
         return file.animations.map { (name, anim) ->
             val nodeAnimations = mutableMapOf<Int, AnimationData>()
 
@@ -269,7 +269,11 @@ object BedrockModelLoader : ModelLoader {
                 }
             }
 
-            InternalAnimation(name, nodeAnimations, anim.animationLength ?: 0f)
+            AnimationClip(
+                name,
+                nodeAnimations,
+                anim.animationLength ?: nodeAnimations.values.maxOfOrNull { it.duration } ?: 0f,
+            )
         }
     }
 

@@ -1,10 +1,8 @@
 
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.TrsTransformF
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.*
@@ -14,6 +12,8 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
+import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -372,8 +372,8 @@ class AnimatorRuntimeTests {
             parent = null,
         )
 
-    private fun constantTranslationAnimation(): Animation =
-        Animation(
+    private fun constantTranslationAnimation(): AnimationClip =
+        AnimationClip(
             name = "wave",
             nodes = mapOf(
                 0 to AnimationData(

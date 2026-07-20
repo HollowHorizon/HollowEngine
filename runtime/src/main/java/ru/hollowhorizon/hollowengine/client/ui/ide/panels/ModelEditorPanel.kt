@@ -127,7 +127,7 @@ private fun ModelAnimationBar(viewer: ModelViewerState, frameTick: State<Long>) 
 
         frameTick.value
         if (viewer.isPlaying(viewer.selectedAnimation) && current != null && current.duration > 0f) {
-            val progress = (current.time / current.duration).coerceIn(0f, 1f)
+            val progress = viewer.currentAnimationProgress
             Box(tags = listOf("model-progress-track")) {
                 Box(
                     tags = listOf("model-progress-fill"),

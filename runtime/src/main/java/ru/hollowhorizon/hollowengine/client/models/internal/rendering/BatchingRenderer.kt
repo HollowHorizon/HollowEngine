@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer
 import org.joml.Matrix3f
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.client.models.internal.*
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.PrimitiveInstance
 import ru.hollowhorizon.hollowengine.client.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat3f
@@ -21,9 +22,7 @@ class BatchingRenderer(
 
     override fun setupPipeline(
         pipeline: RenderPipeline,
-        skinGetter: SkinGetter,
-        matrixGetter: MatrixGetter,
-        visibilityGetter: VisibilityGetter
+        instance: PrimitiveInstance,
     ) {
         val indices = primitive.indices
         val positions = primitive.positions
@@ -32,28 +31,29 @@ class BatchingRenderer(
         val iterator = indices?.asIterable() ?: (0 until primitive.positionsCount / 3)
 
         pipeline.addBatchedRenderable {
-            if (!visibilityGetter()) return@addBatchedRenderable
+            if (!instance.isVisible) return@addBatchedRenderable
             val posArray = positions ?: return@addBatchedRenderable
             val normArray = normals ?: return@addBatchedRenderable
             val texArray = texCoords ?: return@addBatchedRenderable
             if (posArray.isEmpty() || normArray.isEmpty() || texArray.isEmpty()) return@addBatchedRenderable
             if (indices != null && indices.isEmpty()) return@addBatchedRenderable
 
-            val renderType = batchingRenderType.apply(primitive.material)
+            val material = instance.material
+            val renderType = batchingRenderType.apply(material)
             openedBatchedRenderTypes?.add(renderType)
             val vertexConsumer = source.getBuffer(renderType)
             val pose = stack.last().pose()
             val normal = stack.last().normal()
-            val color = primitive.material.color
+            val color = material.color
 
             for (i in iterator) {
-                putVertex(matrixGetter, i, vertexConsumer, pose, normal, color, overlay, light, posArray, normArray, texArray)
+                putVertex(instance, i, vertexConsumer, pose, normal, color, overlay, light, posArray, normArray, texArray)
             }
         }
     }
 
     private fun putVertex(
-        getter: MatrixGetter,
+        instance: PrimitiveInstance,
         index: Int,
         consumer: VertexConsumer,
         pose: Matrix4f,
@@ -67,7 +67,7 @@ class BatchingRenderer(
     ) {
         if (index !in posArray.indices || index !in normArray.indices || index !in texArray.indices) return
 
-        val global = getter()
+        val global = instance.matrix
         val pos = global.transform(posArray[index], 1f, MutableVec3f())
         val normal = global.getUpperLeft(MutableMat3f()).transform(normArray[index], MutableVec3f())
 

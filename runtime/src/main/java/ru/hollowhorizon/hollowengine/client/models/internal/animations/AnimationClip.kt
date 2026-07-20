@@ -1,31 +1,23 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec4f
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 
-class Animation(
+class AnimationClip(
     val name: String,
     val nodes: Map<Int, AnimationData>,
-    var duration: Float = nodes.values.maxOf { it.duration },
+    val duration: Float = nodes.values.maxOfOrNull { it.duration } ?: 0f,
 ) {
-
     override fun toString() = name
-
 }
 
-fun Vec3f.array(): FloatArray {
-    return floatArrayOf(x, y, z)
-}
+fun Vec3f.array(): FloatArray = floatArrayOf(x, y, z)
 
-fun QuatF.array(): FloatArray {
-    return floatArrayOf(x, y, z, w)
-}
+fun QuatF.array(): FloatArray = floatArrayOf(x, y, z, w)
 
-fun Vec4f.array(): FloatArray {
-    return floatArrayOf(x, y, z, w)
-}
+fun Vec4f.array(): FloatArray = floatArrayOf(x, y, z, w)
 
 class AnimationData(
     var translation: Interpolator<Vec3f>?,
@@ -38,7 +30,7 @@ class AnimationData(
             translation?.duration ?: 0f,
             rotation?.duration ?: 0f,
             scale?.duration ?: 0f,
-            weights?.duration ?: 0f
+            weights?.duration ?: 0f,
         )
     }
 }
