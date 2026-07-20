@@ -41,7 +41,7 @@ import ru.hollowhorizon.hollowengine.common.geary.binding.*
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
-import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import java.util.*
 import kotlin.math.*
 

@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.util
+package ru.hollowhorizon.hollowengine.common.utils
 
 object PlayerPermissions {
     const val ALL = 0 // All players

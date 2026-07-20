@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownSlider
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.network.ReloadServerResourcesPacket
-import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
+import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"

@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import java.util.*
 

@@ -7,7 +7,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
+import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 
 internal class HollowIdeProjectController(
     private val model: HollowIdeModel,

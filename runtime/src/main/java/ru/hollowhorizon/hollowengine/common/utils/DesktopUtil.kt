@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.util
+package ru.hollowhorizon.hollowengine.common.utils
 
 import ru.hollowhorizon.hollowengine.logE
 import java.io.File
