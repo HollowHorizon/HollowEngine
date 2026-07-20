@@ -9,10 +9,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.RenderType
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
-import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
@@ -20,7 +18,6 @@ import org.joml.Quaternionf
 import org.joml.Vector3d
 import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
-import ru.hollowhorizon.hollowengine.client.kool.EntityModifier
 import ru.hollowhorizon.hollowengine.client.utils.color
 import ru.hollowhorizon.hollowengine.client.utils.vertex
 import kotlin.math.min
@@ -118,48 +115,6 @@ operator fun Color.component4() = a
 
 val CUSTOM_IMGUI_LIGHT_0: Vector3f = Vector3f(-0.3f, 1f, 1f).normalize()
 val CUSTOM_IMGUI_LIGHT_1: Vector3f = Vector3f(0.3f, -1f, -1f).normalize()
-
-fun LivingEntity.render(
-    x: Float,
-    y: Float,
-    width: Float,
-    height: Float,
-    modifier: EntityModifier,
-) {
-
-    val stack = PoseStack()
-    val xOffset = x + width / 2 + modifier.offset.x
-    val yOffset = y + height + modifier.offset.y
-    stack.translate(xOffset, yOffset, 0f)
-    val newScale = min(width / bbWidth, height / bbHeight) * 0.95f * modifier.scale
-    stack.scale(newScale, -newScale, newScale)
-
-    RenderSystem.setShaderLights(
-        CUSTOM_IMGUI_LIGHT_0,
-        CUSTOM_IMGUI_LIGHT_1
-    )
-    val mc = Minecraft.getInstance()
-    val renderDispatcher = mc.entityRenderDispatcher
-
-    stack.mulPose(Quaternionf().rotateX(modifier.pitch * Mth.DEG_TO_RAD))
-
-    val renderBuffers = mc.renderBuffers()
-    use(renderDispatcher, modifier) {
-        RenderSystem.runAsFancy {
-            renderDispatcher.render(
-                this, 0.0, 0.0, 0.0,
-                0.0f, 1.0f, stack,
-                renderBuffers.bufferSource(), 15728880
-            )
-        }
-
-        RenderSystem.disableDepthTest()
-        renderBuffers.bufferSource().endBatch()
-        RenderSystem.enableDepthTest()
-    }
-
-    Lighting.setupFor3DItems()
-}
 
 fun ItemStack.render(
     x: Float,
@@ -266,42 +221,4 @@ fun fill(
     vertexConsumer.vertex(matrix4f, minX.toFloat(), maxY.toFloat(), z.toFloat()).color(color)
     vertexConsumer.vertex(matrix4f, maxX.toFloat(), maxY.toFloat(), z.toFloat()).color(color)
     vertexConsumer.vertex(matrix4f, maxX.toFloat(), minY.toFloat(), z.toFloat()).color(color)
-}
-
-inline fun LivingEntity.use(dispatcher: EntityRenderDispatcher, modifier: EntityModifier, block: () -> Unit) {
-    val yBodyRotOld = yBodyRot
-    val yBodyRotOldO = yBodyRotO
-    val yRotOld = yRot
-    val yRotOldO = yRotO
-    val xRotOld = xRot
-    val xRotOldO = xRotO
-    val yHeadRotOld: Float = yHeadRot
-    val yHeadRotOldO: Float = yHeadRotO
-
-    yBodyRot = modifier.yaw
-    yBodyRotO = yBodyRot
-    yRot = modifier.yaw * modifier.headRotationModifierY
-    yRotO = yRot
-    xRot = modifier.pitch * modifier.headRotationModifierX
-    xRotO = xRot
-    yHeadRot = yRot
-    yHeadRotO = yHeadRot
-
-    val oldNameStatus = isCustomNameVisible
-    isCustomNameVisible = modifier.isCustomNameVisible
-    dispatcher.setRenderShadow(modifier.isRenderShadow)
-
-    block()
-
-    if (!modifier.isRenderShadow) dispatcher.setRenderShadow(true)
-    isCustomNameVisible = oldNameStatus
-
-    yBodyRot = yBodyRotOld
-    yBodyRotO = yBodyRotOldO
-    yRot = yRotOld
-    yRotO = yRotOldO
-    xRot = xRotOld
-    xRotO = xRotOldO
-    yHeadRot = yHeadRotOld
-    yHeadRotO = yHeadRotOldO
 }

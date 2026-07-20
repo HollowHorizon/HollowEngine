@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.config
 
+import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
+
 @ConfigName("hollowengine")
 object HollowEngineConfig : Config() {
     val debugMode by property(true)
@@ -12,6 +14,18 @@ object HollowEngineConfig : Config() {
     @PropertyName("ide_editor_font_size")
     @PropertyRange(6.0f, 36.0f)
     var ideEditorFontSize by property(12f)
+
+    @PropertyComment("Gui Scale used by the Hollow IDE code editor")
+    @PropertyName("ide_gui_scale")
+    var ideGuiScale by property(3)
+
+    @PropertyComment("Is Tranform Gizmo enabled")
+    @PropertyName("transform_gizmo_enabled")
+    var gizmoEnabled by property(false)
+
+    @PropertyComment("Gizmo editing mode")
+    @PropertyName("transform_gizmo_mode")
+    var gizmoMode by property(GizmoEditMode.TRANSLATE)
 
     @PropertyComment("Mods that be available inside scripting & compilation")
     @PropertyName("scripting_mods")

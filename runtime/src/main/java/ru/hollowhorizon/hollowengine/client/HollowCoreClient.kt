@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.KeyMapping
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
@@ -35,7 +34,6 @@ object HollowCoreClient {
     fun onRegisterReloadListener(event: RegisterReloadListenersEvent.Client) {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
-        event.register(ImageManager)
         event.register(UiPathTileResources)
         if (ModList.isLoaded("iris")) event.register(ClusteredLightingManager)
     }

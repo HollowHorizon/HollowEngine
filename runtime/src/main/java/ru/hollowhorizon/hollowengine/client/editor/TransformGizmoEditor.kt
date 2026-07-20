@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.scene.TrsTransformF
@@ -32,6 +31,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -52,8 +52,6 @@ import kotlin.math.*
  */
 @ClientOnly
 object TransformGizmoEditor {
-    private const val ENABLED_KEY = "hollowengine.transform_gizmo.enabled"
-    private const val MODE_KEY = "hollowengine.transform_gizmo.mode"
 
     internal const val MODEL_ICON = "hollowengine:textures/gui/icons/box.svg"
     internal const val TRANSFORM_ICON = "hollowengine:textures/gui/icons/world.svg"
@@ -97,14 +95,14 @@ object TransformGizmoEditor {
     fun setEnabled(enabled: Boolean) {
         if (enabledValue == enabled) return
         enabledValue = enabled
-        KeyValueStore.setBoolean(ENABLED_KEY, enabled)
+        HollowEngineConfig.gizmoEnabled = enabled
         if (!enabled) cancelInteraction()
     }
 
     fun setMode(mode: GizmoEditMode) {
         if (modeValue == mode) return
         modeValue = mode
-        KeyValueStore.setInt(MODE_KEY, mode.ordinal)
+        HollowEngineConfig.gizmoMode = mode
         cancelInteraction()
     }
 
@@ -112,8 +110,8 @@ object TransformGizmoEditor {
     private fun ensureInitialized() {
         if (isInitialized) return
         isInitialized = true
-        enabledValue = KeyValueStore.getBoolean(ENABLED_KEY)
-        modeValue = GizmoEditMode.entries.getOrElse(KeyValueStore.getInt(MODE_KEY, 0)) { GizmoEditMode.TRANSLATE }
+        enabledValue = HollowEngineConfig.gizmoEnabled
+        modeValue = HollowEngineConfig.gizmoMode
     }
 
     @SubscribeEvent
@@ -342,7 +340,14 @@ object TransformGizmoEditor {
                         .padding(9.px, 5.px)
                         .background(UiColor(0.08f, 0.10f, 0.14f, 0.95f))
                         .border(1.px, UiColor(0.45f, 0.55f, 0.70f, 0.75f), 7f)
-                        .shadow(UiShadow(offset = UiVec3(0f, 2f), blur = 7f, spread = 0f, color = UiColor(0f, 0f, 0f, 0.55f)))
+                        .shadow(
+                            UiShadow(
+                                offset = UiVec3(0f, 2f),
+                                blur = 7f,
+                                spread = 0f,
+                                color = UiColor(0f, 0f, 0f, 0.55f)
+                            )
+                        )
                         .foreground(UiColor(0.94f, 0.96f, 1f)),
                 )
             }
@@ -397,17 +402,19 @@ object TransformGizmoEditor {
         if (mode == GizmoEditMode.ROTATE && drag != null && draggingKey == active.entryId) {
             drag.axis?.let { axis ->
                 val perPixel = WorldToScreenProjector.worldPerPixel(drag.origin)
-                GizmoGeometry.buildRotationSector(drag.origin, axis, drag.startAngle, drag.angle, perPixel)?.let { sector ->
-                    fillPolygon(scope, sector, UiColor(1f, 0.85f, 0.32f, 0.25f))
-                    strokeLine(scope, sector, UiColor(1f, 0.86f, 0.34f, 0.9f), 1.5f, closed = true)
-                }
+                GizmoGeometry.buildRotationSector(drag.origin, axis, drag.startAngle, drag.angle, perPixel)
+                    ?.let { sector ->
+                        fillPolygon(scope, sector, UiColor(1f, 0.85f, 0.32f, 0.25f))
+                        strokeLine(scope, sector, UiColor(1f, 0.86f, 0.34f, 0.9f), 1.5f, closed = true)
+                    }
             }
         }
 
         val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, mode, cullRings = false)
             .sortedByDescending { it.depth }
         for (handle in handles) {
-            val highlighted = handle.id == draggingHandleId || (draggingHandleId == null && handle.id == hoveredHandleId)
+            val highlighted =
+                handle.id == draggingHandleId || (draggingHandleId == null && handle.id == hoveredHandleId)
             val color = if (highlighted) GizmoColors.highlighted(handle.color) else handle.color
             handle.fillPolygon?.let { fill ->
                 val alpha = if (handle.id.isSolidHandle()) 0.72f else 0.22f
@@ -482,7 +489,13 @@ object TransformGizmoEditor {
         return (maxX - minX) <= MAX_DRAW_SPAN && (maxY - minY) <= MAX_DRAW_SPAN
     }
 
-    private fun strokeLine(scope: UiCanvasDrawScope, points: List<Pt>, color: UiColor, width: Float, closed: Boolean = false) {
+    private fun strokeLine(
+        scope: UiCanvasDrawScope,
+        points: List<Pt>,
+        color: UiColor,
+        width: Float,
+        closed: Boolean = false,
+    ) {
         if (points.size < 2 || !withinDrawBounds(points)) return
         val shape = GenericShape {
             points.forEachIndexed { index, point ->
@@ -529,9 +542,9 @@ object TransformGizmoEditor {
     private fun isEditorAvailable(): Boolean {
         val minecraft = Minecraft.getInstance()
         return isEnabled &&
-            minecraft.level != null &&
-            minecraft.player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true &&
-            (minecraft.screen == null || minecraft.screen is ChatScreen)
+                minecraft.level != null &&
+                minecraft.player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true &&
+                (minecraft.screen == null || minecraft.screen is ChatScreen)
     }
 
     internal fun resolveTarget(model: Model?, light: LightComponent?): TransformGizmoTarget {
@@ -539,20 +552,37 @@ object TransformGizmoEditor {
             return TransformGizmoTarget(TransformGizmoTargetType.MODEL, "Model", MODEL_ICON)
         }
         return when (light) {
-            is PointLightComponent -> TransformGizmoTarget(TransformGizmoTargetType.POINT_LIGHT, "Point Light", POINT_LIGHT_ICON)
-            is SpotLightComponent -> TransformGizmoTarget(TransformGizmoTargetType.SPOT_LIGHT, "Spot Light", SPOT_LIGHT_ICON)
+            is PointLightComponent -> TransformGizmoTarget(
+                TransformGizmoTargetType.POINT_LIGHT,
+                "Point Light",
+                POINT_LIGHT_ICON
+            )
+
+            is SpotLightComponent -> TransformGizmoTarget(
+                TransformGizmoTargetType.SPOT_LIGHT,
+                "Spot Light",
+                SPOT_LIGHT_ICON
+            )
+
             else -> TransformGizmoTarget(TransformGizmoTargetType.TRANSFORM, "Transform", TRANSFORM_ICON)
         }
     }
 
-    private fun computeTargetBounds(target: TransformGizmoTarget, resolved: ResolvedNodeTransform, model: Model?): AABB =
+    private fun computeTargetBounds(
+        target: TransformGizmoTarget,
+        resolved: ResolvedNodeTransform,
+        model: Model?,
+    ): AABB =
         when (target.type) {
             TransformGizmoTargetType.MODEL ->
-                if (model != null) buildNodeRenderBounds(model, resolved.transform) else buildGenericBounds(resolved.transform)
+                if (model != null) buildNodeRenderBounds(
+                    model,
+                    resolved.transform
+                ) else buildGenericBounds(resolved.transform)
 
             TransformGizmoTargetType.POINT_LIGHT,
             TransformGizmoTargetType.SPOT_LIGHT,
-            -> buildLightEditorBounds(resolved.transform.translation)
+                -> buildLightEditorBounds(resolved.transform.translation)
 
             TransformGizmoTargetType.TRANSFORM -> buildGenericBounds(resolved.transform)
         }
@@ -561,7 +591,11 @@ object TransformGizmoEditor {
      * While dragging, the bounding box and light preview follow the live working transform instead of
      * the snapshot (which lags a frame behind the packet round-trip), so the box never flicks away.
      */
-    private fun displayResolved(entry: GizmoEntry, resolved: ResolvedNodeTransform, dragging: Boolean): ResolvedNodeTransform {
+    private fun displayResolved(
+        entry: GizmoEntry,
+        resolved: ResolvedNodeTransform,
+        dragging: Boolean,
+    ): ResolvedNodeTransform {
         val working = entry.working
         if (!dragging || working == null) return resolved
         val trs = TrsTransformF().setCompositionOf(working.translation, working.rotation, working.scale)
@@ -581,7 +615,8 @@ object TransformGizmoEditor {
             val claimedNodes = hashSetOf<UUID>()
 
             snapshot.modelNodes().forEach modelNode@{ modelNode ->
-                val resolved = resolveNodeTransform(level, hostEntityUuid, modelNode.transform, partialTick) ?: return@modelNode
+                val resolved =
+                    resolveNodeTransform(level, hostEntityUuid, modelNode.transform, partialTick) ?: return@modelNode
                 val entryId = GizmoEntryId(record.snapshotId, modelNode.nodeId)
                 val entry = entries.getOrPut(entryId) { GizmoEntry(entryId) }
                 val target = resolveTarget(model = modelNode.model, light = null)
@@ -601,7 +636,8 @@ object TransformGizmoEditor {
 
             snapshot.lightNodes().forEach lightNode@{ lightNode ->
                 if (lightNode.nodeId in claimedNodes) return@lightNode
-                val resolved = resolveNodeTransform(level, hostEntityUuid, lightNode.transform, partialTick) ?: return@lightNode
+                val resolved =
+                    resolveNodeTransform(level, hostEntityUuid, lightNode.transform, partialTick) ?: return@lightNode
                 val target = resolveTarget(model = null, light = lightNode.light)
                 val entryId = GizmoEntryId(record.snapshotId, lightNode.nodeId)
                 val entry = entries.getOrPut(entryId) { GizmoEntry(entryId) }
@@ -624,7 +660,9 @@ object TransformGizmoEditor {
             val (entryId, _) = iterator.next()
             if (entryId in seen) continue
             if (hoveredKey == entryId) hoveredKey = null
-            if (draggingKey == entryId) { draggingKey = null; currentDrag = null }
+            if (draggingKey == entryId) {
+                draggingKey = null; currentDrag = null
+            }
             if (activeKey == entryId) activeKey = null
             if (contextMenuState?.entryId == entryId) contextMenuState = null
             iterator.remove()
@@ -635,7 +673,8 @@ object TransformGizmoEditor {
         val level = Minecraft.getInstance().level ?: return
         val snapshot = NodeRuntimeState.service(level).snapshot(entry.snapshotId) ?: return
         val nodeSnapshot = snapshot.nodeByIdOrNull(entry.nodeId) ?: return
-        val transform = nodeSnapshot.components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
+        val transform =
+            nodeSnapshot.components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
         val model = nodeSnapshot.components.filterIsInstance<Model>().firstOrNull()
         val light = nodeSnapshot.components.filterIsInstance<LightComponent>().firstOrNull()
         val target = resolveTarget(model, light)
@@ -694,7 +733,8 @@ object TransformGizmoEditor {
 
     private fun applyFromGizmo(entry: GizmoEntry, values: GizmoTransformValues) {
         val level = Minecraft.getInstance().level ?: return
-        val worldPosition = Vec3(values.translation.x.toDouble(), values.translation.y.toDouble(), values.translation.z.toDouble())
+        val worldPosition =
+            Vec3(values.translation.x.toDouble(), values.translation.y.toDouble(), values.translation.z.toDouble())
         val updatedTransform = worldTransformToComponent(
             level = level,
             hostEntityUuid = entry.hostEntityUuid,
@@ -849,7 +889,10 @@ private fun pointLightPolylines(position: Vec3, size: Float): List<Pair<List<Vec
     return lines
 }
 
-private fun spotLightPolylines(resolved: ResolvedNodeTransform, light: SpotLightComponent): List<Pair<List<Vec3>, Boolean>> {
+private fun spotLightPolylines(
+    resolved: ResolvedNodeTransform,
+    light: SpotLightComponent,
+): List<Pair<List<Vec3>, Boolean>> {
     val rotation = resolved.transform.rotation
     val forward = rotatedAxis(rotation, 0f, 0f, 1f)
     val right = rotatedAxis(rotation, 1f, 0f, 0f)
@@ -857,13 +900,18 @@ private fun spotLightPolylines(resolved: ResolvedNodeTransform, light: SpotLight
     val tip = resolved.position
     val distance = spotLightPreviewDistance(light)
     val outerRadius = max((tan(Math.toRadians((light.outerAngle * 0.5f).toDouble())) * distance).toFloat(), 0.035f)
-    val base = tip.add(forward.x * distance.toDouble(), forward.y * distance.toDouble(), forward.z * distance.toDouble())
+    val base =
+        tip.add(forward.x * distance.toDouble(), forward.y * distance.toDouble(), forward.z * distance.toDouble())
 
     val lines = ArrayList<Pair<List<Vec3>, Boolean>>()
     lines += worldCircle(base, right, up, outerRadius) to true
     val rim = listOf(
         base.add(right.x * outerRadius.toDouble(), right.y * outerRadius.toDouble(), right.z * outerRadius.toDouble()),
-        base.add(-right.x * outerRadius.toDouble(), -right.y * outerRadius.toDouble(), -right.z * outerRadius.toDouble()),
+        base.add(
+            -right.x * outerRadius.toDouble(),
+            -right.y * outerRadius.toDouble(),
+            -right.z * outerRadius.toDouble()
+        ),
         base.add(up.x * outerRadius.toDouble(), up.y * outerRadius.toDouble(), up.z * outerRadius.toDouble()),
         base.add(-up.x * outerRadius.toDouble(), -up.y * outerRadius.toDouble(), -up.z * outerRadius.toDouble()),
     )

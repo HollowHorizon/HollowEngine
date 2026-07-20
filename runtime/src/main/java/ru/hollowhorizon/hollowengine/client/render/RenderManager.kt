@@ -15,7 +15,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.system
-import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
@@ -36,7 +35,6 @@ import kotlin.math.abs
 object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
-        KoolManager
     }
 
     @SubscribeEvent

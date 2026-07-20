@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 
 import androidx.compose.runtime.Composable
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.client.kool.cutsceneViewportTextureId
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import kotlin.math.min
@@ -21,7 +20,7 @@ fun CutsceneViewportDock() {
                 val height = target.height * scale
                 drawTexture(
                     rect = UiRect((size.width - width) * 0.5f, (size.height - height) * 0.5f, width, height),
-                    textureId = cutsceneViewportTextureId(),
+                    textureId = target.colorTextureId,
                     flipY = true,
                 )
             },

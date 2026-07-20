@@ -1,16 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.mutableStateOf
-import de.fabmax.kool.KeyValueStore
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeScale.guiScale
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import kotlin.math.ceil
 
 object HollowIdeScale {
     const val MaxScale = 6
     private const val KEY = "hollowengine.ide.gui_scale"
 
-    private val guiScaleState = mutableStateOf(KeyValueStore.getInt(KEY, 0).coerceIn(0, MaxScale))
+    private val guiScaleState = mutableStateOf(HollowEngineConfig.ideGuiScale.coerceIn(0, MaxScale))
 
     var guiScale: Int
         get() = guiScaleState.value
@@ -18,7 +18,7 @@ object HollowIdeScale {
             val clamped = value.coerceIn(0, MaxScale)
             if (guiScaleState.value == clamped) return
             guiScaleState.value = clamped
-            KeyValueStore.setInt(KEY, clamped)
+            HollowEngineConfig.ideGuiScale = clamped
         }
 
     /** The integer pixel factor Minecraft would use for [guiScale] on the current framebuffer. */

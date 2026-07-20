@@ -5,7 +5,7 @@ import com.mojang.blaze3d.audio.SoundBuffer
 import com.mojang.blaze3d.platform.Window
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.datafixers.util.Either
-import de.fabmax.kool.input.*
+import de.fabmax.kool.input.KeyboardInput
 import net.irisshaders.iris.gl.image.GlImage
 import net.irisshaders.iris.gl.sampler.SamplerHolder
 import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
@@ -69,14 +69,13 @@ import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
-import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
-import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRuntimeEnvironment
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
@@ -541,10 +540,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientResized(client: Minecraft) {
-        val init = KoolManager
-        val window = client.window
-        guiFramebuffer.resize(window.width, window.height, Minecraft.ON_OSX)
-        onResize(window.width, window.height)
     }
 
     override fun onClientStopping(client: Minecraft) {
@@ -842,22 +837,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)) return true
         if (TransformGizmoEditor.handleKey(key, scanCode, action, modifiers)) return true
-
-        val event = when (action) {
-            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN
-            org.lwjgl.glfw.GLFW.GLFW_REPEAT -> KeyboardInput.KEY_EV_DOWN or KeyboardInput.KEY_EV_REPEATED
-            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KeyboardInput.KEY_EV_UP
-            else -> -1
-        }
-
-        if (event != -1) {
-            val keyCode: KeyCode = KEY_CODE_MAP.getOrDefault(key, UniversalKeyCode(key, null))
-            val localKeyCode =
-                LocalKeyCode(PointerInputSetup.localCharKeyCodes.getOrDefault(keyCode.code, keyCode.code), null)
-            val keyMod = PointerInputSetup.getKeyMod(key, modifiers, event)
-            KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
-        }
-
         return false
     }
 
@@ -879,13 +858,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedX = (xPos * scaleFactor).toFloat()
         val convertedY = (yPos * scaleFactor).toFloat()
 
-        KoolInputBridge.handleMouseMove(convertedX, convertedY)
         val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
         val isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(convertedX, convertedY)
         val isScreenOpen = minecraft.screen != null
-        val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
+        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isGizmoBlocking && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
@@ -900,11 +877,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         modifiers: Int,
     ): Boolean {
         val pressed = action == org.lwjgl.glfw.GLFW.GLFW_PRESS
-        KoolInputBridge.handleMouseButtonEvent(button, pressed)
 
         return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
                 TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
-                isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
@@ -916,11 +891,8 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         xOffset: Double,
         yOffset: Double,
     ): Boolean {
-        KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
-
         return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
                 TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
-                isKoolPointerInputCaptured(x, y) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
