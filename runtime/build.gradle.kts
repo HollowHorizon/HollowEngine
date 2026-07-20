@@ -112,7 +112,6 @@ dependencies {
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
     addShadow("com.github.weisj:jsvg:2.1.0")
-    addShadow("org.jetbrains:markdown:0.7.3")
     addShadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
@@ -138,7 +137,6 @@ dependencies {
 
     val jeiVersion = "19.25.1.332"
     add("modCompileOnly", "mezz.jei:jei-$minecraftVersion-fabric-api:$jeiVersion")
-    compileOnly("lib:bbs:1.2.6-1.20.1-deobf")
 
     compileOnly("org.jetbrains:annotations:26.1.0")
 
