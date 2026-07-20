@@ -42,6 +42,10 @@ apply(from = rootProject.file("gradle/lang-merge.gradle"))
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val generatedAssetsDir = layout.buildDirectory.dir("generated/sources/assets/kotlin")
 val mergedLangDir = layout.buildDirectory.dir("generated/lang/assets/$modId/lang")
+val runtimeResourcesPath = sourceSets.named("main").get().output.resourcesDir
+    ?.toPath()
+    ?.toAbsolutePath()
+    ?.normalize()
 val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
 val shadowBundle = configurations.create("shadowBundle") {
     isCanBeResolved = true
@@ -198,6 +202,13 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("dev")
     configurations = listOf(shadowBundle)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    includeEmptyDirs = false
+    eachFile {
+        val sourcePath = file.toPath().toAbsolutePath().normalize()
+        if (runtimeResourcesPath != null && sourcePath.startsWith(runtimeResourcesPath)) {
+            exclude()
+        }
+    }
 }
 
 tasks.named<RemapJarTask>("remapJar") {
