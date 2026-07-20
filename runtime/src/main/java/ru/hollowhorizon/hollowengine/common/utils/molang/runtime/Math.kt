@@ -31,4 +31,10 @@ object Math {
     fun min(left: Float, right: Float) = kotlin.math.min(left, right)
     @JvmStatic
     fun max(left: Float, right: Float) = kotlin.math.max(left, right)
+    @JvmStatic
+    fun sqrt(value: Float) = kotlin.math.sqrt(value)
+    @JvmStatic
+    fun exp(value: Float) = kotlin.math.exp(value)
+    @JvmStatic
+    fun lerp(start: Float, end: Float, t: Float) = start + (end - start) * t
 }

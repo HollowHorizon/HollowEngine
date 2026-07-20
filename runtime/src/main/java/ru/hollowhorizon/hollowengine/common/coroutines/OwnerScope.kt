@@ -6,7 +6,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import java.lang.ref.WeakReference
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -43,7 +42,6 @@ abstract class OwnerScope(
     override val coroutineContext: CoroutineContext,
     private val onDirty: (() -> Unit)? = null,
 ) : SerializableCoroutineScope {
-    val variables = VariableMap(onDirty)
     private val lock = Any()
     private val activeExecutions = ConcurrentHashMap<String, ActiveExecution>()
     private val queuedExecutions = ConcurrentHashMap<String, ArrayDeque<StoredExecution>>()
@@ -61,7 +59,6 @@ abstract class OwnerScope(
             pendingRestore.values.forEach { queue -> queue.forEach { executions.add(it.toTag()) } }
         }
         tag.put("executions", executions)
-        tag.put("variables", CompoundTag().also(variables::serialize))
     }
 
     override fun deserialize(tag: CompoundTag) {
@@ -76,7 +73,6 @@ abstract class OwnerScope(
             serialized.forEach { pendingRestore.getOrPut(it.branchKey, ::ArrayDeque).addLast(it) }
         }
 
-        variables.deserialize(tag.getCompound("variables"))
         restorePending()
     }
 

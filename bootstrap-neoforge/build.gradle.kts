@@ -158,9 +158,15 @@ val generateNeoForgeModMetadata = tasks.register<ProcessResources>("generateNeoF
 
     inputs.properties(properties)
     from(rootProject.file("bootstrap-neoforge/src/main/templates"))
+    from(rootProject.file("bridge/src/main/resources/hollowengine.bridge.mixins.json")) {
+        rename { "hollowengine-neoforge.bridge.mixins.json" }
+    }
     into(generatedMetadataDir)
     filesMatching("META-INF/neoforge.mods.toml") {
         expand(properties)
+    }
+    filesMatching("hollowengine-neoforge.bridge.mixins.json") {
+        expand("refmap" to "disabled")
     }
 }
 

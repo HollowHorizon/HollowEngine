@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.lang
 
-import de.fabmax.kool.modules.ui2.MutableStateValue
-import de.fabmax.kool.modules.ui2.mutableStateListOf
-import de.fabmax.kool.modules.ui2.mutableStateOf
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import kotlinx.serialization.json.*
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets
 data class TranslationRow(
     val key: String,
     val sourceValue: String,
-    var targetValue: MutableStateValue<String>,
+    var targetValue: MutableState<String>,
     val originMod: String,
 )
 

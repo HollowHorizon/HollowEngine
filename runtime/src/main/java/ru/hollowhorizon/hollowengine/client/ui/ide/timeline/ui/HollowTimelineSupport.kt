@@ -1,0 +1,192 @@
+package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
+
+import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BaseAnimTrack
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TrackGroup
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
+import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
+import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import kotlin.math.*
+
+internal const val TimelineHeaderWidth = 220f
+internal const val TimelineRulerHeight = 28f
+internal const val TimelineGroupRowHeight = 22f
+internal const val TimelineTrackRowHeight = 24f
+internal const val TimelineLeftPadding = 24f
+internal const val TimelineMinContentWidth = 600f
+internal const val TimelineMaxZoom = 500f
+internal const val TimelineMinZoom = 10f
+private const val TimelineAutoPanEdge = 48f
+internal const val TimelineScrollbarClearance = 12f
+
+internal val TimelineDiamondShape: Shape = GenericShape { size ->
+    moveTo(size.width * 0.5f, 0f)
+    lineTo(size.width, size.height * 0.5f)
+    lineTo(size.width * 0.5f, size.height)
+    lineTo(0f, size.height * 0.5f)
+    close()
+}
+
+/** Downward-pointing playhead head that sits at the top of the ruler. */
+internal val PlayheadHeadShape: Shape = GenericShape { size ->
+    moveTo(0f, 0f)
+    lineTo(size.width, 0f)
+    lineTo(size.width, size.height * 0.55f)
+    lineTo(size.width * 0.5f, size.height)
+    lineTo(0f, size.height * 0.55f)
+    close()
+}
+
+internal data class TimelineRow(
+    val id: String,
+    val label: String,
+    val depth: Int,
+    val y: Float,
+    val height: Float,
+    val kind: TimelineRowKind,
+    val group: TrackGroup? = null,
+    val track: BaseAnimTrack? = null,
+    val locked: Boolean = false,
+    val visible: Boolean = true,
+)
+
+internal enum class TimelineRowKind {
+    GROUP,
+    TRACK,
+}
+
+internal fun timelineRows(groups: List<TrackGroup>): List<TimelineRow> {
+    val rows = mutableListOf<TimelineRow>()
+    var y = TimelineRulerHeight
+
+    fun appendGroup(group: TrackGroup, depth: Int, parentLocked: Boolean, parentVisible: Boolean) {
+        val locked = parentLocked || group.isLocked
+        val visible = parentVisible && group.isVisible
+        rows += TimelineRow(
+            id = "timeline-group-${rows.size}",
+            label = group.nameState,
+            depth = depth,
+            y = y,
+            height = TimelineGroupRowHeight,
+            kind = TimelineRowKind.GROUP,
+            group = group,
+            locked = locked,
+            visible = visible,
+        )
+        y += TimelineGroupRowHeight
+        if (group.isCollapsed) return
+
+        group.children.forEach { appendGroup(it, depth + 1, locked, visible) }
+        group.tracks.forEach { track ->
+            rows += TimelineRow(
+                id = "timeline-track-${rows.size}",
+                label = track.nameState.value,
+                depth = depth + 1,
+                y = y,
+                height = TimelineTrackRowHeight,
+                kind = TimelineRowKind.TRACK,
+                track = track,
+                locked = locked || track.isLocked,
+                visible = visible && track.isVisible,
+            )
+            y += TimelineTrackRowHeight
+        }
+    }
+
+    groups.forEach { appendGroup(it, 0, parentLocked = false, parentVisible = true) }
+    return rows
+}
+
+internal fun timelineContentWidth(
+    workAreaEnd: Float,
+    maxKeyTime: Float,
+    pixelsPerSecond: Float,
+    viewportWidth: Float,
+): Float {
+    val endWidth = (workAreaEnd + 5f) * pixelsPerSecond + TimelineLeftPadding
+    val keyWidth = (maxKeyTime + 5f) * pixelsPerSecond + TimelineLeftPadding
+    return max(TimelineMinContentWidth, max(max(endWidth, keyWidth), viewportWidth))
+}
+
+internal fun timelineTimeAt(localX: Float, pixelsPerSecond: Float, workAreaEnd: Float, modifiers: Int = 0): Float =
+    snapTimelineTime((localX - TimelineLeftPadding) / pixelsPerSecond, modifiers).coerceIn(0f, workAreaEnd)
+
+internal fun snapTimelineTime(time: Float, modifiers: Int): Float {
+    val step = when {
+        modifiers and GLFW.GLFW_MOD_ALT != 0 -> 1f
+        modifiers and GLFW.GLFW_MOD_SHIFT != 0 -> 0.5f
+        else -> return time
+    }
+    return round(time / step) * step
+}
+
+internal fun timelineTimeDelta(deltaX: Float, pixelsPerSecond: Float): Float {
+    return deltaX / pixelsPerSecond.coerceAtLeast(1f)
+}
+
+internal fun autoPanToContentX(scroll: UiScrollHandle, viewport: UiRect, contentX: Float) {
+    if (viewport.width <= 0f) return
+    val edge = min(TimelineAutoPanEdge, viewport.width * 0.25f)
+    val visibleStart = scroll.offsetX
+    val visibleEnd = visibleStart + viewport.width
+    val target = when {
+        contentX < visibleStart + edge -> contentX - edge
+        contentX > visibleEnd - edge -> contentX - viewport.width + edge
+        else -> return
+    }
+    if (abs(target - scroll.offsetX) > 0.5f) scroll.scrollTo(x = target.coerceAtLeast(0f))
+}
+
+internal fun timelineRulerSeconds(scrollX: Float, viewWidth: Float, pixelsPerSecond: Float): IntRange {
+    val start = floor((scrollX - TimelineLeftPadding).coerceAtLeast(0f) / pixelsPerSecond).toInt()
+    val end = ceil((scrollX + viewWidth) / pixelsPerSecond).toInt()
+    return start..end.coerceAtLeast(start)
+}
+
+internal fun timelineMaxKeyTime(tracks: List<BaseAnimTrack>): Float {
+    return tracks.flatMap { it.getKeysAsList() }.maxOfOrNull { it.time } ?: 0f
+}
+
+internal fun timelineKeyValuesEqual(first: Any?, second: Any?): Boolean {
+    return when {
+        first is Vec2f && second is Vec2f -> {
+            abs(first.x - second.x) <= 0.0001f && abs(first.y - second.y) <= 0.0001f
+        }
+
+        first is Vec3f && second is Vec3f -> {
+            abs(first.x - second.x) <= 0.0001f && abs(first.y - second.y) <= 0.0001f && abs(first.z - second.z) <= 0.0001f
+        }
+
+        first is Float && second is Float -> abs(first - second) <= 0.0001f
+        else -> first == second
+    }
+}
+
+internal fun Color.toUiColor(alphaMultiplier: Float = 1f): UiColor {
+    return UiColor(r, g, b, (a * alphaMultiplier).coerceIn(0f, 1f))
+}
+
+internal fun trackOf(keyframe: Keyframe<*>, tracks: List<BaseAnimTrack>): AnimTrack<*>? {
+    return tracks.filterIsInstance<AnimTrack<*>>().firstOrNull { keyframe in it.keyframes }
+}
+
+internal object TimelineColors {
+    val Background = UiColor(0.07f, 0.08f, 0.1f, 1f)
+    val Panel = UiColor(0.1f, 0.11f, 0.14f, 1f)
+    val PanelAlt = UiColor(0.13f, 0.14f, 0.17f, 1f)
+    val Row = UiColor(0.11f, 0.12f, 0.14f, 1f)
+    val Group = UiColor(0.14f, 0.15f, 0.18f, 1f)
+    val Muted = UiColor(0.58f, 0.62f, 0.7f, 1f)
+    val Text = UiColor(0.88f, 0.9f, 0.94f, 1f)
+    val Accent = UiColor(1f, 0.54f, 0.18f, 1f)
+    val Blue = UiColor(0.34f, 0.58f, 0.88f, 1f)
+    val Border = UiColor(0.24f, 0.26f, 0.3f, 1f)
+    val Danger = UiColor(0.76f, 0.23f, 0.23f, 1f)
+}

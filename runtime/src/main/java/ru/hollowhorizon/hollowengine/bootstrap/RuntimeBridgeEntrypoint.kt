@@ -5,7 +5,6 @@ import com.mojang.blaze3d.audio.SoundBuffer
 import com.mojang.blaze3d.platform.Window
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.datafixers.util.Either
-import de.fabmax.kool.input.*
 import net.irisshaders.iris.gl.image.GlImage
 import net.irisshaders.iris.gl.sampler.SamplerHolder
 import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
@@ -21,6 +20,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.particle.ParticleEngine
 import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.client.player.KeyboardInput
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.MultiBufferSource
@@ -64,20 +64,20 @@ import ru.hollowhorizon.hollowengine.api.extensions.FakePlayerFactory
 import ru.hollowhorizon.hollowengine.api.extensions.ItemStackHelper
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.EventBridge
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimePlatform
 import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
-import ru.hollowhorizon.hollowengine.client.gui.scripting.isAnyFocusNodeInput
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneCameraSystem
-import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRuntimeEnvironment
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDispatcherState
@@ -93,9 +93,9 @@ import ru.hollowhorizon.hollowengine.common.events.entity.ItemEntityEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
-import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
@@ -110,9 +110,6 @@ import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariClientInputEvent
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariInputAction
-import ru.hollowhorizon.hollowengine.common.scripting.katari.toPacket
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import ru.hollowhorizon.hollowengine.network.CommonNetworkManager
@@ -130,6 +127,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         if (RuntimeAnnotationEnvironment.annotationIndex === EmptyRuntimeAnnotationIndex) {
             RuntimeAnnotationEnvironment.annotationIndex = ClassGraphRuntimeAnnotationIndex.create()
         }
+    }
+
+    override fun setPlatform(platform: RuntimePlatform) {
+        HollowAddonRuntimeEnvironment.platform = platform
     }
 
     override fun setProduction(production: Boolean) {
@@ -508,15 +509,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onServerTick(server: MinecraftServer) {
         RuntimeDispatcherState.runServerTasks(server)
-        ServerRuntimeState.autosave(server)
     }
 
     override fun onServerStopping(server: MinecraftServer) {
-        ServerRuntimeState.save(server)
+        ServerRuntimeState.save(server, saveAnyways = true)
         ServerEvent.Stoping.post(ServerEvent.Stoping(server))
     }
 
     override fun onServerStopped(server: MinecraftServer) {
+        RegisterCommandsEvent.clearReplay()
         RuntimeDispatcherState.stopServer(server)
         ServerRuntimeState.remove(server)
     }
@@ -539,10 +540,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientResized(client: Minecraft) {
-        val init = KoolManager
-        val window = client.window
-        guiFramebuffer.resize(window.width, window.height, Minecraft.ON_OSX)
-        onResize(window.width, window.height)
     }
 
     override fun onClientStopping(client: Minecraft) {
@@ -793,7 +790,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         cameraY: Double,
         cameraZ: Double,
     ) {
-        IrisRenderManager.renderIrisShadowCasters(poseStack, bufferSource, partialTick, frustum, cameraX, cameraY, cameraZ)
+        IrisRenderManager.renderIrisShadowCasters(
+            poseStack,
+            bufferSource,
+            partialTick,
+            frustum,
+            cameraX,
+            cameraY,
+            cameraZ
+        )
     }
 
     override fun onIrisShadowRenderEnd() {
@@ -830,41 +835,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
-        val event = when (action) {
-            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN
-            org.lwjgl.glfw.GLFW.GLFW_REPEAT -> KeyboardInput.KEY_EV_DOWN or KeyboardInput.KEY_EV_REPEATED
-            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KeyboardInput.KEY_EV_UP
-            else -> -1
-        }
-        val inputAction = when (action) {
-            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KatariInputAction.Press
-            org.lwjgl.glfw.GLFW.GLFW_REPEAT -> KatariInputAction.Repeat
-            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KatariInputAction.Release
-            else -> null
-        }
-
-        if (event != -1) {
-            val keyCode: KeyCode = KEY_CODE_MAP.getOrDefault(key, UniversalKeyCode(key, null))
-            val localKeyCode =
-                LocalKeyCode(PointerInputSetup.localCharKeyCodes.getOrDefault(keyCode.code, keyCode.code), null)
-            val keyMod = PointerInputSetup.getKeyMod(key, modifiers, event)
-            KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
-        }
-        if (inputAction != null) {
-            postKatariInput(
-                KatariClientInputEvent.Key,
-                KatariClientInputEvent.Key(key, scanCode, inputAction, modifiers)
-            )
-        }
-
-        return KatariUiOverlays.handleKey(key, scanCode, action, modifiers) || KatariUiOverlays.hasFocusedInput() ||
-                isAnyFocusNodeInput()
+        if (HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)) return true
+        if (TransformGizmoEditor.handleKey(key, scanCode, action, modifiers)) return true
+        return false
     }
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
-        KeyboardInput.handleCharTyped(codePoint.toChar())
-        return KatariUiOverlays.handleChar(codePoint, modifiers) || KatariUiOverlays.hasFocusedInput() ||
-                isAnyFocusNodeInput()
+        if (HollowIdeOverlay.handleChar(codePoint, modifiers)) return true
+        if (TransformGizmoEditor.handleChar(codePoint, modifiers)) return true
+        return false
     }
 
     override fun onMouseMove(
@@ -878,12 +857,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedX = (xPos * scaleFactor).toFloat()
         val convertedY = (yPos * scaleFactor).toFloat()
 
-        KoolInputBridge.handleMouseMove(convertedX, convertedY)
-        val isOverlayInputCaptured = KatariUiOverlays.handleMouseMove(convertedX, convertedY)
+        val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
+        val isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(convertedX, convertedY)
         val isScreenOpen = minecraft.screen != null
-        val isKoolInputCaptured = isKoolPointerInputCaptured(convertedX, convertedY)
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || (isKoolInputCaptured || isGizmoBlocking) && isScreenOpen
+        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isGizmoBlocking && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
@@ -898,26 +876,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         modifiers: Int,
     ): Boolean {
         val pressed = action == org.lwjgl.glfw.GLFW.GLFW_PRESS
-        KoolInputBridge.handleMouseButtonEvent(button, pressed)
-        val inputAction = when (action) {
-            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KatariInputAction.Press
-            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KatariInputAction.Release
-            else -> null
-        }
-        if (inputAction != null) {
-            postKatariInput(
-                KatariClientInputEvent.MouseButton,
-                KatariClientInputEvent.MouseButton(
-                    x.toDouble(),
-                    y.toDouble(),
-                    button,
-                    inputAction,
-                    modifiers
-                )
-            )
-        }
-        return KatariUiOverlays.handleMouseButton(x, y, button, action, modifiers) ||
-                isKoolPointerInputCaptured(x, y) ||
+
+        return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
+                TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
@@ -929,21 +890,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         xOffset: Double,
         yOffset: Double,
     ): Boolean {
-        KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
-        postKatariInput(
-            KatariClientInputEvent.MouseScroll,
-            KatariClientInputEvent.MouseScroll(x.toDouble(), y.toDouble(), xOffset, yOffset)
-        )
-        return KatariUiOverlays.handleMouseScroll(x, y, xOffset, yOffset) ||
-                isKoolPointerInputCaptured(x, y) ||
+        return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
+                TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
-    }
-
-    private fun <T : KatariClientInputEvent> postKatariInput(handler: EventHandler<T>, event: T) {
-        handler.post(event)
-        if (Minecraft.getInstance().connection != null) {
-            event.toPacket().send()
-        }
     }
 
     override fun onRenderLevelStage(
@@ -1003,12 +952,8 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     private fun isClassPresent(name: String): Boolean {
-        return try {
-            Class.forName(name, false, javaClass.classLoader)
-            true
-        } catch (_: ClassNotFoundException) {
-            false
-        }
+        val classPath = name.replace('.', '/') + ".class"
+        return javaClass.classLoader.getResource(classPath) != null
     }
 
     private fun loadSoundBuffer(path: String, inputStream: InputStream): SoundBuffer {

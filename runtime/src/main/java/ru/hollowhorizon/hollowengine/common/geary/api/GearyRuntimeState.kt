@@ -10,7 +10,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerScopeRestoredEvent
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
@@ -21,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ai.AIComponentSyste
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
@@ -122,6 +122,7 @@ object GearyRuntimeState {
         if (state == null) {
             tag.remove(ENTITY_SNAPSHOT_NBT)
             tag.remove("EntityScope")
+            EntityNodeRuntime.save(entity, tag)
             return
         }
 
@@ -136,13 +137,19 @@ object GearyRuntimeState {
             val scopeTag = CompoundTag()
             state.coroutineScope.serialize(scopeTag)
             tag.put("EntityScope", scopeTag)
+
+            EntityNodeRuntime.save(entity, tag)
         } catch (e: Exception) {
             HollowEngine.LOGGER.warn("Failed to save entity {} ({})", entity.id, entity.uuid, e)
         }
     }
 
     fun loadEntity(entity: Entity, tag: CompoundTag) {
-        if (!tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt()) && !tag.contains("EntityScope", Tag.TAG_COMPOUND.toInt())) {
+        val hasNodes = tag.contains("NodeAttachments", Tag.TAG_COMPOUND.toInt())
+        if (!tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt()) &&
+            !tag.contains("EntityScope", Tag.TAG_COMPOUND.toInt()) &&
+            !hasNodes
+        ) {
             return
         }
 
@@ -152,7 +159,8 @@ object GearyRuntimeState {
         }
 
         state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
-        OwnerScopeRestoredEvent.post(OwnerScopeRestoredEvent(entity))
+
+        if (hasNodes) EntityNodeRuntime.load(entity, tag)
     }
 
     fun onSetLevel(entity: Entity, newLevel: Level) {
@@ -169,6 +177,7 @@ object GearyRuntimeState {
 
         levelState(level).byUuid.remove(entity.uuid)
         state.coroutineScope.cancel()
+        EntityNodeRuntime.remove(entity)
 
         NoAiRuntime.cleanup(entity)
         AIComponentSystems.cleanup(entity)

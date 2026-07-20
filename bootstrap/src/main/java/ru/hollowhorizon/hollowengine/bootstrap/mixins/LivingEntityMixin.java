@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 @Mixin(LivingEntity.class)
@@ -13,6 +14,15 @@ public class LivingEntityMixin {
     @Inject(method = "tick", at = @At("TAIL"))
     private void hollowengine$tick(CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onLivingEntityTick((LivingEntity) (Object) this);
+    }
+
+    // LivingEntity overrides Entity#hurt without calling super, so the Entity mixin never fires for
+    // living entities. Post EntityEvent.Hurt here too so onHurt handlers run for mobs and players.
+    @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
+    private void hollowengine$hurt(DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
+        if (BootstrapRuntimeManager.bridge().onEntityHurt((LivingEntity) (Object) this, damageSource, amount)) {
+            cir.setReturnValue(false);
+        }
     }
 
     @Inject(method = "die", at = @At("HEAD"), cancellable = true)

@@ -7,6 +7,7 @@ data class DockItem(
     val closable: Boolean = true,
     val minWidth: Float = 96f,
     val minHeight: Float = 64f,
+    val dirty: Boolean = false,
 )
 
 sealed interface DockNode {
@@ -45,7 +46,7 @@ data class DockTabDragState(
     val itemId: String,
     val pointerX: Float,
     val grabX: Float,
-    val tabWidth: Float,
+    val layouts: List<DockTabLayout> = emptyList(),
 )
 
 data class DockTabGrabState(
@@ -54,6 +55,16 @@ data class DockTabGrabState(
     val x: Float,
     val y: Float,
 )
+
+data class DockTabLayout(
+    val itemId: String,
+    val left: Float,
+    val width: Float,
+    val outerLeft: Float,
+    val outerWidth: Float,
+) {
+    val midpoint: Float get() = left + width * 0.5f
+}
 
 data class DockWindowDragStart(
     val windowId: String,
@@ -95,6 +106,10 @@ internal fun DockNode.containsItem(itemId: String): Boolean {
     return findStackWithItem(itemId) != null
 }
 
+internal fun DockNode.findItem(itemId: String): DockItem? {
+    return findStackWithItem(itemId)?.items?.firstOrNull { it.id == itemId }
+}
+
 internal fun DockNode.removeItem(itemId: String): DockRemoval {
     return when (this) {
         is DockNode.Stack -> {
@@ -105,7 +120,8 @@ internal fun DockNode.removeItem(itemId: String): DockRemoval {
                 selectedItemId != itemId -> selectedItemId
                 else -> remaining.first().id
             }
-            DockRemoval(remaining.takeIf { it.isNotEmpty() }?.let { copy(items = it, selectedItemId = selected.orEmpty()) }, removed)
+            DockRemoval(remaining.takeIf { it.isNotEmpty() }
+                ?.let { copy(items = it, selectedItemId = selected.orEmpty()) }, removed)
         }
 
         is DockNode.Split -> {
@@ -144,7 +160,10 @@ internal fun DockNode.reorderTab(stackId: String, itemId: String, targetIndex: I
             copy(items = reordered)
         }
 
-        is DockNode.Split -> copy(first = first.reorderTab(stackId, itemId, targetIndex), second = second.reorderTab(stackId, itemId, targetIndex))
+        is DockNode.Split -> copy(
+            first = first.reorderTab(stackId, itemId, targetIndex),
+            second = second.reorderTab(stackId, itemId, targetIndex)
+        )
     }
 }
 
@@ -199,21 +218,21 @@ private fun DockNode.splitWith(node: DockNode, placement: DockPlacement, ids: Do
     }
     val orientation = when (placement) {
         DockPlacement.LEFT,
-        DockPlacement.RIGHT -> DockOrientation.HORIZONTAL
+        DockPlacement.RIGHT,
+            -> DockOrientation.HORIZONTAL
 
         DockPlacement.TOP,
-        DockPlacement.BOTTOM -> DockOrientation.VERTICAL
-
-        DockPlacement.CENTER -> DockOrientation.HORIZONTAL
+        DockPlacement.BOTTOM,
+            -> DockOrientation.VERTICAL
     }
     return when (placement) {
         DockPlacement.LEFT,
-        DockPlacement.TOP -> DockNode.Split(ids.nextSplitId(), orientation, node, this)
+        DockPlacement.TOP,
+            -> DockNode.Split(ids.nextSplitId(), orientation, node, this)
 
         DockPlacement.RIGHT,
-        DockPlacement.BOTTOM -> DockNode.Split(ids.nextSplitId(), orientation, this, node)
-
-        DockPlacement.CENTER -> this
+        DockPlacement.BOTTOM,
+            -> DockNode.Split(ids.nextSplitId(), orientation, this, node)
     }
 }
 

@@ -1,25 +1,33 @@
 package ru.hollowhorizon.hollowengine.cutscene
 
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.UiScope
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.client.gui.timeline.*
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CameraCutsceneTracks
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutscenePlaybackController
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneTrackRegistry
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.EasingRegistry
+import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.PropertyDriver
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Vec3PropertyDriver
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CameraCutsceneTracks
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutscenePlaybackController
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneTrackRegistry
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.EasingRegistry
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.snapTimelineTime
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class CutsceneTest {
 
-    private val testJson = Json {
-        prettyPrint = true
-        ignoreUnknownKeys = true
-        encodeDefaults = true
+    @Test
+    fun `timeline snapping follows drag modifiers`() {
+        assertEquals(1f, snapTimelineTime(1.24f, GLFW.GLFW_MOD_ALT))
+        assertEquals(2f, snapTimelineTime(1.76f, GLFW.GLFW_MOD_ALT))
+        assertEquals(1f, snapTimelineTime(1.24f, GLFW.GLFW_MOD_SHIFT))
+        assertEquals(1.5f, snapTimelineTime(1.26f, GLFW.GLFW_MOD_SHIFT))
+        assertEquals(1.24f, snapTimelineTime(1.24f, GLFW.GLFW_MOD_CONTROL))
+        assertEquals(1.24f, snapTimelineTime(1.24f, 0))
     }
 
     @Test
@@ -101,8 +109,6 @@ class CutsceneTest {
                 lastValue = value
             }
 
-            override fun UiScope.drawEditor(value: Float, onChange: (Float) -> Unit) {
-            }
         }
 
         val track = AnimTrack(
@@ -123,6 +129,52 @@ class CutsceneTest {
 
         track.update(2f)
         assertEquals(100f, lastValue, 1f)
+    }
+
+    @Test
+    fun `group drag preserves spacing when clamped to the work area`() {
+        val controller = TimelineController().apply { workAreaEnd = 10f }
+        val first = Keyframe(2f, 0f)
+        val second = Keyframe(5f, 0f)
+        val track = floatTrack(first, second)
+        controller.addTrack("Test", track)
+        controller.selectedKeyframes.addAll(listOf(first, second))
+
+        controller.beginKeyframeDrag(second)
+        controller.applyKeyframeDrag(-10f)
+        controller.endKeyframeDrag()
+
+        assertEquals(0f, first.time, 0.001f)
+        assertEquals(3f, second.time, 0.001f)
+    }
+
+    @Test
+    fun `group drag is atomic when one keyframe collides`() {
+        val controller = TimelineController().apply { workAreaEnd = 10f }
+        val first = Keyframe(1f, 0f)
+        val second = Keyframe(3f, 0f)
+        val blocker = Keyframe(4f, 0f)
+        val track = floatTrack(first, second, blocker)
+        controller.addTrack("Test", track)
+        controller.selectedKeyframes.addAll(listOf(first, second))
+
+        controller.beginKeyframeDrag(second)
+        controller.applyKeyframeDrag(1f)
+        controller.endKeyframeDrag()
+
+        assertEquals(1f, first.time, 0.001f)
+        assertEquals(3f, second.time, 0.001f)
+    }
+
+    private fun floatTrack(vararg keyframes: Keyframe<Float>): AnimTrack<Float> {
+        val driver = object : PropertyDriver<Float> {
+            override fun interpolate(start: Float, end: Float, fraction: Float): Float =
+                start + (end - start) * fraction
+
+            override fun apply(value: Float) = Unit
+
+        }
+        return AnimTrack("Test", driver, 0f, keyframes.toMutableList())
     }
 
     @Test

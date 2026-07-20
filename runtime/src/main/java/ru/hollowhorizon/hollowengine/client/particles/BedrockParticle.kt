@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.client.particles
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
-import de.fabmax.kool.math.*
-import de.fabmax.kool.util.Color
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.util.Mth
 import ru.hollowhorizon.hollowengine.client.particles.file.ParticleComponents
@@ -12,6 +10,8 @@ import ru.hollowhorizon.hollowengine.client.utils.math.*
 import ru.hollowhorizon.hollowengine.client.utils.uv
 import ru.hollowhorizon.hollowengine.client.utils.uv2
 import ru.hollowhorizon.hollowengine.client.utils.vertex
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.FloatExpr
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.eval
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery

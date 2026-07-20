@@ -1,11 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-import de.fabmax.kool.math.*
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.BatchingRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.MeshRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.GeometryUtils
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.PrimitiveInstance
 import kotlin.math.max
 import kotlin.math.min
 
@@ -36,7 +37,7 @@ class Primitive(
 
     val useBatching get() = !hasSkinning && morphTargets.isEmpty() && staticRenderPath == StaticRenderPath.BATCHING
 
-    val localBounds: Pair<Vec3f, Vec3f>? by lazy { computeBounds() }
+    val localBounds: Pair<Vec3f, Vec3f>? = computeBounds()
 
     private var renderer: MeshRenderer? = null
 
@@ -80,12 +81,10 @@ class Primitive(
 
     fun setupPipeline(
         pipeline: RenderPipeline,
-        skinGetter: SkinGetter,
-        matrixGetter: MatrixGetter,
-        visibilityGetter: VisibilityGetter,
+        instance: PrimitiveInstance,
     ) {
         init()
-        renderer?.setupPipeline(pipeline, skinGetter, matrixGetter, visibilityGetter)
+        renderer?.setupPipeline(pipeline, instance)
     }
 
     fun destroy() {
@@ -145,7 +144,3 @@ class Primitive(
         private const val INDICES_PER_CUBE = 36
     }
 }
-
-typealias MatrixGetter = () -> Mat4f
-typealias SkinGetter = () -> Array<Mat4f>
-typealias VisibilityGetter = () -> Boolean

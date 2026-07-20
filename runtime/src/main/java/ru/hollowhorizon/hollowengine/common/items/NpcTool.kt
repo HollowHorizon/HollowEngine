@@ -9,8 +9,6 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.EntityEditorScreen
-import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
@@ -28,7 +26,6 @@ class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
         return super.use(pLevel, player, pUsedHand)
 
         if (pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND && player.isShiftKeyDown) {
-            EntityEditorScreen(player).open()
             return InteractionResultHolder.success(player.getItemInHand(pUsedHand))
         }
         if (!pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND) {
@@ -60,7 +57,7 @@ class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
 fun PlayerInteractEvent.EntityInteract.onInteract() {
     if (hand == InteractionHand.MAIN_HAND && player.mainHandItem.item == ModItems.NPC_TOOL && player.level().isClientSide) {
         if (player.hasPermissions(2)) {
-            EntityEditorScreen(target).open()
+            //TODO EntityEditorScreen(target).open()
         } else {
             player.send("You don't have permission to use this item.")
         }

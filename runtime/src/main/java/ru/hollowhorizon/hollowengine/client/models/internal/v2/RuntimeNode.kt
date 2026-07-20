@@ -1,9 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
-import de.fabmax.kool.math.MutableMat4f
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
+import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
+import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 
 abstract class Attachment(val parent: Attachment? = null) {
     val transform = TrsTransformF()
@@ -20,13 +21,13 @@ abstract class Attachment(val parent: Attachment? = null) {
     }
 
     open fun collectCommands(pipeline: RenderPipeline) {
-        pipeline.onUpdate { updateGlobalMatrix() }
     }
 }
 
 open class RuntimeNode(
     val definition: NodeDefinition,
     parent: Attachment?,
+    private val materialResolver: (Material) -> Material = { it },
 ) : Attachment(parent) {
     val name: String = definition.name ?: parent?.let { "Node_${definition.index}" } ?: "Root"
     var isVisible = true
@@ -41,8 +42,21 @@ open class RuntimeNode(
 
     val attachments = arrayListOf<Attachment>()
 
+    private val baseMorphWeights: FloatArray = definition.mesh
+        ?.primitives
+        ?.firstOrNull()
+        ?.weights
+        ?.copyOf()
+        ?: floatArrayOf()
+
+    val morphWeights: FloatArray = baseMorphWeights.copyOf()
+
+    private val primitiveInstances = definition.mesh?.primitives?.map { primitive ->
+        PrimitiveInstance(primitive, this, materialResolver(primitive.material))
+    }.orEmpty()
+
     val children = definition.children.map {
-        RuntimeNode(it, this)
+        RuntimeNode(it, this, materialResolver)
     }
 
     val jointGetter by lazy {
@@ -51,9 +65,7 @@ open class RuntimeNode(
 
     override fun collectCommands(pipeline: RenderPipeline) {
         super.collectCommands(pipeline)
-        definition.mesh?.primitives?.forEach { primitive ->
-            primitive.setupPipeline(pipeline, { definition.skin!!.compute(globalMatrix, jointGetter) }, ::globalMatrix, ::isVisible)
-        }
+        primitiveInstances.forEach { it.setupPipeline(pipeline) }
         attachments.forEach {
             it.collectCommands(pipeline)
         }
@@ -63,6 +75,17 @@ open class RuntimeNode(
     }
 
     fun child(name: String): RuntimeNode = children.single { it.name == name }
+
+    fun resetPose() {
+        transform.set(definition.baseTransform)
+        baseMorphWeights.copyInto(morphWeights)
+    }
+
+    fun updateHierarchyMatrices() {
+        updateGlobalMatrix()
+        attachments.forEach(Attachment::updateGlobalMatrix)
+        children.forEach(RuntimeNode::updateHierarchyMatrices)
+    }
 }
 
 fun RuntimeNode.walk(): List<RuntimeNode> = buildList {

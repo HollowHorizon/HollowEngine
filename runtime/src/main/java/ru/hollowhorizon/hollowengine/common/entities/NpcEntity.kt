@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import com.mojang.authlib.GameProfile
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
@@ -17,6 +19,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.api.set
 import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
 import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
@@ -24,6 +27,9 @@ import ru.hollowhorizon.hollowengine.common.geary.components.hitboxComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionController
+import ru.hollowhorizon.hollowengine.common.npcs.data.NpcDataStore
+import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
@@ -31,6 +37,7 @@ import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.utils.FakePlayer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.util.UUID
 
 class NpcEntity : PathfinderMob {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
@@ -42,11 +49,25 @@ class NpcEntity : PathfinderMob {
 
     val goals get() = goalSelector
 
-    val fakePlayer: ServerPlayer by lazy {
-        val player = FakePlayer.create(level() as ServerLevel)
-        player.setGameMode(GameType.CREATIVE)
-        player
-    }
+    val actions by lazy { NpcActionController(coroutineScope) }
+    val inventory = NpcInventory()
+    val data = NpcDataStore()
+
+    private var cachedFakePlayer: ServerPlayer? = null
+
+    val fakePlayer: ServerPlayer
+        get() {
+            val level = level() as ServerLevel
+            return cachedFakePlayer?.takeIf { it.level() === level } ?: FakePlayer.create(
+                level,
+                GameProfile(fakePlayerUuid(), "npc_${uuid.toString().take(12)}"),
+            ).also { player ->
+                player.setGameMode(GameType.SURVIVAL)
+                cachedFakePlayer = player
+            }
+        }
+
+    private fun fakePlayerUuid(): UUID = UUID.nameUUIDFromBytes("hollowengine:npc:$uuid".encodeToByteArray())
 
     init {
         setCanPickUpLoot(true)
@@ -95,6 +116,20 @@ class NpcEntity : PathfinderMob {
     override fun removeWhenFarAway(dist: Double) = false
     override fun isPersistenceRequired() = true
 
+    override fun addAdditionalSaveData(compound: CompoundTag) {
+        super.addAdditionalSaveData(compound)
+        compound.put(INVENTORY_KEY, CompoundTag().also { inventory.save(it, registryAccess()) })
+        if (data.isEmpty()) compound.remove(DATA_KEY) else compound.put(DATA_KEY, data.save())
+    }
+
+    override fun readAdditionalSaveData(compound: CompoundTag) {
+        super.readAdditionalSaveData(compound)
+        if (compound.contains(INVENTORY_KEY)) {
+            inventory.load(compound.getCompound(INVENTORY_KEY), registryAccess())
+        }
+        data.load(compound.getCompound(DATA_KEY))
+    }
+
     val pickupDistance get() = pickupReach
 
     var hitboxMode: HitboxMode
@@ -139,11 +174,13 @@ class NpcEntity : PathfinderMob {
 
 
     companion object {
+        private const val INVENTORY_KEY = "NpcInventory"
+        private const val DATA_KEY = "NpcData"
 
         fun createAttributes(): AttributeSupplier.Builder {
             return LivingEntity.createLivingAttributes()
                 .add(Attributes.MAX_HEALTH, 20.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.2)
+                .add(Attributes.MOVEMENT_SPEED, 0.23)
                 .add(Attributes.ARMOR, 0.0)
                 .add(Attributes.ARMOR_TOUGHNESS, 0.0)
                 .add(Attributes.ATTACK_DAMAGE, 1.0)

@@ -163,8 +163,7 @@ class Parser(private val tokens: List<Token>) {
         var expr = parseLogicalOr()
         expr = if (match(Token.Type.QUESTION)) {
             val thenExpr = parseFloatExpr()
-            expect(Token.Type.COLON)
-            val elseExpr = parseFloatExpr()
+            val elseExpr = if (match(Token.Type.COLON)) parseFloatExpr() else NumberLiteral(0f)
             Conditional(FloatToBool(expr), thenExpr, elseExpr)
         } else expr
 

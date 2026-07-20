@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="220" height="140" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <style>
+            .panel {
+                fill: #142033;
+                stroke: #D6E6FF;
+                stroke-width: 3;
+            }
+
+            .route {
+                fill: none;
+                stroke: #FFB95C;
+                stroke-width: 5;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+
+            .pin {
+                fill: #61D6A8;
+                stroke: #FFFFFF;
+                stroke-width: 2;
+            }
+
+            .landmark {
+                fill: #548AF7;
+                stroke: #FFFFFF;
+                stroke-width: 2;
+                stroke-linejoin: round;
+            }
+        </style>
+        <clipPath id="map-window">
+            <rect x="10" y="10" width="200" height="120" rx="14"/>
+        </clipPath>
+        <symbol id="pin" viewBox="0 0 28 36">
+            <path class="pin" d="M14 34 C10 27 4 22 4 13 C4 6.4 8.4 2 14 2 C19.6 2 24 6.4 24 13 C24 22 18 27 14 34 Z"/>
+            <circle cx="14" cy="13" r="5" fill="#142033"/>
+        </symbol>
+    </defs>
+    <g clip-path="url(#map-window)">
+        <rect class="panel" x="10" y="10" width="200" height="120" rx="14"/>
+        <path class="route" d="M34 94 C60 44 92 100 117 58 C139 24 168 40 188 76"/>
+        <polygon class="landmark" points="88 28 115 42 103 70 72 65"/>
+        <use href="#pin" x="24" y="72" width="28" height="36"/>
+        <use href="#pin" x="174" y="54" width="28" height="36" transform="rotate(8 188 72)"/>
+    </g>
+    <rect class="panel" x="10" y="10" width="200" height="120" rx="14" fill="none"/>
+</svg>

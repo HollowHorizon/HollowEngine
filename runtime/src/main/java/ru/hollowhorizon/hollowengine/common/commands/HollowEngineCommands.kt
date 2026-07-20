@@ -5,10 +5,9 @@ import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import com.mojang.brigadier.context.CommandContext
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -18,34 +17,21 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
-import net.minecraft.nbt.TagParser
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.system
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiDisplayMode
-import ru.hollowhorizon.hollowengine.client.ui.scripting.KatariUiOverlays
-import ru.hollowhorizon.hollowengine.client.ui.scripting.ShowKatariUiPacket
 import ru.hollowhorizon.hollowengine.client.utils.mc
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
-import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
@@ -58,10 +44,12 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariRunStatus
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariUiDocument
-import ru.hollowhorizon.hollowengine.common.scripting.katari.getAvailableKatariScripts
-import ru.hollowhorizon.hollowengine.common.scripting.katari.katariUi
+import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.removeNode
+import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
+import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
@@ -77,18 +65,9 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerModelCommands()
             registerLightCommands()
             registerUtilityCommands()
-            registerCodeBlocksCommands()
-            registerKatariCommands()
-            registerUiCommands()
+            registerScriptingCommands()
+            registerAddonCommands()
         }
-    }
-}
-
-@SubscribeEvent
-fun onKatariChat(event: ServerChatEvent) {
-    val server = event.player.server ?: return
-    if (server.runtimeContext.katari.submitChat(event.player, event.message.string)) {
-        event.isCanceled = true
     }
 }
 
@@ -682,292 +661,147 @@ private fun CommandExtension.registerUtilityCommands() {
     }
 }
 
-private fun CommandExtension.registerCodeBlocksCommands() {
-    "codeblocks" {
+private fun CommandExtension.registerScriptingCommands() {
+    "scripting" {
         requires { hasPermission(2) }
 
-        "reload" {
+        "run"(
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            },
+            arg("state", StringArgumentType.string())
+        ) {
             executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                system.reloadScripts()
-                sendSuccess { "CodeBlocks: reloaded scripts".literal }
-            }
-        }
-
-        "list" {
-            executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                if (system.scripts.isEmpty()) {
-                    sendSuccess { "CodeBlocks: no scripts loaded".literal }
-                } else {
-                    sendSuccess { "CodeBlocks scripts:".literal }
-                    system.scripts.keys.sorted().forEach { p ->
-                        source.sendSuccess({ "- $p".literal }, false)
-                    }
+                val path = StringArgumentType.getString(this, "path")
+                if (!isNodeScriptPath(path)) {
+                    return@executes sendFailure(
+                        "hollowengine.commands.scripting_state_requires_node_script".mcTranslate(path)
+                    )
                 }
+                source.server.addNode(
+                    path,
+                    context = StateContext(nextState = StringArgumentType.getString(this, "state"))
+                )
                 SUCCESS
             }
         }
 
-        "start"(arg("path", StringArgumentType.greedyString())) {
+        "run"(
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            },
+        ) {
             executes {
-                val system = BlocksSystemSavedData.get(source.server)
-                system.reloadScripts()
                 val path = StringArgumentType.getString(this, "path")
-                val script = system.scripts[path]
-                if (script == null) {
-                    sendFailure("CodeBlocks: script not found: $path".literal)
-                } else {
-                    script.setEnabled(true)
-                    sendSuccess { "CodeBlocks: enabled $path".literal }
-                }
+                source.server.addNode(path)
+                SUCCESS
             }
         }
 
-        "stop"(arg("path", StringArgumentType.greedyString())) {
+        "stop"(
+            arg("path", StringArgumentType.greedyString()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            }
+        ) {
             executes {
-                val system = BlocksSystemSavedData.get(source.server)
                 val path = StringArgumentType.getString(this, "path")
-                val script = system.scripts[path]
-                if (script == null) {
-                    sendFailure("CodeBlocks: script not found: $path".literal)
-                } else {
-                    script.setEnabled(false)
-                    sendSuccess { "CodeBlocks: disabled $path".literal }
-                }
+                source.server.removeNode(path)
+                SUCCESS
             }
         }
 
-        "dev" {
-            "clear" {
-                executes {
-                    val system = BlocksSystemSavedData.get(source.server)
-                    system.clearDevHistory()
-                    sendSuccess { "CodeBlocks dev history cleared".literal }
-                }
+        "attach"(
+            arg("entity", EntityArgument.entity()),
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
+            },
+            arg("state", StringArgumentType.string())
+        ) {
+            executes {
+                attachEntityNode(
+                    EntityArgument.getEntity(this, "entity"),
+                    StringArgumentType.getString(this, "path"),
+                    StringArgumentType.getString(this, "state"),
+                )
             }
         }
 
-        "vars" {
-            "global" {
-                executes {
-                    printVariables("Global variables", source.server.runtimeContext.scope.variables)
-                }
-
-                "value"(arg("name", StringArgumentType.string())) {
-                    executes {
-                        printVariable(
-                            scopeName = "Global",
-                            map = source.server.runtimeContext.scope.variables,
-                            name = StringArgumentType.getString(this, "name")
-                        )
-                    }
-                }
+        "attach"(
+            arg("entity", EntityArgument.entity()),
+            arg("path", StringArgumentType.string()) {
+                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
             }
+        ) {
+            executes {
+                attachEntityNode(
+                    EntityArgument.getEntity(this, "entity"),
+                    StringArgumentType.getString(this, "path"),
+                    state = null,
+                )
+            }
+        }
+
+        "detach"(
+            arg("entity", EntityArgument.entity()),
+            arg("path", StringArgumentType.greedyString())
+        ) {
+            executes {
+                val entity = EntityArgument.getEntity(this, "entity")
+                val path = StringArgumentType.getString(this, "path")
+                if (EntityNodeRuntime.detach(entity, path)) SUCCESS
+                else sendFailure("Node '$path' is not attached to ${entity.name.string}".literal)
+            }
+        }
+
+        "list" {
+            executes { listServerNodes(source) }
 
             "entity"(arg("entity", EntityArgument.entity())) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val scope = entity.coroutineScope as? OwnerScope
-                        ?: return@executes sendFailure("CodeBlocks: entity ${entity.stringUUID} has no owner scope".literal)
-                    printVariables("Entity ${entity.stringUUID} variables", scope.variables)
-                }
-
-                "value"(arg("name", StringArgumentType.string())) {
-                    executes {
-                        val entity = EntityArgument.getEntity(this, "entity")
-                        val scope = entity.coroutineScope as? OwnerScope
-                            ?: return@executes sendFailure("CodeBlocks: entity ${entity.stringUUID} has no owner scope".literal)
-                        printVariable(
-                            scopeName = "Entity ${entity.stringUUID}",
-                            map = scope.variables,
-                            name = StringArgumentType.getString(this, "name")
-                        )
-                    }
-                }
+                executes { listEntityNodes(source, EntityArgument.getEntity(this, "entity")) }
             }
         }
     }
 }
 
-private fun CommandExtension.registerKatariCommands() {
-    "katari" {
-        requires { hasPermission(2) }
-
-        "run"(arg("path", StringArgumentType.greedyString()) { getAvailableKatariScripts() }) {
-            executes {
-                val path = StringArgumentType.getString(this, "path")
-                val player = runCatching { source.playerOrException }.getOrNull()
-                val result = source.server.runtimeContext.katari.run(path, player)
-                if (result.isSuccess) {
-                    sendSuccess { "Katari script started: $path (${result.getOrThrow()})".literal }
-                } else {
-                    val error = result.exceptionOrNull()
-                    HollowEngine.LOGGER.error("Katari script start failed", error)
-                    sendFailure("Katari script start failed: ${error?.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-
-        "list" {
-            executes {
-                val system = source.server.runtimeContext.katari
-                val runs = system.list()
-                val scripts = getAvailableKatariScripts().sorted()
-                if (scripts.isEmpty()) {
-                    sendSuccess { "No .ktr scripts found in hollowengine/scripts/".literal }
-                } else {
-                    sendSuccess { "Available Katari scripts:".literal }
-                    scripts.forEach { source.sendSuccess({ "- $it".literal }, false) }
-                }
-                if (runs.isEmpty()) {
-                    source.sendSuccess({ "Katari runs: <none>".literal }, false)
-                } else {
-                    source.sendSuccess({ "Katari runs:".literal }, false)
-                    runs.forEach { run ->
-                        val status = when (run.status) {
-                            KatariRunStatus.RUNNING -> "running"
-                            KatariRunStatus.PAUSED -> "paused"
-                            KatariRunStatus.FAILED -> "failed"
-                        }
-                        val suffix = run.error?.let { " - $it" }.orEmpty()
-                        source.sendSuccess({ "- ${run.id} [$status] ${run.path}$suffix".literal }, false)
-                    }
-                }
-                SUCCESS
-            }
-        }
-
-        "stop"(arg("target", StringArgumentType.greedyString()) { listOf("all") }) {
-            executes {
-                val target = StringArgumentType.getString(this, "target")
-                val stopped = source.server.runtimeContext.katari.stop(target)
-                if (stopped == 0) {
-                    sendFailure("Katari run not found: $target".literal)
-                } else {
-                    sendSuccess { "Stopped Katari run(s): $stopped".literal }
-                }
-                SUCCESS
-            }
-        }
-
-        "choose"(
-            arg("run", StringArgumentType.string()),
-            arg("option", StringArgumentType.greedyString())
-        ) {
-            executes {
-                val run = StringArgumentType.getString(this, "run")
-                val option = StringArgumentType.getString(this, "option")
-                if (source.server.runtimeContext.katari.choose(run, option)) {
-                    sendSuccess { "Katari choice selected: $option".literal }
-                } else {
-                    sendFailure("Katari choice is not pending for run: $run".literal)
-                }
-                SUCCESS
-            }
-        }
+private fun com.mojang.brigadier.context.CommandContext<CommandSourceStack>.attachEntityNode(
+    entity: net.minecraft.world.entity.Entity,
+    path: String,
+    state: String?,
+): Int {
+    if (!isNodeScriptPath(path)) {
+        return sendFailure("hollowengine.commands.scripting_state_requires_node_script".mcTranslate(path))
+    }
+    val context = state?.let { StateContext(nextState = it) }
+    return if (EntityNodeRuntime.attach(entity, path, context = context)) {
+        sendSuccess(true) { "Attached node '$path' to ${entity.name.string}".literal }
+    } else {
+        sendFailure("Failed to attach node '$path' to ${entity.name.string}".literal)
     }
 }
 
-private fun CommandExtension.registerUiCommands() {
-    "ui" {
-        requires { hasPermission(2) }
-
-        "open"(
-            arg("path", StringArgumentType.string()),
-            arg("variables", StringArgumentType.greedyString())
-        ) {
-            executes {
-                val path = StringArgumentType.getString(this, "path")
-                val variablesRaw = StringArgumentType.getString(this, "variables")
-                val player = source.playerOrException
-                val variables = parseUiVariables(variablesRaw)
-                runCatching {
-                    katariUi(path).openScreenFromCommand(player, variables)
-                }.onSuccess {
-                    sendSuccess { "UI opened: $path".literal }
-                }.onFailure { error ->
-                    HollowEngine.LOGGER.error("UI open failed", error)
-                    sendFailure("UI open failed: ${error.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-
-        "open"(arg("path", StringArgumentType.string())) {
-            executes {
-                val path = StringArgumentType.getString(this, "path")
-                val player = source.playerOrException
-                runCatching {
-                    katariUi(path).openScreenFromCommand(player, CompoundTag())
-                }.onSuccess {
-                    sendSuccess { "UI opened: $path".literal }
-                }.onFailure { error ->
-                    HollowEngine.LOGGER.error("UI open failed", error)
-                    sendFailure("UI open failed: ${error.message ?: "Unknown error"}".literal)
-                }
-                SUCCESS
-            }
-        }
-
-        "clear-overlays"(arg("player", EntityArgument.player())) {
-            executes {
-                ClearOverlaysPacket().send(EntityArgument.getPlayer(this, "player"))
-                SUCCESS
-            }
-        }
+private fun listServerNodes(source: CommandSourceStack): Int {
+    val paths = source.server.runtimeContext.nodes.paths().sorted()
+    if (paths.isEmpty()) {
+        source.sendFailure("No server nodes are running".literal)
+        return 0
     }
+    source.sendSuccess({ "Server nodes:".literal }, false)
+    paths.forEach { source.sendSuccess({ "- $it".literal }, false) }
+    return paths.size
 }
 
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class ClearOverlaysPacket : HollowPacket {
-    override fun handle(player: Player) {
-        KatariUiOverlays.closeAll()
+private fun listEntityNodes(source: CommandSourceStack, entity: net.minecraft.world.entity.Entity): Int {
+    val paths = EntityNodeRuntime.paths(entity).sorted()
+    if (paths.isEmpty()) {
+        source.sendFailure("No nodes are attached to ${entity.name.string}".literal)
+        return 0
     }
-
+    source.sendSuccess({ "Nodes on ${entity.name.string}:".literal }, false)
+    paths.forEach { source.sendSuccess({ "- $it".literal }, false) }
+    return paths.size
 }
 
-private fun KatariUiDocument.openScreenFromCommand(
-    player: ServerPlayer,
-    variables: CompoundTag,
-) {
-    ShowKatariUiPacket(
-        id = id,
-        root = root,
-        mode = KatariUiDisplayMode.SCREEN,
-        variables = variables,
-    ).send(player)
-}
-
-private fun parseUiVariables(raw: String): CompoundTag {
-    if (raw.isBlank()) return CompoundTag()
-    return TagParser.parseTag(raw)
-}
-
-private fun CommandContext<CommandSourceStack>.printVariables(header: String, map: VariableMap): Int {
-    val entries = map.entries().sortedBy { it.key }
-    if (entries.isEmpty()) {
-        return sendSuccess { "$header: <empty>".literal }
-    }
-
-    sendSuccess { "$header:".literal }
-    entries.forEach { (name, wrapper) ->
-        source.sendSuccess({ "- $name = ${wrapper.describeVariableValue()}".literal }, false)
-    }
-    return 1
-}
-
-private fun CommandContext<CommandSourceStack>.printVariable(scopeName: String, map: VariableMap, name: String): Int {
-    val wrapper = map.entries().firstOrNull { it.key == name }?.value
-        ?: return sendFailure("CodeBlocks: $scopeName variable '$name' not found".literal)
-    return sendSuccess { "$scopeName variable '$name' = ${wrapper.describeVariableValue()}".literal }
-}
-
-private fun CompoundTag.describeVariableValue(): String = get(VariableMap.VALUE_KEY).describeTag()
-
-private fun Tag?.describeTag(): String = this?.toString() ?: "<null>"
+internal fun isNodeScriptPath(path: String): Boolean = path.endsWith(".$NODE_SCRIPT_EXTENSION")
 
 // region Particle Functions
 private fun spawnParticleAtPosition(particleName: String, pos: Vec3) {

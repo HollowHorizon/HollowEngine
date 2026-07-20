@@ -5,8 +5,8 @@ import net.minecraft.world.entity.animal.FlyingAnimal
 import net.minecraft.world.level.block.entity.BlockEntity
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.MOVEMENT_FACTOR
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.MOVEMENT_FACTOR
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.calculateSpeedViaDeltaMovement
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 
 interface Query {
@@ -18,9 +18,16 @@ interface Query {
     val velocity_y: Float get() = 0f
     val velocity_x: Float get() = 0f
     val velocity_z: Float get() = 0f
+
+    /** Vertical speed in blocks per second (same unit convention as [ground_speed]). */
+    val vertical_speed: Float get() = 0f
+    val health: Float get() = 0f
+    val max_health: Float get() = 0f
     val is_flying: Boolean get() = false
     val fall_ticks: Float get() = 0f
     val is_swimming: Boolean get() = false
+    val is_in_water: Boolean get() = false
+    val is_in_water_or_rain: Boolean get() = false
     val is_sitting: Boolean get() = false
     val is_sleeping: Boolean get() = false
     val is_hurt: Boolean get() = false
@@ -46,7 +53,7 @@ interface Query {
 class BlockEntityQuery(val blockEntity: BlockEntity) : Query {
     private val startTime = anim_time
 
-    override val anim_time: Float get() = TickHandler.time
+    override val anim_time: Float get() = TickHandler.gameTime
     override val life_time: Float get() = anim_time - startTime
 }
 
@@ -59,9 +66,14 @@ class LivingEntityQuery(val entity: LivingEntity) : Query {
     override val velocity_x: Float get() = entity.deltaMovement.x.toFloat()
     override val velocity_y: Float get() = entity.deltaMovement.y.toFloat()
     override val velocity_z: Float get() = entity.deltaMovement.z.toFloat()
+    override val vertical_speed: Float get() = entity.deltaMovement.y.toFloat() * 20f
+    override val health: Float get() = entity.health
+    override val max_health: Float get() = entity.maxHealth
     override val is_flying: Boolean get() = entity is FlyingAnimal && entity.isFlying
     override val fall_ticks: Float get() = entity.fallFlyingTicks.toFloat()
     override val is_swimming: Boolean get() = entity.isSwimming
+    override val is_in_water: Boolean get() = entity.isInWater
+    override val is_in_water_or_rain: Boolean get() = entity.isInWaterOrRain
     override val is_sitting: Boolean get() = entity.vehicle != null
     override val is_sleeping: Boolean get() = entity.isSleeping
     override val is_hurt: Boolean get() = entity.hurtTime > 0

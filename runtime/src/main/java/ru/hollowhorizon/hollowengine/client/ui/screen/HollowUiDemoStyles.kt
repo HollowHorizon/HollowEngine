@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
-import ru.hollowhorizon.hollowengine.client.ui.hss.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 
 internal val DemoStyles = compileHss(
     """
@@ -88,6 +88,7 @@ internal val DemoStyles = compileHss(
         gap: 8px;
         padding: 8px;
         height: 48px;
+        width: 100%;
         background: rgba(32, 36, 46, 0.78);
         border-radius: 8px;
     }
@@ -146,7 +147,7 @@ internal val DemoStyles = compileHss(
         size: 72px 72px;
     }
 
-    .canvas-preview {
+    .visual-preview {
         size: 120px 54px;
     }
 
@@ -207,9 +208,183 @@ internal val DemoStyles = compileHss(
         font-size: 9px;
     }
 
+    .textflow-card {
+        size: 354px 172px;
+    }
+
+    .textflow-para {
+        size: 330px 128px;
+        foreground: rgba(226, 230, 238, 0.92);
+        align-items: justify start;
+        line-spacing: 4px;
+        font-size: 10px;
+    }
+
+    .group-slice {
+        background: rgba(90, 166, 154, 0.42);
+        border-radius: 4px;
+        padding: 1px 5px;
+        box-decoration-break: slice;
+        foreground: #eafff9;
+    }
+
+    .group-clone {
+        background: rgba(120, 128, 214, 0.5);
+        border-radius: 5px;
+        padding: 1px 6px;
+        box-decoration-break: clone;
+        foreground: #eef1ff;
+    }
+
+    .textflow-chip {
+        padding: 1px 6px;
+        margin: 0px 3px;
+        background: rgba(90, 120, 200, 0.92);
+        border-radius: 5px;
+    }
+
+    .textflow-chip-label {
+        foreground: white;
+        font-size: 9px;
+        height: 12px;
+    }
+
+    .textflow-caret {
+        size: 2px 12px;
+        margin: 0px 1px;
+        background: #ffd479;
+    }
+
+    .textlab-panel {
+        size: 100% 100%;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .textlab-controls {
+        gap: 10px;
+        height: 20px;
+        align-items: start center;
+    }
+
+    .textlab-toggle {
+        gap: 5px;
+        padding: 2px 6px;
+        background: rgba(40, 46, 58, 0.8);
+        border-radius: 6px;
+        align-items: start center;
+    }
+
+    .textlab-toggle-label {
+        foreground: #c8ddff;
+    }
+
+    .textlab-check {
+        size: 12px 12px;
+        border-radius: 3px;
+    }
+
+    .textlab-hint {
+        foreground: rgba(180, 190, 205, 0.8);
+    }
+
+    .textlab-stage-row {
+        gap: 0px;
+    }
+
+    .textlab-card {
+        gap: 8px;
+        padding: 12px;
+        background: rgba(30, 34, 44, 0.9);
+        border-radius: 10px;
+        border: 1px rgba(120, 140, 170, 0.35);
+    }
+
+    .textlab-handle {
+        size: 8px 100%;
+        min-size: 8px 60px;
+        background: rgba(120, 140, 170, 0.5);
+        border-radius: 4px;
+    }
+
+    .textlab-handle:hover {
+        background: rgba(150, 175, 215, 0.85);
+    }
+
+    .textlab-para {
+        foreground: rgba(226, 230, 238, 0.92);
+        line-spacing: 4px;
+        font-size: 10px;
+    }
+
+    .textlab-section {
+        margin: 6px 0px 0px 0px;
+    }
+
+    .textlab-scroll {
+        size: 360px 70px;
+        padding: 8px;
+        background: rgba(24, 28, 38, 0.9);
+        border-radius: 8px;
+    }
+
+    .textlab-chip {
+        padding: 1px 6px;
+        margin: 0px 3px;
+        background: rgba(90, 120, 200, 0.92);
+        border-radius: 5px;
+    }
+
+    .textlab-chip-label {
+        foreground: white;
+        font-size: 9px;
+    }
+
+    .fx-big {
+        font-size: 16px;
+        foreground: #ffd479;
+    }
+
+    .fx-bold {
+        text-effects: bold;
+    }
+
+    .fx-italic {
+        text-effects: italic;
+        foreground: #a9d0ff;
+    }
+
+    .fx-underline {
+        text-effects: underline;
+    }
+
+    .fx-strike {
+        text-effects: strikethrough;
+        foreground: rgba(226, 230, 238, 0.7);
+    }
+
+    .fx-wave {
+        text-effects: wave;
+        foreground: #7fe0c0;
+    }
+
+    .fx-shake {
+        text-effects: shake;
+        foreground: #ff9d7f;
+    }
+
+    .fx-rainbow {
+        text-effects: rainbow;
+    }
+
+    .fx-msdf {
+        font-family: hollowengine:fonts/hack;
+        foreground: #ffd479;
+    }
+
     .popup-anchor {
         padding: 7px 12px;
-        width: 136px;
+        width: 156px;
         height: 28px;
         background: rgba(72, 150, 142, 0.96);
         border-radius: 7px;
@@ -223,7 +398,7 @@ internal val DemoStyles = compileHss(
     .popup-panel {
         gap: 4px;
         padding: 9px;
-        size: 154px auto;
+        size: 176px auto;
         background: rgba(244, 248, 255, 0.96);
         foreground: rgba(26, 34, 48, 0.98);
         border-radius: 8px;
@@ -232,7 +407,7 @@ internal val DemoStyles = compileHss(
     }
 
     .cursor-popup {
-        size: 150px auto;
+        size: 172px auto;
     }
 
     .popup-title {
@@ -337,6 +512,21 @@ internal val DemoStyles = compileHss(
         height: 16px;
     }
 
+    .code-editor-inlay {
+        height: fit;
+        padding: 0px 3px;
+        align-items: center center;
+        background: #1E1F22;
+        margin-left: 2px;
+        margin-right: 4px;
+        border-radius: 3px;
+    }
+
+    .code-editor-inlay-text {
+        foreground: rgba(142, 153, 171, 0.9);
+        text-wrap: false;
+    }
+
     .lazy-column-card {
         size: 260px 268px;
     }
@@ -344,8 +534,6 @@ internal val DemoStyles = compileHss(
     .lazy-column-demo {
         size: 100% 216px;
         min-size: 0px 0px;
-        gap: 5px;
-        scrollable: true;
         clip: true;
     }
 
@@ -370,8 +558,6 @@ internal val DemoStyles = compileHss(
     .lazy-row-demo {
         size: 100% 88px;
         min-size: 0px 0px;
-        gap: 8px;
-        scrollable: true;
         clip: true;
     }
 
@@ -530,6 +716,65 @@ internal val DemoStyles = compileHss(
 
     .soft-body {
         foreground: rgba(250, 252, 255, 0.94);
+    }
+
+    .shapes-stage {
+        size: 100% 100%;
+        min-size: 0px 0px;
+        scrollable: true;
+        background: linear-gradient(135deg, rgba(12, 16, 24, 0.98), rgba(26, 34, 46, 0.94), rgba(22, 50, 54, 0.92));
+        border-radius: 10px;
+    }
+
+    .shape-card {
+        gap: 8px;
+        padding: 12px;
+        size: 188px 126px;
+        foreground: rgba(238, 244, 252, 0.96);
+    }
+
+    .hss-path-card {
+        padding: 24px 12px 12px 32px;
+        shape: path("M 0 0 L 188 0 C 176 32 190 72 156 126 L 0 126 Q 24 64 0 0 Z", 188 126);
+        shape-fill: radial-gradient(72% at 32% 28%, rgba(92, 204, 190, 0.98), rgba(58, 86, 156, 0.96), rgba(28, 32, 52, 0.94));
+        shape-stroke: rgba(224, 246, 255, 0.74);
+        shape-stroke-width: 2px;
+    }
+
+    .shape-label {
+        foreground: rgba(244, 248, 255, 0.98);
+        height: 16px;
+    }
+
+    .shape-clip-card {
+        padding: 0px;
+    }
+
+    .shape-clip-stripe {
+        border-radius: 0px;
+    }
+
+    .shape-clip-stripe-a {
+        background: rgba(255, 255, 255, 0.24);
+    }
+
+    .shape-clip-stripe-b {
+        background: linear-gradient(90deg, rgba(255, 230, 128, 0.72), rgba(255, 122, 154, 0.52));
+    }
+
+    .shape-clip-stripe-c {
+        background: rgba(18, 26, 44, 0.34);
+    }
+
+    .svg-file-hexagon {
+        shape: svg("hollowengine:ui/shapes/hexagon.svg");
+        shape-fill: linear-gradient(135deg, rgba(255, 206, 94, 0.88), rgba(92, 204, 190, 0.86), rgba(58, 86, 156, 0.92));
+        shape-stroke: rgba(242, 250, 255, 0.82);
+        shape-stroke-width: 2px;
+    }
+
+    .svg-clip-card {
+        padding: 0px;
     }
     """.trimIndent()
 )

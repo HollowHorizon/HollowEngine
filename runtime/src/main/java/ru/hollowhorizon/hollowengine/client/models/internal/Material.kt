@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-import de.fabmax.kool.util.Color
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 data class Material(
@@ -11,7 +11,7 @@ data class Material(
     var normalTexture: ResourceLocation = MISSING_NORMAL,
     var specularTexture: ResourceLocation = MISSING_SPECULAR,
     var doubleSided: Boolean = false,
-    var blend: Blend = Blend.OPAQUE
+    var blend: Blend = Blend.OPAQUE,
 ) {
     enum class Blend { OPAQUE, BLEND }
 

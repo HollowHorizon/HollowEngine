@@ -8,13 +8,11 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
-import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.FloatExpr
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.FloatVec3Expr
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.parseMolangExpression
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TreeMap
-
 
 
 @Serializable
@@ -102,7 +100,7 @@ data class Keyframe(
     val pre: FloatVec3Expr,
     val post: FloatVec3Expr,
     /** Sections around the keyframe are interpolated using Catmull-Rom splines instead of linear interpolation. */
-    val smooth: Interpolation,
+    val smooth: String,
 )
 
 internal class KeyframesSerializer : KSerializer<Keyframes> {
@@ -139,15 +137,9 @@ internal object KeyframeSerializer : KSerializer<Keyframe> {
             val pre = get("pre")?.parseMolangVector()
             val post = get("post")!!.parseMolangVector()
             val smooth = get("lerp_mode")?.jsonPrimitive?.contentOrNull
-            val interpolation = when (smooth) {
-                "catmullrom" -> Interpolation.CATMULLROM
-                "linear" -> Interpolation.LINEAR
-                "step" -> Interpolation.STEP
-                else -> Interpolation.LINEAR
-            }
-            Keyframe(pre ?: post, post, interpolation)
+            Keyframe(pre ?: post, post, smooth ?: "linear")
         } else {
-            parseMolangVector().let { Keyframe(it, it, Interpolation.LINEAR) }
+            parseMolangVector().let { Keyframe(it, it, "linear") }
         }
     }
 }

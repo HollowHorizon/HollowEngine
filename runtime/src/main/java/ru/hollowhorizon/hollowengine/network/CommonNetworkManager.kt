@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.NetworkManager
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.network.HollowAddonPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.ByteBufFormat
@@ -46,6 +47,8 @@ object CommonNetworkManager : NetworkManager {
 
     internal fun init(manager: NetworkManager) {
         this.manager = manager
+        registerClient(AddonPacketPayload.TYPE, AddonPacketPayload.CODEC, HollowAddonPacketRegistry::dispatchClient)
+        registerServer(AddonPacketPayload.TYPE, AddonPacketPayload.CODEC, HollowAddonPacketRegistry::dispatchServer)
     }
 
     fun <T : HollowPacket> registerPacket(type: Class<T>) {
@@ -97,7 +100,32 @@ object CommonNetworkManager : NetworkManager {
         }
     }
 
+    fun sendAddonToServer(packet: HollowAddonPacket) {
+        val connection = Minecraft.getInstance().connection
+        if (connection != null) connection.send(HollowAddonPacketRegistry.encodeForServer(packet).toVanilla(false))
+    }
+
+    fun sendAddonToClient(player: ServerPlayer, packet: HollowAddonPacket) {
+        if (player.hasDisconnected()) return
+        val vanillaPacket = HollowAddonPacketRegistry.encodeForClient(packet).toVanilla(true)
+
+        player.server.coroutineScope.launch {
+            while (player.connection == null && !player.hasDisconnected()) {
+                yield()
+            }
+            if (!player.hasDisconnected()) {
+                player.connection.send(vanillaPacket)
+            } else {
+                HollowEngine.LOGGER.warn("Player ${player.name.string} removed, but addon packet still trying to send")
+            }
+        }
+    }
+
     private fun HollowPacket.toVanilla(toClient: Boolean): Packet<*> =
+        if (toClient) ClientboundCustomPayloadPacket(this)
+        else ServerboundCustomPayloadPacket(this)
+
+    private fun AddonPacketPayload.toVanilla(toClient: Boolean): Packet<*> =
         if (toClient) ClientboundCustomPayloadPacket(this)
         else ServerboundCustomPayloadPacket(this)
 
@@ -105,6 +133,15 @@ object CommonNetworkManager : NetworkManager {
         val chunkCache = entity.level().chunkSource
         if (chunkCache is ServerChunkCache) {
             chunkCache.broadcastAndSend(entity, packet.toVanilla(true))
+        } else {
+            throw IllegalStateException("Cannot send clientbound payloads on the client")
+        }
+    }
+
+    fun sendAddonTrackingEntity(entity: Entity, packet: HollowAddonPacket) {
+        val chunkCache = entity.level().chunkSource
+        if (chunkCache is ServerChunkCache) {
+            chunkCache.broadcastAndSend(entity, HollowAddonPacketRegistry.encodeForClient(packet).toVanilla(true))
         } else {
             throw IllegalStateException("Cannot send clientbound payloads on the client")
         }

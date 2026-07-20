@@ -26,6 +26,7 @@ inline fun drawWithShader(
     val accessor = shader as ShaderInstanceAccessor
 
     state.setupRenderState()
+    RenderSystem.setShader { shader }
     shader.setDefaultUniforms(
         VertexFormat.Mode.TRIANGLES,
         RenderSystem.getModelViewMatrix(),

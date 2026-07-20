@@ -9,4 +9,5 @@ data class ScriptClassProvider(
     val extension: String,
     val baseClass: String,
     val defaultImports: List<String> = emptyList(),
+    val implicitReceivers: List<KClass<*>> = emptyList()
 )

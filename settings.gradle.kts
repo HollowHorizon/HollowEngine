@@ -26,7 +26,6 @@ pluginManagement {
         id("dev.architectury.loom") version architecturyLoomVersion
         id("com.gradleup.shadow") version shadowVersion
         id("me.fallenbreath.yamlang") version yamlangVersion
-        id("com.google.devtools.ksp") version "2.3.0"
         id("me.modmuss50.mod-publish-plugin") version modPublishPluginVersion
     }
 }
@@ -39,7 +38,21 @@ include("bootstrap:fabric")
 include("bootstrap:neoforge")
 include("runtime")
 include("bridge")
-include("katari-binding-processor")
+
+val addonsDirectory = file("addons")
+if (addonsDirectory.isDirectory) {
+    addonsDirectory.walkTopDown()
+        .filter { it.isFile && it.name == "build.gradle.kts" }
+        .map { it.parentFile }
+        .forEach { addonDirectory ->
+            val projectPath = addonDirectory.relativeTo(rootDir)
+                .invariantSeparatorsPath
+                .split('/')
+                .joinToString(separator = ":", prefix = ":")
+            include(projectPath)
+            project(projectPath).projectDir = addonDirectory
+        }
+}
 
 project(":bootstrap").buildFileName = "parent.gradle.kts"
 project(":bootstrap:fabric").projectDir = file("bootstrap-fabric")

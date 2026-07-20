@@ -18,9 +18,13 @@ interface SerializerProvider {
     fun serializer(): KSerializer<*>
 }
 
+interface ReloadableConfigValue {
+    fun replaceFrom(value: Any?): Boolean
+}
+
 open class ObservableCollection<E>(
     val original: MutableCollection<E>, val onChange: () -> Unit, protected val elementSerializer: KSerializer<E>,
-) : MutableCollection<E>, SerializerProvider {
+) : MutableCollection<E>, SerializerProvider, ReloadableConfigValue {
     override fun iterator(): MutableIterator<E> = ObservableIterator()
 
     override fun add(element: E): Boolean {
@@ -70,6 +74,16 @@ open class ObservableCollection<E>(
     @OptIn(InternalSerializationApi::class)
     override fun serializer(): KSerializer<*> {
         return ListSerializer(elementSerializer)
+    }
+
+    override fun replaceFrom(value: Any?): Boolean {
+        if (value !is Collection<*>) return false
+
+        @Suppress("UNCHECKED_CAST")
+        val values = value as Collection<E>
+        original.clear()
+        original.addAll(values)
+        return true
     }
 
     inner class ObservableIterator : MutableIterator<E> {
@@ -261,7 +275,7 @@ open class ObservableMap<K : Any, V : Any>(
     val onChange: () -> Unit,
     protected val keyType: KSerializer<K>,
     protected val valueType: KSerializer<V>,
-) : MutableMap<K, V>, SerializerProvider {
+) : MutableMap<K, V>, SerializerProvider, ReloadableConfigValue {
     override val keys: MutableSet<K>
         get() = ObservableSet(original.keys, onChange, keyType)
     override val values: MutableCollection<V>
@@ -305,5 +319,15 @@ open class ObservableMap<K : Any, V : Any>(
 
     override fun serializer(): KSerializer<*> {
         return MapSerializer(keyType, valueType)
+    }
+
+    override fun replaceFrom(value: Any?): Boolean {
+        if (value !is Map<*, *>) return false
+
+        @Suppress("UNCHECKED_CAST")
+        val entries = value as Map<K, V>
+        original.clear()
+        original.putAll(entries)
+        return true
     }
 }

@@ -37,12 +37,19 @@ val isLogicalClient get() = isPhysicalClient && RenderSystem.isOnRenderThread()
  */
 var isPhysicalClient = false
 
-val RANDOM = RandomSource.create()
+val RANDOM: RandomSource
+    get() = RandomSourceHolder.INSTANCE
+
+private object RandomSourceHolder {
+    val INSTANCE: RandomSource = RandomSource.create()
+}
 
 /**
  * Stores the current Minecraft server instance.
  */
 lateinit var currentServer: MinecraftServer
+
+fun currentServerOrNull(): MinecraftServer? = if (::currentServer.isInitialized) currentServer else null
 
 /**
  * Converts a string to a Minecraft resource location.

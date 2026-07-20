@@ -21,7 +21,7 @@ fun ItemStack.areItemsEqual(with: ItemStack): Boolean {
 }
 
 /**
- * Checks if two ItemStacks are completely identical, including NBT tags.
+ * Checks if two ItemStacks have the same item and data components.
  *
  * @param with The ItemStack to compare with.
  * @return `true` if both stacks are identical, otherwise `false`.

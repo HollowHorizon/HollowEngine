@@ -1,0 +1,46 @@
+.dock-stack,
+.dock-window {
+    background: #1E1F22;
+}
+
+.dock-splitter {
+    background: #1E1F22;
+}
+
+.dock-tab {
+    background: #1E1F22;
+    border-radius: 4px;
+    align: start center;
+    transition:
+            background 120ms ease-out,
+            foreground 120ms ease-out,
+            translate 140ms ease-out,
+}
+
+.dock-tab:hover {
+    background: #31343D;
+}
+
+.dock-tab.selected {
+    background: #24272E;
+}
+
+.dock-tab:dragging {
+    transition: none;
+}
+
+.dock-content {
+    background: #1E1F22;
+}
+
+.dock-close-button {
+    foreground: #8d96a8;
+    transition:
+            foreground 100ms ease-out,
+            background 100ms ease-out;
+}
+
+.dock-close-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    foreground: #ffffff;
+}

@@ -8,6 +8,8 @@ import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 public final class BootstrapRuntimeManager {
@@ -40,9 +42,18 @@ public final class BootstrapRuntimeManager {
 
         try {
             File runtimeJar = resolveRuntimeJar();
+            File hollowEngineDirectory = new File("hollowengine");
+            AddonBootstrapLibraries.Result addonLibraries = AddonBootstrapLibraries.discover(
+                    new File(hollowEngineDirectory, "addons"),
+                    new File(hollowEngineDirectory, ".cache"),
+                    LOGGER
+            );
+            List<URL> runtimeClasspath = new ArrayList<>();
+            runtimeClasspath.add(runtimeJar.toURI().toURL());
+            runtimeClasspath.addAll(addonLibraries.urls());
 
             ChildFirstUrlClassLoader loader = new ChildFirstUrlClassLoader(
-                    new URL[]{runtimeJar.toURI().toURL()},
+                    runtimeClasspath.toArray(URL[]::new),
                     RuntimeBridge.class.getClassLoader(),
                     PARENT_FIRST_PACKAGES,
                     RuntimeClassTransformers.createDefault()

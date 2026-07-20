@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.deg
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.common.geary.components.*
@@ -17,7 +17,10 @@ class AnimatorRuntime {
     fun apply(
         animator: AnimatorComponent,
         rootNodes: List<RuntimeNode>,
-        animations: Map<String, Animation>,
+        runtimeNodes: Map<Int, RuntimeNode> = rootNodes
+            .flatMap { it.walk() }
+            .associateBy { it.definition.index },
+        animations: Map<String, AnimationClip>,
         context: AnimatorEvaluationContext,
     ) {
         if (!animator.enabled || animator.layers.isEmpty()) {
@@ -27,8 +30,6 @@ class AnimatorRuntime {
 
         ensureMaskCache(rootNodes)
         retainLayerStates(animator.layers.map { it.id }.toSet())
-        val runtimeNodes = rootNodes.flatMap { it.walk() }.associateBy { it.definition.index }
-
         animator.layers
             .asSequence()
             .sortedBy { it.priority }
@@ -63,7 +64,6 @@ class AnimatorRuntime {
                     )
 
                     is ProceduralLayerSpec -> LayerSample(sampleProceduralLayer(layer, rootNodes, allowedNodes, layerContext))
-                    is MaterialOverrideLayerSpec -> null
                 } ?: return@forEach
                 val finalWeight = weight * sample.weightScale
                 if (finalWeight <= 0f) return@forEach
@@ -79,10 +79,14 @@ class AnimatorRuntime {
 
     fun stateFor(layerId: String): LayerRuntimeState? = layerStates[layerId]
 
+    fun clear() {
+        layerStates.clear()
+    }
+
     private fun sampleClipLayer(
         layer: ClipAnimationLayerSpec,
         state: LayerRuntimeState,
-        animations: Map<String, Animation>,
+        animations: Map<String, AnimationClip>,
         allowedNodes: Set<Int>,
         context: AnimatorEvaluationContext,
     ): LayerSample? {
@@ -97,7 +101,7 @@ class AnimatorRuntime {
     private fun sampleControllerLayer(
         layer: AnimationControllerLayerSpec,
         state: LayerRuntimeState,
-        animations: Map<String, Animation>,
+        animations: Map<String, AnimationClip>,
         allowedNodes: Set<Int>,
         context: AnimatorEvaluationContext,
     ): LayerSample? {
@@ -140,7 +144,7 @@ class AnimatorRuntime {
     private fun sampleControllerState(
         spec: AnimationControllerStateSpec,
         state: LayerRuntimeState,
-        animations: Map<String, Animation>,
+        animations: Map<String, AnimationClip>,
         allowedNodes: Set<Int>,
         context: AnimatorEvaluationContext,
     ): AnimationPose {

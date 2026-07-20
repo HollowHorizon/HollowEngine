@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.utils.math
 
-import de.fabmax.kool.math.*
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix3f
 import org.joml.Matrix4f

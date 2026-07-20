@@ -1,16 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
-import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptSystem
-
-interface ServerRuntimeContextProvider {
-    val `hollowengine$serverRuntimeContext`: ServerRuntimeContext
-}
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeManager
 
 class ServerRuntimeContext(
     private val server: MinecraftServer,
@@ -19,27 +13,23 @@ class ServerRuntimeContext(
         server.dispatcher + SupervisorJob(server.coroutineScope.coroutineContext[Job]),
         ::markDirty,
     )
-    val katari = KatariScriptSystem(server, CoroutineScope(Dispatchers.IO + SupervisorJob(server.coroutineScope.coroutineContext[Job])), ::markDirty)
+    val nodes = NodeManager(server)
 
     private var dirty = false
 
     fun serialize(tag: CompoundTag) {
         tag.put("scope", CompoundTag().also(scope::serialize))
-        katari.serialize(tag)
+        tag.put("nodes", CompoundTag().also(nodes::serialize))
     }
 
     fun deserialize(tag: CompoundTag) {
         scope.deserialize(tag.getCompound("scope"))
-        katari.deserialize(tag)
+        nodes.deserialize(tag.getCompound(if (tag.contains("nodes")) "nodes" else "components"))
         dirty = false
     }
 
-    fun startLoaders() {
-        katari.startServerLoaders()
-    }
-
     fun dispose() {
-        katari.dispose()
+        nodes.dispose()
         scope.cancelAll()
     }
 

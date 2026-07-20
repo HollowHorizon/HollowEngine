@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.config.PropertyComment
 import ru.hollowhorizon.hollowengine.common.config.PropertyName
 import ru.hollowhorizon.hollowengine.common.config.PropertyRange
 import ru.hollowhorizon.hollowengine.common.config.PropertyValidValues
+import ru.hollowhorizon.hollowengine.common.utils.ReloadableConfigValue
 import ru.hollowhorizon.hollowengine.common.utils.SerializerProvider
 import ru.hollowhorizon.hollowengine.common.utils.toml.toml
 import kotlin.properties.ReadWriteProperty
@@ -102,7 +103,18 @@ class ConfigProperty<T>(
                 )
                 return false
             }
-            _value = decoded
+            val reloadableValue = _value as? ReloadableConfigValue
+            if (reloadableValue != null && !reloadableValue.replaceFrom(decoded)) {
+                HollowEngine.LOGGER.warn(
+                    "Deserialized value for property '{}' cannot replace its observable container. Value unchanged.",
+                    name
+                )
+                return false
+            }
+
+            if (reloadableValue == null) {
+                _value = decoded
+            }
             isCacheValid = false
             return true
         } catch (e: Exception) {

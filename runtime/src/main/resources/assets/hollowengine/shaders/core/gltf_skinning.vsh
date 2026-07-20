@@ -1,6 +1,6 @@
 #version 330 core
 
-layout (location = 0) in vec4 joint;
+layout (location = 0) in ivec4 joint;
 layout (location = 1) in vec4 weight;
 layout (location = 2) in vec3 position;
 layout (location = 3) in vec3 normal;
@@ -46,10 +46,10 @@ void main() {
         }
     }
 
-    int jx = int(joint.x) * 4;
-    int jy = int(joint.y) * 4;
-    int jz = int(joint.z) * 4;
-    int jw = int(joint.w) * 4;
+    int jx = joint.x * 4;
+    int jy = joint.y * 4;
+    int jz = joint.z * 4;
+    int jw = joint.w * 4;
 
     mat4 skinMatrix = weight.x * mat4(
     texelFetch(jointMatrices, jx),
@@ -76,9 +76,17 @@ void main() {
     vec4 skinnedPos = skinMatrix * vec4(morphedPos, 1.0);
     outPosition = skinnedPos.xyz / skinnedPos.w;
 
-    mat3 normalMatrix = transpose(inverse(mat3(skinMatrix)));
-    outNormal = normalize(normalMatrix * morphedNor);
+    mat3 linearMatrix = mat3(skinMatrix);
+    mat3 normalMatrix = transpose(inverse(linearMatrix));
 
-    outTangent.xyz = normalize(normalMatrix * morphedTan);
-    outTangent.w = tangent.w;
+    vec3 skinnedNormal = normalize(normalMatrix * morphedNor);
+
+    vec3 skinnedTangent = linearMatrix * morphedTan;
+    skinnedTangent = normalize(
+        skinnedTangent -
+        skinnedNormal * dot(skinnedNormal, skinnedTangent)
+    );
+
+    outNormal = skinnedNormal;
+    outTangent = vec4(skinnedTangent, tangent.w);
 }

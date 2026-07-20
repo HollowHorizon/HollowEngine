@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
@@ -17,6 +15,7 @@ import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -64,6 +63,7 @@ fun npc(
     transform: Transform = Transform(),
     showName: Boolean = true,
     inverseHeadRotation: Boolean = false,
+    inventorySize: Int = NpcInventory.DEFAULT_SIZE,
 ): NpcEntity {
     assert(model.isValidRL()) {
         "Non [a-z0-9/._-] character in path of location: $model"
@@ -74,6 +74,7 @@ fun npc(
         ?: throw IllegalStateException("Dimension $world is not loaded!")
 
     return NpcEntity(level).apply {
+        inventory.resize(inventorySize)
         setPos(pos.x, pos.y, pos.z)
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 

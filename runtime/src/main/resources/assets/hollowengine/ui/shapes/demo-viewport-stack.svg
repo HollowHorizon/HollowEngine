@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="220" height="140" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <style>
+            .frame {
+                fill: #111827;
+                stroke: #9FB6D8;
+                stroke-width: 3;
+            }
+
+            .preview {
+                fill: #294566;
+                stroke: #61D6A8;
+                stroke-width: 2;
+            }
+
+            .wave {
+                fill: none;
+                stroke: #FFCE5C;
+                stroke-width: 4;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+
+            .label {
+                fill: #FFFFFF;
+                font-family: "JetBrains Mono";
+                font-size: 16px;
+            }
+        </style>
+        <filter id="stack-shadow">
+            <feDropShadow dx="4" dy="5" stdDeviation="2"/>
+        </filter>
+    </defs>
+    <g transform="translate(10 12)" filter="url(#stack-shadow)">
+        <rect class="frame" x="0" y="0" width="194" height="108" rx="12"/>
+        <image x="14" y="16" width="76" height="56" href="hollowengine:textures/gui/icons/graph.svg"/>
+        <foreignObject x="106" y="16" width="70" height="56"/>
+        <rect class="preview" x="106" y="16" width="70" height="56" rx="8"/>
+        <path class="wave" d="M20 88 C50 66 73 105 103 82 C130 61 150 91 178 75"/>
+        <text class="label" x="118" y="51">UI</text>
+    </g>
+</svg>

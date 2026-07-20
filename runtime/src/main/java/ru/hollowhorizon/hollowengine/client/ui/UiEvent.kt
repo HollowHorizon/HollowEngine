@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.client.ui.hss.parseHssSelector
+import ru.hollowhorizon.hollowengine.client.ui.style.parseHssSelector
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 
 enum class UiEventKind {
     INIT,
@@ -19,6 +20,28 @@ enum class UiEventKind {
     KEY_PRESSED,
     FOCUS,
     UNFOCUS;
+
+    val isPointerEvent: Boolean
+        get() = when (this) {
+            ENTER,
+            EXIT,
+            HOVER,
+            PRESS,
+            CLICK,
+            RELEASE,
+            DRAG,
+            SCROLL,
+                -> true
+
+            INIT,
+            UPDATE,
+            CLOSE,
+            CHAR_TYPED,
+            KEY_PRESSED,
+            FOCUS,
+            UNFOCUS,
+                -> false
+        }
 
     val attributeName: String
         get() = name.lowercase().split('_').joinToString("-")
@@ -55,6 +78,8 @@ data class UiEvent(
     val y: Float = 0f,
     val localX: Float = 0f,
     val localY: Float = 0f,
+    val width: Float = 0f,
+    val height: Float = 0f,
     val parentLocalX: Float = localX,
     val parentLocalY: Float = localY,
     val parentWidth: Float = 0f,
@@ -64,11 +89,17 @@ data class UiEvent(
     val ancestorLocalPositions: Map<String, UiVec3> = emptyMap(),
     val deltaX: Float = 0f,
     val deltaY: Float = 0f,
+    val dragTotalX: Float = 0f,
+    val dragTotalY: Float = 0f,
     val scrollX: Float = 0f,
     val scrollY: Float = 0f,
+    /** Wheel input before it is routed to the scrollable axes of the target container. */
+    val rawScrollX: Float = scrollX,
+    val rawScrollY: Float = scrollY,
     val key: Int = 0,
     val scanCode: Int = 0,
     val modifiers: Int = 0,
+    val repeat: Boolean = false,
     val codePoint: Int = 0,
     val released: Boolean = false,
 ) {
@@ -77,8 +108,6 @@ data class UiEvent(
 
     var changed: Boolean = false
         private set
-
-    var variables: CompoundTag = CompoundTag()
 
     fun consume() {
         consumed = true
@@ -96,16 +125,18 @@ data class UiEvent(
         val normalized = path.removePrefix("it.").removePrefix("event.")
         return when (normalized) {
             "kind" -> kind.name.lowercase()
+            "repeat" -> repeat
             "node.id", "id" -> node.id.orEmpty()
             "node.type", "type" -> node.type
             "node.value", "value" -> node.readWidgetValue()
-            "node.checked", "checked" -> (node as? CheckboxNode)?.checked
-            "node.text", "text" -> (node as? TextFieldNode)?.value ?: (node as? TextNode)?.text?.template
+            "node.text", "text" -> node.spanText().ifEmpty { null }
             "button" -> button
             "x" -> x
             "y" -> y
             "localX", "local-x" -> localX
             "localY", "local-y" -> localY
+            "width" -> width
+            "height" -> height
             "parentLocalX", "parent-local-x" -> parentLocalX
             "parentLocalY", "parent-local-y" -> parentLocalY
             "parentWidth", "parent-width" -> parentWidth
@@ -114,6 +145,8 @@ data class UiEvent(
             "rootLocalY", "root-local-y" -> rootLocalY
             "deltaX", "delta-x" -> deltaX
             "deltaY", "delta-y" -> deltaY
+            "rawScrollX", "raw-scroll-x" -> rawScrollX
+            "rawScrollY", "raw-scroll-y" -> rawScrollY
             "isReleased", "released" -> released
             else -> null
         }
@@ -131,13 +164,17 @@ data class UiEvent(
     }
 }
 
+fun UiEvent.isLeftClick(): Boolean = button == 0
+fun UiEvent.isRightClick(): Boolean = button == 1
+fun UiEvent.isMiddleClick(): Boolean = button == 2
+
 private fun UiNode.readWidgetValue(): Any? = when (this) {
-    is SliderNode -> value
-    is CheckboxNode -> checked
-    is TextFieldNode -> value
-    is TextNode -> text.template
+    is SpanNode -> text
     else -> attributes["value"]
 }
+
+private fun UiNode.spanText(): String =
+    if (this is SpanNode) text else children.joinToString("") { it.spanText() }
 
 fun interface UiEventSink {
     fun emit(payload: CompoundTag)
@@ -149,22 +186,30 @@ fun interface UiEventSink {
 
 fun UiNode.dispatch(event: UiEvent): Boolean {
     var handled = false
-    modifiers.flattenModifiers().forEach { modifier ->
+    // Key events go to onKeyInput handlers first, ordered by priority; each may consume the
+    // event to stop lower-priority handlers (including built-in widget keymaps).
+    if (event.kind == UiEventKind.KEY_PRESSED) {
+        val keyInput = UiKeyInput(event)
+        val keyHandlers = resolvedModifiers
+            .filterIsInstance<KeyInputModifier>()
+            .sortedByDescending { it.priority }
+        for (modifier in keyHandlers) {
+            if (event.consumed) break
+            handled = true
+            modifier.handler(keyInput)
+        }
+    }
+    resolvedModifiers.forEach { modifier ->
         if (event.consumed) return@forEach
         when (modifier) {
             is EventModifier -> if (modifier.kind == event.kind) {
                 handled = true
-                modifier.handler(event)
+                if (event.kind.isPointerEvent) modifier.onPointerEvent(event) else modifier.handler(event)
             }
 
-            is KeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED) {
+            is PointerInputModifierNode -> if (event.kind.isPointerEvent) {
                 handled = true
-                if (modifier.handler(UiKeyInput(event))) event.consume()
-            }
-
-            TextFieldDefaultKeyInputModifier -> if (event.kind == UiEventKind.KEY_PRESSED && this is TextFieldNode) {
-                handled = true
-                if (handleDefaultTextFieldKeyInput(UiKeyInput(event))) event.consume()
+                modifier.onPointerEvent(event)
             }
 
             else -> Unit

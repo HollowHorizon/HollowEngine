@@ -3,5 +3,7 @@
   "execute": "Execute",
   "filter": "Filter:",
   "filter_hint": "Text or Regex",
-  "level": "Level:"
+  "level": "Level:",
+  "auto_scroll": "Auto-scroll",
+  "empty": "No log messages match the current filter"
 }

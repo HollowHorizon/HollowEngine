@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.particles.collision
 
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.core.Direction
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.AABB

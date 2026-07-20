@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.models.bedrock
 
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.util.Color
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -13,6 +11,8 @@ import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.nbt.SnakeAsUpperCaseSerializer
 
 @Serializable
@@ -60,6 +60,8 @@ class BedrockFile(
         val uv: Uvs,
         val mirror: Boolean? = null,
         val inflate: Float = 0f,
+        val pivot: Vec3f = Vec3f.ZERO,
+        val rotation: Vec3f = Vec3f.ZERO,
     )
 
     @Serializable(with = UvsSerializer::class)

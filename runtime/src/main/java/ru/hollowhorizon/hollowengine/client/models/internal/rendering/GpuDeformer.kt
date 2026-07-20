@@ -4,10 +4,11 @@ import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.*
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfMesh
 import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
-import ru.hollowhorizon.hollowengine.client.models.internal.SkinGetter
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.VboWrapper
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.toFloatBuffer
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.PrimitiveInstance
+import ru.hollowhorizon.hollowengine.common.utils.math.Mat4f
 import kotlin.math.min
 
 class GpuDeformer(private val primitive: Primitive) {
@@ -176,14 +177,14 @@ class GpuDeformer(private val primitive: Primitive) {
         return textureId
     }
 
-    fun compute(node: SkinGetter) {
+    fun compute(instance: PrimitiveInstance) {
         val shaderId: Int
 
         if (primitive.hasSkinning) {
             shaderId = HollowModelManager.glProgramSkinning
             GL20.glUseProgram(shaderId)
 
-            updateJointMatrices(node)
+            updateJointMatrices(instance.skinMatrices())
 
             GL13.glActiveTexture(GL13.GL_TEXTURE0)
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, jointMatrixTexture)
@@ -193,7 +194,7 @@ class GpuDeformer(private val primitive: Primitive) {
             GL20.glUseProgram(shaderId)
         }
 
-        setupMorphUniforms(shaderId)
+        setupMorphUniforms(shaderId, instance.morphWeights)
 
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 0, outPosBufferId)
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 1, outNorBufferId)
@@ -214,8 +215,7 @@ class GpuDeformer(private val primitive: Primitive) {
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 2, 0)
     }
 
-    private fun updateJointMatrices(node: SkinGetter) {
-        val matrices = node()
+    private fun updateJointMatrices(matrices: Array<Mat4f>) {
         val buffer = BufferUtils.createFloatBuffer(matrices.size * 16)
         for (m in matrices) {
             buffer.put(m.m00).put(m.m01).put(m.m02).put(m.m03)
@@ -229,7 +229,7 @@ class GpuDeformer(private val primitive: Primitive) {
         jointMatrixBuffer?.unbind()
     }
 
-    private fun setupMorphUniforms(shaderId: Int) {
+    private fun setupMorphUniforms(shaderId: Int, morphWeights: FloatArray) {
         if (primitive.morphTargets.isNotEmpty()) {
             GL13.glActiveTexture(GL13.GL_TEXTURE1)
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphPosTexture)
@@ -247,10 +247,10 @@ class GpuDeformer(private val primitive: Primitive) {
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "vertexCount"), drawCount)
 
             val locWeights = GL20.glGetUniformLocation(shaderId, "morphWeights")
-            if (locWeights != -1 && primitive.weights.isNotEmpty()) {
+            if (locWeights != -1 && morphWeights.isNotEmpty()) {
                 val weightArray = FloatArray(64)
-                val copyLength = min(primitive.weights.size, 64)
-                System.arraycopy(primitive.weights, 0, weightArray, 0, copyLength)
+                val copyLength = min(morphWeights.size, 64)
+                System.arraycopy(morphWeights, 0, weightArray, 0, copyLength)
                 GL20.glUniform1fv(locWeights, weightArray)
             }
         } else {

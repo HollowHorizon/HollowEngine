@@ -30,29 +30,6 @@ object StandardPlayerAnimatorPreset {
                         ),
                     ),
                     ProceduralBoneTransformSpec(
-                        bone = "BodyUp",
-                        rotation = vector(
-                            x = "-head_x_rotation * 0.12",
-                            y = "-head_body_y_delta * 0.30",
-                        ),
-                    ),
-                    ProceduralBoneTransformSpec(
-                        bone = "LeftArm",
-                        rotation = vector(
-                            x = "-head_x_rotation * 0.07",
-                            y = "-head_body_y_delta * 0.12",
-                            z = "-head_body_y_delta * -0.14",
-                        ),
-                    ),
-                    ProceduralBoneTransformSpec(
-                        bone = "RightArm",
-                        rotation = vector(
-                            x = "-head_x_rotation * 0.07",
-                            y = "-head_body_y_delta * 0.12",
-                            z = "-head_body_y_delta * -0.14",
-                        ),
-                    ),
-                    ProceduralBoneTransformSpec(
                         bone = "LeftEye",
                         translation = vector(
                             x = "clamp(head_body_y_delta, -18, 0) * 0.0036",
@@ -88,7 +65,7 @@ object StandardPlayerAnimatorPreset {
             "walk",
             "run",
             "sneak",
-                -> "movement_animation_speed"
+                -> "movement_animation_speed / 2.0"
 
             else -> "1"
         }

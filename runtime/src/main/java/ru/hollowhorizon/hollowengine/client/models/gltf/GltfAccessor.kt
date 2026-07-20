@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import de.fabmax.kool.math.*
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 

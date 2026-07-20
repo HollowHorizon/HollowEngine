@@ -17,4 +17,12 @@ object AnimatorRuntimeRegistry {
     fun clear(key: AnimatorRuntimeKey) {
         runtimes.remove(key)
     }
+
+    fun clear() {
+        runtimes.clear()
+    }
+
+    fun retain(keys: Set<AnimatorRuntimeKey>) {
+        runtimes.keys.removeIf { it !in keys }
+    }
 }

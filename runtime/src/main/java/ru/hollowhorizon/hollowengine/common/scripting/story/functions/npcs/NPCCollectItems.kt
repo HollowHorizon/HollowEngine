@@ -1,166 +1,204 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
-import com.sunnychung.lib.multiplatform.kotlite.model.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.coroutines.ServerRuntimeState
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import net.minecraft.world.level.Level
+import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime
-import ru.hollowhorizon.hollowengine.common.utils.areStacksEqual
+import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcAction
+import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionKeys
+import ru.hollowhorizon.hollowengine.common.npcs.items.ItemRequest
+import ru.hollowhorizon.hollowengine.common.npcs.items.itemRequest
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveOptions
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveResult
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.UnavailableTargetPolicy
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.UnreachablePolicy
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveToPosition
+import java.util.Collections
+import java.util.UUID
+import java.util.WeakHashMap
+import kotlin.math.min
+import kotlin.time.Duration.Companion.milliseconds
 
-fun NarrativeBindingsBuilder.registerNpcRequestItemsBinding(server: MinecraftServer?) {
-    if (server == null) {
-        immediateMemberFunction(
-            dispatchReceiverType = "NpcEntity",
-            name = "requestItems",
-            valueParameters = requestItemsParameters,
-        )
-        return
-    }
-
-    register(RequestItemsCallable(server))
+enum class CollectStopReason {
+    COMPLETED,
+    NO_CANDIDATES,
+    NO_REACHABLE_CANDIDATES,
+    INVENTORY_FULL,
 }
 
-private class RequestItemsCallable(
-    private val server: MinecraftServer,
-) : NarrativeCallable {
-    override val id: String = "requestItems"
-    override val receiverType: String = "NpcEntity"
-    override val returnType: String = "Unit"
-    override val typeParameters = emptyList<TypeParameter>()
-    override val valueParameters: List<CustomFunctionParameter> = requestItemsParameters
-
-    override suspend fun startCall(
-        arguments: List<RuntimeValue>,
-        context: NarrativeCallContext,
-    ): NarrativeCallResult {
-        return if (arguments.size <= 1) {
-            NarrativeCallResult.Returned(NullValue)
-        } else {
-            NarrativeCallResult.SuspendedWithState(runtimeRemainingValue(arguments.drop(1), context))
-        }
-    }
-
-    override suspend fun resumeCall(
-        arguments: List<RuntimeValue>,
-        response: FunctionResponse?,
-        context: NarrativeCallContext,
-    ): NarrativeCallResult {
-        return when (response) {
-            RequestItemsDone -> NarrativeCallResult.Returned(NullValue)
-            is RequestItemsPending -> NarrativeCallResult.SuspendedWithState(response.remaining)
-            is RequestItemsFailed -> error(response.message)
-            else -> NarrativeCallResult.Suspended
-        }
-    }
-
-    override fun dispatch(
-        arguments: List<RuntimeValue>,
-        context: NarrativeCallDispatchContext,
-        resume: (FunctionResponse?) -> Unit,
-    ) {
-        server.coroutineScope.launch {
-            val result = runCatching {
-                val npc = KatariGeneratedBindingRuntime.awaitHost<NpcEntity>(
-                    arguments.getOrNull(0),
-                    "NpcEntity",
-                    "receiver",
-                )
-                val state = context.suspendedState ?: runtimeRemainingValue(arguments.drop(1), context).also {
-                    HollowEngine.LOGGER.warn(
-                        "Katari requestItems for NPC {} resumed without saved remaining item state. Rebuilding the request from original arguments.",
-                        npc.uuid,
-                    )
-                }
-                val remaining = remainingItems(state)
-                if (npc.pickupRequestedItems(remaining)) {
-                    // Без этого он не сохранит
-                    ServerRuntimeState.context(server).markDirty()
-                }
-                if (remaining.isEmpty()) {
-                    RequestItemsDone
-                } else {
-                    val updatedRemaining = itemStackRemainingValue(remaining, context)
-                    context.updateSuspendedState(updatedRemaining)
-                    delay(50)
-                    RequestItemsPending(updatedRemaining)
-                }
-            }
-            resume(
-                result.getOrElse { error ->
-                    RequestItemsFailed(error.message ?: error::class.java.simpleName)
-                }
-            )
-        }
-    }
-
-    private suspend fun remainingItems(value: RuntimeValue): MutableList<ItemStack> {
-        return KatariGeneratedBindingRuntime.awaitList(value, "items") { item, index ->
-            KatariGeneratedBindingRuntime.awaitHost<ItemStack>(item, "ItemStack", "items[$index]").copy()
-        }
-            .filterNot(ItemStack::isEmpty)
-            .toMutableList()
-    }
-
-    private fun itemStackRemainingValue(
-        items: List<ItemStack>,
-        context: NarrativeCallContext,
-    ): RuntimeValue {
-        val values = items
-            .filterNot(ItemStack::isEmpty)
-            .map { item -> KatariGeneratedBindingRuntime.toRuntimeValue(item.copy(), "ItemStack", context.symbolTable) }
-        val elementType = values.firstOrNull()?.type() ?: context.symbolTable.AnyType
-        return ListValue(values, elementType, context.symbolTable)
-    }
-
-    private fun runtimeRemainingValue(
-        values: List<RuntimeValue>,
-        context: NarrativeCallContext,
-    ): RuntimeValue {
-        val elementType = values.firstOrNull()?.type() ?: context.symbolTable.AnyType
-        return ListValue(values, elementType, context.symbolTable)
-    }
+enum class CollectSearchPolicy {
+    WAIT_AND_RETRY,
+    FAIL,
 }
 
-private data object RequestItemsDone : FunctionResponse
+data class CollectedItem(val stack: ItemStack)
 
-private data class RequestItemsPending(
-    val remaining: RuntimeValue,
-) : FunctionResponse
-
-private data class RequestItemsFailed(
-    val message: String,
-) : FunctionResponse
-
-private val requestItemsParameters = listOf(
-    CustomFunctionParameter("items", "ItemStack", modifiers = setOf("vararg")),
+data class CollectResult(
+    val collected: List<CollectedItem>,
+    val remaining: List<ItemRequest>,
+    val reason: CollectStopReason,
+    val returnResult: MoveResult? = null,
 )
 
-private fun NpcEntity.pickupRequestedItems(list: MutableList<ItemStack>): Boolean {
-    var changed = false
-    level().getEntitiesOfClass(
-        ItemEntity::class.java,
-        this.boundingBox.inflate(pickupDistance.x.toDouble(), pickupDistance.y.toDouble(), pickupDistance.z.toDouble())
-    ).forEach { item ->
-        if (item.isRemoved || item.item.isEmpty || item.hasPickUpDelay()) return@forEach
+data class CollectOptions(
+    val radius: Double = 16.0,
+    val movement: MoveOptions = MoveOptions(
+        unreachable = UnreachablePolicy.FAIL,
+        unavailableTarget = UnavailableTargetPolicy.FAIL,
+    ),
+    val searchPolicy: CollectSearchPolicy = CollectSearchPolicy.WAIT_AND_RETRY,
+    val searchIntervalTicks: Int = 10,
+    val returnToStart: Boolean = true,
+) {
+    init {
+        require(radius >= 0.0) { "Collection radius cannot be negative" }
+        require(searchIntervalTicks > 0) { "Collection search interval must be greater than zero" }
+    }
+}
 
-        val entityItem = item.item
+suspend fun NpcEntity.collectItems(
+    requests: List<ItemRequest>,
+    options: CollectOptions = CollectOptions(),
+): CollectResult = startCollectItems(requests, options).await()
 
-        list.find { requestItem -> requestItem.areStacksEqual(entityItem) }?.let { requestItem ->
-            val requestedCount = requestItem.count
-            requestItem.shrink(entityItem.count)
-            entityItem.shrink(requestedCount)
-            changed = true
+fun NpcEntity.startCollectItems(
+    requests: List<ItemRequest>,
+    options: CollectOptions = CollectOptions(),
+): NpcAction<CollectResult> {
+    require(requests.isNotEmpty()) { "At least one item request is required" }
+    return actions.start(NpcActionKeys.MOVEMENT) { collectItemsInternal(requests, options) }
+}
+
+private suspend fun NpcEntity.collectItemsInternal(
+    requests: List<ItemRequest>,
+    options: CollectOptions,
+): CollectResult {
+    val startPose = CollectStartPose(position(), yRot, xRot, yHeadRot, yBodyRot)
+    val collected = collectRequestedItems(requests, options)
+    if (!options.returnToStart) return collected
+
+    val returnResult = moveToPosition({ startPose.position }, options.movement)
+    if (returnResult == MoveResult.Arrived) restore(startPose)
+    return collected.copy(returnResult = returnResult)
+}
+
+private suspend fun NpcEntity.collectRequestedItems(
+    requests: List<ItemRequest>,
+    options: CollectOptions,
+): CollectResult {
+    val remaining = requests.map(ItemRequest::count).toMutableList()
+    val collected = mutableListOf<CollectedItem>()
+
+    while (true) {
+        val requestIndex = remaining.indexOfFirst { it > 0 }
+        if (requestIndex < 0) return result(requests, remaining, collected, CollectStopReason.COMPLETED)
+
+        val request = requests[requestIndex]
+        val candidates = findItems(request.filter, options.radius)
+        if (candidates.isEmpty()) {
+            if (options.searchPolicy == CollectSearchPolicy.FAIL) {
+                return result(requests, remaining, collected, CollectStopReason.NO_CANDIDATES)
+            }
+            delay(TICK_MILLIS * options.searchIntervalTicks)
+            continue
         }
 
-        list.removeIf(ItemStack::isEmpty)
+        var collectedFromCandidate = false
+        for (candidateRef in candidates) {
+            val candidate = candidateRef.resolve()
+            if (!NpcItemClaims.claim(level(), candidate.uuid, uuid)) continue
+
+            try {
+                val moveResult = moveToPosition(
+                    target = { candidate.takeIf { isCollectable(it, request, options.radius) }?.position() },
+                    options = options.movement,
+                )
+                if (moveResult != MoveResult.Arrived) {
+                    continue
+                }
+
+                val requestedCount = min(remaining[requestIndex], candidate.item.count)
+                val offered = candidate.item.copy().apply { count = requestedCount }
+                val remainder = inventory.insert(offered)
+                val inserted = offered.count - remainder.count
+                if (inserted == 0) {
+                    return result(requests, remaining, collected, CollectStopReason.INVENTORY_FULL)
+                }
+
+                candidate.item.shrink(inserted)
+                if (candidate.item.isEmpty) candidate.discard()
+                remaining[requestIndex] -= inserted
+                collected += CollectedItem(offered.copy().apply { count = inserted })
+                collectedFromCandidate = true
+                break
+            } finally {
+                NpcItemClaims.release(level(), candidate.uuid, uuid)
+            }
+        }
+
+        if (!collectedFromCandidate) {
+            if (options.searchPolicy == CollectSearchPolicy.FAIL) {
+                return result(requests, remaining, collected, CollectStopReason.NO_REACHABLE_CANDIDATES)
+            }
+            delay(TICK_MILLIS * options.searchIntervalTicks)
+        }
+    }
+}
+
+private fun NpcEntity.restore(pose: CollectStartPose) {
+    yRot = pose.yRot
+    xRot = pose.xRot
+    yHeadRot = pose.yHeadRot
+    yBodyRot = pose.yBodyRot
+}
+
+private fun NpcEntity.isCollectable(item: ItemEntity, request: ItemRequest, radius: Double): Boolean =
+    !item.isRemoved &&
+            item.level() === level() &&
+            !item.item.isEmpty &&
+            !item.hasPickUpDelay() &&
+            request.filter.matches(item.item) &&
+            distanceToSqr(item) <= radius * radius
+
+private fun result(
+    requests: List<ItemRequest>,
+    remaining: List<Int>,
+    collected: List<CollectedItem>,
+    reason: CollectStopReason,
+): CollectResult = CollectResult(
+    collected = collected.toList(),
+    remaining = requests.mapIndexedNotNull { index, request ->
+        remaining[index].takeIf { it > 0 }?.let { itemRequest(request.filter, it) }
+    },
+    reason = reason,
+)
+
+private data class CollectStartPose(
+    val position: Vec3,
+    val yRot: Float,
+    val xRot: Float,
+    val yHeadRot: Float,
+    val yBodyRot: Float,
+)
+
+private val TICK_MILLIS = 50.milliseconds
+
+private object NpcItemClaims {
+    private val claims = Collections.synchronizedMap(WeakHashMap<Level, MutableMap<UUID, UUID>>())
+
+    fun claim(level: Level, item: UUID, npc: UUID): Boolean = synchronized(claims) {
+        val levelClaims = claims.getOrPut(level) { mutableMapOf() }
+        val owner = levelClaims[item]
+        if (owner != null && owner != npc) return@synchronized false
+        levelClaims[item] = npc
+        true
     }
 
-    return changed || list.isEmpty()
+    fun release(level: Level, item: UUID, npc: UUID) = synchronized(claims) {
+        val levelClaims = claims[level] ?: return@synchronized
+        if (levelClaims[item] == npc) levelClaims.remove(item)
+        if (levelClaims.isEmpty()) claims.remove(level)
+    }
 }

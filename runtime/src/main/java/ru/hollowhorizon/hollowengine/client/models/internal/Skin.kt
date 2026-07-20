@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-import de.fabmax.kool.math.Mat4f
-import de.fabmax.kool.math.MutableMat4f
+import ru.hollowhorizon.hollowengine.common.utils.math.Mat4f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 
 class Skin(

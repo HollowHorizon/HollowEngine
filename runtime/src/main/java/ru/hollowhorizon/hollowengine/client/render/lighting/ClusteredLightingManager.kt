@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.render.lighting
 
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer
 import net.irisshaders.iris.gl.sampler.SamplerHolder
 import net.irisshaders.iris.gl.uniform.DynamicUniformHolder

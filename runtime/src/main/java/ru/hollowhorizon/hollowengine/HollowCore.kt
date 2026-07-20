@@ -1,18 +1,14 @@
 package ru.hollowhorizon.hollowengine
 
-import de.fabmax.kool.util.RingBuffer
-import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.apache.logging.log4j.core.Appender
 import org.apache.logging.log4j.core.LogEvent
 import org.apache.logging.log4j.core.appender.AbstractAppender
+import org.apache.logging.log4j.core.config.Property
 import org.apache.logging.log4j.core.config.plugins.Plugin
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
+import ru.hollowhorizon.hollowengine.common.logging.HollowLogStore
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.MolangCompiler
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
-import kotlin.time.Clock
 
 object HollowCore {
     const val MODID: String = "hollowengine"
@@ -23,42 +19,38 @@ object HollowCore {
     init {
         MolangCompiler
     }
-
 }
 
 @Plugin(name = "ConsoleAppender", category = "Core", elementType = Appender.ELEMENT_TYPE)
-class ConsoleAppender : AbstractAppender("ConsoleAppender", null, null, true) {
-
+class ConsoleAppender : AbstractAppender(AppenderName, null, null, true, Property.EMPTY_ARRAY) {
     override fun append(event: LogEvent) {
-        val msg = LogMessage(
-            event.level.standardLevel,
-            event.loggerName,
-            event.message.formattedMessage,
-            Clock.System.now()
-        )
-        logLock.withLock {
-            logMessages += msg
-            if (msg.isAccepted) filteredLogMessages += msg
+        val message = buildString {
+            append(event.message.formattedMessage)
+            event.thrown?.let { throwable ->
+                if (isNotEmpty()) appendLine()
+                append(throwable.stackTraceToString())
+            }
         }
+        HollowLogStore.append(
+            level = event.level.standardLevel,
+            loggerName = event.loggerName,
+            message = message,
+            timeMillis = event.timeMillis,
+        )
     }
 
     companion object {
-        val logLock = ReentrantLock()
-
-        private const val MAX_MESSAGES = 10000
-
-        val logMessages = RingBuffer<LogMessage>(MAX_MESSAGES)
-        val filteredLogMessages = RingBuffer<LogMessage>(MAX_MESSAGES)
-
+        @Synchronized
         @JvmStatic
         fun attach() {
-            // Настройка кастомного аппендера для log4j
             val logger = LogManager.getRootLogger() as org.apache.logging.log4j.core.Logger
+            if (logger.appenders.containsKey(AppenderName)) return
             val appender = ConsoleAppender()
             appender.start()
             logger.addAppender(appender)
-            logger.level = Level.TRACE
         }
+
+        private const val AppenderName = "ConsoleAppender"
     }
 }
 

@@ -7,11 +7,8 @@ import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 
-@ScriptBinding
 open class ArrowEvent : Event {
-    @ScriptBinding
     class Nock(
         var stack: ItemStack,
         val level: Level,
@@ -22,7 +19,6 @@ open class ArrowEvent : Event {
         companion object: EventHandler<Nock>()
     }
 
-    @ScriptBinding
     class Loose(
         val stack: ItemStack,
         val level: Level,

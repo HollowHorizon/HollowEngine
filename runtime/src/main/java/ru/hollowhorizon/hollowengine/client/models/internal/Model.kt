@@ -1,23 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 
 data class Model(
     val scene: Int,
     val scenes: List<Scene>,
     val materials: Set<Material>,
-    val animations: List<Animation> = emptyList(),
+    val animations: List<AnimationClip> = emptyList(),
 ) {
     var isBlockBench = false
-
-    val pipeline = ListRenderPipeline()
-
-    fun initGl() {
-        walkNodes().forEach { node ->
-            //node.mesh?.primitives?.forEach { it.init() }
-        }
-    }
 
     fun walkNodes(): Sequence<NodeDefinition> {
         return sequence {

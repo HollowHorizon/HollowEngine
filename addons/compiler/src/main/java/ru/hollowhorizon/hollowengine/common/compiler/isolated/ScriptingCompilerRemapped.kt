@@ -1,0 +1,199 @@
+package ru.hollowhorizon.hollowengine.common.compiler.isolated
+
+import com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
+import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.*
+import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
+import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
+import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.plugin.HollowEngineCompilerPlugin
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapClass
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
+import java.io.ByteArrayInputStream
+import java.io.InputStream
+import java.io.Serializable
+import java.security.ProtectionDomain
+import kotlin.script.experimental.api.*
+import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.jvm.compilationCache
+import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
+import kotlin.script.experimental.jvm.disableCompilationCache
+import kotlin.script.experimental.jvm.impl.KJvmCompiledModuleInMemory
+import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
+import kotlin.script.experimental.jvm.jvm
+
+class ScriptJvmCompilerRemapped(
+    definitions: List<ScriptDefinition>,
+    hostConfiguration: ScriptingHostConfiguration,
+) : ScriptCompilerProxy {
+    private val delegate = HollowEngineScriptCompiler(definitions, hostConfiguration)
+
+    override fun compile(
+        script: SourceCode,
+        scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    ): ResultWithDiagnostics<CompiledScript> {
+        return when (val result = delegate.compile(script, scriptCompilationConfiguration)) {
+            is ResultWithDiagnostics.Success -> {
+                ResultWithDiagnostics.Success(remapCompiledScript(result.value), result.reports)
+            }
+
+            is ResultWithDiagnostics.Failure -> result
+        }
+    }
+
+    private fun remapCompiledScript(script: CompiledScript): CompiledScript {
+        val jvmScript = script as? KJvmCompiledScript ?: return script
+        val module = jvmScript.getCompiledModule() as? KJvmCompiledModuleInMemory ?: return jvmScript
+        val outputFiles = module.compilerOutputFiles
+        val remappedModule = RemappedCompiledModule(
+            outputFiles.mapValues { (path, bytes) ->
+                debugSave(path, bytes)
+                remapScriptClass(path, outputFiles, bytes)
+            }
+        )
+        return KJvmCompiledScript(
+            jvmScript.sourceLocationId,
+            jvmScript.compilationConfiguration,
+            jvmScript.scriptClassFQName,
+            jvmScript.resultField,
+            jvmScript.otherScripts.map(::remapCompiledScript),
+            remappedModule,
+        )
+    }
+
+    private fun debugSave(path: String, bytes: ByteArray) {
+        if (HollowEngineConfig.debugMode) {
+            val file = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/compiler").resolve(path).toFile()
+
+            if (!file.exists()) {
+                file.parentFile.mkdirs()
+                file.createNewFile()
+            }
+
+            file.writeBytes(bytes)
+        }
+    }
+}
+
+class HollowEngineScriptCompiler(
+    val definitions: List<ScriptDefinition>,
+    val hostConfiguration: ScriptingHostConfiguration,
+) : ScriptCompilerProxy {
+    @OptIn(ExperimentalCompilerApi::class)
+    override fun compile(
+        script: SourceCode,
+        scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    ): ResultWithDiagnostics<CompiledScript> = withMessageCollector { messageCollector ->
+        withScriptCompilationCache(script, scriptCompilationConfiguration, messageCollector) {
+            withConfiguredK2ScriptCompilerWithLightTree(
+                scriptCompilationConfiguration.with {
+                    hostConfiguration(this@HollowEngineScriptCompiler.hostConfiguration)
+                },
+                messageCollector,
+                configureCompiler = {
+                    put(JVMConfigurationKeys.DISABLE_STANDARD_SCRIPT_DEFINITION, true)
+                    addAll(
+                        ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
+                        definitions
+                    )
+                    add(CompilerPluginRegistrar.COMPILER_PLUGIN_REGISTRARS, HollowEngineCompilerPlugin())
+                }
+            ) {
+                if (messageCollector.hasErrors()) failure(messageCollector)
+                else it.compile(script)
+            }
+        }
+    }
+}
+
+fun <T> withConfiguredK2ScriptCompilerWithLightTree(
+    scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    parentMessageCollector: MessageCollector? = null,
+    configureCompiler: CompilerConfiguration.() -> Unit = {},
+    body: (ScriptJvmK2CompilerImpl) -> T,
+): T {
+    val disposable = Disposer.newDisposable("Default disposable for scripting compiler")
+    return try {
+        body(
+            ScriptJvmK2CompilerImpl(
+                createIsolatedCompilerState(
+                    ScriptDiagnosticsMessageCollector(parentMessageCollector), disposable,
+                    scriptCompilationConfiguration,
+                    scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration]
+                        ?: defaultJvmScriptingHostConfiguration,
+                    configureCompiler
+                ),
+                SourceCode::convertToFirViaLightTree
+            )
+        )
+    } finally {
+        Disposer.dispose(disposable)
+    }
+}
+
+internal fun withScriptCompilationCache(
+    script: SourceCode,
+    scriptCompilationConfiguration: ScriptCompilationConfiguration,
+    messageCollector: ScriptDiagnosticsMessageCollector,
+    body: () -> ResultWithDiagnostics<CompiledScript>,
+): ResultWithDiagnostics<CompiledScript> {
+    val cache = scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration]
+        ?.let {
+            if (it[ScriptingHostConfiguration.jvm.disableCompilationCache] == true) null
+            else it[ScriptingHostConfiguration.jvm.compilationCache]
+        }
+
+    val cached = cache?.get(script, scriptCompilationConfiguration)
+
+    return cached?.asSuccess(messageCollector.diagnostics)
+        ?: body().also {
+            if (cache != null && it is ResultWithDiagnostics.Success) {
+                cache.store(it.value, script, scriptCompilationConfiguration)
+            }
+        }
+}
+
+
+private fun remapScriptClass(path: String, classes: Map<String, ByteArray>, bytes: ByteArray): ByteArray {
+    if (!path.endsWith(".class") || !isProduction || NeoForgeEnvironmentSetup.isAvailable()) return bytes
+    val environment = ScriptingEnvironment.INSTANCE
+    return remapClass(
+        bytes,
+        loader = { name -> classes["$name.class"] },
+        classpath = environment.classpath,
+        mappings = environment.mappings,
+    )
+}
+
+private class RemappedCompiledModule(
+    override val compilerOutputFiles: Map<String, ByteArray>,
+) : KJvmCompiledModuleInMemory, Serializable {
+    override fun createClassLoader(baseClassLoader: ClassLoader?): ClassLoader {
+        return RemappedCompiledScriptClassLoader(compilerOutputFiles, HollowEngine::class.java.classLoader)
+    }
+}
+
+private class RemappedCompiledScriptClassLoader(
+    private val files: Map<String, ByteArray>,
+    parent: ClassLoader?,
+) : ClassLoader(parent) {
+    override fun findClass(name: String): Class<*> {
+        val path = name.replace('.', '/') + ".class"
+        val bytes = files[path] ?: throw ClassNotFoundException(name)
+        val protectionDomain = ProtectionDomain(null, null)
+        return defineClass(name, bytes, 0, bytes.size, protectionDomain)
+    }
+
+    override fun getResourceAsStream(name: String): InputStream? {
+        return files[name]?.let(::ByteArrayInputStream)
+    }
+}

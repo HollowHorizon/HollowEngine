@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-import de.fabmax.kool.math.MutableMat4f
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableQuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 
 open class NodeDefinition(
     val index: Int,

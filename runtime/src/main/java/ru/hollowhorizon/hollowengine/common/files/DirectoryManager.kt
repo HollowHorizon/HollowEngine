@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.files
 
+import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
 import java.io.File
 import java.nio.file.Path
 
@@ -9,8 +10,6 @@ object DirectoryManager {
             if (!exists()) mkdirs()
         }.toPath()
     }
-    @JvmField
-    val GEARY = HOLLOW_ENGINE.resolve("geary")
 
     @JvmStatic
     fun File.toReadablePath(): String {
@@ -27,4 +26,8 @@ object DirectoryManager {
         return HOLLOW_ENGINE.resolve(this).toFile()
     }
 
+    val scripts: Sequence<File>
+        get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".kts") }
+
+    val componentScripts: Sequence<File> get() = scripts.filter { it.name.endsWith(".$NODE_SCRIPT_EXTENSION") }
 }

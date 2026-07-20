@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
+import ru.hollowhorizon.hollowengine.common.utils.Color
 
 @Serializable
 data class GltfMaterial(

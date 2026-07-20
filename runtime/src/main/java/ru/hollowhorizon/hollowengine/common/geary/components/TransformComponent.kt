@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import de.fabmax.kool.math.*
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor

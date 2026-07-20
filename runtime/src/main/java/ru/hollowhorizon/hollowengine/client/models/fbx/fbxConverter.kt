@@ -2,9 +2,6 @@ package ru.hollowhorizon.hollowengine.client.models.fbx
 
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.math.*
-import de.fabmax.kool.scene.TrsTransformF
-import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
@@ -12,10 +9,13 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.fbx.TransformationComp
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Linear
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.SphericalLinear
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import java.io.IOException
 import kotlin.math.abs
 import ru.hollowhorizon.hollowengine.client.models.fbx.FileGlobalSettings.FrameRate as Fr
@@ -103,7 +103,7 @@ fun Document.convert(location: ResourceLocation): InternalModel {
 }
 
 context(doc: Document)
-fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
+fun convertAnimationStackIntermediate(st: AnimationStack): ImportedAnimation? {
     val channels = mutableListOf<Channel>()
 
     // FBX stores time in "FBX time units" where 1 second = 46186158000 FBX time units
@@ -176,7 +176,7 @@ fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
         .removePrefix("AnimationStack::")
 
     // Создаем промежуточную анимацию
-    return Animation(cleanName, channels)
+    return ImportedAnimation(cleanName, channels)
 }
 
 fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<NodeDefinition> {
@@ -321,7 +321,7 @@ fun Document.getSkinForModel(model: Model): ru.hollowhorizon.hollowengine.client
 
 fun convertSkin(fbxSkin: ru.hollowhorizon.hollowengine.client.models.fbx.Skin): ru.hollowhorizon.hollowengine.client.models.internal.Skin {
     val jointsIds = mutableListOf<Int>()
-    val inverseBindMatrices = mutableListOf<de.fabmax.kool.math.Mat4f>()
+    val inverseBindMatrices = mutableListOf<ru.hollowhorizon.hollowengine.common.utils.math.Mat4f>()
 
     for (cluster in fbxSkin.clusters) {
         cluster.node?.let { model ->
@@ -681,7 +681,7 @@ fun frameRateToDouble(fp: FileGlobalSettings.FrameRate, customFPSVal: Double = -
 }
 
 context(doc: Document)
-fun convertAnimationStack(st: AnimationStack): ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation? {
+fun convertAnimationStack(st: AnimationStack): AnimationClip? {
     val channels = mutableListOf<Channel>()
 
     // FBX stores time in "FBX time units" where 1 second = 46186158000 FBX time units
@@ -755,8 +755,6 @@ fun convertAnimationStack(st: AnimationStack): ru.hollowhorizon.hollowengine.cli
     if (channels.isEmpty()) return null
 
     // Создаем промежуточную анимацию
-    // val animation = ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation(st.name, channels)
-
     // Конвертируем в финальный формат (нужен доступ к узлам, который будет позже)
     // Возвращаем null, так как для создания финальной анимации нужны узлы
     return null

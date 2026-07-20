@@ -1,10 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations
 
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.client.utils.math.conjugate
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableQuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.cos
 import kotlin.math.atan2
 import kotlin.math.sin
@@ -74,31 +73,6 @@ class SphericalLinear(keys: FloatArray, values: Array<QuatF>) : StaticInterpolat
             val r = previousPoint.mix(nextPoint, alpha)
             return QuatF(r.x, r.y, r.z, r.w)
         }
-    }
-}
-
-class Catmullrom(keys: FloatArray, values: Array<Vec3f>): StaticInterpolator<Vec3f>(keys, values) {
-    override fun compute(time: Float): Vec3f {
-        if (time <= keys.first()) return values.first()
-        if (time >= keys.last()) return values.last()
-
-        val i = time.animIndex
-
-        // Индексы контрольных точек: p0, p1, p2, p3
-        val i0 = (i - 1).coerceAtLeast(0)
-        val i1 = i
-        val i2 = (i + 1).coerceAtMost(values.lastIndex)
-        val i3 = (i + 2).coerceAtMost(values.lastIndex)
-
-        val t0 = keys[i1]
-        val t1 = keys[i2]
-        val localT = ((time - t0) / (t1 - t0)).coerceIn(0f, 1f)
-
-        return Interpolation.catmullRom(
-            localT,
-            values[i0], values[i1],
-            values[i2], values[i3]
-        )
     }
 }
 

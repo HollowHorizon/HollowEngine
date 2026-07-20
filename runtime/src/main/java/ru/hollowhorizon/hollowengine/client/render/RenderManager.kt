@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.render
 
 import com.mojang.blaze3d.vertex.PoseStack
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.CameraType
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
@@ -15,10 +13,10 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.system
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.PreviewCheckerboard
-import ru.hollowhorizon.hollowengine.client.kool.KoolManager
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
@@ -30,6 +28,8 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import kotlin.math.abs
 
@@ -37,8 +37,6 @@ import kotlin.math.abs
 object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
-        KoolManager
-        PreviewCheckerboard.initTexture()
     }
 
     @SubscribeEvent
@@ -69,7 +67,7 @@ object RenderManager {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(10)
     fun onRenderNodeModels(event: RenderLevelStageEvent) {
         if (event.stage != RenderStage.AFTER_ENTITIES) return
 
@@ -130,17 +128,33 @@ object RenderManager {
         allowInstancing: Boolean,
     ): NodeRenderStats {
         val minecraft = Minecraft.getInstance()
-        val level = minecraft.level ?: return NodeRenderStats.EMPTY
+        val level = minecraft.level ?: run {
+            AnimatorRuntimeRegistry.clear()
+            return NodeRenderStats.EMPTY
+        }
         val materialization = NodeRuntimeState.service(level)
         var renderedAny = false
         val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
+        val activeAnimatorKeys = HashSet<AnimatorRuntimeKey>()
 
         materialization.forEachModelNodeRecord { record, node ->
+            val model = node.model
+            val animatorKey = AnimatorRuntimeKey(record.snapshotId, node.nodeId, model.model)
+            if (node.animator != null) activeAnimatorKeys += animatorKey
+            model.attachment.entity = record.hostEntity as? LivingEntity
+            model.attachment.configureAnimator(
+                animator = node.animator,
+                key = animatorKey,
+                context = animatorContext(record.hostEntity, partialTick),
+            )
+            model.attachment.prepareFrame(
+                if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime,
+            )
+
             if (record.hostEntity === minecraft.player && minecraft.options.cameraType == CameraType.FIRST_PERSON) {
                 return@forEachModelNodeRecord
             }
 
-            val model = node.model
             val transform = node.transform
             val resolved = resolveNodeTransform(level, record.hostEntityUuid, transform, partialTick)
                 ?: return@forEachModelNodeRecord
@@ -167,12 +181,6 @@ object RenderManager {
                 resolved.transform.scale.y,
                 resolved.transform.scale.z,
             )
-            model.attachment.entity = record.hostEntity as? LivingEntity
-            model.attachment.configureAnimator(
-                animator = node.animator,
-                key = AnimatorRuntimeKey(record.snapshotId, node.nodeId, model.model),
-                context = animatorContext(record.hostEntity, partialTick),
-            )
             model.attachment.pipeline.render(
                 RenderContext(
                     poseStack,
@@ -187,6 +195,7 @@ object RenderManager {
             poseStack.popPose()
             renderedAny = true
         }
+        AnimatorRuntimeRegistry.retain(activeAnimatorKeys)
         return NodeRenderStats(renderedAny, openedBatchedRenderTypes)
     }
 
@@ -208,9 +217,8 @@ object RenderManager {
             }
             val localForwardSpeed = localForwardSpeed(velocity, movementYaw)
             val localSideSpeed = localSideSpeed(velocity, movementYaw)
-            val rawHorizontalSpeed = velocity.horizontalDistance().toFloat()
-            val horizontalSpeed = entity.partialTickMovementSpeed(partialTick, rawHorizontalSpeed)
-            val signedLocomotionSpeed = signedLocomotionSpeed(horizontalSpeed, localForwardSpeed)
+            val rawHorizontalSpeed = velocity.horizontalDistance().toFloat() * 20f
+            val signedLocomotionSpeed = signedLocomotionSpeed(rawHorizontalSpeed, localForwardSpeed)
             values += mapOf(
                 "entity_id" to entity.id.toFloat(),
                 "is_alive" to if (entity.isAlive) 1f else 0f,
@@ -218,8 +226,7 @@ object RenderManager {
                 "velocity_x" to velocity.x.toFloat(),
                 "velocity_y" to velocity.y.toFloat(),
                 "velocity_z" to velocity.z.toFloat(),
-                "raw_horizontal_speed" to rawHorizontalSpeed,
-                "horizontal_speed" to horizontalSpeed,
+                "horizontal_speed" to rawHorizontalSpeed,
                 "local_forward_speed" to localForwardSpeed,
                 "local_side_speed" to localSideSpeed,
                 "signed_horizontal_speed" to signedLocomotionSpeed,
@@ -255,7 +262,7 @@ object RenderManager {
     }
 
     private fun shouldAllowInstancingInCurrentPass(): Boolean =
-        !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
+        !ClusteredLightingManager.isLocalShadowPassActive()
 
     private fun localForwardSpeed(velocity: Vec3, yaw: Float): Float {
         val yawRad = yaw * Mth.DEG_TO_RAD
@@ -270,9 +277,6 @@ object RenderManager {
         val rightZ = Mth.sin(yawRad)
         return velocity.x.toFloat() * rightX + velocity.z.toFloat() * rightZ
     }
-
-    private fun Entity.partialTickMovementSpeed(partialTick: Float, fallback: Float): Float =
-        if (this is LivingEntity) walkAnimation.speed(partialTick) else fallback
 
     private fun signedLocomotionSpeed(horizontalSpeed: Float, localForwardSpeed: Float): Float =
         if (abs(localForwardSpeed) > LOCAL_MOVEMENT_EPSILON && localForwardSpeed < 0f) {

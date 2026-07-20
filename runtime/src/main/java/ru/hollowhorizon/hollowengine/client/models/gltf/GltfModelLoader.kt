@@ -1,17 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import de.fabmax.kool.math.*
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore.MODID
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
 
 
 object GltfModelLoader : ModelLoader {
@@ -47,7 +46,7 @@ object GltfModelLoader : ModelLoader {
             }
         }
 
-        val animations: List<InternalAnimation> =
+        val animations: List<AnimationClip> =
             parseAnimations(file).map {
                 AnimationLoader.createAnimation(nodes.associateBy { it.index }, it)
             }
@@ -133,7 +132,7 @@ object GltfModelLoader : ModelLoader {
                                     }
 
                                     GltfMesh.Primitive.ATTRIBUTE_TANGENT -> {
-                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z, 1f) }
+                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z) }
                                             .toFloatArray()
                                     }
 
@@ -142,7 +141,9 @@ object GltfModelLoader : ModelLoader {
                             }
                         }.toMap()
                     },
-                    node.weights?.toFloatArray() ?: FloatArray(prim.targets.size) { 0f }
+                    (node.weights ?: mesh.weights).toFloatArray()
+                        .takeIf { it.isNotEmpty() }
+                        ?: FloatArray(prim.targets.size) { 0f }
                 )
             }
 
@@ -190,12 +191,12 @@ object GltfModelLoader : ModelLoader {
     }
 
     @Suppress("SENSELESS_COMPARISON")
-    private fun parseAnimations(file: GltfFile): List<Animation> {
+    private fun parseAnimations(file: GltfFile): List<ImportedAnimation> {
         return file.animations.filter { it.channels != null }.map { animation ->
             val channels = animation.channels
                 .filter { it.target.node != -1 } // Некоторые экспортеры почему-то считают, что экспортировать анимацию без объекта - хорошая идея
                 .map { parseChannel(file, it, animation.samplers) }
-            Animation(animation.name, channels)
+            ImportedAnimation(animation.name, channels)
         }
     }
 

@@ -24,9 +24,11 @@ import ru.hollowhorizon.hollowengine.fabric.internal.rendering.IrisInstancingPro
 object IrisHelper {
     @JvmStatic
     fun shouldOverrideShaders() =
-        (Iris.getPipelineManager().pipelineNullable as? ShaderRenderingPipeline)?.shouldOverrideShaders() == true
+        hasIris && (Iris.getPipelineManager().pipelineNullable as? ShaderRenderingPipeline)?.shouldOverrideShaders() == true
 
     val hasIris = ModList.isLoaded("iris") || ModList.isLoaded("oculus")
+
+    fun areShadersEnabled() = hasIris && IrisApi.getInstance().config.areShadersEnabled()
 
     fun isShadowRendering() = hasIris && IrisApi.getInstance().isRenderingShadowPass
 

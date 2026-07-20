@@ -13,9 +13,7 @@ config = "hollowengine.mixins.json"
 [[mixins]]
 config = "hollowengine-neoforge.mixins.json"
 [[mixins]]
-config = "hollowengine.bridge.mixins.json"
-[[accessTransformers]]
-file="META-INF/accesstransformer.cfg"
+config = "hollowengine-neoforge.bridge.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId = "neoforge"

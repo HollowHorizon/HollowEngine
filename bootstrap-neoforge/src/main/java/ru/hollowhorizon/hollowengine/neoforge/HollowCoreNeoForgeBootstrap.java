@@ -7,6 +7,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimePlatform;
 import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeFakePlayerFactory;
 import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeModList;
 import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeNetworkManager;
@@ -15,6 +16,7 @@ import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeRegistryHolder;
 @Mod("hollowengine")
 public final class HollowCoreNeoForgeBootstrap {
     public HollowCoreNeoForgeBootstrap(IEventBus modBus) {
+        BootstrapRuntimeManager.bridge().setPlatform(RuntimePlatform.NEOFORGE);
         BootstrapRuntimeManager.bridge().setProduction(FMLEnvironment.production);
         BootstrapRuntimeManager.bridge().setClient(FMLEnvironment.dist.isClient());
 

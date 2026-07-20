@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 
 private const val MinSplitFraction = 0.1f
 private const val MaxSplitFraction = 0.9f
@@ -31,6 +27,7 @@ class DockingState {
 
     private var tabGrab: DockTabGrabState? by mutableStateOf(null)
     private val tabSwapOffsets = mutableStateMapOf<String, Float>()
+    private val tabLayouts = mutableMapOf<String, List<DockTabLayout>>()
 
     fun open(item: DockItem, target: DockTarget = DockTarget.Root) {
         if (contains(item.id)) {
@@ -73,11 +70,19 @@ class DockingState {
         if (remaining.isEmpty()) {
             floatingWindows.removeAt(index)
         } else {
-            val selected = if (window.stack.selectedItemId == itemId) remaining.first().id else window.stack.selectedItemId
-            floatingWindows[index] = window.copy(stack = window.stack.copy(items = remaining, selectedItemId = selected))
+            val selected =
+                if (window.stack.selectedItemId == itemId) remaining.first().id else window.stack.selectedItemId
+            floatingWindows[index] =
+                window.copy(stack = window.stack.copy(items = remaining, selectedItemId = selected))
         }
         if (focusedItemId == itemId) focusedItemId = firstItemId()
         return true
+    }
+
+    fun closeFocused(): Boolean {
+        val item = focusedItem() ?: return false
+        if (!item.closable) return false
+        return close(item.id)
     }
 
     fun focus(itemId: String): Boolean {
@@ -90,6 +95,14 @@ class DockingState {
             floatingWindows += window.copy(stack = window.stack.copy(selectedItemId = itemId))
         }
         return true
+    }
+
+    fun focusContent(contentNodeId: String): Boolean {
+        val containerId = contentNodeId.removeSuffix("-content")
+        val stack = findStack(containerId)
+            ?: floatingWindows.firstOrNull { it.id == containerId }?.stack
+            ?: return false
+        return stack.selectedItem?.let { focus(it.id) } ?: false
     }
 
     fun select(itemId: String): Boolean = focus(itemId)
@@ -197,23 +210,6 @@ class DockingState {
 
     fun resizeFloating(
         windowId: String,
-        deltaX: Float,
-        deltaY: Float,
-        minWidth: Float = 160f,
-        minHeight: Float = 120f,
-    ): Boolean {
-        val index = floatingWindows.indexOfFirst { it.id == windowId }
-        if (index < 0) return false
-        val window = floatingWindows[index]
-        floatingWindows[index] = window.copy(
-            width = (window.width + deltaX).coerceAtLeast(minWidth),
-            height = (window.height + deltaY).coerceAtLeast(minHeight),
-        )
-        return true
-    }
-
-    fun resizeFloating(
-        windowId: String,
         edge: DockResizeEdge,
         deltaX: Float,
         deltaY: Float,
@@ -222,14 +218,27 @@ class DockingState {
     ): Boolean {
         val index = floatingWindows.indexOfFirst { it.id == windowId }
         if (index < 0) return false
-        val window = floatingWindows[index]
-        var nextX = window.x
-        var nextY = window.y
-        var nextWidth = window.width
-        var nextHeight = window.height
+        return resizeFloatingFrom(windowId, edge, floatingWindows[index], deltaX, deltaY, minWidth, minHeight)
+    }
+
+    fun resizeFloatingFrom(
+        windowId: String,
+        edge: DockResizeEdge,
+        start: FloatingDockWindow,
+        deltaX: Float,
+        deltaY: Float,
+        minWidth: Float = 160f,
+        minHeight: Float = 120f,
+    ): Boolean {
+        val index = floatingWindows.indexOfFirst { it.id == windowId }
+        if (index < 0) return false
+        var nextX = start.x
+        var nextY = start.y
+        var nextWidth = start.width
+        var nextHeight = start.height
 
         if (edge.resizesLeft) {
-            val applied = deltaX.coerceAtMost(window.width - minWidth)
+            val applied = deltaX.coerceAtMost(start.width - minWidth)
             nextX += applied
             nextWidth -= applied
         }
@@ -237,7 +246,7 @@ class DockingState {
             nextWidth = (nextWidth + deltaX).coerceAtLeast(minWidth)
         }
         if (edge.resizesTop) {
-            val applied = deltaY.coerceAtMost(window.height - minHeight)
+            val applied = deltaY.coerceAtMost(start.height - minHeight)
             nextY += applied
             nextHeight -= applied
         }
@@ -245,7 +254,9 @@ class DockingState {
             nextHeight = (nextHeight + deltaY).coerceAtLeast(minHeight)
         }
 
-        floatingWindows[index] = window.copy(x = nextX, y = nextY, width = nextWidth, height = nextHeight)
+        val current = floatingWindows[index]
+        val next = current.copy(x = nextX, y = nextY, width = nextWidth, height = nextHeight)
+        if (next != current) floatingWindows[index] = next
         return true
     }
 
@@ -273,26 +284,39 @@ class DockingState {
         itemId: String,
         pointerX: Float,
         grabX: Float,
-        tabWidth: Float,
+        tabWidth: Float? = null,
     ): Boolean {
-        tabDrag = DockTabDragState(stackId, itemId, pointerX, grabX, tabWidth)
         val stack = findStack(stackId) ?: return false
         val currentIndex = stack.items.indexOfFirst { it.id == itemId }
         if (currentIndex < 0) return false
+        val previousOrder = stack.items.map { it.id }
+        val currentLayouts = currentTabLayouts(stackId, previousOrder, tabWidth)
+        tabDrag = DockTabDragState(stackId, itemId, pointerX, grabX, currentLayouts)
         val targetIndex = tabDragTargetIndex(
             currentIndex = currentIndex,
-            itemCount = stack.items.size,
+            order = previousOrder,
+            layouts = currentLayouts,
+            draggedItemId = itemId,
             draggedLeft = pointerX - grabX,
-            tabWidth = tabWidth,
         )
         if (targetIndex == currentIndex) return false
-        val previousOrder = stack.items.map { it.id }
         val changed = reorderTab(stackId, itemId, targetIndex)
         if (changed) {
             val nextOrder = findStack(stackId)?.items?.map { it.id }.orEmpty()
-            recordTabSwapOffsets(stackId, itemId, previousOrder, nextOrder, tabWidth)
+            val nextLayouts = reorderTabLayouts(currentLayouts, nextOrder)
+            tabDrag = DockTabDragState(stackId, itemId, pointerX, grabX, nextLayouts)
+            tabLayouts[stackId] = nextLayouts
+            recordTabSwapOffsets(stackId, itemId, currentLayouts, nextLayouts)
         }
         return changed
+    }
+
+    internal fun updateTabLayouts(stackId: String, layouts: List<DockTabLayout>) {
+        if (layouts.isEmpty()) {
+            tabLayouts.remove(stackId)
+        } else {
+            tabLayouts[stackId] = layouts
+        }
     }
 
     fun beginTabGrab(stackId: String, itemId: String, x: Float, y: Float) {
@@ -311,7 +335,9 @@ class DockingState {
     fun tabDragOffset(stackId: String, itemId: String, currentIndex: Int): Float? {
         val drag = tabDrag ?: return null
         if (drag.stackId != stackId || drag.itemId != itemId) return null
-        return drag.pointerX - drag.grabX - currentIndex * drag.tabWidth
+        val left = drag.layouts.firstOrNull { it.itemId == itemId }?.left
+            ?: (currentIndex * (drag.layouts.firstOrNull { it.itemId == itemId }?.width ?: 0f))
+        return drag.pointerX - drag.grabX - left
     }
 
     fun consumeTabSwapOffset(stackId: String, itemId: String): Float? {
@@ -322,7 +348,7 @@ class DockingState {
         var changed = false
         root = root?.let { node ->
             val next = node.reorderTab(stackId, itemId, targetIndex)
-            changed = changed || next != node
+            changed = next != node
             next
         }
         for (index in floatingWindows.indices) {
@@ -339,6 +365,45 @@ class DockingState {
         return root?.containsItem(itemId) == true || floatingWindows.any { window ->
             window.stack.items.any { it.id == itemId }
         }
+    }
+
+    fun focusedItem(): DockItem? {
+        val focused = focusedItemId ?: return null
+        return item(focused)
+    }
+
+    fun item(itemId: String): DockItem? {
+        return root?.findItem(itemId)
+            ?: floatingWindows.firstNotNullOfOrNull { window -> window.stack.items.firstOrNull { it.id == itemId } }
+    }
+
+    fun stackIdOf(itemId: String): String? {
+        return root?.findStackWithItem(itemId)?.id
+            ?: floatingWindows.firstOrNull { window -> window.stack.items.any { it.id == itemId } }?.stack?.id
+    }
+
+    fun updateItem(item: DockItem): Boolean {
+        var changed = false
+        root = root?.mapStacks { stack ->
+            val index = stack.items.indexOfFirst { it.id == item.id }
+            if (index < 0) return@mapStacks stack
+            val nextItems = stack.items.toMutableList()
+            if (nextItems[index] == item) return@mapStacks stack
+            nextItems[index] = item
+            changed = true
+            stack.copy(items = nextItems)
+        }
+        for (index in floatingWindows.indices) {
+            val window = floatingWindows[index]
+            val itemIndex = window.stack.items.indexOfFirst { it.id == item.id }
+            if (itemIndex < 0) continue
+            val nextItems = window.stack.items.toMutableList()
+            if (nextItems[itemIndex] == item) continue
+            nextItems[itemIndex] = item
+            floatingWindows[index] = window.copy(stack = window.stack.copy(items = nextItems))
+            changed = true
+        }
+        return changed
     }
 
     private fun removeItemForDock(itemId: String): DockItem? {
@@ -387,15 +452,45 @@ class DockingState {
     private fun recordTabSwapOffsets(
         stackId: String,
         draggedItemId: String,
-        previousOrder: List<String>,
-        nextOrder: List<String>,
-        tabWidth: Float,
+        previousLayouts: List<DockTabLayout>,
+        nextLayouts: List<DockTabLayout>,
     ) {
-        nextOrder.forEachIndexed { nextIndex, itemId ->
-            if (itemId == draggedItemId) return@forEachIndexed
-            val previousIndex = previousOrder.indexOf(itemId)
-            if (previousIndex < 0 || previousIndex == nextIndex) return@forEachIndexed
-            tabSwapOffsets[tabSwapOffsetKey(stackId, itemId)] = (previousIndex - nextIndex) * tabWidth
+        val previousById = previousLayouts.associateBy { it.itemId }
+        nextLayouts.forEach { nextLayout ->
+            val itemId = nextLayout.itemId
+            if (itemId == draggedItemId) return@forEach
+            val previousLayout = previousById[itemId] ?: return@forEach
+            val offset = previousLayout.left - nextLayout.left
+            if (offset != 0f) tabSwapOffsets[tabSwapOffsetKey(stackId, itemId)] = offset
+        }
+    }
+
+    private fun currentTabLayouts(stackId: String, order: List<String>, tabWidth: Float?): List<DockTabLayout> {
+        val layouts = tabLayouts[stackId]
+            ?.filter { it.itemId in order }
+            ?.takeIf { it.size == order.size }
+            ?.let { byCurrentOrder(it, order) }
+        if (layouts != null) return layouts
+
+        val width = tabWidth ?: return emptyList()
+        return order.mapIndexed { index, itemId ->
+            DockTabLayout(itemId, index * width, width, index * width, width)
+        }
+    }
+
+    private fun reorderTabLayouts(layouts: List<DockTabLayout>, order: List<String>): List<DockTabLayout> {
+        if (layouts.isEmpty()) return layouts
+        val byId = layouts.associateBy { it.itemId }
+        var outerLeft = layouts.minOf { it.outerLeft }
+        return order.mapNotNull { itemId ->
+            val layout = byId[itemId] ?: return@mapNotNull null
+            val childInset = layout.left - layout.outerLeft
+            val next = layout.copy(
+                left = outerLeft + childInset,
+                outerLeft = outerLeft,
+            )
+            outerLeft += layout.outerWidth
+            next
         }
     }
 }
@@ -404,27 +499,29 @@ private fun tabSwapOffsetKey(stackId: String, itemId: String): String = "$stackI
 
 private fun tabDragTargetIndex(
     currentIndex: Int,
-    itemCount: Int,
+    order: List<String>,
+    layouts: List<DockTabLayout>,
+    draggedItemId: String,
     draggedLeft: Float,
-    tabWidth: Float,
 ): Int {
-    val currentLeft = currentIndex * tabWidth
-    val currentRight = currentLeft + tabWidth
-    val draggedRight = draggedLeft + tabWidth
-    if (draggedRight > currentRight) {
+    if (layouts.isEmpty()) return currentIndex
+    val byId = layouts.associateBy { it.itemId }
+    val current = byId[draggedItemId] ?: return currentIndex
+    val draggedRight = draggedLeft + current.width
+    if (draggedRight > current.left + current.width) {
         var targetIndex = currentIndex
-        while (targetIndex < itemCount - 1) {
-            val nextMidpoint = (targetIndex + 1) * tabWidth + tabWidth * 0.5f
-            if (draggedRight < nextMidpoint) break
+        while (targetIndex < order.lastIndex) {
+            val nextLayout = byId[order[targetIndex + 1]] ?: break
+            if (draggedRight < nextLayout.midpoint) break
             targetIndex++
         }
         return targetIndex
     }
-    if (draggedLeft < currentLeft) {
+    if (draggedLeft < current.left) {
         var targetIndex = currentIndex
         while (targetIndex > 0) {
-            val previousMidpoint = (targetIndex - 1) * tabWidth + tabWidth * 0.5f
-            if (draggedLeft > previousMidpoint) break
+            val previousLayout = byId[order[targetIndex - 1]] ?: break
+            if (draggedLeft > previousLayout.midpoint) break
             targetIndex--
         }
         return targetIndex
@@ -432,12 +529,22 @@ private fun tabDragTargetIndex(
     return currentIndex
 }
 
+private fun byCurrentOrder(layouts: List<DockTabLayout>, order: List<String>): List<DockTabLayout> {
+    val byId = layouts.associateBy { it.itemId }
+    return order.mapNotNull(byId::get)
+}
+
 private fun DockNode.Split.withFractionPreservingChildren(nextFraction: Float): DockNode.Split {
     val oldFraction = fraction
     if (oldFraction == nextFraction) return this
     return copy(
         fraction = nextFraction,
-        first = first.preserveSplitPosition(orientation, oldSpan = oldFraction, nextSpan = nextFraction, startShift = 0f),
+        first = first.preserveSplitPosition(
+            orientation,
+            oldSpan = oldFraction,
+            nextSpan = nextFraction,
+            startShift = 0f
+        ),
         second = second.preserveSplitPosition(
             orientation = orientation,
             oldSpan = 1f - oldFraction,
@@ -511,6 +618,13 @@ private fun DockNode.mapSplits(transform: (DockNode.Split) -> DockNode.Split): D
     return when (this) {
         is DockNode.Stack -> this
         is DockNode.Split -> transform(copy(first = first.mapSplits(transform), second = second.mapSplits(transform)))
+    }
+}
+
+private fun DockNode.mapStacks(transform: (DockNode.Stack) -> DockNode.Stack): DockNode {
+    return when (this) {
+        is DockNode.Stack -> transform(this)
+        is DockNode.Split -> copy(first = first.mapStacks(transform), second = second.mapStacks(transform))
     }
 }
 

@@ -22,11 +22,11 @@ class CommandBuilder<S : SharedSuggestionProvider>(private val dispatcher: Comma
     operator fun String.invoke(vararg aliases: String, operation: CommandEditor<S, LiteralArgumentBuilder<S>>.() -> Unit) {
         val command = LiteralArgumentBuilder.literal<S>(this)
         CommandEditor<S, LiteralArgumentBuilder<S>>(command).operation()
-        dispatcher.register(command)
+        val registeredCommand = dispatcher.register(command)
 
         for (alias in aliases) {
             val aliasNode = LiteralArgumentBuilder.literal<S>(alias)
-            aliasNode.redirect(command.build())
+            aliasNode.redirect(registeredCommand)
             dispatcher.register(aliasNode)
         }
     }

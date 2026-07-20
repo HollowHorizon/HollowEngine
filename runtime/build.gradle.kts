@@ -11,7 +11,6 @@ plugins {
     id("architectury-plugin")
     id("dev.architectury.loom")
     id("com.gradleup.shadow")
-    id("com.google.devtools.ksp")
     kotlin("jvm")
     kotlin("plugin.serialization")
     kotlin("plugin.compose")
@@ -28,11 +27,14 @@ val architecturyApiVersion: String by rootProject.properties
 val parchmentVersion: String by rootProject.properties
 val kotlinVersion: String by rootProject.properties
 val koolVersion: String by rootProject.properties
+val koinVersion: String by rootProject.properties
 val hollowcore: String by rootProject.properties
 
 group = modGroup
 version = modVersion
-base.archivesName.set("${modName}Runtime")
+base {
+    archivesName.set("${modName}Runtime")
+}
 
 apply(from = rootProject.file("gradle/assets-generator.gradle"))
 apply(from = rootProject.file("gradle/lang-merge.gradle"))
@@ -40,6 +42,10 @@ apply(from = rootProject.file("gradle/lang-merge.gradle"))
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val generatedAssetsDir = layout.buildDirectory.dir("generated/sources/assets/kotlin")
 val mergedLangDir = layout.buildDirectory.dir("generated/lang/assets/$modId/lang")
+val runtimeResourcesPath = sourceSets.named("main").get().output.resourcesDir
+    ?.toPath()
+    ?.toAbsolutePath()
+    ?.normalize()
 val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
 val shadowBundle = configurations.create("shadowBundle") {
     isCanBeResolved = true
@@ -107,22 +113,25 @@ dependencies {
     modImplementation("lib:sodium-fabric:0.6.13+mc1.21.1")
 
     implementation(project(":bridge"))
-    ksp(project(":katari-binding-processor"))
-    compileOnly("org.jetbrains:annotations:24.1.0")
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
-    addShadow("com.github.weisj:jsvg:2.0.0")
-    addShadow("org.jetbrains:markdown:0.7.3")
+    addShadow("com.github.weisj:jsvg:2.1.0")
     addShadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    addShadow("io.insert-koin:koin-core:$koinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion")
+    addShadow("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion") {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-scripting-compiler-embeddable")
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-compiler-embeddable")
+    }
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
-    addShadow("lib:katari-jvm:1.2.0")
-    addShadow("lib:katari-stdlib-jvm:1.2.0")
 
     addShadow("androidx.compose.runtime:runtime:1.10.3")
     addShadow("androidx.collection:collection:1.4.0")
@@ -130,14 +139,10 @@ dependencies {
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.9.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.9.0")
 
-    addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
-        exclude(group = "org.lwjgl")
-        exclude(group = "org.lwjglx")
-    }
-
     val jeiVersion = "19.25.1.332"
     add("modCompileOnly", "mezz.jei:jei-$minecraftVersion-fabric-api:$jeiVersion")
-    compileOnly("lib:bbs:1.2.6-1.20.1-deobf")
+
+    compileOnly("org.jetbrains:annotations:26.1.0")
 
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
@@ -185,10 +190,6 @@ tasks.named<KotlinCompile>("compileKotlin") {
     dependsOn("generateAssets")
 }
 
-tasks.matching { it.name.startsWith("ksp") }.configureEach {
-    dependsOn("generateAssets")
-}
-
 tasks.named<JavaCompile>("compileJava") {
     dependsOn("generateAssets")
 }
@@ -201,6 +202,13 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("dev")
     configurations = listOf(shadowBundle)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    includeEmptyDirs = false
+    eachFile {
+        val sourcePath = file.toPath().toAbsolutePath().normalize()
+        if (runtimeResourcesPath != null && sourcePath.startsWith(runtimeResourcesPath)) {
+            exclude()
+        }
+    }
 }
 
 tasks.named<RemapJarTask>("remapJar") {

@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.TrsTransformF
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
+import ru.hollowhorizon.hollowengine.common.utils.math.*
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
 
@@ -17,12 +13,14 @@ class AnimationPose {
 
     fun bone(index: Int): BonePose = bones.getOrPut(index) { BonePose(index) }
 
+    operator fun get(index: Int): BonePose? = bones[index]
+
     fun clear() {
         bones.clear()
     }
 
     companion object {
-        fun sample(animation: Animation, time: Float, allowedNodes: Set<Int>? = null): AnimationPose {
+        fun sample(animation: AnimationClip, time: Float, allowedNodes: Set<Int>? = null): AnimationPose {
             val pose = AnimationPose()
             animation.nodes.forEach { (node, channels) ->
                 if (allowedNodes != null && node !in allowedNodes) return@forEach
@@ -43,8 +41,8 @@ class AnimationPose {
             }
 
             nodeIds.forEach { node ->
-                val a = first.entries.firstOrNull { it.key == node }?.value
-                val b = second.entries.firstOrNull { it.key == node }?.value
+                val a = first[node]
+                val b = second[node]
                 val mixed = result.bone(node)
 
                 mixed.translation = when {
@@ -94,7 +92,7 @@ fun applyAnimationPose(
         val runtimeNode = nodes[nodeIndex] ?: return@forEach
         val transform = runtimeNode.transform
         val base = runtimeNode.definition.baseTransform
-        val reference = referencePose?.entries?.firstOrNull { it.key == nodeIndex }?.value
+        val reference = referencePose?.get(nodeIndex)
 
         when (blendMode) {
             LayerBlendMode.Override -> transform.applyOverride(bonePose, base, clampedWeight)
@@ -102,8 +100,7 @@ fun applyAnimationPose(
         }
 
         bonePose.weights?.let { weights ->
-            val target = runtimeNode.definition.mesh?.weights ?: return@let
-            blendWeights(target, weights, blendMode, clampedWeight)
+            blendWeights(runtimeNode.morphWeights, weights, blendMode, clampedWeight)
         }
     }
 }

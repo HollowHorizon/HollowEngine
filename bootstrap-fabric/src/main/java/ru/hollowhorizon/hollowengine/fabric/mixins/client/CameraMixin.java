@@ -25,6 +25,14 @@ public class CameraMixin {
 
         var renderer = Minecraft.getInstance().gameRenderer;
         var setup = bridge.onCameraSetup(renderer, camera, override.active() ? override.yaw() : camera.getYRot(), override.active() ? override.pitch() : camera.getXRot(), override.active() ? override.roll() : 0.0F, partialTick);
-        ((CameraInvoker) camera).hollowcore$rotate(setup.yaw(), setup.pitch());
+        var accessor = (CameraInvoker) camera;
+        accessor.hollowcore$rotate(setup.yaw(), setup.pitch());
+        if (setup.roll() != 0.0F) {
+            var rotation = accessor.hollowcore$getRotation();
+            rotation.rotateZ((float) Math.toRadians(setup.roll()));
+            accessor.hollowcore$getForwards().set(0.0F, 0.0F, -1.0F).rotate(rotation);
+            accessor.hollowcore$getUp().set(0.0F, 1.0F, 0.0F).rotate(rotation);
+            accessor.hollowcore$getLeft().set(-1.0F, 0.0F, 0.0F).rotate(rotation);
+        }
     }
 }

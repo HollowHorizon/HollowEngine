@@ -6,7 +6,7 @@ import kotlinx.serialization.UseSerializers
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.tags.TagDataManager
-import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)

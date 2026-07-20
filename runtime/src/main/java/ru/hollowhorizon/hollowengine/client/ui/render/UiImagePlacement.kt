@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.GlStateManager
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import org.lwjgl.opengl.GL11
-import ru.hollowhorizon.hollowengine.client.ui.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 
 internal data class ImagePlacement(
     val x: Float,
@@ -29,8 +29,16 @@ internal fun imagePlacement(width: Float, height: Float, fit: UiImageFit, size: 
         UiImageFit.STRETCH,
         UiImageFit.NINE_SLICE,
         UiImageFit.THREE_SLICE_VERTICAL,
-        UiImageFit.THREE_SLICE_HORIZONTAL -> ImagePlacement(0f, 0f, width, height)
-        UiImageFit.NONE -> ImagePlacement((width - size.first) * 0.5f, (height - size.second) * 0.5f, size.first, size.second)
+        UiImageFit.THREE_SLICE_HORIZONTAL,
+            -> ImagePlacement(0f, 0f, width, height)
+
+        UiImageFit.NONE -> ImagePlacement(
+            (width - size.first) * 0.5f,
+            (height - size.second) * 0.5f,
+            size.first,
+            size.second
+        )
+
         UiImageFit.CONTAIN -> containPlacement(width, height, sourceAspect, targetAspect)
         UiImageFit.COVER -> coverPlacement(width, height, sourceAspect, targetAspect)
     }

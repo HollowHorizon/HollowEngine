@@ -1,16 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.rendering
 
-import ru.hollowhorizon.hollowengine.client.models.internal.MatrixGetter
-import ru.hollowhorizon.hollowengine.client.models.internal.SkinGetter
-import ru.hollowhorizon.hollowengine.client.models.internal.VisibilityGetter
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.PrimitiveInstance
 
 interface MeshRenderer {
     fun init()
     fun setupPipeline(
         pipeline: RenderPipeline,
-        skinGetter: SkinGetter,
-        matrixGetter: MatrixGetter,
-        visibilityGetter: VisibilityGetter
+        instance: PrimitiveInstance,
     )
     fun destroy()
 }
