@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.fbx
 
-import de.fabmax.kool.math.Mat4f
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.Vec4f
+import ru.hollowhorizon.hollowengine.common.utils.math.Mat4f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec4f
 import ru.hollowhorizon.hollowengine.client.models.util.Buffer
 import ru.hollowhorizon.hollowengine.client.models.util.rem
 import ru.hollowhorizon.hollowengine.client.models.util.set

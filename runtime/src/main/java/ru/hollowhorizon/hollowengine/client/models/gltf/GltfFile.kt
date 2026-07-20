@@ -1,9 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import de.fabmax.kool.util.Uint8Buffer
-import de.fabmax.kool.util.Uint8BufferImpl
-import de.fabmax.kool.util.decodeToString
-import de.fabmax.kool.util.inflate
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
@@ -11,13 +7,16 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
+import ru.hollowhorizon.hollowengine.common.utils.Uint8Buffer
+import ru.hollowhorizon.hollowengine.common.utils.decodeToString
+import ru.hollowhorizon.hollowengine.common.utils.inflate
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
 
 suspend fun loadGltf(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): Result<GltfFile> {
-    val data = Uint8BufferImpl(location.readModelBytes(side))
+    val data = Uint8Buffer(location.readModelBytes(side))
 
     return try {
         val filePath = location.path
@@ -38,11 +37,11 @@ suspend fun loadGltf(location: ResourceLocation, side: ModelSide = ModelSide.CLI
                             val bufferUri = if (uri.startsWith("data:", true)) {
                                 when {
                                     uri.startsWith("data:application/octet-stream;base64,") -> {
-                                        it.data = Uint8BufferImpl(Base64.getDecoder().decode(uri.substring(37)))
+                                        it.data = Uint8Buffer(Base64.getDecoder().decode(uri.substring(37)))
                                     }
 
                                     uri.startsWith("data:image/png;base64,") -> {
-                                        it.data = Uint8BufferImpl(Base64.getDecoder().decode(uri.substring(22)))
+                                        it.data = Uint8Buffer(Base64.getDecoder().decode(uri.substring(22)))
                                     }
 
                                     else -> throw IllegalStateException("Unknown data format: $uri")
@@ -51,7 +50,7 @@ suspend fun loadGltf(location: ResourceLocation, side: ModelSide = ModelSide.CLI
                             } else {
                                 "${location.namespace}:$modelBasePath/$uri"
                             }
-                            it.data = Uint8BufferImpl(bufferUri.rl.readModelBytes(side))
+                            it.data = Uint8Buffer(bufferUri.rl.readModelBytes(side))
                         }
                     }.awaitAll()
                     m.images.filter { it.uri != null }.forEach {

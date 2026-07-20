@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.render.lighting
 
-import de.fabmax.kool.math.Vec3f
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.*
 
 object ClusteredLightingConfig {
@@ -106,7 +106,7 @@ fun selectLogarithmicSlice(
     return floor(ratio * slices).toInt().coerceIn(0, slices - 1)
 }
 
-fun spotLightDirection(rotation: de.fabmax.kool.math.QuatF): Vec3f =
+fun spotLightDirection(rotation: ru.hollowhorizon.hollowengine.common.utils.math.QuatF): Vec3f =
     Vec3f(0f, 0f, 1f).rotateBy(rotation).normed()
 
 fun projectLightBounds(

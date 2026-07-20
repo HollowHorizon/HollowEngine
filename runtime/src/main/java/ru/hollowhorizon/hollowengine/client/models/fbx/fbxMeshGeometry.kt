@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.fbx
 
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.Vec4f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec4f
 import ru.hollowhorizon.hollowengine.HollowCore
 
 open class Geometry(id: Long, element: Element, name: String, doc: Document) : Object(id, element, name) {

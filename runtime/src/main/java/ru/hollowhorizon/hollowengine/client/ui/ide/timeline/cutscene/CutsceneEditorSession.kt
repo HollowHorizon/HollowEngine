@@ -16,7 +16,7 @@ class CutsceneEditorSession {
     }
 
     init {
-        timeline.workAreaEnd.set(playback.duration)
+        timeline.workAreaEnd = playback.duration
         timeline.addTrack(listOf("Camera", "Transform"), playback.positionTrack)
         timeline.addTrack(listOf("Camera", "Transform"), playback.rotationTrack)
         timeline.addTrack(listOf("Camera", "Lens"), playback.fovTrack)
@@ -82,7 +82,7 @@ class CutsceneEditorSession {
                 true
             }
             key == GLFW.GLFW_KEY_HOME -> {
-                timeline.setCurrentTime(0f)
+                timeline.applyCurrentTime(0f)
                 true
             }
             key == GLFW.GLFW_KEY_SPACE -> {
@@ -97,20 +97,20 @@ class CutsceneEditorSession {
 
     private fun moveSelectionOrPlayhead(deltaSeconds: Float) {
         if (timeline.selectedKeyframes.isEmpty()) {
-            timeline.setCurrentTime(timeline.currentTime.value + deltaSeconds)
+            timeline.applyCurrentTime(timeline.currentTime + deltaSeconds)
         } else {
             timeline.nudgeSelectedKeyframes(deltaSeconds)
         }
     }
 
     fun syncPlaybackFromTimeline() {
-        playback.setDuration(timeline.workAreaEnd.value)
-        playback.seek(timeline.currentTime.value)
+        playback.setDuration(timeline.workAreaEnd)
+        playback.seek(timeline.currentTime)
         updatePreviewState()
     }
 
     fun updatePreviewState() {
-        if (timeline.isCameraPreviewEnabled.value) {
+        if (timeline.isCameraPreviewEnabled) {
             CutsceneCameraSystem.preview(playback)
         } else if (CutsceneCameraSystem.activeController === playback) {
             CutsceneCameraSystem.stop()
@@ -124,9 +124,9 @@ class CutsceneEditorSession {
     fun importCutscene(readablePath: String) {
         val data = CutsceneStorage.load(readablePath)
         playback.setupTracks(data)
-        timeline.isPlaying.set(false)
-        timeline.workAreaEnd.set(playback.duration)
-        timeline.setCurrentTime(0f)
+        timeline.isPlaying = false
+        timeline.workAreaEnd = playback.duration
+        timeline.applyCurrentTime(0f)
         timeline.clearSelection()
         timeline.clearHistory()
         updatePreviewState()

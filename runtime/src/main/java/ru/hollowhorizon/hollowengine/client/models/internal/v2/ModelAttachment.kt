@@ -1,16 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
-import de.fabmax.kool.scene.TrsTransformF
-import de.fabmax.kool.util.Time
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
@@ -25,6 +21,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipe
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.MaterialOverrideLayerSpec
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import kotlin.math.max
@@ -202,7 +199,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
 
     override fun collectCommands(pipeline: RenderPipeline) {
         super.collectCommands(pipeline)
-        pipeline.onUpdate { update(if (IrisHelper.isShadowRendering()) 0f else Time.deltaT) }
+        pipeline.onUpdate { update(if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime) }
         runtimeNodes.forEach { it.collectCommands(pipeline) }
     }
 
@@ -216,7 +213,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
         return runtimeNodes.asSequence().flatMap { it.walk().asSequence() }.firstOrNull { it.name == name }
     }
 
-    fun calculateBoundsCached(frame: Int = Time.frameCount): Pair<Vec3f, Vec3f>? {
+    fun calculateBoundsCached(frame: Int = TickHandler.clientFrame): Pair<Vec3f, Vec3f>? {
         if (cachedBoundsFrame == frame) return cachedBounds
 
         synchronized(rebuildLock) {

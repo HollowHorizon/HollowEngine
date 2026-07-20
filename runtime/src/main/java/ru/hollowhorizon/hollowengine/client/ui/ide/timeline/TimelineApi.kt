@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline
 
-import de.fabmax.kool.modules.ui2.mutableStateOf
-import de.fabmax.kool.util.Color
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.common.utils.Color
+
 
 interface PropertyDriver<T> {
     fun interpolate(start: T, end: T, fraction: Float): T
@@ -11,8 +14,8 @@ interface PropertyDriver<T> {
 
 abstract class BaseAnimTrack(name: String, val color: Color = Color.WHITE) {
     val nameState = mutableStateOf(name)
-    val isLocked = mutableStateOf(false)
-    val isVisible = mutableStateOf(true)
+    var isLocked by mutableStateOf(false)
+    var isVisible by mutableStateOf(true)
 
     abstract fun update(time: Float)
     abstract fun getKeysAsList(): MutableList<out Keyframe<*>>

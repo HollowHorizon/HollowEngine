@@ -1,8 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.util.Color
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
@@ -13,6 +10,9 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.*
 
 internal const val TimelineHeaderWidth = 220f
@@ -93,8 +93,8 @@ internal fun timelineRows(groups: List<TrackGroup>): List<TimelineRow> {
                 height = TimelineTrackRowHeight,
                 kind = TimelineRowKind.TRACK,
                 track = track,
-                locked = locked || track.isLocked.value,
-                visible = visible && track.isVisible.value,
+                locked = locked || track.isLocked,
+                visible = visible && track.isVisible,
             )
             y += TimelineTrackRowHeight
         }

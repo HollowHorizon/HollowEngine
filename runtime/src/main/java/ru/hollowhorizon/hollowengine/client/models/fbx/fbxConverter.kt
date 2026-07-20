@@ -2,9 +2,6 @@ package ru.hollowhorizon.hollowengine.client.models.fbx
 
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.math.*
-import de.fabmax.kool.scene.TrsTransformF
-import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
@@ -16,6 +13,8 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Linear
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.SphericalLinear
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import java.io.IOException
 import kotlin.math.abs
 import ru.hollowhorizon.hollowengine.client.models.fbx.FileGlobalSettings.FrameRate as Fr
@@ -321,7 +320,7 @@ fun Document.getSkinForModel(model: Model): ru.hollowhorizon.hollowengine.client
 
 fun convertSkin(fbxSkin: ru.hollowhorizon.hollowengine.client.models.fbx.Skin): ru.hollowhorizon.hollowengine.client.models.internal.Skin {
     val jointsIds = mutableListOf<Int>()
-    val inverseBindMatrices = mutableListOf<de.fabmax.kool.math.Mat4f>()
+    val inverseBindMatrices = mutableListOf<ru.hollowhorizon.hollowengine.common.utils.math.Mat4f>()
 
     for (cluster in fbxSkin.clusters) {
         cluster.node?.let { model ->

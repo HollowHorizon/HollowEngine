@@ -5,9 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.network.chat.Component

@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode

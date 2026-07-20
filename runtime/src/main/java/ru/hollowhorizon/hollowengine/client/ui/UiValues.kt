@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
+import kotlin.math.*
 
 /**
  * An interaction state, matched by HSS `:name` selectors. Open by design: any name is a
@@ -312,6 +308,7 @@ data class UiTransformPivot(
     }
 }
 
+// TODO: Replace with Color from common.utils
 data class UiColor(
     val red: Float,
     val green: Float,

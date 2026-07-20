@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.rendering
 
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
 import org.joml.Matrix3f

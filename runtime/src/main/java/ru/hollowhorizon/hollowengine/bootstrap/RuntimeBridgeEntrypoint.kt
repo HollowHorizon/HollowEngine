@@ -5,7 +5,6 @@ import com.mojang.blaze3d.audio.SoundBuffer
 import com.mojang.blaze3d.platform.Window
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.datafixers.util.Either
-import de.fabmax.kool.input.KeyboardInput
 import net.irisshaders.iris.gl.image.GlImage
 import net.irisshaders.iris.gl.sampler.SamplerHolder
 import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
@@ -21,6 +20,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.particle.ParticleEngine
 import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.client.player.KeyboardInput
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.MultiBufferSource
@@ -843,7 +843,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleChar(codePoint, modifiers)) return true
         if (TransformGizmoEditor.handleChar(codePoint, modifiers)) return true
-        KeyboardInput.handleCharTyped(codePoint.toChar())
         return false
     }
 

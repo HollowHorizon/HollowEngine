@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.utils
 
-import de.fabmax.kool.math.*
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import kotlin.math.abs
 import kotlin.math.sqrt
 

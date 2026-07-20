@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline
 
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
 class FloatPropertyDriver(
     val name: String = "Value",

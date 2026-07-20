@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client
 
-import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.common.utils.Color
 
 object HighlightTheme {
-    val COMMENT = Color.Companion.LIGHT_GRAY
+    val COMMENT = Color.LIGHT_GRAY
     val KEYWORD = Color("CF8E6D")
     val STRING = Color("6AAB73")
     val PROPERTY_IDENTIFIER = Color("C77DBB")

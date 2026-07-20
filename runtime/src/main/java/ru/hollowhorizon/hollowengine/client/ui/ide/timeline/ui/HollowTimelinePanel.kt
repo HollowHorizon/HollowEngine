@@ -3,13 +3,13 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 import androidx.compose.runtime.*
 import kotlinx.coroutines.isActive
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BaseAnimTrack
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSession
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneStorage
-import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
@@ -45,9 +45,10 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
         var lastNanos = -1L
         while (isActive) {
             withFrameNanos { now ->
-                val delta = if (lastNanos < 0L) 0f else ((now - lastNanos) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.1f)
+                val delta =
+                    if (lastNanos < 0L) 0f else ((now - lastNanos) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.1f)
                 lastNanos = now
-                if (session.timeline.isPlaying.value) session.update(delta)
+                if (session.timeline.isPlaying) session.update(delta)
             }
         }
     }
@@ -59,7 +60,7 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
                 refresh = session::invalidateUi,
                 onKeyInput = session::onHollowUiKey,
                 keyboardActive = keyboardActive,
-                onCapture = { session.captureFrame(session.timeline.currentTime.value) },
+                onCapture = { session.captureFrame(session.timeline.currentTime) },
                 onSave = { dialog = CutsceneDialog.SAVE },
                 onLoad = { dialog = CutsceneDialog.LOAD },
             )
@@ -102,9 +103,9 @@ fun HollowTimelineEditor(
     val rows = timelineRows(controller.groups)
     val rowsHeight = rows.sumOf { it.height.toDouble() }.toFloat()
     val tracks = controller.getAllTracks()
-    val pxPerSec = controller.pixelsPerSecond.value
+    val pxPerSec = controller.pixelsPerSecond
     val contentWidth = timelineContentWidth(
-        controller.workAreaEnd.value,
+        controller.workAreaEnd,
         timelineMaxKeyTime(tracks),
         pxPerSec,
         TimelineMinContentWidth,
@@ -126,7 +127,8 @@ fun HollowTimelineEditor(
     val focusContentX = when {
         controller.dragFocusKeyframe != null ->
             TimelineLeftPadding + controller.dragFocusKeyframe!!.time * pxPerSec
-        controller.isPlaying.value || isScrubbing -> TimelineLeftPadding + controller.currentTime.value * pxPerSec
+
+        controller.isPlaying || isScrubbing -> TimelineLeftPadding + controller.currentTime * pxPerSec
         else -> null
     }
     if (focusContentX != null) autoPanToContentX(scroll, laneViewport, focusContentX)
@@ -237,13 +239,13 @@ private fun handleTimelineScroll(
         return
     }
     if (modifiers and GLFW.GLFW_MOD_CONTROL != 0) {
-        val oldZoom = controller.pixelsPerSecond.value
+        val oldZoom = controller.pixelsPerSecond
         val newZoom = (oldZoom - wheel * TimelineZoomWheelStep).coerceIn(TimelineMinZoom, TimelineMaxZoom)
         if (newZoom != oldZoom) {
             val cursorInViewport = event.x - viewport.x
             val cursorContentX = cursorInViewport + scroll.offsetX
             val time = (cursorContentX - TimelineLeftPadding) / oldZoom
-            controller.pixelsPerSecond.set(newZoom)
+            controller.pixelsPerSecond = newZoom
             val newContentX = time * newZoom + TimelineLeftPadding
             scroll.scrollTo(x = (newContentX - cursorInViewport).coerceAtLeast(0f))
             refresh()
@@ -277,11 +279,25 @@ private fun TimeRuler(
                 if (event.button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return@onPress
                 onScrubbingChange(true)
                 controller.clearSelection()
-                controller.setCurrentTime(timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value, event.modifiers))
+                controller.applyCurrentTime(
+                    timelineTimeAt(
+                        event.localX,
+                        pxPerSec,
+                        controller.workAreaEnd,
+                        event.modifiers
+                    )
+                )
                 refresh()
             }
             .onDrag { event ->
-                controller.setCurrentTime(timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value, event.modifiers))
+                controller.applyCurrentTime(
+                    timelineTimeAt(
+                        event.localX,
+                        pxPerSec,
+                        controller.workAreaEnd,
+                        event.modifiers
+                    )
+                )
                 event.consume()
                 refresh()
             }
@@ -320,7 +336,7 @@ private fun TimeRuler(
         }
         WorkAreaHandle(controller, pxPerSec, refresh)
         // Playhead head riding on the ruler: a thin line topped by a glowing marker.
-        val px = TimelineLeftPadding + controller.currentTime.value * pxPerSec
+        val px = TimelineLeftPadding + controller.currentTime * pxPerSec
         Box(
             modifier = Modifier.position((px - 0.5f).px, 0.px)
                 .size(1.px, TimelineRulerHeight.px)
@@ -368,7 +384,7 @@ private fun TimelineLane(
             .onPress { event ->
                 val track = row.track as? AnimTrack<*> ?: return@onPress
                 if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && !row.locked) {
-                    val time = timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd.value, event.modifiers)
+                    val time = timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd, event.modifiers)
                     onLaneContextMenu(event, track, time)
                 } else if (event.modifiers and GLFW.GLFW_MOD_CONTROL == 0) {
                     controller.clearSelection()
@@ -443,7 +459,7 @@ private fun TimelineKeyframe(
                     if (keyframe !in controller.selectedKeyframes) {
                         controller.selectedKeyframes.clear()
                         controller.selectedKeyframes.add(keyframe)
-                        controller.isWorkAreaSelected.set(false)
+                        controller.isWorkAreaSelected = false
                     }
                     (track as? AnimTrack<*>)?.let { onContextMenu(event, it, keyframe.time) }
                     event.consume()
@@ -513,8 +529,8 @@ private fun KeyframeConnections(
 
 @Composable
 private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refresh: () -> Unit) {
-    val x = TimelineLeftPadding + controller.workAreaEnd.value * pxPerSec
-    val color = if (controller.isWorkAreaSelected.value) UiColor.White else TimelineColors.Accent
+    val x = TimelineLeftPadding + controller.workAreaEnd * pxPerSec
+    val color = if (controller.isWorkAreaSelected) UiColor.White else TimelineColors.Accent
     // work-area end captured at grab, so total-offset dragging stays in sync past the min bound.
     var dragStartEnd by remember { mutableStateOf(0f) }
     // A ']' bracket capping the usable area: spine on the work-area line, ticks pointing back into it.
@@ -526,8 +542,8 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
             .cursor(UiCursorShape.RESIZE_HORIZONTAL)
             .onPress {
                 controller.selectedKeyframes.clear()
-                controller.isWorkAreaSelected.set(true)
-                dragStartEnd = controller.workAreaEnd.value
+                controller.isWorkAreaSelected = true
+                dragStartEnd = controller.workAreaEnd
                 refresh()
             }
             .onDrag { event ->
@@ -538,9 +554,9 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
                 val next = snapTimelineTime(raw, event.modifiers)
                     .coerceAtLeast(maxKeyTime)
                     .coerceAtLeast(0.1f)
-                controller.workAreaEnd.set(if (event.modifiers == 0) round(next * 100f) / 100f else next)
-                if (controller.currentTime.value > controller.workAreaEnd.value) controller.setCurrentTime(0f)
-                controller.isWorkAreaSelected.set(true)
+                controller.workAreaEnd = if (event.modifiers == 0) round(next * 100f) / 100f else next
+                if (controller.currentTime > controller.workAreaEnd) controller.applyCurrentTime(0f)
+                controller.isWorkAreaSelected = true
                 event.consume()
                 refresh()
             },
@@ -553,7 +569,7 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
 
 @Composable
 private fun WorkAreaShade(controller: TimelineController, pxPerSec: Float, contentWidth: Float, rowsHeight: Float) {
-    val x = TimelineLeftPadding + controller.workAreaEnd.value * pxPerSec
+    val x = TimelineLeftPadding + controller.workAreaEnd * pxPerSec
     if (x >= contentWidth) return
     Box(
         modifier = Modifier.position(x.px, 0.px)
@@ -564,7 +580,7 @@ private fun WorkAreaShade(controller: TimelineController, pxPerSec: Float, conte
 
 @Composable
 private fun Playhead(controller: TimelineController, pxPerSec: Float, rowsHeight: Float) {
-    val x = TimelineLeftPadding + controller.currentTime.value * pxPerSec
+    val x = TimelineLeftPadding + controller.currentTime * pxPerSec
     Box(
         id = "timeline-playhead",
         modifier = Modifier.position((x - 0.5f).px, 0.px)
@@ -589,7 +605,7 @@ private fun updateKeyframeSelection(controller: TimelineController, keyframe: Ke
             controller.selectedKeyframes.add(keyframe)
         }
     }
-    controller.isWorkAreaSelected.set(false)
+    controller.isWorkAreaSelected = false
 }
 
 // ---------------------------------------------------------------------------

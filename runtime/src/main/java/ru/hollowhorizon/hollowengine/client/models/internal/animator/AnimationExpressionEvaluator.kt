@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationVectorExpression
 

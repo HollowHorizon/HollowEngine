@@ -3,8 +3,6 @@ package ru.hollowhorizon.hollowengine.client.render
 import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LightTexture
@@ -20,6 +18,8 @@ import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.utils.color
 import ru.hollowhorizon.hollowengine.client.utils.vertex
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.min
 
 object OpenGLUtils {

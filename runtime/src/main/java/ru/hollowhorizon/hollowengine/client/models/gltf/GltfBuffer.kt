@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import de.fabmax.kool.util.Uint8Buffer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import ru.hollowhorizon.hollowengine.common.utils.Uint8Buffer
 
 @Serializable
 data class GltfBuffer(

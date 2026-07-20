@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.mutableStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.abs
 
 class TimelineController {
@@ -14,18 +16,18 @@ class TimelineController {
 
     val groups = mutableStateListOf<TrackGroup>()
 
-    val currentTime = mutableStateOf(0f)
-    val isPlaying = mutableStateOf(false)
-    val workAreaEnd = mutableStateOf(10f)
+    var currentTime by mutableStateOf(0f)
+    var isPlaying by mutableStateOf(false)
+    var workAreaEnd by mutableStateOf(10f)
     val playbackMode = mutableStateOf(PlaybackMode.LOOP)
 
     val playbackSpeed = mutableStateOf(1f)
 
-    val pixelsPerSecond = mutableStateOf(100f)
+    var pixelsPerSecond by mutableStateOf(100f)
 
     val selectedKeyframes = mutableStateListOf<Keyframe<*>>()
-    val isWorkAreaSelected = mutableStateOf(false)
-    val isCameraPreviewEnabled = mutableStateOf(false)
+    var isWorkAreaSelected by mutableStateOf(false)
+    var isCameraPreviewEnabled by mutableStateOf(false)
 
     val history = TimelineHistory(this)
 
@@ -57,20 +59,20 @@ class TimelineController {
     }
 
     fun onUpdate(deltaSeconds: Float) {
-        if (isPlaying.value) {
-            setCurrentTime(currentTime.value + deltaSeconds * playbackSpeed.value)
+        if (isPlaying) {
+            applyCurrentTime(currentTime + deltaSeconds * playbackSpeed.value)
 
-            val end = workAreaEnd.value
-            if (currentTime.value >= end) {
-                setCurrentTime(0f)
+            val end = workAreaEnd
+            if (currentTime >= end) {
+                applyCurrentTime(0f)
                 if (playbackMode.value == PlaybackMode.ONCE) {
-                    isPlaying.set(false)
+                    isPlaying = false
                 }
             }
         }
 
         getAllTracks().forEach { track ->
-            track.update(currentTime.value)
+            track.update(currentTime)
         }
     }
 
@@ -84,7 +86,7 @@ class TimelineController {
 
     fun clearSelection() {
         selectedKeyframes.clear()
-        isWorkAreaSelected.set(false)
+        isWorkAreaSelected = false
     }
 
     fun deleteSelectedKeyframes() {
@@ -93,18 +95,18 @@ class TimelineController {
         }
     }
 
-    fun setCurrentTime(time: Float) {
-        currentTime.set(time.coerceIn(0f, workAreaEnd.value))
+    fun applyCurrentTime(time: Float) {
+        currentTime = time.coerceIn(0f, workAreaEnd)
         onTimeChanged?.invoke()
     }
 
-    fun setCameraPreviewEnabled(isEnabled: Boolean) {
-        isCameraPreviewEnabled.set(isEnabled)
+    fun applyCameraPreviewEnabled(isEnabled: Boolean) {
+        isCameraPreviewEnabled = isEnabled
         onPreviewChanged?.invoke()
     }
 
     fun togglePlayback() {
-        isPlaying.set(!isPlaying.value)
+        isPlaying = !isPlaying
     }
 
     private fun deleteSelectedKeyframesInternal() {
@@ -114,7 +116,7 @@ class TimelineController {
 
         allTracks.forEach { track ->
             val group = findGroup(track)
-            val isLocked = track is AnimTrack<*> && track.isLocked.value || group?.isLocked == true
+            val isLocked = track is AnimTrack<*> && track.isLocked || group?.isLocked == true
 
             if (!isLocked) {
                 val trackKeys = track.getKeysAsList()
@@ -153,13 +155,13 @@ class TimelineController {
 
     fun <T> upsertKeyframe(track: AnimTrack<T>, time: Float, value: T): Keyframe<T> {
         return history.record("Capture keyframe") {
-            val clamped = time.coerceIn(0f, workAreaEnd.value)
+            val clamped = time.coerceIn(0f, workAreaEnd)
             val existing = track.keyframes.firstOrNull { abs(it.time - clamped) <= KEYFRAME_TIME_EPSILON }
             if (existing != null) {
                 existing.value = copyValue(value)
                 selectedKeyframes.clear()
                 selectedKeyframes.add(existing)
-                isWorkAreaSelected.set(false)
+                isWorkAreaSelected = false
                 onChanged?.invoke()
                 existing
             } else {
@@ -177,7 +179,7 @@ class TimelineController {
 
     fun moveKeyframe(track: BaseAnimTrack, keyframe: Keyframe<*>, targetTime: Float): Boolean {
         val typedTrack = track as? AnimTrack<*> ?: return false
-        val clamped = targetTime.coerceIn(0f, workAreaEnd.value)
+        val clamped = targetTime.coerceIn(0f, workAreaEnd)
         if (typedTrack.hasKeyAt(clamped, except = keyframe)) return false
         keyframe.time = clamped
         onChanged?.invoke()
@@ -225,7 +227,7 @@ class TimelineController {
         if (starts.isEmpty()) return false
         val clampedDelta = deltaSeconds.coerceIn(
             minimumValue = -starts.values.min(),
-            maximumValue = workAreaEnd.value - starts.values.max(),
+            maximumValue = workAreaEnd - starts.values.max(),
         )
         val dragged = starts.keys
         val targets = starts.mapValues { (_, startTime) -> startTime + clampedDelta }
@@ -265,7 +267,7 @@ class TimelineController {
             }
             selectedKeyframes.clear()
             selectedKeyframes.addAll(created)
-            isWorkAreaSelected.set(false)
+            isWorkAreaSelected = false
             onChanged?.invoke()
         }
     }
@@ -303,20 +305,25 @@ class TimelineController {
             track.keyframes.addAll(keyframes.map { it.copyKeyframe() })
         }
         selectedKeyframes.clear()
-        currentTime.set(snapshot.currentTime)
-        workAreaEnd.set(snapshot.workAreaEnd)
+        currentTime = snapshot.currentTime
+        workAreaEnd = snapshot.workAreaEnd
     }
 
     internal fun createSnapshot(): TimelineSnapshot {
         val tracks = getAnimTracksForSnapshot()
             .map { track -> track.keyframes.map { it.copyKeyframe() } }
-        return TimelineSnapshot(tracks, currentTime.value, workAreaEnd.value)
+        return TimelineSnapshot(tracks, currentTime, workAreaEnd)
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun duplicateKeyframeInternal(track: BaseAnimTrack, original: Keyframe<*>, targetTime: Float): Keyframe<*>? {
+    private fun duplicateKeyframeInternal(
+        track: BaseAnimTrack,
+        original: Keyframe<*>,
+        targetTime: Float,
+    ): Keyframe<*>? {
         @Suppress("UNCHECKED_CAST")
         val typedTrack = track as AnimTrack<Any?>
+
         @Suppress("UNCHECKED_CAST")
         val typedKey = original as Keyframe<Any?>
 
@@ -327,14 +334,14 @@ class TimelineController {
 
         selectedKeyframes.clear()
         selectedKeyframes.add(newKey)
-        isWorkAreaSelected.set(false)
+        isWorkAreaSelected = false
         onChanged?.invoke()
 
         return newKey
     }
 
     private fun <T> addKeyframeInternal(track: AnimTrack<T>, time: Float, value: T, select: Boolean): Keyframe<T>? {
-        val clamped = time.coerceIn(0f, workAreaEnd.value)
+        val clamped = time.coerceIn(0f, workAreaEnd)
         if (track.hasKeyAt(clamped)) return null
 
         val easing = track.keyframes
@@ -347,7 +354,7 @@ class TimelineController {
         if (select) {
             selectedKeyframes.clear()
             selectedKeyframes.add(newKey)
-            isWorkAreaSelected.set(false)
+            isWorkAreaSelected = false
         }
         onChanged?.invoke()
         return newKey
@@ -381,9 +388,9 @@ class TimelineController {
     }
 
     private fun findFreeTime(track: AnimTrack<*>, requestedTime: Float): Float {
-        var time = requestedTime.coerceIn(0f, workAreaEnd.value)
-        while (track.hasKeyAt(time) && time < workAreaEnd.value) {
-            time = (time + KEYFRAME_TIME_EPSILON * 2f).coerceAtMost(workAreaEnd.value)
+        var time = requestedTime.coerceIn(0f, workAreaEnd)
+        while (track.hasKeyAt(time) && time < workAreaEnd) {
+            time = (time + KEYFRAME_TIME_EPSILON * 2f).coerceAtMost(workAreaEnd)
         }
         return time
     }

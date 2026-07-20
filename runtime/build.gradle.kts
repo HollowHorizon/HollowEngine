@@ -136,11 +136,6 @@ dependencies {
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.9.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.9.0")
 
-    addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
-        exclude(group = "org.lwjgl")
-        exclude(group = "org.lwjglx")
-    }
-
     val jeiVersion = "19.25.1.332"
     add("modCompileOnly", "mezz.jei:jei-$minecraftVersion-fabric-api:$jeiVersion")
     compileOnly("lib:bbs:1.2.6-1.20.1-deobf")

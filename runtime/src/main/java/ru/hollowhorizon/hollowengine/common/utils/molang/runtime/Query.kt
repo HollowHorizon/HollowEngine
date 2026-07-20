@@ -53,7 +53,7 @@ interface Query {
 class BlockEntityQuery(val blockEntity: BlockEntity) : Query {
     private val startTime = anim_time
 
-    override val anim_time: Float get() = TickHandler.time
+    override val anim_time: Float get() = TickHandler.gameTime
     override val life_time: Float get() = anim_time - startTime
 }
 

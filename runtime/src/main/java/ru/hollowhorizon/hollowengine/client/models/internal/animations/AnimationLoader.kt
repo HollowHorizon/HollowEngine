@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.toQuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableQuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.toQuatF
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import ru.hollowhorizon.hollowengine.client.models.internal.ChannelData
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition

@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.render
 
 import com.mojang.blaze3d.vertex.PoseStack
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.client.CameraType
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource

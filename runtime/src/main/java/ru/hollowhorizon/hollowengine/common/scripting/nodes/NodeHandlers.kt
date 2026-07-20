@@ -37,6 +37,6 @@ context(script: NodeScript)
 fun onUpdate(every: Ticks = 1.ticks, block: suspend CoroutineScope.() -> Unit) {
     require(every.count > 0) { "onUpdate interval must be > 0, got ${every.count}" }
     TickEvent.Server.subscribe(script) {
-        if (TickHandler.serverTicks % every.count == 0) script.launch { block() }
+        if (TickHandler.serverTick % every.count == 0) script.launch { block() }
     }
 }

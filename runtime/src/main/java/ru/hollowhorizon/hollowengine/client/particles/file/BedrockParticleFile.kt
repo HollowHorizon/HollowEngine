@@ -2,7 +2,6 @@
 
 package ru.hollowhorizon.hollowengine.client.particles.file
 
-import de.fabmax.kool.util.Color
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -10,6 +9,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
+import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle

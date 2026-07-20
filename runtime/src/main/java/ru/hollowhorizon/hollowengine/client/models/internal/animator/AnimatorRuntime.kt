@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.deg
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk

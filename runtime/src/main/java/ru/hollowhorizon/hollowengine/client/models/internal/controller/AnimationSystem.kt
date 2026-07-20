@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.modules.ui2.AnimatableFloat
 import kotlinx.coroutines.*
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.utils.math.AnimatableFloat
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
 
 class AnimationSystem(val model: ModelAttachment) {
 
@@ -25,7 +25,7 @@ class AnimationSystem(val model: ModelAttachment) {
         }
     }
 
-    suspend fun transition(
+    fun transition(
         from: String? = null,
         to: String? = null,
         duration: Float = 0.33f,

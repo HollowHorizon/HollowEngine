@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.particles.light
 
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.core.BlockPos

@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.editor
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.deg
 import net.minecraft.world.phys.Vec3
 import org.lwjgl.glfw.GLFW
 import kotlin.math.abs

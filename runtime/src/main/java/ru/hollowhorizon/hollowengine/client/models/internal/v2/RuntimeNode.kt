@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
-import de.fabmax.kool.math.MutableMat4f
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
+import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 
 abstract class Attachment(val parent: Attachment? = null) {
     val transform = TrsTransformF()

@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 
 import androidx.compose.runtime.*
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 
@@ -35,28 +35,28 @@ internal fun TimelineToolbar(
     ) {
         // Transport
         ToolbarIcon(StartIcon, "timeline-start") {
-            controller.isPlaying.set(false)
-            controller.setCurrentTime(0f)
+            controller.isPlaying = false
+            controller.applyCurrentTime(0f)
             refresh()
         }
         ToolbarIcon(
-            if (controller.isPlaying.value) PauseIcon else PlayIcon,
+            if (controller.isPlaying) PauseIcon else PlayIcon,
             "timeline-play",
-            active = controller.isPlaying.value,
+            active = controller.isPlaying,
         ) {
             controller.togglePlayback()
             refresh()
         }
         ToolbarIcon(EndIcon, "timeline-end") {
-            controller.isPlaying.set(false)
-            controller.setCurrentTime(controller.workAreaEnd.value)
+            controller.isPlaying = false
+            controller.applyCurrentTime(controller.workAreaEnd)
             refresh()
         }
 
         TimelineSeparator()
 
         Text(
-            "${formatSeconds(controller.currentTime.value)} / ${formatSeconds(controller.workAreaEnd.value)}",
+            "${formatSeconds(controller.currentTime)} / ${formatSeconds(controller.workAreaEnd)}",
             modifier = Modifier.align(vertical = UiAlign.CENTER).fontSize(11f).foreground(TimelineColors.Text),
         )
 
@@ -101,11 +101,11 @@ internal fun TimelineToolbar(
                     controller.deleteSelectedKeyframes(); refresh()
                 },
                 UiDropdownItem(
-                    if (controller.isCameraPreviewEnabled.value) "Camera preview: On" else "Camera preview: Off",
+                    if (controller.isCameraPreviewEnabled) "Camera preview: On" else "Camera preview: Off",
                     icon = "hollowengine:textures/gui/icons/film.svg",
                     closeOnClick = false,
                 ) {
-                    controller.setCameraPreviewEnabled(!controller.isCameraPreviewEnabled.value)
+                    controller.applyCameraPreviewEnabled(!controller.isCameraPreviewEnabled)
                     refresh()
                 },
                 UiDropdownItem("Save…", icon = "hollowengine:textures/gui/icons/save.svg") { onSave() },
@@ -267,19 +267,19 @@ private fun TimelineHeaderRow(row: TimelineRow, controller: TimelineController, 
             )
             row.track?.let { track ->
                 HeaderIconToggle(
-                    if (track.isVisible.value) EyeOnIcon else EyeOffIcon,
-                    active = track.isVisible.value,
+                    if (track.isVisible) EyeOnIcon else EyeOffIcon,
+                    active = track.isVisible,
                     accent = false,
                 ) {
-                    track.isVisible.set(!track.isVisible.value)
+                    track.isVisible = !track.isVisible
                     refresh()
                 }
                 HeaderIconToggle(
-                    if (track.isLocked.value) LockedIcon else UnlockedIcon,
-                    active = track.isLocked.value,
+                    if (track.isLocked) LockedIcon else UnlockedIcon,
+                    active = track.isLocked,
                     accent = true,
                 ) {
-                    track.isLocked.set(!track.isLocked.value)
+                    track.isLocked = !track.isLocked
                     refresh()
                 }
             }
@@ -357,8 +357,8 @@ internal fun formatSeconds(value: Float): String = "%.2f".format(value).replace(
 
 /** Zoom keeping the visible centre roughly fixed; used by the toolbar buttons. */
 internal fun zoomAroundCenter(controller: TimelineController, factor: Float) {
-    val next = (controller.pixelsPerSecond.value * factor).coerceIn(TimelineMinZoom, TimelineMaxZoom)
-    controller.pixelsPerSecond.set(next)
+    val next = (controller.pixelsPerSecond * factor).coerceIn(TimelineMinZoom, TimelineMaxZoom)
+    controller.pixelsPerSecond = next
 }
 
 internal const val TimelineZoomButtonFactor = 1.25f

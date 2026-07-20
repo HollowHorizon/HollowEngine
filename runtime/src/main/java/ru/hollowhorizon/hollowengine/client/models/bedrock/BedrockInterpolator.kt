@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.bedrock
 
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
-import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TreeMap
 
@@ -51,13 +47,13 @@ class BedrockInterpolator<T>(
         val endVal = k1.pre.eval(context)
 
         return when (k0.smooth) {
-            Interpolation.STEP -> type.convert(startVal)
-            Interpolation.LINEAR -> {
+            "step" -> type.convert(startVal)
+            "linear" -> {
                 val res = startVal.mix(endVal, alpha) * valueScale
                 type.convert(res)
             }
 
-            Interpolation.CATMULLROM -> {
+            "catmullrom" -> {
                 val p0Entry = keys.floorEntry(t0 - 0.0001f) ?: prevEntry
                 val p3Entry = keys.ceilingEntry(t1 + 0.0001f) ?: nextEntry
 
@@ -66,7 +62,7 @@ class BedrockInterpolator<T>(
                 val p2 = endVal
                 val p3 = p3Entry.value.pre.eval(context)
 
-                val res = Interpolation.catmullRom(alpha, p0, p1, p2, p3) * valueScale
+                val res = Easing.catmullRom(alpha, p0, p1, p2, p3) * valueScale
                 type.convert(res)
             }
 

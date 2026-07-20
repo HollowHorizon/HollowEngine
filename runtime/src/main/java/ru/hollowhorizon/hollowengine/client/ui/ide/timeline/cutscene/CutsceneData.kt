@@ -1,8 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec3f
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
 @Serializable
 enum class CutsceneNodeKind {
@@ -13,12 +14,18 @@ enum class CutsceneNodeKind {
 @Serializable
 sealed class KeyframeSnapshot {
     @Serializable
+    @SerialName("ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.KeyframeSnapshot.FloatSnapshot")
     class FloatSnapshot(val value: Float) : KeyframeSnapshot()
 
     @Serializable
+    // Пу-пу-пу, переименовал называется пакет...
+    @SerialName("ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.KeyframeSnapshot.Vec3fSnapshot")
     class Vec3fSnapshot(val x: Float, val y: Float, val z: Float) : KeyframeSnapshot() {
-        constructor(value: Vec3f) : this(value.x, value.y, value.z)
         val vector get() = Vec3f(x, y, z)
+
+        companion object {
+            fun from(value: Vec3f) = Vec3fSnapshot(value.x, value.y, value.z)
+        }
     }
 
 }

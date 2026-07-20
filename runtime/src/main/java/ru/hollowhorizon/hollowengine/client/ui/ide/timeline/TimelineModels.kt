@@ -4,8 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
 import kotlin.math.abs
 
 enum class PlaybackMode {
@@ -17,7 +17,7 @@ enum class PlaybackMode {
 class Keyframe<T>(
     var time: Float,
     var value: T,
-    var easing: Easing.Easing = Easing.linear
+    var easing: Easing.Easing = Easing.linear,
 )
 
 class AnimTrack<T>(
@@ -25,7 +25,7 @@ class AnimTrack<T>(
     val driver: PropertyDriver<T>,
     val defaultValue: T,
     val keyframes: MutableList<Keyframe<T>> = mutableListOf(),
-    trackColor: Color = Color.WHITE
+    trackColor: Color = Color.WHITE,
 ) : BaseAnimTrack(name, trackColor) {
 
     override fun getKeysAsList(): MutableList<out Keyframe<*>> {
@@ -99,59 +99,81 @@ data class EasingVariant(val name: String, val function: Easing.Easing)
 data class EasingCategory(val name: String, val variants: List<EasingVariant>)
 
 val easingTypes = listOf(
-    EasingCategory("Linear", listOf(
-        EasingVariant("Linear", Easing.linear),
-        EasingVariant("Smooth", Easing.smooth)
-    )),
-    EasingCategory("Sine", listOf(
-        EasingVariant("In", Easing.easeInSine),
-        EasingVariant("Out", Easing.easeOutSine),
-        EasingVariant("In Out", Easing.easeInOutSine)
-    )),
-    EasingCategory("Quad", listOf(
-        EasingVariant("In", Easing.easeInQuad),
-        EasingVariant("Out", Easing.easeOutQuad),
-        EasingVariant("In Out", Easing.easeInOutQuad)
-    )),
-    EasingCategory("Cubic", listOf(
-        EasingVariant("In", Easing.easeInCubic),
-        EasingVariant("Out", Easing.easeOutCubic),
-        EasingVariant("In Out", Easing.easeInOutCubic)
-    )),
-    EasingCategory("Quart", listOf(
-        EasingVariant("In", Easing.easeInQuart),
-        EasingVariant("Out", Easing.easeOutQuart),
-        EasingVariant("In Out", Easing.easeInOutQuart)
-    )),
-    EasingCategory("Quint", listOf(
-        EasingVariant("In", Easing.easeInQuint),
-        EasingVariant("Out", Easing.easeOutQuint),
-        EasingVariant("In Out", Easing.easeInOutQuint)
-    )),
-    EasingCategory("Expo", listOf(
-        EasingVariant("In", Easing.easeInExpo),
-        EasingVariant("Out", Easing.easeOutExpo),
-        EasingVariant("In Out", Easing.easeInOutExpo)
-    )),
-    EasingCategory("Circ", listOf(
-        EasingVariant("In", Easing.easeInCirc),
-        EasingVariant("Out", Easing.easeOutCirc),
-        EasingVariant("In Out", Easing.easeInOutCirc)
-    )),
-    EasingCategory("Back", listOf(
-        EasingVariant("In", Easing.easeInBack),
-        EasingVariant("Out", Easing.easeOutBack),
-        EasingVariant("In Out", Easing.easeInOutBack)
-    )),
-    EasingCategory("Bounce", listOf(
-        EasingVariant("In", Easing.easeInBounce),
-        EasingVariant("Out", Easing.easeOutBounce),
-        EasingVariant("In Out", Easing.easeInOutBounce)
-    )),
-    EasingCategory("Elastic", listOf(
-        EasingVariant("In", Easing.easeInElastic),
-        EasingVariant("Out", Easing.easeOutElastic),
-        EasingVariant("In Out", Easing.easeInOutElastic)
-    ))
+    EasingCategory(
+        "Linear", listOf(
+            EasingVariant("Linear", Easing.linear),
+            EasingVariant("Smooth", Easing.smooth)
+        )
+    ),
+    EasingCategory(
+        "Sine", listOf(
+            EasingVariant("In", Easing.easeInSine),
+            EasingVariant("Out", Easing.easeOutSine),
+            EasingVariant("In Out", Easing.easeInOutSine)
+        )
+    ),
+    EasingCategory(
+        "Quad", listOf(
+            EasingVariant("In", Easing.easeInQuad),
+            EasingVariant("Out", Easing.easeOutQuad),
+            EasingVariant("In Out", Easing.easeInOutQuad)
+        )
+    ),
+    EasingCategory(
+        "Cubic", listOf(
+            EasingVariant("In", Easing.easeInCubic),
+            EasingVariant("Out", Easing.easeOutCubic),
+            EasingVariant("In Out", Easing.easeInOutCubic)
+        )
+    ),
+    EasingCategory(
+        "Quart", listOf(
+            EasingVariant("In", Easing.easeInQuart),
+            EasingVariant("Out", Easing.easeOutQuart),
+            EasingVariant("In Out", Easing.easeInOutQuart)
+        )
+    ),
+    EasingCategory(
+        "Quint", listOf(
+            EasingVariant("In", Easing.easeInQuint),
+            EasingVariant("Out", Easing.easeOutQuint),
+            EasingVariant("In Out", Easing.easeInOutQuint)
+        )
+    ),
+    EasingCategory(
+        "Expo", listOf(
+            EasingVariant("In", Easing.easeInExpo),
+            EasingVariant("Out", Easing.easeOutExpo),
+            EasingVariant("In Out", Easing.easeInOutExpo)
+        )
+    ),
+    EasingCategory(
+        "Circ", listOf(
+            EasingVariant("In", Easing.easeInCirc),
+            EasingVariant("Out", Easing.easeOutCirc),
+            EasingVariant("In Out", Easing.easeInOutCirc)
+        )
+    ),
+    EasingCategory(
+        "Back", listOf(
+            EasingVariant("In", Easing.easeInBack),
+            EasingVariant("Out", Easing.easeOutBack),
+            EasingVariant("In Out", Easing.easeInOutBack)
+        )
+    ),
+    EasingCategory(
+        "Bounce", listOf(
+            EasingVariant("In", Easing.easeInBounce),
+            EasingVariant("Out", Easing.easeOutBounce),
+            EasingVariant("In Out", Easing.easeInOutBounce)
+        )
+    ),
+    EasingCategory(
+        "Elastic", listOf(
+            EasingVariant("In", Easing.easeInElastic),
+            EasingVariant("Out", Easing.easeOutElastic),
+            EasingVariant("In Out", Easing.easeInOutElastic)
+        )
+    )
 )
 

@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
-import de.fabmax.kool.math.MutableMat3f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat3f
 import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.EquipmentSlot

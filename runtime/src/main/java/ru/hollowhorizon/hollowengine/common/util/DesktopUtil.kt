@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.util
 
-import de.fabmax.kool.util.logE
+import ru.hollowhorizon.hollowengine.logE
 import java.io.File
 
 object DesktopUtil {

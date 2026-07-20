@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.utils.molang.compiler
 
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable

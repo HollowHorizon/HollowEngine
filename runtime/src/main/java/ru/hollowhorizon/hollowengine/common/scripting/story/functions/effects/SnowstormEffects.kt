@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects
 
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlinx.serialization.Serializable
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity

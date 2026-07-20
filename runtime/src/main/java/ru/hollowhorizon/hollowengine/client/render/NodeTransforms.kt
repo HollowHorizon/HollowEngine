@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.render
 
-import de.fabmax.kool.math.*
-import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.core.BlockPos
@@ -16,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import java.util.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -65,7 +64,14 @@ fun resolveNodeTransform(
 
     return ResolvedNodeTransform(
         transform = worldTransform,
-        light = LevelRenderer.getLightColor(level, BlockPos.containing(worldTransform.translation.x.toDouble(), worldTransform.translation.y.toDouble(), worldTransform.translation.z.toDouble())),
+        light = LevelRenderer.getLightColor(
+            level,
+            BlockPos.containing(
+                worldTransform.translation.x.toDouble(),
+                worldTransform.translation.y.toDouble(),
+                worldTransform.translation.z.toDouble()
+            )
+        ),
     )
 }
 
@@ -74,7 +80,8 @@ fun buildNodeRenderBounds(model: Model, transform: TrsTransformF): AABB {
     val worldTransform = TrsTransformF().set(transform)
 
     if (localBounds == null) {
-        val maxAxis = max(max(abs(worldTransform.scale.x), abs(worldTransform.scale.y)), abs(worldTransform.scale.z)).toDouble()
+        val maxAxis =
+            max(max(abs(worldTransform.scale.x), abs(worldTransform.scale.y)), abs(worldTransform.scale.z)).toDouble()
         val position = worldTransform.translation
         return AABB(
             position.x - maxAxis,

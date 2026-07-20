@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.Vec4f
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec4f
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 
 class Animation(

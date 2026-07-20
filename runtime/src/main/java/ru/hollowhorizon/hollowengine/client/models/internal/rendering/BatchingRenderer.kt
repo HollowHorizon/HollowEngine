@@ -1,15 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.rendering
 
 import com.mojang.blaze3d.vertex.VertexConsumer
-import de.fabmax.kool.math.MutableMat3f
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.util.Color
 import org.joml.Matrix3f
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.utils.*
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat3f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
 class BatchingRenderer(
     private val primitive: Primitive

@@ -1325,7 +1325,7 @@ class MinecraftUiRenderer {
         transform.axisScales(textAxisScales)
         val scaleX = textAxisScales[0]
         val scaleY = textAxisScales[1]
-        val now = TickHandler.time / 20f
+        val now = TickHandler.gameTime / 20f
         val clipped = requiresTextClip(
             overflow = command.overflow,
             contentWidth = command.layout.maxNaturalLineWidth,

@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import de.fabmax.kool.util.Uint8Buffer
+import ru.hollowhorizon.hollowengine.common.utils.Uint8Buffer
 
 class DataStream(val data: Uint8Buffer, val byteOffset: Int = 0) {
     var index = 0

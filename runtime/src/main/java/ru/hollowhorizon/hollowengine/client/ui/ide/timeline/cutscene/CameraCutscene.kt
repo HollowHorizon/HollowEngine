@@ -1,11 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.FloatPropertyDriver
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Vec3PropertyDriver
+import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.max
 import kotlin.math.min
 
@@ -161,7 +161,7 @@ class CutscenePlaybackController {
             track = CutsceneTrackData(
                 type = trackType,
                 valueType = valueType,
-                keyframes = keyframes.map { it.toTrackKeyframeData(KeyframeSnapshot::Vec3fSnapshot) },
+                keyframes = keyframes.map { it.toTrackKeyframeData(KeyframeSnapshot.Vec3fSnapshot::from) },
             ),
         )
     }

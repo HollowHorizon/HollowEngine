@@ -1,11 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.editor
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin

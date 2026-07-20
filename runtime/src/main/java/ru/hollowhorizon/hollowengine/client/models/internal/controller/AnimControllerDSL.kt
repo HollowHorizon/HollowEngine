@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.HollowCore

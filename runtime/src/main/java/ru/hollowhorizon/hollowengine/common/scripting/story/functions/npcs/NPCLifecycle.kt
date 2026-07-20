@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3

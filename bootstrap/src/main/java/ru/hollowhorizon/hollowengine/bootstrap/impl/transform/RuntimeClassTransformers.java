@@ -7,13 +7,6 @@ public final class RuntimeClassTransformers {
     }
 
     public static List<RuntimeClassTransformer> createDefault() {
-        return List.of(
-                new KoolClipboardTransformer(),
-                new KoolDockNodeBridgeTransformer(),
-                new KoolDragAndDropContextBridgeTransformer(),
-                new KoolUiDockableBridgeTransformer(),
-                new KoolUiNodeBridgeTransformer(),
-                new KoolPlatformInputTransformer()
-        );
+        return List.of();
     }
 }

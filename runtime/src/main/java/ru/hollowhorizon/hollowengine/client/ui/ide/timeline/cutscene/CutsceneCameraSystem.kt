@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent

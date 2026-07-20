@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.scene.TrsTransformF
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 
 class AnimationInstance(private val animation: Animation) {

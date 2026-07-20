@@ -2,9 +2,6 @@ package ru.hollowhorizon.hollowengine.common.utils.nbt
 
 import com.google.gson.JsonParser
 import com.mojang.serialization.JsonOps
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.util.Color
 import io.netty.buffer.Unpooled
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -34,11 +31,10 @@ import org.joml.Matrix4f
 import org.joml.Vector3d
 import org.joml.Vector3f
 import ru.hollowhorizon.hollowengine.client.utils.registryAccess
+import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
-import ru.hollowhorizon.hollowengine.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.utils.readItem
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.utils.save
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import java.util.*
 
 object FriendlyByteBufSerializer : KSerializer<FriendlyByteBuf> {

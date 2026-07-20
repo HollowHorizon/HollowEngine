@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.particles
 
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
+import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
 
 interface Transform {

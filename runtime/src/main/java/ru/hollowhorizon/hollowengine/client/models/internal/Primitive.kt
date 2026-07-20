@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
-import de.fabmax.kool.math.*
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.BatchingRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.MeshRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer

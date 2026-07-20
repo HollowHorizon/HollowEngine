@@ -3,9 +3,9 @@ package ru.hollowhorizon.hollowengine.client.ui.text
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.platform.TextureUtil
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.util.MsdfGlyph
-import de.fabmax.kool.util.MsdfMeta
 import org.lwjgl.opengl.GL11
+import ru.hollowhorizon.hollowengine.client.utils.font.MsdfGlyph
+import ru.hollowhorizon.hollowengine.client.utils.font.MsdfMeta
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl

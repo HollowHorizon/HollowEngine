@@ -3,10 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.*
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
-import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.Time
 import kotlinx.coroutines.flow.StateFlow
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.OverlayTexture
@@ -14,6 +11,8 @@ import net.minecraft.util.Mth
 import org.joml.Quaternionf
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
+import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
@@ -26,6 +25,7 @@ import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.min
@@ -132,9 +132,9 @@ class ModelViewerState(model: String) {
 
     /** Renders the model into [rect] using [stack]; called from a `drawGl` block on the render thread. */
     fun render(rect: UiRect, stack: PoseStack) {
-        if (autoRotate) yaw = (yaw + 20f * Time.deltaT) % 360f
+        if (autoRotate) yaw = (yaw + 20f * TickHandler.deltaFrameTime) % 360f
 
-        val step = if (AnimBlendTime > 0f) (Time.deltaT / AnimBlendTime).coerceIn(0f, 1f) else 1f
+        val step = if (AnimBlendTime > 0f) (TickHandler.deltaFrameTime / AnimBlendTime).coerceIn(0f, 1f) else 1f
         attachment.animations.forEachIndexed { index, animation ->
             val target = if (index in playing) 1f else 0f
             animation.weight += (target - animation.weight) * step

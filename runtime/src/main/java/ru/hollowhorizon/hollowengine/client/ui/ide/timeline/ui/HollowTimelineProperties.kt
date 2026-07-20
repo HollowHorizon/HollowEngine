@@ -3,16 +3,16 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
+import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.easingTypes
-import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
+import ru.hollowhorizon.hollowengine.common.utils.math.Easing
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
 @Composable
 internal fun HollowTimelineProperties(
@@ -41,7 +41,7 @@ internal fun HollowTimelineProperties(
                 refresh
             )
 
-            controller.isWorkAreaSelected.value -> WorkAreaSection(controller, refresh)
+            controller.isWorkAreaSelected -> WorkAreaSection(controller, refresh)
             else -> EmptySection()
         }
     }
@@ -56,19 +56,19 @@ private fun PreviewSection(controller: TimelineController, refresh: () -> Unit) 
                 .gap(8.px)
         ) {
             TogglePill(
-                if (controller.isCameraPreviewEnabled.value) "Camera On" else "Camera Off",
-                controller.isCameraPreviewEnabled.value
+                if (controller.isCameraPreviewEnabled) "Camera On" else "Camera Off",
+                controller.isCameraPreviewEnabled
             ) {
-                controller.setCameraPreviewEnabled(!controller.isCameraPreviewEnabled.value)
+                controller.applyCameraPreviewEnabled(!controller.isCameraPreviewEnabled)
                 refresh()
             }
             Text(
-                if (controller.isPlaying.value) "Playing" else "Paused",
+                if (controller.isPlaying) "Playing" else "Paused",
                 modifier = Modifier.fontSize(10f).foreground(TimelineColors.Muted),
             )
         }
-        PropertyLine("Current time", "%.3f s".format(controller.currentTime.value).replace(',', '.'))
-        PropertyLine("Duration", "%.3f s".format(controller.workAreaEnd.value).replace(',', '.'))
+        PropertyLine("Current time", "%.3f s".format(controller.currentTime).replace(',', '.'))
+        PropertyLine("Duration", "%.3f s".format(controller.workAreaEnd).replace(',', '.'))
     }
 }
 
@@ -80,7 +80,7 @@ private fun KeyframeSection(
 ) {
     val selectionCount = controller.selectedKeyframes.size
     Section(if (selectionCount == 1) "Keyframe" else "$selectionCount Keyframes") {
-        FloatField("Time", keyframe.time, 0f, controller.workAreaEnd.value) { time ->
+        FloatField("Time", keyframe.time, 0f, controller.workAreaEnd) { time ->
             controller.nudgeSelectedKeyframes(snapTimelineTime(time, currentUiKeyModifiers()) - keyframe.time)
             refresh()
         }
@@ -119,9 +119,9 @@ private fun KeyframeSection(
 @Composable
 private fun WorkAreaSection(controller: TimelineController, refresh: () -> Unit) {
     Section("Work Area") {
-        FloatField("End", controller.workAreaEnd.value, 0.1f, Float.POSITIVE_INFINITY) { time ->
-            controller.workAreaEnd.set(snapTimelineTime(time, currentUiKeyModifiers()).coerceAtLeast(0.1f))
-            if (controller.currentTime.value > controller.workAreaEnd.value) controller.setCurrentTime(0f)
+        FloatField("End", controller.workAreaEnd, 0.1f, Float.POSITIVE_INFINITY) { time ->
+            controller.workAreaEnd = snapTimelineTime(time, currentUiKeyModifiers()).coerceAtLeast(0.1f)
+            if (controller.currentTime > controller.workAreaEnd) controller.applyCurrentTime(0f)
             refresh()
         }
     }
