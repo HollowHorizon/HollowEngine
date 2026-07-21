@@ -80,11 +80,11 @@ This project is licensed under the Creative Commons Attribution-NonCommercial-Sh
 ## Other
 
 <div align = center>
- <a href="https://www.star-history.com/#HollowHorizon/HollowEngine&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HollowHorizon/HollowEngine&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HollowHorizon/HollowEngine&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=HollowHorizon/HollowEngine&type=Date" />
-  </picture>
- </a>
+<a href="https://www.star-history.com/?repos=HollowHorizon%2FHollowEngine&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=HollowHorizon/HollowEngine&type=date&theme=dark&legend=top-left&sealed_token=mg1yo5gPS_6Pv-pnckCZgik91hdi3ebpXVBFuykmMUHnJr_NRp5xsLA9DkXgCwxX5b2xdzhdGFyX97I_56WCBkSPLjA_ZO3g7OH3vnwdggSBVo81MdfGrg" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=HollowHorizon/HollowEngine&type=date&legend=top-left&sealed_token=mg1yo5gPS_6Pv-pnckCZgik91hdi3ebpXVBFuykmMUHnJr_NRp5xsLA9DkXgCwxX5b2xdzhdGFyX97I_56WCBkSPLjA_ZO3g7OH3vnwdggSBVo81MdfGrg" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=HollowHorizon/HollowEngine&type=date&legend=top-left&sealed_token=mg1yo5gPS_6Pv-pnckCZgik91hdi3ebpXVBFuykmMUHnJr_NRp5xsLA9DkXgCwxX5b2xdzhdGFyX97I_56WCBkSPLjA_ZO3g7OH3vnwdggSBVo81MdfGrg" />
+ </picture>
+</a>
 </div>
