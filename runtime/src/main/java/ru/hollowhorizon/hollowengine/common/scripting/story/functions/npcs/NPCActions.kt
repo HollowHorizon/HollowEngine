@@ -2,14 +2,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import com.mojang.brigadier.StringReader
 import kotlinx.coroutines.delay
+import net.minecraft.ChatFormatting
 import net.minecraft.commands.arguments.item.ItemParser
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponentPatch
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.*
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
@@ -28,8 +27,10 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.*
 import ru.hollowhorizon.hollowengine.common.scripting.state.waitPersistent
 import ru.hollowhorizon.hollowengine.common.scripting.state.waitRealtime
 import ru.hollowhorizon.hollowengine.common.scripting.state.waitUntil
+import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.plus
 import java.time.Instant
 import java.util.*
 import kotlin.time.Duration
@@ -429,7 +430,12 @@ private const val DEFAULT_INTERACTION_REACH = 3.0
  */
 infix fun NpcEntity.say(text: String) {
     server?.playerList?.players?.forEach {
-        it.sendSystemMessage("[$name]: $text".literal)
+        it.sendSystemMessage(
+            "[".literal.colored(ChatFormatting.GRAY) +
+            name +
+            "]: ".literal.colored(ChatFormatting.GRAY) +
+            text.literal
+        )
     }
 }
 

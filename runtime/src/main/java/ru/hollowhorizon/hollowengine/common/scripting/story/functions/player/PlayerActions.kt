@@ -18,7 +18,7 @@ suspend fun Player.waitPos(pos: Vec3, radius: Float = 1f, inverse: Boolean = fal
 }
 
 fun Player.say(text: String) =
-    sendSystemMessage("[".literal.colored(ChatFormatting.GOLD) + name + "] ".literal.colored(ChatFormatting.GOLD) + text.literal)
+    sendSystemMessage("[".literal.colored(ChatFormatting.GRAY) + name + "] ".literal.colored(ChatFormatting.GRAY) + text.literal)
 
 infix fun Player.send(text: String) = sendSystemMessage(text.literal)
 fun Player.notify(text: String) = sendToast(text.literal)
