@@ -214,6 +214,8 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onRenderEntityPost(Entity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
 
+    boolean onRenderEntityNameplate(Entity entity, boolean vanillaVisible);
+
     CameraSetup onCameraSetup(GameRenderer gameRenderer, Camera camera, float yaw, float pitch, float roll, float partialTick);
 
     CameraOverride getCameraOverride(float partialTick);

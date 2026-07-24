@@ -30,6 +30,7 @@
     "client.AbstractClientPlayerMixin",
     "client.DebugMainMixin",
     "client.EntityRenderDispatcherMixin",
+    "client.EntityRendererMixin",
     "client.GameRendererMixin",
     "client.GuiMixin",
     "client.LayerDefinitionsMixin",

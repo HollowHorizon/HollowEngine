@@ -62,7 +62,7 @@ fun NpcEntity.startAnimation(
     animation: String,
     fadeIn: Double = 0.33,
     fadeOut: Double = 0.33,
-): NpcAction<Boolean> = actions.start(NpcActionKeys.ANIMATION) {
+): NpcAction<Boolean> = actions.startConcurrent(NpcActionKeys.ANIMATION) {
     playAndWait(animation, fadeIn, fadeOut)
 }
 

@@ -66,4 +66,22 @@ class NpcActionControllerTest {
         assertFalse(action.isActive)
         assertEquals(NpcActionStatus.CANCELLED, action.status)
     }
+    @Test
+    fun `concurrent actions on the same channel remain active`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val controller = NpcActionController(CoroutineScope(SupervisorJob() + dispatcher))
+        val firstGate = CompletableDeferred<Unit>()
+        val secondGate = CompletableDeferred<Unit>()
+        val first = controller.startConcurrent(NpcActionKeys.ANIMATION) { firstGate.await() }
+        val second = controller.startConcurrent(NpcActionKeys.ANIMATION) { secondGate.await() }
+
+        runCurrent()
+
+        assertEquals(NpcActionStatus.RUNNING, first.status)
+        assertEquals(NpcActionStatus.RUNNING, second.status)
+        controller.cancel(NpcActionKeys.ANIMATION)
+        runCurrent()
+        assertEquals(NpcActionStatus.CANCELLED, first.status)
+        assertEquals(NpcActionStatus.CANCELLED, second.status)
+    }
 }

@@ -6,6 +6,7 @@ import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.entities.setNameplate
 import ru.hollowhorizon.hollowengine.common.geary.api.set
 import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
 import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
@@ -14,11 +15,11 @@ import ru.hollowhorizon.hollowengine.common.geary.components.StandardPlayerAnima
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
+import ru.hollowhorizon.hollowengine.common.geary.components.NameplateMode
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
-import ru.hollowhorizon.hollowengine.common.utils.literal
 import kotlin.contracts.ExperimentalContracts
 
 /**
@@ -37,7 +38,7 @@ import kotlin.contracts.ExperimentalContracts
  * ```
  *
  * @param pos Позиция размещения NPC в мире (в мировых координатах).
- * @param name Отображаемое имя NPC. Показывается над головой, если [showName] = `true`.
+ * @param name Отображаемое имя NPC. Показывается над головой, если [nameplateMode] = NameplateMode.SHOW.
  * @param model Путь к 3D-модели в формате `.gltf`. Используется для рендеринга внешности NPC.
  * @param rotation Начальная ориентация NPC в виде углов (yaw, pitch), в радианах.
  * @param world Идентификатор мира, в котором должен появиться NPC. Например: `"minecraft:overworld"`.
@@ -45,7 +46,7 @@ import kotlin.contracts.ExperimentalContracts
  * @param attributes Дополнительные числовые параметры NPC (например, `"health"` → `20f`, `"speed"` → `0.3f`), определяют поведение.
  * @param textures Словарь текстур по именам слоёв. Например: `"skin"` → `"modid:textures/entity/custom_skin.png"`.
  * @param transform Локальные трансформации модели: смещение, поворот и масштаб по всем осям.
- * @param showName Показывать ли имя NPC над головой (аналогично `nameTag` у сущностей Minecraft).
+ * @param nameplateMode Initial nameplate visibility mode.
  * @param inverseHeadRotation Если `true`, голова NPC будет поворачиваться в противоположную сторону (например, для камеры от 3-го лица).
  *
  * @return Созданный экземпляр [NpcEntity], добавленный в мир.
@@ -61,7 +62,7 @@ fun npc(
     attributes: Map<String, Float> = emptyMap(),
     textures: Map<String, String> = emptyMap(),
     transform: Transform = Transform(),
-    showName: Boolean = true,
+    nameplateMode: NameplateMode = NameplateMode.SHOW,
     inverseHeadRotation: Boolean = false,
     inventorySize: Int = NpcInventory.DEFAULT_SIZE,
 ): NpcEntity {
@@ -93,8 +94,7 @@ fun npc(
 
         refreshDimensions()
 
-        isCustomNameVisible = showName && name.isNotEmpty()
-        customName = name.literal
+        setNameplate(name, nameplateMode)
 
         level.addFreshEntity(this)
     }

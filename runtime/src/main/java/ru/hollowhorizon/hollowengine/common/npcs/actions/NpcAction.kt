@@ -37,15 +37,34 @@ interface NpcAction<out R> {
 
 class NpcActionController(private val scope: CoroutineScope) {
     private val lock = Any()
-    private val actions = mutableMapOf<NpcActionKey, NpcActionImpl<*>>()
+    private val actions = mutableMapOf<NpcActionKey, MutableSet<NpcActionImpl<*>>>()
 
-    fun <R> start(key: NpcActionKey, block: suspend CoroutineScope.() -> R): NpcAction<R> {
+    fun <R> start(key: NpcActionKey, block: suspend CoroutineScope.() -> R): NpcAction<R> =
+        start(key, replaceRunning = true, block)
+
+    fun <R> startConcurrent(key: NpcActionKey, block: suspend CoroutineScope.() -> R): NpcAction<R> =
+        start(key, replaceRunning = false, block)
+
+    private fun <R> start(
+        key: NpcActionKey,
+        replaceRunning: Boolean,
+        block: suspend CoroutineScope.() -> R,
+    ): NpcAction<R> {
         val deferred = scope.async(start = CoroutineStart.LAZY, block = block)
         val action = NpcActionImpl(deferred)
-        synchronized(lock) { actions.put(key, action) }?.cancel()
+        val replaced = synchronized(lock) {
+            val running = actions.getOrPut(key, ::linkedSetOf)
+            val previous = if (replaceRunning) running.toList().also { running.clear() } else emptyList()
+            running += action
+            previous
+        }
+        replaced.forEach(NpcActionImpl<*>::cancel)
         deferred.invokeOnCompletion {
             synchronized(lock) {
-                if (actions[key] === action) actions.remove(key)
+                actions[key]?.let { running ->
+                    running.remove(action)
+                    if (running.isEmpty()) actions.remove(key)
+                }
             }
         }
         deferred.start()
@@ -53,12 +72,13 @@ class NpcActionController(private val scope: CoroutineScope) {
     }
 
     fun cancel(key: NpcActionKey) {
-        synchronized(lock) { actions.remove(key) }?.cancel()
+        val running = synchronized(lock) { actions.remove(key)?.toList().orEmpty() }
+        running.forEach(NpcActionImpl<*>::cancel)
     }
 
     fun cancelAll() {
         val running = synchronized(lock) {
-            actions.values.toList().also { actions.clear() }
+            actions.values.flatten().also { actions.clear() }
         }
         running.forEach(NpcActionImpl<*>::cancel)
     }

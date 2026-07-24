@@ -35,7 +35,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.utils.FakePlayer
-import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.UUID
 
@@ -142,12 +141,6 @@ class NpcEntity : PathfinderMob {
             ).sendTrackingEntityAndSelf(this)
         }
 
-    var name: String
-        get() = displayName?.string ?: ""
-        set(value) {
-            customName = value.literal
-            isCustomNameVisible = value.isNotEmpty()
-        }
 
     fun seat() {
         SeatEntity.seat(this, direction)

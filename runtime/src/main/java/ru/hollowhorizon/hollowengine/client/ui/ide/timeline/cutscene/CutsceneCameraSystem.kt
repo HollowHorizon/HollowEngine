@@ -16,9 +16,9 @@ object CutsceneCameraSystem {
     val currentPose: CameraPose?
         get() = controller?.currentPose
 
-    fun play(data: CutsceneData) {
+    fun play(data: CutsceneData, loop: Boolean = false) {
         controller = CutscenePlaybackController().also {
-            it.setupTracks(data)
+            it.setupTracks(data, loop)
             it.play()
         }
     }

@@ -228,4 +228,16 @@ class CutsceneTest {
         assertEquals(false, controller.isPlaying)
         assertEquals(0f, controller.currentTime)
     }
+    @Test
+    fun `looping playback restarts after the cutscene duration`() {
+        val controller = CutscenePlaybackController()
+        controller.setDuration(2f)
+        controller.setupTracks(controller.toData(), loop = true)
+        controller.play()
+
+        controller.update(2.5f)
+
+        assertEquals(0.5f, controller.currentTime, 0.001f)
+        assertTrue(controller.isPlaying)
+    }
 }

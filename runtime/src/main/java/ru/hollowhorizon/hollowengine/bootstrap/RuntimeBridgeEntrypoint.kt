@@ -656,6 +656,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         )
     }
 
+    override fun onRenderEntityNameplate(entity: Entity, vanillaVisible: Boolean): Boolean {
+        val event = RenderEntityNameplateEvent(entity, vanillaVisible)
+        RenderEntityNameplateEvent.post(event)
+        return event.isVisible
+    }
+
     override fun onCameraSetup(
         gameRenderer: GameRenderer,
         camera: Camera,

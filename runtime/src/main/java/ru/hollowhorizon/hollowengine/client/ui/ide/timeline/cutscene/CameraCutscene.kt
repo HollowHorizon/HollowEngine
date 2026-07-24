@@ -56,10 +56,14 @@ class CutscenePlaybackController {
     var isPlaying: Boolean = false
         private set
 
+    var isLooping: Boolean = false
+        private set
+
     val currentPose: CameraPose get() = pose
 
-    fun setupTracks(data: CutsceneData) {
+    fun setupTracks(data: CutsceneData, loop: Boolean = false) {
         duration = max(0f, data.duration)
+        isLooping = loop
         currentTime = 0f
         isPlaying = false
 
@@ -98,10 +102,11 @@ class CutscenePlaybackController {
     fun update(deltaSeconds: Float) {
         if (!isPlaying || duration <= 0f) return
 
-        currentTime = min(duration, currentTime + max(0f, deltaSeconds))
+        val nextTime = currentTime + max(0f, deltaSeconds)
+        currentTime = if (isLooping) nextTime % duration else min(duration, nextTime)
         updateTracks()
 
-        if (currentTime >= duration) {
+        if (!isLooping && currentTime >= duration) {
             isPlaying = false
         }
     }
