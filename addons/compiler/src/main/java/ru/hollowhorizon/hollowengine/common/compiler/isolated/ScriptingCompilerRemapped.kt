@@ -11,9 +11,9 @@ import org.jetbrains.kotlin.scripting.compiler.plugin.impl.*
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.compiler.createHollowEngineCompilerPluginRegistrars
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.plugin.HollowEngineCompilerPlugin
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapClass
@@ -105,7 +105,10 @@ class HollowEngineScriptCompiler(
                         ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
                         definitions
                     )
-                    add(CompilerPluginRegistrar.COMPILER_PLUGIN_REGISTRARS, HollowEngineCompilerPlugin())
+                    addAll(
+                        CompilerPluginRegistrar.COMPILER_PLUGIN_REGISTRARS,
+                        createHollowEngineCompilerPluginRegistrars(),
+                    )
                 }
             ) {
                 if (messageCollector.hasErrors()) failure(messageCollector)

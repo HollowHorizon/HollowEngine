@@ -39,6 +39,7 @@ fun Project.configureHollowAddon() {
     val parchmentVersion = rootProject.property("parchmentVersion") as String
     val fabricLoaderVersion = rootProject.property("fabricLoaderVersion") as String
     val kotlinVersion = rootProject.property("kotlinVersion") as String
+    val serializationVersion = rootProject.property("serializationVersion") as String
     val koinVersion = rootProject.property("koinVersion") as String
 
     group = "$modGroup.addons"
@@ -98,8 +99,8 @@ fun Project.configureHollowAddon() {
         add("compileOnly", project(path = ":runtime", configuration = "namedElements"))
         add("testImplementation", project(path = ":runtime", configuration = "namedElements"))
         add("compileOnly", "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
-        add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
-        add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+        add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-core:$serializationVersion")
+        add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
         add("compileOnly", "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
         add("compileOnly", "io.insert-koin:koin-core:$koinVersion")
         add("testImplementation", kotlin("test"))

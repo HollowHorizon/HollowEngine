@@ -1,4 +1,0 @@
-<column id="xml-demo-badge" tags="xml-badge">
-    <text tags="xml-badge-title">Imported element</text>
-    <text tags="xml-badge-body">Loaded from assets/hollowengine/ui/elements/xml_demo_badge.ui</text>
-</column>

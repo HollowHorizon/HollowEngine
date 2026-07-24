@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.HudLayerIds;
 
 @Mixin(ChatComponent.class)
 public class ChatComponentMixin {
@@ -20,13 +20,13 @@ public class ChatComponentMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void onRenderPre(GuiGraphics guiGraphics, int i, int j, int k, boolean bl, CallbackInfo ci) {
         Window window = minecraft.getWindow();
-        if (BootstrapRuntimeManager.bridge().onRenderOverlayPre(window, guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), RuntimeBridge.OverlayKind.CHAT_PANEL)) {
+        if (BootstrapRuntimeManager.bridge().onRenderOverlayPre(window, guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), HudLayerIds.CHAT)) {
             ci.cancel();
         }
     }
 
     @Inject(method = "render", at = @At("RETURN"))
     private void onRenderPost(GuiGraphics guiGraphics, int i, int j, int k, boolean bl, CallbackInfo ci) {
-        BootstrapRuntimeManager.bridge().onRenderOverlayPost(minecraft.getWindow(), guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), RuntimeBridge.OverlayKind.CHAT_PANEL);
+        BootstrapRuntimeManager.bridge().onRenderOverlayPost(minecraft.getWindow(), guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), HudLayerIds.CHAT);
     }
 }

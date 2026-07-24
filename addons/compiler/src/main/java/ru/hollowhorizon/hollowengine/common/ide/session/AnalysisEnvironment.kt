@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.analysis.api.platform.KotlinProjectMessageBusProvide
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinAnnotationsResolverFactory
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderFactory
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderMerger
+import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinCompilerPluginsProvider
 import org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinAlwaysAccessibleLifetimeTokenFactory
 import org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory
 import org.jetbrains.kotlin.analysis.api.platform.modification.KotlinModificationTrackerFactory
@@ -48,6 +49,7 @@ import org.jetbrains.kotlin.analysis.decompiler.konan.KotlinKlibMetadataDecompil
 import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInDecompiler
 import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInFileType
 import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinClassFileDecompiler
+import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSessionConfigurator
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreApplicationEnvironmentMode
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
@@ -74,6 +76,7 @@ class AnalysisEnvironment(
     val javaHome: Path? = null,
 ) {
     private val projectDisposable = Disposer.newDisposable("AnalysisEnvironment")
+    private val compilerPluginSupport = AnalysisCompilerPluginSupport.create()
     val kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment
     val project: MockProject
     val analyzer: ScriptingAnalyzerImpl
@@ -136,10 +139,7 @@ class AnalysisEnvironment(
             KaResolveExtensionProvider.EP_NAME.name,
             KaResolveExtensionProvider::class.java.name,
         )
-        registerProjectExtensionPoint(
-            "org.jetbrains.kotlin.llFirSessionConfigurator",
-            "org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSessionConfigurator",
-        )
+        LLFirSessionConfigurator.registerExtensionPoint(project)
         registerProjectExtensionPoint(
             "org.jetbrains.kotlin.fir.extensions.firExtensionRegistrar",
             "org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter",
@@ -194,6 +194,10 @@ class AnalysisEnvironment(
         ).forEach { provider ->
             registerProjectExtension("org.jetbrains.kotlin.psiReferenceProvider", provider)
         }
+        LLFirSessionConfigurator.registerExtension(
+            project,
+            compilerPluginSupport.sessionConfigurator,
+        )
     }
 
     private fun registerApplicationServices() {
@@ -348,6 +352,11 @@ class AnalysisEnvironment(
             FirStandaloneServiceRegistrar.registerProjectModelServices(
                 project,
                 kotlinCoreProjectEnvironment.parentDisposable,
+            )
+
+            registerService(
+                KotlinCompilerPluginsProvider::class.java,
+                compilerPluginSupport.provider,
             )
 
             registerService(

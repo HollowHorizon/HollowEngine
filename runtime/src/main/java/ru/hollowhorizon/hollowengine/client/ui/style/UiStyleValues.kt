@@ -214,6 +214,18 @@ internal fun interpolateShadows(from: List<UiShadow>, to: List<UiShadow>, progre
 
 internal fun lerp(from: Float, to: Float, progress: Float): Float = from + (to - from) * progress
 
+/**
+ * Interpolates a [UiLength] for `transition: width/height/size`. Only same-kind pixel and percentage
+ * values blend smoothly (the common case: an animated bar width, a growing panel); Fit/Auto/Fill and
+ * cross-kind pairs have no meaningful midpoint, so they snap to the target instead of holding a stale
+ * value.
+ */
+internal fun interpolateLength(from: UiLength, to: UiLength, progress: Float): UiLength = when {
+    from is UiLength.Px && to is UiLength.Px -> UiLength.Px(lerp(from.value, to.value, progress))
+    from is UiLength.Percent && to is UiLength.Percent -> UiLength.Percent(lerp(from.value, to.value, progress))
+    else -> to
+}
+
 internal fun interpolateVec3(from: UiVec3, to: UiVec3, progress: Float) = UiVec3(
     x = from.x + (to.x - from.x) * progress,
     y = from.y + (to.y - from.y) * progress,

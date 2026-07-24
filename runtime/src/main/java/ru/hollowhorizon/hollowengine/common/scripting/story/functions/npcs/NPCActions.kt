@@ -82,7 +82,6 @@ fun NpcEntity.startMove(pos: Vec3, options: MoveOptions = MoveOptions()): NpcAct
  *
  * @param position Позиция, к которой нужно переместиться.
  */
-// @ScriptBinding
 suspend infix fun NpcEntity.move(position: Vec3): MoveResult = move(pos = position)
 
 fun NpcEntity.stopMoving() {

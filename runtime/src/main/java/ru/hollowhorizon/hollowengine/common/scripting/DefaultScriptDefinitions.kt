@@ -7,9 +7,11 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeScript
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
+import ru.hollowhorizon.hollowengine.common.scripting.ui.UiScript
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider as Provider
 
 const val NODE_SCRIPT_EXTENSION = "node.kts"
+const val UI_SCRIPT_EXTENSION = "ui.kts"
 
 object DefaultScriptDefinitions {
     fun providers(): List<Provider> {
@@ -34,9 +36,30 @@ object DefaultScriptDefinitions {
                 )
             )
             this += Provider(
+                extension = UI_SCRIPT_EXTENSION,
+                baseClass = UiScript::class.qualifiedName!!,
+                defaultImports = listOf(
+                    "androidx.compose.runtime.*",
+                    "kotlinx.serialization.*",
+                    "ru.hollowhorizon.hollowengine.client.ui.*",
+                    "ru.hollowhorizon.hollowengine.client.ui.widgets.*",
+                    "ru.hollowhorizon.hollowengine.client.ui.layout.*",
+                    "ru.hollowhorizon.hollowengine.client.ui.text.*",
+                    "ru.hollowhorizon.hollowengine.client.ui.style.*",
+                    "ru.hollowhorizon.hollowengine.common.data.*",
+                    "ru.hollowhorizon.hollowengine.common.ui.*",
+                    "ru.hollowhorizon.hollowengine.common.ui.hud.*",
+                    "ru.hollowhorizon.hollowengine.common.ui.net.*",
+                    "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",
+                    "net.minecraft.nbt.CompoundTag",
+                    ResourceLocation::class.qualifiedName!!,
+                )
+            )
+            this += Provider(
                 extension = NODE_SCRIPT_EXTENSION,
                 baseClass = NodeScript::class.qualifiedName!!,
                 defaultImports = listOf(
+                    "kotlinx.serialization.*",
                     "ru.hollowhorizon.hollowengine.common.coroutines.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.nodes.*",
@@ -70,12 +93,15 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.npcs.items.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.inventory.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.data.*",
+                    "ru.hollowhorizon.hollowengine.common.data.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.actions.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveOptions",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveResult",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.UnavailableTargetPolicy",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.UnreachablePolicy",
                     "ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode",
+                    "ru.hollowhorizon.hollowengine.common.ui.net.*",
+                    "ru.hollowhorizon.hollowengine.common.ui.hud.*",
                 ),
                 implicitReceivers = listOf(
                     MinecraftServer::class

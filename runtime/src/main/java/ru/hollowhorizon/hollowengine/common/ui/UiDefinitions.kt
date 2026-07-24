@@ -1,0 +1,60 @@
+package ru.hollowhorizon.hollowengine.common.ui
+
+import androidx.compose.runtime.Composable
+import net.minecraft.resources.ResourceLocation
+
+/** The composable body of a scripted screen or overlay. */
+typealias UiContent = @Composable UiScope.() -> Unit
+
+/** Where a custom HUD layer sits relative to the vanilla layer it is anchored to. */
+enum class HudPlacement { BEFORE, AFTER }
+
+/** How much input an overlay takes. Draw-only is the common, cheapest case. */
+enum class OverlayInput {
+    /** The overlay never receives pointer or keyboard input; the mouse belongs to the game. */
+    NONE,
+
+    /**
+     * The overlay receives pointer and keyboard input. During gameplay the cursor is locked to the
+     * screen centre, so an interactive overlay reads the centre point; with [UiOverlayDefinition.aboveScreens]
+     * it can also sit on top of an open screen (e.g. above the chat box) and take the real cursor.
+     */
+    INTERACTIVE,
+}
+
+/**
+ * A screen declared by a `.ui.kts` script. The server opens it by [id]; the options travel with the
+ * declaration rather than the open call, so a script stays the single source of truth for how its
+ * own screen behaves.
+ */
+class UiScreenDefinition(
+    val id: ResourceLocation,
+    val title: String,
+    val closeOnEscape: Boolean,
+    val pausesGame: Boolean,
+    val rebuildEveryFrame: Boolean,
+    val content: UiContent,
+)
+
+/**
+ * A HUD layer declared by a `.ui.kts` script. It draws into the vanilla HUD at [anchor]/[placement],
+ * which is how a scripted layer can land under the crosshair but over the hotbar without the engine
+ * owning a fixed list of slots.
+ *
+ * [autoShow] layers appear as soon as the script loads, the right default for client-side HUD like
+ * a "look at a block to see its name" hint, which has no reason to involve the server. [input] opts
+ * into pointer/keyboard handling; [rebuildEveryFrame] recomposes the overlay every frame for content
+ * that tracks live game state.
+ */
+class UiOverlayDefinition(
+    val id: ResourceLocation,
+    val anchor: ResourceLocation,
+    val placement: HudPlacement,
+    val autoShow: Boolean,
+    val input: OverlayInput,
+    val aboveScreens: Boolean,
+    val rebuildEveryFrame: Boolean,
+    val content: UiContent,
+) {
+    val isInteractive: Boolean get() = input == OverlayInput.INTERACTIVE
+}

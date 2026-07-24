@@ -3,6 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import net.fabricmc.loom.task.RemapJarTask
 import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.util.jar.JarFile
 
 plugins {
     idea
@@ -26,6 +27,8 @@ val fabricLoaderVersion: String by rootProject.properties
 val architecturyApiVersion: String by rootProject.properties
 val parchmentVersion: String by rootProject.properties
 val kotlinVersion: String by rootProject.properties
+val composeRuntimeVersion: String by rootProject.properties
+val serializationVersion: String by rootProject.properties
 val koolVersion: String by rootProject.properties
 val koinVersion: String by rootProject.properties
 val hollowcore: String by rootProject.properties
@@ -118,8 +121,8 @@ dependencies {
     addShadow("com.github.weisj:jsvg:2.1.0")
     addShadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
-    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
-    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:$serializationVersion")
+    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
     addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     addShadow("io.insert-koin:koin-core:$koinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
@@ -133,7 +136,7 @@ dependencies {
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
 
-    addShadow("androidx.compose.runtime:runtime:1.10.3")
+    addShadow("androidx.compose.runtime:runtime:$composeRuntimeVersion")
     addShadow("androidx.collection:collection:1.4.0")
     addShadow("org.jetbrains.kotlinx:atomicfu:0.33.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.9.0")
@@ -198,17 +201,81 @@ tasks.named<Jar>("jar") {
     archiveClassifier.set("dev-thin")
 }
 
-tasks.named<ShadowJar>("shadowJar") {
+val runtimeShadowJar = tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("dev")
     configurations = listOf(shadowBundle)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     includeEmptyDirs = false
+    exclude("module-info.class")
+    exclude("META-INF/versions/**/module-info.class")
+    // kotlinx.serialization bundles into this jar, so the serialization compiler plugin reads THIS
+    // jar's manifest to detect the runtime version when a script declares @Serializable. otherwise
+    // it reports "version is unknown" and fails the script :(
+    manifest {
+        attributes(
+            "Implementation-Version" to serializationVersion,
+            "Require-Kotlin-Version" to kotlinVersion,
+        )
+    }
     eachFile {
         val sourcePath = file.toPath().toAbsolutePath().normalize()
         if (runtimeResourcesPath != null && sourcePath.startsWith(runtimeResourcesPath)) {
             exclude()
         }
     }
+}
+
+val verifySerializationRuntimePackaging = tasks.register("verifySerializationRuntimePackaging") {
+    group = JavaBasePlugin.VERIFICATION_GROUP
+    description = "Verifies serialization metadata in the packaged runtime."
+    dependsOn(runtimeShadowJar)
+    inputs.file(runtimeShadowJar.flatMap { it.archiveFile })
+
+    doLast {
+        JarFile(runtimeShadowJar.get().archiveFile.get().asFile).use { archive ->
+            check(archive.getEntry("kotlinx/serialization/KSerializer.class") != null) {
+                "Packaged runtime does not contain kotlinx.serialization"
+            }
+
+            val attributes = checkNotNull(archive.manifest?.mainAttributes) {
+                "Packaged runtime does not contain a manifest"
+            }
+            val expectedAttributes = mapOf(
+                "Implementation-Version" to serializationVersion,
+                "Require-Kotlin-Version" to kotlinVersion,
+            )
+            val mismatches = expectedAttributes.filter { (name, expected) ->
+                attributes.getValue(name) != expected
+            }
+            check(mismatches.isEmpty()) {
+                "Packaged runtime has invalid serialization metadata: $mismatches"
+            }
+
+            val moduleDescriptors = buildList {
+                val entries = archive.entries()
+                while (entries.hasMoreElements()) {
+                    val entryName = entries.nextElement().name
+                    if (
+                        entryName == "module-info.class" ||
+                        entryName.startsWith("META-INF/versions/") &&
+                        entryName.endsWith("/module-info.class")
+                    ) {
+                        add(entryName)
+                    }
+                }
+            }
+            check(moduleDescriptors.isEmpty()) {
+                "Packaged runtime contains foreign JPMS descriptors: $moduleDescriptors"
+            }
+            check(!attributes.getValue("Multi-Release").equals("true", ignoreCase = true)) {
+                "Packaged runtime must not activate dependency-owned multi-release descriptors"
+            }
+        }
+    }
+}
+
+tasks.named("build") {
+    dependsOn(verifySerializationRuntimePackaging)
 }
 
 tasks.named<RemapJarTask>("remapJar") {

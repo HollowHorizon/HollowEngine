@@ -6,56 +6,26 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
-import ru.hollowhorizon.hollowengine.common.utils.rl
 
-enum class GuiOverlay(val location: ResourceLocation) {
-    VIGNETTE("vignette".rl),
-    SPYGLASS("spyglass".rl),
-    HELMET("helmet".rl),
-    FROSTBITE("frostbite".rl),
-    PORTAL("portal".rl),
-    HOTBAR("hotbar".rl),
-    CROSSHAIR("crosshair".rl),
-    BOSS_EVENT_PROGRESS("boss_event_progress".rl),
-    PLAYER_HEALTH("player_health".rl),
-    ARMOR_LEVEL("armor_level".rl),
-    FOOD_LEVEL("food_level".rl),
-    AIR_LEVEL("air_level".rl),
-    MOUNT_HEALTH("mount_health".rl),
-    JUMP_BAR("jump_bar".rl),
-    EXPERIENCE_BAR("experience_bar".rl),
-    ITEM_NAME("item_name".rl),
-    SLEEP_FADE("sleep_fade".rl),
-    POTION_ICONS("potion_icons".rl),
-    DEBUG_TEXT("debug_text".rl),
-    FPS_GRAPH("fps_graph".rl),
-    RECORD_OVERLAY("record_overlay".rl),
-    TITLE_TEXT("title_text".rl),
-    SUBTITLES("subtitles".rl),
-    SCOREBOARD("scoreboard".rl),
-    CHAT_PANEL("chat_panel".rl),
-    PLAYER_LIST("player_list".rl);
-
-    companion object {
-        operator fun get(name: ResourceLocation): GuiOverlay? {
-            return entries.find { it.location == name }
-        }
-    }
-}
-
+/**
+ * Fired around each vanilla HUD layer. The layer is identified by a [ResourceLocation] (see
+ * [ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers]) rather than an enum constant, so
+ * vanilla layers, scripted layers and addon layers all live in one namespace and can anchor to or
+ * hide each other uniformly.
+ */
 abstract class RenderOverlayEvent protected constructor(
     val window: Window,
     val guiGraphics: GuiGraphics,
     val partialTick: Float,
-    val overlay: GuiOverlay,
+    val layer: ResourceLocation,
 ) : ClientEvent {
     class Pre(
         window: Window,
         guiGraphics: GuiGraphics,
         partialTick: Float,
-        overlay: GuiOverlay,
-    ) : RenderOverlayEvent(window, guiGraphics, partialTick, overlay), Cancellable {
-        companion object: EventHandler<Pre>()
+        layer: ResourceLocation,
+    ) : RenderOverlayEvent(window, guiGraphics, partialTick, layer), Cancellable {
+        companion object : EventHandler<Pre>()
 
         override var isCanceled: Boolean = false
     }
@@ -64,8 +34,8 @@ abstract class RenderOverlayEvent protected constructor(
         window: Window,
         guiGraphics: GuiGraphics,
         partialTick: Float,
-        overlay: GuiOverlay,
-    ) : RenderOverlayEvent(window, guiGraphics, partialTick, overlay) {
-        companion object: EventHandler<Post>()
+        layer: ResourceLocation,
+    ) : RenderOverlayEvent(window, guiGraphics, partialTick, layer) {
+        companion object : EventHandler<Post>()
     }
 }

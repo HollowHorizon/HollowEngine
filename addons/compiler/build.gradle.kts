@@ -1,6 +1,7 @@
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.util.zip.ZipFile
 
 plugins {
     `java-library`
@@ -22,6 +23,8 @@ repositories {
 }
 
 val kotlinVersion: String by rootProject.properties
+val composeRuntimeVersion: String by rootProject.properties
+val serializationVersion: String by rootProject.properties
 
 val ijPlatform = "261.25134.147"
 val ijJava = "261.25134.137"
@@ -35,6 +38,22 @@ val patchedLightTreeJar = tasks.register<ShadowJar>("patchedLightTreeJar") {
     from(lightTreeClasses)
     relocate("org.jetbrains.kotlin.com.intellij", "com.intellij")
     relocate("org.jetbrains.kotlin.com.google", "com.google")
+}
+
+val compilerPlugins = configurations.create("compilerPlugins") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    isTransitive = false
+}
+configurations.named(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME) {
+    extendsFrom(compilerPlugins)
+}
+val compilerPluginRuntimeJar = tasks.register<ShadowJar>("compilerPluginRuntimeJar") {
+    archiveBaseName.set("hollowengine-compiler-plugins")
+    archiveClassifier.set("runtime")
+    archiveVersion.set(kotlinVersion)
+    configurations = listOf(compilerPlugins)
+    exclude("META-INF/services/**")
 }
 
 repositories {
@@ -140,14 +159,19 @@ dependencies {
     implementation("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil:8.5.18-jb1") { isTransitive = false }
     implementation("org.benf:cfr:0.152") { isTransitive = false }
 
+    add(compilerPlugins.name, "org.jetbrains.kotlin:kotlin-compose-compiler-plugin:$kotlinVersion")
+    add(compilerPlugins.name, "org.jetbrains.kotlin:kotlin-serialization-compiler-plugin:$kotlinVersion")
+
     runtimeOnly(files(patchedLightTreeJar.flatMap { it.archiveFile }))
 
     testImplementation(kotlin("test"))
+    testImplementation("androidx.compose.runtime:runtime:$composeRuntimeVersion")
     testRuntimeOnly(files(patchedLightTreeJar.flatMap { it.archiveFile }))
+    testRuntimeOnly(files(compilerPluginRuntimeJar.flatMap { it.archiveFile }))
     testRuntimeOnly("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
-    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:$serializationVersion")
+    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
     testRuntimeOnly("org.apache.logging.log4j:log4j-api:2.23.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -177,14 +201,58 @@ val compilerClassesJar = tasks.named<ShadowJar>("shadowJar") {
         exclude(project(runtimeProjectPath))
     }
 
-    dependsOn(patchedLightTreeJar)
+    dependsOn(patchedLightTreeJar, compilerPluginRuntimeJar)
     from({ zipTree(patchedLightTreeJar.flatMap { it.archiveFile }) })
+    from({ zipTree(compilerPluginRuntimeJar.flatMap { it.archiveFile }) })
 
     relocate("com.github.benmanes.caffeine", "ru.hollowhorizon.hollowengine.repackaged.caffeine")
     relocate("one.util.streamex", "ru.hollowhorizon.hollowengine.repackaged.streamex")
     relocate("io.vavr", "ru.hollowhorizon.hollowengine.repackaged.vavr")
     relocate("gnu.trove", "ru.hollowhorizon.hollowengine.repackaged.gnu.trove")
     relocate("org.benf.cfr", "ru.hollowhorizon.hollowengine.repackaged.cfr")
+}
+
+val verifyCompilerPluginPackaging = tasks.register("verifyCompilerPluginPackaging") {
+    group = JavaBasePlugin.VERIFICATION_GROUP
+    description = "Verifies compiler-plugin classes and manual registration in the packaged addon."
+    dependsOn(compilerClassesJar)
+    inputs.file(compilerClassesJar.flatMap { it.archiveFile })
+
+    doLast {
+        val registrarClasses = mapOf(
+            "androidx.compose.compiler.plugins.kotlin.ComposePluginRegistrar" to
+                    "androidx/compose/compiler/plugins/kotlin/ComposePluginRegistrar.class",
+            "org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar" to
+                    "org/jetbrains/kotlinx/serialization/compiler/extensions/SerializationComponentRegistrar.class",
+        )
+
+        ZipFile(compilerClassesJar.get().archiveFile.get().asFile).use { archive ->
+            val classCounts = registrarClasses.values.associateWith { 0 }.toMutableMap()
+            val entries = archive.entries()
+            while (entries.hasMoreElements()) {
+                val entryName = entries.nextElement().name
+                if (entryName in classCounts) {
+                    classCounts[entryName] = classCounts.getValue(entryName) + 1
+                }
+            }
+            check(classCounts.values.all { it == 1 }) {
+                "Compiler plugin registrar classes must occur exactly once: $classCounts"
+            }
+
+            val registrarService = archive.getEntry(
+                "META-INF/services/org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar"
+            )
+            val serviceProviders = registrarService?.let { entry ->
+                archive.getInputStream(entry).bufferedReader().useLines { lines ->
+                    lines.map(String::trim).filter(String::isNotEmpty).toSet()
+                }
+            }.orEmpty()
+            val autoRegisteredPlugins = registrarClasses.keys.intersect(serviceProviders)
+            check(autoRegisteredPlugins.isEmpty()) {
+                "Compiler plugins must be registered manually, but services contain $autoRegisteredPlugins"
+            }
+        }
+    }
 }
 
 val addonJar = tasks.register<Jar>("addonJar") {
@@ -203,7 +271,7 @@ val addonJar = tasks.register<Jar>("addonJar") {
 }
 
 tasks.build {
-    dependsOn(addonJar)
+    dependsOn(addonJar, verifyCompilerPluginPackaging)
 }
 
 tasks.withType<KotlinCompile>().configureEach {

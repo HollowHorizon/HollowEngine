@@ -256,9 +256,15 @@ public interface RuntimeBridge extends AutoCloseable {
 
     @Nullable Object getIrisLocalShadowFramebuffer();
 
-    boolean onRenderOverlayPre(Window window, GuiGraphics guiGraphics, float partialTick, OverlayKind overlayKind);
+    /**
+     * Fired around a HUD layer. The layer is identified by its resource-location string
+     * (e.g. {@code "minecraft:crosshair"}) rather than a fixed enum, so NeoForge can pass every
+     * named layer through {@code RenderGuiLayerEvent.getName()}. Returns whether the
+     * vanilla layer should be cancelled.
+     */
+    boolean onRenderOverlayPre(Window window, GuiGraphics guiGraphics, float partialTick, String layerId);
 
-    void onRenderOverlayPost(Window window, GuiGraphics guiGraphics, float partialTick, OverlayKind overlayKind);
+    void onRenderOverlayPost(Window window, GuiGraphics guiGraphics, float partialTick, String layerId);
     boolean onKeyboardKey(long windowPointer, int key, int scanCode, int action, int modifiers);
 
     boolean onKeyboardChar(long windowPointer, int codePoint, int modifiers);
@@ -293,24 +299,6 @@ public interface RuntimeBridge extends AutoCloseable {
     void initRegistryProvider(RegistryProvider<?> provider);
 
     void onBlitScreen(Minecraft minecraft);
-
-    enum OverlayKind {
-        VIGNETTE,
-        SPYGLASS,
-        HELMET,
-        PORTAL,
-        HOTBAR,
-        CROSSHAIR,
-        PLAYER_HEALTH,
-        MOUNT_HEALTH,
-        JUMP_BAR,
-        EXPERIENCE_BAR,
-        ITEM_NAME,
-        POTION_ICONS,
-        BOSS_EVENT_PROGRESS,
-        CHAT_PANEL,
-        DEBUG_TEXT
-    }
 
     enum RenderLevelStage {
         AFTER_LEVEL,

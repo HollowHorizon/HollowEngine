@@ -63,8 +63,8 @@ object UiProps {
     )
 
     // Sizing / layout
-    val Width = prop<UiLength>("width", UiLength.Fit, fingerprint = true)
-    val Height = prop<UiLength>("height", UiLength.Fit, fingerprint = true)
+    val Width = prop<UiLength>("width", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
+    val Height = prop<UiLength>("height", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
     val MinWidth = prop<UiLength>("min-width", UiLength.Auto, fingerprint = true)
     val MinHeight = prop<UiLength>("min-height", UiLength.Auto, fingerprint = true)
     val MaxWidth = prop<UiLength>("max-width", UiLength.Auto, fingerprint = true)

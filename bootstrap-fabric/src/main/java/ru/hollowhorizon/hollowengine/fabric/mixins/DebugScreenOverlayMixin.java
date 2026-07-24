@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.HudLayerIds;
 
 @Mixin(DebugScreenOverlay.class)
 public class DebugScreenOverlayMixin {
@@ -20,13 +20,13 @@ public class DebugScreenOverlayMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void onRenderPre(GuiGraphics guiGraphics, CallbackInfo ci) {
         Window window = minecraft.getWindow();
-        if (BootstrapRuntimeManager.bridge().onRenderOverlayPre(window, guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), RuntimeBridge.OverlayKind.DEBUG_TEXT)) {
+        if (BootstrapRuntimeManager.bridge().onRenderOverlayPre(window, guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), HudLayerIds.DEBUG_OVERLAY)) {
             ci.cancel();
         }
     }
 
     @Inject(method = "render", at = @At("RETURN"))
     private void onRenderPost(GuiGraphics guiGraphics, CallbackInfo ci) {
-        BootstrapRuntimeManager.bridge().onRenderOverlayPost(minecraft.getWindow(), guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), RuntimeBridge.OverlayKind.DEBUG_TEXT);
+        BootstrapRuntimeManager.bridge().onRenderOverlayPost(minecraft.getWindow(), guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), HudLayerIds.DEBUG_OVERLAY);
     }
 }

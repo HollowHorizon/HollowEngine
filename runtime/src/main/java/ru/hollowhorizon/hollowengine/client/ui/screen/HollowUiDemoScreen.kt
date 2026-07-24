@@ -6,9 +6,6 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.widgets.Video
-import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlContent
-import ru.hollowhorizon.hollowengine.client.ui.xml.UiXmlOptions
-import ru.hollowhorizon.hollowengine.client.ui.xml.parseUiXml
 
 class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab by mutableStateOf("overview")
@@ -17,7 +14,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var popupAnchorBounds by mutableStateOf(UiRect.Zero)
     private val freeNodeOffsets = mutableStateMapOf<Int, DemoOffset>()
     private var layoutGlassOffset by mutableStateOf(DemoOffset.Zero)
-    private var xmlEventText by mutableStateOf("XML event log is empty")
     private var editorKeyLog by mutableStateOf("F2 is handled by Modifier.onKeyInput")
     private var textLabWidth by mutableStateOf(300f)
     private var textLabWrap by mutableStateOf(true)
@@ -39,7 +35,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     override fun Content() {
         Column(id = "demo-root") {
             Row(id = "tabs", tags = listOf("tabs"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
-                tab("xml", "XML", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
                 tab("text", "Text", "hollowengine:textures/gui/icons/docs.svg")
@@ -61,7 +56,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     "docking" -> docking()
                     "effects" -> effects()
                     "shapes" -> shapesDemo()
-                    "xml" -> xmlDemo()
                     "video" -> videoDemo()
                     else -> overview()
                 }
@@ -535,58 +529,6 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 autoPlay = false,
                 modifier = Modifier.size(100.percent, UiLength.Auto).grow().borderRadius(6f),
             )
-        }
-    }
-
-    @Composable
-    private fun xmlDemo() {
-
-        val demo = parseUiXml(
-            """
-            <import element="hollowengine:ui/elements/xml_demo_badge.ui" named="demo_badge" />
-            <import element="hollowengine:ui/elements/xml_demo_notice.ui" named="demo_notice" />
-            <import element="hollowengine:ui/elements/xml_demo_metric.ui" named="demo_metric" />
-
-            <box id="xml-demo" style="hollowengine:ui/styles/xml_demo.hss">
-                <text tags="xml-title">XML + HSS resource</text>
-                <text tags="xml-body">This panel is built from XML-like markup. The root imports xml_demo.hss from assets.</text>
-                <text tags="xml-rich-text">
-                    XML text with <box id="xml-inline-chip" tags="xml-inline-chip"><text>inline</text></box> measured slot.
-                </text>
-                <text tags="xml-slot-text">
-                    <box id="xml-slot-note" tags="xml-slot-note"><text>slot</text></box>
-                    This paragraph contains a measured inline widget whose size comes from HSS.
-                </text>
-                <column id="xml-popup-anchor" tags="xml-popup-anchor">
-                    <text>Popup anchor</text>
-                </column>
-                <popup id="xml-popup" anchor="xml-popup-anchor" placement="below-end" offset-y="6px" tags="xml-popup">
-                    <text>XML popup</text>
-                </popup>
-                <column id="xml-demo-accept" tags="xml-button" onClick='{event:"xml_demo";button:"accept";mouse:<it.button>}'>
-                    <text>Accept</text>
-                </column>
-                <column id="xml-demo-cancel" tags="xml-button secondary" onClick='{event:"xml_demo";button:"cancel";mouse:<it.button>}'>
-                    <text>Cancel</text>
-                </column>
-                <demo_badge />
-                <demo_notice id="xml-demo-notice" tone="success" />
-                <demo_metric id="xml-demo-metric" />
-            </box>
-            """.trimIndent()
-        )
-        val options = UiXmlOptions(
-            eventSink = UiEventSink { tag ->
-                val event = tag.getString("event")
-                val button = tag.getString("button")
-                val mouse = tag.getInt("mouse")
-                xmlEventText = "event=$event button=$button mouse=$mouse"
-            },
-        )
-
-        Column {
-            UiXmlContent(demo, options)
-            Text(xmlEventText, tags = listOf("xml-log"))
         }
     }
 }

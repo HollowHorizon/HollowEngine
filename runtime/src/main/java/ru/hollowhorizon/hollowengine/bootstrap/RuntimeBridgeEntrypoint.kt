@@ -76,6 +76,10 @@ import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
+import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
+import ru.hollowhorizon.hollowengine.common.ui.HudPlacement
+import ru.hollowhorizon.hollowengine.common.ui.hud.HudLayerRegistry
+import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRuntimeEnvironment
 import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
@@ -818,31 +822,42 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         window: Window,
         guiGraphics: GuiGraphics,
         partialTick: Float,
-        overlayKind: RuntimeBridge.OverlayKind,
+        layerId: String,
     ): Boolean {
-        val event = RenderOverlayEvent.Pre(window, guiGraphics, partialTick, overlayKind.toOverlay())
+        val layer = ResourceLocation.parse(layerId)
+        val event = RenderOverlayEvent.Pre(window, guiGraphics, partialTick, layer)
         RenderOverlayEvent.Pre.post(event)
-        return event.isCanceled
+
+        val nowNanos = System.nanoTime()
+        UiScriptHudHost.render(layer, HudPlacement.BEFORE, nowNanos)
+
+        val skip = event.isCanceled || HudLayerRegistry.isHidden(layer)
+        if (skip) UiScriptHudHost.render(layer, HudPlacement.AFTER, nowNanos)
+        return skip
     }
 
     override fun onRenderOverlayPost(
         window: Window,
         guiGraphics: GuiGraphics,
         partialTick: Float,
-        overlayKind: RuntimeBridge.OverlayKind,
+        layerId: String,
     ) {
-        RenderOverlayEvent.Post.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, overlayKind.toOverlay()))
+        val layer = ResourceLocation.parse(layerId)
+        RenderOverlayEvent.Post.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, layer))
+        UiScriptHudHost.render(layer, HudPlacement.AFTER, System.nanoTime())
     }
 
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)) return true
         if (TransformGizmoEditor.handleKey(key, scanCode, action, modifiers)) return true
+        if (UiScriptHudHost.handleKey(key, scanCode, action, modifiers)) return true
         return false
     }
 
     override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleChar(codePoint, modifiers)) return true
         if (TransformGizmoEditor.handleChar(codePoint, modifiers)) return true
+        if (UiScriptHudHost.handleChar(codePoint, modifiers)) return true
         return false
     }
 
@@ -859,11 +874,21 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
         val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
         val isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(convertedX, convertedY)
+        val (guiX, guiY) = guiScaledPointer(minecraft, xPos, yPos)
+        val isScriptOverlayCaptured = UiScriptHudHost.handleMouseMove(guiX, guiY)
         val isScreenOpen = minecraft.screen != null
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isGizmoBlocking && isScreenOpen
+        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isScriptOverlayCaptured || isGizmoBlocking && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
+    }
+
+    /** Converts a raw window cursor position to the GUI-scaled coordinate space overlays render in. */
+    private fun guiScaledPointer(minecraft: Minecraft, xPos: Double, yPos: Double): Pair<Float, Float> {
+        val window = minecraft.window
+        val guiX = xPos * window.guiScaledWidth / window.screenWidth
+        val guiY = yPos * window.guiScaledHeight / window.screenHeight
+        return guiX.toFloat() to guiY.toFloat()
     }
 
     override fun onMousePress(
@@ -875,10 +900,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         action: Int,
         modifiers: Int,
     ): Boolean {
-        val pressed = action == org.lwjgl.glfw.GLFW.GLFW_PRESS
-
+        val (guiX, guiY) = guiScaledPointer(minecraft, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
         return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
                 TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
+                UiScriptHudHost.handleMouseButton(guiX, guiY, button, action) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
@@ -890,8 +915,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         xOffset: Double,
         yOffset: Double,
     ): Boolean {
+        val (guiX, guiY) = guiScaledPointer(minecraft, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
         return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
                 TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
+                UiScriptHudHost.handleMouseScroll(guiX, guiY, xOffset, yOffset) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
 
@@ -968,24 +995,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
                 SoundBuffer(byteBuffer, stream.format)
             }
         }
-    }
-
-    private fun RuntimeBridge.OverlayKind.toOverlay(): GuiOverlay = when (this) {
-        RuntimeBridge.OverlayKind.VIGNETTE -> GuiOverlay.VIGNETTE
-        RuntimeBridge.OverlayKind.SPYGLASS -> GuiOverlay.SPYGLASS
-        RuntimeBridge.OverlayKind.HELMET -> GuiOverlay.HELMET
-        RuntimeBridge.OverlayKind.PORTAL -> GuiOverlay.PORTAL
-        RuntimeBridge.OverlayKind.HOTBAR -> GuiOverlay.HOTBAR
-        RuntimeBridge.OverlayKind.CROSSHAIR -> GuiOverlay.CROSSHAIR
-        RuntimeBridge.OverlayKind.PLAYER_HEALTH -> GuiOverlay.PLAYER_HEALTH
-        RuntimeBridge.OverlayKind.MOUNT_HEALTH -> GuiOverlay.MOUNT_HEALTH
-        RuntimeBridge.OverlayKind.JUMP_BAR -> GuiOverlay.JUMP_BAR
-        RuntimeBridge.OverlayKind.EXPERIENCE_BAR -> GuiOverlay.EXPERIENCE_BAR
-        RuntimeBridge.OverlayKind.ITEM_NAME -> GuiOverlay.ITEM_NAME
-        RuntimeBridge.OverlayKind.POTION_ICONS -> GuiOverlay.POTION_ICONS
-        RuntimeBridge.OverlayKind.BOSS_EVENT_PROGRESS -> GuiOverlay.BOSS_EVENT_PROGRESS
-        RuntimeBridge.OverlayKind.CHAT_PANEL -> GuiOverlay.CHAT_PANEL
-        RuntimeBridge.OverlayKind.DEBUG_TEXT -> GuiOverlay.DEBUG_TEXT
     }
 
     private fun RuntimeBridge.RenderLevelStage.toRenderStage(): RenderStage = when (this) {

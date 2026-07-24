@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.npcs.data
 
+import ru.hollowhorizon.hollowengine.common.data.dataKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

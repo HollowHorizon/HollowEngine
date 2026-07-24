@@ -5,80 +5,7 @@ object UiLanguageCatalog {
 
     val states = listOf("hover", "active", "focus", "disabled", "selected", "dragging", "closing")
 
-    val globalAttributes = listOf(
-        UiAttribute("id"),
-        UiAttribute("tags"),
-        UiAttribute("class"),
-        UiAttribute("style"),
-        UiAttribute("layout"),
-        UiAttribute("size"),
-        UiAttribute("width"),
-        UiAttribute("height"),
-        UiAttribute("minSize"),
-        UiAttribute("maxSize"),
-        UiAttribute("aspectRatio"),
-        UiAttribute("padding"),
-        UiAttribute("margin"),
-        UiAttribute("gap"),
-        UiAttribute("align", "start start"),
-        UiAttribute("alignItems", "start start"),
-        UiAttribute("grow"),
-        UiAttribute("position"),
-        UiAttribute("background"),
-        UiAttribute("backgroundImage", "image(\"\")"),
-        UiAttribute("imageSlice"),
-        UiAttribute("shape", "svg(\"\")"),
-        UiAttribute("shapeFill"),
-        UiAttribute("shapeStroke"),
-        UiAttribute("shapeStrokeWidth"),
-        UiAttribute("foreground"),
-        UiAttribute("color"),
-        UiAttribute("border"),
-        UiAttribute("borderRadius"),
-        UiAttribute("shadow"),
-        UiAttribute("boxShadow"),
-        UiAttribute("opacity"),
-        UiAttribute("tint"),
-        UiAttribute("translate"),
-        UiAttribute("rotate"),
-        UiAttribute("scale"),
-        UiAttribute("pivot", "center"),
-        UiAttribute("perspective"),
-        UiAttribute("filter"),
-        UiAttribute("backdropFilter"),
-        UiAttribute("backfaceVisibility"),
-        UiAttribute("hoverable", "true"),
-        UiAttribute("clickable", "true"),
-        UiAttribute("focusable", "true"),
-        UiAttribute("draggable", "true"),
-        UiAttribute("scrollable", "true"),
-        UiAttribute("clip", "true"),
-        UiAttribute("layer"),
-        UiAttribute("textWrap"),
-        UiAttribute("textAlign"),
-        UiAttribute("fontSize"),
-        UiAttribute("typing"),
-        UiAttribute("transition"),
-        UiAttribute("animation"),
-        UiAttribute("onClick", "{event:\"\"}"),
-        UiAttribute("onDrag", "{event:\"\"}"),
-    )
 
-    val elementAttributes = mapOf(
-        "import" to listOf(UiAttribute("element"), UiAttribute("named")),
-        "text" to listOf(UiAttribute("text")),
-        "text-field" to listOf(
-            UiAttribute("value"),
-            UiAttribute("placeholder"),
-            UiAttribute("mode", "multi-line"),
-            UiAttribute("filter"),
-            UiAttribute("multi-caret", "true"),
-        ),
-        "image" to listOf(UiAttribute("source"), UiAttribute("src"), UiAttribute("image"), UiAttribute("imageFit")),
-        "item" to listOf(UiAttribute("item"), UiAttribute("value")),
-        "entity" to listOf(UiAttribute("entity"), UiAttribute("value")),
-        "canvas" to listOf(UiAttribute("renderer")),
-    )
 
     val hssProperties = listOf(
         "layout",
@@ -265,10 +192,6 @@ object UiLanguageCatalog {
         "animation-play-state" to listOf("running", "paused"),
     )
 
-    fun attributesFor(element: String): List<UiAttribute> {
-        val specific = elementAttributes[element.lowercase()].orEmpty()
-        return (specific + globalAttributes).distinctBy { it.name }
-    }
 
     fun valuesFor(property: String): List<String> = valueCompletions[property.toStylePropertyName()].orEmpty()
 
@@ -317,13 +240,3 @@ object UiLanguageCatalog {
     )
 }
 
-data class UiAttribute(
-    val name: String,
-    val defaultValue: String? = "",
-) {
-    val insertion: String
-        get() = if (defaultValue == null) name else "$name=\"$defaultValue\""
-
-    val caretMove: Int
-        get() = if (defaultValue == null) 0 else -1
-}

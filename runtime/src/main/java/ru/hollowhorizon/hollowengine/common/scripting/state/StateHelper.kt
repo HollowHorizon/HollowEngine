@@ -6,9 +6,9 @@ import kotlinx.serialization.serializer
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.StringTag
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
-import ru.hollowhorizon.hollowengine.common.npcs.data.DataKey
-import ru.hollowhorizon.hollowengine.common.npcs.data.read
-import ru.hollowhorizon.hollowengine.common.npcs.data.write
+import ru.hollowhorizon.hollowengine.common.data.DataKey
+import ru.hollowhorizon.hollowengine.common.data.read
+import ru.hollowhorizon.hollowengine.common.data.write
 
 internal suspend fun stateContext(): StateContext {
     return currentCoroutineContext()[StateContext.Key] ?: error("StateContext not found!")
