@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FILE
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FOLDER
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CUT
+import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FILE_SOUND
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FOLDER
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.PASTE
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
@@ -17,6 +18,7 @@ internal fun HollowIdeProjectContextMenu(
     menu: ProjectContextMenu?,
     onCreateFile: (String) -> Unit,
     onCreateFolder: (String) -> Unit,
+    onCreateSoundEvents: (String) -> Unit,
     onRename: (String) -> Unit,
     onCopy: (String) -> Unit,
     onCut: (String) -> Unit,
@@ -35,6 +37,9 @@ internal fun HollowIdeProjectContextMenu(
     ) {
         ProjectMenuItem("New File", "Ctrl+N", CREATE_FILE.toString()) { onCreateFile(menu.path) }
         ProjectMenuItem("New Folder", "Ctrl+Shift+N", CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
+        if (menu.canCreateSoundEvents) {
+            ProjectMenuItem("New Sound Events", "", FILE_SOUND.toString()) { onCreateSoundEvents(menu.path) }
+        }
         ProjectMenuItem("Rename", "F2", RENAME.toString()) { onRename(menu.path) }
         ProjectMenuItem("Copy", "Ctrl+C", COPY.toString()) { onCopy(menu.path) }
         ProjectMenuItem("Cut", "Ctrl+X", CUT.toString()) { onCut(menu.path) }
@@ -95,6 +100,7 @@ internal data class ProjectContextMenu(
     val path: String,
     val x: Float,
     val y: Float,
+    val canCreateSoundEvents: Boolean = false,
 )
 
 internal data class ProjectNameDialog(

@@ -1,0 +1,198 @@
+.sounds-editor-root {
+    gap: 6px;
+    padding: 6px;
+    background: #24272E;
+}
+
+.sounds-editor-toolbar {
+    size: 100% 26px;
+    gap: 8px;
+    padding: 0px 4px;
+}
+
+.sounds-editor-title {
+    height: fit;
+    foreground: #EEF3FB;
+    font-size: 12px;
+    text-wrap: false;
+}
+
+.sounds-editor-status {
+    height: fit;
+    foreground: #6FBF8A;
+    font-size: 10px;
+    text-wrap: false;
+}
+
+.sounds-editor-status.dirty {
+    foreground: #E0A94B;
+}
+
+.sounds-editor-status-dot {
+    size: 6px 6px;
+    border-radius: 3px;
+    background: #6FBF8A;
+    transition: background 150ms ease-out;
+}
+
+.sounds-editor-status-dot.dirty {
+    background: #E0A94B;
+}
+
+.sounds-editor-list {
+    gap: 5px;
+    padding: 6px;
+    background: #2B2E36;
+    border-radius: 4px;
+}
+
+.sounds-editor-list-scroll {
+    gap: 2px;
+    scrollbar: 6px;
+    scrollbar-margin: 0px;
+    scrollbar-track: rgba(255, 255, 255, 0.02);
+    scrollbar-thumb: rgba(155, 169, 194, 0.38);
+    scrollbar-thumb-radius: 3px;
+}
+
+.sounds-editor-detail {
+    gap: 7px;
+    padding: 8px 10px;
+    background: #2B2E36;
+    border-radius: 4px;
+    scrollbar: 6px;
+    scrollbar-margin: 0px;
+    scrollbar-track: rgba(255, 255, 255, 0.02);
+    scrollbar-thumb: rgba(155, 169, 194, 0.38);
+    scrollbar-thumb-radius: 3px;
+}
+
+.sounds-editor-event {
+    padding: 0px 4px 0px 8px;
+    gap: 4px;
+    background: #00000000;
+    foreground: #C6CEDC;
+    border-radius: 4px;
+    transition: background 120ms ease-out, foreground 120ms ease-out;
+}
+
+.sounds-editor-event:hover {
+    background: rgba(255, 255, 255, 0.07);
+    foreground: #FFFFFF;
+}
+
+.sounds-editor-event.selected {
+    background: rgba(88, 123, 174, 0.32);
+    foreground: #FFFFFF;
+}
+
+.sounds-editor-event-label {
+    height: fit;
+    align: start center;
+    text-wrap: false;
+}
+
+.sounds-editor-event-count {
+    height: fit;
+    foreground: #8B96A9;
+    font-size: 9px;
+    text-wrap: false;
+}
+
+.sounds-editor-empty,
+.sounds-editor-placeholder {
+    height: fit;
+    padding: 8px 4px;
+    foreground: #8B96A9;
+    text-wrap: true;
+}
+
+.sounds-editor-labeled {
+    size: 100% fit;
+    gap: 2px;
+}
+
+.sounds-editor-section {
+    margin: 4px 0px 0px 0px;
+}
+
+.sounds-editor-section-title {
+    height: fit;
+    foreground: #EEF3FB;
+    text-wrap: false;
+}
+
+.sounds-editor-label {
+    height: fit;
+    foreground: #AEB8CA;
+    font-size: 10px;
+    text-wrap: false;
+}
+
+.sounds-editor-value {
+    height: fit;
+    foreground: #C6CEDC;
+    font-size: 10px;
+    align: end center;
+    text-wrap: false;
+}
+
+.sounds-editor-search,
+.sounds-editor-field {
+    padding: 3px 5px;
+    background: #31343D;
+    border: 1px #454B58;
+    border-radius: 3px;
+    foreground: #E4E9F2;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+}
+
+.sounds-editor-sound-card {
+    size: 100% fit;
+    gap: 5px;
+    padding: 7px;
+    background: #313540;
+    border: 1px #3E434F;
+    border-radius: 4px;
+}
+
+.sounds-editor-button {
+    background: #3A3E48;
+    border: 1px #555D6C;
+    border-radius: 4px;
+    foreground: #D7DEEA;
+    transition: background 100ms ease-out;
+}
+
+.sounds-editor-button:hover {
+    background: #45648E;
+    border: 1px #6D94C9;
+    foreground: #FFFFFF;
+}
+
+.sounds-editor-button-label {
+    height: fit;
+    text-wrap: false;
+}
+
+.sounds-editor-button-icon {
+    size: 12px 12px;
+    tint: #D7DEEA;
+}
+
+.sounds-editor-button:hover .sounds-editor-button-icon {
+    tint: #FFFFFF;
+}
+
+.sounds-editor-icon-button {
+    size: 16px 16px;
+    padding: 2px;
+    border-radius: 3px;
+    tint: #8B96A9;
+    transition: tint 100ms ease-out;
+}
+
+.sounds-editor-icon-button:hover {
+    tint: #FF9D9D;
+}

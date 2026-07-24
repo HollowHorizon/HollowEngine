@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.detachLayoutParentRecursively
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
+import ru.hollowhorizon.hollowengine.client.ui.style.UiProps
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
@@ -405,6 +406,7 @@ fun Checkbox(
     }
     val base = Modifier.cursor(UiCursorShape.HAND).onClick(toggle)
         .let { if (current) it.state(UiState.SELECTED) else it }
+    val progress by animateFloatAsState(if (current) 1f else 0f, durationMillis = CheckboxToggleMillis)
 
     when (variant) {
         UiCheckboxVariant.SWITCH -> Box(
@@ -412,13 +414,13 @@ fun Checkbox(
             mode = UiBoxMode.STACK,
             tags = tags + "checkbox",
             modifier = base.size(28.px, 16.px).borderRadius(8f)
-                .background(if (current) WidgetAccentColor else CheckboxTrackColor)
+                .background(CheckboxTrackColor.interpolate(WidgetAccentColor, progress))
                 .then(modifier ?: Modifier),
         ) {
             Box(
                 tags = listOf("checkbox-mark"),
                 modifier = Modifier.size(12.px, 12.px).align(vertical = UiAlign.CENTER)
-                    .position(if (current) 14.px else 2.px, 0.px)
+                    .position((2f + 12f * progress).px, 0.px)
                     .background(UiColor.White).borderRadius(6f),
             )
         }
@@ -430,14 +432,15 @@ fun Checkbox(
                 mode = UiBoxMode.STACK,
                 tags = tags + "checkbox",
                 modifier = base.size(16.px, 16.px).borderRadius(if (circle) 8f else 3f)
-                    .background(if (current) WidgetAccentColor else UiColor.Transparent)
+                    .background(UiColor.Transparent.interpolate(WidgetAccentColor, progress))
                     .border(1.px, WidgetCheckboxBorderColor, radius = if (circle) 8f else 3f)
                     .then(modifier ?: Modifier),
             ) {
-                if (current) {
+                if (progress > 0.001f) {
                     Box(
                         tags = listOf("checkbox-mark"),
                         modifier = Modifier.size(8.px, 8.px).align(UiAlign.CENTER, UiAlign.CENTER)
+                            .opacity(progress)
                             .background(UiColor.White).borderRadius(if (circle) 4f else 2f),
                     )
                 }
@@ -458,7 +461,13 @@ private fun normalizeSlider(raw: Float, min: Float, max: Float, step: Float): Fl
 private val SliderTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
 private const val SliderThumbSize = 12f
 private const val SliderThumbRadius = SliderThumbSize / 2f
+private const val CheckboxToggleMillis = 140L
 private val CheckboxTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
+
+private sealed interface HssShadowResolution {
+    data object Inherit : HssShadowResolution
+    data class Override(val shadow: Shadow?) : HssShadowResolution
+}
 private val WidgetAccentColor = UiColor(0.36f, 0.62f, 0.95f, 1f)
 private val WidgetThumbBorderColor = UiColor(0.06f, 0.07f, 0.08f, 0.45f)
 private val WidgetCheckboxBorderColor = UiColor(0.55f, 0.6f, 0.68f, 1f)
@@ -527,7 +536,11 @@ fun TextField(
     fieldState.fontSize = fontSize
     fieldState.fontFamily = fontFamily
     fieldState.wrap = wrap ?: multiline
-    fieldState.textShadow = textShadow
+    var hssShadow by remember { mutableStateOf<HssShadowResolution>(HssShadowResolution.Inherit) }
+    fieldState.textShadow = when (val resolution = hssShadow) {
+        is HssShadowResolution.Override -> resolution.shadow
+        HssShadowResolution.Inherit -> textShadow
+    }
     if (caretColor != null) fieldState.caretColor = caretColor
     if (selectionColor != null) fieldState.selectionColor = selectionColor
 
@@ -551,7 +564,15 @@ fun TextField(
 
     EditableTextField(
         state = fieldState,
-        modifier = modifier,
+        modifier = (modifier ?: Modifier).onResolvedStyle { style ->
+            val textFieldStyle = style[UiProps.TextField]
+            val next = if (textFieldStyle != null && textFieldStyle.textShadowSet) {
+                HssShadowResolution.Override(textFieldStyle.textShadow)
+            } else {
+                HssShadowResolution.Inherit
+            }
+            if (next != hssShadow) hssShadow = next
+        },
         id = id,
         tags = tags,
         syntaxHighlighter = syntaxHighlighter,

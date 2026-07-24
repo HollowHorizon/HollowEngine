@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.*
 import kotlinx.coroutines.isActive
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiGradientStop
@@ -110,13 +111,18 @@ internal fun EditableFieldCompletionPopup(
         .take(CompletionPopupWindowSize)
         .toList()
 
-    Column(
+    val caret = layout.caretAt(completion.anchor)
+    val viewport = scrollState.viewport
+    val anchorX = viewport.x + contentOffsetX + caret.x - scrollState.offsetX
+    val anchorY = viewport.y + caret.y - scrollState.offsetY
+    Popup(
+        anchorBounds = UiRect(anchorX, anchorY, 0f, layout.fontSize),
+        alignment = UiPopupAlignment.BelowStart,
+        id = "editable-text-field-completion",
         tags = listOf("editable-text-field-completion-popup", "ide-completion-popup"),
-        modifier = Modifier
-            .position((geometry.x + scrollState.offsetX).px, (geometry.y + scrollState.offsetY).px, 40f)
-            .size(geometry.width.px, geometry.height.px)
-            .layer(30)
+        modifier = Modifier.size(geometry.width.px, geometry.height.px)
             .input(clickable = true, hoverable = true),
+        dismissOnOutside = false,
     ) {
         Column(
             tags = listOf("ide-completion-list"),

@@ -159,6 +159,20 @@ internal class HollowIdeModel(
         return HollowIdeFileOperationResult.Success
     }
 
+    /** Creates (if missing) and opens a starter `sounds.json` inside [dirPath], for the sounds editor. */
+    fun createSoundsFile(dirPath: String): HollowIdeOpenResult {
+        val directory = targetDirectory(dirPath)
+        val target = File(directory, "sounds.json")
+        if (!target.exists()) {
+            target.parentFile?.mkdirs()
+            target.writeText("{\n}\n")
+        }
+        tree.refresh()
+        val readablePath = if (dirPath.isBlank()) "sounds.json" else "$dirPath/sounds.json"
+        selectPath(readablePath)
+        return openFile(readablePath)
+    }
+
     fun createFolder(parentPath: String, name: String): HollowIdeFileOperationResult {
         val cleanName = name.trim().replace('\\', '/').trim('/')
         if (cleanName.isBlank()) return HollowIdeFileOperationResult.InvalidName

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 
 enum class UiCheckboxVariant {
     CHECKBOX,
@@ -88,6 +89,8 @@ data class UiTextFieldStyle(
     val inlayHintColor: UiColor? = null,
     val lineNumbers: Boolean? = null,
     val inlayHints: Boolean? = null,
+    val textShadow: Shadow? = null,
+    val textShadowSet: Boolean = false,
 ) {
     fun merge(other: UiTextFieldStyle): UiTextFieldStyle = UiTextFieldStyle(
         caretColor = other.caretColor ?: caretColor,
@@ -96,6 +99,8 @@ data class UiTextFieldStyle(
         inlayHintColor = other.inlayHintColor ?: inlayHintColor,
         lineNumbers = other.lineNumbers ?: lineNumbers,
         inlayHints = other.inlayHints ?: inlayHints,
+        textShadow = if (other.textShadowSet) other.textShadow else textShadow,
+        textShadowSet = other.textShadowSet || textShadowSet,
     )
 }
 

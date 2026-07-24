@@ -37,7 +37,12 @@ internal class HollowIdeProjectController(
         val additive = event.modifiers and GLFW.GLFW_MOD_CONTROL != 0
         if (event.button == 1) {
             model.focusSelection(item.payload)
-            contextMenu = ProjectContextMenu(item.payload.path, event.x, event.y)
+            contextMenu = ProjectContextMenu(
+                path = item.payload.path,
+                x = event.x,
+                y = event.y,
+                canCreateSoundEvents = canCreateSoundEvents(item.payload),
+            )
             nameDialog = null
             return
         }
@@ -54,6 +59,14 @@ internal class HollowIdeProjectController(
             HollowIdeOpenResult.Directory -> Unit
             HollowIdeOpenResult.Unsupported -> setStatus("Unsupported or binary file: ${item.payload.path}")
             is HollowIdeOpenResult.File -> openFile(result.file)
+        }
+    }
+
+    fun createSoundEvents(path: String) {
+        contextMenu = null
+        when (val result = model.createSoundsFile(path)) {
+            is HollowIdeOpenResult.File -> openFile(result.file)
+            else -> setStatus("Не удалось создать sounds.json")
         }
     }
 
@@ -194,6 +207,11 @@ internal class HollowIdeProjectController(
         )
     }
 
+    private fun canCreateSoundEvents(node: HollowIdeFileNode): Boolean {
+        if (!node.isDirectory || !NamespaceFolderRegex.matches(node.path)) return false
+        return !"${node.path}/sounds.json".fromReadablePath().exists()
+    }
+
     private fun isDoubleClick(path: String): Boolean {
         val now = System.currentTimeMillis()
         val doubleClick = lastClickPath == path && now - lastClickAtMillis <= ProjectTreeDoubleClickMillis
@@ -208,3 +226,6 @@ internal class HollowIdeProjectController(
 }
 
 private const val ProjectTreeDoubleClickMillis = 350L
+
+/** Resource-namespace folders like `assets/<modid>` where a `sounds.json` belongs. */
+private val NamespaceFolderRegex = Regex("^assets/[^/]+$")

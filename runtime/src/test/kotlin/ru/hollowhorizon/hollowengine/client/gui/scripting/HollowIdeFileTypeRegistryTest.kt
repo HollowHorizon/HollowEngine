@@ -69,12 +69,20 @@ class HollowIdeFileTypeRegistryTest {
     @Test
     fun `built in registration selects model image and text editors`() {
         val registry = HollowIdeFileTypeRegistry().apply {
-            registerBuiltinFileTypes(modelEditor = {}, imageEditor = {}, videoEditor = {}, textEditor = {})
+            registerBuiltinFileTypes(
+                modelEditor = {},
+                imageEditor = {},
+                videoEditor = {},
+                soundsEditor = {},
+                textEditor = {},
+            )
         }
 
         assertEquals("model", registry.find("assets/demo/models/entity.geo.json", "{}".toByteArray())?.id)
         assertEquals("video", registry.find("assets/demo/videos/intro.MP4", byteArrayOf())?.id)
         assertEquals("image", registry.find("assets/demo/textures/icon.PNG", byteArrayOf(0, 1, 2))?.id)
+        assertEquals("sounds", registry.find("assets/demo/sounds.json", "{}".toByteArray())?.id)
+        assertEquals("text", registry.find("assets/demo/other.json", "{}".toByteArray())?.id)
         assertEquals("text", registry.find("scripts/example.kts", "println(1)".toByteArray())?.id)
         assertNull(registry.find("unknown.bin", ByteArray(64) { 0 }))
     }

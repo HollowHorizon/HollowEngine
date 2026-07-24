@@ -1,13 +1,27 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageDocument
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsDocument
+
+internal const val SoundsFileName = "sounds.json"
 
 internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
     modelEditor: HollowIdeFileEditor,
     imageEditor: HollowIdeFileEditor,
     videoEditor: HollowIdeFileEditor,
+    soundsEditor: HollowIdeFileEditor,
     textEditor: HollowIdeFileEditor,
 ) {
+    register(
+        HollowIdeFileType(
+            id = "sounds",
+            priority = 250,
+            matcher = { path, _ -> path.isSoundsFile() },
+            pathMatcher = { path -> path.isSoundsFile() },
+            loader = { _, bytes -> HollowIdeSoundsDocument(bytes) },
+            editor = soundsEditor,
+        ),
+    )
     register(
         HollowIdeFileType.extensions(
             id = "model",
@@ -46,3 +60,6 @@ internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
         ),
     )
 }
+
+private fun String.isSoundsFile(): Boolean =
+    substringAfterLast('/').equals(SoundsFileName, ignoreCase = true)

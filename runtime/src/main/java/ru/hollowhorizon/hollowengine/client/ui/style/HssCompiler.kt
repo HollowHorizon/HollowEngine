@@ -399,6 +399,21 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(selectionColor = parseColor(value))
             }
 
+            "text-shadow", "text-field-shadow" -> instruction { style ->
+                val trimmed = value.trim()
+                val disabled = trimmed.equals("none", true) ||
+                    trimmed.equals("false", true) || trimmed.equals("off", true)
+                val shadow = if (disabled) {
+                    null
+                } else {
+                    val effect = if (trimmed.startsWith("shadow(")) parseTextEffect(trimmed)
+                    else parseTextEffect("shadow($trimmed)")
+                    effect as? Shadow
+                }
+                style.textField = (style.textField ?: UiTextFieldStyle())
+                    .copy(textShadow = shadow, textShadowSet = true)
+            }
+
             "line-number-color" -> instruction { style ->
                 style.textField = (style.textField ?: UiTextFieldStyle()).copy(lineNumberColor = parseColor(value))
             }

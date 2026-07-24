@@ -165,6 +165,7 @@ class HollowUiRuntime(
     private val input = HollowUiInputController()
     private val placedBounds = WeakHashMap<UiNode, UiRect>()
     private val reportedTextLayouts = WeakHashMap<UiNode, UiTextLayout>()
+    private val reportedStyles = WeakHashMap<UiNode, UiComputedStyle>()
     private var lastLayout: UiLayoutResult? = null
     private var lastLayoutKey: FrameLayoutKey? = null
     private var preparedAtMillis: Long? = null
@@ -257,6 +258,7 @@ class HollowUiRuntime(
         lastLayoutKey = layoutKey.copy(scrollRevision = scrollState.revision)
         dispatchPlacementCallbacks(layout)
         dispatchTextLayoutCallbacks(layout)
+        dispatchResolvedStyleCallbacks(layout)
         syncScrollHandles(nodes, layout)
 
         return HollowUiFrame(
@@ -413,6 +415,23 @@ class HollowUiRuntime(
                     rect = current
                 }
                 modifier.callback(rect)
+            }
+        }
+    }
+
+    /** After resolve, hands every [OnResolvedStyleModifier] its node's computed style, once per change. */
+    private fun dispatchResolvedStyleCallbacks(layout: UiLayoutResult) {
+        for (node in layout.traversalOrder) {
+            var style: UiComputedStyle? = null
+            for (modifier in node.resolvedModifiers) {
+                if (modifier !is OnResolvedStyleModifier) continue
+                if (style == null) {
+                    val current = node.resolvedSnapshot
+                    if (reportedStyles[node] === current) break
+                    reportedStyles[node] = current
+                    style = current
+                }
+                modifier.callback(style)
             }
         }
     }

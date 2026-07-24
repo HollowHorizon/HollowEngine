@@ -152,6 +152,7 @@
     padding: 8px;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
+    text-shadow: 0, 1, 2, rgba(255, 255, 255, 0.4);
     line-numbers: true;
     line-number-color: #556070;
     inlay-hint-color: #687588;

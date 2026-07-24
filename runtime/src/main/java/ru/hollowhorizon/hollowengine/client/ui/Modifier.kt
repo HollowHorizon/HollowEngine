@@ -186,6 +186,13 @@ data class OnPlacedModifier(val callback: (UiRect) -> Unit) : Modifier
  */
 data class OnTextLayoutModifier(val callback: (UiTextLayout) -> Unit) : Modifier
 
+/**
+ * Observes the node's resolved computed style after each resolve pass. The runtime invokes
+ * [callback] only when the snapshot changes, so a widget can pull HSS-driven values (e.g. a text
+ * field's shadow) that aren't plain visual props into its own state without looping.
+ */
+data class OnResolvedStyleModifier(val callback: (UiComputedStyle) -> Unit) : Modifier
+
 data class ScriptEventModifier(
     val kind: UiEventKind,
     val source: String,
@@ -482,6 +489,9 @@ fun Modifier.onPlaced(callback: (UiRect) -> Unit) = this then OnPlacedModifier(c
 
 /** Reports this node's laid-out text after layout; see [OnTextLayoutModifier]. */
 fun Modifier.onTextLayout(callback: (UiTextLayout) -> Unit) = this then OnTextLayoutModifier(callback)
+
+/** Reports this node's resolved computed style after each resolve; see [OnResolvedStyleModifier]. */
+fun Modifier.onResolvedStyle(callback: (UiComputedStyle) -> Unit) = this then OnResolvedStyleModifier(callback)
 
 fun Modifier.eventScript(kind: UiEventKind, source: String, sink: UiEventSink) = this then
         ScriptEventModifier(kind, source, sink)

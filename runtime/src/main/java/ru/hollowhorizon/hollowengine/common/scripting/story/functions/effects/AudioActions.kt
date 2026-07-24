@@ -83,6 +83,55 @@ fun Player.playSound(
     }
 }
 
+@DslMarker
+annotation class SoundDsl
+
+/**
+ * Fluent configuration for [playSound]. Lets scripts tune a sound with a readable
+ * block body instead of a long positional argument list, e.g.
+ * `player.playSound("modid:event") { volume = 0.5f; pitch = 1.2f }`.
+ */
+@SoundDsl
+class SoundBuilder {
+    /** Sound event id or raw audio path (`audio/...`, `.mp3`, `.wav`). */
+    var location: String = ""
+    var volume: Float = 1f
+    var pitch: Float = 1f
+    var position: Vec3? = null
+    var velocity: Vec3? = null
+    var relative: Boolean = true
+
+    fun at(x: Double, y: Double, z: Double) {
+        position = Vec3(x, y, z)
+    }
+
+    fun at(pos: Vec3) {
+        position = pos
+    }
+}
+
+fun Player.playSound(location: String, block: SoundBuilder.() -> Unit) =
+    SoundBuilder().also { it.location = location }.apply(block).play(this)
+
+fun Player.playSound(block: SoundBuilder.() -> Unit) =
+    SoundBuilder().apply(block).play(this)
+
+fun Level.playSound(location: String, block: SoundBuilder.() -> Unit) =
+    SoundBuilder().also { it.location = location }.apply(block).play(this)
+
+fun Level.playSound(block: SoundBuilder.() -> Unit) =
+    SoundBuilder().apply(block).play(this)
+
+private fun SoundBuilder.play(player: Player) {
+    require(location.isNotEmpty()) { "SoundBuilder.location must be set before playing a sound" }
+    player.playSound(location, volume, pitch, position, velocity, relative)
+}
+
+private fun SoundBuilder.play(level: Level) {
+    require(location.isNotEmpty()) { "SoundBuilder.location must be set before playing a sound" }
+    level.playSound(location, volume, pitch, position, velocity, relative)
+}
+
 val SOUNDS = HashMap<ResourceLocation, Wave>()
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)

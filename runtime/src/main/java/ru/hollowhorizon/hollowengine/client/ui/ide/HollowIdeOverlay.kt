@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsolePanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeUiProfilerPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.ModelEditorPanel
@@ -57,6 +58,7 @@ object HollowIdeOverlay {
                     modifier = Modifier.size(100.percent, 100.percent),
                 )
             },
+            soundsEditor = { file -> HollowIdeSoundsEditor(file) },
             textEditor = { file -> FileEditor(file) },
         )
     }
@@ -386,6 +388,7 @@ object HollowIdeOverlay {
                 menu = project.contextMenu,
                 onCreateFile = project::openCreateFileDialog,
                 onCreateFolder = project::openCreateFolderDialog,
+                onCreateSoundEvents = project::createSoundEvents,
                 onRename = project::openRenameDialog,
                 onCopy = { project.copy(it, cut = false) },
                 onCut = { project.copy(it, cut = true) },
