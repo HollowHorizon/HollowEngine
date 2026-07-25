@@ -210,6 +210,7 @@ class MinecraftUiRenderer {
         activeProfile = profile
         val previousTarget = renderTarget
         renderTarget = target
+        val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         try {
             releasePreparedLayers()
             val hasFramebufferLayers = prepareFramebuffers(frame.layout)
@@ -233,8 +234,8 @@ class MinecraftUiRenderer {
             disableScissor()
             scissorState = null
             while (layerStack.isNotEmpty()) finishLayer()
-            GL11.glDepthMask(true)
         } finally {
+            GL11.glDepthMask(depthMask)
             releasePreparedLayers()
             renderTarget = previousTarget
             activeProfile = null
@@ -1096,6 +1097,12 @@ class MinecraftUiRenderer {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val target = currentTarget()
+        val restoreProjection = !layerProjectionActive && target.logicalWidth > 0f && target.logicalHeight > 0f
+        if (restoreProjection) {
+            RenderSystem.backupProjectionMatrix()
+            RenderSystem.getModelViewStack().pushPose()
+            layerProjectionActive = true
+        }
         val scratch = framebuffers.acquire(target.width, target.height, exclude = target.framebuffer)
         disableScissor()
         scissorState = null
@@ -1152,6 +1159,7 @@ class MinecraftUiRenderer {
         )
         blurred?.let(framebuffers::release)
         framebuffers.release(scratch)
+        if (restoreProjection) restoreMainProjection()
     }
 
     private fun drawShadow(command: DrawShadowCommand) {

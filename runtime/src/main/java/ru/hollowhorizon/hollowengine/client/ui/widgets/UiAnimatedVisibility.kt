@@ -56,6 +56,8 @@ fun AnimatedVisibility(
             present = true
             // Render one frame at the hidden state so the transition has a 0→1 delta to animate.
             withFrameNanos { }
+            // The frame clock fires before resolving styles, so wait one more cycle before changing the target.
+            withFrameNanos { }
             shown = true
         } else {
             shown = false
