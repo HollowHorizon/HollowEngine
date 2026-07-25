@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.script
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
@@ -46,6 +47,7 @@ object UiScriptClient {
             mc.setScreen(null)
         }
         UiScriptHudHost.closeSession(sessionId)
+        ClientSlots.close(sessionId)
     }
 
     fun setHiddenLayers(layers: List<ResourceLocation>) {
@@ -60,6 +62,7 @@ object UiScriptClient {
     /** Tells the server the player dismissed the screen, so it can drop the session. */
     fun notifyClosed(sessionId: Int) {
         if (screenSessionId == sessionId) screenSessionId = null
+        ClientSlots.close(sessionId)
         CloseUiPacket(sessionId).send()
     }
 
@@ -68,6 +71,7 @@ object UiScriptClient {
         screenSessionId = null
         UiScriptHudHost.reload()
         HudLayerRegistry.releaseAll(HudLayerRegistry.ServerOwner)
+        ClientSlots.clear()
     }
 
     /**

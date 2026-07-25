@@ -41,6 +41,7 @@ object DefaultScriptDefinitions {
                 defaultImports = listOf(
                     "androidx.compose.runtime.*",
                     "kotlinx.serialization.*",
+                    "ru.hollowhorizon.hollowengine.client.slots.*",
                     "ru.hollowhorizon.hollowengine.client.ui.*",
                     "ru.hollowhorizon.hollowengine.client.ui.widgets.*",
                     "ru.hollowhorizon.hollowengine.client.ui.layout.*",
@@ -92,6 +93,7 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.npcs.query.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.items.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.inventory.*",
+                    "ru.hollowhorizon.hollowengine.common.slots.*",
                     "ru.hollowhorizon.hollowengine.common.data.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.actions.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveOptions",

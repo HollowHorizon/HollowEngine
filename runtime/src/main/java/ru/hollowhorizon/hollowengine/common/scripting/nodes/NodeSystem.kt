@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateExecutor
+import kotlin.reflect.KClass
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.implicitReceivers
 
@@ -96,7 +97,9 @@ internal fun buildNode(
     val binding = NodeBinding(host, nodeScope)
 
     val script = runCatching {
-        scripting.compiler.compile(path.fromReadablePath()).getOrThrow().execute<NodeScript> {
+        val compiled = scripting.compiler.compile(path.fromReadablePath()).getOrThrow()
+        receiverMismatch(compiled.type, host, receivers)?.let { error(it) }
+        compiled.execute<NodeScript> {
             constructorArgs(path, binding)
             implicitReceivers(*receivers.toTypedArray())
         }.getOrThrow()
@@ -117,6 +120,42 @@ internal fun buildNode(
 
     return script to executor
 }
+
+/**
+ * Explains a receiver count that will not fit, before the evaluator fails on it with a bare
+ * `WrongMethodTypeException`.
+ *
+ * A script's compiled constructor takes its path, its binding, and one argument per implicit receiver.
+ * `@file:Attach` adds a receiver, so an attached script cannot be started as a plain server node and the
+ * other way round. That is easy to do by accident, and the raw method-handle error says nothing about why.
+ */
+private fun receiverMismatch(type: KClass<*>, host: NodeHost, receivers: List<Any>): String? {
+    val expected = type.java.constructors.minOfOrNull { it.parameterCount } ?: return null
+    val given = receivers.size + FixedConstructorArgs
+    if (expected == given) return null
+
+    val wantsMore = expected > given
+    val hint = when {
+        wantsMore && host is NodeHost.Server ->
+            "it declares @file:Attach, so attach it to an entity instead of starting it as a server node"
+
+        !wantsMore && host is NodeHost.OfEntity ->
+            "it has no @file:Attach, so start it as a server node instead of attaching it to an entity"
+
+        wantsMore -> "it expects more implicit receivers than this host provides"
+        else -> "it expects fewer implicit receivers than this host provides"
+    }
+    return "Cannot run node script as ${host.describe()}: $hint " +
+            "(script takes $expected constructor arguments, this host supplies $given)"
+}
+
+private fun NodeHost.describe(): String = when (this) {
+    is NodeHost.Server -> "a server node"
+    is NodeHost.OfEntity -> "a node attached to ${entity.type.description.string}"
+}
+
+/** The path and the binding, which every node script takes before its implicit receivers. */
+private const val FixedConstructorArgs = 2
 
 fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: StateContext? = null) {
     val (script, executor) = buildNode(

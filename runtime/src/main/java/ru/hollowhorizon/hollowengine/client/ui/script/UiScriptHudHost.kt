@@ -41,6 +41,7 @@ object UiScriptHudHost {
             surface = UiScriptSurface(
                 content = definition.content,
                 data = data,
+                sessionId = sessionId,
                 interactive = definition.isInteractive,
                 rebuildEveryFrame = definition.rebuildEveryFrame,
                 onSend = sessionId?.let { id -> { payload -> UiScriptClient.send(id, payload) } },

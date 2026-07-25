@@ -87,7 +87,6 @@ object HollowIdeOverlay {
     )
     private val diagnosticsPanels = mutableStateMapOf<String, Boolean>()
     private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
-    private var editorFontSize by mutableStateOf(HollowEngineConfig.ideEditorFontSize)
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
@@ -151,13 +150,18 @@ object HollowIdeOverlay {
     fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
         if (!isVisible()) return false
         pipeline.await()
+        val modifiers = currentUiKeyModifiers()
+        if (modifiers and GLFW.GLFW_MOD_CONTROL != 0 && scrollY != 0.0) {
+            HollowIdeFontSize.zoom(scrollY)
+            return true
+        }
         val point = hollowIdeOverlayPoint(x, y)
         return surface.runtime.mouseScrolled(
             point.x,
             point.y,
             scrollX.toFloat(),
             scrollY.toFloat(),
-            currentUiKeyModifiers(),
+            modifiers,
         )
     }
 
@@ -419,7 +423,7 @@ object HollowIdeOverlay {
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
         val inlayHints = editorSession.inlayHints(file.text)
-        val fontSize = editorFontSize
+        val fontSize = HollowIdeFontSize.size
         val editorId = "editor-${file.id}"
         Column(tags = listOf("ide-editor-shell"), modifier = Modifier.size(100.percent, 100.percent)) {
             Box(

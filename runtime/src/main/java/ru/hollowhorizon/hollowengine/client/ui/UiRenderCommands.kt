@@ -180,7 +180,7 @@ data class DrawCanvasGlCommand(
 data class DrawItemCommand(
     override val node: UiNode,
     val rect: UiRect,
-    val item: String,
+    val item: UiItem,
     val opacity: Float,
     val transform: UiMatrix4,
     val filter: UiFilterChain,

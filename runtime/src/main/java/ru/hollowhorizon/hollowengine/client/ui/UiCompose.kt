@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
+import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.layout.PopupOverlayMeasurePolicy
@@ -224,7 +225,7 @@ fun Caret(
 /**
  * A run of text. Built on the inline-flow framework: the literal becomes a [Span] and any
  * [content] (inline widgets, images, nested spans) flows alongside it. Text style props set
- * on the container (font, colour, effects, size) inherit down to the span.
+ * on the container (font, color, effects, size) inherit down to the span.
  */
 @Composable
 fun Text(
@@ -591,6 +592,16 @@ fun TextField(
     )
 }
 
+@Composable
+fun Item(
+    item: ItemStack,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+) = ContentNode(UiItemType, Modifier.item(item), id, tags, modifier, attributes)
+
+/** Shorthand for a plain, single-count item id such as `minecraft:diamond`. */
 @Composable
 fun Item(
     item: String,

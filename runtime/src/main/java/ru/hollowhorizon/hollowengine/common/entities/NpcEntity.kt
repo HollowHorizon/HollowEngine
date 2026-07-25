@@ -5,8 +5,6 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.world.InteractionHand
-import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
@@ -15,7 +13,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
@@ -32,7 +29,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
-import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.utils.FakePlayer
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.UUID
@@ -72,15 +68,6 @@ class NpcEntity : PathfinderMob {
 
 
     override fun createNavigation(pLevel: Level) = NpcPathNavigation(pLevel, this)
-
-    override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL) {
-            //NPCMenuGui(this).open()
-            return InteractionResult.SUCCESS
-        }
-
-        return super.mobInteract(pPlayer, pHand)
-    }
 
     override fun registerGoals() {
         goalSelector.addGoal(1, FloatGoal(this))

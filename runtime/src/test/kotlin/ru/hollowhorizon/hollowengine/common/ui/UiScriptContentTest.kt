@@ -1,5 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.ui
 
+import ru.hollowhorizon.hollowengine.client.slots.PlayerInventory
+import ru.hollowhorizon.hollowengine.client.slots.Slot
+import ru.hollowhorizon.hollowengine.client.slots.SlotGrid
+import ru.hollowhorizon.hollowengine.client.slots.Slots
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import ru.hollowhorizon.hollowengine.common.data.dataKey
@@ -118,6 +122,34 @@ class UiScriptContentTest {
         }
 
         assertEquals(VanillaHudLayers.EXPERIENCE_BAR, UiDefinitionRegistry.overlay("mypack:stamina".rl)!!.anchor)
+    }
+
+    @Test
+    fun `a slot screen body compiles against the slot widget API`() {
+        object : UiScript() {
+            init {
+                screen("mypack:npc_gear") {
+                    content {
+                        // The exact shape run/hollowengine/scripts/ui/npc_gear.ui.kts has. Those scripts are
+                        // only compiled in game, so this is what catches a rename of the widget API.
+                        Slots {
+                            Column(modifier = Modifier.padding(12.px).gap(8.px)) {
+                                Text(data[Title])
+                                Row(modifier = Modifier.gap(6.px)) {
+                                    SlotGrid("gear", columns = 1, range = 0..3)
+                                    SlotGrid("gear", columns = 1, range = 4..5)
+                                }
+                                SlotGrid("npc", columns = 9)
+                                Slot("npc", 0, modifier = Modifier.size(20.px, 20.px))
+                                PlayerInventory()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        assertNotNull(UiDefinitionRegistry.screen("mypack:npc_gear".rl))
     }
 
     @Test

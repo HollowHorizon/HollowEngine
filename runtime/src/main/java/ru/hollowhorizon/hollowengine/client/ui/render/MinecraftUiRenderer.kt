@@ -6,9 +6,9 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexSorting
 import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.DynamicTexture
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
@@ -54,6 +54,11 @@ private data class SvgRasterQuad(
     val transform: UiMatrix4,
 )
 
+/** The slot size vanilla's item decorations are drawn for; anything else is scaled from it. */
+private const val VanillaSlotSize = 16f
+
+/** How far items may march toward the viewer before the projection's near plane would clip them. */
+private const val MaxItemDepth = 900f
 private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
 private const val TextClipEpsilon = 0.01f
@@ -116,6 +121,17 @@ class MinecraftUiRenderer {
     private var renderTarget: UiRenderTarget? = null
     private var preparingLayerAtlas = false
     private val textAxisScales = FloatArray(2)
+    private val itemAxisScales = FloatArray(2)
+
+    /**
+     * Depth handed to the next item this frame.
+     *
+     * Item models are the only thing in a UI frame that writes depth, and they write it around their own
+     * z. Two of them at the same z cut into each other wherever they overlap on screen: neighbouring 3D
+     * blocks, or the cursor stack passing over a slot. Each item therefore gets its own slice, advancing in
+     * draw order so a later item is always in front, which is the painter's order the rest of the UI uses.
+     */
+    private var itemDepthOffset = 0f
 
     /** The profile frame collecting GPU-submission counts, live only during [render]. */
     private var activeProfile: UiProfileFrame? = null
@@ -213,6 +229,7 @@ class MinecraftUiRenderer {
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         try {
             releasePreparedLayers()
+            itemDepthOffset = 0f
             val hasFramebufferLayers = prepareFramebuffers(frame.layout)
             RenderSystem.enableBlend()
             configureUiBlend()
@@ -1863,14 +1880,62 @@ class MinecraftUiRenderer {
     }
 
     private fun drawItem(command: DrawItemCommand) {
+        val transform = effective(command.transform)
         if (isBackfaceHidden(
-                command.rect.width, command.rect.height, effective(command.transform), command.backfaceVisibility
+                command.rect.width, command.rect.height, transform, command.backfaceVisibility
             )
         ) return
-        val location = ResourceLocation.tryParse(command.item) ?: return
-        val item = BuiltInRegistries.ITEM.getOptional(location).orElse(null) ?: return
-        val rect = localRect(command.rect)
-        ItemStack(item).render(rect.x, rect.y, rect.width, rect.height)
+        val stack = command.item.stack
+        if (stack.isEmpty) return
+
+        val origin = transform.transform(0f, 0f)
+        transform.axisScales(itemAxisScales)
+        val width = command.rect.width * itemAxisScales[0]
+        val height = command.rect.height * itemAxisScales[1]
+        if (width <= 0f || height <= 0f) return
+
+        val rect = UiRect(origin.x, origin.y, width, height)
+        val depth = nextItemDepth(rect)
+        stack.render(rect.x, rect.y, rect.width, rect.height, stack = PoseStack().apply { translate(0f, 0f, depth) })
+        drawItemDecorations(stack, rect, depth)
+    }
+
+    /**
+     * Reserves this item's depth slice and advances the cursor past it.
+     *
+     * A slice has to be at least as deep as the model is, and a GUI item model is as deep as it is wide.
+     * The budget is the projection's near plane; past it items would be clipped away entirely, so the
+     * offset stops growing instead and only very crowded screens can see items share a slice again.
+     */
+    private fun nextItemDepth(rect: UiRect): Float {
+        val depth = itemDepthOffset
+        val slice = max(rect.width, rect.height).coerceAtLeast(1f)
+        itemDepthOffset = min(itemDepthOffset + slice, MaxItemDepth)
+        return depth
+    }
+
+    /**
+     * Draws the count, durability bar and cooldown overlay through vanilla, so an item in our UI carries
+     * exactly the badges it does in a vanilla slot, mods that add their own included.
+     *
+     * Vanilla assumes a 16x16 slot, hence the scale from that onto the item's actual rect.
+     */
+    private fun drawItemDecorations(stack: ItemStack, rect: UiRect, depth: Float) {
+        if (rect.width <= 0f || rect.height <= 0f) return
+        val minecraft = Minecraft.getInstance()
+        val graphics = GuiGraphics(minecraft, minecraft.renderBuffers().bufferSource())
+        val pose = graphics.pose()
+        pose.pushPose()
+        try {
+            pose.translate(rect.x, rect.y, depth)
+            pose.scale(rect.width / VanillaSlotSize, rect.height / VanillaSlotSize, 1f)
+            graphics.renderItemDecorations(minecraft.font, stack, 0, 0)
+            graphics.flush()
+        } finally {
+            pose.popPose()
+            RenderSystem.enableBlend()
+            configureUiBlend()
+        }
     }
 
     private fun drawEntity(command: DrawEntityCommand) {

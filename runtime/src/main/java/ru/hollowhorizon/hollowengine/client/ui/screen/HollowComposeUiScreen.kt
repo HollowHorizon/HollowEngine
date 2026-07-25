@@ -29,6 +29,15 @@ abstract class HollowComposeUiScreen(
      */
     protected open fun pipelineFrames(): Boolean = false
 
+    /**
+     * Draws on top of the finished UI frame with a vanilla [GuiGraphics].
+     *
+     * The engine's own screen-render events are posted from a mixin on `Screen.render`, which this class
+     * overrides without calling through, so they never fire here. Content that needs vanilla drawing after
+     * the frame (item tooltips, for one) hooks in from this method instead.
+     */
+    protected open fun renderAfterUi(graphics: GuiGraphics, mouseX: Int, mouseY: Int) = Unit
+
     override fun init() {
         // init() also runs on window resize while a build may be in flight.
         pipeline.reset()
@@ -41,6 +50,7 @@ abstract class HollowComposeUiScreen(
         val frame = (if (pipelineFrames()) pipeline.take(frameWidth, frameHeight) else null)
             ?: buildFrame(frameWidth, frameHeight, mouseX.toFloat(), mouseY.toFloat(), System.nanoTime())
         renderer.render(frame)
+        renderAfterUi(graphics, mouseX, mouseY)
         UiCursorManager.apply(mc.window.window, surface.runtime.cursor)
         if (pipelineFrames()) {
             val nextMouseX = mouseX.toFloat()

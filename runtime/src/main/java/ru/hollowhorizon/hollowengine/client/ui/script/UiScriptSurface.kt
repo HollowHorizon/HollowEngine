@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.common.ui.UiScope
 class UiScriptSurface(
     content: UiContent,
     override val data: UiData,
+    override val sessionId: Int?,
     private val interactive: Boolean,
     private val rebuildEveryFrame: Boolean,
     private val onSend: ((CompoundTag) -> Unit)?,
@@ -37,8 +38,6 @@ class UiScriptSurface(
             content(this@UiScriptSurface)
         }
     }
-
-    override val isServerBound: Boolean get() = onSend != null
 
     override fun send(payload: CompoundTag) {
         onSend?.invoke(payload)

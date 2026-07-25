@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
 import ru.hollowhorizon.hollowengine.common.data.DataKey
 import ru.hollowhorizon.hollowengine.common.data.encode
+import ru.hollowhorizon.hollowengine.common.slots.SlotContainer
 
 /** Whether a session drives a full screen or a HUD overlay. */
 enum class UiSurfaceKind { SCREEN, OVERLAY }
@@ -28,8 +29,16 @@ class UiSession internal constructor(
     private val state = CompoundTag()
     private var eventHandler: ((CompoundTag) -> Unit)? = null
     private var closeHandler: (() -> Unit)? = null
+    private val internalCloseHandlers = mutableListOf<() -> Unit>()
 
     var isOpen: Boolean = true
+        internal set
+
+    /**
+     * The slots this UI declared, if any; see
+     * [ru.hollowhorizon.hollowengine.common.slots.slots].
+     */
+    var slotContainer: SlotContainer? = null
         internal set
 
     /** The state as last sent; useful for reading back what the client currently shows. */
@@ -73,6 +82,15 @@ class UiSession internal constructor(
         closeHandler = handler
     }
 
+    /**
+     * Registers engine-side cleanup for this session. Separate from [onClose] so a feature the session
+     * carries, such as slots handing the cursor stack back, cannot be switched off by a script that
+     * sets its own close handler.
+     */
+    internal fun onCloseInternal(handler: () -> Unit) {
+        internalCloseHandlers += handler
+    }
+
     fun close() = UiSessionManager.close(this)
 
     internal fun initialState(): CompoundTag = state.copy()
@@ -87,6 +105,9 @@ class UiSession internal constructor(
 
     internal fun dispatchClose() {
         isOpen = false
+        // Engine cleanup first: a script's close handler should see a settled world, with any items the
+        // player was holding already back where they belong.
+        internalCloseHandlers.forEach { it() }
         closeHandler?.invoke()
     }
 }

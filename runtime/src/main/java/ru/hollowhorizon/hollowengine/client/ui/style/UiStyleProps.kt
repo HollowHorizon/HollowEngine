@@ -97,7 +97,7 @@ object UiProps {
         interpolate = UiColor::interpolate,
     )
     val Image = prop<String?>("image", null)
-    val Item = prop<String?>("item", null)
+    val Item = prop<UiItem?>("item", null)
     val Entity = prop<String?>("entity", null)
     val Shader = prop<String?>("shader", null)
     val Shadows = prop(

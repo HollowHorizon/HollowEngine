@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.copyToStableSet
 import ru.hollowhorizon.hollowengine.client.ui.layout.readOnlyIterator
@@ -316,7 +317,10 @@ fun Modifier.image(source: String) = prop(UiProps.Image, source)
 
 fun Modifier.imageFit(value: UiImageFit) = prop(UiProps.ImageFit, value)
 
-fun Modifier.item(source: String) = prop(UiProps.Item, source)
+fun Modifier.item(stack: ItemStack) = prop(UiProps.Item, UiItem(stack))
+
+/** Shorthand for a plain, single-count item id such as `minecraft:diamond`. */
+fun Modifier.item(id: String) = prop(UiProps.Item, UiItem.of(id))
 
 fun Modifier.entity(source: String) = prop(UiProps.Entity, source)
 

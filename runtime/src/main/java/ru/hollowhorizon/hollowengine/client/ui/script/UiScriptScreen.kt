@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui.script
 
 import androidx.compose.runtime.Composable
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
+import ru.hollowhorizon.hollowengine.client.slots.SlotTooltips
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.utils.mc
@@ -16,10 +19,8 @@ import ru.hollowhorizon.hollowengine.common.ui.UiScreenDefinition
 class UiScriptScreen(
     private val definition: UiScreenDefinition,
     override val data: UiData,
-    private val sessionId: Int?,
+    override val sessionId: Int?,
 ) : HollowComposeUiScreen(definition.title, EmptyStyles), UiScope {
-
-    override val isServerBound: Boolean get() = sessionId != null
 
     override fun send(payload: CompoundTag) {
         sessionId?.let { UiScriptClient.send(it, payload) }
@@ -36,9 +37,19 @@ class UiScriptScreen(
 
     override fun shouldCloseOnEsc(): Boolean = definition.closeOnEscape
 
-    override fun isPauseScreen(): Boolean = definition.pausesGame
+    /**
+     * Slots override a script's `pausesGame`. A paused singleplayer world stops ticking its server, and the
+     * server is what owns the slots: pausing would freeze the very side that answers every click.
+     */
+    override fun isPauseScreen(): Boolean = definition.pausesGame && !hasSlots()
 
     override fun rebuildEveryFrame(): Boolean = definition.rebuildEveryFrame
+
+    override fun renderAfterUi(graphics: GuiGraphics, mouseX: Int, mouseY: Int) {
+        if (hasSlots()) SlotTooltips.render(graphics, mouseX, mouseY)
+    }
+
+    private fun hasSlots(): Boolean = sessionId?.let { ClientSlots[it] } != null
 
     override fun removed() {
         super.removed()

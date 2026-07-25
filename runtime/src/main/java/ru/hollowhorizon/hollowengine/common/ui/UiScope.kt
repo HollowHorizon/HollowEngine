@@ -11,8 +11,14 @@ interface UiScope {
     /** The document this UI is bound to; server patches land here. */
     val data: UiData
 
+    /**
+     * The server session driving this UI, or null for a purely client-side overlay. Content that talks
+     * to per-session server state, such as slots, needs it to know which session it belongs to.
+     */
+    val sessionId: Int?
+
     /** True while a server session backs this UI; false for a purely client-side overlay. */
-    val isServerBound: Boolean
+    val isServerBound: Boolean get() = sessionId != null
 
     /** Sends a payload to the server session that opened this UI. No-op when not server-bound. */
     fun send(payload: CompoundTag)
