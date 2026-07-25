@@ -16,8 +16,9 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
  * store[CurrentQuest] = Quest("The Missing Cargo", 3)
  * ```
  *
- * The same key type backs every NBT-keyed store in the engine — NPC data, persistent story state,
- * and the observable [ru.hollowhorizon.hollowengine.common.ui.UiData] a scripted UI binds to.
+ * The same key type backs every NBT-keyed store in the engine, the persistent data attached to any
+ * entity or player ([ru.hollowhorizon.hollowengine.common.data.data]), persistent story state, and
+ * the observable [ru.hollowhorizon.hollowengine.common.ui.UiData] a scripted UI binds to.
  */
 class DataKey<T : Any>(
     val name: String,
@@ -38,49 +39,6 @@ inline fun <reified T : Any> dataKey(name: String): DataKey<T> =
 inline fun <reified T : Any> dataKey(name: String, noinline defaultValue: () -> T): DataKey<T> =
     DataKey(name, serializer(), defaultValue)
 
-/**
- * A plain (non-observable) NBT document keyed by [DataKey]. This is the storage NPCs and persistent
- * story state use; UI uses the observable variant so a Compose surface recomposes on change.
- */
-class NbtDataStore {
-    private var tag = CompoundTag()
-
-    fun <T : Any> get(key: DataKey<T>): T? = tag.read(key) ?: key.defaultValue?.invoke()
-
-    fun <T : Any> getOrPut(key: DataKey<T>, defaultValue: () -> T): T {
-        tag.read(key)?.let { return it }
-        return defaultValue().also { set(key, it) }
-    }
-
-    fun <T : Any> getOrPut(key: DataKey<T>): T =
-        getOrPut(key, key.defaultValue ?: error("Data key '${key.name}' has no default value"))
-
-    fun <T : Any> set(key: DataKey<T>, value: T) {
-        tag.write(key, value)
-    }
-
-    fun <T : Any> update(key: DataKey<T>, transform: (T) -> T): T {
-        val current = get(key) ?: error("Data key '${key.name}' is not set and has no default value")
-        return transform(current).also { set(key, it) }
-    }
-
-    fun contains(key: DataKey<*>): Boolean = tag.contains(key.name)
-
-    fun remove(key: DataKey<*>): Boolean {
-        val existed = contains(key)
-        tag.remove(key.name)
-        return existed
-    }
-
-    fun isEmpty(): Boolean = tag.isEmpty
-
-    fun save(): CompoundTag = tag.copy()
-
-    fun load(saved: CompoundTag) {
-        tag = saved.copy()
-    }
-}
-
 /** Reads and deserializes [key] from this compound, or null when absent. */
 fun <T : Any> CompoundTag.read(key: DataKey<T>): T? =
     get(key.name)?.let { NBTFormat.deserialize(key.serializer, it) }
@@ -95,3 +53,5 @@ fun <T : Any> DataKey<T>.encode(value: T): Tag = NBTFormat.serialize(serializer,
 
 /** Deserializes [tag] with [key]'s serializer. */
 fun <T : Any> DataKey<T>.decode(tag: Tag): T? = runCatching { NBTFormat.deserialize(serializer, tag) }.getOrNull()
+
+internal fun <T : Any> DataKey<T>.default(): T? = defaultValue?.invoke()

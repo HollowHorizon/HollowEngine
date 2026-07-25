@@ -92,7 +92,6 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.npcs.query.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.items.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.inventory.*",
-                    "ru.hollowhorizon.hollowengine.common.npcs.data.*",
                     "ru.hollowhorizon.hollowengine.common.data.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.actions.*",
                     "ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveOptions",

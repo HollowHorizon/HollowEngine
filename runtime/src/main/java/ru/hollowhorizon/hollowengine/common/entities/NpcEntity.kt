@@ -28,7 +28,6 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionController
-import ru.hollowhorizon.hollowengine.common.npcs.data.NpcDataStore
 import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
@@ -50,7 +49,6 @@ class NpcEntity : PathfinderMob {
 
     val actions by lazy { NpcActionController(coroutineScope) }
     val inventory = NpcInventory()
-    val data = NpcDataStore()
 
     private var cachedFakePlayer: ServerPlayer? = null
 
@@ -118,7 +116,6 @@ class NpcEntity : PathfinderMob {
     override fun addAdditionalSaveData(compound: CompoundTag) {
         super.addAdditionalSaveData(compound)
         compound.put(INVENTORY_KEY, CompoundTag().also { inventory.save(it, registryAccess()) })
-        if (data.isEmpty()) compound.remove(DATA_KEY) else compound.put(DATA_KEY, data.save())
     }
 
     override fun readAdditionalSaveData(compound: CompoundTag) {
@@ -126,7 +123,6 @@ class NpcEntity : PathfinderMob {
         if (compound.contains(INVENTORY_KEY)) {
             inventory.load(compound.getCompound(INVENTORY_KEY), registryAccess())
         }
-        data.load(compound.getCompound(DATA_KEY))
     }
 
     val pickupDistance get() = pickupReach
@@ -168,7 +164,6 @@ class NpcEntity : PathfinderMob {
 
     companion object {
         private const val INVENTORY_KEY = "NpcInventory"
-        private const val DATA_KEY = "NpcData"
 
         fun createAttributes(): AttributeSupplier.Builder {
             return LivingEntity.createLivingAttributes()

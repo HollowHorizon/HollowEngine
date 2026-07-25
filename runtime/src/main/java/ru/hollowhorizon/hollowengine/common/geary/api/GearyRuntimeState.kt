@@ -12,6 +12,7 @@ import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
+import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.NoAi
@@ -27,6 +28,7 @@ import java.util.concurrent.atomic.AtomicLong
 private data class EntityState(
     var entity: MCEntity,
     var snapshot: EntitySnapshot? = null,
+    var data: NbtDataStore? = null,
     var runtimeId: Long = UNINITIALIZED_ENTITY_ID,
     val coroutineScope: SerializableCoroutineScope,
 )
@@ -35,13 +37,17 @@ private data class LevelEntityState(
     val byUuid: MutableMap<UUID, EntityState> = linkedMapOf(),
 )
 
+/** The pieces of an [EntityState] that outlive the entity instance they were attached to. */
+private class PendingTransfer(val snapshot: EntitySnapshot?, val data: NbtDataStore?)
+
 private data class SideTransferState(
-    val pendingSnapshotsByEntityUuid: MutableMap<UUID, EntitySnapshot> = linkedMapOf(),
+    val pendingByEntityUuid: MutableMap<UUID, PendingTransfer> = linkedMapOf(),
     val transferringEntityUuids: MutableSet<UUID> = linkedSetOf(),
 )
 
 object GearyRuntimeState {
     private const val ENTITY_SNAPSHOT_NBT = "EntitySnapshot"
+    private const val ENTITY_DATA_NBT = "HollowEngineData"
 
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
@@ -117,10 +123,17 @@ object GearyRuntimeState {
 
     fun coroutineScope(entity: Entity): SerializableCoroutineScope = state(entity).coroutineScope
 
+    /** The entity's data store, or null when it has never been written to. Creates nothing. */
+    fun entityDataOrNull(entity: Entity): NbtDataStore? = stateOrNull(entity.level(), entity.uuid)?.data
+
+    /** The entity's data store, creating both it and the entity's state on first use. */
+    fun entityData(entity: Entity): NbtDataStore = state(entity).dataOrCreate()
+
     fun saveEntity(entity: Entity, tag: CompoundTag) {
         val state = stateOrNull(entity.level(), entity.uuid)
         if (state == null) {
             tag.remove(ENTITY_SNAPSHOT_NBT)
+            tag.remove(ENTITY_DATA_NBT)
             tag.remove("EntityScope")
             EntityNodeRuntime.save(entity, tag)
             return
@@ -132,6 +145,13 @@ object GearyRuntimeState {
                 tag.remove(ENTITY_SNAPSHOT_NBT)
             } else {
                 tag.put(ENTITY_SNAPSHOT_NBT, EntitySerialization.serializeToNbt(snapshot))
+            }
+
+            val data = state.data
+            if (data == null || data.isEmpty()) {
+                tag.remove(ENTITY_DATA_NBT)
+            } else {
+                tag.put(ENTITY_DATA_NBT, data.save())
             }
 
             val scopeTag = CompoundTag()
@@ -146,9 +166,11 @@ object GearyRuntimeState {
 
     fun loadEntity(entity: Entity, tag: CompoundTag) {
         val hasNodes = tag.contains("NodeAttachments", Tag.TAG_COMPOUND.toInt())
+        val hasData = tag.contains(ENTITY_DATA_NBT, Tag.TAG_COMPOUND.toInt())
         if (!tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt()) &&
             !tag.contains("EntityScope", Tag.TAG_COMPOUND.toInt()) &&
-            !hasNodes
+            !hasNodes &&
+            !hasData
         ) {
             return
         }
@@ -157,6 +179,8 @@ object GearyRuntimeState {
         if (tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt())) {
             state.snapshot = EntitySerialization.deserializeFromNbt(tag.getCompound(ENTITY_SNAPSHOT_NBT)).withEntity(entity)
         }
+
+        if (hasData) state.dataOrCreate().load(tag.getCompound(ENTITY_DATA_NBT))
 
         state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
 
@@ -192,7 +216,10 @@ object GearyRuntimeState {
         val snapshot = source.snapshot
             ?.let { if (dropLooseOnDeath) it.dropLooseOnDeathComponents() else it }
             ?.withEntity(new)
-        state(new).snapshot = snapshot
+        val target = state(new)
+        target.snapshot = snapshot
+        // Data is deliberately kept across death: unlike loose components it is script-owned state.
+        source.data?.takeUnless { it.isEmpty() }?.let { target.data = it }
     }
 
     fun entitySnapshot(level: Level, entityUuid: UUID): EntitySnapshot? =
@@ -215,7 +242,11 @@ object GearyRuntimeState {
     }
 
     fun removeEntitySnapshot(level: Level, entityUuid: UUID): Entity? {
-        sideState(level).pendingSnapshotsByEntityUuid.remove(entityUuid)
+        val pending = sideState(level).pendingByEntityUuid
+        pending[entityUuid]?.let { cached ->
+            if (cached.data == null) pending.remove(entityUuid)
+            else pending[entityUuid] = PendingTransfer(null, cached.data)
+        }
         val state = stateOrNull(level, entityUuid) ?: return null
         state.snapshot = null
         val entity = state.entity as? Entity ?: return null
@@ -240,13 +271,15 @@ object GearyRuntimeState {
 
     private fun cacheForTransfer(level: Level, uuid: UUID, state: EntityState) {
         val snapshot = state.snapshot
-        if (snapshot == null) sideState(level).pendingSnapshotsByEntityUuid.remove(uuid)
-        else sideState(level).pendingSnapshotsByEntityUuid[uuid] = snapshot
+        val data = state.data?.takeUnless { it.isEmpty() }
+        if (snapshot == null && data == null) sideState(level).pendingByEntityUuid.remove(uuid)
+        else sideState(level).pendingByEntityUuid[uuid] = PendingTransfer(snapshot, data)
     }
 
     private fun restoreFromTransfer(level: Level, uuid: UUID, target: EntityState) {
-        sideState(level).pendingSnapshotsByEntityUuid.remove(uuid)?.let { restored ->
-            target.snapshot = restored.withEntity(target.entity as Entity)
+        sideState(level).pendingByEntityUuid.remove(uuid)?.let { cached ->
+            cached.snapshot?.let { target.snapshot = it.withEntity(target.entity as Entity) }
+            cached.data?.let { target.data = it }
         }
         sideState(level).transferringEntityUuids.remove(uuid)
     }
@@ -285,6 +318,7 @@ object GearyRuntimeState {
         return EntityState(
             entity = entity,
             snapshot = source.snapshot?.withEntity(entity as Entity),
+            data = source.data,
             runtimeId = source.runtimeId,
             coroutineScope = EntityScope(entity),
         )
@@ -298,6 +332,8 @@ object GearyRuntimeState {
         sideTransferState.computeIfAbsent(level.isClientSide) { SideTransferState() }
     }
 }
+
+private fun EntityState.dataOrCreate(): NbtDataStore = data ?: NbtDataStore().also { data = it }
 
 private fun EntityState.entitySnapshotOrEmpty(): EntitySnapshot =
     snapshot ?: EntitySnapshot().withEntity(entity as Entity)

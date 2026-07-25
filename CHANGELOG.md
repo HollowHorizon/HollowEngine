@@ -1,4 +1,5 @@
 Since 2.2.0.1:
+- persistent typed `data` container on any entity or player (survives death and dimension changes);
 - text-field, sliders & checkbox widgets;
 - optional iris integration;
 - new ui replacement bindings;
