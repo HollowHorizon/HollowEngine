@@ -20,15 +20,35 @@ internal fun blurTexture(
     val horizontal = framebuffers.acquire(width, height, exclude)
     val vertical = framebuffers.acquire(width, height, horizontal)
     val blurFilter = UiFilterChain(listOf(UiFilterEffect.Blur(radius)))
-    renderBlurPass(horizontal, sourceTexture, width, height, blurFilter, horizontal = true)
-    renderBlurPass(vertical, horizontal.texture, width, height, blurFilter, horizontal = false)
+    renderBlurPass(horizontal, sourceTexture, width, height, width, height, blurFilter, horizontal = true)
+    renderBlurPass(vertical, horizontal.texture, width, height, width, height, blurFilter, horizontal = false)
     framebuffers.release(horizontal)
     return vertical
+}
+
+internal fun blurBackdropTexture(
+    workspace: UiBackdropBlurWorkspace,
+    width: Int,
+    height: Int,
+    radius: Float,
+): UiFramebuffer {
+    val blurFilter = UiFilterChain(listOf(UiFilterEffect.Blur(radius)))
+    renderBlurPass(
+        workspace.intermediate, workspace.capture.texture, workspace.width, workspace.height,
+        width, height, blurFilter, horizontal = true,
+    )
+    renderBlurPass(
+        workspace.capture, workspace.intermediate.texture, workspace.width, workspace.height,
+        width, height, blurFilter, horizontal = false,
+    )
+    return workspace.capture
 }
 
 private fun renderBlurPass(
     target: UiFramebuffer,
     sourceTexture: Int,
+    sourceTextureWidth: Int,
+    sourceTextureHeight: Int,
     width: Int,
     height: Int,
     filter: UiFilterChain,
@@ -39,17 +59,24 @@ private fun renderBlurPass(
     configureBlurProjection(width.toFloat(), height.toFloat())
     configureUiBlend()
     GL11.glClearColor(0f, 0f, 0f, 0f)
+    GL11.glEnable(GL11.GL_SCISSOR_TEST)
+    GL11.glScissor(0, 0, width, height)
     GL11.glClear(GL11.GL_COLOR_BUFFER_BIT)
-    UiTextureEffects.drawTexture(
-        sourceTexture,
-        width.toFloat(),
-        height.toFloat(),
-        UiMatrix4.identity(),
-        1f,
+    disableScissor()
+    UiTextureEffects.drawTexturedRegion(
+        texture = sourceTexture,
+        width = width.toFloat(),
+        height = height.toFloat(),
+        transform = UiMatrix4.identity(),
+        opacity = 1f,
+        u0 = 0f,
+        v0 = 0f,
+        u1 = width / sourceTextureWidth.toFloat(),
+        v1 = height / sourceTextureHeight.toFloat(),
         flipY = false,
         filter = filter,
-        textureWidth = width.toFloat(),
-        textureHeight = height.toFloat(),
+        textureWidth = sourceTextureWidth,
+        textureHeight = sourceTextureHeight,
         blurDirectionX = if (horizontal) 1f else 0f,
         blurDirectionY = if (horizontal) 0f else 1f,
     )

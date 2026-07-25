@@ -160,6 +160,8 @@ internal object UiTextureEffects {
         maskRadius: Float = 0f,
         maskScale: Float = 0f,
         maskPadding: Float = 0f,
+        blurDirectionX: Float = 0f,
+        blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
     ) {
         GlStateManager._bindTexture(texture)
@@ -181,6 +183,8 @@ internal object UiTextureEffects {
             sampleV = minOf(v0, v1),
             sampleWidth = abs(u1 - u0),
             sampleHeight = abs(v1 - v0),
+            blurDirectionX = blurDirectionX,
+            blurDirectionY = blurDirectionY,
         )
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -272,7 +276,9 @@ internal object UiTextureEffects {
         RenderSystem.setShader { effectShader }
         configureUiBlend()
         effectShader.getUniform("Grayscale")?.set(filter.grayscaleAmount())
-        effectShader.getUniform("BlurRadius")?.set(filter.blurRadius())
+        val blurRadius = filter.blurRadius()
+        effectShader.getUniform("BlurRadius")?.set(blurRadius)
+        effectShader.getUniform("BlurSampleScale")?.set(gaussianSampleScale(blurRadius))
         effectShader.getUniform("BlurDirection")?.set(blurDirectionX, blurDirectionY)
         effectShader.getUniform("TexelSize")
             ?.set(1f / textureWidth.coerceAtLeast(1f), 1f / textureHeight.coerceAtLeast(1f))

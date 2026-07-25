@@ -1097,50 +1097,71 @@ class MinecraftUiRenderer {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val target = currentTarget()
-        val restoreProjection = !layerProjectionActive && target.logicalWidth > 0f && target.logicalHeight > 0f
+        if (target.logicalWidth <= 0f || target.logicalHeight <= 0f) return
+        val local = localRect(command.rect)
+        val scaleX = target.width / target.logicalWidth
+        val scaleY = target.height / target.logicalHeight
+        val blurRadius = command.filter.blurRadius()
+        val downsampleFactor = if (blurRadius > 0f) gaussianDownsampleFactor(blurRadius) else 1
+        val sampleBounds = backdropSampleBounds(
+            local,
+            target.width,
+            target.height,
+            scaleX,
+            scaleY,
+            if (blurRadius > 0f) gaussianSamplePadding(blurRadius) else 0,
+        ) ?: return
+        val captureWidth = ceil(sampleBounds.width / downsampleFactor.toFloat()).toInt().coerceAtLeast(1)
+        val captureHeight = ceil(sampleBounds.height / downsampleFactor.toFloat()).toInt().coerceAtLeast(1)
+        val captureScale = ((captureWidth / sampleBounds.width.toFloat()) +
+                (captureHeight / sampleBounds.height.toFloat())) * 0.5f
+        val restoreProjection = !layerProjectionActive
         if (restoreProjection) {
             RenderSystem.backupProjectionMatrix()
             RenderSystem.getModelViewStack().pushPose()
             layerProjectionActive = true
         }
-        val scratch = framebuffers.acquire(target.width, target.height, exclude = target.framebuffer)
+        val workspace = framebuffers.backdropBlurWorkspace(captureWidth, captureHeight)
+        val capture = workspace.capture
         disableScissor()
         scissorState = null
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, target.framebufferId)
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scratch.framebuffer)
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, capture.framebuffer)
+        val sourceBottom = target.y + target.height - sampleBounds.y - sampleBounds.height
+        val sourceTop = target.y + target.height - sampleBounds.y
         GL30.glBlitFramebuffer(
-            target.x,
-            target.y,
-            target.x + target.width,
-            target.y + target.height,
+            target.x + sampleBounds.x,
+            sourceBottom,
+            target.x + sampleBounds.x + sampleBounds.width,
+            sourceTop,
             0,
             0,
-            target.width,
-            target.height,
+            captureWidth,
+            captureHeight,
             GL11.GL_COLOR_BUFFER_BIT,
-            GL11.GL_NEAREST,
+            if (downsampleFactor > 1) GL11.GL_LINEAR else GL11.GL_NEAREST,
         )
-        bindTarget(target)
-        if (target.logicalWidth > 0f && target.logicalHeight > 0f) {
-            configureLayerProjection(target.logicalWidth, target.logicalHeight)
-        }
 
-        val blurred = command.filter.blurRadius().takeIf { it > 0f }
-            ?.let { blurTexture(framebuffers, scratch.texture, target.width, target.height, it, scratch) }
-        val sourceTexture = blurred?.texture ?: scratch.texture
+        val source = if (blurRadius > 0f) {
+            blurBackdropTexture(workspace, captureWidth, captureHeight, blurRadius * captureScale)
+        } else {
+            capture
+        }
         val compositeFilter = command.filter.withoutBlur()
         bindTarget(target)
-        if (target.logicalWidth > 0f && target.logicalHeight > 0f) {
-            configureLayerProjection(target.logicalWidth, target.logicalHeight)
-        }
+        configureLayerProjection(target.logicalWidth, target.logicalHeight)
         restoreActiveClip()
-        val local = localRect(command.rect)
-        val u0 = (local.x * target.scale / target.width.toFloat()).coerceIn(0f, 1f)
-        val u1 = ((local.x + local.width) * target.scale / target.width.toFloat()).coerceIn(0f, 1f)
-        val v0 = (1f - local.y * target.scale / target.height.toFloat()).coerceIn(0f, 1f)
-        val v1 = (1f - (local.y + local.height) * target.scale / target.height.toFloat()).coerceIn(0f, 1f)
+        val sampleBottom = sampleBounds.y + sampleBounds.height
+        val textureUScale = captureWidth / source.width.toFloat()
+        val textureVScale = captureHeight / source.height.toFloat()
+        val u0 = ((local.x * scaleX - sampleBounds.x) / sampleBounds.width).coerceIn(0f, 1f) * textureUScale
+        val u1 = (((local.x + local.width) * scaleX - sampleBounds.x) / sampleBounds.width)
+            .coerceIn(0f, 1f) * textureUScale
+        val v0 = ((sampleBottom - local.y * scaleY) / sampleBounds.height).coerceIn(0f, 1f) * textureVScale
+        val v1 = ((sampleBottom - (local.y + local.height) * scaleY) / sampleBounds.height)
+            .coerceIn(0f, 1f) * textureVScale
         UiTextureEffects.drawTexturedRegion(
-            texture = sourceTexture,
+            texture = source.texture,
             width = command.rect.width,
             height = command.rect.height,
             transform = transform,
@@ -1151,14 +1172,12 @@ class MinecraftUiRenderer {
             v1 = v1,
             flipY = false,
             filter = compositeFilter,
-            textureWidth = target.width,
-            textureHeight = target.height,
+            textureWidth = source.width,
+            textureHeight = source.height,
             subdivisions = 1,
             maskRadius = command.radius,
-            maskScale = target.scale,
+            maskScale = target.scale * captureScale,
         )
-        blurred?.let(framebuffers::release)
-        framebuffers.release(scratch)
         if (restoreProjection) restoreMainProjection()
     }
 

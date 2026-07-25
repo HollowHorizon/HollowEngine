@@ -6,6 +6,30 @@ import org.lwjgl.opengl.GL30
 import kotlin.math.max
 import kotlin.math.min
 
+private const val BackdropWorkspaceGrowthLimit = 256
+private const val BackdropWorkspaceAlignment = 64
+private const val BackdropWorkspaceShrinkFrames = 300
+
+internal fun alignFramebufferAxis(required: Int, maxTextureSize: Int): Int {
+    require(required > 0 && maxTextureSize > 0)
+    val clamped = required.coerceAtMost(maxTextureSize)
+    val aligned = ((clamped + BackdropWorkspaceAlignment - 1) / BackdropWorkspaceAlignment) *
+            BackdropWorkspaceAlignment
+    return min(aligned, maxTextureSize)
+}
+
+internal fun growFramebufferAxis(required: Int, current: Int, maxTextureSize: Int): Int {
+    require(required > 0 && required <= maxTextureSize)
+    if (current >= required) return current
+    val grown = if (current > 0) {
+        val growth = min(max(current / 2, 1), BackdropWorkspaceGrowthLimit)
+        max(required, current + growth)
+    } else {
+        required
+    }
+    return alignFramebufferAxis(grown, maxTextureSize)
+}
+
 internal class UiFramebufferPool {
     private val scratchFramebuffers = mutableListOf<UiFramebuffer>()
     private val retiredAtlases = mutableListOf<RetiredUiFramebuffer>()
@@ -13,9 +37,14 @@ internal class UiFramebufferPool {
     private var allocator = UiAtlasAllocator(1, 1)
     private var atlasBaseWidth = 0
     private var atlasBaseHeight = 0
+    private var backdropWorkspace: UiBackdropBlurWorkspace? = null
+    private var backdropRequestedWidth = 0
+    private var backdropRequestedHeight = 0
+    private var backdropUnderusedFrames = 0
 
     fun beginFrame(layerRequests: List<UiLayerRequest>, minimumWidth: Int, minimumHeight: Int) {
         retireOldAtlases()
+        maintainBackdropWorkspace()
         if (layerRequests.isEmpty()) {
             allocator = UiAtlasAllocator(1, 1)
             return
@@ -68,7 +97,7 @@ internal class UiFramebufferPool {
     fun acquire(width: Int, height: Int, exclude: UiFramebuffer? = null): UiFramebuffer {
         val framebuffer = scratchFramebuffers.firstOrNull {
             it !== exclude && !it.inUse && it.width == width && it.height == height
-        } ?: UiFramebuffer(width, height).also {
+        } ?: UiFramebuffer(width, height, withDepth = false).also {
             scratchFramebuffers += it
         }
         framebuffer.inUse = true
@@ -79,11 +108,32 @@ internal class UiFramebufferPool {
         framebuffer.inUse = false
     }
 
+    fun backdropBlurWorkspace(width: Int, height: Int): UiBackdropBlurWorkspace {
+        require(width > 0 && height > 0) { "Backdrop workspace size must be positive" }
+        backdropRequestedWidth = max(backdropRequestedWidth, width)
+        backdropRequestedHeight = max(backdropRequestedHeight, height)
+        val current = backdropWorkspace
+        if (current != null && current.width >= width && current.height >= height) return current
+        val maxTextureSize = GL11.glGetInteger(GL11.GL_MAX_TEXTURE_SIZE).coerceAtLeast(1)
+        require(width <= maxTextureSize && height <= maxTextureSize) {
+            "Backdrop workspace ${width}x$height exceeds GL_MAX_TEXTURE_SIZE $maxTextureSize"
+        }
+        return replaceBackdropWorkspace(
+            growFramebufferAxis(width, current?.width ?: 0, maxTextureSize),
+            growFramebufferAxis(height, current?.height ?: 0, maxTextureSize),
+        )
+    }
+
     fun close() {
         atlas?.close()
         atlas = null
         atlasBaseWidth = 0
         atlasBaseHeight = 0
+        backdropWorkspace?.close()
+        backdropWorkspace = null
+        backdropRequestedWidth = 0
+        backdropRequestedHeight = 0
+        backdropUnderusedFrames = 0
         retiredAtlases.forEach { it.framebuffer.close() }
         retiredAtlases.clear()
         scratchFramebuffers.forEach(UiFramebuffer::close)
@@ -100,6 +150,42 @@ internal class UiFramebufferPool {
                 iterator.remove()
             }
         }
+    }
+
+    private fun maintainBackdropWorkspace() {
+        val current = backdropWorkspace ?: run {
+            backdropRequestedWidth = 0
+            backdropRequestedHeight = 0
+            return
+        }
+        val unused = backdropRequestedWidth == 0 || backdropRequestedHeight == 0
+        val underused = unused ||
+                backdropRequestedWidth * 2 <= current.width ||
+                backdropRequestedHeight * 2 <= current.height
+        backdropUnderusedFrames = if (underused) backdropUnderusedFrames + 1 else 0
+        if (backdropUnderusedFrames >= BackdropWorkspaceShrinkFrames) {
+            if (unused) {
+                current.close()
+                backdropWorkspace = null
+            } else {
+                val maxTextureSize = GL11.glGetInteger(GL11.GL_MAX_TEXTURE_SIZE).coerceAtLeast(1)
+                replaceBackdropWorkspace(
+                    alignFramebufferAxis(backdropRequestedWidth, maxTextureSize),
+                    alignFramebufferAxis(backdropRequestedHeight, maxTextureSize),
+                )
+            }
+            backdropUnderusedFrames = 0
+        }
+        backdropRequestedWidth = 0
+        backdropRequestedHeight = 0
+    }
+
+    private fun replaceBackdropWorkspace(width: Int, height: Int): UiBackdropBlurWorkspace {
+        backdropWorkspace?.close()
+        return UiBackdropBlurWorkspace(
+            capture = UiFramebuffer(width, height, withDepth = false),
+            intermediate = UiFramebuffer(width, height, withDepth = false),
+        ).also { backdropWorkspace = it }
     }
 
     private fun atlasSizeFor(
@@ -163,6 +249,19 @@ internal data class UiAtlasRegion(
     val clearHeight: Int,
 )
 
+internal class UiBackdropBlurWorkspace(
+    val capture: UiFramebuffer,
+    val intermediate: UiFramebuffer,
+) {
+    val width: Int get() = capture.width
+    val height: Int get() = capture.height
+
+    fun close() {
+        capture.close()
+        intermediate.close()
+    }
+}
+
 internal class UiLayerFramebuffer(
     val atlas: UiFramebuffer,
     val region: UiAtlasRegion,
@@ -182,7 +281,10 @@ internal class UiLayerFramebuffer(
         GL11.glEnable(GL11.GL_SCISSOR_TEST)
         GL11.glScissor(region.clearX, region.clearY, region.clearWidth, region.clearHeight)
         GL11.glClearColor(0f, 0f, 0f, 0f)
+        val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
+        if (!depthMask) GL11.glDepthMask(true)
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT or GL11.GL_DEPTH_BUFFER_BIT)
+        if (!depthMask) GL11.glDepthMask(false)
         disableScissor()
     }
 
@@ -198,10 +300,11 @@ internal class UiLayerFramebuffer(
 internal class UiFramebuffer(
     val width: Int,
     val height: Int,
+    private val withDepth: Boolean = true,
 ) {
     val framebuffer: Int = GL30.glGenFramebuffers()
     val texture: Int = GL11.glGenTextures()
-    private val depth: Int = GL30.glGenRenderbuffers()
+    private val depth: Int = if (withDepth) GL30.glGenRenderbuffers() else 0
     var inUse: Boolean = false
 
     init {
@@ -228,9 +331,11 @@ internal class UiFramebuffer(
                 0L
             )
             GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, texture, 0)
-            GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, depth)
-            GL30.glRenderbufferStorage(GL30.GL_RENDERBUFFER, GL30.GL_DEPTH_COMPONENT24, width, height)
-            GL30.glFramebufferRenderbuffer(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL30.GL_RENDERBUFFER, depth)
+            if (withDepth) {
+                GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, depth)
+                GL30.glRenderbufferStorage(GL30.GL_RENDERBUFFER, GL30.GL_DEPTH_COMPONENT24, width, height)
+                GL30.glFramebufferRenderbuffer(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL30.GL_RENDERBUFFER, depth)
+            }
             check(GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) == GL30.GL_FRAMEBUFFER_COMPLETE) {
                 "UI framebuffer is incomplete for ${width}x$height"
             }
@@ -250,7 +355,7 @@ internal class UiFramebuffer(
     fun close() {
         GL30.glDeleteFramebuffers(framebuffer)
         GL11.glDeleteTextures(texture)
-        GL30.glDeleteRenderbuffers(depth)
+        if (withDepth) GL30.glDeleteRenderbuffers(depth)
     }
 }
 

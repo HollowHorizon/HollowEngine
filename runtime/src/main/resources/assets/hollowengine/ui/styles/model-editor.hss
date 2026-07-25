@@ -24,11 +24,11 @@
     layer: 1000;
     foreground: #C4CBDA;
     font-size: 11px;
-    background: rgba(30, 32, 38, 0.78);
+    background: rgba(30, 32, 38, 0.9);
     border-radius: 6px;
     border: 1px #31343D;
     wrap: false;
-    //backdrop-filter: blur(9px);
+    backdrop-filter: blur(9px);
 }
 
 /* ---- toolbar (display toggles, stacked vertically) ---- */
@@ -43,21 +43,21 @@
 .model-chip {
     size: 28px 28px;
     align-items: center center;
-    background: #24272E20;
+    background: rgba(36, 39, 46, 0.82);
     border-radius: 7px;
     border: 1px #31343D;
     hoverable: true;
     clickable: true;
     transition: background 140ms ease-out, border 140ms ease-out;
-    //backdrop-filter: blur(9px);
+    backdrop-filter: blur(9px);
 }
 
 .model-chip:hover {
-    background: #31343D20;
+    background: rgba(49, 52, 61, 0.88);
 }
 
 .model-chip.selected {
-    background: rgba(215, 127, 28, 0.22);
+    background: rgba(215, 127, 28, 0.72);
     border: 1px #D77F1C;
 }
 

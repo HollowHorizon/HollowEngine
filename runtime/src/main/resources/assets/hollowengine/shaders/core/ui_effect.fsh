@@ -5,6 +5,7 @@ uniform vec4 ColorModulator;
 uniform float Grayscale;
 uniform float BlurRadius;
 uniform vec2 BlurDirection;
+uniform float BlurSampleScale;
 uniform vec2 TexelSize;
 uniform vec4 SampleRect;
 uniform vec4 MaskRect;
@@ -37,6 +38,12 @@ float roundedMask(vec2 uv) {
     return 1.0 - smoothstep(0.0, max(MaskSoftness, 0.001), distanceToEdge);
 }
 
+vec4 samplePremultiplied(vec2 uv) {
+    vec4 color = texture(Sampler0, clampSampleUv(uv));
+    color.rgb *= color.a;
+    return color;
+}
+
 vec4 sampleBlurred(vec2 uv) {
     if (BlurRadius <= 0.001) {
         vec4 color = texture(Sampler0, clampSampleUv(uv));
@@ -50,18 +57,30 @@ vec4 sampleBlurred(vec2 uv) {
     if (length(direction) <= 0.001) {
         direction = vec2(1.0, 0.0);
     }
-    vec4 color = vec4(0.0);
-    float total = 0.0;
-    float sigma = max(BlurRadius * 0.5, 1.0);
-    for (int i = -12; i <= 12; i++) {
-        float offsetIndex = float(i);
-        float weight = exp(-(offsetIndex * offsetIndex) / (2.0 * sigma * sigma));
-        vec2 offset = direction * TexelSize * offsetIndex;
-        vec4 sample0 = texture(Sampler0, clampSampleUv(uv + offset));
-        sample0.rgb *= sample0.a;
-        color += sample0 * weight;
-        total += weight;
+
+    float sampleScale = max(BlurSampleScale, 1.0);
+    float sigma = max(BlurRadius * 0.5 / sampleScale, 1.0);
+    float gaussian = exp(-0.5 / (sigma * sigma));
+    float ratio = gaussian;
+    float ratioStep = gaussian * gaussian;
+    float previousWeight = 1.0;
+    vec4 color = samplePremultiplied(uv);
+    float total = 1.0;
+
+    for (int i = 1; i <= 11; i += 2) {
+        float firstWeight = previousWeight * ratio;
+        ratio *= ratioStep;
+        float secondWeight = firstWeight * ratio;
+        ratio *= ratioStep;
+        previousWeight = secondWeight;
+
+        float pairWeight = firstWeight + secondWeight;
+        float pairOffset = (float(i) * firstWeight + float(i + 1) * secondWeight) / pairWeight;
+        vec2 offset = direction * TexelSize * pairOffset * sampleScale;
+        color += (samplePremultiplied(uv + offset) + samplePremultiplied(uv - offset)) * pairWeight;
+        total += pairWeight * 2.0;
     }
+
     color /= max(total, 0.0001);
     if (color.a > 0.0001) {
         color.rgb /= color.a;
