@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.script
 
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -33,17 +34,20 @@ object UiScriptHudHost {
         sessionId: Int? = null,
         initialState: CompoundTag = CompoundTag(),
     ) {
-        hide(definition.id)
-        val data = UiData(initialState)
-        val surface = UiScriptSurface(
-            content = definition.content,
-            data = data,
-            interactive = definition.isInteractive,
-            rebuildEveryFrame = definition.rebuildEveryFrame,
-            onSend = sessionId?.let { id -> { payload -> UiScriptClient.send(id, payload) } },
-            onClose = { hide(definition.id) },
-        )
-        shown[definition.id] = ShownOverlay(definition, surface, sessionId)
+        onRenderThread {
+            hideNow(definition.id)
+            val data = UiData(initialState)
+            lateinit var surface: UiScriptSurface
+            surface = UiScriptSurface(
+                content = definition.content,
+                data = data,
+                interactive = definition.isInteractive,
+                rebuildEveryFrame = definition.rebuildEveryFrame,
+                onSend = sessionId?.let { id -> { payload -> UiScriptClient.send(id, payload) } },
+                onClose = { hide(definition.id, surface) },
+            )
+            shown[definition.id] = ShownOverlay(definition, surface, sessionId)
+        }
     }
 
     fun show(id: ResourceLocation, sessionId: Int? = null, initialState: CompoundTag = CompoundTag()) {
@@ -55,17 +59,24 @@ object UiScriptHudHost {
     }
 
     fun hide(id: ResourceLocation) {
-        shown.remove(id)?.surface?.dispose()
+        hide(id, null)
     }
 
     fun isShown(id: ResourceLocation): Boolean = id in shown
 
     fun applyPatch(sessionId: Int, patch: CompoundTag, removed: Collection<String>) {
-        shown.values.firstOrNull { it.sessionId == sessionId }?.surface?.data?.applyPatch(patch, removed)
+        onRenderThread {
+            shown.values.firstOrNull { it.sessionId == sessionId }?.surface?.data?.applyPatch(patch, removed)
+        }
     }
 
     fun closeSession(sessionId: Int) {
-        shown.entries.filter { it.value.sessionId == sessionId }.forEach { hide(it.key) }
+        onRenderThread {
+            shown.entries
+                .filter { it.value.sessionId == sessionId }
+                .map { it.key }
+                .forEach { id -> hideNow(id) }
+        }
     }
 
     /** Draws every overlay anchored at [anchor]/[placement] that is not currently suppressed. */
@@ -107,13 +118,41 @@ object UiScriptHudHost {
      * after scripts recompile, when the old composables no longer correspond to any live definition.
      */
     fun reload() {
-        hideAll()
-        UiDefinitionRegistry.allOverlays.filter { it.autoShow }.forEach { show(it) }
+        onRenderThread {
+            hideAllNow()
+            UiDefinitionRegistry.allOverlays.filter { it.autoShow }.forEach { definition ->
+                show(definition)
+            }
+        }
     }
 
     fun hideAll() {
-        shown.values.forEach { it.surface.dispose() }
+        onRenderThread(::hideAllNow)
+    }
+
+    private fun hide(id: ResourceLocation, expectedSurface: UiScriptSurface?) {
+        onRenderThread { hideNow(id, expectedSurface) }
+    }
+
+    private fun hideNow(id: ResourceLocation, expectedSurface: UiScriptSurface? = null) {
+        val overlay = shown[id] ?: return
+        if (expectedSurface != null && overlay.surface !== expectedSurface) return
+        shown.remove(id)
+        overlay.surface.dispose()
+    }
+
+    private fun hideAllNow() {
+        val surfaces = shown.values.map { it.surface }
         shown.clear()
+        surfaces.forEach(UiScriptSurface::dispose)
+    }
+
+    private inline fun onRenderThread(crossinline action: () -> Unit) {
+        if (RenderSystem.isOnRenderThreadOrInit()) {
+            action()
+        } else {
+            RenderSystem.recordRenderCall { action() }
+        }
     }
 
     private fun renderOne(overlay: ShownOverlay, nowNanos: Long) {
