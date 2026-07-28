@@ -74,6 +74,9 @@ object ServerRuntimeState {
 
     fun context(server: MinecraftServer): ServerRuntimeContext = entry(server).runtimeContext
 
+    /** Every server with live runtime state, for engine-wide events such as an addon being reloaded. */
+    fun servers(): List<MinecraftServer> = synchronized(states) { states.keys.toList() }
+
     private fun entry(server: MinecraftServer) =
         states[server] ?: error("Server runtime state is not initialized for $server")
 }

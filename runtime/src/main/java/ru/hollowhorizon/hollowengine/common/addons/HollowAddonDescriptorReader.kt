@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
+import ru.hollowhorizon.hollowengine.common.scripting.source.DEFAULT_SANDBOX_NAMESPACE
 import java.io.File
 import java.util.Properties
 import java.util.jar.JarFile
@@ -31,6 +32,9 @@ internal object HollowAddonDescriptorReader {
 
     private fun validate(descriptor: HollowAddonDescriptor) {
         require(descriptor.id.matches(addonIdPattern)) { "Invalid addon id '${descriptor.id}'" }
+        require(descriptor.id != DEFAULT_SANDBOX_NAMESPACE) {
+            "Addon id '$DEFAULT_SANDBOX_NAMESPACE' is reserved for the hollowengine directory"
+        }
         require(descriptor.version.isNotBlank()) { "Addon '${descriptor.id}' has an empty version" }
         require(descriptor.entrypoint.isNotBlank()) { "Addon '${descriptor.id}' has an empty entrypoint" }
         require(descriptor.id !in descriptor.dependencies) { "Addon '${descriptor.id}' cannot depend on itself" }

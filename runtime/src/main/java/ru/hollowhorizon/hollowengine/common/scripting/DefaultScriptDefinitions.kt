@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider as Pro
 
 const val NODE_SCRIPT_EXTENSION = "node.kts"
 const val UI_SCRIPT_EXTENSION = "ui.kts"
+const val RELOAD_SCRIPT_EXTENSION = "reload.kts"
 
 object DefaultScriptDefinitions {
     fun providers(): List<Provider> {
@@ -22,7 +23,7 @@ object DefaultScriptDefinitions {
                 )
             )
             this += Provider(
-                extension = "reload.kts",
+                extension = RELOAD_SCRIPT_EXTENSION,
                 baseClass = ReloadScript::class.qualifiedName!!,
                 defaultImports = listOf(
                     "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",

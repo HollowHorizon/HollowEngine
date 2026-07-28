@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.registries.BuiltInRegistries
@@ -21,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.system
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
@@ -49,6 +52,10 @@ import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.removeNode
 import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
+import ru.hollowhorizon.hollowengine.common.commands.arguments.ScriptPathArgument
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
@@ -666,61 +673,48 @@ private fun CommandExtension.registerScriptingCommands() {
         requires { hasPermission(2) }
 
         "run"(
-            arg("path", StringArgumentType.string()) {
-                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
-            },
+            nodeScriptArgument(),
             arg("state", StringArgumentType.string())
         ) {
             executes {
-                val path = StringArgumentType.getString(this, "path")
-                if (!isNodeScriptPath(path)) {
+                val id = ScriptPathArgument.getScript(this, "path")
+                if (!isNodeScriptPath(id.path)) {
                     return@executes sendFailure(
-                        "hollowengine.commands.scripting_state_requires_node_script".mcTranslate(path)
+                        "hollowengine.commands.scripting_state_requires_node_script"
+                            .mcTranslate(ScriptRegistry.display(id))
                     )
                 }
                 source.server.addNode(
-                    path,
+                    ScriptRegistry.display(id),
                     context = StateContext(nextState = StringArgumentType.getString(this, "state"))
                 )
                 SUCCESS
             }
         }
 
-        "run"(
-            arg("path", StringArgumentType.string()) {
-                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
-            },
-        ) {
+        "run"(nodeScriptArgument()) {
             executes {
-                val path = StringArgumentType.getString(this, "path")
-                source.server.addNode(path)
+                source.server.addNode(ScriptRegistry.display(ScriptPathArgument.getScript(this, "path")))
                 SUCCESS
             }
         }
 
-        "stop"(
-            arg("path", StringArgumentType.greedyString()) {
-                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
-            }
-        ) {
+        "stop"(runningNodeArgument()) {
             executes {
-                val path = StringArgumentType.getString(this, "path")
-                source.server.removeNode(path)
+                source.server.removeNode(ScriptRegistry.display(ScriptPathArgument.getScript(this, "path")))
                 SUCCESS
             }
         }
 
         "attach"(
             arg("entity", EntityArgument.entity()),
-            arg("path", StringArgumentType.string()) {
-                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
-            },
+            nodeScriptArgument(),
             arg("state", StringArgumentType.string())
         ) {
             executes {
                 attachEntityNode(
                     EntityArgument.getEntity(this, "entity"),
-                    StringArgumentType.getString(this, "path"),
+                    ScriptPathArgument.getScript(this, "path"),
                     StringArgumentType.getString(this, "state"),
                 )
             }
@@ -728,14 +722,12 @@ private fun CommandExtension.registerScriptingCommands() {
 
         "attach"(
             arg("entity", EntityArgument.entity()),
-            arg("path", StringArgumentType.string()) {
-                DirectoryManager.componentScripts.map { it.toReadablePath() }.toList()
-            }
+            nodeScriptArgument()
         ) {
             executes {
                 attachEntityNode(
                     EntityArgument.getEntity(this, "entity"),
-                    StringArgumentType.getString(this, "path"),
+                    ScriptPathArgument.getScript(this, "path"),
                     state = null,
                 )
             }
@@ -743,11 +735,11 @@ private fun CommandExtension.registerScriptingCommands() {
 
         "detach"(
             arg("entity", EntityArgument.entity()),
-            arg("path", StringArgumentType.greedyString())
+            attachedNodeArgument()
         ) {
             executes {
                 val entity = EntityArgument.getEntity(this, "entity")
-                val path = StringArgumentType.getString(this, "path")
+                val path = ScriptRegistry.display(ScriptPathArgument.getScript(this, "path"))
                 if (EntityNodeRuntime.detach(entity, path)) SUCCESS
                 else sendFailure("Node '$path' is not attached to ${entity.name.string}".literal)
             }
@@ -760,15 +752,60 @@ private fun CommandExtension.registerScriptingCommands() {
                 executes { listEntityNodes(source, EntityArgument.getEntity(this, "entity")) }
             }
         }
+
+        "compile" {
+            executes { compileAllScripts(source) }
+        }
     }
 }
 
+/**
+ * Fills the compilation cache for every known script, which is what turns a pack into something that
+ * runs on a client without the Kotlin compiler addon installed.
+ */
+private fun compileAllScripts(source: CommandSourceStack): Int {
+    val scripts = ScriptRegistry.list(".kts")
+    if (scripts.isEmpty()) {
+        source.sendFailure("No scripts were found".literal)
+        return 0
+    }
+    val failures = ScriptLoader.compileAll(scripts)
+    val compiled = scripts.size - failures.size
+    failures.forEach { (id, error) ->
+        HollowEngine.LOGGER.error("Failed to compile {}", ScriptRegistry.display(id), error)
+        source.sendFailure("- ${ScriptRegistry.display(id)}: ${error.message}".literal)
+    }
+    source.sendSuccess({ "Compiled $compiled of ${scripts.size} scripts".literal }, true)
+    return compiled
+}
+
+/** Every node script the engine can see, in the spelling the commands expect back. */
+private fun nodeScriptArgument(): RequiredArgumentBuilder<CommandSourceStack, ScriptId> =
+    arg<ScriptId, CommandSourceStack>("path", ScriptPathArgument.scriptPath()).suggests { _, builder ->
+        SharedSuggestionProvider.suggest(DirectoryManager.componentScripts.map(ScriptRegistry::display), builder)
+    }
+
+/** Only the nodes actually running on this server, which is what one can stop. */
+private fun runningNodeArgument(): RequiredArgumentBuilder<CommandSourceStack, ScriptId> =
+    arg<ScriptId, CommandSourceStack>("path", ScriptPathArgument.scriptPath()).suggests { context, builder ->
+        SharedSuggestionProvider.suggest(context.source.server.runtimeContext.nodes.paths(), builder)
+    }
+
+/** Only the nodes attached to the entity named earlier in the command. */
+private fun attachedNodeArgument(): RequiredArgumentBuilder<CommandSourceStack, ScriptId> =
+    arg<ScriptId, CommandSourceStack>("path", ScriptPathArgument.scriptPath()).suggests { context, builder ->
+        val attached = runCatching { EntityNodeRuntime.paths(EntityArgument.getEntity(context, "entity")) }
+            .getOrDefault(emptySet())
+        SharedSuggestionProvider.suggest(attached, builder)
+    }
+
 private fun com.mojang.brigadier.context.CommandContext<CommandSourceStack>.attachEntityNode(
     entity: net.minecraft.world.entity.Entity,
-    path: String,
+    id: ScriptId,
     state: String?,
 ): Int {
-    if (!isNodeScriptPath(path)) {
+    val path = ScriptRegistry.display(id)
+    if (!isNodeScriptPath(id.path)) {
         return sendFailure("hollowengine.commands.scripting_state_requires_node_script".mcTranslate(path))
     }
     val context = state?.let { StateContext(nextState = it) }

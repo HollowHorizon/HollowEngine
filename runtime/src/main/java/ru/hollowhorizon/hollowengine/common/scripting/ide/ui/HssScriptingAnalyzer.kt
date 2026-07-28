@@ -186,22 +186,8 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
     }
 
     private fun diagnosticAt(text: String, offset: Int, message: String): Diagnostic {
-        val position = positionAt(text, offset)
+        val position = Position.at(text, offset)
         return Diagnostic(Range(position, position.copy(column = position.column + 1)), Severity.ERROR, message)
-    }
-
-    private fun positionAt(text: String, offset: Int): Position {
-        var line = 0
-        var column = 0
-        for (index in 0 until offset.coerceIn(0, text.length)) {
-            if (text[index] == '\n') {
-                line++
-                column = 0
-            } else {
-                column++
-            }
-        }
-        return Position(line, column)
     }
 
     private fun isIdentifierStart(char: Char): Boolean = char.isLetter() || char == '-' || char == '_' || char == '.'

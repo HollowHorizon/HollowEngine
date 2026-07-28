@@ -69,3 +69,33 @@ class MyAddon : HollowAddonEntrypoint {
     }
 }
 ```
+
+## Scripts
+
+An addon can ship `.kts` scripts of its own in `src/main/resources/scripts`. The build compiles them with the same compiler and the same remapping the game uses, and packs both the sources and the compiled artifacts into the platform variants of the addon jar, so the scripts run in a modpack that never installs the compiler addon. A compilation error fails the build. `debug-command` carries one as an example.
+
+Scripts belong to the namespace named by the addon's `id`, and are addressed with it everywhere a script path is accepted:
+
+```text
+/he scripting run my-addon:nodes/quest.node.kts
+```
+
+The `hollowengine` directory is the same kind of thing - an unpacked addon. Its scripts live in `hollowengine/scripts` and its namespace comes from an optional `hollowengine/META-INF/plugin.properties`, defaulting to `hollowengine-sandbox`, which addons may not claim. Paths written without a namespace always mean that directory, so existing world saves and commands keep working whatever it calls itself.
+
+Scripts compile against the classpath of the namespace that owns them and run under its classloader, so an addon's scripts see the addon's own classes and its `addonLibraries`. `@file:Import("other-addon:shared.kts")` reaches into another namespace and requires it in `dependsOn`; a plain name is resolved next to the importing script.
+
+Enabling, reloading or disabling an addon starts and stops its scripts with it. A disabled addon's nodes keep the state they were stopped with, and resume from it when it comes back.
+
+Compiled scripts are also cached at runtime, in `hollowengine/cache/scripts`, keyed by the sources, the engine build, the Kotlin and Minecraft versions and the mapping namespace. Fill the cache for a whole pack before shipping it with:
+
+```text
+/he scripting compile
+```
+
+If a cached or shipped artifact no longer matches its sources and no compiler is installed, it is used anyway and the log says so - a modpack without the compiler has nothing better to fall back on.
+
+To ship compiled scripts without their sources, build the addon with:
+
+```shell
+./gradlew buildAddons -Phollowengine.scripts.includeSources=false
+```

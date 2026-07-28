@@ -1,39 +1,67 @@
 package ru.hollowhorizon.hollowengine.common.compiler.configuration
 
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import org.jetbrains.kotlin.scripting.resolve.KtFileScriptSource
+import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptImports
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import java.io.File
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.FileBasedScriptSource
 import kotlin.script.experimental.host.FileScriptSource
 
+/**
+ * Handles `@file:Import("...")` through the script registry. Physical scripts use their registered identity,
+ * IDE scripts use the logical editor path as that identity, and unregistered physical scripts fall back to
+ * paths relative to their source file.
+ */
 class HollowScriptConfigurator : RefineScriptCompilationConfigurationHandler {
     override operator fun invoke(context: ScriptConfigurationRefinementContext) = processAnnotations(context)
 
     private fun processAnnotations(context: ScriptConfigurationRefinementContext): ResultWithDiagnostics<ScriptCompilationConfiguration> {
-        val annotations = context.collectedData?.get(ScriptCollectedData.collectedAnnotations)?.map { it.annotation }
-            ?.takeIf { it.isNotEmpty() }
-            ?: return context.compilationConfiguration.asSuccess()
+        val references = context.collectedData?.get(ScriptCollectedData.collectedAnnotations)
+            .orEmpty()
+            .map { it.annotation }
+            .filterIsInstance<Import>()
+            .flatMap { it.file.asList() }
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinct()
+        if (references.isEmpty()) return context.compilationConfiguration.asSuccess()
 
-        val scriptBaseDir = (context.script as? FileBasedScriptSource)?.let {
-            val localPath = it.file.path.replace(File.separatorChar, '/').removePrefix("/").removePrefix("hollowengine/")
-            DirectoryManager.HOLLOW_ENGINE.resolve(localPath).parent.toFile()
+        val script = context.script
+        val scriptFile = (script as? FileBasedScriptSource)?.file
+        val owner = when (script) {
+            is KtFileScriptSource -> ScriptRegistry.parse(script.ktFile.name)
+            else -> scriptFile?.let(ScriptRegistry::idOf)
         }
-
-        val importedSources = annotations
-            .flatMap {
-                val files = runCatching {
-                    it.javaClass.getDeclaredMethod("file").invoke(annotations[0]) as Array<String>
-                }.getOrNull()
-                files?.mapNotNull { sourceName ->
-                    (scriptBaseDir?.resolve(sourceName) ?: File(sourceName)).takeIf(File::exists)
-                        ?.let(::FileScriptSource)
-                } ?: emptyList()
+        val isIdeSource = script is KtFileScriptSource
+        val importedSources = ArrayList<SourceCode>(references.size)
+        references.forEach { reference ->
+            val resolution = runCatching { resolve(owner, scriptFile, reference) }
+            val resolved = resolution.getOrNull()
+            if (resolved == null) {
+                if (isIdeSource) return@forEach
+                val message = resolution.exceptionOrNull()?.message
+                    ?: "Cannot resolve the imported script '$reference'"
+                return makeFailureResult(message)
             }
+            importedSources += FileScriptSource(resolved)
+        }
 
         if (importedSources.isEmpty()) return context.compilationConfiguration.asSuccess()
 
         return ScriptCompilationConfiguration(context.compilationConfiguration) {
             importScripts.append(importedSources)
         }.asSuccess()
+    }
+
+    private fun resolve(owner: ScriptId?, scriptFile: File?, reference: String): File? {
+        if (owner != null) {
+            val id = ScriptImports.resolve(owner, reference) ?: return null
+            return ScriptRegistry.artifacts(id)?.sourceFile
+        }
+        val base = scriptFile?.parentFile ?: return File(reference).takeIf(File::isFile)
+        return base.resolve(reference).takeIf(File::isFile) ?: File(reference).takeIf(File::isFile)
     }
 }

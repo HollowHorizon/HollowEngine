@@ -10,9 +10,9 @@ import ru.hollowhorizon.hollowengine.common.events.EventListener
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.createEventListener
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.RELOAD_SCRIPT_EXTENSION
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools
 import java.lang.invoke.MethodHandles
 import kotlin.reflect.KClass
@@ -21,7 +21,7 @@ import kotlin.script.experimental.api.constructorArgs
 @ReloadListener
 object ReloadScriptManager : ResourceManagerReloadListener {
     private var events: List<EventHandle> = emptyList()
-
+    private var lastContext: ReloadScriptContext? = null
 
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
         val recipeManager = currentRecipeManagerOrNull() ?: run {
@@ -29,35 +29,40 @@ object ReloadScriptManager : ResourceManagerReloadListener {
             return
         }
 
-        val scriptsDir = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").toFile()
-        if (!scriptsDir.exists()) return
+        run(ReloadScriptContext(server = null, resourceManager = resourceManager, recipeManager = recipeManager))
+    }
 
-        val context =
-            ReloadScriptContext(server = null, resourceManager = resourceManager, recipeManager = recipeManager)
-        val scripting = ScriptingEnvironment.currentOrNull() ?: run {
-            HollowEngine.LOGGER.warn("Skipping reload scripts: Kotlin scripting compiler addon is not installed")
-            return
-        }
+    /**
+     * Runs the reload scripts again with the context of the last resource reload. Used when a namespace
+     * appears or disappears outside of a resource reload, e.g. an addon being enabled.
+     */
+    fun rerun() {
+        val context = lastContext ?: return
+        run(context)
+    }
+
+    private fun run(context: ReloadScriptContext) {
+        lastContext = context
 
         events.forEach { handler ->
             handler.unsubscribe()
         }
-        events = scriptsDir.walk()
-            .filter { it.isFile && it.name.endsWith(".reload.kts") }
-            .mapNotNull { file ->
-                val path = file.toReadablePath()
-                runCatching {
-                    scripting.compiler.compile(file).getOrThrow().execute<ReloadScript> {
-                        constructorArgs(context)
-                    }.getOrThrow()
+        events = ScriptRegistry.list(".$RELOAD_SCRIPT_EXTENSION")
+            .mapNotNull { id ->
+                ScriptLoader.execute<ReloadScript>(id) {
+                    constructorArgs(context)
                 }.onFailure { error ->
-                    HollowEngine.LOGGER.error("Failed to execute reload script: {}", path, error)
+                    HollowEngine.LOGGER.error(
+                        "Failed to execute reload script: {}",
+                        ScriptRegistry.display(id),
+                        error,
+                    )
                 }.getOrNull()
             }
             .makeHandles()
     }
 
-    private fun Sequence<ReloadScript>.makeHandles(): List<EventHandle> {
+    private fun List<ReloadScript>.makeHandles(): List<EventHandle> {
         return this.flatMap { script ->
             val scriptClass = script.javaClass
             val classLoader = Thread.currentThread().contextClassLoader

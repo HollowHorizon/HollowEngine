@@ -181,7 +181,10 @@ private class RemappedCompiledModule(
     override val compilerOutputFiles: Map<String, ByteArray>,
 ) : KJvmCompiledModuleInMemory, Serializable {
     override fun createClassLoader(baseClassLoader: ClassLoader?): ClassLoader {
-        return RemappedCompiledScriptClassLoader(compilerOutputFiles, HollowEngine::class.java.classLoader)
+        return RemappedCompiledScriptClassLoader(
+            compilerOutputFiles,
+            baseClassLoader ?: HollowEngine::class.java.classLoader,
+        )
     }
 }
 

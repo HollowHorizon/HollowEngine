@@ -5,6 +5,7 @@
   "refmap": "${refmap}",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "ArgumentTypeInfosMixin",
     "ListTagAccessor",
     "RecipeManagerAccessor",
     "registry.HolderReferenceAccessor",

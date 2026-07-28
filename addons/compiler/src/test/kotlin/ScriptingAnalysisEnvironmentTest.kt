@@ -175,6 +175,102 @@ class ScriptingAnalysisEnvironmentTest {
     }
 
     @Test
+    fun `diagnostic resolves declarations from imported scripts`() {
+        withEnvironment { environment ->
+            writeSandboxScript("shared.analysis.kts", "val importedValue = 21")
+            writeSandboxScript("other.analysis.kts", "val otherValue = 21")
+            val text = """
+                @file:Import("shared.analysis.kts", "other.analysis.kts")
+                val answer = importedValue + otherValue
+            """.trimIndent()
+
+            val diagnostics = environment.analyzer.diagnostic("scripts/main.analysis.kts", text)
+
+            assertFalse(
+                diagnostics.any { diagnostic ->
+                    diagnostic.message.contains("importedValue") || diagnostic.message.contains("otherValue")
+                },
+                diagnostics.toString(),
+            )
+        }
+    }
+
+    @Test
+    fun `highlight provides hints for declarations using imported scripts`() {
+        withEnvironment { environment ->
+            writeSandboxScript("shared.analysis.kts", "val importedValue = 21")
+            val text = """
+                @file:Import("shared.analysis.kts")
+                val answer = importedValue * 2
+            """.trimIndent()
+
+            val lines = environment.analyzer.highlight("scripts/main.analysis.kts", text, text.length)
+
+            val answerHints = lines.getOrNull(1)?.hints.orEmpty()
+            assertTrue(
+                answerHints.any { hint -> hint.index == "val answer".length && hint.text.contains("Int") },
+                answerHints.toString(),
+            )
+        }
+    }
+
+    @Test
+    fun `missing imports report diagnostics without breaking hints`() {
+        withEnvironment { environment ->
+            val text = """
+                @file:Import("missing.analysis.kts")
+                val answer = 42
+            """.trimIndent()
+
+            val diagnostics = environment.analyzer.diagnostic("scripts/main.analysis.kts", text)
+            val lines = environment.analyzer.highlight("scripts/main.analysis.kts", text, text.length)
+
+            assertTrue(
+                diagnostics.any { it.severity.isError() && it.message.contains("missing.analysis.kts") },
+                diagnostics.toString(),
+            )
+            assertTrue(
+                lines.getOrNull(1)?.hints.orEmpty().any { hint ->
+                    hint.index == "val answer".length && hint.text.contains("Int")
+                },
+                lines.toString(),
+            )
+        }
+    }
+
+    @Test
+    fun `recursive imports report diagnostics without breaking hints`() {
+        withEnvironment { environment ->
+            val first = """
+                @file:Import("second.analysis.kts")
+                val firstValue = secondValue
+            """.trimIndent()
+            writeSandboxScript("first.analysis.kts", first)
+            writeSandboxScript(
+                "second.analysis.kts",
+                """
+                    @file:Import("first.analysis.kts")
+                    val secondValue = 42
+                """.trimIndent(),
+            )
+
+            val diagnostics = environment.analyzer.diagnostic("scripts/first.analysis.kts", first)
+            val lines = environment.analyzer.highlight("scripts/first.analysis.kts", first, first.length)
+
+            assertTrue(
+                diagnostics.any { it.severity.isError() && it.message.contains("cycle") },
+                diagnostics.toString(),
+            )
+            assertTrue(
+                lines.getOrNull(1)?.hints.orEmpty().any { hint ->
+                    hint.index == "val firstValue".length && hint.text.contains("Int")
+                },
+                lines.toString(),
+            )
+        }
+    }
+
+    @Test
     fun `completion sees declarations from current script`() {
         withEnvironment { environment ->
             val text = """
@@ -209,6 +305,13 @@ class ScriptingAnalysisEnvironmentTest {
         } finally {
             environment.close()
             File("hollowengine").deleteRecursively()
+        }
+    }
+
+    private fun writeSandboxScript(path: String, text: String) {
+        File("hollowengine/scripts", path).apply {
+            parentFile.mkdirs()
+            writeText(text)
         }
     }
 

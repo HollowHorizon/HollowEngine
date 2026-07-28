@@ -2,37 +2,52 @@ package ru.hollowhorizon.hollowengine.common.compiler
 
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
+import ru.hollowhorizon.hollowengine.common.compiler.caching.saveScriptToJar
 import ru.hollowhorizon.hollowengine.common.compiler.isolated.ScriptJvmCompilerRemapped
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptCompilationContext
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import ru.hollowhorizon.hollowengine.logW
 import java.io.File
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptDiagnostic
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.FileScriptSource
 import kotlin.script.experimental.host.StringScriptSource
+import kotlin.script.experimental.jvm.baseClassLoader
+import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
+import kotlin.script.experimental.jvm.jvm
+import kotlin.script.experimental.jvm.updateClasspath
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
+import kotlin.script.experimental.api.CompiledScript as KotlinScript
 
 class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : ScriptingCompiler {
-    override fun compile(file: File): Result<CompiledScript.WithFile> {
+    override fun compile(file: File, context: ScriptCompilationContext): Result<CompiledScript.WithFile> {
         val definition = environment.scriptDefinitions.getDefinitionFor(file.name)
-
-        val hostConfiguration = definition.hostConfiguration
-        val compiler = JvmScriptCompiler(hostConfiguration, ScriptJvmCompilerRemapped(environment.scriptDefinitions, hostConfiguration))
         val result = runScriptingBlocking {
-            compiler(FileScriptSource(file), definition.compilationConfiguration)
+            newCompiler(definition)(
+                FileScriptSource(file),
+                definition.compilationConfiguration.withClasspath(context.extraClasspath),
+            )
         }
 
-        return if (result is ResultWithDiagnostics.Success) {
-            Result.success(
-                CompiledScript.WithFile(
-                    CompiledScriptImpl(file.name, result.value, definition.evaluationConfiguration!!),
-                    file
-                )
-            )
-        } else {
-            Result.failure(ScriptCompilationException(file.name, result.reports.map { it.convert() }))
+        if (result !is ResultWithDiagnostics.Success) {
+            return Result.failure(ScriptCompilationException(file.name, result.reports.map { it.convert() }))
         }
+
+        context.cacheOutput?.let { output -> cache(result.value, output, context.cacheHash) }
+
+        return Result.success(
+            CompiledScript.WithFile(
+                CompiledScriptImpl(
+                    file.name,
+                    result.value,
+                    definition.evaluationConfiguration!!.withBaseClassLoader(context.baseClassLoader),
+                ),
+                file,
+            )
+        )
     }
 
     override fun compile(
@@ -40,11 +55,8 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
         code: String,
     ): Result<CompiledScript> {
         val definition = environment.scriptDefinitions.getDefinitionFor(name)
-
-        val hostConfiguration = definition.hostConfiguration
-        val compiler = JvmScriptCompiler(hostConfiguration, ScriptJvmCompilerRemapped(environment.scriptDefinitions, hostConfiguration))
         val result = runScriptingBlocking {
-            compiler(StringScriptSource(code), definition.compilationConfiguration)
+            newCompiler(definition)(StringScriptSource(code), definition.compilationConfiguration)
         }
 
         return if (result is ResultWithDiagnostics.Success) {
@@ -53,7 +65,39 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
             Result.failure(ScriptCompilationException(name, result.reports.map { it.convert() }))
         }
     }
+
+    private fun newCompiler(definition: ScriptDefinition) = JvmScriptCompiler(
+        definition.hostConfiguration,
+        ScriptJvmCompilerRemapped(environment.scriptDefinitions, definition.hostConfiguration),
+    )
+
+    /**
+     * Stores the compiled module so later runs, including ones where this addon is not installed, can
+     * load it straight from disk. A cache that cannot be written is not a reason to fail a compilation.
+     */
+    private fun cache(
+        compiled: KotlinScript,
+        output: File,
+        hash: String?,
+    ) {
+        if (hash == null) return
+        val jvmScript = compiled as? KJvmCompiledScript ?: return
+        runCatching {
+            output.parentFile?.mkdirs()
+            val temporary = File(output.parentFile, output.name + ".tmp")
+            jvmScript.saveScriptToJar(temporary, hash)
+            Files.move(temporary.toPath(), output.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }.onFailure { logW("Failed to cache the compiled script '$output': $it") }
+    }
 }
+
+private fun ScriptCompilationConfiguration.withClasspath(extra: List<File>): ScriptCompilationConfiguration =
+    if (extra.isEmpty()) this else with { jvm { updateClasspath(extra) } }
+
+private fun ScriptEvaluationConfiguration.withBaseClassLoader(
+    classLoader: ClassLoader?,
+): ScriptEvaluationConfiguration =
+    if (classLoader == null) this else with { ScriptEvaluationConfiguration.jvm.baseClassLoader(classLoader) }
 
 fun List<ScriptDefinition.FromConfigurations>.getDefinitionFor(name: String): ScriptDefinition {
     return sortedWith(

@@ -235,7 +235,8 @@ fun remapClass(
     to: String = "intermediary",
 ): ByteArray {
     val cache = hashMapOf<String, ByteArray?>()
-    val jarsToUse = classpath.map { JarFile(it) }
+    val jarsToUse = classpath.filter { it.isFile && it.extension.equals("jar", ignoreCase = true) }.map(::JarFile)
+    val directories = classpath.filter(File::isDirectory)
     val lookup = jarsToUse.flatMap { j ->
         j.entries().asSequence().filter { it.name.endsWith(".class") }
             .map { it.name.dropLast(6) to { j.getInputStream(it).readBytes() } }
@@ -244,8 +245,14 @@ fun remapClass(
     val remapper = MappingsRemapper(
         mappings, from, to,
         loader = { name ->
-            if (name in lookup) cache.getOrPut(name) { lookup.getValue(name)() }
-            else loader(name)
+            when {
+                name in lookup -> cache.getOrPut(name) { lookup.getValue(name)() }
+                else -> cache.getOrPut(name) {
+                    directories.firstNotNullOfOrNull { directory ->
+                        directory.resolve("$name.class").takeIf(File::isFile)?.readBytes()
+                    } ?: loader(name)
+                }
+            }
         }
     )
 

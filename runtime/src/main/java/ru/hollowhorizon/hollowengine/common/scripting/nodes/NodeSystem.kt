@@ -5,8 +5,8 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateExecutor
 import kotlin.reflect.KClass
@@ -21,18 +21,18 @@ import kotlin.script.experimental.api.implicitReceivers
 class NodeManager(val server: MinecraftServer) {
     private val nodes = mutableMapOf<String, RunningNode>()
 
+    /**
+     * Nodes whose namespace is not available right now: an addon was disabled, or a save mentions one
+     * that is not installed. Their data is kept verbatim and written back out on save, so turning the
+     * addon on again resumes exactly where it stopped.
+     */
+    private val dormant = mutableMapOf<String, CompoundTag>()
+
     fun serialize(tag: CompoundTag) {
+        dormant.forEach { (name, nodeTag) -> tag.put(name, nodeTag) }
         nodes.forEach { (name, entry) ->
-            runCatching {
-                val context = SerializationContext(server, CompoundTag())
-                entry.script.onSaveHandlers.forEach { it(context) }
-                val nodeTag = CompoundTag()
-                nodeTag.put("extras", context.tag)
-                entry.context?.let { nodeTag.put("states", it.serialize()) }
-                tag.put(name, nodeTag)
-            }.onFailure {
-                HollowEngine.LOGGER.error("Error while saving node '$name'", it)
-            }
+            runCatching { tag.put(name, entry.persist(server)) }
+                .onFailure { HollowEngine.LOGGER.error("Error while saving node '$name'", it) }
         }
     }
 
@@ -40,6 +40,11 @@ class NodeManager(val server: MinecraftServer) {
         tag.allKeys.forEach { key ->
             runCatching {
                 val nodeTag = tag.getCompound(key)
+                if (!isAvailable(key)) {
+                    dormant[key] = nodeTag
+                    HollowEngine.LOGGER.info("Node '{}' is kept dormant: its namespace is not installed", key)
+                    return@runCatching
+                }
                 val extras = nodeTag.getCompound("extras")
                 val context = (nodeTag.get("states") as? CompoundTag)
                     ?.let { StateContext.deserialize(it) }
@@ -51,28 +56,67 @@ class NodeManager(val server: MinecraftServer) {
     }
 
     internal fun register(script: NodeScript, executor: StateExecutor, context: StateContext?) {
+        dormant.remove(script.path)
         nodes[script.path] = RunningNode(script, executor, context)
         context?.let { executor.start(it) }
     }
 
     fun removeNode(path: String) {
-        nodes.remove(path)?.script?.coroutineContext?.job?.cancel()
+        val canonicalPath = canonicalNodePath(path)
+        dormant.remove(canonicalPath)
+        nodes.remove(canonicalPath)?.script?.coroutineContext?.job?.cancel()
     }
 
     fun dispose() {
         nodes.keys.toList().forEach(::removeNode)
     }
 
-    fun contains(path: String): Boolean = nodes.containsKey(path)
+    fun contains(path: String): Boolean = nodes.containsKey(canonicalNodePath(path))
 
     fun paths(): Set<String> = nodes.keys.toSet()
+
+    /** Stops the nodes of [namespace] without losing their state. */
+    internal fun suspendNamespace(namespace: String) {
+        nodes.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
+            .forEach { (path, entry) ->
+                runCatching { dormant[path] = entry.persist(server) }
+                    .onFailure { HollowEngine.LOGGER.error("Error while suspending node '$path'", it) }
+                nodes.remove(path)
+                entry.script.coroutineContext.job.cancel()
+            }
+    }
+
+    /** Starts the nodes of [namespace] again from the state they were suspended with. */
+    internal fun resumeNamespace(namespace: String) {
+        dormant.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
+            .forEach { (path, nodeTag) ->
+                dormant.remove(path)
+                runCatching {
+                    val context = (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) }
+                    server.addNode(path, nodeTag.getCompound("extras"), context)
+                }.onFailure { HollowEngine.LOGGER.error("Error while resuming node '$path'", it) }
+            }
+    }
+
+    private fun isAvailable(path: String): Boolean =
+        ScriptRegistry.source(ScriptRegistry.parse(path).namespace) != null
 }
 
 internal class RunningNode(
     val script: NodeScript,
     val executor: StateExecutor,
     val context: StateContext?,
-)
+) {
+    /** The tag this node would be written to the world save as. */
+    fun persist(server: MinecraftServer): CompoundTag {
+        val serialization = SerializationContext(server, CompoundTag())
+        script.onSaveHandlers.forEach { it(serialization) }
+        return CompoundTag().apply {
+            put("extras", serialization.tag)
+            context?.let { put("states", it.serialize()) }
+        }
+    }
+}
 
 /**
  * Compiles [path], binds it to a fresh child scope of [host]'s scope, runs the script body (which
@@ -88,23 +132,21 @@ internal fun buildNode(
     tag: CompoundTag?,
     receivers: List<Any>,
 ): Pair<NodeScript, StateExecutor>? {
-    val scripting = ScriptingEnvironment.currentOrNull() ?: run {
-        HollowEngine.LOGGER.warn("Skipping $path node: Kotlin scripting compiler addon is not installed")
-        return null
-    }
-
+    val id = ScriptRegistry.parse(path)
+    // Nodes are keyed by their path in the world save, so every spelling of one script has to settle on
+    // the same string before anything is registered.
+    val canonicalPath = ScriptRegistry.display(id)
     val nodeScope = CoroutineScope(parentScope.coroutineContext + SupervisorJob(parentScope.coroutineContext.job))
     val binding = NodeBinding(host, nodeScope)
 
-    val script = runCatching {
-        val compiled = scripting.compiler.compile(path.fromReadablePath()).getOrThrow()
-        receiverMismatch(compiled.type, host, receivers)?.let { error(it) }
-        compiled.execute<NodeScript> {
-            constructorArgs(path, binding)
-            implicitReceivers(*receivers.toTypedArray())
-        }.getOrThrow()
+    val script = ScriptLoader.execute<NodeScript>(
+        id = id,
+        validate = { type -> receiverMismatch(type, host, receivers)?.let { error(it) } },
+    ) {
+        constructorArgs(canonicalPath, binding)
+        implicitReceivers(*receivers.toTypedArray())
     }.onFailure {
-        HollowEngine.LOGGER.error("Error while loading $path", it)
+        HollowEngine.LOGGER.error("Error while loading $canonicalPath", it)
         nodeScope.cancel()
     }.getOrNull() ?: return null
 
@@ -156,6 +198,12 @@ private fun NodeHost.describe(): String = when (this) {
 
 /** The path and the binding, which every node script takes before its implicit receivers. */
 private const val FixedConstructorArgs = 2
+
+/**
+ * The spelling a node is stored under. Scripts of the sandbox stay unqualified so world saves written
+ * before namespaces existed keep resolving, everything else carries its namespace.
+ */
+fun canonicalNodePath(path: String): String = ScriptRegistry.display(ScriptRegistry.parse(path))
 
 fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: StateContext? = null) {
     val (script, executor) = buildNode(

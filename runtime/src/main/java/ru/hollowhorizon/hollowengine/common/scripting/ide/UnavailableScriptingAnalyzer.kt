@@ -20,7 +20,7 @@ object UnavailableKotlinScriptingAnalyzer : ScriptingAnalyzer {
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         return listOf(
             Diagnostic(
-                Range(Position(0, 0), Position(0, 0)),
+                Range(Position(0, 0), Position.at(text, text.length)),
                 Severity.WARNING,
                 "Kotlin scripting compiler addon is not installed"
             )

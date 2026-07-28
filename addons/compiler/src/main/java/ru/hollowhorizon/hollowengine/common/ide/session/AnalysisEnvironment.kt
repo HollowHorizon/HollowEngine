@@ -34,11 +34,11 @@ import org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFa
 import org.jetbrains.kotlin.analysis.api.platform.modification.KotlinModificationTrackerFactory
 import org.jetbrains.kotlin.analysis.api.platform.packages.KotlinPackagePartProviderFactory
 import org.jetbrains.kotlin.analysis.api.platform.packages.KotlinPackageProviderFactory
+import org.jetbrains.kotlin.analysis.api.platform.packages.KotlinPackageProviderMerger
 import org.jetbrains.kotlin.analysis.api.platform.permissions.KotlinAnalysisPermissionOptions
 import org.jetbrains.kotlin.analysis.api.platform.resolution.KaResolutionActivityTracker
 import org.jetbrains.kotlin.analysis.api.resolve.extensions.KaResolveExtensionProvider
 import org.jetbrains.kotlin.analysis.api.standalone.base.declarations.KotlinStandaloneAnnotationsResolverFactory
-import org.jetbrains.kotlin.analysis.api.standalone.base.declarations.KotlinStandaloneDeclarationProviderMerger
 import org.jetbrains.kotlin.analysis.api.standalone.base.modification.KotlinStandaloneModificationTrackerFactory
 import org.jetbrains.kotlin.analysis.api.standalone.base.packages.KotlinStandalonePackageProviderFactory
 import org.jetbrains.kotlin.analysis.api.standalone.base.permissions.KotlinStandaloneAnalysisPermissionOptions
@@ -380,12 +380,17 @@ class AnalysisEnvironment(
 
             registerService(
                 KotlinDeclarationProviderMerger::class.java,
-                KotlinStandaloneDeclarationProviderMerger(this),
+                HollowDeclarationProviderMerger(this),
             )
 
             registerService(
                 KotlinPackageProviderFactory::class.java,
                 KotlinStandalonePackageProviderFactory(project, emptyList(), emptyList()),
+            )
+
+            registerService(
+                KotlinPackageProviderMerger::class.java,
+                HollowPackageProviderMerger(this),
             )
 
             registerService(

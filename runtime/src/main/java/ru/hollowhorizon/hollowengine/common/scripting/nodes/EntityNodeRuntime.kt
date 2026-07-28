@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime.ATTACHMENTS_KEY
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime.load
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime.save
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import java.util.*
 
@@ -47,6 +48,16 @@ object EntityNodeRuntime {
         managers.remove(entity)
     }
 
+    /** Stops every attached node of [namespace] on every entity, keeping their state. */
+    fun suspendNamespace(namespace: String) {
+        synchronized(managers) { managers.values.toList() }.forEach { it.suspendNamespace(namespace) }
+    }
+
+    /** Starts them again once the namespace is back. */
+    fun resumeNamespace(namespace: String) {
+        synchronized(managers) { managers.values.toList() }.forEach { it.resumeNamespace(namespace) }
+    }
+
     private fun manager(entity: Entity) = managers.getOrPut(entity) { EntityNodeManager(entity) }
 }
 
@@ -54,25 +65,32 @@ object EntityNodeRuntime {
 class EntityNodeManager(private val entity: Entity) {
     private val nodes = mutableMapOf<String, RunningNode>()
 
+    /** Attached nodes whose namespace is currently unavailable. See [NodeManager] for the rationale. */
+    private val dormant = mutableMapOf<String, CompoundTag>()
+
     fun attach(path: String, tag: CompoundTag?, context: StateContext?): Boolean {
-        if (nodes.containsKey(path)) return false
+        val canonicalPath = canonicalNodePath(path)
+        if (nodes.containsKey(canonicalPath)) return false
+        dormant.remove(canonicalPath)
         val server = entity.server ?: return false
 
         val (script, executor) = buildNode(
             host = NodeHost.OfEntity(entity),
             parentScope = entity.coroutineScope,
-            path = path,
+            path = canonicalPath,
             tag = tag,
             receivers = listOf(server, entity),
         ) ?: return false
 
-        nodes[path] = RunningNode(script, executor, context)
+        nodes[canonicalPath] = RunningNode(script, executor, context)
         context?.let { executor.start(it) }
         return true
     }
 
     fun detach(path: String): Boolean {
-        val removed = nodes.remove(path) ?: return false
+        val canonicalPath = canonicalNodePath(path)
+        dormant.remove(canonicalPath)
+        val removed = nodes.remove(canonicalPath) ?: return false
         removed.script.coroutineContext.job.cancel()
         return true
     }
@@ -81,17 +99,10 @@ class EntityNodeManager(private val entity: Entity) {
 
     fun serialize(): CompoundTag {
         val tag = CompoundTag()
+        dormant.forEach { (path, nodeTag) -> tag.put(path, nodeTag) }
         nodes.forEach { (path, node) ->
-            runCatching {
-                val context = SerializationContext(node.script.server, CompoundTag())
-                node.script.onSaveHandlers.forEach { it(context) }
-                val nodeTag = CompoundTag()
-                nodeTag.put("extras", context.tag)
-                node.context?.let { nodeTag.put("states", it.serialize()) }
-                tag.put(path, nodeTag)
-            }.onFailure {
-                HollowEngine.LOGGER.error("Error while saving entity node '$path'", it)
-            }
+            runCatching { tag.put(path, node.persist(node.script.server)) }
+                .onFailure { HollowEngine.LOGGER.error("Error while saving entity node '$path'", it) }
         }
         return tag
     }
@@ -100,6 +111,10 @@ class EntityNodeManager(private val entity: Entity) {
         tag.allKeys.forEach { path ->
             runCatching {
                 val nodeTag = tag.getCompound(path)
+                if (ScriptRegistry.source(ScriptRegistry.parse(path).namespace) == null) {
+                    dormant[path] = nodeTag
+                    return@runCatching
+                }
                 val extras = nodeTag.getCompound("extras")
                 val context = (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) }
                 attach(path, extras, context)
@@ -107,5 +122,26 @@ class EntityNodeManager(private val entity: Entity) {
                 HollowEngine.LOGGER.error("Error while deserializing entity node '$path'", it)
             }
         }
+    }
+
+    internal fun suspendNamespace(namespace: String) {
+        nodes.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
+            .forEach { (path, node) ->
+                runCatching { dormant[path] = node.persist(node.script.server) }
+                    .onFailure { HollowEngine.LOGGER.error("Error while suspending entity node '$path'", it) }
+                nodes.remove(path)
+                node.script.coroutineContext.job.cancel()
+            }
+    }
+
+    internal fun resumeNamespace(namespace: String) {
+        dormant.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
+            .forEach { (path, nodeTag) ->
+                dormant.remove(path)
+                runCatching {
+                    val context = (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) }
+                    attach(path, nodeTag.getCompound("extras"), context)
+                }.onFailure { HollowEngine.LOGGER.error("Error while resuming entity node '$path'", it) }
+            }
     }
 }

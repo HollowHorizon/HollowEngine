@@ -95,6 +95,10 @@ internal class HollowIdeModel(
         selectedTreePath = path
         val file = path.fromReadablePath()
         if (!file.isFile) return HollowIdeOpenResult.Unsupported
+        if (file.isExtractedScript()) {
+            val created = path !in files
+            return HollowIdeOpenResult.File(openReadOnly(path, file.readText()), created)
+        }
         files[path]?.let { opened ->
             if (!opened.dirty && opened.type.requiresContent) opened.refresh(file.readBytes())
             return HollowIdeOpenResult.File(opened, created = false)
@@ -487,6 +491,13 @@ internal fun fileDockItemId(path: String): String {
 private fun targetDirectory(path: String): File {
     val file = path.fromReadablePath()
     return if (file.isDirectory || path.isBlank()) file else file.parentFile
+}
+
+/** Whether a file is a copy the engine unpacked out of an addon rather than something authored here. */
+private fun File.isExtractedScript(): Boolean {
+    val path = toPath().toAbsolutePath().normalize()
+    return sequenceOf(DirectoryManager.SCRIPT_SOURCE_CACHE, DirectoryManager.SCRIPT_BUNDLE_CACHE)
+        .any { root -> path.startsWith(root.toPath().toAbsolutePath().normalize()) }
 }
 
 private fun String.toPathInsideRoot(): Path? {

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.ide.session
 
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.PsiFileEx
 import com.intellij.psi.impl.PsiManagerEx
 import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
@@ -18,7 +19,11 @@ import ru.hollowhorizon.hollowengine.common.ide.session.highlight.occurrencesCod
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptImports
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import java.io.File
+import java.io.IOException
+import java.util.IdentityHashMap
 
 class ScriptingAnalyzerImpl(
     val kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment,
@@ -34,45 +39,78 @@ class ScriptingAnalyzerImpl(
         override fun removeEldestEntry(entry: MutableMap.MutableEntry<String, CachedFile>?): Boolean {
             val shouldRemove = size > 5
             if (shouldRemove && entry != null) {
-                cleanupFile(entry.value.file)
+                cleanupFiles(entry.value.relatedFiles)
             }
             return shouldRemove
         }
     }
 
-    internal data class CachedFile(val textHash: Int, val textLength: Int, val file: KtFile)
+    internal data class CachedFile(
+        val textHash: Int,
+        val textLength: Int,
+        val file: KtFile,
+        val relatedFiles: List<KtFile>,
+    )
+
+    private data class CreatedFileGraph(val root: KtFile, val files: List<KtFile>)
+    private data class ImportResolution(val files: List<KtFile>, val diagnostics: List<Diagnostic>)
+
+    private val importDiagnostics = IdentityHashMap<KtFile, List<Diagnostic>>()
 
     private fun getOrCreateFile(name: String, original: String): KtFile {
         val text = original.replace("\r\n", "\n")
         val textHash = text.hashCode()
         val textLength = text.length
-
         val cached = fileCache[name]
 
         if (cached != null) {
             if (cached.textLength == textLength && cached.textHash == textHash) {
                 return cached.file
             }
-
-            cleanupFile(cached.file)
+            fileCache.remove(name)
+            cleanupFiles(cached.relatedFiles)
         }
 
-        val file = createPsiFile(name, original)
-
-        fileCache[name] = CachedFile(textHash, textLength, file)
-
-        return file
+        val graph = createPsiGraph(name, text)
+        fileCache[name] = CachedFile(textHash, textLength, graph.root, graph.files)
+        return graph.root
     }
 
-    private fun createPsiFile(name: String, text: String): KtFile {
+    private fun createPsiGraph(name: String, text: String): CreatedFileGraph {
+        val files = LinkedHashMap<String, KtFile>()
+        val activeFiles = HashSet<String>()
+        return try {
+            val root = createPsiFile(name, text, files, activeFiles)
+            CreatedFileGraph(root, files.values.toList())
+        } catch (throwable: Throwable) {
+            cleanupFiles(files.values.toList())
+            throw throwable
+        }
+    }
+
+    private fun createPsiFile(
+        name: String,
+        text: String,
+        files: MutableMap<String, KtFile>,
+        activeFiles: MutableSet<String>,
+    ): KtFile {
+        files[name]?.let { return it }
+
         val file = factory.createFile(name, text)
-        val importedScripts = resolveImports(file)
+        files[name] = file
+        activeFiles += name
+        val imports = try {
+            resolveImports(file, files, activeFiles)
+        } finally {
+            activeFiles -= name
+        }
+        importDiagnostics[file] = imports.diagnostics
 
         projectStructureProvider.setModule(
             file, KaScriptModule(
                 file, project, buildList {
-                    addAll(importedScripts.mapNotNull { it.contextModule })
                     addAll(libraries)
+                    addAll(imports.files.mapNotNull { it.contextModule })
                     add(builtins.kaModule)
                 }
             )
@@ -80,25 +118,121 @@ class ScriptingAnalyzerImpl(
         return file
     }
 
-    private fun resolveImports(file: KtFile): List<KtFile> {
-        val localPath =
-            file.virtualFile.path.replace(File.separatorChar, '/').removePrefix("/").removePrefix("hollowengine/")
-        val baseDir = DirectoryManager.HOLLOW_ENGINE.resolve(localPath).parent.toFile()
+    /**
+     * Resolves `@file:Import(...)` the same way the compiler does, through the script registry, and names
+     * each imported PSI file with the path the editor itself uses.
+     */
+    private fun resolveImports(
+        file: KtFile,
+        files: MutableMap<String, KtFile>,
+        activeFiles: MutableSet<String>,
+    ): ImportResolution {
+        val owner = ScriptRegistry.parse(file.name)
+        val importedFiles = ArrayList<KtFile>()
+        val diagnostics = ArrayList<Diagnostic>()
+        val importedNames = HashSet<String>()
+        val seenReferences = HashSet<String>()
 
-        return file.annotationEntries.filter { it.typeName == "Import" }.mapNotNull {
-            val path = it.valueArguments[0].getArgumentExpression()?.text?.trim('"') ?: return@mapNotNull null
-            runCatching {
-                val fsFile = baseDir.resolve(path)
+        file.annotationEntries.filter { it.typeName == "Import" }.forEach { entry ->
+            entry.valueArguments.forEach argumentLoop@{ argument ->
+                val expression = argument.getArgumentExpression() ?: return@argumentLoop
+                val reference = expression.text.trim('"').trim()
+                if (reference.isEmpty() || !seenReferences.add(reference)) return@argumentLoop
 
-                createPsiFile(fsFile.relativeTo(DirectoryManager.HOLLOW_ENGINE.toFile()).toString(), fsFile.readText())
-            }.getOrNull()
+                val imported = try {
+                    ScriptImports.resolve(owner, reference)
+                } catch (exception: IllegalArgumentException) {
+                    diagnostics += importDiagnostic(
+                        file,
+                        expression,
+                        exception.message ?: "Invalid script import '$reference'",
+                    )
+                    return@argumentLoop
+                }
+                if (imported == null) {
+                    diagnostics += importDiagnostic(file, expression, "Cannot resolve the imported script '$reference'")
+                    return@argumentLoop
+                }
+
+                val source = ScriptRegistry.artifacts(imported)?.sourceFile
+                if (source == null) {
+                    diagnostics += importDiagnostic(file, expression, "Cannot load the imported script '$reference'")
+                    return@argumentLoop
+                }
+
+                val importedName = editorPathOf(source)
+                if (importedName in activeFiles) {
+                    diagnostics += importDiagnostic(
+                        file,
+                        expression,
+                        "Recursive script import cycle through '$reference'",
+                    )
+                    return@argumentLoop
+                }
+                if (!importedNames.add(importedName)) return@argumentLoop
+
+                val importedText = try {
+                    source.readText()
+                } catch (exception: IOException) {
+                    diagnostics += importDiagnostic(
+                        file,
+                        expression,
+                        exception.message ?: "Cannot read the imported script '$reference'",
+                    )
+                    return@argumentLoop
+                }
+                importedFiles += createPsiFile(importedName, importedText, files, activeFiles)
+            }
         }
+        return ImportResolution(importedFiles, diagnostics)
+    }
+
+    private fun importDiagnostic(file: KtFile, element: PsiElement, message: String): Diagnostic {
+        val document = file.fileDocument
+        val range = element.textRange
+        val startLine = document.getLineNumber(range.startOffset)
+        val endLine = document.getLineNumber(range.endOffset)
+        return Diagnostic(
+            Range(
+                Position(startLine, range.startOffset - document.getLineStartOffset(startLine)),
+                Position(endLine, range.endOffset - document.getLineStartOffset(endLine)),
+            ),
+            Severity.ERROR,
+            message,
+        )
+    }
+
+    /** The path [HollowIdeModel][ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeModel] opens files by. */
+    private fun editorPathOf(file: File): String {
+        val root = DirectoryManager.HOLLOW_ENGINE.toAbsolutePath().normalize()
+        val path = file.toPath().toAbsolutePath().normalize()
+        if (!path.startsWith(root)) return file.name
+        return root.relativize(path).toString().replace(File.separatorChar, '/')
     }
 
     internal fun cleanupFile(file: KtFile) {
+        importDiagnostics.remove(file)
         projectStructureProvider.removeModule(file)
         (file as? PsiFileEx)?.markInvalidated()
         removeFromPsiManager(file)
+    }
+
+    private fun cleanupFiles(files: List<KtFile>) {
+        files.asReversed().forEach(::cleanupFile)
+    }
+
+    private fun collectImportDiagnostics(name: String, root: KtFile): List<Diagnostic> {
+        val relatedFiles = fileCache[name]?.relatedFiles ?: return importDiagnostics[root].orEmpty()
+        val rootPosition = Position(0, 0)
+        val rootRange = Range(rootPosition, rootPosition)
+        return relatedFiles.flatMap { file ->
+            importDiagnostics[file].orEmpty().map { diagnostic ->
+                if (file === root) diagnostic else diagnostic.copy(
+                    range = rootRange,
+                    message = "In imported script '${file.name}': ${diagnostic.message}",
+                )
+            }
+        }
     }
 
     @Synchronized
@@ -132,7 +266,7 @@ class ScriptingAnalyzerImpl(
     @Synchronized
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         val file = getOrCreateFile(name, text)
-        return diagnosticCode(file)
+        return collectImportDiagnostics(name, file) + diagnosticCode(file)
     }
 }
 

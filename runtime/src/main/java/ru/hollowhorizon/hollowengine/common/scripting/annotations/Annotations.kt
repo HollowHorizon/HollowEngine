@@ -1,7 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.scripting.annotations
 
+/**
+ * Pulls other scripts into this one. A plain name is resolved next to the importing script, inside its
+ * own namespace; a qualified `addon-id:path/lib.kts` reaches into another namespace and requires that
+ * namespace to be declared in `dependsOn`.
+ */
 @Target(AnnotationTarget.FILE, AnnotationTarget.CLASS)
-annotation class Import(val file: String)
+annotation class Import(vararg val file: String)
 
 /**
  * Attaches a `*.node.kts` script to a host type beyond the default [net.minecraft.server.MinecraftServer].

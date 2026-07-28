@@ -13,6 +13,9 @@ import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
+import ru.hollowhorizon.hollowengine.common.scripting.source.AddonScriptSource
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptSourceLifecycle
 import ru.hollowhorizon.hollowengine.network.HollowAddonPacketRegistry
 import java.io.File
 
@@ -407,6 +410,7 @@ internal class HollowAddonRuntime(
                 entrypoint.load(context, addonScope)
                 HollowAddonEventRegistrar.register(candidate.classesFile, classLoader, descriptor.id, entrypoint, addonScope)
             }
+            registerScripts(candidate, classLoader, libraries)
             loadedAddons[descriptor.id] = LoadedHollowAddon(
                 candidate = candidate,
                 classLoader = classLoader,
@@ -421,6 +425,7 @@ internal class HollowAddonRuntime(
             true
         }.onFailure { error ->
             HollowEngine.LOGGER.error("Failed to load addon '${descriptor.id}'", error)
+            ScriptRegistry.unregister(descriptor.id)
             addonJob?.cancelAndJoin()
             HollowAddonPacketRegistry.unregister(descriptor.id)
             koinApplication?.close()
@@ -429,8 +434,34 @@ internal class HollowAddonRuntime(
         }.getOrDefault(false)
     }
 
+    /**
+     * Publishes the addon's `scripts/` directory as a namespace of its own. The addon jar and its
+     * bundled libraries go on the compilation classpath and its classloader becomes the parent of the
+     * compiled scripts, so an addon can move part of its own logic into scripts.
+     */
+    private fun registerScripts(
+        candidate: HollowAddonCandidate,
+        classLoader: HollowAddonClassLoader,
+        libraries: List<File>,
+    ) {
+        val descriptor = candidate.descriptor
+        val source = AddonScriptSource(
+            namespace = descriptor.id,
+            archive = candidate.classesFile,
+            classLoader = classLoader,
+            classpath = listOf(candidate.classesFile) + libraries,
+            dependencies = descriptor.dependencies,
+            fingerprint = descriptor.version,
+            storageKey = candidate.fingerprint,
+        )
+        if (source.list().isEmpty()) return
+        ScriptSourceLifecycle.install()
+        ScriptRegistry.register(source)
+    }
+
     private suspend fun unloadSingle(addon: LoadedHollowAddon) {
         val id = addon.candidate.descriptor.id
+        ScriptRegistry.unregister(id)
         addon.job.cancelAndJoin()
         HollowAddonPacketRegistry.unregister(id)
         runCatching {

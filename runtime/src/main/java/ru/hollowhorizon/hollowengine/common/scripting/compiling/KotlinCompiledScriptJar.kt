@@ -52,7 +52,12 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.util.PropertiesCollection
 import kotlin.script.experimental.api.CompiledScript as KotlinCompiledScript
 
-fun File.loadKotlinCompiledScriptFromJar(): CompiledScript {
+/**
+ * Loads a script compiled earlier by this game, by an addon build, or by the Gradle build. The
+ * classes are defined under [baseClassLoader], which is how an addon's scripts keep seeing the addon's
+ * own classes without the compiler being installed.
+ */
+fun File.loadKotlinCompiledScriptFromJar(baseClassLoader: ClassLoader? = null): CompiledScript {
     val className = inputStream().use { input ->
         JarInputStream(input).use { jar ->
             jar.manifest.mainAttributes.getValue("Main-Class")
@@ -60,7 +65,10 @@ fun File.loadKotlinCompiledScriptFromJar(): CompiledScript {
         }
     }
     val script = KJvmCompiledScriptFromJar(className, this)
-    return KotlinCompiledScriptJar(nameWithoutExtension, script, ScriptEvaluationConfiguration())
+    val evaluationConfiguration = ScriptEvaluationConfiguration {
+        baseClassLoader?.let { ScriptEvaluationConfiguration.jvm.baseClassLoader(it) }
+    }
+    return KotlinCompiledScriptJar(nameWithoutExtension, script, evaluationConfiguration)
 }
 
 internal class KotlinCompiledScriptJar(
@@ -83,12 +91,14 @@ internal class KotlinCompiledScriptJar(
             evaluator(script, evaluationConfiguration.with(body))
         }
 
-        return if (result is ResultWithDiagnostics.Success) {
-            @Suppress("UNCHECKED_CAST")
-            Result.success(result.value.returnValue.scriptInstance as T)
-        } else {
-            Result.failure(ScriptEvaluationException(name, result.reports.map { it.convert() }))
+        if (result !is ResultWithDiagnostics.Success) {
+            return Result.failure(ScriptEvaluationException(name, result.reports.map { it.convert() }))
         }
+        val value = result.value.returnValue
+        if (value is ResultValue.Error) return Result.failure(value.error)
+
+        @Suppress("UNCHECKED_CAST")
+        return Result.success(value.scriptInstance as T)
     }
 }
 
