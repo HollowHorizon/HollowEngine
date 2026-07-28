@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
 import java.lang.reflect.Modifier
 import java.nio.file.Path
+import java.util.jar.JarFile
 
 object NeoForgeEnvironmentSetup : EnvironmentSetup {
     override fun setup(mappings: Mappings, outputDir: File): List<File> {
@@ -36,9 +37,30 @@ object NeoForgeEnvironmentSetup : EnvironmentSetup {
             .filter(String::isNotBlank)
             .map(::File)
             .filter { it.exists() }
-            .filterNot { obfuscatedMinecraftJar.containsMatchIn(it.absolutePath) }
+            .filterNot { isMinecraftGameJar(it) || obfuscatedMinecraftJar.containsMatchIn(it.absolutePath) }
             .distinctBy { it.absoluteFile.normalize() }
             .toList()
+    }
+
+    private fun isMinecraftGameJar(file: File): Boolean {
+        if (!file.isFile || !file.name.endsWith(".jar")) return false
+
+        return try {
+            JarFile(file).use { jar ->
+                val mainClass = jar.manifest?.mainAttributes?.getValue("Main-Class") ?: return false
+
+                when (mainClass) {
+                    "net.minecraft.client.Main",
+                    "net.minecraft.server.Main",
+                    "net.minecraft.bundler.Main"
+                        -> true
+
+                    else -> false
+                }
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun isAvailable(): Boolean {

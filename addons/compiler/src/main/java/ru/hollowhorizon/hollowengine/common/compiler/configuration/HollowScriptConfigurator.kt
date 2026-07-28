@@ -21,12 +21,20 @@ class HollowScriptConfigurator : RefineScriptCompilationConfigurationHandler {
     private fun processAnnotations(context: ScriptConfigurationRefinementContext): ResultWithDiagnostics<ScriptCompilationConfiguration> {
         val references = context.collectedData?.get(ScriptCollectedData.collectedAnnotations)
             .orEmpty()
+            .asSequence()
             .map { it.annotation }
-            .filterIsInstance<Import>()
-            .flatMap { it.file.asList() }
+            .filter { annotation ->
+                annotation.annotationClass.qualifiedName == "ru.hollowhorizon.hollowengine.common.scripting.annotations.Import"
+            }
+            .flatMap { annotation ->
+                val fileMethod = annotation.javaClass.getMethod("file")
+                val filesArray = fileMethod.invoke(annotation) as? Array<*> ?: emptyArray<Any>()
+                filesArray.map { it.toString() }
+            }
             .map(String::trim)
             .filter(String::isNotEmpty)
             .distinct()
+            .toList()
         if (references.isEmpty()) return context.compilationConfiguration.asSuccess()
 
         val script = context.script
