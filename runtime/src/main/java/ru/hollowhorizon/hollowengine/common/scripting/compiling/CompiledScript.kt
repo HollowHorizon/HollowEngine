@@ -7,6 +7,7 @@ import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 interface CompiledScript {
     val name: String
     val type: KClass<*>
+    val implicitReceiverCount: Int
 
     fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit = {}): Result<T>
 

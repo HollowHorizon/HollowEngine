@@ -6,7 +6,9 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationExcept
 import kotlin.reflect.KClass
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.ResultWithDiagnostics
+import kotlin.script.experimental.api.ScriptCompilationConfiguration
 import kotlin.script.experimental.api.ScriptEvaluationConfiguration
+import kotlin.script.experimental.api.implicitReceivers
 import kotlin.script.experimental.api.with
 
 data class CompiledScriptImpl(
@@ -22,6 +24,9 @@ data class CompiledScriptImpl(
 
     override val type: KClass<*>
         get() = scriptClassDelegate.value
+
+    override val implicitReceiverCount: Int
+        get() = script.compilationConfiguration[ScriptCompilationConfiguration.implicitReceivers]?.size ?: 0
 
     override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
         val evaluator = HollowEngineScriptEvaluator()

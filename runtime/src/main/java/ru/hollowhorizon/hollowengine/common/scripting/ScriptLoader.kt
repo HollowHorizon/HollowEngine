@@ -79,12 +79,18 @@ object ScriptLoader {
         id: ScriptId,
         validate: (KClass<*>) -> Unit = {},
         body: ScriptEvaluationConfiguration.Builder.() -> Unit = {},
+    ): Result<T> = executeCompiled(id, { compiled -> validate(compiled.type) }, body)
+
+    internal fun <T> executeCompiled(
+        id: ScriptId,
+        validate: (CompiledScript) -> Unit = {},
+        body: ScriptEvaluationConfiguration.Builder.() -> Unit = {},
     ): Result<T> {
         var lastFailure: Throwable? = null
         repeat(2) { attempt ->
             val compiled = compile(id).getOrElse { return Result.failure(it) }
             val result = runCatching {
-                validate(compiled.type)
+                validate(compiled)
                 compiled.execute<T>(body).getOrThrow()
             }
             val failure = result.exceptionOrNull() ?: return result

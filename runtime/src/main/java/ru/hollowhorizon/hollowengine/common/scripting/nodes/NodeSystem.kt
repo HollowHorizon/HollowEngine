@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateExecutor
-import kotlin.reflect.KClass
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.implicitReceivers
 
@@ -139,9 +138,11 @@ internal fun buildNode(
     val nodeScope = CoroutineScope(parentScope.coroutineContext + SupervisorJob(parentScope.coroutineContext.job))
     val binding = NodeBinding(host, nodeScope)
 
-    val script = ScriptLoader.execute<NodeScript>(
+    val script = ScriptLoader.executeCompiled<NodeScript>(
         id = id,
-        validate = { type -> receiverMismatch(type, host, receivers)?.let { error(it) } },
+        validate = { compiled ->
+            receiverMismatch(compiled.implicitReceiverCount, host, receivers)?.let { error(it) }
+        },
     ) {
         constructorArgs(canonicalPath, binding)
         implicitReceivers(*receivers.toTypedArray())
@@ -167,13 +168,12 @@ internal fun buildNode(
  * Explains a receiver count that will not fit, before the evaluator fails on it with a bare
  * `WrongMethodTypeException`.
  *
- * A script's compiled constructor takes its path, its binding, and one argument per implicit receiver.
- * `@file:Attach` adds a receiver, so an attached script cannot be started as a plain server node and the
- * other way round. That is easy to do by accident, and the raw method-handle error says nothing about why.
+ * `@file:Attach` adds an implicit receiver, so an attached script cannot be started as a plain server
+ * node and the other way round. Imported scripts also become constructor parameters, therefore the
+ * receiver count comes from the compilation configuration rather than the generated JVM constructor.
  */
-private fun receiverMismatch(type: KClass<*>, host: NodeHost, receivers: List<Any>): String? {
-    val expected = type.java.constructors.minOfOrNull { it.parameterCount } ?: return null
-    val given = receivers.size + FixedConstructorArgs
+private fun receiverMismatch(expected: Int, host: NodeHost, receivers: List<Any>): String? {
+    val given = receivers.size
     if (expected == given) return null
 
     val wantsMore = expected > given
@@ -188,16 +188,13 @@ private fun receiverMismatch(type: KClass<*>, host: NodeHost, receivers: List<An
         else -> "it expects fewer implicit receivers than this host provides"
     }
     return "Cannot run node script as ${host.describe()}: $hint " +
-            "(script takes $expected constructor arguments, this host supplies $given)"
+            "(script expects $expected implicit receivers, this host supplies $given)"
 }
 
 private fun NodeHost.describe(): String = when (this) {
     is NodeHost.Server -> "a server node"
     is NodeHost.OfEntity -> "a node attached to ${entity.type.description.string}"
 }
-
-/** The path and the binding, which every node script takes before its implicit receivers. */
-private const val FixedConstructorArgs = 2
 
 /**
  * The spelling a node is stored under. Scripts of the sandbox stay unqualified so world saves written

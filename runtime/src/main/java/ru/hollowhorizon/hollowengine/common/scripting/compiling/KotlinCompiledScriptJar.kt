@@ -86,6 +86,12 @@ internal class KotlinCompiledScriptJar(
     override val type: KClass<*>
         get() = scriptClass.value
 
+    override val implicitReceiverCount: Int
+        get() {
+            scriptClass.value
+            return script.compilationConfiguration[ScriptCompilationConfiguration.implicitReceivers]?.size ?: 0
+        }
+
     override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
         val result = runBlocking {
             evaluator(script, evaluationConfiguration.with(body))
@@ -193,13 +199,18 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
 
         val providedProps = refinedEvalConfiguration[ScriptEvaluationConfiguration.providedProperties]
         val implicitReceivers = refinedEvalConfiguration[ScriptEvaluationConfiguration.implicitReceivers]
+        val expectedImplicitReceiverCount =
+            refinedEvalConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]
+                ?.get(ScriptCompilationConfiguration.implicitReceivers)
+                ?.size
+                ?: 0
         val ctorArgs = refinedEvalConfiguration[ScriptEvaluationConfiguration.constructorArgs]
         val prevSnippets = refinedEvalConfiguration[ScriptEvaluationConfiguration.previousSnippets]
 
         var estimatedSize = importedScriptsEvalResults.size
         if (prevSnippets != null) estimatedSize++
         if (ctorArgs != null) estimatedSize += ctorArgs.size
-        if (implicitReceivers != null) estimatedSize += implicitReceivers.size
+        if (implicitReceivers != null) estimatedSize += minOf(implicitReceivers.size, expectedImplicitReceiverCount)
         if (providedProps != null) estimatedSize += providedProps.size * (if (isCompiledWithK2) 2 else 1)
 
         val args = ArrayList<Any?>(estimatedSize)
@@ -215,7 +226,7 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
             args.add(it.returnValue.scriptInstance)
         }
 
-        implicitReceivers?.let { args.addAll(it) }
+        implicitReceivers?.take(expectedImplicitReceiverCount)?.let { args.addAll(it) }
 
         if (!isCompiledWithK2) {
             providedProps?.forEach { args.add(it.value) }
