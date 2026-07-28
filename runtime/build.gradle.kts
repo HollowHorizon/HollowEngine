@@ -44,7 +44,6 @@ apply(from = rootProject.file("gradle/lang-merge.gradle"))
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val generatedAssetsDir = layout.buildDirectory.dir("generated/sources/assets/kotlin")
-val generatedBuildInfoDir = layout.buildDirectory.dir("generated/sources/buildinfo/kotlin")
 val mergedLangDir = layout.buildDirectory.dir("generated/lang/assets/$modId/lang")
 val runtimeResourcesPath = sourceSets.named("main").get().output.resourcesDir
     ?.toPath()
@@ -154,42 +153,11 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// Compiled scripts are bytecode against this exact engine, so the cache key has to name the build it
-// was produced by. Generating a constant keeps that information available without reading resources.
-val generateBuildInfo = tasks.register("generateBuildInfo") {
-    val outputDirectory = generatedBuildInfoDir
-    val engineVersion = modVersion
-    val gameVersion = minecraftVersion
-    val languageVersion = kotlinVersion
-    inputs.property("modVersion", engineVersion)
-    inputs.property("minecraftVersion", gameVersion)
-    inputs.property("kotlinVersion", languageVersion)
-    outputs.dir(outputDirectory)
-    doLast {
-        val target = outputDirectory.get().asFile
-            .resolve("ru/hollowhorizon/hollowengine/HollowEngineBuild.kt")
-        target.parentFile.mkdirs()
-        target.writeText(
-            """
-            package ru.hollowhorizon.hollowengine
-
-            /** Generated from the Gradle build. Do not edit. */
-            object HollowEngineBuild {
-                const val VERSION = "$engineVersion"
-                const val MINECRAFT_VERSION = "$gameVersion"
-                const val KOTLIN_VERSION = "$languageVersion"
-            }
-            """.trimIndent() + "\n"
-        )
-    }
-}
-
 sourceSets.named("main").configure {
     java.setSrcDirs(
         listOf(
             rootProject.file("runtime/src/main/java"),
             generatedAssetsDir,
-            generatedBuildInfoDir,
         )
     )
     resources.setSrcDirs(
@@ -204,6 +172,8 @@ sourceSets.named("main").configure {
 sourceSets.named("test").configure {
     java.setSrcDirs(listOf(rootProject.file("runtime/src/test/kotlin")))
 }
+
+apply(from = rootProject.file("gradle/runtime-build-info.gradle.kts"))
 
 tasks.named<ProcessResources>("processResources") {
     dependsOn("mergeLang")
@@ -222,11 +192,11 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 tasks.named<KotlinCompile>("compileKotlin") {
-    dependsOn("generateAssets", generateBuildInfo)
+    dependsOn("generateAssets")
 }
 
 tasks.named<JavaCompile>("compileJava") {
-    dependsOn("generateAssets", generateBuildInfo)
+    dependsOn("generateAssets")
 }
 
 tasks.named<Jar>("jar") {
@@ -236,79 +206,7 @@ tasks.named<Jar>("jar") {
 val engineScriptsDirectory = rootProject.file("runtime/src/main/resources/scripts")
 val hasEngineScripts = engineScriptsDirectory.isDirectory &&
     engineScriptsDirectory.walkTopDown().any { it.isFile && it.extension == "kts" }
-
-fun registerEngineScriptCompilation(variant: String, identity: String, remap: Boolean): TaskProvider<JavaExec> {
-    val outputDirectory = layout.buildDirectory.dir("hollowengine/scripts/$variant")
-    val compilerProject = rootProject.project(":addons:compiler")
-    val mappings = rootProject.file("addons/compiler/src/main/resources/mappings-$minecraftVersion.tiny")
-    val toolClasspath = configurations.maybeCreate("hollowengineScriptCompiler$variant").apply {
-        isCanBeResolved = true
-        isCanBeConsumed = false
-        isTransitive = true
-    }
-    dependencies.add(
-        toolClasspath.name,
-        files(compilerProject.tasks.named<Jar>("shadowJar").flatMap { it.archiveFile }),
-    )
-    listOf(
-        "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion",
-        "org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion",
-        "org.apache.logging.log4j:log4j-core:2.23.1",
-        "org.ow2.asm:asm-commons:9.7.1",
-    ).forEach { notation -> dependencies.add(toolClasspath.name, notation) }
-
-    val mainSources = sourceSets.named("main")
-    return tasks.register<JavaExec>("compile${variant.replaceFirstChar(Char::titlecase)}EngineScripts") {
-        group = "build"
-        description = "Compiles the engine's own scripts for the $variant mapping namespace."
-        mainClass.set("ru.hollowhorizon.hollowengine.common.compiler.tools.ScriptPrecompiler")
-        classpath = files(
-            mainSources.map { it.output },
-            mainSources.map { it.compileClasspath },
-            mainSources.map { it.runtimeClasspath },
-            toolClasspath,
-        )
-        workingDir = layout.buildDirectory.dir("hollowengine/precompiler").get().asFile
-        inputs.dir(engineScriptsDirectory).withPathSensitivity(PathSensitivity.RELATIVE)
-        outputs.dir(outputDirectory)
-        argumentProviders.add(CommandLineArgumentProvider {
-            listOf(
-                "--scripts", engineScriptsDirectory.absolutePath,
-                "--output", outputDirectory.get().asFile.absolutePath,
-                "--namespace", "hollowengine",
-                "--fingerprint", modVersion,
-                "--identity", identity,
-                "--remap", remap.toString(),
-                "--mappings", if (remap) mappings.absolutePath else "",
-            )
-        })
-        doFirst {
-            outputDirectory.get().asFile.deleteRecursively()
-            workingDir.mkdirs()
-        }
-    }
-}
-
-val generateEngineScriptIndex = tasks.register("generateEngineScriptIndex") {
-    val outputDirectory = layout.buildDirectory.dir("hollowengine/script-index")
-    val scriptsDirectory = engineScriptsDirectory
-    inputs.dir(scriptsDirectory).withPathSensitivity(PathSensitivity.RELATIVE).optional()
-    outputs.dir(outputDirectory)
-    doLast {
-        val index = if (scriptsDirectory.isDirectory) {
-            scriptsDirectory.walkTopDown()
-                .filter { it.isFile && it.extension == "kts" }
-                .map { scriptsDirectory.toPath().relativize(it.toPath()).toString().replace('\\', '/') }
-                .sorted()
-                .toList()
-        } else {
-            emptyList()
-        }
-        val target = outputDirectory.get().asFile.resolve("META-INF/hollowengine/scripts.index")
-        target.parentFile.mkdirs()
-        target.writeText(index.joinToString("\n"))
-    }
-}
+apply(from = rootProject.file("gradle/runtime-scripts.gradle.kts"))
 
 val runtimeShadowJar = tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("dev")
@@ -334,13 +232,13 @@ val runtimeShadowJar = tasks.named<ShadowJar>("shadowJar") {
     }
     if (hasEngineScripts) {
         from(engineScriptsDirectory) { into("scripts") }
-        from(registerEngineScriptCompilation("named", "neoforge/official/production", remap = false)) {
+        from(tasks.named("compileNamedEngineScripts")) {
             into("META-INF/hollowengine/scripts/named")
         }
-        from(registerEngineScriptCompilation("intermediary", "fabric/intermediary/production", remap = true)) {
+        from(tasks.named("compileIntermediaryEngineScripts")) {
             into("META-INF/hollowengine/scripts/intermediary")
         }
-        from(generateEngineScriptIndex)
+        from(tasks.named("generateEngineScriptIndex"))
     }
 }
 
