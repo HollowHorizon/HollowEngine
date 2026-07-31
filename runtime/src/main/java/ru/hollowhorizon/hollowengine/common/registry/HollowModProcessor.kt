@@ -40,7 +40,14 @@ object HollowModProcessor {
                 val obj = method.declaringClass.kotlin.objectInstance ?: return@registerMethodHandler
                 handles.createEventListener(method, obj)
             }
-            EventHandler.get(method.parameterTypes[0].kotlin as KClass<Event>).register(listener)
+
+            var isClientOnly = ClientEvent::class.java.isAssignableFrom(method.parameterTypes[0])
+            isClientOnly = isClientOnly || method.declaringClass.hasAnnotationNamed(ClientOnly::class)
+            isClientOnly = isClientOnly || method.isAnnotationPresent(ClientOnly::class.java)
+
+            if (!isClientOnly || isPhysicalClient) {
+                EventHandler.get(method.parameterTypes[0].kotlin as KClass<Event>).register(listener)
+            }
         }
 
         AnnotationProcessorEvent.post(AnnotationProcessorEvent(getAnnotatedClasses, getSubTypes, getAnnotatedMethods))

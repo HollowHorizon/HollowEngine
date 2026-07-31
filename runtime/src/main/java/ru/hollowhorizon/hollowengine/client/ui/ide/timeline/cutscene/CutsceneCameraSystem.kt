@@ -3,10 +3,12 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderArmEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
+@ClientOnly
 object CutsceneCameraSystem {
     private var controller: CutscenePlaybackController? = null
 
