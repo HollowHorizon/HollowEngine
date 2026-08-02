@@ -52,6 +52,7 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.ui.*",
                     "ru.hollowhorizon.hollowengine.common.ui.hud.*",
                     "ru.hollowhorizon.hollowengine.common.ui.net.*",
+                    "ru.hollowhorizon.hollowengine.client.ui.script.observe",
                     "ru.hollowhorizon.hollowengine.common.scripting.annotations.*",
                     "net.minecraft.nbt.CompoundTag",
                     ResourceLocation::class.qualifiedName!!,
