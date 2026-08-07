@@ -1,3 +1,5 @@
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
@@ -6,11 +8,25 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 abstract class AnalysisScript
 
 class ScriptingAnalysisEnvironmentTest {
+    @Test
+    fun `analysis environment can warm up in background`() {
+        withEnvironment { environment ->
+            runBlocking {
+                withTimeout(60_000) {
+                    environment.warmUpAnalysis(this).join()
+                }
+            }
+
+            assertSame(environment.analyzer, environment.analyzer)
+        }
+    }
+
     @Test
     fun `diagnostic reports type errors through analysis api`() {
         withEnvironment { environment ->

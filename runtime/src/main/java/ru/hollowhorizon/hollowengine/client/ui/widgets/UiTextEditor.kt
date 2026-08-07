@@ -45,6 +45,10 @@ fun interface UiSyntaxHighlighter {
     fun highlight(text: String): List<UiTextHighlight>
 }
 
+fun interface UiTextPasteTransformer {
+    fun transform(document: String, caret: UiTextCaret, pastedText: String): String
+}
+
 const val UiNoCaretOffset: Int = -1
 
 interface UiCaretAwareSyntaxHighlighter : UiSyntaxHighlighter {

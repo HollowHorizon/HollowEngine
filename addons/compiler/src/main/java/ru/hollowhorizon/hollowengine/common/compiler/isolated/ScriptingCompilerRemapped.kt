@@ -16,7 +16,8 @@ import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
-import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapClass
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.ClassRemappingSession
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.RemappingClasspath
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.ByteArrayInputStream
 import java.io.InputStream
@@ -34,6 +35,7 @@ import kotlin.script.experimental.jvm.jvm
 class ScriptJvmCompilerRemapped(
     definitions: List<ScriptDefinition>,
     hostConfiguration: ScriptingHostConfiguration,
+    private val remappingClasspath: Lazy<RemappingClasspath>,
 ) : ScriptCompilerProxy {
     private val delegate = HollowEngineScriptCompiler(definitions, hostConfiguration)
 
@@ -54,10 +56,20 @@ class ScriptJvmCompilerRemapped(
         val jvmScript = script as? KJvmCompiledScript ?: return script
         val module = jvmScript.getCompiledModule() as? KJvmCompiledModuleInMemory ?: return jvmScript
         val outputFiles = module.compilerOutputFiles
+        val remappingSession = if (isProduction && !NeoForgeEnvironmentSetup.isAvailable()) {
+            val environment = ScriptingEnvironment.INSTANCE
+            ClassRemappingSession(
+                environment.mappings,
+                remappingClasspath.value,
+                loader = { name -> outputFiles["$name.class"] },
+            )
+        } else {
+            null
+        }
         val remappedModule = RemappedCompiledModule(
             outputFiles.mapValues { (path, bytes) ->
                 debugSave(path, bytes)
-                remapScriptClass(path, outputFiles, bytes)
+                if (path.endsWith(".class")) remappingSession?.remap(bytes) ?: bytes else bytes
             }
         )
         return KJvmCompiledScript(
@@ -165,17 +177,6 @@ internal fun withScriptCompilationCache(
         }
 }
 
-
-private fun remapScriptClass(path: String, classes: Map<String, ByteArray>, bytes: ByteArray): ByteArray {
-    if (!path.endsWith(".class") || !isProduction || NeoForgeEnvironmentSetup.isAvailable()) return bytes
-    val environment = ScriptingEnvironment.INSTANCE
-    return remapClass(
-        bytes,
-        loader = { name -> classes["$name.class"] },
-        classpath = environment.classpath,
-        mappings = environment.mappings,
-    )
-}
 
 private class RemappedCompiledModule(
     override val compilerOutputFiles: Map<String, ByteArray>,

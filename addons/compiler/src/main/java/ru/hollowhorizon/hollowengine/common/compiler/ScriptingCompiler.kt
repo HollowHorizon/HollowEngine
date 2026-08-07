@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.common.compiler.isolated.ScriptJvmCompilerR
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptCompilationContext
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.RemappingClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.logW
 import java.io.File
@@ -23,6 +24,8 @@ import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 import kotlin.script.experimental.api.CompiledScript as KotlinScript
 
 class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : ScriptingCompiler {
+    private val remappingClasspath = lazy { RemappingClasspath(environment.classpath) }
+
     override fun compile(file: File, context: ScriptCompilationContext): Result<CompiledScript.WithFile> {
         val definition = environment.scriptDefinitions.getDefinitionFor(file.name)
         val result = runScriptingBlocking {
@@ -68,8 +71,16 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
 
     private fun newCompiler(definition: ScriptDefinition) = JvmScriptCompiler(
         definition.hostConfiguration,
-        ScriptJvmCompilerRemapped(environment.scriptDefinitions, definition.hostConfiguration),
+        ScriptJvmCompilerRemapped(
+            environment.scriptDefinitions,
+            definition.hostConfiguration,
+            remappingClasspath,
+        ),
     )
+
+    fun close() {
+        if (remappingClasspath.isInitialized()) remappingClasspath.value.close()
+    }
 
     /**
      * Stores the compiled module so later runs, including ones where this addon is not installed, can

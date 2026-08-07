@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.compiler.tools
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
 import ru.hollowhorizon.hollowengine.common.scripting.DefaultScriptDefinitions
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
 import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptCompilationContext
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
@@ -37,20 +38,13 @@ object ScriptPrecompiler {
         isProduction = options.remap
         ScriptFingerprint.runtimeIdentity = options.identity
 
-        val classpath = System.getProperty("java.class.path")
-            .split(File.pathSeparator)
-            .filter(String::isNotBlank)
-            .map(::File)
-            .filter(File::exists)
-            .distinctBy { it.absoluteFile.normalize() }
-
         val mappings = options.mappings?.let { file ->
             file.inputStream().use(MappingsLoader::loadMappings)
         } ?: Mappings.EMPTY
 
         val environment = ScriptingEnvironmentImpl(
             javaHome = File(System.getProperty("java.home")),
-            classpath = classpath,
+            classpath = currentClasspath(),
             scriptTypes = DefaultScriptDefinitions.providers(),
             mappings = mappings,
         )
@@ -68,14 +62,15 @@ object ScriptPrecompiler {
             ScriptRegistry.register(source)
 
             val failures = LinkedHashMap<String, Throwable>()
-            source.list().forEach { id ->
+            val outputs = source.list().associateWith { id -> options.output.resolve(id.path + ".jar") }
+            outputs.forEach { (id, output) ->
                 val artifacts = ScriptRegistry.artifacts(id) ?: return@forEach
                 val sourceFile = artifacts.sourceFile ?: return@forEach
                 val hash = ScriptFingerprint.compute(id) ?: run {
                     failures[id.path] = IllegalStateException("Cannot fingerprint the script")
                     return@forEach
                 }
-                val output = options.output.resolve(id.path + ".jar")
+                if (ScriptCache.isValid(output, hash)) return@forEach
                 environment.compiler.compile(
                     sourceFile,
                     ScriptCompilationContext(cacheOutput = output, cacheHash = hash),
@@ -84,6 +79,7 @@ object ScriptPrecompiler {
                     failures[id.path] = IllegalStateException("The compiler produced no artifact")
                 }
             }
+            pruneScriptArtifacts(options.output, outputs.values)
             failures
         } finally {
             ScriptRegistry.unregister(options.namespace)
@@ -104,29 +100,17 @@ object ScriptPrecompiler {
     ) {
         companion object {
             fun parse(args: Array<String>): Options {
-                val values = HashMap<String, String>()
-                var index = 0
-                while (index < args.size) {
-                    val name = args[index].removePrefix("--")
-                    val value = args.getOrNull(index + 1) ?: error("Missing value for --$name")
-                    values[name] = value
-                    index += 2
-                }
-
-                fun required(name: String) = values[name] ?: error("Missing --$name")
+                val values = ScriptToolArguments(args)
 
                 return Options(
-                    scripts = File(required("scripts")),
-                    output = File(required("output")),
-                    namespace = required("namespace"),
-                    fingerprint = required("fingerprint"),
-                    identity = required("identity"),
-                    remap = values["remap"]?.toBooleanStrict() ?: false,
-                    mappings = values["mappings"]?.let(::File)?.takeIf(File::isFile),
-                    dependencies = values["dependsOn"].orEmpty()
-                        .split(',')
-                        .map(String::trim)
-                        .filter(String::isNotEmpty),
+                    scripts = File(values.required("scripts")),
+                    output = File(values.required("output")),
+                    namespace = values.required("namespace"),
+                    fingerprint = values.required("fingerprint"),
+                    identity = values.required("identity"),
+                    remap = values.optional("remap")?.toBooleanStrict() ?: false,
+                    mappings = values.optional("mappings")?.let(::File)?.takeIf(File::isFile),
+                    dependencies = values.list("dependsOn"),
                 )
             }
         }

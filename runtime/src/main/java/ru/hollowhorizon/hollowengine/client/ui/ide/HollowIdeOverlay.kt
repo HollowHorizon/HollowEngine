@@ -91,6 +91,14 @@ object HollowIdeOverlay {
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
 
+    private fun editorState(file: HollowIdeOpenFile): TextFieldState = editorStates.getOrPut(file.path) {
+        TextFieldState(
+            initialText = file.text,
+            multiline = true,
+            pasteTransformer = KotlinStringPasteTransformer.takeIf { file.path.isKotlinSource() },
+        )
+    }
+
     private var lastMouseX = 0f
     private var lastMouseY = 0f
 
@@ -419,7 +427,7 @@ object HollowIdeOverlay {
                 }
             }
         }
-        val editorState = editorStates.getOrPut(file.path) { TextFieldState(file.text, multiline = true) }
+        val editorState = editorState(file)
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
         val inlayHints = editorSession.inlayHints(file.text)
@@ -562,7 +570,7 @@ object HollowIdeOverlay {
         Minecraft.getInstance().execute {
             pipeline.await()
             val editorKey = "editor-${file.id}"
-            val editor = editorStates.getOrPut(file.path) { TextFieldState(file.text, multiline = true) }
+            val editor = editorState(file)
             editor.moveCaret(offset)
             surface.runtime.focus(editorKey)
         }

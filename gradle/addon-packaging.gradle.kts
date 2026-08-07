@@ -14,6 +14,7 @@ import java.util.Properties
 val hollowScriptsDirectory = "scripts"
 val hollowCompiledScriptsPath = "META-INF/hollowengine/scripts"
 val hollowScriptPrecompiler = "ru.hollowhorizon.hollowengine.common.compiler.tools.ScriptPrecompiler"
+val hollowScriptArtifactRemapper = "ru.hollowhorizon.hollowengine.common.compiler.tools.ScriptArtifactRemapper"
 val hollowScriptCompilerConfiguration = "hollowengineScriptCompiler"
 
 /**
@@ -107,7 +108,6 @@ fun Project.registerHollowScriptCompilation(
         // The engine resolves its own directory relative to the working directory, and a build has no
         // business creating one next to the sources.
         workingDir = layout.buildDirectory.dir("hollowengine/precompiler").get().asFile
-        onlyIf { !scriptFiles.isEmpty }
         inputs.files(scriptFiles).withPathSensitivity(PathSensitivity.RELATIVE)
         inputs.property("namespace", namespace)
         inputs.property("fingerprint", fingerprint)
@@ -125,9 +125,51 @@ fun Project.registerHollowScriptCompilation(
             )
         })
         doFirst {
-            outputDirectory.get().asFile.deleteRecursively()
             workingDir.mkdirs()
         }
+    }
+}
+
+/** Remaps already compiled named script artifacts without starting the Kotlin compiler a second time. */
+fun Project.registerHollowScriptRemapping(
+    variant: String,
+    scriptsDirectory: File,
+    input: TaskProvider<JavaExec>,
+    namespace: String,
+    fingerprint: String,
+    identity: String,
+): TaskProvider<JavaExec> {
+    val inputDirectory = layout.buildDirectory.dir("hollowengine/scripts/named")
+    val outputDirectory = layout.buildDirectory.dir("hollowengine/scripts/$variant")
+    val scriptFiles = fileTree(scriptsDirectory) { include("**/*.kts") }
+    val gameVersion = rootProject.property("minecraftVersion") as String
+    val mappings = rootProject.file("addons/compiler/src/main/resources/mappings-$gameVersion.tiny")
+    return tasks.register<JavaExec>("compile${variant.replaceFirstChar(Char::titlecase)}Scripts") {
+        group = "build"
+        description = "Remaps this project's compiled scripts for the $variant mapping namespace."
+        dependsOn(input)
+        mainClass.set(hollowScriptArtifactRemapper)
+        classpath = hollowScriptCompilerClasspath()
+        workingDir = layout.buildDirectory.dir("hollowengine/precompiler").get().asFile
+        inputs.files(scriptFiles).withPathSensitivity(PathSensitivity.RELATIVE)
+        inputs.dir(inputDirectory).withPathSensitivity(PathSensitivity.RELATIVE)
+        inputs.file(mappings).withPathSensitivity(PathSensitivity.RELATIVE)
+        inputs.property("namespace", namespace)
+        inputs.property("fingerprint", fingerprint)
+        inputs.property("identity", identity)
+        outputs.dir(outputDirectory)
+        argumentProviders.add(CommandLineArgumentProvider {
+            listOf(
+                "--scripts", scriptsDirectory.absolutePath,
+                "--input", inputDirectory.get().asFile.absolutePath,
+                "--output", outputDirectory.get().asFile.absolutePath,
+                "--namespace", namespace,
+                "--fingerprint", fingerprint,
+                "--identity", identity,
+                "--mappings", mappings.absolutePath,
+            )
+        })
+        doFirst { workingDir.mkdirs() }
     }
 }
 
@@ -202,13 +244,13 @@ val compileNamedScripts = registerHollowScriptCompilation(
     identity = neoforgeScriptIdentity,
     remap = false,
 )
-val compileIntermediaryScripts = registerHollowScriptCompilation(
+val compileIntermediaryScripts = registerHollowScriptRemapping(
     variant = "intermediary",
     scriptsDirectory = scriptsDirectory,
+    input = compileNamedScripts,
     namespace = addonNamespace,
     fingerprint = version.toString(),
     identity = fabricScriptIdentity,
-    remap = true,
 )
 
 // Scripts and the artifacts compiled from them live inside the variant jar, because compiled script

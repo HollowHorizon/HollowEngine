@@ -22,6 +22,7 @@ class TextFieldState(
     var indentSize: Int? = 4,
     var autoPairs: Boolean = true,
     var multiCaret: Boolean = true,
+    var pasteTransformer: UiTextPasteTransformer? = null,
     fontSize: Float = DefaultUiFontSize,
     fontFamily: String? = null,
     wrap: Boolean = false,
@@ -76,7 +77,18 @@ class TextFieldState(
         val sanitized = if (multiline) normalized else normalized.replace('\n', ' ')
         val ranges = activeCaretRanges()
         val lines = if (multiline) sanitized.split('\n') else emptyList()
-        return if (lines.size == ranges.size && ranges.size > 1) {
+        val distributed = lines.size == ranges.size && ranges.size > 1
+        val transformer = pasteTransformer
+        return if (transformer != null) {
+            val replacements = if (distributed) lines else List(ranges.size) { sanitized }
+            replaceRangesIndividually(
+                ranges.map { TextEditRange(it.selectionStart, it.selectionEnd) },
+                ranges.zip(replacements) { range, replacement ->
+                    transformer.transform(text, range, replacement)
+                },
+                selectInserted = false,
+            )
+        } else if (distributed) {
             replaceRangesIndividually(
                 ranges.map { TextEditRange(it.selectionStart, it.selectionEnd) },
                 lines,

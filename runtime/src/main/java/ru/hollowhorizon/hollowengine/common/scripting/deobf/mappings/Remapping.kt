@@ -233,34 +233,66 @@ fun remapClass(
     mappings: Mappings,
     from: String = "named",
     to: String = "intermediary",
-): ByteArray {
-    val cache = hashMapOf<String, ByteArray?>()
-    val jarsToUse = classpath.filter { it.isFile && it.extension.equals("jar", ignoreCase = true) }.map(::JarFile)
-    val directories = classpath.filter(File::isDirectory)
-    val lookup = jarsToUse.flatMap { j ->
-        j.entries().asSequence().filter { it.name.endsWith(".class") }
-            .map { it.name.dropLast(6) to { j.getInputStream(it).readBytes() } }
-    }.toMap()
+): ByteArray = RemappingClasspath(classpath).use { classpathLookup ->
+    ClassRemappingSession(mappings, classpathLookup, loader, from, to).remap(input)
+}
 
-    val remapper = MappingsRemapper(
-        mappings, from, to,
-        loader = { name ->
-            when {
-                name in lookup -> cache.getOrPut(name) { lookup.getValue(name)() }
-                else -> cache.getOrPut(name) {
-                    directories.firstNotNullOfOrNull { directory ->
-                        directory.resolve("$name.class").takeIf(File::isFile)?.readBytes()
-                    } ?: loader(name)
-                }
-            }
+/**
+ * Indexes a compilation classpath once and lazily reads only classes requested by inheritance lookup.
+ * The owned [JarFile] handles must be closed after the compilation batch.
+ */
+class RemappingClasspath(classpath: List<File>) : AutoCloseable {
+    private val jars = classpath.asSequence()
+        .filter { it.isFile && it.extension.equals("jar", ignoreCase = true) }
+        .map(::JarFile)
+        .toList()
+    private val directories = classpath.filter(File::isDirectory)
+    private val entries = buildMap<String, Pair<JarFile, JarEntry>> {
+        jars.forEach { jar ->
+            jar.entries().asSequence()
+                .filter { !it.isDirectory && it.name.endsWith(".class") }
+                .forEach { entry -> putIfAbsent(entry.name.dropLast(CLASS_SUFFIX.length), jar to entry) }
         }
+    }
+    private val cache = HashMap<String, ByteArray?>()
+
+    @Synchronized
+    fun findClass(name: String): ByteArray? {
+        if (cache.containsKey(name)) return cache[name]
+        val bytes = entries[name]?.let { (jar, entry) ->
+            jar.getInputStream(entry).use { it.readBytes() }
+        } ?: directories.firstNotNullOfOrNull { directory ->
+            directory.resolve(name + CLASS_SUFFIX).takeIf(File::isFile)?.readBytes()
+        }
+        cache[name] = bytes
+        return bytes
+    }
+
+    override fun close() {
+        jars.forEach(JarFile::close)
+    }
+
+    private companion object {
+        const val CLASS_SUFFIX = ".class"
+    }
+}
+
+/** Reuses one mappings index and one classpath index while remapping every class in a script module. */
+class ClassRemappingSession(
+    mappings: Mappings,
+    classpath: RemappingClasspath,
+    loader: (String) -> ByteArray? = { null },
+    from: String = "named",
+    to: String = "intermediary",
+) {
+    private val remapper = MappingsRemapper(
+        mappings,
+        from,
+        to,
+        loader = { name -> loader(name) ?: classpath.findClass(name) },
     )
 
-    val reader = ClassReader(input)
-    val writer = ClassWriter(reader, 0)
-    val kotlinMetadataRemapper = KotlinMetadataRemappingClassVisitor(remapper, writer)
-    reader.accept(LambdaAwareRemapper(kotlinMetadataRemapper, remapper), 0)
-    return writer.toByteArray()
+    fun remap(input: ByteArray): ByteArray = input.remap(remapper)
 }
 
 fun remapJars(
