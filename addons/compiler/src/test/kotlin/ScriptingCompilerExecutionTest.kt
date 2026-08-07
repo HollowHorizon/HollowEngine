@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.source.DirectoryScriptSource
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
@@ -13,6 +14,7 @@ import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.implicitReceivers
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 abstract class HelloWorldScript(val output: MutableList<String>)
 
@@ -116,6 +118,101 @@ class ScriptingCompilerExecutionTest {
             }.getOrThrow()
 
             assertEquals(listOf("model:42"), output)
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `only shared imported scripts reuse their instance`() {
+        assertImportedValues(shared = false, expected = "1:1")
+        assertImportedValues(shared = true, expected = "1:2")
+    }
+
+    private fun assertImportedValues(shared: Boolean, expected: String) {
+        val scriptsDirectory = File("build/tmp/shared-script-${if (shared) "enabled" else "disabled"}").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("state.kts").writeText(
+            """
+                ${if (shared) "@file:SharedScript" else ""}
+                var invocationCount = 0
+                fun nextInvocation() = ++invocationCount
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("first.kts").writeText(
+            """
+                @file:Import("state.kts")
+                val firstValue = nextInvocation()
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("second.kts").writeText(
+            """
+                @file:Import("state.kts")
+                val secondValue = nextInvocation()
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("main.importing.kts").writeText(
+            """
+                @file:Import("first.kts", "second.kts")
+                output += "${'$'}firstValue:${'$'}secondValue"
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(Import::class.qualifiedName!!)
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = "kts",
+                    baseClass = "kotlin.Any",
+                    defaultImports = defaultImports,
+                ),
+                ScriptClassProvider(
+                    extension = ".importing.kts",
+                    baseClass = ImportingScript::class.qualifiedName!!,
+                    defaultImports = defaultImports,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "shared-script-${if (shared) "enabled" else "disabled"}"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            val id = ScriptId(namespace, "main.importing.kts")
+            ScriptLoader.execute<ImportingScript>(id) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+
+            assertEquals(listOf(expected), output)
+
+            if (shared) {
+                assertTrue(ScriptCache.artifact(id).isFile)
+                ScriptingEnvironment.clear()
+                output.clear()
+
+                ScriptLoader.execute<ImportingScript>(id) {
+                    constructorArgs(output as Any)
+                }.getOrThrow()
+
+                assertEquals(listOf(expected), output)
+            }
         } finally {
             ScriptRegistry.unregister(namespace)
             ScriptingEnvironment.clear()

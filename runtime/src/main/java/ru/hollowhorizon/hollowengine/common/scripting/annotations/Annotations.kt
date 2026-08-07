@@ -9,6 +9,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.annotations
 annotation class Import(vararg val file: String)
 
 /**
+ * Reuses this script's instance when it is reached more than once through an import graph.
+ * Unannotated imported scripts are evaluated independently for every import path.
+ */
+@Target(AnnotationTarget.FILE)
+annotation class SharedScript
+
+/**
  * Attaches a `*.node.kts` script to a host type beyond the default [net.minecraft.server.MinecraftServer].
  *
  * `@file:Attach("net.minecraft.world.entity.LivingEntity")` adds [value] as an implicit receiver, so the

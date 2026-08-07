@@ -24,6 +24,7 @@ import kotlin.script.experimental.api.EvaluationResult
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
+import kotlin.script.experimental.api.ScriptCompilationConfigurationKeys
 import kotlin.script.experimental.api.ScriptDiagnostic
 import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 import kotlin.script.experimental.api.ScriptEvaluator
@@ -40,7 +41,6 @@ import kotlin.script.experimental.api.providedProperties
 import kotlin.script.experimental.api.refineBeforeEvaluation
 import kotlin.script.experimental.api.resultField
 import kotlin.script.experimental.api.scriptExecutionWrapper
-import kotlin.script.experimental.api.scriptsInstancesSharing
 import kotlin.script.experimental.api.valueOr
 import kotlin.script.experimental.api.with
 import kotlin.script.experimental.impl._languageVersion
@@ -115,6 +115,9 @@ internal val JvmScriptEvaluationConfigurationKeys.scriptsInstancesSharingMap by 
     isTransient = true
 )
 
+/** Whether this compiled script opted into instance sharing with `@file:SharedScript`. */
+val ScriptCompilationConfigurationKeys.isSharedScript by PropertiesCollection.key<Boolean>()
+
 open class HollowEngineScriptEvaluator : ScriptEvaluator {
     companion object {
         private val constructorCache: MutableMap<Class<*>, MethodHandle> =
@@ -125,7 +128,7 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
         compiledScript: KotlinCompiledScript,
         scriptEvaluationConfiguration: ScriptEvaluationConfiguration,
     ): ResultWithDiagnostics<EvaluationResult> = try {
-        compiledScript.getClass(scriptEvaluationConfiguration).onSuccess { scriptClass ->
+        compiledScript.getClass(scriptEvaluationConfiguration).onSuccess evaluation@{ scriptClass ->
             val sharedConfiguration = scriptEvaluationConfiguration.getOrPrepareShared(scriptClass.java.classLoader)
             val configurationForOtherScripts by lazy {
                 sharedConfiguration.with {
@@ -133,10 +136,13 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                     reset(ScriptEvaluationConfiguration.constructorArgs)
                 }
             }
+            val canShareInstance =
+                compiledScript.compilationConfiguration[ScriptCompilationConfiguration.isSharedScript] == true
             val sharedScripts = sharedConfiguration[ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap]
+                ?.takeIf { canShareInstance }
 
             sharedScripts?.get(scriptClass)?.asSuccess()
-                ?.let { return@let it }
+                ?.let { return@evaluation it }
 
             compiledScript.otherScripts.mapSuccess {
                 invoke(it, configurationForOtherScripts)
@@ -259,9 +265,7 @@ private fun ScriptEvaluationConfiguration.getOrPrepareShared(classLoader: ClassL
     else
         with {
             ScriptEvaluationConfiguration.jvm.actualClassLoader(classLoader)
-            if (this[ScriptEvaluationConfiguration.scriptsInstancesSharing] == true) {
-                ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap(mutableMapOf())
-            }
+            ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap(mutableMapOf())
         }
 
 internal class KJvmCompiledScriptFromJar(
