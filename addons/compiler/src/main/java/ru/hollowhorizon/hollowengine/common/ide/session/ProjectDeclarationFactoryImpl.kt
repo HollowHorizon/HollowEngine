@@ -14,7 +14,11 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.standalone.base.declarations.KotlinStandaloneDeclarationProviderFactory
 import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.StandaloneProjectFactory
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtTypeAlias
+import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import java.nio.file.Path
 
 class SimpleDeclarationProviderFactory(
@@ -52,6 +56,26 @@ class SimpleDeclarationProviderFactory(
     fun registerScript(file: KtFile) {
         registeredScripts.add(file)
     }
+
+    /**
+     * Classes that name [superName] among their supertypes, from the libraries and from the scripts
+     * that are open. Feeds [HollowDirectInheritorsProvider]; see it for why this is not simply
+     * `KotlinStandaloneFirDirectInheritorsProvider`.
+     */
+    fun directInheritorCandidates(superName: Name): Set<KtClassOrObject> =
+        binaryFactory.getDirectInheritorCandidates(superName) + scriptCandidates(superName)
+
+    fun inheritableTypeAliases(superName: Name): Set<KtTypeAlias> =
+        binaryFactory.getInheritableTypeAliases(superName)
+
+    private fun scriptCandidates(superName: Name): List<KtClassOrObject> =
+        registeredScripts.flatMap { file ->
+            file.collectDescendantsOfType<KtClassOrObject>().filter { candidate ->
+                candidate.superTypeListEntries.any { entry ->
+                    entry.typeAsUserType?.referencedName == superName.asString()
+                }
+            }
+        }
 
     override fun createDeclarationProvider(
         scope: GlobalSearchScope,

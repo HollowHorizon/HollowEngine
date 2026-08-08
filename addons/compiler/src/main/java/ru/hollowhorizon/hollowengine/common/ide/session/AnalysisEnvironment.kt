@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.analysis.api.platform.KotlinProjectMessageBusProvide
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinAnnotationsResolverFactory
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderFactory
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderMerger
+import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDirectInheritorsProvider
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinCompilerPluginsProvider
 import org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinAlwaysAccessibleLifetimeTokenFactory
 import org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory
@@ -535,9 +536,9 @@ class AnalysisEnvironment(
             "org.jetbrains.kotlin.references.utils.KotlinKDocResolutionStrategyProviderService",
             "org.jetbrains.kotlin.analysis.api.fir.references.KotlinFirKDocResolutionStrategyProviderService",
         )
-        registerServiceIfMissing(
-            "org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDirectInheritorsProvider",
-            "org.jetbrains.kotlin.analysis.api.standalone.base.declarations.KotlinStandaloneFirDirectInheritorsProvider",
+        registerService(
+            KotlinDirectInheritorsProvider::class.java,
+            HollowDirectInheritorsProvider(this),
         )
         registerServiceIfMissing(
             "org.jetbrains.kotlin.analysis.low.level.api.fir.api.services.LLFirElementByPsiElementChooser",

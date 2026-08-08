@@ -58,7 +58,7 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
     val elementAtCaret = file.findElementAtCaret(offset)
 
     analyze(file) {
-        val hints = provideHints(file)
+        val hints = runCatching { provideHints(file) }.getOrDefault(emptyList())
 
         // Предварительно вычисляем ключи символов под курсором
         val caretKeys = elementAtCaret?.let { element ->
@@ -70,7 +70,14 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
         for (i in 0 until lineCount) {
             builder.append {
                 for (element in getElementsAtLine(file, i)) {
-                    renderPsiElement(element, elementAtCaret, caretKeys)
+                    try {
+                        renderPsiElement(element, elementAtCaret, caretKeys)
+                    } catch (_: Throwable) {
+                        tokenType = TokenType.DEFAULT
+                        bold = false
+                        italic = false
+                        append(element.text)
+                    }
                 }
 
                 val document = file.fileDocument
@@ -188,12 +195,14 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(
             elementType == KtTokens.MINUS && psi.isUnaryNumericMinus() -> tokenType = TokenType.NUMERIC_LITERAL
 
             else -> {
-                val symbols = resolveSymbolsForHighlight(parent, psi)
+                val resolution = tryResolveSymbols(parent, psi)
 
-                val bestSymbol = pickBestSymbol(symbols)
+                val bestSymbol = pickBestSymbol(resolution.symbols)
 
                 if (bestSymbol != null) {
                     computeSymbolStyle(bestSymbol)
+                } else if (resolution.failed && isCalleeName(psi, parent)) {
+                    tokenType = TokenType.FUNCTION
                 } else if (parent is KtConstantExpression && isEnumConstant(parent)) {
                     tokenType = TokenType.PROPERTY_IDENTIFIER
                 }
@@ -267,20 +276,52 @@ private fun normalizeToKey(symbol: KaSymbol): KaSymbol {
     }
 }
 
+/**
+ * What resolving one element gave us. [failed] means the Analysis API threw rather than simply not
+ * finding anything, which is a different situation: the name is probably fine, we just cannot see it.
+ */
+private class SymbolResolution(val symbols: List<KaSymbol>, val failed: Boolean = false) {
+    companion object {
+        val EMPTY = SymbolResolution(emptyList())
+        val FAILED = SymbolResolution(emptyList(), failed = true)
+    }
+}
+
 context(session: KaSession)
-private fun resolveSymbolsForHighlight(element: PsiElement, specificPsi: PsiElement? = null): List<KaSymbol> {
+private fun resolveSymbolsForHighlight(element: PsiElement, specificPsi: PsiElement? = null): List<KaSymbol> =
+    tryResolveSymbols(element, specificPsi).symbols
+
+context(session: KaSession)
+private fun tryResolveSymbols(element: PsiElement, specificPsi: PsiElement? = null): SymbolResolution {
     with(session) {
         return when (element) {
-            is KtSimpleNameExpression -> element.mainReference.resolveToSymbols().toList()
-            is KtNamedDeclaration -> {
-                // Если указан specificPsi (например, идентификатор имени), проверяем, что это он
-                if (specificPsi != null && element.nameIdentifier != specificPsi) return emptyList()
-                listOfNotNull(element.symbol)
+            is KtSimpleNameExpression -> try {
+                SymbolResolution(element.mainReference.resolveToSymbols().toList())
+            } catch (_: Throwable) {
+                SymbolResolution.FAILED
             }
 
-            else -> emptyList()
+            is KtNamedDeclaration -> {
+                // Если указан specificPsi (например, идентификатор имени), проверяем, что это он
+                if (specificPsi != null && element.nameIdentifier != specificPsi) return SymbolResolution.EMPTY
+                try {
+                    SymbolResolution(listOfNotNull(element.symbol))
+                } catch (_: Throwable) {
+                    SymbolResolution.FAILED
+                }
+            }
+
+            else -> SymbolResolution.EMPTY
         }
     }
+}
+
+/** True when [psi] is the name being called in `name(...)`, so it can be coloured as a call blindly. */
+private fun isCalleeName(psi: PsiElement, parent: PsiElement?): Boolean {
+    val reference = parent as? KtSimpleNameExpression ?: return false
+    if (reference.getReferencedNameElement() != psi) return false
+    val call = reference.parent as? KtCallExpression ?: return false
+    return call.calleeExpression == reference
 }
 
 // --- Остальные методы (Стилизация и утилиты) без изменений или с мелкими правками ---
