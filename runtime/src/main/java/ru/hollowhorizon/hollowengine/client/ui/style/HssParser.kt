@@ -2,23 +2,27 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.UiState
 
+/** A parsed document together with the errors that were recovered from while reading it. */
+data class HssParseResult(
+    val document: HssDocument,
+    val errors: List<HssParseException>,
+)
+
+/**
+ * Recursive-descent parser for HSS.
+ */
 class HssParser(private val source: String) {
     private var index = 0
     private var order = 0
+    private var recovering = false
+    private val errors = mutableListOf<HssParseException>()
 
-    fun parse(): HssDocument {
-        val rules = mutableListOf<HssRule>()
-        val keyframes = mutableListOf<HssKeyframes>()
-        skipIgnored()
-        while (!isEnd()) {
-            if (peek() == '@') {
-                keyframes += parseAtRule()
-            } else {
-                rules += parseRule()
-            }
-            skipIgnored()
-        }
-        return HssDocument(rules, keyframes)
+    fun parse(): HssDocument = parseDocument()
+
+    fun parseRecovering(): HssParseResult {
+        recovering = true
+        val document = parseDocument()
+        return HssParseResult(document, errors.toList())
     }
 
     fun parseSelectorOnly(): HssSelector {
@@ -27,6 +31,25 @@ class HssParser(private val source: String) {
         skipIgnored()
         if (!isEnd()) throw HssParseException("Unexpected selector content", index)
         return selector
+    }
+
+    private fun parseDocument(): HssDocument {
+        val rules = mutableListOf<HssRule>()
+        val keyframes = mutableListOf<HssKeyframes>()
+        skipIgnored()
+        while (!isEnd()) {
+            val start = index
+            try {
+                if (peek() == '@') keyframes += parseAtRule() else rules += parseRule()
+            } catch (exception: HssParseException) {
+                if (!recovering) throw exception
+                errors += exception
+                skipBlock(start)
+            }
+            if (index == start) index++
+            skipIgnored()
+        }
+        return HssDocument(rules, keyframes)
     }
 
     private fun parseRule(): HssRule {
@@ -38,20 +61,31 @@ class HssParser(private val source: String) {
     }
 
     private fun parseAtRule(): HssKeyframes {
+        val atStart = index
         expect('@')
         val name = readIdentifier()
-        if (!name.equals("keyframes", ignoreCase = true)) throw HssParseException("Unsupported at-rule '@$name'", index)
+        if (!name.text.equals("keyframes", ignoreCase = true)) {
+            throw HssParseException("Unsupported at-rule '@${name.text}'", atStart, name.end)
+        }
         skipIgnored()
         val keyframesName = readIdentifier()
         expect('{')
         val frames = mutableListOf<HssKeyframe>()
         skipIgnored()
         while (!isEnd() && peek() != '}') {
-            frames += parseKeyframe()
+            val start = index
+            try {
+                frames += parseKeyframe()
+            } catch (exception: HssParseException) {
+                if (!recovering) throw exception
+                errors += exception
+                skipBlock(start)
+            }
+            if (index == start) index++
             skipIgnored()
         }
         expect('}')
-        return HssKeyframes(keyframesName, frames)
+        return HssKeyframes(keyframesName.text, frames, keyframesName.start)
     }
 
     private fun parseKeyframe(): HssKeyframe {
@@ -59,27 +93,40 @@ class HssParser(private val source: String) {
         expect('{')
         val declarations = parseDeclarations()
         expect('}')
-        val offsets = selector.split(',')
-            .map { parseKeyframeOffset(it.trim()) }
-            .ifEmpty { throw HssParseException("Expected keyframe selector", index) }
-        return HssKeyframe(offsets, declarations)
+        return HssKeyframe(parseKeyframeOffsets(selector), declarations)
     }
 
-    private fun readKeyframeSelector(): String {
+    /** `from`, `to` and percentages, each reported at its own position when malformed. */
+    private fun parseKeyframeOffsets(selector: HssToken): List<Float> {
+        val offsets = splitValueTokens(selector.text, ',').map { part ->
+            parseKeyframeOffset(part.text, selector.start + part.start, selector.start + part.end)
+        }
+        if (offsets.isEmpty()) throw HssParseException("Expected keyframe selector", selector.start, selector.end)
+        return offsets
+    }
+
+    private fun readKeyframeSelector(): HssToken {
         skipIgnored()
         val start = index
         while (!isEnd() && peek() != '{') index++
-        val selector = source.substring(start, index).trim()
-        if (selector.isEmpty()) throw HssParseException("Expected keyframe selector", index)
-        return selector
+        var end = index
+        while (end > start && source[end - 1].isWhitespace()) end--
+        if (end == start) throw HssParseException("Expected keyframe selector", start, start + 1)
+        return HssToken(source.substring(start, end), start, end)
     }
 
-    private fun parseKeyframeOffset(value: String): Float {
+    private fun parseKeyframeOffset(value: String, start: Int, end: Int): Float {
         return when {
             value.equals("from", ignoreCase = true) -> 0f
             value.equals("to", ignoreCase = true) -> 1f
-            value.endsWith("%") -> value.dropLast(1).toFloat() / 100f
-            else -> throw HssParseException("Expected keyframe offset, got '$value'", index)
+            value.endsWith("%") -> value.dropLast(1).trim().toFloatOrNull()
+                ?: throw HssParseException("Expected a keyframe offset, got '$value'", start, end)
+
+            else -> throw HssParseException(
+                "Expected 'from', 'to' or a percentage, got '$value'",
+                start,
+                end,
+            )
         }.coerceIn(0f, 1f)
     }
 
@@ -89,7 +136,7 @@ class HssParser(private val source: String) {
             skipIgnored()
             selectors += parseSelector()
             skipIgnored()
-            if (peek() != ',') break
+            if (isEnd() || peek() != ',') break
             index++
         }
         return selectors
@@ -106,6 +153,7 @@ class HssParser(private val source: String) {
     }
 
     private fun parseSimpleSelector(): HssSelector {
+        val start = index
         var type: String? = null
         var id: String? = null
         val tags = mutableSetOf<String>()
@@ -116,19 +164,19 @@ class HssParser(private val source: String) {
             when (peek()) {
                 '.' -> {
                     index++
-                    tags += readIdentifier().removePrefix(".")
+                    tags += readIdentifier().text
                     consumed = true
                 }
 
                 '#' -> {
                     index++
-                    id = readIdentifier().removePrefix("#")
+                    id = readIdentifier().text
                     consumed = true
                 }
 
                 ':' -> {
                     index++
-                    states += UiState.of(readIdentifier())
+                    states += UiState.of(readIdentifier().text)
                     consumed = true
                 }
 
@@ -139,12 +187,12 @@ class HssParser(private val source: String) {
 
                 '{', ',', ' ', '\n', '\r', '\t' -> break@selector
                 else -> {
-                    type = readIdentifier()
+                    type = readIdentifier().text
                     consumed = true
                 }
             }
         }
-        if (!consumed) throw HssParseException("Expected selector", index)
+        if (!consumed) throw HssParseException("Expected a selector", start, start + 1)
         return HssSelector(type, id, tags, states, attributes)
     }
 
@@ -158,29 +206,40 @@ class HssParser(private val source: String) {
         val declarations = mutableListOf<HssDeclaration>()
         skipIgnored()
         while (!isEnd() && peek() != '}') {
-            val property = readPropertyName()
-            expect(':')
-            val value = readDeclarationValue()
-            declarations += HssDeclaration(property, value)
+            val start = index
+            try {
+                declarations += parseDeclaration()
+            } catch (exception: HssParseException) {
+                if (!recovering) throw exception
+                errors += exception
+                skipDeclaration()
+            }
             skipIgnored()
             if (!isEnd() && peek() == ';') {
                 index++
                 skipIgnored()
             }
+            if (index == start) index++
         }
         return declarations
     }
 
-    private fun readPropertyName(): String {
-        skipIgnored()
-        val start = index
-        while (!isEnd() && (peek().isLetterOrDigit() || peek() == '-')) index++
-        if (start == index) throw HssParseException("Expected declaration property", index)
-        skipIgnored()
-        return source.substring(start, index)
+    private fun parseDeclaration(): HssDeclaration {
+        val property = readPropertyName()
+        expect(':', "Expected ':' after '${property.text}'", property)
+        val value = readDeclarationValue(property)
+        return HssDeclaration(property.text, value.text, property.start, value.start)
     }
 
-    private fun readDeclarationValue(): String {
+    private fun readPropertyName(): HssToken {
+        skipIgnored()
+        val start = index
+        while (!isEnd() && (peek().isLetterOrDigit() || peek() == '-' || peek() == '_')) index++
+        if (start == index) throw HssParseException("Expected a declaration property", start, start + 1)
+        return HssToken(source.substring(start, index), start, index)
+    }
+
+    private fun readDeclarationValue(property: HssToken): HssToken {
         skipIgnored()
         val start = index
         var depth = 0
@@ -206,16 +265,19 @@ class HssParser(private val source: String) {
             }
             index++
         }
-        val value = source.substring(start, index).trim()
-        if (value.isEmpty()) throw HssParseException("Expected declaration value", index)
-        return value
+        var end = index
+        while (end > start && source[end - 1].isWhitespace()) end--
+        if (end == start) {
+            throw HssParseException("Expected a value for '${property.text}'", property.start, property.end)
+        }
+        return HssToken(source.substring(start, end), start, end)
     }
 
-    private fun readIdentifier(): String {
+    private fun readIdentifier(): HssToken {
         val start = index
         while (!isEnd() && (peek().isLetterOrDigit() || peek() == '-' || peek() == '_')) index++
-        if (start == index) throw HssParseException("Expected identifier", index)
-        return source.substring(start, index)
+        if (start == index) throw HssParseException("Expected an identifier", start, start + 1)
+        return HssToken(source.substring(start, index), start, index)
     }
 
     private fun readAttributeSelector(): HssAttributeSelector {
@@ -238,7 +300,7 @@ class HssParser(private val source: String) {
     private fun readAttributeName(): String {
         val start = index
         while (!isEnd() && isAttributeNameChar(peek())) index++
-        if (start == index) throw HssParseException("Expected attribute name", index)
+        if (start == index) throw HssParseException("Expected an attribute name", start, start + 1)
         return source.substring(start, index)
     }
 
@@ -248,14 +310,14 @@ class HssParser(private val source: String) {
             index++
             val start = index
             while (!isEnd() && (peek() != quote || previous() == '\\')) index++
-            if (isEnd()) throw HssParseException("Unclosed attribute selector string", start)
+            if (isEnd()) throw HssParseException("Unclosed attribute selector string", start, start + 1)
             val value = source.substring(start, index).replace("\\$quote", quote.toString())
             index++
             return value
         }
         val start = index
         while (!isEnd() && !peek().isWhitespace() && peek() != ']') index++
-        if (start == index) throw HssParseException("Expected attribute value", index)
+        if (start == index) throw HssParseException("Expected an attribute value", start, start + 1)
         return source.substring(start, index)
     }
 
@@ -269,7 +331,7 @@ class HssParser(private val source: String) {
             }
             if (peekAhead("/*")) {
                 val close = source.indexOf("*/", index + 2)
-                if (close < 0) throw HssParseException("Unclosed block comment", index)
+                if (close < 0) throw HssParseException("Unclosed block comment", index, source.length)
                 index = close + 2
                 advanced = true
             }
@@ -281,11 +343,44 @@ class HssParser(private val source: String) {
         } while (advanced)
     }
 
+    /** Skips to just past the block that started at [start], so parsing can resume. */
+    private fun skipBlock(start: Int) {
+        index = index.coerceAtLeast(start)
+        var depth = 0
+        while (!isEnd()) {
+            when (peek()) {
+                '{' -> depth++
+                '}' -> {
+                    index++
+                    if (depth <= 1) return
+                    depth--
+                    continue
+                }
+            }
+            index++
+        }
+    }
+
+    /** Skips the rest of a broken declaration, stopping before the block's closing brace. */
+    private fun skipDeclaration() {
+        while (!isEnd() && peek() != ';' && peek() != '}') index++
+    }
+
     private fun expect(char: Char) {
         skipIgnored()
-        if (isEnd() || peek() != char) throw HssParseException("Expected '$char'", index)
+        if (isEnd() || peek() != char) {
+            throw HssParseException("Expected '$char'", errorPosition(), errorPosition() + 1)
+        }
         index++
     }
+
+    private fun expect(char: Char, message: String, at: HssToken) {
+        skipIgnored()
+        if (isEnd() || peek() != char) throw HssParseException(message, at.start, at.end)
+        index++
+    }
+
+    private fun errorPosition(): Int = if (isEnd()) source.length.coerceAtLeast(1) - 1 else index
 
     private fun peek(): Char = source[index]
 
@@ -300,6 +395,12 @@ class HssParser(private val source: String) {
     }
 }
 
+/** A source slice with its position, used to report errors on the right token. */
+internal data class HssToken(val text: String, val start: Int, val end: Int)
+
 fun parseHss(source: String): HssDocument = HssParser(source).parse()
+
+/** Parses [source], recovering from broken rules and declarations instead of giving up. */
+fun parseHssRecovering(source: String): HssParseResult = HssParser(source).parseRecovering()
 
 fun parseHssSelector(source: String): HssSelector = HssParser(source).parseSelectorOnly()

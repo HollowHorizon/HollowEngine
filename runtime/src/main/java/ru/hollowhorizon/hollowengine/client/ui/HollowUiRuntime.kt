@@ -38,12 +38,20 @@ data class HollowUiFrame(
     /** Whether visible, input-opaque UI geometry is under the point (blocks click-through). */
     fun hitsVisible(x: Float, y: Float): Boolean = UiHitTester().hitsVisible(root, layout, x, y)
 
-    fun scrollTargetAt(x: Float, y: Float): UiNode? = scrollTargetIn(root, x, y)
+    /** The node the wheel scrolls: the deepest one under the point that has room to move. */
+    fun scrollTargetAt(x: Float, y: Float): UiNode? = scrollCandidatesAt(x, y).scrollTarget()
 
-    private fun scrollTargetIn(root: UiNode, x: Float, y: Float): UiNode? {
+    /** The node the wheel scrolls, out of candidates already collected. */
+    internal fun List<UiNode>.scrollTarget(): UiNode? = firstOrNull { node ->
+        val range = layout[node].scrollRange
+        range.x > ScrollTargetRangeEpsilon || range.y > ScrollTargetRangeEpsilon
+    } ?: firstOrNull()
+
+    /** Scrollable nodes under the point, deepest first. */
+    internal fun scrollCandidatesAt(x: Float, y: Float): List<UiNode> {
         val stack = ArrayDeque<ScrollTargetTask>()
         stack.add(ScrollTargetTask.Enter(root, ancestorClip = null))
-        var fallback: UiNode? = null
+        val candidates = ArrayList<UiNode>()
         while (stack.isNotEmpty()) {
             when (val task = stack.removeLast()) {
                 is ScrollTargetTask.Enter -> {
@@ -71,15 +79,12 @@ data class HollowUiFrame(
                     task.ancestorClip?.let { clip ->
                         if (!clip.contains(x, y)) continue
                     }
-                    val layoutNode = layout[node]
-                    if (!layoutNode.inputContains(x, y)) continue
-                    val range = layoutNode.scrollRange
-                    if (range.x > ScrollTargetRangeEpsilon || range.y > ScrollTargetRangeEpsilon) return node
-                    if (fallback == null) fallback = node
+                    if (!layout[node].inputContains(x, y)) continue
+                    candidates += node
                 }
             }
         }
-        return fallback
+        return candidates
     }
 
     fun nodeByIdentifier(identifier: String): UiNode? = nodesByIdentifier[identifier]
@@ -321,15 +326,46 @@ class HollowUiRuntime(
 
     private fun UiInputResult.orConsumed(consumed: Boolean) = handled || changed || consumed
 
+    /**
+     * Routes a wheel notch: it walks from the deepest node under the pointer out to the node
+     * that would scroll, offering itself to every listener on the way.
+     */
     private fun handleQueuedScroll(frame: HollowUiFrame, input: QueuedUiInput.MouseScrolled): UiInputResult {
-        val target = this.input.scrollTargetAt(frame, input.mouseX, input.mouseY) ?: return UiInputResult(false)
-        val range = frame.layout[target].scrollRange
         val horizontalModifier = input.modifiers and GLFW.GLFW_MOD_SHIFT != 0 ||
                 input.modifiers == 0 && horizontalScrollModifierDown()
-        val delta = scrollWheelDelta(range, input.scrollX, input.scrollY, horizontalModifier)
-        val event = UiEvent(
+        val candidates = frame.scrollCandidatesAt(input.mouseX, input.mouseY)
+        val target = with(frame) { candidates.scrollTarget() }
+            ?: this.input.focusedScrollableNode(frame)
+            ?: return UiInputResult(false)
+
+        for (node in candidates) {
+            if (node.listensToScroll()) {
+                val event = scrollEvent(frame, node, input, horizontalModifier)
+                if (dispatchUiEvent(event) && event.consumed) {
+                    return UiInputResult(true, node, node.id, changed = event.changed)
+                }
+            }
+            if (node === target) break
+        }
+
+        val delta = scrollWheelDelta(
+            frame.layout[target].scrollRange, input.scrollX, input.scrollY, horizontalModifier,
+        )
+        scroll(target, delta.x * 32f, delta.y * 32f)
+        return UiInputResult(true, target, target.id, changed = true)
+    }
+
+    /** The wheel event for [node], with the delta routed against that node's own scroll range. */
+    private fun scrollEvent(
+        frame: HollowUiFrame,
+        node: UiNode,
+        input: QueuedUiInput.MouseScrolled,
+        horizontalModifier: Boolean,
+    ): UiEvent {
+        val delta = scrollWheelDelta(frame.layout[node].scrollRange, input.scrollX, input.scrollY, horizontalModifier)
+        return UiEvent(
             kind = UiEventKind.SCROLL,
-            node = target,
+            node = node,
             x = input.mouseX,
             y = input.mouseY,
             scrollX = delta.x,
@@ -338,14 +374,6 @@ class HollowUiRuntime(
             rawScrollY = input.scrollY,
             modifiers = input.modifiers,
         )
-        if (dispatchUiEvent(event) && event.consumed) return UiInputResult(
-            true,
-            target,
-            target.id,
-            changed = event.changed
-        )
-        scroll(target, delta.x * 32f, delta.y * 32f)
-        return UiInputResult(true, target, target.id, changed = true)
     }
 
     fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset =

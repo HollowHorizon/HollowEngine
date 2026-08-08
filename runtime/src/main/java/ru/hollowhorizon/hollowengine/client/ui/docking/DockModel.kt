@@ -56,6 +56,16 @@ data class DockTabGrabState(
     val y: Float,
 )
 
+/**
+ * Where a tab used to sit before the reorder that displaced it, and which reorder that was.
+ * The tab starts its slide from [offset]; [revision] tells a later reorder from the one the
+ * tab is already animating away from.
+ */
+data class DockTabSwap(
+    val offset: Float,
+    val revision: Long,
+)
+
 data class DockTabLayout(
     val itemId: String,
     val left: Float,

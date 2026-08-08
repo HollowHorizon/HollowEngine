@@ -155,7 +155,6 @@
     text-shadow: 0, 1, 2, rgba(255, 255, 255, 0.4);
     line-numbers: true;
     line-number-color: #556070;
-    inlay-hint-color: #687588;
     font-family: hollowengine:fonts/monocraft;
     font-size: 10px;
     scrollbar: 7px;
@@ -170,10 +169,25 @@
 
 .editable-text-field-inlay {
     height: fit;
-    padding: 0px 3px;
+    padding: 0px 1px;
+    gap: 3px;
     align-items: start center;
     background: #1E1F22;
-    border-radius: 3px;
+}
+
+.editable-text-field-inlay-text {
+    /* A share of the field's font, so hints follow whatever size the text is drawn at. */
+    font-size: 70%;
+    text-effects: glow(12px, #FFFFFF);
+    foreground: #687588;
+    text-wrap: false;
+    padding: 2px;
+}
+
+.editable-text-field-inlay-icon {
+    size: 12px 12px;
+    align-y: center;
+    tint: #687588;
 }
 
 .ide-completion-popup {

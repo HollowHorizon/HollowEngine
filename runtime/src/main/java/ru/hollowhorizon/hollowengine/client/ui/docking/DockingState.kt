@@ -26,7 +26,8 @@ class DockingState {
         private set
 
     private var tabGrab: DockTabGrabState? by mutableStateOf(null)
-    private val tabSwapOffsets = mutableStateMapOf<String, Float>()
+    private val tabSwapOffsets = mutableStateMapOf<String, DockTabSwap>()
+    private var tabSwapRevision = 0L
     private val tabLayouts = mutableMapOf<String, List<DockTabLayout>>()
 
     fun open(item: DockItem, target: DockTarget = DockTarget.Root) {
@@ -340,8 +341,19 @@ class DockingState {
         return drag.pointerX - drag.grabX - left
     }
 
-    fun consumeTabSwapOffset(stackId: String, itemId: String): Float? {
-        return tabSwapOffsets.remove(tabSwapOffsetKey(stackId, itemId))
+    /**
+     * How far a tab still sits from where a reorder put it. The tab draws itself at its old
+     * place for one frame and then drops the offset, which is what turns the reorder into a
+     * slide instead of a jump.
+     */
+    fun tabSwapOffset(stackId: String, itemId: String): DockTabSwap? {
+        return tabSwapOffsets[tabSwapOffsetKey(stackId, itemId)]
+    }
+
+    /** Drops the offset recorded by [revision]; a newer reorder keeps its own. */
+    fun clearTabSwapOffset(stackId: String, itemId: String, revision: Long) {
+        val key = tabSwapOffsetKey(stackId, itemId)
+        if (tabSwapOffsets[key]?.revision == revision) tabSwapOffsets.remove(key)
     }
 
     fun reorderTab(stackId: String, itemId: String, targetIndex: Int): Boolean {
@@ -461,7 +473,8 @@ class DockingState {
             if (itemId == draggedItemId) return@forEach
             val previousLayout = previousById[itemId] ?: return@forEach
             val offset = previousLayout.left - nextLayout.left
-            if (offset != 0f) tabSwapOffsets[tabSwapOffsetKey(stackId, itemId)] = offset
+            if (offset == 0f) return@forEach
+            tabSwapOffsets[tabSwapOffsetKey(stackId, itemId)] = DockTabSwap(offset, ++tabSwapRevision)
         }
     }
 

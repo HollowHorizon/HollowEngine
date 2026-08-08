@@ -10,6 +10,31 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
 const val DefaultUiFontSize = 10f
 
 /**
+ * A font size as written: a fixed number of pixels, or a share of the text it sits in.
+ */
+sealed interface UiFontSize {
+    /** The size in pixels; a size that never resolved falls back to the engine default. */
+    val px: Float
+
+    data class Absolute(override val px: Float) : UiFontSize
+
+    data class Relative(val scale: Float) : UiFontSize {
+        override val px: Float get() = DefaultUiFontSize * scale
+    }
+
+    companion object {
+        val Default = Absolute(DefaultUiFontSize)
+
+        fun of(px: Float): UiFontSize = Absolute(px.coerceAtLeast(MinSize))
+
+        fun scaled(scale: Float): UiFontSize = Relative(scale.coerceAtLeast(MinScale))
+
+        private const val MinSize = 0.0001f
+        private const val MinScale = 0.0001f
+    }
+}
+
+/**
  * Declarations of every style property. A property is fully described by its single
  * declaration here: defaults/inheritance, merge, transition interpolation, invalidation
  * phase and layout-fingerprint participation.
@@ -50,6 +75,7 @@ object UiProps {
         aliases: Set<String> = emptySet(),
         fingerprint: Boolean = false,
         interpolate: ((from: T, to: T, progress: Float) -> T)? = null,
+        relativeTo: ((value: T, parent: UiComputedStyle?) -> T)? = null,
     ) = UiStyleProp(
         name = name,
         aliases = aliases,
@@ -60,6 +86,7 @@ object UiProps {
         mergeValues = null,
         interpolation = interpolate,
         sanitize = null,
+        resolveRelative = relativeTo,
     )
 
     // Sizing / layout
@@ -101,7 +128,7 @@ object UiProps {
     val Entity = prop<String?>("entity", null)
     val Shader = prop<String?>("shader", null)
     val Shadows = prop(
-        "shadow", emptyList(), aliases = setOf("box-shadow"),
+        "shadow", emptyList(), aliases = setOf("shadows", "box-shadow"),
         interpolate = ::interpolateShadows,
     )
     val Opacity = prop(
@@ -180,16 +207,24 @@ object UiProps {
     val Whitespace = inheritedProp("white-space", UiWhitespace.COLLAPSE, fingerprint = true)
     val LineSpacing = inheritedProp("line-spacing", 0f, fingerprint = true)
     val SpaceWidth = inheritedProp<Float?>("space-width", null, fingerprint = true)
-    val FontSize = inheritedProp("font-size", DefaultUiFontSize, fingerprint = true)
+    val FontSize = inheritedProp<UiFontSize>(
+        "font-size", UiFontSize.Default, fingerprint = true,
+        relativeTo = { value, parent ->
+            when (value) {
+                is UiFontSize.Relative -> UiFontSize.of((parent?.fontSize ?: DefaultUiFontSize) * value.scale)
+                is UiFontSize.Absolute -> value
+            }
+        },
+    )
     val FontFamily = prop<String?>("font-family", null, fingerprint = true, inherit = true)
     val TextEffects =
         prop<List<UiTextEffect>>("text-effects", emptyList(), fingerprint = true, inherit = true, merge = { a, b -> a + b })
 
     val Transitions = prop<List<UiTransition>>(
-        "transition", emptyList(),
+        "transition", emptyList(), aliases = setOf("transitions"),
         merge = { current, next -> current.mergeUiTransitions(next) },
     )
-    val Animations = prop<List<UiAnimation>>("animation", emptyList())
+    val Animations = prop<List<UiAnimation>>("animation", emptyList(), aliases = setOf("animations"))
 }
 
 var UiStylePatch.width by UiProps.Width
@@ -403,7 +438,8 @@ val UiComputedStyle.textAlign by UiProps.TextAlign
 val UiComputedStyle.whitespace by UiProps.Whitespace
 val UiComputedStyle.lineSpacing by UiProps.LineSpacing
 val UiComputedStyle.spaceWidth by UiProps.SpaceWidth
-val UiComputedStyle.fontSize by UiProps.FontSize
+/** The node's font size in pixels; a relative size resolved while the style was built. */
+val UiComputedStyle.fontSize: Float get() = this[UiProps.FontSize].px
 val UiComputedStyle.fontFamily by UiProps.FontFamily
 val UiComputedStyle.textEffects by UiProps.TextEffects
 val UiComputedStyle.transitions by UiProps.Transitions

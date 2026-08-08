@@ -9,6 +9,8 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
+import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.margin
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import kotlin.math.abs
 
@@ -39,7 +41,10 @@ internal class EditableFieldLayout(
     val fontFamily: String?,
     val contentWidth: Float,
     val naturalWidth: Float,
-    val inlayTexts: Map<String, String> = emptyMap(),
+    /** The hints this layout reserved room for, by widget id. */
+    val inlayHints: Map<String, UiInlayHint> = emptyMap(),
+    /** Measurement revision the reservations were made with; see [EditableFieldInlayMetrics]. */
+    internal val inlayRevision: Long = 0L,
     private val inlayOffsets: Set<Int> = emptySet(),
     internal val layoutWidth: Float = Float.POSITIVE_INFINITY,
     internal val lineInputs: Array<EditableFieldLineInput?> = arrayOfNulls(lines.size),
@@ -228,7 +233,8 @@ private sealed class EditableFieldVisualLine(
             var bestOffset = 0
             var bestDistance = Float.POSITIVE_INFINITY
             for (offset in 0..(end - start).coerceAtLeast(0)) {
-                val distance = abs(x + UiTextLayouter.measureTextWidth(text.take(offset), fontSize, fontFamily) - targetX)
+                val distance =
+                    abs(x + UiTextLayouter.measureTextWidth(text.take(offset), fontSize, fontFamily) - targetX)
                 if (distance < bestDistance) {
                     bestDistance = distance
                     bestOffset = offset
@@ -279,7 +285,7 @@ internal fun computeEditableFieldLayout(
     viewportWidth: Float,
     highlights: List<UiTextHighlight> = emptyList(),
     inlayHints: List<UiInlayHint> = emptyList(),
-    inlayStyle: UiInlineStyle = EditableFieldDefaultInlayStyle,
+    inlayMetrics: EditableFieldInlayMetrics = EditableFieldInlayMetrics(),
     previous: EditableFieldLayout? = null,
     multiline: Boolean = true,
 ): EditableFieldLayout {
@@ -287,7 +293,7 @@ internal fun computeEditableFieldLayout(
     val offsets = FloatArray(lines.size + 1)
     val layouts = arrayOfNulls<UiTextLayout>(lines.size)
     val lineInputs = arrayOfNulls<EditableFieldLineInput>(lines.size)
-    val inlayTexts = linkedMapOf<String, String>()
+    val hintsById = linkedMapOf<String, UiInlayHint>()
     val uniformHeight = UiTextLayouter.layout(
         "X", Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, false, UiTextAlign.LEFT, fontSize, fontFamily,
         preserveWhitespace = true,
@@ -296,8 +302,10 @@ internal fun computeEditableFieldLayout(
     val layoutWidth = if (wrapping) viewportWidth else Float.POSITIVE_INFINITY
     val highlightBuckets = bucketHighlightsByLine(lines, highlights)
     val inlayBuckets = bucketInlaysByLine(lines, inlayHints)
+    val inlayRevision = inlayMetrics.revision
     val reusable = previous?.takeIf {
-        it.fontSize == fontSize && it.fontFamily == fontFamily && it.layoutWidth == layoutWidth
+        it.fontSize == fontSize && it.fontFamily == fontFamily && it.layoutWidth == layoutWidth &&
+                it.inlayRevision == inlayRevision
     }?.reusableLineLayouts()
     var maxWidth = 0f
     var y = 0f
@@ -309,18 +317,16 @@ internal fun computeEditableFieldLayout(
         val localHighlights = highlightBuckets[index]
         val localInlays = inlayBuckets[index]
         localInlays.forEachIndexed { hintIndex, hint ->
-            inlayTexts[textFieldInlayWidgetId(hint, hintIndex)] = hint.text
+            hintsById[textFieldInlayWidgetId(hint, hintIndex)] = hint
         }
 
         val input = EditableFieldLineInput(line.text, localHighlights, localInlays)
         lineInputs[index] = input
         val layout = reusable?.get(input) ?: run {
-            val metrics = localInlayWidgetMetrics(localInlays, inlayStyle, fontSize, fontFamily)
             val richText = line.text.toHighlightedRichText(
                 highlights = localHighlights,
                 inlayHints = localInlays,
-                inlayStyle = inlayStyle,
-                inlayWidgetMetrics = metrics,
+                inlayWidgetMetrics = inlayMetrics.of(localInlays),
             )
             UiTextLayouter.layout(
                 richText,
@@ -343,7 +349,7 @@ internal fun computeEditableFieldLayout(
     val naturalWidth = if (wrapping) viewportWidth else maxWidth + trailingMargin
     val contentWidth = maxOf(naturalWidth, viewportWidth)
     return EditableFieldLayout(
-        lines, offsets, layouts, fontSize, fontFamily, contentWidth, naturalWidth, inlayTexts,
+        lines, offsets, layouts, fontSize, fontFamily, contentWidth, naturalWidth, hintsById, inlayRevision,
         inlayHints.mapTo(HashSet(inlayHints.size)) { it.offset }, layoutWidth, lineInputs,
         verticalOverscroll = multiline,
     )
@@ -402,23 +408,33 @@ private fun bucketInlaysByLine(
     return Array(lines.size) { buckets[it] ?: emptyList() }
 }
 
-private fun localInlayWidgetMetrics(
-    inlays: List<UiInlayHint>,
-    inlayStyle: UiInlineStyle,
-    fontSize: Float,
-    fontFamily: String?,
-): Map<String, UiInlineWidgetMetrics> {
-    if (inlays.isEmpty()) return emptyMap()
-    val size = inlayStyle.resolvedFontSize(fontSize) * EditableFieldInlayFontScale
-    val height = size
-    return inlays.mapIndexed { index, hint ->
-        // Reserve the pill's full inline footprint: text + padding + the outer margins.
-        val width = UiTextLayouter.measureStyledTextWidth(hint.text, size, fontFamily, inlayStyle) +
-                EditableFieldInlayPaddingX * 2f +
-                EditableFieldInlayMarginRight
-        textFieldInlayWidgetId(hint, index) to UiInlineWidgetMetrics(width, height)
-    }.toMap()
+internal class EditableFieldInlayMetrics {
+    private val sizes = HashMap<Int, UiInlineWidgetMetrics>()
+
+    /** Bumped whenever a measurement changed, so layouts built with stale sizes are dropped. */
+    var revision: Long by mutableStateOf(0L)
+        private set
+
+    operator fun get(hint: UiInlayHint): UiInlineWidgetMetrics? = sizes[hint.contentKey]
+
+    /** Reserved footprints of [inlays], by widget id; unmeasured hints reserve nothing. */
+    fun of(inlays: List<UiInlayHint>): Map<String, UiInlineWidgetMetrics> {
+        if (inlays.isEmpty()) return emptyMap()
+        val metrics = HashMap<String, UiInlineWidgetMetrics>(inlays.size)
+        inlays.forEachIndexed { index, hint ->
+            metrics[textFieldInlayWidgetId(hint, index)] = get(hint) ?: UiInlineWidgetMetrics(0f, 0f)
+        }
+        return metrics
+    }
+
+    /** Records a drawn inlay's size; an unchanged size does not disturb the layout. */
+    fun record(hint: UiInlayHint, width: Float, height: Float) {
+        val measured = UiInlineWidgetMetrics(width, height)
+        if (sizes.put(hint.contentKey, measured) == measured) return
+        revision++
+    }
 }
+
 /** Nearest caret column to [x] within [text] (prefix-width scan, non-wrapped lines). */
 private fun nearestColumn(text: String, x: Float, fontSize: Float, fontFamily: String?): Int {
     var best = 0
@@ -449,6 +465,7 @@ fun EditableTextField(
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
     inlayRevision: Long = 0L,
+    onInlayAction: ((UiInlayAction) -> Unit)? = null,
     completionContributor: UiCompletionContributor? = null,
     completionRevision: Long = 0L,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
@@ -482,8 +499,10 @@ fun EditableTextField(
     val viewportWidth = (scrollState.viewport.width - gutterWidth).coerceAtLeast(0f)
     val multiline = state.multiline
     val layoutHolder = remember { EditableFieldLayoutHolder() }
+    val inlayMetrics = remember { EditableFieldInlayMetrics() }
     val layout = remember(
         text, fontSize, fontFamily, wrap, viewportWidth, presentation.highlights, presentation.inlayHints, multiline,
+        inlayMetrics.revision,
     ) {
         computeEditableFieldLayout(
             text = text,
@@ -493,6 +512,7 @@ fun EditableTextField(
             viewportWidth = viewportWidth,
             highlights = presentation.highlights,
             inlayHints = presentation.inlayHints,
+            inlayMetrics = inlayMetrics,
             previous = layoutHolder.last,
             multiline = multiline,
         ).also { layoutHolder.last = it }
@@ -602,6 +622,8 @@ fun EditableTextField(
                         rowDiagnostics = diagnosticsByLine.getOrNull(index).orEmpty(),
                         indentGuides = indentGuides,
                         indentGuideColor = indentGuideColor,
+                        inlayMetrics = inlayMetrics,
+                        onInlayAction = onInlayAction,
                     )
                 }
             }
@@ -815,6 +837,8 @@ private fun EditableFieldRow(
     rowDiagnostics: List<UiTextDiagnostic> = emptyList(),
     indentGuides: Boolean = false,
     indentGuideColor: UiColor = EditableFieldIndentGuideColor,
+    inlayMetrics: EditableFieldInlayMetrics,
+    onInlayAction: ((UiInlayAction) -> Unit)? = null,
 ) {
     val line = layout.lines[index]
     val top = layout.lineTop(index)
@@ -842,7 +866,16 @@ private fun EditableFieldRow(
         val localStart = (range.selectionStart - line.start).coerceIn(0, line.text.length)
         val localEnd = (range.selectionEnd - line.start).coerceIn(0, line.text.length)
         val crossesNewline = range.selectionEnd > line.end
-        selectionRectsForRow(line, lineLayout, localStart, localEnd, crossesNewline, fontSize, fontFamily, layout.contentWidth)
+        selectionRectsForRow(
+            line,
+            lineLayout,
+            localStart,
+            localEnd,
+            crossesNewline,
+            fontSize,
+            fontFamily,
+            layout.contentWidth
+        )
             .forEachIndexed { rectIndex, rect ->
                 key("sel", rangeIndex, rectIndex) {
                     Box(
@@ -856,7 +889,9 @@ private fun EditableFieldRow(
     }
 
     if (lineLayout != null) {
-        EditableFieldLineFragments(lineLayout, layout, top, fontSize, fontFamily, state.textShadow)
+        EditableFieldLineFragments(
+            lineLayout, layout, top, fontSize, fontFamily, state.textShadow, inlayMetrics, onInlayAction,
+        )
     }
 
     if (rowDiagnostics.isNotEmpty()) {
@@ -873,7 +908,11 @@ private fun EditableFieldRow(
                         .size(TextFieldCaretWidth.px, fontSize.px)
                         .background(state.caretColor)
                         .layer(1)
-                        .animation(UiCaretBlinkKeyframes, UiCaretBlinkPeriodMillis, iterationCount = Float.POSITIVE_INFINITY),
+                        .animation(
+                            UiCaretBlinkKeyframes,
+                            UiCaretBlinkPeriodMillis,
+                            iterationCount = Float.POSITIVE_INFINITY
+                        ),
                 )
             }
         }
@@ -889,6 +928,8 @@ private fun EditableFieldLineFragments(
     fontSize: Float,
     fontFamily: String?,
     textShadow: Shadow? = null,
+    inlayMetrics: EditableFieldInlayMetrics,
+    onInlayAction: ((UiInlayAction) -> Unit)? = null,
 ) {
     lineLayout.lines.forEachIndexed { visualIndex, visual ->
         visual.fragments.forEachIndexed { fragmentIndex, fragment ->
@@ -937,26 +978,10 @@ private fun EditableFieldLineFragments(
                 }
 
                 is UiInlineWidgetRun -> {
-                    val hint = fieldLayout.inlayTexts[fragment.widget.id].orEmpty()
-                    if (hint.isNotEmpty() && fragment.width > 0f && fragment.height > 0f) {
+                    val hint = fieldLayout.inlayHints[fragment.widget.id]
+                    if (hint != null) {
                         key("inlay", visualIndex, fragmentIndex, fragment.widget.id) {
-                            Row(
-                                tags = listOf("editable-text-field-inlay", "code-editor-inlay"),
-                                modifier = Modifier
-                                    .position(x.px, y.px)
-                                    .size(UiLength.Fit, fragment.height.px),
-                            ) {
-                                Text(
-                                    hint,
-                                    tags = listOf("editable-text-field-inlay-text", "code-editor-inlay-text"),
-                                    modifier = Modifier
-                                        .fontSize(fontSize * EditableFieldInlayFontScale)
-                                        .textEffects(
-                                            *(EditableFieldDefaultInlayStyle.effects + listOfNotNull(textShadow)).toTypedArray(),
-                                        )
-                                        .textWrap(false),
-                                )
-                            }
+                            InlayHint(hint, x, y, inlayMetrics, onInlayAction)
                         }
                     }
                 }
@@ -964,6 +989,86 @@ private fun EditableFieldLineFragments(
                 is UiInlineImageRun -> Unit
             }
         }
+    }
+}
+
+/**
+ * One inlay, drawn as an ordinary node: its parts become children and its tags reach the
+ * stylesheet, which owns the padding, colors and font. The measured bounds go back into
+ * [metrics], so the line reserves exactly the room the inlay ended up taking.
+ */
+@Composable
+private fun InlayHint(
+    hint: UiInlayHint,
+    x: Float,
+    y: Float,
+    metrics: EditableFieldInlayMetrics,
+    onInlayAction: ((UiInlayAction) -> Unit)?,
+) {
+    val action = hint.action?.takeIf { onInlayAction != null }
+    val footprint = remember(hint, metrics) { InlayFootprint(hint, metrics) }
+    Row(
+        tags = InlayTags + hint.tags + listOfNotNull("inlay-action".takeIf { action != null }),
+        modifier = Modifier
+            .position(x.px, y.px)
+            .size(UiLength.Fit, UiLength.Fit)
+            .onResolvedStyle(footprint::styled)
+            .onPlaced(footprint::placed)
+            .let { base ->
+                if (action == null) base else base
+                    .input(clickable = true, hoverable = true)
+                    .cursor(UiCursorShape.HAND)
+                    .onClick { event ->
+                        onInlayAction?.invoke(action)
+                        event.consume()
+                    }
+            },
+    ) {
+        for ((partIndex, part) in hint.content.withIndex()) {
+            key("part", partIndex) {
+                when (part) {
+                    is UiInlayContent.Label -> Text(part.text, tags = InlayLabelTags)
+                    is UiInlayContent.Icon -> Image(part.source, tags = InlayIconTags)
+                }
+            }
+        }
+    }
+}
+
+private val InlayTags = listOf("editable-text-field-inlay", "code-editor-inlay")
+private val InlayLabelTags = listOf("editable-text-field-inlay-text", "code-editor-inlay-text")
+private val InlayIconTags = listOf("editable-text-field-inlay-icon", "code-editor-inlay-icon")
+
+/**
+ * Collects what one inlay ended up taking: the box the layout measured plus the margins
+ * the stylesheet put around it, so a styled margin pushes the text along instead of
+ * letting the inlay overlap it.
+ */
+private class InlayFootprint(
+    private val hint: UiInlayHint,
+    private val metrics: EditableFieldInlayMetrics,
+) {
+    private var width = 0f
+    private var height = 0f
+    private var horizontalMargin = 0f
+    private var verticalMargin = 0f
+
+    fun placed(bounds: UiRect) {
+        width = bounds.width
+        height = bounds.height
+        publish()
+    }
+
+    fun styled(style: UiComputedStyle) {
+        val margin = style.margin
+        horizontalMargin = margin.left.resolve(0f) + margin.right.resolve(0f)
+        verticalMargin = margin.top.resolve(0f) + margin.bottom.resolve(0f)
+        publish()
+    }
+
+    private fun publish() {
+        if (width <= 0f || height <= 0f) return
+        metrics.record(hint, width + horizontalMargin, height + verticalMargin)
     }
 }
 
@@ -985,7 +1090,12 @@ internal fun selectionRectsForRow(
             else emptyList()
         }
         val last = rects.last()
-        return rects + UiRect(last.x + last.width, last.y, (fullWidth - (last.x + last.width)).coerceAtLeast(0f), fontSize)
+        return rects + UiRect(
+            last.x + last.width,
+            last.y,
+            (fullWidth - (last.x + last.width)).coerceAtLeast(0f),
+            fontSize
+        )
     }
     val x1 = UiTextLayouter.measureTextWidth(line.text.take(localStart), fontSize, fontFamily)
     val x2 = UiTextLayouter.measureTextWidth(line.text.take(localEnd), fontSize, fontFamily)
@@ -1118,6 +1228,7 @@ internal fun handleEditableFieldKey(
                     input.control -> UiTextCaret(wordLeft(text, range.position))
                     range.inlayAffinity == UiInlayCaretAffinity.AFTER && layout?.hasInlayAt(range.position) == true ->
                         range.copy(inlayAffinity = UiInlayCaretAffinity.BEFORE)
+
                     else -> UiTextCaret(range.position - 1)
                 }
             }, input.shift)
@@ -1131,6 +1242,7 @@ internal fun handleEditableFieldKey(
                     input.control -> UiTextCaret(wordRight(text, range.position))
                     range.inlayAffinity == UiInlayCaretAffinity.BEFORE && layout?.hasInlayAt(range.position) == true ->
                         range.copy(inlayAffinity = UiInlayCaretAffinity.AFTER)
+
                     else -> {
                         val position = (range.position + 1).coerceAtMost(text.length)
                         val affinity = if (layout?.hasInlayAt(position) == true) {
@@ -1224,8 +1336,3 @@ internal val EditableFieldLineNumberColor = UiColor(0.56f, 0.6f, 0.66f, 0.78f)
 internal val EditableFieldIndentGuideColor = UiColor(0.56f, 0.6f, 0.66f, 0.22f)
 internal val EditableFieldPlaceholderColor = UiColor(0.56f, 0.6f, 0.66f, 0.65f)
 
-private const val EditableFieldInlayPaddingX = 3f
-private const val EditableFieldInlayMarginRight = 4f
-/** Inlay hints render at this fraction of the code font, so they stay within the line height. */
-private const val EditableFieldInlayFontScale = 0.85f
-private val EditableFieldDefaultInlayStyle = UiInlineStyle.Empty.withColor(UiColor(0.56f, 0.6f, 0.67f, 0.9f))

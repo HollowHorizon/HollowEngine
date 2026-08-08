@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.psi.*
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.renderVerbose
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
+import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayTags
 
 val KtNamedDeclaration.isSingleUnderscore: Boolean
     get() {
@@ -46,10 +47,16 @@ private fun PsiElement.hintBuilder(kind: InlayKind, label: String? = null): Inla
     } ?: return null
 
     val hint = when (kind) {
-        InlayKind.ParameterHint -> InlayHint(element.textRange.startOffset, "$label=")
+        InlayKind.ParameterHint ->
+            InlayHint(element.textRange.startOffset, "$label=", tags = listOf(InlayTags.PARAMETER))
+
         else ->
             this.determineType()?.let {
-                InlayHint(element.textRange.endOffset, ": " + with(session) { it.renderVerbose() })
+                InlayHint(
+                    element.textRange.endOffset,
+                    ": " + with(session) { it.renderVerbose() },
+                    tags = listOf(InlayTags.TYPE),
+                )
             } ?: return null
     }
     return hint
@@ -152,6 +159,7 @@ private fun functionHint(
 context(session: KaSession)
 fun provideHints(file: KtFile): List<InlayHint> {
     val res = mutableListOf<InlayHint>()
+    res += resourceLocationHints(file)
     for (node in file.preOrderTraversal().asIterable()) {
         try {
             when (node) {

@@ -5,9 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
-import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineWidgetMetrics
 import java.util.IdentityHashMap
 
 data class UiRect(
@@ -77,14 +75,6 @@ internal fun snapshotVisibleChildren(
     }
     return result ?: emptyMap()
 }
-
-internal fun UiLayoutNode.inlineWidgetMetrics(): Map<String, UiInlineWidgetMetrics> {
-    val layout = textLayout ?: return emptyMap()
-    return layout.lines
-        .flatMap { line -> line.fragments.filterIsInstance<UiInlineWidgetRun>() }
-        .associate { fragment -> fragment.widget.id to UiInlineWidgetMetrics(fragment.width, fragment.height) }
-}
-
 
 internal data class UiScrollbarReserve(
     val vertical: Boolean = false,

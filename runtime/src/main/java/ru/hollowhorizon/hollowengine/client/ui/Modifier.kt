@@ -447,7 +447,10 @@ fun Modifier.lineSpacing(value: Float) = prop(UiProps.LineSpacing, value.coerceA
 
 fun Modifier.spaceWidth(value: Float?) = prop(UiProps.SpaceWidth, value?.coerceAtLeast(0f))
 
-fun Modifier.fontSize(value: Float) = prop(UiProps.FontSize, value.coerceAtLeast(0.0001f))
+fun Modifier.fontSize(value: Float) = prop(UiProps.FontSize, UiFontSize.of(value))
+
+/** Font size as a share of the surrounding text, the same as `font-size: 85%` in HSS. */
+fun Modifier.fontScale(scale: Float) = prop(UiProps.FontSize, UiFontSize.scaled(scale))
 
 fun Modifier.fontFamily(name: String) = prop(UiProps.FontFamily, name)
 
@@ -540,6 +543,10 @@ internal fun UiNode.effectiveStates(): Set<UiState> {
     modifiers.appendModifierStatesTo(result)
     return result
 }
+
+/** Whether the node has a wheel handler of its own; it then gets the wheel before scrolling. */
+internal fun UiNode.listensToScroll(): Boolean =
+    resolvedModifiers.any { it is EventModifier && it.kind == UiEventKind.SCROLL }
 
 internal fun UiNode.hasEffectiveState(state: UiState): Boolean {
     if (state in states) return true

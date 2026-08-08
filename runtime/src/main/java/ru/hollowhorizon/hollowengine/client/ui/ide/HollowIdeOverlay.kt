@@ -30,6 +30,8 @@ import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
+import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
 
 internal const val ProjectTreeId = "ide-project-tree"
 internal const val ConsoleId = "ide-console"
@@ -158,18 +160,13 @@ object HollowIdeOverlay {
     fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
         if (!isVisible()) return false
         pipeline.await()
-        val modifiers = currentUiKeyModifiers()
-        if (modifiers and GLFW.GLFW_MOD_CONTROL != 0 && scrollY != 0.0) {
-            HollowIdeFontSize.zoom(scrollY)
-            return true
-        }
         val point = hollowIdeOverlayPoint(x, y)
         return surface.runtime.mouseScrolled(
             point.x,
             point.y,
             scrollX.toFloat(),
             scrollY.toFloat(),
-            modifiers,
+            currentUiKeyModifiers(),
         )
     }
 
@@ -452,6 +449,7 @@ object HollowIdeOverlay {
                     diagnostics = diagnostics,
                     inlayHints = inlayHints,
                     inlayRevision = analysisRevision,
+                    onInlayAction = ::runInlayAction,
                     readOnly = file.readOnly,
                     fontSize = fontSize,
                     state = editorState,
@@ -460,6 +458,11 @@ object HollowIdeOverlay {
                     modifier = Modifier.size(100.percent, 100.percent)
                         .onFocus {
                             dock.focus(file.id)
+                        }
+                        .onScroll { event ->
+                            if (!event.isCtrlDown()) return@onScroll
+                            HollowIdeFontSize.zoom(event.rawScrollY)
+                            event.consume()
                         }
                 )
                 HollowIdeDiagnosticsBadge(file.id, diagnostics) { id ->
@@ -548,6 +551,22 @@ object HollowIdeOverlay {
         return focusedFile()?.takeIf { it.textOrNull != null }
     }
 
+    /** Handles a click on a clickable inlay hint, such as the "open" button on a location. */
+    private fun runInlayAction(action: UiInlayAction) {
+        when (val decoded = InlayAction.decode(action.id)) {
+            is InlayAction.OpenResource -> {
+                val definition = ResourceLocationTargets.definition(decoded.location)
+                if (definition == null) {
+                    statusText = "Cannot find '${decoded.location}'"
+                } else {
+                    openDefinition(definition)
+                }
+            }
+
+            null -> statusText = "Unsupported inlay action"
+        }
+    }
+
     private fun openDefinition(definition: DefinitionLocation) {
         val file = if (definition.text != null || definition.readOnly) {
             model.openReadOnly(definition.path, definition.text.orEmpty())
@@ -570,8 +589,10 @@ object HollowIdeOverlay {
         Minecraft.getInstance().execute {
             pipeline.await()
             val editorKey = "editor-${file.id}"
-            val editor = editorState(file)
-            editor.moveCaret(offset)
+            if (file.type.id == BuiltinTextFileTypeId) {
+                val editor = editorState(file)
+                editor.moveCaret(offset)
+            }
             surface.runtime.focus(editorKey)
         }
     }

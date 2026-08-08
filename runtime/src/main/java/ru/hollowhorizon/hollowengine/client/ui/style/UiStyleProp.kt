@@ -28,6 +28,8 @@ class UiStyleProp<T> internal constructor(
     private val combineValues: ((current: T, next: T) -> T)? = null,
     private val interpolation: ((from: T, to: T, progress: Float) -> T)? = null,
     private val sanitize: ((T) -> T)? = null,
+    /** Turns a value written relative to the parent (`font-size: 85%`) into an absolute one. */
+    private val resolveRelative: ((value: T, parent: UiComputedStyle?) -> T)? = null,
 ) {
     internal val index: Int = register(this)
 
@@ -69,6 +71,12 @@ class UiStyleProp<T> internal constructor(
     internal fun sanitizeRaw(value: Any?): Any? {
         val sanitize = sanitize ?: return value
         return sanitize(value as T)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    internal fun resolveRelativeRaw(value: Any?, parent: UiComputedStyle?): Any? {
+        val resolve = resolveRelative ?: return value
+        return resolve(value as T, parent)
     }
 
     operator fun getValue(patch: UiStylePatch, property: KProperty<*>): T? = patch[this]
@@ -113,6 +121,11 @@ class UiStyleProp<T> internal constructor(
                 prop.transitionGroup?.let { group -> mapping.getOrPut(group) { mutableListOf() } += prop }
             }
             mapping
+        }
+
+        /** Every name a `transitions` declaration may target, including groups and "all". */
+        internal val transitionPropertyNames: List<String> by lazy {
+            (listOf("all") + byTransitionProperty.keys).distinct().sorted()
         }
 
         /**
@@ -175,7 +188,7 @@ class UiStylePatch {
         val resolved = arrayOfNulls<Any?>(props.size)
         for (prop in props) {
             val value = if (values.containsKey(prop)) values[prop] else prop.defaultFor(parent)
-            resolved[prop.index] = prop.sanitizeRaw(value)
+            resolved[prop.index] = prop.sanitizeRaw(prop.resolveRelativeRaw(value, parent))
         }
         return UiComputedStyle(resolved, explicitProperties ?: emptySet())
     }

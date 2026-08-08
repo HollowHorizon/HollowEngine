@@ -24,8 +24,24 @@ class UiState private constructor(val name: String) {
         val CLOSING = UiState("closing")
 
         fun of(name: String): UiState = UiState(name.trim().lowercase())
+
+        /** States the engine itself sets; user-defined ones are equally valid. */
+        val builtIns: List<UiState> = listOf(HOVER, ACTIVE, FOCUS, SELECTED, DISABLED, DRAGGING, CLOSING)
     }
 }
+
+/** Node types the built-in composables produce; what a `type` selector may name. */
+val UiBuiltInElementTypes: List<String> = listOf(
+    UiBoxType,
+    UiTextType,
+    UiSpanType,
+    UiImageType,
+    UiItemType,
+    UiEntityType,
+    UiSliderType,
+    UiCheckboxType,
+    UiPopupType,
+)
 
 const val UiBoxType = "box"
 const val UiTextType = "text"

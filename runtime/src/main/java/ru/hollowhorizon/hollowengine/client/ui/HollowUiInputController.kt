@@ -509,7 +509,7 @@ class HollowUiInputController {
                 GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS
     }
 
-    private fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
+    internal fun focusedScrollableNode(frame: HollowUiFrame): UiNode? {
         return focusByScope.values.firstOrNull {
             it in frame.layout.nodes &&
                     it.resolvedSnapshot.scrollable &&

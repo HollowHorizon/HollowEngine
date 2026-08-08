@@ -29,8 +29,8 @@ object HollowIdeFontSize {
         }
 
     /** Applies a wheel notch; [scrollY] follows the usual convention of positive meaning scroll up. */
-    fun zoom(scrollY: Double) {
-        if (scrollY == 0.0) return
-        size += if (scrollY > 0) Step else -Step
+    fun zoom(scrollY: Float) {
+        if (scrollY == 0f) return
+        size += if (scrollY > 0f) Step else -Step
     }
 }

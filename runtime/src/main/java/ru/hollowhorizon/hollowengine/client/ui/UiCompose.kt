@@ -506,6 +506,7 @@ fun TextField(
     indentGuides: Boolean = false,
     indentGuideColor: UiColor? = null,
     onChange: ((String) -> Unit)? = null,
+    onInlayAction: ((UiInlayAction) -> Unit)? = null,
     state: TextFieldState? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -538,6 +539,7 @@ fun TextField(
     fieldState.fontFamily = fontFamily
     fieldState.wrap = wrap ?: multiline
     var hssShadow by remember { mutableStateOf<HssShadowResolution>(HssShadowResolution.Inherit) }
+    var hssInlayHints by remember { mutableStateOf(true) }
     fieldState.textShadow = when (val resolution = hssShadow) {
         is HssShadowResolution.Override -> resolution.shadow
         HssShadowResolution.Inherit -> textShadow
@@ -573,13 +575,16 @@ fun TextField(
                 HssShadowResolution.Inherit
             }
             if (next != hssShadow) hssShadow = next
+            val hintsEnabled = textFieldStyle?.inlayHints != false
+            if (hintsEnabled != hssInlayHints) hssInlayHints = hintsEnabled
         },
         id = id,
         tags = tags,
         syntaxHighlighter = syntaxHighlighter,
-        inlayHints = inlayHints,
-        inlayHintsProvider = inlayHintsProvider,
+        inlayHints = if (hssInlayHints) inlayHints else emptyList(),
+        inlayHintsProvider = inlayHintsProvider.takeIf { hssInlayHints },
         inlayRevision = inlayRevision,
+        onInlayAction = onInlayAction,
         completionContributor = completionContributor,
         completionRevision = completionRevision,
         diagnostics = diagnostics,

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.nbt.CompoundTag
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.style.parseHssSelector
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
 
@@ -167,6 +168,10 @@ data class UiEvent(
 fun UiEvent.isLeftClick(): Boolean = button == 0
 fun UiEvent.isRightClick(): Boolean = button == 1
 fun UiEvent.isMiddleClick(): Boolean = button == 2
+
+fun UiEvent.isCtrlDown(): Boolean = modifiers and GLFW.GLFW_MOD_CONTROL != 0
+fun UiEvent.isShiftDown(): Boolean = modifiers and GLFW.GLFW_MOD_SHIFT != 0
+fun UiEvent.isAltDown(): Boolean = modifiers and GLFW.GLFW_MOD_ALT != 0
 
 private fun UiNode.readWidgetValue(): Any? = when (this) {
     is SpanNode -> text

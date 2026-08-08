@@ -60,7 +60,7 @@ internal fun HollowIdeImageEditor(
     }
 
     fun zoomAt(event: UiEvent) {
-        if (event.modifiers and GLFW.GLFW_MOD_CONTROL == 0 || event.rawScrollY == 0f) return
+        if (!event.isCtrlDown() || event.rawScrollY == 0f) return
         finishStroke()
         val previousZoom = zoom
         val nextZoom = (previousZoom * ZoomStep.pow(event.rawScrollY.toDouble()).toFloat())

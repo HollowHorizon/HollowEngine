@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import ru.hollowhorizon.hollowengine.common.ide.session.ScriptingAnalyzerImpl
+import ru.hollowhorizon.hollowengine.common.ide.session.inlays.resourceLocationDefinition
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import java.io.File
 import java.nio.file.Files
@@ -25,6 +26,7 @@ import kotlin.io.path.name
 import kotlin.io.path.nameWithoutExtension
 
 fun ScriptingAnalyzerImpl.findDefinition(file: KtFile, offset: Int): DefinitionLocation? {
+    resourceLocationDefinition(file, offset)?.let { return it }
     val expression = file.referenceExpressionAt(offset) ?: return null
     return analyze(file) {
         val symbols = expression.mainReference.resolveToSymbols().toList()

@@ -51,13 +51,15 @@ class EditableFieldLayoutTest {
     @Test
     fun `caret x and vertical movement include inlay width at the same offset`() {
         val plain = layout("a\nzzzzzzzzzz")
+        val hint = UiInlayHint(offset = 1, text = ": Int")
         val withInlay = computeEditableFieldLayout(
             text = "a\nzzzzzzzzzz",
             fontSize = fontSize,
             fontFamily = null,
             wrap = false,
             viewportWidth = 0f,
-            inlayHints = listOf(UiInlayHint(offset = 1, text = ": Int")),
+            inlayHints = listOf(hint),
+            inlayMetrics = measuredInlays(hint, width = 30f, height = fontSize),
         )
 
         assertTrue(withInlay.caretAt(1).x > plain.caretAt(1).x + 20f, "caret accounts for trailing inlay")
@@ -66,18 +68,20 @@ class EditableFieldLayoutTest {
 
     @Test
     fun `clicking an inlay chooses the caret side from the hint midpoint`() {
+        val hint = UiInlayHint(offset = 1, text = ": Int")
         val withInlay = computeEditableFieldLayout(
             text = "a",
             fontSize = fontSize,
             fontFamily = null,
             wrap = false,
             viewportWidth = 0f,
-            inlayHints = listOf(UiInlayHint(offset = 1, text = ": Int")),
+            inlayHints = listOf(hint),
+            inlayMetrics = measuredInlays(hint, width = 30f, height = fontSize),
         )
         val visual = withInlay.lineLayouts.single()!!.lines.single()
-        val hint = visual.fragments.filterIsInstance<UiInlineWidgetRun>().single()
-        val leftQuarter = visual.x + hint.x + hint.width * 0.25f
-        val rightQuarter = visual.x + hint.x + hint.width * 0.75f
+        val slot = visual.fragments.filterIsInstance<UiInlineWidgetRun>().single()
+        val leftQuarter = visual.x + slot.x + slot.width * 0.25f
+        val rightQuarter = visual.x + slot.x + slot.width * 0.75f
 
         assertEquals(EditableFieldCaretHit(1, UiInlayCaretAffinity.BEFORE), withInlay.caretHitAt(leftQuarter, visual.y))
         assertEquals(EditableFieldCaretHit(1, UiInlayCaretAffinity.AFTER), withInlay.caretHitAt(rightQuarter, visual.y))

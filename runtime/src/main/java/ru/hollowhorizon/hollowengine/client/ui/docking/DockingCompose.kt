@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
@@ -13,6 +15,10 @@ private const val DockTabMaxWidth = 180f
 private const val DockTabHeight = 18f
 private const val DockTabMargin = 2f
 private const val DockTabCloseWidth = 22f
+
+/** A dragged tab lifts slightly off the bar, and forward, so it draws over its neighbours. */
+private const val DockTabDragLift = -2f
+private const val DockTabDragDepth = 10f
 
 typealias DockItemContent = @Composable (DockItem) -> Unit
 typealias DockHeaderContent = @Composable (DockItem) -> Unit
@@ -144,9 +150,7 @@ private fun DockStackView(
     Column(
         id = stack.id,
         tags = listOf(DockTags.Stack),
-        modifier = Modifier.then(
-            Modifier.size(100.percent, 100.percent),
-        ),
+        modifier = Modifier.size(100.percent, 100.percent),
     ) {
         DockTabBar(stack, state, tabContent, allowUndock = true)
         val selected = stack.selectedItem ?: return@Column
@@ -268,9 +272,7 @@ private fun DockTabBar(
         },
         id = "${stack.id}-tabs",
         tags = listOf(DockTags.TabBar),
-        modifier = Modifier.then(
-            Modifier.size(100.percent, 24.px),
-        ),
+        modifier = Modifier.size(100.percent, 24.px),
         measurePolicy = measurePolicy,
     )
 }
@@ -286,8 +288,15 @@ private fun DockTab(
     allowUndock: Boolean,
 ) {
     val dragOffset = state.tabDragOffset(stackId, item.id, index)
-    val swapOffset = if (dragOffset == null) state.consumeTabSwapOffset(stackId, item.id) else null
-    val tabOffset = dragOffset ?: swapOffset
+    val swap = if (dragOffset == null) state.tabSwapOffset(stackId, item.id) else null
+    // The reorder already moved this tab; it holds its old place for one drawn frame and
+    // drops the offset on the next one, so the stylesheet's transition carries it across.
+    if (swap != null) {
+        LaunchedEffect(stackId, item.id, swap.revision) {
+            withFrameNanos { }
+            state.clearTabSwapOffset(stackId, item.id, swap.revision)
+        }
+    }
 
     val layerIndex = when {
         dragOffset != null -> 50
@@ -309,7 +318,8 @@ private fun DockTab(
                 .alignItems(vertical = UiAlign.CENTER)
                 .layer(layerIndex)
                 .clip()
-                .buildTabTransformModifier(tabOffset, dragOffset, swapOffset)
+                .tabTransform(dragOffset, DockTabOffset.DRAG)
+                .tabTransform(swap?.offset, DockTabOffset.SWAP)
                 .cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND)
                 .input(hoverable = true, clickable = true, draggable = true)
                 .buildTabInputModifier(stackId, item, state, allowUndock)
@@ -320,25 +330,32 @@ private fun DockTab(
     }
 }
 
-private fun Modifier.buildTabTransformModifier(
-    tabOffset: Float?,
-    dragOffset: Float?,
-    swapOffset: Float?,
-): Modifier {
-    if (swapOffset != null) {
-        then(Modifier.transition())
-    }
-    if (tabOffset != null) {
-        val isDragging = dragOffset != null
-        then(
-            Modifier.translate(
-                x = tabOffset,
-                y = if (isDragging) -2f else 0f,
-                z = if (isDragging) 10f else 0f
-            )
-        )
-    }
-    return this
+/** Why a tab sits away from the place the tab bar laid out for it. */
+internal enum class DockTabOffset {
+    /** It is under the pointer, being dragged along the bar. */
+    DRAG,
+
+    /** A reorder moved it, and it has not slid over to its new place yet. */
+    SWAP,
+}
+
+/**
+ * Offsets a tab from where the tab bar laid it out.
+ *
+ * How the offset settles belongs to the stylesheet: `.dock-tab` transitions `translate`, so
+ * a swapped tab slides into its new place, and `.dock-tab:dragging` turns that transition
+ * off so the dragged tab tracks the pointer exactly. The swap keeps its own first frame
+ * untransitioned as well — the tab has to appear back where it was before it can slide.
+ */
+internal fun Modifier.tabTransform(offset: Float?, kind: DockTabOffset): Modifier {
+    if (offset == null) return this
+    val dragging = kind == DockTabOffset.DRAG
+    val translated = translate(
+        x = offset,
+        y = if (dragging) DockTabDragLift else 0f,
+        z = if (dragging) DockTabDragDepth else 0f,
+    )
+    return if (dragging) translated else translated.transition()
 }
 
 private fun Modifier.buildTabInputModifier(

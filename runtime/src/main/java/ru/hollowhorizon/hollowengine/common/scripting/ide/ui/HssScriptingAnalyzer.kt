@@ -1,254 +1,113 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
-import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
+import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
+import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
+import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
+import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 
+/**
+ * IDE support for HSS. Highlighting, completion, hints and diagnostics all read the same
+ * two sources of truth: the scanner in [HssLexer] and the property schema behind
+ * [UiLanguageCatalog], so the editor never disagrees with the compiler.
+ */
 object HssScriptingAnalyzer : ScriptingAnalyzer {
-    private val defaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
-    private val selectorStyle = SpanStyle(TokenType.CLASS, italic = false, bold = false, highlight = false)
-    private val propertyStyle =
-        SpanStyle(TokenType.PROPERTY_IDENTIFIER, italic = false, bold = false, highlight = false)
-    private val stringStyle = SpanStyle(TokenType.STRING, italic = false, bold = false, highlight = false)
-    private val numberStyle = SpanStyle(TokenType.NUMERIC_LITERAL, italic = false, bold = false, highlight = false)
-    private val commentStyle = SpanStyle(TokenType.COMMENT, italic = true, bold = false, highlight = false)
-
     override fun highlight(name: String, text: String, offset: Int): List<TextLine> {
-        var inStyleBlock = false
-        var inBlockComment = false
-        return text.lines().map { line ->
-            val result = tokenizeLine(line, inStyleBlock, inBlockComment)
-            inStyleBlock = result.inStyleBlock
-            inBlockComment = result.inBlockComment
-            TextLine(result.spans, ArrayList())
-        }
+        val model = HssDocumentModel(text)
+        val spans = HssLexer(text, model.keyframeNames).tokenize()
+        return buildTextLines(text, spans, hssInlayHints(model))
     }
 
     override fun lightweightHighlightLine(name: String, line: String): TextLine {
-        return TextLine(tokenizeLine(line, false, false).spans, ArrayList())
+        val spans = HssLexer(line, initialDepth = lineDepthGuess(line)).tokenize()
+        return buildTextLines(line, spans, emptyList()).firstOrNull() ?: TextLine(emptyList(), ArrayList())
     }
 
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
-        val context = HssCompletionContext.from(text, offset) ?: return emptyList()
-        val values = when (context.kind) {
-            HssCompletionKind.SELECTOR_TYPE -> UiLanguageCatalog.elementTypes
-            HssCompletionKind.STATE -> UiLanguageCatalog.states
-            HssCompletionKind.PROPERTY -> UiLanguageCatalog.hssProperties
-            HssCompletionKind.VALUE -> UiLanguageCatalog.valuesFor(context.property)
+    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> =
+        hssCompletions(text, offset)
+
+    override fun diagnostic(name: String, text: String): List<Diagnostic> = hssDiagnostics(text)
+
+    /**
+     * Jumps from a resource location to the file it names, and from an animation name to
+     * the `@keyframes` block that defines it.
+     */
+    override fun definition(name: String, text: String, offset: Int): DefinitionLocation? {
+        val caret = offset.coerceIn(0, text.length)
+        hssLocationAt(text, caret)?.let { location ->
+            ResourceLocationTargets.definition(location)?.let { return it }
         }
-        return values.asSequence()
-            .filter { it.startsWith(context.prefix, ignoreCase = true) }
-            .map { completion(it, if (context.kind == HssCompletionKind.PROPERTY) "$it: " else it, context.kind) }
-            .toList()
+        val word = wordAt(text, caret) ?: return null
+        val keyframes = HssDocumentModel(text).keyframesNamed(word) ?: return null
+        return DefinitionLocation(name, keyframes)
     }
 
-    override fun diagnostic(name: String, text: String): List<Diagnostic> {
-        return try {
-            parseHss(text)
-            emptyList()
-        } catch (exception: HssParseException) {
-            listOf(diagnosticAt(text, exception.position, exception.messageText))
-        } catch (exception: IllegalArgumentException) {
-            listOf(diagnosticAt(text, 0, exception.message ?: "Invalid HSS"))
+    private fun wordAt(text: String, caret: Int): String? {
+        var start = caret
+        while (start > 0 && text[start - 1].isKeyframeNameChar()) start--
+        var end = caret
+        while (end < text.length && text[end].isKeyframeNameChar()) end++
+        return text.substring(start, end).takeIf { it.isNotEmpty() }
+    }
+
+    private fun Char.isKeyframeNameChar(): Boolean = isLetterOrDigit() || this == '-' || this == '_'
+
+    /**
+     * A standalone line has no block context, so a `property: value` shaped line is scanned
+     * as a declaration and everything else as a selector.
+     */
+    private fun lineDepthGuess(line: String): Int {
+        val trimmed = line.trim()
+        val declarationShaped = ':' in trimmed && '{' !in trimmed && !trimmed.startsWith('@')
+        return if (declarationShaped) 1 else 0
+    }
+
+    private fun buildTextLines(text: String, spans: List<HssSpan>, hints: List<InlayHint>): List<TextLine> {
+        val hintsByOffset = hints.groupBy { it.index }
+        val lines = text.split('\n')
+        val result = ArrayList<TextLine>(lines.size)
+        var lineStart = 0
+        var spanIndex = 0
+        for (line in lines) {
+            val lineEnd = lineStart + line.length
+            val pieces = ArrayList<Pair<String, SpanStyle>>()
+            var cursor = lineStart
+            while (spanIndex < spans.size && spans[spanIndex].start < lineEnd) {
+                val span = spans[spanIndex]
+                val start = maxOf(span.start, cursor)
+                val end = minOf(span.end, lineEnd)
+                if (end > start) {
+                    if (start > cursor) pieces += text.substring(cursor, start) to DefaultStyle
+                    pieces += text.substring(start, end) to span.style()
+                    cursor = end
+                }
+                if (span.end <= lineEnd) spanIndex++ else break
+            }
+            if (cursor < lineEnd) pieces += text.substring(cursor, lineEnd) to DefaultStyle
+            result += TextLine(pieces, lineHints(hintsByOffset, lineStart, lineEnd))
+            lineStart = lineEnd + 1
         }
+        return result
     }
 
-    private fun tokenizeLine(line: String, initialStyleBlock: Boolean, initialBlockComment: Boolean): HssLineTokens {
-        val spans = mutableListOf<Pair<String, SpanStyle>>()
-        var index = 0
-        var inStyleBlock = initialStyleBlock
-        var inBlockComment = initialBlockComment
-
-        while (index < line.length) {
-            when {
-                inBlockComment -> {
-                    val close = line.indexOf("*/", index)
-                    val end = if (close < 0) line.length else close + 2
-                    spans += line.substring(index, end) to commentStyle
-                    index = end
-                    inBlockComment = close < 0
-                }
-
-                line.startsWith("/*", index) -> {
-                    val close = line.indexOf("*/", index + 2)
-                    val end = if (close < 0) line.length else close + 2
-                    spans += line.substring(index, end) to commentStyle
-                    index = end
-                    inBlockComment = close < 0
-                }
-
-                line.startsWith("//", index) -> {
-                    spans += line.substring(index) to commentStyle
-                    index = line.length
-                }
-
-                line[index] == '{' -> {
-                    spans += "{" to defaultStyle
-                    index++
-                    inStyleBlock = true
-                }
-
-                line[index] == '}' -> {
-                    spans += "}" to defaultStyle
-                    index++
-                    inStyleBlock = false
-                }
-
-                inStyleBlock -> {
-                    index = tokenizeInsideBlock(line, index, spans)
-                }
-
-                else -> {
-                    index = tokenizeOutsideBlock(line, index, spans)
-                }
-            }
+    private fun lineHints(
+        hintsByOffset: Map<Int, List<InlayHint>>,
+        lineStart: Int,
+        lineEnd: Int,
+    ): ArrayList<InlayHint> {
+        val hints = ArrayList<InlayHint>()
+        if (hintsByOffset.isEmpty()) return hints
+        for (offset in lineStart..lineEnd) {
+            hintsByOffset[offset]?.forEach { hints += InlayHint(offset - lineStart, it.text) }
         }
-        return HssLineTokens(spans, inStyleBlock, inBlockComment)
+        return hints
     }
 
-    private fun tokenizeInsideBlock(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
-        var index = startIndex
-        val char = line[index]
+    private fun HssSpan.style(): SpanStyle = SpanStyle(type, italic = italic, bold = false, highlight = false)
 
-        when {
-            char == '"' || char == '\'' -> {
-                index = tokenizeString(line, index, spans)
-            }
-
-            char.isDigit() || char == '#' -> {
-                index = tokenizeNumber(line, index, spans)
-            }
-
-            isIdentifierStart(char) -> {
-                val start = index++
-                while (index < line.length && isIdentifierPart(line[index])) index++
-
-                val style = if (nextNonWhitespace(line, index) == ':') propertyStyle else selectorStyle
-                spans += line.substring(start, index) to style
-            }
-
-            else -> {
-                spans += char.toString() to defaultStyle
-                index++
-            }
-        }
-        return index
-    }
-
-    private fun tokenizeOutsideBlock(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
-        var index = startIndex
-        val char = line[index]
-
-        when {
-            isIdentifierStart(char) -> {
-                val start = index++
-                while (index < line.length && isIdentifierPart(line[index])) index++
-                spans += line.substring(start, index) to selectorStyle
-            }
-
-            char == '"' || char == '\'' -> {
-                index = tokenizeString(line, index, spans)
-            }
-
-            else -> {
-                spans += char.toString() to defaultStyle
-                index++
-            }
-        }
-        return index
-    }
-
-    private fun tokenizeString(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
-        var index = startIndex
-        val quote = line[index++]
-        while (index < line.length && line[index] != quote) index++
-        if (index < line.length) index++
-        spans += line.substring(startIndex, index) to stringStyle
-        return index
-    }
-
-    private fun tokenizeNumber(line: String, startIndex: Int, spans: MutableList<Pair<String, SpanStyle>>): Int {
-        var index = startIndex + 1
-        while (index < line.length && !line[index].isWhitespace() && line[index] !in ";,(){}") index++
-        spans += line.substring(startIndex, index) to numberStyle
-        return index
-    }
-
-    private fun completion(show: String, insert: String, kind: HssCompletionKind): CompletionItem {
-        return declarationCompletionItem {
-            this.show = show
-            this.insert = insert
-            name = show
-            tag = CompletionItemTag.PROPERTY
-            fqName = null
-            tail = if (kind == HssCompletionKind.VALUE) "value" else null
-            middle = null
-        }
-    }
-
-    private fun diagnosticAt(text: String, offset: Int, message: String): Diagnostic {
-        val position = Position.at(text, offset)
-        return Diagnostic(Range(position, position.copy(column = position.column + 1)), Severity.ERROR, message)
-    }
-
-    private fun isIdentifierStart(char: Char): Boolean = char.isLetter() || char == '-' || char == '_' || char == '.'
-
-    private fun isIdentifierPart(char: Char): Boolean = isIdentifierStart(char) || char.isDigit()
-
-    private fun nextNonWhitespace(line: String, start: Int): Char? {
-        var index = start
-        while (index < line.length && line[index].isWhitespace()) index++
-        return line.getOrNull(index)
-    }
-}
-
-private data class HssLineTokens(
-    val spans: List<Pair<String, SpanStyle>>,
-    val inStyleBlock: Boolean,
-    val inBlockComment: Boolean,
-)
-
-private enum class HssCompletionKind {
-    SELECTOR_TYPE,
-    STATE,
-    PROPERTY,
-    VALUE,
-}
-
-private data class HssCompletionContext(
-    val kind: HssCompletionKind,
-    val prefix: String,
-    val property: String = "",
-) {
-    companion object {
-        fun from(text: String, offset: Int): HssCompletionContext? {
-            val safeOffset = offset.coerceIn(0, text.length)
-            val before = text.substring(0, safeOffset)
-            val lastOpen = before.lastIndexOf('{')
-            val lastClose = before.lastIndexOf('}')
-            val prefix = before.takeLastWhile { it.isLetterOrDigit() || it == '-' || it == '_' }
-            if (lastOpen > lastClose) {
-                val lastColon = before.lastIndexOf(':')
-                val lastSemicolon = before.lastIndexOf(';')
-                val lastNewLine = before.lastIndexOf('\n')
-                val declarationStart = maxOf(lastOpen, lastSemicolon, lastNewLine)
-                if (lastColon > declarationStart) {
-                    val property = before.substring(declarationStart + 1, lastColon).trim()
-                    val valuePrefix = before.substring(lastColon + 1).takeLastWhile { isValuePrefixChar(it) }
-                    if (UiLanguageCatalog.valuesFor(property).isEmpty()) return null
-                    return HssCompletionContext(HssCompletionKind.VALUE, valuePrefix, property)
-                }
-                if (prefix.isEmpty()) return null
-                return HssCompletionContext(HssCompletionKind.PROPERTY, prefix)
-            }
-            if (before.endsWith(":$prefix")) return HssCompletionContext(HssCompletionKind.STATE, prefix)
-            if (prefix.isEmpty()) return null
-            if (before.takeLast(prefix.length + 1).startsWith(".")) return null
-            if (before.takeLast(prefix.length + 1).startsWith("#")) return null
-            return HssCompletionContext(HssCompletionKind.SELECTOR_TYPE, prefix)
-        }
-
-        private fun isValuePrefixChar(char: Char): Boolean {
-            return char.isLetterOrDigit() || char in "-_#.%/"
-        }
-    }
+    private val DefaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
 }

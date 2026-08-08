@@ -95,10 +95,37 @@ data class UiTextDiagnostic(
     val column: Int = 0,
 )
 
+sealed interface UiInlayContent {
+    data class Label(val text: String) : UiInlayContent
+
+    data class Icon(val source: String) : UiInlayContent
+}
+
+/** Opaque identity of an inlay's action; the field hands it back to its host on click. */
+@JvmInline
+value class UiInlayAction(val id: String)
+
+/**
+ * A hint drawn between the glyphs at [offset]. [tags] reach the stylesheet as tags of the
+ * inlay node. An [action] makes the hint clickable.
+ */
 data class UiInlayHint(
     val offset: Int,
-    val text: String,
-)
+    val content: List<UiInlayContent>,
+    val tags: List<String> = emptyList(),
+    val action: UiInlayAction? = null,
+) {
+    constructor(offset: Int, text: String, tags: List<String> = emptyList(), action: UiInlayAction? = null) :
+            this(offset, listOf(UiInlayContent.Label(text)), tags, action)
+
+    /** The hint's plain-text form; empty for hints drawn as icons only. */
+    val text: String
+        get() = content.filterIsInstance<UiInlayContent.Label>().joinToString("") { it.text }
+
+    /** Identity of what this hint draws; equal content measures to the same size. */
+    internal val contentKey: Int
+        get() = 31 * content.hashCode() + tags.hashCode()
+}
 
 data class UiTextAnalysis(
     val highlights: List<UiTextHighlight>,
@@ -241,7 +268,7 @@ internal fun String.toHighlightedRichText(
     highlighter: UiSyntaxHighlighter?,
     caret: Int = UiNoCaretOffset,
     inlayHints: List<UiInlayHint> = emptyList(),
-    inlayStyle: UiInlineStyle = UiInlineStyle.Empty,
+
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiRichText {
     if (inlayHints.isEmpty() && (isEmpty() || highlighter == null)) {
@@ -251,7 +278,7 @@ internal fun String.toHighlightedRichText(
     val cleanInlays = sanitizeInlayHints(length, inlayHints)
     val highlightCaret = if (highlighter is UiCaretAwareSyntaxHighlighter) caret else UiNoCaretOffset
     val cacheKey = HighlightedRichTextCacheKey(
-        this, highlighter, highlightCaret, cleanInlays, inlayStyle, inlayWidgetMetrics,
+        this, highlighter, highlightCaret, cleanInlays, inlayWidgetMetrics,
     )
     highlightedRichTextCache[cacheKey]?.let { return it }
 
@@ -271,7 +298,7 @@ internal fun String.toHighlightedRichText(
 internal fun String.toHighlightedRichText(
     highlights: List<UiTextHighlight>,
     inlayHints: List<UiInlayHint> = emptyList(),
-    inlayStyle: UiInlineStyle = UiInlineStyle.Empty,
+
     inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics> = emptyMap(),
 ): UiRichText {
     if (inlayHints.isEmpty() && (isEmpty() || highlights.isEmpty())) {
@@ -349,7 +376,7 @@ internal fun sanitizeInlayHints(textLength: Int, inlayHints: List<UiInlayHint>):
     var needsCopy = false
     for (hint in inlayHints) {
         val offset = hint.offset.coerceIn(0, textLength)
-        if (hint.text.isBlank() || offset != hint.offset) {
+        if (hint.isEmpty() || offset != hint.offset) {
             needsCopy = true
             break
         }
@@ -358,11 +385,19 @@ internal fun sanitizeInlayHints(textLength: Int, inlayHints: List<UiInlayHint>):
 
     val clean = ArrayList<UiInlayHint>(inlayHints.size)
     for (hint in inlayHints) {
-        if (hint.text.isBlank()) continue
+        if (hint.isEmpty()) continue
         val offset = hint.offset.coerceIn(0, textLength)
         clean += if (offset == hint.offset) hint else hint.copy(offset = offset)
     }
     return if (clean.isEmpty()) emptyList() else clean
+}
+
+/** A hint with nothing to draw: no parts, or only blank labels. */
+private fun UiInlayHint.isEmpty(): Boolean = content.none { part ->
+    when (part) {
+        is UiInlayContent.Label -> part.text.isNotBlank()
+        is UiInlayContent.Icon -> part.source.isNotBlank()
+    }
 }
 
 private fun String.buildTextSegments(highlights: List<UiTextHighlight>): List<TextStyleSpan> {
@@ -441,12 +476,12 @@ private data class HighlightedRichTextCacheKey(
     val highlighter: UiSyntaxHighlighter?,
     val caret: Int,
     val inlayHints: List<UiInlayHint>,
-    val inlayStyle: UiInlineStyle,
+
     val inlayWidgetMetrics: Map<String, UiInlineWidgetMetrics>,
 )
 
 internal fun textFieldInlayWidgetId(hint: UiInlayHint, index: Int): String {
-    val hash = hint.text.hashCode().toUInt().toString(16)
+    val hash = hint.contentKey.toUInt().toString(16)
     return "inlay-${hint.offset}-$index-$hash"
 }
 

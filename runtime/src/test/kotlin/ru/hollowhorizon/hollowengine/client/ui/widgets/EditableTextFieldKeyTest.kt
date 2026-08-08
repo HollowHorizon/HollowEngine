@@ -54,13 +54,15 @@ class EditableTextFieldKeyTest {
 
     @Test
     fun `arrow keys expose both caret sides of an inlay`() {
+        val hint = UiInlayHint(offset = 1, text = ": Int")
         val layout = computeEditableFieldLayout(
             text = "a",
             fontSize = 10f,
             fontFamily = null,
             wrap = false,
             viewportWidth = 0f,
-            inlayHints = listOf(UiInlayHint(offset = 1, text = ": Int")),
+            inlayHints = listOf(hint),
+            inlayMetrics = measuredInlays(hint, width = 30f, height = 10f),
         )
         val state = state("a", caret = 0)
 

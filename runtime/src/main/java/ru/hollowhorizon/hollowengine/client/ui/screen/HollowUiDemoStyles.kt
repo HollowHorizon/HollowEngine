@@ -502,9 +502,12 @@ internal val DemoStyles = compileHss(
         caret-color: #f4f7ff;
         selection-color: rgba(92, 150, 255, 0.36);
         line-number-color: rgba(130, 146, 170, 0.76);
-        inlay-hint-color: rgba(130, 146, 170, 0.58);
         line-numbers: true;
         inlay-hints: true;
+    }
+
+    .editable-text-field-inlay-text {
+        foreground: rgba(130, 146, 170, 0.58);
     }
 
     .editor-key-log {

@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class HollowIdeEditorSession(
     private val path: String,
@@ -170,7 +171,7 @@ internal class HollowIdeEditorSession(
         val requestRevision = analysisRevision.incrementAndGet()
         analysisJob?.cancel()
         analysisJob = scope.launch {
-            delay(EditorAnalysisDebounceMillis)
+            delay(EditorAnalysisDebounceMillis.milliseconds)
             ensureActive()
             val lineStarts = lineStarts(text)
             val lines = runCatching { analyzer.highlight(path, text, UiNoCaretOffset) }.getOrElse {
@@ -521,10 +522,17 @@ private fun List<TextLine>.toInlayHints(lineStarts: List<Int>, textLength: Int):
         line.hints.map { hint ->
             UiInlayHint(
                 offset = (lineStart + hint.index).coerceIn(0, textLength),
-                text = hint.text,
+                content = hint.content.map { it.toUi() },
+                tags = hint.tags,
+                action = hint.action?.let { UiInlayAction(it.id) },
             )
         }
     }
+}
+
+private fun InlayContent.toUi(): UiInlayContent = when (this) {
+    is InlayContent.Label -> UiInlayContent.Label(text)
+    is InlayContent.Icon -> UiInlayContent.Icon(source)
 }
 
 private fun CompletionItem.toUi(): UiTextCompletion {

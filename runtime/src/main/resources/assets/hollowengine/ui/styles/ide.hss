@@ -306,9 +306,11 @@
     inlay-hints: true;
 }
 
+/* Inlays are measured as they are drawn, so everything about their size lives here. */
 .code-editor-inlay {
     height: fit;
     padding: 0px 3px;
+    gap: 3px;
     align-items: center center;
     background: #1E1F22;
     margin-left: 2px;
@@ -317,8 +319,29 @@
 }
 
 .code-editor-inlay-text {
+    /* A share of the code font, so the hints follow ctrl+wheel along with the text. */
+    font-size: 85%;
     foreground: rgba(142, 153, 171, 0.9);
     text-wrap: false;
+}
+
+.code-editor-inlay-icon {
+    size: 9px 9px;
+    align-y: center;
+    tint: rgba(142, 153, 171, 0.9);
+    transition: all 170ms ease-in-out;
+}
+
+.code-editor-inlay.inlay-action {
+    transition: all 170ms ease-in-out;
+}
+
+.code-editor-inlay.inlay-action:hover {
+    background: #2B2D31;
+}
+
+.code-editor-inlay.inlay-action:hover .code-editor-inlay-icon {
+    tint: #FFFFFF;
 }
 
 .ide-diagnostics-badge {
