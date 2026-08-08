@@ -38,6 +38,15 @@ fun SlotZonesBuilder.playerZones(
     }
 }
 
+/**
+ * The player's own storage as a [SlotSource]: the same slots [playerZones] binds under
+ * [PlayerSlotZones.STORAGE], without armor and the off-hand.
+ *
+ * This is what item operations on a player should go through. A player's `Inventory` is a `Container` of 41
+ * slots with equipment at the end, so inserting into it directly would let a stray apple land in a boot slot.
+ */
+fun Player.storageSlots(): SlotSource = ContainerSource(inventory).range(0, STORAGE_SIZE)
+
 /** Hotbar plus the three rows above it: every slot a player can shift-click into. */
 const val STORAGE_SIZE = 36
 

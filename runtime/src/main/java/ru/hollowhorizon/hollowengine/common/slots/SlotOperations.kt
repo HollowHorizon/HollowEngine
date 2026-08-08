@@ -102,6 +102,26 @@ fun SlotSource.containsAll(requests: Iterable<ItemRequest>): Boolean {
     return true
 }
 
+/**
+ * Moves up to [count] matching items into [target], returning how many actually arrived.
+ *
+ * Anything the target has no room for goes straight back where it came from, so a full target costs the
+ * caller nothing: a half-finished transfer must never leave items in mid-air.
+ */
+fun SlotSource.transferTo(target: SlotSource, filter: ItemFilter, count: Int): Int {
+    val extracted = extract(filter, count)
+    var transferred = 0
+    extracted.forEach { stack ->
+        val remainder = target.insert(stack)
+        transferred += stack.count - remainder.count
+        if (!remainder.isEmpty) {
+            val returned = insert(remainder)
+            check(returned.isEmpty) { "Transferred item could not be returned to the source inventory" }
+        }
+    }
+    return transferred
+}
+
 /** Empties every slot, returning what was removed. */
 fun SlotSource.clearAll(): List<ItemStack> {
     val removed = indices.map { this[it] }.filterNot(ItemStack::isEmpty)

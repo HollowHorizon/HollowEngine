@@ -1,10 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.items.ItemFilter
 import ru.hollowhorizon.hollowengine.common.npcs.items.ItemRequest
+import ru.hollowhorizon.hollowengine.common.slots.storageSlots
+import ru.hollowhorizon.hollowengine.common.slots.transferTo
 
 fun NpcEntity.giveItem(stack: ItemStack): ItemStack = inventory.insert(stack)
 
@@ -30,27 +33,20 @@ fun NpcEntity.equip(slot: EquipmentSlot, filter: ItemFilter): Boolean {
 }
 
 fun NpcEntity.unequip(slot: EquipmentSlot): Boolean {
-    val equipped = getItemBySlot(slot)
+    val equipped = getItemBySlot(slot).copy()
     if (equipped.isEmpty) return false
-    val remainder = inventory.insert(equipped)
-    if (!remainder.isEmpty) return false
+
     setItemSlot(slot, ItemStack.EMPTY)
-    return true
+    val remainder = inventory.insert(equipped)
+    if (!remainder.isEmpty) setItemSlot(slot, remainder)
+    return remainder.isEmpty
 }
 
 fun NpcEntity.dropItems(filter: ItemFilter, count: Int): List<ItemStack> =
     inventory.extract(filter, count).onEach(::dropItem)
 
-fun NpcEntity.transferItems(target: NpcEntity, filter: ItemFilter, count: Int): Int {
-    val extracted = inventory.extract(filter, count)
-    var transferred = 0
-    extracted.forEach { stack ->
-        val remainder = target.inventory.insert(stack)
-        transferred += stack.count - remainder.count
-        if (!remainder.isEmpty) {
-            val returned = inventory.insert(remainder)
-            check(returned.isEmpty) { "Transferred item could not be returned to the source inventory" }
-        }
-    }
-    return transferred
-}
+fun NpcEntity.transferItems(target: NpcEntity, filter: ItemFilter, count: Int): Int =
+    inventory.slots.transferTo(target.inventory.slots, filter, count)
+
+fun NpcEntity.transferItems(target: Player, filter: ItemFilter, count: Int): Int =
+    inventory.slots.transferTo(target.storageSlots(), filter, count)
