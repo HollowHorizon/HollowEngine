@@ -7,6 +7,13 @@ sealed interface CompletionItem {
     val moveCaret: Int
     val name: String
 
+    /**
+     * Punctuation that is part of the name being completed, beyond letters, digits and `_`. Kotlin
+     * needs none; a story command is typed as `@play-video`, so both `@` and `-` belong to the word
+     * the editor replaces rather than sitting in front of it.
+     */
+    val wordChars: String get() = ""
+
     data class Declaration(
         override val show: String,
         override val insert: String,
@@ -17,6 +24,7 @@ sealed interface CompletionItem {
         val fqName: String?,
         val tail: String?,
         val middle: String?,
+        override val wordChars: String = "",
     ) : CompletionItem
 
     data class Keyword(
@@ -24,6 +32,7 @@ sealed interface CompletionItem {
         override val insert: String = show,
         override val name: String,
         override val moveCaret: Int = 0,
+        override val wordChars: String = "",
     ) : CompletionItem {
         override val tag: CompletionItemTag
             get() = CompletionItemTag.KEYWORD
@@ -35,19 +44,21 @@ class KeywordItemBuilder {
     lateinit var textToInsert: String
     var moveCaret: Int = 0
     lateinit var name: String
+    var wordChars: String = ""
 
     fun with(completionItem: CompletionItem.Keyword) {
         textToShow = completionItem.show
         textToInsert = completionItem.insert
         moveCaret = completionItem.moveCaret
         name = completionItem.name
+        wordChars = completionItem.wordChars
     }
 
     fun withSpace() {
         textToInsert += " "
     }
 
-    fun build() = CompletionItem.Keyword(textToShow, textToInsert, name, moveCaret)
+    fun build() = CompletionItem.Keyword(textToShow, textToInsert, name, moveCaret, wordChars)
 }
 
 class DeclarationCompletionItemBuilder {
@@ -60,6 +71,7 @@ class DeclarationCompletionItemBuilder {
     var name: String? = null
     var tail: String? = null
     var middle: String? = null
+    var wordChars: String = ""
 
     fun withImport() {
         import = true
@@ -88,6 +100,7 @@ class DeclarationCompletionItemBuilder {
             fqName = fqName,
             tail = tail,
             middle = middle,
+            wordChars = wordChars,
         )
 }
 

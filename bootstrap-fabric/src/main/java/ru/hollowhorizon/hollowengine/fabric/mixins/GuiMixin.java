@@ -22,6 +22,11 @@ public class GuiMixin {
     @Shadow @Final private static ResourceLocation PUMPKIN_BLUR_LOCATION;
     @Shadow @Final private static ResourceLocation POWDER_SNOW_OUTLINE_LOCATION;
 
+    @Inject(method = "render", at = @At("RETURN"))
+    private void onRenderHudPost(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onRenderHudPost(minecraft.getWindow(), guiGraphics, deltaTracker.getGameTimeDeltaPartialTick(false));
+    }
+
     @Inject(method = "renderVignette", at = @At("HEAD"), cancellable = true)
     private void onRenderVignettePre(GuiGraphics guiGraphics, Entity entity, CallbackInfo ci) {
         if (BootstrapRuntimeManager.bridge().onRenderOverlayPre(minecraft.getWindow(), guiGraphics, minecraft.getTimer().getGameTimeDeltaPartialTick(false), HudLayerIds.VIGNETTE)) ci.cancel();

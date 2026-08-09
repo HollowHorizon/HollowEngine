@@ -33,6 +33,7 @@ import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
+import ru.hollowhorizon.hollowengine.common.dialogue.DialogueInput
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -664,6 +665,27 @@ private fun CommandExtension.registerUtilityCommands() {
         executes {
             copyTargetPositionToClipboard(source.playerOrException)
             SUCCESS
+        }
+    }
+
+    registerDialogueCommands()
+}
+
+private fun CommandExtension.registerDialogueCommands() {
+    "dialogue" {
+        "advance" {
+            executes {
+                if (DialogueInput.advance(source.playerOrException)) SUCCESS
+                else sendFailure("hollowengine.commands.dialogue_not_in_dialogue".mcTranslate())
+            }
+        }
+
+        "choose"(arg("option", IntegerArgumentType.integer(0))) {
+            executes {
+                val option = IntegerArgumentType.getInteger(this, "option")
+                if (DialogueInput.choose(source.playerOrException, option)) SUCCESS
+                else sendFailure("hollowengine.commands.dialogue_no_such_option".mcTranslate(option))
+            }
         }
     }
 }

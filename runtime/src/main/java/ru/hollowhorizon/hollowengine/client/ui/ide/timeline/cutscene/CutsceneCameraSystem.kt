@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.client.dialogue.StoryCameraSystem
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderArmEvent
@@ -15,8 +16,16 @@ object CutsceneCameraSystem {
     val activeController: CutscenePlaybackController?
         get() = controller
 
+    /**
+     * The pose the camera should take. A cutscene being played wins over a story's own `@camera`,
+     * because it is the more specific instruction; the render bridge reads this one property, so both
+     * arrive through the same path.
+     */
     val currentPose: CameraPose?
-        get() = controller?.currentPose
+        get() = controller?.currentPose ?: StoryCameraSystem.currentPose
+
+    /** Whether anything is holding the camera, a cutscene or a story. */
+    val isOverriding: Boolean get() = currentPose != null
 
     fun play(data: CutsceneData, loop: Boolean = false) {
         controller = CutscenePlaybackController().also {
@@ -41,6 +50,7 @@ object CutsceneCameraSystem {
     }
 
     fun update(minecraft: Minecraft) {
+        StoryCameraSystem.update()
         val active = controller ?: return
         if (minecraft.level == null || minecraft.player == null) {
             stop()

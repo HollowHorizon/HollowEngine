@@ -267,6 +267,9 @@ public interface RuntimeBridge extends AutoCloseable {
     boolean onRenderOverlayPre(Window window, GuiGraphics guiGraphics, float partialTick, String layerId);
 
     void onRenderOverlayPost(Window window, GuiGraphics guiGraphics, float partialTick, String layerId);
+
+    void onRenderHudPost(Window window, GuiGraphics guiGraphics, float partialTick);
+
     boolean onKeyboardKey(long windowPointer, int key, int scanCode, int action, int modifiers);
 
     boolean onKeyboardChar(long windowPointer, int codePoint, int modifiers);

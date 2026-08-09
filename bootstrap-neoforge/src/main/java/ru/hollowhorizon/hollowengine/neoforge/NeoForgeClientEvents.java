@@ -28,6 +28,7 @@ public class NeoForgeClientEvents {
         forgeBus.addListener(NeoForgeClientEvents::registerClientCommands);
         forgeBus.addListener(NeoForgeClientEvents::onRenderOverlayPre);
         forgeBus.addListener(NeoForgeClientEvents::onRenderOverlayPost);
+        forgeBus.addListener(NeoForgeClientEvents::onRenderHudPost);
         forgeBus.addListener(NeoForgeClientEvents::onCameraSetup);
 
         modBus.addListener(NeoForgeClientEvents::registerShaders);
@@ -77,6 +78,10 @@ public class NeoForgeClientEvents {
 
     private static void onRenderOverlayPost(RenderGuiLayerEvent.Post event) {
         bridge.onRenderOverlayPost(Minecraft.getInstance().getWindow(), event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getName().toString());
+    }
+
+    private static void onRenderHudPost(RenderGuiEvent.Post event) {
+        bridge.onRenderHudPost(Minecraft.getInstance().getWindow(), event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
     }
 
     private static void onCameraSetup(ViewportEvent.ComputeCameraAngles event) {

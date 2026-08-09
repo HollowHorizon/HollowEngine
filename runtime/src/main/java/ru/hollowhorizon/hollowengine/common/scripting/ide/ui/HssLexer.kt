@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 
 /** A highlighted slice of an HSS document. Spans cover the source without gaps. */
-internal data class HssSpan(
+data class TextSpan(
     val start: Int,
     val end: Int,
     val type: TokenType,
@@ -48,9 +48,9 @@ internal class HssLexer(
     private var inValue = false
     private var property: String? = null
     private var valueStart = 0
-    private val spans = ArrayList<HssSpan>()
+    private val spans = ArrayList<TextSpan>()
 
-    fun tokenize(): List<HssSpan> {
+    fun tokenize(): List<TextSpan> {
         while (index < text.length) scan()
         return spans
     }
@@ -274,7 +274,7 @@ internal class HssLexer(
     }
 
     private fun emit(start: Int, end: Int, type: TokenType, italic: Boolean = false) {
-        if (end > start) spans += HssSpan(start, end, type, italic)
+        if (end > start) spans += TextSpan(start, end, type, italic)
     }
 
     private fun isIdentifierPart(char: Char): Boolean =

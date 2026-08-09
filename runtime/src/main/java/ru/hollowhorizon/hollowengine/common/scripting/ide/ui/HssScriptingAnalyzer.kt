@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+import ru.hollowhorizon.hollowengine.common.scripting.ide.buildTextLines
 
 /**
  * IDE support for HSS. Highlighting, completion, hints and diagnostics all read the same
@@ -65,49 +66,4 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
         val declarationShaped = ':' in trimmed && '{' !in trimmed && !trimmed.startsWith('@')
         return if (declarationShaped) 1 else 0
     }
-
-    private fun buildTextLines(text: String, spans: List<HssSpan>, hints: List<InlayHint>): List<TextLine> {
-        val hintsByOffset = hints.groupBy { it.index }
-        val lines = text.split('\n')
-        val result = ArrayList<TextLine>(lines.size)
-        var lineStart = 0
-        var spanIndex = 0
-        for (line in lines) {
-            val lineEnd = lineStart + line.length
-            val pieces = ArrayList<Pair<String, SpanStyle>>()
-            var cursor = lineStart
-            while (spanIndex < spans.size && spans[spanIndex].start < lineEnd) {
-                val span = spans[spanIndex]
-                val start = maxOf(span.start, cursor)
-                val end = minOf(span.end, lineEnd)
-                if (end > start) {
-                    if (start > cursor) pieces += text.substring(cursor, start) to DefaultStyle
-                    pieces += text.substring(start, end) to span.style()
-                    cursor = end
-                }
-                if (span.end <= lineEnd) spanIndex++ else break
-            }
-            if (cursor < lineEnd) pieces += text.substring(cursor, lineEnd) to DefaultStyle
-            result += TextLine(pieces, lineHints(hintsByOffset, lineStart, lineEnd))
-            lineStart = lineEnd + 1
-        }
-        return result
-    }
-
-    private fun lineHints(
-        hintsByOffset: Map<Int, List<InlayHint>>,
-        lineStart: Int,
-        lineEnd: Int,
-    ): ArrayList<InlayHint> {
-        val hints = ArrayList<InlayHint>()
-        if (hintsByOffset.isEmpty()) return hints
-        for (offset in lineStart..lineEnd) {
-            hintsByOffset[offset]?.forEach { hints += InlayHint(offset - lineStart, it.text) }
-        }
-        return hints
-    }
-
-    private fun HssSpan.style(): SpanStyle = SpanStyle(type, italic = italic, bold = false, highlight = false)
-
-    private val DefaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
 }

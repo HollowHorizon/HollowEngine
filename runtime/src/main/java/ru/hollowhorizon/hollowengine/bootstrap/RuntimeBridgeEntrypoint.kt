@@ -853,6 +853,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         UiScriptHudHost.render(layer, HudPlacement.AFTER, System.nanoTime())
     }
 
+    override fun onRenderHudPost(window: Window, guiGraphics: GuiGraphics, partialTick: Float) {
+        RenderHudEvent.post(RenderHudEvent(window, guiGraphics, partialTick))
+    }
+
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
         if (HollowIdeOverlay.handleKey(key, scanCode, action, modifiers)) return true
         if (TransformGizmoEditor.handleKey(key, scanCode, action, modifiers)) return true

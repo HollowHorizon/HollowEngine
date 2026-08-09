@@ -74,6 +74,7 @@ data class UiTextCompletion(
     val icon: String? = null,
     val caretOffset: Int? = null,
     val importFqName: String? = null,
+    val wordChars: String = "",
 )
 
 fun interface UiCompletionContributor {

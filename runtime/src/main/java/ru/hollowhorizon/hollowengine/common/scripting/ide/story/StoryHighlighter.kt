@@ -1,0 +1,236 @@
+package ru.hollowhorizon.hollowengine.common.scripting.ide.story
+
+import ru.hollowhorizon.hollowengine.common.dialogue.StoryBool
+import ru.hollowhorizon.hollowengine.common.dialogue.StoryNumber
+import ru.hollowhorizon.hollowengine.common.dialogue.StoryString
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryArg
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpr
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryFunctionCatalog
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryLine
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryLineKind
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryParser
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextPart
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextTemplate
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.UnaryOp
+import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.TextSpan
+
+/**
+ * Coloring for `.story`. It reads the same tree the compiler does, so the editor can never disagree
+ * with it about what a piece of text is: a speaker, a command, an argument name or an expression.
+ */
+internal object StoryHighlighter {
+    /** Built-in commands, colored as keywords; anything else is a call into the function registry. */
+    val BUILTIN_COMMANDS = listOf(
+        "if", "else-if", "else", "while", "set",
+        "jump", "call", "return",
+        "choice", "async", "await", "cancel", "sync",
+        "command",
+    )
+
+    fun spans(text: String, catalog: StoryFunctionCatalog = StoryFunctionCatalog.PERMISSIVE): List<TextSpan> {
+        val parsed = StoryParser.parse(text)
+        val spans = ArrayList<TextSpan>()
+        parsed.cst.lines.forEach { line -> lineSpans(line, spans, catalog) }
+        return spans.sortedBy { it.start }.dropOverlaps()
+    }
+
+    /**
+     * How a call is drawn: built-in commands as keywords, registered functions as functions, and a
+     * name nothing knows about in italics, it may still be registered on a controller, so it is not
+     * an error, but the difference should be visible while writing.
+     */
+    private fun callSpan(start: Int, end: Int, name: String, catalog: StoryFunctionCatalog): TextSpan = when {
+        name in BUILTIN_COMMANDS -> TextSpan(start, end, TokenType.KEYWORD)
+        catalog.overloads(name) != null -> TextSpan(start, end, TokenType.FUNCTION)
+        else -> TextSpan(start, end, TokenType.FUNCTION, italic = true)
+    }
+
+    private fun lineSpans(line: StoryLine, out: MutableList<TextSpan>, catalog: StoryFunctionCatalog) {
+        line.commentStart?.let { start ->
+            out += TextSpan(line.offset + start, line.offset + line.raw.length, TokenType.COMMENT, italic = true)
+        }
+        val contentStart = line.offset + line.indent.length
+        val contentEnd = line.offset + (line.commentStart ?: line.raw.length)
+
+        when (val kind = line.kind) {
+            is StoryLineKind.Label -> {
+                out += TextSpan(contentStart, kind.nameSpan.end, TokenType.TOP_LEVEL)
+            }
+
+            is StoryLineKind.Dialogue -> {
+                kind.speakerSpan?.let { out += TextSpan(it.start, it.end, TokenType.CLASS) }
+                templateSpans(kind.text, out, catalog)
+            }
+
+            is StoryLineKind.Command -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                templateSpans(kind.text, out, catalog, literalType = TokenType.STRING)
+            }
+
+            is StoryLineKind.If -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                exprSpans(kind.condition, out)
+            }
+
+            is StoryLineKind.ElseIf -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                exprSpans(kind.condition, out)
+            }
+
+            is StoryLineKind.While -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                exprSpans(kind.condition, out)
+            }
+
+            is StoryLineKind.Set -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                out += TextSpan(kind.variableSpan.start, kind.variableSpan.end, TokenType.VARIABLE)
+                exprSpans(kind.value, out)
+            }
+
+            is StoryLineKind.Jump -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                out += TextSpan(kind.target.span.start, kind.target.span.end, TokenType.STRING)
+            }
+
+            is StoryLineKind.Call -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                out += TextSpan(kind.target.span.start, kind.target.span.end, TokenType.STRING)
+            }
+
+            is StoryLineKind.Choice -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                // The quotes belong to the string but sit outside the template's span.
+                out += TextSpan(kind.text.span.start - 1, kind.text.span.start, TokenType.STRING)
+                out += TextSpan(kind.text.span.end, kind.text.span.end + 1, TokenType.STRING)
+                templateSpans(kind.text, out, catalog, literalType = TokenType.STRING)
+                kind.args.forEach { argSpans(it, out) }
+            }
+
+            is StoryLineKind.FuncCall -> {
+                out += callSpan(contentStart, kind.functionSpan.end, kind.function, catalog)
+                kind.args.forEach { argSpans(it, out) }
+            }
+
+            is StoryLineKind.Async -> {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+                kind.inline?.let { call ->
+                    out += callSpan(call.functionSpan.start, call.functionSpan.end, call.function, catalog)
+                    call.args.forEach { argSpans(it, out) }
+                }
+            }
+
+            is StoryLineKind.Await, is StoryLineKind.Cancel, is StoryLineKind.Sync,
+            is StoryLineKind.Return, is StoryLineKind.Else,
+                -> out += commandKeyword(line, contentStart, contentEnd, catalog)
+
+            is StoryLineKind.Blank, is StoryLineKind.CommentOnly -> Unit
+
+            // A line the parser could not read still shows its `@name`, so typing stays readable.
+            is StoryLineKind.Broken -> if (contentEnd > contentStart && line.raw[line.indent.length] == '@') {
+                out += commandKeyword(line, contentStart, contentEnd, catalog)
+            }
+        }
+    }
+
+    private fun commandKeyword(
+        line: StoryLine,
+        contentStart: Int,
+        contentEnd: Int,
+        catalog: StoryFunctionCatalog,
+    ): TextSpan {
+        var end = contentStart + 1 // past '@'
+        val limit = contentEnd - line.offset
+        var index = line.indent.length + 1
+        while (index < limit && StoryParser.isNameChar(line.raw[index])) {
+            index++
+            end++
+        }
+        return callSpan(contentStart, end, line.raw.substring(line.indent.length + 1, index), catalog)
+    }
+
+    private fun templateSpans(
+        template: TextTemplate,
+        out: MutableList<TextSpan>,
+        catalog: StoryFunctionCatalog,
+        literalType: TokenType? = null,
+    ) {
+        for (part in template.parts) {
+            when (part) {
+                is TextPart.Literal ->
+                    literalType?.let { out += TextSpan(part.span.start, part.span.end, it) }
+                is TextPart.WaitInput -> out += TextSpan(part.span.start, part.span.end, TokenType.KEYWORD)
+                is TextPart.Interpolation -> {
+                    out += TextSpan(part.span.start, part.span.end, TokenType.VARIABLE)
+                    exprSpans(part.expr, out)
+                }
+
+                is TextPart.InlineCall -> {
+                    out += callSpan(part.span.start, part.span.end, part.call.function, catalog)
+                    part.call.args.forEach { argSpans(it, out) }
+                }
+            }
+        }
+    }
+
+    private fun argSpans(arg: StoryArg, out: MutableList<TextSpan>) {
+        arg.nameSpan?.let { out += TextSpan(it.start, it.end, TokenType.VALUE_ARGUMENT_NAME) }
+        exprSpans(arg.expr, out)
+    }
+
+    private fun exprSpans(expr: StoryExpr, out: MutableList<TextSpan>) {
+        when (expr) {
+            is StoryExpr.Lit -> out += TextSpan(
+                expr.span.start,
+                expr.span.end,
+                when (expr.value) {
+                    is StoryString -> TokenType.STRING
+                    is StoryNumber -> TokenType.NUMERIC_LITERAL
+                    is StoryBool -> TokenType.KEYWORD
+                    else -> TokenType.DEFAULT
+                },
+            )
+
+            is StoryExpr.VarRef -> out += TextSpan(expr.span.start, expr.span.end, TokenType.VARIABLE)
+
+            is StoryExpr.Unary -> {
+                val operand = expr.operand
+                if (expr.op == UnaryOp.NEG && operand is StoryExpr.Lit && operand.value is StoryNumber) {
+                    out += TextSpan(expr.span.start, expr.span.end, TokenType.NUMERIC_LITERAL)
+                } else {
+                    exprSpans(operand, out)
+                }
+            }
+            is StoryExpr.Binary -> {
+                exprSpans(expr.left, out)
+                exprSpans(expr.right, out)
+            }
+
+            is StoryExpr.ListLit -> expr.items.forEach { exprSpans(it, out) }
+
+            is StoryExpr.Index -> {
+                exprSpans(expr.target, out)
+                exprSpans(expr.index, out)
+            }
+
+            is StoryExpr.Property -> {
+                exprSpans(expr.target, out)
+                out += TextSpan(expr.span.start, expr.span.end, TokenType.PROPERTY_IDENTIFIER)
+            }
+        }
+    }
+
+    private fun List<TextSpan>.dropOverlaps(): List<TextSpan> {
+        val result = ArrayList<TextSpan>(size)
+        var cursor = 0
+        for (span in this) {
+            if (span.end <= span.start) continue
+            val start = maxOf(span.start, cursor)
+            if (start >= span.end) continue
+            result += if (start == span.start) span else span.copy(start = start)
+            cursor = span.end
+        }
+        return result
+    }
+}

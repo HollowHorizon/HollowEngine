@@ -100,7 +100,10 @@ class TextFieldCompletionState(
         val insertText = item.insertText.ifEmpty { item.label }
 
         val text = state.text
-        val originalStart = replacementStart.coerceIn(0, text.length)
+        val replacement = if (item.wordChars.isEmpty()) replacementStart..replacementEnd
+        else completionWordRange(text, state.caret, item.wordChars)
+        val originalStart = replacement.first.coerceIn(0, text.length)
+        val replacementEnd = replacement.last
         val importResult = item.importFqName
             ?.takeIf { it.isNotBlank() }
             ?.let { text.withSortedKotlinImport(it, originalStart) }
@@ -156,11 +159,13 @@ class TextFieldCompletionState(
 internal fun Char.isCompletionTrigger(): Boolean = this == '.' || this == '_' || isLetterOrDigit()
 
 /** The word around [caret] that an accepted completion replaces. */
-internal fun completionWordRange(text: String, caret: Int): IntRange {
+internal fun completionWordRange(text: String, caret: Int, extraWordChars: String = ""): IntRange {
+    fun Char.isWordChar() = isCompletionWordChar() || this in extraWordChars
+
     var end = caret.coerceIn(0, text.length)
     var start = end
-    while (start > 0 && text[start - 1].isCompletionWordChar()) start--
-    while (end < text.length && text[end].isCompletionWordChar()) end++
+    while (start > 0 && text[start - 1].isWordChar()) start--
+    while (end < text.length && text[end].isWordChar()) end++
     return start..end
 }
 

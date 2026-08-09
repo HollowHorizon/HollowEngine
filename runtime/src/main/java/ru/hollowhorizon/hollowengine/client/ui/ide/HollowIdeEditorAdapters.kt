@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.EditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.PlainEditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
@@ -174,12 +175,16 @@ internal class HollowIdeEditorSession(
             delay(EditorAnalysisDebounceMillis.milliseconds)
             ensureActive()
             val lineStarts = lineStarts(text)
-            val lines = runCatching { analyzer.highlight(path, text, UiNoCaretOffset) }.getOrElse {
+            val lines = runCatching { analyzer.highlight(path, text, UiNoCaretOffset) }.getOrElse { failure ->
+                reportAnalysisFailure("highlight", failure)
                 UnavailableKotlinScriptingAnalyzer.highlight(path, text, UiNoCaretOffset)
             }
             val diagnostics = runCatching {
                 analyzer.diagnostic(path, text).map { diagnostic -> diagnostic.toUi(text, lineStarts) }
-            }.getOrDefault(emptyList())
+            }.getOrElse { failure ->
+                reportAnalysisFailure("diagnostic", failure)
+                emptyList()
+            }
             val next = EditorAnalysisSnapshot(
                 text = text,
                 textHash = key.textHash,
@@ -201,7 +206,10 @@ internal class HollowIdeEditorSession(
         requestedOccurrence = key
         occurrenceJob?.cancel()
         occurrenceJob = scope.launch {
-            val ranges = runCatching { analyzer.occurrences(path, text, key.caret) }.getOrDefault(emptyList())
+            val ranges = runCatching { analyzer.occurrences(path, text, key.caret) }.getOrElse { failure ->
+                reportAnalysisFailure("occurrences", failure)
+                emptyList()
+            }
             ensureActive()
             if (requestedOccurrence != key) return@launch
             occurrenceSnapshot = OccurrenceSnapshot(key.textHash, key.textLength, key.caret, analyzer, ranges)
@@ -222,7 +230,10 @@ internal class HollowIdeEditorSession(
                     .asSequence()
                     .map(CompletionItem::toUi)
                     .toList()
-            }.getOrDefault(emptyList())
+            }.getOrElse { failure ->
+                reportAnalysisFailure("completions", failure)
+                emptyList()
+            }
             publishCompletionIfCurrent(requestRevision) {
                 completionSnapshot = CompletionSnapshot(key.textHash, key.textLength, key.caret, analyzer, items)
             }
@@ -242,6 +253,15 @@ internal class HollowIdeEditorSession(
         publishedRevision.incrementAndGet()
         Minecraft.getInstance().execute(onUpdated)
     }
+
+    private fun reportAnalysisFailure(stage: String, failure: Throwable) {
+        if (failure is CancellationException) return
+        val key = "$stage:${failure::class.qualifiedName}:${failure.message}"
+        if (!reportedFailures.add(key)) return
+        HollowEngine.LOGGER.error("Scripting analysis ({}) failed for '{}'", stage, path, failure)
+    }
+
+    private val reportedFailures = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private fun currentAnalyzer(): ScriptingAnalyzer {
         return languageService.analyzer
@@ -545,6 +565,7 @@ private fun CompletionItem.toUi(): UiTextCompletion {
         icon = tag.completionIcon(),
         caretOffset = (insert.length + moveCaret).coerceIn(0, insert.length),
         importFqName = declaration?.fqName?.takeIf { declaration.import },
+        wordChars = wordChars,
     )
 }
 
