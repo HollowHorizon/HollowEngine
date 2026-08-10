@@ -1,0 +1,87 @@
+---
+title: Entities
+order: 4
+date: 2026-05-10
+readingTime: 2 min
+---
+
+<center><h1>Entities</h1></center>
+
+*Actions related to entities.*
+
+![NPC](/docs/title-missing.webp)
+
+## Spawned in the world
+
+```kotlin
+@SubscribeEvent
+fun onEntitySpawn(event: EntityLoadedEvent) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - the entity that was spawned.
+- `event.uuid` (UUID) - the entity's unique identifier.
+
+## Entity death
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onEntitySpawn(event: LivingEntityDeathEvent) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - the current entity.
+- `event.source` (DamageSource) - the source and type of the damage dealt.
+
+## Moving between dimensions
+
+```kotlin
+@SubscribeEvent
+fun onEntityTeleport(event: EntityEvent.ChangeDimension) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - the entity before the move.
+- `event.new` (Entity) - the entity after the move.
+- `event.from` (Level) - the world the entity is moving from.
+- `event.to` (Level) - the world the entity is moving to.
+
+:::advice
+Typed [`.data`](/docs/hollowengine/scripting/npc/data) carries over on its own, on `event.new`, no handling needed here.
+:::
+
+## Taking damage
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onEntityHurt(event: EntityEvent.Hurt) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - the entity that took damage.
+- `event.source` (DamageSource) - the source and type of the damage dealt.
+- `event.amount` (Float) - the amount of damage dealt. (can be changed)
+
+## Entity breeding
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onEntityHurt(event: BabySpawnEvent) {
+    val entity = event.entity
+}
+```
+
+- `event.parentA` (Mob) - one of the parents.
+- `event.parentB` (Mob?) - one of the parents.
+- `event.child` (AgeableMob?) - the child. (can be changed)
+- `event.causedByPlayer` (Player) - the player who caused the breeding.

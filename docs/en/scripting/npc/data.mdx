@@ -1,0 +1,87 @@
+---
+title: Custom Data
+order: 7
+date: 2026-07-25
+readingTime: 4 min
+---
+
+<center><h1>Custom Data</h1></center>
+
+*Give an NPC, a player, or any entity its own typed, saved data, without touching raw NBT tags.*
+
+![NPC](/docs/title-missing.webp)
+
+## `.data`: data that belongs to the entity itself
+
+Every entity has `.data`, a small typed storage that is saved and restored automatically together with its owner, forever, regardless of which script, state, or handler is currently running. This works on `npc`, on a `player`, and on any other `Entity`. This is the right place for things like reputation, a shop's stock, or "has this NPC met the player before".
+
+First declare a key, once, at the top of your script (or in a separate script you import from several places):
+
+```kotlin
+val REPUTATION = dataKey<Int>("reputation") { 0 } // 0 is the default value if never set
+```
+
+Then use it anywhere you have the entity:
+
+```kotlin
+val current = npc.data[REPUTATION]               // Int? - null only if there's no default and it was never set
+val current2 = npc.data.getOrPut(REPUTATION)      // Int - falls back to the default and stores it
+npc.data[REPUTATION] = current2 + 1
+npc.data.update(REPUTATION) { it + 1 }            // read-modify-write in one call
+REPUTATION in npc.data                            // Boolean
+npc.data.remove(REPUTATION)                       // Boolean, true if it existed
+```
+
+`dataKey<T>(name)` works for `Int`, `String`, `Boolean`, and other simple types out of the box.
+
+The same calls work on a player:
+
+```kotlin
+val VISITS = dataKey<Int>("visits") { 0 }
+
+player.data.update(VISITS) { it + 1 }
+```
+
+:::advice
+Because `.data` lives on the entity itself, it works from anywhere: a `@State` scene, an `onInteract`/`onHurt` handler on a [node script attached to the entity](/docs/hollowengine/scripting/node), or a plain `.reload.kts` event handler. It does not need a running story or an active `@State`.
+:::
+
+## Persistence and lifetime
+
+`.data` is saved with the rest of the entity's state, so it follows its owner the same way the engine's other per-entity state does:
+
+- For a regular entity (an NPC, a mob, anything), it is written to disk with the entity and reloaded when the chunk loads back.
+- It survives a dimension change, including a trip through a portal or the End.
+- For a player, it also survives death: the data set before `PlayerEvent.Clone` is still there on the respawned player object, no manual copying required.
+
+An entity that never touches its own `.data` keeps no backing storage and adds nothing to its saved NBT, so most mobs in a world that never read or write it pay no extra cost.
+
+## The state-scoped equivalent: `stateGet` / `stateSet`
+
+[States and Coroutines](/docs/hollowengine/scripting/node/states) already introduced `stateTag()`, a raw NBT container tied to the *currently running state*. The same `DataKey` idea works there too, as a typed shortcut instead of calling `tag.putInt(...)` / `tag.getInt(...)` by hand:
+
+```kotlin
+val VISITS = dataKey<Int>("visits") { 0 }
+
+@State
+suspend fun main() {
+    val visits = stateGetOrPut(VISITS)
+    stateSet(VISITS, visits + 1)
+
+    if (visits == 0) {
+        npc.say("We haven't met before!")
+    }
+}
+```
+
+`stateGet`, `stateGetOrPut`, `stateSet`, `stateUpdate`, `stateContains`, and `stateRemove` all mirror the `.data` functions above one for one, they just read and write `stateTag()` instead of the entity's own storage. They must be called from a `suspend` function running inside a `@State`, exactly like `stateTag()` itself.
+
+## Where should I store what?
+
+| Storage | Lifetime | Needs an active `@State`? |
+|---------|----------|----------------------------|
+| `.data` (`npc.data`, `player.data`, ...) | Lives with the entity forever, including across death (players) and dimension changes. | No, works anywhere. |
+| `stateGet` / `stateSet` / `stateTag()` | Lives with the current state, and is cleared or replaced the way [States and Coroutines](/docs/hollowengine/scripting/node/states#saving-state-data) describes. | Yes. |
+| `onSave` / `onLoad` on a [node script](/docs/hollowengine/scripting/node) | Lives with that specific node script's own attachment. | No, it's a separate lifecycle entirely. |
+
+As a rule of thumb: if the data describes the entity itself (reputation, known players, unlocked dialogue), use `.data`. If it describes progress through a specific scene or quest step, use `stateTag()` / `stateGet` / `stateSet`.

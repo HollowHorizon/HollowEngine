@@ -1,0 +1,249 @@
+---
+title: Введение в Node-скрипты
+order: 1
+date: 2026-07-18
+readingTime: 5 мин
+---
+
+<center><h1>Введение в Node-скрипты</h1></center>
+
+*Регистрируйте обработчики в корутин-скоупе ноды и прикрепляйте её к серверу или сущности.*
+
+![NPC](/docs/title-missing.webp)
+
+## Что такое node-скрипт?
+
+Node-скрипт (нода) - это тип скрипта, который можно привязать к определённому объекту (серверу или сущности) и работать именно с ним.
+Для создания назовите файл с суффиксом `.node.kts`, чтобы движок распознал его тип.
+
+По умолчанию нода привязана к серверу: `MinecraftServer` доступен как implicit receiver, поэтому все его обычные методы и свойства доступны прямо внутри скрипта.
+С помощью `@file:Attach(...)`, о котором ниже, ноду можно привязать к сущности вместо сервера.
+
+## Встроенные переменные и методы
+
+- `path` - путь к этому скрипту.
+- `server` - `MinecraftServer`, которому принадлежит нода, даже если она привязана к сущности.
+
+## Обработчики ноды
+
+Node-скрипт больше не переопределяет методы жизненного цикла. Вместо этого он регистрирует обработчики прямо на верхнем уровне файла, а движок вызывает их при наступлении нужного события.
+Каждый обработчик привязан к собственному корутин-скоупу ноды: как только нода остановлена, все её обработчики и подписки на события снимаются автоматически, вручную ничего убирать не нужно.
+
+### `onStart { ... }`
+
+Срабатывает один раз, после восстановления сохранённых данных (см. `onLoad` ниже) и после прикрепления ноды к объекту.
+
+```kotlin
+onStart {
+    println("Нода запущена")
+}
+```
+
+### `onStop { ... }`
+
+Срабатывает, когда нода останавливается: командой, откреплением от объекта или при остановке сервера.
+
+```kotlin
+onStop {
+    println("Нода остановлена")
+}
+```
+
+### `onSave { context -> ... }` и `onLoad { context -> ... }`
+
+`onSave` срабатывает при сохранении игрового мира. `onLoad` срабатывает после восстановления данных, перед `onStart`.
+
+```kotlin
+var userName = ""
+
+onSave { context ->
+    context.tag.putString("name", userName) // Сохраняем строку
+}
+
+onLoad { context ->
+    userName = context.tag.getString("name") // Получаем сохранённую строку
+
+    // Можно проверить, была ли она сохранена ранее:
+    val hasName = context.tag.contains("name")
+    if (hasName) { ... }
+}
+```
+
+Таким образом вы можете восстановить любые нужные ноде данные после рестарта. Можно зарегистрировать несколько обработчиков `onSave` и `onLoad` - выполнятся все.
+
+### `onUpdate(every, block)`
+
+Выполняет `block` каждый тик, пока нода активна. Передайте `every`, чтобы выполнять его реже:
+
+```kotlin
+onUpdate {
+    // Выполняется каждый тик
+}
+
+onUpdate(every = 20.ticks) {
+    // Выполняется раз в секунду (20 тиков)
+}
+```
+
+`every` принимает значение `Ticks`, которое создаёт extension `Int.ticks`, поэтому `10.ticks` и просто число тиков работают одинаково.
+`onUpdate` заменяет старую аннотацию `@Every` и может использоваться сколько угодно раз внутри одной ноды.
+
+---
+
+## Прикрепление ноды к серверу
+
+Чтобы прикрепить скрипт к серверу, можно воспользоваться [перезагружаемым скриптом](/docs/hollowengine/scripting/reload), например:
+
+```kotlin
+@SubscribeEvent
+fun onPlayerJoin(event: PlayerEvent.Join) {
+    val server = event.player.server
+
+    server.addNode("scripts/your_script.node.kts")
+}
+```
+
+Либо можно сделать то же самое командой:
+
+```mcfunction
+/hollowengine scripting run scripts/your_script.node.kts <имя стейта, если он есть>
+```
+
+И чтобы остановить:
+
+```mcfunction
+/hollowengine scripting stop scripts/your_script.node.kts
+```
+
+В целом этого достаточно для постоянных скриптов глобальной логики движка и для работы с сюжетами.
+Но для последовательных линейных сюжетов куда удобнее использовать [State-функции](/docs/hollowengine/scripting/node/states).
+
+---
+
+## Прикрепление ноды к сущности
+
+Добавьте `@file:Attach("<полное имя класса>")` в начало файла, чтобы привязать ноду к сущности вместо сервера.
+Это добавляет тип сущности как дополнительный неявный параметр, поэтому скрипт может напрямую вызывать её методы и свойства, а также открывает доступ к обработчикам сущности, описанным ниже.
+
+```kotlin
+@file:Attach("net.minecraft.world.entity.LivingEntity")
+
+onStart {
+    println("Прикреплено к ${name.string}, здоровье = $health")
+}
+```
+
+`@file:Attach` принимает полное имя класса строкой.
+Скорее всего вам понадобится одно из этого:
+
+| Цель                 | Имя класса                                                |
+|-----------------------|--------------------------------------------------------------|
+| Любая живая сущность    | `net.minecraft.world.entity.LivingEntity`                     |
+| Игрок                   | `net.minecraft.world.entity.player.Player`                    |
+| NPC из HollowEngine     | `ru.hollowhorizon.hollowengine.common.entities.NpcEntity`      |
+
+Нода, привязанная к сущности, продолжает работать после перезапуска сервера. Её состояние сохраняется вместе с сущностью через те же обработчики `onSave` / `onLoad`, что показаны выше.
+
+### Прикрепление командой
+
+```mcfunction
+/he scripting attach @e[type=hollowengine:npc_entity,limit=1,sort=nearest] scripts/guard_behavior.node.kts
+/he scripting detach @e[type=hollowengine:npc_entity,limit=1,sort=nearest] scripts/guard_behavior.node.kts
+```
+
+### Прикрепление из кода
+
+`EntityNodeRuntime.attach(entity, path)` делает то же самое из скрипта. Частый паттерн - прикреплять ноду сразу после спавна NPC:
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
+
+@SubscribeEvent
+fun onEntitySpawn(event: EntityLoadedEvent) {
+    val entity = event.entity
+
+    EntityNodeRuntime.attach(entity, "scripts/npcs/guard_behavior.node.kts")
+}
+```
+
+---
+
+## Обработчики сущности
+
+Эти обработчики доступны только в скрипте, привязанном к сущности через `@file:Attach`, и каждый из них реагирует на что-то, происходящее именно с этой сущностью.
+
+### `onInteract { event -> ... }`
+
+Срабатывает, когда игрок взаимодействует с привязанной сущностью. Уже отфильтровано по серверной стороне и основной руке, поэтому срабатывает один раз на клик.
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+onInteract { event ->
+    event.player.send("Привет, ${event.player.name.string}!")
+}
+```
+
+### `onHurt { event -> ... }`
+
+Срабатывает, когда привязанная сущность получает урон.
+
+```kotlin
+@file:Attach("net.minecraft.world.entity.LivingEntity")
+
+onHurt { event ->
+    println("Получено ${event.amount} урона от ${event.source.msgId}")
+}
+```
+
+### `onDie { event -> ... }`
+
+Срабатывает при смерти привязанной сущности. Хорошее место, чтобы очистить состояние квеста, выдать особый лут или уведомить другие скрипты.
+
+```kotlin
+@file:Attach("net.minecraft.world.entity.LivingEntity")
+
+onDie {
+    println("Страж пал")
+}
+```
+
+Небольшой пример с NPC, объединяющий несколько обработчиков:
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+var greeted = false
+
+onInteract { event ->
+    if (greeted) return@onInteract
+    greeted = true
+    event.player.send("Добро пожаловать в деревню!")
+}
+
+onHurt {
+    println("Житель вздрагивает")
+}
+
+onDie {
+    println("Житель погиб")
+}
+
+onSave { context -> context.tag.putBoolean("greeted", greeted) }
+onLoad { context -> greeted = context.tag.getBoolean("greeted") }
+```
+
+---
+
+## Команды
+
+| Команда                                                | Описание                            |
+|-----------------------------------------------------------|----------------------------------------|
+| `/he scripting run <path> [state]`                          | Прикрепить ноду к серверу               |
+| `/he scripting stop <path>`                                 | Открепить ноду от сервера               |
+| `/he scripting attach <entity> <path> [state]`              | Прикрепить ноду к сущности              |
+| `/he scripting detach <entity> <path>`                      | Открепить ноду от сущности              |
+| `/he scripting list`                                        | Список нод сервера                       |
+| `/he scripting list entity <entity>`                        | Список нод, прикреплённых к сущности    |
+
+`he` - короткий алиас для `hollowengine`, см. [Команды](/docs/hollowengine/commands).

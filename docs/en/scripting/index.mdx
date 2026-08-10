@@ -1,0 +1,24 @@
+---
+title: Introduction to Scripting
+order: 1
+date: 2026-07-23
+readingTime: 2 min
+---
+
+<center><h1>Introduction to Scripting</h1></center>
+
+*For all your needs and strange fantasies!*
+![Scripting](/docs/title-scripting.webp)
+
+All HollowEngine scripts are written in Kotlin in `.kts` files. They must be created in the `hollowengine/scripts` folder. You can edit them in external editors such as VS Code, IntelliJ IDEA, or Sublime Text, but using the IDE built into the mod is recommended because it already provides syntax highlighting, diagnostics, and completion. Hints and completion for external editors are not planned in the near future.
+
+---
+
+There are currently 4 script types:
+
+- [Simple](/docs/hollowengine/scripting/simple) (`.kts`) - used for one-time execution or for importing your functions, variables, and so on.
+- [Reloadable](/docs/hollowengine/scripting/reload) (`.reload.kts`) - used to handle in-game events. Automatically starts when the server starts and when server resources are reloaded (`/reload`).
+- [Node](/docs/hollowengine/scripting/node) (`.node.kts`) - registers handlers on a coroutine scope and can be attached to/detached from the server or, with `@file:Attach`, from an entity. It can run actions at specific intervals, store custom data, react to entity events, and switch between configurable states.
+- [UI](/docs/hollowengine/ui) (`.ui.kts`) - client-side declarations of Compose-style screens and HUD overlays. They are recompiled on resource reload; server-capable scripts open the declared ids and drive their state through `UiSession`.
+
+The script kinds differ in their base class, available API, execution side, and launch conditions. UI scripts require the Kotlin scripting compiler addon on the client. Scripts can be recompiled and updated without rejoining the game or world.

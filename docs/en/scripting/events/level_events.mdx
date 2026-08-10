@@ -1,0 +1,34 @@
+---
+title: Worlds
+order: 5
+date: 2026-05-10
+readingTime: 2 min
+---
+
+<center><h1>Worlds</h1></center>
+
+*Actions related to dimensions.*
+
+![Level Events](/docs/title-missing.webp)
+
+## Saving
+
+```kotlin
+@SubscribeEvent
+fun onSave(event: LevelEvent.Save) {
+    val entity = event.entity
+}
+```
+
+- `event.level` (Level) - the dimension being saved.
+
+## Loading
+
+```kotlin
+@SubscribeEvent
+fun onSave(event: LevelEvent.Load) {
+    val entity = event.entity
+}
+```
+
+- `event.level` (Level) - the dimension being loaded.

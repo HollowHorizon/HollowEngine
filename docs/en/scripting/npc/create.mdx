@@ -1,0 +1,137 @@
+---
+title: Creating NPCs
+order: 2
+date: 2026-07-19
+readingTime: 4 min
+---
+
+<center><h1>Creating NPCs</h1></center>
+
+*The current `npc()` signature and behavior in the v2.3 Kotlin architecture.*
+
+![Creating an NPC](/docs/title-npc-create.webp)
+
+---
+
+## `npc()`
+
+The `npc()` function creates an `NpcEntity`, adds it to the world, and assigns the base model, hitbox, and animation components.
+
+```kotlin
+val guide = npc(
+    pos = pos(10, 64, 10),
+    name = "Guide",
+)
+```
+
+## Signature
+
+```kotlin
+fun npc(
+    pos: Vec3,
+    name: String = "NPC",
+    model: String = "hollowengine:models/entity/player_model.gltf",
+    rotation: Vec2 = rotation(0, 0),
+    world: String = "minecraft:overworld",
+    size: Pair<Float, Float> = 0.6f to 1.8f,
+    attributes: Map<String, Float> = emptyMap(),
+    textures: Map<String, String> = emptyMap(),
+    transform: Transform = Transform(),
+    nameplateMode: NameplateMode = NameplateMode.SHOW,
+    inverseHeadRotation: Boolean = false,
+    inventorySize: Int = NpcInventory.DEFAULT_SIZE,
+): NpcEntity
+```
+
+| Parameter | Type | Default | Purpose |
+|-----------|------|---------|---------|
+| `pos` | `Vec3` | - | Spawn position. |
+| `name` | `String` | `"NPC"` | Name shown above the NPC. |
+| `model` | `String` | `"hollowengine:models/entity/player_model.gltf"` | Resource location of the `.gltf` model. |
+| `rotation` | `Vec2` | `rotation(0, 0)` | Initial yaw/pitch. |
+| `world` | `String` | `"minecraft:overworld"` | Dimension id where the NPC is added. |
+| `size` | `Pair<Float, Float>` | `0.6f to 1.8f` | Hitbox width/height. The parameter exists in v2.3, but explicit components are safer for precise setup. |
+| `attributes` | `Map<String, Float>` | `emptyMap()` | Base attribute values by registry id. |
+| `textures` | `Map<String, String>` | `emptyMap()` | Texture map by layer/material. In v2.3, low-level texture customization is still better handled through components/model setup. |
+| `transform` | `Transform` | `Transform()` | Local model transform. Do not rely on it as a stable public customization path yet. |
+| `nameplateMode` | `NameplateMode` | `NameplateMode.SHOW` | Initial nameplate visibility mode. |
+| `inverseHeadRotation` | `Boolean` | `false` | Reserved for model/head-rotation specifics. |
+| `inventorySize` | `Int` | `36` | Number of slots in [`npc.inventory`](/docs/hollowengine/scripting/npc/inventory). Can also be changed later with `npc.inventory.resize(...)`. |
+
+:::caution
+Some parameters are already present in the signature but are not yet a fully stable user-facing API. In v2.3, position, rotation, world, model, name, `nameplateMode`, attributes, the base hitbox, and the standard animator are applied reliably. For fine-grained model, texture, animation, and hitbox setup, assign Geary components explicitly.
+:::
+
+---
+
+## `pos()` and `rotation()` helpers
+
+```kotlin
+val blockCenter = pos(10, 64, 10)      // Vec3(10.5, 64.0, 10.5)
+val exactPos = pos(10.0, 64.0, 10.0)  // Vec3(10.0, 64.0, 10.0)
+
+val rot = rotation(90, 0)
+```
+
+`pos(Int, Int, Int)` adds `0.5` to X/Z so the NPC spawns in the center of the block.
+`pos(Double, Double, Double)` uses exact coordinates.
+
+---
+
+## Examples
+
+### Minimal NPC
+
+```kotlin
+@State
+suspend fun main() {
+    val npc = npc(pos(0, 64, 0))
+    npc.say("Hello!")
+}
+```
+
+### Custom model and world
+
+```kotlin
+@State
+suspend fun main() {
+    val trader = npc(
+        pos = pos(120.0, 70.0, -32.0),
+        name = "Trader",
+        model = "my_mod:models/entity/trader.gltf",
+        rotation = rotation(180, 0),
+        world = "minecraft:overworld",
+    )
+}
+```
+
+### Attributes
+
+```kotlin
+val guard = npc(
+    pos = pos(0, 64, 0),
+    name = "Guard",
+    attributes = mapOf(
+        "minecraft:generic.max_health" to 40f,
+        "minecraft:generic.movement_speed" to 0.25f,
+        "minecraft:generic.attack_damage" to 6f,
+    ),
+)
+```
+
+Attribute names must match the attribute registry ids in the current Minecraft/NeoForge version.
+
+---
+
+## What is assigned automatically
+
+After creation, the NPC receives:
+
+- `Model(model)` - the model component;
+- `HitboxComponent(HitboxMode.PULLING)` - default hitbox behavior;
+- `StandardPlayerAnimatorPreset.create()` - standard player-like locomotion animation;
+- `TransformComponent(...)` - base model transform;
+- a nameplate initialized from `name` and `nameplateMode`;
+- the entity itself in the selected world through `level.addFreshEntity(...)`.
+
+This means a regular NPC can already stand, walk, and rotate its head without manual animator setup.

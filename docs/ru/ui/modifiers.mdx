@@ -1,0 +1,90 @@
+---
+title: Модификаторы и стили
+order: 4
+date: 2026-07-23
+readingTime: 4 мин
+---
+
+<center><h1>Модификаторы и стили</h1></center>
+
+`Modifier` используется для локальной настройки композабла. Вызовы объединяются в порядке объявления.
+
+```kotlin
+Box(
+    id = "panel",
+    modifier = Modifier
+        .size(320.px, 180.px)
+        .padding(12.px)
+        .gap(8.px)
+        .background(UiColor(0.08f, 0.1f, 0.15f, 0.95f))
+        .borderRadius(8f),
+) { /* content */ }
+```
+
+| Группа | Примеры |
+| --- | --- |
+| Размер и позиция | `size`, `width`, `height`, `minSize`, `position`, `align`, `grow` |
+| Отступы и поток | `padding`, `margin`, `gap`, `clip`, `scroll` |
+| Внешний вид | `background`, `border`, `borderRadius`, `shadow`, `foreground`, `opacity`, `tint` |
+| Ввод | `onClick`, `onPress`, `onDrag`, `onScroll`, `cursor`, `state` |
+| Контент и обрезка | `image`, `imageFit`, `clip`, `shape`, `shapeFill`, `shapeStroke`, `layer` |
+| Движение | `transition`, `animation`, `translate`, `rotate`, `scale`, `perspective`, `pivot` |
+| Эффекты | `filter`, `backdropFilter`, `backfaceVisibility`, `textEffects` |
+
+Для длин используй `12.px` и `50.percent`. Динамические значения вычисляй Kotlin-выражениями, а не строками стиля.
+
+## Декорации
+
+Фон принимает сплошной `UiColor`, ресурс-изображение, линейный или радиальный градиент. Граница и тень независимы, поэтому карточка может использовать всё сразу:
+
+```kotlin
+Box(
+    modifier = Modifier
+        .background(135f, listOf(
+            UiGradientStop(0f, UiColor(0.08f, 0.12f, 0.24f)),
+            UiGradientStop(1f, UiColor(0.18f, 0.32f, 0.48f)),
+        ))
+        .border(1.px, UiColor(0.55f, 0.72f, 1f, 0.7f), radius = 8f)
+        .borderRadius(8f)
+        .shadow(UiShadow(offset = UiVec3(0f, 3f), blur = 8f, color = UiColor(0f, 0f, 0f, 0.45f)))
+        .padding(12.px),
+) { Text("Награда за задание") }
+```
+
+Для текстурной рамки используй `Modifier.background("mypack:textures/ui/panel.png")` и `Modifier.imageFit(UiImageFit.NINE_SLICE)`. Тот же вариант на HSS: `background: image(...)` и `image-fit: 9-slice 16px`.
+
+`clip()` запрещает дочерним узлам рисоваться за границами. `shape(...)`/`shapeFill(...)`/`shapeStroke(...)` рисуют векторные фигуры, `layer(value)` задаёт локальный слой рисования. Не используй фильтры и большие размытые тени на крупных либо часто перекомпоновываемых поверхностях: им может потребоваться дополнительный render layer.
+
+## Трансформации и фильтры
+
+По умолчанию трансформации применяются вокруг центра. Используй `pivot(...)`, чтобы задать другую точку поворота или масштабирования.
+
+```kotlin
+Box(
+    modifier = Modifier
+        .pivot(0.percent, 50.percent)
+        .translate(x = 6f)
+        .rotate(z = -4f)
+        .scale(1.04f)
+        .perspective(600f)
+        .filter(UiFilterEffect.Grayscale(0.2f)),
+) { Text("Наклонённая карточка") }
+```
+
+`filter` применяется к самому узлу, а `backdropFilter` к изображению за ним. Поддерживаются grayscale, blur и именованные shader-фильтры. Для анимации трансформации используй класс HSS или локальный `Modifier`; `rebuildEveryFrame` для этого не нужен.
+
+## HSS
+
+HSS удобен для общих тем и псевдосостояний. Подключай его явно из Kotlin:
+
+```kotlin
+Column(id = "quest-root", modifier = Modifier.style("mypack:ui/quest.hss")) { Text("Журнал заданий") }
+```
+
+```css
+#quest-root { padding: 12px; gap: 6px; }
+.button { padding: 6px 10px; border-radius: 4px; }
+.button:hover { background: #5F8CCD; }
+```
+
+Локальные модификаторы и HSS можно комбинировать. Повторяемые статические правила размещай в HSS, вычисляемые значения и поведение оставляй в Kotlin. Инлайн XML-атрибуты не поддерживаются.

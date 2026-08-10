@@ -1,0 +1,82 @@
+---
+title: Assets
+order: 2
+date: 2026-05-31
+readingTime: 4 min
+contributors: urliveyn, AlgorithmLX, HollowHorizon
+editUrl: https://github.com/0mods/hollowengine/edit/main/docs/assets.mdx
+---
+
+<center><h1>Assets</h1></center>
+
+*Where to place models, textures, UI files, sounds, scripts, and other project resources.*
+
+![Assets](/docs/title-assets.webp)
+
+HollowEngine loads user content from the `hollowengine/` directory in the game folder. Files that are referenced by resource location use the normal Minecraft layout under `assets/<namespace>/`.
+
+Use a stable namespace for your project, for example `project`. Then `project:textures/ui/panel.png` points to:
+
+```text
+hollowengine/
+└─ assets/
+   └─ project/
+      └─ textures/
+         └─ ui/
+            └─ panel.png
+```
+
+## Common folders
+
+| Folder | Used for | Example reference |
+|--------|----------|-------------------|
+| `assets/project/textures/` | UI textures, entity textures, icons | `project:textures/ui/icon.png` |
+| `assets/project/models/` | glTF, Blockbench, and entity models | `project:models/entity/guide.gltf` |
+| `assets/project/ui/` | `.ui` layouts, `.hss` styles, UI scripts | `project:ui/dialogs/confirm.ui` |
+| `assets/project/sounds/` | Custom sound files | `project:sounds/voice/hello.ogg` |
+| `scripts/` | Server-side Katari scripts | `quest/intro.ktr` |
+
+Keep assets near the feature that owns them. A small dialog can keep its layout, style, client script, and textures in one folder:
+
+```text
+assets/project/ui/dialogs/quest/
+├─ quest.ui
+├─ quest.hss
+├─ quest_client.ktr
+└─ portrait.png
+```
+
+## Referencing assets
+
+Use full resource locations in UI, HSS, and scripts:
+
+```xml
+<box style="project:ui/dialogs/quest/quest.hss">
+    <image src="project:ui/dialogs/quest/portrait.png" size="48px 48px" />
+</box>
+```
+
+```css
+.panel {
+    background: image("project:textures/ui/panel.png");
+}
+```
+
+```kotlin
+val guide = npc(
+    pos = pos(10.0, 64.0, 10.0),
+    model = "project:models/entity/guide.gltf",
+)
+```
+
+Katari script imports are different: they are relative to `hollowengine/scripts/`. See [Script Imports](/docs/hollowengine/scripting/imports).
+
+## Practical rules
+
+- Put reusable UI pieces under `assets/project/ui/components/`.
+- Put UI textures under `assets/project/textures/ui/` unless they belong to one isolated UI folder.
+- Prefer resource locations over hardcoded file paths.
+- Keep model textures in the same namespace as the model.
+- Use lowercase paths with `a-z`, `0-9`, `_`, `-`, `.`, and `/`.
+
+If an asset is used from a `.ui` or `.hss` file, document it beside that UI feature so future changes do not require searching through scripts.

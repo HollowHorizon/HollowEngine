@@ -1,0 +1,54 @@
+---
+title: Welcome
+order: 1
+date: 2026-05-12
+readingTime: 2 min
+hidden: false
+---
+
+<center><h1>Welcome!</h1></center>
+
+![Vibecoders](/docs/welcome.webp)
+
+**Actual documentation for the mod, IDE and scripting API.**
+
+## What is __HollowEngine__?
+
+HollowEngine is a full-featured platform for creating content within Minecraft:
+
+- Internal IDE on top of the game client;
+- Katari scripts `.ktr` with support for asynchronous code, interaction with the game world, and script state saving;
+- NPCs, 3D models, animation controllers, and highly customizable light sources;
+
+## Installation
+
+Currently, NeoForge and Fabric are supported for version 1.21.1; no additional mods are required.
+The latest versions of the mod are available on [GitHub](https://github.com/HollowHorizon/HollowEngine/releases/tag/latest-1.21.1).
+
+## Where should I start?
+
+If this is your first time opening the mod, you may have already noticed the gear icon in the upper-left corner of the screen. Clicking it will open the mod’s main panel, which contains several tabs:
+- File: A section with useful functions, such as opening the mod folder and reloading client and server resources.
+- Windows: A section with various engine windows; this is where the engine’s main functionality is located: Project Files, Cutscenes, Editors, etc.
+- Tools: A section with auxiliary functions; currently, it only includes model transformation controls.
+- Help: A section with useful information, such as links to the project community or documentation.
+
+For project files and resource paths, start with [Assets](/docs/hollowengine/assets). It explains where to put models, UI layouts, HSS styles, textures, sounds, and scripts.
+
+## Work directory
+
+Virtually all user-generated content is stored in the `hollowengine` directory, which the mod creates in the game folder. Inside it, the most important files are:
+
+```text
+hollowengine/
+├─ assets/            # Client-side resources directory
+│  ├─ hollowengine/     # Resources for HollowEngine
+│  └─ project/          # Resources for project with mod id project
+├─ data/              # Server-side resources directory
+│  ├─ hollowengine/     # Resources for HollowEngine
+│  └─ project/          # Resources for project with mod id project
+├─ scripts/           # Directory for your scripts
+│  └─ example.ktr       # Example script name
+```
+
+Script paths are relative to `hollowengine/scripts/`. Resource files are referenced through resource locations such as `project:models/npc.gltf`, which points to `hollowengine/assets/project/models/npc.gltf`.

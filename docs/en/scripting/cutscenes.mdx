@@ -1,0 +1,47 @@
+---
+title: Cutscenes
+order: 10
+date: 2026-07-24
+readingTime: 4 min
+---
+
+<center><h1>Cutscenes</h1></center>
+
+*Create camera sequences in the editor and start them from a script.*
+
+---
+
+## Create a cutscene
+
+1. Open **Windows > Cutscenes** and create a new cutscene.
+2. Add keyframes to the Camera position, rotation, and FOV tracks. The editor records the current camera pose when you add a keyframe.
+3. Set the duration and preview the result from the timeline.
+4. Save the cutscene. A name such as `intro` is stored as `hollowengine/cutscenes/intro.dat`.
+5. Start it for a player from a server script.
+
+The camera tracks are evaluated on the receiving client. The player keeps their normal world state; only their camera, HUD, and hand rendering are controlled while the cutscene is active.
+
+## Start and stop playback
+
+```kotlin
+player.playCutscene("intro")
+
+// Repeat the sequence until it is stopped.
+player.playCutscene("ambient_pan", loop = true)
+
+player.stopCutscene()
+```
+
+`playCutscene` replaces the player's current cutscene. Use a path relative to `hollowengine/cutscenes`; the `.dat` extension is optional. `stopCutscene()` immediately returns the camera to normal gameplay.
+
+## A simple scene trigger
+
+```kotlin
+@State
+suspend fun onInteract(player: ServerPlayer) {
+    player.playCutscene("chapter_1/arrival")
+    player.send("Welcome to the valley.")
+}
+```
+
+For a looping camera while the player is in an area, start it when they enter and call `stopCutscene()` when they leave. Do not start the same loop every tick: one start is enough.

@@ -1,0 +1,86 @@
+---
+title: Обзор NPC
+order: 1
+date: 2026-07-19
+readingTime: 2 мин
+---
+
+<center><h1>NPC в Kotlin-скриптах</h1></center>
+
+*NpcEntity - основная сущность для персонажей, интерактивных сцен и сюжетной логики.*
+
+![NPC](/docs/title-npc.webp)
+
+В HollowEngine v2.3 NPC создаются и управляются из Kotlin-скриптов, в первую очередь из `*.node.kts`.
+В таких скриптах доступен implicit receiver `MinecraftServer`, а функции для NPC импортируются по умолчанию из `ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*`.
+
+NPC - это обычная Minecraft-сущность `NpcEntity`, поэтому с ней можно работать и через HollowEngine helpers (`npc()`, `move`, `lookAt`, `say`), и через стандартный API `Entity` / `LivingEntity` / `PathfinderMob`.
+
+## Разделы
+
+- [Создание NPC](/docs/hollowengine/scripting/npc/create) - актуальная сигнатура `npc()` и параметры создания.
+- [Действия и параллельность](/docs/hollowengine/scripting/npc/actions) - как NPC может одновременно идти, смотреть по сторонам и работать руками.
+- [Движение и взаимодействие](/docs/hollowengine/scripting/npc/movement) - ходьба, взгляд, использование блоков и взаимодействие с сущностями.
+- [Инвентарь и сбор предметов](/docs/hollowengine/scripting/npc/inventory) - собственный инвентарь NPC и фоновая задача сбора предметов.
+- [Поиск сущностей и предметов](/docs/hollowengine/scripting/npc/search) - поиск игроков, NPC и выпавших предметов рядом.
+- [Пользовательские данные](/docs/hollowengine/scripting/npc/data) - сохраняемые типизированные данные, привязанные к NPC, а также к любой другой сущности или игроку.
+- [Служебные методы](/docs/hollowengine/scripting/npc/methods) - речь, despawn, хитбокс и другие небольшие helpers.
+- [Свойства сущностей](/docs/hollowengine/scripting/npc/properties) - реальные Kotlin/Minecraft свойства `NpcEntity`.
+- [Анимации](/docs/hollowengine/scripting/animations) - текущая система `AnimatorComponent` и слоёв анимации.
+
+## Быстрый пример
+
+```kotlin
+@State
+suspend fun main() {
+    val guide = npc(
+        pos = pos(0, 64, 0),
+        name = "Guide",
+        model = "hollowengine:models/entity/player_model.gltf",
+    )
+
+    val player = playerList.players.firstOrNull() ?: return
+
+    guide.lookAt(player)
+    guide.say("Welcome!")
+    guide.move(player, dist = 2.0, speed = 1.0)
+}
+```
+
+Этот пример делает всё по очереди, и для простых сцен этого вполне достаточно. Но NPC также умеет **одновременно** идти, оглядываться по сторонам и работать руками, сам собирать предметы, носить инвентарь и запоминать свои данные - подробнее об этом в [Действиях и параллельности](/docs/hollowengine/scripting/npc/actions).
+
+:::advice
+`move(...)`, `lookAt(...)`, `useBlock(...)` и `destroyBlock(...)` - `suspend`-функции. Вызывай их из `@State suspend fun`, `async { ... }` или другой корутины.
+:::
+
+## Жизненный цикл
+
+Обычно NPC создают внутри стейта ноды:
+
+```kotlin
+@State
+suspend fun main() {
+    val npc = npc(pos(10, 64, 10), name = "Guard")
+    npc.say("Stay close.")
+}
+```
+
+Если NPC должен переживать перезагрузку мира или reload скриптов, сохраняй его UUID через `stateTag()` или свою сериализацию в `onSave` / `onLoad`, а после загрузки восстанавливай ссылку через `entityRef<NpcEntity>(uuid)`.
+
+## Прикрепление постоянного поведения
+
+Для поведения, которое должно жить вместе с самим NPC, а не с сюжетным стейтом, прикрепи [node-скрипт](/docs/hollowengine/scripting/node) прямо к сущности через `@file:Attach`:
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+onInteract { event ->
+    event.player.send("Добро пожаловать, путник!")
+}
+
+onHurt {
+    println("NPC вздрагивает")
+}
+```
+
+Прикрепить можно командой `/he scripting attach <entity> <path>` либо автоматически при спавне из перезагружаемого скрипта. Такая нода переживает перезапуск сервера вместе с NPC.

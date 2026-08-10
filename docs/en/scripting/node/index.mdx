@@ -1,0 +1,249 @@
+---
+title: Introduction to Node Scripts
+order: 1
+date: 2026-07-18
+readingTime: 5 min
+---
+
+<center><h1>Introduction to Node Scripts</h1></center>
+
+*Register handlers on a coroutine scope and attach them to the server or an entity.*
+
+![NPC](/docs/title-missing.webp)
+
+## What is a node script?
+
+A node script is a script type that can be bound to a specific object (the server or an entity) and work with that object directly.
+To create one, name the file with the `.node.kts` suffix so the engine can recognize its type.
+
+By default a node script is bound to the server: it receives `MinecraftServer` as an implicit receiver, so all its regular methods and properties are directly available inside the script.
+With `@file:Attach(...)`, described below, a node can be bound to an entity instead.
+
+## Built-in variables and methods
+
+- `path` - the path to this script.
+- `server` - the `MinecraftServer` the node belongs to, even for entity-bound nodes.
+
+## Node event handlers
+
+A node script does not override lifecycle methods. Instead, it registers handlers from the top level of the file, and the engine calls them when the matching event happens.
+Every handler is tied to the node's own coroutine scope: once the node is stopped, all its handlers and event subscriptions are removed automatically, so there is nothing to clean up manually.
+
+### `onStart { ... }`
+
+Runs once, after saved data has been restored (see `onLoad` below) and after the node is attached to its object.
+
+```kotlin
+onStart {
+    println("Node started")
+}
+```
+
+### `onStop { ... }`
+
+Runs when the node is stopped, either by a command, by detaching it from its object, or when the server shuts down.
+
+```kotlin
+onStop {
+    println("Node stopped")
+}
+```
+
+### `onSave { context -> ... }` and `onLoad { context -> ... }`
+
+`onSave` runs when the game world is saved. `onLoad` runs after data is restored, before `onStart`.
+
+```kotlin
+var userName = ""
+
+onSave { context ->
+    context.tag.putString("name", userName) // Save a string
+}
+
+onLoad { context ->
+    userName = context.tag.getString("name") // Read the saved string
+
+    // You can check whether it was saved earlier:
+    val hasName = context.tag.contains("name")
+    if (hasName) { ... }
+}
+```
+
+This lets you restore any data the node needs after a restart. You can register several `onSave` and `onLoad` handlers; all of them will run.
+
+### `onUpdate(every, block)`
+
+Runs `block` every tick while the node is active. Pass `every` to run it less often:
+
+```kotlin
+onUpdate {
+    // Runs every tick
+}
+
+onUpdate(every = 20.ticks) {
+    // Runs once per second (20 ticks)
+}
+```
+
+`every` accepts a `Ticks` value produced by the `Int.ticks` extension, so `10.ticks`, `1.sec` * 20, or a plain number of ticks all work the same way.
+`onUpdate` replaces the old `@Every` annotation and can be used any number of times inside the same node.
+
+---
+
+## Attaching a node to the server
+
+To attach a script to the server, you can use a [reloadable script](/docs/hollowengine/scripting/reload), for example:
+
+```kotlin
+@SubscribeEvent
+fun onPlayerJoin(event: PlayerEvent.Join) {
+    val server = event.player.server
+
+    server.addNode("scripts/your_script.node.kts")
+}
+```
+
+Or you can do the same with a command:
+
+```mcfunction
+/hollowengine scripting run scripts/your_script.node.kts <state name, if any>
+```
+
+And to stop it:
+
+```mcfunction
+/hollowengine scripting stop scripts/your_script.node.kts
+```
+
+In general, this is enough to create persistent scripts for global engine logic and to work with stories.
+For sequential linear stories, however, it is much more convenient to use [State functions](/docs/hollowengine/scripting/node/states).
+
+---
+
+## Attaching a node to an entity
+
+Add `@file:Attach("<fully-qualified class name>")` at the top of the file to bind the node to an entity instead of the server.
+This adds the entity type as an extra implicit receiver, so the script can call its members directly, and it unlocks the entity-specific handlers described below.
+
+```kotlin
+@file:Attach("net.minecraft.world.entity.LivingEntity")
+
+onStart {
+    println("Attached to ${name.string}, health = $health")
+}
+```
+
+`@file:Attach` accepts the full class name as a string.
+Common targets:
+
+| Target             | Class name                                          |
+|---------------------|------------------------------------------------------|
+| Any living entity    | `net.minecraft.world.entity.LivingEntity`             |
+| A player              | `net.minecraft.world.entity.player.Player`             |
+| HollowEngine's NPC    | `ru.hollowhorizon.hollowengine.common.entities.NpcEntity` |
+
+An entity-attached node keeps working across a server restart. Its state is saved together with the entity, using the same `onSave` / `onLoad` handlers shown above.
+
+### Attaching with a command
+
+```mcfunction
+/he scripting attach @e[type=hollowengine:npc_entity,limit=1,sort=nearest] scripts/guard_behavior.node.kts
+/he scripting detach @e[type=hollowengine:npc_entity,limit=1,sort=nearest] scripts/guard_behavior.node.kts
+```
+
+### Attaching from code
+
+`EntityNodeRuntime.attach(entity, path)` does the same thing from a script. A common pattern is attaching a node right after an NPC spawns:
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
+
+@SubscribeEvent
+fun onEntitySpawn(event: EntityLoadedEvent) {
+    val entity = event.entity
+
+    EntityNodeRuntime.attach(entity, "scripts/npcs/guard_behavior.node.kts")
+}
+```
+
+---
+
+## Entity-specific handlers
+
+These handlers are only available in a script attached to an entity via `@file:Attach`, and each of them reacts to something happening to that specific entity.
+
+### `onInteract { event -> ... }`
+
+Runs when a player interacts with the attached entity. Already filtered to the server side and the main hand, so it runs once per click.
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+onInteract { event ->
+    event.player.send("Hello, ${event.player.name.string}!")
+}
+```
+
+### `onHurt { event -> ... }`
+
+Runs when the attached entity takes damage.
+
+```kotlin
+@file:Attach("net.minecraft.world.entity.LivingEntity")
+
+onHurt { event ->
+    println("Took ${event.amount} damage from ${event.source.msgId}")
+}
+```
+
+### `onDie { event -> ... }`
+
+Runs when the attached entity dies. This is a good place to clean up quest state, drop custom loot, or notify other scripts.
+
+```kotlin
+@file:Attach("net.minecraft.world.entity.LivingEntity")
+
+onDie {
+    println("The guard has fallen")
+}
+```
+
+A small NPC example combining several handlers:
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+var greeted = false
+
+onInteract { event ->
+    if (greeted) return@onInteract
+    greeted = true
+    event.player.send("Welcome to the village!")
+}
+
+onHurt {
+    println("The villager flinches")
+}
+
+onDie {
+    println("A villager has died")
+}
+
+onSave { context -> context.tag.putBoolean("greeted", greeted) }
+onLoad { context -> greeted = context.tag.getBoolean("greeted") }
+```
+
+---
+
+## Commands
+
+| Command                                              | Description                    |
+|-------------------------------------------------------|--------------------------------|
+| `/he scripting run <path> [state]`                     | Attach a node to the server    |
+| `/he scripting stop <path>`                            | Detach a node from the server  |
+| `/he scripting attach <entity> <path> [state]`         | Attach a node to an entity     |
+| `/he scripting detach <entity> <path>`                 | Detach a node from an entity   |
+| `/he scripting list`                                   | List server nodes               |
+| `/he scripting list entity <entity>`                   | List nodes attached to an entity |
+
+`he` is the short alias of `hollowengine`, see [Commands](/docs/hollowengine/commands).

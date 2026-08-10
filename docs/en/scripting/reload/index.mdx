@@ -1,0 +1,50 @@
+---
+title: Creating and Running
+order: 1
+date: 2026-05-10
+readingTime: 1 min
+---
+
+<center><h1>Creating and Running</h1></center>
+
+*Subscribe to events and inject your own logic.*
+
+![NPC](/docs/title-missing.webp)
+
+# Reloadable Scripts
+
+To create a reloadable script, give it the `*.reload.kts` suffix so the engine can recognize its type and know which variables and functions are available.
+You will mainly use it to subscribe to events and run your logic when they fire.
+
+## Available variables
+
+```kotlin
+context.server // MinecraftServer? if available
+context.resources // ResourceManager - for reading data from datapacks
+context.recipeManager // RecipeManager - for working with recipes
+```
+
+## Subscribing to an event
+
+To subscribe, create a function that accepts an event and add the `@SubscribeEvent` annotation to it:
+
+```kotlin
+@SubscribeEvent
+fun onPlayerJoin(event: PlayerEvent.Join) {
+
+}
+```
+
+The function can have any name. The important parts are the annotation and a parameter with the required event type.
+
+:::advice
+Sometimes you may need your event handler to run before others, especially if it needs to cancel the event.
+To change the handler order, pass a priority to the annotation: `@SubscribeEvent(10)`.
+The default priority is zero.
+:::
+
+You can find the list of available events and their descriptions in this [section](/docs/hollowengine/scripting/events).
+
+## Editing events
+
+If an event handler is already running and you change it, restart the script with `/reload` for the changes to take effect.

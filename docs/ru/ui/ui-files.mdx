@@ -1,0 +1,76 @@
+---
+title: UI-скрипты
+order: 6
+date: 2026-07-23
+readingTime: 4 мин
+---
+
+<center><h1>UI-скрипты</h1></center>
+
+UI-объявления представляют собой Kotlin-скрипты с суффиксом `.ui.kts`. Размещай их в `hollowengine/scripts`; вложенные папки поддерживаются. Клиент компилирует и выполняет скрипты при перезагрузке ресурсов. На клиенте должен быть установлен аддон Kotlin scripting compiler.
+
+Базовый класс скрипта: `UiScript`. Импорты UI, виджетов, layout, стилей, `DataKey` и HUD API добавляются автоматически.
+
+## Экраны
+
+`screen(id) { ... }` регистрирует экран. Его resource location затем использует сервер.
+
+```kotlin
+screen("mypack:settings") {
+    title = "Настройки"
+    closeOnEscape = true
+    pausesGame = false
+    content {
+        Column(modifier = Modifier.padding(12.px).gap(8.px)) {
+            Text("Настройки")
+            Checkbox(checked = data[ShowHints], onCheckedChange = { checked ->
+                send { putBoolean("showHints", checked) }
+            })
+        }
+    }
+}
+```
+
+По умолчанию `title` равен пути id, `closeOnEscape` равен `true`, а `pausesGame` равен `false`. Включай `rebuildEveryFrame = true` только для содержимого, которое читает состояние клиента в каждом кадре.
+
+## HUD-оверлеи
+
+`overlay(id) { ... }` регистрирует HUD-слой. Он может управляться сервером или быть полностью клиентским.
+
+```kotlin
+overlay("mypack:stamina") {
+    anchor = "experience_bar"
+    placement = HudPlacement.BEFORE
+    autoShow = true
+    content {
+        val value = data[Stamina].coerceIn(0f, 1f)
+        Box(modifier = Modifier.size((182f * value).px, 5.px).background(UiColor(0.3f, 0.8f, 1f)))
+    }
+}
+```
+
+| Параметр | По умолчанию | Значение |
+| --- | --- | --- |
+| `anchor` | `hotbar` | Слой vanilla HUD; допустимы короткие имена, например `crosshair` и `experience_bar` |
+| `placement` | `HudPlacement.AFTER` | Рисовать до или после anchor |
+| `autoShow` | `false` | Показывать сразу после перезагрузки; для клиентского HUD |
+| `input` | `OverlayInput.NONE` | `NONE` для HUD без ввода, `INTERACTIVE` для получения ввода |
+| `aboveScreens` | `false` | Также рисовать поверх открытого экрана |
+| `rebuildEveryFrame` | `false` | Перекомпоновывать каждый кадр; только когда это необходимо |
+
+`interactive()` сокращает запись `input = OverlayInput.INTERACTIVE`. Во время игры интерактивный оверлей использует центр экрана, пока не получит событие указателя.
+
+## Kotlin-композиция
+
+`content { }` является композаблом с получателем `UiScope`. В нём можно вызывать композаблы, читать `data`, вызывать `send { }` и `close()`. Общие части UI выноси в Kotlin-функции:
+
+```kotlin
+@Composable
+fun UiScope.Action(label: String, action: String) {
+    Box(modifier = Modifier.padding(6.px).onClick { send { putString("action", action) } }) {
+        Text(label)
+    }
+}
+```
+
+Механизма XML-импортов больше нет: переиспользуй Kotlin-функции, файлы и обычные импорты Kotlin.

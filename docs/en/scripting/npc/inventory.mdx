@@ -1,0 +1,220 @@
+---
+title: Inventory and Item Collection
+order: 5
+date: 2026-07-19
+readingTime: 11 min
+---
+
+<center><h1>Inventory and Item Collection</h1></center>
+
+*Every NPC now has its own inventory, a way to describe "which items", and a background job that walks around and gathers them.*
+
+![NPC](/docs/title-missing.webp)
+
+## The NPC's inventory
+
+Every `npc()` gets its own inventory, `npc.inventory`, with 36 slots by default (change it with the `inventorySize` parameter of `npc(...)`, see [Creating NPCs](/docs/hollowengine/scripting/npc/create)). It is saved and restored automatically, together with every item's enchantments, custom name, and other data components, you never need to handle that yourself.
+
+The everyday functions you will use are plain (non-`suspend`) functions, they run instantly:
+
+```kotlin
+npc.giveItem(item("minecraft:bread", 5))          // put items in
+npc.takeItems(itemFilter(item("minecraft:bread")), 2) // take 2 bread back out
+npc.countItems(itemFilter(item("minecraft:bread")))   // how many bread does it have?
+npc.hasItems(itemFilter(item("minecraft:bread")).request(3)) // does it have at least 3?
+```
+
+| Function | What it does |
+|----------|---------------|
+| `giveItem(stack)` | Adds a stack, returns whatever didn't fit (empty if it all fit). |
+| `giveItems(stacks)` | Same, for several stacks at once, returns the list of leftovers. |
+| `takeItems(filter, count)` | Removes up to `count` matching items and returns them. |
+| `countItems(filter)` | Counts how many matching items the NPC is carrying. |
+| `hasItems(request)` / `hasItems(requests)` | Checks whether the NPC has enough of one or several requests. |
+| `dropItems(filter, count)` | Removes matching items and drops them on the ground. |
+| `transferItems(target, filter, count)` | Moves items from this NPC's inventory directly into another NPC's inventory, or into a player's. |
+| `equip(slot, filter)` | Finds a matching item in the inventory and equips it into the given `EquipmentSlot` (the old item, if any, goes back into the inventory). |
+| `unequip(slot)` | Removes the currently equipped item from a slot back into the inventory. |
+
+```kotlin
+import net.minecraft.world.entity.EquipmentSlot
+
+npc.equip(EquipmentSlot.MAINHAND, itemTag("minecraft:swords"))
+npc.unequip(EquipmentSlot.MAINHAND)
+```
+
+:::advice
+`giveItem` and `giveItems` stack items together automatically, up to each item's normal max stack size, and only spill into empty slots once existing matching stacks are full. Giving 70 apples to an inventory that only has room for 64 returns a stack of 6 apples, the part that didn't fit, so you can decide what to do with the rest (drop it, refuse the trade, and so on):
+
+```kotlin
+val leftover = npc.giveItem(item("minecraft:apple", 70))
+if (!leftover.isEmpty) npc.dropItem(leftover)
+```
+:::
+
+:::warning
+`equip` puts the previously equipped item (if any) back into the inventory. If the inventory happens to be completely full at that moment, there is nowhere to put it, and `equip` throws an error instead of silently losing the item. `unequip` does not have this problem, it returns `false` when the item did not fit and leaves whatever did not fit equipped. If you call `equip` on an inventory that might be full, check `countItems` or leave at least one free slot first.
+:::
+
+## Reaching into specific slots
+
+The functions above cover the common cases, but sometimes you need to work with the inventory as a plain list of slots, for example to display it, to check one exact slot, or to resize it while the NPC is alive.
+
+```kotlin
+val allItems: List<ItemStack> = npc.inventory.contents()      // a copy of every slot, empty ones included
+val firstSlot: ItemStack = npc.inventory.get(0)                // read a specific slot
+npc.inventory.set(0, item("minecraft:torch", 16))              // overwrite a specific slot, returns what was there before
+
+val overflow = npc.inventory.resize(9)                          // shrink/grow the inventory
+overflow.forEach(npc::dropItem)                                 // items that no longer fit come back here, don't just lose them
+
+val removed = npc.inventory.clear()                             // empty the whole inventory, returns what was removed
+```
+
+| Function | What it does |
+|----------|---------------|
+| `contents()` | Every slot as a `List<ItemStack>`, including empty stacks, in order. |
+| `get(slot)` | Reads a single slot by index. |
+| `set(slot, stack)` | Overwrites a single slot, returns whatever was there before. |
+| `resize(size)` | Changes the number of slots. If it shrinks and some items no longer have a slot, they are returned instead of being deleted, so you can drop them, log them, or refuse the resize. |
+| `clear()` | Empties every slot at once, returns everything that was removed. |
+
+## Describing "which items": filters and requests
+
+Before you can give, take, count, or search for items, you need a way to say *which* items you mean. That is what `ItemFilter` and `ItemRequest` are for.
+
+- An **`ItemFilter`** answers a yes/no question about a single `ItemStack`: "does this count?". It has no amount attached.
+- An **`ItemRequest`** is a filter plus a required amount: "10 of these".
+
+### Building a filter
+
+```kotlin
+val bread = itemFilter(item("minecraft:bread"))                 // exactly bread, matching item and any name/components
+val logs = itemTag("minecraft:logs")                            // anything in the minecraft:logs item tag
+val anyStick = itemFilter(item("minecraft:stick"), match = ItemMatchMode.ITEM_ONLY) // any stick, ignoring custom name/components
+```
+
+By default, `itemFilter(...)` compares both the item type **and** its data components (enchantments, custom name, and so on), so a plain stick will not match a custom-named "Magic Stick" unless you pass `match = ItemMatchMode.ITEM_ONLY`.
+
+You can also write your own filter from any condition:
+
+```kotlin
+val enchantedOnly = itemFilter { stack -> stack.isEnchanted }
+```
+
+Combine filters:
+
+```kotlin
+val fruit = anyOf(itemTag("minecraft:apple"), itemTag("minecraft:pumpkins"))
+val cheapTool = allOf(itemTag("minecraft:pickaxes"), not(itemFilter { it.isEnchanted }))
+```
+
+### Building a request (a filter with an amount)
+
+```kotlin
+val need = logs.request(10)                       // 10 of whatever "logs" matches
+val need2 = itemRequest(item("minecraft:bread", 5)) // 5 bread, amount taken from the stack's own count
+```
+
+`itemRequests(vararg templates)` builds a list of requests from several item stacks at once, handy when you need "5 bread and 3 apples" in one go.
+
+## Sending an NPC to gather items: `collectItems`
+
+This is a ready-made background job: point the NPC at a list of requests, and it will **walk around by itself, pick up matching dropped items, and come back**, all without you writing a manual loop.
+
+```kotlin
+@State
+suspend fun main() {
+    val result = npc.collectItems(
+        listOf(itemTag("minecraft:logs").request(10)),
+        CollectOptions(radius = 20.0),
+    )
+
+    when (result.reason) {
+        CollectStopReason.COMPLETED -> npc.say("Got everything!")
+        CollectStopReason.INVENTORY_FULL -> npc.say("My bags are full.")
+        CollectStopReason.NO_CANDIDATES -> npc.say("I don't see any logs nearby.")
+        CollectStopReason.NO_REACHABLE_CANDIDATES -> npc.say("I can see logs, but I can't reach any of them.")
+    }
+}
+```
+
+`collectItems` is a normal `suspend` function, so the line above waits until the NPC is done (or gives up). Like every other long action, it also has `startCollectItems(...)` for the background form described in [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions), and it runs on the shared `MOVEMENT` channel, so it will be cancelled the same way a plain `move(...)` would be.
+
+### What happens step by step
+
+While `collectItems` is running, the NPC repeats this loop on its own:
+
+1. Look for the nearest dropped item matching an unfinished request within `radius`.
+2. If nothing is found, either wait and check again (`WAIT_AND_RETRY`) or stop (`FAIL`), depending on `searchPolicy`.
+3. Walk to the item and pick it up.
+4. If the inventory has no room left, stop with `CollectStopReason.INVENTORY_FULL`.
+5. Repeat until every request is satisfied, then, by default, walk back to where the NPC started and restore its original facing direction.
+
+### `CollectOptions`
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `radius` | `16.0` | How far around the NPC to search for items. |
+| `movement` | fails on unreachable/unavailable | The `MoveOptions` used while walking to each item, see [Movement](/docs/hollowengine/scripting/npc/movement). |
+| `searchPolicy` | `WAIT_AND_RETRY` | What to do when no matching item is currently visible: keep waiting, or give up. |
+| `searchIntervalTicks` | `10` | How often to check again while waiting. |
+| `returnToStart` | `true` | Whether the NPC walks back to its starting spot (and pose) once it's done. |
+
+### `CollectResult`
+
+| Field | Meaning |
+|-------|---------|
+| `collected` | The items actually picked up, as a list of `CollectedItem(stack)`. |
+| `remaining` | Whatever requests were **not** fully satisfied, if any (empty on full success). |
+| `reason` | Why the job stopped, see `CollectStopReason` above. |
+| `returnResult` | The `MoveResult` of the walk back home, or `null` if `returnToStart = false`. |
+
+:::advice
+If two different NPCs both go looking for the same pile of dropped items, they will not fight over the same single item stack: once one NPC is on its way to pick something up, the other NPC's search automatically skips that item and looks for a different one instead.
+:::
+
+## Putting it together: a simple shopkeeper
+
+`hasItems`, `takeItems`, and `giveItem` all operate on `npc.inventory`, so a shopkeeper that sells from its own stock only needs functions from this page. A shop needs to react to interactions for as long as the NPC exists, which is exactly what an [entity-attached node script](/docs/hollowengine/scripting/node) is for:
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+// The NPC itself is the implicit receiver here, so no `npc.` prefix is needed.
+giveItem(item("minecraft:bread", 32)) // stock the shop once, when the node starts
+
+onInteract { event ->
+    val bread = itemFilter(item("minecraft:bread"))
+    if (hasItems(bread.request(1))) {
+        transferItems(event.player, bread, 1)
+        say("Here's your bread!")
+    } else {
+        say("Sold out, sorry.")
+    }
+}
+```
+
+`transferItems` accepts a player as the target, so the bread leaves the NPC's stock and arrives in the player's inventory in one step, and a player with no free slot simply gets nothing instead of the item vanishing. The player side of this has its own functions, see [Player Inventory](/docs/hollowengine/scripting/player). If you write this inside a `@State` scene instead, where the NPC is a local variable, use `npc.hasItems(...)`, `npc.takeItems(...)`, and `npc.giveItem(...)` exactly like the rest of this page.
+
+## Example: equip the best weapon on hand
+
+```kotlin
+@State
+suspend fun main() {
+    npc.giveItems(
+        listOf(
+            item("minecraft:wooden_sword"),
+            item("minecraft:iron_sword"),
+        ),
+    )
+
+    // Prefer an iron sword, fall back to anything tagged as a sword.
+    val equipped = npc.equip(EquipmentSlot.MAINHAND, itemFilter(item("minecraft:iron_sword"), match = ItemMatchMode.ITEM_ONLY))
+        || npc.equip(EquipmentSlot.MAINHAND, itemTag("minecraft:swords"))
+
+    if (!equipped) {
+        npc.say("I have nothing to fight with!")
+    }
+}
+```

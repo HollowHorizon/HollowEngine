@@ -1,0 +1,88 @@
+---
+title: Сущности
+order: 4
+date: 2026-05-10
+readingTime: 2 мин
+---
+
+<center><h1>Сущности</h1></center>
+
+*Действия связанные с сущностями.*
+
+![NPC](/docs/title-missing.webp)
+
+## Спавн в мире
+
+```kotlin
+@SubscribeEvent
+fun onEntitySpawn(event: EntityLoadedEvent) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - сущность, которая будет призвана.
+- `event.uuid` (UUID) - уникальный идентификатор сущности.
+
+## Смерть сущности
+
+*Это событие можно отменить (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onEntitySpawn(event: LivingEntityDeathEvent) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - текущая сущность.
+- `event.source` (DamageSource) - источник и тип нанесённого урона.
+
+## Перемещение между измерениями
+
+```kotlin
+@SubscribeEvent
+fun onEntityTeleport(event: EntityEvent.ChangeDimension) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - сущность до перемещения.
+- `event.new` (Entity) - сущность после перемещения.
+- `event.from` (Level) - мир из которого перемещается сущность.
+- `event.to` (Level) - мир в который перемещается сущность.
+
+:::advice
+Типизированные [`.data`](/docs/hollowengine/scripting/npc/data) переносятся сами, на `event.new`, обрабатывать здесь ничего не нужно.
+:::
+
+## Получение урона
+
+*Это событие можно отменить (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onEntityHurt(event: EntityEvent.Hurt) {
+    val entity = event.entity
+}
+```
+
+- `event.entity` (Entity) - сущность получившая урон.
+- `event.source` (DamageSource) - источник и тип нанесённого урона.
+- `event.amount` (Float) - количество нанесённого урона. (можно изменить)
+
+## Размножение сущностей
+
+*Это событие можно отменить (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onEntityHurt(event: BabySpawnEvent) {
+    val entity = event.entity
+}
+```
+
+- `event.parentA` (Mob) - один из родителей.
+- `event.parentB` (Mob?) - один из родителей.
+- `event.child` (AgeableMob?) - потомок. (можно изменить)
+- `event.causedByPlayer` (Player) - расплодивший игрок.
+

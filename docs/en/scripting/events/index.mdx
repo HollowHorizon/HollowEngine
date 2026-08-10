@@ -1,0 +1,77 @@
+---
+title: Event Handling
+order: 1
+date: 2026-05-10
+readingTime: 1 min
+---
+
+<center><h1>Event Handling</h1></center>
+
+*Subscribe to events and inject your own logic.*
+
+![NPC](/docs/title-missing.webp)
+
+The HollowEngine event system lets you inject custom logic into specific in-game actions, including player actions, entity actions, block updates, and more.
+
+## Creating a handler
+
+There are two ways to create a handler: automatically (see [reloadable scripts](/docs/hollowengine/scripting/reload)) or manually by creating and registering a function:
+
+```kotlin
+fun onPlayerJoin(event: PlayerEvent.Join) {
+    event.player.send("Welcome back!")
+}
+
+val handle = PlayerEvent.Join.register(::onPlayerJoin) // Start listening for the event and store the handler
+PlayerEvent.Join.unregister(handle) // Stop listening for the event (the method will no longer be called)
+
+// You can also pass a lambda instead of a function:
+PlayerEvent.Join.register { event ->
+    event.player.send("Welcome back!")
+}
+```
+
+## Priorities
+
+Sometimes an event needs to run before other handlers, especially if it may cancel the event.
+You can change the handler order by configuring its priority:
+
+```kotlin
+val handler = eventListenerOf(10, ::onPlayerJoin)
+
+PlayerEvent.Join.register(handler)
+PlayerEvent.Join.unregister(handler)
+```
+
+## Canceling events
+
+Some events are cancelable, meaning their default action can be prevented. For example:
+
+```kotlin
+BlockEvent.Break.register { event ->
+    event.player.send("You cannot break blocks!")
+    event.isCanceled = true
+}
+```
+
+The full list of available events is available in the sections below.
+
+## Awaiting events
+
+Sometimes you need a one-shot handler rather than a permanent one, especially in story logic. There is a ready-made tool for this:
+
+```kotlin
+// Wait for a message, then continue execution
+val event = ServerChatEvent.await()
+println(event.message.string)
+```
+
+Or with a condition:
+
+```kotlin
+val event = ServerChatEvent.await { it.player.name == "..." }
+```
+
+:::warning
+This only works inside suspend functions!
+:::

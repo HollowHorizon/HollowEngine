@@ -1,0 +1,61 @@
+---
+title: Сервер и тики
+order: 1
+date: 2026-05-10
+readingTime: 1 мин
+---
+
+<center><h1>Сервер и тики</h1></center>
+
+*Действия связанные с сервером.*
+
+![NPC](/docs/title-missing.webp)
+
+## Жизненный цикл
+
+Если вам нужно выполнить действие при запуске или остановке сервера, то вам помогут следующие события:
+
+### При запуске
+
+```kotlin
+@SubscribeEvent
+fun onServerStart(event: ServerEvent.Starting) {
+    val server = event.server
+}
+```
+
+### При остановке
+
+```kotlin
+@SubscribeEvent
+fun onServerStop(event: ServerEvent.Stopping) {
+    val server = event.server
+}
+```
+
+## Тики
+
+Если вам нужно выполнять действие каждый тик сервера (20 тиков в секунду), то вам подойдёт событие `TickEvent.Server`:
+
+```kotlin
+@SubscribeEvent
+fun onServerStop(event: TickEvent.Server) {
+    val server = event.server
+}
+```
+
+:::advice
+Если вам нужно выполнять действие каждые `X` тиков вы можете создать простой счётчик:
+```kotlin
+var ticker = 0
+
+@SubscribeEvent
+fun onServerStop(event: TickEvent.Server) {
+    val server = event.server
+    if (ticker++ % 5) { // Каждые 5 тиков
+        server.doSomething()
+    }
+}
+```
+:::
+

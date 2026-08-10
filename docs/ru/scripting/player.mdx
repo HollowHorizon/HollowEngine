@@ -1,0 +1,118 @@
+---
+title: Инвентарь игрока
+order: 9
+date: 2026-08-08
+readingTime: 6 мин
+---
+
+<center><h1>Инвентарь игрока</h1></center>
+
+*Те же функции работы с предметами, что и у NPC, но направленные на игрока: выдать награду, забрать квестовый предмет, проверить, что у него с собой.*
+
+---
+
+## Те же функции, другой владелец
+
+Всё на этой странице повторяет [API инвентаря NPC](/docs/hollowengine/scripting/npc/inventory), так что награда и оплата в лавке пишутся одинаково, кто бы ни держал предметы:
+
+```kotlin
+player.giveItem(item("minecraft:diamond", 3))            // выдать награду
+player.takeItems(itemFilter(item("minecraft:emerald")), 5) // забрать оплату
+player.countItems(itemFilter(item("minecraft:bread")))     // сколько хлеба он несёт?
+player.hasItems(itemTag("minecraft:logs").request(10))     // есть ли у него 10 брёвен?
+```
+
+| Функция | Что делает |
+|---------|-------------|
+| `giveItem(stack)` | Добавляет стак, возвращает то, что не поместилось (пусто, если поместилось всё). |
+| `giveItems(stacks)` | То же самое сразу для нескольких стаков, возвращает список того, что не поместилось. |
+| `takeItems(filter, count)` | Удаляет до `count` подходящих предметов и возвращает их. |
+| `countItems(filter)` | Считает, сколько подходящих предметов несёт игрок. |
+| `hasItems(request)` / `hasItems(requests)` | Проверяет, хватает ли у игрока одного или нескольких запрошенных наборов. |
+| `dropItems(filter, count)` | Удаляет подходящие предметы и выбрасывает их перед игроком. |
+| `dropItem(stack)` | Выбрасывает один стак перед игроком, ровно как нажатие клавиши выброса. |
+| `transferItems(target, filter, count)` | Переносит предметы в инвентарь другого игрока или NPC. |
+| `equip(slot, filter)` | Находит подходящий предмет в инвентаре и надевает его в указанный `EquipmentSlot`. |
+| `unequip(slot)` | Снимает надетый предмет обратно в инвентарь. |
+
+Фильтры и запросы - это те же объекты, что описаны на странице NPC: `itemFilter(...)`, `itemTag(...)`, `anyOf`, `allOf`, `not` и `.request(count)`. Полный список смотри в [Инвентарь и сбор предметов](/docs/hollowengine/scripting/npc/inventory), здесь про них ничего не меняется.
+
+## Что считается "инвентарём игрока"
+
+Эти функции работают с **основным инвентарём** игрока: хотбар плюс три ряда над ним, те самые 36 слотов, куда попадает shift-клик. Надетая броня и левая рука намеренно не входят в этот набор, чтобы квест, забирающий железо обратно, не снял по-тихому ботинки, в которых человек стоит.
+
+До этих слотов можно добраться, назвав их явно:
+
+```kotlin
+import net.minecraft.world.entity.EquipmentSlot
+
+player.equip(EquipmentSlot.HEAD, itemFilter(item("minecraft:iron_helmet")))
+player.unequip(EquipmentSlot.OFFHAND)
+```
+
+:::advice
+`giveItem` автоматически складывает предметы в стаки и переходит к пустым слотам только когда подходящие стаки уже заполнены, так что заполненный инвентарь никогда не съедает награду молча. То, что не поместилось, возвращается тебе:
+
+```kotlin
+val leftover = player.giveItem(item("minecraft:diamond", 64))
+if (!leftover.isEmpty) player.dropItem(leftover) // под ноги, а не в никуда
+```
+:::
+
+:::warning
+`equip` у игрока ведёт себя немного иначе, чем у NPC. Новый предмет занимает слот в любом случае, поэтому тому, что было надето, нужно куда-то деться: он возвращается в инвентарь, а если места не осталось - выбрасывается под ноги игроку. Инвентарь игрока заполнен гораздо чаще, чем у NPC, и выбросить предмет лучше, чем оборвать вызов на середине.
+
+`unequip` строже: он возвращает `false`, если предмет не поместился, и то, что не поместилось, остаётся надетым.
+:::
+
+## Передача предметов между игроком и NPC
+
+`transferItems` работает в обе стороны и возвращает, сколько предметов реально дошло:
+
+```kotlin
+val paid = player.transferItems(merchant, itemFilter(item("minecraft:emerald")), 5)
+if (paid == 5) merchant.transferItems(player, itemTag("minecraft:swords"), 1)
+```
+
+По дороге ничего не теряется: то, для чего у принимающей стороны нет места, сразу возвращается туда, откуда было взято, так что передача в забитый инвентарь просто перенесёт меньше предметов и честно об этом сообщит.
+
+## Пример: сдача квеста
+
+```kotlin
+@State
+suspend fun onInteract(player: ServerPlayer) {
+    val logs = itemTag("minecraft:logs")
+
+    if (!player.hasItems(logs.request(10))) {
+        npc.say("Принеси мне десять брёвен, и я заплачу.")
+        return
+    }
+
+    player.transferItems(npc, logs, 10)
+    player.giveItem(item("minecraft:emerald", 3))
+    npc.say("Приятно иметь с тобой дело.")
+}
+```
+
+## Пример: снарядить игрока перед боем
+
+```kotlin
+@State
+suspend fun main() {
+    player.giveItems(
+        listOf(
+            item("minecraft:iron_sword"),
+            item("minecraft:iron_chestplate"),
+        ),
+    )
+
+    player.equip(EquipmentSlot.MAINHAND, itemTag("minecraft:swords"))
+    player.equip(EquipmentSlot.CHEST, itemFilter(item("minecraft:iron_chestplate")))
+
+    player.notify("Снаряжайся.")
+}
+```
+
+:::advice
+Скрипты выполняются на сервере, а эти функции меняют настоящий инвентарь игрока, так что клиент увидит результат сам. Синхронизировать вручную ничего не нужно.
+:::

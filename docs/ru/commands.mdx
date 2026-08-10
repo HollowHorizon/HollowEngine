@@ -1,0 +1,247 @@
+---
+title: Команды
+order: 3
+date: 2026-05-09
+readingTime: 1 мин
+---
+<center><h1>Добро пожаловать!</h1></center>
+
+*Прописав в чате символ для команд `/` вы могли заметить совершенно новую команду 👀*
+
+![Команды](/docs/commands-title.webp)
+
+Мод добавляет довольно много полезных команд, которые можно найти через 2 основные команды:
+
+| Команда         | Описание           |
+| --------------- | ------------------ |
+| `/hollowengine` | Полное имя команды |
+| `/he`           | Короткий алиас     |
+
+---
+
+# Партиклы
+
+| Команда                        | Описание                              |
+| ------------------------------ | ------------------------------------- |
+| `/he particle <pos> <name>`    | Создать particle effect в позиции     |
+| `/he particle <entity> <name>` | Прикрепить particle effect к сущности |
+| `/he remove-particles <name>`  | Удалить все частицы указанного типа   |
+
+### Аргументы
+
+| Аргумент | Тип      | Описание           |
+| -------- | -------- | ------------------ |
+| `pos`    | `vec3`   | Координаты         |
+| `entity` | `entity` | Целевая сущность   |
+| `name`   | `string` | ID particle effect |
+
+### Примеры
+
+```mcfunction
+/he particle ~ ~1 ~ hollowengine:magic_circle
+/he particle @s hollowengine:aura
+/he remove-particles hollowengine:aura
+```
+
+---
+
+# Модели
+
+## Информация
+
+| Команда                  | Описание                     |
+| ------------------------ | ---------------------------- |
+| `/he model <model>`      | Показать информацию о модели |
+| `/he model info <model>` | То же самое                  |
+
+---
+
+## Работа с моделями
+
+| Команда                             | Описание                     |
+| ----------------------------------- | ---------------------------- |
+| `/he model spawn <pos> <model>`     | Создать model entity         |
+| `/he model move <snapshotId> <pos>` | Переместить model entity     |
+| `/he model remove <snapshotId>`     | Удалить model entity         |
+| `/he model attach <entity> <model>` | Прикрепить модель к сущности |
+
+### Аргументы
+
+| Аргумент     | Тип      |
+| ------------ | -------- |
+| `snapshotId` | `UUID`   |
+| `model`      | `string` |
+| `pos`        | `vec3`   |
+
+---
+
+## Отключение ванильной модели
+
+| Команда                                    | Описание                         |
+| ------------------------------------------ | -------------------------------- |
+| `/he model hide-vanilla <entity> <hidden>` | Скрыть/показать ванильную модель |
+
+---
+
+## Установка пресета
+
+| Команда                                          | Описание                        |
+| ------------------------------------------------ | ------------------------------- |
+| `/he model player-preset <entity>`               | Применить стандартный preset    |
+| `/he model player-preset <entity> <hideVanilla>` | То же с настройкой hide vanilla |
+
+---
+
+# Анимации
+
+## Воспроизведение
+
+| Команда                                                                   | Описание            |
+| ------------------------------------------------------------------------- | ------------------- |
+| `/he model animation play <entity> <animation>`                           | Запустить анимацию  |
+| `/he model animation play <entity> <animation> <mode>`                    | Запустить с режимом |
+| `/he model animation play <entity> <animation> <mode> <fadeIn> <fadeOut>` | Полный вариант      |
+
+### Аргументы
+
+| Аргумент  | Тип     | Диапазон |
+| --------- | ------- | -------- |
+| `fadeIn`  | `float` | `0..10`  |
+| `fadeOut` | `float` | `0..10`  |
+
+---
+
+## Остановка
+
+| Команда                                                | Описание            |
+| ------------------------------------------------------ | ------------------- |
+| `/he model animation stop <entity> <animation>`        | Остановить анимацию |
+| `/he model animation stop <entity> <animation> <fade>` | Остановить с fade   |
+
+---
+
+# Освещение
+
+## Общие команды
+
+| Команда                         | Описание                       |
+| ------------------------------- | ------------------------------ |
+| `/he light list`                | Список источников света        |
+| `/he light remove`              | Удалить текущий источник света |
+| `/he light remove <snapshotId>` | Удалить источник света по ID   |
+
+---
+
+## Создание света
+
+| Команда                                                   | Описание            |
+| --------------------------------------------------------- | ------------------- |
+| `/he light add point <radius>`                            | Создать point light |
+| `/he light add spot <distance> <innerAngle> <outerAngle>` | Создать spot light  |
+
+### Ограничения
+
+| Аргумент     | Диапазон |
+| ------------ | -------- |
+| `radius`     | `>= 0`   |
+| `distance`   | `>= 0`   |
+| `innerAngle` | `0..90`  |
+| `outerAngle` | `0..90`  |
+
+---
+
+## Параметры света
+
+| Команда                       | Описание                |
+| ----------------------------- | ----------------------- |
+| `/he light enable <enabled>`  | Включить/выключить свет |
+| `/he light color <r> <g> <b>` | Изменить цвет           |
+| `/he light intensity <value>` | Изменить яркость  |
+
+### Цвет
+
+| Аргумент | Диапазон |
+| -------- | -------- |
+| `r`      | `0..1`   |
+| `g`      | `0..1`   |
+| `b`      | `0..1`   |
+
+---
+
+# Тени
+
+| Команда                              | Описание          |
+| ------------------------------------ | ----------------- |
+| `/he light shadow enable <enabled>`  | Включить тени     |
+| `/he light shadow dynamic <value>`   | Динамические тени |
+| `/he light shadow distance <value>`  | Дистанция теней   |
+| `/he light shadow fovOffset <value>` | Смещение FOV      |
+
+### Ограничения
+
+| Аргумент    | Диапазон    |
+| ----------- | ----------- |
+| `distance`  | `>= 0`      |
+| `fovOffset` | `-180..180` |
+
+---
+
+# Объёмный туман
+
+| Команда                            | Описание                |
+| ---------------------------------- | ----------------------- |
+| `/he light fog enable <enabled>`   | Включить volumetric fog |
+| `/he light fog samples <value>`    | Количество samples      |
+| `/he light fog scattering <value>` | Scattering              |
+| `/he light fog density <value>`    | Density                 |
+| `/he light fog anisotropy <value>` | Anisotropy              |
+
+### Ограничения
+
+| Аргумент     | Диапазон |
+| ------------ | -------- |
+| `samples`    | `1..128` |
+| `scattering` | `0..1`   |
+| `density`    | `0..5`   |
+| `anisotropy` | `-1..1`  |
+
+---
+
+# Отражения линз
+
+| Команда                                     | Описание            |
+| ------------------------------------------- | ------------------- |
+| `/he light flare enable <enabled>`          | Включить flare      |
+| `/he light flare sizeOffset <value>`        | Размер flare        |
+| `/he light flare falloffDistance <value>`   | Falloff distance    |
+| `/he light flare startAngle <value>`        | Начальный угол      |
+| `/he light flare endAngle <value>`          | Конечный угол       |
+| `/he light flare angleFactorOffset <value>` | Angle factor offset |
+| `/he light flare intensity <value>`         | Интенсивность flare |
+
+---
+
+# Утилиты
+
+| Команда    | Описание                    |
+| ---------- | --------------------------- |
+| `/he hand` | Скопировать предмет из руки |
+| `/he pos`  | Скопировать позицию цели    |
+
+---
+
+# Snapshot IDs
+
+Некоторые команды возвращают `snapshotId`:
+
+```text
+550e8400-e29b-41d4-a716-446655440000
+```
+
+Он используется для последующего управления объектом:
+
+```mcfunction
+/he model move <snapshotId> ...
+/he model remove <snapshotId>
+/he light remove <snapshotId>
+```

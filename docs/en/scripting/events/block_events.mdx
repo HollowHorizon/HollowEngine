@@ -1,0 +1,58 @@
+---
+title: Blocks
+order: 3
+date: 2026-05-10
+readingTime: 2 min
+---
+
+<center><h1>Blocks</h1></center>
+
+*Actions related to blocks.*
+
+![NPC](/docs/title-missing.webp)
+
+## Placement
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onBlockPlace(event: BlockEvent.Placed) {
+    val block = event.state
+}
+```
+
+- `event.state` (BlockState) - the current block state.
+- `event.pos` (String) - block coordinates.
+- `event.player` (Player) - the player who placed the block.
+
+## Breaking
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onBlockBreak(event: BlockEvent.Break) {
+    val block = event.state
+}
+```
+
+- `event.state` (BlockState) - the current block state.
+- `event.pos` (String) - block coordinates.
+- `event.player` (Player) - the player who broke the block.
+- `event.level` (Level) - the world where the block was broken.
+
+## Updates
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onBlockUpdate(event: BlockEvent.NeighborNotify) {
+    val block = event.state
+}
+```
+
+- `event.state` (BlockState) - the current block state.
+- `event.pos` (String) - block coordinates.
+- `event.directions` (EnumSet<Direction>) - the sides that were updated.

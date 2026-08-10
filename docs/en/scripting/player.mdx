@@ -1,0 +1,118 @@
+---
+title: Player Inventory
+order: 9
+date: 2026-08-08
+readingTime: 6 min
+---
+
+<center><h1>Player Inventory</h1></center>
+
+*The same item functions NPCs have, aimed at a player: give a reward, take a quest item, check what someone is carrying.*
+
+---
+
+## The same functions, a different owner
+
+Everything on this page mirrors [the NPC inventory API](/docs/hollowengine/scripting/npc/inventory), so a reward and a shop payment are written the same way whoever holds the items:
+
+```kotlin
+player.giveItem(item("minecraft:diamond", 3))            // hand out a reward
+player.takeItems(itemFilter(item("minecraft:emerald")), 5) // take payment
+player.countItems(itemFilter(item("minecraft:bread")))     // how much bread is he carrying?
+player.hasItems(itemTag("minecraft:logs").request(10))     // does he have 10 logs?
+```
+
+| Function | What it does |
+|----------|---------------|
+| `giveItem(stack)` | Adds a stack, returns whatever didn't fit (empty if it all fit). |
+| `giveItems(stacks)` | Same, for several stacks at once, returns the list of leftovers. |
+| `takeItems(filter, count)` | Removes up to `count` matching items and returns them. |
+| `countItems(filter)` | Counts how many matching items the player is carrying. |
+| `hasItems(request)` / `hasItems(requests)` | Checks whether the player has enough of one or several requests. |
+| `dropItems(filter, count)` | Removes matching items and throws them in front of the player. |
+| `dropItem(stack)` | Throws one stack in front of the player, exactly like pressing the drop key. |
+| `transferItems(target, filter, count)` | Moves items into another player's inventory, or into an NPC's. |
+| `equip(slot, filter)` | Finds a matching item in the inventory and puts it in the given `EquipmentSlot`. |
+| `unequip(slot)` | Takes the currently equipped item off, back into the inventory. |
+
+Filters and requests are the same objects the NPC page describes: `itemFilter(...)`, `itemTag(...)`, `anyOf`, `allOf`, `not`, and `.request(count)`. See [Inventory and Item Collection](/docs/hollowengine/scripting/npc/inventory) for the full list, nothing about them changes here.
+
+## What counts as "the player's inventory"
+
+These functions work on the player's **storage**: the hotbar plus the three rows above it, the 36 slots a shift-click can reach. Worn armor and the off-hand are deliberately left out, so a quest that takes iron back cannot silently strip the boots someone is standing in.
+
+To reach those slots, name them:
+
+```kotlin
+import net.minecraft.world.entity.EquipmentSlot
+
+player.equip(EquipmentSlot.HEAD, itemFilter(item("minecraft:iron_helmet")))
+player.unequip(EquipmentSlot.OFFHAND)
+```
+
+:::advice
+`giveItem` stacks items together automatically and only spills into empty slots once matching stacks are full, so a full inventory never silently eats a reward. What did not fit comes back to you:
+
+```kotlin
+val leftover = player.giveItem(item("minecraft:diamond", 64))
+if (!leftover.isEmpty) player.dropItem(leftover) // at his feet rather than nowhere
+```
+:::
+
+:::warning
+`equip` behaves slightly differently for a player than for an NPC. The new item takes the slot either way, so the item that was worn there has to go somewhere: it goes back into the inventory, and if there is no room left it is thrown at the player's feet instead. A player's inventory is full far more often than an NPC's, and dropping an item is better than refusing the whole call halfway through.
+
+`unequip` is stricter, it returns `false` when the item did not fit and leaves whatever did not fit equipped.
+:::
+
+## Moving items between a player and an NPC
+
+`transferItems` works in both directions and returns how many items actually arrived:
+
+```kotlin
+val paid = player.transferItems(merchant, itemFilter(item("minecraft:emerald")), 5)
+if (paid == 5) merchant.transferItems(player, itemTag("minecraft:swords"), 1)
+```
+
+Nothing is ever lost in between: whatever the receiving side has no room for goes straight back where it came from, so a transfer into a full inventory simply moves fewer items and tells you so.
+
+## Example: a quest turn-in
+
+```kotlin
+@State
+suspend fun onInteract(player: ServerPlayer) {
+    val logs = itemTag("minecraft:logs")
+
+    if (!player.hasItems(logs.request(10))) {
+        npc.say("Bring me ten logs and I'll pay you.")
+        return
+    }
+
+    player.transferItems(npc, logs, 10)
+    player.giveItem(item("minecraft:emerald", 3))
+    npc.say("Pleasure doing business.")
+}
+```
+
+## Example: arming the player for a fight
+
+```kotlin
+@State
+suspend fun main() {
+    player.giveItems(
+        listOf(
+            item("minecraft:iron_sword"),
+            item("minecraft:iron_chestplate"),
+        ),
+    )
+
+    player.equip(EquipmentSlot.MAINHAND, itemTag("minecraft:swords"))
+    player.equip(EquipmentSlot.CHEST, itemFilter(item("minecraft:iron_chestplate")))
+
+    player.notify("Suit up.")
+}
+```
+
+:::advice
+Scripts run on the server, and these functions change the player's real inventory, so the client sees the result on its own. There is nothing to sync by hand.
+:::

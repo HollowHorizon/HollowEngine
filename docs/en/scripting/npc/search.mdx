@@ -1,0 +1,69 @@
+---
+title: Finding Entities and Items
+order: 6
+date: 2026-07-19
+readingTime: 5 min
+---
+
+<center><h1>Finding Entities and Items</h1></center>
+
+*Ask an NPC what is around it: players, other NPCs, any entity, or dropped items.*
+
+![NPC](/docs/title-missing.webp)
+
+## Quick helpers
+
+For the common cases, you don't need to build anything, just call one of these:
+
+```kotlin
+val nearbyPlayers = npc.findPlayers(radius = 10.0)
+val nearbyNpcs = npc.findNpcs(radius = 10.0) { other -> other.name != npc.name }
+val nearestBread = npc.findNearestItem(itemFilter(item("minecraft:bread")), radius = 8.0)
+```
+
+| Function | Returns |
+|----------|---------|
+| `findPlayers(radius, filter)` | Players around the NPC, nearest first. |
+| `findNpcs(radius, filter)` | Other NPCs around the NPC, nearest first. |
+| `findItems(filter, radius, limit)` | Dropped items matching an [`ItemFilter`](/docs/hollowengine/scripting/npc/inventory), nearest first. |
+| `findNearestItem(filter, radius)` | Just the single nearest matching dropped item, or `null` if there is none. |
+
+Every result is a `Ref<T>`, the same reference type used for [remembering entities across a story](/docs/hollowengine/scripting/node/states#story-logic), not the raw entity. That is on purpose: by the time you actually use the result, the entity might have moved to another chunk, or even unloaded, and a `Ref` knows how to wait for it and re-find it safely.
+
+```kotlin
+val playerRef = npc.findPlayers(radius = 10.0).firstOrNull() ?: return
+val player = playerRef.resolve() // safely get the live entity
+```
+
+## Building a custom search
+
+For anything more specific than "nearby players", use `entityQuery<T> { ... }` to describe exactly what you're looking for, then pass it to `findEntities(...)` or `findNearestEntity(...)`:
+
+```kotlin
+val query = entityQuery<Zombie> {
+    radius = 24.0
+    aliveOnly = true
+    visibleOnly = true       // only entities the NPC actually has line of sight to
+    limit = 5
+    sort = EntityQuerySort.NEAREST
+    filter { zombie -> !zombie.isBaby }
+}
+
+val zombies: List<Ref<Zombie>> = npc.findEntities(query)
+val closest: Ref<Zombie>? = npc.findNearestEntity(query)
+```
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `radius` | `16.0` | Search radius around the NPC. |
+| `aliveOnly` | `true` | Skip dead/removed entities. |
+| `visibleOnly` | `false` | Only include entities the NPC has a direct line of sight to. |
+| `limit` | unlimited | Maximum number of results. |
+| `sort` | `EntityQuerySort.NEAREST` | `NEAREST`, `FARTHEST`, or `NONE` (no particular order, fastest). |
+| `filter { ... }` | none | Add as many extra conditions as you like; you can call `filter { ... }` more than once, and an entity must pass all of them. |
+
+`findNearestEntity(query)` is just a shortcut that forces `limit = 1` and `sort = NEAREST` for you, so you get a single `Ref<T>?` instead of a list.
+
+## A note on `Ref<T>` and types
+
+Because `findEntities<T>` and `entityRef<T>(uuid)` always require you to say **what type** you expect (the `<T>` part), a `Ref` you get back is guaranteed to only ever resolve to that type or throw a clear error, it will never silently hand you the wrong kind of entity if a UUID happens to match something else after a reload. If you are new to generics: the `<T>` is simply telling the function "I'm looking for a `Zombie`" (or `ServerPlayer`, `NpcEntity`, and so on), so everything downstream (auto-complete, `resolve()`, `read { ... }`, `update { ... }`) already knows the right type for you. This will also matter later for integrating with entities added by other mods.

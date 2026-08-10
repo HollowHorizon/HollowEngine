@@ -1,0 +1,68 @@
+---
+title: Звуки
+order: 8
+date: 2026-05-10
+readingTime: 1 мин
+---
+
+<center><h1>Звуки</h1></center>
+
+*Проигрывание звуков в мире и отдельным игрокам.*
+
+![Звуки](/docs/title-sounds.webp)
+
+---
+
+## `playSound(sound, position, volume, pitch)` – звук в мире
+
+Проигрывает звук в указанной позиции мира для всех игроков поблизости. Параметры: `sound` (обязательный), `position` (обязательный), `volume` (по умолч. `1.0`), `pitch` (по умолч. `1.0`).
+
+```kotlin
+playSound(
+    sound = "minecraft:entity.creeper.primed",
+    position = pos(10.0, 64.0, 10.0),
+    volume = 1.0,
+    pitch = 1.0
+)
+
+// С параметрами по умолчанию
+playSound("minecraft:entity.creeper.primed", pos(10.0, 64.0, 10.0))
+```
+
+---
+
+## `playSound(player, sound, volume, pitch)` – звук игроку
+
+Перегрузка для проигрывания звука конкретному игроку:
+
+```kotlin
+playSound(player = player, sound = "minecraft:entity.experience_orb.pickup", volume = 1.0, pitch = 1.0)
+```
+
+---
+
+## `player.playSound(sound, volume, pitch)` – альтернативный вызов
+
+Метод на `Player` (см. [Игрок](/docs/hollowengine/scripting/player)):
+
+```kotlin
+player.playSound("minecraft:entity.experience_orb.pickup", 1.0, 1.0)
+```
+
+---
+
+## Пример: зона со звуком
+
+```kotlin
+val pos = pos(100.0, 64.0, 100.0)
+say("Go to the marked area!")
+
+val who = player.waitZone(position = pos, radius = 3.0, leave = false)
+playSound(
+    sound = "minecraft:block.note_block.chime",
+    position = pos,
+    volume = 1.0,
+    pitch = 1.0
+)
+say("You entered the zone!")
+```

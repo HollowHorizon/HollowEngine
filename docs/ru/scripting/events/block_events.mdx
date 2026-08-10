@@ -1,0 +1,59 @@
+---
+title: Блоки
+order: 3
+date: 2026-05-10
+readingTime: 2 мин
+---
+
+<center><h1>Блоки</h1></center>
+
+*Действия связанные с блоками.*
+
+![NPC](/docs/title-missing.webp)
+
+## Размещение
+
+*Это событие можно отменить (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onBlockPlace(event: BlockEvent.Placed) {
+    val block = event.state
+}
+```
+
+- `event.state` (BlockState) - текущее состояние блока.
+- `event.pos` (String) - координаты блока.
+- `event.player` (Player) - игрок, поставивший блок.
+
+## Ломание
+
+*Это событие можно отменить (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onBlockBreak(event: BlockEvent.Break) {
+    val block = event.state
+}
+```
+
+- `event.state` (BlockState) - текущее состояние блока.
+- `event.pos` (String) - координаты блока.
+- `event.player` (Player) - игрок, сломавший блок.
+- `event.level` (Level) - мир, где был сломан блок.
+
+## Обновление
+
+*Это событие можно отменить (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onBlockUpdate(event: BlockEvent.NeighborNotify) {
+    val block = event.state
+}
+```
+
+- `event.state` (BlockState) - текущее состояние блока.
+- `event.pos` (String) - координаты блока.
+- `event.directions` (EnumSet<Direction>) - список, со сторонами, которые были обновлены.
+

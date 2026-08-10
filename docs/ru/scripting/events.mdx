@@ -1,0 +1,165 @@
+---
+title: События и ввод
+order: 6
+date: 2026-05-31
+readingTime: 8 мин
+---
+
+<center><h1>События и ввод</h1></center>
+
+*Ожидание сообщений в чате, серверных событий, клавиатуры, мыши и входа в зоны.*
+
+![События](/docs/title-events.webp)
+
+## `waitChat()` — ожидание сообщения в чате
+
+Приостанавливает скрипт до следующего сообщения в чат. Возвращает `ChatMessage`:
+
+```kotlin
+val msg = waitChat()
+val who = msg.player
+val text = msg.text
+say(who.name + " said: " + text)
+```
+
+| Свойство | Тип | Описание |
+|----------|-----|----------|
+| `msg.player` | `Player` | Игрок, отправивший сообщение |
+| `msg.text` | `Text` | Текст сообщения |
+
+## Обработка серверных событий
+
+Используй `await<T>()`, когда скрипт должен приостановиться до нужного события:
+
+```kotlin
+val chat = await<ServerChatEvent> { it.username == player.name }
+say("Ты написал: " + chat.message)
+```
+
+Используй `on<T> { ... }`, когда скрипт должен слушать событие в фоне. Функция возвращает `EventHandler`, который можно остановить и снова запустить:
+
+```kotlin
+val handler = on<ServerChatEvent> { event ->
+    if (event.message == "!cancel") {
+        event.canceled = true
+        event.player.say("Команда скрыта из чата.")
+    }
+}
+
+wait(20 * 60)
+handler.stop()
+```
+
+`await<T>` и `on<T>` игнорируют client-only события и сохраняют своё состояние вместе с Katari runtime. Имена ниже используются как типы в generics.
+
+## Доступные серверные события
+
+| Тип события | Когда срабатывает | Свойства |
+|-------------|-------------------|----------|
+| `ServerChatEvent` | Игрок отправляет сообщение в чат | `player: Player`, `username: String`, `message: String`, `canceled: Boolean` |
+| `ServerEvent.Starting` | Сервер запускается | `server: MinecraftServer` |
+| `ServerEvent.Stoping` | Сервер останавливается | `server: MinecraftServer` |
+| `TickEvent.Server` | Серверный tick | `server: MinecraftServer` |
+| `TickEvent.Entity` | Tick живой сущности | `entity: LivingEntity` |
+| `LevelEvent.Load` | Загружается level | `level: Level` |
+| `LevelEvent.Save` | Level сохраняется | `level: Level` |
+| `EntityLoadedEvent` | Сущность загружена в level | `entity: Entity`, `uuid: UUID` |
+| `EntityEvent.Hurt` | Сущность получает урон | `entity: Entity`, `source: DamageSource`, `amount: Float`, `canceled: Boolean` |
+| `EntityEvent.ChangeDimension` | Сущность меняет измерение | `entity: Entity`, `new: Entity`, `from: Level`, `to: Level` |
+| `LivingEntityDeathEvent` | Живая сущность должна умереть | `entity: LivingEntity`, `source: DamageSource`, `canceled: Boolean` |
+| `PlayerEvent.Join` | Игрок заходит на сервер | `player: Player` |
+| `PlayerEvent.Leave` | Игрок выходит с сервера | `player: Player` |
+| `PlayerEvent.Clone` | Player entity клонируется, обычно после смерти или переноса | `player: Player`, `oldPlayer: Player`, `wasDeath: Boolean` |
+| `PlayerEvent.ChangeDimension` | Игрок меняет измерение | `player: Player`, `from: ServerLevel`, `to: ServerLevel` |
+| `PlayerEvent.Respawn` | Игрок respawn-ится | `player: Player`, `isReturnFromEnd: Boolean` |
+| `PlayerEvent.SleepInBed` | Игрок пытается лечь в кровать | `player: Player`, `problem: BedSleepingProblem?`, `pos: BlockPos` |
+| `PlayerEvent.Wakeup` | Игрок просыпается | `player: Player`, `wakeImmediately: Boolean`, `updateLevelForSleepingPlayers: Boolean` |
+| `PlayerInteractEvent.EntityInteract` | Игрок взаимодействует с сущностью | `player: Player`, `hand: InteractionHand`, `target: Entity`, `canceled: Boolean` |
+| `PlayerInteractEvent.ItemInteract` | Игрок использует предмет | `player: Player`, `hand: InteractionHand`, `itemStack: ItemStack`, `canceled: Boolean` |
+| `BlockEvent.Placed` | Игрок ставит блок | `player: Player`, `state: BlockState`, `pos: BlockPos`, `canceled: Boolean` |
+| `ItemEntityEvent.Toss` | Игрок выбрасывает item entity | `entity: ItemEntity`, `player: Player`, `canceled: Boolean` |
+| `ArrowEvent.Nock` | Игрок начинает использовать лук | `stack: ItemStack`, `level: Level`, `player: Player`, `usedHand: InteractionHand`, `hasAmmo: Boolean` |
+| `ArrowEvent.Loose` | Игрок отпускает лук | `stack: ItemStack`, `level: Level`, `player: Player`, `charge: Int`, `hasAmmo: Boolean`, `canceled: Boolean` |
+| `BrewedPlayerPotionEvent` | Игрок получает результат сваренного зелья | `player: Player`, `stack: ItemStack` |
+
+Cancelable события имеют `canceled`. Некоторые события также имеют изменяемые значения: `ServerChatEvent.message`, `EntityEvent.Hurt.amount`, `ArrowEvent.Loose.charge`, `PlayerEvent.SleepInBed.problem`.
+
+```kotlin
+on<EntityEvent.Hurt> { event ->
+    if (event.amount > 10) {
+        event.amount = 10
+    }
+}
+```
+
+## `player.waitZone(position, radius, leave)` — вход или выход из зоны
+
+Описан на странице [Игрок](/docs/hollowengine/scripting/player).
+
+## Ввод с клавиатуры и мыши
+
+### `player.waitKey(keyCode)`
+
+```kotlin
+val input = player.waitKey(32)  // пробел
+```
+
+### `player.waitKey(keyCode, action)`
+
+```kotlin
+val input = player.waitKey(key = 32, action = KatariInputAction.Press)
+val input = player.waitKey(key = 32, action = KatariInputAction.Release)
+val input = player.waitKey(key = 32, action = KatariInputAction.Repeat)
+```
+
+### `player.waitClick(button)`
+
+```kotlin
+val input = player.waitClick(0)  // левая кнопка мыши
+val input = player.waitClick(1)  // правая кнопка мыши
+```
+
+### `player.waitClick(button, action)`
+
+```kotlin
+val input = player.waitClick(button = 0, action = KatariInputAction.Press)
+val input = player.waitClick(button = 0, action = KatariInputAction.Release)
+```
+
+### `player.waitScroll()`
+
+```kotlin
+val input = player.waitScroll()
+```
+
+## Свойства InputEvent
+
+`waitKey`, `waitClick` и `waitScroll` возвращают `InputEvent`. Все свойства только для чтения:
+
+| Свойство | Тип | Описание |
+|----------|-----|----------|
+| `input.player` | `Player?` | Игрок-источник, может быть null |
+| `input.kind` | `KatariInputKind` | `Key`, `MouseButton` или `MouseScroll` |
+| `input.action` | `KatariInputAction` | `Press`, `Release`, `Repeat` или `Scroll` |
+| `input.key` | `Int` | Код клавиши |
+| `input.scanCode` | `Int` | Скан-код клавиши |
+| `input.button` | `Int` | Кнопка мыши |
+| `input.x` | `Double` | X координата курсора |
+| `input.y` | `Double` | Y координата курсора |
+| `input.scrollX` | `Double` | Горизонтальная прокрутка |
+| `input.scrollY` | `Double` | Вертикальная прокрутка |
+
+## Enum'ы ввода
+
+### KatariInputAction
+
+- `Press`
+- `Release`
+- `Repeat`
+- `Scroll`
+
+### KatariInputKind
+
+- `Key`
+- `MouseButton`
+- `MouseScroll`

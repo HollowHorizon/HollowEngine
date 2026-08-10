@@ -1,0 +1,68 @@
+---
+title: Sounds
+order: 8
+date: 2026-05-12
+readingTime: 1 min
+---
+
+<center><h1>Sounds</h1></center>
+
+*Play sounds to the world and individual players.*
+
+![Sounds](/docs/title-sounds.webp)
+
+---
+
+## `playSound(sound, position, volume, pitch)` – sound in the world
+
+Plays the sound at the specified world position for all nearby players. Parameters: `sound` (required), `position` (required), `volume` (default `1.0`), `pitch` (default `1.0`).
+
+```kotlin
+playSound(
+    sound = "minecraft:entity.creeper.primed",
+    position = pos(10.0, 64.0, 10.0),
+    volume = 1.0,
+    pitch = 1.0
+)
+
+// With default settings
+playSound("minecraft:entity.creeper.primed", pos(10.0, 64.0, 10.0))
+```
+
+---
+
+## `playSound(player, sound, volume, pitch)` – Sound to the player
+
+Overload for playing sound to a specific player:
+
+```kotlin
+playSound(player = player, sound = "minecraft:entity.experience_orb.pickup", volume = 1.0, pitch = 1.0)
+```
+
+---
+
+## `player.playSound(sound, volume, pitch)` – alternate call
+
+Method on `Player` (see [Player](/docs/hollowengine/scripting/player)):
+
+```kotlin
+player.playSound("minecraft:entity.experience_orb.pickup", 1.0, 1.0)
+```
+
+---
+
+## Example: Zone with sound
+
+```kotlin
+val pos = pos(100.0, 64.0, 100.0)
+say("Go to the marked area!")
+
+val who = player.waitZone(position = pos, radius = 3.0, leave = false)
+playSound(
+    sound = "minecraft:block.note_block.chime",
+    position = pos,
+    volume = 1.0,
+    pitch = 1.0
+)
+say("You entered the zone!")
+```

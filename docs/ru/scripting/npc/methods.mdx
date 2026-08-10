@@ -1,0 +1,148 @@
+---
+title: Служебные методы
+order: 8
+date: 2026-07-19
+readingTime: 4 мин
+---
+
+<center><h1>Служебные методы</h1></center>
+
+*Небольшие вспомогательные функции для `NpcEntity`, которые не относятся к более крупной теме.*
+
+![NPC Methods](/docs/title-npc-methods.webp)
+
+---
+
+Про движение, взгляд, использование блоков и взаимодействие с сущностями смотри [Движение и взаимодействие](/docs/hollowengine/scripting/npc/movement).
+Про выдачу, изъятие и сбор предметов смотри [Инвентарь и сбор предметов](/docs/hollowengine/scripting/npc/inventory).
+Про поиск игроков, NPC и предметов рядом смотри [Поиск сущностей и предметов](/docs/hollowengine/scripting/npc/search).
+
+## `npc.dropItem(item)`
+
+Выбрасывает предмет из позиции NPC.
+
+```kotlin
+npc.dropItem(item("minecraft:diamond", 1))
+```
+
+## `npc.say(text)`
+
+Отправляет сообщение всем игрокам на сервере в формате `[Имя NPC]: Текст`.
+
+```kotlin
+npc.say("Hello there!")
+```
+
+## `npc.despawn()`
+
+Удаляет NPC из мира через с причиной `Entity.RemovalReason.DISCARDED`.
+
+```kotlin
+npc.despawn()
+```
+
+Так как `NpcEntity` наследуется от Minecraft entity, также доступны стандартные методы `remove(...)`, `discard()`, `teleportTo(...)`, `setItemInHand(...)` и другие методы из Minecraft API.
+
+## Хитбокс
+
+У NPC есть удобное свойство `hitboxMode`:
+
+```kotlin
+npc.hitboxMode = HitboxMode.PULLING   // обычное столкновение и pushing
+npc.hitboxMode = HitboxMode.EMPTY     // сущность не мешает проходу
+npc.hitboxMode = HitboxMode.BLOCKING  // можно ходить по нему, как по блоку
+```
+
+Нужен импорт:
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+```
+
+## Посадить и поднять NPC
+
+```kotlin
+npc.seat()
+npc.standup()
+```
+
+`seat()` создаёт/использует служебную seat-сущность, а `standup()` останавливает riding. (Короче работает по принципу невидимой лодки)
+
+## Цель атаки
+
+У `NpcEntity` есть стандартный target из `Mob`. Для сброса цели есть упрощение:
+
+```kotlin
+npc.clearTarget()
+```
+
+Для назначения цели можно использовать стандартное свойство/метод Minecraft API:
+
+```kotlin
+npc.target = player
+```
+
+## Атрибуты
+
+Можно применить набор атрибутов через строки:
+
+```kotlin
+npc.setAttributes(
+    mapOf(
+        "minecraft:generic.max_health" to 40f,
+        "minecraft:generic.movement_speed" to 0.25f,
+    )
+)
+```
+
+Названия зависят от текущей версии Minecraft/NeoForge и должны существовать в регистре атрибутов. Если что можно найти через команду `/attribute`.
+
+## Утилиты
+
+### `wait(time)`
+
+Останавливает текущую корутину на указанное количество тиков.
+
+```kotlin
+wait(20)      // 1 секунда
+wait(5.sec)  // 5 секунд
+```
+
+Для ожиданий, которые должны продолжать отсчёт даже после перезапуска сервера, смотри раздел "Ожидание, переживающее перезапуск" в [Стейтах и корутинах](/docs/hollowengine/scripting/node/states#ожидание-переживающее-перезапуск).
+
+### `Int.sec` / `Double.sec`
+
+Преобразует секунды в тики:
+
+```kotlin
+wait(2.sec)
+wait(0.5.sec)
+```
+
+### `item(id, count)`
+
+Создаёт `ItemStack`:
+
+```kotlin
+val diamond = item("minecraft:diamond", count = 3)
+val stick = item("minecraft:stick")
+```
+
+:::warning
+Старой перегрузки `item(id, count, nbt: String)`, принимавшей строку с сырым NBT, больше нет (вызов теперь приводит к ошибке компиляции). Данные предмета описываются через компоненты данных Minecraft. Чтобы настроить предмет после создания, используй `ItemStack.set(...)`:
+
+```kotlin
+import net.minecraft.core.component.DataComponents
+
+val namedStick = item("minecraft:stick")
+namedStick.set(DataComponents.CUSTOM_NAME, "Magic Stick".literal)
+```
+
+Так работает любой компонент данных, не только имя: зачарования, lore, еда и прочее задаются тем же способом `set(DataComponents.X, value)`.
+:::
+
+### `uuid(value)`
+
+```kotlin
+val id = uuid("00000000-0000-0000-0000-000000000000")
+```

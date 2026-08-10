@@ -1,0 +1,171 @@
+---
+title: Actions and Concurrency
+order: 3
+date: 2026-07-19
+readingTime: 7 min
+---
+
+<center><h1>Actions and Concurrency</h1></center>
+
+*How an NPC can walk, look around, and use its hands at the same time, without you writing any tricky code for it.*
+
+![NPC](/docs/title-missing.webp)
+
+This page explains how most NPC actions work under the hood. They're used throughout the other NPC pages (movement, inventory, search), so it's worth reading this one first.
+
+## What this is and why
+
+You already know functions like `wait(...)` or `npc.lookAt(...)`: they are `suspend` functions, meaning your script pauses on that line and continues once the action is done, without freezing the whole game while it waits (other players keep playing, other scripts keep running).
+
+```kotlin
+@State
+suspend fun main() {
+    npc.lookAt(player)   // the script waits here until the NPC finishes turning
+    npc.move(player)     // then it waits here until the NPC arrives
+}
+```
+
+This works fine, but it has a limit: the script does one thing at a time. If you want the NPC to **walk toward the player while also looking around and swinging its arm**, a plain sequence of `suspend` calls cannot do that, because each line waits for the previous one to finish before starting the next.
+
+You could reach for `async` instead (see [Asynchronous Actions](/docs/hollowengine/scripting/node/async)), but that opens a different problem: several `async` blocks can end up fighting each other, for example two of them telling the NPC to walk in two different directions at the same time.
+
+The action system solves both problems: it lets an NPC run several things **at once**, safely, without you having to manage threads, locks, or "what is the NPC busy with right now, and how do I give it a new task without breaking the current ones?" checks yourself.
+
+## Channels
+
+Every long-running NPC action belongs to a **channel**. A channel is simply a named "slot" that can hold at most one running action at a time. There are four built-in channels:
+
+| Channel | Responsible for | Used by |
+|---------|-------------------|---------|
+| `NpcActionKeys.MOVEMENT` | Movement | `move`, `startMove`, `collectItems` |
+| `NpcActionKeys.LOOK` | Eyes/head | `lookAt`, `startLookingAt` |
+| `NpcActionKeys.HANDS` | Interaction | `useBlock`, `destroyBlock`, `interact` |
+| `NpcActionKeys.ANIMATION` | Animation state | `startAnimation` |
+
+Because these are four separate channels, an NPC can walk (`MOVEMENT`), look at the player (`LOOK`), and swing a tool (`HANDS`) all in the same moment. Each channel just does its own thing independently.
+
+What a channel *cannot* do is hold two actions at once. If you tell the NPC to walk to point A, and then immediately tell it to walk to point B, there is no conflict to resolve by hand: **the first order is simply replaced by the second one**. The old movement stops and the new one starts. You never need to write "if the NPC is already moving, stop it first" - the engine already does that for you.
+
+:::advice
+Starting a new action on a busy channel automatically cancels the previous action. This applies to movement, looking, hands, and custom channels.
+
+`ANIMATION` is the exception: each `startAnimation(...)` call remains active independently. Use `npc.actions.cancel(NpcActionKeys.ANIMATION)` to cancel every running background animation.
+:::
+
+## Two ways to call an action
+
+Every action function (movement, looking, using a block, and so on) comes in a pair:
+
+- **The `suspend` version** - call it like `npc.move(target)`. Your script pauses on that line and continues once the action finishes. This is exactly what you already know from other pages.
+- **The `startX` version** - call it like `npc.startMove(target)`. Your script does **not** wait. It immediately gets back a handle you can use later, and moves on to the next line right away.
+
+```kotlin
+@State
+suspend fun main() {
+    // Start walking, but don't wait for it - keep going immediately.
+    val walking = npc.startMove(player)
+
+    // While the NPC is walking, do something else at the same time.
+    npc.startAnimation("wave")
+
+    // Now actually wait for the walk to finish.
+    val result = walking.await()
+}
+```
+
+In fact, the `suspend` version is nothing more than `startX(...).await()` written for you. So `npc.move(target)` is exactly the same as `npc.startMove(target).await()`, which means there's no need to rewrite everything to the `startX` form: keep calling the `suspend` functions exactly as before, and reach for `startX` only when you actually want two things to happen in parallel.
+
+## The action handle: `NpcAction<R>`
+
+Every `startX` function returns an object that represents "a thing currently happening". It has four things you can use:
+
+| Member | Meaning |
+|--------|---------|
+| `.await()` | Pause here (in a `suspend` function) until the action finishes, and get its result. |
+| `.cancel()` | Stop the action right now. |
+| `.isActive` | `true` while the action is still running. |
+| `.status` | One of `RUNNING`, `COMPLETED`, `CANCELLED`, `FAILED`. |
+
+```kotlin
+val walking = npc.startMove(player)
+
+if (walking.isActive) {
+    println("Still on the way")
+}
+
+walking.cancel() // Stop early, e.g. because the player left
+```
+
+## Stopping things by hand
+
+Two of the built-in channels have a friendly shortcut function:
+
+```kotlin
+npc.stopMoving()      // cancels whatever is on the MOVEMENT channel
+npc.clearLookTarget()  // cancels whatever is on the LOOK channel
+```
+
+For any channel, including your own custom ones (see below), you can always cancel through `npc.actions` directly:
+
+```kotlin
+npc.actions.cancel(NpcActionKeys.HANDS)
+npc.actions.cancel(NpcActionKeys.ANIMATION)
+npc.actions.cancelAll() // stop absolutely everything the NPC is doing
+```
+
+`cancelAll()` is convenient right before `npc.despawn()`, or whenever you want to reset an NPC to a fully idle state.
+
+## A worked example: walk, look, and wave at the same time
+
+```kotlin
+@State
+suspend fun main() {
+    val playerRef = player.entityRef
+
+    // Start walking toward the player, don't wait.
+    val walking = npc.startMove(playerRef)
+
+    // Look at the player while walking, don't wait either.
+    npc.startLookingAt(playerRef)
+
+    // Wave while walking.
+    npc.startAnimation("wave")
+
+    // Now wait for the walk itself to actually finish.
+    val result = walking.await()
+
+    if (result == MoveResult.Arrived) {
+        npc.say("Hello there!")
+    }
+}
+```
+
+All three channels run independently, so the NPC can perform several actions at the same time. See [Movement](/docs/hollowengine/scripting/npc/movement) for what `MoveResult` values mean.
+
+## A gotcha worth knowing
+
+Because channels are shared across your whole script (and across other scripts and node handlers attached to the same NPC), a plain `suspend` call like `npc.move(...)` can still be interrupted from somewhere else.
+
+:::warning
+If an `onInteract`, `onHurt`, or any other handler from an [attached node script](/docs/hollowengine/scripting/node) starts a new `MOVEMENT` action on the same NPC while your `@State` is in the middle of `npc.move(...)`, that call gets cancelled, exactly as if you had called `stopMoving()` yourself. This is expected: the last action to start on a channel always wins. If two different pieces of your logic keep restarting the same channel, they will keep interrupting each other.
+:::
+
+## Custom channels (advanced)
+
+If you need this, you can define your own channel key and use `npc.actions` directly, the same way the built-in functions do internally:
+
+```kotlin
+val CUSTOM_CHANNEL = NpcActionKey("my_mod:guard_patrol")
+
+val patrol = npc.actions.start(CUSTOM_CHANNEL) {
+    while (true) {
+        npc.move(pointA)
+        npc.move(pointB)
+    }
+}
+
+// Starting it again automatically cancels the previous patrol.
+npc.actions.start(CUSTOM_CHANNEL) { npc.move(pointC) }
+```
+
+This is the exact same mechanism `move`, `lookAt`, and the other built-in functions use, so it behaves consistently with the rest of the system.

@@ -1,0 +1,124 @@
+---
+title: Примеры
+order: 11
+date: 2026-07-23
+readingTime: 4 мин
+---
+
+<center><h1>Примеры UI</h1></center>
+
+## Серверный экран подтверждения
+
+`hollowengine/scripts/confirm.ui.kts`:
+
+```kotlin
+val Message = dataKey<String>("message") { "Вы уверены?" }
+
+screen("mypack:confirm") {
+    title = "Подтверждение"
+    content {
+        Column(modifier = Modifier.padding(16.px).gap(12.px)) {
+            Text(data[Message])
+            Row(modifier = Modifier.gap(8.px)) {
+                Box(modifier = Modifier.onClick { send { putString("action", "accept") } }) { Text("Да") }
+                Box(modifier = Modifier.onClick { send { putString("action", "cancel") } }) { Text("Нет") }
+            }
+        }
+    }
+}
+```
+
+В серверном скрипте:
+
+```kotlin
+player.openUi("mypack:confirm") {
+    put(Message, "Удалить этот предмет?")
+    onEvent { payload ->
+        when (payload.getString("action")) {
+            "accept" -> deleteItem(player)
+            "cancel" -> Unit
+        }
+        close()
+    }
+}
+```
+
+## Клиентская HUD-подсказка
+
+```kotlin
+val Hint = dataKey<String>("hint") { "" }
+
+overlay("mypack:block_hint") {
+    anchor = "crosshair"
+    placement = HudPlacement.AFTER
+    autoShow = true
+    content {
+        data.find(Hint)?.takeIf(String::isNotBlank)?.let { hint ->
+            Box(modifier = Modifier.padding(4.px).background(UiColor(0f, 0f, 0f, 0.55f))) { Text(hint) }
+        }
+    }
+}
+```
+
+Этот оверлей показывается через `autoShow` и не вызывает `send`, поэтому серверная сессия ему не нужна. Серверный вариант использует `player.showOverlay("mypack:block_hint")` и `UiSession.put(Hint, value)`.
+
+## Ожидание выбора в suspend-функции
+
+В UI API нет `ui.await(player)`. Экран может отправлять несколько событий, а его жизненным циклом управляет `UiSession`. Если серверу нужен один выбор, используй coroutine-адаптер.
+
+UI-объявление отправляет выбор:
+
+```kotlin
+screen("mypack:quest_choice") {
+    title = "Странник просит о помощи"
+    content {
+        Column(modifier = Modifier.padding(16.px).gap(8.px)) {
+            Text("Принять задание?")
+            Box(modifier = Modifier.onClick { send { putString("choice", "accept") } }) { Text("Принять") }
+            Box(modifier = Modifier.onClick { send { putString("choice", "decline") } }) { Text("Отказаться") }
+        }
+    }
+}
+```
+
+В серверном скрипте один раз добавь импорты и адаптер:
+
+```kotlin
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+private enum class QuestChoice { ACCEPT, DECLINE }
+
+private suspend fun ServerPlayer.chooseQuest(): QuestChoice? = suspendCancellableCoroutine { continuation ->
+    var session: UiSession? = null
+
+    fun finish(choice: QuestChoice?) {
+        if (!continuation.isActive) return
+        continuation.resume(choice)
+        session?.close()
+    }
+
+    session = openUi("mypack:quest_choice") {
+        onEvent { payload ->
+            when (payload.getString("choice")) {
+                "accept" -> finish(QuestChoice.ACCEPT)
+                "decline" -> finish(QuestChoice.DECLINE)
+            }
+        }
+        onClose { if (continuation.isActive) continuation.resume(null) }
+    }
+    continuation.invokeOnCancellation { session?.close() }
+}
+```
+
+После этого suspend-функция обрабатывает результат напрямую. Escape, закрытие сервером и отмена корутины возвращают `null`:
+
+```kotlin
+when (player.chooseQuest()) {
+    QuestChoice.ACCEPT -> startQuest(player)
+    QuestChoice.DECLINE -> showDeclinedDialogue(player)
+    null -> logChoiceCancelled(player)
+}
+```
+
+Проверяй выбор на сервере. Неизвестный payload не закрывает экран.

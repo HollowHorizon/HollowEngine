@@ -1,0 +1,86 @@
+---
+title: NPC Overview
+order: 1
+date: 2026-07-19
+readingTime: 2 min
+---
+
+<center><h1>NPCs in Kotlin Scripts</h1></center>
+
+*NpcEntity is the main entity type for characters, interactive scenes, and story logic.*
+
+![NPC](/docs/title-npc.webp)
+
+In HollowEngine v2.3, NPCs are created and controlled from Kotlin scripts, primarily from `*.node.kts`.
+Those scripts receive `MinecraftServer` as an implicit receiver, and NPC helper functions are imported by default from `ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*`.
+
+An NPC is a regular Minecraft entity of type `NpcEntity`, so you can work with it through HollowEngine helpers (`npc()`, `move`, `lookAt`, `say`) and through the standard `Entity` / `LivingEntity` / `PathfinderMob` API.
+
+## Sections
+
+- [Creating NPCs](/docs/hollowengine/scripting/npc/create) - the current `npc()` signature and creation parameters.
+- [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions) - how an NPC can walk, look around, and use its hands at the same time.
+- [Movement and Interaction](/docs/hollowengine/scripting/npc/movement) - walking, looking, using blocks, and interacting with entities.
+- [Inventory and Item Collection](/docs/hollowengine/scripting/npc/inventory) - the NPC's own inventory and the background item-gathering job.
+- [Finding Entities and Items](/docs/hollowengine/scripting/npc/search) - searching for nearby players, NPCs, and dropped items.
+- [Custom Data](/docs/hollowengine/scripting/npc/data) - saved, typed data attached to the NPC, and to any other entity or player.
+- [Utility Methods](/docs/hollowengine/scripting/npc/methods) - speech, despawning, hitbox, and other small helpers.
+- [Entity Properties](/docs/hollowengine/scripting/npc/properties) - real Kotlin/Minecraft properties on `NpcEntity`.
+- [Animations](/docs/hollowengine/scripting/animations) - the current `AnimatorComponent` and animation layer system.
+
+## Quick example
+
+```kotlin
+@State
+suspend fun main() {
+    val guide = npc(
+        pos = pos(0, 64, 0),
+        name = "Guide",
+        model = "hollowengine:models/entity/player_model.gltf",
+    )
+
+    val player = playerList.players.firstOrNull() ?: return
+
+    guide.lookAt(player)
+    guide.say("Welcome!")
+    guide.move(player, dist = 2.0, speed = 1.0)
+}
+```
+
+This example does one thing at a time, which is perfectly fine for simple scenes. An NPC can also walk, look around, and use its hands **at the same time**, gather items on its own, carry an inventory, and remember its own data, see [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions) for the mental model behind that.
+
+:::advice
+`move(...)`, `lookAt(...)`, `useBlock(...)`, and `destroyBlock(...)` are `suspend` functions. Call them from `@State suspend fun`, `async { ... }`, or another coroutine.
+:::
+
+## Lifecycle
+
+NPCs are usually created inside a node state:
+
+```kotlin
+@State
+suspend fun main() {
+    val npc = npc(pos(10, 64, 10), name = "Guard")
+    npc.say("Stay close.")
+}
+```
+
+If an NPC should survive world reloads or script reloads, store its UUID through `stateTag()` or your own `onSave` / `onLoad` serialization, then restore the link after loading with `entityRef<NpcEntity>(uuid)`.
+
+## Attaching persistent behavior
+
+For behavior that should live with the NPC itself instead of a story state, attach a [node script](/docs/hollowengine/scripting/node) directly to the entity with `@file:Attach`:
+
+```kotlin
+@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+
+onInteract { event ->
+    event.player.send("Welcome, traveler!")
+}
+
+onHurt {
+    println("The NPC flinches")
+}
+```
+
+Attach it with `/he scripting attach <entity> <path>`, or automatically on spawn from a reloadable script. The node survives a server restart together with the NPC.

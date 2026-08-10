@@ -1,0 +1,334 @@
+---
+title: Анимации
+order: 7
+date: 2026-07-19
+readingTime: 9 мин
+---
+
+<center><h1>Анимации</h1></center>
+
+*Управление анимациями сущностей через Kotlin, `AnimatorComponent` и слои аниматора.*
+
+![Animations](/docs/title-animations.webp)
+
+---
+
+## Архитектура в v2.3
+
+В текущей архитектуре HollowEngine анимации больше не описываются через старый Katari API вида `entity.playAnimation(...)`.
+Модель сущности несёт синхронизируемый `AnimatorComponent`, внутри которого лежит список слоёв:
+
+- `ClipAnimationLayerSpec`: один клип;
+- `AnimationControllerLayerSpec`: state machine из нескольких клипов и переходов;
+- `ProceduralLayerSpec`: процедурные трансформации костей;
+- `MaterialOverrideLayerSpec`: переопределение текстур материала.
+
+NPC, созданный через `npc()`, уже получает стандартный `StandardPlayerAnimatorPreset`: базовую стейтмашину для встроенной модели и анимаций (`idle`, `walk`, `run`, `sneak`, `levitation`, `death`) и процедурный слой поворота головы/зрачков.
+
+Лезть в этот список слоёв руками теперь почти никогда не нужно, смотри следующий раздел.
+
+---
+
+## Проигрывание клипа из скрипта
+
+Для частого случая - одноразового жеста или зацикленного варианта idle - можно использовать эти короткие функции на любой `Entity` (не только NPC).
+
+```kotlin
+entity.play("wave")                 // запустить и не ждать, один раз
+entity.playLooped("idle_alt")       // запустить и не ждать, в цикле
+entity.playClamped("sit")           // запустить и не ждать, держит последний кадр
+entity.playPingPong("breathe")      // запустить и не ждать, вперёд-назад
+entity.stopAnimation("wave")        // затухание раньше времени или для зацикленных анимаций
+
+val finished = entity.playAndWait("wave") // suspend: ждёт, пока клип реально не закончится
+```
+
+`playAndWait` - обычная `suspend`-функция: скрипт останавливается, пока клип не закончится. У `NpcEntity` есть ещё и фоновая форма, `startAnimation(...)`, которая работает на канале `ANIMATION`, описанном в [Действиях и параллельности](/docs/hollowengine/scripting/npc/actions) - то есть может проигрываться одновременно с движением и взглядом, а повторный запуск автоматически отменяет предыдущий, ещё не доигравший клип:
+
+```kotlin
+val walking = npc.startMove(player)
+npc.startAnimation("walk_wave") // проигрывается параллельно с движением выше
+walking.await()
+```
+
+`entity.stopAllAnimations()` разом убирает все клипы, запущенные этими функциями.
+
+:::advice
+`play`/`playOnce`/`playLooped`/`playClamped`/`playPingPong` принимают одинаковые необязательные `fadeIn`/`fadeOut` (в секундах, по умолчанию `0.33`). `playOnce`, `playLooped`, `playClamped` и `playPingPong` - это просто `play(...)` с зафиксированным `playMode`, что делает каждый режим, смотри таблицу ниже.
+:::
+
+---
+
+## Режимы проигрывания
+
+| Режим | Поведение |
+|------|-----------|
+| `AnimationPlayMode.Once` | Проигрывает клип один раз. По умолчанию такой слой удаляется после окончания, если `removeOnEnd = true`. |
+| `AnimationPlayMode.Loop` | Зацикливает клип. Подходит для idle/walk/ambient анимаций. |
+| `AnimationPlayMode.ClampForever` | Держит последний кадр. Подходит для поз вроде `sit`, `sleep`, `death`. |
+| `AnimationPlayMode.PingPong` | Идёт вперёд-назад без резкого сброса в начало. |
+
+---
+
+## Точный контроль через `ClipAnimationLayerSpec`
+
+Функции `play*` выше покрывают частый случай, но всегда затрагивают всю модель. Если нужен клип, ограниченный конкретными костями, смешанный аддитивно поверх того, что уже играет, или с явным контролем приоритета слоя - можно собрать слой самому и добавить его через `withLayer`, который сохраняет все остальные слои (locomotion, поворот головы и так далее) нетронутыми:
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.components.*
+
+fun Entity.currentAnimator(): AnimatorComponent =
+    GearyRuntimeState.componentsById(this).values.filterIsInstance<AnimatorComponent>().firstOrNull() ?: AnimatorComponent()
+
+@State
+suspend fun main() {
+    val guide = npc(pos(0, 64, 0), name = "Guide")
+
+    guide.set(
+        guide.currentAnimator().withLayer(
+            ClipAnimationLayerSpec(
+                id = "gesture:wave",
+                animation = "wave",
+                playMode = AnimationPlayMode.Once,
+                priority = 50,
+                blendMode = LayerBlendMode.Override,
+                mask = BoneMask.of("RightArm", "LeftArm"),
+                fadeIn = 0.1f,
+                fadeOut = 0.25f,
+            )
+        )
+    )
+}
+```
+
+:::warning
+Не делай `set(AnimatorComponent(layers = listOf(...)))` напрямую, если только действительно не хочешь заменить все слои или не используешь полностью свою модель со своим ригом. Это стирает встроенный аниматор, поворот головы и всё остальное, что уже было у NPC. Всегда отталкивайся от текущего компонента через `withLayer(...)` (или `withoutLayer(layerId)`, чтобы убрать один слой по id), как показано выше.
+:::
+
+Параметры слоя, общие для всех типов ниже:
+
+| Параметр | Назначение |
+|----------|------------|
+| `id` | Стабильный идентификатор слоя. Слой с тем же `id` заменяет старый. |
+| `weight` | `AnimationExpression`, сила влияния слоя от `0` до `1`. |
+| `priority` | Порядок применения слоёв. Чем выше значение, тем позже слой применяется. |
+| `blendMode` | Режим смешивания с другими анимациями: `LayerBlendMode.Override` или `LayerBlendMode.Additive`. |
+| `mask` | Ограничивает слой конкретными костями. |
+| `fadeIn`, `fadeOut` | Плавное появление/затухание слоя. |
+
+У `ClipAnimationLayerSpec` дополнительно есть `animation`, `playMode`, `speed` (`AnimationExpression`), `referencePose`, `removeOnEnd` и `removeAtGameTime` - те же параметры, которые `play(...)` настраивает автоматически.
+
+---
+
+## Создание своего контроллера
+
+Для постоянного, управляемого условиями поведения - например, самостоятельного переключения между `idle` и `walk`, или реакции на урон без опроса каждый тик из скрипта - используй `AnimationControllerLayerSpec`: небольшую state machine, которую движок вычисляет каждый кадр. Описываешь состояния и правила переключения между ними, а движок сам выбирает переходы, вызывать что-либо из скрипта для этого не нужно.
+
+### Состояния
+
+Каждое состояние проигрывает один клип:
+
+```kotlin
+AnimationControllerStateSpec(
+    id = "walk",
+    animation = "walk",
+    playMode = AnimationPlayMode.Loop,
+    speed = AnimationExpression("movement_animation_speed"),
+)
+```
+
+| Поле | Значение |
+|------|----------|
+| `id` | Имя, используемое переходами (`from`/`to`) и переменной выражений `state_time` ниже. |
+| `animation` | Имя клипа внутри `.gltf` модели. |
+| `playMode` | Тот же `AnimationPlayMode`, что и выше, обычно `Loop` для locomotion-состояний и `Once` для реакций. |
+| `speed` | `AnimationExpression`, скорость проигрывания, `movement_animation_speed` - частый выбор для состояния ходьбы. |
+| `referencePose` | Референс-поза для аддитивного смешивания во время перехода, необязательно. |
+
+### Переходы
+
+Переход говорит "переключись в это состояние, когда условие истинно":
+
+```kotlin
+AnimationControllerTransitionSpec(
+    from = ANY_STATE,
+    to = "walk",
+    condition = AnimationExpression("horizontal_speed > 0.02"),
+    duration = AnimationExpression("0.18"),
+    priority = 20,
+)
+```
+
+| Поле | Значение |
+|------|----------|
+| `from` | Состояние, из которого применяется переход, либо `ANY_STATE`, чтобы разрешить его из любого состояния. |
+| `to` | Состояние, в которое нужно переключиться. |
+| `condition` | `AnimationExpression`, вычисляется каждый кадр; переход срабатывает, когда становится `true`. |
+| `duration` | `AnimationExpression`, время смешивания в секундах между позами старого и нового состояния. |
+| `priority` | Если одновременно подходит несколько переходов, побеждает тот, у которого выше `priority`. |
+| `exitTime` | Обычное число секунд (не выражение); если задано, переход становится доступен только после того, как текущее состояние проигрывалось хотя бы столько времени, даже если `condition` стало истинным раньше. `null` означает отсутствие минимального времени. |
+
+`ANY_STATE` означает переход из любого состояния. Переходы проверяются каждый кадр, пока слой не находится в процессе перехода; берётся первый, чьё `condition` истинно (после того, как прошёл `exitTime`, если он задан), отсортированный по `priority`.
+
+### Разобранный пример: locomotion плюс реакция на урон
+
+Этот пример объединяет обычный locomotion-контроллер `idle`/`walk` с состоянием, которое прерывает его, когда сущность получает урон, используя встроенное значение `hurt_time` (собственный таймер "вспышки от урона" в Minecraft, ненулевой несколько тиков после удара):
+
+```kotlin
+guide.set(
+    guide.currentAnimator().withLayer(
+        AnimationControllerLayerSpec(
+            id = "guide:locomotion",
+            entryState = "idle",
+            states = listOf(
+                AnimationControllerStateSpec(id = "idle", animation = "idle", playMode = AnimationPlayMode.Loop),
+                AnimationControllerStateSpec(
+                    id = "walk",
+                    animation = "walk",
+                    playMode = AnimationPlayMode.Loop,
+                    speed = AnimationExpression("movement_animation_speed"),
+                ),
+                AnimationControllerStateSpec(id = "hurt", animation = "hurt", playMode = AnimationPlayMode.Once),
+            ),
+            transitions = listOf(
+                // Получение урона прерывает что угодно, приоритет выше, чем у locomotion-переходов.
+                AnimationControllerTransitionSpec(
+                    from = ANY_STATE,
+                    to = "hurt",
+                    condition = AnimationExpression("hurt_time > 0"),
+                    duration = AnimationExpression("0.1"),
+                    priority = 100,
+                ),
+                // Выйти из "hurt" можно только после того, как оно проигралось хотя бы 0.5с, независимо от hurt_time к этому моменту.
+                AnimationControllerTransitionSpec(
+                    from = "hurt",
+                    to = "idle",
+                    condition = AnimationExpression.TRUE,
+                    duration = AnimationExpression("0.15"),
+                    priority = 10,
+                    exitTime = 0.5f,
+                ),
+                AnimationControllerTransitionSpec(
+                    from = ANY_STATE,
+                    to = "walk",
+                    condition = AnimationExpression("horizontal_speed > 0.02"),
+                    duration = AnimationExpression("0.18"),
+                    priority = 20,
+                ),
+                AnimationControllerTransitionSpec(
+                    from = ANY_STATE,
+                    to = "idle",
+                    condition = AnimationExpression("horizontal_speed <= 0.02"),
+                    duration = AnimationExpression("0.18"),
+                    priority = 0,
+                ),
+            ),
+        )
+    )
+)
+```
+
+Обрати внимание на `withLayer(...)`: он добавляет контроллер рядом с остальными слоями, которые уже есть у NPC (например, стандартным процедурным слоем взгляда), а не заменяет их.
+
+:::advice
+Этот контроллер реагирует сам по себе, читая тот же `hurt_time`, который Minecraft и так отслеживает. Если нужны свои, управляемые скриптом триггеры вместо встроенных значений вроде `hurt_time` или `horizontal_speed`, используй [обработчики ноды `onHurt`/`onDie`/`onInteract`](/docs/hollowengine/scripting/node#entity-specific-handlers), чтобы напрямую вызвать `entity.play(...)`/`startAnimation(...)`, либо добавь одноразовый слой `ClipAnimationLayerSpec` из скрипта, вместо того чтобы пытаться выразить триггер через условие.
+:::
+
+---
+
+## Процедурные слои
+
+`ProceduralLayerSpec` не проигрывает готовый клип, а вычисляет трансформации костей из выражений.
+Так сделан стандартный поворот головы в `StandardPlayerAnimatorPreset`.
+
+```kotlin
+ProceduralLayerSpec(
+    id = "guide:look",
+    priority = 20,
+    blendMode = LayerBlendMode.Additive,
+    mask = BoneMask.of("Head", "BodyUp"),
+    transforms = listOf(
+        ProceduralBoneTransformSpec(
+            bone = "Head",
+            rotation = AnimationVectorExpression(
+                x = AnimationExpression("-head_x_rotation * 0.65"),
+                y = AnimationExpression("-head_body_y_delta * 0.62"),
+            ),
+        )
+    ),
+)
+```
+
+---
+
+## Выражения
+
+`AnimationExpression` хранит строковое выражение. Его можно использовать в `speed`, `weight`, `condition`, `duration` и процедурных трансформациях (но не в `exitTime`, это обычное число секунд).
+
+Часто используемые значения:
+
+| Значение | Пример использования |
+|----------|----------------------|
+| `horizontal_speed` | Переключение между `idle` и `walk`. |
+| `signed_horizontal_speed` | То же самое, но отрицательное при движении назад. |
+| `movement_animation_speed` | Скорость walk/run клипа. |
+| `is_alive`, `is_sneaking`, `is_sprinting`, `is_on_ground` | Условия locomotion-переходов. |
+| `hurt_time` | Ненулевое несколько тиков после получения урона, смотри пример с контроллером выше. |
+| `velocity_x`, `velocity_y`, `velocity_z` | Переходы в прыжок/падение/левитацию. |
+| `head_x_rotation`, `head_body_y_delta` | Процедурный поворот головы. |
+| `game_time`, `life_time`, `age` | Абсолютные таймеры. |
+| `layer_time`, `layer_age`, `state_time` | Таймеры в рамках текущего слоя или состояния, полезны для fade и процедурных эффектов, которые должны начинаться заново при каждом состоянии. |
+
+---
+
+## Маски костей
+
+Маска ограничивает слой только нужными костями:
+
+```kotlin
+BoneMask.of("Head", "BodyUp")      // только голова и верх тела
+BoneMask.of("!LeftArm", "!RightArm") // всё, кроме рук
+BoneMask.full()                    // вся модель
+```
+
+Имена костей должны совпадать с именами или путями костей в модели.
+
+---
+
+## Что использовать
+
+| Задача | Рекомендуемый инструмент |
+|--------|----------------------------|
+| Быстрая одноразовая или зацикленная анимация из скрипта | `entity.play(...)` / `playAndWait(...)` / `npc.startAnimation(...)` |
+| Жест с маской, явным приоритетом или аддитивным смешиванием | `ClipAnimationLayerSpec` через `withLayer` |
+| Idle/walk/run/death логика, либо реакция на встроенные значения вроде урона без опроса | `AnimationControllerLayerSpec` |
+| Поворот головы, глаз, дыхание, IK-подобные поправки | `ProceduralLayerSpec` |
+| Временная смена текстуры материала | `MaterialOverrideLayerSpec` |
+| Обычный player-like NPC | `StandardPlayerAnimatorPreset.create()` |
+
+---
+
+## Миграция со старого API
+
+Старые примеры вида:
+
+```kotlin
+npc.playAnimation("wave")
+npc.stopAnimation("wave")
+```
+
+теперь почти прямое переименование:
+
+```kotlin
+npc.play("wave")
+npc.stopAnimation("wave")
+```
+
+Трогать `AnimatorComponent` для простого клипа больше не нужно вообще - `play`/`playAndWait`/`startAnimation` сами управляют слоем. За `ClipAnimationLayerSpec` и `AnimationControllerLayerSpec` напрямую стоит лезть только тогда, когда нужен более точный контроль, описанный выше.
+
+
+## Параллельные фоновые анимации
+
+`startAnimation(...)` не отменяет предыдущий запущенный клип. Каждый вызов возвращает отдельный `NpcAction`, поэтому несколько жестов могут идти одновременно. `npc.actions.cancel(NpcActionKeys.ANIMATION)` отменяет все работающие фоновые анимации.

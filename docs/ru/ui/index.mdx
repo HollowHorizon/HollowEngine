@@ -1,0 +1,69 @@
+---
+title: Введение в UI-систему
+order: 1
+date: 2026-07-23
+readingTime: 3 мин
+---
+
+<center><h1>UI-система HollowEngine</h1></center>
+
+UI HollowEngine использует Kotlin DSL на основе Compose. XML-файлы `.ui`, инлайн-XML и клиентские обработчики `.ktr` больше не поддерживаются. Интерфейсы объявляются в клиентских скриптах `.ui.kts`. Сервер открывает объявление по id и синхронизирует его типизированное состояние.
+
+## Архитектура
+
+```text
+объявление .ui.kts → Compose-дерево узлов → HSS/стили → layout → рендеринг
+                                      ↕
+                            патчи и события UiSession
+```
+
+Объявления UI выполняются на клиенте после перезагрузки ресурсов. При открытии экрана или оверлея его разметка не передаётся по сети: клиент и сервер используют один resource location.
+
+## Первый экран
+
+Создай `hollowengine/scripts/quest.ui.kts` (на клиенте нужен аддон Kotlin scripting compiler):
+
+```kotlin
+val Title = dataKey<String>("title") { "Нет задания" }
+
+screen("mypack:quest_log") {
+    title = "Журнал заданий"
+    content {
+        Column(modifier = Modifier.padding(12.px).gap(6.px)) {
+            Text(data[Title])
+            Box(modifier = Modifier.onClick { send { putString("action", "accept") } }) {
+                Text("Принять")
+            }
+        }
+    }
+}
+```
+
+Сервер открывает его из серверного скрипта через `player.openUi("mypack:quest_log")`. Подробнее см. в [Server UI API](/docs/hollowengine/ui/katari-ui).
+
+## Поверхности
+
+| Поверхность | Объявление | Вызов сервера | Назначение |
+| --- | --- | --- | --- |
+| Экран | `screen("namespace:id")` | `player.openUi(id)` | Обычный экран Minecraft |
+| HUD-оверлей | `overlay("namespace:id")` | `player.showOverlay(id)` | HUD, управляемый серверной сессией |
+| Клиентский HUD-оверлей | `overlay { autoShow = true }` | не нужен | Локальный постоянно видимый HUD |
+
+Экран по умолчанию закрывается по Escape и не ставит одиночный мир на паузу. Оверлей по умолчанию рисуется после хотбара, не получает ввод и показывается только по запросу сервера.
+
+## Что изменилось
+
+- `.ui`-документы, XML-импорты, `ui(...)`, `insertAt(...)`, `await(...)` и клиентские `.ktr`-скрипты больше не существуют.
+- UI строится Kotlin-композаблами: `Column`, `Row`, `Box`, `Text`, `Image`, `Slider`, `Checkbox`, `TextField`.
+- Для локального стиля и событий используются вызовы `Modifier`; HSS подключается через `Modifier.style(...)`.
+- Вместо подстановки шаблонов и одного ожидаемого ответа применяются `DataKey` и `UiSession`.
+
+## Дальше
+
+- [UI Scripts](/docs/hollowengine/ui/ui-files): синтаксис объявлений и параметры экрана/оверлея
+- [Узлы и виджеты](/docs/hollowengine/ui/nodes): композаблы и Kotlin-функции
+- [Инвентари и Слоты](/docs/hollowengine/ui/slots): зоны, правила предметов, Shift + клик и клиентские виджеты
+- [Модификаторы и стили](/docs/hollowengine/ui/modifiers): layout, внешний вид, события и HSS
+- [События и состояние](/docs/hollowengine/ui/events): `UiScope`, `DataKey` и сессии
+- [Server UI API](/docs/hollowengine/ui/katari-ui): открытие, обновление и закрытие UI
+- [Примеры](/docs/hollowengine/ui/examples): клиентские и серверные примеры

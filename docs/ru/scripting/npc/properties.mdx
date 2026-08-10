@@ -1,0 +1,147 @@
+---
+title: Свойства сущностей
+order: 9
+date: 2026-07-19
+readingTime: 4 мин
+---
+
+<center><h1>Свойства NPC и сущностей</h1></center>
+
+*В v2.3 скрипты работают с реальными Kotlin/Minecraft объектами, а не с Katari-обёртками.*
+
+![Properties](/docs/title-npc-props.webp)
+
+---
+
+## Главное отличие от старой документации
+
+В старой документации свойства описывались как динамические поля (`Text`, `Bool`, `Position` и т.п.).
+В Kotlin-архитектуре v2.3 `npc` - это обычный `NpcEntity`, наследник `PathfinderMob` / `LivingEntity` / `Entity`.
+
+Это значит:
+
+- доступны стандартные Kotlin-свойства из Java getters/setters Minecraft;
+- доступны методы Minecraft entity API;
+- HollowEngine добавляет несколько удобных свойств и функций поверх них.
+
+```kotlin
+val npc = npc(pos(0, 64, 0), name = "Guide")
+
+npc.setNameplate("New Guide")
+npc.health = 20f
+
+val id = npc.uuid
+val position = npc.position()
+val alive = npc.isAlive
+```
+
+---
+
+## HollowEngine свойства `NpcEntity`
+
+| Свойство | Тип | Чтение | Запись |
+|----------|-----|--------|--------|
+| `npc.hitboxMode` | `HitboxMode` | Текущий режим хитбокса. | Назначает `HitboxComponent` и синхронизирует снапшот. |
+| `npc.pickupDistance` | зависит от `pickupReach` | Радиус подбора предметов. | Только чтение. |
+| `npc.fakePlayer` | `ServerPlayer` | Fake player, используемый для действий вроде ломания блока. | Только чтение. |
+| `npc.goals` | `GoalSelector` | Goal selector NPC. | Менять через API goal selector. |
+| `npc.inventory` | `NpcInventory` | Собственный инвентарь NPC, см. [Инвентарь и сбор предметов](/docs/hollowengine/scripting/npc/inventory). | Только чтение ссылки, менять через её функции. |
+| `npc.data` | `EntityData` | Сохраняемые пользовательские данные, привязанные к NPC, см. [Пользовательские данные](/docs/hollowengine/scripting/npc/data). Доступно на любой `Entity`, не только на `NpcEntity`. | Только чтение ссылки, менять через её функции. |
+| `npc.actions` | `NpcActionController` | Прямой доступ к каналам действий NPC, см. [Действия и параллельность](/docs/hollowengine/scripting/npc/actions). | Только чтение ссылки, менять через её функции. |
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+
+npc.setNameplate("Merchant", NameplateMode.SHOW)
+npc.hitboxMode = HitboxMode.EMPTY
+```
+
+---
+
+## Часто используемые свойства Minecraft API
+
+| Свойство / метод | Тип | Назначение |
+|------------------|-----|------------|
+| `npc.uuid` | `UUID` | Уникальный id сущности. |
+| `npc.id` | `Int` | Runtime id сущности в мире. |
+| `npc.position()` | `Vec3` | Текущая позиция. |
+| `npc.x`, `npc.y`, `npc.z` | `Double` | Координаты сущности. |
+| `npc.health` | `Float` | Текущее здоровье. |
+| `npc.maxHealth` | `Float` | Максимальное здоровье. |
+| `npc.isAlive` | `Boolean` | Жива ли сущность. |
+| `npc.isCustomNameVisible` | `Boolean` | Видно ли имя над головой. |
+| `npc.customName` | `Component?` | Minecraft-компонент имени. |
+| `npc.mainHandItem` | `ItemStack` | Предмет в основной руке. |
+| `npc.offhandItem` | `ItemStack` | Предмет во второй руке. |
+| `npc.target` | `LivingEntity?` | Цель моба. |
+| `npc.navigation` | `PathNavigation` | Pathfinding-навигация. |
+
+Пример:
+
+```kotlin
+import net.minecraft.world.InteractionHand
+
+npc.health = 10f
+npc.isCustomNameVisible = true
+npc.setItemInHand(InteractionHand.MAIN_HAND, item("minecraft:stick"))
+
+val currentPos = npc.position()
+val target = npc.target
+```
+
+---
+
+## Компоненты вместо старых псевдо-свойств
+
+Модель, анимации, материал и часть визуальных настроек в v2.3 лучше задавать через компоненты:
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+
+npc.set(Model("my_mod:models/entity/guide.gltf"))
+npc.set(HitboxComponent(HitboxMode.BLOCKING))
+npc.set(StandardPlayerAnimatorPreset.create())
+```
+
+Для анимаций смотри раздел [Анимации](/docs/hollowengine/scripting/animations).
+
+---
+
+## Сохранение ссылок на NPC
+
+Не сохраняй сам объект `NpcEntity` между перезагрузками. Сохраняй UUID:
+
+```kotlin
+val tag = stateTag()
+tag.putUUID("guide", npc.uuid)
+```
+
+После загрузки используй `entityRef<NpcEntity>(uuid)` (параметр типа обязателен):
+
+```kotlin
+val guideRef = entityRef<NpcEntity>(tag.getUUID("guide"))
+val guide = guideRef.resolve()
+```
+
+Это безопаснее, чем держать прямую ссылку на сущность, потому что Minecraft может выгрузить или пересоздать entity.
+---
+
+## Неймплейты
+
+Используй API HollowEngine для неймплейта вместо ручного сочетания `customName` и `isCustomNameVisible`. Он работает с `NpcEntity` и другими сущностями, синхронизируется с клиентами и сохраняется вместе с сущностью.
+
+```kotlin
+import ru.hollowhorizon.hollowengine.common.entities.nameplateMode
+import ru.hollowhorizon.hollowengine.common.entities.setNameplate
+import ru.hollowhorizon.hollowengine.common.geary.components.NameplateMode
+
+npc.setNameplate("Торговец", NameplateMode.SHOW_ON_HOVER)
+npc.nameplateMode = NameplateMode.SHOW
+npc.nameplateMode = NameplateMode.HIDDEN
+```
+
+`SHOW` использует обычную отрисовку имени Minecraft. `HIDDEN` скрывает неймплейт. `SHOW_ON_HOVER` показывает его только когда игрок смотрит на сущность.
+
+`Entity.name` остаётся отображаемым `Component` Minecraft и доступен только для чтения. `customName` это низкоуровневый vanilla `Component?`, которым заменяется имя. Он нужен, когда требуется форматированный или переводимый компонент. Основной API для скриптов это `setNameplate(text, mode)`: он сразу назначает простой текст и режим видимости. `nameplateMode` меняет только режим, сохраняя текущий `customName`.

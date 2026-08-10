@@ -1,0 +1,63 @@
+---
+title: Events and State
+order: 7
+date: 2026-07-23
+readingTime: 4 min
+---
+
+<center><h1>Events and State</h1></center>
+
+UI content receives a `UiScope`. It exposes observable `data`, `isServerBound`, `send`, and `close`.
+
+```kotlin
+val Selected = dataKey<Boolean>("selected") { false }
+
+content {
+    Checkbox(checked = data[Selected], onCheckedChange = { selected ->
+        if (isServerBound) send { putBoolean("selected", selected) }
+    })
+    Box(modifier = Modifier.onClick { close() }) { Text("Close") }
+}
+```
+
+## Pointer and input modifiers
+
+Attach handlers with `Modifier`:
+
+```kotlin
+Box(
+    modifier = Modifier
+        .cursor(UiCursorShape.HAND)
+        .onClick { send { putString("action", "accept") } }
+        .onHover { /* update local Compose state if needed */ },
+) { Text("Accept") }
+```
+
+Use `onPress`, `onRelease`, `onDrag`, `onScroll`, and key-input modifiers for custom controls. `Slider`, `Checkbox`, and `TextField` provide their own state and callbacks.
+
+## Client-to-server events
+
+`send { }` builds an NBT `CompoundTag` and sends it to the session that opened this UI. It is a no-op for a client-only overlay, so the same component can be used in both modes.
+
+```kotlin
+Box(modifier = Modifier.onClick {
+    send {
+        putString("action", "buy")
+        putInt("slot", 4)
+    }
+}) { Text("Buy") }
+```
+
+Handle the payload through `UiSession.onEvent` on the server. UI events are requests from the client, not authorization; validate them before changing game state.
+
+## Observable data
+
+```kotlin
+val Progress = dataKey<Int>("progress") { 0 }
+
+content {
+    Text("Progress: ${data[Progress]}")
+}
+```
+
+The server changes this with `session.put(Progress, value)`. The resulting patch updates the client value and recomposes the readers of `Progress`. For client-only transient state, use Compose state such as `remember { mutableStateOf(...) }`; do not round-trip hover or animation state through the server.

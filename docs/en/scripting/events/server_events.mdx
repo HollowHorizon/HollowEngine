@@ -1,0 +1,61 @@
+---
+title: Server and Ticks
+order: 1
+date: 2026-05-10
+readingTime: 1 min
+---
+
+<center><h1>Server and Ticks</h1></center>
+
+*Actions related to the server.*
+
+![NPC](/docs/title-missing.webp)
+
+## Lifecycle
+
+If you need to run logic when the server starts or stops, use the following events:
+
+### On start
+
+```kotlin
+@SubscribeEvent
+fun onServerStart(event: ServerEvent.Starting) {
+    val server = event.server
+}
+```
+
+### On stop
+
+```kotlin
+@SubscribeEvent
+fun onServerStop(event: ServerEvent.Stopping) {
+    val server = event.server
+}
+```
+
+## Ticks
+
+If you need to run logic every server tick (20 ticks per second), use the `TickEvent.Server` event:
+
+```kotlin
+@SubscribeEvent
+fun onServerStop(event: TickEvent.Server) {
+    val server = event.server
+}
+```
+
+:::advice
+If you need to run logic every `X` ticks, you can create a simple counter:
+
+```kotlin
+var ticker = 0
+
+@SubscribeEvent
+fun onServerStop(event: TickEvent.Server) {
+    val server = event.server
+    if (ticker++ % 5) { // Every 5 ticks
+        server.doSomething()
+    }
+}
+```
+:::

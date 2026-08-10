@@ -1,0 +1,78 @@
+---
+title: Ассеты
+order: 2
+date: 2026-05-31
+readingTime: 4 мин
+---
+
+<center><h1>Ассеты</h1></center>
+
+*Куда класть модели, текстуры, UI, звуки, скрипты и другие ресурсы проекта.*
+
+![Ассеты](/docs/title-assets.webp)
+
+HollowEngine загружает пользовательский контент из папки `hollowengine/` в директории игры. Все файлы, которые указываются через resource location, используют обычную структуру Minecraft: `assets/<namespace>/`.
+
+Для проекта лучше выбрать отдельный namespace, например `project`. Тогда `project:textures/ui/panel.png` будет ссылаться на файл:
+
+```text
+hollowengine/
+└─ assets/
+   └─ project/
+      └─ textures/
+         └─ ui/
+            └─ panel.png
+```
+
+## Основные папки
+
+| Папка | Для чего | Пример ссылки |
+|-------|----------|---------------|
+| `assets/project/textures/` | UI-текстуры, текстуры сущностей, иконки | `project:textures/ui/icon.png` |
+| `assets/project/models/` | glTF, Blockbench и модели сущностей | `project:models/entity/guide.gltf` |
+| `assets/project/ui/` | `.ui` разметка, `.hss` стили, UI-скрипты | `project:ui/dialogs/confirm.ui` |
+| `assets/project/sounds/` | Пользовательские звуки | `project:sounds/voice/hello.ogg` |
+| `scripts/` | Серверные Katari-скрипты | `quest/intro.ktr` |
+
+Держи связанные файлы рядом. Небольшой диалог может хранить разметку, стили, клиентский скрипт и картинки в одной папке:
+
+```text
+assets/project/ui/dialogs/quest/
+├─ quest.ui
+├─ quest.hss
+├─ quest_client.ktr
+└─ portrait.png
+```
+
+## Как ссылаться на ассеты
+
+В UI, HSS и скриптах используй полные resource location:
+
+```xml
+<box style="project:ui/dialogs/quest/quest.hss">
+    <image src="project:ui/dialogs/quest/portrait.png" size="48px 48px" />
+</box>
+```
+
+```css
+.panel {
+    background: image("project:textures/ui/panel.png");
+}
+```
+
+```kotlin
+val guide = npc(
+    pos = pos(10.0, 64.0, 10.0),
+    model = "project:models/entity/guide.gltf",
+)
+```
+
+Импорты Katari-скриптов работают иначе: путь считается относительно `hollowengine/scripts/`. Подробнее в разделе [Импорты скриптов](/docs/hollowengine/scripting/imports).
+
+## Практические правила
+
+- Переиспользуемые UI-части складывай в `assets/project/ui/components/`.
+- Общие UI-текстуры держи в `assets/project/textures/ui/`, а локальные для одного экрана можно хранить рядом с этим экраном.
+- Используй resource location вместо абсолютных путей.
+- Текстуры модели держи в том же namespace, что и модель.
+- В путях используй нижний регистр и символы `a-z`, `0-9`, `_`, `-`, `.`, `/`.

@@ -1,0 +1,159 @@
+---
+title: Movement and Interaction
+order: 4
+date: 2026-07-19
+readingTime: 6 min
+---
+
+<center><h1>Movement and Interaction</h1></center>
+
+*Walking, looking, using blocks, and interacting with entities.*
+
+![NPC](/docs/title-missing.webp)
+
+It's recommended to read [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions) first: every function here comes in a `suspend` form (waits for you) and a `startX` form (runs in the background and gives you a handle), and each one uses one of the `MOVEMENT`, `LOOK`, or `HANDS` channels.
+
+## Moving to an entity or a position
+
+```kotlin
+npc move player                               // to an entity, default distance/speed
+npc.move(player, dist = 2.0, speed = 1.2)     // to an entity, custom distance/speed
+npc move pos(10, 64, 10)                      // to a position, default distance/speed
+npc.move(pos(10, 64, 10), dist = 0.5)         // to a position, custom distance
+```
+
+`npc move player` and `npc.move(player)` are the same call, `move` is declared as a Kotlin `infix` function for the simple case, so the dot is optional. All of these are `suspend` functions: the script waits until the NPC arrives (or gives up). Every one of them also has a `startMove(...)` twin that returns immediately with an `NpcAction<MoveResult>` handle, exactly as described in [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions).
+
+```kotlin
+val walking = npc.startMove(player) // does not wait
+// ... do other things ...
+val result = walking.await()
+```
+
+### What `move` gives you back
+
+Movement functions return a `MoveResult`, so you can tell what actually happened instead of just assuming the NPC arrived:
+
+| Value | Meaning |
+|-------|---------|
+| `MoveResult.Arrived` | The NPC reached the target distance. |
+| `MoveResult.Unreachable` | No path could be found for a while (see `unreachable` below). |
+| `MoveResult.TargetUnavailable` | The target entity disappeared, changed dimension, or its reference went stale (see `unavailableTarget` below). |
+
+```kotlin
+val result = npc.move(player)
+if (result != MoveResult.Arrived) {
+    npc.say("I can't reach you!")
+}
+```
+
+:::advice
+If you only care about "walk there, I don't need to check anything", you can keep ignoring the return value, exactly like in older scripts. Checking `MoveResult` is optional, it is there for when you want to react to a failed walk.
+:::
+
+### Fine-tuning movement with `MoveOptions`
+
+For full control, pass a `MoveOptions` instead of `dist`/`speed`:
+
+```kotlin
+npc.move(
+    player,
+    MoveOptions(
+        speed = 1.2,
+        arrivalDistance = 2.0,
+        unreachable = UnreachablePolicy.FAIL,
+    ),
+)
+```
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `speed` | `1.0` | Pathfinding movement speed. |
+| `arrivalDistance` | `1.5` | How close counts as "arrived". |
+| `repathIntervalTicks` | `10` | How often the NPC recalculates its path while walking. |
+| `targetMoveThreshold` | `1.0` | If a moving target (like a player) moves further than this since the last path, the NPC repaths immediately instead of waiting for the next interval. |
+| `stuckTimeoutTicks` | `60` | If the NPC hasn't made progress for this many ticks, it is considered stuck and forces a repath. |
+| `unreachableTimeoutTicks` | `40` | How long path-finding is allowed to keep failing before `unreachable` kicks in. |
+| `unreachable` | `WAIT_AND_RETRY` | What to do when no path can be found (see below). |
+| `unavailableTarget` | `WAIT_AND_RETRY` | What to do when the target entity is gone or invalid (see below). |
+
+Both policies work the same way: `WAIT_AND_RETRY` keeps trying forever (useful for "just get there eventually" scripted scenes), while `FAIL` gives up and returns `MoveResult.Unreachable` / `MoveResult.TargetUnavailable` so your script can decide what to do next.
+
+```kotlin
+enum class UnreachablePolicy { WAIT_AND_RETRY, FAIL }
+enum class UnavailableTargetPolicy { WAIT_AND_RETRY, FAIL }
+```
+
+### Stopping
+
+```kotlin
+npc.stopMoving()
+```
+
+Cancels whatever the NPC is currently walking toward and stops its navigation immediately.
+
+---
+
+## Looking at something
+
+```kotlin
+npc.lookAt(pos(0, 64, 0))
+npc.lookAt(player)
+```
+
+Smoothly turns the NPC's head and body toward a position or entity over about 1.5 seconds (this is the `suspend`, waiting form). Use `startLookingAt(...)` for the background form, and `clearLookTarget()` to cancel it early:
+
+```kotlin
+npc.startLookingAt(player)  // does not wait
+npc.clearLookTarget()       // cancel it
+```
+
+### Instant, per-tick turning: `lookAtNow`
+
+`lookAtNow` is different from the rest of this page: it does **not** use the `LOOK` channel and does **not** wait or run in the background. It turns the NPC by a limited angle right now, once, and returns whether the NPC is already close enough to be considered "facing" the target:
+
+```kotlin
+val facing: Boolean = npc.lookAtNow(player, maxAngularSpeed = 360f)
+```
+
+There are two ways to use it: call it repeatedly (for example once per tick from an `onUpdate { ... }` handler in a [node script](/docs/hollowengine/scripting/node)) with a small `maxAngularSpeed` to make the NPC turn smoothly and keep tracking a moving target, or call it once with a large `maxAngularSpeed` to snap the NPC's facing instantly.
+
+---
+
+## Using a block
+
+```kotlin
+npc.useBlock(pos(10, 64, 10))
+```
+
+Walks the NPC to the block, turns to face it, and uses it with the main hand, useful for levers, buttons, and other interactive blocks. Only players can normally use blocks, so this goes through a fake player behind the scenes; a modded block that specifically checks for a real player may not respond to it. Extra parameters:
+
+```kotlin
+npc.useBlock(pos(10, 64, 10), hand = InteractionHand.OFF_HAND, reach = 4.0)
+```
+
+`useBlockNow(pos, ...)` does the same thing instantly, without walking or waiting, and only succeeds if the NPC is already within `reach`. `startUseBlock(...)` is the background form.
+
+:::warning
+`useBlock`, `destroyBlock`, and `interact` all walk the NPC to the target first, and that walk uses the same `MOVEMENT` channel as `move`/`startMove`. If the NPC was already walking somewhere in the background, that walk gets replaced, the same rule from [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions) applies here too.
+:::
+
+## Destroying a block
+
+```kotlin
+npc.destroyBlock(pos(10, 64, 10))
+```
+
+Walks to the block, faces it, and breaks it as a fake player would (respecting tool requirements by default). Set `requireCorrectTool = false` to let the NPC break blocks it doesn't have the right tool for. `startDestroyBlock(...)` is the background form.
+
+## Interacting with an entity
+
+```kotlin
+npc.interact(playerRef)
+```
+
+Walks to the target entity and interacts with it with the given hand (right-clicking it, essentially). `interactNow(target, ...)` does it instantly if already in range, without walking. `startInteract(...)` is the background form.
+
+```kotlin
+val result: InteractionResult = npc.interactNow(someEntity)
+```

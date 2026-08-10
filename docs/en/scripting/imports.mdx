@@ -1,0 +1,86 @@
+---
+title: Script Imports
+order: 6
+date: 2026-05-31
+readingTime: 3 min
+---
+
+<center><h1>Script Imports</h1></center>
+
+*Split Kotlin scripts into reusable modules instead of copying logic between files.*
+
+![Scripting](/docs/title-scripting.webp)
+
+Kotlin scripting supports script imports:
+
+```kotlin
+@file:Import("example.kts")
+
+functionFromExample()
+```
+
+The path is resolved relative to the current script. For this structure:
+
+```text
+hollowengine/
+└─ scripts/
+   ├─ quest/intro.kts
+   └─ common/dialogue.kts
+```
+
+the `quest/intro.kts` script imports `common/dialogue.kts` like this:
+
+```kotlin
+@file:Import("../common/dialogue.kts")
+
+runSomeDialogue()
+```
+
+That means two dots move one folder up relative to the current file. If the scripts are in the same folder, you can simply specify the file name.
+
+:::warning
+`@file:Import(...)` must appear before classic declaration imports such as `import ru.hollowhorizon.HollowEngine.*`.
+:::
+
+## What gets imported?
+
+First of all, remember that importing scripts and importing regular Kotlin files are slightly different things. Scripts can contain logic and instructions directly at the top level, not only inside functions. Those instructions will also be executed.
+<br/><br/>
+Otherwise everything works the same way: all variables, functions, and classes inside the imported script become available in the main script.
+
+```kotlin
+// common/dialogue.kts
+val narratorName = "Guide"
+
+fun sayLine(player: Player, text: String) {
+    player.say("$narratorName: $text")
+}
+```
+
+```kotlin
+// quest/intro.kts
+@file:Import("../common/dialogue.kts")
+
+// The function from `dialogue.kts` is now available here
+sayLine(player, "The bridge is closed.")
+```
+
+## Sharing scripts
+
+By default, an imported script runs separately from the script into which it is imported. In other words, if you create a variable and modify it in one script, by default it will not change in the other script. You can change this by adding `@file:SharedScript` if you want the script to be shared when imported into any other scripts:
+
+```kotlin
+// common/dialogue.kts
+@file:SharedScript
+
+val dialogueHistory = mutableListOf<String>()
+
+fun sayLine(text: String) {
+    dialogueHistory += text
+}
+```
+
+In that case, all scripts that import `common/dialogue.kts` will access the same instance and the shared `dialogueHistory`. This is useful for services that share state during gameplay—for example, a dialogue system that is read from `.reload.kts` and modified within `.node.kts`.
+
+`SharedScript` is imported by default, meaning a separate `import ...` statement is not required for it. The annotation must be placed at the beginning of the file, before the regular imports.
+

@@ -1,0 +1,229 @@
+---
+title: Изменение просмотрщика рецептов (JEI)
+order: 6
+date: 2026-05-10
+readingTime: 4 мин
+---
+
+*События, позволяющие интегрироваться с Just Enough Items (JEI), регистрировать категории, рецепты, скрывать их или добавлять описания к предметам.*
+
+![JEI Events](/docs/title-missing.webp)
+
+## Регистрация подтипов и ингредиентов
+
+### Регистрация подтипов предметов
+
+```kotlin
+@SubscribeEvent
+fun onRegisterItemSubtypes(event: ModifyRecipeViewerEvent.RegisterItemSubtypes) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (ISubtypeRegistration) - регистратор, позволяющий JEI различать подтипы предметов (например, по NBT-данным).
+
+### Регистрация подтипов жидкостей
+
+```kotlin
+@SubscribeEvent
+fun onRegisterFluidSubtypes(event: ModifyRecipeViewerEvent.RegisterFluidSubtypes) {
+    val reg = event.reg
+    val helper = event.helper
+}
+
+```
+
+* `event.reg` (ISubtypeRegistration) - регистратор подтипов для жидкостей.
+* `event.helper` (IPlatformFluidHelper<*>) - платформозависимый помощник для работы с жидкостями.
+
+### Регистрация базовых ингредиентов
+
+```kotlin
+@SubscribeEvent
+fun onRegisterIngredients(event: ModifyRecipeViewerEvent.RegisterIngredients) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IModIngredientRegistration) - используется для регистрации совершенно новых типов ингредиентов, которые JEI изначально не поддерживает.
+
+### Регистрация дополнительных ингредиентов
+
+```kotlin
+@SubscribeEvent
+fun onRegisterExtraIngredients(event: ModifyRecipeViewerEvent.RegisterExtraIngredients) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IExtraIngredientRegistration) - позволяет добавить экстра-ингредиенты к уже существующим типам.
+
+### Регистрация алиасов (псевдонимов)
+
+```kotlin
+@SubscribeEvent
+fun onRegisterIngredientAliases(event: ModifyRecipeViewerEvent.RegisterIngredientAliases) {
+    val reg = event.reg
+}
+```
+
+- `event.reg` (IIngredientAliasRegistration) - позволяет регистрировать текстовые псевдонимы (алиасы) для ингредиентов, чтобы упростить их поиск в строке JEI.
+
+---
+
+## Регистрация рецептов и категорий
+
+### Регистрация категорий
+
+```kotlin
+@SubscribeEvent
+fun onRegisterCategories(event: ModifyRecipeViewerEvent.RegisterCategories) {
+    val reg = event.reg
+}
+
+```
+
+- `event.reg` (IRecipeCategoryRegistration) - используется для создания и регистрации собственных графических категорий рецептов (плавильня, верстак и т.д.).
+
+### Расширение ванильных категорий
+
+```kotlin
+@SubscribeEvent
+fun onRegisterVanillaCategoryExtensions(event: ModifyRecipeViewerEvent.RegisterVanillaCategoryExtensions) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IVanillaCategoryExtensionRegistration) - позволяет кастомизировать или расширять стандартные категории рецептов Minecraft (например, крафт в верстаке или кастомное поведение в печи).
+
+### Регистрация рецептов и добавление инфо
+
+Это событие используется для наполнения категорий рецептами, а также содержит удобные методы для добавления текстовой информации (инфо-вкладок) к предметам.
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRecipes(event: ModifyRecipeViewerEvent.RegisterRecipes) {
+    val reg = event.reg
+
+    // Пример добавления текстового описания к предмету
+    // event.addItemInfo(itemStack, "Текст описания")
+}
+
+```
+
+* `event.reg` (IRecipeRegistration) - регистратор рецептов.
+
+**Доступные методы расширения для добавления информации к предметам (`ItemStack`):**
+
+- `event.addItemInfo(ingredient: ItemStack, vararg info: Component)` - принимает переменное число компонентов текста.
+- `event.addItemInfo(ingredient: ItemStack, info: List<Component>)` - принимает список компонентов текста.
+- `event.addItemInfo(ingredient: ItemStack, info: Component)` - добавляет одиночный компонент.
+- `event.addItemInfo(ingredient: ItemStack, info: String)` - принимает обычную строку (автоматически переводит её через `.mcTranslate`).
+- `event.addItemInfo(ingredient: ItemStack, info: Array<String>)` - принимает массив строк (все строки автоматически переводятся).
+
+---
+
+## Продвинутая интеграция и интерфейс
+
+### Регистрация обработчиков переноса рецептов (Plus button)
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRecipeTransferHandlers(event: ModifyRecipeViewerEvent.RegisterRecipeTransferHandlers) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IRecipeTransferRegistration) - регистрирует логику для кнопки «+», которая автоматически переносит предметы из инвентаря игрока в сетку крафта кастомного интерфейса.
+
+### Регистрация катализаторов
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRecipeCatalysts(event: ModifyRecipeViewerEvent.RegisterRecipeCatalysts) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IRecipeCatalystRegistration) - позволяет привязать предмет (например, кастомную печку) к определенной категории рецептов. При нажатии по этому предмету в JEI будут открываться рецепты этой категории.
+
+### Регистрация обработчиков GUI
+
+```kotlin
+@SubscribeEvent
+fun onRegisterGuiHandlers(event: ModifyRecipeViewerEvent.RegisterGuiHandlers) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IGuiHandlerRegistration) - позволяет указать JEI области экрана (кликеры, исключения для отрисовки, области прокрутки), чтобы интерфейс мода корректно взаимодействовал со списком предметов JEI.
+
+### Продвинутая регистрация
+
+```kotlin
+@SubscribeEvent
+fun onRegisterAdvanced(event: ModifyRecipeViewerEvent.RegisterAdvanced) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IAdvancedRegistration) - дает доступ к низкоуровневым или редким возможностям настройки JEI, включая замену менеджеров рецептов.
+
+### Регистрация рантайма
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRuntime(event: ModifyRecipeViewerEvent.RegisterRuntime) {
+    val reg = event.reg
+}
+
+```
+
+* `event.reg` (IRuntimeRegistration) - используется на этапе инициализации полноценного рантайма JEI для кастомизации внутренних систем.
+
+---
+
+## Динамическое управление во время работы (Runtime)
+
+### При готовности JEI Runtime
+
+Срабатывает, когда JEI полностью готов к работе на клиенте. Предоставляет методы для динамического скрытия категорий или конкретных рецептов прямо во время игры.
+
+```kotlin
+@SubscribeEvent
+fun onRuntimeAvailable(event: ModifyRecipeViewerEvent.RegisterOnRuntimeAvailable) {
+    val runtime = event.jeiRuntime
+}
+
+```
+
+* `event.jeiRuntime` (IJeiRuntime) - готовый объект окружения JEI.
+
+**Доступные методы управления:**
+
+* `event.hideRecipe(categoryId: ResourceLocation, recipeId: ResourceLocation)` - скрывает конкретный рецепт по его ID из указанной категории.
+* `event.hideCategory(categoryId: ResourceLocation)` - полностью скрывает целую категорию рецептов из отображения.
+
+:::advice
+Используйте эти методы, если вам нужно заблокировать или скрыть определенные рецепты/категории по ходу прохождения сюжета или выполнения квестов. Помните, что скрытие происходит локально на клиенте.
+:::
+
+### При готовности менеджера конфигурации
+
+```kotlin
+@SubscribeEvent
+fun onConfigManagerAvailable(event: ModifyRecipeViewerEvent.RegisterOnConfigManagerAvailable) {
+    val config = event.configManager
+}
+
+```
+
+* `event.configManager` (IJeiConfigManager) - предоставляет доступ к настройкам и конфигурации самого JEI на лету.

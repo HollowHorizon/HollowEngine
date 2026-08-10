@@ -1,0 +1,34 @@
+---
+title: Миры
+order: 5
+date: 2026-05-10
+readingTime: 2 мин
+---
+
+<center><h1>Миры</h1></center>
+
+*Действия связанные с измерениями.*
+
+![Level Events](/docs/title-missing.webp)
+
+## Сохранение
+
+```kotlin
+@SubscribeEvent
+fun onSave(event: LevelEvent.Save) {
+    val entity = event.entity
+}
+```
+
+- `event.level` (Level) - сохраняемое измерение.
+
+## Загрузка
+
+```kotlin
+@SubscribeEvent
+fun onSave(event: LevelEvent.Load) {
+    val entity = event.entity
+}
+```
+
+- `event.level` (Level) - загружаемое измерение.

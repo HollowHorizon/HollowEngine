@@ -1,0 +1,301 @@
+---
+title: Players and Interactions
+order: 2
+date: 2026-05-10
+readingTime: 2 min
+---
+
+<center><h1>Players and Interactions</h1></center>
+
+*Actions related to players and what they do.*
+
+![NPC](/docs/title-missing.webp)
+
+## Player lifecycle
+
+### Joining the server
+
+```kotlin
+@SubscribeEvent
+fun onPlayerJoin(event: PlayerEvent.Join) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the player who joined the server.
+
+### Leaving the server
+
+```kotlin
+@SubscribeEvent
+fun onPlayerLeave(event: PlayerEvent.Leave) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the player who left the server.
+
+### Changing dimension
+
+```kotlin
+@SubscribeEvent
+fun onPlayerChangeDimension(event: PlayerEvent.ChangeDimension) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the player being moved.
+- `event.from` (ServerLevel) - the dimension the player is moving from.
+- `event.to` (ServerLevel) - the dimension the player is moving to.
+
+### Respawning
+
+```kotlin
+@SubscribeEvent
+fun onPlayerRespawn(event: PlayerEvent.Respawn) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.isReturnFromEnd` (Boolean) - whether the player returned from the End. (the game treats this as a respawn)
+
+### Cloning
+
+This event fires shortly before `PlayerEvent.Respawn` and still contains data from the previous player object. If you need to restore player data after death, do it here.
+
+```kotlin
+@SubscribeEvent
+fun onPlayerClone(event: PlayerEvent.Clone) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.oldPlayer` (Player) - the player before death / dimension transfer.
+- `event.wasDeath` (Boolean) - whether this was a death or a return from the End.
+
+:::advice
+If what needs to survive death is typed [`player.data`](/docs/hollowengine/scripting/npc/data), you don't need this event at all: `player.data` carries over automatically. This event is for anything else, custom NBT, or logic tied to the exact moment the two player objects hand off.
+:::
+
+## Player actions
+
+### Going to sleep
+
+```kotlin
+@SubscribeEvent
+fun onPlayerSleep(event: PlayerEvent.SleepInBed) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.problem` (BedSleepingProblem?) - the reason the player cannot sleep, if any. (can be changed to your own reason)
+- `event.pos` (BlockPos) - the bed block position the player clicked.
+
+### Waking up
+
+```kotlin
+@SubscribeEvent
+fun onPlayerWakeup(event: PlayerEvent.Wakeup) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.wakeImmediately` (Boolean) - whether the wake-up is instant or animated. (if `false`, the screen smoothly fades back from darkness to the normal view)
+- `event.updateLevelForSleepingPlayers` (Boolean) - whether the server should be notified that the number of sleeping players has changed. If `true`, the server recalculates the night-skip timer by checking how many players remain in beds.
+
+### Interacting with an entity
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onPlayerInteract(event: PlayerInteractEvent.EntityInteract) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.hand` (InteractionHand) - the hand used for the interaction.
+- `event.entity` (Entity) - the entity the player interacted with.
+
+:::advice
+This event usually fires 4 times for a single interaction:
+- left hand on the server
+- left hand on the client
+- right hand on the server
+- right hand on the client
+
+In most cases you need an additional check:
+
+```kotlin
+if (event.hand == InteractionHand.MAIN_HAND && !event.player.level().isClientSide) {
+   // The action that will run only once
+}
+```
+:::
+
+### Interacting with a block
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onPlayerInteract(event: PlayerInteractEvent.BlockInteract) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.hand` (InteractionHand) - the hand used for the interaction.
+- `event.state` (BlockHitResult) - the block hit result, including the block, its position, and other information.
+
+:::advice
+This event usually fires 4 times for a single interaction:
+- left hand on the server
+- left hand on the client
+- right hand on the server
+- right hand on the client
+
+In most cases you need an additional check:
+
+```kotlin
+if (event.hand == InteractionHand.MAIN_HAND && !event.player.level().isClientSide) {
+   // The action that will run only once
+}
+```
+:::
+
+### Using an item
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onPlayerInteract(event: PlayerInteractEvent.ItemInteract) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.hand` (InteractionHand) - the hand used for the interaction.
+- `event.itemStack` (ItemStack) - the item the player used.
+
+:::advice
+This event usually fires 4 times for a single interaction:
+- left hand on the server
+- left hand on the client
+- right hand on the server
+- right hand on the client
+
+In most cases you need an additional check:
+
+```kotlin
+if (event.hand == InteractionHand.MAIN_HAND && !event.player.level().isClientSide) {
+   // The action that will run only once
+}
+```
+:::
+
+### Writing in chat
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onPlayerMessage(event: ServerChatEvent) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.message` (Component) - the player's message.
+- `event.username` (String) - the player's name.
+
+:::advice
+Because this event can be canceled, it fires before the message is sent. When replying, it is usually better to add a delay:
+
+```kotlin
+npc.say("What do you think?")
+val text = ServerChatEvent.await().message.string
+wait(1) // Wait 1 tick so the message is sent; otherwise the NPC may answer before the player
+npc.say("So your final choice is '$text'?")
+```
+:::
+
+### Dropping an item
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onDropItem(event: ItemEntityEvent.Toss) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.entity` (ItemEntity) - the dropped item as an entity.
+
+### Drawing a bow
+
+```kotlin
+@SubscribeEvent
+fun onNock(event: ArrowEvent.Nock) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.level` (Level) - the current world.
+- `event.stack` (ItemStack) - the item being used.
+- `event.usedHand` (InteractionHand) - the hand being used.
+- `event.hasAmmo` (Boolean) - whether the player has ammo / arrows.
+
+### Releasing an arrow
+
+*This event can be canceled (`event.isCanceled = true`).*
+
+```kotlin
+@SubscribeEvent
+fun onLoose(event: ArrowEvent.Loose) {
+    val player = event.player
+}
+```
+
+- `event.player` (Player) - the current player.
+- `event.level` (Level) - the current world.
+- `event.stack` (ItemStack) - the item being used.
+- `event.charge` (Int) - draw strength. (can be changed, for example multiplied by `x2` to make the bow faster)
+- `event.hasAmmo` (Boolean) - whether the player has ammo / arrows.
+
+## Entity tracking
+
+These events fire when a player starts tracking specific entities, meaning the player has loaded chunks containing them.
+
+### Starts tracking
+
+```kotlin
+@SubscribeEvent
+fun onStartTracking(event: EntityTrackingEvent.Start) {
+    event.player.send("There is something nearby: ${event.entity.name.string}")
+}
+```
+
+- `event.player` (ServerPlayer) - the current player.
+- `event.entity` (Entity) - the tracked entity.
+
+### Stops tracking
+
+```kotlin
+@SubscribeEvent
+fun onStopTracking(event: EntityTrackingEvent.Stop) {
+    event.player.send("Something disappeared nearby: ${event.entity.name.string}")
+}
+```
+
+- `event.player` (ServerPlayer) - the current player.
+- `event.entity` (Entity) - the tracked entity.

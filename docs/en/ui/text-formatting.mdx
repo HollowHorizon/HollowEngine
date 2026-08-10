@@ -1,0 +1,41 @@
+---
+title: Text Formatting
+order: 8
+date: 2026-07-23
+readingTime: 2 min
+---
+
+<center><h1>Text Formatting</h1></center>
+
+Text is composed in Kotlin. Use `Text(value)` for a plain string. Use the content form with `Span`, `Image`, and inline widgets for inline flow.
+
+```kotlin
+Text(modifier = Modifier.foreground(UiColor.White)) {
+    Span("Quest: ", modifier = Modifier.fontSize(16f))
+    Span(data[Title])
+    Image("mypack:textures/ui/star.png", modifier = Modifier.size(8.px, 8.px))
+}
+```
+
+## Inline text and effects
+
+Apply colour, font, wrapping, alignment, and effects through modifiers or HSS. Effects are normal Kotlin values, so they can be reused and calculated like any other UI value:
+
+```kotlin
+Text(
+    "Legendary",
+    modifier = Modifier
+        .foreground(UiColor(1f, 0.82f, 0.25f))
+        .fontSize(18f)
+        .textEffects(
+            Shadow(offsetX = 1.5f, offsetY = 1.5f, color = UiColor(0f, 0f, 0f, 0.7f)),
+            Glow(radius = 4f, color = UiColor(1f, 0.75f, 0.2f, 0.65f)),
+        ),
+)
+```
+
+Available effects include `Bold`, `Italic`, `Underline`, `Strikethrough`, `TextColor`, `TextSize`, `Shadow`, `Outline`, `Glow`, `Gradient`, `Rainbow`, `Pulse`, `Wave`, `Shake`, `Wiggle`, `Swing`, `Scroll`, and `Glitch`. Animated effects use the UI frame clock; they do not require `rebuildEveryFrame`.
+
+XML text tags and XML attributes are not part of the scripted UI format. Build formatted runs with `Text { Span(...) }`, and put the effect modifier on the run or text container that owns it.
+
+For a changing value, read a `DataKey` in `Text`; a server patch recomposes the text automatically. For local animated text, use Compose state. Enable `rebuildEveryFrame` only when the enclosing screen or overlay needs a frame clock.

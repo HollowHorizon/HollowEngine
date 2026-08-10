@@ -1,0 +1,61 @@
+---
+title: События и состояние
+order: 7
+date: 2026-07-23
+readingTime: 4 мин
+---
+
+<center><h1>События и состояние</h1></center>
+
+Содержимое UI получает `UiScope`: observable `data`, `isServerBound`, `send` и `close`.
+
+```kotlin
+val Selected = dataKey<Boolean>("selected") { false }
+
+content {
+    Checkbox(checked = data[Selected], onCheckedChange = { selected ->
+        if (isServerBound) send { putBoolean("selected", selected) }
+    })
+    Box(modifier = Modifier.onClick { close() }) { Text("Закрыть") }
+}
+```
+
+## Модификаторы ввода
+
+Обработчики добавляются через `Modifier`:
+
+```kotlin
+Box(
+    modifier = Modifier
+        .cursor(UiCursorShape.HAND)
+        .onClick { send { putString("action", "accept") } }
+        .onHover { /* при необходимости обнови локальный Compose state */ },
+) { Text("Принять") }
+```
+
+Для специальных случаев есть `onPress`, `onRelease`, `onDrag`, `onScroll` и обработчики клавиатуры. Для обычных элементов используй высокоуровневые `Slider`, `Checkbox` и `TextField`.
+
+## События клиент → сервер
+
+`send { }` строит NBT `CompoundTag` и отправляет его сессии, открывшей UI. В чисто клиентском оверлее это no-op, поэтому один компонент можно использовать в обоих режимах.
+
+```kotlin
+Box(modifier = Modifier.onClick {
+    send {
+        putString("action", "buy")
+        putInt("slot", 4)
+    }
+}) { Text("Купить") }
+```
+
+На сервере payload обрабатывается `UiSession.onEvent`. Событие UI является запросом от клиента, а не подтверждением прав. Проверяй его перед изменением игрового состояния.
+
+## Observable-данные
+
+```kotlin
+val Progress = dataKey<Int>("progress") { 0 }
+
+content { Text("Прогресс: ${data[Progress]}") }
+```
+
+Сервер меняет значение через `session.put(Progress, value)`. Патч обновит клиент и перекомпонует читателей `Progress`. Для временного клиентского состояния используй Compose state (`remember { mutableStateOf(...) }`), а не сетевой обмен для hover и анимации.

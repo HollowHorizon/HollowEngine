@@ -1,0 +1,247 @@
+---
+title: Commands
+order: 3
+date: 2026-05-12
+readingTime: 1 min
+---
+<center><h1>Welcome</h1></center>
+
+*If you typed the command symbol `/` in the chat, you might have noticed a brand-new command 👀*
+
+![Commands](/docs/commands-title.webp)
+
+The mod adds quite a few useful commands, which can be accessed via two main commands:
+
+| Command         | Description        |
+|-----------------|--------------------|
+| `/hollowengine` | Full command name  |
+| `/he`           | Short alias        |
+
+---
+
+# Particles
+
+| Command                        | Description                            |
+|--------------------------------|----------------------------------------|
+| `/he particle <pos> <name>`    | Create particle effect at the pos      |
+| `/he particle <entity> <name>` | Bound particle effect to the entity    |
+| `/he remove-particles <name>`  | Remove all particles with written type |
+
+### Arguments
+
+| Argument | Type     | Description        |
+|----------|----------|--------------------|
+| `pos`    | `vec3`   | Position           |
+| `entity` | `entity` | Target entity      |
+| `name`   | `string` | ID particle effect |
+
+### Examples
+
+```mcfunction
+/he particle ~ ~1 ~ hollowengine:magic_circle
+/he particle @s hollowengine:aura
+/he remove-particles hollowengine:aura
+```
+
+---
+
+# Models
+
+## Information
+
+| Command                  | Description        |
+|--------------------------|--------------------|
+| `/he model <model>`      | Display model info |
+| `/he model info <model>` | The same           |
+
+---
+
+## Working with models
+
+| Command                             | Description                  |
+|-------------------------------------|------------------------------|
+| `/he model spawn <pos> <model>`     | Create model entity          |
+| `/he model move <snapshotId> <pos>` | Move model entity            |
+| `/he model remove <snapshotId>`     | Delete model entity          |
+| `/he model attach <entity> <model>` | Attach model to the entity   |
+
+### Arguments
+
+| Argument     | Type     |
+|--------------|----------|
+| `snapshotId` | `UUID`   |
+| `model`      | `string` |
+| `pos`        | `vec3`   |
+
+---
+
+## Disabling Vanilla model
+
+| Command                                    | Description             |
+|--------------------------------------------|-------------------------|
+| `/he model hide-vanilla <entity> <hidden>` | Hide/show vanilla model |
+
+---
+
+## Installing the preset
+
+| Command                                          | Description                                     |
+|--------------------------------------------------|-------------------------------------------------|
+| `/he model player-preset <entity>`               | Apply default preset                            |
+| `/he model player-preset <entity> <hideVanilla>` | Same thing, but with the "hide vanilla" setting |
+
+---
+
+# Animations
+
+## Play
+
+| Command                                                                   | Description              |
+|---------------------------------------------------------------------------|--------------------------|
+| `/he model animation play <entity> <animation>`                           | Play animation           |
+| `/he model animation play <entity> <animation> <mode>`                    | Play animation with mode |
+| `/he model animation play <entity> <animation> <mode> <fadeIn> <fadeOut>` | Full command             |
+
+### Arguments
+
+| Argument  | Type    | Range   |
+|-----------|---------|---------|
+| `fadeIn`  | `float` | `0..10` |
+| `fadeOut` | `float` | `0..10` |
+
+---
+
+## Stop
+
+| Command                                                | Description              |
+|--------------------------------------------------------|--------------------------|
+| `/he model animation stop <entity> <animation>`        | Stop animation           |
+| `/he model animation stop <entity> <animation> <fade>` | Stop animation with fade |
+
+---
+
+# Lightning
+
+## Common commands
+
+| Command                         | Description                 |
+|---------------------------------|-----------------------------|
+| `/he light list`                | List of lights source       |
+| `/he light remove`              | Delete current light source |
+| `/he light remove <snapshotId>` | Delete light source with ID |
+
+---
+
+## Create the light
+
+| Command                                                   | Description            |
+|-----------------------------------------------------------|------------------------|
+| `/he light add point <radius>`                            | Create the point light |
+| `/he light add spot <distance> <innerAngle> <outerAngle>` | Create the spot light  |
+
+### Limits
+
+| Argument     | Range   |
+|--------------|---------|
+| `radius`     | `>= 0`  |
+| `distance`   | `>= 0`  |
+| `innerAngle` | `0..90` |
+| `outerAngle` | `0..90` |
+
+---
+
+## Light settings
+
+| Command                       | Description          |
+|-------------------------------|----------------------|
+| `/he light enable <enabled>`  | Enable/disable light |
+| `/he light color <r> <g> <b>` | Edit light color     |
+| `/he light intensity <value>` | Edit color intensity |
+
+### Color
+
+| Argument | Range  |
+|----------|--------|
+| `r`      | `0..1` |
+| `g`      | `0..1` |
+| `b`      | `0..1` |
+
+---
+
+# Shadows
+
+| Comamnd                              | Description     |
+|--------------------------------------|-----------------|
+| `/he light shadow enable <enabled>`  | Disable shadows |
+| `/he light shadow dynamic <value>`   | Dynamic shadows |
+| `/he light shadow distance <value>`  | Shadow range    |
+| `/he light shadow fovOffset <value>` | FOV offset      |
+
+### Limits
+
+| Arguments   | range       |
+|-------------|-------------|
+| `distance`  | `>= 0`      |
+| `fovOffset` | `-180..180` |
+
+---
+
+# Volumetric fog
+
+| Command                            | Description           |
+|------------------------------------|-----------------------|
+| `/he light fog enable <enabled>`   | Enable volumetric fog |
+| `/he light fog samples <value>`    | Samples size          |
+| `/he light fog scattering <value>` | Scattering            |
+| `/he light fog density <value>`    | Density               |
+| `/he light fog anisotropy <value>` | Anisotropy            |
+
+### Limitations
+
+| Argument     | Range |
+| ------------ | -------- |
+| `samples`    | `1..128` |
+| `scattering` | `0..1`   |
+| `density`    | `0..5`   |
+| `anisotropy` | `-1..1`  |
+
+---
+
+# Lens flares
+
+| Command                                     | Description         |
+|---------------------------------------------|---------------------|
+| `/he light flare enable <enabled>`          | Enable flare        |
+| `/he light flare sizeOffset <value>`        | Flare size          |
+| `/he light flare falloffDistance <value>`   | Falloff distance    |
+| `/he light flare startAngle <value>`        | Start angle         |
+| `/he light flare endAngle <value>`          | End angle           |
+| `/he light flare angleFactorOffset <value>` | Angle factor offset |
+| `/he light flare intensity <value>`         | Flare intensity     |
+
+---
+
+# Utilities
+
+| Command    | Description          |
+|------------|----------------------|
+| `/he hand` | Copy item from hand  |
+| `/he pos`  | Copy target position |
+
+---
+
+# Snapshot IDs
+
+Some commands return the `snapshotId`:
+
+```text
+550e8400-e29b-41d4-a716-446655440000
+```
+
+It is used to control the object subsequently:
+
+```mcfunction
+/he model move <snapshotId> ...
+/he model remove <snapshotId>
+/he light remove <snapshotId>
+```

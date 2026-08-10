@@ -1,0 +1,231 @@
+---
+title: Basic Scripts
+order: 1
+date: 2026-05-10
+readingTime: 2 min
+---
+
+<center><h1>Basic Scripts</h1></center>
+
+*Extracting shared logic and writing your first Hello World.*
+
+![Missing](/docs/title-missing.webp)
+
+# Regular Kotlin Scripts
+
+A regular script is a file with the `.kts` extension that contains arbitrary Kotlin code.
+
+The main purpose of these files is to extract shared functions, classes, and constants so they can be imported into `.reload.kts`, `.node.kts`, and other scripts. Regular scripts are also useful for small one-off actions, experiments, and debugging.
+
+Unlike specialized script types, a regular `.kts` file:
+
+- has no lifecycle of its own;
+- does not inherit from a special base class;
+- runs only when started manually.
+
+For logic that must automatically react to events or resource reloads, use the appropriate specialized script type.
+
+## Creating a Script
+
+Create a new file with the `.kts` extension in your project, for example:
+
+```text
+scripts/
+└── examples/
+    └── hello.kts
+```
+
+A regular script does not need an additional extension such as `.reload.kts` or `.node.kts`.
+
+When you open the file in the built-in HollowEngine editor, you get syntax highlighting, error diagnostics, and code completion.
+
+## Your First Script
+
+Top-level code is executed sequentially, so you do not need to create a `main` function:
+
+```kotlin
+println("Hello from HollowEngine!")
+```
+
+When started manually, the engine compiles the file and immediately executes the resulting script.
+
+You can declare variables, functions, and classes in the same way as in regular Kotlin:
+
+```kotlin
+fun greeting(name: String): String {
+    return "Hello, $name!"
+}
+
+class Counter {
+    private var value = 0
+
+    fun increment(): Int {
+        return ++value
+    }
+}
+
+val counter = Counter()
+
+println(greeting("HollowEngine"))
+println("Counter: ${counter.increment()}")
+```
+
+Variables and objects created by top-level code only exist for that particular execution. Declared functions and classes, however, can be imported and used by other scripts.
+
+## Shared Logic and Imports
+
+Suppose several scripts need the same function for giving an item to a player. Instead of copying the code, move it into a separate file:
+
+```text
+scripts/
+├── common/
+│   └── rewards.kts
+└── quests/
+    └── first_quest.node.kts
+```
+
+Declare a package and a shared function in `rewards.kts`:
+
+```kotlin
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.Item
+import net.minecraft.world.item.ItemStack
+
+fun Player.reward(item: Item, count: Int = 1) {
+    inventory.add(ItemStack(item, count))
+}
+```
+
+The function can now be imported into another script:
+
+```kotlin
+@Import("../common/reward.kts")
+import net.minecraft.world.item.Items
+
+suspend fun main() {
+    // Переменную игрока получите сами
+    player.reward(Items.DIAMOND, 3)
+}
+```
+
+Regular `.kts` scripts do not receive a special set of automatic HollowEngine imports. Required classes must be imported explicitly:
+
+```kotlin
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+
+val stack = ItemStack(Items.DIAMOND, 4)
+val id = ResourceLocation.fromNamespaceAndPath("minecraft", "diamond")
+
+println("$id: $stack")
+```
+
+Standard Kotlin imports such as `kotlin.collections.*`, `kotlin.io.*`, and `kotlin.math.*` work as usual.
+
+The built-in editor can help you find missing imports through diagnostics and code completion suggestions.
+
+## Manual Execution
+
+To execute a completed script, use the following command:
+
+```text
+/hollowengine scripting run scripts/examples/hello.kts
+```
+
+The path is specified starting from the `scripts` directory.
+
+Code is executed from top to bottom:
+
+```kotlin
+println("Step 1")
+
+val value = 20 + 22
+
+println("Step 2")
+println("Result: $value")
+```
+
+Result:
+
+```text
+Step 1
+Step 2
+Result: 42
+```
+
+Running the script again creates a new script instance and executes its code again from the first line.
+
+## Compilation Errors
+
+If the code contains an error, the script will not run:
+
+```kotlin
+val number: Int = "not a number"
+```
+
+The problematic section is marked as an error in the editor. Error and warning counters are displayed at the top of the file.
+
+Clicking a counter opens a detailed list of all problems in the file.
+
+Common causes include:
+
+- a missing `import`;
+- an incorrect method or property name;
+- incompatible data types;
+- using an API unavailable in the current Minecraft version;
+- using a client-only class on the server;
+- a Kotlin syntax error.
+
+## Runtime Errors
+
+Code may compile successfully but still fail during execution:
+
+```kotlin
+val values = emptyList<String>()
+
+println(values.first()) // An empty list has no first element
+```
+
+In this case, an exception is thrown and the remaining part of the script is not executed.
+
+For actions that may fail, you can use regular Kotlin exception handling:
+
+```kotlin
+runCatching {
+    error("Something went wrong")
+}.onFailure { exception ->
+    println("Script failed: ${exception.message}")
+}
+```
+
+Avoid catching and silently ignoring every exception unless necessary, as this hides real problems in the script.
+
+## When to Use Regular Scripts
+
+Typical uses for regular `.kts` files include:
+
+- storing shared functions, classes, and constants;
+- reusing logic in specialized scripts;
+- testing a function or class;
+- printing debugging information;
+- creating or modifying an object;
+- manually starting a gameplay action;
+- testing an algorithm.
+
+## When a Regular `.kts` Is Not Suitable
+
+A regular script does not run automatically when a player joins, a world loads, a tick occurs, or resources are reloaded.
+
+Do not use infinite loops:
+
+```kotlin
+// This code will block the server thread
+while (true) {
+    println("Running...")
+}
+```
+
+A regular `.kts` file is also not intended for independently registering long-lived event handlers. Without explicit lifecycle management, this may cause duplicate subscriptions, leaks, and hard-to-track bugs.
+
+Use `.reload.kts`, `.node.kts`, or another specialized script type for this kind of logic.

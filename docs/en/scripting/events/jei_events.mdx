@@ -1,0 +1,215 @@
+---
+title: Modifying the Recipe Viewer (JEI)
+order: 6
+date: 2026-05-10
+readingTime: 4 min
+---
+
+*Events that allow integration with Just Enough Items (JEI): registering categories and recipes, hiding them, or adding item descriptions.*
+
+![JEI Events](/docs/title-missing.webp)
+
+## Registering subtypes and ingredients
+
+### Registering item subtypes
+
+```kotlin
+@SubscribeEvent
+fun onRegisterItemSubtypes(event: ModifyRecipeViewerEvent.RegisterItemSubtypes) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (ISubtypeRegistration) - the registrar that lets JEI distinguish item subtypes, for example by NBT data.
+
+### Registering fluid subtypes
+
+```kotlin
+@SubscribeEvent
+fun onRegisterFluidSubtypes(event: ModifyRecipeViewerEvent.RegisterFluidSubtypes) {
+    val reg = event.reg
+    val helper = event.helper
+}
+```
+
+* `event.reg` (ISubtypeRegistration) - the subtype registrar for fluids.
+* `event.helper` (IPlatformFluidHelper<*>) - a platform-specific helper for working with fluids.
+
+### Registering base ingredients
+
+```kotlin
+@SubscribeEvent
+fun onRegisterIngredients(event: ModifyRecipeViewerEvent.RegisterIngredients) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IModIngredientRegistration) - used to register entirely new ingredient types that JEI does not support by default.
+
+### Registering extra ingredients
+
+```kotlin
+@SubscribeEvent
+fun onRegisterExtraIngredients(event: ModifyRecipeViewerEvent.RegisterExtraIngredients) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IExtraIngredientRegistration) - lets you add extra ingredients to existing types.
+
+### Registering aliases
+
+```kotlin
+@SubscribeEvent
+fun onRegisterIngredientAliases(event: ModifyRecipeViewerEvent.RegisterIngredientAliases) {
+    val reg = event.reg
+}
+```
+
+- `event.reg` (IIngredientAliasRegistration) - lets you register text aliases for ingredients to make them easier to find through JEI search.
+
+---
+
+## Registering recipes and categories
+
+### Registering categories
+
+```kotlin
+@SubscribeEvent
+fun onRegisterCategories(event: ModifyRecipeViewerEvent.RegisterCategories) {
+    val reg = event.reg
+}
+```
+
+- `event.reg` (IRecipeCategoryRegistration) - used to create and register custom graphical recipe categories, such as a smeltery, crafting table, and so on.
+
+### Extending vanilla categories
+
+```kotlin
+@SubscribeEvent
+fun onRegisterVanillaCategoryExtensions(event: ModifyRecipeViewerEvent.RegisterVanillaCategoryExtensions) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IVanillaCategoryExtensionRegistration) - lets you customize or extend standard Minecraft recipe categories, for example crafting-table recipes or custom furnace behavior.
+
+### Registering recipes and adding info
+
+This event is used to fill categories with recipes and also provides convenient methods for adding text information (info tabs) to items.
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRecipes(event: ModifyRecipeViewerEvent.RegisterRecipes) {
+    val reg = event.reg
+
+    // Example of adding a text description to an item
+    // event.addItemInfo(itemStack, "Description text")
+}
+```
+
+* `event.reg` (IRecipeRegistration) - the recipe registrar.
+
+**Available extension methods for adding information to items (`ItemStack`):**
+
+- `event.addItemInfo(ingredient: ItemStack, vararg info: Component)` - accepts a variable number of text components.
+- `event.addItemInfo(ingredient: ItemStack, info: List<Component>)` - accepts a list of text components.
+- `event.addItemInfo(ingredient: ItemStack, info: Component)` - adds a single component.
+- `event.addItemInfo(ingredient: ItemStack, info: String)` - accepts a plain string and automatically translates it through `.mcTranslate`.
+- `event.addItemInfo(ingredient: ItemStack, info: Array<String>)` - accepts an array of strings; all strings are translated automatically.
+
+---
+
+## Advanced integration and UI
+
+### Registering recipe transfer handlers (Plus button)
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRecipeTransferHandlers(event: ModifyRecipeViewerEvent.RegisterRecipeTransferHandlers) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IRecipeTransferRegistration) - registers the logic for the "+" button, which automatically transfers items from the player's inventory to the crafting grid of a custom UI.
+
+### Registering catalysts
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRecipeCatalysts(event: ModifyRecipeViewerEvent.RegisterRecipeCatalysts) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IRecipeCatalystRegistration) - lets you bind an item, such as a custom furnace, to a specific recipe category. Clicking this item in JEI opens recipes from that category.
+
+### Registering GUI handlers
+
+```kotlin
+@SubscribeEvent
+fun onRegisterGuiHandlers(event: ModifyRecipeViewerEvent.RegisterGuiHandlers) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IGuiHandlerRegistration) - lets you specify JEI screen areas such as click targets, rendering exclusions, and scroll areas so the mod UI interacts correctly with the JEI item list.
+
+### Advanced registration
+
+```kotlin
+@SubscribeEvent
+fun onRegisterAdvanced(event: ModifyRecipeViewerEvent.RegisterAdvanced) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IAdvancedRegistration) - gives access to low-level or rare JEI configuration features, including replacing recipe managers.
+
+### Registering the runtime
+
+```kotlin
+@SubscribeEvent
+fun onRegisterRuntime(event: ModifyRecipeViewerEvent.RegisterRuntime) {
+    val reg = event.reg
+}
+```
+
+* `event.reg` (IRuntimeRegistration) - used during full JEI runtime initialization to customize internal systems.
+
+---
+
+## Dynamic runtime management
+
+### When the JEI runtime is available
+
+Fires when JEI is fully ready on the client. Provides methods for dynamically hiding categories or specific recipes directly during gameplay.
+
+```kotlin
+@SubscribeEvent
+fun onRuntimeAvailable(event: ModifyRecipeViewerEvent.RegisterOnRuntimeAvailable) {
+    val runtime = event.jeiRuntime
+}
+```
+
+* `event.jeiRuntime` (IJeiRuntime) - the ready JEI environment object.
+
+**Available management methods:**
+
+* `event.hideRecipe(categoryId: ResourceLocation, recipeId: ResourceLocation)` - hides a specific recipe by its ID from the specified category.
+* `event.hideCategory(categoryId: ResourceLocation)` - completely hides an entire recipe category from display.
+
+:::advice
+Use these methods when you need to lock or hide certain recipes/categories during story progression or quests. Remember that hiding happens locally on the client.
+:::
+
+### When the configuration manager is available
+
+```kotlin
+@SubscribeEvent
+fun onConfigManagerAvailable(event: ModifyRecipeViewerEvent.RegisterOnConfigManagerAvailable) {
+    val config = event.configManager
+}
+```
+
+* `event.configManager` (IJeiConfigManager) - provides live access to JEI's own settings and configuration.
