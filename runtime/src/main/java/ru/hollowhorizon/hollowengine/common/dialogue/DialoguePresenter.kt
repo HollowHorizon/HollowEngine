@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.dialogue
 
+import net.minecraft.server.level.ServerPlayer
+
 /**
  * How a dialogue reaches players. The engine drives it one fragment at a time, so a presenter never
  * has to understand the story language: inline commands and `[-]` pauses are already split out by the
@@ -30,8 +32,18 @@ interface DialoguePresenter {
     /** Shows every option of a menu at once and returns immediately; votes arrive via the session. */
     suspend fun showChoices(session: DialogueSession, options: List<PresentedChoice>)
 
-    /** Hides the menu once the vote is decided. */
-    suspend fun hideChoices(session: DialogueSession)
+    /**
+     * A participant voted. Called for every vote, not just the deciding one, so a UI can show what
+     * is already settled. Unlike the rest of the presenter this runs wherever the vote arrived,
+     * outside the story coroutine, and so cannot suspend.
+     */
+    fun onVote(session: DialogueSession, votes: Map<ServerPlayer, Int>) {}
+
+    /**
+     * Hides the menu. [chosen] is the winning option, or -1 when the menu ended without a decision
+     * (an `@sync` track took over, or the dialogue was cancelled).
+     */
+    suspend fun hideChoices(session: DialogueSession, chosen: Int)
 }
 
 /** One button of a menu as the presenter sees it. */

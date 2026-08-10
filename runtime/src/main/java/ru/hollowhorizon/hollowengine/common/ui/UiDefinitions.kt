@@ -16,7 +16,7 @@ enum class OverlayInput {
 
     /**
      * The overlay receives pointer and keyboard input. During gameplay the cursor is locked to the
-     * screen centre, so an interactive overlay reads the centre point; with [UiOverlayDefinition.aboveScreens]
+     * screen center, so an interactive overlay reads the center point; with [UiOverlayDefinition.aboveScreens]
      * it can also sit on top of an open screen (e.g. above the chat box) and take the real cursor.
      */
     INTERACTIVE,
@@ -33,6 +33,12 @@ class UiScreenDefinition(
     val closeOnEscape: Boolean,
     val pausesGame: Boolean,
     val rebuildEveryFrame: Boolean,
+    /** The scale this screen lays itself out at; see [UiGuiScale]. */
+    val guiScale: UiGuiScale,
+    /**
+     * Milliseconds the screen stays up after the server dismisses it, so an exit animation can play out.
+     */
+    val exitDuration: Long,
     val content: UiContent,
 )
 

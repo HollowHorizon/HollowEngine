@@ -74,6 +74,10 @@ data class UiFilterChain(
 
     fun withoutBlur(): UiFilterChain = UiFilterChain(effects.filterNot { it is UiFilterEffect.Blur })
 
+    /** The gradient mask to apply, if the chain carries one. */
+    fun linearMask(): UiFilterEffect.LinearMask? =
+        effects.filterIsInstance<UiFilterEffect.LinearMask>().lastOrNull()?.takeIf { it.stops.isNotEmpty() }
+
     fun interpolate(to: UiFilterChain, progress: Float): UiFilterChain {
         if (effects.size != to.effects.size) return if (progress >= 1f) to else this
         return UiFilterChain(effects.zip(to.effects) { from, target -> from.interpolate(target, progress) })
@@ -112,6 +116,35 @@ sealed interface UiFilterEffect {
 
         override fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect = if (progress >= 1f) to else this
     }
+
+    /**
+     * A CSS-style gradient mask: what the node draws keeps the alpha of the gradient at that point,
+     * so a list can fade out towards its edges instead of being cut off.
+     */
+    data class LinearMask(val angle: Float, val stops: List<MaskStop>) : UiFilterEffect {
+        override val requiresLayer: Boolean get() = stops.isNotEmpty()
+
+        override fun interpolate(to: UiFilterEffect, progress: Float): UiFilterEffect {
+            if (to !is LinearMask || to.stops.size != stops.size) return if (progress >= 1f) to else this
+            return LinearMask(
+                angle + (to.angle - angle) * progress,
+                stops.zip(to.stops) { from, target -> from.interpolate(target, progress) },
+            )
+        }
+
+        companion object {
+            /** The shader carries this many stops; more are sampled down to it when compiled. */
+            const val MAX_STOPS = 4
+        }
+    }
+}
+
+/** One stop of a [UiFilterEffect.LinearMask]: how visible the node is at [position] along the gradient. */
+data class MaskStop(val position: Float, val alpha: Float) {
+    fun interpolate(to: MaskStop, progress: Float) = MaskStop(
+        position + (to.position - position) * progress,
+        alpha + (to.alpha - alpha) * progress,
+    )
 }
 
 data class UiScrollbarStyle(

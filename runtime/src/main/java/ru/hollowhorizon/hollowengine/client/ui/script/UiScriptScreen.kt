@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.ui.UiData
+import ru.hollowhorizon.hollowengine.common.ui.UiGuiScale
 import ru.hollowhorizon.hollowengine.common.ui.UiScope
 import ru.hollowhorizon.hollowengine.common.ui.UiScreenDefinition
 
@@ -45,9 +46,28 @@ class UiScriptScreen(
 
     override fun rebuildEveryFrame(): Boolean = definition.rebuildEveryFrame
 
+    override fun guiScale(): UiGuiScale = definition.guiScale
+
     override fun renderAfterUi(graphics: GuiGraphics, mouseX: Int, mouseY: Int) {
         if (hasSlots()) SlotTooltips.render(graphics, mouseX, mouseY)
+        if (dismissedAt != 0L && System.currentTimeMillis() - dismissedAt >= definition.exitDuration) {
+            mc.setScreen(null)
+        }
     }
+
+    /**
+     * The server has dropped the session; the screen stays up for [UiScreenDefinition.exitDuration]
+     * so its closing frames can play, then takes itself away. Returns false when it has no exit
+     * animation to wait for and the caller should close it outright.
+     */
+    fun dismiss(): Boolean {
+        if (definition.exitDuration <= 0L) return false
+        if (dismissedAt == 0L) dismissedAt = System.currentTimeMillis()
+        return true
+    }
+
+    /** When the server dismissed this screen, or 0 while it is still live. */
+    private var dismissedAt = 0L
 
     private fun hasSlots(): Boolean = sessionId?.let { ClientSlots[it] } != null
 

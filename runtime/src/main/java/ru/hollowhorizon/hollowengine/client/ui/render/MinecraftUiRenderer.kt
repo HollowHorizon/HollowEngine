@@ -114,6 +114,9 @@ class MinecraftUiRenderer {
     private var emitUnifiedGlyphs = false
     private var glyphClip = UiShaderClip.None
     private val layerRequests = mutableListOf<UiLayerRequest>()
+
+    /** Padding each layer's framebuffer was reserved with this frame; see [prepareFramebuffers]. */
+    private val layerPaddings = IdentityHashMap<UiNode, Float>()
     private val preparedLayers = IdentityHashMap<UiNode, PreparedUiLayer>()
     private val brokenSvgSources = mutableSetOf<String>()
     private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
@@ -252,6 +255,7 @@ class MinecraftUiRenderer {
             scissorState = null
             while (layerStack.isNotEmpty()) finishLayer()
         } finally {
+            if (layerProjectionActive) restoreMainProjection()
             GL11.glDepthMask(depthMask)
             releasePreparedLayers()
             renderTarget = previousTarget
@@ -842,10 +846,13 @@ class MinecraftUiRenderer {
     private fun prepareFramebuffers(layout: UiLayoutResult): Boolean {
         val scale = layerScale()
         layerRequests.clear()
+        layerPaddings.clear()
+        val overflows = layout.layerOverflows()
         for (node in layout.traversalOrder) {
             val layoutNode = layout.nodes[node] ?: continue
             if (!layoutNode.needsFramebuffer) continue
-            val padding = layerPadding(node.resolvedSnapshot.filter)
+            val padding = layerPadding(node.resolvedSnapshot.filter, overflows[node] ?: 0f)
+            layerPaddings[node] = padding
             val width = ceil((layoutNode.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
             val height = ceil((layoutNode.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
             layerRequests += UiLayerRequest(width, height)
@@ -861,7 +868,7 @@ class MinecraftUiRenderer {
     private fun beginLayer(command: BeginLayerCommand) {
         scissorState = ScissorUnknown
         val scale = layerScale()
-        val padding = layerPadding(command)
+        val padding = layerPaddings[command.node] ?: layerPadding(command)
         val logicalWidth = command.rect.width + padding * 2f
         val logicalHeight = command.rect.height + padding * 2f
         val width = ceil(logicalWidth * scale).toInt().coerceAtLeast(1)
@@ -1194,6 +1201,7 @@ class MinecraftUiRenderer {
             subdivisions = 1,
             maskRadius = command.radius,
             maskScale = target.scale * captureScale,
+            opaqueSource = true,
         )
         if (restoreProjection) restoreMainProjection()
     }

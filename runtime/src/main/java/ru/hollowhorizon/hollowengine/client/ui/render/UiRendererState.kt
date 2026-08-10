@@ -4,12 +4,17 @@ import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.client.ui.BeginLayerCommand
+import ru.hollowhorizon.hollowengine.client.ui.PopupNode
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.clip
+import ru.hollowhorizon.hollowengine.client.ui.style.scrollable
+import java.util.IdentityHashMap
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -95,10 +100,58 @@ internal fun backdropSampleBounds(
 internal const val LayerSupersampling = 1f
 internal fun layerPadding(command: BeginLayerCommand): Float = layerPadding(command.filter)
 
-internal fun layerPadding(filter: UiFilterChain): Float {
+internal fun layerPadding(filter: UiFilterChain, overflow: Float = 0f): Float {
     val blur = filter.blurRadius()
     val guard = 12f
-    return ceil(guard + blur * 3f).coerceAtLeast(guard)
+    return ceil(guard + blur * 3f + overflow.coerceIn(0f, MaxLayerOverflow)).coerceAtLeast(guard)
+}
+
+private const val MaxLayerOverflow = 512f
+
+/**
+ * How far each layer node's subtree reaches outside that node's own rect.
+ */
+internal fun UiLayoutResult.layerOverflows(): Map<UiNode, Float> {
+    val layerNodes = traversalOrder.filter { nodes[it]?.needsFramebuffer == true }
+    if (layerNodes.isEmpty()) return emptyMap()
+
+    val bounds = IdentityHashMap<UiNode, UiRect>(nodes.size)
+    for (index in traversalOrder.indices.reversed()) {
+        val node = traversalOrder[index]
+        val layout = nodes[node] ?: continue
+        var visual = layout.rect
+        val style = node.resolvedSnapshot
+        if (!style.clip && !style.scrollable) {
+            for (child in childrenOf(node)) {
+                if (child is PopupNode) continue // Popups are drawn by the overlay host, not here.
+                val childBounds = bounds[child] ?: nodes[child]?.rect ?: continue
+                visual = visual.union(childBounds)
+            }
+        }
+        bounds[node] = visual
+    }
+
+    val overflows = IdentityHashMap<UiNode, Float>(layerNodes.size)
+    for (node in layerNodes) {
+        val rect = nodes[node]?.rect ?: continue
+        val visual = bounds[node] ?: continue
+        overflows[node] = max(
+            max(rect.x - visual.x, rect.y - visual.y),
+            max(
+                visual.x + visual.width - (rect.x + rect.width),
+                visual.y + visual.height - (rect.y + rect.height),
+            ),
+        ).coerceAtLeast(0f)
+    }
+    return overflows
+}
+
+private fun UiRect.union(other: UiRect): UiRect {
+    val left = minOf(x, other.x)
+    val top = minOf(y, other.y)
+    val right = max(x + width, other.x + other.width)
+    val bottom = max(y + height, other.y + other.height)
+    return UiRect(left, top, right - left, bottom - top)
 }
 
 internal fun configureUiBlend() {

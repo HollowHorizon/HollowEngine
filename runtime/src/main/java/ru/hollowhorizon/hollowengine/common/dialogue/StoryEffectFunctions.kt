@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.common.dialogue.lang.any
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.list
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.number
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.string
+import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.playCutscene
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.stopCutscene
 import ru.hollowhorizon.hollowengine.common.ui.hud.EngineHudLayers
@@ -158,6 +159,23 @@ internal object StoryEffectFunctions {
     private fun listenForEndings() {
         if (!listening.compareAndSet(false, true)) return
         DialogueEvent.Ended.register { event -> restoreAll(event.session) }
+        LivingEntityDeathEvent.register { event -> (event.entity as? ServerPlayer)?.let(::restoreFor) }
+    }
+
+    /** Hands one player's visuals back without touching the dialogue the others are still in. */
+    private fun restoreFor(player: ServerPlayer) {
+        val states = synchronized(borrowed) { borrowed.values.toList() }
+        for (state in states) {
+            if (state.fade) StoryClearFadePacket.send(player)
+            if (state.camera || state.cutscene) {
+                StoryReleaseCameraPacket(0L).send(player)
+                player.stopCutscene()
+            }
+            if (state.hud && state.hudBefore.containsKey(player)) {
+                val before = state.hudBefore.remove(player)
+                if (before.isNullOrEmpty()) player.showAllHudLayers() else player.hideHudLayers(*before.toTypedArray())
+            }
+        }
     }
 
     private val listening = java.util.concurrent.atomic.AtomicBoolean(false)

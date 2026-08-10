@@ -26,6 +26,11 @@
     { "name": "SampleRect", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 1.0 ] },
     { "name": "MaskRect", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 1.0 ] },
     { "name": "MaskRadius", "type": "float", "count": 1, "values": [ 0.0 ] },
-    { "name": "MaskSoftness", "type": "float", "count": 1, "values": [ 1.0 ] }
+    { "name": "MaskSoftness", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "GradientCount", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "GradientDirection", "type": "float", "count": 2, "values": [ 0.0, 1.0 ] },
+    { "name": "GradientStops", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "GradientAlphas", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+    { "name": "OpaqueSource", "type": "float", "count": 1, "values": [ 0.0 ] }
   ]
 }

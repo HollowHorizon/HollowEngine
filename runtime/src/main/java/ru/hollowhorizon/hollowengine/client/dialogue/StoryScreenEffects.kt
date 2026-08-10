@@ -106,9 +106,18 @@ object StoryCameraSystem {
 
     private var releaseAfter = 0L
 
-    /** Called every client tick: finishes a release once its slide back is over. */
+    /**
+     * Called every client tick: finishes a release once its slide back is over, and hands the camera
+     * back the moment the player is no longer alive to look through it.
+     */
     fun update() {
         if (releaseAfter != 0L && System.currentTimeMillis() >= releaseAfter) clear()
+        if (target == null) return
+        val player = Minecraft.getInstance().player
+        if (player == null || !player.isAlive) {
+            clear()
+            StoryFadeOverlay.clear()
+        }
     }
 
     private fun capturePlayerPose(): CameraPose? {

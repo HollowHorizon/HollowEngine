@@ -56,7 +56,12 @@ private open class RecordingPresenter(private val picks: MutableList<Int> = muta
         (session as DialogueController).forceChoice(pick)
     }
 
-    override suspend fun hideChoices(session: DialogueSession) = Unit
+    /** Every `chosen` the runtime reported when a menu closed, in order. */
+    val decided = mutableListOf<Int>()
+
+    override suspend fun hideChoices(session: DialogueSession, chosen: Int) {
+        decided += chosen
+    }
 }
 
 class DialogueRuntimeTest {
@@ -237,6 +242,31 @@ class DialogueRuntimeTest {
         assertEquals(DialogueResult.Finished, result)
         assertEquals(listOf(listOf("Успеть")), presenter.menus)
         assertEquals(listOf("Виталик: Не успел."), presenter.lines)
+        // Nobody decided anything, so the UI has no winner to celebrate.
+        assertEquals(listOf(-1), presenter.decided)
+    }
+
+    @Test
+    fun `a closing menu is told which option won`() = runTest {
+        // The dialogue UI keeps the winner on screen for a beat before clearing the menu, which it
+        // can only do if closing the menu carries the result rather than just the fact it closed.
+        val presenter = RecordingPresenter(mutableListOf(1, 0))
+        val controller = controller(
+            """
+            @choice "Направо"
+                @jump #Развилка
+            @choice "Налево"
+                @jump #Развилка
+            # Развилка
+            @choice "Дальше"
+                Виталик: Пошли.
+            """.trimIndent(),
+            presenter,
+        )
+
+        controller.startHeadless()
+
+        assertEquals(listOf(1, 0), presenter.decided)
     }
 
     @Test

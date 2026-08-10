@@ -190,6 +190,24 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
     ) { style { it.filter = parseFilterChain(value) } }
 
     property(
+        "mask", "mask-image",
+        summary = "Gradient the node is seen through; only the alpha of each stop is used.",
+        syntax = syntax(slot("gradient", HssValueKind.FILTER)),
+        examples = listOf(
+            "none",
+            "linear-gradient(to bottom, transparent, white 20%, white 80%, transparent)",
+            "linear-gradient(90deg, white, transparent)",
+        ),
+    ) {
+        style { current ->
+            val mask = parseMask(value)
+            val rest = (current.filter ?: UiFilterChain.Empty).effects
+                .filterNot { effect -> effect is UiFilterEffect.LinearMask }
+            current.filter = UiFilterChain(if (mask == null) rest else rest + mask)
+        }
+    }
+
+    property(
         "backdrop-filter",
         summary = "Effects applied to whatever is drawn behind the node.",
         syntax = syntax(slot("effects", HssValueKind.FILTER)),

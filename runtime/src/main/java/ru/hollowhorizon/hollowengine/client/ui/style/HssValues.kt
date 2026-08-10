@@ -324,10 +324,88 @@ internal fun parseFilterChain(value: String): UiFilterChain {
             "grayscale" -> UiFilterEffect.Grayscale(parseFilterAmount(args))
             "blur" -> UiFilterEffect.Blur(parseScalar(args).coerceAtLeast(0f))
             "shader" -> UiFilterEffect.Shader(unquote(args))
+            "linear-gradient" -> parseLinearMask(args)
             else -> UiFilterEffect.Shader(name)
         }
     }
     return UiFilterChain(effects)
+}
+
+/** `mask: none` clears it; anything else is a gradient the node is seen through. */
+internal fun parseMask(value: String): UiFilterEffect.LinearMask? {
+    if (value.isBlank() || value.equals("none", ignoreCase = true)) return null
+    val (name, args) = parseValueFunctions(value).firstOrNull()
+        ?: throw IllegalArgumentException("Expected a gradient, got '$value'")
+    require(name == "linear-gradient") { "Only linear-gradient() masks are supported, got '$name'" }
+    return parseLinearMask(args)
+}
+
+/**
+ * `linear-gradient(to bottom, transparent, white 20%, white 80%, transparent)`, the CSS spelling,
+ * with the same defaults: no angle means top-to-bottom, and stops without a position are spread
+ * evenly between the ones that have one.
+ *
+ * Only the alpha of a stop is used, so `transparent` hides and any opaque color shows.
+ */
+private fun parseLinearMask(args: String): UiFilterEffect.LinearMask {
+    val parts = splitTopLevel(args, ',').map { it.trim() }.filter { it.isNotEmpty() }
+    require(parts.isNotEmpty()) { "linear-gradient() needs at least one colour stop" }
+
+    val angle = parseGradientAngle(parts.first())
+    val stopParts = if (angle != null) parts.drop(1) else parts
+    require(stopParts.isNotEmpty()) { "linear-gradient() needs at least one colour stop" }
+
+    val positions = arrayOfNulls<Float>(stopParts.size)
+    val alphas = FloatArray(stopParts.size)
+    stopParts.forEachIndexed { index, part ->
+        val pieces = splitTopLevelWhitespace(part)
+        val position = pieces.lastOrNull()?.takeIf { it.endsWith("%") || it.toFloatOrNull() != null }
+        val colorText = if (position != null && pieces.size > 1) pieces.dropLast(1).joinToString(" ") else part
+        alphas[index] = parseColor(colorText).alpha
+        positions[index] = position?.let { text ->
+            if (text.endsWith("%")) text.dropLast(1).trim().toFloat() / 100f else text.toFloat()
+        }
+    }
+    positions[0] = positions[0] ?: 0f
+    positions[positions.lastIndex] = positions[positions.lastIndex] ?: 1f
+    spreadMissingStops(positions)
+
+    return UiFilterEffect.LinearMask(
+        angle = angle ?: 180f,
+        stops = positions.mapIndexed { index, position -> MaskStop(position ?: 0f, alphas[index]) },
+    )
+}
+
+/** `to bottom`, `45deg`, or null when the first part is already a color stop. */
+private fun parseGradientAngle(part: String): Float? {
+    val text = part.trim().lowercase()
+    if (text.startsWith("to ")) {
+        return when (text.removePrefix("to ").trim()) {
+            "top" -> 0f
+            "right" -> 90f
+            "bottom" -> 180f
+            "left" -> 270f
+            else -> throw IllegalArgumentException("Unknown gradient direction '$part'")
+        }
+    }
+    if (text.endsWith("deg")) return text.removeSuffix("deg").trim().toFloatOrNull()
+    return null
+}
+
+private fun spreadMissingStops(positions: Array<Float?>) {
+    var index = 0
+    while (index < positions.size) {
+        if (positions[index] != null) {
+            index++
+            continue
+        }
+        val gapStart = index
+        while (index < positions.size && positions[index] == null) index++
+        val before = positions[gapStart - 1] ?: 0f
+        val after = positions.getOrNull(index) ?: 1f
+        val step = (after - before) / (index - gapStart + 1)
+        for (offset in gapStart until index) positions[offset] = before + step * (offset - gapStart + 1)
+    }
 }
 
 internal fun parseBackfaceVisibility(value: String): UiBackfaceVisibility = when (value.lowercase()) {

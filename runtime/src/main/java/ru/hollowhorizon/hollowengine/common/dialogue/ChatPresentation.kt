@@ -49,7 +49,7 @@ class ChatPresentation(
         }
     }
 
-    override suspend fun hideChoices(session: DialogueSession) = Unit
+    override suspend fun hideChoices(session: DialogueSession, chosen: Int) = Unit
 
     private fun flush(session: DialogueSession) {
         if (buffer.isEmpty()) return

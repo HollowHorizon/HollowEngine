@@ -450,6 +450,7 @@ class DialogueController(
 
         val menuState = PendingMenu(presented.size)
         pendingMenu = menuState
+        var winner = -1
         try {
             if (!preemptible { presentation.showChoices(this, presented) }) return null
             val decided = preemptible {
@@ -457,13 +458,13 @@ class DialogueController(
                 else menuState.signal.await()
             }
             if (!decided) return null
+            winner = menuState.forced?.coerceIn(0, presented.size - 1) ?: decideVote(menuState.votes, presented.size)
         } finally {
             pendingMenu = null
-            runCatching { presentation.hideChoices(this) }
+            runCatching { presentation.hideChoices(this, winner) }
         }
 
         val votes = menuState.votes
-        val winner = menuState.forced?.coerceIn(0, presented.size - 1) ?: decideVote(votes, presented.size)
         val option = available[winner]
         val choice = presented[winner]
         choiceHandlers.forEach {
@@ -669,6 +670,7 @@ class DialogueController(
         if (player !in participants) return
         if (index !in 0 until menu.optionCount) return
         menu.votes[player] = index
+        presentation.onVote(this, menu.votes.toMap())
         if (menu.votes.keys.containsAll(onlineParticipants)) menu.signal.complete(Unit)
     }
 

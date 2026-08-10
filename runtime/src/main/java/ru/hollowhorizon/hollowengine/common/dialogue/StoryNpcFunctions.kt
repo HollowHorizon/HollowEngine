@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.dialogue
 
+import kotlinx.coroutines.withTimeoutOrNull
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.actor
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.list
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.number
@@ -39,19 +41,45 @@ internal object StoryNpcFunctions {
             "walk-to",
             actor("who"), list("position"),
             number("speed", default = DEFAULT_SPEED), number("distance", default = DEFAULT_DISTANCE),
+            number("timeout", default = DEFAULT_WALK_TIMEOUT_MILLIS),
         ) { args ->
-            args.npc("who").move(args.vec3("position"), args.moveOptions())
+            args.walk(args.actor("who").name) { npc -> npc.move(args.vec3("position"), args.moveOptions()) }
         }
 
         add(
             "walk-to",
             actor("who"), actor("target"),
             number("speed", default = DEFAULT_SPEED), number("distance", default = DEFAULT_DISTANCE),
+            number("timeout", default = DEFAULT_WALK_TIMEOUT_MILLIS),
         ) { args ->
-            args.npc("who").move(args.entity("target"), args.moveOptions())
+            args.walk(args.actor("who").name) { npc -> npc.move(args.entity("target"), args.moveOptions()) }
         }
 
         add("stop-walking", actor("who")) { args -> args.npc("who").stopMoving() }
+    }
+
+    /**
+     * Runs a walk with a deadline. Navigation retries an unreachable target forever by design, that
+     * is what an NPC that must eventually get there wants, but a dialogue cannot afford it: the
+     * story would sit on that statement with no window, no menu and no way out. Giving up is logged
+     * and the story moves on; `timeout=0` restores the wait-forever behavior for a script that
+     * really means it.
+     */
+    private suspend fun StoryArguments.walk(who: String, block: suspend (NpcEntity) -> Unit) {
+        val npc = npc("who")
+        val timeout = millis("timeout")
+        if (timeout <= 0L) {
+            block(npc)
+            return
+        }
+        if (withTimeoutOrNull(timeout.milliseconds) { block(npc) } == null) {
+            npc.stopMoving()
+            HollowEngine.LOGGER.warn(
+                "'@walk-to' gave up after {} ms: '{}' could not reach its target, the story continues without it",
+                timeout,
+                who,
+            )
+        }
     }
 
     private fun StoryFunctionRegistry.looking() {
@@ -105,6 +133,8 @@ internal object StoryNpcFunctions {
 
     private const val DEFAULT_LOOK_MILLIS = 1_500f
     private const val DEFAULT_FADE_MILLIS = 330f
+
+    private const val DEFAULT_WALK_TIMEOUT_MILLIS = 15_000f
 
     /** Kept in step with [MoveOptions] so the editor shows what the NPC API would have used anyway. */
     private val DEFAULT_SPEED = MoveOptions().speed.toFloat()

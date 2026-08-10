@@ -11,6 +11,11 @@ uniform vec4 SampleRect;
 uniform vec4 MaskRect;
 uniform float MaskRadius;
 uniform float MaskSoftness;
+uniform float GradientCount;
+uniform vec2 GradientDirection;
+uniform vec4 GradientStops;
+uniform vec4 GradientAlphas;
+uniform float OpaqueSource;
 
 in vec2 texCoord0;
 in vec4 vertexColor;
@@ -38,19 +43,56 @@ float roundedMask(vec2 uv) {
     return 1.0 - smoothstep(0.0, max(MaskSoftness, 0.001), distanceToEdge);
 }
 
+float gradientMask(vec2 uv) {
+    if (GradientCount < 0.5) {
+        return 1.0;
+    }
+
+    vec2 local = clamp((uv - MaskRect.xy) / max(MaskRect.zw, vec2(0.0001)), 0.0, 1.0) - vec2(0.5);
+    float extent = max(abs(GradientDirection.x) + abs(GradientDirection.y), 0.0001);
+    float t = clamp(dot(local, GradientDirection) / extent + 0.5, 0.0, 1.0);
+
+    float positions[4] = float[4](GradientStops.x, GradientStops.y, GradientStops.z, GradientStops.w);
+    float alphas[4] = float[4](GradientAlphas.x, GradientAlphas.y, GradientAlphas.z, GradientAlphas.w);
+    int count = int(GradientCount);
+
+    if (t <= positions[0]) {
+        return alphas[0];
+    }
+    for (int i = 1; i < 4; i++) {
+        if (i >= count) {
+            break;
+        }
+        if (t <= positions[i]) {
+            float span = max(positions[i] - positions[i - 1], 0.0001);
+            return mix(alphas[i - 1], alphas[i], (t - positions[i - 1]) / span);
+        }
+    }
+    return alphas[count - 1];
+}
+
 vec4 samplePremultiplied(vec2 uv) {
     vec4 color = texture(Sampler0, clampSampleUv(uv));
+    if (OpaqueSource > 0.5) {
+        return vec4(color.rgb, 1.0);
+    }
     color.rgb *= color.a;
+    return color;
+}
+
+vec4 unpremultiply(vec4 color) {
+    if (OpaqueSource > 0.5) {
+        return vec4(color.rgb, 1.0);
+    }
+    if (color.a > 0.0001) {
+        color.rgb /= color.a;
+    }
     return color;
 }
 
 vec4 sampleBlurred(vec2 uv) {
     if (BlurRadius <= 0.001) {
-        vec4 color = texture(Sampler0, clampSampleUv(uv));
-        if (color.a > 0.0001) {
-            color.rgb /= color.a;
-        }
-        return color;
+        return unpremultiply(texture(Sampler0, clampSampleUv(uv)));
     }
 
     vec2 direction = BlurDirection;
@@ -82,16 +124,12 @@ vec4 sampleBlurred(vec2 uv) {
     }
 
     color /= max(total, 0.0001);
-    if (color.a > 0.0001) {
-        color.rgb /= color.a;
-    }
-    return color;
+    return unpremultiply(color);
 }
 
 void main() {
     vec4 color = sampleBlurred(texCoord0) * vertexColor * ColorModulator;
-    float mask = roundedMask(texCoord0);
-    color.a *= mask;
+    color.a *= roundedMask(texCoord0) * gradientMask(texCoord0);
     if (color.a <= 0.001) {
         discard;
     }

@@ -7,6 +7,8 @@ import ru.hollowhorizon.hollowengine.client.slots.Slots
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import ru.hollowhorizon.hollowengine.common.data.dataKey
+import ru.hollowhorizon.hollowengine.common.dialogue.DialogueUiKeys
+import ru.hollowhorizon.hollowengine.common.dialogue.UiDialoguePresentation
 import ru.hollowhorizon.hollowengine.common.scripting.ui.UiScript
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -175,5 +177,77 @@ class UiScriptContentTest {
         }
 
         assertNotNull(UiDefinitionRegistry.screen("mypack:styled".rl))
+    }
+
+    @Test
+    fun `a screen can pick its own gui scale instead of following the player`() {
+        object : UiScript() {
+            init {
+                screen("mypack:auto_scaled") {
+                    guiScale = UiGuiScale.Auto
+                    content { Text("scaled") }
+                }
+                screen("mypack:fixed_scaled") {
+                    guiScale(2)
+                    content { Text("scaled") }
+                }
+                screen("mypack:inherited") {
+                    content { Text("plain") }
+                }
+                screen("mypack:animated_exit") {
+                    exitDuration = 700L
+                    content { Text("closing") }
+                }
+            }
+        }
+
+        assertEquals(UiGuiScale.Auto, UiDefinitionRegistry.screen("mypack:auto_scaled".rl)!!.guiScale)
+        assertEquals(UiGuiScale.Fixed(2), UiDefinitionRegistry.screen("mypack:fixed_scaled".rl)!!.guiScale)
+        assertEquals(UiGuiScale.Inherit, UiDefinitionRegistry.screen("mypack:inherited".rl)!!.guiScale)
+        assertEquals(700L, UiDefinitionRegistry.screen("mypack:animated_exit".rl)!!.exitDuration)
+        assertEquals(0L, UiDefinitionRegistry.screen("mypack:inherited".rl)!!.exitDuration)
+    }
+
+    @Test
+    fun `a script can replace the dialogue window through the public keys`() {
+        object : UiScript() {
+            init {
+                screen("hollowengine:dialogue") {
+                    closeOnEscape = false
+                    content {
+                        val line = data[DialogueUiKeys.Line]
+                        val choices = data[DialogueUiKeys.Choices]
+
+                        Box(
+                            modifier = Modifier
+                                .size(UiLength.Fill, UiLength.Fill)
+                                .input(clickable = true)
+                                .onClick {
+                                    send { putString(DialogueUiKeys.Action, DialogueUiKeys.AdvanceAction) }
+                                },
+                        ) {
+                            Column(modifier = Modifier.gap(4.px)) {
+                                if (line.speaker.isNotEmpty()) Text(line.speaker)
+                                Text(line.text)
+                                choices.options.forEach { option ->
+                                    Box(
+                                        modifier = Modifier.input(hoverable = true, clickable = true).onClick {
+                                            send {
+                                                putString(DialogueUiKeys.Action, DialogueUiKeys.ChooseAction)
+                                                putInt(DialogueUiKeys.Index, option.index)
+                                            }
+                                        },
+                                    ) {
+                                        Text(option.text)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        assertNotNull(UiDefinitionRegistry.screen(UiDialoguePresentation.DEFAULT_SCREEN))
     }
 }

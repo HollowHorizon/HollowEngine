@@ -1,13 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.ui.screen
 
 import androidx.compose.runtime.Composable
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
+import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.utils.mc
+import ru.hollowhorizon.hollowengine.client.utils.popPose
+import ru.hollowhorizon.hollowengine.client.utils.pushPose
+import ru.hollowhorizon.hollowengine.common.ui.UiGuiScale
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import kotlin.math.ceil
 
 
 abstract class HollowComposeUiScreen(
@@ -22,6 +28,9 @@ abstract class HollowComposeUiScreen(
     protected abstract fun Content()
 
     protected open fun rebuildEveryFrame(): Boolean = false
+
+    /** The scale this screen lays itself out at; [UiGuiScale.Inherit] follows the player's setting. */
+    protected open fun guiScale(): UiGuiScale = UiGuiScale.Inherit
 
     /**
      * Opt-in frame pipelining: the next frame's build (recomposition, style resolve, layout) runs on
@@ -44,20 +53,76 @@ abstract class HollowComposeUiScreen(
         surface.setContent { Content() }
     }
 
+    /** The surface's own logical size, and how it relates to vanilla's GUI pixels. */
+    private class SurfaceScale(val width: Float, val height: Float, val ratio: Float)
+
+    private fun surfaceScale(): SurfaceScale? {
+        val window = mc.window
+        val factor = when (val scale = guiScale()) {
+            UiGuiScale.Inherit -> return null
+            UiGuiScale.Auto -> window.calculateScale(0, mc.isEnforceUnicode)
+            is UiGuiScale.Fixed -> window.calculateScale(scale.factor, mc.isEnforceUnicode)
+        }.coerceAtLeast(1)
+        if (factor.toDouble() == window.guiScale) return null
+
+        val logicalWidth = ceil(window.width.toDouble() / factor).toFloat().coerceAtLeast(1f)
+        val logicalHeight = ceil(window.height.toDouble() / factor).toFloat().coerceAtLeast(1f)
+        val vanillaWidth = window.guiScaledWidth.toFloat()
+        if (vanillaWidth <= 0f) return null
+        return SurfaceScale(logicalWidth, logicalHeight, logicalWidth / vanillaWidth)
+    }
+
     override fun render(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
-        val frameWidth = width.toFloat()
-        val frameHeight = height.toFloat()
+        val scale = surfaceScale()
+        val frameWidth = scale?.width ?: width.toFloat()
+        val frameHeight = scale?.height ?: height.toFloat()
+        val ratio = scale?.ratio ?: 1f
+        val pointerX = mouseX.toFloat() * ratio
+        val pointerY = mouseY.toFloat() * ratio
         val frame = (if (pipelineFrames()) pipeline.take(frameWidth, frameHeight) else null)
-            ?: buildFrame(frameWidth, frameHeight, mouseX.toFloat(), mouseY.toFloat(), System.nanoTime())
-        renderer.render(frame)
+            ?: buildFrame(frameWidth, frameHeight, pointerX, pointerY, System.nanoTime())
+        renderScaled(frame, scale)
         renderAfterUi(graphics, mouseX, mouseY)
         UiCursorManager.apply(mc.window.window, surface.runtime.cursor)
         if (pipelineFrames()) {
-            val nextMouseX = mouseX.toFloat()
-            val nextMouseY = mouseY.toFloat()
             pipeline.schedule(frameWidth, frameHeight) {
-                buildFrame(frameWidth, frameHeight, nextMouseX, nextMouseY, System.nanoTime())
+                buildFrame(frameWidth, frameHeight, pointerX, pointerY, System.nanoTime())
             }
+        }
+    }
+
+    /**
+     * A screen at its own scale draws through a render target whose logical size is the surface's,
+     * which is what re-maps the projection.
+     */
+    private fun renderScaled(frame: HollowUiFrame, scale: SurfaceScale?) {
+        if (scale == null) {
+            renderer.render(frame)
+            return
+        }
+
+        val window = mc.window
+        val target = UiRenderTarget(
+            framebufferId = mc.mainRenderTarget.frameBufferId,
+            x = 0,
+            y = 0,
+            width = window.width,
+            height = window.height,
+            logicalWidth = scale.width,
+            logicalHeight = scale.height,
+            scale = window.width / scale.width,
+        )
+
+        val projection = RenderSystem.getProjectionMatrix()
+        val sorting = RenderSystem.getVertexSorting()
+        RenderSystem.getModelViewStack().pushPose()
+        try {
+            renderer.render(frame, target)
+        } finally {
+            RenderSystem.setProjectionMatrix(projection, sorting)
+            RenderSystem.getModelViewStack().popPose()
+            RenderSystem.applyModelViewMatrix()
+            mc.mainRenderTarget.bindWrite(true)
         }
     }
 
@@ -73,28 +138,32 @@ abstract class HollowComposeUiScreen(
         super.removed()
     }
 
+    /** Vanilla hands pointer positions in its own GUI pixels; the surface thinks in its own. */
+    private fun Double.toSurface(): Float = (this * (surfaceScale()?.ratio ?: 1f)).toFloat()
+
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
         pipeline.await()
-        return surface.runtime.mouseClicked(mouseX.toFloat(), mouseY.toFloat(), button, currentUiKeyModifiers())
+        return surface.runtime.mouseClicked(mouseX.toSurface(), mouseY.toSurface(), button, currentUiKeyModifiers())
     }
 
     override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean {
         pipeline.await()
-        return surface.runtime.mouseReleased(mouseX.toFloat(), mouseY.toFloat(), button, currentUiKeyModifiers())
+        return surface.runtime.mouseReleased(mouseX.toSurface(), mouseY.toSurface(), button, currentUiKeyModifiers())
     }
 
     override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, dragX: Double, dragY: Double): Boolean {
         pipeline.await()
         return surface.runtime.mouseDragged(
-            mouseX.toFloat(), mouseY.toFloat(), button, dragX.toFloat(), dragY.toFloat(), currentUiKeyModifiers(),
+            mouseX.toSurface(), mouseY.toSurface(), button, dragX.toSurface(), dragY.toSurface(),
+            currentUiKeyModifiers(),
         )
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         pipeline.await()
         return surface.runtime.mouseScrolled(
-            mouseX.toFloat(),
-            mouseY.toFloat(),
+            mouseX.toSurface(),
+            mouseY.toSurface(),
             scrollX.toFloat(),
             scrollY.toFloat(),
             currentUiKeyModifiers(),

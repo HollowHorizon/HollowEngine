@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
  * function plus whatever it adds itself, without those additions leaking into other dialogues.
  */
 class DialogueControllerBuilder(private val address: String) {
-    var presentation: DialoguePresenter = ChatPresentation()
+    var presentation: DialoguePresenter = UiDialoguePresentation()
 
     /** Functions this dialogue may call, on top of the engine-wide ones. */
     val functions: StoryFunctionRegistry = StoryFunctionRegistry(StoryEngine.functions)

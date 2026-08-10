@@ -42,9 +42,10 @@ object UiScriptClient {
     }
 
     fun close(sessionId: Int) {
-        if (activeScreen(sessionId) != null) {
+        val screen = activeScreen(sessionId)
+        if (screen != null) {
             screenSessionId = null
-            mc.setScreen(null)
+            if (!screen.dismiss()) mc.setScreen(null)
         }
         UiScriptHudHost.closeSession(sessionId)
         ClientSlots.close(sessionId)

@@ -45,7 +45,7 @@ class DialogueCheckpointTest {
         }
 
         override suspend fun showChoices(session: DialogueSession, options: List<PresentedChoice>) = Unit
-        override suspend fun hideChoices(session: DialogueSession) = Unit
+        override suspend fun hideChoices(session: DialogueSession, chosen: Int) = Unit
     }
 
     private fun controller(

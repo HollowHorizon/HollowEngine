@@ -10,10 +10,14 @@ import ru.hollowhorizon.hollowengine.client.ui.UiInsets
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathPoint
+import net.minecraft.client.renderer.ShaderInstance
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 internal data class UiTexturedQuad(
     val width: Float,
@@ -163,6 +167,7 @@ internal object UiTextureEffects {
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
+        opaqueSource: Boolean = false,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -185,6 +190,7 @@ internal object UiTextureEffects {
             sampleHeight = abs(v1 - v0),
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
+            opaqueSource = opaqueSource,
         )
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -265,10 +271,12 @@ internal object UiTextureEffects {
         sampleHeight: Float? = null,
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
+        opaqueSource: Boolean = false,
     ) {
         val effectShader = ModShaders.UI_EFFECT
         val hasMask = maskRadius > 0f
         if (filter.effects.isEmpty() && !hasMask || effectShader == null) {
+            // Nothing the effect shader would do differently; the plain path is cheaper.
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
             configureUiBlend()
             return
@@ -298,6 +306,38 @@ internal object UiTextureEffects {
         effectShader.getUniform("MaskRect")?.set(finalMaskU, finalMaskV, finalMaskW, finalMaskH)
         effectShader.getUniform("MaskRadius")?.set(maskRadius * radiusScale)
         effectShader.getUniform("MaskSoftness")?.set(1.25f * radiusScale)
+        effectShader.getUniform("OpaqueSource")?.set(if (opaqueSource) 1f else 0f)
+        setGradientMask(effectShader, filter.linearMask())
+    }
+
+    /**
+     * Feeds the gradient mask to the shader. Stops are sorted and padded out to the fixed size the
+     * shader carries; the direction is the angle turned into a UV vector, with 0deg pointing up as CSS
+     * does rather than along +x.
+     */
+    private fun setGradientMask(shader: ShaderInstance, mask: UiFilterEffect.LinearMask?) {
+        if (mask == null) {
+            shader.getUniform("GradientCount")?.set(0f)
+            return
+        }
+        val stops = mask.stops
+            .sortedBy { it.position }
+            .take(UiFilterEffect.LinearMask.MAX_STOPS)
+        val radians = Math.toRadians(mask.angle.toDouble())
+        shader.getUniform("GradientCount")?.set(stops.size.toFloat())
+        shader.getUniform("GradientDirection")?.set(sin(radians).toFloat(), -cos(radians).toFloat())
+        shader.getUniform("GradientStops")?.set(
+            stops.getOrNull(0)?.position ?: 0f,
+            stops.getOrNull(1)?.position ?: 1f,
+            stops.getOrNull(2)?.position ?: 1f,
+            stops.getOrNull(3)?.position ?: 1f,
+        )
+        shader.getUniform("GradientAlphas")?.set(
+            stops.getOrNull(0)?.alpha ?: 1f,
+            stops.getOrNull(1)?.alpha ?: 1f,
+            stops.getOrNull(2)?.alpha ?: 1f,
+            stops.getOrNull(3)?.alpha ?: 1f,
+        )
     }
 
     private fun addTexturedVertex(

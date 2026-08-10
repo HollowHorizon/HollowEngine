@@ -26,6 +26,9 @@ internal fun blurTexture(
     return vertical
 }
 
+/**
+ * Blurs a grab of whatever is behind a `backdrop-filter`.
+ */
 internal fun blurBackdropTexture(
     workspace: UiBackdropBlurWorkspace,
     width: Int,
@@ -35,11 +38,11 @@ internal fun blurBackdropTexture(
     val blurFilter = UiFilterChain(listOf(UiFilterEffect.Blur(radius)))
     renderBlurPass(
         workspace.intermediate, workspace.capture.texture, workspace.width, workspace.height,
-        width, height, blurFilter, horizontal = true,
+        width, height, blurFilter, horizontal = true, opaqueSource = true,
     )
     renderBlurPass(
         workspace.capture, workspace.intermediate.texture, workspace.width, workspace.height,
-        width, height, blurFilter, horizontal = false,
+        width, height, blurFilter, horizontal = false, opaqueSource = true,
     )
     return workspace.capture
 }
@@ -53,6 +56,7 @@ private fun renderBlurPass(
     height: Int,
     filter: UiFilterChain,
     horizontal: Boolean,
+    opaqueSource: Boolean = false,
 ) {
     target.bind()
     GL11.glViewport(0, 0, width, height)
@@ -79,6 +83,7 @@ private fun renderBlurPass(
         textureHeight = sourceTextureHeight,
         blurDirectionX = if (horizontal) 1f else 0f,
         blurDirectionY = if (horizontal) 0f else 1f,
+        opaqueSource = opaqueSource,
     )
 }
 

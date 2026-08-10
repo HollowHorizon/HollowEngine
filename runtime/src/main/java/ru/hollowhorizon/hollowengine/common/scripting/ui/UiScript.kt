@@ -47,6 +47,25 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
     /** Recomposes the screen every frame; enable only for content that tracks live game state. */
     var rebuildEveryFrame: Boolean = false
 
+    /**
+     * The GUI scale this screen lays itself out at, independent of the player's video setting:
+     * `guiScale = UiGuiScale.Auto` or `guiScale(3)`. A screen built around fixed pixel sizes wants
+     * this, at scale 4 a window meant to take half the screen takes all of it.
+     */
+    var guiScale: UiGuiScale = UiGuiScale.Inherit
+
+    /** Shorthand for `guiScale = UiGuiScale.of(factor)`; `0` means auto. */
+    fun guiScale(factor: Int) {
+        guiScale = UiGuiScale.of(factor)
+    }
+
+    /**
+     * How long the screen keeps drawing after the server closes it, in milliseconds the room its
+     * exit animation needs. The server does not wait for it: the session ends at once and whatever
+     * opened the screen carries on, while the closing frames play out here.
+     */
+    var exitDuration: Long = 0L
+
     private var content: UiContent? = null
 
     fun content(body: UiContent) {
@@ -59,6 +78,8 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
         closeOnEscape = closeOnEscape,
         pausesGame = pausesGame,
         rebuildEveryFrame = rebuildEveryFrame,
+        guiScale = guiScale,
+        exitDuration = exitDuration,
         content = content ?: error("UI screen '$id' declares no content { } block"),
     )
 }

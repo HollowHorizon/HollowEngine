@@ -246,7 +246,8 @@ class UiComputedStyle internal constructor(
             // Progress may overshoot 1.0 (e.g. back/overshooting cubic-bezier easings),
             // so only an exact 1.0 is treated as settled.
             if (local == 1f) continue
-            next[prop.index] = prop.interpolateRaw(values[prop.index], to.values[prop.index], local)
+            val blended = prop.interpolateRaw(values[prop.index], to.values[prop.index], local)
+            next[prop.index] = prop.sanitizeRaw(blended)
         }
         return UiComputedStyle(next, to.explicitProperties)
     }
