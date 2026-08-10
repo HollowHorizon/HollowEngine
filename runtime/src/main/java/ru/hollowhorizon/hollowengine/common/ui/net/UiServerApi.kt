@@ -35,6 +35,23 @@ fun ServerPlayer.showOverlay(
     body: UiSession.() -> Unit = {},
 ): UiSession = UiSessionManager.open(this, overlay, UiSurfaceKind.OVERLAY, initialState, body)
 
+/**
+ * Opens a `surface { }` declaration, one session whose host the script picks and re-picks from the
+ * document. Use it when the same piece of UI has to be an overlay at one moment and a screen at the
+ * next; the server side is identical to [openUi] either way.
+ */
+fun ServerPlayer.openSurface(
+    surface: ResourceLocation,
+    initialState: CompoundTag = CompoundTag(),
+    body: UiSession.() -> Unit = {},
+): UiSession = UiSessionManager.open(this, surface, UiSurfaceKind.ADAPTIVE, initialState, body)
+
+fun ServerPlayer.openSurface(
+    surface: String,
+    initialState: CompoundTag = CompoundTag(),
+    body: UiSession.() -> Unit = {},
+): UiSession = openSurface(ResourceLocation.parse(surface), initialState, body)
+
 fun ServerPlayer.showOverlay(
     overlay: String,
     initialState: CompoundTag = CompoundTag(),

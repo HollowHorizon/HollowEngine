@@ -7,7 +7,8 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
 import ru.hollowhorizon.hollowengine.common.data.write
 import ru.hollowhorizon.hollowengine.common.ui.net.UiSession
-import ru.hollowhorizon.hollowengine.common.ui.net.openUi
+import ru.hollowhorizon.hollowengine.common.ui.net.UiSessionManager
+import ru.hollowhorizon.hollowengine.common.ui.net.UiSurfaceKind
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -17,6 +18,12 @@ import kotlin.time.Duration.Companion.milliseconds
 class UiDialoguePresentation(
     /** Screen to open; the engine's own is the default and any `.ui.kts` screen can take its place. */
     val screen: ResourceLocation = DEFAULT_SCREEN,
+    /**
+     * What [screen] declares. A plain `screen { }` is the default; point this at
+     * [UiSurfaceKind.ADAPTIVE] for a `surface { }` that reads as an overlay while a line is up and
+     * becomes a screen for the menu.
+     */
+    val kind: UiSurfaceKind = UiSurfaceKind.SCREEN,
     /** Milliseconds per character in word. */
     val charDelay: Int = 25,
     /** How long the chosen option is left on screen so everyone sees what won. */
@@ -52,6 +59,7 @@ class UiDialoguePresentation(
         line = DialogueLineView(
             id = line.id + 1,
             speaker = speaker?.name.orEmpty(),
+            speakerEntity = (speaker as? EntityCharacter)?.entity?.id ?: -1,
             charDelay = charDelay,
         )
         broadcast {
@@ -124,7 +132,7 @@ class UiDialoguePresentation(
             write(DialogueUiKeys.Line, line)
             write(DialogueUiKeys.Choices, choices)
         }
-        sessions[player] = player.openUi(screen, initial) {
+        sessions[player] = UiSessionManager.open(player, screen, kind, initial) {
             onEvent { payload -> handle(session, player, payload) }
             onClose { sessions.remove(player) }
         }

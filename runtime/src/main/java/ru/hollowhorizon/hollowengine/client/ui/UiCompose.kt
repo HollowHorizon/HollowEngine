@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -616,14 +617,28 @@ fun Item(
     attributes: Map<String, String> = emptyMap(),
 ) = ContentNode(UiItemType, Modifier.item(item), id, tags, modifier, attributes)
 
+/** Draws a live entity from this client's level, with whatever it is wearing and doing. */
 @Composable
 fun Entity(
-    entity: String,
+    entity: Entity,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
 ) = ContentNode(UiEntityType, Modifier.entity(entity), id, tags, modifier, attributes)
+
+/**
+ * Draws the entity this client knows by [networkId], how a server-driven UI names one, since an
+ * entity itself cannot travel. Nothing is drawn while the client has no entity under that id.
+ */
+@Composable
+fun Entity(
+    networkId: Int,
+    id: String? = null,
+    tags: Iterable<String> = emptyList(),
+    modifier: Modifier? = null,
+    attributes: Map<String, String> = emptyMap(),
+) = ContentNode(UiEntityType, Modifier.entity(networkId), id, tags, modifier, attributes)
 
 
 @Composable

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.ui
 
 import androidx.compose.runtime.Composable
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.common.ui.net.UiSurfaceKind
 
 /** The composable body of a scripted screen or overlay. */
 typealias UiContent = @Composable UiScope.() -> Unit
@@ -64,3 +65,19 @@ class UiOverlayDefinition(
 ) {
     val isInteractive: Boolean get() = input == OverlayInput.INTERACTIVE
 }
+
+/**
+ * A surface that is a screen at some moments and a HUD overlay at others, declared by `surface { }`.
+ *
+ * A dialogue is the case it exists for: the line is an overlay the player reads while the world goes
+ * on, and the moment a menu appears it has to become a screen that owns the cursor.
+ */
+class UiSurfaceDefinition(
+    val id: ResourceLocation,
+    /** How it behaves while it is a screen. */
+    val screen: UiScreenDefinition,
+    /** How it behaves while it is an overlay. */
+    val overlay: UiOverlayDefinition,
+    /** Reads the bound document and says which of the two the surface should be right now. */
+    val mode: (UiData) -> UiSurfaceKind,
+)

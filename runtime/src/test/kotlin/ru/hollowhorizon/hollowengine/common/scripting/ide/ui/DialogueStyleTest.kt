@@ -11,22 +11,27 @@ import kotlin.test.assertTrue
  * every property and value form, which makes it the right thing to hold the shipped sheet against.
  */
 class DialogueStyleTest {
-    private val source =
-        requireNotNull(javaClass.getResourceAsStream("/assets/hollowengine/ui/styles/dialogue.hss"))
-            .bufferedReader()
-            .use { it.readText() }
+    private fun sheet(path: String) = requireNotNull(javaClass.getResourceAsStream(path))
+        .bufferedReader()
+        .use { it.readText() }
 
-    @Test
-    fun `the dialogue stylesheet has no problems the editor would flag`() {
-        val problems = hssDiagnostics(source).joinToString("\n") { diagnostic ->
-            "line ${diagnostic.range.start.line + 1}: ${diagnostic.message}"
-        }
-
-        assertEquals("", problems)
+    private fun problems(source: String) = hssDiagnostics(source).joinToString("\n") { diagnostic ->
+        "line ${diagnostic.range.start.line + 1}: ${diagnostic.message}"
     }
 
     @Test
-    fun `it compiles into rules the engine can apply`() {
-        assertTrue(compileHss(source).rules.isNotEmpty())
+    fun `the dialogue stylesheet has no problems the editor would flag`() {
+        val source = sheet("/assets/hollowengine/ui/styles/dialogue.hss")
+
+        assertEquals("", problems(source))
+        assertTrue(compileHss(source).rules.isNotEmpty(), "it compiles into rules the engine can apply")
+    }
+
+    @Test
+    fun `the overlay dialogue example is as clean as the built-in one`() {
+        val source = sheet("/assets/hollowengine/ui/examples/dialogue_overlay.hss")
+
+        assertEquals("", problems(source))
+        assertTrue(compileHss(source).rules.isNotEmpty(), "it compiles into rules the engine can apply")
     }
 }

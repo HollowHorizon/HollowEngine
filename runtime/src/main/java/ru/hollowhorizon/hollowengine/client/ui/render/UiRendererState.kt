@@ -154,6 +154,15 @@ private fun UiRect.union(other: UiRect): UiRect {
     return UiRect(left, top, right - left, bottom - top)
 }
 
+internal var uiBlendWritesAlpha = false
+    private set
+
+/** Points the renderer at a target and applies the alpha rule that target wants. */
+internal fun uiWriteAlpha(enabled: Boolean) {
+    uiBlendWritesAlpha = enabled
+    RenderSystem.colorMask(true, true, true, enabled)
+}
+
 internal fun configureUiBlend() {
     RenderSystem.enableBlend()
     RenderSystem.blendFuncSeparate(
@@ -162,6 +171,7 @@ internal fun configureUiBlend() {
         GlStateManager.SourceFactor.ONE,
         GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
     )
+    RenderSystem.colorMask(true, true, true, uiBlendWritesAlpha)
 }
 
 internal fun disableScissor() {

@@ -73,7 +73,9 @@ class UiScriptScreen(
 
     override fun removed() {
         super.removed()
-        sessionId?.let(UiScriptClient::notifyClosed)
+        val session = sessionId ?: return
+        if (UiAdaptiveSurfaces.isSwapping(session)) return
+        UiScriptClient.notifyClosed(session)
     }
 
     private companion object {

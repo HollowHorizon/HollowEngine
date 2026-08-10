@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.widgets.Video
+import ru.hollowhorizon.hollowengine.client.utils.mc
 
 class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab by mutableStateOf("overview")
@@ -119,7 +120,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             }
             Column(tags = listOf("card"), modifier = Modifier.position(0.px, 136.px)) {
                 Text("Сущность", tags = listOf("card-title"))
-                Entity("player", tags = listOf("entity-preview"))
+                mc.player?.let { Entity(it, tags = listOf("entity-preview")) }
             }
             Column(tags = listOf("card"), modifier = Modifier.position(184.px, 136.px)) {
                 Text("Холст", tags = listOf("card-title"))

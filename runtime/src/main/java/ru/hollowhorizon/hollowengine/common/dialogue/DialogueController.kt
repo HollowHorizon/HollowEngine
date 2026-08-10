@@ -332,8 +332,9 @@ class DialogueController(
     ): DialogueResult? {
         when (instruction) {
             is StoryInstruction.Say -> {
-                val speaker = instruction.speaker?.let { resolveCharacter(it) }
-                if (!sayLine(speaker, instruction.text)) return null // preempted
+                val speaker = instruction.speakerExpr?.let { characterOf(evaluate(it)) }
+                    ?: instruction.speaker?.let { resolveCharacter(it) }
+                if (!sayLine(speaker, instruction.text)) return null
                 frame.pc++
             }
 
@@ -708,6 +709,14 @@ class DialogueController(
 
     private fun resolveCharacter(name: String): DialogueCharacter =
         boundCharacters[name] ?: StringCharacter(name)
+
+    /**
+     * The speaker a `{...}:` prefix evaluated to. An actor already carries its character, entity and
+     * all; anything else speaks under its displayed value, which is what lets `{player}: ...` work with
+     * a plain string variable.
+     */
+    private fun characterOf(value: StoryValue): DialogueCharacter =
+        (value as? StoryActor)?.character ?: resolveCharacter(value.display())
 
     /**
      * A character an argument names: one the script bound, a participant by their name, or `player`

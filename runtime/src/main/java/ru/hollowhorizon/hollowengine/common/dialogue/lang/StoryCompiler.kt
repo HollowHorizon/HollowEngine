@@ -138,7 +138,7 @@ class StoryCompiler(
 
             is StoryLineKind.Dialogue -> {
                 validateTemplate(kind.text)
-                emit(StoryInstruction.Say(kind.speaker, kind.text, anchor(line)))
+                emit(StoryInstruction.Say(kind.speaker, kind.text, anchor(line), kind.speakerExpr))
                 requireNoChildren(node)
             }
 

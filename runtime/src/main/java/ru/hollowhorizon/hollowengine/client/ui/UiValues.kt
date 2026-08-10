@@ -1,7 +1,31 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
 import kotlin.math.*
+
+/**
+ * The entity a node draws.
+ */
+class UiEntityRef private constructor(private val direct: Entity?, val networkId: Int) {
+    /** The entity to draw, or null when the id names nothing the client currently knows about. */
+    fun resolve(): Entity? = direct ?: Minecraft.getInstance().level?.getEntity(networkId)
+
+    override fun equals(other: Any?): Boolean =
+        other is UiEntityRef && other.direct === direct && other.networkId == networkId
+
+    override fun hashCode(): Int = 31 * (direct?.id ?: 0) + networkId
+
+    override fun toString(): String = "UiEntityRef(${direct?.name?.string ?: networkId})"
+
+    companion object {
+        fun of(entity: Entity): UiEntityRef = UiEntityRef(entity, entity.id)
+
+        /** Names an entity by the id it has on this client; see [Entity.getId]. */
+        fun ofId(networkId: Int): UiEntityRef = UiEntityRef(null, networkId)
+    }
+}
 
 /**
  * An interaction state, matched by HSS `:name` selectors. Open by design: any name is a

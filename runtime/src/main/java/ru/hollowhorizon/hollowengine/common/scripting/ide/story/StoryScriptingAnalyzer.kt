@@ -237,7 +237,10 @@ private fun variableReferences(kind: StoryLineKind): List<StoryExpr.VarRef> {
         is StoryLineKind.ElseIf -> collect(kind.condition)
         is StoryLineKind.While -> collect(kind.condition)
         is StoryLineKind.Set -> collect(kind.value)
-        is StoryLineKind.Dialogue -> collect(kind.text)
+        is StoryLineKind.Dialogue -> {
+            kind.speakerExpr?.let { collect(it) }
+            collect(kind.text)
+        }
         is StoryLineKind.Command -> collect(kind.text)
         is StoryLineKind.Choice -> {
             collect(kind.text)

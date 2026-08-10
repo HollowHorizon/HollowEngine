@@ -31,6 +31,7 @@ object UiSessionManager {
         when (kind) {
             UiSurfaceKind.SCREEN -> OpenUiScreenPacket(session.id, surface, state).send(player)
             UiSurfaceKind.OVERLAY -> ShowUiOverlayPacket(session.id, surface, state).send(player)
+            UiSurfaceKind.ADAPTIVE -> OpenUiSurfacePacket(session.id, surface, state).send(player)
         }
         return session
     }

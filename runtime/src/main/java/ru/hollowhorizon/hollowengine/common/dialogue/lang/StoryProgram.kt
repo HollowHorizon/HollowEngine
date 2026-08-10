@@ -51,6 +51,7 @@ sealed interface StoryInstruction {
         val speaker: String?,
         val text: TextTemplate,
         override val anchor: StoryAnchor,
+        val speakerExpr: StoryExpr? = null,
     ) : StoryInstruction
 
     /**

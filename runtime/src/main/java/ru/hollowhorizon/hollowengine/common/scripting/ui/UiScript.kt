@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ui
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.ui.*
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
+import ru.hollowhorizon.hollowengine.common.ui.net.UiSurfaceKind
 
 /**
  * Base class of `.ui.kts` scripts. The script body declares screens and HUD overlays; both are
@@ -31,6 +32,26 @@ abstract class UiScript {
     fun overlay(id: String, body: UiOverlayBuilder.() -> Unit) {
         val location = ResourceLocation.parse(id)
         UiDefinitionRegistry.register(UiOverlayBuilder(location).apply(body).build())
+    }
+
+    /**
+     * A surface that decides for itself whether it is an overlay or a screen right now:
+     *
+     * ```kotlin
+     * surface("mypack:dialogue") {
+     *     anchor = "hotbar"
+     *     closeOnEscape = false
+     *     mode { data -> if (data[Choices].options.isEmpty()) UiSurfaceKind.OVERLAY else UiSurfaceKind.SCREEN }
+     *     content { ... }
+     * }
+     * ```
+     *
+     * One `content { }` serves both, and the session and its document survive the switch, so the
+     * server writes to one place and never learns which host is currently mounted.
+     */
+    fun surface(id: String, body: UiSurfaceBuilder.() -> Unit) {
+        val location = ResourceLocation.parse(id)
+        UiDefinitionRegistry.register(UiSurfaceBuilder(location).apply(body).build())
     }
 }
 
@@ -82,6 +103,75 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
         exitDuration = exitDuration,
         content = content ?: error("UI screen '$id' declares no content { } block"),
     )
+}
+
+/**
+ * Declares a surface that switches between an overlay and a screen. It carries both option sets,
+ * the overlay's anchor and the screen's title, escape handling and scale, because the same surface
+ * really is both at different moments.
+ */
+class UiSurfaceBuilder internal constructor(private val id: ResourceLocation) {
+    var title: String = id.path
+    var closeOnEscape: Boolean = true
+    var pausesGame: Boolean = false
+    var guiScale: UiGuiScale = UiGuiScale.Inherit
+    var exitDuration: Long = 0L
+
+    var anchor: String = VanillaHudLayers.HOTBAR.toString()
+    var placement: HudPlacement = HudPlacement.AFTER
+    var aboveScreens: Boolean = false
+    var input: OverlayInput = OverlayInput.NONE
+
+    /** Applies to whichever host is mounted. */
+    var rebuildEveryFrame: Boolean = false
+
+    private var content: UiContent? = null
+    private var mode: ((UiData) -> UiSurfaceKind)? = null
+
+    fun content(body: UiContent) {
+        content = body
+    }
+
+    /**
+     * Decides which host the surface is right now, from the bound document. Called on the client
+     * whenever the document changes.
+     */
+    fun mode(selector: (UiData) -> UiSurfaceKind) {
+        mode = selector
+    }
+
+    /** Shorthand for `input = OverlayInput.INTERACTIVE`; only matters while it is an overlay. */
+    fun interactive() {
+        input = OverlayInput.INTERACTIVE
+    }
+
+    internal fun build(): UiSurfaceDefinition {
+        val body = content ?: error("UI surface '$id' declares no content { } block")
+        return UiSurfaceDefinition(
+            id = id,
+            screen = UiScreenDefinition(
+                id = id,
+                title = title,
+                closeOnEscape = closeOnEscape,
+                pausesGame = pausesGame,
+                rebuildEveryFrame = rebuildEveryFrame,
+                guiScale = guiScale,
+                exitDuration = exitDuration,
+                content = body,
+            ),
+            overlay = UiOverlayDefinition(
+                id = id,
+                anchor = VanillaHudLayers.parse(anchor),
+                placement = placement,
+                autoShow = false,
+                input = input,
+                aboveScreens = aboveScreens,
+                rebuildEveryFrame = rebuildEveryFrame,
+                content = body,
+            ),
+            mode = mode ?: error("UI surface '$id' declares no mode { } block"),
+        )
+    }
 }
 
 class UiOverlayBuilder internal constructor(private val id: ResourceLocation) {

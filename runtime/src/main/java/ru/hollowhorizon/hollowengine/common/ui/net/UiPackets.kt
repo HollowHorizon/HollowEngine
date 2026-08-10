@@ -35,6 +35,16 @@ class ShowUiOverlayPacket(
     override fun handle(player: Player) = UiScriptClient.showOverlay(sessionId, overlay, state)
 }
 
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
+@Serializable
+class OpenUiSurfacePacket(
+    val sessionId: Int,
+    val surface: ResourceLocation,
+    val state: CompoundTag = CompoundTag(),
+) : HollowPacket {
+    override fun handle(player: Player) = UiScriptClient.openSurface(sessionId, surface, state)
+}
+
 /**
  * Merges [patch] into a session's bound document and drops [removed] paths. Only changed fields
  * travel, so a HUD bound to a frequently changing value does not resend the whole document.

@@ -34,15 +34,16 @@ internal fun blurBackdropTexture(
     width: Int,
     height: Int,
     radius: Float,
+    opaqueSource: Boolean,
 ): UiFramebuffer {
     val blurFilter = UiFilterChain(listOf(UiFilterEffect.Blur(radius)))
     renderBlurPass(
         workspace.intermediate, workspace.capture.texture, workspace.width, workspace.height,
-        width, height, blurFilter, horizontal = true, opaqueSource = true,
+        width, height, blurFilter, horizontal = true, opaqueSource = opaqueSource,
     )
     renderBlurPass(
         workspace.capture, workspace.intermediate.texture, workspace.width, workspace.height,
-        width, height, blurFilter, horizontal = false, opaqueSource = true,
+        width, height, blurFilter, horizontal = false, opaqueSource = opaqueSource,
     )
     return workspace.capture
 }
@@ -61,6 +62,7 @@ private fun renderBlurPass(
     target.bind()
     GL11.glViewport(0, 0, width, height)
     configureBlurProjection(width.toFloat(), height.toFloat())
+    uiWriteAlpha(true)
     configureUiBlend()
     GL11.glClearColor(0f, 0f, 0f, 0f)
     GL11.glEnable(GL11.GL_SCISSOR_TEST)

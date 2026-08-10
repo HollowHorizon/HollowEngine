@@ -190,7 +190,7 @@ data class DrawItemCommand(
 data class DrawEntityCommand(
     override val node: UiNode,
     val rect: UiRect,
-    val entity: String,
+    val entity: UiEntityRef,
     val opacity: Float,
     val transform: UiMatrix4,
     val renderToFramebuffer: Boolean,

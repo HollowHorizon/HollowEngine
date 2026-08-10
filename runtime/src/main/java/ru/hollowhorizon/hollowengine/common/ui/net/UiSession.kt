@@ -7,8 +7,18 @@ import ru.hollowhorizon.hollowengine.common.data.DataKey
 import ru.hollowhorizon.hollowengine.common.data.encode
 import ru.hollowhorizon.hollowengine.common.slots.SlotContainer
 
-/** Whether a session drives a full screen or a HUD overlay. */
-enum class UiSurfaceKind { SCREEN, OVERLAY }
+/** Whether a session drives a full screen, a HUD overlay, or something that switches between them. */
+enum class UiSurfaceKind {
+    SCREEN,
+    OVERLAY,
+
+    /**
+     * A `surface { }` declaration that decides for itself which of the two it currently is, from the
+     * document the session feeds it. The server never has to know which, it opens one session and
+     * writes to one document, and the client mounts whichever host the script asked for.
+     */
+    ADAPTIVE,
+}
 
 /**
  * A server's handle on one open piece of UI. The server writes into the session's document and the

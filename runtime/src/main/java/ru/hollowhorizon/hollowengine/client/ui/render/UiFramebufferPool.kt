@@ -283,7 +283,10 @@ internal class UiLayerFramebuffer(
         GL11.glClearColor(0f, 0f, 0f, 0f)
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         if (!depthMask) GL11.glDepthMask(true)
+        val writesAlpha = uiBlendWritesAlpha
+        if (!writesAlpha) uiWriteAlpha(true)
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT or GL11.GL_DEPTH_BUFFER_BIT)
+        if (!writesAlpha) uiWriteAlpha(false)
         if (!depthMask) GL11.glDepthMask(false)
         disableScissor()
     }

@@ -45,6 +45,23 @@ class StoryParserTest {
     }
 
     @Test
+    fun `a braced expression right before the colon is the speaker`() {
+        val parsed = StoryParser.parse("{player}: Стою!\n{money} монет: не густо.")
+        val braced = parsed.cst.lines[0].kind
+        assertIs<StoryLineKind.Dialogue>(braced)
+        assertNull(braced.speaker)
+        assertEquals("player", (braced.speakerExpr as StoryExpr.VarRef).name)
+        assertEquals("Стою!", braced.text.literalText())
+
+        // The braces have to sit on the colon; anything between them makes it an ordinary line.
+        val narration = parsed.cst.lines[1].kind
+        assertIs<StoryLineKind.Dialogue>(narration)
+        assertNull(narration.speakerExpr)
+        assertNull(narration.speaker)
+        assertEquals(" монет: не густо.", narration.text.literalText())
+    }
+
+    @Test
     fun `a single word before a colon is always a speaker`() {
         val parsed = StoryParser.parse("Баланс: 10 монет.\nБаланс\\: 10 монет.")
         val speakerLine = parsed.cst.lines[0].kind

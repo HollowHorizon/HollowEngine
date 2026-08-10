@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
@@ -20,6 +21,7 @@ import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
+import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.render.render
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
@@ -30,6 +32,8 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
+import ru.hollowhorizon.hollowengine.common.entities.nameplateMode
+import ru.hollowhorizon.hollowengine.common.geary.components.NameplateMode
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -63,6 +67,8 @@ private const val MinSvgRasterSize = 16
 private const val MaxSvgRasterSize = 4096
 private const val TextClipEpsilon = 0.01f
 private const val ProjectiveLayerTextureSubdivisions = 12
+
+private const val PORTRAIT_YAW = 180f
 
 internal fun layerTextureSubdivisions(transform: UiMatrix4): Int =
     if (transform.hasPlanarPerspective) ProjectiveLayerTextureSubdivisions else 1
@@ -230,6 +236,7 @@ class MinecraftUiRenderer {
         val previousTarget = renderTarget
         renderTarget = target
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
+        val blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND)
         try {
             releasePreparedLayers()
             itemDepthOffset = 0f
@@ -257,6 +264,9 @@ class MinecraftUiRenderer {
         } finally {
             if (layerProjectionActive) restoreMainProjection()
             GL11.glDepthMask(depthMask)
+            uiWriteAlpha(true)
+            RenderSystem.defaultBlendFunc()
+            if (!blendEnabled) RenderSystem.disableBlend()
             releasePreparedLayers()
             renderTarget = previousTarget
             activeProfile = null
@@ -883,6 +893,7 @@ class MinecraftUiRenderer {
         framebuffer.clear()
         framebuffer.bind()
         configureLayerProjection(logicalWidth, logicalHeight)
+        uiWriteAlpha(true)
         configureUiBlend()
         RenderSystem.disableDepthTest()
         layerStack.addLast(
@@ -1008,6 +1019,7 @@ class MinecraftUiRenderer {
 
     private fun setupParentLayerContext(parentLayer: LayerState) {
         parentLayer.framebuffer.bind()
+        uiWriteAlpha(true)
         configureLayerProjection(
             parentLayer.rect.width + parentLayer.padding * 2f, parentLayer.rect.height + parentLayer.padding * 2f
         )
@@ -1122,6 +1134,7 @@ class MinecraftUiRenderer {
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val target = currentTarget()
         if (target.logicalWidth <= 0f || target.logicalHeight <= 0f) return
+        val insideLayer = layerStack.isNotEmpty()
         val local = localRect(command.rect)
         val scaleX = target.width / target.logicalWidth
         val scaleY = target.height / target.logicalHeight
@@ -1167,12 +1180,13 @@ class MinecraftUiRenderer {
         )
 
         val source = if (blurRadius > 0f) {
-            blurBackdropTexture(workspace, captureWidth, captureHeight, blurRadius * captureScale)
+            blurBackdropTexture(workspace, captureWidth, captureHeight, blurRadius * captureScale, !insideLayer)
         } else {
             capture
         }
         val compositeFilter = command.filter.withoutBlur()
         bindTarget(target)
+        uiWriteAlpha(insideLayer)
         configureLayerProjection(target.logicalWidth, target.logicalHeight)
         restoreActiveClip()
         val sampleBottom = sampleBounds.y + sampleBounds.height
@@ -1201,7 +1215,7 @@ class MinecraftUiRenderer {
             subdivisions = 1,
             maskRadius = command.radius,
             maskScale = target.scale * captureScale,
-            opaqueSource = true,
+            opaqueSource = !insideLayer,
         )
         if (restoreProjection) restoreMainProjection()
     }
@@ -1949,15 +1963,11 @@ class MinecraftUiRenderer {
     private fun drawEntity(command: DrawEntityCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        val entity = when (command.entity) {
-            "player" -> Minecraft.getInstance().player
-            else -> null
+        val entity = command.entity.resolve()
+        val target = transformedLocalRect(UiRect(0f, 0f, command.rect.width, command.rect.height), transform)
+        if (entity == null || !renderEntity(entity, target)) {
+            drawEntityPlaceholder(command)
         }
-        if (entity != null) {
-            renderEntity(entity, localRect(command.rect))
-            return
-        }
-        drawEntityPlaceholder(command)
     }
 
     private fun drawEntityPlaceholder(command: DrawEntityCommand) {
@@ -2003,7 +2013,8 @@ class MinecraftUiRenderer {
         }
     }
 
-    private fun renderEntity(entity: LivingEntity, rect: UiRect) {
+    /** Returns false when nothing can draw this entity, so the caller shows the placeholder. */
+    private fun renderEntity(entity: Entity, rect: UiRect): Boolean {
         val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         POSE_STACK.pushPose()
@@ -2012,9 +2023,9 @@ class MinecraftUiRenderer {
             val yOffset = rect.y + rect.height
             POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
             val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
-            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(180f))
+            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
             POSE_STACK.scale(scale, scale, scale)
-            POSE_STACK.mulPose(Quaternionf().rotateY(25f * Mth.DEG_TO_RAD))
+            POSE_STACK.mulPose(Quaternionf().rotateY(160f * Mth.DEG_TO_RAD))
 
             val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
             val light1 = Vector3f(0.3f, -1f, -1f).normalize()
@@ -2027,10 +2038,13 @@ class MinecraftUiRenderer {
             RenderSystem.enableDepthTest()
             GL11.glDepthMask(true)
             try {
-                RenderSystem.runAsFancy {
-                    dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
+                facingTheViewer(entity) {
+                    RenderSystem.runAsFancy {
+                        dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
+                    }
                 }
                 buffers.endBatch()
+                return true
             } finally {
                 dispatcher.setRenderShadow(true)
             }
@@ -2039,6 +2053,48 @@ class MinecraftUiRenderer {
             POSE_STACK.popPose()
             if (!depthEnabled) RenderSystem.disableDepthTest()
             GL11.glDepthMask(depthMask)
+        }
+    }
+    
+    private inline fun facingTheViewer(entity: Entity, block: () -> Unit) {
+        val yRot = entity.yRot
+        val yRotO = entity.yRotO
+        val xRot = entity.xRot
+        val xRotO = entity.xRotO
+        val living = entity as? LivingEntity
+        val bodyRot = living?.yBodyRot
+        val bodyRotO = living?.yBodyRotO
+        val headRot = living?.yHeadRot
+        val headRotO = living?.yHeadRotO
+        val nameVisible = entity.isCustomNameVisible
+        val oldName = entity.customName
+        try {
+            entity.yRot = PORTRAIT_YAW
+            entity.yRotO = PORTRAIT_YAW
+            entity.xRot = 0f
+            entity.xRotO = 0f
+            living?.let {
+                it.yBodyRot = PORTRAIT_YAW
+                it.yBodyRotO = PORTRAIT_YAW
+                it.yHeadRot = PORTRAIT_YAW
+                it.yHeadRotO = PORTRAIT_YAW
+            }
+            entity.isCustomNameVisible = false
+            entity.customName = null
+            block()
+        } finally {
+            entity.yRot = yRot
+            entity.yRotO = yRotO
+            entity.xRot = xRot
+            entity.xRotO = xRotO
+            living?.let {
+                it.yBodyRot = bodyRot ?: it.yBodyRot
+                it.yBodyRotO = bodyRotO ?: it.yBodyRotO
+                it.yHeadRot = headRot ?: it.yHeadRot
+                it.yHeadRotO = headRotO ?: it.yHeadRotO
+            }
+            entity.isCustomNameVisible = nameVisible
+            entity.customName = oldName
         }
     }
 
@@ -2114,6 +2170,7 @@ class MinecraftUiRenderer {
     }
 
     private fun bindRootTarget() {
+        uiWriteAlpha(false)
         val target = renderTarget
         if (target == null) {
             Minecraft.getInstance().mainRenderTarget.bindWrite(true)

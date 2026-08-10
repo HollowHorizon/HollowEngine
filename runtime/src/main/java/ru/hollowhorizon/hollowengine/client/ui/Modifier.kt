@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.copyToStableSet
@@ -322,7 +323,11 @@ fun Modifier.item(stack: ItemStack) = prop(UiProps.Item, UiItem(stack))
 /** Shorthand for a plain, single-count item id such as `minecraft:diamond`. */
 fun Modifier.item(id: String) = prop(UiProps.Item, UiItem.of(id))
 
-fun Modifier.entity(source: String) = prop(UiProps.Entity, source)
+/** Draws [entity] itself, the one this client is already ticking, equipment and pose included. */
+fun Modifier.entity(entity: Entity) = prop(UiProps.Entity, UiEntityRef.of(entity))
+
+/** Draws the entity this client knows by [networkId]; how a server-driven UI names one. */
+fun Modifier.entity(networkId: Int) = prop(UiProps.Entity, UiEntityRef.ofId(networkId))
 
 fun Modifier.shader(name: String) = prop(UiProps.Shader, name)
 

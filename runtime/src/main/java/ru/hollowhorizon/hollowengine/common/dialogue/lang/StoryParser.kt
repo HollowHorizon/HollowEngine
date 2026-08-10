@@ -392,22 +392,35 @@ class StoryParser(private val source: String) {
 
     private fun parseDialogue(line: Int, offset: Int, raw: String, start: Int, end: Int): StoryLineKind {
         var speaker: String? = null
+        var speakerExpr: StoryExpr? = null
         var speakerSpan: StorySpan? = null
         var textStart = start
 
-        val colon = raw.indexOf(':', start)
-        if (colon in (start + 1) until end) {
-            val candidate = raw.substring(start, colon)
-            if (candidate.all { isNameChar(it) }) {
-                speaker = candidate
-                speakerSpan = span(offset, line, start, colon)
-                textStart = colon + 1
+        if (raw[start] == '{') {
+            val closing = findClosingBracket(raw, start, end, '{', '}')
+            if (closing != null && closing + 1 < end && raw[closing + 1] == ':') {
+                speakerExpr = StoryExprParser(raw, offset, line, start + 1, closing).parse()
+                speakerSpan = span(offset, line, start, closing + 1)
+                textStart = closing + 2
                 while (textStart < end && (raw[textStart] == ' ' || raw[textStart] == '\t')) textStart++
             }
         }
 
+        if (speakerExpr == null) {
+            val colon = raw.indexOf(':', start)
+            if (colon in (start + 1) until end) {
+                val candidate = raw.substring(start, colon)
+                if (candidate.all { isNameChar(it) }) {
+                    speaker = candidate
+                    speakerSpan = span(offset, line, start, colon)
+                    textStart = colon + 1
+                    while (textStart < end && (raw[textStart] == ' ' || raw[textStart] == '\t')) textStart++
+                }
+            }
+        }
+
         val text = parseTemplate(line, offset, raw, textStart, end, allowInline = true)
-        return StoryLineKind.Dialogue(speaker, speakerSpan, text)
+        return StoryLineKind.Dialogue(speaker, speakerSpan, text, speakerExpr)
     }
 
     private fun parseTemplate(

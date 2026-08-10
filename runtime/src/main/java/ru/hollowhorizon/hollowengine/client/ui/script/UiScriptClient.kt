@@ -36,12 +36,22 @@ object UiScriptClient {
         UiScriptHudHost.show(overlay, sessionId, state)
     }
 
+    /** Opens a surface that picks its own host; see [UiAdaptiveSurfaces]. */
+    fun openSurface(sessionId: Int, surface: ResourceLocation, state: CompoundTag) {
+        UiAdaptiveSurfaces.open(sessionId, surface, state)
+    }
+
     fun applyPatch(sessionId: Int, patch: CompoundTag, removed: List<String>) {
+        if (UiAdaptiveSurfaces.applyPatch(sessionId, patch, removed)) return
         activeScreen(sessionId)?.data?.applyPatch(patch, removed)
         UiScriptHudHost.applyPatch(sessionId, patch, removed)
     }
 
     fun close(sessionId: Int) {
+        if (UiAdaptiveSurfaces.close(sessionId)) {
+            ClientSlots.close(sessionId)
+            return
+        }
         val screen = activeScreen(sessionId)
         if (screen != null) {
             screenSessionId = null
@@ -69,6 +79,7 @@ object UiScriptClient {
 
     /** Forgets every server-driven UI; used when leaving a world. */
     fun reset() {
+        UiAdaptiveSurfaces.reset()
         screenSessionId = null
         UiScriptHudHost.reload()
         HudLayerRegistry.releaseAll(HudLayerRegistry.ServerOwner)

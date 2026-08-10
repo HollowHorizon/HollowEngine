@@ -116,11 +116,17 @@ sealed interface StoryLineKind {
         val args: List<StoryArg>,
     ) : StoryLineKind
 
-    /** `Vitalik: Hello!` or narrator text. [speaker] may be null for narrator lines. */
+    /**
+     * `Vitalik: Hello!`, `{player}: Hello!` or narrator text.
+     *
+     * [speaker] is the name written before the colon and [speakerExpr] the `{...}` form of it; both
+     * are null for narration, and never both set. [speakerSpan] covers whichever one was written.
+     */
     data class Dialogue(
         val speaker: String?,
         val speakerSpan: StorySpan?,
         val text: TextTemplate,
+        val speakerExpr: StoryExpr? = null,
     ) : StoryLineKind
 }
 

@@ -125,7 +125,7 @@ object UiProps {
     )
     val Image = prop<String?>("image", null)
     val Item = prop<UiItem?>("item", null)
-    val Entity = prop<String?>("entity", null)
+    val Entity = prop<UiEntityRef?>("entity", null)
     val Shader = prop<String?>("shader", null)
     val Shadows = prop(
         "shadow", emptyList(), aliases = setOf("shadows", "box-shadow"),

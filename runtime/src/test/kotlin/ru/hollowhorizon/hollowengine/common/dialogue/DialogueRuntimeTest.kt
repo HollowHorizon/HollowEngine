@@ -370,6 +370,38 @@ class DialogueRuntimeTest {
     }
 
     @Test
+    fun `a braced speaker names the character through a value`() = runTest {
+        val presenter = RecordingPresenter()
+        val controller = controller(
+            """
+            {Сторож}: Стой где стоишь.
+            @set кто = "Сторож"
+            {кто}: И не двигайся.
+            """.trimIndent(),
+            presenter,
+        )
+
+        controller.startHeadless {
+            character("Сторож", DialogueCharacter.of("Виталик"))
+        }
+
+        assertEquals(
+            listOf("Виталик: Стой где стоишь.", "Виталик: И не двигайся."),
+            presenter.lines,
+        )
+    }
+
+    @Test
+    fun `a braced speaker nothing is bound to fails instead of speaking as itself`() = runTest {
+        val presenter = RecordingPresenter()
+        val controller = controller("{Смотритель}: Кто здесь?", presenter)
+
+        val result = controller.startHeadless()
+
+        assertTrue(result is DialogueResult.Failed, "a misspelled speaker must be reported, not shown")
+    }
+
+    @Test
     fun `asking a name-only character for a uuid fails clearly`() = runTest {
         val presenter = RecordingPresenter()
         val controller = controller("Кто это? {Сторож.uuid}", presenter)

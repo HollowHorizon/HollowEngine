@@ -57,6 +57,12 @@ data class DialogueLineView(
     val id: Int = 0,
     /** Empty for narration, which hides the name plate. */
     val speaker: String = "",
+    /**
+     * The speaker's entity as this client knows it, or -1 when the speaker is a plain name. An
+     * entity cannot travel, so what travels is its id and the client draws the one it already has,
+     * live equipment, pose and all. See `UiEntityRef`.
+     */
+    val speakerEntity: Int = -1,
     val text: String = "",
     /** Milliseconds per character; 0 shows the whole line at once. */
     val charDelay: Int = 0,

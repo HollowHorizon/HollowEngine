@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.render
 
 import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.math.Axis
 import net.minecraft.client.CameraType
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
@@ -25,6 +26,8 @@ import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingMan
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.RequireMod
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
@@ -50,6 +53,13 @@ object RenderManager {
     @RequireMod("iris")
     fun onDispatchDeferredLightCulling(event: RenderLevelStageEvent) {
         ClusteredLightingManager.dispatchDeferredCulling(event)
+    }
+
+    private var isWorldPass = false
+
+    @SubscribeEvent
+    fun onTrackWorldPass(event: RenderLevelStageEvent) {
+        isWorldPass = event.stage != RenderStage.AFTER_LEVEL
     }
 
     @SubscribeEvent
@@ -151,6 +161,8 @@ object RenderManager {
                 if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime,
             )
 
+            if (record.hostEntityUuid != null) return@forEachModelNodeRecord
+
             if (record.hostEntity === minecraft.player && minecraft.options.cameraType == CameraType.FIRST_PERSON) {
                 return@forEachModelNodeRecord
             }
@@ -197,6 +209,66 @@ object RenderManager {
         }
         AnimatorRuntimeRegistry.retain(activeAnimatorKeys)
         return NodeRenderStats(renderedAny, openedBatchedRenderTypes)
+    }
+
+    @SubscribeEvent
+    fun onRenderEntityNodes(event: RenderEntityEvent.Pre) {
+        renderHostedNodes(event.entity, event.partialTicks, event.poseStack, event.buffer, event.packedLight)
+    }
+
+    @SubscribeEvent
+    fun onRenderPlayerNodes(event: RenderPlayerEvent) {
+        renderHostedNodes(event.player, event.partialTicks, event.poseStack, event.buffer, event.packedLight)
+    }
+
+    private fun renderHostedNodes(
+        entity: Entity,
+        partialTick: Float,
+        poseStack: PoseStack,
+        bufferSource: MultiBufferSource,
+        packedLight: Int,
+    ) {
+        val level = Minecraft.getInstance().level ?: return
+        val materialization = NodeRuntimeState.service(level)
+        val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
+        val allowInstancing = isWorldPass && shouldAllowInstancingInCurrentPass()
+        var renderedAny = false
+
+        materialization.forEachModelNodeRecord { record, node ->
+            if (record.hostEntity !== entity) return@forEachModelNodeRecord
+            val hostYaw = when (entity) {
+                is LivingEntity -> Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)
+                else -> Mth.rotLerp(partialTick, entity.yRotO, entity.yRot)
+            }
+            val local = node.transform.transform
+            poseStack.pushPose()
+            poseStack.mulPose(Axis.YP.rotationDegrees(180f - hostYaw))
+            poseStack.translate(
+                local.translation.x.toDouble(),
+                local.translation.y.toDouble(),
+                local.translation.z.toDouble(),
+            )
+            poseStack.mulPose(Quaternionf(local.rotation.x, local.rotation.y, local.rotation.z, local.rotation.w))
+            poseStack.scale(local.scale.x, local.scale.y, local.scale.z)
+            node.model.attachment.pipeline.render(
+                RenderContext(
+                    poseStack,
+                    bufferSource,
+                    packedLight,
+                    (entity as? LivingEntity)?.let { LivingEntityRenderer.getOverlayCoords(it, 0f) }
+                        ?: OverlayTexture.NO_OVERLAY,
+                    allowInstancing = allowInstancing,
+                    openedBatchedRenderTypes = openedBatchedRenderTypes,
+                )
+            )
+            poseStack.popPose()
+            renderedAny = true
+        }
+
+        if (renderedAny && !isWorldPass) {
+            (bufferSource as? MultiBufferSource.BufferSource)
+                ?.let { flushable -> openedBatchedRenderTypes.forEach(flushable::endBatch) }
+        }
     }
 
     private fun animatorContext(entity: Entity?, partialTick: Float): AnimatorEvaluationContext {

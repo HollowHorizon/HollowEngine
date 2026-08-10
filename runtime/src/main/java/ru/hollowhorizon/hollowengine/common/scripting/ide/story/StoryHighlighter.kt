@@ -59,7 +59,11 @@ internal object StoryHighlighter {
             }
 
             is StoryLineKind.Dialogue -> {
-                kind.speakerSpan?.let { out += TextSpan(it.start, it.end, TokenType.CLASS) }
+                val speakerExpr = kind.speakerExpr
+                kind.speakerSpan?.let {
+                    out += TextSpan(it.start, it.end, if (speakerExpr == null) TokenType.CLASS else TokenType.VARIABLE)
+                }
+                speakerExpr?.let { exprSpans(it, out) }
                 templateSpans(kind.text, out, catalog)
             }
 

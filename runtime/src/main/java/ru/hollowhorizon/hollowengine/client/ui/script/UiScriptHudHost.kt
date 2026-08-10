@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.script
 
 import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -33,10 +34,19 @@ object UiScriptHudHost {
         definition: UiOverlayDefinition,
         sessionId: Int? = null,
         initialState: CompoundTag = CompoundTag(),
+    ) = show(definition, sessionId, UiData(initialState))
+
+    /**
+     * Shows an overlay around a document that already exists. An adaptive surface switching hosts
+     * hands its own [UiData] over this way, so nothing it had is lost on the way across.
+     */
+    fun show(
+        definition: UiOverlayDefinition,
+        sessionId: Int?,
+        data: UiData,
     ) {
         onRenderThread {
             hideNow(definition.id)
-            val data = UiData(initialState)
             lateinit var surface: UiScriptSurface
             surface = UiScriptSurface(
                 content = definition.content,
@@ -164,11 +174,15 @@ object UiScriptHudHost {
         }
     }
 
-    /** Dispatches an input action to the most recently shown interactive overlay that consumes it. */
+    /**
+     * Dispatches an input action to the most recently shown interactive overlay that consumes it.
+     */
     private inline fun dispatch(action: (ShownOverlay) -> Boolean): Boolean {
         if (shown.isEmpty()) return false
+        val screenOpen = Minecraft.getInstance().screen != null
         for (overlay in shown.values.reversed()) {
             if (!overlay.definition.isInteractive) continue
+            if (screenOpen && !overlay.definition.aboveScreens) continue
             if (action(overlay)) return true
         }
         return false
