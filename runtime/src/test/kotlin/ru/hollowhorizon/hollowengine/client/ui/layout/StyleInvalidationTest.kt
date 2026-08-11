@@ -59,7 +59,7 @@ class StyleInvalidationTest {
         fun fingerprint(vararg modifiers: Modifier) =
             modifiers.asList().flattenModifiers().toStylePatch().resolve().layoutFingerprint()
         val plain = fingerprint()
-        assertNotEquals(plain, fingerprint(Modifier.textEffects(Bold)), "bold changes glyph metrics")
+        assertNotEquals(plain, fingerprint(Modifier.textEffects(Bold())), "bold changes glyph metrics")
         assertNotEquals(plain, fingerprint(Modifier.clip()), "clip is baked into the layout node")
     }
 

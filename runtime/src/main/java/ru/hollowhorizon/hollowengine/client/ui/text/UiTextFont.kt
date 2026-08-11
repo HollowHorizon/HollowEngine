@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.text
 
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
-import ru.hollowhorizon.hollowengine.client.ui.widgets.bold
+import ru.hollowhorizon.hollowengine.client.ui.widgets.boldWeight
 import java.util.concurrent.ConcurrentHashMap
 
 internal sealed interface UiTextFont {
@@ -25,7 +25,15 @@ internal object UiTextFonts {
     fun resolve(fontFamily: String?): UiTextFont {
         val family = defaultedFamily(fontFamily)
         resolvedFonts[family]?.let { return it }
-        val metrics = UiMsdfFont.getMetrics(family) ?: return EstimatedTextFont
+        if (UiVanillaFont.isVanillaFamily(family)) {
+            val face = UiVanillaFont.face(family) ?: return EstimatedTextFont
+            return VanillaTextFont(family, face).also { resolvedFonts[family] = it }
+        }
+        val metrics = if (UiTtfFont.isTtfFamily(family)) {
+            UiTtfFont.metrics(family)
+        } else {
+            UiMsdfFont.getMetrics(family)
+        } ?: return EstimatedTextFont
         return MsdfTextFont(family, metrics).also { resolvedFonts[family] = it }
     }
 
@@ -42,8 +50,8 @@ internal object UiTextFonts {
         override fun lineHeight(fontSize: Float): Float = fontSize
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float {
-            val advance = EstimatedGlyphWidth + if (style.bold) 1f else 0f
-            return text.length * advance * (fontSize / DefaultUiFontSize)
+            val scale = fontSize / DefaultUiFontSize
+            return text.length * (EstimatedGlyphWidth * scale + style.boldWeight * fontSize)
         }
 
         private const val DefaultUiFontSize = 10f
@@ -58,13 +66,38 @@ internal object UiTextFonts {
         override fun lineHeight(fontSize: Float): Float = metrics.lineHeight(fontSize)
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float {
-            val boldOffset = if (style.bold) fontSize / 16f else 0f
+            val boldOffset = style.boldWeight * fontSize
             return metrics.width(text, fontSize) + text.length * boldOffset
         }
 
-        override fun advance(char: Char, fontSize: Float, style: UiInlineStyle): Float {
-            val boldOffset = if (style.bold) fontSize / 16f else 0f
-            return metrics.advance(char, fontSize) + boldOffset
+        override fun advance(char: Char, fontSize: Float, style: UiInlineStyle): Float =
+            metrics.advance(char, fontSize) + style.boldWeight * fontSize
+    }
+
+    /** Measurement over Minecraft's own font assets; see [UiVanillaFont]. */
+    private data class VanillaTextFont(
+        val family: String,
+        val face: UiVanillaFontFace,
+    ) : UiTextFont {
+        override val signature: Int = 31 * family.hashCode() + System.identityHashCode(face)
+
+        override fun lineHeight(fontSize: Float): Float = face.lineHeight(fontSize)
+
+        override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float =
+            face.width(text, fontSize) + text.length * style.boldWeight * fontSize
+
+        override fun advance(char: Char, fontSize: Float, style: UiInlineStyle): Float =
+            (face.advance(char) + style.boldWeight) * fontSize
+    }
+}
+
+internal object UiGlyphFonts {
+    fun resolve(fontFamily: String?): UiGlyphFont? {
+        val family = UiTextFonts.defaultedFamily(fontFamily)
+        return when {
+            UiVanillaFont.isVanillaFamily(family) -> UiVanillaFont.glyphFont(family)
+            UiTtfFont.isTtfFamily(family) -> UiTtfFont.glyphFont(family)
+            else -> UiMsdfFont.getOrLoadFontData(family)
         }
     }
 }

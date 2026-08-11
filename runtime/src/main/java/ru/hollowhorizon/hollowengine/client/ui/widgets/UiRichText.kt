@@ -57,10 +57,31 @@ val UiInlineStyle.italic: Boolean get() = effects.any { it is Italic }
 val UiInlineStyle.underline: Boolean get() = effects.any { it is Underline }
 val UiInlineStyle.strikethrough: Boolean get() = effects.any { it is Strikethrough }
 val UiInlineStyle.code: Boolean get() = effects.any { it is Code }
+
+/** Extra stroke width in em, or 0 when the run is not bold. Measured as well as drawn. */
+val UiInlineStyle.boldWeight: Float get() = effects.lastEffect<Bold>()?.weight ?: 0f
+
+/** Baseline shear in degrees, or 0 when the run is upright. */
+val UiInlineStyle.italicSkewDegrees: Float get() = effects.lastEffect<Italic>()?.skewDegrees ?: 0f
+
+val UiInlineStyle.underlineRule: Underline? get() = effects.lastEffect<Underline>()
+val UiInlineStyle.strikethroughRule: Strikethrough? get() = effects.lastEffect<Strikethrough>()
 val UiInlineStyle.link: String? get() = effects.lastEffect<Link>()?.url
 val UiInlineStyle.color: UiColor? get() = effects.lastEffect<TextColor>()?.value
 val UiInlineStyle.fontSize: Float? get() = effects.lastEffect<TextSize>()?.value
 val UiInlineStyle.fontFamily: String? get() = effects.lastEffect<TextFont>()?.name
+
+/**
+ * Lookups the renderer runs per drawn run. They take the effect list directly so a widget-level
+ * `text-effects` list can be consulted with the same code as a span's own style.
+ */
+fun List<UiTextEffect>.boldWeightOrZero(): Float = lastEffect<Bold>()?.weight ?: 0f
+
+fun List<UiTextEffect>.italicSkewOrZero(): Float = lastEffect<Italic>()?.skewDegrees ?: 0f
+
+fun List<UiTextEffect>.underlineRule(): Underline? = lastEffect()
+
+fun List<UiTextEffect>.strikethroughRule(): Strikethrough? = lastEffect()
 
 private inline fun <reified T : UiTextEffect> List<UiTextEffect>.lastEffect(): T? {
     for (index in indices.reversed()) {
@@ -70,10 +91,14 @@ private inline fun <reified T : UiTextEffect> List<UiTextEffect>.lastEffect(): T
     return null
 }
 
-fun UiInlineStyle.withBold(): UiInlineStyle = copy(effects = effects + Bold)
-fun UiInlineStyle.withItalic(): UiInlineStyle = copy(effects = effects + Italic)
-fun UiInlineStyle.withUnderline(): UiInlineStyle = copy(effects = effects + Underline)
-fun UiInlineStyle.withStrikethrough(): UiInlineStyle = copy(effects = effects + Strikethrough)
+fun UiInlineStyle.withBold(weight: Float = DefaultBoldWeight): UiInlineStyle =
+    copy(effects = effects + Bold(weight))
+
+fun UiInlineStyle.withItalic(skewDegrees: Float = DefaultItalicSkew): UiInlineStyle =
+    copy(effects = effects + Italic(skewDegrees))
+
+fun UiInlineStyle.withUnderline(): UiInlineStyle = copy(effects = effects + Underline())
+fun UiInlineStyle.withStrikethrough(): UiInlineStyle = copy(effects = effects + Strikethrough())
 fun UiInlineStyle.withCode(): UiInlineStyle = copy(effects = effects + Code)
 fun UiInlineStyle.withLink(url: String): UiInlineStyle = copy(effects = effects + Link(url))
 fun UiInlineStyle.withColor(value: UiColor): UiInlineStyle = copy(effects = effects + TextColor(value))

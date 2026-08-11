@@ -10,7 +10,8 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.ShaderInstanceAccessor
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiVec3
-import ru.hollowhorizon.hollowengine.client.ui.text.UiMsdfFontData
+import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphAtlasPage
+import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphSampling
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import java.nio.FloatBuffer
 
@@ -25,8 +26,14 @@ internal class UiMsdfTextBatch : AutoCloseable {
 
     val isEmpty: Boolean get() = vertices.size == 0
 
+    /**
+     * [u0]/[v0] address the quad's bottom-left corner and [u1]/[v1] its top-right one. [sdBias] and
+     * the page's sampling mode ride on the batch state rather than on each vertex: they are constant
+     * for a run, so a bold or bitmap run costs one extra flush at most.
+     */
     fun appendQuad(
-        font: UiMsdfFontData,
+        page: UiGlyphAtlasPage,
+        sdBias: Float,
         bottomRight: UiVec3,
         topRight: UiVec3,
         topLeft: UiVec3,
@@ -37,12 +44,13 @@ internal class UiMsdfTextBatch : AutoCloseable {
         v1: Float,
         color: UiColor,
     ) {
-        val atlas = font.meta.atlas
         val nextState = State(
-            texture = font.textureId,
-            distanceRange = atlas.distanceRange,
-            width = atlas.width.toFloat(),
-            height = atlas.height.toFloat(),
+            texture = page.textureId,
+            distanceRange = page.distanceRange,
+            width = page.width,
+            height = page.height,
+            sampling = page.sampling,
+            sdBias = sdBias,
         )
         if (state != null && state != nextState) flush()
         state = nextState
@@ -77,6 +85,8 @@ internal class UiMsdfTextBatch : AutoCloseable {
             shader.safeGetUniform("DistanceRange")?.set(current.distanceRange)
             shader.safeGetUniform("Softness")?.set(MsdfSoftness)
             shader.safeGetUniform("AtlasSize")?.set(current.width, current.height)
+            shader.safeGetUniform("GlyphMode")?.set(current.sampling.shaderMode.toFloat())
+            shader.safeGetUniform("SdBias")?.set(current.sdBias)
             shader.setDefaultUniforms(
                 VertexFormat.Mode.TRIANGLES,
                 RenderSystem.getModelViewMatrix(),
@@ -143,6 +153,8 @@ internal class UiMsdfTextBatch : AutoCloseable {
         val distanceRange: Float,
         val width: Float,
         val height: Float,
+        val sampling: UiGlyphSampling,
+        val sdBias: Float,
     )
 
     private companion object {

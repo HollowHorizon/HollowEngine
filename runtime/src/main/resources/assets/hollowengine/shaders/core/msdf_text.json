@@ -26,6 +26,8 @@
     { "name": "GlowColor", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
     { "name": "ShadowOffset", "type": "float", "count": 2, "values": [ 0.0, 0.0 ] },
     { "name": "ShadowColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
-    { "name": "AtlasSize", "type": "float", "count": 2, "values": [ 512.0, 512.0 ] }
+    { "name": "AtlasSize", "type": "float", "count": 2, "values": [ 512.0, 512.0 ] },
+    { "name": "GlyphMode", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "SdBias", "type": "float", "count": 1, "values": [ 0.0 ] }
   ]
 }

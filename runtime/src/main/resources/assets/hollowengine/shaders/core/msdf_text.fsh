@@ -16,6 +16,10 @@ uniform vec4 ShadowColor;
 
 uniform vec2 AtlasSize;
 
+uniform float GlyphMode;
+
+uniform float SdBias;
+
 in vec2 texCoord0;
 in vec4 vertexColor;
 
@@ -25,9 +29,9 @@ float median(float r, float g, float b) {
     return max(min(r, g), min(max(r, g), b));
 }
 
-float sampleMsdf(vec2 uv) {
+float sampleMsdf(vec2 uv, float bias) {
     vec3 s = texture(Sampler0, uv).rgb;
-    return median(s.r, s.g, s.b) - 0.5;
+    return median(s.r, s.g, s.b) - 0.5 + bias;
 }
 
 float screenPxRange() {
@@ -53,11 +57,21 @@ vec4 blendOver(vec4 dst, vec4 src) {
 }
 
 void main() {
+    if (GlyphMode > 0.5) {
+        vec4 texel = texture(Sampler0, texCoord0);
+        vec4 tint = vertexColor * ColorModulator;
+        vec3 rgb = GlyphMode > 1.5 ? tint.rgb * texel.rgb : tint.rgb;
+        float alpha = tint.a * texel.a;
+        if (alpha < 0.01) discard;
+        fragColor = vec4(rgb, alpha);
+        return;
+    }
+
     float pxRange = screenPxRange();
-
-    float sd = sampleMsdf(texCoord0) * pxRange;
-
     float edgeSoftness = max(1.0 + Softness, 1.0);
+    float bias = min(SdBias, max(0.5 - 0.5 * edgeSoftness / pxRange, 0.0));
+
+    float sd = sampleMsdf(texCoord0, bias) * pxRange;
 
     float fillAlpha = coverage(sd, 0.0, edgeSoftness);
 
@@ -75,7 +89,7 @@ void main() {
     float shadowAlpha = 0.0;
     if (ShadowColor.a > 0.001 && (abs(ShadowOffset.x) > 0.0001 || abs(ShadowOffset.y) > 0.0001)) {
         vec2 shadowUv = texCoord0 + ShadowOffset * fwidth(texCoord0);
-        float shadowSd = sampleMsdf(shadowUv) * pxRange;
+        float shadowSd = sampleMsdf(shadowUv, bias) * pxRange;
         shadowAlpha = coverage(shadowSd, 0.0, edgeSoftness);
     }
 

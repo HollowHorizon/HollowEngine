@@ -40,10 +40,10 @@ internal fun parseTextEffect(entry: String): UiTextEffect {
     val args = if (nameEnd < 0) emptyList() else functionArgs(entry, name)
 
     return when (name) {
-        "bold" -> Bold
-        "italic" -> Italic
-        "underline" -> Underline
-        "strikethrough" -> Strikethrough
+        "bold" -> Bold(args.getOrNull(0)?.let(::parseScalar) ?: DefaultBoldWeight)
+        "italic" -> Italic(args.getOrNull(0)?.let(::parseScalar) ?: DefaultItalicSkew)
+        "underline" -> parseHssRule(args, ::Underline)
+        "strikethrough" -> parseHssRule(args, ::Strikethrough)
         "code" -> Code
         "link" -> Link(args.firstOrNull() ?: "")
         "color" -> TextColor(if (args.isNotEmpty()) parseColor(args.first()) else UiColor.White)
@@ -65,6 +65,16 @@ internal fun parseTextEffect(entry: String): UiTextEffect {
         else -> throw IllegalArgumentException("Unknown text effect '$name'")
     }
 }
+
+/** `underline(thickness, offset, color)` / `strikethrough(...)`; every argument is optional. */
+private fun <T : UiTextEffect> parseHssRule(
+    args: List<String>,
+    create: (thickness: Float, offset: Float, color: UiColor?) -> T,
+): T = create(
+    args.getOrNull(0)?.let(::parseScalar) ?: 0f,
+    args.getOrNull(1)?.let(::parseScalar) ?: 0f,
+    args.getOrNull(2)?.let(::parseColor),
+)
 
 private fun parseHssShadow(args: List<String>): Shadow {
     return Shadow(

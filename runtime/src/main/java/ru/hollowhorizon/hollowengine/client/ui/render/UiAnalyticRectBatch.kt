@@ -2,7 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui.render
 
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.render.UiShaderClip.Companion.None
+import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
+import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphSampling
 import java.nio.FloatBuffer
 import kotlin.math.abs
 import kotlin.math.min
@@ -99,9 +101,12 @@ internal class UiAnalyticRectBatch {
     }
 
     /**
-     * A single MSDF glyph quad. [minX]..[maxY] are the glyph's local-space bounds (the shared run
+     * A single glyph quad. [minX]..[maxY] are the glyph's local-space bounds (the shared run
      * [transform] maps them to screen), [u0]..[v1] the atlas UV rect, drawn in [color] and clipped
      * by [clip]. All glyphs in a batch must share one [atlas] (see [acceptsGlyphAtlas]).
+     *
+     * [sampling] picks how the atlas texel becomes coverage, and [sdBias] grows the signed-distance
+     * edge for faux-bold (distance-field sampling only; ignored for bitmap atlases).
      */
     fun appendGlyph(
         transform: UiMatrix4,
@@ -119,16 +124,39 @@ internal class UiAnalyticRectBatch {
         distanceRange: Float,
         atlasWidth: Float,
         atlasHeight: Float,
+        sampling: UiGlyphSampling = UiGlyphSampling.MSDF,
+        sdBias: Float = 0f,
     ) {
         atlasTextureId = atlas
         glyphDistanceRange = distanceRange
         glyphAtlasWidth = atlasWidth
         glyphAtlasHeight = atlasHeight
-        records.add(GlyphMarker, 0f, 0f, 0f)
+        records.add(GlyphMarker, sdBias, sampling.shaderMode.toFloat(), 0f)
         records.add(u0, v0, u1, v1)
         records.add(color.red, color.green, color.blue, color.alpha)
         records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
         appendInstance(transform, minX, minY, maxX, maxY)
+    }
+
+    /**
+     * A plain untextured rectangle at the batch's current position, for text decorations (underline
+     * and strikethrough rules). Sharing the glyph batch keeps a decorated run at one draw call and
+     * puts the rule on top of the glyphs it follows.
+     */
+    fun appendSolidRect(
+        transform: UiMatrix4,
+        width: Float,
+        height: Float,
+        color: UiColor,
+        clip: UiShaderClip,
+    ) {
+        if (width <= 0f || height <= 0f || color.alpha <= 0f) return
+        val paintIndex = paintEncoder.append(UiResolvedPaint.Color(color), 1f, UiFilterChain.Empty, width, height)
+        records.add(width, height, 0f, 0f)
+        records.add(paintIndex.toFloat(), 0f, 0f, 0f)
+        records.add(0f, 0f, 0f, 0f)
+        records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
+        appendInstance(transform, 0f, 0f, width, height)
     }
 
     fun clear() {

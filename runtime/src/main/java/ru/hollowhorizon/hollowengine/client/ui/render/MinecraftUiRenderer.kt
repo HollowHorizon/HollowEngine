@@ -70,6 +70,15 @@ private const val ProjectiveLayerTextureSubdivisions = 12
 
 private const val PORTRAIT_YAW = 180f
 
+/** Colour links are drawn in when the style does not name one. */
+private val LinkColor = UiColor(0.34f, 0.67f, 1f, 1f)
+
+/** Below this an underline can fall between pixel centres and vanish entirely. */
+private const val MinTextRuleThickness = 0.5f
+
+/** Below this a second stamp is not worth a draw: it would land inside the first one's edge. */
+private const val MinBoldStampOffset = 0.15f
+
 internal fun layerTextureSubdivisions(transform: UiMatrix4): Int =
     if (transform.hasPlanarPerspective) ProjectiveLayerTextureSubdivisions else 1
 
@@ -1598,16 +1607,163 @@ class MinecraftUiRenderer {
             )
         }
 
-        drawMsdfTextRun(
-            command,
-            fragment,
-            transform,
-            localX,
-            localY,
-            fontSize,
-            UiTextFonts.defaultedFamily(fontFamily),
-            colorOverride,
-            alphaMultiplier,
+        val font = UiGlyphFonts.resolve(fontFamily) ?: return
+        val baselineY = localY + font.ascender * fontSize
+        val boldWeight = fragment.style.effects.boldWeightOrZero()
+            .takeIf { it != 0f } ?: command.textEffects.boldWeightOrZero()
+        val skewDegrees = fragment.style.effects.italicSkewOrZero()
+            .takeIf { it != 0f } ?: command.textEffects.italicSkewOrZero()
+        val glyphTransform = if (skewDegrees == 0f) transform else transform * baselineShear(baselineY, skewDegrees)
+
+        val baseColor = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
+            LinkColor
+        } else {
+            command.color
+        }
+        val color = baseColor.withOpacity(command.opacity * alphaMultiplier).filtered(command.filter)
+
+        drawGlyphRun(fragment, font, glyphTransform, localX, baselineY, fontSize, color, boldWeight)
+        drawTextRules(command, fragment, font, glyphTransform, localX, baselineY, fontSize, color, alphaMultiplier)
+    }
+
+    /**
+     * Lays a run's glyphs down along the baseline. Every font kind, pre-baked MSDF asset, atlas
+     * baked from a `.ttf`, or a vanilla bitmap sheet, reduces to the same quad-per-glyph loop.
+     */
+    private fun drawGlyphRun(
+        fragment: UiTextRun,
+        font: UiGlyphFont,
+        transform: UiMatrix4,
+        localX: Float,
+        baselineY: Float,
+        fontSize: Float,
+        color: UiColor,
+        boldWeight: Float,
+    ) {
+        val boldAdvance = boldWeight * fontSize
+        var penX = localX
+        for (char in fragment.text) {
+            val glyph = font.glyph(char)
+            if (glyph == null || glyph.isBlank) {
+                penX += font.advance(char) * fontSize + boldAdvance
+                continue
+            }
+            val page = glyph.page
+            if (emitUnifiedGlyphs && !analyticRectBatch.acceptsGlyphAtlas(page.textureId)) {
+                flushAnalyticRectBatch()
+            }
+            val x0 = penX + glyph.left * fontSize
+            val x1 = penX + glyph.right * fontSize
+            val yTop = baselineY + glyph.top * fontSize
+            val yBottom = baselineY + glyph.bottom * fontSize
+            val bias = page.boldBias(font.emPixels, boldWeight)
+            appendGlyphQuad(page, transform, x0, yTop, x1, yBottom, glyph, color, bias)
+            val residual = (boldWeight - page.boldBiasWeight(font.emPixels, bias)) * fontSize
+            if (residual > MinBoldStampOffset) {
+                appendGlyphQuad(page, transform, x0 + residual, yTop, x1 + residual, yBottom, glyph, color, bias)
+            }
+            penX += glyph.advance * fontSize + boldAdvance
+        }
+    }
+
+    private fun appendGlyphQuad(
+        page: UiGlyphAtlasPage,
+        transform: UiMatrix4,
+        x0: Float,
+        yTop: Float,
+        x1: Float,
+        yBottom: Float,
+        glyph: UiPlacedGlyph,
+        color: UiColor,
+        sdBias: Float,
+    ) {
+        if (emitUnifiedGlyphs) {
+            analyticRectBatch.appendGlyph(
+                transform,
+                x0, yTop, x1, yBottom,
+                glyph.uMin, glyph.vTop, glyph.uMax, glyph.vBottom,
+                color, glyphClip,
+                page.textureId, page.distanceRange, page.width, page.height,
+                page.sampling, sdBias,
+            )
+            return
+        }
+        msdfTextBatch.appendQuad(
+            page,
+            sdBias,
+            transform.transform(x1, yBottom),
+            transform.transform(x1, yTop),
+            transform.transform(x0, yTop),
+            transform.transform(x0, yBottom),
+            glyph.uMin, glyph.vBottom, glyph.uMax, glyph.vTop,
+            color,
+        )
+    }
+
+    /** Underline and strikethrough rules, positioned from the font's own metrics. */
+    private fun drawTextRules(
+        command: DrawTextCommand,
+        fragment: UiTextRun,
+        font: UiGlyphFont,
+        transform: UiMatrix4,
+        localX: Float,
+        baselineY: Float,
+        fontSize: Float,
+        color: UiColor,
+        alphaMultiplier: Float,
+    ) {
+        val underline = fragment.style.effects.underlineRule() ?: command.textEffects.underlineRule()
+        val strikethrough = fragment.style.effects.strikethroughRule()
+            ?: command.textEffects.strikethroughRule()
+        if (underline == null && strikethrough == null) return
+        underline?.let {
+            drawTextRule(
+                command, transform, localX, fragment.width,
+                centreY = baselineY - (font.underlineY - it.offset) * fontSize,
+                thickness = (it.thickness.takeIf { value -> value > 0f } ?: font.underlineThickness) * fontSize,
+                color = it.color?.withOpacity(command.opacity * alphaMultiplier)?.filtered(command.filter) ?: color,
+            )
+        }
+        strikethrough?.let {
+            drawTextRule(
+                command, transform, localX, fragment.width,
+                centreY = baselineY - (font.strikethroughY - it.offset) * fontSize,
+                thickness = (it.thickness.takeIf { value -> value > 0f } ?: font.strikethroughThickness) * fontSize,
+                color = it.color?.withOpacity(command.opacity * alphaMultiplier)?.filtered(command.filter) ?: color,
+            )
+        }
+    }
+
+    private fun drawTextRule(
+        command: DrawTextCommand,
+        transform: UiMatrix4,
+        localX: Float,
+        width: Float,
+        centreY: Float,
+        thickness: Float,
+        color: UiColor,
+    ) {
+        if (width <= 0f || color.alpha <= 0f) return
+        val height = thickness.coerceAtLeast(MinTextRuleThickness)
+        val placement = transform.translated(localX, centreY - height / 2f)
+        if (emitUnifiedGlyphs) {
+            analyticRectBatch.appendSolidRect(placement, width, height, color, glyphClip)
+            return
+        }
+        flushTextBatch()
+        drawLocalPaint(width, height, 0f, color, placement, command.filter)
+    }
+
+    /** Shear about `y = baselineY`: `x' = x + tan(skew) * (baselineY - y)`, leaving y untouched. */
+    private fun baselineShear(baselineY: Float, skewDegrees: Float): UiMatrix4 {
+        val tangent = tan(skewDegrees * PI.toFloat() / 180f)
+        return UiMatrix4(
+            floatArrayOf(
+                1f, -tangent, 0f, tangent * baselineY,
+                0f, 1f, 0f, 0f,
+                0f, 0f, 1f, 0f,
+                0f, 0f, 0f, 1f,
+            )
         )
     }
 
@@ -1630,7 +1786,9 @@ class MinecraftUiRenderer {
 
         for (charIndex in fragment.text.indices) {
             val char = fragment.text[charIndex]
-            val charWidth = UiTextLayouter.measureTextWidth(char.toString(), fontSize, fontFamily)
+            val charWidth = UiTextLayouter.measureStyledTextWidth(
+                char.toString(), fontSize, fontFamily, fragment.style,
+            )
             val charPos = charIndex.toFloat() / totalChars.coerceAtLeast(1).toFloat()
             val charFragment = fragment.copy(text = char.toString(), x = charLocalX, width = charWidth)
 
@@ -1708,85 +1866,6 @@ class MinecraftUiRenderer {
             )
             charLocalX += charWidth
         }
-    }
-
-    private fun drawMsdfTextRun(
-        command: DrawTextCommand,
-        fragment: UiTextRun,
-        transform: UiMatrix4,
-        localX: Float,
-        localY: Float,
-        fontSize: Float,
-        fontFamily: String,
-        colorOverride: UiColor?,
-        alphaMultiplier: Float,
-    ): Boolean {
-        val fontData = UiMsdfFont.getOrLoadFontData(fontFamily) ?: return false
-        if (ModShaders.MSDF_TEXT == null) return false
-        val atlasInfo = fontData.meta.atlas
-        val metrics = fontData.meta.metrics
-        val atlasWidth = atlasInfo.width.toFloat()
-        val atlasHeight = atlasInfo.height.toFloat()
-        val pxPerEm = fontSize
-        val baselineY = metrics.ascender * pxPerEm
-
-        val baseColor = colorOverride ?: fragment.style.color ?: if (fragment.style.link != null) {
-            UiColor(0.34f, 0.67f, 1f, 1f)
-        } else {
-            command.color
-        }
-        val alpha = command.opacity * alphaMultiplier
-        val color = baseColor.withOpacity(alpha).filtered(command.filter)
-
-        if (emitUnifiedGlyphs && !analyticRectBatch.acceptsGlyphAtlas(fontData.textureId)) {
-            flushAnalyticRectBatch()
-        }
-
-        var penX = 0f
-        for (char in fragment.text) {
-            // Codepoints the atlas lacks render as the fallback glyph (never silently dropped),
-            // matching the fallback advance measurement used.
-            val glyph = fontData.glyphOrFallback(char)
-            if (glyph == null) {
-                penX += fontData.metrics.advance(char, fontSize)
-                continue
-            }
-
-            val ab = glyph.atlasBounds
-            val pb = glyph.planeBounds
-            val u0 = ab.left / atlasWidth
-            val v0 = ab.bottom / atlasHeight
-            val u1 = ab.right / atlasWidth
-            val v1 = ab.top / atlasHeight
-
-            val x0 = penX + pb.left * pxPerEm
-            val x1 = penX + pb.right * pxPerEm
-
-            val yTop = baselineY - pb.top * pxPerEm
-            val yBottom = baselineY - pb.bottom * pxPerEm
-
-            if (emitUnifiedGlyphs) {
-                // Local quad bounds (minY = top since yTop < yBottom); UV maps top→v1, bottom→v0,
-                // reproducing the MSDF batch's corner mapping.
-                analyticRectBatch.appendGlyph(
-                    transform,
-                    localX + x0, localY + yTop, localX + x1, localY + yBottom,
-                    u0, v1, u1, v0,
-                    color, glyphClip,
-                    fontData.textureId, atlasInfo.distanceRange, atlasWidth, atlasHeight,
-                )
-            } else {
-                val bottomLeft = transform.transform(localX + x0, localY + yBottom)
-                val topLeft = transform.transform(localX + x0, localY + yTop)
-                val topRight = transform.transform(localX + x1, localY + yTop)
-                val bottomRight = transform.transform(localX + x1, localY + yBottom)
-                msdfTextBatch.appendQuad(fontData, bottomRight, topRight, topLeft, bottomLeft, u0, v0, u1, v1, color)
-            }
-
-            penX += glyph.advance * pxPerEm
-        }
-
-        return true
     }
 
     private fun drawInlineImage(

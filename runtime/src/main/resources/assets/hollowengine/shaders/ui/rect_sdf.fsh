@@ -23,6 +23,10 @@ const int PAINT_RADIAL_GRADIENT = 2;
 // Record texel 0 x-component < 0 marks a glyph instance; rects always have a positive width there.
 const float GLYPH_MARKER = -1.0;
 
+const int GLYPH_MSDF = 0;
+const int GLYPH_ALPHA = 1;
+const int GLYPH_COLOR = 2;
+
 float median3(float r, float g, float b) {
     return max(min(r, g), min(max(r, g), b));
 }
@@ -110,21 +114,31 @@ void main() {
         discard;
     }
 
-    // Glyph instances sample the MSDF atlas at the interpolated UV; texel 2 holds the fill colour.
-    // The coverage formula matches msdf_text.fsh so unified glyphs and the MSDF-batch fallback for
+    // Glyph instances sample the atlas at the interpolated UV; texel 2 holds the fill colour, and
+    // texel 0 carries the faux-bold distance bias in y and the sampling mode in z. The coverage
+    // formula matches msdf_text.fsh so unified glyphs and the MSDF-batch fallback for
     // overflow-clipped text look identical.
     if (geometry.x < 0.0) {
-        vec3 sample3 = texture(FontAtlas, glyphUv).rgb;
-        float sdPx = (median3(sample3.r, sample3.g, sample3.b) - 0.5);
-        vec2 unitRange = vec2(GlyphDistanceRange) / GlyphAtlasSize;
-        vec2 screenTexSize = vec2(1.0) / fwidth(glyphUv);
-        float pxRange = max(0.5 * dot(unitRange, screenTexSize), 2.0);
-        float edgeSoftness = 1.15; // 1.0 + MsdfSoftness (0.15)
-        float coverage = clamp(sdPx * pxRange / edgeSoftness + 0.5, 0.0, 1.0);
+        vec4 texel = texture(FontAtlas, glyphUv);
         vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
+        int glyphMode = int(geometry.z);
+        vec3 rgb = glyphColor.rgb;
+        float coverage;
+        if (glyphMode == GLYPH_MSDF) {
+            vec2 unitRange = vec2(GlyphDistanceRange) / GlyphAtlasSize;
+            vec2 screenTexSize = vec2(1.0) / fwidth(glyphUv);
+            float pxRange = max(0.5 * dot(unitRange, screenTexSize), 2.0);
+            float edgeSoftness = 1.15; // 1.0 + MsdfSoftness (0.15)
+            float bias = min(geometry.y, max(0.5 - 0.5 * edgeSoftness / pxRange, 0.0));
+            float sdPx = median3(texel.r, texel.g, texel.b) - 0.5 + bias;
+            coverage = clamp(sdPx * pxRange / edgeSoftness + 0.5, 0.0, 1.0);
+        } else {
+            coverage = texel.a;
+            if (glyphMode == GLYPH_COLOR) rgb *= texel.rgb;
+        }
         float alpha = glyphColor.a * coverage;
         if (alpha <= 0.0) discard;
-        fragColor = vec4(glyphColor.rgb, alpha);
+        fragColor = vec4(rgb, alpha);
         return;
     }
 

@@ -62,16 +62,30 @@ internal fun textHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "font-family",
-        summary = "Font used for text; inherited by children.",
+        summary = "Font used for text; inherited by children. An MSDF atlas asset path, " +
+                "`vanilla[:<font>]` for Minecraft's own sheets, or `ttf:<file>[?size=&range=&charset=]`.",
         syntax = syntax(slot("family", HssValueKind.TEXT)),
-        examples = listOf("\"minecraft:default\"", "\"hollowengine:mono\""),
+        examples = listOf(
+            "\"hollowengine:fonts/monocraft\"",
+            "\"vanilla\"",
+            "\"vanilla:minecraft:alt\"",
+            "\"ttf:hollowengine:fonts/inter.ttf?size=48&charset=latin+cyrillic\"",
+        ),
     ) { style { it.fontFamily = unquote(value) } }
 
     property(
         "text-effects", "text-effect",
         summary = "Inline text effects applied to the whole node; inherited by children.",
         syntax = listSyntax(HssSlot("effect", HssValueKind.TEXT_EFFECT, keywords = UiTextEffectNames)),
-        examples = listOf("bold", "italic, underline", "gradient(#FF0000, #0000FF)", "none"),
+        examples = listOf(
+            "bold",
+            "bold(0.12)",
+            "italic, underline",
+            "italic(18)",
+            "underline(0.08, 0.02, #FF5555)",
+            "gradient(#FF0000, #0000FF)",
+            "none",
+        ),
     ) { style { it.textEffects = parseTextEffects(value) } }
 
     property(

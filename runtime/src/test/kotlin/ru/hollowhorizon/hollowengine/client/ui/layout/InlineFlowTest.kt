@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
+import ru.hollowhorizon.hollowengine.client.ui.text.Bold
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -158,7 +159,7 @@ class InlineFlowTest {
     @Test
     fun `bold reserves extra width so the next word keeps its space`() {
         val plain = span("aa")
-        val bold = span("aa", Modifier.textEffects(ru.hollowhorizon.hollowengine.client.ui.text.Bold))
+        val bold = span("aa", Modifier.textEffects(Bold()))
         val (l1, _) = flow(500f, plain)
         val (l2, _) = flow(500f, bold)
         val plainW = l1.nodes.getValue(plain).rect.width

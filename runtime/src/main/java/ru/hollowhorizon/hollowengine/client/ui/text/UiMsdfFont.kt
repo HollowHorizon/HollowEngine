@@ -14,13 +14,62 @@ import java.util.concurrent.ConcurrentHashMap
 data class UiMsdfFontData(
     val metrics: UiMsdfFontMetrics,
     val textureId: Int,
-) {
+) : UiGlyphFont {
     val meta: MsdfMeta get() = metrics.meta
     val glyphMap: Map<Char, MsdfGlyph> get() = metrics.glyphMap
 
     /** The glyph for [char], or the atlas fallback glyph when the codepoint is not covered. */
     fun glyphOrFallback(char: Char): MsdfGlyph? = metrics.glyphOrFallback(char)
+
+    private val page = UiGlyphAtlasPage(
+        textureId = textureId,
+        width = meta.atlas.width.toFloat(),
+        height = meta.atlas.height.toFloat(),
+        distanceRange = meta.atlas.distanceRange,
+        sampling = UiGlyphSampling.MSDF,
+    )
+
+    /**
+     * Placement is derived once per font rather than per drawn glyph: the atlas is a few thousand
+     * entries at most, and text rendering would otherwise allocate a quad description per character
+     * per frame.
+     */
+    private val placed: Map<Char, UiPlacedGlyph> = glyphMap.mapValues { (_, glyph) -> glyph.place(page) }
+
+    override val lineHeight: Float get() = meta.metrics.lineHeight
+    override val ascender: Float get() = meta.metrics.ascender
+    override val descender: Float get() = meta.metrics.descender
+    override val underlineY: Float get() = meta.metrics.underlineY
+    override val underlineThickness: Float get() = meta.metrics.underlineThickness
+    override val emPixels: Float get() = meta.atlas.size
+
+    override fun glyph(char: Char): UiPlacedGlyph? =
+        placed[char] ?: placed[UiMsdfFont.FallbackGlyph] ?: placed[LegacyFallbackGlyph]
+
+    override fun advance(char: Char): Float = metrics.advance(char, 1f)
+
+    private companion object {
+        const val LegacyFallbackGlyph = '?'
+    }
 }
+
+/**
+ * msdf-atlas-gen reports plane bounds y-up from the baseline and atlas bounds in texels of the
+ * bottom-origin sheet; the atlas is uploaded flipped, so the plane's top edge pairs with the atlas
+ * `top` row.
+ */
+private fun MsdfGlyph.place(page: UiGlyphAtlasPage): UiPlacedGlyph = UiPlacedGlyph(
+    advance = advance,
+    left = planeBounds.left,
+    top = -planeBounds.top,
+    right = planeBounds.right,
+    bottom = -planeBounds.bottom,
+    uMin = atlasBounds.left / page.width,
+    vTop = atlasBounds.top / page.height,
+    uMax = atlasBounds.right / page.width,
+    vBottom = atlasBounds.bottom / page.height,
+    page = page,
+)
 
 data class UiMsdfFontMetrics(
     val meta: MsdfMeta,
@@ -105,6 +154,8 @@ object UiMsdfFont {
         fonts.clear()
         metrics.clear()
         missingTextures.clear()
+        UiVanillaFont.unloadAll()
+        UiTtfFont.unloadAll()
         UiTextFonts.clearResolvedFonts()
     }
 

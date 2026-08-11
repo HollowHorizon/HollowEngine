@@ -328,6 +328,124 @@ internal val DemoStyles = compileHss(
         border-radius: 8px;
     }
 
+    .textlab-catalog {
+        gap: 3px;
+        padding: 6px;
+        background: rgba(24, 28, 38, 0.75);
+        border-radius: 8px;
+    }
+
+    .textlab-effect-row {
+        gap: 8px;
+        align-items: start center;
+        padding: 2px 4px;
+        border-radius: 5px;
+    }
+
+    .textlab-effect-row:hover {
+        background: rgba(70, 84, 110, 0.35);
+    }
+
+    .textlab-effect-name {
+        size: 118px auto;
+    }
+
+    .textlab-params {
+        gap: 6px;
+        size: 300px auto;
+        align-items: start center;
+    }
+
+    .textlab-effect-preview {
+        foreground: rgba(226, 230, 238, 0.95);
+    }
+
+    .textlab-field {
+        gap: 4px;
+        align-items: start center;
+    }
+
+    .textlab-label {
+        foreground: rgba(170, 182, 200, 0.9);
+        font-size: 9px;
+    }
+
+    .textlab-input {
+        padding: 1px 4px;
+        background: rgba(16, 19, 26, 0.9);
+        border: 1px rgba(110, 128, 158, 0.5);
+        border-radius: 4px;
+        foreground: #e6ebf5;
+    }
+
+    .textlab-sample-field {
+        size: 520px auto;
+        padding: 2px 5px;
+        background: rgba(16, 19, 26, 0.9);
+        border: 1px rgba(110, 128, 158, 0.5);
+        border-radius: 4px;
+        foreground: #e6ebf5;
+    }
+
+    .textlab-stage {
+        padding: 8px;
+        background: rgba(30, 34, 44, 0.9);
+        border-radius: 8px;
+        border: 1px rgba(120, 140, 170, 0.35);
+        clip: true;
+    }
+
+    .textlab-handle-h {
+        size: 100% 8px;
+        min-size: 60px 8px;
+        margin: 2px 0px 0px 0px;
+        background: rgba(120, 140, 170, 0.5);
+        border-radius: 4px;
+    }
+
+    .textlab-handle-h:hover {
+        background: rgba(150, 175, 215, 0.85);
+    }
+
+    .textlab-table {
+        gap: 2px;
+        padding: 6px;
+        background: rgba(24, 28, 38, 0.75);
+        border-radius: 8px;
+    }
+
+    .textlab-row {
+        gap: 10px;
+        align-items: start center;
+        padding: 2px 4px;
+        border-radius: 5px;
+    }
+
+    .textlab-row:hover {
+        background: rgba(70, 84, 110, 0.3);
+    }
+
+    .textlab-head {
+        foreground: rgba(150, 165, 185, 0.9);
+        font-size: 9px;
+    }
+
+    .textlab-cell-name {
+        size: 150px auto;
+        foreground: rgba(180, 195, 215, 0.9);
+        font-size: 9px;
+    }
+
+    .textlab-cell {
+        size: 170px auto;
+        foreground: rgba(226, 230, 238, 0.95);
+    }
+
+    .textlab-mixed {
+        size: 100% auto;
+        margin: 0px 0px 12px 0px;
+    }
+
     .textlab-chip {
         padding: 1px 6px;
         margin: 0px 3px;
@@ -361,6 +479,20 @@ internal val DemoStyles = compileHss(
     .fx-strike {
         text-effects: strikethrough;
         foreground: rgba(226, 230, 238, 0.7);
+    }
+
+    .fx-heavy {
+        text-effects: bold(0.14);
+        foreground: #ffd479;
+    }
+
+    .fx-oblique {
+        text-effects: italic(22);
+        foreground: #a9d0ff;
+    }
+
+    .fx-thick-rule {
+        text-effects: underline(0.09, 0.04, #ff6f91);
     }
 
     .fx-wave {

@@ -40,6 +40,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
                 tab("text", "Text", "hollowengine:textures/gui/icons/docs.svg")
                 tab("textlab", "TextLab", "hollowengine:textures/gui/icons/docs.svg")
+                tab("inlineflow", "Flow", "hollowengine:textures/gui/icons/docs.svg")
                 tab("editor", "Editor", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("layout", "Разметка", "hollowengine:textures/gui/npc_menu/trade.png")
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
@@ -52,6 +53,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     "widgets" -> widgets()
                     "text" -> textAndPopupDemo()
                     "textlab" -> textLab()
+                    "inlineflow" -> inlineFlowLab()
                     "editor" -> editorDemo()
                     "layout" -> layout()
                     "docking" -> docking()
@@ -241,7 +243,10 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     }
 
     @Composable
-    private fun textLab() {
+    private fun textLab() = TextLab()
+
+    @Composable
+    private fun inlineFlowLab() {
         Column(
             tags = listOf("panel", "textlab-panel"),
             modifier = Modifier.scroll(vertical = true, horizontal = true)
@@ -285,6 +290,9 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                             Span("italic ", tags = listOf("fx-italic"))
                             Span("underline ", tags = listOf("fx-underline"))
                             Span("strike ", tags = listOf("fx-strike"))
+                            Span("heavy ", tags = listOf("fx-heavy"))
+                            Span("oblique ", tags = listOf("fx-oblique"))
+                            Span("ruled ", tags = listOf("fx-thick-rule"))
                             Span("wave ", tags = listOf("fx-wave"))
                             Span("shake ", tags = listOf("fx-shake"))
                             Span("rainbow", tags = listOf("fx-rainbow"))

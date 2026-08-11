@@ -7,21 +7,52 @@ sealed interface UiTextEffect {
     val tag: String
 }
 
-data object Bold : UiTextEffect {
-    override val tag = "bold"
+/**
+ * Faux-bold. [weight] is the extra stroke width in em (1 em = the run's font size): the glyph's
+ * signed-distance field is grown by half of it on each side on the GPU, so the stroke thickens
+ * smoothly at any scale instead of the vanilla "stamp the glyph twice, a pixel apart" trick. The
+ * same value is added to every advance, so a bold run measures exactly as wide as it draws.
+ */
+data class Bold(val weight: Float = DefaultBoldWeight) : UiTextEffect {
+    override val tag: String get() = "bold"
 }
 
-data object Italic : UiTextEffect {
-    override val tag = "italic"
+/**
+ * Faux-italic: the run is sheared around its own baseline by [skewDegrees], positive leaning right.
+ * Shearing leaves the advances untouched (as CSS `font-style: oblique` does), so italic text keeps
+ * the upright text's layout and only the last glyph overhangs its box.
+ */
+data class Italic(val skewDegrees: Float = DefaultItalicSkew) : UiTextEffect {
+    override val tag: String get() = "italic"
 }
 
-data object Underline : UiTextEffect {
-    override val tag = "underline"
+/**
+ * A rule under the text. [thickness] and [offset] are in em and both default to 0, meaning "use the
+ * font's own underline metrics"; [offset] shifts the rule down from that position. [color] defaults
+ * to the color the run is drawn in.
+ */
+data class Underline(
+    val thickness: Float = 0f,
+    val offset: Float = 0f,
+    val color: UiColor? = null,
+) : UiTextEffect {
+    override val tag: String get() = "underline"
 }
 
-data object Strikethrough : UiTextEffect {
-    override val tag = "strikethrough"
+/** A rule through the text, positioned around the x-height. Parameters mirror [Underline]. */
+data class Strikethrough(
+    val thickness: Float = 0f,
+    val offset: Float = 0f,
+    val color: UiColor? = null,
+) : UiTextEffect {
+    override val tag: String get() = "strikethrough"
 }
+
+/** Extra stroke width of [Bold], in em. Matches the 1/16-em offset the old boolean bold applied. */
+const val DefaultBoldWeight = 0.0625f
+
+/** Shear of [Italic], in degrees. */
+const val DefaultItalicSkew = 12f
 
 data object Code : UiTextEffect {
     override val tag = "code"
