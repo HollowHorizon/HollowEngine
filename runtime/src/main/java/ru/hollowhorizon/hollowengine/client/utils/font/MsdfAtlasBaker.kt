@@ -75,19 +75,13 @@ internal fun bakeMsdfAtlas(face: TtfFace, spec: MsdfBakeSpec): BakedMsdfAtlas {
     val glyphs = ArrayList<MsdfGlyph>(cells.size + blankGlyphs.size)
     glyphs += blankGlyphs
 
-    val field = FloatArray(cells.maxOfOrNull { it.width * it.height * 3 } ?: 0)
-    for (cell in cells) {
-        generateMsdf(
-            shape = cell.outline.shape,
-            width = cell.width,
-            height = cell.height,
-            scale = scale,
-            translateX = -cell.pixelLeft / scale,
-            translateY = -cell.pixelBottom / scale,
-            range = rangeUnits,
-            output = field,
-        )
+    val fieldPerThread = ThreadLocal.withInitial { FloatArray(cells.maxOfOrNull { it.width * it.height * 3 } ?: 0) }
+    cells.parallelStream().forEach { cell ->
+        val field = fieldPerThread.get()
+        cell.renderInto(field, scale, spec)
         cell.writeInto(pixels, atlasWidth, field)
+    }
+    for (cell in cells) {
         glyphs += MsdfGlyph(
             unicode = cell.codepoint,
             advance = cell.outline.advance,
@@ -129,6 +123,50 @@ internal fun bakeMsdfAtlas(face: TtfFace, spec: MsdfBakeSpec): BakedMsdfAtlas {
     return BakedMsdfAtlas(meta, atlasWidth, atlasHeight, pixels)
 }
 
+/**
+ * One glyph's finished field, outside any atlas.
+ */
+internal class MsdfGlyphField(
+    val shape: MsdfShape,
+    val values: FloatArray,
+    val width: Int,
+    val height: Int,
+    val scale: Float,
+    val translateX: Float,
+    val translateY: Float,
+)
+
+/** Generates and corrects one glyph's field. Null when the face has no outline for [codepoint]. */
+internal fun bakeGlyphField(face: TtfFace, codepoint: Int, spec: MsdfBakeSpec): MsdfGlyphField? {
+    val scale = spec.pixelSize / face.unitsPerEm
+    val outline = face.loadGlyph(codepoint, spec.pixelSize) ?: return null
+    val cell = cellFor(outline, scale, spec.pixelRange / scale) ?: return null
+    val values = FloatArray(cell.width * cell.height * 3)
+    cell.renderInto(values, scale, spec)
+    return MsdfGlyphField(
+        shape = outline.shape,
+        values = values,
+        width = cell.width,
+        height = cell.height,
+        scale = scale,
+        translateX = -cell.pixelLeft / scale,
+        translateY = -cell.pixelBottom / scale,
+    )
+}
+
+/** The padded pixel box a glyph's field occupies, or null when it has no ink to render. */
+private fun cellFor(outline: TtfGlyphOutline, scale: Float, rangeUnits: Float): GlyphCell? {
+    val bounds = outline.shape.bounds() ?: return null
+    if (outline.shape.isEmpty) return null
+    val padding = rangeUnits * 0.5f
+    val left = floor((bounds[0] - padding) * scale).toInt()
+    val bottom = floor((bounds[1] - padding) * scale).toInt()
+    val width = ceil((bounds[2] + padding) * scale).toInt() - left
+    val height = ceil((bounds[3] + padding) * scale).toInt() - bottom
+    if (width <= 0 || height <= 0) return null
+    return GlyphCell(0, outline, left, bottom, width, height)
+}
+
 private class GlyphCell(
     val codepoint: Int,
     val outline: TtfGlyphOutline,
@@ -140,6 +178,32 @@ private class GlyphCell(
 ) {
     var atlasX = 0
     var atlasY = 0
+
+    /** Generates this cell's field into [field] and runs the corrections over it. */
+    fun renderInto(field: FloatArray, scale: Float, spec: MsdfBakeSpec) {
+        val translateX = -pixelLeft / scale
+        val translateY = -pixelBottom / scale
+        generateMsdf(
+            shape = outline.shape,
+            width = width,
+            height = height,
+            scale = scale,
+            translateX = translateX,
+            translateY = translateY,
+            range = spec.pixelRange / scale,
+            output = field,
+        )
+        correctMsdfField(
+            field = field,
+            width = width,
+            height = height,
+            shape = outline.shape,
+            scale = scale,
+            translateX = translateX,
+            translateY = translateY,
+            pixelRange = spec.pixelRange,
+        )
+    }
 
     /**
      * Copies one cell's field into the atlas. Distances outside `[0, 1]` are clamped rather than
@@ -162,9 +226,9 @@ private class GlyphCell(
 
 private fun Float.toDistanceByte(): Byte = ((this * 255f) + 0.5f).toInt().coerceIn(0, 255).toByte()
 
-/** Wide enough for the widest glyph, and a power of two so the texture stays driver-friendly. */
+/** Wide enough for the widest glyph plus its gutters, and a power of two for driver friendliness. */
 private fun atlasWidthFor(cells: List<GlyphCell>): Int {
-    val widest = cells.maxOfOrNull { it.width } ?: 1
+    val widest = (cells.maxOfOrNull { it.width } ?: 1) + 2 * CellGutter
     var width = MinAtlasWidth
     while (width < widest && width < MaxAtlasSize) width *= 2
     return width
@@ -173,21 +237,21 @@ private fun atlasWidthFor(cells: List<GlyphCell>): Int {
 /** Places the cells tallest-first into rows; returns the power-of-two height they fit in. */
 private fun packShelves(cells: MutableList<GlyphCell>, atlasWidth: Int): Int {
     cells.sortWith(compareByDescending<GlyphCell> { it.height }.thenByDescending { it.width })
-    var shelfY = 0
+    var shelfY = CellGutter
     var shelfHeight = 0
-    var cursorX = 0
+    var cursorX = CellGutter
     for (cell in cells) {
-        if (cursorX + cell.width > atlasWidth) {
-            shelfY += shelfHeight
+        if (cursorX + cell.width + CellGutter > atlasWidth) {
+            shelfY += shelfHeight + CellGutter
             shelfHeight = 0
-            cursorX = 0
+            cursorX = CellGutter
         }
         cell.atlasX = cursorX
         cell.atlasY = shelfY
-        cursorX += cell.width
+        cursorX += cell.width + CellGutter
         shelfHeight = max(shelfHeight, cell.height)
     }
-    val used = shelfY + shelfHeight
+    val used = shelfY + shelfHeight + CellGutter
     var height = 1
     while (height < used) height *= 2
     check(height <= MaxAtlasSize) {
@@ -196,5 +260,8 @@ private fun packShelves(cells: MutableList<GlyphCell>, atlasWidth: Int): Int {
     return height.coerceAtLeast(1)
 }
 
+internal const val MsdfBakerVersion = 4
+
 private const val MinAtlasWidth = 512
 private const val MaxAtlasSize = 4096
+private const val CellGutter = 2

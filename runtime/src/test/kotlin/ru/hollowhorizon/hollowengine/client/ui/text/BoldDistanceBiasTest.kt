@@ -64,7 +64,7 @@ class BoldDistanceBiasTest {
     @Test
     fun `a wider range carries the whole default bold without a second stamp`() {
         val bias = baked.boldBias(bakedEm, DefaultBoldWeight)
-        assertTrue(bias < MaxBoldDistanceBias, "the cap must not bind at the baked default range: $bias")
+        assertTrue(bias < MaxBoldDistanceBias, "the cap must not bind at a range this wide: $bias")
         assertEquals(DefaultBoldWeight, baked.boldBiasWeight(bakedEm, bias), 1e-5f)
     }
 

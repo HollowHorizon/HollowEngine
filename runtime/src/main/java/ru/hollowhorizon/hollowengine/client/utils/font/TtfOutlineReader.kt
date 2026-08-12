@@ -182,7 +182,7 @@ private class OutlineDecomposer : AutoCloseable {
     }
 
     private fun addLine(x: Float, y: Float) {
-        emit(floatArrayOf(currentX, currentY, x, y))
+        emit(floatArrayOf(currentX, currentY, x, y), null)
         currentX = x
         currentY = y
     }
@@ -200,7 +200,10 @@ private class OutlineDecomposer : AutoCloseable {
             points[step * 2] = inverse * inverse * currentX + 2f * inverse * t * controlX + t * t * x
             points[step * 2 + 1] = inverse * inverse * currentY + 2f * inverse * t * controlY + t * t * y
         }
-        emit(points)
+        emit(
+            points,
+            floatArrayOf(controlX - currentX, controlY - currentY, x - controlX, y - controlY),
+        )
         currentX = x
         currentY = y
     }
@@ -231,14 +234,18 @@ private class OutlineDecomposer : AutoCloseable {
             points[step * 2] = a * currentX + b * firstX + c * secondX + d * x
             points[step * 2 + 1] = a * currentY + b * firstY + c * secondY + d * y
         }
-        emit(points)
+        val startX = if (firstX != currentX || firstY != currentY) firstX else secondX
+        val startY = if (firstX != currentX || firstY != currentY) firstY else secondY
+        val endX = if (secondX != x || secondY != y) secondX else firstX
+        val endY = if (secondX != x || secondY != y) secondY else firstY
+        emit(points, floatArrayOf(startX - currentX, startY - currentY, x - endX, y - endY))
         currentX = x
         currentY = y
     }
 
-    private fun emit(points: FloatArray) {
+    private fun emit(points: FloatArray, tangents: FloatArray?) {
         if (points.size < 4) return
-        contour?.edges?.add(MsdfEdge(points))
+        contour?.edges?.add(MsdfEdge(points, tangents))
     }
 
     private fun flatteningSteps(controlLength: Float): Int {

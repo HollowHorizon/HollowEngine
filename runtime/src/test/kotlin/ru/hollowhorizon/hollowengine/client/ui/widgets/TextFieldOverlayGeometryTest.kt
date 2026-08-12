@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.client.ui.TestFontFamily
 import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
@@ -8,7 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Caret/selection overlay geometry over the default MonoCraft MSDF font (6.667px/glyph, 6.667px
+ * Caret/selection overlay geometry over the pinned MonoCraft MSDF font (6.667px/glyph, 6.667px
  * space, 10.898px line height). Positions come straight from the laid-out text, so the caret sits
  * on the glyph boundaries without displacing them.
  */
@@ -22,11 +23,12 @@ class TextFieldOverlayGeometryTest {
         wrap = false,
         align = UiTextAlign.LEFT,
         fontSize = fontSize,
+        fontFamily = TestFontFamily,
         preserveWhitespace = true,
     )
 
     private fun geometry(text: String, vararg ranges: UiTextCaret) =
-        textFieldOverlayGeometry(layout(text), ranges.toList(), fontSize)
+        textFieldOverlayGeometry(layout(text), ranges.toList(), fontSize, TestFontFamily)
 
     @Test
     fun `caret sits at the glyph boundary for its offset`() {

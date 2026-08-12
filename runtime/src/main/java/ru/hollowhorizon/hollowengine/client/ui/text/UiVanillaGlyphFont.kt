@@ -42,6 +42,6 @@ internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyph
         width = 1f,
         height = 1f,
         distanceRange = 0f,
-        sampling = UiGlyphSampling.ALPHA,
+        sampling = if (texture in face.coloredSheets) UiGlyphSampling.COLOR else UiGlyphSampling.ALPHA,
     )
 }

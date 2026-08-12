@@ -23,7 +23,7 @@ class SpanCaretLayoutTest {
             measurePolicy = UiMeasurePolicies.InlineFlow,
             modifiers = listOf(Modifier.size(width.px, UiLength.Auto)),
         ).also { it.children.add(span) }
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(container) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(container) }
         UiModifierResolver().resolve(root)
         val layout = UiLayoutPipeline().compute(root, 1000f, 1000f, UiScrollState())
         return layout.nodes.getValue(span).textLayout!! to span.resolvedSnapshot.fontSize

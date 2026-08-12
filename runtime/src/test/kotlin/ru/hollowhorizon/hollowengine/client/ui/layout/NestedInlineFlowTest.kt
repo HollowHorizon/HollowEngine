@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Default MonoCraft MSDF font: 6.667px/glyph @ fontSize 10, 6.667px space, line height = fontSize 10. */
+/** Pinned MonoCraft MSDF font (see TestFontFamily): 6.667px/glyph @ fontSize 10, 6.667px space, line height = fontSize 10. */
 class NestedInlineFlowTest {
     private fun span(text: String, vararg mods: Modifier) = SpanNode(text, modifiers = mods.toList())
 
@@ -22,7 +22,7 @@ class NestedInlineFlowTest {
             measurePolicy = UiMeasurePolicies.InlineFlow,
             modifiers = listOf(Modifier.size(width.px, UiLength.Auto)),
         ).apply(build)
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(container) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(container) }
         UiModifierResolver().resolve(root)
         return UiLayoutPipeline().compute(root, 1000f, 1000f, UiScrollState()) to container
     }

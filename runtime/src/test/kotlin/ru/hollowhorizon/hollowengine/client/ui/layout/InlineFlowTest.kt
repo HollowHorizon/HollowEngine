@@ -26,7 +26,7 @@ class InlineFlowTest {
             modifiers = listOf(Modifier.size(width.px, UiLength.Auto)),
         )
         children.forEach { container.children.add(it) }
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(container) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(container) }
         val resolver = sheet?.let { UiModifierResolver(stylesheet = compileHss(it)) } ?: UiModifierResolver()
         resolver.resolve(root)
         return UiLayoutPipeline().compute(root, 1000f, 1000f, UiScrollState()) to container
@@ -78,7 +78,7 @@ class InlineFlowTest {
                 modifiers = listOf(Modifier.padding(6.px, 2.px)),
             ).also { it.children.add(text) }
             val row = BoxNode(measurePolicy = UiMeasurePolicies.Row).also { it.children.add(pill) }
-            val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(row) }
+            val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(row) }
             UiModifierResolver().resolve(root)
             UiLayoutPipeline().compute(root, 2000f, 400f, UiScrollState())
 
@@ -102,7 +102,7 @@ class InlineFlowTest {
             measurePolicy = UiMeasurePolicies.InlineFlow,
             modifiers = listOf(Modifier.size(60.px, UiLength.Auto).textWrap(false)),
         ).also { it.children.add(wide) }
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(container) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(container) }
         UiModifierResolver().resolve(root)
         val noWrap = UiLayoutPipeline().compute(root, 1000f, 1000f, UiScrollState())
         assertEquals(1, noWrap.nodes.getValue(wide).textLayout!!.lines.size, "no wrap: single line")
@@ -113,7 +113,7 @@ class InlineFlowTest {
             measurePolicy = UiMeasurePolicies.InlineFlow,
             modifiers = listOf(Modifier.size(60.px, UiLength.Auto).textWrap(false)),
         ).also { it.children.add(hard) }
-        val root2 = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(c2) }
+        val root2 = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(c2) }
         UiModifierResolver().resolve(root2)
         val layout2 = UiLayoutPipeline().compute(root2, 1000f, 1000f, UiScrollState())
         assertEquals(2, layout2.nodes.getValue(hard).textLayout!!.lines.size, "newline always breaks")

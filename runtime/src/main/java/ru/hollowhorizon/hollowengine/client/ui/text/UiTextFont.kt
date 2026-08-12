@@ -4,6 +4,8 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.boldWeight
 import java.util.concurrent.ConcurrentHashMap
 
+const val DefaultUiFontFamily = UiVanillaFont.FamilyPrefix
+
 internal sealed interface UiTextFont {
     val signature: Int
 
@@ -19,22 +21,18 @@ internal object UiTextFonts {
     private val resolvedFonts = ConcurrentHashMap<String, UiTextFont>()
 
     fun defaultedFamily(fontFamily: String?): String {
-        return fontFamily?.takeIf { it.isNotBlank() } ?: UiMsdfFont.DefaultFontFamily
+        return fontFamily?.takeIf { it.isNotBlank() } ?: DefaultUiFontFamily
     }
 
     fun resolve(fontFamily: String?): UiTextFont {
         val family = defaultedFamily(fontFamily)
         resolvedFonts[family]?.let { return it }
-        if (UiVanillaFont.isVanillaFamily(family)) {
-            val face = UiVanillaFont.face(family) ?: return EstimatedTextFont
-            return VanillaTextFont(family, face).also { resolvedFonts[family] = it }
-        }
-        val metrics = if (UiTtfFont.isTtfFamily(family)) {
-            UiTtfFont.metrics(family)
-        } else {
-            UiMsdfFont.getMetrics(family)
+        val font = when (UiFontSource.of(family)) {
+            UiFontSource.VANILLA -> UiVanillaFont.face(family)?.let { VanillaTextFont(family, it) }
+            UiFontSource.TTF -> UiTtfFont.metrics(family)?.let { MsdfTextFont(family, it) }
+            UiFontSource.MSDF_ASSET -> UiMsdfFont.getMetrics(family)?.let { MsdfTextFont(family, it) }
         } ?: return EstimatedTextFont
-        return MsdfTextFont(family, metrics).also { resolvedFonts[family] = it }
+        return font.also { resolvedFonts[family] = it }
     }
 
     fun signature(fontFamily: String?): Int = resolve(fontFamily).signature
@@ -50,11 +48,11 @@ internal object UiTextFonts {
         override fun lineHeight(fontSize: Float): Float = fontSize
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float {
-            val scale = fontSize / DefaultUiFontSize
+            val scale = fontSize / EstimateBaselineFontSize
             return text.length * (EstimatedGlyphWidth * scale + style.boldWeight * fontSize)
         }
 
-        private const val DefaultUiFontSize = 10f
+        private const val EstimateBaselineFontSize = 10f
     }
 
     private data class MsdfTextFont(
@@ -92,12 +90,34 @@ internal object UiTextFonts {
 }
 
 internal object UiGlyphFonts {
+    private val resolved = ConcurrentHashMap<String, UiGlyphFont>()
+
     fun resolve(fontFamily: String?): UiGlyphFont? {
         val family = UiTextFonts.defaultedFamily(fontFamily)
-        return when {
-            UiVanillaFont.isVanillaFamily(family) -> UiVanillaFont.glyphFont(family)
-            UiTtfFont.isTtfFamily(family) -> UiTtfFont.glyphFont(family)
-            else -> UiMsdfFont.getOrLoadFontData(family)
+        resolved[family]?.let { return it }
+        val font = when (UiFontSource.of(family)) {
+            UiFontSource.VANILLA -> UiVanillaFont.glyphFont(family)
+            UiFontSource.TTF -> UiTtfFont.glyphFont(family)
+            UiFontSource.MSDF_ASSET -> UiMsdfFont.getOrLoadFontData(family)
+        } ?: return null
+        return font.also { resolved[family] = it }
+    }
+
+    fun clearResolvedFonts() {
+        resolved.clear()
+    }
+}
+
+internal enum class UiFontSource {
+    VANILLA,
+    TTF,
+    MSDF_ASSET;
+
+    companion object {
+        fun of(family: String): UiFontSource = when {
+            UiVanillaFont.isVanillaFamily(family) -> VANILLA
+            UiTtfFont.isTtfFamily(family) -> TTF
+            else -> MSDF_ASSET
         }
     }
 }

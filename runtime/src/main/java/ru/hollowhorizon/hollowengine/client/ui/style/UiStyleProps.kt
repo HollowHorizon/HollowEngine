@@ -7,7 +7,11 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSliderStyle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldStyle
 
-const val DefaultUiFontSize = 10f
+/**
+ * Text size for anything that does not set one. It is vanilla's own glyph box, which the default
+ * font ([ru.hollowhorizon.hollowengine.client.ui.text.DefaultUiFontFamily]).
+ */
+const val DefaultUiFontSize = 8f
 
 /**
  * A font size as written: a fixed number of pixels, or a share of the text it sits in.

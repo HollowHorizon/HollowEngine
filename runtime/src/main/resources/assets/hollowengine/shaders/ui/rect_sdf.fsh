@@ -4,10 +4,18 @@ uniform samplerBuffer RecordBuffer;
 uniform samplerBuffer PaintBuffer;
 uniform samplerBuffer StopBuffer;
 
-// Glyph atlas (MSDF). Sampled only for glyph instances; ignored by rect/shadow instances.
-uniform sampler2D FontAtlas;
-uniform float GlyphDistanceRange;
-uniform vec2 GlyphAtlasSize;
+const int MAX_GLYPH_PAGES = 8;
+
+uniform sampler2D FontAtlas0;
+uniform sampler2D FontAtlas1;
+uniform sampler2D FontAtlas2;
+uniform sampler2D FontAtlas3;
+uniform sampler2D FontAtlas4;
+uniform sampler2D FontAtlas5;
+uniform sampler2D FontAtlas6;
+uniform sampler2D FontAtlas7;
+uniform float GlyphDistanceRange[MAX_GLYPH_PAGES];
+uniform vec2 GlyphAtlasSize[MAX_GLYPH_PAGES];
 
 in vec2 localPosition;
 in vec2 clipPosition;
@@ -20,7 +28,6 @@ const int PAINT_SOLID = 0;
 const int PAINT_LINEAR_GRADIENT = 1;
 const int PAINT_RADIAL_GRADIENT = 2;
 
-// Record texel 0 x-component < 0 marks a glyph instance; rects always have a positive width there.
 const float GLYPH_MARKER = -1.0;
 
 const int GLYPH_MSDF = 0;
@@ -29,6 +36,17 @@ const int GLYPH_COLOR = 2;
 
 float median3(float r, float g, float b) {
     return max(min(r, g), min(max(r, g), b));
+}
+
+vec4 sampleGlyphAtlas(int page, vec2 uv) {
+    if (page == 1) return textureLod(FontAtlas1, uv, 0.0);
+    if (page == 2) return textureLod(FontAtlas2, uv, 0.0);
+    if (page == 3) return textureLod(FontAtlas3, uv, 0.0);
+    if (page == 4) return textureLod(FontAtlas4, uv, 0.0);
+    if (page == 5) return textureLod(FontAtlas5, uv, 0.0);
+    if (page == 6) return textureLod(FontAtlas6, uv, 0.0);
+    if (page == 7) return textureLod(FontAtlas7, uv, 0.0);
+    return textureLod(FontAtlas0, uv, 0.0);
 }
 
 float roundedRectDistance(vec2 point, vec2 size, float radius) {
@@ -106,27 +124,24 @@ vec4 samplePaint(int paintIndex) {
 void main() {
     int base = recordIndex * 4;
     vec4 geometry = texelFetch(RecordBuffer, base);
-    // Per-record clip rectangle (effective screen space); discard fragments outside it. This
-    // replaces the GL scissor, so one batch can carry primitives under many different clips.
+    vec2 glyphFootprint = fwidth(glyphUv);
+
     vec4 clip = texelFetch(RecordBuffer, base + 3);
     if (clipPosition.x < clip.x || clipPosition.y < clip.y ||
         clipPosition.x > clip.z || clipPosition.y > clip.w) {
         discard;
     }
 
-    // Glyph instances sample the atlas at the interpolated UV; texel 2 holds the fill colour, and
-    // texel 0 carries the faux-bold distance bias in y and the sampling mode in z. The coverage
-    // formula matches msdf_text.fsh so unified glyphs and the MSDF-batch fallback for
-    // overflow-clipped text look identical.
     if (geometry.x < 0.0) {
-        vec4 texel = texture(FontAtlas, glyphUv);
+        int glyphPage = int(geometry.w);
+        vec4 texel = sampleGlyphAtlas(glyphPage, glyphUv);
         vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
         int glyphMode = int(geometry.z);
         vec3 rgb = glyphColor.rgb;
         float coverage;
         if (glyphMode == GLYPH_MSDF) {
-            vec2 unitRange = vec2(GlyphDistanceRange) / GlyphAtlasSize;
-            vec2 screenTexSize = vec2(1.0) / fwidth(glyphUv);
+            vec2 unitRange = vec2(GlyphDistanceRange[glyphPage]) / GlyphAtlasSize[glyphPage];
+            vec2 screenTexSize = vec2(1.0) / max(glyphFootprint, vec2(1e-8));
             float pxRange = max(0.5 * dot(unitRange, screenTexSize), 2.0);
             float edgeSoftness = 1.15; // 1.0 + MsdfSoftness (0.15)
             float bias = min(geometry.y, max(0.5 - 0.5 * edgeSoftness / pxRange, 0.0));

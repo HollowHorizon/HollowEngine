@@ -1,12 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.client.ui.TestFontFamily
 import ru.hollowhorizon.hollowengine.client.ui.text.UiInlineWidgetRun
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The field's geometry model (default MonoCraft MSDF font: 6.667px/glyph, 10.898px line height).
+ * The field's geometry model (pinned MonoCraft MSDF font: 6.667px/glyph, 10.898px line height).
  * Caret/click/scroll all read from this one measurement, so an offset maps to a boundary and a
  * boundary maps back — even at the bottom of a large document (the caret-jump regression) and
  * through virtualization.
@@ -14,7 +15,7 @@ import kotlin.test.assertTrue
 class EditableFieldLayoutTest {
     private val fontSize = 10f
     private fun layout(text: String, wrap: Boolean = false, viewportWidth: Float = 0f) =
-        computeEditableFieldLayout(text, fontSize, fontFamily = null, wrap = wrap, viewportWidth = viewportWidth)
+        computeEditableFieldLayout(text, fontSize, fontFamily = TestFontFamily, wrap = wrap, viewportWidth = viewportWidth)
 
     @Test
     fun `non-wrapped lines stack at a uniform height and size to the widest line`() {
@@ -55,7 +56,7 @@ class EditableFieldLayoutTest {
         val withInlay = computeEditableFieldLayout(
             text = "a\nzzzzzzzzzz",
             fontSize = fontSize,
-            fontFamily = null,
+            fontFamily = TestFontFamily,
             wrap = false,
             viewportWidth = 0f,
             inlayHints = listOf(hint),
@@ -72,7 +73,7 @@ class EditableFieldLayoutTest {
         val withInlay = computeEditableFieldLayout(
             text = "a",
             fontSize = fontSize,
-            fontFamily = null,
+            fontFamily = TestFontFamily,
             wrap = false,
             viewportWidth = 0f,
             inlayHints = listOf(hint),
@@ -103,7 +104,7 @@ class EditableFieldLayoutTest {
             localEnd = 0,
             crossesNewline = true,
             fontSize = fontSize,
-            fontFamily = null,
+            fontFamily = TestFontFamily,
             fullWidth = l.contentWidth,
         )
 

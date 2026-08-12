@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.utils.font
 
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -59,11 +57,8 @@ class MsdfGeneratorTest {
     @Test
     fun `a corner reads sharp because the channels disagree there`() {
         val field = squareField()
-        val red = field[channel(5, 7, 0)]
-        val green = field[channel(5, 7, 1)]
-        val blue = field[channel(5, 7, 2)]
-        val spread = max(red, max(green, blue)) - min(red, min(green, blue))
-        assertTrue(spread > 0.2f, "channels disagree at a corner (r=$red g=$green b=$blue)")
+        val spread = field.channelSpreadAt(5, 7, FieldSize)
+        assertTrue(spread > 0.2f, "channels disagree at a corner (spread $spread)")
         assertTrue(field.median(5, 7) < 0.5f, "the corner's outside stays outside: ${field.median(5, 7)}")
     }
 
@@ -106,39 +101,7 @@ class MsdfGeneratorTest {
         assertEquals(2, shape.contours.single().edges.size, "the curve stays one edge")
     }
 
-    private fun squareShape(
-        left: Float,
-        bottom: Float,
-        size: Float,
-        counterClockwise: Boolean = true,
-    ): MsdfShape {
-        val shape = MsdfShape()
-        shape.contours += squareContour(left, bottom, size).also { if (!counterClockwise) it.reverse() }
-        shape.orientForPositiveInside()
-        shape.colorEdges()
-        return shape
-    }
-
-    /** Counter-clockwise in a y-up space. */
-    private fun squareContour(left: Float, bottom: Float, size: Float): MsdfContour {
-        val right = left + size
-        val top = bottom + size
-        return MsdfContour().apply {
-            edges += MsdfEdge(floatArrayOf(left, bottom, right, bottom))
-            edges += MsdfEdge(floatArrayOf(right, bottom, right, top))
-            edges += MsdfEdge(floatArrayOf(right, top, left, top))
-            edges += MsdfEdge(floatArrayOf(left, top, left, bottom))
-        }
-    }
-
-    private fun FloatArray.median(x: Int, y: Int): Float {
-        val red = this[channel(x, y, 0)]
-        val green = this[channel(x, y, 1)]
-        val blue = this[channel(x, y, 2)]
-        return max(min(red, green), min(max(red, green), blue))
-    }
-
-    private fun channel(x: Int, y: Int, channel: Int) = (y * FieldSize + x) * 3 + channel
+    private fun FloatArray.median(x: Int, y: Int): Float = medianAt(x, y, FieldSize)
 
     private fun Int.channelCount(): Int = (0..2).count { this shr it and 1 == 1 }
 

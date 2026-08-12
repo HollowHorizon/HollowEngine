@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.opacity
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Default MonoCraft MSDF font: 6.667px/glyph @ fontSize 10, 6.667px space, line height = fontSize. */
+/** Pinned MonoCraft MSDF font (see TestFontFamily): 6.667px/glyph @ fontSize 10, 6.667px space, line height = fontSize. */
 class SpanBackgroundRenderTest {
     private fun render(
         width: Float,
@@ -26,7 +26,7 @@ class SpanBackgroundRenderTest {
             modifiers = listOf(Modifier.size(width.px, UiLength.Auto)),
         )
         children.forEach { container.children.add(it) }
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(container) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(container) }
         val resolver = sheet?.let { UiModifierResolver(stylesheet = compileHss(it)) } ?: UiModifierResolver()
         resolver.resolve(root)
         val layout = UiLayoutPipeline().compute(root, 1000f, 1000f, UiScrollState())
@@ -72,7 +72,7 @@ class SpanBackgroundRenderTest {
                     .animation(UiCaretBlinkKeyframes, UiCaretBlinkPeriodMillis, iterationCount = Float.POSITIVE_INFINITY),
             ),
         )
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(caret) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(caret) }
         val resolver = UiModifierResolver()
 
         resolver.resolve(root, nowMillis = 0L)

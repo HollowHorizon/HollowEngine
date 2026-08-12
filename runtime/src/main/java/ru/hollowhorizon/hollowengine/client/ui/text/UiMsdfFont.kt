@@ -95,7 +95,8 @@ data class UiMsdfFontMetrics(
 }
 
 object UiMsdfFont {
-    const val DefaultFontFamily = "hollowengine:fonts/monocraft"
+    /** The atlas shipped with the engine, for anything that wants a scalable font over the default. */
+    const val MonocraftFontFamily = "hollowengine:fonts/monocraft"
 
     /** Rendered in place of any codepoint the atlas lacks, so text is never silently dropped. */
     const val FallbackGlyph = '�'
@@ -157,6 +158,7 @@ object UiMsdfFont {
         UiVanillaFont.unloadAll()
         UiTtfFont.unloadAll()
         UiTextFonts.clearResolvedFonts()
+        UiGlyphFonts.clearResolvedFonts()
     }
 
     private fun loadMetrics(fontPath: String): UiMsdfFontMetrics? {

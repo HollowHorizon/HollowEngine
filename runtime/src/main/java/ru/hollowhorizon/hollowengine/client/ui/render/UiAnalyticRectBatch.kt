@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.render.UiShaderClip.Companion.None
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphSampling
+import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphAtlasPage
 import java.nio.FloatBuffer
 import kotlin.math.abs
 import kotlin.math.min
@@ -23,18 +23,41 @@ internal class UiAnalyticRectBatch {
     val paintFloatCount: Int get() = paints.size
     val stopFloatCount: Int get() = stops.size
 
-    /** Font-atlas texture bound for glyph instances in this batch, or 0 when it carries no glyphs. */
-    var atlasTextureId: Int = 0
-        private set
-    var glyphDistanceRange: Float = 0f
-        private set
-    var glyphAtlasWidth: Float = 0f
-        private set
-    var glyphAtlasHeight: Float = 0f
+    private val pageTextures = IntArray(MaxGlyphPages)
+    private val pageDistanceRanges = FloatArray(MaxGlyphPages)
+    private val pageSizes = FloatArray(MaxGlyphPages * 2)
+
+    var glyphPageCount: Int = 0
         private set
 
-    /** Whether [atlas] can share this batch: a batch carries glyphs from at most one atlas. */
-    fun acceptsGlyphAtlas(atlas: Int): Boolean = atlasTextureId == 0 || atlasTextureId == atlas
+    fun glyphPageTexture(index: Int): Int = pageTextures[index]
+
+    /** Per-page distance ranges, for `float[]` uniform upload. */
+    fun glyphPageDistanceRanges(): FloatArray = pageDistanceRanges
+
+    /** Per-page atlas sizes as `width, height` pairs, for `vec2[]` uniform upload. */
+    fun glyphPageSizes(): FloatArray = pageSizes
+
+    /** Whether [page] can join this batch: it is already here, or there is a free slot for it. */
+    fun acceptsGlyphPage(page: UiGlyphAtlasPage): Boolean =
+        indexOfGlyphPage(page.textureId) >= 0 || glyphPageCount < MaxGlyphPages
+
+    private fun indexOfGlyphPage(texture: Int): Int {
+        for (index in 0 until glyphPageCount) if (pageTextures[index] == texture) return index
+        return -1
+    }
+
+    private fun slotFor(page: UiGlyphAtlasPage): Int {
+        val existing = indexOfGlyphPage(page.textureId)
+        if (existing >= 0) return existing
+        val slot = glyphPageCount
+        pageTextures[slot] = page.textureId
+        pageDistanceRanges[slot] = page.distanceRange
+        pageSizes[slot * 2] = page.width
+        pageSizes[slot * 2 + 1] = page.height
+        glyphPageCount = slot + 1
+        return slot
+    }
 
     fun canAppend(command: DrawBoxCommand): Boolean {
         if (command.renderToFramebuffer) return false
@@ -103,10 +126,9 @@ internal class UiAnalyticRectBatch {
     /**
      * A single glyph quad. [minX]..[maxY] are the glyph's local-space bounds (the shared run
      * [transform] maps them to screen), [u0]..[v1] the atlas UV rect, drawn in [color] and clipped
-     * by [clip]. All glyphs in a batch must share one [atlas] (see [acceptsGlyphAtlas]).
+     * by [clip]. [page] must have been admitted by [acceptsGlyphPage].
      *
-     * [sampling] picks how the atlas texel becomes coverage, and [sdBias] grows the signed-distance
-     * edge for faux-bold (distance-field sampling only; ignored for bitmap atlases).
+     * [sdBias] grows the signed-distance edge for faux-bold (distance-field pages only).
      */
     fun appendGlyph(
         transform: UiMatrix4,
@@ -120,18 +142,11 @@ internal class UiAnalyticRectBatch {
         v1: Float,
         color: UiColor,
         clip: UiShaderClip,
-        atlas: Int,
-        distanceRange: Float,
-        atlasWidth: Float,
-        atlasHeight: Float,
-        sampling: UiGlyphSampling = UiGlyphSampling.MSDF,
+        page: UiGlyphAtlasPage,
         sdBias: Float = 0f,
     ) {
-        atlasTextureId = atlas
-        glyphDistanceRange = distanceRange
-        glyphAtlasWidth = atlasWidth
-        glyphAtlasHeight = atlasHeight
-        records.add(GlyphMarker, sdBias, sampling.shaderMode.toFloat(), 0f)
+        val slot = slotFor(page)
+        records.add(GlyphMarker, sdBias, page.sampling.shaderMode.toFloat(), slot.toFloat())
         records.add(u0, v0, u1, v1)
         records.add(color.red, color.green, color.blue, color.alpha)
         records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
@@ -139,20 +154,20 @@ internal class UiAnalyticRectBatch {
     }
 
     /**
-     * A plain untextured rectangle at the batch's current position, for text decorations (underline
-     * and strikethrough rules). Sharing the glyph batch keeps a decorated run at one draw call and
-     * puts the rule on top of the glyphs it follows.
+     * A plain untextured rectangle at the batch's current position, for the things drawn alongside
+     * text: span backgrounds, and the underline and strikethrough rules.
      */
     fun appendSolidRect(
         transform: UiMatrix4,
         width: Float,
         height: Float,
+        radius: Float,
         color: UiColor,
         clip: UiShaderClip,
     ) {
         if (width <= 0f || height <= 0f || color.alpha <= 0f) return
         val paintIndex = paintEncoder.append(UiResolvedPaint.Color(color), 1f, UiFilterChain.Empty, width, height)
-        records.add(width, height, 0f, 0f)
+        records.add(width, height, radius.coerceIn(0f, min(width, height) * 0.5f), 0f)
         records.add(paintIndex.toFloat(), 0f, 0f, 0f)
         records.add(0f, 0f, 0f, 0f)
         records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
@@ -164,10 +179,7 @@ internal class UiAnalyticRectBatch {
         records.clear()
         paints.clear()
         stops.clear()
-        atlasTextureId = 0
-        glyphDistanceRange = 0f
-        glyphAtlasWidth = 0f
-        glyphAtlasHeight = 0f
+        glyphPageCount = 0
     }
 
     fun writeInstances(destination: FloatBuffer) = instances.writeTo(destination)
@@ -198,6 +210,13 @@ internal class UiAnalyticRectBatch {
         const val InstanceStride = 20
         const val RecordStride = 16
         const val NoPaint = -1
+
+        /**
+         * Atlas pages one draw can mix. Enough for the vanilla font's three sheets plus several
+         * custom faces on the same screen; each costs a texture unit and a branch in the shader's
+         * sampler dispatch, which GLSL 3.30 forces to be a constant-indexed chain.
+         */
+        const val MaxGlyphPages = 8
 
         /** Record texel-0 x sentinel marking a glyph (rects always have positive width there). */
         const val GlyphMarker = -1f

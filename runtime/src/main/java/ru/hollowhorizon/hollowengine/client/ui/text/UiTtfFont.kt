@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.utils.font.MsdfBakeSpec
+import ru.hollowhorizon.hollowengine.client.utils.font.MsdfBakerVersion
 import ru.hollowhorizon.hollowengine.client.utils.font.MsdfMeta
 import ru.hollowhorizon.hollowengine.client.utils.font.bakeMsdfAtlas
 import ru.hollowhorizon.hollowengine.client.utils.font.TtfFace
@@ -124,6 +125,7 @@ object UiTtfFont {
 
     private fun cacheKey(request: UiTtfFontRequest, bytes: ByteArray, spec: MsdfBakeSpec): String {
         val digest = MessageDigest.getInstance("SHA-1")
+        digest.update(MsdfBakerVersion.toString().toByteArray())
         digest.update(request.source.toByteArray())
         digest.update(spec.pixelSize.toRawBits().toString().toByteArray())
         digest.update(spec.pixelRange.toRawBits().toString().toByteArray())
@@ -195,8 +197,7 @@ internal class UiTtfFontRequest(
 
     companion object {
         private const val DefaultPixelSize = 48f
-
-        private const val DefaultPixelRange = 8f
+        private const val DefaultPixelRange = 2f
         private const val DefaultCharset = "latin+latin-ext+cyrillic+punctuation"
         private const val FilePrefix = "file:"
 

@@ -15,7 +15,7 @@ class WhitespacePreservationTest {
             measurePolicy = UiMeasurePolicies.InlineFlow,
             modifiers = listOf(Modifier.size(1000.px, UiLength.Auto)),
         ).also { it.children.add(span) }
-        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(container) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(TestFontStyle)).also { it.children.add(container) }
         UiModifierResolver().resolve(root)
         val layout = UiLayoutPipeline().compute(root, 1000f, 1000f, UiScrollState())
         return layout.nodes.getValue(span)

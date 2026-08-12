@@ -62,13 +62,13 @@ internal fun textHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "font-family",
-        summary = "Font used for text; inherited by children. An MSDF atlas asset path, " +
-                "`vanilla[:<font>]` for Minecraft's own sheets, or `ttf:<file>[?size=&range=&charset=]`.",
+        summary = "Font used for text; inherited by children. Defaults to `vanilla`, Minecraft's own " +
+                "sheets. Also takes an MSDF atlas asset path or `ttf:<file>[?size=&range=&charset=]`.",
         syntax = syntax(slot("family", HssValueKind.TEXT)),
         examples = listOf(
-            "\"hollowengine:fonts/monocraft\"",
             "\"vanilla\"",
             "\"vanilla:minecraft:alt\"",
+            "\"hollowengine:fonts/monocraft\"",
             "\"ttf:hollowengine:fonts/inter.ttf?size=48&charset=latin+cyrillic\"",
         ),
     ) { style { it.fontFamily = unquote(value) } }

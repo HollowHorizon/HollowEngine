@@ -22,7 +22,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
 fun TextLab() {
     var fontIndex by remember { mutableStateOf(0) }
     var fontMenuOpen by remember { mutableStateOf(false) }
-    var fontSizeText by remember { mutableStateOf("14") }
+    var fontSizeText by remember { mutableStateOf("16") }
     var wrap by remember { mutableStateOf(true) }
     var align by remember { mutableStateOf(UiTextAlign.LEFT) }
     var overflow by remember { mutableStateOf(UiTextOverflow.SHOW) }
@@ -289,11 +289,11 @@ private fun labToggle(label: String, checked: Boolean, onToggle: () -> Unit) {
 private class TextLabFont(val label: String, val short: String, val family: String)
 
 private val TextLabFonts = listOf(
+    TextLabFont("Vanilla · default", "vanilla", DefaultUiFontFamily),
     TextLabFont("MonoCraft · MSDF", "mono", "hollowengine:fonts/monocraft"),
     TextLabFont("Hack · MSDF", "hack", "hollowengine:fonts/hack"),
     TextLabFont("PT Sans · MSDF", "pt", "hollowengine:fonts/pt_sans"),
     TextLabFont("Roboto · MSDF", "roboto", "hollowengine:fonts/font-roboto-regular"),
-    TextLabFont("Vanilla · bitmap", "vanilla", "vanilla"),
     TextLabFont("Vanilla alt · bitmap", "alt", "vanilla:alt"),
     TextLabFont(
         "Noto Sans · TTF→MSDF",

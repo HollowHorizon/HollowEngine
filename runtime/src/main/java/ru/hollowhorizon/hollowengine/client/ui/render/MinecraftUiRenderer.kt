@@ -76,6 +76,9 @@ private val LinkColor = UiColor(0.34f, 0.67f, 1f, 1f)
 /** Below this an underline can fall between pixel centres and vanish entirely. */
 private const val MinTextRuleThickness = 0.5f
 
+/** Corner rounding of a span background or an inline code chip. */
+private const val TextRectRadius = 2f
+
 /** Below this a second stamp is not worth a draw: it would land inside the first one's edge. */
 private const val MinBoldStampOffset = 0.15f
 
@@ -138,7 +141,6 @@ class MinecraftUiRenderer {
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var preparingLayerAtlas = false
-    private val textAxisScales = FloatArray(2)
     private val itemAxisScales = FloatArray(2)
 
     /**
@@ -1397,9 +1399,6 @@ class MinecraftUiRenderer {
     private fun drawText(command: DrawTextCommand) {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        transform.axisScales(textAxisScales)
-        val scaleX = textAxisScales[0]
-        val scaleY = textAxisScales[1]
         val now = TickHandler.gameTime / 20f
         val clipped = requiresTextClip(
             overflow = command.overflow,
@@ -1430,7 +1429,7 @@ class MinecraftUiRenderer {
                 val displayLine = if (command.overflow == UiTextOverflow.DOTS) UiTextOverflowResolver.ellipsizeLine(
                     command, line
                 ) else line
-                drawTextLine(command, displayLine, transform, scaleX, scaleY, now)
+                drawTextLine(command, displayLine, transform, now)
             }
         if (clipped) {
             flushTextBatch()
@@ -1443,8 +1442,6 @@ class MinecraftUiRenderer {
         command: DrawTextCommand,
         line: UiTextLine,
         transform: UiMatrix4,
-        scaleX: Float,
-        scaleY: Float,
         now: Float,
     ) {
         if (line.fragments.isNotEmpty()) {
@@ -1453,7 +1450,7 @@ class MinecraftUiRenderer {
                     is UiInlineImageRun -> drawInlineImage(command, fragment, line, transform)
                     is UiInlineWidgetRun -> Unit
                     is UiTextSpaceRun -> Unit
-                    is UiTextRun -> drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
+                    is UiTextRun -> drawTextRun(command, fragment, line, transform, now)
                 }
             }
         } else {
@@ -1465,7 +1462,7 @@ class MinecraftUiRenderer {
                 width = line.naturalWidth,
                 height = command.fontSize,
             )
-            drawTextRun(command, fragment, line, transform, scaleX, scaleY, now)
+            drawTextRun(command, fragment, line, transform, now)
         }
     }
 
@@ -1474,8 +1471,6 @@ class MinecraftUiRenderer {
         fragment: UiTextRun,
         line: UiTextLine,
         transform: UiMatrix4,
-        scaleX: Float,
-        scaleY: Float,
         now: Float,
     ) {
         val fontSize = fragment.style.resolvedFontSize(command.fontSize)
@@ -1492,7 +1487,7 @@ class MinecraftUiRenderer {
 
         if (!hasLayer && !hasAnimated) {
             drawSingleTextRun(
-                command, fragment, transform, scaleX, scaleY,
+                command, fragment, transform,
                 localX,
                 localY,
                 fontSize,
@@ -1515,8 +1510,6 @@ class MinecraftUiRenderer {
                 command,
                 fragment,
                 transform,
-                scaleX,
-                scaleY,
                 now,
                 fontSize,
                 fontFamily,
@@ -1529,7 +1522,7 @@ class MinecraftUiRenderer {
         }
 
         val effectiveColor = fragment.style.color ?: if (fragment.style.link != null) {
-            UiColor(0.34f, 0.67f, 1f, 1f)
+            LinkColor
         } else {
             command.color
         }
@@ -1542,8 +1535,6 @@ class MinecraftUiRenderer {
                     command,
                     fragment,
                     transform,
-                    scaleX,
-                    scaleY,
                     localX + pass.offsetX,
                     localY + pass.offsetY,
                     fontSize,
@@ -1555,7 +1546,7 @@ class MinecraftUiRenderer {
         }
 
         drawSingleTextRun(
-            command, fragment, transform, scaleX, scaleY,
+            command, fragment, transform,
             localX, localY, fontSize,
             fontFamily,
             fragment.style.color, 1f,
@@ -1571,23 +1562,40 @@ class MinecraftUiRenderer {
     ) {
         val background = fragment.style.background ?: return
         if (fragment.width <= 0f || fragment.height <= 0f || background.alpha <= 0f) return
-        flushTextBatch()
-        drawLocalPaint(
+        drawTextRect(
+            command,
+            transform.translated(localX, localY),
             fragment.width,
             fragment.height,
-            2f,
+            TextRectRadius,
             background.withOpacity(command.opacity).filtered(command.filter),
-            transform.translated(localX, localY),
-            command.filter,
         )
+    }
+
+    /**
+     * A rectangle drawn as part of a text run, a span background, a rule.
+     */
+    private fun drawTextRect(
+        command: DrawTextCommand,
+        placement: UiMatrix4,
+        width: Float,
+        height: Float,
+        radius: Float,
+        color: UiColor,
+    ) {
+        if (width <= 0f || height <= 0f || color.alpha <= 0f) return
+        if (emitUnifiedGlyphs) {
+            analyticRectBatch.appendSolidRect(placement, width, height, radius, color, glyphClip)
+            return
+        }
+        flushTextBatch()
+        drawLocalPaint(width, height, radius, color, placement, command.filter)
     }
 
     private fun drawSingleTextRun(
         command: DrawTextCommand,
         fragment: UiTextRun,
         transform: UiMatrix4,
-        scaleX: Float,
-        scaleY: Float,
         localX: Float,
         localY: Float,
         fontSize: Float,
@@ -1596,14 +1604,13 @@ class MinecraftUiRenderer {
         alphaMultiplier: Float,
     ) {
         if (fragment.style.code) {
-            flushTextBatch()
-            drawLocalPaint(
+            drawTextRect(
+                command,
+                transform.translated(localX, localY),
                 fragment.width,
                 fragment.height,
-                2f,
+                TextRectRadius,
                 UiColor(0f, 0f, 0f, 0.28f * command.opacity * alphaMultiplier),
-                transform.translated(localX, localY),
-                command.filter,
             )
         }
 
@@ -1649,7 +1656,7 @@ class MinecraftUiRenderer {
                 continue
             }
             val page = glyph.page
-            if (emitUnifiedGlyphs && !analyticRectBatch.acceptsGlyphAtlas(page.textureId)) {
+            if (emitUnifiedGlyphs && !analyticRectBatch.acceptsGlyphPage(page)) {
                 flushAnalyticRectBatch()
             }
             val x0 = penX + glyph.left * fontSize
@@ -1682,9 +1689,7 @@ class MinecraftUiRenderer {
                 transform,
                 x0, yTop, x1, yBottom,
                 glyph.uMin, glyph.vTop, glyph.uMax, glyph.vBottom,
-                color, glyphClip,
-                page.textureId, page.distanceRange, page.width, page.height,
-                page.sampling, sdBias,
+                color, glyphClip, page, sdBias,
             )
             return
         }
@@ -1743,15 +1748,8 @@ class MinecraftUiRenderer {
         thickness: Float,
         color: UiColor,
     ) {
-        if (width <= 0f || color.alpha <= 0f) return
         val height = thickness.coerceAtLeast(MinTextRuleThickness)
-        val placement = transform.translated(localX, centreY - height / 2f)
-        if (emitUnifiedGlyphs) {
-            analyticRectBatch.appendSolidRect(placement, width, height, color, glyphClip)
-            return
-        }
-        flushTextBatch()
-        drawLocalPaint(width, height, 0f, color, placement, command.filter)
+        drawTextRect(command, transform.translated(localX, centreY - height / 2f), width, height, 0f, color)
     }
 
     /** Shear about `y = baselineY`: `x' = x + tan(skew) * (baselineY - y)`, leaving y untouched. */
@@ -1771,8 +1769,6 @@ class MinecraftUiRenderer {
         command: DrawTextCommand,
         fragment: UiTextRun,
         transform: UiMatrix4,
-        scaleX: Float,
-        scaleY: Float,
         now: Float,
         fontSize: Float,
         fontFamily: String?,
@@ -1817,7 +1813,7 @@ class MinecraftUiRenderer {
 
             if (layerEffects.isNotEmpty()) {
                 val effectiveColor = colorOverride ?: if (fragment.style.link != null) {
-                    UiColor(0.34f, 0.67f, 1f, 1f)
+                    LinkColor
                 } else {
                     command.color
                 }
@@ -1830,8 +1826,6 @@ class MinecraftUiRenderer {
                             command,
                             charFragment,
                             transform,
-                            scaleX,
-                            scaleY,
                             charLocalX + charOffsetX + pass.offsetX,
                             baseLocalY + charOffsetY + pass.offsetY,
                             fontSize,
@@ -1847,7 +1841,7 @@ class MinecraftUiRenderer {
             val finalLocalY = baseLocalY + charOffsetY
 
             val finalColor = colorOverride ?: if (fragment.style.link != null) {
-                UiColor(0.34f, 0.67f, 1f, 1f)
+                LinkColor
             } else {
                 command.color
             }
@@ -1855,8 +1849,6 @@ class MinecraftUiRenderer {
                 command,
                 charFragment,
                 transform,
-                scaleX,
-                scaleY,
                 finalLocalX,
                 finalLocalY,
                 fontSize,
