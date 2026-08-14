@@ -101,6 +101,15 @@ internal fun UiLayoutPipeline.placeNodeNow(
     )
 }
 
+private fun ChildPlacementScope.unscrolled(node: UiNode, rect: UiRect): UiRect {
+    val pin = node.resolvedSnapshot.scrollPinned ?: return rect
+    val offset = style.scroll?.state?.offset ?: return rect
+    return rect.copy(
+        x = if (pin.horizontal) rect.x + offset.x else rect.x,
+        y = if (pin.vertical) rect.y + offset.y else rect.y,
+    )
+}
+
 internal fun UiLayoutPipeline.placeScopedNode(
     scope: ChildPlacementScope,
     node: UiNode,
@@ -110,7 +119,7 @@ internal fun UiLayoutPipeline.placeScopedNode(
     placeNodeNow(
         node = node,
         resolved = scope.resolved,
-        rect = rect,
+        rect = scope.unscrolled(node, rect),
         parentRect = scope.parentRect,
         parentClip = clip,
         parentTransform = scope.transform,

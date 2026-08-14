@@ -116,9 +116,20 @@ class EditableFieldLayoutTest {
     fun `the visible range is a band around the scroll offset, not the whole document`() {
         val l = layout((0 until 5000).joinToString("\n") { "l$it" })
         val range = l.visibleRange(scrollY = 1000f, viewportHeight = 100f, overscan = 0f)
-        assertEquals(91, range.first, "1000 / 10.898px line")
-        assertEquals(100, range.last, "(1000 + 100) / 10.898px line")
+        // 1000 / 10.898px puts the first visible line at 91 and the last at 100.
+        assertTrue(range.first <= 91 && range.last >= 100, "the band covers what is on screen ($range)")
         assertTrue(range.last - range.first < 50, "only a band is composed")
+    }
+
+    @Test
+    fun `the visible range holds still across small scrolls`() {
+        val l = layout((0 until 5000).joinToString("\n") { "l$it" })
+        val first = l.visibleRange(scrollY = 1000f, viewportHeight = 100f, overscan = 0f)
+        val nudged = l.visibleRange(scrollY = 1005f, viewportHeight = 100f, overscan = 0f)
+        assertEquals(first, nudged, "half a line of scrolling must not recompose the rows")
+
+        val far = l.visibleRange(scrollY = 1400f, viewportHeight = 100f, overscan = 0f)
+        assertTrue(far != first, "scrolling past the block does move the band")
     }
 
     @Test

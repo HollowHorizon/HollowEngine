@@ -83,6 +83,7 @@ class UiLayoutPipeline {
                 if (profile != null) {
                     profile.measurePasses++
                     profile.placementPasses++
+                    profile.incrementalLayouts++
                 }
                 for (container in moved) replaceScrolledSubtree(container, resolved, layouts)
             } finally {

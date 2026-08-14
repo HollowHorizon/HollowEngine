@@ -12,16 +12,13 @@ import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiInlineStyle
 import java.util.*
-import ru.hollowhorizon.hollowengine.client.ui.text.Shadow as TextShadow
 
 sealed interface UiRenderCommand {
     val node: UiNode
 }
 
 enum class UiRenderPhase {
-    BACKGROUND,
-    CONTENT,
-    OVERLAY,
+    BACKGROUND, CONTENT, OVERLAY,
 }
 
 data class BeginLayerCommand(
@@ -367,16 +364,11 @@ class UiCommandRenderer {
         val isFramebuffer = layoutNode.needsFramebuffer
         val baseFilter = if (isFramebuffer) UiFilterChain.Empty else style.filter
         val localOpacity = if (isFramebuffer) 1f else style.opacity
-        val visibleShadows =
-            if (style.shadows.isEmpty()) emptyList() else style.shadows.filterNot { it.inset }
+        val visibleShadows = if (style.shadows.isEmpty()) emptyList() else style.shadows.filterNot { it.inset }
         val nodeLayoutBoundsMatchVisualBounds =
             layoutBoundsMatchVisualBounds && style.transform == DirectLayoutTransform
-        val canCullNode = activeClip != null &&
-                nodeLayoutBoundsMatchVisualBounds &&
-                !isFramebuffer &&
-                visibleShadows.isEmpty() &&
-                style.backdropFilter.effects.isEmpty() &&
-                style.filter == UiFilterChain.Empty
+        val canCullNode =
+            activeClip != null && nodeLayoutBoundsMatchVisualBounds && !isFramebuffer && visibleShadows.isEmpty() && style.backdropFilter.effects.isEmpty() && style.filter == UiFilterChain.Empty
         val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.touches(it) } == true
         val pushedClip = (style.clip && style.clipShape == null) || style.scrollable
 
@@ -384,18 +376,26 @@ class UiCommandRenderer {
 
         if (!cullNodeCommands && style.backdropFilter.effects.isNotEmpty()) {
             commands += DrawBackdropFilterCommand(
-                node = node, rect = layoutNode.rect, radius = style.border.radius,
-                filter = style.backdropFilter, opacity = style.opacity,
-                transform = layoutNode.worldTransform, backfaceVisibility = style.backfaceVisibility
+                node = node,
+                rect = layoutNode.rect,
+                radius = style.border.radius,
+                filter = style.backdropFilter,
+                opacity = style.opacity,
+                transform = layoutNode.worldTransform,
+                backfaceVisibility = style.backfaceVisibility
             )
         }
 
         if (!cullNodeCommands && visibleShadows.isNotEmpty()) {
             commands += DrawShadowCommand(
-                node = node, rect = layoutNode.rect, radius = style.border.radius,
+                node = node,
+                rect = layoutNode.rect,
+                radius = style.border.radius,
                 shape = style.shape ?: style.clipShape.takeIf { style.clip },
-                shadows = visibleShadows, opacity = style.opacity,
-                transform = layoutNode.worldTransform, filter = baseFilter,
+                shadows = visibleShadows,
+                opacity = style.opacity,
+                transform = layoutNode.worldTransform,
+                filter = baseFilter,
                 backfaceVisibility = style.backfaceVisibility
             )
         }
@@ -465,7 +465,6 @@ class UiCommandRenderer {
             style,
             localOpacity,
             layoutNode,
-            layout,
             baseFilter,
             commands,
         )
@@ -476,7 +475,7 @@ class UiCommandRenderer {
             else -> activeClip.visibleIntersection(layoutNode.content)
         }
         if (!pushedClip || childClip != null) {
-            val sorted = orderedVisibleChildren(node, layout)
+            val sorted = layout.childrenOf(node)
             var start = 0
             while (start < sorted.size) {
                 val groupLayer = sorted[start].resolvedSnapshot.layer
@@ -542,7 +541,9 @@ class UiCommandRenderer {
         commands: UiRenderSink,
     ) {
         var scope: UiCommandCanvasScope? = null
-        for (modifier in node.resolvedModifiers) {
+        val modifiers = node.resolvedModifiers
+        for (index in modifiers.indices) {
+            val modifier = modifiers[index]
             if (modifier !is UiCanvasModifier || modifier.layer != layer) continue
             val activeScope = scope ?: canvasScope(node, layoutNode, opacity, filter, phase, commands).also {
                 scope = it
@@ -555,29 +556,25 @@ class UiCommandRenderer {
      * Whether a container positions its children so they can overlap. Flow layouts (rows/columns/inline)
      * never overlap; a box (free/stack) or a custom policy (the overlay/popup host) can.
      */
-    private fun UiNode.childrenCanOverlap(): Boolean =
-        when ((measurePolicy as? UiBuiltInMeasurePolicy)?.kind) {
-            UiBuiltInMeasurePolicyKind.COLUMN,
-            UiBuiltInMeasurePolicyKind.ROW,
-            UiBuiltInMeasurePolicyKind.INLINE_FLOW,
-                -> false
+    private fun UiNode.childrenCanOverlap(): Boolean = when ((measurePolicy as? UiBuiltInMeasurePolicy)?.kind) {
+        UiBuiltInMeasurePolicyKind.COLUMN,
+        UiBuiltInMeasurePolicyKind.ROW,
+        UiBuiltInMeasurePolicyKind.INLINE_FLOW,
+            -> false
 
-            UiBuiltInMeasurePolicyKind.BOX, null -> true
-        }
+        UiBuiltInMeasurePolicyKind.BOX, null -> true
+    }
 
     private fun collectNodeContent(
         node: UiNode,
         style: UiComputedStyle,
         opacity: Float,
         layoutNode: UiLayoutNode,
-        layout: UiLayoutResult,
         filter: UiFilterChain,
         commands: UiRenderSink,
     ) {
         val contentTransform = layoutNode.worldTransform.translated(
-            layoutNode.content.x - layoutNode.rect.x,
-            layoutNode.content.y - layoutNode.rect.y,
-            0f
+            layoutNode.content.x - layoutNode.rect.x, layoutNode.content.y - layoutNode.rect.y, 0f
         )
         val backface = style.backfaceVisibility
 
@@ -585,11 +582,22 @@ class UiCommandRenderer {
             is SpanNode -> {
                 val textLayout = layoutNode.textLayout ?: singleRunSpanLayout(node, style, layoutNode)
                 commands += DrawTextCommand(
-                    node, layoutNode.content, node.text, style.foreground, opacity, contentTransform,
-                    filter, wrap = false, style.textOverflow, style.textAlign, style.fontSize,
-                    style.fontFamily, emptyList(),
+                    node,
+                    layoutNode.content,
+                    node.text,
+                    style.foreground,
+                    opacity,
+                    contentTransform,
+                    filter,
+                    wrap = false,
+                    style.textOverflow,
+                    style.textAlign,
+                    style.fontSize,
+                    style.fontFamily,
+                    emptyList(),
                     textLayout,
-                    layoutNode.scrollOffset, backface
+                    layoutNode.scrollOffset,
+                    backface
                 )
             }
 
@@ -603,8 +611,11 @@ class UiCommandRenderer {
                             layoutNode.content.width,
                             layoutNode.content.height,
                         )
-                        canvasScope(node, layoutNode, opacity, filter, UiRenderPhase.CONTENT, commands)
-                            .drawSvg(svg, contentLocal, style.tint)
+                        canvasScope(node, layoutNode, opacity, filter, UiRenderPhase.CONTENT, commands).drawSvg(
+                                svg,
+                                contentLocal,
+                                style.tint
+                            )
                     } else {
                         commands += DrawImageCommand(
                             node, layoutNode.content, source, opacity, style.tint, contentTransform,
@@ -768,11 +779,9 @@ class UiCommandRenderer {
         }
     }
 
-    private fun UiRect.isDrawable(): Boolean =
-        width.isFinite() && height.isFinite() && width > 0f && height > 0f
+    private fun UiRect.isDrawable(): Boolean = width.isFinite() && height.isFinite() && width > 0f && height > 0f
 
-    private fun UiBorder.withNormalizedRadius(): UiBorder =
-        if (radius >= 0f) this else copy(radius = 0f)
+    private fun UiBorder.withNormalizedRadius(): UiBorder = if (radius >= 0f) this else copy(radius = 0f)
 
     private fun singleRunSpanLayout(node: SpanNode, style: UiComputedStyle, layoutNode: UiLayoutNode): UiTextLayout {
         val text = node.text
@@ -791,15 +800,6 @@ class UiCommandRenderer {
     }
 
 }
-
-
-
-private fun UiShadow.toTextShadow() = TextShadow(
-    offsetX = offset.x,
-    offsetY = offset.y,
-    blur = blur,
-    color = color,
-)
 
 sealed interface UiResolvedPaint {
     data object None : UiResolvedPaint
@@ -820,8 +820,7 @@ internal fun UiResolvedPaint.hasVisiblePixels(): Boolean = when (this) {
         -> true
 }
 
-internal fun UiBorder.hasVisiblePixels(): Boolean =
-    color.alpha > 0f && width != UiInsets.Zero
+internal fun UiBorder.hasVisiblePixels(): Boolean = color.alpha > 0f && width != UiInsets.Zero
 
 internal fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None
@@ -871,7 +870,7 @@ class UiHitTester {
                     val layoutNode = layout.nodes[current] ?: continue
                     val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
                     stack.add(HitTestTask.Test(current, task.ancestorClip))
-                    for (child in orderedVisibleChildren(current, layout)) {
+                    for (child in layout.childrenOf(current)) {
                         stack.add(HitTestTask.Enter(child, effectiveClip))
                     }
                     layout.scrollbars[current]?.forEach { scrollbar ->
@@ -882,12 +881,7 @@ class UiHitTester {
                 is HitTestTask.Test -> {
                     val current = task.node
                     val style = resolved[current]
-                    if (!style.hoverable &&
-                        !style.clickable &&
-                        !style.focusable &&
-                        !style.draggable &&
-                        !style.scrollable
-                    ) {
+                    if (!style.hoverable && !style.clickable && !style.focusable && !style.draggable && !style.scrollable) {
                         continue
                     }
                     if (current.hasEffectiveState(UiState.DISABLED)) continue
@@ -919,14 +913,13 @@ class UiHitTester {
                     val layoutNode = layout.nodes[current] ?: continue
                     val effectiveClip = task.ancestorClip.intersect(layoutNode.clip)
                     stack.add(HitTestTask.Test(current, task.ancestorClip))
-                    for (child in orderedVisibleChildren(current, layout)) {
+                    for (child in layout.childrenOf(current)) {
                         stack.add(HitTestTask.Enter(child, effectiveClip))
                     }
                     layout.scrollbars[current]?.forEach {
                         if (it in layout.nodes) stack.add(
                             HitTestTask.Enter(
-                                it,
-                                task.ancestorClip
+                                it, task.ancestorClip
                             )
                         )
                     }
@@ -950,32 +943,11 @@ class UiHitTester {
         is SpanNode, is ScrollbarNode, is ScrollbarThumbNode,
             -> true
 
-        else -> style.image != null || style.item != null || style.entity != null ||
-                style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null
+        else -> style.image != null || style.item != null || style.entity != null || style.background != UiPaint.None || style.border.width != UiInsets.Zero || style.shape != null
     }
 }
 
 private val DirectLayoutTransform = UiTransform()
-
-private val ChildLayerComparator = compareBy<UiNode> { it.resolvedSnapshot.layer }
-
-private fun orderedVisibleChildren(node: UiNode, layout: UiLayoutResult): List<UiNode> {
-    val children = layout.childrenOf(node)
-    if (children.size < 2) return children
-    val firstLayer = children[0].resolvedSnapshot.layer
-    var uniformLayer = true
-    for (index in 1 until children.size) {
-        if (children[index].resolvedSnapshot.layer != firstLayer) {
-            uniformLayer = false
-            break
-        }
-    }
-    if (uniformLayer) return children
-    val result = ArrayList<UiNode>(children.size)
-    result.addAll(children)
-    result.sortWith(ChildLayerComparator)
-    return result
-}
 
 private fun UiRect.hasVisibleArea(): Boolean {
     return width > 0f && height > 0f
@@ -991,8 +963,7 @@ private fun UiRect.visibleIntersection(other: UiRect): UiRect? {
 }
 
 private fun UiRect.touches(other: UiRect): Boolean {
-    return x <= other.x + other.width && other.x <= x + width &&
-            y <= other.y + other.height && other.y <= y + height
+    return x <= other.x + other.width && other.x <= x + width && y <= other.y + other.height && other.y <= y + height
 }
 
 private fun UiRect.localTo(parent: UiRect): UiRect {

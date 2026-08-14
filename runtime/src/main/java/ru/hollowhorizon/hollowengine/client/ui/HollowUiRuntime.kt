@@ -417,7 +417,9 @@ class HollowUiRuntime(
     private fun dispatchPlacementCallbacks(layout: UiLayoutResult) {
         for (node in layout.traversalOrder) {
             var rect: UiRect? = null
-            for (modifier in node.resolvedModifiers) {
+            val modifiers = node.resolvedModifiers
+            for (index in modifiers.indices) {
+                val modifier = modifiers[index]
                 if (modifier !is OnPlacedModifier) continue
                 if (rect == null) {
                     val current = layout[node].rect
@@ -434,7 +436,9 @@ class HollowUiRuntime(
     private fun dispatchResolvedStyleCallbacks(layout: UiLayoutResult) {
         for (node in layout.traversalOrder) {
             var style: UiComputedStyle? = null
-            for (modifier in node.resolvedModifiers) {
+            val modifiers = node.resolvedModifiers
+            for (index in modifiers.indices) {
+                val modifier = modifiers[index]
                 if (modifier !is OnResolvedStyleModifier) continue
                 if (style == null) {
                     val current = node.resolvedSnapshot
@@ -450,7 +454,9 @@ class HollowUiRuntime(
     private fun dispatchTextLayoutCallbacks(layout: UiLayoutResult) {
         for (node in layout.traversalOrder) {
             var textLayout: UiTextLayout? = null
-            for (modifier in node.resolvedModifiers) {
+            val modifiers = node.resolvedModifiers
+            for (index in modifiers.indices) {
+                val modifier = modifiers[index]
                 if (modifier !is OnTextLayoutModifier) continue
                 if (textLayout == null) {
                     val current = layout[node].textLayout ?: break

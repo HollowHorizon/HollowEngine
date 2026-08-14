@@ -390,10 +390,15 @@ fun Modifier.scrollable(
     )
 )
 
+/** Which axes [Modifier.pinnedToViewport] holds a node against the viewport on. */
+data class UiScrollPin(val horizontal: Boolean, val vertical: Boolean)
+
 /**
- * Marks a child of a scroll container as chrome that rides along with the offset.
+ * Marks a child of a scroll container as chrome that stays put while the content scrolls under
+ * it on given axes.
  */
-fun Modifier.pinnedToViewport() = prop(UiProps.ScrollPinned, true)
+fun Modifier.pinnedToViewport(horizontal: Boolean = true, vertical: Boolean = true) =
+    prop(UiProps.ScrollPinned, UiScrollPin(horizontal, vertical))
 
 fun Modifier.input(
     hoverable: Boolean = false,

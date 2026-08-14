@@ -171,7 +171,7 @@ internal fun EditableFieldDiagnosticTooltipOverlay(
             tooltip.severity.name.lowercase(),
         ),
         modifier = Modifier
-            .position((tooltip.x + scrollState.offsetX).px, (tooltip.y + scrollState.offsetY).px, 50f)
+            .position(tooltip.x.px, tooltip.y.px, 50f)
             .layer(31)
             .pinnedToViewport()
             .size(tooltip.width.px, UiLength.Auto),

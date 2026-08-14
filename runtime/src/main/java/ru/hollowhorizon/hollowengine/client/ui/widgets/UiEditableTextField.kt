@@ -73,11 +73,20 @@ internal class EditableFieldLayout(
         return result.coerceIn(0, lines.size - 1)
     }
 
-    /** The inclusive index band whose rows fall within the scrolled viewport (plus overscan). */
+    /**
+     * The inclusive index band whose rows fall within the scrolled viewport (plus overscan),
+     * snapped outwards to a block boundary.
+     */
     fun visibleRange(scrollY: Float, viewportHeight: Float, overscan: Float): IntRange {
         if (lines.isEmpty()) return IntRange.EMPTY
-        return lineAtY(scrollY - overscan)..lineAtY(scrollY + viewportHeight + overscan)
+        val first = lineAtY(scrollY - overscan).floorToBlock()
+        val last = lineAtY(scrollY + viewportHeight + overscan).ceilToBlock()
+        return first..last.coerceAtMost(lines.lastIndex)
     }
+
+    private fun Int.floorToBlock() = this - this % EditableFieldRowBlock
+
+    private fun Int.ceilToBlock() = this + (EditableFieldRowBlock - 1 - this % EditableFieldRowBlock)
 
     /** Content-space point -> document offset. */
     fun offsetAt(x: Float, y: Float): Int = caretHitAt(x, y).offset
@@ -618,7 +627,7 @@ fun EditableTextField(
             }
         }
         if (gutterWidth > 0f) {
-            EditableFieldGutter(layout, visible, scrollState, gutterWidth, lineNumberColor)
+            EditableFieldGutter(layout, visible, gutterWidth, lineNumberColor)
         }
         if (completion.items.isNotEmpty()) {
             EditableFieldCompletionPopup(completion, layout, scrollState, gutterWidth)
@@ -639,21 +648,21 @@ internal fun editableFieldGutterWidth(text: String, fontSize: Float): Float {
 private fun EditableFieldGutter(
     layout: EditableFieldLayout,
     visible: IntRange,
-    scrollState: UiScrollHandle,
     width: Float,
     color: UiColor,
 ) {
     Box(
         mode = UiBoxMode.STACK,
         tags = listOf("editable-text-field-gutter", "code-editor-gutter"),
-        modifier = Modifier.position(scrollState.offsetX.px, scrollState.offsetY.px, 5f)
-            .size(width.px, scrollState.viewport.height.px).layer(5).pinnedToViewport(),
+        modifier = Modifier.position(0.px, 0.px, 5f)
+            .size(width.px, layout.height.px).layer(5)
+            .pinnedToViewport(horizontal = true, vertical = false),
     ) {
         for (index in visible) {
             key(index) {
                 Text(
                     (index + 1).toString(),
-                    modifier = Modifier.position(0.px, (layout.lineTop(index) - scrollState.offsetY).px)
+                    modifier = Modifier.position(0.px, layout.lineTop(index).px)
                         .foreground(color).textWrap(false),
                 )
             }
@@ -1303,6 +1312,8 @@ internal fun editableFieldIndentGuideColumns(line: String, indentSize: Int): Lis
 }
 
 internal const val TextFieldCaretWidth = 1f
+
+private const val EditableFieldRowBlock = 16
 private const val EditableFieldDoubleClickMillis = 350L
 internal const val EditableFieldLineNumberGap = 8f
 internal val EditableFieldLineNumberColor = UiColor(0.56f, 0.6f, 0.66f, 0.78f)

@@ -192,7 +192,7 @@ object UiProps {
     val FocusScope = prop("focus-scope", false)
     val Draggable = prop("draggable", false)
     val Scroll = prop<UiScrollSpec?>("scroll", null, fingerprint = true)
-    val ScrollPinned = prop("scroll-pinned", false, fingerprint = true)
+    val ScrollPinned = prop<UiScrollPin?>("scroll-pinned", null, fingerprint = true)
     val InputTransparent = prop("input-transparent", false)
     val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT)
 
@@ -430,7 +430,7 @@ val UiComputedStyle.draggable by UiProps.Draggable
 
 val UiComputedStyle.scroll: UiScrollSpec? get() = this[UiProps.Scroll]
 
-val UiComputedStyle.scrollPinned: Boolean get() = this[UiProps.ScrollPinned]
+val UiComputedStyle.scrollPinned: UiScrollPin? get() = this[UiProps.ScrollPinned]
 
 val UiComputedStyle.scrollable: Boolean get() = this[UiProps.Scroll] != null
 

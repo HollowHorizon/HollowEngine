@@ -49,6 +49,7 @@ data class UiLayoutProfile(
     val measurePasses: Int,
     val placementPasses: Int,
     val layoutReuses: Int,
+    val incrementalLayouts: Int,
     val measureCalls: Int,
     val uniqueMeasuredNodes: Int,
     val measureCacheHits: Int,
@@ -120,7 +121,7 @@ data class UiProfileSnapshot(
             composePasses = 0,
             recomposedFrames = 0,
             style = UiStyleProfile(0, 0, 0, 0, 0, 0, 0, 0, UiStyleMissProfile(0, 0, 0, 0, 0, 0)),
-            layout = UiLayoutProfile(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+            layout = UiLayoutProfile(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
             commands = UiRenderCommandProfile(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
             draws = UiRenderDrawProfile(0, 0, 0, 0, 0, 0, 0, 0),
             report = "UI profiler is waiting for a completed frame.",
@@ -203,6 +204,7 @@ class UiProfiler(
             frame.measurePasses,
             frame.placementPasses,
             frame.layoutReuses,
+            frame.incrementalLayouts,
             frame.measureCalls,
             frame.uniqueMeasuredNodes,
             frame.measureCacheHits,
@@ -322,6 +324,7 @@ class UiProfileFrame internal constructor(
     internal var measurePasses = 0
     internal var placementPasses = 0
     internal var layoutReuses = 0
+    internal var incrementalLayouts = 0
     internal var measureCalls = 0
     internal var measureCacheHits = 0
     internal var textNodeMeasurements = 0
@@ -419,6 +422,7 @@ private fun formatReport(
     appendLine("  Placement:           ${layout.placementPasses}")
     appendLine("  Command collections: ${commands.collections}")
     appendLine("  Layout reuses:       ${layout.layoutReuses}")
+    appendLine("  Scroll-only layouts: ${layout.incrementalLayouts}")
     appendLine()
     appendLine("Style:")
     appendLine("  visited nodes:          ${style.visitedNodes}")

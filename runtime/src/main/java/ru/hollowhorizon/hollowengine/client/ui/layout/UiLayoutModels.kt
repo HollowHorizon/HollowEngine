@@ -5,6 +5,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarNode
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
+import ru.hollowhorizon.hollowengine.client.ui.style.layer
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import java.util.IdentityHashMap
 
@@ -61,7 +62,7 @@ internal fun snapshotVisibleChildren(
     layouts: Map<UiNode, UiLayoutNode>,
     childrenOf: (UiNode) -> List<UiNode> = { node -> node.children },
 ): Map<UiNode, List<UiNode>> {
-    var result: IdentityHashMap<UiNode, List<UiNode>>? = null
+    val result = IdentityHashMap<UiNode, List<UiNode>>()
     for (node in layouts.keys) {
         val source = childrenOf(node)
         if (source.isEmpty()) continue
@@ -70,11 +71,13 @@ internal fun snapshotVisibleChildren(
             if (child !in layouts) continue
             (visible ?: ArrayList<UiNode>(source.size).also { visible = it }).add(child)
         }
-        if (visible != null) {
-            (result ?: IdentityHashMap<UiNode, List<UiNode>>().also { result = it })[node] = visible
+        val children = visible ?: continue
+        if (children.size > 1 && children.any { it.resolvedSnapshot.layer != children[0].resolvedSnapshot.layer }) {
+            children.sortBy { it.resolvedSnapshot.layer }
         }
+        result[node] = children
     }
-    return result ?: emptyMap()
+    return result
 }
 
 internal data class UiScrollbarReserve(

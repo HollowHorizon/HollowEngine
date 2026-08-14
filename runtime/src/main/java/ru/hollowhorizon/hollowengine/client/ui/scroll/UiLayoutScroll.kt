@@ -195,7 +195,7 @@ private fun scrollableContentBounds(
 ): UiRect {
     var bounds: UiRect? = null
     for (child in layoutChildren(node)) {
-        if (child.resolvedSnapshot.scrollPinned) continue
+        if (child.resolvedSnapshot.scrollPinned != null) continue
         val childRect = layouts[child]?.rect ?: continue
         bounds = bounds?.union(childRect) ?: childRect
     }
