@@ -1,179 +1,219 @@
 package ru.hollowhorizon.hollowengine.client.ui.text
 
-import com.mojang.blaze3d.platform.NativeImage
-import com.mojang.blaze3d.platform.TextureUtil
-import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
-import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.utils.font.BakedGlyphCell
+import ru.hollowhorizon.hollowengine.client.utils.font.DynamicGlyphAtlas
+import ru.hollowhorizon.hollowengine.client.utils.font.MsdfAtlasInfo
 import ru.hollowhorizon.hollowengine.client.utils.font.MsdfBakeSpec
-import ru.hollowhorizon.hollowengine.client.utils.font.MsdfBakerVersion
 import ru.hollowhorizon.hollowengine.client.utils.font.MsdfMeta
-import ru.hollowhorizon.hollowengine.client.utils.font.bakeMsdfAtlas
+import ru.hollowhorizon.hollowengine.client.utils.font.MsdfMetrics
 import ru.hollowhorizon.hollowengine.client.utils.font.TtfFace
-import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
-import ru.hollowhorizon.hollowengine.common.utils.json.json
+import ru.hollowhorizon.hollowengine.client.utils.font.bakeGlyphField
+import ru.hollowhorizon.hollowengine.client.utils.font.toBakedCell
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import java.nio.file.Files
-import java.nio.file.Path
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import kotlin.io.path.exists
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.PriorityBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
- * TrueType/OpenType fonts.
+ * TrueType/OpenType fonts, drawn from an atlas page that fills up as characters are met.
  */
 object UiTtfFont {
     const val FamilyPrefix = "ttf"
 
-    private val states = ConcurrentHashMap<String, TtfState>()
-    private val baker = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "HollowEngine MSDF font baker").apply { isDaemon = true }
+    private const val PageSize = 2048
+    private const val BakeQueueCapacity = 64
+
+    private val families = ConcurrentHashMap<String, FamilyState>()
+
+    private val bakers: ExecutorService = run {
+        val threads = Runtime.getRuntime().availableProcessors().minus(1).coerceIn(1, 4)
+        ThreadPoolExecutor(
+            threads, threads, 0L, TimeUnit.MILLISECONDS,
+            PriorityBlockingQueue(BakeQueueCapacity, compareBy { (it as BakeTask).order }),
+        ) { runnable -> Thread(runnable, "HollowEngine MSDF glyph baker").apply { isDaemon = true } }
     }
+
+    private class BakeTask(urgent: Boolean, private val action: () -> Unit) : Runnable {
+        val order: Long = (if (urgent) 0L else 1L shl 62) + sequence.getAndIncrement()
+
+        override fun run() = action()
+
+        private companion object {
+            val sequence = AtomicLong()
+        }
+    }
+
+    private fun bake(urgent: Boolean, action: () -> Unit) = bakers.execute(BakeTask(urgent, action))
 
     fun isTtfFamily(family: String): Boolean = family.startsWith("$FamilyPrefix:")
 
-    /** Metrics for measurement, or null while the face is still baking (or if it failed). */
-    fun metrics(family: String): UiMsdfFontMetrics? = when (val state = request(family)) {
-        is TtfState.Baked -> state.metrics
-        is TtfState.Uploaded -> state.data.metrics
-        else -> null
+    fun metrics(family: String): UiMsdfFontMetrics? = (request(family) as? FamilyState.Open)?.face?.metrics
+
+    fun glyphFont(family: String): UiGlyphFont? {
+        val state = request(family) as? FamilyState.Open ?: return null
+        state.font?.let { return it }
+        return runCatching { state.openPage() }
+            .onFailure { HollowEngine.LOGGER.error("Could not create the glyph page for '$family'", it) }
+            .getOrNull()
     }
 
-    /** The render-side font; uploads the atlas on first use. Render thread only. */
-    fun glyphFont(family: String): UiGlyphFont? {
-        return when (val state = request(family)) {
-            is TtfState.Uploaded -> state.data
-            is TtfState.Baked -> upload(family, state)
-            else -> null
+    fun pumpGlyphs() {
+        for ((family, state) in families) {
+            val open = state as? FamilyState.Open ?: continue
+            val atlas = open.atlas ?: continue
+            open.handOverPrebaked(atlas)
+            atlas.pumpUploads()
+            for (codepoint in atlas.takeRequests()) bake(urgent = true) { open.bake(family, codepoint) }
         }
     }
 
     fun unloadAll() {
-        states.values.forEach { state ->
-            when (state) {
-                is TtfState.Baked -> state.image.close()
-                is TtfState.Uploaded -> GL11.glDeleteTextures(state.data.textureId)
-                else -> Unit
-            }
-        }
-        states.clear()
+        families.values.forEach { (it as? FamilyState.Open)?.close() }
+        families.clear()
     }
 
-    private fun request(family: String): TtfState? {
-        states[family]?.let { return it }
+    private fun request(family: String): FamilyState? {
+        families[family]?.let { return it }
         if (!isTtfFamily(family)) return null
         val request = UiTtfFontRequest.parse(family) ?: run {
             HollowEngine.LOGGER.warn("Malformed TrueType font family '{}'", family)
-            states[family] = TtfState.Failed
-            return TtfState.Failed
+            families[family] = FamilyState.Failed
+            return FamilyState.Failed
         }
-        if (states.putIfAbsent(family, TtfState.Pending) != null) return states[family]
-        baker.submit { states[family] = bake(family, request) }
-        return TtfState.Pending
-    }
-
-    private fun bake(family: String, request: UiTtfFontRequest): TtfState = runCatching {
-        val bytes = request.readBytes()
-        val spec = request.bakeSpec()
-        val key = cacheKey(request, bytes, spec)
-        readCache(key)?.let { return@runCatching it }
-        val started = System.nanoTime()
-        val atlas = TtfFace.open(bytes).use { face -> bakeMsdfAtlas(face, spec) }
-        val image = NativeImage(atlas.width, atlas.height, false)
-        for (y in 0 until atlas.height) {
-            for (x in 0 until atlas.width) {
-                val offset = (y * atlas.width + x) * 3
-                image.setPixelRGBA(x, y, packAbgr(atlas.pixels, offset))
+        if (families.putIfAbsent(family, FamilyState.Pending) != null) return families[family]
+        bake(urgent = true) {
+            val opened = openFace(family, request)
+            families[family] = opened
+            (opened as? FamilyState.Open)?.let { open ->
+                for (codepoint in open.spec.codepoints) bake(urgent = false) { open.prebake(family, codepoint) }
             }
         }
-        writeCache(key, atlas.meta, image)
-        HollowEngine.LOGGER.info(
-            "Baked {} into a {}x{} MSDF atlas ({} glyphs) in {} ms",
-            family, atlas.width, atlas.height, atlas.meta.glyphs.size, (System.nanoTime() - started) / 1_000_000,
-        )
-        TtfState.Baked(atlas.meta, image)
+        return FamilyState.Pending
+    }
+
+    private fun openFace(family: String, request: UiTtfFontRequest): FamilyState = runCatching {
+        val spec = request.bakeSpec()
+        FamilyState.Open(OpenFace(TtfFace.open(request.readBytes()), spec), spec)
     }.getOrElse { throwable ->
-        HollowEngine.LOGGER.error("Could not bake TrueType font '$family'", throwable)
-        TtfState.Failed
+        HollowEngine.LOGGER.error("Could not open TrueType font '$family'", throwable)
+        FamilyState.Failed
     }
 
-    private fun upload(family: String, baked: TtfState.Baked): UiGlyphFont? {
-        return runCatching {
-            val image = baked.image
-            val textureId = GL11.glGenTextures()
-            RenderSystem.bindTexture(textureId)
-            TextureUtil.prepareImage(textureId, image.width, image.height)
-            image.upload(0, 0, 0, 0, 0, image.width, image.height, true, true, false, false)
-            image.close()
-            val data = UiMsdfFontData(baked.metrics, textureId)
-            states[family] = TtfState.Uploaded(data)
-            data
-        }.onFailure {
-            HollowEngine.LOGGER.error("Could not upload the MSDF atlas for '$family'", it)
-            states[family] = TtfState.Failed
-        }.getOrNull()
-    }
+    private sealed interface FamilyState {
+        data object Pending : FamilyState
+        data object Failed : FamilyState
 
-    private fun packAbgr(pixels: ByteArray, offset: Int): Int {
-        val red = pixels[offset].toInt() and 0xFF
-        val green = pixels[offset + 1].toInt() and 0xFF
-        val blue = pixels[offset + 2].toInt() and 0xFF
-        return (0xFF shl 24) or (blue shl 16) or (green shl 8) or red
-    }
+        class Open(val face: OpenFace, val spec: MsdfBakeSpec) : FamilyState {
+            @Volatile
+            var atlas: DynamicGlyphAtlas? = null
+                private set
 
-    private fun cacheKey(request: UiTtfFontRequest, bytes: ByteArray, spec: MsdfBakeSpec): String {
-        val digest = MessageDigest.getInstance("SHA-1")
-        digest.update(MsdfBakerVersion.toString().toByteArray())
-        digest.update(request.source.toByteArray())
-        digest.update(spec.pixelSize.toRawBits().toString().toByteArray())
-        digest.update(spec.pixelRange.toRawBits().toString().toByteArray())
-        digest.update(spec.codepoints.size.toString().toByteArray())
-        digest.update(spec.codepoints.firstOrNull().toString().toByteArray())
-        digest.update(spec.codepoints.lastOrNull().toString().toByteArray())
-        digest.update(bytes)
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
+            @Volatile
+            var font: UiDynamicGlyphFont? = null
+                private set
 
-    private fun cacheDirectory(): Path =
-        Minecraft.getInstance().gameDirectory.toPath().resolve("hollowengine/cache/fonts")
+            private var texture: GlyphAtlasTexture? = null
 
-    private fun readCache(key: String): TtfState.Baked? = runCatching {
-        val directory = cacheDirectory()
-        val metaPath = directory.resolve("$key.json")
-        val imagePath = directory.resolve("$key.png")
-        if (!metaPath.exists() || !imagePath.exists()) return null
-        val meta: MsdfMeta = JsonFormat.decodeFromString(Files.readString(metaPath))
-        val image = Files.newInputStream(imagePath).use { NativeImage.read(it) }
-        TtfState.Baked(meta, image)
-    }.getOrNull()
+            private val prebaked = ConcurrentLinkedQueue<Delivery>()
 
-    private fun writeCache(key: String, meta: MsdfMeta, image: NativeImage) {
-        runCatching {
-            val directory = cacheDirectory()
-            Files.createDirectories(directory)
-            Files.writeString(directory.resolve("$key.json"), json.encodeToString(MsdfMeta.serializer(), meta))
-            image.writeToFile(directory.resolve("$key.png"))
-        }.onFailure {
-            HollowEngine.LOGGER.warn("Could not cache the baked MSDF atlas: {}", it.message)
+            fun openPage(): UiDynamicGlyphFont {
+                font?.let { return it }
+                val page = GlyphAtlasTexture(PageSize)
+                val atlas = DynamicGlyphAtlas(PageSize, spec.pixelSize, page)
+                for (codepoint in spec.codepoints) atlas.expect(codepoint)
+                val font = UiDynamicGlyphFont(face.metrics, atlas, page, spec)
+                texture = page
+                this.atlas = atlas
+                this.font = font
+                return font
+            }
+
+            fun handOverPrebaked(atlas: DynamicGlyphAtlas) {
+                while (true) {
+                    val delivery = prebaked.poll() ?: return
+                    atlas.deliver(delivery.codepoint, delivery.cell, delivery.advance)
+                }
+            }
+
+            fun bake(family: String, codepoint: Int) {
+                val atlas = atlas ?: return
+                val delivery = bakeCell(family, codepoint)
+                atlas.deliver(codepoint, delivery.cell, delivery.advance)
+            }
+
+            fun prebake(family: String, codepoint: Int) {
+                prebaked += bakeCell(family, codepoint)
+            }
+
+            private fun bakeCell(family: String, codepoint: Int): Delivery {
+                val baked = runCatching {
+                    val outline = face.withFace { it.loadGlyph(codepoint, spec.pixelSize) }
+                    outline?.let { bakeGlyphField(it, face.unitsPerEm, spec)?.toBakedCell() to it.advance }
+                }.onFailure {
+                    HollowEngine.LOGGER.warn("Could not bake U+{} of '{}'", codepoint.toString(16), family)
+                }.getOrNull()
+                return Delivery(codepoint, baked?.first, baked?.second ?: 0f)
+            }
+
+            private class Delivery(val codepoint: Int, val cell: BakedGlyphCell?, val advance: Float)
+
+            fun close() {
+                texture?.close()
+                face.close()
+            }
         }
     }
 
-    private sealed interface TtfState {
-        data object Pending : TtfState
-        data object Failed : TtfState
+    internal class OpenFace(private val face: TtfFace, spec: MsdfBakeSpec) : UiGlyphAdvances {
+        private val lock = Any()
+        private val advanceCache = ConcurrentHashMap<Int, Float>()
+        private var closed = false
 
-        /** Baked but not yet on the GPU; [image] is owned here and closed by the upload. */
-        class Baked(meta: MsdfMeta, val image: NativeImage) : TtfState {
-            val metrics = UiMsdfFontMetrics(meta, meta.glyphs.associateBy { it.unicode.toChar() })
+        val unitsPerEm: Float = face.unitsPerEm
+
+        val metrics: UiMsdfFontMetrics = UiMsdfFontMetrics(
+            meta = MsdfMeta(
+                atlas = MsdfAtlasInfo("msdf", spec.pixelRange, spec.pixelSize, 0, 0, "bottom"),
+                name = face.familyName,
+                metrics = MsdfMetrics(
+                    emSize = 1f,
+                    lineHeight = face.lineHeight,
+                    ascender = face.ascender,
+                    descender = face.descender,
+                    underlineY = face.underlineY,
+                    underlineThickness = face.underlineThickness,
+                ),
+            ),
+            glyphMap = emptyMap(),
+            advances = this,
+        )
+
+        override fun advanceOf(codepoint: Int): Float? {
+            advanceCache[codepoint]?.let { return it.takeIf { cached -> !cached.isNaN() } }
+            val advance = withFace { it.advanceOf(codepoint) }
+            advanceCache[codepoint] = advance ?: Float.NaN
+            return advance
         }
 
-        class Uploaded(val data: UiMsdfFontData) : TtfState
+        fun <T> withFace(action: (TtfFace) -> T): T? = synchronized(lock) { if (closed) null else action(face) }
+
+        fun close() = synchronized(lock) {
+            if (!closed) {
+                closed = true
+                face.close()
+            }
+        }
     }
 }
 
-/** A parsed `ttf:...` family: where the face comes from and how to bake it. */
 internal class UiTtfFontRequest(
     val source: String,
     private val location: ResourceLocation?,
@@ -198,8 +238,11 @@ internal class UiTtfFontRequest(
     companion object {
         private const val DefaultPixelSize = 48f
         private const val DefaultPixelRange = 2f
-        private const val DefaultCharset = "latin+latin-ext+cyrillic+punctuation"
         private const val FilePrefix = "file:"
+        private const val FallbackCharset = "latin+latin-ext+cyrillic+punctuation"
+
+        private fun defaultCharset(): String =
+            runCatching { HollowEngineConfig.fontPreloadCharset }.getOrDefault(FallbackCharset)
 
         fun parse(family: String): UiTtfFontRequest? {
             val body = family.removePrefix("${UiTtfFont.FamilyPrefix}:")
@@ -220,19 +263,23 @@ internal class UiTtfFontRequest(
                 filePath = source.removePrefix(FilePrefix).takeIf { isFile },
                 pixelSize = options["size"]?.toFloatOrNull()?.coerceIn(8f, 256f) ?: DefaultPixelSize,
                 pixelRange = options["range"]?.toFloatOrNull()?.coerceIn(1f, 32f) ?: DefaultPixelRange,
-                codepoints = parseCharset(options["charset"] ?: DefaultCharset),
+                codepoints = parseCharset(options["charset"] ?: defaultCharset()),
             )
         }
 
         /**
          * `+`-separated preset names and explicit `U+XXXX` / `U+XXXX-U+YYYY` ranges. `+` rather than
          * `,` keeps the whole family usable as a single HSS argument.
+         *
+         * This is the set kept ready before the font is first drawn; anything outside it still
+         * renders, it just arrives a few frames after it first appears.
          */
         private fun parseCharset(specification: String): IntArray {
             val codepoints = sortedSetOf<Int>()
             for (token in specification.split('+', ' ').map { it.trim().lowercase() }) {
                 if (token.isEmpty()) continue
                 when (token) {
+                    "none" -> Unit
                     "ascii" -> codepoints.addRange(0x20, 0x7E)
                     "latin" -> {
                         codepoints.addRange(0x20, 0x7E)
@@ -246,6 +293,8 @@ internal class UiTtfFontRequest(
                     }
 
                     "greek" -> codepoints.addRange(0x370, 0x3FF)
+                    "hiragana" -> codepoints.addRange(0x3041, 0x309F)
+                    "katakana" -> codepoints.addRange(0x30A0, 0x30FF)
                     "punctuation" -> {
                         codepoints.addRange(0x2010, 0x2027)
                         codepoints.addRange(0x2030, 0x205E)
@@ -255,7 +304,6 @@ internal class UiTtfFontRequest(
                     else -> parseCodepointToken(token)?.let { (first, last) -> codepoints.addRange(first, last) }
                 }
             }
-            if (codepoints.isEmpty()) codepoints.addRange(0x20, 0x7E)
             return codepoints.toIntArray()
         }
 

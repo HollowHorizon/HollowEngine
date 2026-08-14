@@ -27,6 +27,16 @@ object HollowEngineConfig : Config() {
     @PropertyName("transform_gizmo_mode")
     var gizmoMode by property(GizmoEditMode.TRANSLATE)
 
+    @PropertyComment(
+        "Characters kept ready before a TrueType font is first drawn. Anything outside this still " +
+                "renders, it just appears a frame or two after it is first met, so widen it only for " +
+                "alphabets used constantly. Presets joined by '+': ascii, latin, latin-ext, cyrillic, " +
+                "greek, hiragana, katakana, punctuation, none; or explicit ranges like U+4E00-U+4EFF. " +
+                "A font-family may override this with its own '?charset=' argument."
+    )
+    @PropertyName("font_preload_charset")
+    var fontPreloadCharset by property("latin+latin-ext+cyrillic+punctuation")
+
     @PropertyComment("Mods that be available inside scripting & compilation")
     @PropertyName("scripting_mods")
     var scriptingMods by list("hollowengine")

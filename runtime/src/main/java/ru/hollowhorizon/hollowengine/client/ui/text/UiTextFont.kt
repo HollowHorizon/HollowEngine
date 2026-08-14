@@ -12,8 +12,6 @@ internal sealed interface UiTextFont {
     fun lineHeight(fontSize: Float): Float
 
     fun width(text: String, fontSize: Float, style: UiInlineStyle): Float
-
-    fun advance(char: Char, fontSize: Float, style: UiInlineStyle): Float = width(char.toString(), fontSize, style)
 }
 
 internal object UiTextFonts {
@@ -67,9 +65,6 @@ internal object UiTextFonts {
             val boldOffset = style.boldWeight * fontSize
             return metrics.width(text, fontSize) + text.length * boldOffset
         }
-
-        override fun advance(char: Char, fontSize: Float, style: UiInlineStyle): Float =
-            metrics.advance(char, fontSize) + style.boldWeight * fontSize
     }
 
     /** Measurement over Minecraft's own font assets; see [UiVanillaFont]. */
@@ -83,9 +78,6 @@ internal object UiTextFonts {
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float =
             face.width(text, fontSize) + text.length * style.boldWeight * fontSize
-
-        override fun advance(char: Char, fontSize: Float, style: UiInlineStyle): Float =
-            (face.advance(char) + style.boldWeight) * fontSize
     }
 }
 
@@ -105,6 +97,14 @@ internal object UiGlyphFonts {
 
     fun clearResolvedFonts() {
         resolved.clear()
+    }
+
+    /**
+     * Lets fonts whose atlas fills in as it goes take on the glyphs baked since the last frame.
+     * Called once per frame from the renderer, because it touches textures.
+     */
+    fun pumpDynamicGlyphs() {
+        UiTtfFont.pumpGlyphs()
     }
 }
 

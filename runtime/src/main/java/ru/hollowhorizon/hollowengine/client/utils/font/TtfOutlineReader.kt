@@ -36,6 +36,20 @@ internal class TtfFace private constructor(
     fun hasGlyph(codepoint: Int): Boolean = FreeType.FT_Get_Char_Index(face, codepoint.toLong()) != 0
 
     /**
+     * The pen advance for [codepoint] in em, without building its outline. Null when the face has
+     * no glyph for it.
+     */
+    fun advanceOf(codepoint: Int): Float? {
+        val index = FreeType.FT_Get_Char_Index(face, codepoint.toLong())
+        if (index == 0) return null
+        val loadFlags = FreeType.FT_LOAD_NO_SCALE or FreeType.FT_LOAD_NO_HINTING or
+                FreeType.FT_LOAD_NO_BITMAP or FreeType.FT_LOAD_LINEAR_DESIGN
+        if (FreeType.FT_Load_Glyph(face, index, loadFlags) != 0) return null
+        val slot = face.glyph() ?: return null
+        return slot.metrics().horiAdvance().toFloat() / unitsPerEm
+    }
+
+    /**
      * Loads [codepoint] and returns its advance in em plus its outline, flattened densely enough
      * that the chord error stays well under a pixel at [pixelsPerEm]. Null when the face has no
      * glyph for the codepoint; a covered but inkless glyph (a space) comes back with an empty shape.

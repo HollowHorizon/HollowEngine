@@ -137,9 +137,11 @@ internal class MsdfGlyphField(
 )
 
 /** Generates and corrects one glyph's field. Null when the face has no outline for [codepoint]. */
-internal fun bakeGlyphField(face: TtfFace, codepoint: Int, spec: MsdfBakeSpec): MsdfGlyphField? {
-    val scale = spec.pixelSize / face.unitsPerEm
-    val outline = face.loadGlyph(codepoint, spec.pixelSize) ?: return null
+internal fun bakeGlyphField(face: TtfFace, codepoint: Int, spec: MsdfBakeSpec): MsdfGlyphField? =
+    face.loadGlyph(codepoint, spec.pixelSize)?.let { bakeGlyphField(it, face.unitsPerEm, spec) }
+
+internal fun bakeGlyphField(outline: TtfGlyphOutline, unitsPerEm: Float, spec: MsdfBakeSpec): MsdfGlyphField? {
+    val scale = spec.pixelSize / unitsPerEm
     val cell = cellFor(outline, scale, spec.pixelRange / scale) ?: return null
     val values = FloatArray(cell.width * cell.height * 3)
     cell.renderInto(values, scale, spec)
@@ -226,6 +228,15 @@ private class GlyphCell(
 
 private fun Float.toDistanceByte(): Byte = ((this * 255f) + 0.5f).toInt().coerceIn(0, 255).toByte()
 
+internal fun MsdfGlyphField.toDistanceBytes(): ByteArray {
+    val bytes = ByteArray(width * height * 3)
+    for (index in bytes.indices) bytes[index] = values[index].toDistanceByte()
+    return bytes
+}
+
+internal val MsdfGlyphField.pixelLeft: Float get() = -translateX * scale
+internal val MsdfGlyphField.pixelBottom: Float get() = -translateY * scale
+
 /** Wide enough for the widest glyph plus its gutters, and a power of two for driver friendliness. */
 private fun atlasWidthFor(cells: List<GlyphCell>): Int {
     val widest = (cells.maxOfOrNull { it.width } ?: 1) + 2 * CellGutter
@@ -259,8 +270,6 @@ private fun packShelves(cells: MutableList<GlyphCell>, atlasWidth: Int): Int {
     }
     return height.coerceAtLeast(1)
 }
-
-internal const val MsdfBakerVersion = 4
 
 private const val MinAtlasWidth = 512
 private const val MaxAtlasSize = 4096

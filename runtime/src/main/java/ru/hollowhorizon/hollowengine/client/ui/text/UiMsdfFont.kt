@@ -16,10 +16,6 @@ data class UiMsdfFontData(
     val textureId: Int,
 ) : UiGlyphFont {
     val meta: MsdfMeta get() = metrics.meta
-    val glyphMap: Map<Char, MsdfGlyph> get() = metrics.glyphMap
-
-    /** The glyph for [char], or the atlas fallback glyph when the codepoint is not covered. */
-    fun glyphOrFallback(char: Char): MsdfGlyph? = metrics.glyphOrFallback(char)
 
     private val page = UiGlyphAtlasPage(
         textureId = textureId,
@@ -34,7 +30,7 @@ data class UiMsdfFontData(
      * entries at most, and text rendering would otherwise allocate a quad description per character
      * per frame.
      */
-    private val placed: Map<Char, UiPlacedGlyph> = glyphMap.mapValues { (_, glyph) -> glyph.place(page) }
+    private val placed: Map<Int, UiPlacedGlyph> = metrics.glyphMap.mapValues { (_, glyph) -> glyph.place(page) }
 
     override val lineHeight: Float get() = meta.metrics.lineHeight
     override val ascender: Float get() = meta.metrics.ascender
@@ -43,10 +39,10 @@ data class UiMsdfFontData(
     override val underlineThickness: Float get() = meta.metrics.underlineThickness
     override val emPixels: Float get() = meta.atlas.size
 
-    override fun glyph(char: Char): UiPlacedGlyph? =
-        placed[char] ?: placed[UiMsdfFont.FallbackGlyph] ?: placed[LegacyFallbackGlyph]
+    override fun glyph(codepoint: Int): UiPlacedGlyph? =
+        placed[codepoint] ?: placed[UiMsdfFont.FallbackGlyph.code] ?: placed[LegacyFallbackGlyph.code]
 
-    override fun advance(char: Char): Float = metrics.advance(char, 1f)
+    override fun advance(codepoint: Int): Float = metrics.advance(codepoint, 1f)
 
     private companion object {
         const val LegacyFallbackGlyph = '?'
@@ -54,36 +50,39 @@ data class UiMsdfFontData(
 }
 
 /**
- * msdf-atlas-gen reports plane bounds y-up from the baseline and atlas bounds in texels of the
- * bottom-origin sheet; the atlas is uploaded flipped, so the plane's top edge pairs with the atlas
- * `top` row.
+ * Per-codepoint advances read from the font program itself, independent of any atlas.
  */
-private fun MsdfGlyph.place(page: UiGlyphAtlasPage): UiPlacedGlyph = UiPlacedGlyph(
-    advance = advance,
-    left = planeBounds.left,
-    top = -planeBounds.top,
-    right = planeBounds.right,
-    bottom = -planeBounds.bottom,
-    uMin = atlasBounds.left / page.width,
-    vTop = atlasBounds.top / page.height,
-    uMax = atlasBounds.right / page.width,
-    vBottom = atlasBounds.bottom / page.height,
-    page = page,
-)
+fun interface UiGlyphAdvances {
+    /** The advance in em, or null when the face has no glyph for [codepoint]. */
+    fun advanceOf(codepoint: Int): Float?
+}
 
 data class UiMsdfFontMetrics(
     val meta: MsdfMeta,
-    val glyphMap: Map<Char, MsdfGlyph>,
+    val glyphMap: Map<Int, MsdfGlyph>,
+    /** Set for faces the engine can read directly; the atlas is then only a cache of pictures. */
+    val advances: UiGlyphAdvances? = null,
 ) {
-    fun glyphOrFallback(char: Char): MsdfGlyph? =
-        glyphMap[char] ?: glyphMap[UiMsdfFont.FallbackGlyph] ?: glyphMap[LegacyFallbackGlyph]
+    fun glyphOrFallback(codepoint: Int): MsdfGlyph? =
+        glyphMap[codepoint] ?: glyphMap[UiMsdfFont.FallbackGlyph.code] ?: glyphMap[LegacyFallbackGlyph.code]
 
-    fun advance(char: Char, fontSize: Float): Float {
-        val glyph = glyphMap[char] ?: glyphOrFallback(char) ?: glyphMap[SpaceGlyph]
+    /** Whether the face itself has this codepoint, as opposed to an atlas not having got to it. */
+    fun covers(codepoint: Int): Boolean = advances?.advanceOf(codepoint) != null
+
+    fun advance(codepoint: Int, fontSize: Float): Float {
+        advances?.let { face ->
+            face.advanceOf(codepoint)?.let { return it * fontSize }
+            face.advanceOf(UiMsdfFont.FallbackGlyph.code)?.let { return it * fontSize }
+        }
+        val glyph = glyphMap[codepoint] ?: glyphOrFallback(codepoint) ?: glyphMap[SpaceGlyph.code]
         return (glyph?.advance ?: FallbackAdvance) * fontSize
     }
 
-    fun width(text: String, fontSize: Float): Float = text.sumOf { advance(it, fontSize).toDouble() }.toFloat()
+    fun width(text: String, fontSize: Float): Float {
+        var total = 0f
+        text.forEachCodepoint { total += advance(it, fontSize) }
+        return total
+    }
 
     fun lineHeight(fontSize: Float): Float = meta.metrics.lineHeight * fontSize
 
@@ -169,7 +168,7 @@ object UiMsdfFont {
             val glyphs = fontInfo.glyphs.ifEmpty {
                 fontInfo.compactGlyphs.map { it.toMsdfGlyph() }
             }
-            val glyphMap = glyphs.associateBy { it.unicode.toChar() }
+            val glyphMap = glyphs.associateBy { it.unicode }
             UiMsdfFontMetrics(fontInfo, glyphMap).also { metrics[fontPath] = it }
         }.getOrNull()
     }

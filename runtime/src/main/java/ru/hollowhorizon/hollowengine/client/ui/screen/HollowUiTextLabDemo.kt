@@ -298,7 +298,12 @@ private val TextLabFonts = listOf(
     TextLabFont(
         "Noto Sans · TTF→MSDF",
         "noto",
-        "ttf:hollowengine:fonts/noto_sans.ttf?charset=latin+latin-ext+cyrillic+punctuation",
+        "ttf:hollowengine:fonts/noto_sans.ttf",
+    ),
+    TextLabFont(
+        "ZHDH · TTF→MSDF",
+        "zhdh",
+        "ttf:hollowengine:fonts/font.ttf",
     ),
 )
 

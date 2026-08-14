@@ -77,10 +77,22 @@ interface UiGlyphFont {
      */
     val emPixels: Float
 
-    fun glyph(char: Char): UiPlacedGlyph?
+    fun glyph(codepoint: Int): UiPlacedGlyph?
 
-    /** The pen advance for [char] in em, defined even for codepoints the atlas does not cover. */
-    fun advance(char: Char): Float
+    /** The pen advance for [codepoint] in em, defined even for ones the atlas does not cover. */
+    fun advance(codepoint: Int): Float
+}
+
+/**
+ * Walks [this] one Unicode codepoint at a time.
+ */
+internal inline fun CharSequence.forEachCodepoint(action: (Int) -> Unit) {
+    var index = 0
+    while (index < length) {
+        val codepoint = Character.codePointAt(this, index)
+        action(codepoint)
+        index += Character.charCount(codepoint)
+    }
 }
 
 /** Where the strikethrough sits when the font carries no metric of its own: around the x-height. */

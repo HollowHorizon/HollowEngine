@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation
 
 internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyphFont {
     private val pages = HashMap<ResourceLocation, UiGlyphAtlasPage>()
-    private val placed = HashMap<Char, UiPlacedGlyph>()
+    private val placed = HashMap<Int, UiPlacedGlyph>()
 
     override val lineHeight: Float get() = UiVanillaFont.lineHeightEm
     override val ascender: Float get() = UiVanillaFont.ascenderEm
@@ -16,11 +16,11 @@ internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyph
     override val strikethroughThickness: Float get() = UiVanillaFont.underlineThicknessEm
     override val emPixels: Float get() = UiVanillaFont.EmPixels
 
-    override fun advance(char: Char): Float = face.advance(char)
+    override fun advance(codepoint: Int): Float = face.advance(codepoint)
 
-    override fun glyph(char: Char): UiPlacedGlyph? {
-        placed[char]?.let { return it }
-        val glyph = face.glyphOrFallback(char) ?: return null
+    override fun glyph(codepoint: Int): UiPlacedGlyph? {
+        placed[codepoint]?.let { return it }
+        val glyph = face.glyphOrFallback(codepoint) ?: return null
         val texture = glyph.texture ?: return null
         val page = pages.getOrPut(texture) { pageFor(texture) }
         return UiPlacedGlyph(
@@ -34,7 +34,7 @@ internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyph
             uMax = glyph.uMax,
             vBottom = glyph.vBottom,
             page = page,
-        ).also { placed[char] = it }
+        ).also { placed[codepoint] = it }
     }
 
     private fun pageFor(texture: ResourceLocation) = UiGlyphAtlasPage(

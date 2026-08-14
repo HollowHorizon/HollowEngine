@@ -249,6 +249,7 @@ class MinecraftUiRenderer {
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         val blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND)
         try {
+            UiGlyphFonts.pumpDynamicGlyphs()
             releasePreparedLayers()
             itemDepthOffset = 0f
             val hasFramebufferLayers = prepareFramebuffers(frame.layout)
@@ -1649,11 +1650,11 @@ class MinecraftUiRenderer {
     ) {
         val boldAdvance = boldWeight * fontSize
         var penX = localX
-        for (char in fragment.text) {
-            val glyph = font.glyph(char)
+        fragment.text.forEachCodepoint { codepoint ->
+            val glyph = font.glyph(codepoint)
             if (glyph == null || glyph.isBlank) {
-                penX += font.advance(char) * fontSize + boldAdvance
-                continue
+                penX += font.advance(codepoint) * fontSize + boldAdvance
+                return@forEachCodepoint
             }
             val page = glyph.page
             if (emitUnifiedGlyphs && !analyticRectBatch.acceptsGlyphPage(page)) {

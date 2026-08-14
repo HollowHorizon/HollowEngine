@@ -129,9 +129,9 @@ object UiVanillaFont {
     private fun readSpaceProvider(provider: JsonObject, target: FaceBuilder) {
         val advances = provider["advances"]?.jsonObject ?: return
         for ((key, value) in advances) {
-            val char = key.singleCodepointOrNull() ?: continue
+            val codepoint = key.singleCodepointOrNull() ?: continue
             val advance = value.jsonPrimitive.floatOrNull ?: continue
-            target.glyphs.putIfAbsent(char, UiVanillaGlyph.blank(advance / EmPixels))
+            target.glyphs.putIfAbsent(codepoint, UiVanillaGlyph.blank(advance / EmPixels))
         }
     }
 
@@ -167,12 +167,10 @@ object UiVanillaFont {
             for (row in grid.indices) {
                 for (column in grid[row].indices) {
                     val codepoint = grid[row][column]
-                    if (codepoint == 0 || codepoint > Char.MAX_VALUE.code) continue
-                    val char = codepoint.toChar()
-                    if (char in target.glyphs) continue
+                    if (codepoint == 0 || codepoint in target.glyphs) continue
                     val trimmed = trimmedWidth(image, cellWidth, cellHeight, column, row)
                     val advance = ((0.5 + trimmed * scale).toInt() + 1) / EmPixels
-                    target.glyphs[char] = UiVanillaGlyph(
+                    target.glyphs[codepoint] = UiVanillaGlyph(
                         advance = advance,
                         left = 0f,
                         top = top,
@@ -222,7 +220,7 @@ object UiVanillaFont {
     }
 
     private class FaceBuilder {
-        val glyphs = HashMap<Char, UiVanillaGlyph>()
+        val glyphs = HashMap<Int, UiVanillaGlyph>()
         val coloredSheets = HashSet<ResourceLocation>()
     }
 
@@ -236,13 +234,9 @@ object UiVanillaFont {
         return 0
     }
 
-    private fun String.singleCodepointOrNull(): Char? {
-        val codepoints = codePoints().toArray()
-        val codepoint = codepoints.singleOrNull() ?: return null
-        return if (codepoint > Char.MAX_VALUE.code) null else codepoint.toChar()
-    }
+    private fun String.singleCodepointOrNull(): Int? = codePoints().toArray().singleOrNull()
 
-    internal val fallbackChars = charArrayOf(FallbackGlyph, LegacyFallbackGlyph)
+    internal val fallbackCodepoints = intArrayOf(FallbackGlyph.code, LegacyFallbackGlyph.code)
 
     internal val fallbackAdvance: Float get() = FallbackAdvancePixels / EmPixels
     internal val lineHeightEm: Float get() = LineHeightPixels / EmPixels
@@ -274,20 +268,23 @@ internal data class UiVanillaGlyph(
 
 class UiVanillaFontFace internal constructor(
     val location: ResourceLocation,
-    internal val glyphs: Map<Char, UiVanillaGlyph>,
+    internal val glyphs: Map<Int, UiVanillaGlyph>,
     internal val coloredSheets: Set<ResourceLocation> = emptySet(),
 ) {
-    internal fun glyphOrFallback(char: Char): UiVanillaGlyph? {
-        glyphs[char]?.let { return it }
-        for (fallback in UiVanillaFont.fallbackChars) glyphs[fallback]?.let { return it }
+    internal fun glyphOrFallback(codepoint: Int): UiVanillaGlyph? {
+        glyphs[codepoint]?.let { return it }
+        for (fallback in UiVanillaFont.fallbackCodepoints) glyphs[fallback]?.let { return it }
         return null
     }
 
-    fun advance(char: Char): Float =
-        (glyphs[char] ?: glyphOrFallback(char))?.advance ?: UiVanillaFont.fallbackAdvance
+    fun advance(codepoint: Int): Float =
+        (glyphs[codepoint] ?: glyphOrFallback(codepoint))?.advance ?: UiVanillaFont.fallbackAdvance
 
-    fun width(text: String, fontSize: Float): Float =
-        text.sumOf { advance(it).toDouble() }.toFloat() * fontSize
+    fun width(text: String, fontSize: Float): Float {
+        var total = 0f
+        text.forEachCodepoint { total += advance(it) }
+        return total * fontSize
+    }
 
     fun lineHeight(fontSize: Float): Float = UiVanillaFont.lineHeightEm * fontSize
 }
