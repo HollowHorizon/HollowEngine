@@ -7,7 +7,11 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptCompilerProxy
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.*
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptDiagnosticsMessageCollector
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.convertToFirViaLightTree
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.createIsolatedCompilerState
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.failure
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.withMessageCollector
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -130,16 +134,16 @@ class HollowEngineScriptCompiler(
     }
 }
 
-fun <T> withConfiguredK2ScriptCompilerWithLightTree(
+private fun <T> withConfiguredK2ScriptCompilerWithLightTree(
     scriptCompilationConfiguration: ScriptCompilationConfiguration,
     parentMessageCollector: MessageCollector? = null,
     configureCompiler: CompilerConfiguration.() -> Unit = {},
-    body: (ScriptJvmK2CompilerImpl) -> T,
+    body: (AnnotationFirScriptJvmCompiler) -> T,
 ): T {
     val disposable = Disposer.newDisposable("Default disposable for scripting compiler")
     return try {
         body(
-            ScriptJvmK2CompilerImpl(
+            AnnotationFirScriptJvmCompiler(
                 createIsolatedCompilerState(
                     ScriptDiagnosticsMessageCollector(parentMessageCollector), disposable,
                     scriptCompilationConfiguration,

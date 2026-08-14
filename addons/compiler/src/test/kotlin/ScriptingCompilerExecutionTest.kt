@@ -58,18 +58,21 @@ class ScriptingCompilerExecutionTest {
     }
 
     @Test
-    fun `plain imported scripts do not receive root implicit receivers`() {
+    fun `plain imported scripts expose typed declarations without root implicit receivers`() {
         val scriptsDirectory = File("build/tmp/script-import-execution").apply {
             deleteRecursively()
             mkdirs()
         }
         scriptsDirectory.resolve("models.kts").writeText(
-            "data class ImportedModel(val value: Int = 42)",
+            """
+                data class ImportedModel(val value: Int = 42)
+                fun hasOnline(players: Int): Boolean = players > 0
+            """.trimIndent(),
         )
         scriptsDirectory.resolve("main.importing.kts").writeText(
             """
                 @file:Import("models.kts")
-                output += prefix + ":" + ImportedModel().value
+                output += prefix + ":" + ImportedModel().value + ":" + hasOnline(15)
             """.trimIndent(),
         )
 
@@ -117,7 +120,7 @@ class ScriptingCompilerExecutionTest {
                 implicitReceivers(ImportReceiver("model"))
             }.getOrThrow()
 
-            assertEquals(listOf("model:42"), output)
+            assertEquals(listOf("model:42:true"), output)
         } finally {
             ScriptRegistry.unregister(namespace)
             ScriptingEnvironment.clear()
