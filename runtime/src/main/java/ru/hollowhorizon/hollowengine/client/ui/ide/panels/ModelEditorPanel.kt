@@ -144,7 +144,7 @@ private fun ModelSidebar(viewer: ModelViewerState, width: Float, loaded: Any?) {
 
     Column(
         tags = listOf("model-sidebar"),
-        modifier = Modifier.size(width.px, 100.percent),
+        modifier = Modifier.size(width.px, 100.percent).scrollable(horizontal = false),
     ) {
         CollapsibleSection("Информация", expanded["info"] == true, { expanded["info"] = expanded["info"] != true }) {
             InfoRow("Полигоны", viewer.triangles.toString())

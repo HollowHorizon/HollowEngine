@@ -5,14 +5,20 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutResult
 import ru.hollowhorizon.hollowengine.client.ui.scroll.ScrollbarThumbNode
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
+import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ScrollbarSynthesisTest {
-    private fun layout(childSize: UiSize, scroll: Modifier = Modifier.scroll(vertical = true)): Pair<UiLayoutResult, BoxNode> {
+    private fun layout(
+        childSize: UiSize,
+        scroll: Modifier = Modifier then scrollModifier(horizontal = false),
+        scrollbarStyle: String = "",
+    ): Pair<UiLayoutResult, BoxNode> {
         val viewport = BoxNode(
             id = "viewport",
             measurePolicy = UiMeasurePolicies.box(),
@@ -20,7 +26,8 @@ class ScrollbarSynthesisTest {
         )
         viewport.children.add(BoxNode(modifiers = listOf(Modifier.size(childSize.width, childSize.height))))
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }
-        UiModifierResolver().resolve(root)
+        val sheet = scrollbarStyle.takeIf { it.isNotEmpty() }?.let { compileHss("#viewport { $it }") }
+        UiModifierResolver(stylesheet = sheet).resolve(root)
         return UiLayoutPipeline().compute(root, 300f, 300f, UiScrollState()) to viewport
     }
 
@@ -57,22 +64,77 @@ class ScrollbarSynthesisTest {
     }
 
     @Test
-    fun `reserving scrollbar adds a gutter while overlay keeps the original outer size`() {
+    fun `a reserving scrollbar displaces the content instead of widening the container`() {
         val (reservedLayout, reservedViewport) = layout(UiSize(80.px, 300.px))
         val (overlayLayout, overlayViewport) = layout(
             UiSize(80.px, 300.px),
-            Modifier.scroll(vertical = true, overlay = true),
+            scrollbarStyle = "scrollbar-overlay: true;",
         )
 
-        val reservedWidth = reservedLayout.nodes.getValue(reservedViewport).content.width
-        val overlayWidth = overlayLayout.nodes.getValue(overlayViewport).content.width
-        assertEquals(overlayWidth, reservedWidth, 0.01f, "the reserved gutter must not steal usable width")
+        val reserved = reservedLayout.nodes.getValue(reservedViewport)
+        val overlay = overlayLayout.nodes.getValue(overlayViewport)
+        assertEquals(100f, reserved.rect.width, 0.01f, "an explicit width must survive the scrollbar")
+        assertEquals(overlay.rect.width, reserved.rect.width, 0.01f)
         assertTrue(
-            reservedLayout.nodes.getValue(reservedViewport).rect.width >
-                    overlayLayout.nodes.getValue(overlayViewport).rect.width,
-            "a reserving scrollbar must contribute its gutter to the outer layout size",
+            reserved.content.width < overlay.content.width,
+            "a reserving scrollbar must take its gutter out of the usable width " +
+                    "(${reserved.content.width} vs ${overlay.content.width})",
         )
         assertTrue(!overlayLayout.scrollbars[overlayViewport].isNullOrEmpty(), "overlay still synthesizes a scrollbar")
+    }
+
+    @Test
+    fun `an axis without a scrollbar keeps scrolling with no bar and no gutter`() {
+        val (hiddenLayout, hiddenViewport) = layout(
+            UiSize(80.px, 300.px),
+            Modifier then scrollModifier(horizontal = false, verticalScrollbar = false),
+        )
+        val hidden = hiddenLayout.nodes.getValue(hiddenViewport)
+
+        assertTrue(hiddenLayout.scrollbars[hiddenViewport].isNullOrEmpty(), "a hidden bar must not be synthesized")
+        assertEquals(100f, hidden.content.width, 0.01f, "a hidden bar must not reserve a gutter")
+        assertTrue(hidden.scrollRange.y > 0f, "the container still scrolls")
+    }
+
+    @Test
+    fun `a stylesheet can style the bar away with zero thickness`() {
+        val (layout, viewport) = layout(UiSize(80.px, 300.px), scrollbarStyle = "scrollbar: 0px;")
+        val node = layout.nodes.getValue(viewport)
+
+        assertTrue(layout.scrollbars[viewport].isNullOrEmpty(), "nothing to draw means no bar")
+        assertEquals(100f, node.content.width, 0.01f, "and nothing to reserve either")
+        assertTrue(node.scrollRange.y > 0f, "the container still scrolls")
+    }
+
+    @Test
+    fun `the thumb of a padded container is hittable in its gutter`() {
+        val viewport = BoxNode(
+            id = "padded-viewport",
+            measurePolicy = UiMeasurePolicies.box(),
+            modifiers = listOf(Modifier.size(100.px, 100.px).padding(10.px).then(scrollModifier(horizontal = false))),
+        ).also { it.children.add(BoxNode(modifiers = listOf(Modifier.size(60.px, 300.px)))) }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }
+        UiModifierResolver().resolve(root)
+        val layout = UiLayoutPipeline().compute(root, 300f, 300f, UiScrollState())
+        val thumb = layout.scrollbars.getValue(viewport).single().thumb
+        val frame = HollowUiFrame(root = layout.root, nodes = listOf(layout.root, viewport), layout = layout)
+        val r = layout.nodes.getValue(thumb).rect
+
+        val hit = frame.hitTest(r.x + r.width / 2f, r.y + r.height / 2f)
+        assertTrue(hit?.node === thumb, "padding must not clip the thumb out of the hit test (was ${hit?.node?.type})")
+    }
+
+    @Test
+    fun `pressing the track is a hit so it can page the view`() {
+        val (layout, viewport) = layout(UiSize(80.px, 300.px))
+        val bar = layout.scrollbars.getValue(viewport).single()
+        val track = layout.nodes.getValue(bar).rect
+        val thumb = layout.nodes.getValue(bar.thumb).rect
+        val frame = HollowUiFrame(root = layout.root, nodes = listOf(layout.root, viewport), layout = layout)
+
+        val y = (thumb.y + thumb.height + track.y + track.height) / 2f
+        val hit = frame.hitTest(track.x + track.width / 2f, y)
+        assertTrue(hit?.node === bar, "the track must be hittable (was ${hit?.node?.type})")
     }
 
     @Test
@@ -81,7 +143,7 @@ class ScrollbarSynthesisTest {
             id = "padded-viewport",
             measurePolicy = UiMeasurePolicies.box(),
             modifiers = listOf(
-                Modifier.size(100.px, 100.px).padding(10.px).scroll(vertical = true),
+                Modifier.size(100.px, 100.px).padding(10.px).then(scrollModifier(horizontal = false)),
             ),
         ).also { it.children.add(BoxNode(modifiers = listOf(Modifier.size(80.px, 300.px)))) }
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }
@@ -99,7 +161,7 @@ class ScrollbarSynthesisTest {
     }
 
     @Test
-    fun `horizontal scrollbar reservation does not displace centered content`() {
+    fun `a horizontal scrollbar keeps the container height and re-centres content in what is left`() {
         fun horizontalLayout(childWidth: Float): Triple<UiLayoutResult, BoxNode, BoxNode> {
             val child = BoxNode(
                 id = "content",
@@ -108,23 +170,26 @@ class ScrollbarSynthesisTest {
             val viewport = BoxNode(
                 id = "viewport",
                 measurePolicy = UiMeasurePolicies.box(),
-                modifiers = listOf(Modifier.size(100.px, 22.px).scroll(vertical = false, horizontal = true)),
+                modifiers = listOf(Modifier.size(100.px, 22.px).then(scrollModifier(vertical = false))),
             ).also { it.children.add(child) }
             val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }
             UiModifierResolver().resolve(root)
             return Triple(UiLayoutPipeline().compute(root, 300f, 300f, UiScrollState()), viewport, child)
         }
 
-        val (fittingLayout, fittingViewport, fittingChild) = horizontalLayout(80f)
         val (overflowLayout, overflowViewport, overflowChild) = horizontalLayout(180f)
-        val fittingY = fittingLayout.nodes.getValue(fittingChild).rect.y -
-                fittingLayout.nodes.getValue(fittingViewport).rect.y
-        val overflowY = overflowLayout.nodes.getValue(overflowChild).rect.y -
-                overflowLayout.nodes.getValue(overflowViewport).rect.y
-        val overflowViewportLayout = overflowLayout.nodes.getValue(overflowViewport)
+        val viewport = overflowLayout.nodes.getValue(overflowViewport)
+        val child = overflowLayout.nodes.getValue(overflowChild)
+        val gutter = viewport.rect.height - viewport.content.height
 
-        assertEquals(fittingY, overflowY, 0.01f, "adding a scrollbar must not move centred content")
-        assertEquals(22f, overflowViewportLayout.content.height, 0.01f)
+        assertEquals(22f, viewport.rect.height, 0.01f, "the container keeps the height it declared")
+        assertTrue(gutter > 0f, "the bar takes its gutter out of the container")
+        assertEquals(
+            viewport.content.y + (viewport.content.height - child.rect.height) / 2f,
+            child.rect.y,
+            0.01f,
+            "centred content re-centres inside what the bar left over",
+        )
         assertTrue(overflowLayout.scrollbars[overflowViewport].orEmpty().isNotEmpty())
     }
 
@@ -132,7 +197,7 @@ class ScrollbarSynthesisTest {
     fun `identity of a synthesized scrollbar is stable across recomputes`() {
         val viewport = BoxNode(
             id = "v", measurePolicy = UiMeasurePolicies.box(),
-            modifiers = listOf(Modifier.size(100.px, 100.px).scroll(vertical = true)),
+            modifiers = listOf(Modifier.size(100.px, 100.px).then(scrollModifier(horizontal = false))),
         )
         viewport.children.add(BoxNode(modifiers = listOf(Modifier.size(80.px, 300.px))))
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }

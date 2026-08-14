@@ -310,7 +310,12 @@ data class UiVec3(
     val x: Float = 0f,
     val y: Float = 0f,
     val z: Float = 0f,
-)
+) {
+    companion object {
+        val Zero = UiVec3()
+        val One = UiVec3(1f, 1f, 1f)
+    }
+}
 
 data class UiPosition(
     val x: UiLength = 0.px,
@@ -383,6 +388,9 @@ data class UiTransform(
     val perspective: Float = 0f,
 ) {
     val needsFramebuffer: Boolean get() = !rotate.x.isAlmostZero() || !rotate.y.isAlmostZero()
+
+    val isTranslationOnly: Boolean
+        get() = rotate == UiVec3.Zero && scale == UiVec3.One && perspective == 0f
 
     private fun Float.isAlmostZero(epsilon: Float = 0.0001f): Boolean =
         abs(this) <= epsilon

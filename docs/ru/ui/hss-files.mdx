@@ -132,17 +132,18 @@ HSS поддерживает градиенты, текстурные фоны, 
 | `backface-visibility` | `visible` или `hidden` | Обратная сторона повёрнутого узла |
 | `filter`, `backdrop-filter` | `grayscale(amount)`, `blur(radius)`, `shader(name)` | Фильтрует узел либо пиксели за ним; `none` очищает цепочку |
 
-### Ввод, прокрутка и скроллбары
+### Ввод и скроллбары
+
+Сама прокрутка не является свойством стиля: контейнер прокрутки владеет офсетом, поэтому объявляется в коде через `Modifier.scrollable` (он же и привязывает этот офсет). Таблица стилей оформляет получившиеся бары.
+
 
 | Свойство | Значение | Назначение |
 | --- | --- | --- |
 | `hoverable`, `clickable`, `focusable`, `draggable`, `input-transparent` | boolean | Включает соответствующий ввод или пропуск указателя |
 | `cursor` | `default`, `hand`, `move`, `text`, `crosshair`, `resize-horizontal`, `resize-vertical`, `resize-nesw`, `resize-nwse` | Форма курсора над узлом; наследуется детьми |
-| `scroll` | `vertical`/`y`, `horizontal`/`x`, `both`, `none` | Оси прокрутки |
-| `scrollable` | boolean | Старое сокращение: `true` включает обе оси |
-| `scrollbar`/`scrollbar-width`/`scrollbar-thickness` | длина | Толщина скроллбара |
+| `scrollbar`/`scrollbar-width`/`scrollbar-thickness` | длина | Толщина скроллбара; `0px` убирает бар средствами стиля |
 | `scrollbar-margin`, `scrollbar-min-thumb` | длина | Внешний отступ и минимальный размер thumb |
-| `scrollbar-overlay` | boolean | Рисует скроллбар поверх контента |
+| `scrollbar-overlay` | boolean | Рисует бар поверх контента вместо резервирования места, вытесняющего контент |
 | `scrollbar-track`, `scrollbar-thumb` | paint | Фон track или thumb |
 | `scrollbar-track-border`, `scrollbar-thumb-border` | значение border | Граница track или thumb |
 | `scrollbar-track-radius`, `scrollbar-thumb-radius` | число | Радиус углов |

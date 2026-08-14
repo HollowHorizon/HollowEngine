@@ -127,7 +127,7 @@ internal fun EditableFieldCompletionPopup(
         Column(
             tags = listOf("ide-completion-list"),
             modifier = Modifier.size(100.percent, geometry.listHeight.px)
-                .scroll(vertical = true, horizontal = true, state = listScroll),
+                .scrollable(state = listScroll),
         ) {
             if (firstIndex > 0) {
                 Box(modifier = Modifier.size(100.percent, (firstIndex * geometry.rowHeight).px))

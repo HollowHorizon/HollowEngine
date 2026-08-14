@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.style
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -57,15 +58,15 @@ class StylePropResolutionTest {
             Modifier.onClick {}.onScroll {}
         )
         assertTrue(style.clickable, "onClick keeps clickable")
-        assertTrue(style.scrollable, "onScroll makes it a scroll target")
         assertTrue(style.hoverable)
+        assertFalse(style.scrollable, "onScroll alone does not make a scroll container")
     }
 
     @Test
     fun `scroll participates in the layout fingerprint but hover does not`() {
         val base = resolve()
         val hoverable = resolve(Modifier.input(hoverable = true))
-        val scrollable = resolve(Modifier.scroll())
+        val scrollable = resolve(Modifier then scrollModifier())
         assertEquals(base.layoutFingerprint(), hoverable.layoutFingerprint(), "hoverable is input-only")
         assertTrue(base.layoutFingerprint() != scrollable.layoutFingerprint(), "scroll affects layout")
     }

@@ -10,7 +10,8 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMeasurePolicies
 import ru.hollowhorizon.hollowengine.client.ui.background
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.px
-import ru.hollowhorizon.hollowengine.client.ui.scroll
+import ru.hollowhorizon.hollowengine.client.ui.scrollModifier
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
@@ -30,7 +31,7 @@ class UiFrameTreeSnapshotTest {
             modifiers = listOf(
                 Modifier.size(80.px, 80.px)
                     .background(UiColor.White)
-                    .scroll(),
+                    .then(scrollModifier()),
             ),
         ).also { it.children.add(content) }
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(scrollable) }

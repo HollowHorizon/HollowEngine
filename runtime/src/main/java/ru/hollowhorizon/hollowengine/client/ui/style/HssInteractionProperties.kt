@@ -1,13 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
-import ru.hollowhorizon.hollowengine.client.ui.ScrollAxes
 import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
 
 private fun booleanSyntax(name: String) = syntax(slot(name, HssValueKind.BOOLEAN))
 
 /**
- * Input capabilities and scrolling. Each capability is its own property so a state rule
- * can toggle one without touching the rest (`.btn:disabled { clickable: false }`).
+ * Input capabilities. Each capability is its own property so a state rule can toggle one without
+ * touching the rest (`.btn:disabled { clickable: false }`).
  */
 internal fun interactionHssProperties(): List<HssProperty> = hssProperties {
     property(
@@ -39,19 +38,6 @@ internal fun interactionHssProperties(): List<HssProperty> = hssProperties {
         summary = "Whether pointer events pass straight through to whatever is behind.",
         syntax = booleanSyntax("transparent"),
     ) { set(UiProps.InputTransparent, parseBoolean(value)) }
-
-    property(
-        "scroll",
-        summary = "Axes the node scrolls along.",
-        syntax = syntax(keywordSlot("axes", "vertical", "horizontal", "both", "none")),
-        examples = listOf("vertical", "horizontal", "both", "none"),
-    ) { set(UiProps.Scroll, parseScrollAxes(value)) }
-
-    property(
-        "scrollable",
-        summary = "Legacy switch for `scroll: both`; prefer `scroll`.",
-        syntax = booleanSyntax("scrollable"),
-    ) { set(UiProps.Scroll, if (parseBoolean(value)) ScrollAxes.Both else null) }
 
     property(
         "cursor",

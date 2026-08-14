@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import kotlin.test.assertEquals
@@ -21,7 +22,7 @@ class ScrollCrossGutterTest {
         val node = BoxNode(
             id = "scroller",
             measurePolicy = policy,
-            modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
+            modifiers = listOf(Modifier.size(100.percent, 100.percent).then(scrollModifier())),
         )
         repeat(rows) { node.children.add(rowFactory()) }
         val parent = BoxNode(
@@ -79,7 +80,7 @@ class ScrollCrossGutterTest {
         val node = BoxNode(
             id = "s",
             measurePolicy = UiMeasurePolicies.Column,
-            modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
+            modifiers = listOf(Modifier.size(100.percent, 100.percent).then(scrollModifier())),
         )
         repeat(10) { node.children.add(label()) }
         val parent = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(Modifier.size(120.px, 60.px))).also { it.children.add(node) }
@@ -94,7 +95,7 @@ class ScrollCrossGutterTest {
         val node = BoxNode(
             id = "s",
             measurePolicy = UiMeasurePolicies.Column,
-            modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
+            modifiers = listOf(Modifier.size(100.percent, 100.percent).then(scrollModifier())),
         )
         repeat(20) { i -> node.children.add(BoxNode(modifiers = listOf(Modifier.size((if (i == 15) 600f else 50f).px, 24.px)))) }
         val parent = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(Modifier.size(120.px, 60.px))).also { it.children.add(node) }
@@ -109,13 +110,13 @@ class ScrollCrossGutterTest {
         val tree = BoxNode(
             id = "tree",
             measurePolicy = UiMeasurePolicies.Column,
-            modifiers = listOf(Modifier.size(100.percent, 120.px).scroll(vertical = true, horizontal = true)),
+            modifiers = listOf(Modifier.size(100.percent, 120.px).then(scrollModifier())),
         )
         repeat(20) { tree.children.add(BoxNode(modifiers = listOf(Modifier.size(600.px, 24.px)))) }
         val filler = BoxNode(modifiers = listOf(Modifier.size(100.percent, 400.px)))
         val sidebar = BoxNode(
             measurePolicy = UiMeasurePolicies.Column,
-            modifiers = listOf(Modifier.size(200.px, 200.px).scroll(vertical = true)),
+            modifiers = listOf(Modifier.size(200.px, 200.px).then(scrollModifier(horizontal = false))),
         ).also { it.children.add(tree); it.children.add(filler) }
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(sidebar) }
         UiModifierResolver().resolve(root)
@@ -127,10 +128,11 @@ class ScrollCrossGutterTest {
 class ScrollRangeStabilityTest {
     @Test
     fun `horizontal range does not shrink as you scroll`() {
+        val scroll = UiScrollHandle()
         val node = BoxNode(
             id = "s",
             measurePolicy = UiMeasurePolicies.Column,
-            modifiers = listOf(Modifier.size(100.percent, 100.percent).scroll(vertical = true, horizontal = true)),
+            modifiers = listOf(Modifier.size(100.percent, 100.percent).then(scrollModifier(state = scroll))),
         )
         repeat(10) { node.children.add(BoxNode(modifiers = listOf(Modifier.size(600.px, 40.px)))) }
         val parent = BoxNode(measurePolicy = UiMeasurePolicies.Column, modifiers = listOf(Modifier.size(200.px, 100.px)))
@@ -142,7 +144,7 @@ class ScrollRangeStabilityTest {
         val pipeline = UiLayoutPipeline()
         val range1 = pipeline.compute(root, 400f, 400f, scrollState).nodes.getValue(node).scrollRange.x
 
-        scrollState.setImmediate(node, x = range1) // scroll all the way right
+        scrollState.setImmediate(scroll, x = range1) // scroll all the way right
         val range2 = pipeline.compute(root, 400f, 400f, scrollState).nodes.getValue(node).scrollRange.x
 
         // Regression: the range must NOT depend on the current scroll offset. It used to collapse

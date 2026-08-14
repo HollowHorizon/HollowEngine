@@ -175,7 +175,7 @@ fun HollowTimelineEditor(
                         .grow(1f)
                         .background(TimelineColors.Background)
                         .clip()
-                        .scroll(vertical = true, horizontal = true, state = scroll, overlay = true)
+                        .scrollable(state = scroll)
                         .onPlaced { laneViewport = it }
                         .onScroll { event -> handleTimelineScroll(event, controller, scroll, laneViewport, bump) },
                 ) {
@@ -649,7 +649,7 @@ private fun LoadCutsceneDialog(session: CutsceneEditorSession, onClose: () -> Un
             Column(
                 modifier = Modifier.size(100.percent, UiLength.Auto)
                     .gap(2.px)
-                    .scroll(vertical = true),
+                    .scrollable(horizontal = false),
             ) {
                 files.forEach { file ->
                     Box(

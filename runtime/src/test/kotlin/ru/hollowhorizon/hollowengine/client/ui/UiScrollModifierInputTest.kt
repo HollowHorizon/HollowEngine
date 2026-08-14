@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class UiScrollModifierInputTest {
     @Test
@@ -12,7 +14,7 @@ class UiScrollModifierInputTest {
             surface.setContent {
                 Box(
                     modifier = Modifier.size(100.px, 100.px)
-                        .scroll(vertical = true)
+                        .then(scrollModifier(horizontal = false))
                         .onScroll { event ->
                             receivedModifiers = event.modifiers
                             event.consume()
@@ -37,7 +39,7 @@ class UiScrollModifierInputTest {
             surface.setContent {
                 Box(
                     modifier = Modifier.size(100.px, 100.px)
-                        .scroll(horizontal = true)
+                        .then(scrollModifier(vertical = false))
                         .onScroll { event ->
                             routedScrollY = event.scrollY
                             rawScrollY = event.rawScrollY
@@ -53,6 +55,27 @@ class UiScrollModifierInputTest {
 
             assertEquals(0f, routedScrollY)
             assertEquals(1f, rawScrollY)
+        }
+    }
+
+    @Test
+    fun `a wheel handler on a plain node receives the notch`() {
+        var received = 0
+        HollowUiSurface().use { surface ->
+            surface.setContent {
+                Box(
+                    modifier = Modifier.size(100.px, 100.px).onScroll { event ->
+                        received++
+                        event.consume()
+                    },
+                )
+            }
+            surface.frame(120f, 120f, 50f, 50f, 0L)
+
+            val handled = surface.runtime.mouseScrolled(50f, 50f, 0f, 1f, GLFW.GLFW_MOD_CONTROL)
+
+            assertEquals(1, received, "the handler must see the wheel without being a scroll container")
+            assertTrue(handled)
         }
     }
 }

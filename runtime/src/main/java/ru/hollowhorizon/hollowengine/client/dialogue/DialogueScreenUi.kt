@@ -26,7 +26,7 @@ import ru.hollowhorizon.hollowengine.client.ui.onPlaced
 import ru.hollowhorizon.hollowengine.client.ui.padding
 import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
-import ru.hollowhorizon.hollowengine.client.ui.scroll
+import ru.hollowhorizon.hollowengine.client.ui.scrollable
 import ru.hollowhorizon.hollowengine.client.ui.state
 import ru.hollowhorizon.hollowengine.client.ui.style
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueChoiceView
@@ -175,7 +175,7 @@ private fun UiScope.ChoiceList(choices: DialogueChoicesView) {
     Box(
         id = "choice-viewport",
         modifier = Modifier
-            .scroll(vertical = true, state = scroll)
+            .scrollable(horizontal = false, hasVerticalScrollbar = false, state = scroll)
             .input(draggable = true)
             .onDrag { event -> scroll.scrollBy(deltaY = -event.deltaY) }
             .onPlaced { rect -> viewportHeight = rect.height },

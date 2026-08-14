@@ -169,9 +169,7 @@ private fun UiTextLayout.inlayCaretHitAt(x: Float, y: Float): EditableFieldCaret
     for (fragment in visual.fragments) {
         when (fragment) {
             is UiInlineWidgetRun -> {
-                if (fragment.widget.sourceLength == 0 && x >= visual.x + fragment.x &&
-                    x <= visual.x + fragment.x + fragment.width
-                ) {
+                if (fragment.widget.sourceLength == 0 && x >= visual.x + fragment.x && x <= visual.x + fragment.x + fragment.width) {
                     return if (x < visual.x + fragment.x + fragment.width / 2f) {
                         EditableFieldCaretHit(sourceOffset, UiInlayCaretAffinity.BEFORE)
                     } else {
@@ -299,13 +297,12 @@ internal fun computeEditableFieldLayout(
         preserveWhitespace = true,
     ).height
     val wrapping = wrap && viewportWidth > 0f
-    val layoutWidth = if (wrapping) viewportWidth else Float.POSITIVE_INFINITY
+    val layoutWidth = if (wrapping) (viewportWidth - TextFieldCaretWidth).coerceAtLeast(1f) else Float.POSITIVE_INFINITY
     val highlightBuckets = bucketHighlightsByLine(lines, highlights)
     val inlayBuckets = bucketInlaysByLine(lines, inlayHints)
     val inlayRevision = inlayMetrics.revision
     val reusable = previous?.takeIf {
-        it.fontSize == fontSize && it.fontFamily == fontFamily && it.layoutWidth == layoutWidth &&
-                it.inlayRevision == inlayRevision
+        it.fontSize == fontSize && it.fontFamily == fontFamily && it.layoutWidth == layoutWidth && it.inlayRevision == inlayRevision
     }?.reusableLineLayouts()
     var maxWidth = 0f
     var y = 0f
@@ -345,8 +342,8 @@ internal fun computeEditableFieldLayout(
     }
 
     offsets[lines.size] = y
-    val trailingMargin = if (multiline) fontSize else 0f
-    val naturalWidth = if (wrapping) viewportWidth else maxWidth + trailingMargin
+    val trailingWidth = if (multiline) fontSize else TextFieldCaretWidth
+    val naturalWidth = if (wrapping) viewportWidth else maxWidth + trailingWidth
     val contentWidth = maxOf(naturalWidth, viewportWidth)
     return EditableFieldLayout(
         lines, offsets, layouts, fontSize, fontFamily, contentWidth, naturalWidth, hintsById, inlayRevision,
@@ -535,19 +532,11 @@ fun EditableTextField(
         tags = listOf("text-field", "editable-text-field") + tags,
         mode = UiBoxMode.STACK,
         attributes = attributes,
-        modifier = Modifier
-            .focus()
-            .cursor(UiCursorShape.TEXT)
-            .scroll(vertical = multiline, horizontal = !wrap, state = scrollState)
-            .whitespace(UiWhitespace.PRESERVE)
-            .fontSize(fontSize)
-            .let { if (fontFamily != null) it.fontFamily(fontFamily) else it }
-            .onFocus { state.focus() }
-            .onUnfocus {
+        modifier = Modifier.focus().cursor(UiCursorShape.TEXT).whitespace(UiWhitespace.PRESERVE).fontSize(fontSize)
+            .let { if (fontFamily != null) it.fontFamily(fontFamily) else it }.onFocus { state.focus() }.onUnfocus {
                 state.unfocus()
                 completion.close()
-            }
-            .onCharTyped { event ->
+            }.onCharTyped { event ->
                 val char = event.codePoint.toChar()
                 if (event.codePoint != 0 && !char.isISOControl() && state.typeCharacter(char)) {
                     completion.onCharTyped(char)
@@ -557,8 +546,7 @@ fun EditableTextField(
             // Low priority: user onKeyInput handlers (default priority 0) get first refusal.
             .onKeyInput(TextFieldDefaultKeyPriority) { input ->
                 if (handleEditableFieldKey(state, input, layout, completion)) input.consume()
-            }
-            .onPress { event ->
+            }.onPress { event ->
                 state.focus()
                 val hit = clickHit(event, layout, gutterWidth)
                 val clickCount = pointerState.clickCount(hit.offset)
@@ -567,11 +555,9 @@ fun EditableTextField(
                 handleEditableFieldPress(
                     state, hit.offset, clickCount, event.modifiers, pointerState, hit.inlayAffinity,
                 )
-            }
-            .onDrag { event ->
+            }.onDrag { event ->
                 handleEditableFieldDrag(state, clickOffset(event, layout, gutterWidth), pointerState)
-            }
-            .onHover { event ->
+            }.onHover { event ->
                 hoverTooltip = if (diagnostics.isEmpty()) null else {
                     val viewport = scrollState.viewport
                     editableFieldDiagnosticTooltipAt(
@@ -586,9 +572,14 @@ fun EditableTextField(
                         contentOffsetX = gutterWidth,
                     )
                 }
-            }
-            .onExit { hoverTooltip = null }
-            .then(modifier ?: Modifier),
+            }.onExit { hoverTooltip = null }.then(modifier ?: Modifier)
+            .scrollable(
+                vertical = multiline,
+                horizontal = !wrap,
+                hasVerticalScrollbar = multiline,
+                hasHorizontalScrollbar = multiline,
+                state = scrollState,
+            ),
     ) {
         val placeholderWidth = if (text.isEmpty() && placeholder.isNotEmpty()) {
             UiTextLayouter.measureTextWidth(placeholder, fontSize, fontFamily) + fontSize
@@ -607,10 +598,8 @@ fun EditableTextField(
                 Text(
                     placeholder,
                     tags = listOf("editable-text-field-placeholder"),
-                    modifier = Modifier.position(0.px, 0.px)
-                        .foreground(EditableFieldPlaceholderColor)
-                        .let { state.textShadow?.let { shadow -> it.textEffects(shadow) } ?: it }
-                        .textWrap(wrap),
+                    modifier = Modifier.position(0.px, 0.px).foreground(EditableFieldPlaceholderColor)
+                        .let { state.textShadow?.let { shadow -> it.textEffects(shadow) } ?: it }.textWrap(wrap),
                 )
             }
             for (index in visible) {
@@ -657,19 +646,15 @@ private fun EditableFieldGutter(
     Box(
         mode = UiBoxMode.STACK,
         tags = listOf("editable-text-field-gutter", "code-editor-gutter"),
-        modifier = Modifier
-            .position(scrollState.offsetX.px, scrollState.offsetY.px, 5f)
-            .size(width.px, scrollState.viewport.height.px)
-            .layer(5),
+        modifier = Modifier.position(scrollState.offsetX.px, scrollState.offsetY.px, 5f)
+            .size(width.px, scrollState.viewport.height.px).layer(5).pinnedToViewport(),
     ) {
         for (index in visible) {
             key(index) {
                 Text(
                     (index + 1).toString(),
-                    modifier = Modifier
-                        .position(0.px, (layout.lineTop(index) - scrollState.offsetY).px)
-                        .foreground(color)
-                        .textWrap(false),
+                    modifier = Modifier.position(0.px, (layout.lineTop(index) - scrollState.offsetY).px)
+                        .foreground(color).textWrap(false),
                 )
             }
         }
@@ -772,8 +757,7 @@ internal class EditableFieldPointerState {
 
     fun clickCount(offset: Int): Int {
         val now = System.currentTimeMillis()
-        val continues = now - lastClickAtMillis <= EditableFieldDoubleClickMillis &&
-                abs(lastClickOffset - offset) <= 1
+        val continues = now - lastClickAtMillis <= EditableFieldDoubleClickMillis && abs(lastClickOffset - offset) <= 1
         val count = if (continues) (lastClickCount + 1).coerceAtMost(3) else 1
         lastClickAtMillis = now
         lastClickOffset = offset
@@ -783,9 +767,7 @@ internal class EditableFieldPointerState {
 }
 
 private enum class EditableFieldSelectionMode {
-    CHARACTER,
-    WORD,
-    LINE,
+    CHARACTER, WORD, LINE,
 }
 
 internal data class EditableTextRange(val start: Int, val end: Int)
@@ -853,10 +835,7 @@ private fun EditableFieldRow(
             val x = UiTextLayouter.measureTextWidth(" ".repeat(column), fontSize, fontFamily)
             key("guide", guideIndex) {
                 Box(
-                    modifier = Modifier
-                        .position(x.px, top.px)
-                        .size(1.px, guideHeight.px)
-                        .background(indentGuideColor),
+                    modifier = Modifier.position(x.px, top.px).size(1.px, guideHeight.px).background(indentGuideColor),
                 )
             }
         }
@@ -867,21 +846,11 @@ private fun EditableFieldRow(
         val localEnd = (range.selectionEnd - line.start).coerceIn(0, line.text.length)
         val crossesNewline = range.selectionEnd > line.end
         selectionRectsForRow(
-            line,
-            lineLayout,
-            localStart,
-            localEnd,
-            crossesNewline,
-            fontSize,
-            fontFamily,
-            layout.contentWidth
-        )
-            .forEachIndexed { rectIndex, rect ->
+            line, lineLayout, localStart, localEnd, crossesNewline, fontSize, fontFamily, layout.contentWidth
+        ).forEachIndexed { rectIndex, rect ->
                 key("sel", rangeIndex, rectIndex) {
                     Box(
-                        modifier = Modifier
-                            .position(rect.x.px, (top + rect.y).px)
-                            .size(rect.width.px, rect.height.px)
+                        modifier = Modifier.position(rect.x.px, (top + rect.y).px).size(rect.width.px, rect.height.px)
                             .background(state.selectionColor),
                     )
                 }
@@ -903,15 +872,9 @@ private fun EditableFieldRow(
             val caret = layout.caretAt(range.position, range.inlayAffinity)
             key("caret", caretIndex) {
                 Box(
-                    modifier = Modifier
-                        .position(caret.x.px, caret.y.px)
-                        .size(TextFieldCaretWidth.px, fontSize.px)
-                        .background(state.caretColor)
-                        .layer(1)
-                        .animation(
-                            UiCaretBlinkKeyframes,
-                            UiCaretBlinkPeriodMillis,
-                            iterationCount = Float.POSITIVE_INFINITY
+                    modifier = Modifier.position(caret.x.px, caret.y.px).size(TextFieldCaretWidth.px, fontSize.px)
+                        .background(state.caretColor).layer(1).animation(
+                            UiCaretBlinkKeyframes, UiCaretBlinkPeriodMillis, iterationCount = Float.POSITIVE_INFINITY
                         ),
                 )
             }
@@ -940,9 +903,7 @@ private fun EditableFieldLineFragments(
                     fragment.style.background?.let { color ->
                         key("run-bg", visualIndex, fragmentIndex) {
                             Box(
-                                modifier = Modifier
-                                    .position(x.px, y.px)
-                                    .size(fragment.width.px, fragment.height.px)
+                                modifier = Modifier.position(x.px, y.px).size(fragment.width.px, fragment.height.px)
                                     .background(color),
                             )
                         }
@@ -953,12 +914,10 @@ private fun EditableFieldLineFragments(
                             val effects = fragment.style.effects + listOfNotNull(textShadow)
                             Text(
                                 fragment.text,
-                                modifier = Modifier
-                                    .position(x.px, y.px)
+                                modifier = Modifier.position(x.px, y.px)
                                     .fontSize(fragment.style.resolvedFontSize(fontSize))
                                     .let { if (family != null) it.fontFamily(family) else it }
-                                    .textEffects(*effects.toTypedArray())
-                                    .textWrap(false),
+                                    .textEffects(*effects.toTypedArray()).textWrap(false),
                             )
                         }
                     }
@@ -968,9 +927,7 @@ private fun EditableFieldLineFragments(
                     fragment.style.background?.let { color ->
                         key("space-bg", visualIndex, fragmentIndex) {
                             Box(
-                                modifier = Modifier
-                                    .position(x.px, y.px)
-                                    .size(fragment.width.px, fragment.height.px)
+                                modifier = Modifier.position(x.px, y.px).size(fragment.width.px, fragment.height.px)
                                     .background(color),
                             )
                         }
@@ -1009,15 +966,9 @@ private fun InlayHint(
     val footprint = remember(hint, metrics) { InlayFootprint(hint, metrics) }
     Row(
         tags = InlayTags + hint.tags + listOfNotNull("inlay-action".takeIf { action != null }),
-        modifier = Modifier
-            .position(x.px, y.px)
-            .size(UiLength.Fit, UiLength.Fit)
-            .onResolvedStyle(footprint::styled)
-            .onPlaced(footprint::placed)
-            .let { base ->
-                if (action == null) base else base
-                    .input(clickable = true, hoverable = true)
-                    .cursor(UiCursorShape.HAND)
+        modifier = Modifier.position(x.px, y.px).size(UiLength.Fit, UiLength.Fit).onResolvedStyle(footprint::styled)
+            .onPlaced(footprint::placed).let { base ->
+                if (action == null) base else base.input(clickable = true, hoverable = true).cursor(UiCursorShape.HAND)
                     .onClick { event ->
                         onInlayAction?.invoke(action)
                         event.consume()
@@ -1091,10 +1042,7 @@ internal fun selectionRectsForRow(
         }
         val last = rects.last()
         return rects + UiRect(
-            last.x + last.width,
-            last.y,
-            (fullWidth - (last.x + last.width)).coerceAtLeast(0f),
-            fontSize
+            last.x + last.width, last.y, (fullWidth - (last.x + last.width)).coerceAtLeast(0f), fontSize
         )
     }
     val x1 = UiTextLayouter.measureTextWidth(line.text.take(localStart), fontSize, fontFamily)
@@ -1122,7 +1070,13 @@ private class EditableFieldLayoutHolder {
 
 /** Follows the primary caret with the scroll so it stays inside the viewport (with a margin). */
 private class EditableFieldAutoScroll {
-    private var lastRevision = Int.MIN_VALUE
+    private var caretRevision: Int? = null
+    private var caretMovePending = false
+    private var followedRevision = Int.MIN_VALUE
+    private var settling = false
+    private var followedViewport = UiRect.Zero
+    private var followedContentWidth = Float.NaN
+    private var followedContentHeight = Float.NaN
 
     fun follow(
         state: TextFieldState,
@@ -1130,26 +1084,44 @@ private class EditableFieldAutoScroll {
         scrollState: UiScrollHandle,
         gutterWidth: Float = 0f,
     ) {
-        if (lastRevision == state.caretVisibilityRevision) return
-        lastRevision = state.caretVisibilityRevision
+        val revision = state.caretVisibilityRevision
+        val seen = caretRevision
+        caretRevision = revision
+        if (seen != null && seen != revision) caretMovePending = true
+
         val viewport = scrollState.viewport
+        if (!caretMovePending) {
+            if (!settling || followedRevision != revision) return
+            val unchanged =
+                followedViewport == viewport && followedContentWidth == layout.naturalWidth && followedContentHeight == layout.height
+            if (unchanged) {
+                settling = false
+                return
+            }
+        }
         if (viewport.height <= 0f) return
+        caretMovePending = false
+        followedRevision = revision
+        settling = true
+        followedViewport = viewport
+        followedContentWidth = layout.naturalWidth
+        followedContentHeight = layout.height
 
         val caret = layout.caretAt(state.primaryCaret.position, state.primaryCaret.inlayAffinity)
         val margin = layout.fontSize
+        val caretEndX = caret.x + TextFieldCaretWidth
         val viewportWidth = (viewport.width - gutterWidth).coerceAtLeast(0f)
 
         val targetY = when {
             caret.y < scrollState.offsetY + margin -> (caret.y - margin).coerceAtLeast(0f)
-            caret.y + layout.fontSize > scrollState.offsetY + viewport.height - margin ->
-                caret.y + layout.fontSize + margin - viewport.height
+            caret.y + layout.fontSize > scrollState.offsetY + viewport.height - margin -> caret.y + layout.fontSize + margin - viewport.height
 
             else -> null
         }
         val targetX = when {
             state.wrap -> null
             caret.x < scrollState.offsetX + margin -> (caret.x - margin).coerceAtLeast(0f)
-            caret.x > scrollState.offsetX + viewportWidth - margin -> caret.x + margin - viewportWidth
+            caretEndX > scrollState.offsetX + viewportWidth - margin -> caretEndX + margin - viewportWidth
             else -> null
         }
         if (targetX != null || targetY != null) scrollState.scrollTo(targetX, targetY)
@@ -1179,8 +1151,7 @@ internal fun handleEditableFieldKey(
                 return true
             }
 
-            GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER ->
-                if (completion.accept()) return true
+            GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> if (completion.accept()) return true
 
             GLFW.GLFW_KEY_ESCAPE -> {
                 completion.close()
@@ -1191,18 +1162,18 @@ internal fun handleEditableFieldKey(
             GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT -> completion.close()
         }
     }
-    if (completion != null &&
-        (input.command && input.key == GLFW.GLFW_KEY_SPACE ||
-                input.alt && (input.key == GLFW.GLFW_KEY_ENTER || input.key == GLFW.GLFW_KEY_KP_ENTER))
-    ) {
+    if (completion != null && (input.command && input.key == GLFW.GLFW_KEY_SPACE || input.alt && (input.key == GLFW.GLFW_KEY_ENTER || input.key == GLFW.GLFW_KEY_KP_ENTER))) {
         completion.open()
         return true
     }
     // Ctrl+Alt+Up/Down drops an extra caret on the line above/below the primary one.
     if (input.control && input.alt && (input.key == GLFW.GLFW_KEY_UP || input.key == GLFW.GLFW_KEY_DOWN)) {
         val delta = if (input.key == GLFW.GLFW_KEY_UP) -1 else 1
-        val position = layout?.visualCaretMove(state.primaryCaret.position, delta)
-            ?: verticalCaretMove(text, state.primaryCaret.position, delta)
+        val position = layout?.visualCaretMove(state.primaryCaret.position, delta) ?: verticalCaretMove(
+            text,
+            state.primaryCaret.position,
+            delta
+        )
         state.addCaret(position)
         return true
     }
@@ -1226,8 +1197,9 @@ internal fun handleEditableFieldKey(
                 when {
                     !input.shift && range.hasSelection -> UiTextCaret(range.selectionStart)
                     input.control -> UiTextCaret(wordLeft(text, range.position))
-                    range.inlayAffinity == UiInlayCaretAffinity.AFTER && layout?.hasInlayAt(range.position) == true ->
-                        range.copy(inlayAffinity = UiInlayCaretAffinity.BEFORE)
+                    range.inlayAffinity == UiInlayCaretAffinity.AFTER && layout?.hasInlayAt(range.position) == true -> range.copy(
+                        inlayAffinity = UiInlayCaretAffinity.BEFORE
+                    )
 
                     else -> UiTextCaret(range.position - 1)
                 }
@@ -1240,8 +1212,9 @@ internal fun handleEditableFieldKey(
                 when {
                     !input.shift && range.hasSelection -> UiTextCaret(range.selectionEnd)
                     input.control -> UiTextCaret(wordRight(text, range.position))
-                    range.inlayAffinity == UiInlayCaretAffinity.BEFORE && layout?.hasInlayAt(range.position) == true ->
-                        range.copy(inlayAffinity = UiInlayCaretAffinity.AFTER)
+                    range.inlayAffinity == UiInlayCaretAffinity.BEFORE && layout?.hasInlayAt(range.position) == true -> range.copy(
+                        inlayAffinity = UiInlayCaretAffinity.AFTER
+                    )
 
                     else -> {
                         val position = (range.position + 1).coerceAtMost(text.length)

@@ -149,7 +149,7 @@ private fun LazyList(
     val trailing = (count - last).coerceAtLeast(0) * slot
 
     val listModifier = (modifier ?: Modifier).gap(0.px)
-        .scroll(
+        .scrollable(
             vertical = !horizontal || crossAxisScroll,
             horizontal = horizontal || crossAxisScroll,
             state = state.scroll,

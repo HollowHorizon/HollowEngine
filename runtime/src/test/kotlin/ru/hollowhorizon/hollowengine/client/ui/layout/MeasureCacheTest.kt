@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
@@ -19,12 +20,14 @@ class MeasureCacheTest {
         children.forEach { it.layoutState.attachTo(this); it.attached() }
     }
 
+    private val scroll = UiScrollHandle()
+
     private fun scrollableTree(): Triple<BoxNode, BoxNode, BoxNode> {
         val item = BoxNode(id = "item", modifiers = listOf(Modifier.size(40.px, 300.px)))
         val viewport = BoxNode(
             id = "viewport",
             measurePolicy = UiMeasurePolicies.box(),
-            modifiers = listOf(Modifier.size(100.px, 100.px) then Modifier.scroll(vertical = true, horizontal = false)),
+            modifiers = listOf(Modifier.size(100.px, 100.px) then scrollModifier(horizontal = false, state = scroll)),
         ).also { it.children.add(item) }
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(viewport) }.attached()
         return Triple(root, viewport, item)
@@ -37,7 +40,7 @@ class MeasureCacheTest {
 
         val before = runtime.frame(root, 200f, 200f, -1f, -1f, 0L)
         assertEquals(200f, before.layout[viewport].scrollRange.y, "content overflows by 200px")
-        runtime.setScrollImmediate(viewport, UiScrollOffset(0f, 50f))
+        runtime.setScrollImmediate(scroll, UiScrollOffset(0f, 50f))
         val after = runtime.frame(root, 200f, 200f, -1f, -1f, 16L)
 
         assertNotSame(before.layout, after.layout, "a scroll change rebuilds the layout")
@@ -57,7 +60,7 @@ class MeasureCacheTest {
         val runtime = HollowUiRuntime()
 
         runtime.frame(root, 200f, 200f, -1f, -1f, 0L)
-        runtime.setScrollImmediate(viewport, UiScrollOffset(0f, 50f))
+        runtime.setScrollImmediate(scroll, UiScrollOffset(0f, 50f))
         runtime.frame(root, 200f, 200f, -1f, -1f, 16L)
 
         // Grow the item; the measure cache must not serve the old 300px height.

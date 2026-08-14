@@ -38,7 +38,7 @@ fun TextLab() {
 
     Column(
         tags = listOf("panel", "textlab-panel"),
-        modifier = Modifier.scroll(vertical = true, horizontal = true),
+        modifier = Modifier.scrollable(),
     ) {
         Row(tags = listOf("textlab-controls")) {
             UiDropdown(

@@ -19,27 +19,27 @@ internal fun widgetHssProperties(): List<HssProperty> = hssProperties {
         summary = "Thickness of the scrollbar.",
         syntax = syntax(sizeSlot("thickness", auto = false)),
         examples = listOf("7px", "10px", "12px"),
-    ) { style { it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(thickness = parseLength(value)) } }
+    ) { style { it.scrollbar = it.scrollbarStyle().copy(thickness = parseLength(value)) } }
 
     property(
         "scrollbar-margin",
         summary = "Gap between the scrollbar and the content edge.",
         syntax = syntax(sizeSlot("margin", auto = false)),
         examples = listOf("2px", "3px", "4px"),
-    ) { style { it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(margin = parseLength(value)) } }
+    ) { style { it.scrollbar = it.scrollbarStyle().copy(margin = parseLength(value)) } }
 
     property(
         "scrollbar-min-thumb", "scrollbar-min-thumb-size",
         summary = "Smallest size the scrollbar thumb shrinks to.",
         syntax = syntax(sizeSlot("size", auto = false)),
         examples = listOf("16px", "24px"),
-    ) { style { it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(minThumbSize = parseLength(value)) } }
+    ) { style { it.scrollbar = it.scrollbarStyle().copy(minThumbSize = parseLength(value)) } }
 
     property(
         "scrollbar-overlay",
-        summary = "Whether the scrollbar floats over the content instead of reserving space.",
+        summary = "Whether the scrollbar floats over the content instead of reserving space for itself.",
         syntax = syntax(slot("overlay", HssValueKind.BOOLEAN)),
-    ) { style { it.scrollbar = (it.scrollbar ?: UiScrollbarStyle()).copy(overlay = parseBoolean(value)) } }
+    ) { style { it.scrollbar = it.scrollbarStyle().copy(overlay = parseBoolean(value)) } }
 
     property(
         "scrollbar-track",

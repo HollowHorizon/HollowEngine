@@ -30,7 +30,7 @@ internal fun HollowTimelineProperties(
             .border(1.px, TimelineColors.Border)
             .padding(10.px)
             .gap(8.px)
-            .scroll(vertical = true)
+            .scrollable(horizontal = false)
     ) {
         Text("Properties", modifier = Modifier.fontSize(13f).foreground(TimelineColors.Text))
         PreviewSection(controller, refresh)

@@ -229,25 +229,19 @@ class HollowUiInputController {
         mouseX: Float,
         mouseY: Float,
         button: Int,
-        setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
+        setScrollImmediate: (UiScrollHandle, UiScrollOffset) -> Unit,
     ): UiInputResult {
         if (button != 0) return UiInputResult(false)
-        return when (val hit = frame.hitTest(mouseX, mouseY)?.node) {
-            is ScrollbarThumbNode -> {
-                scrollbarDrag = scrollbarThumbDragState(frame.layout.nodes, hit, mouseX, mouseY)
-                val container = hit.scrollbarContainer()
-                UiInputResult(true, container, container?.id)
+        val drag = when (val hit = frame.hitTest(mouseX, mouseY)?.node) {
+            is ScrollbarThumbNode -> scrollbarThumbDragState(frame.layout.nodes, hit, mouseX, mouseY)
+            is ScrollbarNode -> scrollbarTrackDragState(frame.layout.nodes, hit, mouseX, mouseY)?.also {
+                setScrollImmediate(it.handle, it.offsetFor(frame.layout[it.node], mouseX, mouseY))
             }
 
-            is ScrollbarNode -> {
-                val jump = scrollbarTrackJumpOffset(frame.layout.nodes, hit, mouseX, mouseY)
-                    ?: return UiInputResult(false)
-                setScrollImmediate(jump.first, jump.second)
-                UiInputResult(true, jump.first, jump.first.id, changed = true)
-            }
-
-            else -> UiInputResult(false)
-        }
+            else -> null
+        } ?: return UiInputResult(false)
+        scrollbarDrag = drag
+        return UiInputResult(true, drag.node, drag.node.id, changed = true)
     }
 
     fun mouseDragged(
@@ -337,11 +331,11 @@ class HollowUiInputController {
         frame: HollowUiFrame,
         mouseX: Float,
         mouseY: Float,
-        setScrollImmediate: (UiNode, UiScrollOffset) -> Unit,
+        setScrollImmediate: (UiScrollHandle, UiScrollOffset) -> Unit,
     ): UiInputResult {
         val drag = scrollbarDrag ?: return UiInputResult(false)
         val node = drag.node.takeIf { it in frame.nodes } ?: return UiInputResult(false)
-        setScrollImmediate(node, drag.offsetFor(frame.layout[node], mouseX, mouseY))
+        setScrollImmediate(drag.handle, drag.offsetFor(frame.layout[node], mouseX, mouseY))
         return UiInputResult(true, node, node.id, changed = true)
     }
 

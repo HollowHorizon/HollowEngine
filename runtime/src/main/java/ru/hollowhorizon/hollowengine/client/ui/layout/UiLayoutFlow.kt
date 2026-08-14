@@ -55,7 +55,6 @@ internal fun UiLayoutPipeline.placeCustomChildren(scope: ChildPlacementScope, me
                 placement.placeable.width,
                 placement.placeable.height,
             ),
-            parentStyle = scope.resolved[scope.node],
         )
     }
 }
@@ -70,9 +69,9 @@ internal fun UiLayoutPipeline.placeLinearChildren(
     val content = scope.content
     val mainAvailable = axis.mainSize(content)
     val gap = style.gap.resolve(mainAvailable)
-    val axes = style.scrollAxes
-    val allowWidthOverflow = axes?.horizontal == true
-    val allowHeightOverflow = axes?.vertical == true
+    val scroll = style.scroll
+    val allowWidthOverflow = scroll?.horizontal == true
+    val allowHeightOverflow = scroll?.vertical == true
     val measured = measureFlowChildren(
         node,
         resolved,

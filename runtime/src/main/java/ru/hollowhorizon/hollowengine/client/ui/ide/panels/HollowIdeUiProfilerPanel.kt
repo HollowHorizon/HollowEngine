@@ -27,7 +27,8 @@ internal fun HollowIdeUiProfilerPanel(profiler: UiProfiler) {
         }
         Column(
             tags = listOf("ui-profiler-scroll"),
-            modifier = Modifier.size(100.percent, 0.percent).grow(1f).scroll(vertical = true, horizontal = true),
+            modifier = Modifier.size(100.percent, 0.percent).grow(1f)
+                .scrollable(),
         ) {
             Text(snapshot.report, tags = listOf("ui-profiler-report"))
         }

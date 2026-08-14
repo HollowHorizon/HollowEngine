@@ -177,7 +177,7 @@ internal fun HollowIdeImageEditor(
         Box(
             tags = listOf("image-editor-canvas-scroll"),
             modifier = Modifier.size(0.px, 100.percent).grow(1f)
-                .scroll(vertical = true, horizontal = true, state = canvasScroll)
+                .scrollable(state = canvasScroll)
                 .onScroll(::zoomAt)
                 .onDrag { event ->
                     if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
@@ -226,7 +226,8 @@ internal fun HollowIdeImageEditor(
 
         Column(
             tags = listOf("image-editor-sidebar"),
-            modifier = Modifier.size(SidebarWidth.px, 100.percent).scroll(vertical = true),
+            modifier = Modifier.size(SidebarWidth.px, 100.percent)
+                .scrollable(horizontal = false),
         ) {
             SectionTitle("hollowengine.gui.image_editor.tools".lang)
             Row(modifier = Modifier.size(100.percent, 26.px).gap(4.px)) {

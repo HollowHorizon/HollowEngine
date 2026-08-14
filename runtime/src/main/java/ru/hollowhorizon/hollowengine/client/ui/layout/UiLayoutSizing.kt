@@ -114,12 +114,10 @@ private fun UiMatrix4.isDirectTextTransform(): Boolean {
 internal fun UiComputedStyle.outerInsets(width: Float, height: Float, reserve: UiScrollbarReserve): ResolvedUiInsets {
     val border = border.width.resolve(width, height)
     val padding = padding.resolve(width, height)
-    val verticalScrollbar = scrollbar.resolved(width)
-    val horizontalScrollbar = scrollbar.resolved(height)
     return ResolvedUiInsets(
         left = border.left + padding.left,
         top = border.top + padding.top,
-        right = border.right + padding.right + if (reserve.vertical) verticalScrollbar.gutter else 0f,
-        bottom = border.bottom + padding.bottom + if (reserve.horizontal) horizontalScrollbar.gutter else 0f,
+        right = border.right + padding.right + verticalGutter(reserve, width),
+        bottom = border.bottom + padding.bottom + horizontalGutter(reserve, height),
     )
 }

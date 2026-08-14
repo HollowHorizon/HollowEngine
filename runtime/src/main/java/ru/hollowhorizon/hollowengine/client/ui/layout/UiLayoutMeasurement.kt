@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
-import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.math.abs
 
 private const val ConstraintReflowEpsilon = 0.01f
@@ -198,12 +197,6 @@ internal fun UiLayoutPipeline.measureNodeContent(
     val insets = style.outerInsets(referenceWidth, referenceHeight, reserve)
     var width = widthOverride ?: style.size.width.resolveOrNull(referenceWidth, deferFlexibleWidth)
     var height = heightOverride ?: style.size.height.resolveOrNull(referenceHeight, deferFlexibleHeight)
-    if (widthOverride == null && width != null && style.size.width is UiLength.Px && reserve.vertical) {
-        width += style.scrollbar.resolved(referenceWidth).gutter
-    }
-    if (heightOverride == null && height != null && style.size.height is UiLength.Px && reserve.horizontal) {
-        height += style.scrollbar.resolved(referenceHeight).gutter
-    }
     style.aspectRatio?.let { ratio ->
         if (width == null && height != null) width = height * ratio
         if (height == null && width != null) height = width / ratio
@@ -325,7 +318,7 @@ private fun UiLayoutPipeline.intrinsicSize(
         )
 
         else -> {
-            if (layoutChildren(node).isEmpty()) return replacedIntrinsicSize(node, style)
+            if (layoutChildren(node).isEmpty()) return replacedIntrinsicSize(style)
 
             if (node.measurePolicy !is UiBuiltInMeasurePolicy) {
                 measureCustomContainer(
@@ -409,22 +402,25 @@ private fun UiLayoutPipeline.measureStandardContainer(
 internal fun nodeBoxes(rect: UiRect, style: UiComputedStyle, reserve: UiScrollbarReserve): NodeBoxes {
     val border = style.border.width.resolve(rect.width, rect.height)
     val padding = style.padding.resolve(rect.width, rect.height)
-    val verticalScrollbar = style.scrollbar.resolved(rect.width)
-    val horizontalScrollbar = style.scrollbar.resolved(rect.height)
     val scrollArea = UiRect(
         rect.x + border.left + padding.left,
         rect.y + border.top + padding.top,
         (rect.width - border.left - border.right - padding.left - padding.right).coerceAtLeast(0f),
         (rect.height - border.top - border.bottom - padding.top - padding.bottom).coerceAtLeast(0f),
     )
+    if (!reserve.active) return NodeBoxes(scrollArea, scrollArea)
     return NodeBoxes(
         scrollArea = scrollArea,
         content = scrollArea.copy(
-            width = (scrollArea.width - if (reserve.vertical) verticalScrollbar.gutter else 0f).coerceAtLeast(0f),
-            height = (scrollArea.height - if (reserve.horizontal) horizontalScrollbar.gutter else 0f).coerceAtLeast(
-                0f
-            ),
+            width = (scrollArea.width - style.verticalGutter(reserve, rect.width)).coerceAtLeast(0f),
+            height = (scrollArea.height - style.horizontalGutter(reserve, rect.height)).coerceAtLeast(0f),
         )
     )
 }
+
+internal fun UiComputedStyle.verticalGutter(reserve: UiScrollbarReserve, reference: Float): Float =
+    if (reserve.vertical) scrollbar.resolved(reference).gutter else 0f
+
+internal fun UiComputedStyle.horizontalGutter(reserve: UiScrollbarReserve, reference: Float): Float =
+    if (reserve.horizontal) scrollbar.resolved(reference).gutter else 0f
 

@@ -173,11 +173,7 @@
     align: center center;
     margin: 0px 0px 40px 0px;
 
-    scroll: vertical;
     clip: true;
-    scrollbar: 0px;
-    scrollbar-track: transparent;
-    scrollbar-thumb: transparent;
 
     mask: linear-gradient(to bottom, transparent, white 26%, white 74%, transparent);
 }

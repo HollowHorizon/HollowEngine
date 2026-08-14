@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
-import ru.hollowhorizon.hollowengine.client.ui.scroll
+import ru.hollowhorizon.hollowengine.client.ui.scrollModifier
 import ru.hollowhorizon.hollowengine.client.ui.size
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,7 +26,7 @@ class ScrollFrameTransactionTest {
                 composedOffset = scroll.offsetY
                 Box(
                     id = "viewport",
-                    modifier = Modifier.size(100.px, 100.px).scroll(vertical = true, state = scroll),
+                    modifier = Modifier.size(100.px, 100.px).then(scrollModifier(horizontal = false, state = scroll)),
                 ) {
                     Box(modifier = Modifier.size(100.px, 300.px))
                 }
@@ -58,7 +58,7 @@ class ScrollFrameTransactionTest {
                 SideEffect { if (caretTarget > 0f) scroll.scrollTo(y = caretTarget) }
                 Box(
                     id = "viewport",
-                    modifier = Modifier.size(100.px, 100.px).scroll(vertical = true, state = scroll),
+                    modifier = Modifier.size(100.px, 100.px).then(scrollModifier(horizontal = false, state = scroll)),
                 ) {
                     Box(modifier = Modifier.size(100.px, 300.px))
                 }
@@ -89,7 +89,7 @@ class ScrollFrameTransactionTest {
             surface.setContent {
                 Box(
                     id = "viewport",
-                    modifier = Modifier.size(100.px, 100.px).scroll(vertical = true, state = scroll),
+                    modifier = Modifier.size(100.px, 100.px).then(scrollModifier(horizontal = false, state = scroll)),
                 ) {
                     Box(modifier = Modifier.size(100.px, 300.px))
                 }
@@ -116,7 +116,7 @@ class ScrollFrameTransactionTest {
             surface.setContent {
                 Box(
                     id = "viewport",
-                    modifier = Modifier.size(100.px, 100.px).scroll(vertical = true, state = scroll),
+                    modifier = Modifier.size(100.px, 100.px).then(scrollModifier(horizontal = false, state = scroll)),
                 ) {
                     Box(modifier = Modifier.size(100.px, 300.px))
                 }

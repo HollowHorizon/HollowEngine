@@ -35,7 +35,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     @Composable
     override fun Content() {
         Column(id = "demo-root") {
-            Row(id = "tabs", tags = listOf("tabs"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+            Row(id = "tabs", tags = listOf("tabs"), modifier = Modifier.scrollable()) {
                 tab("overview", "Главная", "hollowengine:textures/gui/npc_menu/talk.png")
                 tab("widgets", "Виджеты", "hollowengine:textures/gui/npc_menu/quests.png")
                 tab("text", "Text", "hollowengine:textures/gui/icons/docs.svg")
@@ -84,7 +84,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun overview() {
-        Column(tags = listOf("panel", "scroll-panel"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+        Column(tags = listOf("panel", "scroll-panel"), modifier = Modifier.scrollable()) {
             Text("Какой-то интерфейс", tags = listOf("title"))
             Text(
                 "Здесь могла быть ваша реклама, но у вас нет денег :)",
@@ -104,7 +104,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun widgets() {
-        Box(tags = listOf("panel-grid"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+        Box(tags = listOf("panel-grid"), modifier = Modifier.scrollable()) {
             Column(tags = listOf("card"), modifier = Modifier.position(0.px, 0.px)) {
                 Text("Текст", tags = listOf("card-title"))
                 Text(
@@ -133,7 +133,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun textAndPopupDemo() {
-        Box(tags = listOf("text-demo-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+        Box(tags = listOf("text-demo-stage"), modifier = Modifier.scrollable()) {
             Column(tags = listOf("text-demo-card"), modifier = Modifier.position(0.px, 0.px)) {
                 Text("Inline widget", tags = listOf("card-title"))
                 Text(
@@ -249,7 +249,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private fun inlineFlowLab() {
         Column(
             tags = listOf("panel", "textlab-panel"),
-            modifier = Modifier.scroll(vertical = true, horizontal = true)
+            modifier = Modifier.scrollable()
         ) {
             Row(tags = listOf("textlab-controls")) {
                 toggle("wrap", textLabWrap) { textLabWrap = !textLabWrap }
@@ -314,7 +314,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
             }
 
             Text("Overflow: fixed height with vertical scroll", tags = listOf("card-title", "textlab-section"))
-            Box(tags = listOf("textlab-scroll"), modifier = Modifier.scroll(vertical = true)) {
+            Box(tags = listOf("textlab-scroll"), modifier = Modifier.scrollable(horizontal = false)) {
                 Text(tags = listOf("textlab-para")) {
                     Span(
                         "This paragraph is intentionally long so it overflows the fixed-height box and must scroll. ".repeat(
@@ -364,7 +364,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun layout() {
-        Box(tags = listOf("free-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+        Box(tags = listOf("free-stage"), modifier = Modifier.scrollable()) {
             repeat(12) { index ->
                 val offset = freeNodeOffsets[index] ?: DemoOffset.Zero
                 Column(
@@ -452,7 +452,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
 
     @Composable
     private fun effects() {
-        Box(tags = listOf("effects-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+        Box(tags = listOf("effects-stage"), modifier = Modifier.scrollable()) {
             Column(tags = listOf("effect-card", "gradient-card"), modifier = Modifier.position(20.px, 18.px)) {
                 Text("Градиент", tags = listOf("card-title"))
                 Text("Ну типа карточка, но с градиентом.", tags = listOf("body"))

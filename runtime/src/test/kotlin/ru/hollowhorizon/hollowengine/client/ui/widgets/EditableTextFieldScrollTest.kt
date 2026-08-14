@@ -40,7 +40,7 @@ class EditableTextFieldScrollTest {
     }
 
     @Test
-    fun `single line field creates a reserving scrollbar when text really overflows`() {
+    fun `single line field scrolls overflowing text without growing or showing a bar`() {
         HollowUiSurface().use { surface ->
             surface.setContent {
                 TextField(
@@ -54,10 +54,13 @@ class EditableTextFieldScrollTest {
             val frame = surface.frame(100f, 40f, -1f, -1f, 16_000_000L)
             val field = frame.nodes.single { it.id == "field" }
 
-            assertTrue(frame.layout[field].scrollRange.x > 0f)
-            assertTrue(frame.layout.scrollbars[field].orEmpty().isNotEmpty())
-            assertTrue(frame.layout[field].rect.height > 22f)
-            assertEquals(22f, frame.layout[field].content.height, 0.01f)
+            assertTrue(frame.layout[field].scrollRange.x > 0f, "the text still scrolls")
+            assertTrue(
+                frame.layout.scrollbars[field].isNullOrEmpty(),
+                "a one-line field is too short for a bar. It must stay hidden",
+            )
+            assertEquals(22f, frame.layout[field].rect.height, 0.01f, "the field keeps its declared height")
+            assertEquals(22f, frame.layout[field].content.height, 0.01f, "and nothing is reserved inside it")
         }
     }
 }

@@ -95,7 +95,7 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
                 }
                 Column(
                     tags = listOf("sounds-editor-list-scroll"),
-                    modifier = Modifier.size(100.percent, 0.px).grow(1f).scroll(vertical = true, state = listScroll),
+                    modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(horizontal = false, state = listScroll),
                 ) {
                     val filtered = document.events.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
                     if (filtered.isEmpty()) {
@@ -118,7 +118,7 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
 
             Column(
                 tags = listOf("sounds-editor-detail"),
-                modifier = Modifier.size(0.px, 100.percent).grow(1f).scroll(vertical = true, state = detailScroll),
+                modifier = Modifier.size(0.px, 100.percent).grow(1f).scrollable(horizontal = false, state = detailScroll),
             ) {
                 val event = current
                 if (event == null) {

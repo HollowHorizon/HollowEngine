@@ -49,7 +49,7 @@ internal fun shapesDemo() {
     val questMapSvg = svgResourceDocument("hollowengine:ui/shapes/demo-quest-map.svg")
     val viewportStackSvg = svgResourceDocument("hollowengine:ui/shapes/demo-viewport-stack.svg")
 
-    Box(tags = listOf("shapes-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+    Box(tags = listOf("shapes-stage"), modifier = Modifier.scrollable()) {
         Column(tags = listOf("shape-card", "hss-path-card"), modifier = Modifier.position(20.px, 20.px)) {
             Text("HSS path", tags = listOf("card-title"))
             Text("shape + fill + stroke", tags = listOf("body"))

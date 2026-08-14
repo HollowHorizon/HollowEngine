@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 
 data class UiTreeItem<T>(
     val id: String,
@@ -25,9 +26,10 @@ fun <T> UiTreeView(
     onIconClick: ((UiTreeItem<T>) -> Unit)? = null,
     fillRowWidth: Boolean = true,
 ) {
+    val scroll = rememberScrollState()
     Column(
         tags = listOf("tree-view") + tags,
-        modifier = modifier.scroll(vertical = true, horizontal = true)
+        modifier = modifier.scrollable(state = scroll)
     ) {
         items.forEach { item ->
             key(item.id) {

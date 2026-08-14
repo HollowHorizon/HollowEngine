@@ -58,19 +58,27 @@ data class UiShadow(
 data class UiFilterChain(
     val effects: List<UiFilterEffect> = emptyList(),
 ) {
-    val requiresLayer: Boolean get() = effects.any { it.requiresLayer }
+    val requiresLayer: Boolean
+    private val grayscale: Float
+    private val blur: Float
 
-    fun grayscaleAmount(): Float {
-        var amount = 0f
-        for (effect in effects) if (effect is UiFilterEffect.Grayscale) amount += effect.amount
-        return amount.coerceIn(0f, 1f)
+    init {
+        var layer = false
+        var grayscaleAmount = 0f
+        var blurRadius = 0f
+        for (effect in effects) {
+            if (effect.requiresLayer) layer = true
+            if (effect is UiFilterEffect.Grayscale) grayscaleAmount += effect.amount
+            if (effect is UiFilterEffect.Blur) blurRadius += effect.radius
+        }
+        requiresLayer = layer
+        grayscale = grayscaleAmount.coerceIn(0f, 1f)
+        blur = blurRadius.coerceAtLeast(0f)
     }
 
-    fun blurRadius(): Float {
-        var radius = 0f
-        for (effect in effects) if (effect is UiFilterEffect.Blur) radius += effect.radius
-        return radius.coerceAtLeast(0f)
-    }
+    fun grayscaleAmount(): Float = grayscale
+
+    fun blurRadius(): Float = blur
 
     fun withoutBlur(): UiFilterChain = UiFilterChain(effects.filterNot { it is UiFilterEffect.Blur })
 
@@ -166,10 +174,11 @@ data class UiScrollbarStyle(
 
     fun resolved(reference: Float): ResolvedUiScrollbarStyle {
         val resolvedThickness = (thickness ?: DefaultThickness).resolve(reference).coerceAtLeast(0f)
-        val resolvedMargin = (margin ?: DefaultMargin).resolve(reference).coerceAtLeast(0f)
+        if (resolvedThickness <= 0f) return HiddenScrollbar
         return ResolvedUiScrollbarStyle(
+            overlay = overlay == true,
             thickness = resolvedThickness,
-            margin = resolvedMargin,
+            margin = (margin ?: DefaultMargin).resolve(reference).coerceAtLeast(0f),
             minThumbSize = (minThumbSize ?: DefaultMinThumbSize).resolve(reference).coerceAtLeast(1f),
             track = track,
             thumb = thumb,
@@ -180,6 +189,15 @@ data class UiScrollbarStyle(
         val DefaultThickness: UiLength = 3.5.px
         val DefaultMargin: UiLength = 3.px
         val DefaultMinThumbSize: UiLength = 18.px
+
+        private val HiddenScrollbar = ResolvedUiScrollbarStyle(
+            overlay = false,
+            thickness = 0f,
+            margin = 0f,
+            minThumbSize = 1f,
+            track = UiScrollbarPartStyle(),
+            thumb = UiScrollbarPartStyle(),
+        )
     }
 }
 
@@ -200,13 +218,15 @@ data class UiScrollbarPartStyle(
 }
 
 data class ResolvedUiScrollbarStyle(
+    val overlay: Boolean,
     val thickness: Float,
     val margin: Float,
     val minThumbSize: Float,
     val track: UiScrollbarPartStyle,
     val thumb: UiScrollbarPartStyle,
 ) {
-    val gutter: Float get() = thickness + margin * 2f
+    val isVisible: Boolean get() = thickness > 0f
+    val gutter: Float get() = if (isVisible && !overlay) thickness + margin * 2f else 0f
 }
 
 internal fun interpolatePaint(from: UiPaint, to: UiPaint, progress: Float): UiPaint {

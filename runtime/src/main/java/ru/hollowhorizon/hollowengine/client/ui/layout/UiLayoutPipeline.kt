@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
+import ru.hollowhorizon.hollowengine.client.ui.get
+import ru.hollowhorizon.hollowengine.client.ui.scrollSpec
 import ru.hollowhorizon.hollowengine.client.ui.UiProfileFrame
 import ru.hollowhorizon.hollowengine.client.ui.scroll.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
@@ -32,23 +34,13 @@ class UiLayoutPipeline {
         activeProfile = profile
         try {
             val warmReserves = lastScrollbarReserves
-            val warmLayout = computeLayouts(resolved, width, height, scrollState, warmReserves)
-            val finalLayout = if (detectScrollbarReserves(warmLayout.nodes, warmLayout::childrenOf) == warmReserves) {
+            val warmLayout = computeLayouts(resolved, width, height, warmReserves)
+            val reserves = detectScrollbarReserves(warmLayout.nodes, warmLayout::childrenOf)
+            val finalLayout = if (reserves == warmReserves) {
                 warmLayout
             } else {
-                val initialLayout = if (warmReserves.isEmpty()) {
-                    warmLayout
-                } else {
-                    computeLayouts(resolved, width, height, scrollState, emptyMap())
-                }
-                val scrollbarReserves = detectScrollbarReserves(initialLayout.nodes, initialLayout::childrenOf)
-                val resolvedLayout = if (scrollbarReserves.isEmpty()) {
-                    initialLayout
-                } else {
-                    computeLayouts(resolved, width, height, scrollState, scrollbarReserves)
-                }
-                lastScrollbarReserves = scrollbarReserves
-                resolvedLayout
+                lastScrollbarReserves = reserves
+                computeLayouts(resolved, width, height, reserves)
             }
             applyScrollRanges(finalLayout.nodes, scrollState, finalLayout::childrenOf)
             val scrollbars = placeScrollbarNodes(finalLayout.nodes, scrollbarCache)
@@ -69,11 +61,107 @@ class UiLayoutPipeline {
         }
     }
 
+    /**
+     * Re-places only the subtrees whose scroll offset moved, reusing everything else from [previous].
+     */
+    internal fun rescroll(
+        resolved: UiNode,
+        previous: UiLayoutResult,
+        scrollState: UiScrollState,
+        profile: UiProfileFrame? = null,
+    ): UiLayoutResult? {
+        val moved = movedScrollContainers(previous) ?: return null
+        if (moved.isEmpty()) return previous
+        val previousProfile = activeProfile
+        activeProfile = profile
+        try {
+            val layouts = LinkedHashMap(previous.nodes)
+            val pass = LayoutPass(resolved)
+            val previousPass = layoutPass
+            try {
+                layoutPass = pass
+                if (profile != null) {
+                    profile.measurePasses++
+                    profile.placementPasses++
+                }
+                for (container in moved) replaceScrolledSubtree(container, resolved, layouts)
+            } finally {
+                layoutPass = previousPass
+            }
+            applyScrollRanges(layouts, scrollState) { node -> previous.childrenOf(node) }
+            val scrollbars = placeScrollbarNodes(layouts, scrollbarCache)
+            return UiLayoutResult(
+                root = resolved,
+                nodes = layouts,
+                traversalOrder = layouts.keys.toList(),
+                scrollbars = scrollbars,
+                childrenByNode = previous.childrenByNode,
+            )
+        } finally {
+            activeProfile = previousProfile
+            measureDepth = 0
+        }
+    }
+
+    private fun movedScrollContainers(previous: UiLayoutResult): List<UiNode>? {
+        var moved: MutableList<UiNode>? = null
+        for ((node, layout) in previous.nodes) {
+            val spec = node.scrollSpec() ?: continue
+            if (spec.state.offset == layout.scrollOffset) continue
+            if (node !== previous.root && node.layoutState.parentNode == null) return null
+            (moved ?: ArrayList<UiNode>(2).also { moved = it }).add(node)
+        }
+        val candidates = moved ?: return emptyList()
+        if (candidates.size == 1) return candidates
+        return candidates.filterNot { candidate ->
+            candidates.any { other -> other !== candidate && candidate.isDescendantOf(other) }
+        }
+    }
+
+    private fun UiNode.isDescendantOf(ancestor: UiNode): Boolean {
+        var parent = layoutState.parentNode
+        while (parent != null) {
+            if (parent === ancestor) return true
+            parent = parent.layoutState.parentNode
+        }
+        return false
+    }
+
+    private fun replaceScrolledSubtree(
+        container: UiNode,
+        resolved: UiNode,
+        layouts: MutableMap<UiNode, UiLayoutNode>,
+    ) {
+        val existing = layouts[container] ?: return
+        val offset = container.scrollSpec()?.state?.offset ?: UiScrollOffset.Zero
+        layouts[container] = existing.copy(scrollOffset = offset)
+        if (container.children.isEmpty()) return
+        val content = existing.content
+        val style = resolved[container]
+        val policy = container.measurePolicy
+        policy.policy().place(
+            this,
+            ChildPlacementScope(
+                node = container,
+                resolved = resolved,
+                style = style,
+                measurePolicy = policy,
+                content = content.copy(x = content.x - offset.x, y = content.y - offset.y),
+                parentRect = existing.rect,
+                transform = existing.worldTransform,
+                inputTransform = existing.inputTransform,
+                clip = existing.clip,
+                insideFramebuffer = existing.insideFramebuffer || existing.needsFramebuffer,
+                scrollbarReserves = lastScrollbarReserves,
+                layouts = layouts,
+            ),
+        )
+    }
+
     private fun computeLayouts(
         resolved: UiNode,
         width: Float,
         height: Float,
-        scrollState: UiScrollState,
         scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     ): LayoutComputation {
         val layouts = linkedMapOf<UiNode, UiLayoutNode>()
@@ -92,17 +180,15 @@ class UiLayoutPipeline {
             val rootRect = rootRect(resolved, width, height, scrollbarReserves)
             val placementStartedAt = if (profile != null) System.nanoTime() else 0L
             val measureBeforePlacement = profile?.measureNanos ?: 0L
-            placeNode(
+            placeNodeNow(
                 node = resolved,
                 resolved = resolved,
                 rect = rootRect,
                 parentRect = viewport,
-                parentStyle = null,
                 parentClip = null,
                 parentTransform = UiMatrix4.identity(),
                 parentInputTransform = UiMatrix4.identity(),
                 insideFramebuffer = false,
-                scrollState = scrollState,
                 scrollbarReserves = scrollbarReserves,
                 layouts = layouts,
             )
@@ -118,38 +204,6 @@ class UiLayoutPipeline {
 
     internal fun layoutChildren(node: UiNode): List<UiNode> {
         return layoutPass?.layoutChildren?.get(node) ?: node.children
-    }
-
-    internal fun placeNode(
-        node: UiNode,
-        resolved: UiNode,
-        rect: UiRect,
-        parentRect: UiRect,
-        parentStyle: UiComputedStyle?,
-        parentClip: UiRect?,
-        parentTransform: UiMatrix4,
-        parentInputTransform: UiMatrix4,
-        insideFramebuffer: Boolean,
-        scrollState: UiScrollState,
-        scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
-        layouts: MutableMap<UiNode, UiLayoutNode>,
-    ) {
-        placeNodeNow(
-            NodePlacementTask(
-                node,
-                resolved,
-                rect,
-                parentRect,
-                parentStyle,
-                parentClip,
-                parentTransform,
-                parentInputTransform,
-                insideFramebuffer,
-                scrollState,
-                scrollbarReserves,
-                layouts,
-            )
-        )
     }
 
 }

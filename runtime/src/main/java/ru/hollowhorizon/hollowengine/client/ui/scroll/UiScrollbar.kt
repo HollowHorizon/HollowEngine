@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.scroll
 
 import ru.hollowhorizon.hollowengine.client.ui.BaseUiNode
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.style.*
 
 const val UiScrollbarType = "scrollbar"
@@ -20,11 +19,27 @@ class ScrollbarNode(
 ) : BaseUiNode(UiScrollbarType, id = null, tags = listOf(orientation.tagName)) {
     val thumb: ScrollbarThumbNode = ScrollbarThumbNode(orientation)
 
+    private var appliedTrack: UiScrollbarPartStyle? = null
+    private var appliedThumb: UiScrollbarPartStyle? = null
+
     init {
         children.add(thumb)
         thumb.layoutState.attachTo(this)
         resolvedSnapshot = ScrollbarDefaultStyles.track
         thumb.resolvedSnapshot = ScrollbarDefaultStyles.thumb
+    }
+
+    /** Re-resolves the two part styles, skipping the work while the container's styling is unchanged. */
+    internal fun applyPartStyles(style: UiScrollbarStyle) {
+        if (appliedTrack != style.track) {
+            appliedTrack = style.track
+            resolvedSnapshot = ScrollbarDefaultStyles.resolvePart(style.track, ScrollbarDefaultStyles.TrackPaint, false)
+        }
+        if (appliedThumb != style.thumb) {
+            appliedThumb = style.thumb
+            thumb.resolvedSnapshot =
+                ScrollbarDefaultStyles.resolvePart(style.thumb, ScrollbarDefaultStyles.ThumbPaint, true)
+        }
     }
 }
 
@@ -38,24 +53,23 @@ internal val ScrollbarOrientation.tagName: String
         ScrollbarOrientation.HORIZONTAL -> "horizontal"
     }
 
-/** The scroll container a scrollbar (or its thumb) belongs to. */
-internal fun UiNode.scrollbarContainer(): UiNode? = when (this) {
-    is ScrollbarNode -> layoutState.parentNode
-    is ScrollbarThumbNode -> (layoutState.parentNode as? ScrollbarNode)?.layoutState?.parentNode
-    else -> null
-}
-
 internal object ScrollbarDefaultStyles {
-    val track: UiComputedStyle = UiStylePatch().apply {
-        background = UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))
-        borderRadius = 3.5f
-    }.resolve()
+    val TrackPaint: UiPaint = UiPaint.Color(UiColor(0f, 0f, 0f, 0.42f))
+    val ThumbPaint: UiPaint = UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.9f))
+    private const val DefaultRadius = 3.5f
 
-    val thumb: UiComputedStyle = UiStylePatch().apply {
-        background = UiPaint.Color(UiColor(0.78f, 0.84f, 0.94f, 0.9f))
-        borderRadius = 3.5f
-        clickable = true
-        draggable = true
-        hoverable = true
-    }.resolve()
+    val track: UiComputedStyle = resolvePart(UiScrollbarPartStyle(), TrackPaint, draggable = false)
+    val thumb: UiComputedStyle = resolvePart(UiScrollbarPartStyle(), ThumbPaint, draggable = true)
+
+    fun resolvePart(part: UiScrollbarPartStyle, fallbackPaint: UiPaint, draggable: Boolean): UiComputedStyle =
+        UiStylePatch().apply {
+            background = part.paint ?: fallbackPaint
+            borderRadius = part.radius ?: DefaultRadius
+            part.border?.let { border = it }
+            part.fit?.let { imageFit = it }
+            part.slice?.let { imageSlice = it }
+            clickable = true
+            hoverable = true
+            if (draggable) this.draggable = true
+        }.resolve()
 }

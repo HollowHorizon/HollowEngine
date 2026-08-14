@@ -113,7 +113,7 @@ internal fun UiConstraints.fixedHeightOrNull(): Float? {
     return if (minHeight == maxHeight) minHeight else null
 }
 
-internal fun replacedIntrinsicSize(node: UiNode, style: UiComputedStyle): LayoutSize {
+internal fun replacedIntrinsicSize(style: UiComputedStyle): LayoutSize {
     return when {
         style.image != null || style.item != null || style.entity != null ||
                 style.background is UiPaint.Image -> LayoutSize(
@@ -236,5 +236,9 @@ internal fun UiRect?.intersect(other: UiRect): UiRect {
     val right = minOf(x + width, other.x + other.width)
     val bottom = minOf(y + height, other.y + other.height)
     if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
+    if (left == x && top == y && right == x + width && bottom == y + height) return this
+    if (left == other.x && top == other.y && right == other.x + other.width && bottom == other.y + other.height) {
+        return other
+    }
     return UiRect(left, top, right - left, bottom - top)
 }

@@ -132,17 +132,18 @@ Alignment values are `auto`, `start`/`flex-start`, `center`, `end`/`flex-end`, `
 | `backface-visibility` | `visible` or `hidden` | Back side of a rotated node |
 | `filter`, `backdrop-filter` | `grayscale(amount)`, `blur(radius)`, `shader(name)` | Filter the node or the pixels behind it; `none` clears the chain |
 
-### Input, scrolling, and scrollbars
+### Input and scrollbars
+
+Scrolling itself is not a stylesheet property: a scroll container owns an offset, so `Modifier.scrollable` declares it in code (and binds that offset). A stylesheet styles the bars it produces.
+
 
 | Property | Value | Purpose |
 | --- | --- | --- |
 | `hoverable`, `clickable`, `focusable`, `draggable`, `input-transparent` | boolean | Enables a corresponding input capability or pointer pass-through |
 | `cursor` | `default`, `hand`, `move`, `text`, `crosshair`, `resize-horizontal`, `resize-vertical`, `resize-nesw`, `resize-nwse` | Pointer shape over the node; inherited by children |
-| `scroll` | `vertical`/`y`, `horizontal`/`x`, `both`, `none` | Scroll axes |
-| `scrollable` | boolean | Legacy shorthand: `true` means both axes |
-| `scrollbar`/`scrollbar-width`/`scrollbar-thickness` | length | Scrollbar thickness |
+| `scrollbar`/`scrollbar-width`/`scrollbar-thickness` | length | Scrollbar thickness; `0px` styles the bar away |
 | `scrollbar-margin`, `scrollbar-min-thumb` | length | Outer gap and minimum thumb size |
-| `scrollbar-overlay` | boolean | Draws the scrollbar over content |
+| `scrollbar-overlay` | boolean | Draws the bar over the content instead of reserving a gutter that displaces it |
 | `scrollbar-track`, `scrollbar-thumb` | paint | Track or thumb background |
 | `scrollbar-track-border`, `scrollbar-thumb-border` | border value | Track or thumb border |
 | `scrollbar-track-radius`, `scrollbar-thumb-radius` | number | Corner radius |

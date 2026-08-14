@@ -173,12 +173,16 @@ internal fun EditableFieldDiagnosticTooltipOverlay(
         modifier = Modifier
             .position((tooltip.x + scrollState.offsetX).px, (tooltip.y + scrollState.offsetY).px, 50f)
             .layer(31)
+            .pinnedToViewport()
             .size(tooltip.width.px, UiLength.Auto),
     ) {
         Text(
             tooltip.message,
             tags = listOf("ide-diagnostic-tooltip-message"),
-            modifier = Modifier.size(UiLength.Fill, UiLength.Auto).textWrap(true).fontSize(DiagnosticTooltipFontSize),
+            modifier = Modifier.size(UiLength.Fill, UiLength.Auto)
+                .whitespace(UiWhitespace.COLLAPSE)
+                .textWrap(true)
+                .fontSize(DiagnosticTooltipFontSize),
         )
     }
 }

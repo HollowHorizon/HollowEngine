@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import java.util.*
 
 private const val ScrollTargetRangeEpsilon = 0.5f
+private const val WheelNotchPixels = 32f
 
 data class HollowUiFrame(
     val root: UiNode,
@@ -39,16 +40,25 @@ data class HollowUiFrame(
     fun hitsVisible(x: Float, y: Float): Boolean = UiHitTester().hitsVisible(root, layout, x, y)
 
     /** The node the wheel scrolls: the deepest one under the point that has room to move. */
-    fun scrollTargetAt(x: Float, y: Float): UiNode? = scrollCandidatesAt(x, y).scrollTarget()
+    fun scrollTargetAt(x: Float, y: Float): UiNode? = wheelChainAt(x, y).scrollTarget()
 
-    /** The node the wheel scrolls, out of candidates already collected. */
-    internal fun List<UiNode>.scrollTarget(): UiNode? = firstOrNull { node ->
-        val range = layout[node].scrollRange
-        range.x > ScrollTargetRangeEpsilon || range.y > ScrollTargetRangeEpsilon
-    } ?: firstOrNull()
+    /** Node that wheel scrolls. */
+    internal fun List<UiNode>.scrollTarget(): UiNode? {
+        var fallback: UiNode? = null
+        for (node in this) {
+            if (!node.resolvedSnapshot.scrollable) continue
+            val range = layout[node].scrollRange
+            if (range.x > ScrollTargetRangeEpsilon || range.y > ScrollTargetRangeEpsilon) return node
+            if (fallback == null) fallback = node
+        }
+        return fallback
+    }
 
-    /** Scrollable nodes under the point, deepest first. */
-    internal fun scrollCandidatesAt(x: Float, y: Float): List<UiNode> {
+    /**
+     * Nodes under the point that care about the wheel, deepest first: scroll containers, plus
+     * plain `onScroll` listeners so a handler works without making its node a scroll container.
+     */
+    internal fun wheelChainAt(x: Float, y: Float): List<UiNode> {
         val stack = ArrayDeque<ScrollTargetTask>()
         stack.add(ScrollTargetTask.Enter(root, ancestorClip = null))
         val candidates = ArrayList<UiNode>()
@@ -65,17 +75,14 @@ data class HollowUiFrame(
                     } else if (children.size > 1) {
                         val sorted = ArrayList<UiNode>(children.size)
                         sorted.addAll(children)
-                        sorted.sortWith(
-                            compareByDescending<UiNode> { it.resolvedSnapshot.layer }
-                                .thenByDescending { layout[it].rect.y }
-                        )
+                        sorted.sortWith(compareByDescending<UiNode> { it.resolvedSnapshot.layer }.thenByDescending { layout[it].rect.y })
                         for (child in sorted) stack.add(ScrollTargetTask.Enter(child, childClip))
                     }
                 }
 
                 is ScrollTargetTask.Test -> {
                     val node = task.node
-                    if (!node.resolvedSnapshot.scrollable) continue
+                    if (!node.resolvedSnapshot.scrollable && !node.listensToScroll()) continue
                     task.ancestorClip?.let { clip ->
                         if (!clip.contains(x, y)) continue
                     }
@@ -154,6 +161,10 @@ fun UiRect?.intersect(other: UiRect?): UiRect? {
     val right = minOf(x + width, other.x + other.width)
     val bottom = minOf(y + height, other.y + other.height)
     if (right <= left || bottom <= top) return UiRect(left, top, 0f, 0f)
+    if (left == x && top == y && right == x + width && bottom == y + height) return this
+    if (left == other.x && top == other.y && right == other.x + other.width && bottom == other.y + other.height) {
+        return other
+    }
     return UiRect(left, top, right - left, bottom - top)
 }
 
@@ -219,9 +230,8 @@ class HollowUiRuntime(
     }
 
     internal fun prepareFrame(nowMillis: Long) {
-        lastLayout?.let { layout -> applyPendingScrollRequests(layout.nodes.keys) }
+        lastLayout?.let(::applyPendingScrollRequests)
         scrollState.update(nowMillis)
-        lastLayout?.let(::syncScrollHandlesFromState)
         preparedAtMillis = nowMillis
     }
 
@@ -235,11 +245,6 @@ class HollowUiRuntime(
         val styleStartedAt = if (profile != null) System.nanoTime() else 0L
         val nodes = resolver.resolve(root, nowMillis, profile = profile)
         if (profile != null) profile.styleNanos += System.nanoTime() - styleStartedAt
-        // Pending scroll requests are applied in prepareFrame, BEFORE composition, so composition
-        // and this frame's layout read the same offset. Applying them here (after composition) would
-        // desync a scroll requested during composition itself - e.g. the editor's caret-follow, which
-        // runs in a composition SideEffect - making pinned overlays (line-number gutter) jitter for a
-        // frame. Such requests instead take effect on the next frame's prepareFrame.
 
         val layoutKey = FrameLayoutKey(
             width = width,
@@ -247,24 +252,23 @@ class HollowUiRuntime(
             scrollRevision = scrollState.revision,
             subtreeLayoutRevision = root.layoutState.subtreeLayoutRevision,
         )
-        // Layout is reused whenever nothing that affects layout changed. The resolver bumps
-        // `subtreeLayoutRevision` only when a layout-fingerprint prop actually changed (see
-        // updateResolvedLayoutFingerprint), so a draw-only animation (colour/opacity) keeps the
-        // key identical and skips relayout, while a width/padding animation forces one.
+
         val layoutReused = lastLayout != null && layoutKey == lastLayoutKey
-        var layout = if (layoutReused) {
-            if (profile != null) profile.layoutReuses++
-            lastLayout!!
-        } else {
-            layoutPipeline.compute(root, width, height, scrollState, profile)
+        val layout = when {
+            layoutReused -> {
+                if (profile != null) profile.layoutReuses++
+                lastLayout!!
+            }
+            else -> scrolledOnly(layoutKey)?.let { previous ->
+                layoutPipeline.rescroll(root, previous, scrollState, profile)
+            } ?: layoutPipeline.compute(root, width, height, scrollState, profile)
         }
         lastLayout = layout
-        // Sample scroll revision after layout: clamping inside the pass may bump it.
         lastLayoutKey = layoutKey.copy(scrollRevision = scrollState.revision)
         dispatchPlacementCallbacks(layout)
         dispatchTextLayoutCallbacks(layout)
         dispatchResolvedStyleCallbacks(layout)
-        syncScrollHandles(nodes, layout)
+        publishScrollGeometry(layout)
 
         return HollowUiFrame(
             root = root,
@@ -272,6 +276,12 @@ class HollowUiRuntime(
             layout = layout,
             nowMillis = nowMillis,
         ).also { it.profile = profile }
+    }
+
+    private fun scrolledOnly(next: FrameLayoutKey): UiLayoutResult? {
+        val previousKey = lastLayoutKey ?: return null
+        val previous = lastLayout ?: return null
+        return previous.takeIf { next == previousKey.copy(scrollRevision = next.scrollRevision) }
     }
 
     /**
@@ -292,10 +302,9 @@ class HollowUiRuntime(
                 )
             }
 
-            is QueuedUiInput.MouseReleased ->
-                this.input.mouseReleased(
-                    frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent, input.modifiers,
-                )
+            is QueuedUiInput.MouseReleased -> this.input.mouseReleased(
+                frame, input.mouseX, input.mouseY, input.button, ::dispatchUiEvent, input.modifiers,
+            )
 
             is QueuedUiInput.MouseDragged -> {
                 val scrollbarResult = this.input.scrollbarMouseDragged(
@@ -308,13 +317,16 @@ class HollowUiRuntime(
             }
 
             is QueuedUiInput.MouseScrolled -> handleQueuedScroll(frame, input)
-            is QueuedUiInput.CharTyped ->
-                this.input.charTyped(frame, input.codePoint, input.modifiers, ::dispatchUiEvent)
+            is QueuedUiInput.CharTyped -> this.input.charTyped(
+                frame,
+                input.codePoint,
+                input.modifiers,
+                ::dispatchUiEvent
+            )
 
-            is QueuedUiInput.KeyPressed ->
-                this.input.keyPressed(
-                    frame, input.keyCode, input.scanCode, input.modifiers, input.repeat, ::dispatchUiEvent,
-                )
+            is QueuedUiInput.KeyPressed -> this.input.keyPressed(
+                frame, input.keyCode, input.scanCode, input.modifiers, input.repeat, ::dispatchUiEvent,
+            )
         }
     }
 
@@ -331,14 +343,12 @@ class HollowUiRuntime(
      * that would scroll, offering itself to every listener on the way.
      */
     private fun handleQueuedScroll(frame: HollowUiFrame, input: QueuedUiInput.MouseScrolled): UiInputResult {
-        val horizontalModifier = input.modifiers and GLFW.GLFW_MOD_SHIFT != 0 ||
-                input.modifiers == 0 && horizontalScrollModifierDown()
-        val candidates = frame.scrollCandidatesAt(input.mouseX, input.mouseY)
-        val target = with(frame) { candidates.scrollTarget() }
-            ?: this.input.focusedScrollableNode(frame)
-            ?: return UiInputResult(false)
+        val horizontalModifier =
+            input.modifiers and GLFW.GLFW_MOD_SHIFT != 0 || input.modifiers == 0 && horizontalScrollModifierDown()
+        val chain = frame.wheelChainAt(input.mouseX, input.mouseY)
+        val target = with(frame) { chain.scrollTarget() } ?: this.input.focusedScrollableNode(frame)
 
-        for (node in candidates) {
+        for (node in chain) {
             if (node.listensToScroll()) {
                 val event = scrollEvent(frame, node, input, horizontalModifier)
                 if (dispatchUiEvent(event) && event.consumed) {
@@ -347,11 +357,13 @@ class HollowUiRuntime(
             }
             if (node === target) break
         }
+        target ?: return UiInputResult(false)
 
+        val handle = target.scrollHandle() ?: return UiInputResult(false)
         val delta = scrollWheelDelta(
             frame.layout[target].scrollRange, input.scrollX, input.scrollY, horizontalModifier,
         )
-        scroll(target, delta.x * 32f, delta.y * 32f)
+        scrollState.scroll(handle, delta.x * WheelNotchPixels, delta.y * WheelNotchPixels)
         return UiInputResult(true, target, target.id, changed = true)
     }
 
@@ -376,55 +388,26 @@ class HollowUiRuntime(
         )
     }
 
-    fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset =
-        scrollState.scroll(node, deltaX, deltaY)
-
-    fun setScrollImmediate(node: UiNode, offset: UiScrollOffset): UiScrollOffset =
-        scrollState.setImmediate(node, offset.x, offset.y)
+    fun setScrollImmediate(handle: UiScrollHandle, offset: UiScrollOffset): UiScrollOffset =
+        scrollState.setImmediate(handle, offset.x, offset.y)
 
     /**
-     * Applies scroll offsets requested through hoisted [UiScrollHandle]s before layout runs, so the
+     * Drains the requests queued on each container's [UiScrollHandle] before layout runs, so the
      * bumped scroll revision forces a fresh pass that places content at the requested offset.
      */
-    private fun applyPendingScrollRequests(nodes: Iterable<UiNode>) {
-        for (node in nodes) {
-            val handle = node.scrollHandle() ?: continue
-            if (handle.pendingX != null || handle.pendingY != null) {
-                scrollState.setImmediate(node, handle.pendingX, handle.pendingY)
-                handle.pendingX = null
-                handle.pendingY = null
-            }
-            if (handle.pendingAnimatedDeltaX != 0f || handle.pendingAnimatedDeltaY != 0f) {
-                scrollState.scroll(node, handle.pendingAnimatedDeltaX, handle.pendingAnimatedDeltaY)
-                handle.pendingAnimatedDeltaX = 0f
-                handle.pendingAnimatedDeltaY = 0f
-            }
+    private fun applyPendingScrollRequests(layout: UiLayoutResult) {
+        for (node in layout.nodes.keys) {
+            scrollState.applyPendingRequests(node.scrollHandle() ?: continue)
         }
     }
 
-    /** Mirrors each scroll container's clamped offset and content viewport into its [UiScrollHandle]. */
-    private fun syncScrollHandles(nodes: List<UiNode>, layout: UiLayoutResult) {
-        for (node in nodes) {
-            val handle = node.scrollHandle() ?: continue
-            val layoutNode = layout.nodes[node] ?: continue
-            handle.offsetX = layoutNode.scrollOffset.x
-            handle.offsetY = layoutNode.scrollOffset.y
-            handle.viewport = layoutNode.content
-        }
-    }
-
-    private fun syncScrollHandlesFromState(layout: UiLayoutResult) {
+    private fun publishScrollGeometry(layout: UiLayoutResult) {
         for ((node, layoutNode) in layout.nodes) {
             val handle = node.scrollHandle() ?: continue
-            val offset = scrollState.offset(node)
-            handle.offsetX = offset.x
-            handle.offsetY = offset.y
             handle.viewport = layoutNode.content
+            handle.range = layoutNode.scrollRange
         }
     }
-
-    private fun UiNode.scrollHandle(): UiScrollHandle? =
-        resolvedModifiers.firstNotNullOfOrNull { (it as? ScrollModifier)?.state }
 
     /**
      * After layout, hands every [OnPlacedModifier] its node's bounds in root coordinates, but only
@@ -482,8 +465,12 @@ class HollowUiRuntime(
 
     fun mouseClicked(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean = profileInput {
         val frame = lastFrame ?: return@profileInput false
-        processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button, modifiers))
-            .orConsumed(frame.hitsVisible(mouseX, mouseY))
+        processInput(frame, QueuedUiInput.MouseClicked(mouseX, mouseY, button, modifiers)).orConsumed(
+                frame.hitsVisible(
+                    mouseX,
+                    mouseY
+                )
+            )
     }
 
     fun mouseReleased(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean =
@@ -508,8 +495,10 @@ class HollowUiRuntime(
         modifiers: Int = currentUiKeyModifiers(),
     ): Boolean = profileInput {
         val frame = lastFrame ?: return@profileInput false
-        processInput(frame, QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY, modifiers))
-            .orConsumed(input.scrollTargetAt(frame, mouseX, mouseY) != null)
+        processInput(
+            frame,
+            QueuedUiInput.MouseScrolled(mouseX, mouseY, scrollX, scrollY, modifiers)
+        ).orConsumed(input.scrollTargetAt(frame, mouseX, mouseY) != null)
     }
 
     private fun dispatchUiEvent(event: UiEvent): Boolean {

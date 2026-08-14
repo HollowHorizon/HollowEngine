@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import kotlin.test.assertEquals
@@ -19,7 +20,7 @@ class TextOverflowScrollTest {
         repeat(200) { text.children.add(SpanNode("word$it ")) }
         val box = BoxNode(
             id = "scrollbox",
-            modifiers = listOf(Modifier.size(200.px, 100.px).scroll(vertical = true)),
+            modifiers = listOf(Modifier.size(200.px, 100.px).then(scrollModifier(horizontal = false))),
         ).also { it.children.add(text) }
         val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { it.children.add(box) }
         UiModifierResolver().resolve(root)

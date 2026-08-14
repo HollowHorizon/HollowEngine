@@ -61,12 +61,11 @@ object UiProps {
         layoutFingerprint = fingerprint,
         transitionGroup = group,
         inherited = inherit,
-        defaultValue =
-            if (inherit) {
-                { parent -> parent?.get(this) ?: default }
-            } else {
-                { default }
-            },
+        defaultValue = if (inherit) {
+            { parent -> parent?.get(this) ?: default }
+        } else {
+            { default }
+        },
         mergeValues = merge,
         combineValues = combine,
         interpolation = interpolate,
@@ -94,8 +93,10 @@ object UiProps {
     )
 
     // Sizing / layout
-    val Width = prop<UiLength>("width", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
-    val Height = prop<UiLength>("height", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
+    val Width =
+        prop<UiLength>("width", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
+    val Height =
+        prop<UiLength>("height", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
     val MinWidth = prop<UiLength>("min-width", UiLength.Auto, fingerprint = true)
     val MinHeight = prop<UiLength>("min-height", UiLength.Auto, fingerprint = true)
     val MaxWidth = prop<UiLength>("max-width", UiLength.Auto, fingerprint = true)
@@ -156,33 +157,30 @@ object UiProps {
         "shape-stroke", null, aliases = setOf("stroke"), interpolate = ::interpolateOptionalPaint,
     )
     val ShapeStrokeWidth = prop<UiLength?>("shape-stroke-width", null)
-    val Translate =
-        prop(
-            "translate",
-            UiVec3(),
-            fingerprint = true,
-            group = "transform",
-            combine = ::addVec3,
-            interpolate = ::interpolateVec3
-        )
-    val Rotate =
-        prop(
-            "rotate",
-            UiVec3(),
-            fingerprint = true,
-            group = "transform",
-            combine = ::addVec3,
-            interpolate = ::interpolateVec3
-        )
-    val Scale =
-        prop(
-            "scale",
-            UiVec3(1f, 1f, 1f),
-            fingerprint = true,
-            group = "transform",
-            combine = ::mulVec3,
-            interpolate = ::interpolateVec3
-        )
+    val Translate = prop(
+        "translate",
+        UiVec3(),
+        fingerprint = true,
+        group = "transform",
+        combine = ::addVec3,
+        interpolate = ::interpolateVec3
+    )
+    val Rotate = prop(
+        "rotate",
+        UiVec3(),
+        fingerprint = true,
+        group = "transform",
+        combine = ::addVec3,
+        interpolate = ::interpolateVec3
+    )
+    val Scale = prop(
+        "scale",
+        UiVec3(1f, 1f, 1f),
+        fingerprint = true,
+        group = "transform",
+        combine = ::mulVec3,
+        interpolate = ::interpolateVec3
+    )
     val Pivot = prop(
         "pivot", UiTransformPivot.Center,
         aliases = setOf("transform-origin"), fingerprint = true, group = "transform",
@@ -193,7 +191,8 @@ object UiProps {
     val Focusable = prop("focusable", false)
     val FocusScope = prop("focus-scope", false)
     val Draggable = prop("draggable", false)
-    val Scroll = prop<ScrollAxes?>("scroll", null, fingerprint = true)
+    val Scroll = prop<UiScrollSpec?>("scroll", null, fingerprint = true)
+    val ScrollPinned = prop("scroll-pinned", false, fingerprint = true)
     val InputTransparent = prop("input-transparent", false)
     val Cursor = inheritedProp("cursor", UiCursorShape.DEFAULT)
 
@@ -221,8 +220,12 @@ object UiProps {
         },
     )
     val FontFamily = prop<String?>("font-family", null, fingerprint = true, inherit = true)
-    val TextEffects =
-        prop<List<UiTextEffect>>("text-effects", emptyList(), fingerprint = true, inherit = true, merge = { a, b -> a + b })
+    val TextEffects = prop<List<UiTextEffect>>(
+        "text-effects",
+        emptyList(),
+        fingerprint = true,
+        inherit = true,
+        merge = { a, b -> a + b })
 
     val Transitions = prop<List<UiTransition>>(
         "transition", emptyList(), aliases = setOf("transitions"),
@@ -425,7 +428,9 @@ val UiComputedStyle.focusable by UiProps.Focusable
 val UiComputedStyle.focusScope by UiProps.FocusScope
 val UiComputedStyle.draggable by UiProps.Draggable
 
-val UiComputedStyle.scrollAxes: ScrollAxes? get() = this[UiProps.Scroll]
+val UiComputedStyle.scroll: UiScrollSpec? get() = this[UiProps.Scroll]
+
+val UiComputedStyle.scrollPinned: Boolean get() = this[UiProps.ScrollPinned]
 
 val UiComputedStyle.scrollable: Boolean get() = this[UiProps.Scroll] != null
 
@@ -442,6 +447,7 @@ val UiComputedStyle.textAlign by UiProps.TextAlign
 val UiComputedStyle.whitespace by UiProps.Whitespace
 val UiComputedStyle.lineSpacing by UiProps.LineSpacing
 val UiComputedStyle.spaceWidth by UiProps.SpaceWidth
+
 /** The node's font size in pixels; a relative size resolved while the style was built. */
 val UiComputedStyle.fontSize: Float get() = this[UiProps.FontSize].px
 val UiComputedStyle.fontFamily by UiProps.FontFamily
@@ -453,14 +459,25 @@ val UiComputedStyle.size: UiSize get() = UiSize(this[UiProps.Width], this[UiProp
 val UiComputedStyle.minSize: UiSize get() = UiSize(this[UiProps.MinWidth], this[UiProps.MinHeight])
 val UiComputedStyle.maxSize: UiSize get() = UiSize(this[UiProps.MaxWidth], this[UiProps.MaxHeight])
 
+/**
+ * The five transform props gathered into one value. Most nodes are untransformed, and this is read
+ * several times per node per pass, so the identity case hands back a shared instance instead of
+ * allocating one per read.
+ */
 val UiComputedStyle.transform: UiTransform
-    get() = UiTransform(
-        translate = this[UiProps.Translate],
-        rotate = this[UiProps.Rotate],
-        scale = this[UiProps.Scale],
-        pivot = this[UiProps.Pivot],
-        perspective = this[UiProps.Perspective],
-    )
+    get() {
+        val translate = this[UiProps.Translate]
+        val rotate = this[UiProps.Rotate]
+        val scale = this[UiProps.Scale]
+        val pivot = this[UiProps.Pivot]
+        val perspective = this[UiProps.Perspective]
+        if (translate == UiVec3.Zero && rotate == UiVec3.Zero && scale == UiVec3.One && pivot == UiTransformPivot.Center && perspective == 0f) {
+            return IdentityTransform
+        }
+        return UiTransform(translate, rotate, scale, pivot, perspective)
+    }
+
+private val IdentityTransform = UiTransform()
 
 private val DefaultStyle by lazy { UiStylePatch().resolve() }
 

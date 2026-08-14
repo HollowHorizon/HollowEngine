@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.layout
 
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
 import ru.hollowhorizon.hollowengine.client.ui.style.lineSpacing
 import ru.hollowhorizon.hollowengine.client.ui.style.textWrap
@@ -23,7 +22,6 @@ internal data class ChildPlacementScope(
     val inputTransform: UiMatrix4,
     val clip: UiRect?,
     val insideFramebuffer: Boolean,
-    val scrollState: UiScrollState,
     val scrollbarReserves: Map<UiNode, UiScrollbarReserve>,
     val layouts: MutableMap<UiNode, UiLayoutNode>,
 )

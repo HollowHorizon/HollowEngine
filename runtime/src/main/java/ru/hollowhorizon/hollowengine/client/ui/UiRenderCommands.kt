@@ -220,12 +220,20 @@ private class OverlapOrderingSink(
     private var childMaxPhase = -1
     private var childStartedDrawing = false
 
+    /**
+     * The answer of [maxOverlappingSiblingPhase] for the current child. It only depends on the
+     * child's bounds and the siblings behind it, so it is found once per child rather than
+     * rescanned for each of the several commands the child emits.
+     */
+    private var overlappingSiblingPhase = -1
+
     fun beginChild(bounds: UiRect) {
         commitCurrentChild()
         childBounds = bounds
         childMaxPhase = -1
         childStartedDrawing = false
         pendingStructuralCommands?.clear()
+        overlappingSiblingPhase = maxOverlappingSiblingPhase()
     }
 
     private fun commitCurrentChild() {
@@ -248,10 +256,11 @@ private class OverlapOrderingSink(
             return
         }
         val phase = command.renderPhaseOrdinal()
-        if (phase < maxOverlappingSiblingPhase()) {
+        if (phase < overlappingSiblingPhase) {
             delegate.submit(FlushBarrierCommand(parent))
             siblingBounds.clear()
             siblingMaxPhase.clear()
+            overlappingSiblingPhase = -1
         }
         childMaxPhase = maxOf(childMaxPhase, phase)
         if (!childStartedDrawing) {
@@ -368,7 +377,7 @@ class UiCommandRenderer {
                 visibleShadows.isEmpty() &&
                 style.backdropFilter.effects.isEmpty() &&
                 style.filter == UiFilterChain.Empty
-        val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.intersectsVisible(it) } == true
+        val cullNodeCommands = activeClip?.let { canCullNode && !layoutNode.rect.touches(it) } == true
         val pushedClip = (style.clip && style.clipShape == null) || style.scrollable
 
         if (cullNodeCommands && pushedClip) return
@@ -981,10 +990,12 @@ private fun UiRect.visibleIntersection(other: UiRect): UiRect? {
     return UiRect(left, top, right - left, bottom - top)
 }
 
-private fun UiRect.intersectsVisible(other: UiRect): Boolean {
-    return visibleIntersection(other) != null
+private fun UiRect.touches(other: UiRect): Boolean {
+    return x <= other.x + other.width && other.x <= x + width &&
+            y <= other.y + other.height && other.y <= y + height
 }
 
 private fun UiRect.localTo(parent: UiRect): UiRect {
     return copy(x = x - parent.x, y = y - parent.y)
 }
+

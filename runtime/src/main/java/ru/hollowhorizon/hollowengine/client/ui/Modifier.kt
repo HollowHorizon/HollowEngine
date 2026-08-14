@@ -1,13 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
+import androidx.compose.runtime.Composable
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.copyToStableSet
 import ru.hollowhorizon.hollowengine.client.ui.layout.readOnlyIterator
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
+import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.*
-import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextEffect
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
@@ -132,9 +134,7 @@ data class EventModifier(
                 style.draggable = true; style.hoverable = true
             }
 
-            UiEventKind.SCROLL -> {
-                style.scroll = ScrollAxes.Both; style.hoverable = true
-            }
+            UiEventKind.SCROLL -> style.hoverable = true
 
             UiEventKind.CHAR_TYPED,
             UiEventKind.KEY_PRESSED,
@@ -214,34 +214,25 @@ internal data class RuntimeStateModifier(
 ) : Modifier
 
 /**
- * A named attribute carried by a node, matched by HSS `[name]` / `[name=value]` selectors —
- * the web-like way to expose custom data for styling (`Modifier.attribute("variant", "ghost")`
- * → `.button[variant=ghost] { ... }`). Attributes live on modifiers, not a separate map.
+ * A named attribute carried by a node, matched by HSS `[name]` / `[name=value]`.
  */
 data class AttributeModifier(
     val name: String,
     val value: String? = null,
 ) : Modifier
 
-/** Which axes a scrollable node may scroll along. */
-data class ScrollAxes(val vertical: Boolean, val horizontal: Boolean) {
-    companion object {
-        val Both = ScrollAxes(vertical = true, horizontal = true)
-    }
-}
+data class UiScrollSpec(
+    val vertical: Boolean = true,
+    val horizontal: Boolean = true,
+    val verticalScrollbar: Boolean = true,
+    val horizontalScrollbar: Boolean = true,
+    val state: UiScrollHandle,
+)
 
-/**
- * Makes a node scrollable along the chosen axes. Enables the scrollable input capability and
- * records the axes so layout only scrolls / reserves a scrollbar where allowed.
- */
-data class ScrollModifier(
-    val vertical: Boolean,
-    val horizontal: Boolean,
-    /** Optional hoisted scroll state the runtime syncs each frame (offset out, requests in). */
-    val state: UiScrollHandle? = null,
-) : UiModifierPatchNode {
+/** Declares the node a scroll container; see [Modifier.scrollable]. */
+data class ScrollModifier(val spec: UiScrollSpec) : UiModifierPatchNode {
     override fun applyPatch(style: UiStylePatch) {
-        style.scroll = ScrollAxes(vertical, horizontal)
+        style.scroll = spec
     }
 }
 
@@ -376,15 +367,33 @@ fun Modifier.backdropFilter(vararg effects: UiFilterEffect) =
 
 fun Modifier.backfaceVisibility(value: UiBackfaceVisibility) = prop(UiProps.BackfaceVisibility, value)
 
-fun Modifier.scroll(
+/**
+ * Makes the node a scroll container.
+ *
+ * [state] is the container's offset. It defaults to a [rememberScrollState] of its own, and
+ * passing one in is how a caller reads the offset or drives it.
+ */
+@Composable
+fun Modifier.scrollable(
     vertical: Boolean = true,
-    horizontal: Boolean = false,
-    state: UiScrollHandle? = null,
-    overlay: Boolean = false,
-): Modifier {
-    val scroll = this then ScrollModifier(vertical, horizontal, state)
-    return if (overlay) scroll.prop(UiProps.Scrollbar, UiScrollbarStyle(overlay = true)) else scroll
-}
+    horizontal: Boolean = true,
+    hasVerticalScrollbar: Boolean = true,
+    hasHorizontalScrollbar: Boolean = true,
+    state: UiScrollHandle = rememberScrollState(),
+): Modifier = this then ScrollModifier(
+    UiScrollSpec(
+        vertical = vertical,
+        horizontal = horizontal,
+        verticalScrollbar = hasVerticalScrollbar,
+        horizontalScrollbar = hasHorizontalScrollbar,
+        state = state,
+    )
+)
+
+/**
+ * Marks a child of a scroll container as chrome that rides along with the offset.
+ */
+fun Modifier.pinnedToViewport() = prop(UiProps.ScrollPinned, true)
 
 fun Modifier.input(
     hoverable: Boolean = false,
@@ -526,7 +535,11 @@ fun Iterable<Modifier>.flattenModifiers(): List<Modifier> = ArrayList<Modifier>(
     appendFlattenedTo(result)
 }
 
-internal fun UiNode.scrollAxes(): ScrollAxes = resolvedSnapshot.scrollAxes ?: ScrollAxes.Both
+/** The node's scroll declaration, or null when it is not a scroll container. */
+internal fun UiNode.scrollSpec(): UiScrollSpec? = resolvedSnapshot.scroll
+
+/** The handle owning this node's offset, or null when it is not a scroll container. */
+internal fun UiNode.scrollHandle(): UiScrollHandle? = scrollSpec()?.state
 
 /** Whether the node carries an attribute (via [AttributeModifier] or its legacy XML map). */
 internal fun UiNode.hasAttribute(name: String): Boolean {

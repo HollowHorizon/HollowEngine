@@ -4,9 +4,15 @@ import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
 import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.scrollHandle
 
+/**
+ * A scrollbar press in progress. Both a thumb grab and a track press produce one, so pressing
+ * anywhere on the bar jumps to that spot and then keeps following the pointer.
+ */
 internal data class UiScrollbarDragState(
     val node: UiNode,
+    val handle: UiScrollHandle,
     val orientation: ScrollbarOrientation,
     val track: UiRect,
     val thumb: UiRect,
@@ -33,7 +39,7 @@ internal data class UiScrollbarDragState(
 
 private fun UiRect.relativeTo(other: UiRect) = UiRect(x - other.x, y - other.y, width, height)
 
-/** Builds a drag state for pressing a thumb node (grab keeps the cursor offset within it). */
+/** Grabbing the thumb keeps the pointer at the same spot within it. */
 internal fun scrollbarThumbDragState(
     layouts: Map<UiNode, UiLayoutNode>,
     thumb: ScrollbarThumbNode,
@@ -41,40 +47,52 @@ internal fun scrollbarThumbDragState(
     mouseY: Float,
 ): UiScrollbarDragState? {
     val scrollbar = thumb.layoutState.parentNode as? ScrollbarNode ?: return null
-    val container = scrollbar.layoutState.parentNode ?: return null
-    val containerLayout = layouts[container] ?: return null
-    val trackLayout = layouts[scrollbar] ?: return null
-    val thumbLayout = layouts[thumb] ?: return null
-    val inverse = containerLayout.inputTransform.inverse() ?: return null
-    val trackRel = trackLayout.rect.relativeTo(containerLayout.rect)
-    val thumbRel = thumbLayout.rect.relativeTo(containerLayout.rect)
-    val local = inverse.transform(mouseX, mouseY, 0f)
-    val grab = when (thumb.orientation) {
-        ScrollbarOrientation.VERTICAL -> local.y - thumbRel.y
-        ScrollbarOrientation.HORIZONTAL -> local.x - thumbRel.x
+    return scrollbarDragState(layouts, scrollbar, mouseX, mouseY) { local, thumbRect ->
+        when (thumb.orientation) {
+            ScrollbarOrientation.VERTICAL -> local.y - thumbRect.y
+            ScrollbarOrientation.HORIZONTAL -> local.x - thumbRect.x
+        }
     }
-    return UiScrollbarDragState(container, thumb.orientation, trackRel, thumbRel, inverse, grab)
 }
 
-internal fun scrollbarTrackJumpOffset(
+/** Pressing the track centres the thumb on the pointer, then tracks it like a thumb drag would. */
+internal fun scrollbarTrackDragState(
     layouts: Map<UiNode, UiLayoutNode>,
     scrollbar: ScrollbarNode,
     mouseX: Float,
     mouseY: Float,
-): Pair<UiNode, UiScrollOffset>? {
+): UiScrollbarDragState? = scrollbarDragState(layouts, scrollbar, mouseX, mouseY) { _, thumbRect ->
+    when (scrollbar.orientation) {
+        ScrollbarOrientation.VERTICAL -> thumbRect.height * 0.5f
+        ScrollbarOrientation.HORIZONTAL -> thumbRect.width * 0.5f
+    }
+}
+
+private inline fun scrollbarDragState(
+    layouts: Map<UiNode, UiLayoutNode>,
+    scrollbar: ScrollbarNode,
+    mouseX: Float,
+    mouseY: Float,
+    grabOffset: (local: ru.hollowhorizon.hollowengine.client.ui.UiVec3, thumb: UiRect) -> Float,
+): UiScrollbarDragState? {
     val container = scrollbar.layoutState.parentNode ?: return null
+    val handle = container.scrollHandle() ?: return null
     val containerLayout = layouts[container] ?: return null
     val trackLayout = layouts[scrollbar] ?: return null
-    val thumbLayout = scrollbar.thumb?.let { layouts[it] } ?: return null
+    val thumbLayout = layouts[scrollbar.thumb] ?: return null
     val inverse = containerLayout.inputTransform.inverse() ?: return null
     val trackRel = trackLayout.rect.relativeTo(containerLayout.rect)
     val thumbRel = thumbLayout.rect.relativeTo(containerLayout.rect)
-    val grab = when (scrollbar.orientation) {
-        ScrollbarOrientation.VERTICAL -> thumbRel.height * 0.5f
-        ScrollbarOrientation.HORIZONTAL -> thumbRel.width * 0.5f
-    }
-    val drag = UiScrollbarDragState(container, scrollbar.orientation, trackRel, thumbRel, inverse, grab)
-    return container to drag.offsetFor(containerLayout, mouseX, mouseY)
+    val local = inverse.transform(mouseX, mouseY, 0f)
+    return UiScrollbarDragState(
+        node = container,
+        handle = handle,
+        orientation = scrollbar.orientation,
+        track = trackRel,
+        thumb = thumbRel,
+        inverseTransform = inverse,
+        grabOffset = grabOffset(local, thumbRel),
+    )
 }
 
 internal fun scrollWheelDelta(

@@ -287,14 +287,6 @@ internal fun parseBorder(value: String, previous: UiBorder): UiBorder {
     return previous.copy(width = UiInsets.all(width), color = color)
 }
 
-internal fun parseScrollAxes(value: String): ScrollAxes? = when (value.trim().lowercase()) {
-    "none", "false", "no", "off" -> null
-    "vertical", "y" -> ScrollAxes(vertical = true, horizontal = false)
-    "horizontal", "x" -> ScrollAxes(vertical = false, horizontal = true)
-    "both", "true", "yes", "on", "" -> ScrollAxes.Both
-    else -> throw IllegalArgumentException("Unknown scroll value '$value'")
-}
-
 internal fun parseShadows(value: String): List<UiShadow> {
     if (value.equals("none", ignoreCase = true)) return emptyList()
     return splitTopLevel(value, ',').map { entry ->

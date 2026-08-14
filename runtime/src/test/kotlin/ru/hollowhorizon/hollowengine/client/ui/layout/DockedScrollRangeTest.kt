@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 
@@ -13,7 +14,7 @@ class DockedScrollRangeTest {
     private fun col(vararg mods: Modifier, id: String? = null) = box(*mods, policy = UiMeasurePolicies.Column, id = id)
 
     private fun scrollRangeYWith(shellHeight: UiLength?): Float {
-        val scrollable = box(Modifier.size(100.percent, 100.percent).scroll(vertical = true), id = "editor")
+        val scrollable = box(Modifier.size(100.percent, 100.percent).then(scrollModifier(horizontal = false)), id = "editor")
         scrollable.children.add(box(Modifier.size(100.percent, 600.px)))
         val editorStack = box(Modifier.grow(1f), policy = UiMeasurePolicies.box(UiBoxMode.STACK))
         editorStack.children.add(scrollable)
@@ -35,7 +36,7 @@ class DockedScrollRangeTest {
 
     private fun scrollRangeY(shellFills: Boolean): Float {
         val scrollable = box(
-            Modifier.size(100.percent, 100.percent).scroll(vertical = true),
+            Modifier.size(100.percent, 100.percent).then(scrollModifier(horizontal = false)),
             id = "editor",
         )
         scrollable.children.add(box(Modifier.size(100.percent, 600.px))) // tall content
@@ -67,7 +68,7 @@ class DockedScrollRangeTest {
     }
 
     private fun scrollRangeHssShell(): Float {
-        val scrollable = box(Modifier.size(100.percent, 100.percent).scroll(vertical = true), id = "editor")
+        val scrollable = box(Modifier.size(100.percent, 100.percent).then(scrollModifier(horizontal = false)), id = "editor")
         scrollable.children.add(box(Modifier.size(100.percent, 600.px)))
         val editorStack = box(Modifier.grow(1f), policy = UiMeasurePolicies.box(UiBoxMode.STACK))
         editorStack.children.add(scrollable)
@@ -88,7 +89,7 @@ class DockedScrollRangeTest {
     }
 
     private fun scrollRangeNestedScopes(): Float {
-        val scrollable = box(Modifier.size(100.percent, 100.percent).scroll(vertical = true), id = "editor")
+        val scrollable = box(Modifier.size(100.percent, 100.percent).then(scrollModifier(horizontal = false)), id = "editor")
         scrollable.children.add(box(Modifier.size(100.percent, 600.px)))
         val editorStack = box(Modifier.grow(1f), policy = UiMeasurePolicies.box(UiBoxMode.STACK))
         editorStack.children.add(scrollable)

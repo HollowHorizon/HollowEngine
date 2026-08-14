@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.scroll
 
-import ru.hollowhorizon.hollowengine.client.ui.UiNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import java.util.*
 
 data class UiScrollOffset(
     val x: Float = 0f,
@@ -26,109 +24,107 @@ data class UiScrollbarGeometry(
     val orientation: ScrollbarOrientation,
 )
 
+/**
+ * The surface's scroll clock: it eases offsets towards their targets and counts a [revision] that
+ * frame caches use to notice scrolling.
+ *
+ * It stores no offsets of its own. Every scroll container carries its own [UiScrollHandle] in its
+ * [ru.hollowhorizon.hollowengine.client.ui.UiScrollSpec].
+ */
 class UiScrollState {
-    private val offsets = WeakHashMap<UiNode, UiScrollOffset>()
-    private val targets = WeakHashMap<UiNode, UiScrollOffset>()
-    private val starts = WeakHashMap<UiNode, UiScrollOffset>()
-    private val startedAt = WeakHashMap<UiNode, Long>()
-    private val ranges = WeakHashMap<UiNode, UiScrollOffset>()
+    private val animating = LinkedHashSet<UiScrollHandle>()
     private val durationMillis = 190L
 
     /** Bumped whenever any effective offset changes; lets frame caches detect scrolling. */
     var revision: Long = 0L
         private set
 
-    // The frame clock (surface passes nanoTime-based millis) — System.currentTimeMillis
-    // lives on a different epoch, so animations must use this clock exclusively.
     private var clockMillis = 0L
     private var clockInitialized = false
 
-    fun offset(node: UiNode): UiScrollOffset = offsets[node] ?: UiScrollOffset.Zero
-
-    fun range(node: UiNode): UiScrollOffset = ranges[node] ?: UiScrollOffset.Zero
-
-    fun isAnimating(): Boolean = startedAt.isNotEmpty()
-
-    fun scroll(node: UiNode, deltaX: Float, deltaY: Float): UiScrollOffset {
-        val current = targets[node] ?: offset(node)
-        val range = range(node)
-        val next = UiScrollOffset(
-            x = (current.x + deltaX).coerceIn(0f, range.x),
-            y = (current.y + deltaY).coerceIn(0f, range.y),
-        )
-        animateTo(node, next)
+    fun scroll(handle: UiScrollHandle, deltaX: Float, deltaY: Float): UiScrollOffset {
+        val next = handle.clampedTo(handle.range, handle.target.x + deltaX, handle.target.y + deltaY)
+        animateTo(handle, next)
         return next
     }
 
-    fun set(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        val next = resolveNext(node, x, y)
-        animateTo(node, next)
+    fun set(handle: UiScrollHandle, x: Float? = null, y: Float? = null): UiScrollOffset {
+        val next = handle.clampedTo(handle.range, x, y)
+        animateTo(handle, next)
         return next
     }
 
-    fun setImmediate(node: UiNode, x: Float? = null, y: Float? = null): UiScrollOffset {
-        val next = resolveNext(node, x, y)
-        if (offsets[node] != next || targets[node] != next) revision++
-        offsets[node] = next
-        targets[node] = next
-        starts.remove(node)
-        startedAt.remove(node)
+    fun setImmediate(handle: UiScrollHandle, x: Float? = null, y: Float? = null): UiScrollOffset {
+        val next = handle.clampedTo(handle.range, x, y)
+        settle(handle, next)
         return next
     }
 
-    private fun resolveNext(node: UiNode, x: Float? = null, y: Float?): UiScrollOffset {
-        val current = targets[node] ?: offset(node)
-        val range = range(node)
-        return UiScrollOffset(
-            x = (x ?: current.x).coerceIn(0f, range.x),
-            y = (y ?: current.y).coerceIn(0f, range.y),
-        )
-    }
-
-    fun clamp(node: UiNode, range: UiScrollOffset): UiScrollOffset {
-        ranges[node] = range
-        val current = offset(node)
-        val clamped = UiScrollOffset(current.x.coerceIn(0f, range.x), current.y.coerceIn(0f, range.y))
-        if (clamped != current) revision++
-        offsets[node] = clamped
-        targets[node] =
-            (targets[node] ?: clamped).let { UiScrollOffset(it.x.coerceIn(0f, range.x), it.y.coerceIn(0f, range.y)) }
+    /** Records a container's freshly measured travel and re-clamps its offset into it. */
+    fun clamp(handle: UiScrollHandle, range: UiScrollOffset): UiScrollOffset {
+        handle.range = range
+        handle.target = handle.clampedTo(range, handle.target.x, handle.target.y)
+        val clamped = handle.clampedTo(range, handle.offsetX, handle.offsetY)
+        if (handle.applyOffset(clamped)) revision++
         return clamped
     }
 
     fun update(nowMillis: Long) {
         clockMillis = nowMillis
         clockInitialized = true
-        if (startedAt.isEmpty()) return
-        for (node in startedAt.keys.toList()) {
-            val target = targets[node] ?: continue
-            val startTime = startedAt[node] ?: continue
-            val start = starts[node] ?: offsets[node] ?: UiScrollOffset.Zero
-            val progress = ((nowMillis - startTime).toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
+        if (animating.isEmpty()) return
+        val iterator = animating.iterator()
+        while (iterator.hasNext()) {
+            val handle = iterator.next()
+            val progress = ((nowMillis - handle.animationStartedAt).toFloat() / durationMillis).coerceIn(0f, 1f)
             val eased = 1f - (1f - progress) * (1f - progress)
-            val next = UiScrollOffset(
+            val start = handle.animationStart
+            val target = handle.target
+            val next = if (progress >= 1f) target else UiScrollOffset(
                 x = start.x + (target.x - start.x) * eased,
                 y = start.y + (target.y - start.y) * eased,
             )
-            if (offsets[node] != next) revision++
-            offsets[node] = next
+            if (handle.applyOffset(next)) revision++
             if (progress >= 1f) {
-                offsets[node] = target
-                starts.remove(node)
-                startedAt.remove(node)
+                handle.animating = false
+                iterator.remove()
             }
         }
     }
 
-    private fun animateTo(node: UiNode, next: UiScrollOffset) {
+    /** Drains the requests a composable queued on [handle] through `scrollTo`/`animateScrollBy`. */
+    internal fun applyPendingRequests(handle: UiScrollHandle) {
+        if (handle.pendingX != null || handle.pendingY != null) {
+            setImmediate(handle, handle.pendingX, handle.pendingY)
+            handle.pendingX = null
+            handle.pendingY = null
+        }
+        if (handle.pendingAnimatedDeltaX != 0f || handle.pendingAnimatedDeltaY != 0f) {
+            scroll(handle, handle.pendingAnimatedDeltaX, handle.pendingAnimatedDeltaY)
+            handle.pendingAnimatedDeltaX = 0f
+            handle.pendingAnimatedDeltaY = 0f
+        }
+    }
+
+    private fun animateTo(handle: UiScrollHandle, next: UiScrollOffset) {
         if (!clockInitialized) {
-            // No frame clock yet — apply without animation rather than desync clocks.
-            setImmediate(node, next.x, next.y)
+            settle(handle, next)
             return
         }
-        starts[node] = offsets[node] ?: UiScrollOffset.Zero
-        targets[node] = next
-        startedAt[node] = clockMillis
+        handle.animationStart = handle.offset
+        handle.target = next
+        handle.animationStartedAt = clockMillis
+        handle.animating = true
+        animating += handle
         revision++
+    }
+
+    private fun settle(handle: UiScrollHandle, next: UiScrollOffset) {
+        handle.target = next
+        if (handle.applyOffset(next)) revision++
+        if (handle.animating) {
+            handle.animating = false
+            animating -= handle
+        }
     }
 }

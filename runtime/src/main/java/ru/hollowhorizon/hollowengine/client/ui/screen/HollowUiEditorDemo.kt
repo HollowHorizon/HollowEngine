@@ -35,7 +35,7 @@ internal fun HollowUiEditorDemo(
     }
     val diagnostics = textFieldSession.diagnostics(codeText)
 
-    Box(tags = listOf("editor-demo-stage"), modifier = Modifier.scroll(vertical = true, horizontal = true)) {
+    Box(tags = listOf("editor-demo-stage"), modifier = Modifier.scrollable()) {
         Column(tags = listOf("editor-demo-card"), modifier = Modifier.position(0.px, 0.px)) {
             Text("TextField editor mode", tags = listOf("card-title"))
             TextField(
@@ -54,7 +54,6 @@ internal fun HollowUiEditorDemo(
                 placeholder = "Type code here",
                 tags = listOf("editor-text-field"),
                 modifier = Modifier.size(520.px, 210.px)
-                    .scroll(vertical = true, horizontal = true)
                     .textWrap(false)
                     .onKeyInput { input ->
                         if (input.key != GLFW.GLFW_KEY_F2) return@onKeyInput

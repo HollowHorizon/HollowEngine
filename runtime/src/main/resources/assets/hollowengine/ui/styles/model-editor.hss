@@ -181,7 +181,6 @@
     background: #24272E;
     border-radius: 6px;
     border: 1px #31343D;
-    scrollable: true;
     clip: true;
 }
 
