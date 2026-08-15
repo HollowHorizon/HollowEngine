@@ -102,7 +102,12 @@ class HollowUiWorldOverlay(
             ?: surface.frame(frameWidth, frameHeight, px, py, System.nanoTime())
         renderer.render(frame, target)
         if (manageCursor) {
-            UiCursorManager.apply(Minecraft.getInstance().window.window, cursorOverride() ?: surface.runtime.cursor)
+            val over = surface.runtime.lastFrame?.hitsVisible(px, py) == true
+            UiCursorManager.claim(
+                window = Minecraft.getInstance().window.window,
+                owner = this,
+                shape = cursorOverride() ?: surface.runtime.cursor.takeIf { over },
+            )
         }
         if (pipelineFrames) {
             pipeline.schedule(frameWidth, frameHeight) {

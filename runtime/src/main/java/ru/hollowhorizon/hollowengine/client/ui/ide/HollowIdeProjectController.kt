@@ -106,6 +106,14 @@ internal class HollowIdeProjectController(
         contextMenu = null
     }
 
+    /** Drag and drop inside the tree: moves [path] into the folder [targetPath] belongs to. */
+    fun moveInto(path: String, targetPath: String): Boolean {
+        if (path == targetPath) return false
+        val result = model.moveInto(listOf(path), targetPath)
+        setStatus(result.statusText())
+        return result == HollowIdeFileOperationResult.Success
+    }
+
     fun showInExplorer(path: String) {
         DesktopUtil.openInExplorer(path.fromReadablePath())
         contextMenu = null

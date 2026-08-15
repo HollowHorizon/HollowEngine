@@ -3,22 +3,44 @@ package ru.hollowhorizon.hollowengine.client.ui
 import org.lwjgl.glfw.GLFW.*
 
 /**
- * Applies a [UiCursorShape] to a GLFW window. Standard cursors are created lazily and cached;
- * the window cursor is only changed when the shape actually differs, so this is cheap to call
- * every frame with the node currently under the pointer.
+ * Owns the GLFW cursor for every surface at once.
  */
 object UiCursorManager {
+    /** A modal screen owns the pointer outright. */
+    const val ScreenPriority = 300
+
+    /** An overlay the pointer is actually over. */
+    const val OverlayPriority = 200
+
+    /** Something drawn in the world, under any interface above it. */
+    const val WorldPriority = 100
+
+    private const val ClaimTimeoutNanos = 500_000_000L
+
     private val cursors = HashMap<UiCursorShape, Long>()
+    private val claims = LinkedHashMap<Any, Claim>()
     private var current: UiCursorShape? = null
 
-    fun apply(window: Long, shape: UiCursorShape) {
+    private data class Claim(val shape: UiCursorShape, val priority: Int, val claimedAtNanos: Long)
+
+    /**
+     * States what [owner] wants the cursor to be, or releases it when [shape] is null. The winning
+     * claim is applied immediately, so the result does not depend on which surface draws first.
+     */
+    fun claim(window: Long, owner: Any, shape: UiCursorShape?, priority: Int = OverlayPriority) {
+        val now = System.nanoTime()
+        if (shape == null) claims.remove(owner) else claims[owner] = Claim(shape, priority, now)
+        claims.values.removeIf { now - it.claimedAtNanos > ClaimTimeoutNanos }
+        apply(window, claims.values.maxByOrNull { it.priority }?.shape ?: UiCursorShape.DEFAULT)
+    }
+
+    fun release(window: Long, owner: Any) = claim(window, owner, shape = null)
+
+    private fun apply(window: Long, shape: UiCursorShape) {
         if (window == 0L || shape == current) return
         current = shape
         glfwSetCursor(window, cursorHandle(shape))
     }
-
-    /** Resets to the default arrow — call when the UI stops owning the cursor. */
-    fun reset(window: Long) = apply(window, UiCursorShape.DEFAULT)
 
     private fun cursorHandle(shape: UiCursorShape): Long {
         if (shape == UiCursorShape.DEFAULT) return 0L // 0 = window's default arrow cursor

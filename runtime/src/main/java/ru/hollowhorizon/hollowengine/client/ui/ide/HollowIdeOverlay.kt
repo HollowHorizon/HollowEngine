@@ -23,6 +23,7 @@ import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
@@ -35,7 +36,23 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
 
+/** A file dragged out of the project tree; anything that accepts drops can look for this payload. */
+data class HollowIdeFileDrag(val path: String, val isDirectory: Boolean = false)
+
+/**
+ * How a project path is written inside a script: `assets/<namespace>/...` and `data/<namespace>/...` are
+ * resource locations, everything else stays the path it already was.
+ */
+internal fun projectPathReference(path: String): String {
+    val segments = path.split('/')
+    if (segments.size < 3) return path
+    if (segments[0] != "assets" && segments[0] != "data") return path
+    return "${segments[1]}:${segments.drop(2).joinToString("/")}"
+}
+
 internal const val ProjectTreeId = "ide-project-tree"
+
+internal const val ProjectFilterInputId = "ide-project-filter"
 internal const val ConsoleId = "ide-console"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
 internal const val CutscenePropertiesId = "ide-cutscene-properties"
@@ -81,8 +98,15 @@ object HollowIdeOverlay {
     private var statusText by mutableStateOf("")
     private val project = HollowIdeProjectController(
         model = model,
-        focusProjectTree = { dock.focus(ProjectTreeId) },
-        shortcutsActive = { model.selectedTreePath.isNotBlank() && surface.runtime.focusedKey == null && dock.focusedItemId == ProjectTreeId },
+        focusProjectTree = {
+            dock.focus(ProjectTreeId)
+            if (surface.runtime.focusedKey != ProjectFilterInputId) surface.runtime.unfocus()
+        },
+        shortcutsActive = {
+            model.selectedTreePath.isNotBlank() &&
+                    dock.focusedItemId == ProjectTreeId &&
+                    surface.runtime.focusedKey != ProjectFilterInputId
+        },
         closeDockItem = { dock.close(it) },
         openFile = { openFileDockItem(it) },
         setStatus = { statusText = it },
@@ -95,6 +119,7 @@ object HollowIdeOverlay {
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
     private var fileContextMenu by mutableStateOf<FileContextMenu?>(null)
+    private val dragAndDrop = UiDragAndDropState()
 
     private fun editorState(file: HollowIdeOpenFile): TextFieldState = editorStates.getOrPut(file.path) {
         TextFieldState(
@@ -211,8 +236,44 @@ object HollowIdeOverlay {
         if (initialized) return
         initialized = true
         dock.onTabContextMenu = ::openFileContextMenu
+        model.onFileRemoved = ::forgetFile
         dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon))
         surface.setContent { Content() }
+    }
+    
+    private fun insertFileReference(
+        file: HollowIdeOpenFile,
+        editor: TextFieldState,
+        droppedPath: String,
+        x: Float,
+        y: Float,
+    ): Boolean {
+        if (file.readOnly) return false
+        val offset = editor.offsetAtPoint?.invoke(x, y) ?: editor.caret
+        val reference = projectPathReference(droppedPath)
+        val text = editor.text
+        val at = offset.coerceIn(0, text.length)
+        val changed = editor.applyEdit(
+            text.substring(0, at) + reference + text.substring(at),
+            listOf(UiTextCaret(at + reference.length)),
+        )
+        if (changed) {
+            model.updateText(file.path, editor.text)
+            dock.updateItem(file.dockItem())
+            statusText = "Inserted $reference"
+        }
+        surface.runtime.focus("editor-${file.id}")
+        return changed
+    }
+
+    private fun forgetFile(path: String) {
+        val id = fileDockItemId(path)
+        dock.close(id)
+        editorSessions.remove(path)?.close()
+        editorStates.remove(path)
+        diagnosticsPanels.remove(id)
+        diagnosticsPanelHeights.remove(id)
+        if (fileContextMenu?.path == path) fileContextMenu = null
     }
 
     /** Right-click on a tab: builds the menu the file's type declares for it. */
@@ -314,24 +375,27 @@ object HollowIdeOverlay {
                     if (handled) input.consume()
                 }
         ) {
-            if (collapsed) {
-                GearButton()
-            } else {
-                Column(modifier = Modifier.size(100.percent, 100.percent)) {
-                    Toolbar()
-                    DockSpace(
-                        state = dock,
-                        id = "ide-dock",
-                        modifier = Modifier.size(100.percent, 0.px)
-                            .grow(1f),
-                        content = { item -> DockContent(item) },
+            CompositionLocalProvider(LocalDragAndDrop provides dragAndDrop) {
+                if (collapsed) {
+                    GearButton()
+                } else {
+                    Column(modifier = Modifier.size(100.percent, 100.percent)) {
+                        Toolbar()
+                        DockSpace(
+                            state = dock,
+                            id = "ide-dock",
+                            modifier = Modifier.size(100.percent, 0.px)
+                                .grow(1f),
+                            content = { item -> DockContent(item) },
+                        )
+                    }
+                    HollowIdeFileContextMenu(
+                        menu = fileContextMenu,
+                        onAction = ::runFileAction,
+                        onDismiss = { fileContextMenu = null },
                     )
+                    UiDragGhost(dragAndDrop)
                 }
-                HollowIdeFileContextMenu(
-                    menu = fileContextMenu,
-                    onAction = ::runFileAction,
-                    onDismiss = { fileContextMenu = null },
-                )
             }
         }
     }
@@ -391,7 +455,7 @@ object HollowIdeOverlay {
             GearButton()
             ToolbarMenus()
             Box(modifier = Modifier.size(0.px, 100.percent).grow(1f))
-            OpenFilesDropdown()
+            Text(statusText, tags = listOf("ide-status"))
         }
     }
 
@@ -434,29 +498,6 @@ object HollowIdeOverlay {
     }
 
     @Composable
-    private fun OpenFilesDropdown() {
-        val files = model.files.values.toList()
-        if (files.isEmpty()) {
-            Text(statusText, tags = listOf("ide-status"))
-            return
-        }
-        UiDropdown(
-            id = "ide-open-files",
-            label = dock.focusedItemId?.let { id -> files.firstOrNull { it.id == id }?.title }
-                ?: "hollowengine.gui.ide.file_picker.empty".lang,
-            expanded = openDropdown == "open-files",
-            onExpandedChange = { openDropdown = if (it) "open-files" else null },
-            items = files.map { file ->
-                UiDropdownItem(
-                    label = file.title,
-                    icon = file.dockItem().icon,
-                    onClick = { dock.focus(file.id) },
-                )
-            },
-        )
-    }
-
-    @Composable
     private fun DockContent(item: DockItem) {
         when (item.id) {
             ProjectTreeId -> ProjectTree()
@@ -487,6 +528,7 @@ object HollowIdeOverlay {
                     value = filter,
                     placeholder = "hollowengine.message.filter".lang,
                     onChange = { filter = it },
+                    id = ProjectFilterInputId,
                     tags = listOf("project-filter"),
                 )
             }
@@ -494,6 +536,20 @@ object HollowIdeOverlay {
                 items = model.visibleTreeItems(filter),
                 onToggle = project::toggle,
                 onSelect = project::select,
+                dragItem = { item ->
+                    val node = item.payload
+                    node.takeIf { it.path.isNotEmpty() }?.let {
+                        UiDragItem(
+                            payload = HollowIdeFileDrag(node.path, node.isDirectory),
+                            icon = IconHelper.forPath(node.path, node.isDirectory).toString(),
+                            label = node.name,
+                        )
+                    }
+                },
+                onDrop = { item, dragged ->
+                    val file = dragged.payload as? HollowIdeFileDrag ?: return@UiTreeView false
+                    project.moveInto(file.path, item.payload.path)
+                },
             )
             HollowIdeProjectContextMenu(
                 menu = project.contextMenu,
@@ -508,12 +564,20 @@ object HollowIdeOverlay {
                 onDelete = project::delete,
                 onDismiss = { project.closePopups() },
             )
+            val dialog = project.nameDialog
             HollowIdeProjectNameDialog(
-                dialog = project.nameDialog,
+                dialog = dialog,
                 onNameChange = project::updateNameDialog,
                 onConfirm = project::applyNameDialog,
                 onCancel = project::cancelNameDialog,
             )
+            LaunchedEffect(dialog?.action, dialog?.path) {
+                if (dialog == null) return@LaunchedEffect
+                Minecraft.getInstance().execute {
+                    pipeline.await()
+                    surface.runtime.focus(ProjectNameDialogInputId)
+                }
+            }
         }
     }
 
@@ -534,7 +598,17 @@ object HollowIdeOverlay {
                 id = "editor-stack-${file.id}",
                 mode = UiBoxMode.STACK,
                 tags = listOf("ide-editor-stack"),
-                modifier = Modifier.grow(1f),
+                modifier = Modifier.grow(1f)
+                    .dropTarget(
+                        accepts = { !file.readOnly && it.payload is HollowIdeFileDrag },
+                        onDragOver = { _, x, y ->
+                            editorState.offsetAtPoint?.invoke(x, y)?.let(editorState::moveCaret)
+                        },
+                        onDrop = { item, x, y ->
+                            val dropped = item.payload as? HollowIdeFileDrag ?: return@dropTarget false
+                            insertFileReference(file, editorState, dropped.path, x, y)
+                        },
+                    ),
             ) {
                 UiCodeEditor(
                     value = file.text,
@@ -745,13 +819,14 @@ object HollowIdeOverlay {
         val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
             ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
         renderer.render(frame, target)
-        val overIde =
-            surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) == true || surface.runtime.isAnyFocused
-        when {
-            overIde -> UiCursorManager.apply(window.window, surface.runtime.cursor)
-            !TransformGizmoEditor.ownsWorldCursor() -> UiCursorManager.apply(window.window, surface.runtime.cursor)
-            else -> Unit
-        }
+        // Only ask for the cursor while the pointer is actually over the IDE; anywhere else the
+        // world and its gizmo are free to have it.
+        val overIde = surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) == true
+        UiCursorManager.claim(
+            window = window.window,
+            owner = this,
+            shape = surface.runtime.cursor.takeIf { overIde },
+        )
         if (PIPELINE_FRAMES) {
             val mouseX = lastMouseX
             val mouseY = lastMouseY

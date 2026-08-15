@@ -15,9 +15,10 @@ object HollowEngineConfig : Config() {
     @PropertyRange(6.0f, 36.0f)
     var ideEditorFontSize by property(12f)
 
-    @PropertyComment("Gui Scale used by the Hollow IDE code editor")
+    @PropertyComment("Gui Scale used by the Hollow IDE code editor; 0 follows the game, fractions like 1.5 are allowed")
     @PropertyName("ide_gui_scale")
-    var ideGuiScale by property(3)
+    @PropertyRange(0.0f, 6.0f)
+    var ideGuiScale by property(3f)
 
     @PropertyComment("Is Tranform Gizmo enabled")
     @PropertyName("transform_gizmo_enabled")

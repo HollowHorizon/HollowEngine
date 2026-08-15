@@ -12,7 +12,9 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.layout.detachLayoutParentRecursively
 import ru.hollowhorizon.hollowengine.client.ui.layout.invalidateLayout
 import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
+import ru.hollowhorizon.hollowengine.client.ui.style.TransitionEasing
 import ru.hollowhorizon.hollowengine.client.ui.style.UiProps
+import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
@@ -460,6 +462,10 @@ private fun normalizeSlider(raw: Float, min: Float, max: Float, step: Float): Fl
     return stepped.coerceIn(low, high)
 }
 
+/** How long a popup takes to fade and settle into place, and how far above it starts. */
+private const val PopupAppearMillis = 90L
+private const val PopupAppearRise = 4f
+
 private val SliderTrackColor = UiColor(0.24f, 0.27f, 0.32f, 1f)
 private const val SliderThumbSize = 12f
 private const val SliderThumbRadius = SliderThumbSize / 2f
@@ -747,7 +753,22 @@ private fun PopupNodeEmitter(
     stylesheets: List<UiStylesheetReference>,
     content: HollowUiContent,
 ) {
-    val modifiers = stylesheets.fold((modifier ?: Modifier).focusScope().input(hoverable = true)) { acc, ref ->
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        shown = true
+    }
+    val appearance = Modifier
+        .transition(
+            UiTransition(UiProps.Opacity.name, PopupAppearMillis, TransitionEasing.EASE_OUT),
+            UiTransition(UiProps.Translate.name, PopupAppearMillis, TransitionEasing.EASE_OUT),
+        )
+        .opacity(if (shown) 1f else 0f)
+        .translate(y = if (shown) 0f else -PopupAppearRise)
+
+    val modifiers = stylesheets.fold(
+        appearance.then(modifier ?: Modifier).focusScope().input(hoverable = true),
+    ) { acc, ref ->
         acc.style(ref)
     }.asList()
     val values = PopupValues(anchorBounds, alignment)

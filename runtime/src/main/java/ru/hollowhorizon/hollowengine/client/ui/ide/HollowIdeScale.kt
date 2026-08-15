@@ -2,29 +2,39 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.mutableStateOf
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeScale.guiScale
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import kotlin.math.ceil
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 object HollowIdeScale {
     const val MaxScale = 6
-    private const val KEY = "hollowengine.ide.gui_scale"
 
-    private val guiScaleState = mutableStateOf(HollowEngineConfig.ideGuiScale.coerceIn(0, MaxScale))
+    /** Below this the interface would be larger than the window; treat it as "follow the game". */
+    private const val MinScale = 0.25f
 
-    var guiScale: Int
+    /** The smallest interface Minecraft itself is willing to lay out, and so are we. */
+    private const val MinLogicalWidth = 320f
+    private const val MinLogicalHeight = 240f
+
+    private val guiScaleState = mutableStateOf(HollowEngineConfig.ideGuiScale.coerceIn(0f, MaxScale.toFloat()))
+
+    var guiScale: Float
         get() = guiScaleState.value
         set(value) {
-            val clamped = value.coerceIn(0, MaxScale)
+            val clamped = value.coerceIn(0f, MaxScale.toFloat())
             if (guiScaleState.value == clamped) return
             guiScaleState.value = clamped
             HollowEngineConfig.ideGuiScale = clamped
         }
 
-    /** The integer pixel factor Minecraft would use for [guiScale] on the current framebuffer. */
-    fun factor(): Int {
+    fun factor(): Float {
         val mc = Minecraft.getInstance()
-        return mc.window.calculateScale(guiScale, mc.isEnforceUnicode).coerceAtLeast(1)
+        val window = mc.window
+        val fits = min(window.width / MinLogicalWidth, window.height / MinLogicalHeight).coerceAtLeast(1f)
+        val scale = guiScale
+        if (scale >= MinScale) return scale.coerceAtMost(fits)
+        return window.calculateScale(0, mc.isEnforceUnicode).coerceAtLeast(1).toFloat()
     }
 
     fun scaledWidth(): Float {
@@ -37,5 +47,10 @@ object HollowIdeScale {
         return ceil(window.height.toDouble() / factor()).toFloat().coerceAtLeast(1f)
     }
 
-    fun label(scale: Int): String = if (scale <= 0) "Auto" else "${scale}x"
+    /** What the slider shows: whole steps, with the configured fraction spelled out as it is. */
+    fun label(scale: Float): String = when {
+        scale < MinScale -> "Auto"
+        scale == scale.roundToInt().toFloat() -> "${scale.roundToInt()}x"
+        else -> "${scale}x"
+    }
 }

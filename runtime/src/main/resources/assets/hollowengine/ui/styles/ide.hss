@@ -388,10 +388,39 @@
     background: #5F6677;
 }
 
+.ide-diagnostics-header {
+    width: 100%;
+    padding: 3px 6px;
+    gap: 6px;
+    background: #2A2E36;
+    border-bottom: 1px #323846;
+}
+
+.ide-diagnostics-title {
+    foreground: #8f9bad;
+    wrap: false;
+}
+
 .ide-diagnostics-panel {
     width: 100%;
     padding: 4px;
     gap: 2px;
+}
+
+.ide-diagnostic-copy {
+    size: 16px 16px;
+    border-radius: 3px;
+    background: #00000000;
+    transition: background 100ms ease-out;
+}
+
+.ide-diagnostic-copy:hover {
+    background: #454B58;
+}
+
+.ide-diagnostic-copy-icon {
+    size: 11px 11px;
+    tint: #aeb8ca;
 }
 
 .ide-diagnostic-row {
@@ -426,7 +455,8 @@
 }
 
 .ide-diagnostic-message {
-    width: 100%;
+    width: 0px;
+    grow: 1;
     foreground: #d7deea;
 }
 
@@ -454,4 +484,27 @@
     height: 1px;
     margin: 2px 0px;
     background: #3a3f4b;
+}
+
+.drag-ghost {
+    width: fit;
+    height: fit;
+}
+
+.drag-ghost-content {
+    gap: 4px;
+    padding: 2px 6px;
+    background: #24272ECC;
+    border: 1px #5F6677;
+    border-radius: 4px;
+    shadow: 1px 1px 3px 0px rgba(0, 0, 0, 0.42);
+}
+
+.drag-ghost-icon {
+    size: 14px 14px;
+}
+
+.drag-ghost-label {
+    wrap: false;
+    foreground: #d7deea;
 }

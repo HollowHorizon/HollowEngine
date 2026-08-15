@@ -53,6 +53,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.removeNode
 import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
+import ru.hollowhorizon.hollowengine.common.scripting.RELOAD_SCRIPT_EXTENSION
+import ru.hollowhorizon.hollowengine.common.scripting.UI_SCRIPT_EXTENSION
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
 import ru.hollowhorizon.hollowengine.common.commands.arguments.ScriptPathArgument
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
@@ -714,10 +716,14 @@ private fun CommandExtension.registerScriptingCommands() {
             }
         }
 
-        "run"(nodeScriptArgument()) {
+        "run"(runnableScriptArgument()) {
             executes {
-                source.server.addNode(ScriptRegistry.display(ScriptPathArgument.getScript(this, "path")))
-                SUCCESS
+                val id = ScriptPathArgument.getScript(this, "path")
+                if (isNodeScriptPath(id.path)) {
+                    source.server.addNode(ScriptRegistry.display(id))
+                    return@executes SUCCESS
+                }
+                runPlainScript(source, id)
             }
         }
 
@@ -807,6 +813,36 @@ private fun nodeScriptArgument(): RequiredArgumentBuilder<CommandSourceStack, Sc
         SharedSuggestionProvider.suggest(DirectoryManager.componentScripts.map(ScriptRegistry::display), builder)
     }
 
+/**
+ * Everything `run` accepts: node scripts, plus plain `.kts` files, which is what one reaches for
+ * when trying something out.
+ */
+private fun runnableScriptArgument(): RequiredArgumentBuilder<CommandSourceStack, ScriptId> =
+    arg<ScriptId, CommandSourceStack>("path", ScriptPathArgument.scriptPath()).suggests { _, builder ->
+        val nodes = DirectoryManager.componentScripts.map(ScriptRegistry::display)
+        val plain = ScriptRegistry.list(".kts").filter { isPlainScriptPath(it.path) }.map(ScriptRegistry::display)
+        SharedSuggestionProvider.suggest(nodes + plain, builder)
+    }
+
+/** Runs a plain script once, reporting whatever it threw straight back to the caller. */
+private fun runPlainScript(source: CommandSourceStack, id: ScriptId): Int {
+    val display = ScriptRegistry.display(id)
+    if (!isPlainScriptPath(id.path)) {
+        return source.sendFailure("'$display' is not a script /he scripting run can execute".literal).let { 0 }
+    }
+    return ScriptLoader.execute<Any?>(id).fold(
+        onSuccess = {
+            source.sendSuccess({ "Executed '$display'".literal }, true)
+            1
+        },
+        onFailure = { error ->
+            HollowEngine.LOGGER.error("Failed to run '{}'", display, error)
+            source.sendFailure("Failed to run '$display': ${error.message ?: error::class.simpleName}".literal)
+            0
+        },
+    )
+}
+
 /** Only the nodes actually running on this server, which is what one can stop. */
 private fun runningNodeArgument(): RequiredArgumentBuilder<CommandSourceStack, ScriptId> =
     arg<ScriptId, CommandSourceStack>("path", ScriptPathArgument.scriptPath()).suggests { context, builder ->
@@ -861,6 +897,13 @@ private fun listEntityNodes(source: CommandSourceStack, entity: net.minecraft.wo
 }
 
 internal fun isNodeScriptPath(path: String): Boolean = path.endsWith(".$NODE_SCRIPT_EXTENSION")
+
+/** A `.kts` with no special role not a node, UI or reload script, so running it just runs it. */
+internal fun isPlainScriptPath(path: String): Boolean {
+    if (!path.endsWith(".kts")) return false
+    return listOf(NODE_SCRIPT_EXTENSION, UI_SCRIPT_EXTENSION, RELOAD_SCRIPT_EXTENSION)
+        .none { path.endsWith(".$it") }
+}
 
 // region Particle Functions
 private fun spawnParticleAtPosition(particleName: String, pos: Vec3) {

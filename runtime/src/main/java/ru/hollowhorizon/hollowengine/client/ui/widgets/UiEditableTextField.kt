@@ -537,6 +537,13 @@ fun EditableTextField(
         completion.contributor = completionContributor
         autoScroll.follow(state, layout, scrollState, gutterWidth)
         completion.onFrame(completionRevision)
+        state.offsetAtPoint = { rootX, rootY ->
+            val viewport = scrollState.viewport
+            layout.offsetAt(
+                rootX - viewport.x - gutterWidth + scrollState.offsetX,
+                rootY - viewport.y + scrollState.offsetY,
+            )
+        }
     }
 
     val visible = layout.visibleRange(scrollState.offsetY, scrollState.viewport.height, overscan = fontSize * 4f)

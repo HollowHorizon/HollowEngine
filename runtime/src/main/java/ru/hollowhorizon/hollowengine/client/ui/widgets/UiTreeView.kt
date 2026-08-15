@@ -25,15 +25,20 @@ fun <T> UiTreeView(
     tags: Iterable<String> = emptyList(),
     onIconClick: ((UiTreeItem<T>) -> Unit)? = null,
     fillRowWidth: Boolean = true,
+    dragItem: ((UiTreeItem<T>) -> UiDragItem?)? = null,
+    onDrop: ((UiTreeItem<T>, UiDragItem) -> Boolean)? = null,
 ) {
     val scroll = rememberScrollState()
+    val dragAndDrop = LocalDragAndDrop.current
     Column(
         tags = listOf("tree-view") + tags,
         modifier = modifier.scrollable(state = scroll)
     ) {
         items.forEach { item ->
             key(item.id) {
-                UiTreeRow(item, onToggle, onSelect, onIconClick, fillRowWidth)
+                UiTreeRow(item, onToggle, onSelect, onIconClick, fillRowWidth, onDrop) {
+                    if (dragItem == null) null else dragAndDrop?.let { state -> state to dragItem(item) }
+                }
             }
         }
     }
@@ -46,7 +51,12 @@ private fun <T> UiTreeRow(
     onSelect: (UiTreeItem<T>, UiEvent) -> Unit,
     onIconClick: ((UiTreeItem<T>) -> Unit)?,
     fillRowWidth: Boolean,
+    onDrop: ((UiTreeItem<T>, UiDragItem) -> Boolean)?,
+    drag: () -> Pair<UiDragAndDropState, UiDragItem?>?,
 ) {
+    val dropModifier = if (onDrop == null) Modifier else Modifier.dropTarget(
+        onDrop = { dragged, _, _ -> onDrop(item, dragged) },
+    )
     Row(
         id = "tree-item-${item.id}",
         tags = if (item.selected) listOf("tree-item", "selected") else listOf("tree-item"),
@@ -58,6 +68,8 @@ private fun <T> UiTreeRow(
                 onSelect(item, event)
                 event.consume()
             }
+            .dragSource(drag()?.first) { drag()?.second }
+            .then(dropModifier)
     ) {
         repeat(item.depth) {
             Box(tags = listOf("tree-indent"))

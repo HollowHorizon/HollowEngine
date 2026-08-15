@@ -289,7 +289,7 @@ private fun DockTab(
         modifier = Modifier.size(width = UiLength.Auto, height = DockTabHeight.px).minSize(width = DockTabMinWidth.px)
             .maxSize(width = DockTabMaxWidth.px).alignItems(vertical = UiAlign.CENTER).layer(layerIndex).clip()
             .tabTransform(dragOffset, DockTabOffset.DRAG).tabTransform(swap?.offset, DockTabOffset.SWAP)
-            .cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND)
+            .cursor(if (dragOffset != null) UiCursorShape.MOVE else UiCursorShape.HAND)
             .input(hoverable = true, clickable = true, draggable = true)
             .buildTabInputModifier(stackId, item, state, allowUndock)
     ) {

@@ -192,12 +192,12 @@ internal fun hollowIdeToolMenuItems(dock: DockingState, profiler: UiProfiler): L
         UiDropdownItem(
             label = "hollowengine.gui.ide.gui_scale".lang,
             slider = UiDropdownSlider(
-                value = HollowIdeScale.guiScale.toFloat(),
+                value = HollowIdeScale.guiScale,
                 min = 0f,
                 max = HollowIdeScale.MaxScale.toFloat(),
                 step = 1f,
-                valueLabel = { HollowIdeScale.label(it.toInt()) },
-                onCommit = { HollowIdeScale.guiScale = it.toInt() },
+                valueLabel = { HollowIdeScale.label(it) },
+                onCommit = { HollowIdeScale.guiScale = it },
             ),
             closeOnClick = false,
         ),

@@ -158,12 +158,17 @@ object TransformGizmoEditor {
 
     @SubscribeEvent
     fun onApplyCursor(event: RenderTickEvent.Post) {
-        if (!isInitialized || !isEditorAvailable() || crosshairMode()) return
-        if (pointerOverIde(lastPhysX, lastPhysY)) return
+        val window = Minecraft.getInstance().window.window
+        if (!isInitialized || !isEditorAvailable() || crosshairMode()) {
+            UiCursorManager.release(window, this)
+            return
+        }
         val hovering = hoveredHandleId != null || hoveredKey != null || overlay.isMouseOver(lastPhysX, lastPhysY)
-        UiCursorManager.apply(
-            Minecraft.getInstance().window.window,
-            if (hovering) UiCursorShape.HAND else UiCursorShape.DEFAULT,
+        UiCursorManager.claim(
+            window = window,
+            owner = this,
+            shape = UiCursorShape.HAND.takeIf { hovering },
+            priority = UiCursorManager.WorldPriority,
         )
     }
 
@@ -221,10 +226,6 @@ object TransformGizmoEditor {
         if (!isEditorAvailable() || crosshairMode()) return false
         return overlay.handleChar(codePoint, modifiers)
     }
-
-    /** Whether the gizmo authoritatively drives the window cursor over the world (so other overlays
-     *  should not reset it there and cause flicker). True only with a usable on-screen cursor. */
-    fun ownsWorldCursor(): Boolean = isInitialized && isEditorAvailable() && !crosshairMode()
 
     fun shouldBlockScreenInput(physX: Float, physY: Float): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false

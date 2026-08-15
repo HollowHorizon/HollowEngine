@@ -17,14 +17,23 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.InputStream
 import java.awt.Toolkit
+import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.SystemFlavorMap
 import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
+import java.io.IOException
+import java.nio.file.FileVisitResult
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.Base64
 
 private const val AutoSaveDelayMillis = 900L
@@ -34,6 +43,7 @@ internal class HollowIdeModel(
 ) {
     val tree = HollowIdeFileTree()
     val files = mutableStateMapOf<String, HollowIdeOpenFile>()
+    var onFileRemoved: ((String) -> Unit)? = null
     val selectedTreePaths = mutableStateListOf<String>()
     var selectedTreePath by mutableStateOf("")
         private set
@@ -206,6 +216,7 @@ internal class HollowIdeModel(
         Files.move(source, target)
         val targetPath = target.toReadablePathInsideRoot()
         files.remove(path)
+        onFileRemoved?.invoke(path)
         if (opened != null) {
             opened.close()
             runCatching {
@@ -224,10 +235,14 @@ internal class HollowIdeModel(
             .filterNot { it == DirectoryManager.HOLLOW_ENGINE }
             .withoutNestedChildren()
         if (targets.isEmpty()) return HollowIdeFileOperationResult.NotFound
-        targets.forEach { path -> path.toFile().deleteRecursively() }
+        targets.forEach { path -> path.deleteTree() }
         val removedReadable = targets.map { it.toReadablePathInsideRoot() }
         files.keys.filter { openPath -> removedReadable.any { openPath == it || openPath.startsWith("$it/") } }
-            .forEach { path -> files.remove(path)?.close() }
+            .toList()
+            .forEach { path ->
+                files.remove(path)?.close()
+                onFileRemoved?.invoke(path)
+            }
         tree.refresh()
         selectedTreePaths.clear()
         selectedTreePath = ""
@@ -241,6 +256,31 @@ internal class HollowIdeModel(
         return HollowIdeFileOperationResult.Success
     }
 
+    /** Moves [paths] into the folder [targetPath] names (or the folder holding it, for a file). */
+    fun moveInto(paths: List<String>, targetPath: String): HollowIdeFileOperationResult {
+        val targetDir = targetDirectory(targetPath).toPath().normalizeInsideRoot()
+            ?: return HollowIdeFileOperationResult.InvalidName
+        val sources = paths.mapNotNull { it.toPathInsideRoot() }.filter { Files.exists(it) }
+        if (sources.isEmpty()) return HollowIdeFileOperationResult.NotFound
+        Files.createDirectories(targetDir)
+
+        var moved = 0
+        sources.forEach { source ->
+            if (source.parent == targetDir || targetDir.swallowedBy(source)) return@forEach
+            val destination = uniqueDestination(targetDir, source.fileName.toString())
+            val openPath = source.toReadablePathInsideRoot()
+            runCatching { Files.move(source, destination) }.onSuccess {
+                moved++
+                files.remove(openPath)?.close()
+                onFileRemoved?.invoke(openPath)
+            }
+        }
+        if (moved == 0) return HollowIdeFileOperationResult.InvalidName
+        tree.refresh()
+        selectPath(targetDir.toReadablePathInsideRoot())
+        return HollowIdeFileOperationResult.Success
+    }
+
     fun pasteInto(targetPath: String): HollowIdeFileOperationResult {
         val targetDir = targetDirectory(targetPath).toPath().normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
         val clipboard = HollowIdeFileClipboard.get()
@@ -249,15 +289,14 @@ internal class HollowIdeModel(
         clipboard.files.forEach { sourceFile ->
             val source = sourceFile.toPath()
             if (!Files.exists(source)) return@forEach
+            if (targetDir.swallowedBy(source)) return@forEach
             val destination = uniqueDestination(targetDir, source.fileName.toString())
             if (Files.isDirectory(source)) {
                 source.copyDirectory(destination)
             } else {
                 Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES)
             }
-            if (clipboard.cut && source.normalizeInsideRoot() != null) {
-                source.toFile().deleteRecursively()
-            }
+            if (clipboard.cut) runCatching { source.toFile().deleteRecursively() }
         }
         if (clipboard.cut) HollowIdeFileClipboard.clearInternalCut()
         tree.refresh()
@@ -376,42 +415,80 @@ private data class HollowIdeClipboardPayload(
     val cut: Boolean,
 )
 
+/**
+ * The IDE's cut/copy buffer, which is the system one: files copied here paste into the file manager
+ * and back. Whether a transfer was a cut travels in the `Preferred DropEffect` format Windows
+ * Explorer uses; where that is unavailable a foreign transfer simply reads as a copy.
+ */
 private object HollowIdeFileClipboard {
+    private const val DropEffectNative = "Preferred DropEffect"
+    private const val DropEffectMove: Byte = 2
+    private const val DropEffectCopy: Byte = 5
+
     private var internal: HollowIdeClipboardPayload? = null
+
+    private val dropEffectFlavor: DataFlavor? = runCatching {
+        val flavor = DataFlavor("application/x-java-serialized-object;class=java.io.InputStream", DropEffectNative)
+        (SystemFlavorMap.getDefaultFlavorMap() as? SystemFlavorMap)?.apply {
+            addUnencodedNativeForFlavor(flavor, DropEffectNative)
+            addFlavorForUnencodedNative(DropEffectNative, flavor)
+        }
+        flavor
+    }.getOrNull()
 
     fun set(files: List<File>, cut: Boolean) {
         internal = HollowIdeClipboardPayload(files, cut)
-        if (!cut) {
-            runCatching {
-                Toolkit.getDefaultToolkit().systemClipboard.setContents(FileListTransferable(files), null)
-            }
-        }
+        val clipboard = runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull() ?: return
+        val cutEffect = dropEffectFlavor.takeIf { cut }
+        runCatching { clipboard.setContents(FileListTransferable(files, cut, cutEffect), null) }
+            .onFailure { runCatching { clipboard.setContents(FileListTransferable(files, cut, null), null) } }
     }
 
     fun get(): HollowIdeClipboardPayload {
+        val clipboard = runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull()
+            ?: return internal ?: HollowIdeClipboardPayload(emptyList(), cut = false)
         val systemFiles = runCatching {
-            val clipboard = Toolkit.getDefaultToolkit().systemClipboard
             if (!clipboard.isDataFlavorAvailable(DataFlavor.javaFileListFlavor)) return@runCatching emptyList<File>()
             @Suppress("UNCHECKED_CAST")
             clipboard.getData(DataFlavor.javaFileListFlavor) as? List<File> ?: emptyList()
         }.getOrDefault(emptyList())
-        if (systemFiles.isNotEmpty()) return HollowIdeClipboardPayload(systemFiles, cut = false)
-        return internal ?: HollowIdeClipboardPayload(emptyList(), cut = false)
+        if (systemFiles.isEmpty()) return internal ?: HollowIdeClipboardPayload(emptyList(), cut = false)
+
+        val own = internal?.takeIf { it.files.map(File::getAbsolutePath) == systemFiles.map(File::getAbsolutePath) }
+        return HollowIdeClipboardPayload(systemFiles, cut = own?.cut ?: clipboard.readsAsMove())
     }
 
     fun clearInternalCut() {
         if (internal?.cut == true) internal = null
     }
-}
 
-private class FileListTransferable(private val files: List<File>) : Transferable {
-    override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.javaFileListFlavor)
+    private fun Clipboard.readsAsMove(): Boolean {
+        val flavor = dropEffectFlavor ?: return false
+        return runCatching {
+            if (!isDataFlavorAvailable(flavor)) return false
+            (getData(flavor) as? InputStream)?.use { it.read() == DropEffectMove.toInt() } == true
+        }.getOrDefault(false)
+    }
 
-    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor
+    private class FileListTransferable(
+        private val files: List<File>,
+        private val cut: Boolean,
+        private val dropEffectFlavor: DataFlavor?,
+    ) : Transferable {
+        override fun getTransferDataFlavors(): Array<DataFlavor> =
+            listOfNotNull(DataFlavor.javaFileListFlavor, dropEffectFlavor).toTypedArray()
 
-    override fun getTransferData(flavor: DataFlavor): Any {
-        if (!isDataFlavorSupported(flavor)) throw UnsupportedFlavorException(flavor)
-        return files
+        override fun isDataFlavorSupported(flavor: DataFlavor): Boolean =
+            flavor == DataFlavor.javaFileListFlavor || flavor == dropEffectFlavor
+
+        override fun getTransferData(flavor: DataFlavor): Any = when (flavor) {
+            DataFlavor.javaFileListFlavor -> files
+            dropEffectFlavor -> ByteArrayInputStream(
+                byteArrayOf(if (cut) DropEffectMove else DropEffectCopy, 0, 0, 0),
+            )
+
+            else -> throw UnsupportedFlavorException(flavor)
+        }
     }
 }
 
@@ -538,6 +615,24 @@ private fun List<Path>.withoutNestedChildren(): List<Path> {
     }
     return result
 }
+
+private fun Path.deleteTree() {
+    if (!Files.exists(this, LinkOption.NOFOLLOW_LINKS)) return
+    Files.walkFileTree(this, object : SimpleFileVisitor<Path>() {
+        override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+            Files.deleteIfExists(file)
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun postVisitDirectory(dir: Path, exception: IOException?): FileVisitResult {
+            Files.deleteIfExists(dir)
+            return FileVisitResult.CONTINUE
+        }
+    })
+}
+
+private fun Path.swallowedBy(source: Path): Boolean =
+    toAbsolutePath().normalize().isSameOrNestedIn(source.toAbsolutePath().normalize())
 
 private fun Path.isSameOrNestedIn(parent: Path): Boolean {
     val value = toComparablePathString()

@@ -49,6 +49,8 @@ internal fun HollowIdeProjectContextMenu(
     }
 }
 
+internal const val ProjectNameDialogInputId = "project-name-dialog-input"
+
 @Composable
 internal fun HollowIdeProjectNameDialog(
     dialog: ProjectNameDialog?,
@@ -67,7 +69,7 @@ internal fun HollowIdeProjectNameDialog(
         TextField(
             value = dialog.name,
             onChange = onNameChange,
-            id = "project-name-dialog-input",
+            id = ProjectNameDialogInputId,
             tags = listOf("project-name-dialog-input"),
             modifier = Modifier.size(180.px, 24.px),
         )

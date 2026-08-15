@@ -51,6 +51,9 @@ class TextFieldState(
     var caretVisibilityRevision: Int by mutableStateOf(0)
         private set
 
+    var offsetAtPoint: ((Float, Float) -> Int)? = null
+        internal set
+
     var focused: Boolean by mutableStateOf(false)
         private set
 

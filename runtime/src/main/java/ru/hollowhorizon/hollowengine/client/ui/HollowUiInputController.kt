@@ -14,6 +14,8 @@ class HollowUiInputController {
     private var dragStartX = 0f
     private var dragStartY = 0f
 
+    private var dragMoved = false
+
     // Focus is per scope (root, each popup, each dock window): every scope independently owns one
     // focused `focusable` target, so a popup and a text field stay focused at the same time. The
     // active scope is the one that last gained focus - Tab cycles within it.
@@ -216,6 +218,7 @@ class HollowUiInputController {
             draggingNode = hit.node
             dragStartX = mouseX
             dragStartY = mouseY
+            dragMoved = false
             return UiInputResult(true, hit.node, hit.node.id)
         }
 
@@ -255,6 +258,7 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): UiInputResult {
         val node = draggingNode?.takeIf { it in frame.nodes } ?: return UiInputResult(false)
+        dragMoved = true
         val local = frame.layout[node].inputTransform.inverse()?.transform(mouseX, mouseY, 0f)
         val layoutNode = frame.layout[node]
         val parent = frame.parentOf(node)
@@ -321,8 +325,23 @@ class HollowUiInputController {
 
         val releaseNode = draggingNode?.takeIf { it in frame.nodes }
         if(!handled) releaseNode?.let { node -> dispatch(node) }
+        if (releaseNode != null && !dragMoved) {
+            val hit = frame.hitTest(mouseX, mouseY)?.takeIf { it.node == releaseNode }
+            dispatchClick(
+                frame = frame,
+                node = releaseNode,
+                button = button,
+                mouseX = mouseX,
+                mouseY = mouseY,
+                localX = hit?.localX ?: 0f,
+                localY = hit?.localY ?: 0f,
+                modifiers = modifiers,
+                dispatch = dispatch,
+            )
+        }
         activeNode = null
         draggingNode = null
+        dragMoved = false
         scrollbarDrag = null
         return UiInputResult(received, releaseNode, releaseNode?.id)
     }

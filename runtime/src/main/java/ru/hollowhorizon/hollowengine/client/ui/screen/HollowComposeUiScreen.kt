@@ -83,7 +83,7 @@ abstract class HollowComposeUiScreen(
             ?: buildFrame(frameWidth, frameHeight, pointerX, pointerY, System.nanoTime())
         renderScaled(frame, scale)
         renderAfterUi(graphics, mouseX, mouseY)
-        UiCursorManager.apply(mc.window.window, surface.runtime.cursor)
+        UiCursorManager.claim(mc.window.window, this, surface.runtime.cursor, UiCursorManager.ScreenPriority)
         if (pipelineFrames()) {
             pipeline.schedule(frameWidth, frameHeight) {
                 buildFrame(frameWidth, frameHeight, pointerX, pointerY, System.nanoTime())
