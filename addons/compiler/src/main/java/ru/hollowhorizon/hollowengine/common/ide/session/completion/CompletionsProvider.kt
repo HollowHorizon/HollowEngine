@@ -31,12 +31,7 @@ import ru.hollowhorizon.hollowengine.common.ide.session.index.JavaClassName
 import ru.hollowhorizon.hollowengine.common.ide.session.index.JavaClassNameIndex
 import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionCloseness
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
-import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 
 /**
  * Collects completions in phases, closest to the caret first, and hands each phase to [sink] as soon
