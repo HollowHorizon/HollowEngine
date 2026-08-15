@@ -55,6 +55,7 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreApplicationEnvironmentMod
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
 import org.jetbrains.kotlin.load.kotlin.PackagePartProvider
+import org.jetbrains.kotlin.scripting.definitions.ScriptConfigurationsProvider
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
 import org.jetbrains.kotlin.serialization.deserialization.METADATA_FILE_EXTENSION
@@ -78,6 +79,7 @@ class AnalysisEnvironment(
 ) {
     private val projectDisposable = Disposer.newDisposable("AnalysisEnvironment")
     private val compilerPluginSupport = AnalysisCompilerPluginSupport.create()
+    private var scriptConfigurationsProvider: ClassLiteralScriptConfigurationsProvider? = null
     val kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment
     val project: MockProject
     val analyzer: ScriptingAnalyzerImpl
@@ -572,40 +574,47 @@ class AnalysisEnvironment(
                 ?: scriptDefinitions.minByOrNull { it.fileExtension.length }
                 ?: prioritizedDefinitions.first()
 
-            project.registerService(
-                ScriptDefinitionProvider::class.java,
-                object : ScriptDefinitionProvider {
-                    override fun findDefinition(script: SourceCode): ScriptDefinition? {
-                        return prioritizedDefinitions.firstOrNull { definition ->
-                            script.matchesExtension(definition.fileExtension)
-                        }
-                    }
-
-                    override fun getDefaultDefinition(): ScriptDefinition {
-                        return defaultDefinition
-                    }
-
-                    override fun getKnownFilenameExtensions(): Sequence<String> {
-                        return prioritizedDefinitions
-                            .asSequence()
-                            .map { it.fileExtension.removePrefix(".") }
-                            .distinct()
-                    }
-
-                    override val currentDefinitions: Sequence<ScriptDefinition>
-                        get() = prioritizedDefinitions.asSequence()
-
-                    override fun isScript(script: SourceCode): Boolean {
-                        return prioritizedDefinitions.any { definition ->
-                            script.matchesExtension(definition.fileExtension)
-                        }
+            val definitionProvider = object : ScriptDefinitionProvider {
+                override fun findDefinition(script: SourceCode): ScriptDefinition? {
+                    return prioritizedDefinitions.firstOrNull { definition ->
+                        script.matchesExtension(definition.fileExtension)
                     }
                 }
-            )
+
+                override fun getDefaultDefinition(): ScriptDefinition {
+                    return defaultDefinition
+                }
+
+                override fun getKnownFilenameExtensions(): Sequence<String> {
+                    return prioritizedDefinitions
+                        .asSequence()
+                        .map { it.fileExtension.removePrefix(".") }
+                        .distinct()
+                }
+
+                override val currentDefinitions: Sequence<ScriptDefinition>
+                    get() = prioritizedDefinitions.asSequence()
+
+                override fun isScript(script: SourceCode): Boolean {
+                    return prioritizedDefinitions.any { definition ->
+                        script.matchesExtension(definition.fileExtension)
+                    }
+                }
+            }
+            project.registerService(ScriptDefinitionProvider::class.java, definitionProvider)
+            ClassLiteralScriptConfigurationsProvider(
+                project,
+                definitionProvider,
+                classpath,
+            ).also { provider ->
+                project.registerService(ScriptConfigurationsProvider::class.java, provider)
+                scriptConfigurationsProvider = provider
+            }
         }
     }
 
     fun dispose() {
+        scriptConfigurationsProvider?.close()
         Disposer.dispose(projectDisposable)
     }
 }

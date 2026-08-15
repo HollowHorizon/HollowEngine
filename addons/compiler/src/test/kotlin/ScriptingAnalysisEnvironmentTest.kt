@@ -15,6 +15,44 @@ abstract class AnalysisScript
 
 class ScriptingAnalysisEnvironmentTest {
     @Test
+    fun `class literal attachment resolves default imports explicit imports and aliases for analysis`() {
+        withEnvironment(defaultImports = listOf(File::class.qualifiedName!!, "java.nio.file.*")) { environment ->
+            val scripts = listOf(
+                "default-class.analysis.kts" to """
+                    @file:Attach(File::class)
+
+                    val attachedName = name
+                """.trimIndent(),
+                "default-imported.analysis.kts" to """
+                    @file:Attach(Path::class)
+
+                    val attachedName = fileName
+                """.trimIndent(),
+                "imported.analysis.kts" to """
+                    @file:Attach(URI::class)
+
+                    import java.net.URI
+
+                    val attachedScheme = scheme
+                """.trimIndent(),
+                "aliased.analysis.kts" to """
+                    @file:Attach(AttachedUri::class)
+
+                    import java.net.URI as AttachedUri
+
+                    val attachedScheme = scheme
+                """.trimIndent(),
+            )
+
+            scripts.forEach { (name, source) ->
+                val diagnostics = environment.analyzer.diagnostic(name, source)
+
+                assertFalse(diagnostics.any { it.severity.isError() }, "$name: $diagnostics")
+            }
+        }
+    }
+
+    @Test
     fun `analysis environment can warm up in background`() {
         withEnvironment { environment ->
             runBlocking {
@@ -303,7 +341,10 @@ class ScriptingAnalysisEnvironmentTest {
         }
     }
 
-    private fun withEnvironment(block: (ScriptingEnvironmentImpl) -> Unit) {
+    private fun withEnvironment(
+        defaultImports: List<String> = listOf(File::class.qualifiedName!!),
+        block: (ScriptingEnvironmentImpl) -> Unit,
+    ) {
         val environment = ScriptingEnvironmentImpl(
             javaHome = File(System.getProperty("java.home")),
             classpath = testClasspath(),
@@ -311,6 +352,7 @@ class ScriptingAnalysisEnvironmentTest {
                 ScriptClassProvider(
                     extension = ".analysis.kts",
                     baseClass = AnalysisScript::class.qualifiedName!!,
+                    defaultImports = defaultImports,
                 )
             ),
             mappings = Mappings.EMPTY,

@@ -102,7 +102,7 @@ class ScriptSourceTests {
     fun `imports read from the file text match what is written there`() {
         val text = """
             @file:Import("library.kts", "other/second.kts")
-            @file:Attach("net.minecraft.world.entity.LivingEntity")
+            @file:Attach(net.minecraft.world.entity.LivingEntity::class)
         """.trimIndent()
         assertEquals(listOf("library.kts", "other/second.kts"), ScriptImports.parse(text))
     }

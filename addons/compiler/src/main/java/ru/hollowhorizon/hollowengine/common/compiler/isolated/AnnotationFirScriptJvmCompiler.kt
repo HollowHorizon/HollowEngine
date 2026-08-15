@@ -49,7 +49,6 @@ import org.jetbrains.kotlin.scripting.compiler.plugin.fir.FirScriptCompilationCo
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.K2ScriptingCompilerEnvironment
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.K2ScriptingCompilerEnvironmentInternal
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptDiagnosticsMessageCollector
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.collectAndResolveScriptAnnotationsViaFir
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.configureLibrarySessionIfNeeded
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.extractResultFields
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.makeCompiledScript
@@ -118,7 +117,7 @@ internal class AnnotationFirScriptJvmCompiler(
         script: SourceCode,
     ): ResultWithDiagnostics<ScriptCompilationConfiguration> =
         refineAllForK2(script, state.hostConfiguration) { source, configuration ->
-            collectAndResolveScriptAnnotationsViaFir(
+            collectAndResolveScriptAnnotationsWithClassLiterals(
                 source,
                 configuration,
                 state.hostConfiguration,

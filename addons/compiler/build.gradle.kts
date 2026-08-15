@@ -66,6 +66,7 @@ repositories {
 
 dependencies {
     compileOnlyApi("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    compileOnly("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
 
     api(project(path = runtimeProjectPath, configuration = "namedElements"))
 

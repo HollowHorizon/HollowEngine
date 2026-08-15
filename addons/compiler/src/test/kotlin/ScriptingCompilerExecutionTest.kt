@@ -10,6 +10,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.source.DirectoryScriptSour
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import java.io.File
+import java.net.URI
+import java.nio.file.Path
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.implicitReceivers
 import kotlin.test.Test
@@ -23,6 +25,85 @@ abstract class ImportingScript(val output: MutableList<String>)
 data class ImportReceiver(val prefix: String)
 
 class ScriptingCompilerExecutionTest {
+    @Test
+    fun `class literal attachment resolves default imports explicit imports and aliases`() {
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = ".hello.kts",
+                    baseClass = HelloWorldScript::class.qualifiedName!!,
+                    defaultImports = listOf(File::class.qualifiedName!!, "java.nio.file.*"),
+                )
+            ),
+            mappings = Mappings.EMPTY,
+        )
+
+        try {
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+            val scripts = listOf(
+                Triple(
+                    "default-class.hello.kts",
+                    """
+                        @file:Attach(File::class)
+
+                        output += name
+                    """.trimIndent(),
+                    File("attached-host"),
+                ),
+                Triple(
+                    "default-imported.hello.kts",
+                    """
+                        @file:Attach(Path::class)
+
+                        output += fileName.toString()
+                    """.trimIndent(),
+                    Path.of("folder", "attached-host"),
+                ),
+                Triple(
+                    "imported.hello.kts",
+                    """
+                        @file:Attach(URI::class)
+
+                        import java.net.URI
+
+                        output += scheme
+                    """.trimIndent(),
+                    URI.create("https://example.com"),
+                ),
+                Triple(
+                    "aliased.hello.kts",
+                    """
+                        @file:Attach(AttachedUri::class)
+
+                        import java.net.URI as AttachedUri
+
+                        output += scheme
+                    """.trimIndent(),
+                    URI.create("https://example.com"),
+                ),
+            )
+
+            scripts.forEach { (name, source, receiver) ->
+                val script = environment.compiler.compile(name, source).getOrThrow()
+
+                assertEquals(1, script.implicitReceiverCount)
+                script.execute<Any> {
+                    constructorArgs(output as Any)
+                    implicitReceivers(receiver)
+                }.getOrThrow()
+            }
+
+            assertEquals(listOf("attached-host", "attached-host", "https", "https"), output)
+        } finally {
+            ScriptingEnvironment.clear()
+            environment.close()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
     @Test
     fun `hello world script compiles and executes`() {
         val environment = ScriptingEnvironmentImpl(

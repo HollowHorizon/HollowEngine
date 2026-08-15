@@ -116,8 +116,6 @@ class SimpleDeclarationProviderFactory(
     }
 }
 
-private const val JAR_SEPARATOR = "!/"
-
 fun getVirtualFilesByRoots(
     roots: List<Path>,
     kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment,
