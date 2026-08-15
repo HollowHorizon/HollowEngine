@@ -42,7 +42,12 @@ internal fun UiSvgStyle.applySvgDeclarations(declarations: Map<String, String>):
         val value = rawValue.trim()
         if (value.isEmpty()) return@forEach
         style = when (name) {
-            "fill" -> style.copy(fill = parseSvgColor(value, style.color))
+            "fill" -> style.copy(
+                fill = if (value.startsWith("url(", ignoreCase = true)) style.fill
+                else parseSvgColor(value, style.color),
+            )
+
+            "fill-rule" -> style.copy(fillRule = parseFillRule(value, style.fillRule))
             "stroke" -> style.copy(stroke = parseSvgColor(value, style.color))
             "stroke-width" -> style.copy(strokeWidth = parseSvgLength(value) ?: style.strokeWidth)
             "stroke-linecap" -> style.copy(strokeLineCap = parseStrokeLineCap(value, style.strokeLineCap))
@@ -119,6 +124,12 @@ internal fun parseSvgLength(value: String, percentReference: Float? = null): Flo
         .removeSuffix("em")
         .removeSuffix("rem")
     return normalized.toFloatOrNull()
+}
+
+private fun parseFillRule(value: String, fallback: UiSvgFillRule): UiSvgFillRule = when (value.lowercase()) {
+    "evenodd" -> UiSvgFillRule.EVEN_ODD
+    "nonzero" -> UiSvgFillRule.NON_ZERO
+    else -> fallback
 }
 
 internal fun parseSvgColor(value: String, currentColor: UiColor = UiColor.Black): UiColor? {
@@ -274,6 +285,7 @@ private fun normalizeFontFamily(value: String): String {
 
 private val presentationAttributes = listOf(
     "fill",
+    "fill-rule",
     "stroke",
     "stroke-width",
     "stroke-linecap",

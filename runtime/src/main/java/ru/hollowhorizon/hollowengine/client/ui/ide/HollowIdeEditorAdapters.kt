@@ -39,6 +39,8 @@ internal class HollowIdeEditorSession(
     @Volatile
     private var definitionJob: Job? = null
     @Volatile
+    private var formatJob: Job? = null
+    @Volatile
     private var occurrenceJob: Job? = null
     @Volatile
     private var snapshot = EditorAnalysisSnapshot.Empty
@@ -148,6 +150,25 @@ internal class HollowIdeEditorSession(
             current.matchesText(text, analyzer) -> current.diagnostics
             current.hasText -> current.diagnosticsForEditedText(text)
             else -> emptyList()
+        }
+    }
+
+
+    /**
+     * Reformats off the render thread and hands the result back on it. `null` means the language
+     * has no formatter or the text was already formatted.
+     */
+    fun format(text: String, onFormatted: (String?) -> Unit) {
+        val analyzer = currentAnalyzer()
+        formatJob?.cancel()
+        formatJob = scope.launch {
+            val formatted = runCatching { analyzer.format(path, text) }.getOrElse { failure ->
+                reportAnalysisFailure("format", failure)
+                null
+            }
+            Minecraft.getInstance().execute {
+                onFormatted(formatted)
+            }
         }
     }
 
@@ -429,6 +450,55 @@ internal fun mergeHighlightsForEditedText(
             else -> null
         }
     }
+}
+
+/**
+ * Moves a caret through a reformat, keeping it on the very character it was on.
+ */
+internal fun mapCaretThroughFormat(original: String, formatted: String, caret: Int): Int {
+    val position = caret.coerceIn(0, original.length)
+
+    fun after(index: Int) = (codeCharOffset(formatted, codeCharsBefore(original, index)) + 1)
+        .coerceIn(0, formatted.length)
+
+    fun before(index: Int) = codeCharOffset(formatted, codeCharsBefore(original, index))
+        .coerceIn(0, formatted.length)
+
+    if (position > 0 && !original[position - 1].isWhitespace()) return after(position - 1)
+
+    val lineEnd = original.indexOf('\n', position).let { if (it < 0) original.length else it }
+    for (index in position until lineEnd) {
+        if (original[index].isWhitespace()) continue
+        return before(index)
+    }
+
+    val lineStart = original.lastIndexOf('\n', (position - 1).coerceAtLeast(0))
+        .let { if (it < 0 || position == 0) 0 else it + 1 }
+    for (index in position - 1 downTo lineStart) {
+        if (original[index].isWhitespace()) continue
+        return after(index)
+    }
+
+    val line = original.take(position).count { it == '\n' }
+    return lineStartOffset(formatted.split('\n'), line).coerceIn(0, formatted.length)
+}
+
+private fun codeCharsBefore(text: String, offset: Int): Int {
+    var count = 0
+    for (index in 0 until offset) {
+        if (!text[index].isWhitespace()) count++
+    }
+    return count
+}
+
+private fun codeCharOffset(text: String, index: Int): Int {
+    var seen = 0
+    for (offset in text.indices) {
+        if (text[offset].isWhitespace()) continue
+        if (seen == index) return offset
+        seen++
+    }
+    return text.length
 }
 
 private fun lineStartOffset(lines: List<String>, lineIndex: Int): Int {

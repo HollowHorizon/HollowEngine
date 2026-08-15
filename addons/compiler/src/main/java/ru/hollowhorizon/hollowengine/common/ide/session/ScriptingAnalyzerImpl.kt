@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.createCompletions
 import ru.hollowhorizon.hollowengine.common.ide.session.definition.findDefinition
 import ru.hollowhorizon.hollowengine.common.ide.session.diagnostic.diagnosticCode
+import ru.hollowhorizon.hollowengine.common.ide.session.format.formatKotlinCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.highlightCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.occurrencesCode
 import ru.hollowhorizon.hollowengine.common.ide.session.insight.findHoverInfo
@@ -251,6 +252,14 @@ class ScriptingAnalyzerImpl(
     override fun occurrences(name: String, text: String, offset: Int): List<OccurrenceRange> {
         val file = getOrCreateFile(name, text)
         return occurrencesCode(file, offset)
+    }
+
+    override val canFormat: Boolean get() = true
+
+    @Synchronized
+    override fun format(name: String, text: String): String? {
+        val file = getOrCreateFile(name, text)
+        return formatKotlinCode(file).takeIf { it != file.text }
     }
 
     @Synchronized

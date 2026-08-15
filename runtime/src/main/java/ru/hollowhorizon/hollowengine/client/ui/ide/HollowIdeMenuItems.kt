@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"
+private const val ReformatIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 private const val SaveIcon = "hollowengine:textures/gui/icons/save.svg"
 private const val DocsIcon = "hollowengine:textures/gui/icons/docs.svg"
 private const val OptionsIcon = "hollowengine:textures/gui/icons/options.svg"
@@ -27,8 +28,11 @@ internal fun hollowIdeFileMenuItems(
     model: HollowIdeModel,
     dock: DockingState,
     focusedFile: () -> HollowIdeOpenFile?,
+    canReformat: (HollowIdeOpenFile) -> Boolean,
+    onReformat: (HollowIdeOpenFile) -> Unit,
 ): List<UiDropdownItem> {
-    val focusedPath = focusedFile()?.path
+    val focused = focusedFile()
+    val focusedPath = focused?.path
     return listOf(
         UiDropdownItem("hollowengine.gui.ide.file.reload_client_resources".lang, ReloadIcon) {
             HollowUiResourceAccess.clearCache()
@@ -47,6 +51,13 @@ internal fun hollowIdeFileMenuItems(
         UiDropdownItem("Save All", SaveIcon, enabled = model.files.values.any { it.dirty }) {
             model.saveAll()
             model.files.values.forEach { dock.updateItem(it.dockItem()) }
+        },
+        UiDropdownItem(
+            label = "Reformat Code",
+            icon = ReformatIcon,
+            enabled = focused != null && canReformat(focused),
+        ) {
+            focused?.let(onReformat)
         },
     )
 }

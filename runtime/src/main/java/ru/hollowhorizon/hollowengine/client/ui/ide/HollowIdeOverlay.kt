@@ -29,6 +29,8 @@ import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
@@ -92,6 +94,7 @@ object HollowIdeOverlay {
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
+    private var fileContextMenu by mutableStateOf<FileContextMenu?>(null)
 
     private fun editorState(file: HollowIdeOpenFile): TextFieldState = editorStates.getOrPut(file.path) {
         TextFieldState(
@@ -99,6 +102,12 @@ object HollowIdeOverlay {
             multiline = true,
             pasteTransformer = KotlinStringPasteTransformer.takeIf { file.path.isKotlinSource() },
         )
+    }
+
+    private fun editorSession(path: String): HollowIdeEditorSession = editorSessions.getOrPut(path) {
+        HollowIdeEditorSession(path) {
+            editorAnalysisRevision++
+        }
     }
 
     private var lastMouseX = 0f
@@ -201,9 +210,89 @@ object HollowIdeOverlay {
     private fun initialize() {
         if (initialized) return
         initialized = true
+        dock.onTabContextMenu = ::openFileContextMenu
         dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon))
         surface.setContent { Content() }
     }
+
+    /** Right-click on a tab: builds the menu the file's type declares for it. */
+    private fun openFileContextMenu(item: DockItem, event: UiEvent) {
+        val file = model.files.values.firstOrNull { it.id == item.id }
+        if (file == null) {
+            fileContextMenu = null
+            return
+        }
+        val context = fileActionContext(file)
+        fileContextMenu = FileContextMenu(
+            path = file.path,
+            x = event.x,
+            y = event.y,
+            actions = fileContextMenuActions(context).map { action ->
+                FileContextMenuEntry(action, enabled = action.isEnabled(context))
+            },
+        )
+    }
+
+    private fun closeFileContextMenu(): Boolean {
+        if (fileContextMenu == null) return false
+        fileContextMenu = null
+        return true
+    }
+
+    private fun runFileAction(action: HollowIdeFileAction) {
+        val path = fileContextMenu?.path
+        fileContextMenu = null
+        val file = path?.let { model.files[it] } ?: return
+        action.run(fileActionContext(file))
+    }
+
+    private fun fileActionContext(target: HollowIdeOpenFile): HollowIdeFileActionContext =
+        object : HollowIdeFileActionContext {
+            override val file: HollowIdeOpenFile = target
+
+            override val canFormat: Boolean
+                get() = !target.readOnly && target.textOrNull != null && editorSession(target.path).canFormat
+
+            override fun save(): Boolean {
+                val saved = model.save(target.path)
+                dock.updateItem(target.dockItem())
+                return saved
+            }
+
+            override fun close() {
+                dock.close(target.id)
+            }
+
+            override fun closeOthers() {
+                model.files.values.filter { it.id != target.id }.forEach { dock.close(it.id) }
+            }
+
+            override fun closeAll() {
+                model.files.values.forEach { dock.close(it.id) }
+            }
+
+            override fun reformat() {
+                formatFile(target)
+            }
+
+            override fun revealInProjectView() {
+                model.revealPath(target.path)
+                dock.focus(ProjectTreeId)
+            }
+
+            override fun showInExplorer() {
+                DesktopUtil.openInExplorer(target.path.fromReadablePath())
+            }
+
+            override fun copyPath() {
+                Minecraft.getInstance().keyboardHandler.clipboard = target.path
+                statusText = "Copied ${target.path}"
+            }
+
+            override fun setStatus(message: String) {
+                statusText = message
+            }
+        }
 
     @Composable
     private fun Content() {
@@ -215,9 +304,11 @@ object HollowIdeOverlay {
                 .focusScope()
                 .onKeyInput { input ->
                     val handled = !input.repeat && (
-                            project.handleNameDialogKey(input.key) ||
+                            input.key == GLFW.GLFW_KEY_ESCAPE && closeFileContextMenu() ||
+                                    project.handleNameDialogKey(input.key) ||
                                     project.handleShortcut(input.key, input.modifiers) ||
                                     handleDockShortcut(input.key, input.modifiers) ||
+                                    handleEditorShortcut(input.key, input.modifiers) ||
                                     input.key == GLFW.GLFW_KEY_F4 && goToDefinition()
                             )
                     if (handled) input.consume()
@@ -236,6 +327,11 @@ object HollowIdeOverlay {
                         content = { item -> DockContent(item) },
                     )
                 }
+                HollowIdeFileContextMenu(
+                    menu = fileContextMenu,
+                    onAction = ::runFileAction,
+                    onDismiss = { fileContextMenu = null },
+                )
             }
         }
     }
@@ -306,7 +402,13 @@ object HollowIdeOverlay {
             label = "hollowengine.gui.ide.file".lang,
             expanded = openDropdown == "file",
             onExpandedChange = { openDropdown = if (it) "file" else null },
-            items = hollowIdeFileMenuItems(model, dock, ::focusedFile),
+            items = hollowIdeFileMenuItems(
+                model = model,
+                dock = dock,
+                focusedFile = ::focusedFile,
+                canReformat = { file -> fileActionContext(file).canFormat },
+                onReformat = ::formatFile,
+            ),
         )
         UiDropdown(
             id = "ide-windows-menu",
@@ -417,13 +519,7 @@ object HollowIdeOverlay {
 
     @Composable
     private fun FileEditor(file: HollowIdeOpenFile) {
-        val editorSession = remember(file.path) {
-            editorSessions.getOrPut(file.path) {
-                HollowIdeEditorSession(file.path) {
-                    editorAnalysisRevision++
-                }
-            }
-        }
+        val editorSession = remember(file.path) { editorSession(file.path) }
         val editorState = editorState(file)
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
@@ -514,6 +610,50 @@ object HollowIdeOverlay {
         return dock.closeFocused()
     }
 
+    /** Editor-wide shortcuts that work wherever the focus sits inside the IDE. */
+    private fun handleEditorShortcut(key: Int, modifiers: Int): Boolean {
+        if (modifiers and GLFW.GLFW_MOD_CONTROL == 0) return false
+        val alt = modifiers and GLFW.GLFW_MOD_ALT != 0
+        return when {
+            alt && key == GLFW.GLFW_KEY_L -> focusedEditorFile()?.let(::formatFile) == true
+            !alt && key == GLFW.GLFW_KEY_S -> focusedFile()?.let { file ->
+                model.save(file.path).also { dock.updateItem(file.dockItem()) }
+            } == true
+
+            else -> false
+        }
+    }
+
+    /**
+     * Reformats a file off the render thread and puts the result back as one undoable edit, with
+     * the caret kept on the line it was on.
+     */
+    private fun formatFile(file: HollowIdeOpenFile): Boolean {
+        if (file.readOnly || file.textOrNull == null) return false
+        val session = editorSession(file.path)
+        if (!session.canFormat) {
+            statusText = "No formatter for ${file.title}"
+            return false
+        }
+        val editor = editorState(file)
+        val text = editor.text
+        fileContextMenu = null
+        session.format(text) { formatted ->
+            when {
+                formatted == null -> statusText = "${file.title} is already formatted"
+                editor.text != text -> statusText = "${file.title} changed while formatting"
+                else -> {
+                    val caret = mapCaretThroughFormat(text, formatted, editor.caret)
+                    editor.applyEdit(formatted, listOf(UiTextCaret(caret)))
+                    model.updateText(file.path, formatted)
+                    dock.updateItem(file.dockItem())
+                    statusText = "Reformatted ${file.title}"
+                }
+            }
+        }
+        return true
+    }
+
     private fun editorTarget(): DockTarget {
         model.files.values.firstOrNull { dock.contains(it.id) }
             ?.let { dock.stackIdOf(it.id) }
@@ -532,11 +672,7 @@ object HollowIdeOverlay {
         val editorKey = "editor-${file.id}"
         val editor = editorStates[file.path] ?: return false
         if (surface.runtime.focusedKey != editorKey) surface.runtime.focus(editorKey)
-        val session = editorSessions.getOrPut(file.path) {
-            HollowIdeEditorSession(file.path) {
-                editorAnalysisRevision++
-            }
-        }
+        val session = editorSession(file.path)
         statusText = ""
         session.resolveDefinition(file.text, editor.caret) { definition ->
             if (definition == null) {

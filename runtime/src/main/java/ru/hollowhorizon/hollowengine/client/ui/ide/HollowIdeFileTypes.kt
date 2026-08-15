@@ -32,6 +32,7 @@ class HollowIdeFileType(
     val editor: HollowIdeFileEditor,
     private val pathMatcher: ((path: String) -> Boolean)? = null,
     internal val requiresContent: Boolean = true,
+    val actions: List<HollowIdeFileAction> = emptyList(),
 ) {
     init {
         require(id.isNotBlank()) { "File type ID cannot be blank" }
@@ -50,6 +51,7 @@ class HollowIdeFileType(
             extensions: Collection<String>,
             priority: Int = 0,
             requiresContent: Boolean = true,
+            actions: List<HollowIdeFileAction> = emptyList(),
             loader: (path: String, bytes: ByteArray) -> HollowIdeFileDocument,
             editor: HollowIdeFileEditor,
         ): HollowIdeFileType {
@@ -64,12 +66,14 @@ class HollowIdeFileType(
                 editor = editor,
                 pathMatcher = { path -> normalized.any { path.endsWith(it, ignoreCase = true) } },
                 requiresContent = requiresContent,
+                actions = actions,
             )
         }
 
         fun fallback(
             id: String,
             priority: Int = Int.MIN_VALUE,
+            actions: List<HollowIdeFileAction> = emptyList(),
             matcher: (path: String, bytes: ByteArray) -> Boolean,
             loader: (path: String, bytes: ByteArray) -> HollowIdeFileDocument,
             editor: HollowIdeFileEditor,
@@ -79,6 +83,7 @@ class HollowIdeFileType(
             matcher = matcher,
             loader = loader,
             editor = editor,
+            actions = actions,
         )
     }
 }

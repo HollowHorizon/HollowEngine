@@ -1,12 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.*
+import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 
 private const val MinSplitFraction = 0.1f
 private const val MaxSplitFraction = 0.9f
 
 class DockingState {
     private val ids = DockIdGenerator()
+
+    var onTabContextMenu: ((DockItem, UiEvent) -> Unit)? = null
 
     var root: DockNode? by mutableStateOf(null)
         private set

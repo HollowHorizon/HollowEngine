@@ -1,11 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
-import org.lwjgl.glfw.GLFW
+import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -126,8 +121,7 @@ private fun Splitter(
         modifier = Modifier.size(if (horizontal) size else 100.percent, if (horizontal) 100.percent else size)
             .input(hoverable = true, draggable = true)
             .cursor(if (horizontal) UiCursorShape.RESIZE_HORIZONTAL else UiCursorShape.RESIZE_VERTICAL)
-            .onPress { dragStartFraction[0] = split.fraction }
-            .onDrag { event ->
+            .onPress { dragStartFraction[0] = split.fraction }.onDrag { event ->
                 val parentSize = if (horizontal) event.parentWidth else event.parentHeight
                 val splitterSize = size.value
                 val paneSize = parentSize - splitterSize
@@ -136,8 +130,7 @@ private fun Splitter(
                     state.setSplitFraction(split.id, dragStartFraction[0] + total / paneSize)
                 }
                 event.consume()
-            }
-    )
+            })
 }
 
 @Composable
@@ -157,10 +150,7 @@ private fun DockStackView(
         Box(
             id = "${stack.id}-content",
             tags = listOf(DockTags.Content),
-            modifier =
-                Modifier.size(100.percent, 0.px)
-                    .grow(1f)
-                    .clip()
+            modifier = Modifier.size(100.percent, 0.px).grow(1f).clip()
         ) {
             key(selected.id) {
                 content(selected)
@@ -182,28 +172,20 @@ private fun FloatingDockWindowView(
     Box(
         id = window.id,
         tags = listOf(DockTags.Window),
-        modifier = Modifier.position(window.x.px, window.y.px)
-            .size(window.width.px, window.height.px)
-            .layer(100 + index)
-            .input(hoverable = true, clickable = true)
-            .onPress {
+        modifier = Modifier.position(window.x.px, window.y.px).size(window.width.px, window.height.px)
+            .layer(100 + index).input(hoverable = true, clickable = true).onPress {
                 state.focus(selected.id)
-            }
-    ) {
+            }) {
         Column(modifier = Modifier.size(100.percent, 100.percent)) {
             FloatingHeader(window, state, headerContent)
             if (window.stack.items.size > 1) DockTabBar(window.stack, state, tabContent, allowUndock = false)
             Box(
                 id = "${window.id}-content",
                 tags = listOf(DockTags.Content),
-                modifier = Modifier.size(100.percent, 0.px)
-                    .grow(1f)
-                    .clip()
-                    .input(hoverable = true, clickable = true)
+                modifier = Modifier.size(100.percent, 0.px).grow(1f).clip().input(hoverable = true, clickable = true)
                     .onPress {
                         state.focus(selected.id)
-                    }
-            ) {
+                    }) {
                 key(selected.id) {
                     content(selected)
                 }
@@ -223,26 +205,19 @@ private fun FloatingHeader(
     Row(
         id = window.dragKey ?: "${window.id}-header",
         tags = listOf(DockTags.Header),
-        modifier = Modifier.size(100.percent, 24.px)
-            .alignItems(vertical = UiAlign.CENTER)
-            .input(hoverable = true, clickable = true, draggable = true)
-            .cursor(UiCursorShape.MOVE)
-            .onPress {
+        modifier = Modifier.size(100.percent, 24.px).alignItems(vertical = UiAlign.CENTER)
+            .input(hoverable = true, clickable = true, draggable = true).cursor(UiCursorShape.MOVE).onPress {
                 state.focus(selected.id)
-            }
-            .onDrag { event ->
+            }.onDrag { event ->
                 state.startDraggingWindow(window.id)
                 state.moveFloating(window.id, event.deltaX, event.deltaY)
                 event.consume()
-            }
-            .onRelease { event ->
+            }.onRelease { _ ->
                 state.finishDraggingWindow()
             },
     ) {
         Box(
-            modifier = Modifier.size(0.px, 100.percent)
-                .grow(1f)
-                .padding(8.px, 0.px)
+            modifier = Modifier.size(0.px, 100.percent).grow(1f).padding(8.px, 0.px)
         ) {
             headerContent(selected)
         }
@@ -311,18 +286,12 @@ private fun DockTab(
             if (selected) add(DockTags.Selected)
             if (item.dirty) add(DockTags.Dirty)
         },
-        modifier =
-            Modifier.size(width = UiLength.Auto, height = DockTabHeight.px)
-                .minSize(width = DockTabMinWidth.px)
-                .maxSize(width = DockTabMaxWidth.px)
-                .alignItems(vertical = UiAlign.CENTER)
-                .layer(layerIndex)
-                .clip()
-                .tabTransform(dragOffset, DockTabOffset.DRAG)
-                .tabTransform(swap?.offset, DockTabOffset.SWAP)
-                .cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND)
-                .input(hoverable = true, clickable = true, draggable = true)
-                .buildTabInputModifier(stackId, item, state, allowUndock)
+        modifier = Modifier.size(width = UiLength.Auto, height = DockTabHeight.px).minSize(width = DockTabMinWidth.px)
+            .maxSize(width = DockTabMaxWidth.px).alignItems(vertical = UiAlign.CENTER).layer(layerIndex).clip()
+            .tabTransform(dragOffset, DockTabOffset.DRAG).tabTransform(swap?.offset, DockTabOffset.SWAP)
+            .cursor(if (allowUndock) UiCursorShape.MOVE else UiCursorShape.HAND)
+            .input(hoverable = true, clickable = true, draggable = true)
+            .buildTabInputModifier(stackId, item, state, allowUndock)
     ) {
         TabContentWrapper(item, tabContent)
 
@@ -363,51 +332,60 @@ private fun Modifier.buildTabInputModifier(
     item: DockItem,
     state: DockingState,
     allowUndock: Boolean,
-): Modifier =
-    onPress { event ->
-        if (event.button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
-            if (item.closable) state.close(item.id)
-            event.consume()
-            return@onPress
-        }
-        state.select(item.id)
-        state.beginTabGrab(stackId, item.id, event.localX, event.localY)
-    }.onClick { event ->
-        if (event.button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
-            if (item.closable) state.close(item.id)
-            event.consume()
-            return@onClick
-        }
-        state.select(item.id)
+): Modifier = onPress { event ->
+    if (event.isMiddleClick()) {
+        if (item.closable) state.close(item.id)
         event.consume()
-    }.onDrag { event ->
-        val grab = state.tabGrab(stackId, item.id)
-
-        if (event.isInsideTabBar()) {
-            state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX)
-            event.consume()
-            return@onDrag
-        }
-
-        if (allowUndock) {
-            state.finishTabDrag()
-            val spaceX = event.localXInAncestor(DockTags.Space) ?: event.rootLocalX
-            val spaceY = event.localYInAncestor(DockTags.Space) ?: event.rootLocalY
-
-            state.beginDraggingTab(
-                itemId = item.id,
-                x = spaceX - (grab?.x ?: event.localX),
-                y = spaceY - (grab?.y ?: event.localY),
-            )?.let { dragStart ->
-                if (!dragStart.created) {
-                    state.moveFloating(dragStart.windowId, event.deltaX, event.deltaY)
-                }
-            }
-            event.consume()
-        }
-    }.onRelease {
-        state.finishTabDrag()
+        return@onPress
     }
+    if (event.isRightClick()) {
+        state.select(item.id)
+        state.onTabContextMenu?.invoke(item, event)
+        event.consume()
+        return@onPress
+    }
+    state.select(item.id)
+    state.beginTabGrab(stackId, item.id, event.localX, event.localY)
+}.onClick { event ->
+    if (event.isMiddleClick()) {
+        if (item.closable) state.close(item.id)
+        event.consume()
+        return@onClick
+    }
+    if (event.isRightClick()) {
+        event.consume()
+        return@onClick
+    }
+    state.select(item.id)
+    event.consume()
+}.onDrag { event ->
+    val grab = state.tabGrab(stackId, item.id)
+
+    if (event.isInsideTabBar()) {
+        state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX)
+        event.consume()
+        return@onDrag
+    }
+
+    if (allowUndock) {
+        state.finishTabDrag()
+        val spaceX = event.localXInAncestor(DockTags.Space) ?: event.rootLocalX
+        val spaceY = event.localYInAncestor(DockTags.Space) ?: event.rootLocalY
+
+        state.beginDraggingTab(
+            itemId = item.id,
+            x = spaceX - (grab?.x ?: event.localX),
+            y = spaceY - (grab?.y ?: event.localY),
+        )?.let { dragStart ->
+            if (!dragStart.created) {
+                state.moveFloating(dragStart.windowId, event.deltaX, event.deltaY)
+            }
+        }
+        event.consume()
+    }
+}.onRelease {
+    state.finishTabDrag()
+}
 
 
 private fun dockTabBarMeasurePolicy(
@@ -450,9 +428,7 @@ private fun dockTabBarMeasurePolicy(
 private fun TabContentWrapper(item: DockItem, tabContent: DockHeaderContent) {
     Box(
         modifier = Modifier.size(UiLength.Auto, 100.percent)
-            .maxSize((DockTabMaxWidth - DockTabCloseWidth).px, 100.percent)
-            .padding(8.px, 0.px)
-            .clip()
+            .maxSize((DockTabMaxWidth - DockTabCloseWidth).px, 100.percent).padding(8.px, 0.px).clip()
     ) {
         tabContent(item)
     }
@@ -464,14 +440,11 @@ private fun CloseButton(item: DockItem, state: DockingState) {
     Box(
         id = "dock-close-${item.id}",
         tags = listOf(DockTags.CloseButton),
-        modifier = Modifier.size(DockTabCloseWidth.px, 100.percent)
-            .input(hoverable = true, clickable = true)
-            .cursor(UiCursorShape.HAND)
-            .onClick { event ->
+        modifier = Modifier.size(DockTabCloseWidth.px, 100.percent).input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND).onClick { event ->
                 state.close(item.id)
                 event.consume()
-            }
-    ) {
+            }) {
         Text("x", modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
     }
 }
@@ -480,9 +453,7 @@ private fun CloseButton(item: DockItem, state: DockingState) {
 private fun DefaultDockTabContent(item: DockItem) {
     Text(
         item.title.lang,
-        modifier = Modifier.align(UiAlign.START, UiAlign.CENTER)
-            .textWrap(false)
-            .textOverflow(UiTextOverflow.DOTS)
+        modifier = Modifier.align(UiAlign.START, UiAlign.CENTER).textWrap(false).textOverflow(UiTextOverflow.DOTS)
     )
 }
 
@@ -490,9 +461,7 @@ private fun DefaultDockTabContent(item: DockItem) {
 private fun DefaultDockHeaderContent(item: DockItem) {
     Text(
         item.title.lang,
-        modifier = Modifier.align(UiAlign.START, UiAlign.CENTER)
-            .textWrap(false)
-            .textOverflow(UiTextOverflow.DOTS)
+        modifier = Modifier.align(UiAlign.START, UiAlign.CENTER).textWrap(false).textOverflow(UiTextOverflow.DOTS)
     )
 }
 

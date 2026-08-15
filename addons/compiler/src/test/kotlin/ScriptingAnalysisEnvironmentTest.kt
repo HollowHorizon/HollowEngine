@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -604,6 +605,161 @@ class ScriptingAnalysisEnvironmentTest {
                 importCompletions.any { it.fqName == "java.net.URI" && !it.import },
                 importCompletions.toString(),
             )
+        }
+    }
+
+    @Test
+    fun `format reindents blocks arguments and continuations`() {
+        withEnvironment { environment ->
+            val source = """
+                fun main() {
+                val values = listOf(
+                1,
+                2,
+                )
+                if (values.isEmpty())
+                return
+                values.map { it + 1 }
+                .forEach {
+                println(it)
+                }
+                }
+            """.trimIndent()
+
+            val formatted = environment.analyzer.format("format.analysis.kts", source)
+
+            assertEquals(
+                """
+                    fun main() {
+                        val values = listOf(
+                            1,
+                            2,
+                        )
+                        if (values.isEmpty())
+                            return
+                        values.map { it + 1 }
+                            .forEach {
+                                println(it)
+                            }
+                    }
+                """.trimIndent() + "\n",
+                formatted,
+            )
+        }
+    }
+
+    @Test
+    fun `format keeps strings comments and line breaks untouched`() {
+        withEnvironment { environment ->
+            val source = """
+                val banner   =   ""${'"'}
+                        keep     me
+                  exactly as typed
+                ""${'"'}
+
+                // a  comment  keeps  its  spacing
+                fun run() {
+                val greeting = "a  b"
+                }
+            """.trimIndent()
+
+            val formatted = environment.analyzer.format("format-literals.analysis.kts", source)
+
+            assertNotNull(formatted)
+            assertTrue(formatted.contains("        keep     me\n  exactly as typed"), formatted)
+            assertTrue(formatted.contains("// a  comment  keeps  its  spacing"), formatted)
+            assertTrue(formatted.contains("""val greeting = "a  b""""), formatted)
+            assertTrue(formatted.contains("\n    val greeting"), formatted)
+            assertEquals(source.count { it == '\n' } + 1, formatted.count { it == '\n' }, "line count is preserved")
+        }
+    }
+
+    @Test
+    fun `format leaves imports annotations and modifiers at the left margin`() {
+        withEnvironment { environment ->
+            val source = """
+                @file:Suppress("unused")
+                @file:JvmName("Demo")
+
+                import java.io.File
+                import java.nio.file.Path
+                import java.net.URI
+
+                @Deprecated("old")
+                fun first(): File? = null
+
+                @Deprecated("old")
+                private fun second(): Path? = null
+            """.trimIndent()
+
+            val formatted = environment.analyzer.format("format-imports.analysis.kts", source)
+
+            // Only the missing trailing newline separates it from what was already correct.
+            assertEquals(source + "\n", formatted)
+        }
+    }
+
+    @Test
+    fun `format spaces conditions lambdas and operators`() {
+        withEnvironment { environment ->
+            val source = """
+                fun run(values:List<Int>):Int{
+                if(values.isEmpty())return 0
+                val doubled = values.map{it*2}
+                val sum=doubled.fold(0){acc,value->acc+value}
+                return sum
+                }
+            """.trimIndent()
+
+            val formatted = environment.analyzer.format("format-spacing.analysis.kts", source)
+
+            assertEquals(
+                """
+                    fun run(values: List<Int>): Int {
+                        if (values.isEmpty()) return 0
+                        val doubled = values.map { it * 2 }
+                        val sum = doubled.fold(0) { acc, value -> acc + value }
+                        return sum
+                    }
+                """.trimIndent() + "\n",
+                formatted,
+            )
+        }
+    }
+
+    @Test
+    fun `format keeps prefixes ranges and calls tight`() {
+        withEnvironment { environment ->
+            val source = """
+                fun run(values: IntArray) {
+                    val range = 1..10
+                    val negative = -1
+                    val copy = intArrayOf( *values )
+                    val first = values [ 0 ]
+                    val text = copy.joinToString ( "," )
+                    val nullable: Int ? = null
+                    println(range.first + negative + first + text.length + (nullable ?: 0))
+                }
+            """.trimIndent()
+
+            val formatted = environment.analyzer.format("format-tight.analysis.kts", source)
+
+            assertNotNull(formatted)
+            assertTrue(formatted.contains("val range = 1..10"), formatted)
+            assertTrue(formatted.contains("val negative = -1"), formatted)
+            assertTrue(formatted.contains("intArrayOf(*values)"), formatted)
+            assertTrue(formatted.contains("val first = values[0]"), formatted)
+            assertTrue(formatted.contains("""copy.joinToString(",")"""), formatted)
+            assertTrue(formatted.contains("val nullable: Int? = null"), formatted)
+        }
+    }
+
+    @Test
+    fun `format returns null when nothing changes`() {
+        withEnvironment { environment ->
+            val source = "val answer = 42\n"
+
+            assertNull(environment.analyzer.format("format-clean.analysis.kts", source))
         }
     }
 

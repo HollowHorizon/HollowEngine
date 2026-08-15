@@ -15,6 +15,15 @@ interface ScriptingAnalyzer {
      */
     fun completions(name: String, text: String, offset: Int, sink: CompletionSink) = Unit
 
+    /** Whether [format] does anything here; the editor hides its reformat action when it does not. */
+    val canFormat: Boolean get() = false
+
+    /**
+     * Reformats the whole file and returns the new text, or null when the language has no formatter
+     * or the text is already formatted.
+     */
+    fun format(name: String, text: String): String? = null
+
     fun definition(name: String, text: String, offset: Int): DefinitionLocation? = null
     fun signatureHelp(name: String, text: String, offset: Int): SignatureHelp? = null
     fun hover(name: String, text: String, offset: Int): HoverInfo? = null

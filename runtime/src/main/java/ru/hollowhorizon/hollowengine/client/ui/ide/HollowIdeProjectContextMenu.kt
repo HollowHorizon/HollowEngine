@@ -92,7 +92,7 @@ private fun ProjectMenuItem(label: String, shortcut: String, icon: String? = nul
     ) {
         if (icon != null) Image(icon, tags = listOf("dropdown-item-icon", "project-context-menu-icon"))
         Text(label, tags = listOf("dropdown-item-label", "project-context-menu-label"))
-        if (shortcut.isNotBlank()) Text(shortcut, tags = listOf("dropdown-item-label", "project-context-menu-shortcut"))
+        if (shortcut.isNotBlank()) Text(shortcut, tags = listOf("dropdown-item-shortcut", "project-context-menu-shortcut"))
     }
 }
 

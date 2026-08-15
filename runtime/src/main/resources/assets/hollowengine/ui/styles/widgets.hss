@@ -62,6 +62,12 @@
     grow: 1;
 }
 
+.dropdown-item-shortcut {
+    wrap: false;
+    align: end center;
+    foreground: #7f8a9d;
+}
+
 .dropdown-item:hover {
     background: #31343D;
 }

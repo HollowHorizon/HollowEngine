@@ -53,8 +53,15 @@ enum class UiSvgTextAnchor {
     END,
 }
 
+/** Which parts of a self-overlapping path count as inside it. */
+enum class UiSvgFillRule {
+    NON_ZERO,
+    EVEN_ODD,
+}
+
 data class UiSvgStyle(
     val fill: UiColor? = UiColor.Black,
+    val fillRule: UiSvgFillRule = UiSvgFillRule.NON_ZERO,
     val stroke: UiColor? = null,
     val strokeWidth: Float = 1f,
     val strokeLineCap: UiSvgStrokeLineCap = UiSvgStrokeLineCap.BUTT,
@@ -238,6 +245,16 @@ internal fun rectPath(x: Float, y: Float, width: Float, height: Float): UiPath {
         lineTo(x, y + height)
         close()
     }
+}
+
+/**
+ * Rewrites an even-odd path into contours that a plain non-zero fill draws identically, so the
+ * tessellator downstream never has to know about fill rules.
+ */
+internal fun UiPath.withFillRule(rule: UiSvgFillRule): UiPath {
+    if (rule == UiSvgFillRule.NON_ZERO || isEmpty()) return this
+    val evenOdd = toAwtPath().also { it.setWindingRule(Path2D.WIND_EVEN_ODD) }
+    return Area(evenOdd).toUiPath()
 }
 
 internal fun UiPath.intersectedWith(mask: UiPath): UiPath {

@@ -82,6 +82,11 @@ internal class HollowIdeModel(
         tree.toggle(node.path)
     }
 
+    fun revealPath(path: String) {
+        tree.expandTo(path)
+        selectPath(path)
+    }
+
     fun open(node: HollowIdeFileNode, additive: Boolean = false): HollowIdeOpenResult {
         select(node, additive)
         if (node.isDirectory) {
@@ -428,6 +433,21 @@ internal class HollowIdeFileTree {
         if (!node.isDirectory) return
         node.expanded = !node.expanded
         if (node.expanded) node.refresh()
+    }
+
+    /** Opens every folder on the way to [path] so the node is actually visible in the tree. */
+    fun expandTo(path: String) {
+        var node = root
+        var prefix = ""
+        for (segment in path.split('/')) {
+            if (segment.isEmpty()) continue
+            prefix = if (prefix.isEmpty()) segment else "$prefix/$segment"
+            node = node.children.firstOrNull { it.path == prefix } ?: return
+            if (node.isDirectory && !node.expanded) {
+                node.expanded = true
+                node.refresh()
+            }
+        }
     }
 
     fun visible(filter: String): List<HollowIdeFileNode> {

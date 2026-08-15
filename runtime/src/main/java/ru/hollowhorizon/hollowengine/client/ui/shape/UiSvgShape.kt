@@ -204,17 +204,13 @@ private class SvgParseSession(
         val result = mutableListOf<UiSvgPathElement>()
 
         context.style.fillColor()?.let { color ->
-            appendElementPath(result, sourcePath, context, id, color)
+            appendElementPath(result, sourcePath.withFillRule(context.style.fillRule), context, id, color)
         }
 
         val strokePath = sourcePath.toSvgStrokePath(context.style)
         val strokeColor = context.style.strokeColor()
         if (strokePath != null && strokeColor != null) {
             appendElementPath(result, strokePath, context, id, strokeColor)
-        }
-
-        if (result.isEmpty() && strokeColor == null) {
-            appendElementPath(result, sourcePath, context, id, UiColor.White)
         }
 
         return result
