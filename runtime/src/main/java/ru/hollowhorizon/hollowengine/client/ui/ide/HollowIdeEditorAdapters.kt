@@ -153,6 +153,7 @@ internal class HollowIdeEditorSession(
         }
     }
 
+    val canFormat: Boolean get() = currentAnalyzer().canFormat
 
     /**
      * Reformats off the render thread and hands the result back on it. `null` means the language
