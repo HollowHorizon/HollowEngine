@@ -57,7 +57,13 @@ internal fun editableFieldCompletionGeometry(
     val aboveSpace = caretY - CompletionPopupAnchorGap - CompletionPopupViewportMargin
     val minimumHeight = popupMinimumHeight(rowHeight, footerHeight)
     val useViewportHeight = belowSpace < minimumHeight && aboveSpace < minimumHeight
-    val useBelow = !useViewportHeight && (belowSpace >= minimumHeight || belowSpace >= aboveSpace)
+    val preferBelow = caretY + textHeight / 2f <= viewportHeight / 2f
+    val useBelow = !useViewportHeight && when {
+        preferBelow && belowSpace >= minimumHeight -> true
+        !preferBelow && aboveSpace >= minimumHeight -> false
+        belowSpace >= minimumHeight -> true
+        else -> false
+    }
     val availableHeight = when {
         useViewportHeight -> viewportHeight - CompletionPopupViewportMargin * 2f
         useBelow -> belowSpace
