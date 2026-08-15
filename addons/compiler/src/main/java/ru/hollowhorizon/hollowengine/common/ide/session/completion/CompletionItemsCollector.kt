@@ -83,6 +83,10 @@ internal class CompletionItemsCollector(
         this.items += items
     }
 
+    fun add(item: CompletionItem) {
+        items += item
+    }
+
     context(_: KaSession)
     @Suppress("FunctionName")
     private fun _add(symbol: KaDeclarationSymbol?, modify: (DeclarationCompletionItemBuilder.() -> Unit)?) {

@@ -1,8 +1,13 @@
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import java.io.File
 import kotlin.test.Test
@@ -13,10 +18,35 @@ import kotlin.test.assertTrue
 
 abstract class AnalysisScript
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScriptingAnalysisEnvironmentTest {
+    private val fixture = AnalysisEnvironmentTestFixture {
+        ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = ".analysis.kts",
+                    baseClass = AnalysisScript::class.qualifiedName!!,
+                    defaultImports = listOf(File::class.qualifiedName!!, "java.nio.file.*"),
+                )
+            ),
+            mappings = Mappings.EMPTY,
+        )
+    }
+
+    @BeforeAll
+    fun startEnvironment() = fixture.start()
+
+    @AfterEach
+    fun resetEnvironment() = fixture.reset()
+
+    @AfterAll
+    fun closeEnvironment() = fixture.close()
+
     @Test
     fun `class literal attachment resolves default imports explicit imports and aliases for analysis`() {
-        withEnvironment(defaultImports = listOf(File::class.qualifiedName!!, "java.nio.file.*")) { environment ->
+        withEnvironment { environment ->
             val scripts = listOf(
                 "default-class.analysis.kts" to """
                     @file:Attach(File::class)
@@ -341,30 +371,59 @@ class ScriptingAnalysisEnvironmentTest {
         }
     }
 
-    private fun withEnvironment(
-        defaultImports: List<String> = listOf(File::class.qualifiedName!!),
-        block: (ScriptingEnvironmentImpl) -> Unit,
-    ) {
-        val environment = ScriptingEnvironmentImpl(
-            javaHome = File(System.getProperty("java.home")),
-            classpath = testClasspath(),
-            scriptTypes = listOf(
-                ScriptClassProvider(
-                    extension = ".analysis.kts",
-                    baseClass = AnalysisScript::class.qualifiedName!!,
-                    defaultImports = defaultImports,
-                )
-            ),
-            mappings = Mappings.EMPTY,
-        )
+    @Test
+    fun `completion finds importable Java classes`() {
+        withEnvironment { environment ->
+            val typeText = "val connection: UR"
+            val typeCompletions = environment.analyzer.completions(
+                "java-type-completion.analysis.kts",
+                typeText,
+                typeText.length,
+            ).filterIsInstance<CompletionItem.Declaration>()
 
-        try {
-            block(environment)
-        } finally {
-            environment.close()
-            File("hollowengine").deleteRecursively()
+            val uri = typeCompletions.single { it.fqName == "java.net.URI" }
+            assertEquals("URI", uri.name)
+            assertTrue(uri.import)
+
+            val nestedTypeText = "val entry: Entr"
+            val nestedTypeCompletions = environment.analyzer.completions(
+                "java-nested-type-completion.analysis.kts",
+                nestedTypeText,
+                nestedTypeText.length,
+            ).filterIsInstance<CompletionItem.Declaration>()
+
+            val entry = nestedTypeCompletions.single { it.fqName == "java.util.Map.Entry" }
+            assertEquals("Entry", entry.name)
+            assertTrue(entry.import)
+
+            val annotationText = "@Rete"
+            val annotationCompletions = environment.analyzer.completions(
+                "java-annotation-completion.analysis.kts",
+                annotationText,
+                annotationText.length,
+            ).filterIsInstance<CompletionItem.Declaration>()
+
+            assertTrue(
+                annotationCompletions.any { it.fqName == "java.lang.annotation.Retention" && it.import },
+                annotationCompletions.toString(),
+            )
+            assertFalse(annotationCompletions.any { it.fqName == "java.lang.Record" })
+
+            val importText = "import java.net.UR"
+            val importCompletions = environment.analyzer.completions(
+                "java-import-completion.analysis.kts",
+                importText,
+                importText.length,
+            ).filterIsInstance<CompletionItem.Declaration>()
+
+            assertTrue(
+                importCompletions.any { it.fqName == "java.net.URI" && !it.import },
+                importCompletions.toString(),
+            )
         }
     }
+
+    private fun withEnvironment(block: (ScriptingEnvironmentImpl) -> Unit) = block(fixture.environment)
 
     private fun writeSandboxScript(path: String, text: String) {
         File("hollowengine/scripts", path).apply {

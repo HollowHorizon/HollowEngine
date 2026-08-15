@@ -60,6 +60,7 @@ import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
 import org.jetbrains.kotlin.serialization.deserialization.METADATA_FILE_EXTENSION
 import org.jetbrains.kotlin.serialization.deserialization.builtins.BuiltInSerializerProtocol
+import ru.hollowhorizon.hollowengine.common.ide.session.index.JavaClassNameIndex
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaJarLibraryModuleImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaJdkLibraryModuleImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
@@ -80,6 +81,10 @@ class AnalysisEnvironment(
     private val projectDisposable = Disposer.newDisposable("AnalysisEnvironment")
     private val compilerPluginSupport = AnalysisCompilerPluginSupport.create()
     private var scriptConfigurationsProvider: ClassLiteralScriptConfigurationsProvider? = null
+    private val resolvedJavaHome = javaHome ?: Path.of(System.getProperty("java.home"))
+    private val jdkClasses = LibraryUtils.findClassesFromJdkHome(resolvedJavaHome, isJre = true)
+        .ifEmpty { LibraryUtils.findClassesFromJdkHome(resolvedJavaHome, isJre = false) }
+        .distinct()
     val kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment
     val project: MockProject
     val analyzer: ScriptingAnalyzerImpl
@@ -263,6 +268,9 @@ class AnalysisEnvironment(
                 "com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactory",
                 "com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactoryImpl",
             )
+            application.registerApplicationServiceIfMissing(
+                "org.jetbrains.kotlin.analysis.api.standalone.base.declarations.KotlinStandaloneIndexCache",
+            )
         }
     }
 
@@ -310,14 +318,10 @@ class AnalysisEnvironment(
         val libraries = mutableListOf<KaRekotLibraryModule>()
 
         // Добавление JDK
-        val jdkHome = javaHome ?: Path.of(System.getProperty("java.home"))
-        val jdkClasses = LibraryUtils.findClassesFromJdkHome(jdkHome, isJre = true)
-            .ifEmpty { LibraryUtils.findClassesFromJdkHome(jdkHome, isJre = false) }
-
         libraries.add(
             KaJdkLibraryModuleImpl(
-                jdkHome,
-                jdkClasses.distinct(),
+                resolvedJavaHome,
+                jdkClasses,
                 "JDK",
                 kotlinCoreProjectEnvironment.project,
             )
@@ -344,7 +348,7 @@ class AnalysisEnvironment(
             kotlinCoreProjectEnvironment,
             projectStructureProvider,
             HollowEngineLanguageSettings.INSTANCE,
-            javaHome,
+            resolvedJavaHome,
         )
 
         project.apply {
@@ -378,7 +382,13 @@ class AnalysisEnvironment(
 
             registerService(
                 KotlinDeclarationProviderFactory::class.java,
-                SimpleDeclarationProviderFactory(kotlinCoreProjectEnvironment, builtins, classpath)
+                SimpleDeclarationProviderFactory(
+                    kotlinCoreProjectEnvironment,
+                    builtins,
+                    jdkClasses + classpath,
+                ).also { declarationProviderFactory ->
+                    registerService(JavaClassNameIndex::class.java, declarationProviderFactory.javaClassNameIndex)
+                }
             )
 
             registerService(
@@ -617,6 +627,10 @@ class AnalysisEnvironment(
         scriptConfigurationsProvider?.close()
         Disposer.dispose(projectDisposable)
     }
+
+    fun warmUpClassIndex() {
+        JavaClassNameIndex.getInstance(project).warmUp()
+    }
 }
 
 private fun SourceCode.matchesExtension(extension: String): Boolean {
@@ -641,6 +655,12 @@ private fun MockApplication.registerApplicationServiceIfMissing(
     val serviceImplementation = loadClass<Any>(serviceImplementationName).asSubclass(serviceInterface)
     if (picoContainer.getComponentAdapter(serviceInterface) != null) return
     registerApplicationServiceClass(serviceInterface, serviceImplementation)
+}
+
+private fun MockApplication.registerApplicationServiceIfMissing(serviceImplementationName: String) {
+    val serviceImplementation = loadClass<Any>(serviceImplementationName)
+    if (picoContainer.getComponentAdapter(serviceImplementation) != null) return
+    registerService(serviceImplementation)
 }
 
 private fun <T : Any> MockProject.registerServiceIfMissing(

@@ -4,7 +4,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.impl.PsiManagerEx
 import com.intellij.psi.search.GlobalSearchScope
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.impl.base.util.LibraryUtils
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinCompositeDeclarationProvider
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProvider
@@ -19,6 +18,7 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import ru.hollowhorizon.hollowengine.common.ide.session.index.JavaClassNameIndex
 import java.nio.file.Path
 
 class SimpleDeclarationProviderFactory(
@@ -30,13 +30,8 @@ class SimpleDeclarationProviderFactory(
     // Храним список активных скриптов, чтобы искать в них объявления
     private val registeredScripts = mutableListOf<KtFile>()
 
-    private val jdkHome = Path.of(System.getProperty("java.home"))
-
-    @OptIn(KaImplementationDetail::class)
-    private val jdkClasses = LibraryUtils.findClassesFromJdkHome(jdkHome, isJre = true)
-        .ifEmpty { LibraryUtils.findClassesFromJdkHome(jdkHome, isJre = false) }
-
-    private val virtualFiles = getVirtualFilesByRoots(jdkClasses + binaryRoots, projectEnvironment)
+    private val virtualFiles = getVirtualFilesByRoots(binaryRoots, projectEnvironment)
+    internal val javaClassNameIndex = JavaClassNameIndex(virtualFiles)
 
     init {
         Disposer.register(projectEnvironment.parentDisposable) {
@@ -48,7 +43,7 @@ class SimpleDeclarationProviderFactory(
         projectEnvironment.project,
         projectEnvironment.environment,
         sourceKtFiles = emptyList(), // Сюда ничего не передаем, исходники обрабатываем вручную ниже
-        binaryRoots = virtualFiles,
+        sharedBinaryRoots = virtualFiles,
         shouldBuildStubsForBinaryLibraries = true, // Важно для скорости и корректности
         skipBuiltins = true
     )
@@ -98,8 +93,8 @@ class SimpleDeclarationProviderFactory(
     }
 
     fun dispose() {
-        virtualFiles.forEach {
-            cleanPsiForVirtualFile(it)
+        virtualFiles.forEach { root ->
+            LibraryUtils.getAllVirtualFilesFromRoot(root, includeRoot = true).forEach(::cleanPsiForVirtualFile)
         }
     }
 
@@ -121,6 +116,3 @@ fun getVirtualFilesByRoots(
     kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment,
 ): List<VirtualFile> =
     StandaloneProjectFactory.getVirtualFilesForLibraryRoots(roots, kotlinCoreProjectEnvironment.environment).distinct()
-        .flatMap {
-            LibraryUtils.getAllVirtualFilesFromRoot(it, includeRoot = true)
-        }

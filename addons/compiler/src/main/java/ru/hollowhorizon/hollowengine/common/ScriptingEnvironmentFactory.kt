@@ -129,7 +129,7 @@ class ScriptingEnvironmentImpl(
         Dispatchers.Default + CoroutineName("HollowEngine-AnalysisWarmup"),
     ) {
         try {
-            analyzer
+            analysisEnvironment().warmUpClassIndex()
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: Throwable) {

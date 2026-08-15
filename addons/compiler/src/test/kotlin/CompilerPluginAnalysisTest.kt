@@ -1,6 +1,10 @@
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.Computable
 import org.jetbrains.kotlin.fir.FirSession
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
@@ -13,7 +17,35 @@ import kotlin.test.assertTrue
 
 abstract class CompilerPluginAnalysisScript
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CompilerPluginAnalysisTest {
+    private val fixture = AnalysisEnvironmentTestFixture {
+        ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = ".analysis.kts",
+                    baseClass = CompilerPluginAnalysisScript::class.qualifiedName!!,
+                ),
+                ScriptClassProvider(
+                    extension = "ui.kts",
+                    baseClass = "ru.hollowhorizon.hollowengine.common.scripting.ui.UiScript",
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+    }
+
+    @BeforeAll
+    fun startEnvironment() = fixture.start()
+
+    @AfterEach
+    fun resetEnvironment() = fixture.reset()
+
+    @AfterAll
+    fun closeEnvironment() = fixture.close()
+
     @Test
     fun `analysis understands compose function types and call context`() {
         withEnvironment { environment ->
@@ -141,28 +173,7 @@ class CompilerPluginAnalysisTest {
     }
 
     private fun withEnvironment(block: (ScriptingEnvironmentImpl) -> Unit) {
-        val environment = ScriptingEnvironmentImpl(
-            javaHome = File(System.getProperty("java.home")),
-            classpath = testClasspath(),
-            scriptTypes = listOf(
-                ScriptClassProvider(
-                    extension = ".analysis.kts",
-                    baseClass = CompilerPluginAnalysisScript::class.qualifiedName!!,
-                ),
-                ScriptClassProvider(
-                    extension = "ui.kts",
-                    baseClass = "ru.hollowhorizon.hollowengine.common.scripting.ui.UiScript",
-                ),
-            ),
-            mappings = Mappings.EMPTY,
-        )
-
-        try {
-            block(environment)
-        } finally {
-            environment.close()
-            File("hollowengine").deleteRecursively()
-        }
+        block(fixture.environment)
     }
 
     private fun assertNoErrors(diagnostics: List<Diagnostic>) {

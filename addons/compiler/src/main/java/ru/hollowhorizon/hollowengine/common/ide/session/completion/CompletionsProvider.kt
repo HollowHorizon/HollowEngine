@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.common.ide.session.completion
 import com.intellij.codeInsight.completion.PlainPrefixMatcher
 import com.intellij.codeInsight.completion.PrefixMatcher
 import com.intellij.codeInsight.lookup.LookupElementPresentation
-import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -28,6 +27,8 @@ import org.jetbrains.kotlin.psi.psiUtil.getCallNameExpression
 import org.jetbrains.kotlin.types.Variance
 import ru.hollowhorizon.hollowengine.common.ide.session.ScriptingAnalyzerImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.KeywordCompletion
+import ru.hollowhorizon.hollowengine.common.ide.session.index.JavaClassName
+import ru.hollowhorizon.hollowengine.common.ide.session.index.JavaClassNameIndex
 import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
@@ -143,7 +144,7 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                     if ("this".startsWith(position.prefix)) completeThisKeyword(ktFile, parentKtElement)
                 }
 
-                is CompletionPosition.Type -> completeType(ktFile, parentKtElement, filter)
+                is CompletionPosition.Type -> completeType(ktFile, parentKtElement, filter, position.isAnnotation)
                 is CompletionPosition.NestedType -> completeNestedType(position)
                 is CompletionPosition.Package -> completePackage(ktFile, position.fqName, filter, position.onlyPackages)
             }
@@ -355,10 +356,21 @@ private fun CompletionItemsCollector.completeIdentifier(file: KtFile, element: K
 }
 
 context(session: KaSession)
-private fun CompletionItemsCollector.completeClassesWithImport(file: KtFile) {
+private fun CompletionItemsCollector.completeClassesWithImport(
+    file: KtFile,
+    annotationsOnly: Boolean = false,
+) = with(session) {
+    val kotlinClassFqNames = mutableSetOf<String>()
     for (declaration in getKotlinDeclarationsFromIndex(file, nameFilter)) {
+        if (declaration is KaClassLikeSymbol) {
+            declaration.importableFqName?.asString()?.let(kotlinClassFqNames::add)
+        }
         add(declaration) { withImport() }
     }
+
+    JavaClassNameIndex.getInstance(file.project).classes(nameFilter, annotationsOnly)
+        .filterNot { javaClass -> javaClass.fqName in kotlinClassFqNames }
+        .forEach { javaClass -> addJavaClass(javaClass, import = true) }
 }
 
 context(kaSession: KaSession)
@@ -412,17 +424,9 @@ private fun CompletionItemsCollector.completePackage(
     onlyPackages: Boolean,
 ) = with(kaSession) {
     val subPackageNames = mutableSetOf<String>()
+    val javaClassNameIndex = JavaClassNameIndex.getInstance(ktFile.project)
 
-    val javaPsiFacade = runCatching { JavaPsiFacade.getInstance(ktFile.project) }.getOrNull()
-    if (javaPsiFacade != null) {
-        val psiPackage = javaPsiFacade.findPackage(fqName.asString())
-        psiPackage?.subPackages?.forEach { subPkg ->
-            val name = subPkg.name
-            if (name != null && filter(Name.identifier(name))) {
-                subPackageNames.add(name)
-            }
-        }
-    }
+    javaClassNameIndex.subPackages(fqName, filter).forEach { name -> subPackageNames.add(name.asString()) }
 
     val declarationProvider = KotlinDeclarationProviderFactory.getInstance(ktFile.project)
         .createDeclarationProvider(analysisScope, useSiteModule)
@@ -449,25 +453,51 @@ private fun CompletionItemsCollector.completePackage(
 
     if (!onlyPackages && !fqName.isRoot) {
         val packageSymbol = findPackage(fqName)
+        val resolvedClassFqNames = mutableSetOf<String>()
 
         if (packageSymbol != null) {
             val classifiers = packageSymbol.packageScope.classifiers(filter)
-            add(classifiers) { import = false }
+            classifiers.forEach { classifier ->
+                classifier.importableFqName?.asString()?.let(resolvedClassFqNames::add)
+                add(classifier) { import = false }
+            }
 
             val callables = packageSymbol.packageScope.callables(filter)
             add(callables) { import = false }
         }
+
+        javaClassNameIndex.classesInPackage(fqName, filter)
+            .filterNot { javaClass -> javaClass.fqName in resolvedClassFqNames }
+            .forEach { javaClass -> addJavaClass(javaClass, import = false) }
     }
+}
+
+private fun CompletionItemsCollector.addJavaClass(javaClass: JavaClassName, import: Boolean) {
+    val containerName = javaClass.fqName.substringBeforeLast('.', missingDelimiterValue = "")
+    add(declarationCompletionItem {
+        show = javaClass.name.asString()
+        insert = javaClass.name.asString()
+        name = javaClass.name.asString()
+        tag = CompletionItemTag.CLASS
+        fqName = javaClass.fqName
+        tail = containerName.takeIf(String::isNotEmpty)?.let { " ($it)" }
+        this.import = import
+    })
 }
 
 
 context(kaSession: KaSession)
-private fun CompletionItemsCollector.completeType(file: KtFile, element: KtElement, nameFilter: (Name) -> Boolean) =
+private fun CompletionItemsCollector.completeType(
+    file: KtFile,
+    element: KtElement,
+    nameFilter: (Name) -> Boolean,
+    annotationsOnly: Boolean,
+) =
     with(kaSession) {
         for (scope in file.scopeContext(element).scopes) {
             add(scope.scope.classifiers(nameFilter))
         }
-        completeClassesWithImport(file)
+        completeClassesWithImport(file, annotationsOnly)
     }
 
 context(kaSession: KaSession)
