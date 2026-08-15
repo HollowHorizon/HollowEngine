@@ -22,9 +22,10 @@ HollowEngine is a content creation engine for Minecraft. It combines Kotlin scri
 ## What It Provides
 
 - In-game IDE with syntax highlighting and code analysis
-- Kotlin script autocompletion and execution
-- Block-based visual programming
-- Runtime support for custom events, commands, entities, and levels
+- Kotlin Scripting with full access to the game's classes without having to re-enter the game
+- A custom language for writing dialogues in the style of Ink / Yarn Spinner
+- Advanced model system (.gltf, .obj, .fbx, .geo.json)
+- Advanced UI framework that includes a Compose-like DSL, a CSS-like styling system, 3D transformations, masks, and effects
 - NPC tooling with models, textures, animations, and interactions
 - Scene and camera tooling for cinematic workflows
 - Embedded asset, resource pack, and datapack loading
@@ -34,12 +35,12 @@ HollowEngine is a content creation engine for Minecraft. It combines Kotlin scri
 - Minecraft `1.21.1`
 - Fabric
 - NeoForge
-- Kotlin `2.3.0`
+- Kotlin `2.4.0`
 
 ## Project Layout
 
 - `runtime/`: main engine, UI, gameplay integration, tests
-- `bridge/`: shared compatibility layer
+- `bridge/`: shared compatibility layer (bootstrap <---> bridge <---> runtime)
 - `bootstrap/`: shared bootstrap code and resources
 - `bootstrap-fabric/`: Fabric bootstrap implementation
 - `bootstrap-neoforge/`: NeoForge bootstrap implementation
@@ -48,7 +49,7 @@ HollowEngine is a content creation engine for Minecraft. It combines Kotlin scri
 ## Quick Start
 
 1. Install the platform-specific HollowEngine jar for Fabric or NeoForge into your `mods/` folder.
-2. If you use the compiler workflow, place `HollowEngineCompiler.jar` in the `hollowengine/addons/` directory. The compiler is loaded and managed as a HollowEngine addon.
+2. If you use the compiler workflow, place `HollowEngineCompiler-*.jar` in the `hollowengine/addons/` directory. The compiler is loaded and managed as a HollowEngine addon.
 3. Start Minecraft.
 4. Open the in-game editor and begin creating content.
 
@@ -58,13 +59,7 @@ Use the Gradle wrapper from the repository root:
 
 - `.\gradlew.bat buildAndCollect` - build enabled bootstrap platforms and collect outputs into `merged/`
 - `.\gradlew.bat test` - run JVM tests
-- `.\gradlew.bat :runtime:build` - build the runtime module
-- `.\gradlew.bat :bridge:build` - build the bridge module
-- `.\gradlew.bat :addons:compiler:build` - build only the compiler addon
 - `.\gradlew.bat buildAddons` - build and collect every addon, including the compiler
-- `.\gradlew.bat :bootstrap:fabric:build` - build the Fabric bootstrap
-- `.\gradlew.bat :bootstrap:neoforge:build` - build the NeoForge bootstrap
-- `.\gradlew.bat projects` - inspect the current project graph
 
 ## Links
 
