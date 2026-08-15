@@ -37,8 +37,6 @@ object JavaScriptingAnalyzer : ScriptingAnalyzer {
         return TextLine(tokenizeLine(line, startsInBlockComment = false).first, ArrayList())
     }
 
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> = emptyList()
-
     override fun diagnostic(name: String, text: String): List<Diagnostic> = emptyList()
 
     private fun tokenizeLine(
@@ -147,8 +145,6 @@ object PlainTextScriptingAnalyzer : ScriptingAnalyzer {
     override fun highlight(name: String, text: String, offset: Int): List<TextLine> {
         return text.lines().map { line -> TextLine(listOf(line to defaultStyle), ArrayList()) }
     }
-
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> = emptyList()
 
     override fun diagnostic(name: String, text: String): List<Diagnostic> = emptyList()
 }

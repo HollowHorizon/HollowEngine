@@ -100,7 +100,7 @@ class CompilerPluginAnalysisTest {
             """.trimIndent()
             val caret = completionCode.indexOf("<caret>")
             val source = completionCode.replace("<caret>", "")
-            val completions = environment.analyzer.completions(
+            val completions = environment.analyzer.collectCompletions(
                 "completion.ui.kts",
                 source,
                 caret,
@@ -160,7 +160,7 @@ class CompilerPluginAnalysisTest {
             """.trimIndent()
             val caret = completionCode.indexOf("<caret>")
             val source = completionCode.replace("<caret>", "")
-            val completions = environment.analyzer.completions(
+            val completions = environment.analyzer.collectCompletions(
                 "serialization-completion.analysis.kts",
                 source,
                 caret,

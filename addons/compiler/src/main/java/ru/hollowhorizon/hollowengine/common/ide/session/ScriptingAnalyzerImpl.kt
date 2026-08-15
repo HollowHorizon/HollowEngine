@@ -254,9 +254,9 @@ class ScriptingAnalyzerImpl(
     }
 
     @Synchronized
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
+    override fun completions(name: String, text: String, offset: Int, sink: CompletionSink) {
         val file = getOrCreateFile(name, text)
-        return createCompletions(file, offset)
+        createCompletions(file, offset, sink)
     }
 
     @Synchronized

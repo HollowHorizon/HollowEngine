@@ -5,6 +5,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.BoxNode
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.UiEventKind
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionCloseness
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -191,6 +192,66 @@ class TextFieldCompletionStateTest {
         completion.onFrame(revision = 1L)
         assertTrue(completion.active)
         assertEquals("wordy", completion.items.single().label)
+    }
+
+    @Test
+    fun `equally matching items are ordered by closeness`() {
+        val (_, completion) = editor("")
+        completion.contributor = UiCompletionContributor {
+            listOf(
+                UiTextCompletion(label = "MinecraftServer", closeness = CompletionCloseness.IMPORTED),
+                UiTextCompletion(label = "amount", closeness = CompletionCloseness.LOCAL),
+                UiTextCompletion(label = "level", closeness = CompletionCloseness.MEMBER),
+            )
+        }
+
+        completion.open()
+
+        assertEquals(listOf("amount", "level", "MinecraftServer"), completion.items.map { it.label })
+    }
+
+    @Test
+    fun `streamed batches keep the selection on the same item`() {
+        val (_, completion) = editor("va")
+        var streamed = listOf(UiTextCompletion(label = "value"), UiTextCompletion(label = "valueOf"))
+        completion.contributor = UiCompletionContributor { streamed }
+        completion.open()
+
+        assertTrue(completion.moveSelection(1))
+        assertEquals("valueOf", completion.items[completion.selectedIndex].label)
+
+        streamed = streamed + UiTextCompletion(label = "valid")
+        completion.onFrame(revision = 1L)
+
+        assertEquals(3, completion.items.size)
+        assertEquals("valueOf", completion.items[completion.selectedIndex].label)
+    }
+
+    @Test
+    fun `an untouched selection follows the best match while results stream in`() {
+        val (_, completion) = editor("va")
+        var streamed = listOf(UiTextCompletion(label = "valueOf"))
+        completion.contributor = UiCompletionContributor { streamed }
+        completion.open()
+        assertEquals("valueOf", completion.items[completion.selectedIndex].label)
+
+        streamed = streamed + UiTextCompletion(label = "value")
+        completion.onFrame(revision = 1L)
+
+        assertEquals("value", completion.items[completion.selectedIndex].label)
+    }
+
+    @Test
+    fun `typing again puts the selection back on the best match`() {
+        val (state, completion) = editor("va")
+        completion.contributor = contributorOf("value", "valueOf")
+        completion.open()
+        assertTrue(completion.moveSelection(1))
+
+        state.typeCharacter('l')
+        completion.onCharTyped('l')
+
+        assertEquals(0, completion.selectedIndex)
     }
 
     @Test

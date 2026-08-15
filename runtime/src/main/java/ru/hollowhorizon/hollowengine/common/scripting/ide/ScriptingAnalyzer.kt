@@ -10,11 +10,24 @@ interface ScriptingAnalyzer {
         return TextLine(listOf(line to SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)), ArrayList())
     }
 
-    fun completions(name: String, text: String, offset: Int): List<CompletionItem>
+    /**
+     * Streams completions to [sink] rather than returning them.
+     */
+    fun completions(name: String, text: String, offset: Int, sink: CompletionSink) = Unit
+
     fun definition(name: String, text: String, offset: Int): DefinitionLocation? = null
     fun signatureHelp(name: String, text: String, offset: Int): SignatureHelp? = null
     fun hover(name: String, text: String, offset: Int): HoverInfo? = null
     fun diagnostic(name: String, text: String): List<Diagnostic>
+}
+
+/**
+ * Receives completions as they are produced. Returning `false` means the request is stale (the
+ * caret moved on) and the analyzer should stop enumerating instead of finishing a scan nobody is
+ * waiting for.
+ */
+fun interface CompletionSink {
+    fun emit(items: List<CompletionItem>): Boolean
 }
 
 data class OccurrenceRange(

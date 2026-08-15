@@ -37,6 +37,8 @@ class TextFieldCompletionState(
     private var lineEnd = 0
     private var lastText: String? = null
     private var lastRevision = Long.MIN_VALUE
+    private var lastPrefix: String? = null
+    private var selectionPinned = false
 
     /** Opens (or re-queries) the popup at the current caret. */
     fun open(): Boolean {
@@ -61,14 +63,18 @@ class TextFieldCompletionState(
             }
             .sortedWith(
                 compareBy<RankedCompletion> { it.score }
-                    .thenBy { it.item.filterText.length }
+                    .thenByDescending { it.item.closeness }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { it.item.filterText }
                     .thenBy { it.sourceIndex },
             )
             .map(RankedCompletion::item)
             .toList()
         val line = completionLineRange(text, caret)
+        val keepSelection = opened && prefix == lastPrefix
+        if (!keepSelection) selectionPinned = false
+        val selected = if (keepSelection && selectionPinned) items.getOrNull(selectedIndex) else null
         anchor = caret
+        lastPrefix = prefix
         replacementStart = replacement.first
         replacementEnd = replacement.last
         lineStart = line.first
@@ -85,7 +91,11 @@ class TextFieldCompletionState(
         items = found
         opened = true
         autoOpenPending = false
-        selectedIndex = if (changed) 0 else selectedIndex.coerceIn(0, found.lastIndex)
+        selectedIndex = when {
+            selected != null -> found.indexOfFirst { it.sameCandidate(selected) }.coerceAtLeast(0)
+            !keepSelection || changed -> 0
+            else -> selectedIndex.coerceIn(0, found.lastIndex)
+        }
         return changed
     }
 
@@ -95,6 +105,8 @@ class TextFieldCompletionState(
         opened = false
         autoOpenPending = false
         selectedIndex = 0
+        lastPrefix = null
+        selectionPinned = false
         return hadState
     }
 
@@ -102,12 +114,14 @@ class TextFieldCompletionState(
         if (items.isEmpty()) return false
         val previous = selectedIndex
         selectedIndex = (selectedIndex + delta).floorMod(items.size)
+        selectionPinned = true
         return previous != selectedIndex
     }
 
     fun select(index: Int): Boolean {
         if (items.isEmpty()) return false
         val normalized = index.coerceIn(0, items.lastIndex)
+        selectionPinned = true
         if (selectedIndex == normalized) return false
         selectedIndex = normalized
         return true
@@ -181,6 +195,9 @@ private data class RankedCompletion(
     val score: Int,
     val sourceIndex: Int,
 )
+
+private fun UiTextCompletion.sameCandidate(other: UiTextCompletion): Boolean =
+    label == other.label && insertText == other.insertText && detail == other.detail
 
 private fun List<IntRange>.shiftInto(filterText: String, label: String): List<IntRange> {
     val start = label.indexOf(filterText, ignoreCase = true)

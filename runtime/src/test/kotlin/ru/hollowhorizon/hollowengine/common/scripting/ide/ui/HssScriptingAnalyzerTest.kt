@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
+import ru.hollowhorizon.hollowengine.common.scripting.ide.collectCompletions
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +11,7 @@ import kotlin.test.assertTrue
 
 class HssScriptingAnalyzerTest {
     private fun completions(source: String, caret: Int = source.length) =
-        HssScriptingAnalyzer.completions("style.hss", source, caret)
+        HssScriptingAnalyzer.collectCompletions("style.hss", source, caret)
 
     private fun labels(source: String, caret: Int = source.length) = completions(source, caret).map { it.show }
 

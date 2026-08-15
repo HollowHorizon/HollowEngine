@@ -483,7 +483,7 @@ class ScriptingAnalysisEnvironmentTest {
                 val localValue = 1
                 loc
             """.trimIndent()
-            val completions = environment.analyzer.completions(
+            val completions = environment.analyzer.collectCompletions(
                 "completion.analysis.kts",
                 text,
                 text.length,
@@ -501,7 +501,7 @@ class ScriptingAnalysisEnvironmentTest {
                 hollEngCand
             """.trimIndent()
 
-            val completions = environment.analyzer.completions(
+            val completions = environment.analyzer.collectCompletions(
                 "fuzzy-completion.analysis.kts",
                 text,
                 text.length,
@@ -512,10 +512,54 @@ class ScriptingAnalysisEnvironmentTest {
     }
 
     @Test
+    fun `completion streams local declarations before the class indices`() {
+        withEnvironment { environment ->
+            val text = """
+                val localValue = 1
+                loc
+            """.trimIndent()
+            val batches = mutableListOf<List<CompletionItem>>()
+
+            environment.analyzer.completions("streaming-completion.analysis.kts", text, text.length) { batch ->
+                batches += batch
+                true
+            }
+
+            val localBatch = batches.indexOfFirst { batch -> batch.any { it.name == "localValue" } }
+            assertTrue(localBatch >= 0, batches.toString())
+            val importedBatch = batches.indexOfFirst { batch ->
+                batch.any { it is CompletionItem.Declaration && it.import }
+            }
+            assertTrue(
+                importedBatch < 0 || localBatch < importedBatch,
+                "declarations in scope must arrive before anything that needs an import",
+            )
+        }
+    }
+
+    @Test
+    fun `completion stops collecting once the sink refuses a batch`() {
+        withEnvironment { environment ->
+            val text = """
+                val localValue = 1
+                loc
+            """.trimIndent()
+            var batches = 0
+
+            environment.analyzer.completions("cancelled-completion.analysis.kts", text, text.length) {
+                batches++
+                false
+            }
+
+            assertEquals(1, batches)
+        }
+    }
+
+    @Test
     fun `completion finds importable Java classes`() {
         withEnvironment { environment ->
             val typeText = "val connection: UR"
-            val typeCompletions = environment.analyzer.completions(
+            val typeCompletions = environment.analyzer.collectCompletions(
                 "java-type-completion.analysis.kts",
                 typeText,
                 typeText.length,
@@ -526,7 +570,7 @@ class ScriptingAnalysisEnvironmentTest {
             assertTrue(uri.import)
 
             val nestedTypeText = "val entry: Entr"
-            val nestedTypeCompletions = environment.analyzer.completions(
+            val nestedTypeCompletions = environment.analyzer.collectCompletions(
                 "java-nested-type-completion.analysis.kts",
                 nestedTypeText,
                 nestedTypeText.length,
@@ -537,7 +581,7 @@ class ScriptingAnalysisEnvironmentTest {
             assertTrue(entry.import)
 
             val annotationText = "@Rete"
-            val annotationCompletions = environment.analyzer.completions(
+            val annotationCompletions = environment.analyzer.collectCompletions(
                 "java-annotation-completion.analysis.kts",
                 annotationText,
                 annotationText.length,
@@ -550,7 +594,7 @@ class ScriptingAnalysisEnvironmentTest {
             assertFalse(annotationCompletions.any { it.fqName == "java.lang.Record" })
 
             val importText = "import java.net.UR"
-            val importCompletions = environment.analyzer.completions(
+            val importCompletions = environment.analyzer.collectCompletions(
                 "java-import-completion.analysis.kts",
                 importText,
                 importText.length,

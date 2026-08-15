@@ -14,6 +14,9 @@ sealed interface CompletionItem {
      */
     val wordChars: String get() = ""
 
+    /** How close the declaration is to the caret; see [CompletionCloseness]. Higher wins ties. */
+    val closeness: Int get() = CompletionCloseness.DEFAULT
+
     data class Declaration(
         override val show: String,
         override val insert: String,
@@ -25,6 +28,7 @@ sealed interface CompletionItem {
         val tail: String?,
         val middle: String?,
         override val wordChars: String = "",
+        override val closeness: Int = CompletionCloseness.DEFAULT,
     ) : CompletionItem
 
     data class Keyword(
@@ -33,10 +37,28 @@ sealed interface CompletionItem {
         override val name: String,
         override val moveCaret: Int = 0,
         override val wordChars: String = "",
+        override val closeness: Int = CompletionCloseness.KEYWORD,
     ) : CompletionItem {
         override val tag: CompletionItemTag
             get() = CompletionItemTag.KEYWORD
     }
+}
+
+object CompletionCloseness {
+    /** Locals and parameters of the enclosing function. */
+    const val LOCAL = 50
+
+    /** Members reachable through an explicit or implicit receiver. */
+    const val MEMBER = 40
+
+    /** Anything else already visible: file declarations, imports, default imports. */
+    const val SCOPE = 30
+
+    const val KEYWORD = 20
+    const val DEFAULT = 10
+
+    /** Index results that only become usable after an import is added. */
+    const val IMPORTED = 0
 }
 
 class KeywordItemBuilder {
@@ -45,6 +67,7 @@ class KeywordItemBuilder {
     var moveCaret: Int = 0
     lateinit var name: String
     var wordChars: String = ""
+    var closeness: Int = CompletionCloseness.KEYWORD
 
     fun with(completionItem: CompletionItem.Keyword) {
         textToShow = completionItem.show
@@ -52,13 +75,14 @@ class KeywordItemBuilder {
         moveCaret = completionItem.moveCaret
         name = completionItem.name
         wordChars = completionItem.wordChars
+        closeness = completionItem.closeness
     }
 
     fun withSpace() {
         textToInsert += " "
     }
 
-    fun build() = CompletionItem.Keyword(textToShow, textToInsert, name, moveCaret, wordChars)
+    fun build() = CompletionItem.Keyword(textToShow, textToInsert, name, moveCaret, wordChars, closeness)
 }
 
 class DeclarationCompletionItemBuilder {
@@ -72,9 +96,11 @@ class DeclarationCompletionItemBuilder {
     var tail: String? = null
     var middle: String? = null
     var wordChars: String = ""
+    var closeness: Int = CompletionCloseness.DEFAULT
 
     fun withImport() {
         import = true
+        closeness = CompletionCloseness.IMPORTED
     }
 
     fun with(completionItem: CompletionItem.Declaration) {
@@ -87,6 +113,7 @@ class DeclarationCompletionItemBuilder {
         name = completionItem.name
         tail = completionItem.tail
         middle = completionItem.middle
+        closeness = completionItem.closeness
     }
 
     fun build() =
@@ -101,6 +128,7 @@ class DeclarationCompletionItemBuilder {
             tail = tail,
             middle = middle,
             wordChars = wordChars,
+            closeness = closeness,
         )
 }
 

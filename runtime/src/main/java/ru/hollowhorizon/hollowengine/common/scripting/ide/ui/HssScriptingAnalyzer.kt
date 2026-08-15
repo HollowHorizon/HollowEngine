@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
@@ -28,8 +28,9 @@ object HssScriptingAnalyzer : ScriptingAnalyzer {
         return buildTextLines(line, spans, emptyList()).firstOrNull() ?: TextLine(emptyList(), ArrayList())
     }
 
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> =
-        hssCompletions(text, offset)
+    override fun completions(name: String, text: String, offset: Int, sink: CompletionSink) {
+        sink.emit(hssCompletions(text, offset))
+    }
 
     override fun diagnostic(name: String, text: String): List<Diagnostic> = hssDiagnostics(text)
 

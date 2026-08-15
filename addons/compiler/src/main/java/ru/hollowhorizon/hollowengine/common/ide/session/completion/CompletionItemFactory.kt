@@ -11,22 +11,27 @@ import org.jetbrains.kotlin.types.Variance
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.TailTextProvider
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionCloseness
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 
 internal object CompletionItemFactory {
     context(_: KaSession)
-    fun createCompletionItem(symbol: KaDeclarationSymbol): CompletionItem.Declaration? {
-        return createCompletionItem(middle = renderSymbolMiddle(symbol), symbol = symbol)
+    fun createCompletionItem(symbol: KaDeclarationSymbol, closeness: Int): CompletionItem.Declaration? {
+        return createCompletionItem(middle = renderSymbolMiddle(symbol), symbol = symbol, closeness = closeness)
     }
 
     context(_: KaSession)
-    fun createCompletionItem(signature: KaCallableSignature<*>): CompletionItem.Declaration? {
+    fun createCompletionItem(signature: KaCallableSignature<*>, closeness: Int): CompletionItem.Declaration? {
         val symbol = signature.symbol
-        return createCompletionItem(middle = renderSignatureMiddle(signature), symbol = symbol)
+        return createCompletionItem(middle = renderSignatureMiddle(signature), symbol = symbol, closeness = closeness)
     }
 
     context(kaSession: KaSession)
-    private fun createCompletionItem(middle: String?, symbol: KaDeclarationSymbol): CompletionItem.Declaration? = with(kaSession) {
+    private fun createCompletionItem(
+        middle: String?,
+        symbol: KaDeclarationSymbol,
+        closeness: Int,
+    ): CompletionItem.Declaration? = with(kaSession) {
         val name = symbol.name?.asString() ?: ""
         if (name.contains(COMPLETION_FAKE_IDENTIFIER)) return null
         val (textToInsert, offset) = getInsertionText(symbol) ?: return null
@@ -38,6 +43,7 @@ internal object CompletionItemFactory {
             moveCaret = offset
             fqName = symbol.importableFqName?.asString()
             this.name = name
+            this.closeness = maxOf(closeness, localCloseness(symbol))
             when (symbol) {
                 is KaCallableSymbol -> {
                     tail = TailTextProvider.getTailText(symbol)
@@ -50,6 +56,18 @@ internal object CompletionItemFactory {
                 else -> {}
             }
         }
+    }
+
+    /**
+     * Locals and parameters are what the caret is standing in, so they lead the popup even when a
+     * class from the index matches the typed prefix just as well.
+     */
+    private fun localCloseness(symbol: KaDeclarationSymbol): Int = when (symbol) {
+        is KaLocalVariableSymbol,
+        is KaValueParameterSymbol,
+        is KaTypeParameterSymbol -> CompletionCloseness.LOCAL
+
+        else -> CompletionCloseness.IMPORTED
     }
 
     private fun getCompletionItemTag(symbol: KaDeclarationSymbol): CompletionItemTag {

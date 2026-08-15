@@ -33,21 +33,29 @@ import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.matchCompletion
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionCloseness
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
 
-fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
+/**
+ * Collects completions in phases, closest to the caret first, and hands each phase to [sink] as soon
+ * as it is done. Walking the class indices is what takes seconds, so locals and members reach the
+ * popup long before it finishes.
+ */
+fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int, sink: CompletionSink) {
     val safeOffset = offset.coerceIn(0, file.textLength)
     val file = createFileForCompletion(file, safeOffset)
     val element = file.findElementAt(safeOffset) ?: (if (safeOffset > 0) file.findElementAt(safeOffset - 1) else null)
-    ?: return emptyList()
-    val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
+    ?: return
+    val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return
 
     try {
-        return analyzeCopy(ktElement, KaDanglingFileResolutionMode.PREFER_SELF) {
-            createItems(file, element, ktElement) ?: emptyList()
+        analyzeCopy(ktElement, KaDanglingFileResolutionMode.PREFER_SELF) {
+            createItems(file, element, ktElement, sink)
         }
+    } catch (_: CompletionCancelledException) {
+        // The caret moved on; whatever this request had left to say is no longer wanted.
     } finally {
         cleanupFile(file)
     }
@@ -71,10 +79,11 @@ private fun ScriptingAnalyzerImpl.createFileForCompletion(original: KtFile, offs
 }
 
 context(kaSession: KaSession)
-private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: KtElement): List<CompletionItem>? =
+private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: KtElement, sink: CompletionSink): Unit =
     with(kaSession) {
         val position = getPosition(parentKtElement) ?: run {
-            return completeKeywords(element, position = null)
+            sink.emit(completeKeywords(element, position = null))
+            return
         }
         val filter = when (val prefix = position.prefix) {
             null -> { _: Name -> true }
@@ -86,7 +95,7 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                 createExtensionCandidateChecker(
                     ktFile, it, position.receiver
                 )
-            } ?: return null
+            } ?: return
 
             is CompletionPosition.Identifier -> createExtensionCandidateChecker(
                 ktFile,
@@ -131,7 +140,7 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
             else -> CompletionItemsCollector.SymbolFilter { true }
         }
 
-        val collector = CompletionItemsCollector(applicabilityChecker, visibilityChecker, filter, symbolFilter)
+        val collector = CompletionItemsCollector(applicabilityChecker, visibilityChecker, filter, symbolFilter, sink)
         with(collector) {
             when (position) {
                 is CompletionPosition.AfterDot -> completeAfterDot(
@@ -139,36 +148,29 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                 )
 
                 is CompletionPosition.Identifier -> {
-                    collector.add(completeKeywords(parentKtElement, position))
-                    completeIdentifier(ktFile, parentKtElement)
-
+                    phase(CompletionCloseness.KEYWORD)
+                    add(completeKeywords(parentKtElement, position))
                     if (matchesPrefix(position.prefix, "this")) completeThisKeyword(ktFile, parentKtElement)
+
+                    completeScopeContext(ktFile, parentKtElement)
+
+                    phase(CompletionCloseness.IMPORTED)
+                    completeClassesWithImport(ktFile)
                 }
 
                 is CompletionPosition.Type -> completeType(ktFile, parentKtElement, filter, position.isAnnotation)
-                is CompletionPosition.NestedType -> completeNestedType(position)
-                is CompletionPosition.Package -> completePackage(ktFile, position.fqName, filter, position.onlyPackages)
+                is CompletionPosition.NestedType -> {
+                    phase(CompletionCloseness.MEMBER)
+                    completeNestedType(position)
+                }
+
+                is CompletionPosition.Package -> {
+                    phase(CompletionCloseness.SCOPE)
+                    completePackage(ktFile, position.fqName, filter, position.onlyPackages)
+                }
             }
         }
-
-        val elements = collector.build().distinctBy { item ->
-            when (item) {
-                is CompletionItem.Declaration -> item.copy(import = false)
-                is CompletionItem.Keyword -> item
-            }
-        }
-
-        if (elements.isEmpty()) return null
-        val prefix = position.prefix.orEmpty()
-        return elements.withIndex()
-            .sortedWith(
-                compareBy<IndexedValue<CompletionItem>> {
-                    matchCompletion(prefix, it.value.name)?.score ?: Int.MAX_VALUE
-                }.thenBy { it.value.name.length }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.value.name }
-                    .thenBy { it.index },
-            )
-            .map(IndexedValue<CompletionItem>::value)
+        collector.flush()
     }
 
 context(kaSession: KaSession)
@@ -183,14 +185,15 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
 
         val thisName = if (first) "this" else "this@$className"
 
-        add(listOf(declarationCompletionItem {
+        add(declarationCompletionItem {
             show = thisName
             name = thisName
             insert = thisName
             tail = typeText
             tag = CompletionItemTag.KEYWORD
             import = false
-        }))
+            this.closeness = CompletionCloseness.LOCAL
+        })
 
         first = false
     }
@@ -229,29 +232,29 @@ private fun CompletionItemsCollector.completeQualifiedThis(file: KtFile, element
                     val className = symbol.name?.asString() ?: "Unknown"
                     val typeText = symbol.defaultType.render(position = Variance.IN_VARIANCE)
 
-                    add(listOf(declarationCompletionItem {
+                    add(declarationCompletionItem {
                         show = "this@$className"
                         name = "this@$className"
                         insert = "this@$className"
                         tail = typeText
                         import = false
                         tag = CompletionItemTag.KEYWORD
-
-                    }))
+                        this.closeness = CompletionCloseness.LOCAL
+                    })
                 }
             }
 
             is KtFunction -> {
                 val functionName = current.name ?: "lambda"
-                add(listOf(declarationCompletionItem {
+                add(declarationCompletionItem {
                     show = "this@$functionName"
                     name = "this@$functionName"
                     insert = "this@$functionName"
                     import = false
                     tail = " (qualified this for function $functionName)"
                     tag = CompletionItemTag.KEYWORD
-
-                }))
+                    this.closeness = CompletionCloseness.LOCAL
+                })
             }
         }
         current = current.parent
@@ -314,6 +317,7 @@ private fun CompletionItemsCollector.completeAfterDot(
 
     when (receiverTarget) {
         is KaClassSymbol -> {
+            phase(CompletionCloseness.MEMBER)
             completeStaticMembers(receiverTarget)
 
             if (receiverTarget.classKind == KaClassKind.OBJECT) {
@@ -330,6 +334,7 @@ private fun CompletionItemsCollector.completeAfterDot(
         }
 
         is KaPackageSymbol -> {
+            phase(CompletionCloseness.SCOPE)
             completePackage(file, receiverTarget.fqName, nameFilter, onlyPackages)
         }
 
@@ -338,15 +343,18 @@ private fun CompletionItemsCollector.completeAfterDot(
 
             if (receiverType == null || receiverType is org.jetbrains.kotlin.analysis.api.types.KaErrorType) return@with
 
+            phase(CompletionCloseness.MEMBER)
             receiverType.scope?.let { completeTypeScope(it) }
 
             if (position.prefix != null) {
+                phase(CompletionCloseness.SCOPE)
                 val scopeContext = file.scopeContext(element)
                 for (scope in scopeContext.scopes) {
                     add(scope.scope.callables(nameFilter).filterShadowedJavaFields().filter { it.isExtension })
                 }
             }
 
+            phase(CompletionCloseness.IMPORTED)
             add(getKotlinDeclarationsFromIndex(file, nameFilter).filter { symbol ->
                 symbol is KaCallableSymbol && symbol.isExtension
             }) { withImport() }
@@ -357,12 +365,6 @@ private fun CompletionItemsCollector.completeAfterDot(
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeStaticMembers(kaClassSymbol: KaClassSymbol) = with(kaSession) {
     add(kaClassSymbol.staticDeclaredMemberScope.callables(nameFilter).filterShadowedJavaFields())
-}
-
-context(_: KaSession)
-private fun CompletionItemsCollector.completeIdentifier(file: KtFile, element: KtElement) {
-    completeScopeContext(file, element)
-    completeClassesWithImport(file)
 }
 
 context(session: KaSession)
@@ -386,10 +388,12 @@ private fun CompletionItemsCollector.completeClassesWithImport(
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeScopeContext(file: KtFile, element: KtElement) = with(kaSession) {
     val scopeContext = file.scopeContext(element)
+    phase(CompletionCloseness.SCOPE)
     for (scope in scopeContext.scopes) {
         add(scope.scope.callables(nameFilter).filterShadowedJavaFields())
         add(scope.scope.classifiers(nameFilter))
     }
+    phase(CompletionCloseness.MEMBER)
     for (implicitReceiver in scopeContext.implicitReceivers) {
         implicitReceiver.type.scope?.let { completeTypeScope(it) }
     }
@@ -450,14 +454,16 @@ private fun CompletionItemsCollector.completePackage(
         .mapNotNull { it.pathSegments().getOrNull(parentSegmentsSize)?.asString() }
         .filter { filter(Name.identifier(it)) }.forEach { subPackageNames.add(it) }
 
+    val packageCloseness = this@completePackage.closeness
     for (pkgName in subPackageNames) {
-        add(listOf(declarationCompletionItem {
+        add(declarationCompletionItem {
             name = pkgName
             show = pkgName
             insert = pkgName
             tag = CompletionItemTag.KEYWORD
             import = false
-        }))
+            this.closeness = packageCloseness
+        })
     }
 
 
@@ -484,6 +490,7 @@ private fun CompletionItemsCollector.completePackage(
 
 private fun CompletionItemsCollector.addJavaClass(javaClass: JavaClassName, import: Boolean) {
     val containerName = javaClass.fqName.substringBeforeLast('.', missingDelimiterValue = "")
+    val classCloseness = if (import) CompletionCloseness.IMPORTED else this@addJavaClass.closeness
     add(declarationCompletionItem {
         show = javaClass.name.asString()
         insert = javaClass.name.asString()
@@ -492,6 +499,7 @@ private fun CompletionItemsCollector.addJavaClass(javaClass: JavaClassName, impo
         fqName = javaClass.fqName
         tail = containerName.takeIf(String::isNotEmpty)?.let { " ($it)" }
         this.import = import
+        this.closeness = classCloseness
     })
 }
 
@@ -504,9 +512,11 @@ private fun CompletionItemsCollector.completeType(
     annotationsOnly: Boolean,
 ) =
     with(kaSession) {
+        phase(CompletionCloseness.SCOPE)
         for (scope in file.scopeContext(element).scopes) {
             add(scope.scope.classifiers(nameFilter))
         }
+        phase(CompletionCloseness.IMPORTED)
         completeClassesWithImport(file, annotationsOnly)
     }
 

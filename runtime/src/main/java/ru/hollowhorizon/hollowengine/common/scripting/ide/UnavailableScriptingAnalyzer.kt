@@ -13,10 +13,6 @@ object UnavailableKotlinScriptingAnalyzer : ScriptingAnalyzer {
         return TextLine(listOf(line to defaultStyle), ArrayList())
     }
 
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
-        return emptyList()
-    }
-
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         return listOf(
             Diagnostic(

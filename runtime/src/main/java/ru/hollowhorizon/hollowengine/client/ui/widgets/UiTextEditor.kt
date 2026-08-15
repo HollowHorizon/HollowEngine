@@ -81,6 +81,12 @@ data class UiTextCompletion(
     val filterText: String = label,
     /** Candidate ranges matched by the current prefix; populated by [TextFieldCompletionState]. */
     val matchRanges: List<IntRange> = emptyList(),
+    /**
+     * How close the declaration is to the caret; breaks ties between equally good matches, so a
+     * local beats a class that only becomes available after an import. See
+     * [ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionCloseness].
+     */
+    val closeness: Int = 0,
 )
 
 fun interface UiCompletionContributor {

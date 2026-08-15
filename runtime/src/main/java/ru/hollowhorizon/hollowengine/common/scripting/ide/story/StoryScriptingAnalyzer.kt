@@ -20,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextPart
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextTemplate
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
@@ -69,8 +70,9 @@ object StoryScriptingAnalyzer : ScriptingAnalyzer {
         }
     }
 
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> =
-        storyCompletions(text, offset.coerceIn(0, text.length), catalog())
+    override fun completions(name: String, text: String, offset: Int, sink: CompletionSink) {
+        sink.emit(storyCompletions(text, offset.coerceIn(0, text.length), catalog()))
+    }
 
     override fun occurrences(name: String, text: String, offset: Int): List<OccurrenceRange> {
         val caret = offset.coerceIn(0, text.length)

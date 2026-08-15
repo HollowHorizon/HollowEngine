@@ -11,15 +11,24 @@ import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtDeclaration
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionCloseness
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DeclarationCompletionItemBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 import kotlin.contracts.contract
+
+/**
+ * Thrown through the collection call stack when the [CompletionSink] refuses a batch, which means
+ * the editor moved on and nothing this request still has to offer will be shown.
+ */
+internal class CompletionCancelledException : RuntimeException(null, null, false, false)
 
 internal class CompletionItemsCollector(
     private val applicabilityChecker: KaCompletionExtensionCandidateChecker?,
     private val visibilityChecker: KaUseSiteVisibilityChecker?,
     val nameFilter: (Name) -> Boolean,
     val symbolFilter: SymbolFilter,
+    private val sink: CompletionSink = CompletionSink { true },
 ) {
     fun interface SymbolFilter {
         context(_: KaSession) fun accepts(symbol: KaDeclarationSymbol): Boolean
@@ -29,6 +38,28 @@ internal class CompletionItemsCollector(
 
     private val items = mutableListOf<CompletionItem>()
     private val symbols = mutableSetOf<KaDeclarationSymbol>()
+    private val seen = mutableSetOf<CompletionItem>()
+
+    /** Closeness handed to everything collected until [phase] is called again. */
+    var closeness: Int = CompletionCloseness.DEFAULT
+        private set
+
+    /**
+     * Starts a collection phase: items found from here on are [closeness] close to the caret, and
+     * whatever the previous phase found is pushed to the sink so the popup can show it right away.
+     */
+    fun phase(closeness: Int) {
+        flush()
+        this.closeness = closeness
+    }
+
+    /** Publishes everything buffered so far; throws [CompletionCancelledException] when refused. */
+    fun flush() {
+        if (items.isEmpty()) return
+        val batch = items.toList()
+        items.clear()
+        if (!sink.emit(batch)) throw CompletionCancelledException()
+    }
 
     context(kaSession: KaSession)
     fun add(declaration: KtDeclaration?, modify: (DeclarationCompletionItemBuilder.() -> Unit)? = null) {
@@ -80,27 +111,22 @@ internal class CompletionItemsCollector(
     }
 
     fun add(items: List<CompletionItem>) {
-        this.items += items
+        items.forEach(::add)
     }
 
     fun add(item: CompletionItem) {
+        if (!seen.add(item.deduplicationKey())) return
         items += item
+        if (items.size >= FlushThreshold) flush()
     }
 
     context(_: KaSession)
     @Suppress("FunctionName")
     private fun _add(symbol: KaDeclarationSymbol?, modify: (DeclarationCompletionItemBuilder.() -> Unit)?) {
         if (!acceptsSymbol(symbol)) return
-        val item = factory.createCompletionItem(symbol) ?: return
+        val item = factory.createCompletionItem(symbol, this@CompletionItemsCollector.closeness) ?: return
         symbols += symbol
-        items +=
-            if (modify == null) item
-            else {
-                declarationCompletionItem {
-                    with(item)
-                    modify()
-                }
-            }
+        add(item.applying(modify))
     }
 
     context(_: KaSession)
@@ -108,15 +134,19 @@ internal class CompletionItemsCollector(
     private fun _add(signature: KaCallableSignature<*>?, modify: (DeclarationCompletionItemBuilder.() -> Unit)?) {
         if (!acceptsSymbol(signature?.symbol)) return
 
-        val item = factory.createCompletionItem(signature) ?: return
+        val item = factory.createCompletionItem(signature, this@CompletionItemsCollector.closeness) ?: return
         symbols += signature.symbol
-        items +=
-            if (modify == null) item
-            else
-                declarationCompletionItem {
-                    with(item)
-                    modify()
-                }
+        add(item.applying(modify))
+    }
+
+    private fun CompletionItem.Declaration.applying(
+        modify: (DeclarationCompletionItemBuilder.() -> Unit)?,
+    ): CompletionItem.Declaration {
+        if (modify == null) return this
+        return declarationCompletionItem {
+            with(this@applying)
+            modify()
+        }
     }
 
     context(_: KaSession)
@@ -147,7 +177,11 @@ internal class CompletionItemsCollector(
         }.getOrNull()
     }
 
-    fun build(): Collection<CompletionItem> {
-        return items
-    }
+}
+
+private const val FlushThreshold = 48
+
+private fun CompletionItem.deduplicationKey(): CompletionItem = when (this) {
+    is CompletionItem.Declaration -> copy(import = false, closeness = 0)
+    is CompletionItem.Keyword -> copy(closeness = 0)
 }

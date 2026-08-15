@@ -234,18 +234,30 @@ internal class HollowIdeEditorSession(
         val requestRevision = completionRevision.incrementAndGet()
         completionJob?.cancel()
         completionJob = scope.launch {
-            val items = runCatching {
-                analyzer.completions(path, text, key.caret)
-                    .asSequence()
-                    .map(CompletionItem::toUi)
-                    .toList()
-            }.getOrElse { failure ->
+            val collected = ArrayList<UiTextCompletion>()
+            var publishedAt = 0L
+            var publishedSize = -1
+
+            fun publish() {
+                publishedAt = System.nanoTime()
+                publishedSize = collected.size
+                val batch = collected.toList()
+                publishCompletionIfCurrent(requestRevision) {
+                    completionSnapshot = CompletionSnapshot(key.textHash, key.textLength, key.caret, analyzer, batch)
+                }
+            }
+
+            runCatching {
+                analyzer.completions(path, text, key.caret, CompletionSink { items ->
+                    if (requestRevision < completionRevision.get() || !isActive) return@CompletionSink false
+                    items.mapTo(collected, CompletionItem::toUi)
+                    if (System.nanoTime() - publishedAt >= CompletionPublishIntervalNanos) publish()
+                    true
+                })
+            }.onFailure { failure ->
                 reportAnalysisFailure("completions", failure)
-                emptyList()
             }
-            publishCompletionIfCurrent(requestRevision) {
-                completionSnapshot = CompletionSnapshot(key.textHash, key.textLength, key.caret, analyzer, items)
-            }
+            if (publishedSize != collected.size) publish()
         }
     }
 
@@ -283,6 +295,7 @@ internal class HollowIdeEditorSession(
 }
 
 private const val EditorAnalysisDebounceMillis = 180L
+private const val CompletionPublishIntervalNanos = 60_000_000L
 
 private data class AnalysisKey(
     val textHash: Int,
@@ -581,6 +594,7 @@ private fun CompletionItem.toUi(): UiTextCompletion {
         importFqName = declaration?.fqName?.takeIf { declaration.import },
         wordChars = wordChars,
         filterText = name,
+        closeness = closeness,
     )
 }
 

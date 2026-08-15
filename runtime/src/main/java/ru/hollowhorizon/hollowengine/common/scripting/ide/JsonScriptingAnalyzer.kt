@@ -330,10 +330,6 @@ object JsonScriptingAnalyzer : ScriptingAnalyzer {
         return null
     }
 
-    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
-        return emptyList()
-    }
-
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         val diagnostics = mutableListOf<Diagnostic>()
 

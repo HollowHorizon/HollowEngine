@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.story
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+import ru.hollowhorizon.hollowengine.common.scripting.ide.collectCompletions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -84,7 +85,7 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `commands complete after an at sign`() {
         val source = "@ch"
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertTrue(items.any { it.show == "@choice" })
         assertTrue(items.none { it.show == "@jump" })
@@ -93,7 +94,7 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `jump completes the labels of the file`() {
         val source = "# Начало\n# Торговля\n@jump #"
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertEquals(listOf("#Начало", "#Торговля"), items.map { it.show })
     }
@@ -101,7 +102,7 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `interpolation completes variables the story uses`() {
         val source = "@set money = 0\nБаланс {mo"
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertEquals(listOf("money"), items.map { it.show })
     }
@@ -169,7 +170,7 @@ class StoryScriptingAnalyzerTest {
 
     @Test
     fun `command completion replaces the at sign instead of doubling it`() {
-        val items = StoryScriptingAnalyzer.completions("example.story", "@ch", 3)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", "@ch", 3)
         val choice = items.first { it.show == "@choice" }
 
         assertTrue('@' in choice.wordChars, "the item must claim the '@' it is typed over")
@@ -178,7 +179,7 @@ class StoryScriptingAnalyzerTest {
 
     @Test
     fun `each overload is its own entry, with its parameters and their defaults`() {
-        val items = StoryScriptingAnalyzer.completions("example.story", "@", 1)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", "@", 1)
 
         val sounds = items.filter { it.show == "@play-sound" }.map { (it as CompletionItem.Declaration).middle }
         assertEquals(3, sounds.size, "one entry per overload: $sounds")
@@ -195,7 +196,7 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `an actor argument offers the characters the file speaks to`() {
         val source = "Виталик: Привет.\nСторож: Стой.\n@walk-to "
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertTrue(items.any { it.show == "Виталик" }, items.map { it.show }.toString())
         assertTrue(items.any { it.show == "Сторож" })
@@ -205,7 +206,7 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `a parameter with a known set of values offers them`() {
         val source = "@hide-hud except=ch"
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertTrue(items.any { it.show == "chat" }, items.map { it.show }.toString())
         assertTrue(items.none { it.show == "hotbar" }, "the typed prefix must filter the list")
@@ -214,7 +215,7 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `values are offered inside a list too, for the item being typed`() {
         val source = "@hide-hud except=[chat, sub"
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertTrue(items.any { it.show == "subtitle_overlay" }, items.map { it.show }.toString())
         assertTrue(items.none { it.show == "chat" })
@@ -223,14 +224,14 @@ class StoryScriptingAnalyzerTest {
     @Test
     fun `a parameter without a known set still completes parameter names`() {
         val source = "@play-sound minecraft:x vol"
-        val items = StoryScriptingAnalyzer.completions("example.story", source, source.length)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)
 
         assertTrue(items.any { it.show == "volume=" }, items.map { it.show }.toString())
     }
 
     @Test
     fun `a parameter with a default shows the value it falls back to`() {
-        val items = StoryScriptingAnalyzer.completions("example.story", "@fade-", 6)
+        val items = StoryScriptingAnalyzer.collectCompletions("example.story", "@fade-", 6)
         val fade = items.first { it.show == "@fade-in" } as CompletionItem.Declaration
 
         assertEquals(" time=500 color=#000000", fade.middle)
