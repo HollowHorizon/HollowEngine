@@ -37,6 +37,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import ru.hollowhorizon.hollowengine.common.scripting.ide.buildTextLines
+import ru.hollowhorizon.hollowengine.common.scripting.ide.completionMatches
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 
@@ -286,7 +287,7 @@ internal fun storyCompletions(
         is StoryCompletionContext.Command ->
             (StoryHighlighter.BUILTIN_COMMANDS + registeredNames(catalog))
                 .distinct()
-                .filter { it.startsWith(context.typed, ignoreCase = true) }
+                .filter { completionMatches(context.typed, it) }
                 .flatMap { command -> commandCompletions(command, catalog) }
 
         is StoryCompletionContext.Label -> labelCompletions(text, context.typed)
@@ -308,7 +309,7 @@ private fun registeredNames(catalog: StoryFunctionCatalog): List<String> =
 
 private fun labelCompletions(text: String, typed: String): List<CompletionItem> =
     labelsOf(text)
-        .filter { it.startsWith(typed, ignoreCase = true) }
+        .filter { completionMatches(typed, it) }
         .map { label ->
             declarationCompletionItem {
                 show = "#$label"
@@ -322,7 +323,7 @@ private fun labelCompletions(text: String, typed: String): List<CompletionItem> 
 
 private fun variableCompletions(text: String, typed: String): List<CompletionItem> =
     variablesOf(text)
-        .filter { it != typed && it.startsWith(typed, ignoreCase = true) }
+        .filter { it != typed && completionMatches(typed, it) }
         .map { variable ->
             declarationCompletionItem {
                 show = variable
@@ -341,7 +342,7 @@ private fun parameterNameCompletions(
     .flatMap(StoryFunctionSignature::params)
     .map { it.name }
     .distinct()
-    .filter { it.startsWith(typed, ignoreCase = true) }
+    .filter { completionMatches(typed, it) }
     .map { parameter ->
         declarationCompletionItem {
             show = "$parameter="
@@ -373,7 +374,7 @@ private fun valueCompletions(
     }
 
     return values
-        .filter { it.startsWith(context.typed, ignoreCase = true) }
+        .filter { completionMatches(context.typed, it) }
         .map { value ->
             declarationCompletionItem {
                 show = value

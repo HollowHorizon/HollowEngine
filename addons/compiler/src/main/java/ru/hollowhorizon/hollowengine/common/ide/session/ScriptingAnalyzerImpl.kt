@@ -16,6 +16,8 @@ import ru.hollowhorizon.hollowengine.common.ide.session.definition.findDefinitio
 import ru.hollowhorizon.hollowengine.common.ide.session.diagnostic.diagnosticCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.highlightCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.occurrencesCode
+import ru.hollowhorizon.hollowengine.common.ide.session.insight.findHoverInfo
+import ru.hollowhorizon.hollowengine.common.ide.session.insight.findSignatureHelp
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
@@ -261,6 +263,18 @@ class ScriptingAnalyzerImpl(
     override fun definition(name: String, text: String, offset: Int): DefinitionLocation? {
         val file = getOrCreateFile(name, text)
         return findDefinition(file, offset)
+    }
+
+    @Synchronized
+    override fun signatureHelp(name: String, text: String, offset: Int): SignatureHelp? {
+        val file = getOrCreateFile(name, text)
+        return findSignatureHelp(file, offset)
+    }
+
+    @Synchronized
+    override fun hover(name: String, text: String, offset: Int): HoverInfo? {
+        val file = getOrCreateFile(name, text)
+        return findHoverInfo(file, offset)
     }
 
     @Synchronized

@@ -427,6 +427,9 @@ object HollowIdeOverlay {
         val editorState = editorState(file)
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
+        LaunchedEffect(file.id, diagnostics.isEmpty()) {
+            if (diagnostics.isEmpty()) diagnosticsPanels.remove(file.id)
+        }
         val inlayHints = editorSession.inlayHints(file.text)
         val fontSize = HollowIdeFontSize.size
         val editorId = "editor-${file.id}"
@@ -446,6 +449,8 @@ object HollowIdeOverlay {
                     },
                     highlighter = editorSession.highlighter,
                     completions = if (file.readOnly) null else editorSession.completions,
+                    signatureHelp = editorSession.signatures,
+                    hoverInfo = editorSession.hover,
                     diagnostics = diagnostics,
                     inlayHints = inlayHints,
                     inlayRevision = analysisRevision,
@@ -469,7 +474,7 @@ object HollowIdeOverlay {
                     diagnosticsPanels[id] = diagnosticsPanels[id] != true
                 }
             }
-            if (diagnosticsPanels[file.id] == true) {
+            if (diagnostics.isNotEmpty() && diagnosticsPanels[file.id] == true) {
                 val height = diagnosticsPanelHeights[file.id] ?: DefaultDiagnosticsPanelHeight
                 HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, requestedHeight ->
                     diagnosticsPanelHeights[id] = requestedHeight.coerceIn(

@@ -28,11 +28,45 @@ class TextFieldCompletionStateTest {
     @Test
     fun `typing a trigger character opens the popup`() {
         val (state, completion) = editor("val x = fo")
-        completion.contributor = contributorOf("foo", "forEach")
+        completion.contributor = contributorOf("foo", "fooFactory")
         state.typeCharacter('o')
         completion.onCharTyped('o')
         assertTrue(completion.active)
         assertEquals(2, completion.items.size)
+    }
+
+    @Test
+    fun `completion ranks short prefix first and exposes matched ranges`() {
+        val (_, completion) = editor("Minecr")
+        completion.contributor = contributorOf("MinecraftHssResourceLoader", "Minecraft")
+
+        completion.open()
+
+        assertEquals(listOf("Minecraft", "MinecraftHssResourceLoader"), completion.items.map { it.label })
+        assertEquals(listOf(0..5), completion.items.first().matchRanges)
+    }
+
+    @Test
+    fun `completion accepts camel hump subsequences`() {
+        val (_, completion) = editor("HollEng")
+        completion.contributor = contributorOf("HollowCore", "HollowEngine")
+
+        completion.open()
+
+        assertEquals(listOf("HollowEngine"), completion.items.map { it.label })
+        assertEquals(listOf(0..3, 6..8), completion.items.single().matchRanges)
+    }
+
+    @Test
+    fun `matched ranges are shifted into decorated labels`() {
+        val (_, completion) = editor("Sta")
+        completion.contributor = UiCompletionContributor {
+            listOf(UiTextCompletion(label = "#Start", filterText = "Start"))
+        }
+
+        completion.open()
+
+        assertEquals(listOf(1..3), completion.items.single().matchRanges)
     }
 
     @Test

@@ -474,6 +474,9 @@ fun EditableTextField(
     onInlayAction: ((UiInlayAction) -> Unit)? = null,
     completionContributor: UiCompletionContributor? = null,
     completionRevision: Long = 0L,
+    signatureHelpProvider: UiSignatureHelpProvider? = null,
+    hoverInfoProvider: UiHoverInfoProvider? = null,
+    codeInsightRevision: Long = completionRevision,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
     placeholder: String = "",
     lineNumbers: Boolean = false,
@@ -524,8 +527,10 @@ fun EditableTextField(
         ).also { layoutHolder.last = it }
     }
     val completion = remember(state) { TextFieldCompletionState(state) }
+    val codeInsight = remember(state) { EditableFieldCodeInsightState() }
     val diagnosticsByLine = remember(layout, diagnostics) { bucketDiagnosticsByLine(layout.lines, diagnostics) }
     var hoverTooltip by remember { mutableStateOf<EditableFieldDiagnosticTooltip?>(null) }
+    var codeHoverTarget by remember { mutableStateOf<EditableFieldHoverTarget?>(null) }
     val autoScroll = remember { EditableFieldAutoScroll() }
     val pointerState = remember { EditableFieldPointerState() }
     SideEffect {
@@ -545,6 +550,7 @@ fun EditableTextField(
             .let { if (fontFamily != null) it.fontFamily(fontFamily) else it }.onFocus { state.focus() }.onUnfocus {
                 state.unfocus()
                 completion.close()
+                codeInsight.clearSignature()
             }.onCharTyped { event ->
                 val char = event.codePoint.toChar()
                 if (event.codePoint != 0 && !char.isISOControl() && state.typeCharacter(char)) {
@@ -554,7 +560,7 @@ fun EditableTextField(
             }
             // Low priority: user onKeyInput handlers (default priority 0) get first refusal.
             .onKeyInput(TextFieldDefaultKeyPriority) { input ->
-                if (handleEditableFieldKey(state, input, layout, completion)) input.consume()
+                if (handleEditableFieldKey(state, input, layout, completion, codeInsight)) input.consume()
             }.onPress { event ->
                 state.focus()
                 val hit = clickHit(event, layout, gutterWidth)
@@ -581,7 +587,15 @@ fun EditableTextField(
                         contentOffsetX = gutterWidth,
                     )
                 }
-            }.onExit { hoverTooltip = null }.then(modifier ?: Modifier)
+                codeHoverTarget = if (hoverTooltip == null && hoverInfoProvider != null) {
+                    EditableFieldHoverTarget(clickHit(event, layout, gutterWidth).offset)
+                } else {
+                    null
+                }
+            }.onExit {
+                hoverTooltip = null
+                codeHoverTarget = null
+            }.then(modifier ?: Modifier)
             .scrollable(
                 vertical = multiline,
                 horizontal = !wrap,
@@ -635,6 +649,19 @@ fun EditableTextField(
         hoverTooltip?.let { tooltip ->
             EditableFieldDiagnosticTooltipOverlay(tooltip, scrollState)
         }
+        EditableFieldCodeInsight(
+            state = codeInsight,
+            text = text,
+            caret = state.caret,
+            focused = state.focused,
+            hoverTarget = codeHoverTarget,
+            signatureProvider = signatureHelpProvider,
+            hoverProvider = hoverInfoProvider,
+            revision = codeInsightRevision,
+            layout = layout,
+            scrollState = scrollState,
+            contentOffsetX = gutterWidth,
+        )
     }
 }
 
@@ -840,7 +867,7 @@ private fun EditableFieldRow(
 
     if (indentGuides) state.indentSize?.let { indentSize ->
         val guideHeight = layout.lineTop(index + 1) - top
-        editableFieldIndentGuideColumns(line.text, indentSize).forEachIndexed { guideIndex, column ->
+        editableFieldIndentGuideColumns(layout.lines, index, indentSize).forEachIndexed { guideIndex, column ->
             val x = UiTextLayouter.measureTextWidth(" ".repeat(column), fontSize, fontFamily)
             key("guide", guideIndex) {
                 Box(
@@ -1040,25 +1067,40 @@ internal fun selectionRectsForRow(
     crossesNewline: Boolean,
     fontSize: Float,
     fontFamily: String?,
+    @Suppress("UNUSED_PARAMETER")
     fullWidth: Float,
 ): List<UiRect> {
+    val newlineWidth = UiTextLayouter.measureTextWidth(" ", fontSize, fontFamily).coerceAtLeast(1f)
     if (lineLayout != null) {
-        val rects = lineLayout.selectionRects(localStart, localEnd, fontSize, fontFamily, fillLineGaps = true)
-        if (!crossesNewline) return rects
-        if (rects.isEmpty()) {
-            return if (line.text.isEmpty()) listOf(UiRect(0f, 0f, fullWidth, maxOf(lineLayout.height, fontSize)))
-            else emptyList()
-        }
-        val last = rects.last()
-        return rects + UiRect(
-            last.x + last.width, last.y, (fullWidth - (last.x + last.width)).coerceAtLeast(0f), fontSize
+        val rects = mergeSelectionRects(
+            lineLayout.selectionRects(localStart, localEnd, fontSize, fontFamily, fillLineGaps = false),
         )
+        if (!crossesNewline) return rects
+        val caret = lineLayout.caretPosition(localEnd, fontSize, fontFamily)
+        val lineHeight = lineLayout.lines.lastOrNull()?.height ?: fontSize
+        return rects + UiRect(caret.x, caret.y, newlineWidth, lineHeight)
     }
     val x1 = UiTextLayouter.measureTextWidth(line.text.take(localStart), fontSize, fontFamily)
     val x2 = UiTextLayouter.measureTextWidth(line.text.take(localEnd), fontSize, fontFamily)
-    val right = if (crossesNewline) fullWidth else x2
+    val right = if (crossesNewline) x2 + newlineWidth else x2
     if (right <= x1) return emptyList()
     return listOf(UiRect(x1, 0f, right - x1, fontSize))
+}
+
+private fun mergeSelectionRects(rects: List<UiRect>): List<UiRect> {
+    if (rects.size < 2) return rects
+    val result = ArrayList<UiRect>()
+    for (rect in rects) {
+        val previous = result.lastOrNull()
+        if (previous != null && abs(previous.y - rect.y) <= 0.5f && abs(previous.height - rect.height) <= 0.5f) {
+            val left = minOf(previous.x, rect.x)
+            val right = maxOf(previous.x + previous.width, rect.x + rect.width)
+            result[result.lastIndex] = UiRect(left, previous.y, right - left, previous.height)
+        } else {
+            result += rect
+        }
+    }
+    return result
 }
 
 /** Maps a pointer event on the field to a document offset (padding + gutter + scroll aware). */
@@ -1146,6 +1188,7 @@ internal fun handleEditableFieldKey(
     input: UiKeyInput,
     layout: EditableFieldLayout? = null,
     completion: TextFieldCompletionState? = null,
+    codeInsight: EditableFieldCodeInsightState? = null,
 ): Boolean {
     val text = state.text
     if (completion != null && completion.active) {
@@ -1171,6 +1214,7 @@ internal fun handleEditableFieldKey(
             GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT -> completion.close()
         }
     }
+    if (input.key == GLFW.GLFW_KEY_ESCAPE && codeInsight?.dismissSignature() == true) return true
     if (completion != null && (input.command && input.key == GLFW.GLFW_KEY_SPACE || input.alt && (input.key == GLFW.GLFW_KEY_ENTER || input.key == GLFW.GLFW_KEY_KP_ENTER))) {
         completion.open()
         return true
@@ -1310,6 +1354,27 @@ internal fun editableFieldIndentGuideColumns(line: String, indentSize: Int): Lis
     val levels = leadingSpaces / normalizedIndent
     return (1 until levels).map { level -> level * normalizedIndent }
 }
+
+/** Keeps guides continuous across an empty logical line using the common surrounding indent. */
+internal fun editableFieldIndentGuideColumns(
+    lines: List<EditableFieldLine>,
+    lineIndex: Int,
+    indentSize: Int,
+): List<Int> {
+    val line = lines.getOrNull(lineIndex)?.text ?: return emptyList()
+    if (line.isNotBlank()) return editableFieldIndentGuideColumns(line, indentSize)
+    val previous = (lineIndex - 1 downTo 0).firstNotNullOfOrNull { index ->
+        lines[index].text.takeIf(String::isNotBlank)
+    }
+    val next = (lineIndex + 1 until lines.size).firstNotNullOfOrNull { index ->
+        lines[index].text.takeIf(String::isNotBlank)
+    }
+    if (previous == null || next == null) return emptyList()
+    val commonIndent = minOf(previous.leadingSpaceCount(), next.leadingSpaceCount())
+    return editableFieldIndentGuideColumns(" ".repeat(commonIndent), indentSize)
+}
+
+private fun String.leadingSpaceCount(): Int = indexOfFirst { it != ' ' }.let { if (it < 0) length else it }
 
 internal const val TextFieldCaretWidth = 1f
 

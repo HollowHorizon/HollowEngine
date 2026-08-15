@@ -138,11 +138,11 @@ class HollowUiInputController {
 
         previousNode
             ?.takeIf { it in frame.nodes }
-            ?.let { dispatch(UiEvent(UiEventKind.EXIT, it, x = mouseX, y = mouseY)) }
+            ?.let { dispatch(frame.pointerEvent(UiEventKind.EXIT, it, mouseX, mouseY)) }
         hoveredNode
             ?.takeIf { it in frame.nodes }
             ?.let {
-                dispatch(UiEvent(UiEventKind.ENTER, it, x = mouseX, y = mouseY))
+                dispatch(frame.pointerEvent(UiEventKind.ENTER, it, mouseX, mouseY))
             }
         return true
     }
@@ -154,7 +154,7 @@ class HollowUiInputController {
         dispatch: (UiEvent) -> Boolean,
     ): Boolean {
         val node = hoveredNode?.takeIf { it in frame.nodes } ?: return false
-        return dispatch(UiEvent(UiEventKind.HOVER, node, x = mouseX, y = mouseY))
+        return dispatch(frame.pointerEvent(UiEventKind.HOVER, node, mouseX, mouseY))
     }
 
     fun focus(
@@ -558,6 +558,22 @@ data class UiInputResult(
 
 private fun HollowUiFrame.parentOf(node: UiNode): UiNode? {
     return node.layoutState.parentNode?.takeIf { node !== root }
+}
+
+private fun HollowUiFrame.pointerEvent(kind: UiEventKind, node: UiNode, x: Float, y: Float): UiEvent {
+    val layoutNode = layout[node]
+    val local = layoutNode.inputTransform.inverse()?.transform(x, y, 0f)
+    return UiEvent(
+        kind = kind,
+        node = node,
+        frame = this,
+        x = x,
+        y = y,
+        localX = local?.x ?: 0f,
+        localY = local?.y ?: 0f,
+        width = layoutNode.rect.width,
+        height = layoutNode.rect.height,
+    )
 }
 
 private fun HollowUiFrame.ancestorLocalPositions(node: UiNode, x: Float, y: Float): Map<String, UiVec3> {

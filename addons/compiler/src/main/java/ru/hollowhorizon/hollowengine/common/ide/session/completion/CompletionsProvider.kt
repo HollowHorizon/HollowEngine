@@ -33,6 +33,7 @@ import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
+import ru.hollowhorizon.hollowengine.common.scripting.ide.matchCompletion
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
 
@@ -141,7 +142,7 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                     collector.add(completeKeywords(parentKtElement, position))
                     completeIdentifier(ktFile, parentKtElement)
 
-                    if ("this".startsWith(position.prefix)) completeThisKeyword(ktFile, parentKtElement)
+                    if (matchesPrefix(position.prefix, "this")) completeThisKeyword(ktFile, parentKtElement)
                 }
 
                 is CompletionPosition.Type -> completeType(ktFile, parentKtElement, filter, position.isAnnotation)
@@ -158,7 +159,16 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
         }
 
         if (elements.isEmpty()) return null
-        return elements
+        val prefix = position.prefix.orEmpty()
+        return elements.withIndex()
+            .sortedWith(
+                compareBy<IndexedValue<CompletionItem>> {
+                    matchCompletion(prefix, it.value.name)?.score ?: Int.MAX_VALUE
+                }.thenBy { it.value.name.length }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.value.name }
+                    .thenBy { it.index },
+            )
+            .map(IndexedValue<CompletionItem>::value)
     }
 
 context(kaSession: KaSession)

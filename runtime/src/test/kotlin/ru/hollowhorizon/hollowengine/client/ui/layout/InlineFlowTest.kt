@@ -86,6 +86,35 @@ class InlineFlowTest {
         }
     }
 
+    @Test
+    fun `a max constrained fit flow hugs wrapped lines and measures their full height`() {
+        val signature = span(
+            "(screen: ResourceLocation, kind: UiSurfaceKind, charDelay: Int, choiceRevealDelay: Long)",
+        )
+        val container = BoxNode(
+            id = "signature",
+            measurePolicy = UiMeasurePolicies.InlineFlow,
+            modifiers = listOf(
+                Modifier.size(UiLength.Fit, UiLength.Fit)
+                    .maxSize(width = 260.px)
+                    .textWrap(true),
+            ),
+        ).also { it.children.add(signature) }
+        val root = BoxNode(
+            measurePolicy = UiMeasurePolicies.Column,
+            modifiers = listOf(TestFontStyle),
+        ).also { it.children.add(container) }
+        UiModifierResolver().resolve(root)
+
+        val layout = UiLayoutPipeline().compute(root, 600f, 400f, UiScrollState())
+        val containerRect = layout.nodes.getValue(container).rect
+        val textLayout = layout.nodes.getValue(signature).textLayout!!
+
+        assertTrue(textLayout.lines.size > 1, "the signature must wrap at the maximum width")
+        assertEquals(textLayout.width, containerRect.width, 0.6f, "fit width must hug the longest wrapped line")
+        assertEquals(textLayout.height, containerRect.height, 0.6f, "fit height must include every wrapped line")
+    }
+
 
     @Test
     fun `newline forces a hard break`() {

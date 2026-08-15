@@ -47,6 +47,13 @@ internal class HollowIdeEditorSession(
     @Volatile
     private var occurrenceSnapshot = OccurrenceSnapshot.Empty
     private val publishedRevision = AtomicLong()
+    private val codeInsight = HollowIdeCodeInsightSession(
+        path = path,
+        scope = scope,
+        currentAnalyzer = ::currentAnalyzer,
+        publish = ::publishCodeInsight,
+        reportFailure = ::reportAnalysisFailure,
+    )
 
     val revision: Long get() = publishedRevision.get()
 
@@ -115,6 +122,8 @@ internal class HollowIdeEditorSession(
         requestCompletions(context.text, context.caret, analyzer)
         completionSnapshot.takeIf { it.matches(context.text, context.caret, analyzer) }?.items.orEmpty()
     }
+    val signatures: UiSignatureHelpProvider get() = codeInsight.signatures
+    val hover: UiHoverInfoProvider get() = codeInsight.hover
 
     fun inlayHints(text: String): List<UiInlayHint> {
         val analyzer = currentAnalyzer()
@@ -250,6 +259,11 @@ internal class HollowIdeEditorSession(
     private fun publishCompletionIfCurrent(requestRevision: Long, update: () -> Unit) {
         if (requestRevision < completionRevision.get()) return
         update()
+        publishedRevision.incrementAndGet()
+        Minecraft.getInstance().execute(onUpdated)
+    }
+
+    private fun publishCodeInsight() {
         publishedRevision.incrementAndGet()
         Minecraft.getInstance().execute(onUpdated)
     }
@@ -566,6 +580,7 @@ private fun CompletionItem.toUi(): UiTextCompletion {
         caretOffset = (insert.length + moveCaret).coerceIn(0, insert.length),
         importFqName = declaration?.fqName?.takeIf { declaration.import },
         wordChars = wordChars,
+        filterText = name,
     )
 }
 
@@ -628,33 +643,8 @@ private fun commonSuffixLength(left: String, right: String, prefixLength: Int): 
     return limit
 }
 
-private fun TokenType.toUiColor(): UiColor {
-    return when (this) {
-        TokenType.COMMENT -> UiColor(0.55f, 0.6f, 0.68f, 1f)
-        TokenType.KEYWORD -> UiColor(0.81f, 0.56f, 0.43f, 1f)
-        TokenType.STRING -> UiColor(0.42f, 0.67f, 0.45f, 1f)
-        TokenType.ANNOTATION -> UiColor(0.7f, 0.68f, 0.38f, 1f)
-        TokenType.NUMERIC_LITERAL -> UiColor(0.16f, 0.68f, 0.72f, 1f)
-        TokenType.PROPERTY_IDENTIFIER,
-        TokenType.FIELD -> UiColor(0.78f, 0.49f, 0.73f, 1f)
-
-        TokenType.VARIABLE,
-        TokenType.PARAMETER,
-        TokenType.NAME_REFERENCE,
-        TokenType.CLASS,
-        TokenType.INTERFACE,
-        TokenType.ENUM,
-        TokenType.OBJECT -> UiColor(0.66f, 0.72f, 0.78f, 1f)
-
-        TokenType.EXTENSION_RECEIVER,
-        TokenType.VALUE_ARGUMENT_NAME -> UiColor(0.34f, 0.66f, 0.97f, 1f)
-
-        TokenType.TOP_LEVEL -> UiColor(0.95f, 0.96f, 0.95f, 1f)
-        TokenType.FUNCTION,
-        TokenType.METHOD -> UiColor(1f, 0.78f, 0.43f, 1f)
-
-        TokenType.DEFAULT -> UiColor(0.84f, 0.87f, 0.92f, 1f)
-    }
+internal fun TokenType.toUiColor(): UiColor = toKool().let { color ->
+    UiColor(color.r, color.g, color.b, color.a)
 }
 
 private fun lineStarts(text: String): List<Int> {

@@ -4,6 +4,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class UiScrollModifierInputTest {
@@ -76,6 +77,33 @@ class UiScrollModifierInputTest {
 
             assertEquals(1, received, "the handler must see the wheel without being a scroll container")
             assertTrue(handled)
+        }
+    }
+
+    @Test
+    fun `wheel prefers the highest overlapping scroll layer`() {
+        val backScroll = UiScrollHandle()
+        val frontScroll = UiScrollHandle()
+        HollowUiSurface().use { surface ->
+            surface.setContent {
+                Box(mode = UiBoxMode.STACK, modifier = Modifier.size(100.px, 100.px)) {
+                    Box(
+                        id = "back-scroll",
+                        modifier = Modifier.size(100.px, 100.px).then(scrollModifier(state = backScroll)).layer(0),
+                    ) {
+                        Box(modifier = Modifier.size(100.px, 240.px))
+                    }
+                    Box(
+                        id = "front-scroll",
+                        modifier = Modifier.size(100.px, 100.px).then(scrollModifier(state = frontScroll)).layer(10),
+                    ) {
+                        Box(modifier = Modifier.size(100.px, 240.px))
+                    }
+                }
+            }
+            val frame = surface.frame(120f, 120f, 50f, 50f, 0L)
+
+            assertSame(frame.nodeByIdentifier("front-scroll"), frame.scrollTargetAt(50f, 50f))
         }
     }
 }

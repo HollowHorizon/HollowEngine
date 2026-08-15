@@ -73,10 +73,8 @@ data class HollowUiFrame(
                     if (children.size == 1) {
                         stack.add(ScrollTargetTask.Enter(children[0], childClip))
                     } else if (children.size > 1) {
-                        val sorted = ArrayList<UiNode>(children.size)
-                        sorted.addAll(children)
-                        sorted.sortWith(compareByDescending<UiNode> { it.resolvedSnapshot.layer }.thenByDescending { layout[it].rect.y })
-                        for (child in sorted) stack.add(ScrollTargetTask.Enter(child, childClip))
+                        children.sortedWith(compareBy<UiNode> { it.resolvedSnapshot.layer }.thenBy { layout[it].rect.y })
+                            .forEach { child -> stack.add(ScrollTargetTask.Enter(child, childClip)) }
                     }
                 }
 

@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.common.scripting.ide.matchCompletion
 
 /**
  * Compose-observable completion model for an [EditableTextField]: the popup items, the selected
@@ -44,9 +45,28 @@ class TextFieldCompletionState(
         val text = state.text
         val caret = state.caret
         lastText = text
-        val found = contributor.complete(UiCompletionContext(text, caret))
-            .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
         val replacement = completionWordRange(text, caret)
+        val prefix = text.substring(replacement.first.coerceAtMost(text.length), replacement.last.coerceAtMost(text.length))
+        val found = contributor.complete(UiCompletionContext(text, caret))
+            .asSequence()
+            .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+            .mapIndexedNotNull { index, item ->
+                val filterMatch = matchCompletion(prefix, item.filterText)
+                val labelMatch = if (item.filterText == item.label) filterMatch else matchCompletion(prefix, item.label)
+                val match = filterMatch ?: labelMatch ?: return@mapIndexedNotNull null
+                val displayRanges = labelMatch?.ranges ?: filterMatch?.ranges
+                    ?.shiftInto(item.filterText, item.label)
+                    .orEmpty()
+                RankedCompletion(item.copy(matchRanges = displayRanges), match.score, index)
+            }
+            .sortedWith(
+                compareBy<RankedCompletion> { it.score }
+                    .thenBy { it.item.filterText.length }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.item.filterText }
+                    .thenBy { it.sourceIndex },
+            )
+            .map(RankedCompletion::item)
+            .toList()
         val line = completionLineRange(text, caret)
         anchor = caret
         replacementStart = replacement.first
@@ -154,6 +174,18 @@ class TextFieldCompletionState(
         if (autoOpenPending || (opened && revision != lastRevision)) open()
         lastRevision = revision
     }
+}
+
+private data class RankedCompletion(
+    val item: UiTextCompletion,
+    val score: Int,
+    val sourceIndex: Int,
+)
+
+private fun List<IntRange>.shiftInto(filterText: String, label: String): List<IntRange> {
+    val start = label.indexOf(filterText, ignoreCase = true)
+    if (start < 0) return emptyList()
+    return map { range -> (range.first + start)..(range.last + start) }
 }
 
 internal fun Char.isCompletionTrigger(): Boolean = this == '.' || this == '_' || isLetterOrDigit()

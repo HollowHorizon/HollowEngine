@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiTextAlign
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -25,13 +26,36 @@ class EditableTextFieldKeyTest {
         shift: Boolean = false,
         alt: Boolean = false,
         layout: EditableFieldLayout? = null,
+        codeInsight: EditableFieldCodeInsightState? = null,
     ): Boolean {
         var mods = 0
         if (ctrl) mods = mods or GLFW.GLFW_MOD_CONTROL
         if (shift) mods = mods or GLFW.GLFW_MOD_SHIFT
         if (alt) mods = mods or GLFW.GLFW_MOD_ALT
         val input = UiKeyInput(UiEvent(UiEventKind.KEY_PRESSED, node = BoxNode(), key = key, modifiers = mods))
-        return handleEditableFieldKey(this, input, layout)
+        return handleEditableFieldKey(this, input, layout, codeInsight = codeInsight)
+    }
+
+    @Test
+    fun `escape dismisses visible signature help without editing`() {
+        val state = state("call(")
+        val provider = UiSignatureHelpProvider { null }
+        val codeInsight = EditableFieldCodeInsightState().apply {
+            publishSignature(
+                text = state.text,
+                caret = state.caret,
+                provider = provider,
+                help = UiTextSignatureHelp(
+                    anchor = state.caret,
+                    signatures = listOf(UiTextSignature("(value: Int)", listOf(1..10))),
+                ),
+            )
+        }
+
+        assertTrue(state.press(GLFW.GLFW_KEY_ESCAPE, codeInsight = codeInsight))
+        assertNull(codeInsight.signatureHelp)
+        assertEquals("call(", state.text)
+        assertFalse(state.press(GLFW.GLFW_KEY_ESCAPE, codeInsight = codeInsight))
     }
 
     @Test
@@ -314,7 +338,7 @@ class EditableTextFieldKeyTest {
     }
 
     @Test
-    fun `wrapped empty line selection fills the row width`() {
+    fun `wrapped empty line selection paints one newline cell`() {
         val fontSize = 12f
         val lineLayout = UiTextLayouter.layout(
             "",
@@ -340,6 +364,6 @@ class EditableTextFieldKeyTest {
 
         assertEquals(1, rects.size)
         assertEquals(0f, rects.single().x)
-        assertEquals(128f, rects.single().width)
+        assertTrue(rects.single().width in 1f..fontSize)
     }
 }

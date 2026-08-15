@@ -247,10 +247,10 @@ internal fun UiLayoutPipeline.measureNodeContent(
     var constrainedWidth = finalWidth.coerceIn(style.minSize.width, style.maxSize.width, widthReference)
     var constrainedHeight = finalHeight.coerceIn(style.minSize.height, style.maxSize.height, heightReference)
     val widthConstrained = abs(constrainedWidth - finalWidth) > ConstraintReflowEpsilon
+    val contentSizedWidth = widthOverride == null && style.size.width.isContentSized
+    val contentSizedHeight = heightOverride == null && style.size.height.isContentSized
     val shouldReflowConstrainedWidth =
-        widthConstrained &&
-                (heightOverride == null && style.size.height is UiLength.Auto ||
-                        widthOverride == null && style.size.width is UiLength.Auto)
+        widthConstrained && (contentSizedWidth || contentSizedHeight)
 
     if (!shouldReflowConstrainedWidth) return LayoutSize(constrainedWidth, constrainedHeight)
 
@@ -265,11 +265,11 @@ internal fun UiLayoutPipeline.measureNodeContent(
         knownContentWidth = constrainedContentWidth,
         knownContentHeight = null,
     )
-    if (widthOverride == null && style.size.width is UiLength.Auto) {
+    if (contentSizedWidth) {
         constrainedWidth = (reflowed.width + insets.horizontal)
             .coerceIn(style.minSize.width, style.maxSize.width, widthReference)
     }
-    if (heightOverride == null && style.size.height is UiLength.Auto) {
+    if (contentSizedHeight) {
         constrainedHeight = (reflowed.height + insets.vertical)
             .coerceIn(style.minSize.height, style.maxSize.height, heightReference)
     }

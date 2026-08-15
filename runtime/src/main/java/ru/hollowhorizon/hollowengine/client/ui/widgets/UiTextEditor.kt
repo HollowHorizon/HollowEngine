@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
+import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+
 private const val HighlightedRichTextCacheSize = 24
 
 private val highlightedRichTextCache = object : LinkedHashMap<HighlightedRichTextCacheKey, UiRichText>(
@@ -75,10 +77,50 @@ data class UiTextCompletion(
     val caretOffset: Int? = null,
     val importFqName: String? = null,
     val wordChars: String = "",
+    /** Name used for matching when [label] also contains presentation text. */
+    val filterText: String = label,
+    /** Candidate ranges matched by the current prefix; populated by [TextFieldCompletionState]. */
+    val matchRanges: List<IntRange> = emptyList(),
 )
 
 fun interface UiCompletionContributor {
     fun complete(context: UiCompletionContext): List<UiTextCompletion>
+}
+
+data class UiTextSignature(
+    val label: String,
+    val parameters: List<IntRange>,
+    val documentation: String? = null,
+    val highlights: List<UiCodeInsightHighlight> = emptyList(),
+    val presentation: IntRange = label.indices,
+)
+
+data class UiCodeInsightHighlight(
+    val range: IntRange,
+    val tokenType: TokenType,
+)
+
+data class UiTextSignatureHelp(
+    val anchor: Int,
+    val signatures: List<UiTextSignature>,
+    val activeSignature: Int = 0,
+    val activeParameter: Int = 0,
+)
+
+fun interface UiSignatureHelpProvider {
+    fun help(context: UiCompletionContext): UiTextSignatureHelp?
+}
+
+data class UiTextHoverInfo(
+    val start: Int,
+    val end: Int,
+    val signature: String,
+    val documentation: String? = null,
+    val highlights: List<UiCodeInsightHighlight> = emptyList(),
+)
+
+fun interface UiHoverInfoProvider {
+    fun hover(context: UiCompletionContext): UiTextHoverInfo?
 }
 
 enum class UiTextDiagnosticSeverity {

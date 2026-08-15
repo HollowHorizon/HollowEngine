@@ -13,6 +13,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -104,6 +105,20 @@ class ScriptingAnalysisEnvironmentTest {
             )
 
             assertTrue(diagnostics.any { it.severity.isError() }, diagnostics.toString())
+        }
+    }
+
+    @Test
+    fun `diagnostic rejects empty when subject parentheses`() {
+        withEnvironment { environment ->
+            val invalid = "val value = when() { else -> 1 }"
+            val valid = "val value = when { else -> 1 }"
+
+            val invalidDiagnostics = environment.analyzer.diagnostic("invalid-when.analysis.kts", invalid)
+            val validDiagnostics = environment.analyzer.diagnostic("valid-when.analysis.kts", valid)
+
+            assertTrue(invalidDiagnostics.any { it.severity.isError() }, invalidDiagnostics.toString())
+            assertFalse(validDiagnostics.any { it.severity.isError() }, validDiagnostics.toString())
         }
     }
 
@@ -217,6 +232,113 @@ class ScriptingAnalysisEnvironmentTest {
             val ranges = environment.analyzer.occurrences("occurrences-comment.analysis.kts", text, 3)
 
             assertTrue(ranges.isEmpty(), ranges.toString())
+        }
+    }
+
+    @Test
+    fun `signature help describes constructor parameters and active argument`() {
+        withEnvironment { environment ->
+            val text = """
+                class Sample(val name: String = "demo", val count: Int)
+                val sample = Sample()
+            """.trimIndent()
+            val caret = text.lastIndexOf(')')
+
+            val help = assertNotNull(environment.analyzer.signatureHelp("signature.analysis.kts", text, caret))
+            val signature = help.signatures.single()
+
+            assertTrue(signature.label.startsWith("Sample("), signature.label)
+            assertTrue(signature.label.contains("name: String = ..."), signature.label)
+            assertTrue(signature.label.contains("count: Int"), signature.label)
+            assertEquals("(name: String = ..., count: Int)", signature.label.substring(
+                signature.presentation.start,
+                signature.presentation.end,
+            ))
+            assertEquals(
+                TokenType.VALUE_ARGUMENT_NAME,
+                signature.highlights.single { highlight ->
+                    signature.label.substring(highlight.range.start, highlight.range.end) == "name"
+                }.tokenType,
+            )
+            assertEquals(
+                TokenType.DEFAULT,
+                signature.highlights.single { highlight ->
+                    signature.label.substring(highlight.range.start, highlight.range.end) == "..."
+                }.tokenType,
+            )
+            assertEquals(0, help.activeParameter)
+        }
+    }
+
+    @Test
+    fun `signature help includes every constructor overload`() {
+        withEnvironment { environment ->
+            val text = """
+                class Test() {
+                    constructor(value: Int) : this()
+                    constructor(value: String) : this()
+                }
+                val test = Test()
+            """.trimIndent()
+            val caret = text.lastIndexOf(')')
+
+            val help = assertNotNull(environment.analyzer.signatureHelp("constructors.analysis.kts", text, caret))
+
+            assertEquals(
+                setOf("Test()", "Test(value: Int)", "Test(value: String)"),
+                help.signatures.mapTo(linkedSetOf()) { it.label },
+            )
+        }
+    }
+
+    @Test
+    fun `signature help includes every function overload`() {
+        withEnvironment { environment ->
+            val text = """
+                fun choose(value: Int) = value
+                fun choose(value: String) = value
+                val result = choose()
+            """.trimIndent()
+            val caret = text.lastIndexOf(')')
+
+            val help = assertNotNull(environment.analyzer.signatureHelp("functions.analysis.kts", text, caret))
+
+            assertEquals(
+                setOf("choose(value: Int): Int", "choose(value: String): String"),
+                help.signatures.mapTo(linkedSetOf()) { it.label },
+            )
+        }
+    }
+
+    @Test
+    fun `hover returns symbol signature and plain kdoc`() {
+        withEnvironment { environment ->
+            val text = """
+                /** Combines a name with a count. */
+                fun combine(name: String, count: Int) = name.repeat(count)
+                val result = combine("demo", 2)
+            """.trimIndent()
+            val usage = text.lastIndexOf("combine")
+
+            val hover = assertNotNull(environment.analyzer.hover("hover.analysis.kts", text, usage + 2))
+
+            assertTrue(hover.signature.startsWith("combine("), hover.signature)
+            assertTrue(hover.signature.contains("name: String"), hover.signature)
+            assertEquals(
+                TokenType.FUNCTION,
+                hover.highlights.single { highlight ->
+                    hover.signature.substring(highlight.range.start, highlight.range.end) == "combine"
+                }.tokenType,
+            )
+            assertEquals(
+                TokenType.VALUE_ARGUMENT_NAME,
+                hover.highlights.first { highlight ->
+                    hover.signature.substring(highlight.range.start, highlight.range.end) == "name"
+                }.tokenType,
+            )
+            assertEquals("Combines a name with a count.", hover.documentation)
+            assertEquals(usage, hover.start)
+            assertEquals(usage + "combine".length, hover.end)
         }
     }
 
@@ -368,6 +490,24 @@ class ScriptingAnalysisEnvironmentTest {
             )
 
             assertTrue(completions.any { it.name == "localValue" }, completions.toString())
+        }
+    }
+
+    @Test
+    fun `completion matches camel hump subsequences`() {
+        withEnvironment { environment ->
+            val text = """
+                val hollowEngineCandidate = 1
+                hollEngCand
+            """.trimIndent()
+
+            val completions = environment.analyzer.completions(
+                "fuzzy-completion.analysis.kts",
+                text,
+                text.length,
+            )
+
+            assertTrue(completions.any { it.name == "hollowEngineCandidate" }, completions.toString())
         }
     }
 

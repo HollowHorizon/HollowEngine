@@ -12,6 +12,8 @@ interface ScriptingAnalyzer {
 
     fun completions(name: String, text: String, offset: Int): List<CompletionItem>
     fun definition(name: String, text: String, offset: Int): DefinitionLocation? = null
+    fun signatureHelp(name: String, text: String, offset: Int): SignatureHelp? = null
+    fun hover(name: String, text: String, offset: Int): HoverInfo? = null
     fun diagnostic(name: String, text: String): List<Diagnostic>
 }
 
@@ -20,11 +22,43 @@ data class OccurrenceRange(
     val end: Int,
 )
 
+/** A compiler-provided syntax color range inside a code-insight presentation. */
+data class CodeInsightHighlight(
+    val range: OccurrenceRange,
+    val tokenType: TokenType,
+)
+
 data class DefinitionLocation(
     val path: String,
     val offset: Int = 0,
     val text: String? = null,
     val readOnly: Boolean = text != null,
+)
+
+/** Parameter information for the call containing the caret. Ranges use end-exclusive offsets. */
+data class SignatureHelp(
+    val anchor: Int,
+    val signatures: List<CallableSignature>,
+    val activeSignature: Int = 0,
+    val activeParameter: Int = 0,
+)
+
+data class CallableSignature(
+    val label: String,
+    val parameters: List<OccurrenceRange>,
+    val documentation: String? = null,
+    val highlights: List<CodeInsightHighlight> = emptyList(),
+    /** Portion shown by parameter info; hover still uses the complete [label]. */
+    val presentation: OccurrenceRange = OccurrenceRange(0, label.length),
+)
+
+/** Symbol information shown after a delayed hover. */
+data class HoverInfo(
+    val start: Int,
+    val end: Int,
+    val signature: String,
+    val documentation: String? = null,
+    val highlights: List<CodeInsightHighlight> = emptyList(),
 )
 
 /**

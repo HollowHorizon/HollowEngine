@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.HssProperty
 import ru.hollowhorizon.hollowengine.client.ui.style.HssSchema
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
+import ru.hollowhorizon.hollowengine.common.scripting.ide.completionMatches
 import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 
 /**
@@ -33,7 +34,7 @@ private fun propertyCompletions(prefix: String): List<CompletionItem> =
         .map { (property, name) -> propertyItem(property, name) }
 
 private fun HssProperty.namesFor(prefix: String): List<String> =
-    (listOf(name) + aliases).filter { it.startsWith(prefix, ignoreCase = true) }
+    (listOf(name) + aliases).filter { completionMatches(prefix, it) }
 
 /** `margin` with its signature and summary, inserting `margin: ` ready for the value. */
 private fun propertyItem(property: HssProperty, name: String): CompletionItem = declarationCompletionItem {
@@ -64,7 +65,7 @@ private fun valueCompletions(
     )
     val slotName = declaration.slotAt(value, caret - valueStart)?.name ?: "value"
     return candidates
-        .filter { it.startsWith(prefix, ignoreCase = true) }
+        .filter { completionMatches(prefix, it) }
         .map { candidate -> valueItem(candidate, slotName) }
 }
 
@@ -90,7 +91,7 @@ private fun selectorCompletions(before: String, model: HssDocumentModel): List<C
 }
 
 private fun keywordCompletions(values: List<String>, prefix: String, tail: String): List<CompletionItem> =
-    values.filter { it.startsWith(prefix, ignoreCase = true) }.map { value ->
+    values.filter { completionMatches(prefix, it) }.map { value ->
         declarationCompletionItem {
             show = value
             insert = value

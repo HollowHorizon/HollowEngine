@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.*
 import kotlinx.coroutines.isActive
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.toUiColor
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
@@ -11,7 +12,8 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.generated.Assets
-import kotlin.math.max
+import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
+import kotlin.math.floor
 
 /** Completion popup placement in viewport coordinates (relative to the field's content box). */
 internal data class EditableFieldCompletionGeometry(
@@ -37,10 +39,38 @@ internal fun editableFieldCompletionGeometry(
     if (items.isEmpty() || viewportWidth <= 0f || viewportHeight <= 0f) return null
     val fontSize = layout.fontSize
     val fontFamily = layout.fontFamily
-    val rowHeight = (fontSize + 6f).coerceAtLeast(14f)
-    val visibleRows = items.size.coerceAtMost(CompletionPopupMaxVisibleRows)
+    val textHeight = UiTextLayouter.measure(
+        text = "Mg",
+        availableWidth = Float.POSITIVE_INFINITY,
+        knownWidth = null,
+        wrap = false,
+        fontSize = fontSize,
+        fontFamily = fontFamily,
+    ).height.coerceAtLeast(fontSize)
+    val rowHeight = (textHeight + CompletionPopupRowVerticalChrome).coerceAtLeast(14f)
+    val footerHeight = (textHeight + CompletionPopupFooterVerticalChrome).coerceAtLeast(rowHeight)
+    val caret = layout.caretAt(anchor)
+    val caretX = caretOffsetX + caret.x - scrollX
+    val caretY = caret.y - scrollY
+    val belowY = caretY + textHeight + CompletionPopupAnchorGap
+    val belowSpace = viewportHeight - belowY - CompletionPopupViewportMargin
+    val aboveSpace = caretY - CompletionPopupAnchorGap - CompletionPopupViewportMargin
+    val minimumHeight = popupMinimumHeight(rowHeight, footerHeight)
+    val useViewportHeight = belowSpace < minimumHeight && aboveSpace < minimumHeight
+    val useBelow = !useViewportHeight && (belowSpace >= minimumHeight || belowSpace >= aboveSpace)
+    val availableHeight = when {
+        useViewportHeight -> viewportHeight - CompletionPopupViewportMargin * 2f
+        useBelow -> belowSpace
+        else -> aboveSpace
+    }.coerceAtLeast(0f)
+    val rowsThatFit = floor(
+        (availableHeight - footerHeight - CompletionPopupDividerHeight - CompletionPopupVerticalPadding * 2f) /
+                rowHeight,
+    ).toInt().coerceAtLeast(1)
+    val visibleRows = items.size.coerceAtMost(CompletionPopupMaxVisibleRows).coerceAtMost(rowsThatFit)
     val listHeight = rowHeight * visibleRows + CompletionPopupVerticalPadding * 2f
-    val height = listHeight + rowHeight + 1f
+    val height = (listHeight + footerHeight + CompletionPopupDividerHeight)
+        .coerceAtMost(availableHeight)
     val measured = items.asSequence().take(CompletionPopupMeasuredItems)
     val labelWidth = measured.maxOfOrNull { item ->
         var width = UiTextLayouter.measureTextWidth(item.label, fontSize, fontFamily)
@@ -52,16 +82,23 @@ internal fun editableFieldCompletionGeometry(
         }
         width
     } ?: 0f
-    val width = (labelWidth + CompletionPopupRowChrome).coerceIn(160f, max(160f, viewportWidth - 8f))
-    val caret = layout.caretAt(anchor)
-    val caretX = caretOffsetX + caret.x - scrollX
-    val caretY = caret.y - scrollY
-    val x = caretX.coerceIn(4f, (viewportWidth - width - 4f).coerceAtLeast(4f))
-    val belowY = caretY + fontSize + 4f
-    val aboveY = caretY - height - 4f
-    val y = if (belowY + height <= viewportHeight) belowY else aboveY.coerceAtLeast(4f)
+    val availableWidth = (viewportWidth - CompletionPopupViewportMargin * 2f).coerceAtLeast(1f)
+    val minWidth = minOf(CompletionPopupMinWidth, availableWidth)
+    val width = (labelWidth + CompletionPopupRowChrome).coerceIn(minWidth, availableWidth)
+    val x = caretX.coerceIn(
+        CompletionPopupViewportMargin,
+        (viewportWidth - width - CompletionPopupViewportMargin).coerceAtLeast(CompletionPopupViewportMargin),
+    )
+    val y = when {
+        useViewportHeight -> CompletionPopupViewportMargin
+        useBelow -> belowY
+        else -> caretY - height - CompletionPopupAnchorGap
+    }
     return EditableFieldCompletionGeometry(x, y, width, height, listHeight, rowHeight, visibleRows)
 }
+
+private fun popupMinimumHeight(rowHeight: Float, footerHeight: Float): Float =
+    rowHeight + footerHeight + CompletionPopupDividerHeight + CompletionPopupVerticalPadding * 2f
 
 /**
  * The completion popup rendered inside the field's scroll container: positioned in viewport space
@@ -111,16 +148,14 @@ internal fun EditableFieldCompletionPopup(
         .take(CompletionPopupWindowSize)
         .toList()
 
-    val caret = layout.caretAt(completion.anchor)
     val viewport = scrollState.viewport
-    val anchorX = viewport.x + contentOffsetX + caret.x - scrollState.offsetX
-    val anchorY = viewport.y + caret.y - scrollState.offsetY
     Popup(
-        anchorBounds = UiRect(anchorX, anchorY, 0f, layout.fontSize),
-        alignment = UiPopupAlignment.BelowStart,
+        anchorBounds = UiRect(viewport.x + geometry.x, viewport.y + geometry.y, 0f, 0f),
+        alignment = UiPopupAlignment(anchorVertical = UiAlign.START),
         id = "editable-text-field-completion",
         tags = listOf("editable-text-field-completion-popup", "ide-completion-popup"),
-        modifier = Modifier.size(geometry.width.px, geometry.height.px)
+        modifier = Modifier.size(geometry.width.px, geometry.height.px).fontSize(layout.fontSize)
+            .let { base -> layout.fontFamily?.let { base.fontFamily(it) } ?: base }
             .input(clickable = true, hoverable = true),
         dismissOnOutside = false,
     ) {
@@ -198,7 +233,7 @@ private fun CompletionPopupRow(
         item.icon?.let { icon ->
             Image(icon, tags = listOf("ide-completion-icon"))
         }
-        CompletionRowContent(item.label, item.detail, item.tail, active, fadeColor)
+        CompletionRowContent(item.label, item.detail, item.tail, item.matchRanges, active, fadeColor)
     }
 }
 
@@ -207,6 +242,7 @@ private fun CompletionRowContent(
     label: String,
     detail: String,
     tail: String,
+    matchRanges: List<IntRange>,
     active: Boolean,
     fadeColor: UiColor,
 ) {
@@ -249,7 +285,7 @@ private fun CompletionRowContent(
             Row(
                 modifier = Modifier.onPlaced { leadingWidth = it.width }.clip(false),
             ) {
-                Text(label, tags = listOf("ide-completion-label"))
+                CompletionLabel(label, matchRanges)
                 if (detail.isNotBlank()) {
                     CompletionDetail(detail, active)
                 }
@@ -281,6 +317,27 @@ private fun CompletionRowContent(
                     .background(180f, completionFadeStops(fadeColor)),
             )
         }
+    }
+}
+
+@Composable
+private fun CompletionLabel(label: String, matchRanges: List<IntRange>) {
+    val ranges = matchRanges.asSequence()
+        .mapNotNull { range ->
+            val start = range.first.coerceIn(0, label.length)
+            val end = (range.last + 1).coerceIn(start, label.length)
+            if (start == end) null else start until end
+        }
+        .sortedBy { it.first }
+        .toList()
+    Text(tags = listOf("ide-completion-label"), modifier = Modifier.textWrap(false)) {
+        var cursor = 0
+        for (range in ranges) {
+            if (cursor < range.first) Span(label.substring(cursor, range.first))
+            Span(label.substring(range.first, range.last + 1), modifier = Modifier.foreground(CompletionMatchColor))
+            cursor = range.last + 1
+        }
+        if (cursor < label.length) Span(label.substring(cursor))
     }
 }
 
@@ -342,9 +399,10 @@ private fun completionDetailSegments(detail: String): List<CompletionSegment> {
     return result
 }
 
-private val CompletionTypeColor = parseColor("#A9B7C6")
-private val CompletionNameColor = parseColor("#57AAF7")
+private val CompletionTypeColor = TokenType.CLASS.toUiColor()
+private val CompletionNameColor = TokenType.VALUE_ARGUMENT_NAME.toUiColor()
 private val CompletionPunctuationColor = parseColor("#6E7686")
+private val CompletionMatchColor = parseColor("#6CB6FF")
 
 private const val CompletionFadeWidth = 16f
 private const val CompletionFadeDurationMillis = 300L
@@ -422,6 +480,12 @@ internal fun completionSelectionRowIndex(
 
 private const val CompletionPopupMaxVisibleRows = 10
 private const val CompletionPopupVerticalPadding = 3f
+private const val CompletionPopupRowVerticalChrome = 6f
+private const val CompletionPopupFooterVerticalChrome = 8f
+private const val CompletionPopupDividerHeight = 1f
+private const val CompletionPopupAnchorGap = 4f
+private const val CompletionPopupViewportMargin = 4f
+private const val CompletionPopupMinWidth = 160f
 private const val CompletionPopupMeasuredItems = 128
 private const val CompletionPopupWindowSize = 48
 private const val CompletionPopupOverscanRows = 12

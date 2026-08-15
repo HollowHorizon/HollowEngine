@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.ide.session
 
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.PsiManager
 import com.intellij.psi.impl.PsiManagerEx
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.impl.base.util.LibraryUtils
@@ -105,7 +106,7 @@ class SimpleDeclarationProviderFactory(
 
     // Перегрузка removeFromPsiManager для VirtualFile (ранее была для KtFile)
     private fun removeFromPsiManager(virtualFile: VirtualFile) {
-        val psiManager = com.intellij.psi.PsiManager.getInstance(projectEnvironment.project) as? PsiManagerEx ?: return
+        val psiManager = PsiManager.getInstance(projectEnvironment.project) as? PsiManagerEx ?: return
         val fileManager = psiManager.fileManager
         fileManager.setViewProvider(virtualFile, null)
     }

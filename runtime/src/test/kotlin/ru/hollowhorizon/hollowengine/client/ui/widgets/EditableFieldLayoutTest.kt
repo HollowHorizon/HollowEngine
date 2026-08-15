@@ -93,7 +93,7 @@ class EditableFieldLayoutTest {
     }
 
     @Test
-    fun `non-wrapped empty line selection uses viewport width when text is narrower`() {
+    fun `non-wrapped empty line selection paints one newline cell`() {
         val l = layout("x\n", wrap = false, viewportWidth = 120f)
         val emptyLine = l.lines[1]
         val emptyLineLayout = l.lineLayouts[1]
@@ -109,7 +109,7 @@ class EditableFieldLayoutTest {
         )
 
         assertEquals(120f, l.contentWidth, 0.5f)
-        assertEquals(120f, rects.single().width, 0.5f)
+        assertTrue(rects.single().width in 1f..fontSize)
     }
 
     @Test
@@ -137,5 +137,12 @@ class EditableFieldLayoutTest {
         val l = layout("aaaa bbbb cccc dddd", wrap = true, viewportWidth = 60f)
         assertTrue(l.lineLayouts[0] != null, "line has a wrap layout")
         assertTrue(l.lineTop(1) > fontSize, "the wrapped first line is taller than one row")
+    }
+
+    @Test
+    fun `indent guides continue through blank lines inside a block`() {
+        val lines = editableFieldLines("    if (ready) {\n        run()\n\n        finish()\n    }")
+
+        assertEquals(listOf(4), editableFieldIndentGuideColumns(lines, 2, indentSize = 4))
     }
 }
