@@ -37,11 +37,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Перемещает NPC к указанной сущности до тех пор, пока расстояние не станет меньше или равно заданному.
+ * Moves the NPC toward the specified entity until the distance becomes less than or equal to the specified value.
  *
- * @param entity Сущность, к которой нужно переместиться.
- * @param dist Минимальное расстояние до сущности, при достижении которого движение прекращается.
- * @param speed Скорость перемещения NPC.
+ * @param entity The entity to move toward.
+ * @param dist The minimum distance to the entity; movement stops when this distance is reached.
+ * @param speed The NPC's movement speed.
  */
 suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0): MoveResult =
     with(server ?: currentServer) {
@@ -55,19 +55,18 @@ fun NpcEntity.startMove(target: Ref<out Entity>, options: MoveOptions = MoveOpti
     actions.start(NpcActionKeys.MOVEMENT) { moveToEntity(target, options) }
 
 /**
- * Перемещает NPC к указанной сущности с настройками по умолчанию. (Можно указать через пробел)
+ * Moves the NPC to the specified entity using the default settings. (Can be specified with a space)
  *
- * @param mob Сущность, к которой нужно переместиться.
+ * @param mob The entity to move to.
  */
-// @ScriptBinding
 suspend infix fun NpcEntity.move(mob: Entity): MoveResult = move(entity = mob)
 
 /**
- * Перемещает NPC к указанной позиции до тех пор, пока расстояние не станет меньше или равно заданному.
+ * Moves the NPC to the specified position until the distance becomes less than or equal to the specified value.
  *
- * @param pos Позиция, к которой нужно переместиться.
- * @param dist Минимальное расстояние до позиции, при достижении которого движение прекращается.
- * @param speed Скорость перемещения NPC.
+ * @param pos The position to move to.
+ * @param dist The minimum distance to the position; movement stops when this distance is reached.
+ * @param speed The NPC's movement speed.
  */
 suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0): MoveResult =
     move(pos, MoveOptions(arrivalDistance = dist, speed = speed))
@@ -79,9 +78,9 @@ fun NpcEntity.startMove(pos: Vec3, options: MoveOptions = MoveOptions()): NpcAct
     actions.start(NpcActionKeys.MOVEMENT) { moveToPosition({ pos }, options) }
 
 /**
- * Перемещает NPC к указанной позиции с настройками по умолчанию. (Можно указать через пробел)
+ * Moves the NPC to the specified position using the default settings.
  *
- * @param position Позиция, к которой нужно переместиться.
+ * @param position The position to move to.
  */
 suspend infix fun NpcEntity.move(position: Vec3): MoveResult = move(pos = position)
 
@@ -91,9 +90,9 @@ fun NpcEntity.stopMoving() {
 }
 
 /**
- * Заставляет NPC посмотреть на указанную позицию за 30 тиков.
+ * Makes the NPC look at the specified position. Returns value, is npc looked at target, or still rotating head.
  *
- * @param position Позиция, на которую нужно смотреть.
+ * @param position The position to look at.
  */
 fun NpcEntity.lookAtNow(position: Vec3, maxAngularSpeed: Float = 360f): Boolean =
     faceTowards(position, maxAngularSpeed)
@@ -115,9 +114,9 @@ suspend infix fun NpcEntity.lookAt(position: Vec3) {
 }
 
 /**
- * Заставляет NPC посмотреть на указанную сущность за 30 тиков.
+ * Makes the NPC look at the specified entity. Returns value, is npc looked at target, or still rotating head.
  *
- * @param entity Сущность, на которую нужно смотреть.
+ * @param entity The entity to look at.
  */
 fun NpcEntity.lookAtNow(entity: Entity, maxAngularSpeed: Float = 360f): Boolean =
     faceTowards(entity, maxAngularSpeed)
@@ -149,10 +148,10 @@ fun NpcEntity.clearLookTarget() {
 }
 
 /**
- * Заставляет NPC использовать блок по указанной позиции.
- * NPC переместится к блоку, посмотрит на него и выполнит действие использования.
+ * Forces an NPC to use a block at the specified position.
+ * The NPC will move to the block, look at it, and perform the use action.
  *
- * @param pos Позиция блока, который нужно использовать.
+ * @param pos The position of the block to be used.
  */
 suspend infix fun NpcEntity.useBlock(pos: Vec3): InteractionResult = useBlock(pos, InteractionHand.MAIN_HAND)
 
@@ -207,10 +206,10 @@ private fun NpcEntity.useBlockAt(target: Vec3, hand: InteractionHand, face: Dire
 }
 
 /**
- * Заставляет NPC разрушить блок по указанной позиции.
- * NPC переместится к блоку, посмотрит на него и разрушит его.
+ * Forces the NPC to destroy the block at the specified position.
+ * The NPC will move to the block, look at it, and destroy it.
  *
- * @param pos Позиция блока, который нужно разрушить.
+ * @param pos The position of the block to be destroyed.
  */
 suspend infix fun NpcEntity.destroyBlock(pos: Vec3): Boolean = startDestroyBlock(pos).await()
 
@@ -320,9 +319,9 @@ private fun NpcEntity.syncFakePlayer() {
 }
 
 /**
- * Заставляет NPC выбросить предмет из инвентаря.
+ * Forces an NPC to drop an item from its inventory.
  *
- * @param item Предмет, который нужно выбросить.
+ * @param item The item to be dropped.
  */
 fun NpcEntity.dropItem(item: ItemStack) {
     val p = position()
@@ -336,9 +335,9 @@ fun NpcEntity.dropItem(item: ItemStack) {
 }
 
 /**
- * Приостанавливает выполнение корутины на указанное количество тиков.
+ * Pauses the coroutine for the specified number of ticks.
  *
- * @param time Количество тиков для задержки.
+ * @param time The number of ticks to delay.
  */
 suspend fun wait(time: Int) {
     delay((time * 50L).milliseconds)
@@ -366,21 +365,6 @@ fun uuid(uuid: String): UUID = UUID.fromString(uuid)
  *
  * @param item Идентификатор предмета (например, "minecraft:apple").
  * @param count Количество предметов в стаке.
- * @param nbt Строковое представление NBT-тега.
- * @return ItemStack с заданными параметрами.
- */
-@Deprecated(
-    message = "Legacy item NBT was replaced by data components. Put components in the item specification or pass DataComponentPatch.",
-    level = DeprecationLevel.ERROR,
-)
-fun item(item: String, count: Int, nbt: String): Nothing =
-    error("Legacy item NBT is not supported: $item x$count ($nbt)")
-
-/**
- * Создает ItemStack с указанным предметом, количеством и NBT-тегом.
- *
- * @param item Идентификатор предмета (например, "minecraft:apple").
- * @param count Количество предметов в стаке.
  * @param nbt NBT-тег для предмета.
  * @return ItemStack с заданными параметрами.
  */
@@ -399,20 +383,13 @@ fun item(item: String, count: Int = 1, components: DataComponentPatch): ItemStac
     }
 }
 
-@Deprecated(
-    message = "Legacy item NBT was replaced by data components. Use item(specification, count) or DataComponentPatch.",
-    level = DeprecationLevel.ERROR,
-)
-fun item(item: String, count: Int, nbt: CompoundTag): Nothing =
-    error("Legacy item NBT is not supported: $item x$count ($nbt)")
-
 /**
- * Переменная-геттер, которая переводит секунды в тики.
+ * A getter variable that converts seconds to ticks.
  *
- * @param this Число которое необходимо преобразовать из тиков в секунды
+ * @param this The number to be converted from ticks to seconds
  * @template
- * ```scene.kts
- * 10.sec // Переводит 10 секунд в тики (10 * 20 = 200)
+ * ```node.kts
+ * 10.sec // Converts 10 seconds to ticks (10 * 20 = 200)
  * ```
  */
 val Int.sec get() = this * 20
@@ -424,9 +401,9 @@ private val TICK_DURATION = 50.milliseconds
 private const val DEFAULT_INTERACTION_REACH = 3.0
 
 /**
- * Заставляет NPC "сказать" текст, отправляя сообщение всем игрокам на сервере.
+ * Makes an NPC "say" the text by sending a message to all players on the server.
  *
- * @param text Текст сообщения.
+ * @param text The text of the message.
  */
 infix fun NpcEntity.say(text: String) {
     server?.playerList?.players?.forEach {
