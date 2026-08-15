@@ -1,0 +1,20 @@
+---
+title: UI Styles
+order: 1
+---
+
+<center><h1>UI Styles</h1></center>
+
+This section covers reusable visual rules for scripted interfaces. UI structure and behaviour belong to [UI Scripts](/docs/hollowengine/scripting/ui), while HSS files define themes, states, transitions, and animations independently from Kotlin code.
+
+## Choosing where to style
+
+Use HSS for shared, static rules such as colours, spacing, textures, pseudo-states, transitions, and named animations. Select nodes by their `id`, tags, type, and state, then attach the stylesheet from a UI script with `Modifier.style(...)`.
+
+Use Kotlin modifiers when a value depends on script state or only applies to one node. Both approaches use the same layout and rendering properties, so a local modifier can override or extend an HSS rule without duplicating the whole style.
+
+## Pages
+
+- [HSS Files](/docs/hollowengine/scripting/ui/styles/hss-files): selectors, values, properties, pseudo-states, editor support, and the complete property reference.
+- [Animations and Transforms](/docs/hollowengine/scripting/ui/styles/animations): transitions, keyframes, transforms, and filters.
+- [Kotlin Modifiers](/docs/hollowengine/scripting/ui/modifiers): computed and per-instance styling inside `.ui.kts` files.

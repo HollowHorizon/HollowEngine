@@ -1,0 +1,69 @@
+---
+title: UI Scripts
+order: 1
+---
+
+<center><h1>UI Scripts</h1></center>
+
+HollowEngine UI uses a Kotlin DSL built on Compose. XML `.ui` files, inline XML, and client `.ktr` handlers are no longer supported. Define interfaces in client-loaded `.ui.kts` scripts. The server opens a declaration by id and synchronizes its typed state.
+
+## Architecture
+
+```text
+.ui.kts declaration → Compose node tree → HSS/style resolution → layout → rendering
+                                  ↕
+                         UiSession patches and events
+```
+
+UI declarations run on the client after resource reload. Opening a screen or an overlay does not send its layout over the network: client and server refer to the same resource id.
+
+## First screen
+
+Create `hollowengine/scripts/quest.ui.kts` (requires the Kotlin scripting compiler addon):
+
+```kotlin
+val Title = dataKey<String>("title") { "No quest" }
+
+screen("mypack:quest_log") {
+    title = "Quest log"
+    content {
+        Column(modifier = Modifier.padding(12.px).gap(6.px)) {
+            Text(data[Title])
+            Box(modifier = Modifier.onClick { send { putString("action", "accept") } }) {
+                Text("Accept")
+            }
+        }
+    }
+}
+```
+
+The server opens it from a server-capable script with `player.openUi("mypack:quest_log")`. See [Server UI API](/docs/hollowengine/scripting/ui/katari-ui).
+
+## Surfaces
+
+| Surface | Declaration | Server call | Use case |
+| --- | --- | --- | --- |
+| Screen | `screen("namespace:id")` | `player.openUi(id)` | A normal Minecraft screen |
+| HUD overlay | `overlay("namespace:id")` | `player.showOverlay(id)` | HUD owned by a server session |
+| Client HUD overlay | `overlay { autoShow = true }` | none | Local, always-visible HUD |
+
+Screens default to closing on Escape and do not pause single-player worlds. Overlays default to drawing after the hotbar, do not receive input, and are shown only when requested by the server.
+
+## What changed
+
+- `.ui` documents, XML imports, `ui(...)`, `insertAt(...)`, `await(...)`, and `.ktr` client scripts no longer exist.
+- Build UI with Kotlin composables such as `Column`, `Row`, `Box`, `Text`, `Image`, `Slider`, `Checkbox`, and `TextField`.
+- Use `Modifier` calls for local styling and interaction; HSS remains available through `Modifier.style(...)`.
+- Use `DataKey` and `UiSession` instead of template substitution and a single awaited response.
+
+## Next steps
+
+- [UI script files](/docs/hollowengine/scripting/ui/ui-files): declaration syntax and surface options
+- [Nodes and widgets](/docs/hollowengine/scripting/ui/nodes): composables and reusable Kotlin functions
+- [Inventory slots](/docs/hollowengine/scripting/ui/slots): zones, item rules, quick-move, and client widgets
+- [Modifiers](/docs/hollowengine/scripting/ui/modifiers): layout, appearance, interaction, and computed styles
+- [Events and state](/docs/hollowengine/scripting/ui/events): `UiScope`, `DataKey`, and sessions
+- [Text formatting](/docs/hollowengine/scripting/ui/text-formatting): formatted runs, effects, and dynamic text
+- [Server UI API](/docs/hollowengine/scripting/ui/katari-ui): opening, updating, and closing UI
+- [Examples](/docs/hollowengine/scripting/ui/examples): client and server examples
+- [UI Styles](/docs/hollowengine/scripting/ui/styles): reusable HSS rules, transitions, and animations

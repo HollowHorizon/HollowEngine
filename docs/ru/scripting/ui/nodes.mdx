@@ -1,0 +1,51 @@
+---
+title: Узлы и виджеты
+order: 3
+---
+
+<center><h1>Узлы и виджеты</h1></center>
+
+Интерфейсы строятся Kotlin-композаблами, а не XML-элементами. Базовые layout-композаблы принимают `id`, `tags`, `modifier` и `content`; id и tags используются HSS-селекторами.
+
+## Layout
+
+```kotlin
+Column(id = "panel", tags = listOf("dialog"), modifier = Modifier.padding(12.px).gap(8.px)) {
+    Text("Заголовок")
+    Row(modifier = Modifier.gap(6.px)) {
+        Text("Слева")
+        Text("Справа")
+    }
+}
+```
+
+| Композабл | Назначение |
+| --- | --- |
+| `Box` | Свободный или stacked-контейнер; при необходимости выбери `UiBoxMode` |
+| `Column` | Вертикальный layout |
+| `Row` | Горизонтальный layout |
+| `Text` / `Span` | Inline-поток текста и его фрагменты |
+| `Image` | Текстура по resource location |
+| `Element` | Пользовательский тип узла из расширения |
+
+`Text(value) { ... }` также принимает `Span`, `Image` и inline-виджеты. Внутри композиции можно использовать обычные условия и циклы Kotlin.
+
+## Контролы
+
+| Композабл | Основные callback |
+| --- | --- |
+| `Slider` | `onValueChange`, `onValueCommit` |
+| `Checkbox` | `onCheckedChange`; варианты checkbox, radio и switch |
+| `TextField` | `onChange`; однострочное/многострочное редактирование и функции редактора |
+| `Popup` и оверлеи | Временный UI поверх содержимого |
+
+Кнопка собирается из `Box`, стиля и модификатора ввода:
+
+```kotlin
+Box(
+    tags = listOf("button", "primary"),
+    modifier = Modifier.padding(6.px, 10.px).onClick { send { putString("action", "save") } },
+) { Text("Сохранить") }
+```
+
+Переиспользуемые контролы оформляй как `@Composable` Kotlin-функции. Они заменяют `.ui`-импорты и проверяются компилятором.

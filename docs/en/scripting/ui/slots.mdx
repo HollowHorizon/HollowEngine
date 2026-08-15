@@ -1,0 +1,494 @@
+---
+title: Inventory Slots
+order: 4
+---
+
+<center><h1>Inventory Slots</h1></center>
+
+Slot screens let a player move items between inventories from a scripted UI. A chest menu, an NPC backpack, and an equipment screen all use the same system.
+
+You describe such a screen in two scripts:
+
+- The server script chooses the inventories the player may use.
+- The client `.ui.kts` script arranges their slots on the screen.
+
+Both scripts refer to groups of slots by name. These named groups are called **zones**.
+
+## First slot screen
+
+The example below shows an NPC backpack next to the player's inventory.
+
+### Server script
+
+Open the UI and declare two zones:
+
+```kotlin
+player.openUi("mypack:npc_backpack") {
+    slots {
+        zone("npc", NpcInventorySource(npc))
+        playerZones(player)
+
+        quickMove(
+            "npc" to "player",
+            "player" to "npc",
+        )
+    }
+}
+```
+
+Here:
+
+- `zone("npc", ...)` creates a zone named `npc` from the NPC inventory.
+- `playerZones(player)` adds the player's inventory under the name `player`.
+- `quickMove(...)` selects where Shift + click moves items.
+
+### Client script
+
+Create `hollowengine/scripts/ui/npc_backpack.ui.kts`:
+
+```kotlin
+screen("mypack:npc_backpack") {
+    title = "NPC Backpack"
+
+    content {
+        Slots {
+            Column(modifier = Modifier.gap(8.px)) {
+                Text("Backpack")
+                SlotGrid("npc", columns = 9)
+
+                Text("Your inventory")
+                PlayerInventory()
+            }
+        }
+    }
+}
+```
+
+The name `npc` matches the server zone. `SlotGrid` receives the number of slots from the server, so the UI only needs to specify the number of columns.
+
+`PlayerInventory()` uses the zones created by `playerZones(player)`.
+
+## Zones
+
+A zone connects a name to an inventory:
+
+```kotlin
+zone("storage", ContainerSource(container))
+```
+
+The client uses that name when drawing slots:
+
+```kotlin
+SlotGrid("storage", columns = 9)
+```
+
+Zone names must be unique inside one screen.
+
+### Shift + click roles
+
+Every zone has a `role`. It controls how Shift + click uses the zone.
+
+| Role | Behaviour |
+| --- | --- |
+| `SlotZoneRole.BOTH` | Items can leave and enter. This is the default. |
+| `SlotZoneRole.SOURCE` | Items can leave, but Shift + click will not put items here. |
+| `SlotZoneRole.TARGET` | Items can enter, but Shift + click will not take items from here. |
+| `SlotZoneRole.NONE` | Shift + click ignores the zone. Ordinary clicks still work. |
+
+An output slot can use `SOURCE`:
+
+```kotlin
+zone("output", outputSource) {
+    role = SlotZoneRole.SOURCE
+}
+```
+
+Equipment often uses `NONE` so that Shift + click does not unexpectedly change armor or held items:
+
+```kotlin
+zone("gear", EquipmentSource(npc, EquipmentSource.All)) {
+    role = SlotZoneRole.NONE
+}
+```
+
+### Quick-move routes
+
+By default, Shift + click checks zones in the order in which they were declared. Use `quickMove` when a zone should try a specific target first:
+
+```kotlin
+quickMove(
+    "output" to "player",
+    "player" to "input",
+)
+```
+
+If the first target is full or rejects the item, the system checks the other suitable zones.
+
+## Choosing an inventory
+
+An inventory connected to a zone is called a `SlotSource`.
+
+| Source | Use |
+| --- | --- |
+| `NpcInventorySource(npc)` | Inventory of an NPC standing near the player |
+| `EquipmentSource(entity, slots)` | Armor and hand slots of a living entity |
+| `ContainerSource(container)` | A vanilla `Container`, such as a chest |
+| `SimpleSlotSource(size)` | A small inventory created by a script or feature |
+| `source.range(from, size)` | Part of another source |
+
+For NPC screens, prefer:
+
+```kotlin
+NpcInventorySource(npc)
+```
+
+It closes the screen when the NPC dies, disappears, moves too far away, or enters another dimension.
+
+The overload below has no distance check:
+
+```kotlin
+NpcInventorySource(npc.inventory)
+```
+
+Use it only for an inventory that should remain available remotely.
+
+`EquipmentSource` has ready-made slot lists:
+
+```kotlin
+EquipmentSource.Armor
+EquipmentSource.Hands
+EquipmentSource.Offhand
+EquipmentSource.All
+```
+
+`All` contains armor first, followed by main hand and offhand.
+
+## Player inventory
+
+Add player zones on the server:
+
+```kotlin
+playerZones(player)
+```
+
+This creates:
+
+| Zone | Contents |
+| --- | --- |
+| `player` | Hotbar and main inventory |
+| `armor` | Four armor slots |
+| `offhand` | Offhand slot |
+
+Draw them on the client:
+
+```kotlin
+PlayerInventory()
+```
+
+Armor and offhand are included with the `NONE` role by default. They can still be changed with ordinary clicks.
+
+You can omit or change them:
+
+```kotlin
+playerZones(
+    player,
+    storage = SlotZoneRole.BOTH,
+    armor = null,
+    offhand = SlotZoneRole.NONE,
+)
+```
+
+## Rules for items
+
+Use zone rules to limit what a slot accepts or gives back:
+
+```kotlin
+zone("fuel", fuelSource) {
+    canInsert = SlotFilter.tag("minecraft:coals")
+    canExtract = SlotFilter.Any
+    stackLimit = 16
+}
+```
+
+Common filters:
+
+| Filter | Meaning |
+| --- | --- |
+| `SlotFilter.Any` | Accept everything |
+| `SlotFilter.None` | Accept nothing |
+| `SlotFilter.items(stack)` | Accept the given item |
+| `SlotFilter.tag("namespace:tag")` | Accept items from a tag |
+| `SlotFilter.equipment(slot)` | Accept equipment for one slot |
+| `SlotFilter.anyOf(a, b)` | Accept an item matching either filter |
+| `SlotFilter.allOf(a, b)` | Require both filters |
+| `SlotFilter.not(filter)` | Reverse a filter |
+
+Configure one slot separately with `slot(index)`:
+
+```kotlin
+zone("machine", source) {
+    canInsert = SlotFilter.tag("minecraft:logs")
+
+    slot(0) {
+        canInsert = SlotFilter.items(item("minecraft:diamond"))
+        stackLimit = 1
+    }
+
+    slot(1) {
+        canInsert = SlotFilter.None
+    }
+}
+```
+
+In this example, slot `0` accepts one diamond, slot `1` accepts nothing, and the remaining slots accept logs.
+
+## Reacting to changes
+
+`onChange` runs after a slot has changed:
+
+```kotlin
+zone("storage", source) {
+    onChange { index, stack ->
+        player.send("Slot $index now contains ${stack.count} items")
+    }
+}
+```
+
+Use `allowInsert` and `allowExtract` for checks that can allow or reject a move:
+
+```kotlin
+zone("reward", source) {
+    allowExtract { index, extracted ->
+        canTakeReward(player, index, extracted)
+    }
+}
+```
+
+Returning `false` rejects the whole click:
+
+```kotlin
+allowInsert { _, inserted ->
+    inserted.count <= 8
+}
+```
+
+The stack passed to `allowInsert` or `allowExtract` contains the amount moved by the click.
+
+Use `afterInsert` and `afterExtract` for effects that must happen only after the item has moved:
+
+```kotlin
+zone("reward", source) {
+    afterExtract { _, extracted ->
+        giveReward(player, extracted)
+    }
+}
+```
+
+## Client widgets
+
+### `Slots`
+
+Every slot widget must be inside `Slots { }`:
+
+```kotlin
+Slots {
+    SlotGrid("storage", columns = 9)
+}
+```
+
+`Slots` handles the cursor stack, item tooltips, the `Q` key, dragging, and clicks outside the window.
+
+Set `dropOutside = false` if clicks outside the panel should keep the cursor stack:
+
+```kotlin
+Slots(dropOutside = false) {
+    // slots
+}
+```
+
+### `Slot`
+
+Draw one slot:
+
+```kotlin
+Slot("output", index = 0)
+```
+
+You can provide custom content:
+
+```kotlin
+Slot("output", index = 0) { stack ->
+    Text(if (stack.isEmpty) "Empty" else stack.hoverName.string)
+}
+```
+
+### `SlotGrid`
+
+Draw a zone in rows:
+
+```kotlin
+SlotGrid("storage", columns = 9)
+```
+
+Use `range` to draw only part of the zone:
+
+```kotlin
+SlotGrid("gear", columns = 1, range = 0..3)
+SlotGrid("gear", columns = 1, range = 4..5)
+```
+
+Both grids still refer to one server zone.
+
+## Styling
+
+Slots add HSS tags automatically:
+
+| Tag | Selects |
+| --- | --- |
+| `.slot` | Every slot |
+| `.slot-gear` | Slots from the `gear` zone |
+| `.slot-grid` | Every slot grid |
+| `.slot-grid-gear` | The grid for the `gear` zone |
+| `.player-inventory` | The player inventory widget |
+| `.slot-item` | An item inside a slot |
+| `.slot-carried` | The stack on the cursor |
+
+```css
+.slot {
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px #12161f;
+    border-radius: 3px;
+}
+
+.slot:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.slot-gear {
+    background: rgba(90, 70, 20, 0.45);
+}
+```
+
+Minecraft draws item counts, durability bars, cooldowns, and tooltips.
+
+## Controls
+
+| Input | Action |
+| --- | --- |
+| Left click | Pick up, place, merge, or swap |
+| Right click | Take half or place one item |
+| Shift + click | Move the stack to another zone |
+| Left drag | Distribute the carried stack |
+| Right drag | Place one item in each visited slot |
+| `Q` | Drop one item |
+| `Ctrl + Q` | Drop the whole stack |
+| Click outside `Slots` | Drop the cursor stack |
+
+The cursor stack is returned to the player when the screen closes. Changes made to the inventory by other game systems appear in the open screen automatically.
+
+## Complete NPC gear example
+
+This example shows an NPC backpack, equipment, and the player's inventory.
+
+### Server node
+
+```kotlin
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
+
+import net.minecraft.server.level.ServerPlayer
+
+val Title = dataKey<String>("title") { "Gear" }
+
+onInteract { event ->
+    val player = event.player as? ServerPlayer ?: return@onInteract
+    val npc = this@NpcEntity
+
+    player.openUi("hollowengine:npc_gear") {
+        put(Title, "${npc.name.string}: gear")
+
+        slots {
+            zone("npc", NpcInventorySource(npc))
+            playerZones(player)
+
+            zone("gear", EquipmentSource(npc, EquipmentSource.All)) {
+                role = SlotZoneRole.NONE
+                onChange { index, stack ->
+                    val value = if (stack.isEmpty) "empty" else stack.hoverName.string
+                    player.send("[Gear] ${EquipmentSource.All[index].name.lowercase()}: $value")
+                }
+            }
+
+            quickMove(
+                "npc" to "player",
+                "player" to "npc",
+            )
+        }
+    }
+}
+```
+
+The `npc` and `player` zones exchange items with Shift + click. The `gear` zone uses ordinary clicks.
+
+### Client UI
+
+The styling lives in `assets/project/ui/npc_gear.hss`:
+
+```css
+#gear-panel {
+    padding: 12px;
+    gap: 10px;
+    align-items: center;
+    background: image("hollowengine:textures/gui/npc_menu/character.png");
+    image-fit: 9-slice 32px;
+}
+
+.gear-columns { gap: 12px; align-items: start; }
+.section { gap: 4px; align-items: center; }
+.section-label { color: #b9c4d4; font-size: 9px; }
+
+.slot {
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px #12161f;
+    border-radius: 3px;
+}
+.slot:hover { background: rgba(255, 255, 255, 0.18); }
+.slot-gear { background: rgba(90, 70, 20, 0.45); }
+```
+
+```kotlin
+val Title = dataKey<String>("title") { "Gear" }
+
+screen("hollowengine:npc_gear") {
+    title = "NPC Gear"
+
+    content {
+        Slots(modifier = Modifier.style("project:ui/npc_gear.hss")) {
+            Column(id = "gear-panel") {
+                Text(data[Title])
+
+                Row(tags = listOf("gear-columns")) {
+                    Column(tags = listOf("section")) {
+                        Text("Equipment", tags = listOf("section-label"))
+                        Row(modifier = Modifier.gap(6.px)) {
+                            SlotGrid("gear", columns = 1, range = 0..3)
+                            SlotGrid("gear", columns = 1, range = 4..5)
+                        }
+                    }
+
+                    Column(tags = listOf("section")) {
+                        Text("Backpack", tags = listOf("section-label"))
+                        SlotGrid("npc", columns = 9)
+                    }
+                }
+
+                Column(tags = listOf("section")) {
+                    Text("Your inventory", tags = listOf("section-label"))
+                    PlayerInventory()
+                }
+            }
+        }
+    }
+}
+```
+
+Armor occupies indices `0..3` of `EquipmentSource.All`. Main hand and offhand occupy `4..5`.

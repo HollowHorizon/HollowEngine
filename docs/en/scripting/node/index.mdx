@@ -1,8 +1,6 @@
 ---
 title: Introduction to Node Scripts
 order: 1
-date: 2026-07-18
-readingTime: 5 min
 ---
 
 <center><h1>Introduction to Node Scripts</h1></center>
@@ -122,18 +120,18 @@ For sequential linear stories, however, it is much more convenient to use [State
 
 ## Attaching a node to an entity
 
-Add `@file:Attach("<fully-qualified class name>")` at the top of the file to bind the node to an entity instead of the server.
+Add `@file:Attach(EntityType::class)` at the top of the file to bind the node to an entity instead of the server.
 This adds the entity type as an extra implicit receiver, so the script can call its members directly, and it unlocks the entity-specific handlers described below.
 
 ```kotlin
-@file:Attach("net.minecraft.world.entity.LivingEntity")
+@file:Attach(net.minecraft.world.entity.LivingEntity::class)
 
 onStart {
     println("Attached to ${name.string}, health = $health")
 }
 ```
 
-`@file:Attach` accepts the full class name as a string.
+`@file:Attach` accepts a Kotlin class reference.
 Common targets:
 
 | Target             | Class name                                          |
@@ -177,7 +175,7 @@ These handlers are only available in a script attached to an entity via `@file:A
 Runs when a player interacts with the attached entity. Already filtered to the server side and the main hand, so it runs once per click.
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 onInteract { event ->
     event.player.send("Hello, ${event.player.name.string}!")
@@ -189,7 +187,7 @@ onInteract { event ->
 Runs when the attached entity takes damage.
 
 ```kotlin
-@file:Attach("net.minecraft.world.entity.LivingEntity")
+@file:Attach(net.minecraft.world.entity.LivingEntity::class)
 
 onHurt { event ->
     println("Took ${event.amount} damage from ${event.source.msgId}")
@@ -201,7 +199,7 @@ onHurt { event ->
 Runs when the attached entity dies. This is a good place to clean up quest state, drop custom loot, or notify other scripts.
 
 ```kotlin
-@file:Attach("net.minecraft.world.entity.LivingEntity")
+@file:Attach(net.minecraft.world.entity.LivingEntity::class)
 
 onDie {
     println("The guard has fallen")
@@ -211,7 +209,7 @@ onDie {
 A small NPC example combining several handlers:
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 var greeted = false
 

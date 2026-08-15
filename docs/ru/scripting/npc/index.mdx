@@ -1,8 +1,6 @@
 ---
 title: Обзор NPC
 order: 1
-date: 2026-07-19
-readingTime: 2 мин
 ---
 
 <center><h1>NPC в Kotlin-скриптах</h1></center>
@@ -72,7 +70,7 @@ suspend fun main() {
 Для поведения, которое должно жить вместе с самим NPC, а не с сюжетным стейтом, прикрепи [node-скрипт](/docs/hollowengine/scripting/node) прямо к сущности через `@file:Attach`:
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 onInteract { event ->
     event.player.send("Добро пожаловать, путник!")

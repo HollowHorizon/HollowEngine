@@ -1,8 +1,6 @@
 ---
 title: Введение в Node-скрипты
 order: 1
-date: 2026-07-18
-readingTime: 5 мин
 ---
 
 <center><h1>Введение в Node-скрипты</h1></center>
@@ -122,18 +120,18 @@ fun onPlayerJoin(event: PlayerEvent.Join) {
 
 ## Прикрепление ноды к сущности
 
-Добавьте `@file:Attach("<полное имя класса>")` в начало файла, чтобы привязать ноду к сущности вместо сервера.
+Добавьте `@file:Attach(EntityType::class)` в начало файла, чтобы привязать ноду к сущности вместо сервера.
 Это добавляет тип сущности как дополнительный неявный параметр, поэтому скрипт может напрямую вызывать её методы и свойства, а также открывает доступ к обработчикам сущности, описанным ниже.
 
 ```kotlin
-@file:Attach("net.minecraft.world.entity.LivingEntity")
+@file:Attach(net.minecraft.world.entity.LivingEntity::class)
 
 onStart {
     println("Прикреплено к ${name.string}, здоровье = $health")
 }
 ```
 
-`@file:Attach` принимает полное имя класса строкой.
+`@file:Attach` принимает ссылку на Kotlin-класс.
 Скорее всего вам понадобится одно из этого:
 
 | Цель                 | Имя класса                                                |
@@ -177,7 +175,7 @@ fun onEntitySpawn(event: EntityLoadedEvent) {
 Срабатывает, когда игрок взаимодействует с привязанной сущностью. Уже отфильтровано по серверной стороне и основной руке, поэтому срабатывает один раз на клик.
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 onInteract { event ->
     event.player.send("Привет, ${event.player.name.string}!")
@@ -189,7 +187,7 @@ onInteract { event ->
 Срабатывает, когда привязанная сущность получает урон.
 
 ```kotlin
-@file:Attach("net.minecraft.world.entity.LivingEntity")
+@file:Attach(net.minecraft.world.entity.LivingEntity::class)
 
 onHurt { event ->
     println("Получено ${event.amount} урона от ${event.source.msgId}")
@@ -201,7 +199,7 @@ onHurt { event ->
 Срабатывает при смерти привязанной сущности. Хорошее место, чтобы очистить состояние квеста, выдать особый лут или уведомить другие скрипты.
 
 ```kotlin
-@file:Attach("net.minecraft.world.entity.LivingEntity")
+@file:Attach(net.minecraft.world.entity.LivingEntity::class)
 
 onDie {
     println("Страж пал")
@@ -211,7 +209,7 @@ onDie {
 Небольшой пример с NPC, объединяющий несколько обработчиков:
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 var greeted = false
 

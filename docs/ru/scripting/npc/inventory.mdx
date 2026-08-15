@@ -1,8 +1,6 @@
 ---
 title: Инвентарь и сбор предметов
 order: 5
-date: 2026-07-19
-readingTime: 11 мин
 ---
 
 <center><h1>Инвентарь и сбор предметов</h1></center>
@@ -179,7 +177,7 @@ suspend fun main() {
 `hasItems`, `takeItems` и `giveItem` работают с `npc.inventory`, поэтому продавцу, торгующему из собственных запасов, хватит функций с этой страницы. Магазину нужно реагировать на взаимодействия всё время, пока NPC существует, а для этого как раз нужен [node-скрипт, прикреплённый к сущности](/docs/hollowengine/scripting/node):
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 // Сама сущность здесь - implicit receiver, поэтому префикс `npc.` не нужен.
 giveItem(item("minecraft:bread", 32)) // завозим товар один раз, когда нода запускается

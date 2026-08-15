@@ -1,0 +1,122 @@
+---
+title: Examples
+order: 10
+---
+
+<center><h1>UI Examples</h1></center>
+
+## Server-driven confirmation screen
+
+`hollowengine/scripts/confirm.ui.kts`:
+
+```kotlin
+val Message = dataKey<String>("message") { "Are you sure?" }
+
+screen("mypack:confirm") {
+    title = "Confirmation"
+    content {
+        Column(modifier = Modifier.padding(16.px).gap(12.px)) {
+            Text(data[Message])
+            Row(modifier = Modifier.gap(8.px)) {
+                Box(modifier = Modifier.onClick { send { putString("action", "accept") } }) { Text("Yes") }
+                Box(modifier = Modifier.onClick { send { putString("action", "cancel") } }) { Text("No") }
+            }
+        }
+    }
+}
+```
+
+From a server script:
+
+```kotlin
+player.openUi("mypack:confirm") {
+    put(Message, "Delete this item?")
+    onEvent { payload ->
+        when (payload.getString("action")) {
+            "accept" -> deleteItem(player)
+            "cancel" -> Unit
+        }
+        close()
+    }
+}
+```
+
+## Client-owned HUD hint
+
+```kotlin
+val Hint = dataKey<String>("hint") { "" }
+
+overlay("mypack:block_hint") {
+    anchor = "crosshair"
+    placement = HudPlacement.AFTER
+    autoShow = true
+    content {
+        data.find(Hint)?.takeIf(String::isNotBlank)?.let { hint ->
+            Box(modifier = Modifier.padding(4.px).background(UiColor(0f, 0f, 0f, 0.55f))) { Text(hint) }
+        }
+    }
+}
+```
+
+Because this overlay is auto-shown and never calls `send`, it remains client-only. A server-owned version uses `player.showOverlay("mypack:block_hint")` and `UiSession.put(Hint, value)` instead.
+
+## Awaiting a choice from a suspend function
+
+The UI API has no `ui.await(player)`. A screen can send several events, and `UiSession` manages its lifecycle. Use a coroutine adapter when the server needs one choice.
+
+The UI declaration sends a choice:
+
+```kotlin
+screen("mypack:quest_choice") {
+    title = "A visitor asks for help"
+    content {
+        Column(modifier = Modifier.padding(16.px).gap(8.px)) {
+            Text("Will you accept the quest?")
+            Box(modifier = Modifier.onClick { send { putString("choice", "accept") } }) { Text("Accept") }
+            Box(modifier = Modifier.onClick { send { putString("choice", "decline") } }) { Text("Decline") }
+        }
+    }
+}
+```
+
+In a server script, add these imports and adapter once:
+
+```kotlin
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+private enum class QuestChoice { ACCEPT, DECLINE }
+
+private suspend fun ServerPlayer.chooseQuest(): QuestChoice? = suspendCancellableCoroutine { continuation ->
+    var session: UiSession? = null
+
+    fun finish(choice: QuestChoice?) {
+        if (!continuation.isActive) return
+        continuation.resume(choice)
+        session?.close()
+    }
+
+    session = openUi("mypack:quest_choice") {
+        onEvent { payload ->
+            when (payload.getString("choice")) {
+                "accept" -> finish(QuestChoice.ACCEPT)
+                "decline" -> finish(QuestChoice.DECLINE)
+            }
+        }
+        onClose { if (continuation.isActive) continuation.resume(null) }
+    }
+    continuation.invokeOnCancellation { session?.close() }
+}
+```
+
+The calling suspend function can then handle the result directly. Escape, server-side closure, and coroutine cancellation return `null`:
+
+```kotlin
+when (player.chooseQuest()) {
+    QuestChoice.ACCEPT -> startQuest(player)
+    QuestChoice.DECLINE -> showDeclinedDialogue(player)
+    null -> logChoiceCancelled(player)
+}
+```
+
+Validate every choice on the server. Unknown payloads leave the screen open.

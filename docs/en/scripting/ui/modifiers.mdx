@@ -1,0 +1,96 @@
+---
+title: Modifiers
+order: 5
+---
+
+<center><h1>Modifiers and Styles</h1></center>
+
+`Modifier` is the local, type-safe way to configure a composable. Calls are chained in declaration order.
+
+```kotlin
+Box(
+    id = "panel",
+    modifier = Modifier
+        .size(320.px, 180.px)
+        .padding(12.px)
+        .gap(8.px)
+        .background(UiColor(0.08f, 0.1f, 0.15f, 0.95f))
+        .borderRadius(8f),
+) { /* content */ }
+```
+
+## Layout and drawing
+
+Common modifier groups:
+
+| Group | Examples |
+| --- | --- |
+| Size and position | `size`, `width`, `height`, `minSize`, `position`, `align`, `grow` |
+| Spacing and flow | `padding`, `margin`, `gap`, `clip`, `scroll` |
+| Appearance | `background`, `border`, `borderRadius`, `shadow`, `foreground`, `opacity`, `tint` |
+| Interaction | `onClick`, `onPress`, `onDrag`, `onScroll`, `cursor`, `state` |
+| Content and clipping | `image`, `imageFit`, `clip`, `shape`, `shapeFill`, `shapeStroke`, `layer` |
+| Motion | `transition`, `animation`, `translate`, `rotate`, `scale`, `perspective`, `pivot` |
+| Effects | `filter`, `backdropFilter`, `backfaceVisibility`, `textEffects` |
+
+Lengths use helpers such as `12.px` and `50.percent`. Keep dynamic values in Kotlin expressions instead of building style strings.
+
+## Decorations
+
+Backgrounds accept a solid `UiColor`, a resource image, a linear gradient, or a radial gradient. Borders and shadows are independent, so a card can use all three:
+
+```kotlin
+Box(
+    modifier = Modifier
+        .background(135f, listOf(
+            UiGradientStop(0f, UiColor(0.08f, 0.12f, 0.24f)),
+            UiGradientStop(1f, UiColor(0.18f, 0.32f, 0.48f)),
+        ))
+        .border(1.px, UiColor(0.55f, 0.72f, 1f, 0.7f), radius = 8f)
+        .borderRadius(8f)
+        .shadow(UiShadow(offset = UiVec3(0f, 3f), blur = 8f, color = UiColor(0f, 0f, 0f, 0.45f)))
+        .padding(12.px),
+) { Text("Quest reward") }
+```
+
+For texture frames use `Modifier.background("mypack:textures/ui/panel.png")` and `Modifier.imageFit(UiImageFit.NINE_SLICE)`, or describe the same rules in HSS with `background: image(...)` and `image-fit: 9-slice ...`.
+
+`clip()` prevents children from drawing outside the node. `shape(...)`/`shapeFill(...)`/`shapeStroke(...)` draw vector shapes, while `layer(value)` sets a local drawing layer. Avoid filters and oversized blurred shadows on large or frequently rebuilt surfaces: they can require an extra render layer.
+
+## Transforms and filters
+
+Transforms use the centre pivot by default. Use `pivot(...)` to rotate or scale from another point.
+
+```kotlin
+Box(
+    modifier = Modifier
+        .pivot(0.percent, 50.percent)
+        .translate(x = 6f)
+        .rotate(z = -4f)
+        .scale(1.04f)
+        .perspective(600f)
+        .filter(UiFilterEffect.Grayscale(0.2f)),
+) { Text("Tilted card") }
+```
+
+`filter` affects the node itself; `backdropFilter` affects what is behind it. Available filter effects include grayscale, blur, and named shader filters. Use HSS or a local modifier for transforms; `rebuildEveryFrame` is not needed for a regular transition.
+
+## HSS stylesheets
+
+HSS remains useful for shared themes and pseudo-states. The [UI Styles](/docs/hollowengine/scripting/ui/styles) section documents its selectors, properties, transitions, and animations. Attach a stylesheet explicitly from a Kotlin declaration:
+
+```kotlin
+Column(id = "quest-root", modifier = Modifier.style("mypack:ui/quest.hss")) {
+    Text("Quest log")
+}
+```
+
+Selectors use composable ids and tags:
+
+```css
+#quest-root { padding: 12px; gap: 6px; }
+.button { padding: 6px 10px; border-radius: 4px; }
+.button:hover { background: #5F8CCD; }
+```
+
+Local modifiers and HSS can be combined. Put reusable static rules in HSS and state-dependent or computed values in Kotlin. There are no inline XML attributes.

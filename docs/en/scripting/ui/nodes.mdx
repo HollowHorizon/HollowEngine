@@ -1,0 +1,51 @@
+---
+title: Nodes and Widgets
+order: 3
+---
+
+<center><h1>Nodes and Widgets</h1></center>
+
+Interfaces are built from Kotlin composables, not XML elements. Every basic layout composable accepts `id`, `tags`, `modifier`, and `content`; use ids and tags as HSS selectors.
+
+## Layout
+
+```kotlin
+Column(id = "panel", tags = listOf("dialog"), modifier = Modifier.padding(12.px).gap(8.px)) {
+    Text("Header")
+    Row(modifier = Modifier.gap(6.px)) {
+        Text("Left")
+        Text("Right")
+    }
+}
+```
+
+| Composable | Purpose |
+| --- | --- |
+| `Box` | Free or stacked container; select `UiBoxMode` when needed |
+| `Column` | Vertical layout |
+| `Row` | Horizontal layout |
+| `Text` / `Span` | Inline text flow and text fragments |
+| `Image` | Texture from a resource location |
+| `Element` | Custom node type when an extension supplies one |
+
+`Text(value) { ... }` can also contain inline `Span`, `Image`, and inline widgets. Use Kotlin control flow and loops directly inside a composition.
+
+## Controls
+
+| Composable | Main callbacks |
+| --- | --- |
+| `Slider` | `onValueChange`, `onValueCommit` |
+| `Checkbox` | `onCheckedChange`; checkbox, radio, or switch variants |
+| `TextField` | `onChange`; supports single/multi-line editing and editor features |
+| `Popup` and overlays | Compose temporary UI above content |
+
+Buttons are composed from `Box`, a style, and an input modifier:
+
+```kotlin
+Box(
+    tags = listOf("button", "primary"),
+    modifier = Modifier.padding(6.px, 10.px).onClick { send { putString("action", "save") } },
+) { Text("Save") }
+```
+
+Create reusable controls as `@Composable` Kotlin functions. This replaces `.ui` imports and makes components type-safe.

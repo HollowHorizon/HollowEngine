@@ -1,0 +1,74 @@
+---
+title: UI Script Files
+order: 2
+---
+
+<center><h1>UI Script Files</h1></center>
+
+UI declarations are Kotlin scripts with the `.ui.kts` suffix. Store them under `hollowengine/scripts`; nested folders are supported. The client compiles and executes them on resource reload. The Kotlin scripting compiler addon must be installed on the client.
+
+The script has `UiScript` as its base class and imports the UI, widget, layout, style, `DataKey`, and HUD APIs automatically.
+
+## Screens
+
+`screen(id) { ... }` registers a screen. The id is a resource location used later by the server.
+
+```kotlin
+screen("mypack:settings") {
+    title = "Settings"
+    closeOnEscape = true
+    pausesGame = false
+    content {
+        Column(modifier = Modifier.padding(12.px).gap(8.px)) {
+            Text("Settings")
+            Checkbox(checked = data[ShowHints], onCheckedChange = { checked ->
+                send { putBoolean("showHints", checked) }
+            })
+        }
+    }
+}
+```
+
+`title` defaults to the id path, `closeOnEscape` defaults to `true`, and `pausesGame` defaults to `false`. Set `rebuildEveryFrame = true` only for content that reads live client state every frame.
+
+## HUD overlays
+
+`overlay(id) { ... }` registers a HUD layer. It may be server-driven or purely client-owned.
+
+```kotlin
+overlay("mypack:stamina") {
+    anchor = "experience_bar"
+    placement = HudPlacement.BEFORE
+    autoShow = true
+    content {
+        val value = data[Stamina].coerceIn(0f, 1f)
+        Box(modifier = Modifier.size((182f * value).px, 5.px).background(UiColor(0.3f, 0.8f, 1f)))
+    }
+}
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `anchor` | `hotbar` | Vanilla HUD layer to draw next to; bare names such as `crosshair` and `experience_bar` are accepted |
+| `placement` | `HudPlacement.AFTER` | Draw before or after the anchor |
+| `autoShow` | `false` | Show immediately after the script reloads; use for client-only HUD |
+| `input` | `OverlayInput.NONE` | `NONE` for draw-only HUD, `INTERACTIVE` to receive input |
+| `aboveScreens` | `false` | Also draw over an open screen |
+| `rebuildEveryFrame` | `false` | Recompose each frame; enable only when necessary |
+
+`interactive()` is shorthand for `input = OverlayInput.INTERACTIVE`. During gameplay, an interactive overlay uses the screen centre until it receives a pointer event.
+
+## Kotlin composition
+
+`content { }` is a composable `UiScope` receiver. It can call composables, read `data`, call `send { }`, and call `close()`. Put shared UI in normal Kotlin functions:
+
+```kotlin
+@Composable
+fun UiScope.Action(label: String, action: String) {
+    Box(modifier = Modifier.padding(6.px).onClick { send { putString("action", action) } }) {
+        Text(label)
+    }
+}
+```
+
+XML imports are not supported. Reuse Kotlin functions, files, and imports.

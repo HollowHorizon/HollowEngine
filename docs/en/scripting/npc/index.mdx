@@ -1,8 +1,6 @@
 ---
 title: NPC Overview
 order: 1
-date: 2026-07-19
-readingTime: 2 min
 ---
 
 <center><h1>NPCs in Kotlin Scripts</h1></center>
@@ -72,7 +70,7 @@ If an NPC should survive world reloads or script reloads, store its UUID through
 For behavior that should live with the NPC itself instead of a story state, attach a [node script](/docs/hollowengine/scripting/node) directly to the entity with `@file:Attach`:
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 onInteract { event ->
     event.player.send("Welcome, traveler!")

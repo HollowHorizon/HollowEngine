@@ -1,8 +1,6 @@
 ---
 title: Inventory and Item Collection
 order: 5
-date: 2026-07-19
-readingTime: 11 min
 ---
 
 <center><h1>Inventory and Item Collection</h1></center>
@@ -179,7 +177,7 @@ If two different NPCs both go looking for the same pile of dropped items, they w
 `hasItems`, `takeItems`, and `giveItem` all operate on `npc.inventory`, so a shopkeeper that sells from its own stock only needs functions from this page. A shop needs to react to interactions for as long as the NPC exists, which is exactly what an [entity-attached node script](/docs/hollowengine/scripting/node) is for:
 
 ```kotlin
-@file:Attach("ru.hollowhorizon.hollowengine.common.entities.NpcEntity")
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
 
 // The NPC itself is the implicit receiver here, so no `npc.` prefix is needed.
 giveItem(item("minecraft:bread", 32)) // stock the shop once, when the node starts

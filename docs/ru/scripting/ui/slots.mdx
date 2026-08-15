@@ -1,0 +1,494 @@
+---
+title: Инвентари и Слоты
+order: 4
+---
+
+<center><h1>Инвентари и Слоты</h1></center>
+
+Экраны со слотами позволяют игроку перемещать предметы между инвентарями через скриптовый UI. По этой системе можно сделать меню сундука, рюкзак NPC или экран экипировки.
+
+Такой экран описывается в двух скриптах:
+
+- Серверный скрипт выбирает инвентари, к которым получит доступ игрок.
+- Клиентский `.ui.kts` размещает их слоты на экране.
+
+Оба скрипта обращаются к группам слотов по имени. Такие группы называются **зонами**.
+
+## Первый экран со слотами
+
+В примере ниже рюкзак NPC показывается рядом с инвентарём игрока.
+
+### Серверный скрипт
+
+Открой UI и объяви две зоны:
+
+```kotlin
+player.openUi("mypack:npc_backpack") {
+    slots {
+        zone("npc", NpcInventorySource(npc))
+        playerZones(player)
+
+        quickMove(
+            "npc" to "player",
+            "player" to "npc",
+        )
+    }
+}
+```
+
+Здесь:
+
+- `zone("npc", ...)` создаёт зону `npc` из инвентаря NPC.
+- `playerZones(player)` добавляет инвентарь игрока под именем `player`.
+- `quickMove(...)` задаёт направление для Shift + клик.
+
+### Клиентский скрипт
+
+Создай `hollowengine/scripts/ui/npc_backpack.ui.kts`:
+
+```kotlin
+screen("mypack:npc_backpack") {
+    title = "Рюкзак NPC"
+
+    content {
+        Slots {
+            Column(modifier = Modifier.gap(8.px)) {
+                Text("Рюкзак")
+                SlotGrid("npc", columns = 9)
+
+                Text("Ваш инвентарь")
+                PlayerInventory()
+            }
+        }
+    }
+}
+```
+
+Имя `npc` совпадает с серверной зоной. `SlotGrid` получает количество слотов от сервера, поэтому в UI достаточно указать число колонок.
+
+`PlayerInventory()` использует зоны, созданные через `playerZones(player)`.
+
+## Зоны
+
+Зона связывает имя с инвентарём:
+
+```kotlin
+zone("storage", ContainerSource(container))
+```
+
+Клиент использует это имя при отрисовке:
+
+```kotlin
+SlotGrid("storage", columns = 9)
+```
+
+Имена зон внутри одного экрана не должны повторяться.
+
+### Роли для Shift + клик
+
+У каждой зоны есть `role`. Она определяет поведение Shift + клик.
+
+| Роль | Поведение |
+| --- | --- |
+| `SlotZoneRole.BOTH` | Предметы могут входить и выходить. Используется по умолчанию. |
+| `SlotZoneRole.SOURCE` | Предметы могут выходить, но Shift + клик не положит их сюда. |
+| `SlotZoneRole.TARGET` | Предметы могут входить, но Shift + клик не заберёт их отсюда. |
+| `SlotZoneRole.NONE` | Shift + клик игнорирует зону. Обычные клики продолжают работать. |
+
+Для выходного слота подойдёт `SOURCE`:
+
+```kotlin
+zone("output", outputSource) {
+    role = SlotZoneRole.SOURCE
+}
+```
+
+Для экипировки часто используется `NONE`, чтобы Shift + клик случайно не менял броню или предметы в руках:
+
+```kotlin
+zone("gear", EquipmentSource(npc, EquipmentSource.All)) {
+    role = SlotZoneRole.NONE
+}
+```
+
+### Маршруты быстрого перемещения
+
+По умолчанию Shift + клик проверяет зоны в порядке их объявления. Через `quickMove` можно поставить выбранную цель первой:
+
+```kotlin
+quickMove(
+    "output" to "player",
+    "player" to "input",
+)
+```
+
+Если первая цель заполнена или не принимает предмет, система проверит остальные подходящие зоны.
+
+## Выбор инвентаря
+
+Инвентарь, подключённый к зоне, называется `SlotSource`.
+
+| Источник | Применение |
+| --- | --- |
+| `NpcInventorySource(npc)` | Инвентарь NPC рядом с игроком |
+| `EquipmentSource(entity, slots)` | Броня и предметы в руках живой сущности |
+| `ContainerSource(container)` | Ванильный `Container`, например сундук |
+| `SimpleSlotSource(size)` | Небольшой инвентарь, созданный скриптом или игровой системой |
+| `source.range(from, size)` | Часть другого источника |
+
+Для экранов NPC используй:
+
+```kotlin
+NpcInventorySource(npc)
+```
+
+Экран закроется, если NPC погибнет, исчезнет, отойдёт слишком далеко или попадёт в другое измерение.
+
+Следующий вариант не проверяет расстояние:
+
+```kotlin
+NpcInventorySource(npc.inventory)
+```
+
+Он подходит только для инвентаря, который должен быть доступен удалённо.
+
+У `EquipmentSource` есть готовые наборы слотов:
+
+```kotlin
+EquipmentSource.Armor
+EquipmentSource.Hands
+EquipmentSource.Offhand
+EquipmentSource.All
+```
+
+`All` сначала содержит броню, затем основную и вторую руку.
+
+## Инвентарь игрока
+
+Добавь зоны игрока на сервере:
+
+```kotlin
+playerZones(player)
+```
+
+Будут созданы:
+
+| Зона | Содержимое |
+| --- | --- |
+| `player` | Хотбар и основной инвентарь |
+| `armor` | Четыре слота брони |
+| `offhand` | Слот второй руки |
+
+Нарисуй их на клиенте:
+
+```kotlin
+PlayerInventory()
+```
+
+Броня и вторая рука по умолчанию имеют роль `NONE`. Их можно менять обычными кликами.
+
+Зоны можно отключить или настроить:
+
+```kotlin
+playerZones(
+    player,
+    storage = SlotZoneRole.BOTH,
+    armor = null,
+    offhand = SlotZoneRole.NONE,
+)
+```
+
+## Правила для предметов
+
+Правила зоны ограничивают вставку и извлечение предметов:
+
+```kotlin
+zone("fuel", fuelSource) {
+    canInsert = SlotFilter.tag("minecraft:coals")
+    canExtract = SlotFilter.Any
+    stackLimit = 16
+}
+```
+
+Основные фильтры:
+
+| Фильтр | Значение |
+| --- | --- |
+| `SlotFilter.Any` | Принимать всё |
+| `SlotFilter.None` | Не принимать ничего |
+| `SlotFilter.items(stack)` | Принимать указанный предмет |
+| `SlotFilter.tag("namespace:tag")` | Принимать предметы из тега |
+| `SlotFilter.equipment(slot)` | Принимать экипировку для одного слота |
+| `SlotFilter.anyOf(a, b)` | Достаточно одного подходящего фильтра |
+| `SlotFilter.allOf(a, b)` | Предмет должен пройти оба фильтра |
+| `SlotFilter.not(filter)` | Обратить результат фильтра |
+
+Один слот настраивается через `slot(index)`:
+
+```kotlin
+zone("machine", source) {
+    canInsert = SlotFilter.tag("minecraft:logs")
+
+    slot(0) {
+        canInsert = SlotFilter.items(item("minecraft:diamond"))
+        stackLimit = 1
+    }
+
+    slot(1) {
+        canInsert = SlotFilter.None
+    }
+}
+```
+
+В этом примере слот `0` принимает один алмаз, слот `1` ничего не принимает, а остальные слоты принимают брёвна.
+
+## Реакция на изменения
+
+`onChange` запускается после изменения слота:
+
+```kotlin
+zone("storage", source) {
+    onChange { index, stack ->
+        player.send("Теперь в слоте $index находится ${stack.count} предметов")
+    }
+}
+```
+
+`allowInsert` и `allowExtract` выполняют проверку до перемещения и могут его разрешить или запретить:
+
+```kotlin
+zone("reward", source) {
+    allowExtract { index, extracted ->
+        canTakeReward(player, index, extracted)
+    }
+}
+```
+
+Возврат `false` отменяет весь клик:
+
+```kotlin
+allowInsert { _, inserted ->
+    inserted.count <= 8
+}
+```
+
+Стак в `allowInsert` и `allowExtract` содержит количество, перемещённое этим кликом.
+
+Для действий, которые должны произойти только после перемещения, используй `afterInsert` и `afterExtract`:
+
+```kotlin
+zone("reward", source) {
+    afterExtract { _, extracted ->
+        giveReward(player, extracted)
+    }
+}
+```
+
+## Клиентские виджеты
+
+### `Slots`
+
+Все виджеты слотов должны находиться внутри `Slots { }`:
+
+```kotlin
+Slots {
+    SlotGrid("storage", columns = 9)
+}
+```
+
+`Slots` обрабатывает стак на курсоре, подсказки, клавишу `Q`, перетаскивание и клики вне окна.
+
+Установи `dropOutside = false`, если клик за пределами панели не должен выбрасывать стак:
+
+```kotlin
+Slots(dropOutside = false) {
+    // слоты
+}
+```
+
+### `Slot`
+
+Отрисовка одного слота:
+
+```kotlin
+Slot("output", index = 0)
+```
+
+Можно передать своё содержимое:
+
+```kotlin
+Slot("output", index = 0) { stack ->
+    Text(if (stack.isEmpty) "Пусто" else stack.hoverName.string)
+}
+```
+
+### `SlotGrid`
+
+Отрисовка зоны по строкам:
+
+```kotlin
+SlotGrid("storage", columns = 9)
+```
+
+Через `range` можно показать часть зоны:
+
+```kotlin
+SlotGrid("gear", columns = 1, range = 0..3)
+SlotGrid("gear", columns = 1, range = 4..5)
+```
+
+Обе сетки продолжают ссылаться на одну серверную зону.
+
+## Стилизация
+
+Слоты автоматически добавляют HSS-теги:
+
+| Тег | Что выбирает |
+| --- | --- |
+| `.slot` | Каждый слот |
+| `.slot-gear` | Слоты зоны `gear` |
+| `.slot-grid` | Каждую сетку слотов |
+| `.slot-grid-gear` | Сетку зоны `gear` |
+| `.player-inventory` | Виджет инвентаря игрока |
+| `.slot-item` | Предмет внутри слота |
+| `.slot-carried` | Стак на курсоре |
+
+```css
+.slot {
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px #12161f;
+    border-radius: 3px;
+}
+
+.slot:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.slot-gear {
+    background: rgba(90, 70, 20, 0.45);
+}
+```
+
+Количество предметов, полоску прочности, перезарядку и подсказку рисует Minecraft.
+
+## Управление
+
+| Ввод | Действие |
+| --- | --- |
+| Левый клик | Забрать, положить, объединить или поменять стаки местами |
+| Правый клик | Забрать половину или положить один предмет |
+| Shift + клик | Переместить стак в другую зону |
+| Протягивание левой кнопкой | Распределить стак с курсора |
+| Протягивание правой кнопкой | Положить по одному предмету в пройденные слоты |
+| `Q` | Выбросить один предмет |
+| `Ctrl + Q` | Выбросить весь стак |
+| Клик вне `Slots` | Выбросить стак с курсора |
+
+При закрытии экрана стак с курсора возвращается игроку. Изменения инвентаря от других игровых систем автоматически появляются на открытом экране.
+
+## Полный пример экипировки NPC
+
+Этот экран показывает рюкзак NPC, его экипировку и инвентарь игрока.
+
+### Серверная нода
+
+```kotlin
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
+
+import net.minecraft.server.level.ServerPlayer
+
+val Title = dataKey<String>("title") { "Экипировка" }
+
+onInteract { event ->
+    val player = event.player as? ServerPlayer ?: return@onInteract
+    val npc = this@NpcEntity
+
+    player.openUi("hollowengine:npc_gear") {
+        put(Title, "${npc.name.string}: экипировка")
+
+        slots {
+            zone("npc", NpcInventorySource(npc))
+            playerZones(player)
+
+            zone("gear", EquipmentSource(npc, EquipmentSource.All)) {
+                role = SlotZoneRole.NONE
+                onChange { index, stack ->
+                    val value = if (stack.isEmpty) "пусто" else stack.hoverName.string
+                    player.send("[Gear] ${EquipmentSource.All[index].name.lowercase()}: $value")
+                }
+            }
+
+            quickMove(
+                "npc" to "player",
+                "player" to "npc",
+            )
+        }
+    }
+}
+```
+
+Зоны `npc` и `player` обмениваются предметами через Shift + клик. Для зоны `gear` используются обычные клики.
+
+### Клиентский UI
+
+Оформление лежит в `assets/project/ui/npc_gear.hss`:
+
+```css
+#gear-panel {
+    padding: 12px;
+    gap: 10px;
+    align-items: center;
+    background: image("hollowengine:textures/gui/npc_menu/character.png");
+    image-fit: 9-slice 32px;
+}
+
+.gear-columns { gap: 12px; align-items: start; }
+.section { gap: 4px; align-items: center; }
+.section-label { color: #b9c4d4; font-size: 9px; }
+
+.slot {
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px #12161f;
+    border-radius: 3px;
+}
+.slot:hover { background: rgba(255, 255, 255, 0.18); }
+.slot-gear { background: rgba(90, 70, 20, 0.45); }
+```
+
+```kotlin
+val Title = dataKey<String>("title") { "Экипировка" }
+
+screen("hollowengine:npc_gear") {
+    title = "Экипировка NPC"
+
+    content {
+        Slots(modifier = Modifier.style("project:ui/npc_gear.hss")) {
+            Column(id = "gear-panel") {
+                Text(data[Title])
+
+                Row(tags = listOf("gear-columns")) {
+                    Column(tags = listOf("section")) {
+                        Text("Экипировка", tags = listOf("section-label"))
+                        Row(modifier = Modifier.gap(6.px)) {
+                            SlotGrid("gear", columns = 1, range = 0..3)
+                            SlotGrid("gear", columns = 1, range = 4..5)
+                        }
+                    }
+
+                    Column(tags = listOf("section")) {
+                        Text("Рюкзак", tags = listOf("section-label"))
+                        SlotGrid("npc", columns = 9)
+                    }
+                }
+
+                Column(tags = listOf("section")) {
+                    Text("Ваш инвентарь", tags = listOf("section-label"))
+                    PlayerInventory()
+                }
+            }
+        }
+    }
+}
+```
+
+Броня занимает индексы `0..3` в `EquipmentSource.All`. Основная и вторая рука занимают `4..5`.
