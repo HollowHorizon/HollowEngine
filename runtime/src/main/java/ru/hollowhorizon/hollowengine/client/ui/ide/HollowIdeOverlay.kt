@@ -775,21 +775,21 @@ object HollowIdeOverlay {
         val state = findStates[file.path]?.takeIf { it.visible } ?: return false
         val matches = state.matches(file.text)
         if (matches.isEmpty()) {
-            statusText = if (state.query.isBlank()) "" else "No results for '${state.query}'"
+            statusText = if (state.query.isBlank()) "" else FindLang.NO_RESULTS_FOR.lang(state.query)
             return true
         }
         val size = matches.size
         state.currentIndex = ((state.currentIndex + delta) % size + size) % size
         val match = matches[state.currentIndex]
         editorState(file).setSelection(match.first, match.last + 1)
-        statusText = "${state.currentIndex + 1} of $size"
+        statusText = FindLang.POSITION.lang(state.currentIndex + 1, size)
         return true
     }
 
     private fun replaceCurrentMatch(file: HollowIdeOpenFile) {
         val state = findStates[file.path]?.takeIf { it.visible } ?: return
         if (file.readOnly) {
-            statusText = "${file.title} is read-only"
+            statusText = EditorLang.READ_ONLY.lang(file.title)
             return
         }
         val text = file.text
@@ -806,7 +806,7 @@ object HollowIdeOverlay {
     private fun replaceAllMatches(file: HollowIdeOpenFile) {
         val state = findStates[file.path]?.takeIf { it.visible } ?: return
         if (file.readOnly) {
-            statusText = "${file.title} is read-only"
+            statusText = EditorLang.READ_ONLY.lang(file.title)
             return
         }
         val text = file.text
@@ -823,7 +823,7 @@ object HollowIdeOverlay {
         }
         applyEditorText(file, next, next.length.coerceAtMost(editorState(file).caret))
         state.currentIndex = 0
-        statusText = "Replaced ${matches.size} occurrence${if (matches.size == 1) "" else "s"}"
+        statusText = FindLang.REPLACED.lang(matches.size)
     }
 
     /** Writes [next] into the editor as one undoable edit and keeps the model and tab in step. */
@@ -927,14 +927,14 @@ object HollowIdeOverlay {
 
     private fun openColorPicker(file: HollowIdeOpenFile, action: InlayAction.PickColor) {
         if (file.readOnly) {
-            statusText = "${file.title} is read-only"
+            statusText = EditorLang.READ_ONLY.lang(file.title)
             return
         }
         val text = file.text
         if (action.start < 0 || action.end > text.length ||
             text.substring(action.start, action.end) != action.literal
         ) {
-            statusText = "Colour moved; edit it directly"
+            statusText = EditorLang.COLOR_MOVED.lang
             return
         }
         val color = runCatching { parseColor(action.literal) }.getOrNull() ?: return
@@ -1058,6 +1058,13 @@ object HollowIdeOverlay {
         }
     }
 
+}
+
+internal object EditorLang {
+    private const val ROOT = "hollowengine.gui.ide.editor."
+
+    const val COLOR_MOVED = ROOT + "color_moved"
+    const val READ_ONLY = ROOT + "read_only"
 }
 
 private data class EditorColorPicker(

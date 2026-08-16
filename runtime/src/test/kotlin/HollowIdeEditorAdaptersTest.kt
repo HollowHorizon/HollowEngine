@@ -20,7 +20,7 @@ class HollowIdeEditorAdaptersTest {
     private val style = UiInlineStyle()
 
     @Test
-    fun editedLineDropsHighlightsWhileOtherLinesKeepThem() {
+    fun typingInsideAHighlightStretchesItInsteadOfDroppingIt() {
         val original = "aa\nbb\ncc"
         val edited = "aa\nbbb\ncc"
         val highlights = listOf(
@@ -31,7 +31,32 @@ class HollowIdeEditorAdaptersTest {
 
         val merged = mergeHighlightsForEditedText(original, edited, highlights)
 
-        assertEquals(listOf(UiTextHighlight(0, 2, style), UiTextHighlight(7, 9, style)), merged)
+        assertEquals(
+            listOf(
+                UiTextHighlight(0, 2, style),
+                UiTextHighlight(3, 6, style),
+                UiTextHighlight(7, 9, style),
+            ),
+            merged,
+        )
+    }
+
+    @Test
+    fun typingAtTheEndOfAnIdentifierKeepsTheWholeTokenColoured() {
+        val highlights = listOf(UiTextHighlight(0, 3, style), UiTextHighlight(4, 7, style))
+
+        val merged = mergeHighlightsForEditedText("val abc", "val abcd", highlights)
+
+        assertEquals(listOf(UiTextHighlight(0, 3, style), UiTextHighlight(4, 8, style)), merged)
+    }
+
+    @Test
+    fun aHighlightTheEditConsumedEntirelyIsDropped() {
+        val original = "val abc = 1"
+        val edited = "val = 1"
+        val highlights = listOf(UiTextHighlight(4, 7, style))
+
+        assertEquals(emptyList(), mergeHighlightsForEditedText(original, edited, highlights))
     }
 
     @Test
@@ -122,7 +147,7 @@ class HollowIdeEditorAdaptersTest {
     }
 
     @Test
-    fun removesInlayHintInsideChangedRange() {
+    fun parksInlayHintWhoseAnchorTheEditConsumed() {
         val hints = listOf(UiInlayHint(offset = 6, text = ": Int"))
 
         val shifted = shiftInlayHintsForEditedText(
@@ -131,7 +156,7 @@ class HollowIdeEditorAdaptersTest {
             inlayHints = hints,
         )
 
-        assertEquals(emptyList(), shifted)
+        assertEquals(listOf(UiInlayHint(offset = 5, text = ": Int")), shifted)
     }
     @Test
     fun shiftsDiagnosticsWithoutDroppingThemDuringAnalysis() {

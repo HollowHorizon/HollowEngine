@@ -49,26 +49,7 @@ class TextFieldCompletionState(
         lastText = text
         val replacement = completionWordRange(text, caret)
         val prefix = text.substring(replacement.first.coerceAtMost(text.length), replacement.last.coerceAtMost(text.length))
-        val found = contributor.complete(UiCompletionContext(text, caret))
-            .asSequence()
-            .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
-            .mapIndexedNotNull { index, item ->
-                val filterMatch = matchCompletion(prefix, item.filterText)
-                val labelMatch = if (item.filterText == item.label) filterMatch else matchCompletion(prefix, item.label)
-                val match = filterMatch ?: labelMatch ?: return@mapIndexedNotNull null
-                val displayRanges = labelMatch?.ranges ?: filterMatch?.ranges
-                    ?.shiftInto(item.filterText, item.label)
-                    .orEmpty()
-                RankedCompletion(item.copy(matchRanges = displayRanges), match.score, index)
-            }
-            .sortedWith(
-                compareBy<RankedCompletion> { it.score }
-                    .thenByDescending { it.item.closeness }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.item.filterText }
-                    .thenBy { it.sourceIndex },
-            )
-            .map(RankedCompletion::item)
-            .toList()
+        val found = rankAgainst(contributor.complete(UiCompletionContext(text, caret)), prefix)
         val line = completionLineRange(text, caret)
         val keepSelection = opened && prefix == lastPrefix
         if (!keepSelection) selectionPinned = false
@@ -82,6 +63,16 @@ class TextFieldCompletionState(
         if (found.isEmpty()) {
             // Nothing yet (e.g. analysis still running) - keep retrying while the caret stays put.
             autoOpenPending = true
+            val narrowed = if (opened) rankAgainst(items, prefix) else emptyList()
+            if (narrowed.isNotEmpty()) {
+                val stillSelected = items.getOrNull(selectedIndex)
+                items = narrowed
+                selectedIndex = stillSelected
+                    ?.let { previous -> narrowed.indexOfFirst { it.sameCandidate(previous) } }
+                    ?.takeIf { it >= 0 }
+                    ?: 0
+                return false
+            }
             items = emptyList()
             opened = false
             selectedIndex = 0
@@ -189,6 +180,27 @@ class TextFieldCompletionState(
         lastRevision = revision
     }
 }
+
+private fun rankAgainst(candidates: List<UiTextCompletion>, prefix: String): List<UiTextCompletion> =
+    candidates.asSequence()
+        .filter { it.label.isNotBlank() || it.insertText.isNotBlank() }
+        .mapIndexedNotNull { index, item ->
+            val filterMatch = matchCompletion(prefix, item.filterText)
+            val labelMatch = if (item.filterText == item.label) filterMatch else matchCompletion(prefix, item.label)
+            val match = filterMatch ?: labelMatch ?: return@mapIndexedNotNull null
+            val displayRanges = labelMatch?.ranges ?: filterMatch?.ranges
+                ?.shiftInto(item.filterText, item.label)
+                .orEmpty()
+            RankedCompletion(item.copy(matchRanges = displayRanges), match.score, index)
+        }
+        .sortedWith(
+            compareBy<RankedCompletion> { it.score }
+                .thenByDescending { it.item.closeness }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.item.filterText }
+                .thenBy { it.sourceIndex },
+        )
+        .map(RankedCompletion::item)
+        .toList()
 
 private data class RankedCompletion(
     val item: UiTextCompletion,

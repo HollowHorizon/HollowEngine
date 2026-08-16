@@ -1,0 +1,19 @@
+{
+  "bad_pattern": "Неверный шаблон",
+  "close": "Закрыть (Esc)",
+  "match_case": "Учитывать регистр",
+  "next": "Следующее совпадение (Enter)",
+  "no_results": "Ничего не найдено",
+  "no_results_for": "Нет совпадений с «%s»",
+  "position": "%s из %s",
+  "previous": "Предыдущее совпадение (Shift+Enter)",
+  "query_hint": "Найти",
+  "regex": "Регулярное выражение",
+  "replace": "Заменить",
+  "replace_all": "Заменить все",
+  "replace_all_hint": "Заменить все совпадения (Ctrl+Enter)",
+  "replace_hint": "Заменить текущее совпадение",
+  "replace_query_hint": "Замена",
+  "replaced": "Заменено совпадений: %s",
+  "whole_words": "Только слова целиком"
+}

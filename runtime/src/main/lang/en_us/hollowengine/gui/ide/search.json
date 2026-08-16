@@ -1,0 +1,11 @@
+{
+  "empty": "Type to search",
+  "failed": "Search failed: %s",
+  "files": "Files",
+  "files_hint": "Match file names and paths (Tab)",
+  "found": "%s found",
+  "query_hint": "File name or text",
+  "searching": "Searching…",
+  "text": "Text",
+  "text_hint": "Match the text inside files (Tab)"
+}

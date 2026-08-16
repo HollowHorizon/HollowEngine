@@ -30,8 +30,17 @@ enum class Severity {
  */
 data class TextEdit(val start: Int, val end: Int, val replacement: String)
 
-/** An action offered on a diagnostic; the editor shows [title] and applies [edits] as one undo step. */
-data class DiagnosticFix(val title: String, val edits: List<TextEdit>)
+/**
+ * An action offered on a diagnostic; the editor shows [title] and applies [edits] as one undo step.
+ *
+ * [title] is a translation key, formatted with [titleArgs]; an untranslated string falls through
+ * unchanged, so an analyzer that has nothing to translate can still name its fix in plain text.
+ */
+data class DiagnosticFix(
+    val title: String,
+    val edits: List<TextEdit>,
+    val titleArgs: List<String> = emptyList(),
+)
 
 data class Diagnostic(
     val range: Range,

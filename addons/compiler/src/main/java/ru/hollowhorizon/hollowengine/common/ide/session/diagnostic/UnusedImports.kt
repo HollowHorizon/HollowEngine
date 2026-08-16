@@ -40,8 +40,9 @@ internal fun unusedImportDiagnostics(file: KtFile): List<Diagnostic> {
     if (problems.isEmpty()) return emptyList()
 
     val removeAll = DiagnosticFix(
-        title = "Remove all unused imports (${problems.size})",
+        title = "hollowengine.gui.ide.editor.fix.remove_unused_imports",
         edits = problems.map { it.removal },
+        titleArgs = listOf(problems.size.toString()),
     )
     return problems.map { problem ->
         Diagnostic(
@@ -49,7 +50,7 @@ internal fun unusedImportDiagnostics(file: KtFile): List<Diagnostic> {
             severity = Severity.WARNING,
             message = problem.message,
             fixes = buildList {
-                add(DiagnosticFix("Remove import", listOf(problem.removal)))
+                add(DiagnosticFix("hollowengine.gui.ide.editor.fix.remove_import", listOf(problem.removal)))
                 if (problems.size > 1) add(removeAll)
             },
         )

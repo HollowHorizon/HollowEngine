@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.files.EditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.PlainEditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
@@ -89,7 +90,7 @@ internal class HollowIdeEditorSession(
                         null
                     } else {
                         UiTextAnalysis(
-                            highlights = mergeHighlightsForEditedText(current.text, text, current.highlights),
+                            highlights = shiftTextHighlightsThroughEdit(current.text, text, current.highlights),
                             inlayHints = current.inlayHintsForEditedText(text),
                             exact = false,
                         )
@@ -394,7 +395,7 @@ private data class EditorAnalysisSnapshot(
 
     fun inlayHintsForEditedText(editedText: String): List<UiInlayHint> {
         if (!hasText) return emptyList()
-        return shiftInlayHintsForEditedText(text, editedText, inlayHints)
+        return shiftTextInlayHintsThroughEdit(text, editedText, inlayHints)
     }
 
     fun diagnosticsForEditedText(editedText: String): List<UiTextDiagnostic> {
@@ -412,44 +413,6 @@ private data class EditorAnalysisSnapshot(
             emptyList(),
             emptyList(),
         )
-    }
-}
-
-/**
- * Instant highlights for edited text: highlights on unchanged lines are kept (offsets shifted),
- * highlights touching changed lines are dropped until the analyzer catches up. The diff is
- * line-based so inserting or removing whole lines never invalidates the rest of the file.
- */
-internal fun mergeHighlightsForEditedText(
-    originalText: String,
-    editedText: String,
-    highlights: List<UiTextHighlight>,
-): List<UiTextHighlight> {
-    if (highlights.isEmpty()) return emptyList()
-    val oldLines = originalText.split('\n')
-    val newLines = editedText.split('\n')
-    val maxCommon = minOf(oldLines.size, newLines.size)
-    var prefix = 0
-    while (prefix < maxCommon && oldLines[prefix] == newLines[prefix]) prefix++
-    var suffix = 0
-    val maxSuffix = maxCommon - prefix
-    while (suffix < maxSuffix && oldLines[oldLines.size - 1 - suffix] == newLines[newLines.size - 1 - suffix]) suffix++
-
-    val keptPrefixEnd = lineStartOffset(oldLines, prefix)
-    val oldSuffixStart = lineStartOffset(oldLines, oldLines.size - suffix)
-    val newSuffixStart = lineStartOffset(newLines, newLines.size - suffix)
-    val delta = newSuffixStart - oldSuffixStart
-
-    return highlights.mapNotNull { highlight ->
-        when {
-            highlight.end <= keptPrefixEnd -> highlight
-            highlight.start >= oldSuffixStart -> highlight.copy(
-                start = highlight.start + delta,
-                end = highlight.end + delta,
-            )
-
-            else -> null
-        }
     }
 }
 
@@ -596,26 +559,6 @@ internal fun shiftDiagnosticsForEditedText(
     }
 }
 
-internal fun shiftInlayHintsForEditedText(
-    originalText: String,
-    editedText: String,
-    inlayHints: List<UiInlayHint>,
-): List<UiInlayHint> {
-    if (inlayHints.isEmpty()) return emptyList()
-    val commonPrefix = commonPrefixLength(originalText, editedText)
-    val commonSuffix = commonSuffixLength(originalText, editedText, commonPrefix)
-    val oldChangedStart = commonPrefix
-    val oldChangedEnd = originalText.length - commonSuffix
-    val delta = editedText.length - originalText.length
-    return inlayHints.mapNotNull { hint ->
-        when {
-            hint.offset < oldChangedStart -> hint
-            hint.offset >= oldChangedEnd -> hint.copy(offset = (hint.offset + delta).coerceIn(0, editedText.length))
-            else -> null
-        }
-    }
-}
-
 private fun languageServiceFor(path: String): EditorLanguageService {
     return runCatching {
         EditorLanguageService(path.substringAfterLast('.', ""))
@@ -693,7 +636,10 @@ private fun Diagnostic.toUi(text: String, lineStarts: List<Int>): UiTextDiagnost
         line = range.start.line + 1,
         column = range.start.column + 1,
         fixes = fixes.map { fix ->
-            UiTextQuickFix(fix.title, fix.edits.map { UiTextEdit(it.start, it.end, it.replacement) })
+            UiTextQuickFix(
+                title = fix.title.lang(*fix.titleArgs.toTypedArray()),
+                edits = fix.edits.map { UiTextEdit(it.start, it.end, it.replacement) },
+            )
         },
     )
 }

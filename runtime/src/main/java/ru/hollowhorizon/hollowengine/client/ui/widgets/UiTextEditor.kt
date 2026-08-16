@@ -193,6 +193,77 @@ data class UiTextAnalysis(
     val exact: Boolean = true,
 )
 
+/** The span of the original text one edit replaced, and how much longer the text got. */
+internal data class UiTextEditSpan(val oldStart: Int, val oldEnd: Int, val delta: Int)
+
+/** The single replaced span between two versions of a text, found by common prefix and suffix. */
+internal fun uiTextEditSpan(original: String, edited: String): UiTextEditSpan {
+    val limit = minOf(original.length, edited.length)
+    var prefix = 0
+    while (prefix < limit && original[prefix] == edited[prefix]) prefix++
+    var suffix = 0
+    val suffixLimit = limit - prefix
+    while (suffix < suffixLimit && original[original.lastIndex - suffix] == edited[edited.lastIndex - suffix]) suffix++
+    return UiTextEditSpan(prefix, original.length - suffix, edited.length - original.length)
+}
+
+/**
+ * Carries highlights from one version of a text to the next, so the editor keeps its colors while
+ * the analyzer catches up.
+ */
+fun shiftTextHighlightsThroughEdit(
+    originalText: String,
+    editedText: String,
+    highlights: List<UiTextHighlight>,
+): List<UiTextHighlight> {
+    if (highlights.isEmpty()) return emptyList()
+    if (originalText == editedText) return highlights
+    val edit = uiTextEditSpan(originalText, editedText)
+    val insertion = edit.oldStart == edit.oldEnd
+    return highlights.mapNotNull { highlight ->
+        when {
+            highlight.end < edit.oldStart -> highlight
+            highlight.end == edit.oldStart && !insertion -> highlight
+            highlight.start >= edit.oldEnd -> highlight.copy(
+                start = (highlight.start + edit.delta).coerceIn(0, editedText.length),
+                end = (highlight.end + edit.delta).coerceIn(0, editedText.length),
+            )
+
+            else -> {
+                val start = if (highlight.start <= edit.oldStart) {
+                    highlight.start
+                } else {
+                    maxOf(edit.oldStart, highlight.start + edit.delta)
+                }.coerceIn(0, editedText.length)
+                val end = maxOf(start, highlight.end + edit.delta).coerceIn(start, editedText.length)
+                if (start == end) null else highlight.copy(start = start, end = end)
+            }
+        }
+    }
+}
+
+/**
+ * The same for inlay hints. A hint whose anchor the edit consumed is parked at the edit's start
+ * rather than dropped, so the line does not lose its hints for the frames before the next analysis.
+ */
+fun shiftTextInlayHintsThroughEdit(
+    originalText: String,
+    editedText: String,
+    inlayHints: List<UiInlayHint>,
+): List<UiInlayHint> {
+    if (inlayHints.isEmpty()) return emptyList()
+    if (originalText == editedText) return inlayHints
+    val edit = uiTextEditSpan(originalText, editedText)
+    return inlayHints.map { hint ->
+        val offset = when {
+            hint.offset < edit.oldStart -> hint.offset
+            hint.offset >= edit.oldEnd -> hint.offset + edit.delta
+            else -> maxOf(edit.oldStart, hint.offset + edit.delta)
+        }.coerceIn(0, editedText.length)
+        if (offset == hint.offset) hint else hint.copy(offset = offset)
+    }
+}
+
 internal fun String.normalizeEditorLineEndings(): String {
     if ('\r' !in this) return this
     return replace("\r\n", "\n").replace('\r', '\n')

@@ -30,7 +30,8 @@ internal fun rememberEditableTextPresentation(
         )
     }
     val immediate = cache.estimate(text, safeCaret, highlighter, inlayHints, inlayHintsProvider, inlayRevision)
-    val visible = if (completed.matches(text, safeCaret, highlighter, inlayHintsProvider, inlayRevision)) completed else immediate
+    val visible =
+        if (completed.matches(text, safeCaret, highlighter, inlayHintsProvider, inlayRevision)) completed else immediate
 
     LaunchedEffect(text, analysisCaretKey, highlighter, inlayHints, inlayHintsProvider, inlayRevision) {
         val reusableInlays = cache.reusableInlays(text, inlayHintsProvider, inlayRevision)
@@ -40,15 +41,18 @@ internal fun rememberEditableTextPresentation(
                     val analyzed = deferredAnalyzer.deferredAnalysis(text, safeCaret) ?: return@withContext null
                     if (reusableInlays != null) analyzed.copy(inlayHints = reusableInlays) else analyzed
                 }
+
                 highlighter == null -> UiTextAnalysis(emptyList(), reusableInlays ?: inlayHints)
                 highlighter is UiDeferredSyntaxHighlighter -> UiTextAnalysis(
                     highlights = highlighter.exactHighlight(text, UiNoCaretOffset) ?: return@withContext null,
                     inlayHints = reusableInlays ?: (inlayHintsProvider?.hints(text) ?: inlayHints),
                 )
+
                 highlighter is UiCaretAwareSyntaxHighlighter -> UiTextAnalysis(
                     highlights = highlighter.highlight(text, safeCaret),
                     inlayHints = reusableInlays ?: (inlayHintsProvider?.hints(text) ?: inlayHints),
                 )
+
                 else -> UiTextAnalysis(
                     highlights = highlighter.highlight(text),
                     inlayHints = reusableInlays ?: (inlayHintsProvider?.hints(text) ?: inlayHints),
@@ -71,6 +75,7 @@ internal fun rememberEditableTextPresentation(
 
     return visible
 }
+
 internal class EditableTextPresentationCache {
     private var exact = EditableTextPresentation.Empty
     private var estimate = EditableTextPresentation.Empty
@@ -158,12 +163,10 @@ internal data class EditableTextPresentation(
         inlayHintsProvider: UiInlayHintsProvider?,
         inlayRevision: Long,
     ): Boolean {
-        return textHash == text.hashCode() &&
-                textLength == text.length &&
-                this.caret == normalizePresentationCaret(caret, text.length) &&
-                this.highlighter === highlighter &&
-                this.inlayHintsProvider === inlayHintsProvider &&
-                this.inlayRevision == inlayRevision
+        return textHash == text.hashCode() && textLength == text.length && this.caret == normalizePresentationCaret(
+            caret,
+            text.length
+        ) && this.highlighter === highlighter && this.inlayHintsProvider === inlayHintsProvider && this.inlayRevision == inlayRevision
     }
 
     fun matchesAnalysis(
@@ -172,11 +175,7 @@ internal data class EditableTextPresentation(
         inlayHintsProvider: UiInlayHintsProvider?,
         inlayRevision: Long,
     ): Boolean {
-        return textHash == text.hashCode() &&
-                textLength == text.length &&
-                this.highlighter === highlighter &&
-                this.inlayHintsProvider === inlayHintsProvider &&
-                this.inlayRevision == inlayRevision
+        return textHash == text.hashCode() && textLength == text.length && this.highlighter === highlighter && this.inlayHintsProvider === inlayHintsProvider && this.inlayRevision == inlayRevision
     }
 
     fun withCaret(nextCaret: Int): EditableTextPresentation {
@@ -204,13 +203,12 @@ internal data class EditableTextPresentation(
             )
         }
         val shiftedInlays = when {
-            // Provider/analyzer-driven inlays: the async analysis publishes the fresh set; the estimate
-            // just keeps the current ones (shifted for any text edit). Crucially it does NOT blank them
-            // when only the inlay revision bumped (e.g. a caret move re-runs occurrence analysis), which
-            // would otherwise drop every hint for one frame since there are no static ones to fall back on.
-            nextInlayHintsProvider != null || nextHighlighter is UiDeferredTextAnalyzer ->
-                shiftInlayHints(text, nextText, inlayHints)
-            // Static inlays: a new revision means the caller handed us a fresh list.
+            nextInlayHintsProvider != null || nextHighlighter is UiDeferredTextAnalyzer -> shiftTextInlayHintsThroughEdit(
+                text,
+                nextText,
+                inlayHints
+            )
+
             else -> staticInlayHints
         }
         return exact(
@@ -219,7 +217,7 @@ internal data class EditableTextPresentation(
             highlighter = nextHighlighter,
             inlayHintsProvider = nextInlayHintsProvider,
             inlayRevision = nextInlayRevision,
-            highlights = shiftHighlights(text, nextText, highlights),
+            highlights = shiftTextHighlightsThroughEdit(text, nextText, highlights),
             inlayHints = shiftedInlays,
         )
     }
@@ -253,72 +251,4 @@ internal data class EditableTextPresentation(
 
 internal fun normalizePresentationCaret(caret: Int, textLength: Int): Int {
     return if (caret == UiNoCaretOffset) UiNoCaretOffset else caret.coerceIn(0, textLength)
-}
-
-private fun shiftHighlights(
-    originalText: String,
-    editedText: String,
-    highlights: List<UiTextHighlight>,
-): List<UiTextHighlight> {
-    if (highlights.isEmpty()) return emptyList()
-    val edit = commonEdit(originalText, editedText)
-    return highlights.mapNotNull { highlight ->
-        when {
-            highlight.end <= edit.oldStart -> highlight
-            highlight.start >= edit.oldEnd -> highlight.copy(
-                start = (highlight.start + edit.delta).coerceIn(0, editedText.length),
-                end = (highlight.end + edit.delta).coerceIn(0, editedText.length),
-            )
-
-            else -> null
-        }
-    }
-}
-
-private fun shiftInlayHints(
-    originalText: String,
-    editedText: String,
-    hints: List<UiInlayHint>,
-): List<UiInlayHint> {
-    if (hints.isEmpty()) return emptyList()
-    val edit = commonEdit(originalText, editedText)
-    return hints.mapNotNull { hint ->
-        when {
-            hint.offset < edit.oldStart -> hint
-            hint.offset >= edit.oldEnd -> hint.copy(offset = (hint.offset + edit.delta).coerceIn(0, editedText.length))
-            else -> null
-        }
-    }
-}
-
-private data class EditableTextCommonEdit(
-    val oldStart: Int,
-    val oldEnd: Int,
-    val delta: Int,
-)
-
-private fun commonEdit(left: String, right: String): EditableTextCommonEdit {
-    val prefix = commonPrefixLength(left, right)
-    val suffix = commonSuffixLength(left, right, prefix)
-    return EditableTextCommonEdit(
-        oldStart = prefix,
-        oldEnd = left.length - suffix,
-        delta = right.length - left.length,
-    )
-}
-
-private fun commonPrefixLength(left: String, right: String): Int {
-    val limit = minOf(left.length, right.length)
-    for (index in 0 until limit) {
-        if (left[index] != right[index]) return index
-    }
-    return limit
-}
-
-private fun commonSuffixLength(left: String, right: String, prefixLength: Int): Int {
-    val limit = minOf(left.length, right.length) - prefixLength
-    for (offset in 0 until limit) {
-        if (left[left.lastIndex - offset] != right[right.lastIndex - offset]) return offset
-    }
-    return limit
 }

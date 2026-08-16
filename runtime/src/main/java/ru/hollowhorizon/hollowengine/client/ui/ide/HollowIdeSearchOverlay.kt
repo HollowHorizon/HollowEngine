@@ -19,6 +19,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import java.io.File
@@ -27,9 +28,26 @@ import kotlin.time.Duration.Companion.milliseconds
 internal const val SearchOverlayInputId = "ide-search-overlay-input"
 
 /** Which half of the project a query is aimed at. */
-internal enum class HollowIdeSearchScope(val label: String, val tooltip: String) {
-    FILES("Files", "Match file names and paths (Tab)"),
-    TEXT("Text", "Match the text inside files (Tab)"),
+internal enum class HollowIdeSearchScope(private val labelKey: String, private val tooltipKey: String) {
+    FILES(SearchLang.FILES, SearchLang.FILES_HINT),
+    TEXT(SearchLang.TEXT, SearchLang.TEXT_HINT);
+
+    val label: String get() = labelKey.lang
+    val tooltip: String get() = tooltipKey.lang
+}
+
+internal object SearchLang {
+    private const val ROOT = "hollowengine.gui.ide.search."
+
+    const val EMPTY = ROOT + "empty"
+    const val FAILED = ROOT + "failed"
+    const val FILES = ROOT + "files"
+    const val FILES_HINT = ROOT + "files_hint"
+    const val FOUND = ROOT + "found"
+    const val QUERY_HINT = ROOT + "query_hint"
+    const val SEARCHING = ROOT + "searching"
+    const val TEXT = ROOT + "text"
+    const val TEXT_HINT = ROOT + "text_hint"
 }
 
 /**
@@ -127,7 +145,7 @@ internal class HollowIdeSearchController(private val setStatus: (String) -> Unit
                     HollowIdeSearchScope.TEXT -> searchFileContents(current)
                 }
             }.getOrElse { failure ->
-                setStatus("Search failed: ${failure.message}")
+                setStatus(SearchLang.FAILED.lang(failure.message ?: failure::class.simpleName.orEmpty()))
                 emptyList()
             }
             ensureActive()
@@ -260,9 +278,9 @@ internal fun HollowIdeSearchDialog(
             Box(modifier = Modifier.size(0.px, 1.px).grow(1f))
             Text(
                 when {
-                    controller.searching -> "Searching…"
-                    controller.query.isBlank() -> "Type to search"
-                    else -> "${controller.results.size} found"
+                    controller.searching -> SearchLang.SEARCHING.lang
+                    controller.query.isBlank() -> SearchLang.EMPTY.lang
+                    else -> SearchLang.FOUND.lang(controller.results.size)
                 },
                 tags = listOf("ide-search-status"),
             )
@@ -271,7 +289,7 @@ internal fun HollowIdeSearchDialog(
             Image(SearchIcon, tags = listOf("ide-search-icon"))
             TextField(
                 value = controller.query,
-                placeholder = "File name or text",
+                placeholder = SearchLang.QUERY_HINT.lang,
                 onChange = controller::updateQuery,
                 id = SearchOverlayInputId,
                 tags = listOf("ide-search-input"),

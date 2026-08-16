@@ -1,0 +1,6 @@
+{
+  "color_moved": "Color moved; edit it directly",
+  "fix.remove_import": "Remove import",
+  "fix.remove_unused_imports": "Remove all unused imports (%s)",
+  "read_only": "%s is read-only"
+}

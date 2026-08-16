@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 /**
@@ -161,7 +162,7 @@ internal fun HollowIdeFindBar(
             Image(SearchIcon, tags = listOf("ide-find-icon"))
             TextField(
                 value = state.query,
-                placeholder = "Find",
+                placeholder = FindLang.QUERY_HINT.lang,
                 onChange = {
                     state.query = it
                     state.currentIndex = 0
@@ -170,40 +171,62 @@ internal fun HollowIdeFindBar(
                 tags = listOf("ide-find-input"),
                 modifier = Modifier.grow(1f).then(keys),
             )
-            FindToggle("Cc", "Match case", state.matchCase) { state.matchCase = it }
-            FindToggle("W", "Whole words only", state.wholeWord) { state.wholeWord = it }
-            FindToggle(".*", "Regular expression", state.regex) { state.regex = it }
+            FindToggle("Cc", FindLang.MATCH_CASE.lang, state.matchCase) { state.matchCase = it }
+            FindToggle("W", FindLang.WHOLE_WORDS.lang, state.wholeWord) { state.wholeWord = it }
+            FindToggle(".*", FindLang.REGEX.lang, state.regex) { state.regex = it }
             Text(
                 findStatusText(state, matchCount, invalidRegex),
                 tags = listOf("ide-find-status", if (invalidRegex || matchCount == 0) "empty" else "found"),
             )
-            FindButton(ArrowIcon, "Previous match (Shift+Enter)") { actions.onNavigate(-1) }
-            FindButton(ArrowIcon, "Next match (Enter)", flip = true) { actions.onNavigate(1) }
-            FindButton(CrossIcon, "Close (Esc)", action = actions.onClose)
+            FindButton(ArrowIcon, FindLang.PREVIOUS.lang) { actions.onNavigate(-1) }
+            FindButton(ArrowIcon, FindLang.NEXT.lang, flip = true) { actions.onNavigate(1) }
+            FindButton(CrossIcon, FindLang.CLOSE.lang, action = actions.onClose)
         }
         if (state.replaceVisible) {
             Row(tags = listOf("ide-find-row"), modifier = Modifier.alignItems(vertical = UiAlign.CENTER)) {
                 Box(tags = listOf("ide-find-icon"))
                 TextField(
                     value = state.replacement,
-                    placeholder = "Replace",
+                    placeholder = FindLang.REPLACE_QUERY_HINT.lang,
                     onChange = { state.replacement = it },
                     id = state.replaceInputId,
                     tags = listOf("ide-find-input"),
                     modifier = Modifier.grow(1f).then(keys),
                 )
-                FindTextButton("Replace", "Replace the current match", actions.onReplaceCurrent)
-                FindTextButton("Replace all", "Replace every match (Ctrl+Enter)", actions.onReplaceAll)
+                FindTextButton(FindLang.REPLACE.lang, FindLang.REPLACE_HINT.lang, actions.onReplaceCurrent)
+                FindTextButton(FindLang.REPLACE_ALL.lang, FindLang.REPLACE_ALL_HINT.lang, actions.onReplaceAll)
             }
         }
     }
 }
 
+internal object FindLang {
+    private const val ROOT = "hollowengine.gui.ide.find."
+
+    const val BAD_PATTERN = ROOT + "bad_pattern"
+    const val CLOSE = ROOT + "close"
+    const val MATCH_CASE = ROOT + "match_case"
+    const val NEXT = ROOT + "next"
+    const val NO_RESULTS = ROOT + "no_results"
+    const val NO_RESULTS_FOR = ROOT + "no_results_for"
+    const val POSITION = ROOT + "position"
+    const val PREVIOUS = ROOT + "previous"
+    const val QUERY_HINT = ROOT + "query_hint"
+    const val REGEX = ROOT + "regex"
+    const val REPLACE = ROOT + "replace"
+    const val REPLACE_ALL = ROOT + "replace_all"
+    const val REPLACE_ALL_HINT = ROOT + "replace_all_hint"
+    const val REPLACE_HINT = ROOT + "replace_hint"
+    const val REPLACE_QUERY_HINT = ROOT + "replace_query_hint"
+    const val REPLACED = ROOT + "replaced"
+    const val WHOLE_WORDS = ROOT + "whole_words"
+}
+
 private fun findStatusText(state: HollowIdeFindState, matchCount: Int, invalidRegex: Boolean): String = when {
-    invalidRegex -> "Bad pattern"
+    invalidRegex -> FindLang.BAD_PATTERN.lang
     state.query.isEmpty() -> ""
-    matchCount == 0 -> "No results"
-    else -> "${state.currentIndex.coerceIn(0, matchCount - 1) + 1} of $matchCount"
+    matchCount == 0 -> FindLang.NO_RESULTS.lang
+    else -> FindLang.POSITION.lang(state.currentIndex.coerceIn(0, matchCount - 1) + 1, matchCount)
 }
 
 @Composable

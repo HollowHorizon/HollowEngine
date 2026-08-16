@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * both live here, and the caller only spends a `.then(...)`.
  *
  * ```kotlin
- * Box(modifier = Modifier.onClick { ... }.then(rememberTooltip("Next (Enter)")))
+ * Box(modifier = Modifier.onClick { ... }.tooltipOnHover("Next (Enter)"))
  * ```
  */
 @Composable
