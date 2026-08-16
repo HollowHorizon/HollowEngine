@@ -22,7 +22,9 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.hssColorLiteralText
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
@@ -120,6 +122,9 @@ object HollowIdeOverlay {
     private val editorStates = mutableMapOf<String, TextFieldState>()
     private var fileContextMenu by mutableStateOf<FileContextMenu?>(null)
     private val dragAndDrop = UiDragAndDropState()
+    private val findStates = mutableStateMapOf<String, HollowIdeFindState>()
+    private val search = HollowIdeSearchController { statusText = it }
+    private var colorPicker by mutableStateOf<EditorColorPicker?>(null)
 
     private fun editorState(file: HollowIdeOpenFile): TextFieldState = editorStates.getOrPut(file.path) {
         TextFieldState(
@@ -273,6 +278,8 @@ object HollowIdeOverlay {
         editorStates.remove(path)
         diagnosticsPanels.remove(id)
         diagnosticsPanelHeights.remove(id)
+        findStates.remove(path)
+        if (colorPicker?.path == path) colorPicker = null
         if (fileContextMenu?.path == path) fileContextMenu = null
     }
 
@@ -366,7 +373,9 @@ object HollowIdeOverlay {
                 .onKeyInput { input ->
                     val handled = !input.repeat && (
                             input.key == GLFW.GLFW_KEY_ESCAPE && closeFileContextMenu() ||
+                                    handleHollowIdeSearchKey(search, input.key, input.modifiers, ::openSearchResult) ||
                                     project.handleNameDialogKey(input.key) ||
+                                    handleSearchOverlayShortcut(input.key, input.modifiers) ||
                                     project.handleShortcut(input.key, input.modifiers) ||
                                     handleDockShortcut(input.key, input.modifiers) ||
                                     handleEditorShortcut(input.key, input.modifiers) ||
@@ -394,6 +403,8 @@ object HollowIdeOverlay {
                         onAction = ::runFileAction,
                         onDismiss = { fileContextMenu = null },
                     )
+                    HollowIdeSearchDialog(search, ::openSearchResult)
+                    EditorColorPickerPopup()
                     UiDragGhost(dragAndDrop)
                 }
             }
@@ -593,7 +604,21 @@ object HollowIdeOverlay {
         val inlayHints = editorSession.inlayHints(file.text)
         val fontSize = HollowIdeFontSize.size
         val editorId = "editor-${file.id}"
+        val find = findStates[file.path]
+        val matches = find?.matches(file.text).orEmpty()
         Column(tags = listOf("ide-editor-shell"), modifier = Modifier.size(100.percent, 100.percent)) {
+            if (find != null) {
+                HollowIdeFindBar(
+                    state = find,
+                    matchCount = matches.size,
+                    actions = HollowIdeFindActions(
+                        onNavigate = { delta -> navigateFind(file, delta) },
+                        onReplaceCurrent = { replaceCurrentMatch(file) },
+                        onReplaceAll = { replaceAllMatches(file) },
+                        onClose = { closeFind(file) },
+                    ),
+                )
+            }
             Box(
                 id = "editor-stack-${file.id}",
                 mode = UiBoxMode.STACK,
@@ -622,9 +647,11 @@ object HollowIdeOverlay {
                     signatureHelp = editorSession.signatures,
                     hoverInfo = editorSession.hover,
                     diagnostics = diagnostics,
+                    searchMatches = matches,
+                    activeSearchMatch = find?.let { matches.getOrNull(it.currentIndex) },
                     inlayHints = inlayHints,
                     inlayRevision = analysisRevision,
-                    onInlayAction = ::runInlayAction,
+                    onInlayAction = { action -> runInlayAction(file, action) },
                     readOnly = file.readOnly,
                     fontSize = fontSize,
                     state = editorState,
@@ -684,18 +711,132 @@ object HollowIdeOverlay {
         return dock.closeFocused()
     }
 
+    /** Ctrl+N opens the project-wide search overlay, wherever the focus is. */
+    private fun handleSearchOverlayShortcut(key: Int, modifiers: Int): Boolean {
+        if (modifiers and GLFW.GLFW_MOD_CONTROL == 0) return false
+        if (modifiers and GLFW.GLFW_MOD_SHIFT != 0 || modifiers and GLFW.GLFW_MOD_ALT != 0) return false
+        if (key != GLFW.GLFW_KEY_N) return false
+        search.open(focusedEditorFile()?.let { editorStates[it.path]?.selectedText() })
+        return true
+    }
+
+    /** Moves the keyboard focus to [nodeId] once the pending frame has been built. */
+    internal fun focusSurface(nodeId: String) {
+        pipeline.await()
+        surface.runtime.focus(nodeId)
+    }
+
     /** Editor-wide shortcuts that work wherever the focus sits inside the IDE. */
     private fun handleEditorShortcut(key: Int, modifiers: Int): Boolean {
-        if (modifiers and GLFW.GLFW_MOD_CONTROL == 0) return false
+        val control = modifiers and GLFW.GLFW_MOD_CONTROL != 0
+        val shift = modifiers and GLFW.GLFW_MOD_SHIFT != 0
         val alt = modifiers and GLFW.GLFW_MOD_ALT != 0
+        if (key == GLFW.GLFW_KEY_F3 && !control && !alt) {
+            return focusedEditorFile()?.let { navigateFind(it, if (shift) -1 else 1) } == true
+        }
+        if (!control) return false
         return when {
             alt && key == GLFW.GLFW_KEY_L -> focusedEditorFile()?.let(::formatFile) == true
+            !alt && key == GLFW.GLFW_KEY_F -> openFind(replace = false)
+            !alt && key == GLFW.GLFW_KEY_R -> openFind(replace = true)
             !alt && key == GLFW.GLFW_KEY_S -> focusedFile()?.let { file ->
                 model.save(file.path).also { dock.updateItem(file.dockItem()) }
             } == true
 
             else -> false
         }
+    }
+
+    /**
+     * Opens find (or find/replace) on the file being edited, seeded with its selection. Bound to the
+     * editor rather than to a focused text field, so Ctrl+F never hijacks the project filter.
+     */
+    private fun openFind(replace: Boolean): Boolean {
+        val file = focusedEditorFile() ?: return false
+        val editor = editorStates[file.path]
+        val state = findStates.getOrPut(file.path) { HollowIdeFindState(file.id) }
+        state.open(replace, editor?.selectedText())
+        val matches = state.matches(file.text)
+        if (matches.isNotEmpty()) state.currentIndex = state.indexFrom(matches, editor?.caret ?: 0)
+        return true
+    }
+
+    private fun closeFind(file: HollowIdeOpenFile) {
+        findStates[file.path]?.close()
+        findStates.remove(file.path)
+        Minecraft.getInstance().execute {
+            pipeline.await()
+            surface.runtime.focus("editor-${file.id}")
+        }
+    }
+
+    /** Moves to the next/previous match and selects it, which also scrolls the editor onto it. */
+    private fun navigateFind(file: HollowIdeOpenFile, delta: Int): Boolean {
+        val state = findStates[file.path]?.takeIf { it.visible } ?: return false
+        val matches = state.matches(file.text)
+        if (matches.isEmpty()) {
+            statusText = if (state.query.isBlank()) "" else "No results for '${state.query}'"
+            return true
+        }
+        val size = matches.size
+        state.currentIndex = ((state.currentIndex + delta) % size + size) % size
+        val match = matches[state.currentIndex]
+        editorState(file).setSelection(match.first, match.last + 1)
+        statusText = "${state.currentIndex + 1} of $size"
+        return true
+    }
+
+    private fun replaceCurrentMatch(file: HollowIdeOpenFile) {
+        val state = findStates[file.path]?.takeIf { it.visible } ?: return
+        if (file.readOnly) {
+            statusText = "${file.title} is read-only"
+            return
+        }
+        val text = file.text
+        val matches = state.matches(text)
+        if (matches.isEmpty()) return
+        val index = state.currentIndex.coerceIn(0, matches.lastIndex)
+        val match = matches[index]
+        val replacement = state.expandReplacement(text, match)
+        val next = text.substring(0, match.first) + replacement + text.substring(match.last + 1)
+        applyEditorText(file, next, match.first + replacement.length)
+        state.currentIndex = index.coerceAtMost((state.matches(file.text).size - 1).coerceAtLeast(0))
+    }
+
+    private fun replaceAllMatches(file: HollowIdeOpenFile) {
+        val state = findStates[file.path]?.takeIf { it.visible } ?: return
+        if (file.readOnly) {
+            statusText = "${file.title} is read-only"
+            return
+        }
+        val text = file.text
+        val matches = state.matches(text)
+        if (matches.isEmpty()) return
+        val next = buildString {
+            var cursor = 0
+            for (match in matches) {
+                append(text, cursor, match.first)
+                append(state.expandReplacement(text, match))
+                cursor = match.last + 1
+            }
+            append(text, cursor, text.length)
+        }
+        applyEditorText(file, next, next.length.coerceAtMost(editorState(file).caret))
+        state.currentIndex = 0
+        statusText = "Replaced ${matches.size} occurrence${if (matches.size == 1) "" else "s"}"
+    }
+
+    /** Writes [next] into the editor as one undoable edit and keeps the model and tab in step. */
+    private fun applyEditorText(file: HollowIdeOpenFile, next: String, caret: Int) {
+        val editor = editorState(file)
+        if (!editor.applyEdit(next, listOf(UiTextCaret(caret.coerceIn(0, next.length))))) return
+        model.updateText(file.path, editor.text)
+        dock.updateItem(file.dockItem())
+    }
+
+    private fun openSearchResult(result: HollowIdeSearchResult) {
+        search.close()
+        openDefinition(DefinitionLocation(result.path, result.offset))
     }
 
     /**
@@ -767,7 +908,7 @@ object HollowIdeOverlay {
     }
 
     /** Handles a click on a clickable inlay hint, such as the "open" button on a location. */
-    private fun runInlayAction(action: UiInlayAction) {
+    private fun runInlayAction(file: HollowIdeOpenFile, action: UiInlayAction) {
         when (val decoded = InlayAction.decode(action.id)) {
             is InlayAction.OpenResource -> {
                 val definition = ResourceLocationTargets.definition(decoded.location)
@@ -778,8 +919,64 @@ object HollowIdeOverlay {
                 }
             }
 
+            is InlayAction.PickColor -> openColorPicker(file, decoded)
+
             null -> statusText = "Unsupported inlay action"
         }
+    }
+
+    private fun openColorPicker(file: HollowIdeOpenFile, action: InlayAction.PickColor) {
+        if (file.readOnly) {
+            statusText = "${file.title} is read-only"
+            return
+        }
+        val text = file.text
+        if (action.start < 0 || action.end > text.length ||
+            text.substring(action.start, action.end) != action.literal
+        ) {
+            statusText = "Colour moved; edit it directly"
+            return
+        }
+        val color = runCatching { parseColor(action.literal) }.getOrNull() ?: return
+        colorPicker = EditorColorPicker(
+            path = file.path,
+            start = action.start,
+            end = action.end,
+            color = color,
+            x = surface.runtime.mouseX,
+            y = surface.runtime.mouseY,
+        )
+    }
+
+    @Composable
+    private fun EditorColorPickerPopup() {
+        val picker = colorPicker ?: return
+        Popup(
+            anchorBounds = UiRect(picker.x, picker.y, 0f, 0f),
+            alignment = UiPopupAlignment.Cursor,
+            id = "ide-color-picker",
+            tags = listOf("dropdown-popup", "ide-color-picker"),
+            onDismiss = { colorPicker = null },
+        ) {
+            ColorPicker(
+                value = picker.color,
+                onValueChange = { next -> applyPickedColor(next) },
+            )
+        }
+    }
+
+    private fun applyPickedColor(color: UiColor) {
+        val picker = colorPicker ?: return
+        val file = model.files[picker.path] ?: return
+        val text = file.text
+        if (picker.end > text.length) {
+            colorPicker = null
+            return
+        }
+        val literal = hssColorLiteralText(color.toArgb())
+        val next = text.substring(0, picker.start) + literal + text.substring(picker.end)
+        applyEditorText(file, next, picker.start + literal.length)
+        colorPicker = picker.copy(end = picker.start + literal.length, color = color)
     }
 
     private fun openDefinition(definition: DefinitionLocation) {
@@ -862,6 +1059,15 @@ object HollowIdeOverlay {
     }
 
 }
+
+private data class EditorColorPicker(
+    val path: String,
+    val start: Int,
+    val end: Int,
+    val color: UiColor,
+    val x: Float,
+    val y: Float,
+)
 
 private const val DefaultDiagnosticsPanelHeight = 160f
 private const val MinDiagnosticsPanelHeight = 90f

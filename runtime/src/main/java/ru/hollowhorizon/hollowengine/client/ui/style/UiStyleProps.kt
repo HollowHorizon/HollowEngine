@@ -93,10 +93,8 @@ object UiProps {
     )
 
     // Sizing / layout
-    val Width =
-        prop<UiLength>("width", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
-    val Height =
-        prop<UiLength>("height", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
+    val Width = prop("width", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
+    val Height = prop("height", UiLength.Fit, fingerprint = true, group = "size", interpolate = ::interpolateLength)
     val MinWidth = prop<UiLength>("min-width", UiLength.Auto, fingerprint = true)
     val MinHeight = prop<UiLength>("min-height", UiLength.Auto, fingerprint = true)
     val MaxWidth = prop<UiLength>("max-width", UiLength.Auto, fingerprint = true)
@@ -190,6 +188,8 @@ object UiProps {
     val Clickable = prop("clickable", false)
     val Focusable = prop("focusable", false)
     val FocusScope = prop("focus-scope", false)
+
+    val Modal = prop("modal", false)
     val Draggable = prop("draggable", false)
     val Scroll = prop<UiScrollSpec?>("scroll", null, fingerprint = true)
     val ScrollPinned = prop<UiScrollPin?>("scroll-pinned", null, fingerprint = true)
@@ -221,11 +221,7 @@ object UiProps {
     )
     val FontFamily = prop<String?>("font-family", null, fingerprint = true, inherit = true)
     val TextEffects = prop<List<UiTextEffect>>(
-        "text-effects",
-        emptyList(),
-        fingerprint = true,
-        inherit = true,
-        merge = { a, b -> a + b })
+        "text-effects", emptyList(), fingerprint = true, inherit = true, merge = { a, b -> a + b })
 
     val Transitions = prop<List<UiTransition>>(
         "transition", emptyList(), aliases = setOf("transitions"),
@@ -426,6 +422,7 @@ val UiComputedStyle.hoverable by UiProps.Hoverable
 val UiComputedStyle.clickable by UiProps.Clickable
 val UiComputedStyle.focusable by UiProps.Focusable
 val UiComputedStyle.focusScope by UiProps.FocusScope
+val UiComputedStyle.modal by UiProps.Modal
 val UiComputedStyle.draggable by UiProps.Draggable
 
 val UiComputedStyle.scroll: UiScrollSpec? get() = this[UiProps.Scroll]

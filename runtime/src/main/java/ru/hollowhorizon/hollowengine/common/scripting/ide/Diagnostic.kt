@@ -24,7 +24,21 @@ enum class Severity {
     fun isError(): Boolean = this == ERROR || this == FATAL
 }
 
-data class Diagnostic(val range: Range, val severity: Severity, val message: String) {
+/**
+ * One replacement inside the analysed document, in absolute end-exclusive offsets. A fix is a set
+ * of these, so "remove every unused import" is one entry rather than one per line.
+ */
+data class TextEdit(val start: Int, val end: Int, val replacement: String)
+
+/** An action offered on a diagnostic; the editor shows [title] and applies [edits] as one undo step. */
+data class DiagnosticFix(val title: String, val edits: List<TextEdit>)
+
+data class Diagnostic(
+    val range: Range,
+    val severity: Severity,
+    val message: String,
+    val fixes: List<DiagnosticFix> = emptyList(),
+) {
     override fun toString(): String {
         return "[$severity] ${range.start.line}:${range.start.column}: $message"
     }

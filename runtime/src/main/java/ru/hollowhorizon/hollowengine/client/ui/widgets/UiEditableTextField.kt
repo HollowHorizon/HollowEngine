@@ -478,6 +478,8 @@ fun EditableTextField(
     hoverInfoProvider: UiHoverInfoProvider? = null,
     codeInsightRevision: Long = completionRevision,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
+    searchMatches: List<IntRange> = emptyList(),
+    activeSearchMatch: IntRange? = null,
     placeholder: String = "",
     lineNumbers: Boolean = false,
     lineNumberColor: UiColor = EditableFieldLineNumberColor,
@@ -528,7 +530,11 @@ fun EditableTextField(
     }
     val completion = remember(state) { TextFieldCompletionState(state) }
     val codeInsight = remember(state) { EditableFieldCodeInsightState() }
+    val quickFix = remember(state) { EditableFieldQuickFixState() }
     val diagnosticsByLine = remember(layout, diagnostics) { bucketDiagnosticsByLine(layout.lines, diagnostics) }
+    val matchesByLine = remember(layout, searchMatches, activeSearchMatch) {
+        bucketSearchMatchesByLine(layout.lines, searchMatches, activeSearchMatch)
+    }
     var hoverTooltip by remember { mutableStateOf<EditableFieldDiagnosticTooltip?>(null) }
     var codeHoverTarget by remember { mutableStateOf<EditableFieldHoverTarget?>(null) }
     val autoScroll = remember { EditableFieldAutoScroll() }
@@ -557,6 +563,7 @@ fun EditableTextField(
             .let { if (fontFamily != null) it.fontFamily(fontFamily) else it }.onFocus { state.focus() }.onUnfocus {
                 state.unfocus()
                 completion.close()
+                quickFix.close()
                 codeInsight.clearSignature()
             }.onCharTyped { event ->
                 val char = event.codePoint.toChar()
@@ -567,7 +574,9 @@ fun EditableTextField(
             }
             // Low priority: user onKeyInput handlers (default priority 0) get first refusal.
             .onKeyInput(TextFieldDefaultKeyPriority) { input ->
-                if (handleEditableFieldKey(state, input, layout, completion, codeInsight)) input.consume()
+                val handled = handleEditableFieldQuickFixKey(state, input, quickFix, diagnostics) ||
+                        handleEditableFieldKey(state, input, layout, completion, codeInsight)
+                if (handled) input.consume()
             }.onPress { event ->
                 state.focus()
                 val hit = clickHit(event, layout, gutterWidth)
@@ -639,6 +648,7 @@ fun EditableTextField(
                         index = index,
                         layout = layout,
                         rowDiagnostics = diagnosticsByLine.getOrNull(index).orEmpty(),
+                        rowSearchMatches = matchesByLine.getOrNull(index).orEmpty(),
                         indentGuides = indentGuides,
                         indentGuideColor = indentGuideColor,
                         inlayMetrics = inlayMetrics,
@@ -652,6 +662,12 @@ fun EditableTextField(
         }
         if (completion.items.isNotEmpty()) {
             EditableFieldCompletionPopup(completion, layout, scrollState, gutterWidth)
+        }
+        if (quickFix.active) {
+            EditableFieldQuickFixPopup(quickFix, layout, scrollState, gutterWidth) { fix ->
+                applyEditableFieldQuickFix(state, fix)
+                quickFix.close()
+            }
         }
         hoverTooltip?.let { tooltip ->
             EditableFieldDiagnosticTooltipOverlay(tooltip, scrollState)
@@ -860,6 +876,7 @@ private fun EditableFieldRow(
     index: Int,
     layout: EditableFieldLayout,
     rowDiagnostics: List<UiTextDiagnostic> = emptyList(),
+    rowSearchMatches: List<EditableFieldSearchMatch> = emptyList(),
     indentGuides: Boolean = false,
     indentGuideColor: UiColor = EditableFieldIndentGuideColor,
     inlayMetrics: EditableFieldInlayMetrics,
@@ -871,6 +888,27 @@ private fun EditableFieldRow(
     val fontSize = layout.fontSize
     val fontFamily = layout.fontFamily
     val ranges = state.caretRanges.filter { it.selectionStart <= line.end && it.selectionEnd >= line.start }
+
+    rowSearchMatches.forEachIndexed { matchIndex, match ->
+        val padding = if (match.active) ActiveSearchMatchPadding else SearchMatchPadding
+        selectionRectsForRow(
+            line, lineLayout, match.start, match.end, false, fontSize, fontFamily, layout.contentWidth,
+        ).forEachIndexed { rectIndex, rect ->
+            key("match", matchIndex, rectIndex) {
+                Box(
+                    modifier = Modifier
+                        .position((rect.x - padding).px, (top + rect.y - padding).px)
+                        .size((rect.width + padding * 2f).px, (rect.height + padding * 2f).px)
+                        .background(if (match.active) ActiveSearchMatchColor else SearchMatchColor)
+                        .border(
+                            1.px,
+                            if (match.active) ActiveSearchMatchBorderColor else SearchMatchBorderColor,
+                            radius = SearchMatchRadius,
+                        ),
+                )
+            }
+        }
+    }
 
     if (indentGuides) state.indentSize?.let { indentSize ->
         val guideHeight = layout.lineTop(index + 1) - top
@@ -1023,6 +1061,16 @@ private fun InlayHint(
                 when (part) {
                     is UiInlayContent.Label -> Text(part.text, tags = InlayLabelTags)
                     is UiInlayContent.Icon -> Image(part.source, tags = InlayIconTags)
+                    is UiInlayContent.Swatch -> Box(
+                        mode = UiBoxMode.STACK,
+                        tags = InlaySwatchTags,
+                        modifier = Modifier.checkerboard(3f).clip(true),
+                    ) {
+                        Box(
+                            modifier = Modifier.size(100.percent, 100.percent)
+                                .background(UiColor.fromArgb(part.argb)),
+                        )
+                    }
                 }
             }
         }
@@ -1032,6 +1080,7 @@ private fun InlayHint(
 private val InlayTags = listOf("editable-text-field-inlay", "code-editor-inlay")
 private val InlayLabelTags = listOf("editable-text-field-inlay-text", "code-editor-inlay-text")
 private val InlayIconTags = listOf("editable-text-field-inlay-icon", "code-editor-inlay-icon")
+private val InlaySwatchTags = listOf("editable-text-field-inlay-swatch", "code-editor-inlay-swatch")
 
 /**
  * Collects what one inlay ended up taking: the box the layout measured plus the margins
@@ -1388,6 +1437,46 @@ internal const val TextFieldCaretWidth = 1f
 private const val EditableFieldRowBlock = 16
 private const val EditableFieldDoubleClickMillis = 350L
 internal const val EditableFieldLineNumberGap = 8f
+/** A find-in-file match on one row, in that row's own column offsets. */
+internal data class EditableFieldSearchMatch(val start: Int, val end: Int, val active: Boolean)
+
+/** Splits [matches] across the rows they cross, marking the one equal to [active]. */
+internal fun bucketSearchMatchesByLine(
+    lines: List<EditableFieldLine>,
+    matches: List<IntRange>,
+    active: IntRange?,
+): Array<List<EditableFieldSearchMatch>> {
+    if (matches.isEmpty()) return Array(lines.size) { emptyList() }
+    val buckets = arrayOfNulls<MutableList<EditableFieldSearchMatch>>(lines.size)
+    var lineIndex = 0
+    for (match in matches.sortedBy { it.first }) {
+        val matchStart = match.first
+        val matchEnd = match.last + 1
+        val isActive = match == active
+        while (lineIndex < lines.size && lines[lineIndex].end < matchStart) lineIndex++
+        var index = lineIndex
+        while (index < lines.size && lines[index].start < matchEnd) {
+            val line = lines[index]
+            val start = maxOf(matchStart, line.start) - line.start
+            val end = minOf(matchEnd, line.end) - line.start
+            if (end > start) {
+                val bucket = buckets[index] ?: ArrayList<EditableFieldSearchMatch>().also { buckets[index] = it }
+                bucket += EditableFieldSearchMatch(start, end, isActive)
+            }
+            index++
+        }
+    }
+    return Array(lines.size) { buckets[it] ?: emptyList() }
+}
+
+private const val SearchMatchPadding = 1f
+private const val ActiveSearchMatchPadding = 1.5f
+private const val SearchMatchRadius = 2f
+private val SearchMatchColor = UiColor(0.42f, 0.36f, 0.12f, 0.45f)
+private val SearchMatchBorderColor = UiColor(0.78f, 0.68f, 0.32f, 0.65f)
+private val ActiveSearchMatchColor = UiColor(0.86f, 0.60f, 0.16f, 0.42f)
+private val ActiveSearchMatchBorderColor = UiColor(1f, 0.78f, 0.35f, 1f)
+
 internal val EditableFieldLineNumberColor = UiColor(0.56f, 0.6f, 0.66f, 0.78f)
 internal val EditableFieldIndentGuideColor = UiColor(0.56f, 0.6f, 0.66f, 0.22f)
 internal val EditableFieldPlaceholderColor = UiColor(0.56f, 0.6f, 0.66f, 0.65f)

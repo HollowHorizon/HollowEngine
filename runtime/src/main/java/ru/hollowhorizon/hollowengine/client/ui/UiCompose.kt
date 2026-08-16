@@ -497,6 +497,8 @@ fun TextField(
     autoPairs: Boolean = false,
     readOnly: Boolean = false,
     diagnostics: List<UiTextDiagnostic> = emptyList(),
+    searchMatches: List<IntRange> = emptyList(),
+    activeSearchMatch: IntRange? = null,
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,
     inlayRevision: Long = 0L,
@@ -601,6 +603,8 @@ fun TextField(
         hoverInfoProvider = hoverInfoProvider,
         codeInsightRevision = codeInsightRevision,
         diagnostics = diagnostics,
+        searchMatches = searchMatches,
+        activeSearchMatch = activeSearchMatch,
         placeholder = placeholder,
         lineNumbers = lineNumbers,
         lineNumberColor = lineNumberColor ?: EditableFieldLineNumberColor,
@@ -696,6 +700,7 @@ fun Popup(
     modifier: Modifier? = null,
     attributes: Map<String, String> = emptyMap(),
     dismissOnOutside: Boolean = true,
+    modal: Boolean = false,
     onDismiss: (() -> Unit)? = null,
     content: PopupContent = {},
 ) {
@@ -716,6 +721,7 @@ fun Popup(
             }
         }
     }
+    val isModal = rememberUpdatedState(modal)
     val entry = remember {
         PopupEntry(Any()).apply {
             this.content = {
@@ -727,6 +733,8 @@ fun Popup(
                     modifier = popupModifier.value,
                     attributes = popupAttributes.value,
                     stylesheets = stylesheets.value,
+                    modal = isModal.value,
+                    exiting = exiting,
                 ) { popupContent.value.invoke(scope) }
             }
         }
@@ -751,13 +759,16 @@ private fun PopupNodeEmitter(
     modifier: Modifier?,
     attributes: Map<String, String>,
     stylesheets: List<UiStylesheetReference>,
+    modal: Boolean,
+    exiting: Boolean,
     content: HollowUiContent,
 ) {
-    var shown by remember { mutableStateOf(false) }
+    var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withFrameNanos { }
-        shown = true
+        appeared = true
     }
+    val shown = appeared && !exiting
     val appearance = Modifier
         .transition(
             UiTransition(UiProps.Opacity.name, PopupAppearMillis, TransitionEasing.EASE_OUT),
@@ -766,9 +777,10 @@ private fun PopupNodeEmitter(
         .opacity(if (shown) 1f else 0f)
         .translate(y = if (shown) 0f else -PopupAppearRise)
 
-    val modifiers = stylesheets.fold(
-        appearance.then(modifier ?: Modifier).focusScope().input(hoverable = true),
-    ) { acc, ref ->
+    val base = appearance.then(modifier ?: Modifier)
+        .let { if (exiting) it.inputTransparent() else it.focusScope().input(hoverable = true) }
+        .let { if (modal && !exiting) it.modal() else it }
+    val modifiers = stylesheets.fold(base) { acc, ref ->
         acc.style(ref)
     }.asList()
     val values = PopupValues(anchorBounds, alignment)
@@ -812,7 +824,15 @@ fun OverlayHost() {
         Layout(
             content = {
                 for (entry in manager.popups.sortedBy { it.layer }) {
-                    key(entry.key) { entry.content() }
+                    key(entry.key) {
+                        entry.content()
+                        if (entry.exiting) {
+                            LaunchedEffect(entry) {
+                                delay(PopupAppearMillis)
+                                manager.remove(entry)
+                            }
+                        }
+                    }
                 }
             },
             modifier = Modifier.size(100.percent, 100.percent),

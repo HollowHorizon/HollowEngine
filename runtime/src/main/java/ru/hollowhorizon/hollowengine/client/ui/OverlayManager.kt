@@ -11,6 +11,13 @@ class PopupEntry(val key: Any) {
     var layer by mutableStateOf(0)
     var dismissOnOutside by mutableStateOf(true)
 
+    /**
+     * The owning [Popup] has left the composition and the entry is only still here so its content can
+     * animate out. It no longer takes input, and the host drops it once the animation is done.
+     */
+    var exiting by mutableStateOf(false)
+        internal set
+
     var onDismiss: (() -> Unit)? = null
     var content by mutableStateOf<@Composable () -> Unit>({})
 }
@@ -23,16 +30,30 @@ class PopupEntry(val key: Any) {
 class OverlayManager {
     val popups = mutableStateListOf<PopupEntry>()
 
-    val hasDismissable: Boolean get() = popups.any { it.dismissOnOutside && it.onDismiss != null }
+    val hasDismissable: Boolean
+        get() = popups.any { !it.exiting && it.dismissOnOutside && it.onDismiss != null }
 
-    /** Registers an overlay; returns the de-registration handle (call on dispose). */
+    /**
+     * Registers an overlay; returns the dispose handle. Disposing does not remove the entry outright,
+     * it flips it to [PopupEntry.exiting] so the host can play the closing animation, then drop it.
+     */
     fun register(entry: PopupEntry): () -> Unit {
+        entry.exiting = false
         popups += entry
-        return { popups -= entry }
+        return {
+            entry.exiting = true
+            entry.onDismiss = null
+            entry.dismissOnOutside = false
+        }
+    }
+
+    /** Drops an entry whose closing animation has finished. */
+    fun remove(entry: PopupEntry) {
+        popups -= entry
     }
 
     fun dismissAll() {
-        popups.toList().forEach { if (it.dismissOnOutside) it.onDismiss?.invoke() }
+        popups.toList().forEach { if (!it.exiting && it.dismissOnOutside) it.onDismiss?.invoke() }
     }
 }
 

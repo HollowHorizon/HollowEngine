@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.Composable
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
@@ -35,8 +36,8 @@ internal fun HollowIdeProjectContextMenu(
         tags = listOf("dropdown-popup", "project-context-menu"),
         onDismiss = onDismiss,
     ) {
-        ProjectMenuItem("New File", "Ctrl+N", CREATE_FILE.toString()) { onCreateFile(menu.path) }
-        ProjectMenuItem("New Folder", "Ctrl+Shift+N", CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
+        ProjectMenuItem("New File", "Alt+Insert", CREATE_FILE.toString()) { onCreateFile(menu.path) }
+        ProjectMenuItem("New Folder", "Alt+Shift+Insert", CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
         if (menu.canCreateSoundEvents) {
             ProjectMenuItem("New Sound Events", "", FILE_SOUND.toString()) { onCreateSoundEvents(menu.path) }
         }
@@ -64,6 +65,7 @@ internal fun HollowIdeProjectNameDialog(
         alignment = UiPopupAlignment.Cursor,
         id = "project-name-dialog",
         tags = listOf("dropdown-popup", "project-name-dialog"),
+        modal = true,
     ) {
         Text(dialog.title, tags = listOf("project-name-dialog-title"))
         TextField(
@@ -71,7 +73,19 @@ internal fun HollowIdeProjectNameDialog(
             onChange = onNameChange,
             id = ProjectNameDialogInputId,
             tags = listOf("project-name-dialog-input"),
-            modifier = Modifier.size(180.px, 24.px),
+            modifier = Modifier.size(180.px, 24.px).onKeyInput { input ->
+                when (input.key) {
+                    GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+                        onConfirm()
+                        input.consume()
+                    }
+
+                    GLFW.GLFW_KEY_ESCAPE -> {
+                        onCancel()
+                        input.consume()
+                    }
+                }
+            },
         )
         Row(tags = listOf("project-name-dialog-actions")) {
             ProjectMenuItem("OK", "", icon = null, action = onConfirm)

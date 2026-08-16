@@ -91,6 +91,8 @@ sealed interface InlayContent {
     data class Label(val text: String) : InlayContent
 
     data class Icon(val source: String) : InlayContent
+
+    data class Swatch(val argb: Int) : InlayContent
 }
 
 /**
@@ -105,12 +107,31 @@ sealed interface InlayAction {
         override val id: String get() = OpenResourcePrefix + location
     }
 
+    /**
+     * Opens a color picker over the literal at `[start], [end])`. [literal] is the exact text the
+     * hint was built from.
+     */
+    data class PickColor(val start: Int, val end: Int, val literal: String) : InlayAction {
+        override val id: String get() = "$PickColorPrefix$start:$end:$literal"
+    }
+
     companion object {
         private const val OpenResourcePrefix = "open-resource:"
+        private const val PickColorPrefix = "pick-color:"
 
         fun decode(id: String): InlayAction? = when {
             id.startsWith(OpenResourcePrefix) -> OpenResource(id.removePrefix(OpenResourcePrefix))
+            id.startsWith(PickColorPrefix) -> decodePickColor(id.removePrefix(PickColorPrefix))
             else -> null
+        }
+
+        private fun decodePickColor(payload: String): PickColor? {
+            val start = payload.substringBefore(':').toIntOrNull() ?: return null
+            val rest = payload.substringAfter(':', "")
+            val end = rest.substringBefore(':').toIntOrNull() ?: return null
+            val literal = rest.substringAfter(':', "")
+            if (literal.isEmpty()) return null
+            return PickColor(start, end, literal)
         }
     }
 }
@@ -126,6 +147,7 @@ object InlayTags {
 
     /** The action targets a game resource, which opens read-only. */
     const val RESOURCE_TARGET = "resource-target"
+    const val COLOR = "color-hint"
 }
 
 /** Icons the IDE draws inside its hints. */
@@ -158,4 +180,5 @@ data class SpanStyle(
     val italic: Boolean,
     val bold: Boolean,
     val highlight: Boolean,
+    val colorOverride: Int? = null,
 )

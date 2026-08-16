@@ -163,11 +163,12 @@ internal class HollowIdeProjectController(
                 openRenameDialog(model.selectedTreePath)
                 true
             }
-            command && key == GLFW.GLFW_KEY_N && modifiers and GLFW.GLFW_MOD_SHIFT != 0 -> {
+            key == GLFW.GLFW_KEY_INSERT && modifiers and GLFW.GLFW_MOD_ALT != 0 &&
+                    modifiers and GLFW.GLFW_MOD_SHIFT != 0 -> {
                 openCreateFolderDialog(model.selectedTreePath)
                 true
             }
-            command && key == GLFW.GLFW_KEY_N -> {
+            key == GLFW.GLFW_KEY_INSERT && modifiers and GLFW.GLFW_MOD_ALT != 0 -> {
                 openCreateFileDialog(model.selectedTreePath)
                 true
             }

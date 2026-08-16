@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 
+private val HssTaskMarkerRegex = Regex("""\b(TODO|FIXME|HACK|XXX|BUG)\b""")
+
 /** A highlighted slice of an HSS document. Spans cover the source without gaps. */
 data class TextSpan(
     val start: Int,
@@ -112,15 +114,26 @@ internal class HssLexer(
     private fun readBlockComment() {
         val close = text.indexOf("*/", index + 2)
         val end = if (close < 0) text.length else close + 2
-        emit(index, end, TokenType.COMMENT, italic = true)
+        emitComment(index, end)
         index = end
     }
 
     private fun readLineComment() {
         val close = text.indexOf('\n', index)
         val end = if (close < 0) text.length else close
-        emit(index, end, TokenType.COMMENT, italic = true)
+        emitComment(index, end)
         index = end
+    }
+
+    private fun emitComment(start: Int, end: Int) {
+        val marker = HssTaskMarkerRegex.find(text.substring(start, end))
+        if (marker == null) {
+            emit(start, end, TokenType.COMMENT, italic = true)
+            return
+        }
+        val markerStart = start + marker.range.first
+        emit(start, markerStart, TokenType.COMMENT, italic = true)
+        emit(markerStart, end, TokenType.TODO_COMMENT, italic = true)
     }
 
     private fun readSelectorToken() {

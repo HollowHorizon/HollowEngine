@@ -38,7 +38,7 @@ private fun lineHints(
     val hints = ArrayList<InlayHint>()
     if (hintsByOffset.isEmpty()) return hints
     for (offset in lineStart..lineEnd) {
-        hintsByOffset[offset]?.forEach { hints += InlayHint(offset - lineStart, it.text) }
+        hintsByOffset[offset]?.forEach { hints += it.copy(index = offset - lineStart) }
     }
     return hints
 }

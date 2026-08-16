@@ -439,7 +439,7 @@ private fun shortSweep(from: Float, to: Float): Float {
 }
 
 private const val StrokeEpsilon = 1e-5f
-private const val DefaultPathTolerance = 0.35f
+private const val DefaultPathTolerance = 0.175f
 private const val MinimumPathTolerance = 0.05f
 private const val MaximumSubdivisionDepth = 12
 private const val MinimumArcStep = 0.01

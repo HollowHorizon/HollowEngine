@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
+import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 
 private const val HighlightedRichTextCacheSize = 24
@@ -135,6 +136,12 @@ enum class UiTextDiagnosticSeverity {
     INFO,
 }
 
+/** One replacement in the field's document, in absolute end-exclusive offsets. */
+data class UiTextEdit(val start: Int, val end: Int, val replacement: String)
+
+/** An action offered on a diagnostic. Applying it is a single undoable edit. */
+data class UiTextQuickFix(val title: String, val edits: List<UiTextEdit>)
+
 data class UiTextDiagnostic(
     val start: Int,
     val end: Int,
@@ -142,12 +149,16 @@ data class UiTextDiagnostic(
     val severity: UiTextDiagnosticSeverity = UiTextDiagnosticSeverity.ERROR,
     val line: Int = 0,
     val column: Int = 0,
+    val fixes: List<UiTextQuickFix> = emptyList(),
 )
 
 sealed interface UiInlayContent {
     data class Label(val text: String) : UiInlayContent
 
     data class Icon(val source: String) : UiInlayContent
+
+    /** A solid colour chip in `0xAARRGGBB`, drawn over a checkerboard so alpha reads. */
+    data class Swatch(val argb: Int) : UiInlayContent
 }
 
 /** Opaque identity of an inlay's action; the field hands it back to its host on click. */
@@ -446,6 +457,7 @@ private fun UiInlayHint.isEmpty(): Boolean = content.none { part ->
     when (part) {
         is UiInlayContent.Label -> part.text.isNotBlank()
         is UiInlayContent.Icon -> part.source.isNotBlank()
+        is UiInlayContent.Swatch -> true
     }
 }
 

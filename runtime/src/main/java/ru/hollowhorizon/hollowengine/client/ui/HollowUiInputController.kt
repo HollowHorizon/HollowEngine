@@ -386,7 +386,18 @@ class HollowUiInputController {
         val set = LinkedHashSet<UiNode>()
         focusByScope.values.forEach { if (it in frame.nodes) set += it }
         frame.nodes.forEach { if (it.resolvedSnapshot.focusScope) set += it }
-        return set.sortedByDescending { it.resolvedSnapshot.layer }
+        val ordered = set.sortedByDescending { it.resolvedSnapshot.layer }
+        val modal = frame.nodes.lastOrNull { it.resolvedSnapshot.modal } ?: return ordered
+        return ordered.filter { it === modal || it.isWithin(modal) }
+    }
+
+    private fun UiNode.isWithin(ancestor: UiNode): Boolean {
+        var node: UiNode? = layoutState.parentNode
+        while (node != null) {
+            if (node === ancestor) return true
+            node = node.layoutState.parentNode
+        }
+        return false
     }
 
     fun keyPressed(

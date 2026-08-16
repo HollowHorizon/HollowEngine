@@ -591,6 +591,7 @@ internal fun shiftDiagnosticsForEditedText(
             end = end,
             line = line + 1,
             column = start - starts.getOrElse(line) { 0 } + 1,
+            fixes = emptyList(),
         )
     }
 }
@@ -651,6 +652,7 @@ private fun List<TextLine>.toInlayHints(lineStarts: List<Int>, textLength: Int):
 private fun InlayContent.toUi(): UiInlayContent = when (this) {
     is InlayContent.Label -> UiInlayContent.Label(text)
     is InlayContent.Icon -> UiInlayContent.Icon(source)
+    is InlayContent.Swatch -> UiInlayContent.Swatch(argb)
 }
 
 private fun CompletionItem.toUi(): UiTextCompletion {
@@ -690,6 +692,9 @@ private fun Diagnostic.toUi(text: String, lineStarts: List<Int>): UiTextDiagnost
         severity = severity.toUi(),
         line = range.start.line + 1,
         column = range.start.column + 1,
+        fixes = fixes.map { fix ->
+            UiTextQuickFix(fix.title, fix.edits.map { UiTextEdit(it.start, it.end, it.replacement) })
+        },
     )
 }
 
@@ -705,8 +710,9 @@ private fun Severity.toUi(): UiTextDiagnosticSeverity {
 }
 
 private fun SpanStyle.toUi(): UiInlineStyle {
-    var style = UiInlineStyle().withColor(color.toUiColor())
-    if (highlight) style = style.withBackground(color.toUiColor().copy(alpha = 0.24f))
+    val resolved = colorOverride?.let(UiColor::fromArgb) ?: color.toUiColor()
+    var style = UiInlineStyle().withColor(resolved)
+    if (highlight) style = style.withBackground(resolved.copy(alpha = 0.24f))
     if (bold) style = style.withBold()
     if (italic) style = style.withItalic()
     return style

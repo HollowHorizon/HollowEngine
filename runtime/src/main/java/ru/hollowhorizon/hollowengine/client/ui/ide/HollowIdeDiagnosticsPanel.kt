@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnosticSeverity
+import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @Composable
@@ -87,13 +88,13 @@ internal fun HollowIdeDiagnosticsPanel(
 private fun CopyButton(tooltip: String, text: () -> String) {
     Box(
         tags = listOf("ide-diagnostic-copy"),
-        attributes = mapOf("title" to tooltip),
         modifier = Modifier.input(clickable = true, hoverable = true)
             .cursor(UiCursorShape.HAND)
             .onClick { event ->
                 Minecraft.getInstance().keyboardHandler.clipboard = text()
                 event.consume()
-            },
+            }
+            .tooltipOnHover(tooltip),
     ) {
         Image(
             Assets.Hollowengine.Textures.Gui.Icons.COPY.toString(),

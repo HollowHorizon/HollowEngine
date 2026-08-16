@@ -367,10 +367,22 @@ data class UiColor(
         alpha = alpha + (to.alpha - alpha) * progress,
     )
 
+    fun toArgb(): Int {
+        fun channel(value: Float) = (value.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+        return (channel(alpha) shl 24) or (channel(red) shl 16) or (channel(green) shl 8) or channel(blue)
+    }
+
     companion object {
         val Transparent = UiColor(0f, 0f, 0f, 0f)
         val White = UiColor(1f, 1f, 1f, 1f)
         val Black = UiColor(0f, 0f, 0f, 1f)
+
+        fun fromArgb(argb: Int) = UiColor(
+            red = (argb ushr 16 and 0xFF) / 255f,
+            green = (argb ushr 8 and 0xFF) / 255f,
+            blue = (argb and 0xFF) / 255f,
+            alpha = (argb ushr 24 and 0xFF) / 255f,
+        )
     }
 }
 

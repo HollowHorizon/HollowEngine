@@ -8,12 +8,16 @@ import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
+import ru.hollowhorizon.hollowengine.client.HighlightTheme
 import ru.hollowhorizon.hollowengine.common.ide.session.inlays.provideHints
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.OccurrenceRange
@@ -32,14 +36,17 @@ class LineBuilder(val lines: MutableList<TextLine>) {
         var italic = false
         var bold = false
         var highlight = false
+
+        var colorOverride: Int? = null
         private val hints = ArrayList<InlayHint>()
 
 
         fun append(text: String) {
-            spans.add(text to SpanStyle(tokenType, italic, bold, highlight))
+            spans.add(text to SpanStyle(tokenType, italic, bold, highlight, colorOverride))
             italic = false
             bold = false
             highlight = false
+            colorOverride = null
         }
 
         fun appendHint(hint: InlayHint) {
@@ -185,12 +192,17 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(
         tokenType = TokenType.DEFAULT
         bold = false
         italic = false
+        colorOverride = null
+
+        if (KtTokens.COMMENTS.contains(elementType)) {
+            appendCommentSpans(text)
+            return
+        }
 
         when {
             psi is KtAnnotationEntry || parent is KtAnnotationEntry -> tokenType = TokenType.ANNOTATION
             elementType in KtTokens.KEYWORDS || elementType in KtTokens.SOFT_KEYWORDS -> tokenType = TokenType.KEYWORD
             elementType in KtTokens.STRINGS || elementType == KtTokens.OPEN_QUOTE || elementType == KtTokens.CLOSING_QUOTE -> tokenType = TokenType.STRING
-            KtTokens.COMMENTS.contains(elementType) -> tokenType = TokenType.COMMENT
             parent is KtConstantExpression && !isEnumConstant(parent) -> tokenType = TokenType.NUMERIC_LITERAL
             elementType == KtTokens.MINUS && psi.isUnaryNumericMinus() -> tokenType = TokenType.NUMERIC_LITERAL
 
@@ -214,6 +226,65 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(
         }
 
         append(text)
+    }
+}
+
+private val TaskMarkerRegex = Regex("""\b(TODO|FIXME|HACK|XXX|BUG)\b""")
+
+private fun LineBuilder.SpanBuilder.appendCommentSpans(text: String) {
+    val marker = TaskMarkerRegex.find(text)
+    if (marker == null) {
+        tokenType = TokenType.COMMENT
+        append(text)
+        return
+    }
+    if (marker.range.first > 0) {
+        tokenType = TokenType.COMMENT
+        append(text.substring(0, marker.range.first))
+    }
+    tokenType = TokenType.TODO_COMMENT
+    append(text.substring(marker.range.first))
+}
+
+private val DslMarkerClassId = ClassId.topLevel(FqName("kotlin.DslMarker"))
+
+context(session: KaSession)
+private fun dslMarkerFqName(symbol: KaSymbol): String? {
+    with(session) {
+        val callable = symbol as? KaCallableSymbol ?: return null
+        val receiver = callable.receiverType
+        val owner = (callable.containingSymbol as? KaClassSymbol)?.defaultType
+        for (type in listOfNotNull(receiver, owner)) {
+            type.annotations.firstDslMarker()?.let { return it }
+            (type.expandedSymbol)?.dslMarkerFqName(HashSet())?.let { return it }
+        }
+        return null
+    }
+}
+
+context(session: KaSession)
+private fun KaClassSymbol.dslMarkerFqName(visited: MutableSet<ClassId>): String? {
+    with(session) {
+        val id = classId
+        if (id != null && !visited.add(id)) return null
+        annotations.firstDslMarker()?.let { return it }
+        for (superType in superTypes) {
+            (superType.expandedSymbol)?.dslMarkerFqName(visited)?.let { return it }
+        }
+        return null
+    }
+}
+
+context(session: KaSession)
+private fun List<KaAnnotation>.firstDslMarker(): String? {
+    with(session) {
+        for (annotation in this@firstDslMarker) {
+            val classId = annotation.classId ?: continue
+            if (classId == DslMarkerClassId) continue
+            val declaration = findClass(classId) ?: continue
+            if (DslMarkerClassId in declaration.annotations) return classId.asFqNameString()
+        }
+        return null
     }
 }
 
@@ -389,7 +460,17 @@ private fun LineBuilder.SpanBuilder.computeSymbolStyle(symbol: KaSymbol) {
 
             else -> TokenType.DEFAULT
         }
+        applyDslMarker(symbol)
         applyModifiers(symbol)
+    }
+}
+
+context(session: KaSession)
+private fun LineBuilder.SpanBuilder.applyDslMarker(symbol: KaSymbol) {
+    with(session) {
+        val marker = runCatching { dslMarkerFqName(symbol) }.getOrNull() ?: return
+        tokenType = TokenType.DSL_MARKER
+        colorOverride = HighlightTheme.dslMarkerArgb(marker)
     }
 }
 

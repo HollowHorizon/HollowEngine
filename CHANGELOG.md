@@ -1,4 +1,28 @@
 Since 2.2.0.1:
+- modal popups: a popup opened with `modal = true` takes the keyboard for itself, so a dialog's own
+  field is no longer typed into alongside whatever was focused behind it (the ctrl+N overlay and the
+  new file/folder dialog are modal now);
+- popups animate out as well as in — they sink and fade the way they rose, and stop taking input the
+  moment they start leaving;
+- hover tooltips (`rememberTooltip`), used on the find bar, the search overlay and the diagnostics
+  panel;
+- curves are flattened to half the old error budget, so svg icons no longer show facets;
+- find and replace inside the editor (ctrl+F / ctrl+R): match case, whole words and regex with `$1`
+  group references, every match highlighted at once, enter/F3 to walk them. It belongs to the file
+  being edited, not to whichever text field happens to have focus;
+- project-wide search overlay on ctrl+N, searching file names or the text inside files off the render
+  thread (project view's New File/New Folder moved to alt+insert / alt+shift+insert);
+- quick fixes on alt+enter, driven by the diagnostic under the caret;
+- unused (and duplicate) imports are reported, with "remove import" and "remove all unused imports";
+- `@SubscribeEvent` is checked against what the event bus can actually register: exactly one `Event`
+  parameter, a `Unit` return, no suspend, no type parameters, no extension receiver, and a warning when
+  it hides inside a class the bus never scans;
+- `// TODO:`/`FIXME`/`HACK`/`XXX`/`BUG` stand out in comments, in scripts and stylesheets alike;
+- calls into a `@DslMarker`-annotated DSL are coloured by the marker's fully qualified name, so one DSL
+  keeps one colour and nested DSLs stay apart;
+- colour pickers in HSS: every colour literal gets a swatch that opens a picker and writes the result
+  back into the stylesheet;
+- fixed inlay hints losing their icons, tags and click actions when split across lines;
 - HSS is declared in one schema: properties, aliases, value grammar and docs live together, so completion,
   inlay hints, validation and the compiler can never disagree;
 - HSS list properties are named in the plural (`animations`, `transitions`, `shadows`), with the CSS

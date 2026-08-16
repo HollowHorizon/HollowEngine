@@ -30,12 +30,14 @@ fun diagnosticCode(file: KtFile): List<Diagnostic> {
     val syntaxDiagnostics = PsiTreeUtil.collectElementsOfType(file, PsiErrorElement::class.java).map { error ->
         Diagnostic(document.rangeOf(error.textRange), Severity.ERROR, error.errorDescription)
     }
-    return (analysisDiagnostics + syntaxDiagnostics).distinctBy { diagnostic ->
+    val inspections = listOf(::unusedImportDiagnostics, ::subscribeEventDiagnostics)
+        .flatMap { inspection -> runCatching { inspection(file) }.getOrDefault(emptyList()) }
+    return (analysisDiagnostics + syntaxDiagnostics + inspections).distinctBy { diagnostic ->
         Triple(diagnostic.range, diagnostic.severity, diagnostic.message)
     }
 }
 
-private fun Document.rangeOf(textRange: TextRange): Range {
+fun Document.rangeOf(textRange: TextRange): Range {
     val startOffset = textRange.startOffset.coerceIn(0, textLength)
     val endOffset = textRange.endOffset.coerceIn(startOffset, textLength)
     val startLine = getLineNumber(startOffset)

@@ -426,6 +426,13 @@ fun Modifier.focus() = prop(UiProps.Focusable, true).input(clickable = true)
  */
 fun Modifier.focusScope() = prop(UiProps.FocusScope, true)
 
+/**
+ * A [focusScope] that takes the keyboard for itself: while it is on screen, key and character input
+ * reaches only it and its descendants, so a dialog's own field is not typed into twice. The frontmost
+ * modal (highest layer, then latest) wins when several are open.
+ */
+fun Modifier.modal(enabled: Boolean = true) = prop(UiProps.FocusScope, true).prop(UiProps.Modal, enabled)
+
 fun Modifier.cursor(shape: UiCursorShape) = prop(UiProps.Cursor, shape)
 
 /** Lets pointer presses over this node's geometry pass through (no click-through blocking). */
