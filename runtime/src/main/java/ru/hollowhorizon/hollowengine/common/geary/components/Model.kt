@@ -11,9 +11,8 @@ import ru.hollowhorizon.hollowengine.generated.Assets
 @Syncable
 @Serializable
 @SerialName("hollowengine:model")
-@EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class Model(
-    @EditorName("Модель")
+
     val model: String = "hollowengine:models/entity/player_model.gltf"
 ) {
 

@@ -76,7 +76,6 @@ object GearyRuntimeState {
             NoAiRuntime.apply(entity, components.containsKey(noAiId))
             AIComponentSystems.tickEntity(entity, components)
         }
-        NodeRuntimeState.service(level).tick()
     }
 
     fun close(level: Level) {

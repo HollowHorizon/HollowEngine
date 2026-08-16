@@ -26,7 +26,6 @@ data class ComponentDescriptor<T : Any>(
     val id: ResourceLocation,
     val value: KClass<T>,
     val serializer: KSerializer<T>,
-    val editable: Boolean = true,
     val persistencePolicy: ComponentPersistencePolicy = ComponentPersistencePolicy.PERSIST,
     val syncPolicy: ComponentSyncPolicy = ComponentSyncPolicy.NONE,
     val defaultFactory: (() -> T)? = null,

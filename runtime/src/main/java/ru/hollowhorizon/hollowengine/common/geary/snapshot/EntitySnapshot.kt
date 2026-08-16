@@ -13,9 +13,6 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentPersistencePolicy
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
-import java.util.*
 
 @Serializable
 sealed class Snapshot {
@@ -103,10 +100,3 @@ object ComponentListSerializer : KSerializer<List<Component>> {
         return result
     }
 }
-
-@Serializable
-data class LevelSnapshot(
-    val id: @Serializable(ForUuid::class) UUID = UUID.randomUUID(),
-    val dimension: @Serializable(ForResourceLocation::class) ResourceLocation? = null,
-    override val components: List<@Polymorphic Component> = emptyList(),
-) : Snapshot()

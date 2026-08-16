@@ -30,9 +30,6 @@ object EntitySerialization {
     fun tryDeserializeFromNbt(tag: Tag, source: String = "NBT entity snapshot"): EntitySnapshot? =
         softDeserialize(source) { deserializeFromNbt(tag) }
 
-    fun serializeLevelToNbt(snapshot: LevelSnapshot): Tag = nbtFormat().serialize(LevelSnapshot.serializer(), snapshot)
-    fun deserializeLevelFromNbt(tag: Tag): LevelSnapshot = nbtFormat().deserialize(LevelSnapshot.serializer(), tag)
-
     fun serializeToByteBuf(snapshot: EntitySnapshot, buf: FriendlyByteBuf = FriendlyByteBuf(Unpooled.buffer())): FriendlyByteBuf =
         byteBufFormat().serialize(EntitySnapshot.serializer(), snapshot, buf)
     fun deserializeFromByteBuf(buf: FriendlyByteBuf): EntitySnapshot =

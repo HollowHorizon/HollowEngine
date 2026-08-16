@@ -39,7 +39,6 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.geary.binding.*
 import ru.hollowhorizon.hollowengine.common.geary.components.*
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import java.util.*
@@ -55,8 +54,6 @@ object TransformGizmoEditor {
 
     internal const val MODEL_ICON = "hollowengine:textures/gui/icons/box.svg"
     internal const val TRANSFORM_ICON = "hollowengine:textures/gui/icons/world.svg"
-    internal const val POINT_LIGHT_ICON = "hollowengine:textures/gui/icons/light_point.svg"
-    internal const val SPOT_LIGHT_ICON = "hollowengine:textures/gui/icons/light_spot.svg"
 
     private val entries = linkedMapOf<GizmoEntryId, GizmoEntry>()
 
@@ -393,7 +390,6 @@ object TransformGizmoEditor {
                 val width = boundsLineWidth(bounds)
                 for (edge in GizmoGeometry.buildBoundsEdges(bounds)) strokeLine(scope, edge, boundsColor, width)
             }
-            drawLightVisual(scope, entry, entryId)
         }
 
         val active = activeKey?.let(entries::get)?.takeIf { it.visible } ?: return
@@ -455,24 +451,6 @@ object TransformGizmoEditor {
         return hypot(maxX - minX, maxY - minY)
     }
 
-    private fun drawLightVisual(scope: UiCanvasDrawScope, entry: GizmoEntry, entryId: GizmoEntryId) {
-        val light = entry.lightComponent ?: return
-        val resolved = entry.lastResolved ?: return
-        if (entryId != activeKey && light is PointLightComponent) return
-        val color = when (entryId) {
-            activeKey -> GizmoColors.LIGHT_ACTIVE
-            hoveredKey -> GizmoColors.LIGHT_HOVER
-            else -> GizmoColors.LIGHT
-        }
-        val polylines = when (light) {
-            is PointLightComponent -> pointLightPolylines(resolved.position, pointLightVisualSize(light))
-            is SpotLightComponent -> spotLightPolylines(resolved, light)
-        }
-        for ((polyline, closed) in polylines) {
-            val screen = GizmoGeometry.projectPolyline(polyline) ?: continue
-            strokeLine(scope, screen, color, 1.9f, closed)
-        }
-    }
 
     /** Screen span beyond which a polyline is treated as degenerate and skipped (guards the tiler). */
     private const val MAX_DRAW_SPAN = 8000f
@@ -548,26 +526,9 @@ object TransformGizmoEditor {
                 (minecraft.screen == null || minecraft.screen is ChatScreen)
     }
 
-    internal fun resolveTarget(model: Model?, light: LightComponent?): TransformGizmoTarget {
-        if (model != null) {
-            return TransformGizmoTarget(TransformGizmoTargetType.MODEL, "Model", MODEL_ICON)
-        }
-        return when (light) {
-            is PointLightComponent -> TransformGizmoTarget(
-                TransformGizmoTargetType.POINT_LIGHT,
-                "Point Light",
-                POINT_LIGHT_ICON
-            )
-
-            is SpotLightComponent -> TransformGizmoTarget(
-                TransformGizmoTargetType.SPOT_LIGHT,
-                "Spot Light",
-                SPOT_LIGHT_ICON
-            )
-
-            else -> TransformGizmoTarget(TransformGizmoTargetType.TRANSFORM, "Transform", TRANSFORM_ICON)
-        }
-    }
+    internal fun resolveTarget(model: Model?): TransformGizmoTarget =
+        if (model != null) TransformGizmoTarget(TransformGizmoTargetType.MODEL, "Model", MODEL_ICON)
+        else TransformGizmoTarget(TransformGizmoTargetType.TRANSFORM, "Transform", TRANSFORM_ICON)
 
     private fun computeTargetBounds(
         target: TransformGizmoTarget,
@@ -581,9 +542,6 @@ object TransformGizmoEditor {
                     resolved.transform
                 ) else buildGenericBounds(resolved.transform)
 
-            TransformGizmoTargetType.POINT_LIGHT,
-            TransformGizmoTargetType.SPOT_LIGHT,
-                -> buildLightEditorBounds(resolved.transform.translation)
 
             TransformGizmoTargetType.TRANSFORM -> buildGenericBounds(resolved.transform)
         }
@@ -620,14 +578,13 @@ object TransformGizmoEditor {
                     resolveNodeTransform(level, hostEntityUuid, modelNode.transform, partialTick) ?: return@modelNode
                 val entryId = GizmoEntryId(record.snapshotId, modelNode.nodeId)
                 val entry = entries.getOrPut(entryId) { GizmoEntry(entryId) }
-                val target = resolveTarget(model = modelNode.model, light = null)
+                val target = resolveTarget(modelNode.model)
                 entry.hostEntityUuid = hostEntityUuid
                 entry.entityId = record.hostEntity?.id
                 entry.snapshot = snapshot
                 entry.target = target
                 entry.visible = true
                 entry.modelComponent = modelNode.model
-                entry.lightComponent = null
                 val dragging = draggingKey == entryId
                 val display = displayResolved(entry, resolved, dragging)
                 entry.updateFromResolved(display, computeTargetBounds(target, display, modelNode.model), dragging)
@@ -635,25 +592,6 @@ object TransformGizmoEditor {
                 claimedNodes += modelNode.nodeId
             }
 
-            snapshot.lightNodes().forEach lightNode@{ lightNode ->
-                if (lightNode.nodeId in claimedNodes) return@lightNode
-                val resolved =
-                    resolveNodeTransform(level, hostEntityUuid, lightNode.transform, partialTick) ?: return@lightNode
-                val target = resolveTarget(model = null, light = lightNode.light)
-                val entryId = GizmoEntryId(record.snapshotId, lightNode.nodeId)
-                val entry = entries.getOrPut(entryId) { GizmoEntry(entryId) }
-                entry.hostEntityUuid = hostEntityUuid
-                entry.entityId = record.hostEntity?.id
-                entry.snapshot = snapshot
-                entry.target = target
-                entry.visible = true
-                entry.modelComponent = null
-                entry.lightComponent = lightNode.light
-                val dragging = draggingKey == entryId
-                val display = displayResolved(entry, resolved, dragging)
-                entry.updateFromResolved(display, computeTargetBounds(target, display, null), dragging)
-                seen += entryId
-            }
         }
 
         val iterator = entries.entries.iterator()
@@ -677,15 +615,13 @@ object TransformGizmoEditor {
         val transform =
             nodeSnapshot.components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
         val model = nodeSnapshot.components.filterIsInstance<Model>().firstOrNull()
-        val light = nodeSnapshot.components.filterIsInstance<LightComponent>().firstOrNull()
-        val target = resolveTarget(model, light)
+        val target = resolveTarget(model)
         val hostEntityUuid = snapshot.hostEntityUuidOrNull() ?: entry.hostEntityUuid
         val resolved = resolveNodeTransform(level, hostEntityUuid, transform, TickHandler.partialTick) ?: return
         entry.hostEntityUuid = hostEntityUuid
         entry.snapshot = snapshot
         entry.target = target
         entry.modelComponent = model
-        entry.lightComponent = light
         entry.lastAppliedTransform = transform
         entry.updateFromResolved(resolved, computeTargetBounds(target, resolved, model), dragging = false)
     }
@@ -754,19 +690,7 @@ object TransformGizmoEditor {
         entry.lastAppliedTransform = transform
         val service = NodeRuntimeState.service(level)
         val snapshot = service.snapshot(entry.snapshotId) ?: return
-        val updatedSnapshot = when (snapshot) {
-            is LevelSnapshot -> snapshot
-                .withWorldBinding(
-                    Vec3(
-                        transform.translation.x.toDouble(),
-                        transform.translation.y.toDouble(),
-                        transform.translation.z.toDouble(),
-                    ),
-                )
-                .withOrReplace(transform, entry.nodeId)
-
-            else -> snapshot.withOrReplace(transform, entry.nodeId)
-        }
+        val updatedSnapshot = snapshot.withOrReplace(transform, entry.nodeId)
         entry.snapshot = updatedSnapshot
         service.materialize(updatedSnapshot)
         NodeTransformUpdatePacket(entry.snapshotId, entry.nodeId, transform).send()
@@ -797,7 +721,6 @@ object TransformGizmoEditor {
         var snapshot: Snapshot? = null
         var target: TransformGizmoTarget? = null
         var modelComponent: Model? = null
-        var lightComponent: LightComponent? = null
         var visible: Boolean = false
         var lastResolved: ResolvedNodeTransform? = null
         var lastBounds: AABB? = null
@@ -840,14 +763,6 @@ private fun formatLabelValue(value: Double): String {
     return "%.${precision}f".format(Locale.ROOT, value)
 }
 
-private fun buildLightEditorBounds(position: Vec3f): AABB {
-    val radius = 0.12
-    return AABB(
-        position.x - radius, position.y - radius, position.z - radius,
-        position.x + radius, position.y + radius, position.z + radius,
-    )
-}
-
 private fun buildGenericBounds(transform: TrsTransformF): AABB {
     val position = transform.translation
     val scale = transform.scale
@@ -856,71 +771,4 @@ private fun buildGenericBounds(transform: TrsTransformF): AABB {
         position.x - radius, position.y - radius, position.z - radius,
         position.x + radius, position.y + radius, position.z + radius,
     )
-}
-
-private fun pointLightVisualSize(light: PointLightComponent): Float =
-    (light.radius * 0.08f).coerceIn(0.22f, 1.35f)
-
-private fun spotLightPreviewDistance(light: SpotLightComponent): Float =
-    (light.distance * 0.14f).coerceIn(0.45f, 2.4f)
-
-private fun worldCircle(center: Vec3, u: Vec3, v: Vec3, radius: Float, segments: Int = 36): List<Vec3> {
-    val points = ArrayList<Vec3>(segments)
-    for (i in 0 until segments) {
-        val angle = i.toDouble() / segments * PI * 2.0
-        val c = cos(angle) * radius
-        val s = sin(angle) * radius
-        points += center.add(u.x * c + v.x * s, u.y * c + v.y * s, u.z * c + v.z * s)
-    }
-    return points
-}
-
-private fun pointLightPolylines(position: Vec3, size: Float): List<Pair<List<Vec3>, Boolean>> {
-    val lines = ArrayList<Pair<List<Vec3>, Boolean>>()
-    val x = Vec3(1.0, 0.0, 0.0)
-    val y = Vec3(0.0, 1.0, 0.0)
-    val z = Vec3(0.0, 0.0, 1.0)
-    lines += worldCircle(position, y, z, size) to true
-    lines += worldCircle(position, x, z, size) to true
-    lines += worldCircle(position, x, y, size) to true
-    val ray = size * 1.25
-    lines += listOf(position.add(-ray, 0.0, 0.0), position.add(ray, 0.0, 0.0)) to false
-    lines += listOf(position.add(0.0, -ray, 0.0), position.add(0.0, ray, 0.0)) to false
-    lines += listOf(position.add(0.0, 0.0, -ray), position.add(0.0, 0.0, ray)) to false
-    return lines
-}
-
-private fun spotLightPolylines(
-    resolved: ResolvedNodeTransform,
-    light: SpotLightComponent,
-): List<Pair<List<Vec3>, Boolean>> {
-    val rotation = resolved.transform.rotation
-    val forward = rotatedAxis(rotation, 0f, 0f, 1f)
-    val right = rotatedAxis(rotation, 1f, 0f, 0f)
-    val up = rotatedAxis(rotation, 0f, 1f, 0f)
-    val tip = resolved.position
-    val distance = spotLightPreviewDistance(light)
-    val outerRadius = max((tan(Math.toRadians((light.outerAngle * 0.5f).toDouble())) * distance).toFloat(), 0.035f)
-    val base =
-        tip.add(forward.x * distance.toDouble(), forward.y * distance.toDouble(), forward.z * distance.toDouble())
-
-    val lines = ArrayList<Pair<List<Vec3>, Boolean>>()
-    lines += worldCircle(base, right, up, outerRadius) to true
-    val rim = listOf(
-        base.add(right.x * outerRadius.toDouble(), right.y * outerRadius.toDouble(), right.z * outerRadius.toDouble()),
-        base.add(
-            -right.x * outerRadius.toDouble(),
-            -right.y * outerRadius.toDouble(),
-            -right.z * outerRadius.toDouble()
-        ),
-        base.add(up.x * outerRadius.toDouble(), up.y * outerRadius.toDouble(), up.z * outerRadius.toDouble()),
-        base.add(-up.x * outerRadius.toDouble(), -up.y * outerRadius.toDouble(), -up.z * outerRadius.toDouble()),
-    )
-    rim.forEach { lines += listOf(tip, it) to false }
-    return lines
-}
-
-private fun rotatedAxis(rotation: QuatF, x: Float, y: Float, z: Float): Vec3 {
-    val v = Vec3f(x, y, z).rotateBy(rotation)
-    return Vec3(v.x.toDouble(), v.y.toDouble(), v.z.toDouble())
 }

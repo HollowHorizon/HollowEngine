@@ -1,26 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.geary.binding
 
-import net.minecraft.core.BlockPos
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.level.ChunkPos
-import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import java.util.*
 
 val ROOT_COMPONENT_ID: UUID = UUID(0L, 1L)
-
-data class DormantRecord(
-    val id: UUID,
-    val snapshot: LevelSnapshot,
-) {
-    val worldChunkX: Int = snapshot.requireWorldChunkX()
-    val worldChunkZ: Int = snapshot.requireWorldChunkZ()
-}
 
 data class NodeMaterializedRecord(
     val snapshotId: UUID,
@@ -43,25 +31,8 @@ data class ModelNodeEntry(
     val animator: AnimatorComponent?,
 )
 
-data class LightNodeEntry(
-    val nodeId: UUID,
-    val light: LightComponent,
-    val transform: TransformComponent,
-)
-
-fun LevelSnapshot.requireWorldChunkX(): Int = worldChunkFromTransform().first
-
-fun LevelSnapshot.requireWorldChunkZ(): Int = worldChunkFromTransform().second
-
-private fun Snapshot.worldChunkFromTransform(): Pair<Int, Int> {
-    val transform = transformOrNull() ?: error("Level snapshot requires transform with world position.")
-    val chunkPos = ChunkPos(BlockPos(transform.x.toInt(), transform.y.toInt(), transform.z.toInt()))
-    return chunkPos.x to chunkPos.z
-}
-
 fun Snapshot.snapshotIdOrNull(): UUID? = when (this) {
     is EntitySnapshot -> entity?.uuid
-    is LevelSnapshot -> id
 }
 
 fun Snapshot.hostEntityUuidOrNull(): UUID? = (this as? EntitySnapshot)?.entity?.uuid
@@ -83,12 +54,6 @@ fun Snapshot.modelNodes(): List<ModelNodeEntry> {
     val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
     val animator = components.filterIsInstance<AnimatorComponent>().firstOrNull()
     return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform, animator))
-}
-
-fun Snapshot.lightNodes(): List<LightNodeEntry> {
-    val light = components.filterIsInstance<LightComponent>().firstOrNull() ?: return emptyList()
-    val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
-    return listOf(LightNodeEntry(ROOT_COMPONENT_ID, light, transform))
 }
 
 fun <T : Snapshot> T.withOrReplace(component: Component, nodeId: UUID? = null): T {
@@ -114,8 +79,5 @@ fun <T : Snapshot> T.removeComponents(predicate: (Component) -> Boolean, nodeId:
 fun <T : Snapshot> T.withComponents(updatedComponents: List<Component>): T =
     when (this) {
         is EntitySnapshot -> copy(components = updatedComponents).also { it.entity = entity }
-        is LevelSnapshot -> copy(components = updatedComponents)
     } as T
 
-fun LevelSnapshot.withWorldBinding(position: Vec3): LevelSnapshot =
-    withOrReplace((transformOrNull() ?: TransformComponent()).withWorldPosition(position))

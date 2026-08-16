@@ -5,9 +5,6 @@ import com.mojang.blaze3d.audio.SoundBuffer
 import com.mojang.blaze3d.platform.Window
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.datafixers.util.Either
-import net.irisshaders.iris.gl.image.GlImage
-import net.irisshaders.iris.gl.sampler.SamplerHolder
-import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
 import net.minecraft.Util
 import net.minecraft.client.Camera
 import net.minecraft.client.Minecraft
@@ -73,7 +70,6 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBa
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
-import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
@@ -564,10 +560,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         )
     }
 
-    override fun onClientLevelRendererChanged() {
-        ClusteredLightingManager.markLocalShadowWorldChanged()
-    }
-
     override fun onLevelTickBlockEntities(level: Level) {
         val profiler = level.profiler
         profiler.push("HollowEngine ECS")
@@ -717,7 +709,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     private fun shouldApplyCutsceneCamera(): Boolean {
-        return !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
+        return !IrisHelper.isShadowRendering()
     }
 
     override fun onRegisterLayerDefinitions(definitions: MutableMap<ModelLayerLocation, java.util.function.Supplier<LayerDefinition>>) {
@@ -765,22 +757,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onIrisPipelineDestroyed() {
         IrisHelper.invalidateInstancingPrograms()
-        ClusteredLightingManager.invalidate()
-    }
-
-    override fun onIrisAddDynamicUniforms(uniforms: Any?) {
-        val holder = uniforms as? DynamicUniformHolder ?: return
-        ClusteredLightingManager.registerDynamicUniforms(holder)
-    }
-
-    override fun onIrisAddCustomSamplers(samplers: Any?) {
-        val holder = samplers as? SamplerHolder ?: return
-        ClusteredLightingManager.addCustomSamplers(holder)
-    }
-
-    override fun onIrisAddCustomImages(customImages: MutableSet<*>?) {
-        @Suppress("UNCHECKED_CAST") val images = customImages as? MutableSet<GlImage> ?: return
-        ClusteredLightingManager.addCustomImages(images)
     }
 
     override fun onIrisShadowRenderStart() {
@@ -814,15 +790,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onIrisShadowRenderEnd() {
         InstanceBatchManager.clear()
     }
-
-    override fun isIrisLocalShadowPassActive(): Boolean = ClusteredLightingManager.isLocalShadowPassActive()
-
-    override fun getIrisLocalShadowViewMatrix(): Matrix4f = ClusteredLightingManager.getIrisLocalShadowViewMatrix()
-
-    override fun getIrisLocalShadowProjectionMatrix(): Matrix4f =
-        ClusteredLightingManager.getIrisLocalShadowProjectionMatrix()
-
-    override fun getIrisLocalShadowFramebuffer(): Any? = ClusteredLightingManager.getIrisLocalShadowFramebuffer()
 
     override fun onRenderOverlayPre(
         window: Window,

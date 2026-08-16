@@ -16,7 +16,6 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3f
 @Registerable
 @Serializable
 @SerialName("hollowengine:transform")
-@EditorIcon("hollowengine:textures/gui/icons/world.svg")
 class TransformComponent(
     val transform: @Serializable(TRSTransformSerializer::class) TrsTransformF = TrsTransformF(),
 ) {

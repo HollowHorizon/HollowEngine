@@ -12,7 +12,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 @Syncable
 @Serializable
 @SerialName("hollowengine:entity/hitbox")
-@EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 class HitboxComponent(val mode: HitboxMode)
 
 val Entity.hitboxComponent: HitboxComponent?

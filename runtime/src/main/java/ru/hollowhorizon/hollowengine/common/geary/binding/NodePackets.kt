@@ -10,25 +10,12 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import java.util.*
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-data class LevelSnapshotPacket(
-    val snapshot: LevelSnapshot,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        val level = player.level()
-        NodeRuntimeState.init(level)
-        NodeRuntimeState.service(level).materialize(snapshot)
-    }
-}
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
@@ -51,18 +38,6 @@ data class EntitySnapshotPacket(
                 GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
             }
         }
-    }
-}
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-data class LevelSnapshotRemovePacket(
-    val snapshotId: @Serializable(ForUuid::class) UUID,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        val level = player.level()
-        NodeRuntimeState.init(level)
-        NodeRuntimeState.service(level).remove(snapshotId)
     }
 }
 
@@ -115,24 +90,3 @@ data class NodeTransformUpdatePacket(
     }
 }
 
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-@Serializable
-data class NodeSnapshotUpdatePacket(
-    val snapshotId: @Serializable(ForUuid::class) UUID? = null,
-    val snapshot: LevelSnapshot? = null,
-) : HollowPacket {
-    constructor(snapshot: LevelSnapshot) : this(snapshot.id, snapshot)
-
-    override fun handle(player: Player) {
-        if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) return
-        val id = snapshotId ?: return
-        val snapshot = snapshot ?: return
-        val server = player.server ?: return
-        for (level in server.allLevels) {
-            if (NodeRuntimeState.service(level).updateSnapshot(id, snapshot, syncToClients = true)) {
-                return
-            }
-        }
-        HollowEngine.LOGGER.warn("NodeSnapshotUpdatePacket ignored: snapshot {} not found in any server level", id)
-    }
-}

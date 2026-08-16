@@ -7,6 +7,9 @@ import org.gradle.process.CommandLineArgumentProvider
 
 val engineScriptsDirectory = rootProject.file("runtime/src/main/resources/scripts")
 val engineScriptFiles = fileTree(engineScriptsDirectory) { include("**/*.kts") }
+
+if (!engineScriptFiles.isEmpty) evaluationDependsOn(":addons:compiler")
+
 val minecraftVersion = rootProject.property("minecraftVersion") as String
 val kotlinVersion = rootProject.property("kotlinVersion") as String
 val modVersion = property("modVersion") as String

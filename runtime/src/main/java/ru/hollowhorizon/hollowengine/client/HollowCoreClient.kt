@@ -7,7 +7,6 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
-import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.ui.render.UiPathTileResources
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiDemoScreen
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
@@ -35,7 +34,6 @@ object HollowCoreClient {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
         event.register(UiPathTileResources)
-        if (ModList.isLoaded("iris")) event.register(ClusteredLightingManager)
     }
 
     @SubscribeEvent

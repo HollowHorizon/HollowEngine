@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.api.Syncable
 @Syncable
 @Serializable
 @SerialName("hollowengine:hide_vanilla_entity_model")
-@EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class HideVanillaEntityModelComponent(
     val enabled: Boolean = true,
 )

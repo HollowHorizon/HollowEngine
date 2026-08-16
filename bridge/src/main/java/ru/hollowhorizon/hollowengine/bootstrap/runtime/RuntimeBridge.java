@@ -182,8 +182,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onLevelUpdateNeighbors(Level level, BlockPos pos);
 
-    void onClientLevelRendererChanged();
-
     void onLevelTickBlockEntities(Level level);
 
     void onLevelClosed(Level level);
@@ -236,12 +234,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onIrisPipelineDestroyed();
 
-    void onIrisAddDynamicUniforms(Object uniforms);
-
-    void onIrisAddCustomSamplers(Object samplers);
-
-    void onIrisAddCustomImages(Set<?> customImages);
-
     void onIrisShadowRenderStart();
 
     void onIrisShadowRenderBeforeEndBatch();
@@ -249,14 +241,6 @@ public interface RuntimeBridge extends AutoCloseable {
     void onIrisShadowRenderCasters(PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, Frustum frustum, double cameraX, double cameraY, double cameraZ);
 
     void onIrisShadowRenderEnd();
-
-    boolean isIrisLocalShadowPassActive();
-
-    Matrix4f getIrisLocalShadowViewMatrix();
-
-    Matrix4f getIrisLocalShadowProjectionMatrix();
-
-    @Nullable Object getIrisLocalShadowFramebuffer();
 
     /**
      * Fired around a HUD layer. The layer is identified by its resource-location string

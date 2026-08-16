@@ -105,7 +105,6 @@ object HollowModProcessor {
                     id = key,
                     value = component,
                     serializer = JavaHacks.forceCast(serializer),
-                    editable = !type.hasAnnotationNamed(EditorHidden::class),
                     persistencePolicy = if (type.hasAnnotationNamed(LooseOnDeath::class)) {
                         ComponentPersistencePolicy.LOOSE_ON_DEATH
                     } else {

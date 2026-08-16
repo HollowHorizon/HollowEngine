@@ -10,7 +10,6 @@ import java.util.*
 @Syncable
 @Serializable
 @SerialName("hollowengine:animator")
-@EditorIcon("hollowengine:textures/gui/icons/pose_editor.png")
 data class AnimatorComponent(
     val enabled: Boolean = true,
     val layers: List<AnimatorLayerSpec> = emptyList(),

@@ -12,8 +12,6 @@ import net.irisshaders.iris.uniforms.CapturedRenderingState
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer
-import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingSupport
-import ru.hollowhorizon.hollowengine.client.render.lighting.detectLightCullingSupport
 import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.fabric.internal.accessors.IrisRenderingPipelineAccessor
@@ -55,20 +53,6 @@ object IrisHelper {
 
         return null
     }
-
-    fun currentLightCullingSupport(): LightCullingSupport {
-        val shaderProperties = currentShaderProperties() ?: return LightCullingSupport(
-            direct = false,
-            tiled = false,
-            clustered = false,
-        )
-        return detectLightCullingSupport(
-            requiredFlags = shaderProperties.requiredFeatureFlags,
-            optionalFlags = shaderProperties.optionalFeatureFlags,
-        )
-    }
-
-    fun isClusteredLightingCompatible(): Boolean = currentLightCullingSupport().clustered
 
     fun currentGbufferModelViewMatrix(): Matrix4f = if (isShaderPackInUse()) {
         Matrix4f(CapturedRenderingState.INSTANCE.gbufferModelView)

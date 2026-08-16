@@ -8,8 +8,6 @@ internal data class TransformGizmoTarget(
 
 internal enum class TransformGizmoTargetType {
     MODEL,
-    POINT_LIGHT,
-    SPOT_LIGHT,
     TRANSFORM;
 
 }

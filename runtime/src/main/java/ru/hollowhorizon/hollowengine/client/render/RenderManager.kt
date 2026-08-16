@@ -22,9 +22,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
-import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
-import ru.hollowhorizon.hollowengine.common.events.RequireMod
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
@@ -40,19 +38,6 @@ import kotlin.math.abs
 object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
-    }
-
-    @SubscribeEvent
-    @RequireMod("iris")
-    fun onPrepareClusteredLighting(event: RenderLevelStageEvent) {
-        if (event.stage != RenderStage.AFTER_SKY) return
-        ClusteredLightingManager.prepareFrame(event)
-    }
-
-    @SubscribeEvent
-    @RequireMod("iris")
-    fun onDispatchDeferredLightCulling(event: RenderLevelStageEvent) {
-        ClusteredLightingManager.dispatchDeferredCulling(event)
     }
 
     private var isWorldPass = false
@@ -333,8 +318,7 @@ object RenderManager {
         renderStats.openedBatchedRenderTypes.forEach(flushable::endBatch)
     }
 
-    private fun shouldAllowInstancingInCurrentPass(): Boolean =
-        !ClusteredLightingManager.isLocalShadowPassActive()
+    private fun shouldAllowInstancingInCurrentPass(): Boolean = true
 
     private fun localForwardSpeed(velocity: Vec3, yaw: Float): Float {
         val yawRad = yaw * Mth.DEG_TO_RAD
