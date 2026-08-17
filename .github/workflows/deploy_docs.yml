@@ -20,6 +20,10 @@ jobs:
           SOURCE_REPOSITORY: ${{ github.repository }}
           SOURCE_REVISION: ${{ github.sha }}
         run: |
+          if [ -z "$WEBSITE_DEPLOY_TOKEN" ]; then
+            echo "::error::WEBSITE_DEPLOY_TOKEN is not configured, the website was not notified"
+            exit 1
+          fi
           curl --fail-with-body --request POST \
             --url "https://api.github.com/repos/0mods/0mods-web/dispatches" \
             --header "Accept: application/vnd.github+json" \
