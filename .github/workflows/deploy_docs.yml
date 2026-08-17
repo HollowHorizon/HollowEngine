@@ -1,0 +1,27 @@
+name: Deploy documentation
+
+on:
+  push:
+    branches: [ "dev" ]
+    paths:
+      - "docs/**"
+
+permissions:
+  contents: read
+
+jobs:
+  notify-website:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify website deployment
+        env:
+          WEBSITE_DEPLOY_TOKEN: ${{ secrets.WEBSITE_DEPLOY_TOKEN }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          curl --fail-with-body --request POST \
+            --url "https://api.github.com/repos/0mods/0mods-web/dispatches" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $WEBSITE_DEPLOY_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data "{\"event_type\":\"hollowengine-docs-updated\",\"client_payload\":{\"repository\":\"$SOURCE_REPOSITORY\",\"sha\":\"$SOURCE_REVISION\"}}"

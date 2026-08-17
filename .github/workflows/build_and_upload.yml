@@ -2,6 +2,8 @@ name: build
 on:
   push:
     branches: [ "dev", "v2.3" ]
+    paths-ignore:
+      - "docs/**"
 
 jobs:
   create_tag:
