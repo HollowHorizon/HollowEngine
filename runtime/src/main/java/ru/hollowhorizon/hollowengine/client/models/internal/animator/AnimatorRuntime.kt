@@ -183,10 +183,12 @@ class AnimatorRuntime {
         allowedNodes: Set<Int>,
         context: AnimatorEvaluationContext,
     ): AnimationPose {
-        val nodesByName = rootNodes
-            .flatMap { it.walk() }
-            .flatMap { node -> listOfNotNull(node.name to node, node.definition.path to node) }
-            .toMap()
+        val nodesByName = buildMap {
+            rootNodes.flatMap { it.walk() }.forEach { node ->
+                putIfAbsent(node.name, node)
+                putIfAbsent(node.definition.path, node)
+            }
+        }
         val pose = AnimationPose()
 
         layer.transforms.forEach { transform ->

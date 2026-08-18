@@ -147,7 +147,12 @@ object GltfModelLoader : ModelLoader {
                 )
             }
 
-            return@let Mesh(primitives, mesh.weights.toFloatArray())
+            return@let Mesh(
+                primitives,
+                mesh.weights.toFloatArray().takeIf { it.isNotEmpty() }
+                    ?: primitives.firstOrNull()?.weights?.copyOf()
+                    ?: FloatArray(0)
+            )
         }
         val skin = if (node.skin != -1) skins[node.skin] else null
 
