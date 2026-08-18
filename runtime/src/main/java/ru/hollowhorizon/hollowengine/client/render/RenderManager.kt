@@ -25,8 +25,8 @@ import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProv
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
@@ -288,6 +288,38 @@ object RenderManager {
                 "local_side_speed" to localSideSpeed,
                 "signed_horizontal_speed" to signedLocomotionSpeed,
                 "movement_animation_speed" to signedLocomotionSpeed * MOVEMENT_ANIMATION_SPEED_SCALE,
+                "fall_distance" to entity.fallDistance,
+                "is_in_water" to if (entity.isInWater) 1f else 0f,
+                "is_under_water" to if (entity.isUnderWater) 1f else 0f,
+                "is_in_lava" to if (entity.isInLava) 1f else 0f,
+                "is_on_fire" to if (entity.isOnFire) 1f else 0f,
+                "remaining_fire_ticks" to entity.remainingFireTicks.toFloat(),
+                "is_crouching" to if (entity.isCrouching) 1f else 0f,
+                "is_swimming" to if (entity.isSwimming) 1f else 0f,
+                "is_visually_swimming" to if (entity.isVisuallySwimming) 1f else 0f,
+                "is_visually_crawling" to if (entity.isVisuallyCrawling) 1f else 0f,
+                "is_invisible" to if (entity.isInvisible) 1f else 0f,
+                "is_glowing" to if (entity.isCurrentlyGlowing) 1f else 0f,
+                "is_passenger" to if (entity.isPassenger) 1f else 0f,
+                "is_vehicle" to if (entity.isVehicle) 1f else 0f,
+                "is_no_gravity" to if (entity.isNoGravity) 1f else 0f,
+                "is_in_wall" to if (entity.isInWall) 1f else 0f,
+                "is_shift_key_down" to if (entity.isShiftKeyDown) 1f else 0f,
+                "eye_height" to entity.eyeHeight,
+                "bbox_width" to entity.bbWidth,
+                "bbox_height" to entity.bbHeight,
+                "horizontal_collision" to if (entity.horizontalCollision) 1f else 0f,
+                "vertical_collision" to if (entity.verticalCollision) 1f else 0f,
+                "vertical_collision_below" to if (entity.verticalCollisionBelow) 1f else 0f,
+                "move_dist" to entity.moveDist,
+                "fly_dist" to entity.flyDist,
+                "invulnerable_time" to entity.invulnerableTime.toFloat(),
+                "ticks_frozen" to entity.ticksFrozen.toFloat(),
+                "percent_frozen" to entity.percentFrozen,
+                "is_fully_frozen" to if (entity.isFullyFrozen) 1f else 0f,
+                "air_supply" to entity.airSupply.toFloat(),
+                "max_air_supply" to entity.maxAirSupply.toFloat(),
+                "has_custom_name" to if (entity.hasCustomName()) 1f else 0f,
             )
         }
         if (entity is LivingEntity) {
@@ -305,6 +337,33 @@ object RenderManager {
                 "walk_animation_position" to entity.walkAnimation.position(partialTick),
                 "is_sprinting" to if (entity.isSprinting) 1f else 0f,
                 "is_sneaking" to if (entity.isShiftKeyDown) 1f else 0f,
+                "health" to entity.health,
+                "max_health" to entity.maxHealth,
+                "health_ratio" to (entity.health / entity.maxHealth.coerceAtLeast(1f)),
+                "is_dead_or_dying" to if (entity.isDeadOrDying) 1f else 0f,
+                "death_time" to entity.deathTime.toFloat(),
+                "death_progress" to (entity.deathTime.toFloat() / LivingEntity.DEATH_DURATION.toFloat()),
+                "hurt_duration" to entity.hurtDuration.toFloat(),
+                "armor_value" to entity.armorValue.toFloat(),
+                "absorption_amount" to entity.absorptionAmount,
+                "max_absorption" to entity.maxAbsorption,
+                "is_using_item" to if (entity.isUsingItem) 1f else 0f,
+                "use_item_remaining_ticks" to entity.useItemRemainingTicks.toFloat(),
+                "ticks_using_item" to entity.ticksUsingItem.toFloat(),
+                "is_blocking" to if (entity.isBlocking) 1f else 0f,
+                "attack_anim" to entity.getAttackAnim(partialTick),
+                "swing_time" to entity.swingTime.toFloat(),
+                "is_swinging" to if (entity.swinging) 1f else 0f,
+                "swim_amount" to entity.getSwimAmount(partialTick),
+                "is_fall_flying" to if (entity.isFallFlying) 1f else 0f,
+                "fall_flying_ticks" to entity.fallFlyingTicks.toFloat(),
+                "is_autospin_attack" to if (entity.isAutoSpinAttack) 1f else 0f,
+                "is_climbing" to if (entity.onClimbable()) 1f else 0f,
+                "is_sleeping" to if (entity.isSleeping) 1f else 0f,
+                "no_jump_delay" to entity.noJumpDelay.toFloat(),
+                "jump_boost_power" to entity.jumpBoostPower,
+                "speed" to entity.speed,
+                "is_sensitive_to_water" to if (entity.isSensitiveToWater) 1f else 0f,
             )
         }
         return AnimatorEvaluationContext(deltaTime = 0f, time = time, values = values)

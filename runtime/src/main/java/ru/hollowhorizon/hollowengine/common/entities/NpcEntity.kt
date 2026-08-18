@@ -60,6 +60,8 @@ class NpcEntity : PathfinderMob {
             }
         }
 
+    var maxDeathTime: Int = 20
+
     private fun fakePlayerUuid(): UUID = UUID.nameUUIDFromBytes("hollowengine:npc:$uuid".encodeToByteArray())
 
     init {
@@ -109,6 +111,18 @@ class NpcEntity : PathfinderMob {
         super.readAdditionalSaveData(compound)
         if (compound.contains(INVENTORY_KEY)) {
             inventory.load(compound.getCompound(INVENTORY_KEY), registryAccess())
+        }
+    }
+
+    override fun tickDeath() {
+        ++this.deathTime;
+
+        val c0 = this.deathTime >= this.maxDeathTime
+        val c1 = !this.level().isClientSide()
+        val c2 = !this.isRemoved
+        if (c0 && c1 && c2) {
+            this.level().broadcastEntityEvent(this, 60);
+            this.remove(RemovalReason.KILLED);
         }
     }
 
