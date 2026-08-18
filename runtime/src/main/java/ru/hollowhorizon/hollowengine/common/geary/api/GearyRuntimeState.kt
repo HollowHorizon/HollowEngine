@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.api
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.nbt.CompoundTag
@@ -11,7 +12,6 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
-import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
 import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
@@ -30,7 +30,7 @@ private data class EntityState(
     var snapshot: EntitySnapshot? = null,
     var data: NbtDataStore? = null,
     var runtimeId: Long = UNINITIALIZED_ENTITY_ID,
-    val coroutineScope: SerializableCoroutineScope,
+    val coroutineScope: CoroutineScope,
 )
 
 private data class LevelEntityState(
@@ -48,6 +48,9 @@ private data class SideTransferState(
 object GearyRuntimeState {
     private const val ENTITY_SNAPSHOT_NBT = "EntitySnapshot"
     private const val ENTITY_DATA_NBT = "HollowEngineData"
+
+    /** Left over from the resumable-coroutine scopes; only removed from tags now, never written. */
+    private const val LEGACY_ENTITY_SCOPE_NBT = "EntityScope"
 
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
@@ -120,7 +123,7 @@ object GearyRuntimeState {
         return rebound.runtimeId
     }
 
-    fun coroutineScope(entity: Entity): SerializableCoroutineScope = state(entity).coroutineScope
+    fun coroutineScope(entity: Entity): CoroutineScope = state(entity).coroutineScope
 
     /** The entity's data store, or null when it has never been written to. Creates nothing. */
     fun entityDataOrNull(entity: Entity): NbtDataStore? = stateOrNull(entity.level(), entity.uuid)?.data
@@ -133,7 +136,7 @@ object GearyRuntimeState {
         if (state == null) {
             tag.remove(ENTITY_SNAPSHOT_NBT)
             tag.remove(ENTITY_DATA_NBT)
-            tag.remove("EntityScope")
+            tag.remove(LEGACY_ENTITY_SCOPE_NBT)
             EntityNodeRuntime.save(entity, tag)
             return
         }
@@ -153,9 +156,8 @@ object GearyRuntimeState {
                 tag.put(ENTITY_DATA_NBT, data.save())
             }
 
-            val scopeTag = CompoundTag()
-            state.coroutineScope.serialize(scopeTag)
-            tag.put("EntityScope", scopeTag)
+            // Legacy resumable-coroutine state: no longer written, dropped on the next save.
+            tag.remove(LEGACY_ENTITY_SCOPE_NBT)
 
             EntityNodeRuntime.save(entity, tag)
         } catch (e: Exception) {
@@ -167,7 +169,6 @@ object GearyRuntimeState {
         val hasNodes = tag.contains("NodeAttachments", Tag.TAG_COMPOUND.toInt())
         val hasData = tag.contains(ENTITY_DATA_NBT, Tag.TAG_COMPOUND.toInt())
         if (!tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt()) &&
-            !tag.contains("EntityScope", Tag.TAG_COMPOUND.toInt()) &&
             !hasNodes &&
             !hasData
         ) {
@@ -180,8 +181,6 @@ object GearyRuntimeState {
         }
 
         if (hasData) state.dataOrCreate().load(tag.getCompound(ENTITY_DATA_NBT))
-
-        state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
 
         if (hasNodes) EntityNodeRuntime.load(entity, tag)
     }

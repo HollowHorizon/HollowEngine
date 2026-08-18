@@ -1,10 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
+import kotlinx.coroutines.CoroutineScope
 import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 
-interface EntityCoroutineScopeProvider {
-    val `hollowengine$coroutineScope`: SerializableCoroutineScope
-}
-
-val Entity.coroutineScope: SerializableCoroutineScope
-    get() = ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState.coroutineScope(this)
+val Entity.coroutineScope: CoroutineScope get() = GearyRuntimeState.coroutineScope(this)

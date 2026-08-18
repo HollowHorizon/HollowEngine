@@ -15,8 +15,8 @@ import java.util.*
 
 /**
  * Runs and persists nodes attached to entities via `@file:Attach`. Each node is bound to a child of the
- * entity's [coroutineScope] (a `SerializableCoroutineScope` that Geary already saves/cancels with the
- * entity), so cancelling the entity scope tears its nodes down automatically.
+ * entity's [coroutineScope], which Geary cancels together with the entity, so cancelling the entity
+ * scope tears its nodes down automatically.
  *
  * Persistence rides on the existing entity NBT: [save] / [load] are called from
  * `GearyRuntimeState.saveEntity` / `loadEntity`, storing attached node data under [ATTACHMENTS_KEY].

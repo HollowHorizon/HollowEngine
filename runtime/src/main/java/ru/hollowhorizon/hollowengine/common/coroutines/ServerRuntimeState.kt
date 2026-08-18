@@ -50,19 +50,17 @@ object ServerRuntimeState {
     @SubscribeEvent
     fun onSaveLevel(event: LevelEvent.Save) {
         if (event.level.dimension() != Level.OVERWORLD) return
-        save(event.level.server ?: return, saveAnyways = true)
+        save(event.level.server ?: return)
     }
 
-    fun save(server: MinecraftServer, saveAnyways: Boolean = false) {
+    fun save(server: MinecraftServer) {
         val state = entry(server)
-        if (!state.runtimeContext.isDirty() && !saveAnyways) return
 
         try {
             Files.createDirectories(state.runtimePath.parent)
             val tag = CompoundTag()
             state.runtimeContext.serialize(tag)
             Files.newOutputStream(state.runtimePath).use { stream -> tag.save(stream) }
-            state.runtimeContext.clearDirty()
         } catch (exception: Exception) {
             HollowCore.LOGGER.error("Failed to save HollowEngine server runtime to {}", state.runtimePath, exception)
         }

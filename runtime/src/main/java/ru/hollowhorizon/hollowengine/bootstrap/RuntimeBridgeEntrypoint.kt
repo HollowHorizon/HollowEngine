@@ -512,7 +512,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onServerStopping(server: MinecraftServer) {
-        ServerRuntimeState.save(server, saveAnyways = true)
+        ServerRuntimeState.save(server)
         ServerEvent.Stoping.post(ServerEvent.Stoping(server))
     }
 
