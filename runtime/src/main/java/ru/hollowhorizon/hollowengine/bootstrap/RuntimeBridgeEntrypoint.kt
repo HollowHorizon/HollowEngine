@@ -69,7 +69,6 @@ import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
-import ru.hollowhorizon.hollowengine.client.render.IrisRenderManager
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
@@ -761,26 +760,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onIrisShadowRenderBeforeEndBatch() {
         InstanceBatchManager.flush()
-    }
-
-    override fun onIrisShadowRenderCasters(
-        poseStack: PoseStack,
-        bufferSource: MultiBufferSource,
-        partialTick: Float,
-        frustum: Frustum,
-        cameraX: Double,
-        cameraY: Double,
-        cameraZ: Double,
-    ) {
-        IrisRenderManager.renderIrisShadowCasters(
-            poseStack,
-            bufferSource,
-            partialTick,
-            frustum,
-            cameraX,
-            cameraY,
-            cameraZ
-        )
     }
 
     override fun onIrisShadowRenderEnd() {

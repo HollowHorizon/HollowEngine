@@ -22,19 +22,23 @@ class NodeRuntimeService(
 ) {
     val records: Collection<NodeMaterializedRecord>
         get() = AttachmentRegistry.entitySnapshots(level).map { (entity, snapshot) ->
-            NodeMaterializedRecord(entity.uuid, snapshot.withEntity(entity), entity)
+            NodeMaterializedRecord(entity.uuid, snapshot, entity)
         }
-
-    fun forEachModelRecord(action: (NodeMaterializedRecord) -> Unit) {
-        records.forEach { record ->
-            if (record.snapshot.modelOrNull() != null) action(record)
-        }
-    }
 
     fun forEachModelNodeRecord(action: (NodeMaterializedRecord, ModelNodeEntry) -> Unit) {
         records.forEach { record ->
             record.snapshot.modelNodes().forEach { node -> action(record, node) }
         }
+    }
+
+    /**
+     * The model nodes of a single entity. The renderer draws one entity at a time, and walking every
+     * record for each of them made that pass quadratic in the number of models in the level.
+     */
+    fun forEachModelNodeOf(entity: Entity, action: (NodeMaterializedRecord, ModelNodeEntry) -> Unit) {
+        val snapshot = AttachmentRegistry.entitySnapshot(level, entity.uuid) ?: return
+        val record = NodeMaterializedRecord(entity.uuid, snapshot, entity)
+        snapshot.modelNodes().forEach { node -> action(record, node) }
     }
 
     fun snapshot(id: UUID): Snapshot? {

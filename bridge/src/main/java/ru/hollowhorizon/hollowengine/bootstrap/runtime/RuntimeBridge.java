@@ -237,8 +237,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onIrisShadowRenderBeforeEndBatch();
 
-    void onIrisShadowRenderCasters(PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, Frustum frustum, double cameraX, double cameraY, double cameraZ);
-
     void onIrisShadowRenderEnd();
 
     /**
