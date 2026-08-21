@@ -599,10 +599,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         GearyRuntimeState.onRemove(entity)
     }
 
-    override fun onEntitySetId(entity: Entity, newId: Int, previousId: Int) {
-        GearyRuntimeState.onSetId(entity, newId, previousId)
-    }
-
     override fun onRecipeManagerCreated(recipeManager: RecipeManager) {
         recipeManagerProtected = recipeManager
     }

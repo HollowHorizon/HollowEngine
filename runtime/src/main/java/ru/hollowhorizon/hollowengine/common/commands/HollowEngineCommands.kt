@@ -654,7 +654,6 @@ private fun setHideVanillaEntityModel(entity: net.minecraft.world.entity.Entity,
     } else {
         components.remove(componentId)
     }
-    GearyRuntimeState.markDirty(entity)
     return true
 }
 

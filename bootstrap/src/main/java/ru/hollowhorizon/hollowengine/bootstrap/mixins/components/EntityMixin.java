@@ -21,7 +21,6 @@ import java.util.Set;
 @Mixin(Entity.class)
 public abstract class EntityMixin {
     @Shadow private Level level;
-    @Shadow private int id;
     @Shadow public abstract Level level();
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
@@ -64,8 +63,4 @@ public abstract class EntityMixin {
         BootstrapRuntimeManager.bridge().onEntityRemoved((Entity) (Object) this);
     }
 
-    @Inject(method = "setId", at = @At("HEAD"))
-    private void onSetId(int id, CallbackInfo ci) {
-        BootstrapRuntimeManager.bridge().onEntitySetId((Entity) (Object) this, id, this.id);
-    }
 }

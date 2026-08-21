@@ -198,7 +198,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onEntityRemoved(Entity entity);
 
-    void onEntitySetId(Entity entity, int newId, int previousId);
 
     void onRecipeManagerCreated(RecipeManager recipeManager);
 

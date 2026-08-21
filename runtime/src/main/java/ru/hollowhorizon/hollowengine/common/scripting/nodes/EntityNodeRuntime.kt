@@ -2,63 +2,46 @@ package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
 import kotlinx.coroutines.job
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
-import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime.ATTACHMENTS_KEY
-import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime.load
-import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime.save
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
-import java.util.*
 
 /**
- * Runs and persists nodes attached to entities via `@file:Attach`. Each node is bound to a child of the
- * entity's [coroutineScope], which Geary cancels together with the entity, so cancelling the entity
- * scope tears its nodes down automatically.
+ * Entry point for the nodes attached to entities via `@file:Attach`.
  *
- * Persistence rides on the existing entity NBT: [save] / [load] are called from
- * `GearyRuntimeState.saveEntity` / `loadEntity`, storing attached node data under [ATTACHMENTS_KEY].
+ * The managers themselves live in the entity's `HollowAttachments`, so nodes are created, moved between
+ * dimensions, persisted and torn down together with everything else attached to that entity, instead of
+ * through a registry of their own. Each node still hangs off a child of the entity's [coroutineScope],
+ * so cancelling that scope tears its nodes down.
  */
 object EntityNodeRuntime {
-    private const val ATTACHMENTS_KEY = "NodeAttachments"
-
-    private val managers = Collections.synchronizedMap(WeakHashMap<Entity, EntityNodeManager>())
-
     fun attach(entity: Entity, path: String, tag: CompoundTag? = null, context: StateContext? = null): Boolean =
-        manager(entity).attach(path, tag, context)
+        GearyRuntimeState.attachments(entity).nodes.attach(path, tag, context)
 
     fun detach(entity: Entity, path: String): Boolean =
-        managers[entity]?.detach(path) ?: false
+        managerOrNull(entity)?.detach(path) ?: false
 
-    fun paths(entity: Entity): Set<String> = managers[entity]?.paths().orEmpty()
-
-    fun save(entity: Entity, tag: CompoundTag) {
-        val data = managers[entity]?.serialize()
-        if (data == null || data.isEmpty) tag.remove(ATTACHMENTS_KEY) else tag.put(ATTACHMENTS_KEY, data)
-    }
-
-    fun load(entity: Entity, tag: CompoundTag) {
-        if (!tag.contains(ATTACHMENTS_KEY, Tag.TAG_COMPOUND.toInt())) return
-        manager(entity).deserialize(tag.getCompound(ATTACHMENTS_KEY))
-    }
-
-    fun remove(entity: Entity) {
-        managers.remove(entity)
-    }
+    fun paths(entity: Entity): Set<String> = managerOrNull(entity)?.paths().orEmpty()
 
     /** Stops every attached node of [namespace] on every entity, keeping their state. */
     fun suspendNamespace(namespace: String) {
-        synchronized(managers) { managers.values.toList() }.forEach { it.suspendNamespace(namespace) }
+        forEachManager { it.suspendNamespace(namespace) }
     }
 
     /** Starts them again once the namespace is back. */
     fun resumeNamespace(namespace: String) {
-        synchronized(managers) { managers.values.toList() }.forEach { it.resumeNamespace(namespace) }
+        forEachManager { it.resumeNamespace(namespace) }
     }
 
-    private fun manager(entity: Entity) = managers.getOrPut(entity) { EntityNodeManager(entity) }
+    private fun managerOrNull(entity: Entity): EntityNodeManager? =
+        GearyRuntimeState.attachmentsOrNull(entity)?.nodesOrNull
+
+    private inline fun forEachManager(action: (EntityNodeManager) -> Unit) {
+        GearyRuntimeState.allAttachments().forEach { attachments -> attachments.nodesOrNull?.let(action) }
+    }
 }
 
 /** Per-entity node store. Mirrors [NodeManager] but binds nodes to the entity's coroutine scope. */

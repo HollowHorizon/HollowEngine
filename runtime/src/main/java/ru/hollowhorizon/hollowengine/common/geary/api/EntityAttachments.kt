@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 /**
  * The components attached to one entity.
  */
-internal class ComponentStore {
+class ComponentStore internal constructor() {
     private val components = LinkedHashMap<ResourceLocation, Component>()
 
     @Volatile

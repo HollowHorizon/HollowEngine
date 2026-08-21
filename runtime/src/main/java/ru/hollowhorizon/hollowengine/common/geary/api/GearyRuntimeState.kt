@@ -11,8 +11,8 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState.ROOT_NBT
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
@@ -23,37 +23,13 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.sync.ComponentSync
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
-import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import java.util.*
-import java.util.concurrent.atomic.AtomicLong
-
-private class EntityState(
-    var entity: MCEntity,
-    var data: NbtDataStore? = null,
-    var runtimeId: Long = UNINITIALIZED_ENTITY_ID,
-    val coroutineScope: CoroutineScope,
-) {
-    val components = ComponentStore()
-
-    /**
-     * Rises with every batch [ComponentSync] sends for this entity on the server, and records the last
-     * batch applied on the client.
-     */
-    var syncVersion: Long = 0L
-
-    /** What the clients tracking this entity were last told, so a batch can carry only the difference. */
-    var lastSyncedComponents: Map<ResourceLocation, Component> = emptyMap()
-
-    init {
-        components.onChange = { ComponentSync.markDirty(entity) }
-    }
-}
 
 private data class LevelEntityState(
-    val byUuid: MutableMap<UUID, EntityState> = linkedMapOf(),
+    val byUuid: MutableMap<UUID, HollowAttachments> = linkedMapOf(),
 )
 
-/** The pieces of an [EntityState] that outlive the entity instance they were attached to. */
+/** The pieces of a [HollowAttachments] that outlive the entity instance they were attached to. */
 private class PendingTransfer(
     val components: Map<ResourceLocation, Component>?,
     val data: NbtDataStore?,
@@ -64,13 +40,22 @@ private data class SideTransferState(
     val transferringEntityUuids: MutableSet<UUID> = linkedSetOf(),
 )
 
+/**
+ * The per-level registry of [HollowAttachments], and the entity save/load hooks that persist them.
+ */
 object GearyRuntimeState {
-    private const val ENTITY_SNAPSHOT_NBT = "EntitySnapshot"
-    private const val ENTITY_DATA_NBT = "HollowEngineData"
+    /** The single root every kind of attached state is written under. */
+    private const val ROOT_NBT = "HollowEngine"
+    private const val VERSION_NBT = "version"
+    private const val COMPONENTS_NBT = "components"
+    private const val DATA_NBT = "data"
+    private const val NODES_NBT = "nodes"
+
+    /** Bump when the layout under [ROOT_NBT] changes. */
+    private const val CURRENT_VERSION = 1
 
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
-    private val ids = AtomicLong(1L)
 
     private val noAiId by lazy {
         ComponentDescriptorRegistry.idFor(NoAi::class)
@@ -89,7 +74,6 @@ object GearyRuntimeState {
         states.forEach { state ->
             val entity = state.entity
             if (entity.level() != level) return@forEach
-            if (state.runtimeId == UNINITIALIZED_ENTITY_ID) state.runtimeId = ids.getAndIncrement()
             val components = state.components.readOnly
             NoAiRuntime.apply(entity, components.containsKey(noAiId))
             AIComponentSystems.tickEntity(entity, components)
@@ -99,7 +83,30 @@ object GearyRuntimeState {
     fun close(level: Level) {
         NodeRuntimeState.close(level)
         synchronized(levelStates) {
-            levelStates.remove(level)?.byUuid?.values?.forEach { it.coroutineScope.cancel() }
+            levelStates.remove(level)?.byUuid?.values?.forEach { it.scope.cancel() }
+        }
+    }
+
+    /** The attachments of [entity], created on first use. */
+    fun attachments(entity: MCEntity): HollowAttachments = state(entity)
+
+    /** The attachments of [entity], or null when it has none. Creates nothing. */
+    fun attachmentsOrNull(entity: MCEntity): HollowAttachments? = stateOrNull(entity.level(), entity.uuid)
+
+    /** Every live attachment set, for engine-wide passes such as an addon being reloaded. */
+    fun allAttachments(): List<HollowAttachments> = synchronized(levelStates) {
+        levelStates.values.flatMap { it.byUuid.values }
+    }
+
+    /**
+     * Points an existing attachment set at a new instance of the same entity. Nothing happens when the
+     * entity has no attachments, so this stays free for the many entities the engine never touches.
+     */
+    fun rebindIfPresent(level: Level, entity: MCEntity) {
+        synchronized(levelStates) {
+            val map = levelStates[level]?.byUuid ?: return
+            val existing = map[entity.uuid] ?: return
+            if (existing.entity !== entity) map[entity.uuid] = rebind(existing, entity)
         }
     }
 
@@ -128,89 +135,68 @@ object GearyRuntimeState {
         state(entity).lastSyncedComponents = components
     }
 
-    fun markDirty(entity: MCEntity) {
-        stateOrNull(entity.level(), entity.uuid)?.runtimeId = ids.getAndIncrement()
-    }
-
-    fun ensureEntity(level: Level, entity: MCEntity): Long {
-        val state = stateOrNull(level, entity.uuid) ?: return UNINITIALIZED_ENTITY_ID
-        if (state.runtimeId == UNINITIALIZED_ENTITY_ID) state.runtimeId = ids.getAndIncrement()
-        return state.runtimeId
-    }
-
-    fun bind(level: Level, entity: MCEntity, entityId: Int, previousEntityId: Int): Long {
-        val runtimeId = ensureEntity(level, entity)
-        if (runtimeId != UNINITIALIZED_ENTITY_ID && entityId != previousEntityId) markDirty(entity)
-        return runtimeId
-    }
-
-    fun bindIfInitialized(level: Level, entity: MCEntity): Long? {
-        val state = stateOrNull(level, entity.uuid) ?: return null
-        if (state.entity !== entity) levelState(level).byUuid[entity.uuid] = rebindStateEntity(state, entity)
-        val rebound = levelState(level).byUuid[entity.uuid] ?: return null
-        if (rebound.runtimeId == UNINITIALIZED_ENTITY_ID) rebound.runtimeId = ids.getAndIncrement()
-        return rebound.runtimeId
-    }
-
-    fun move(old: Level, new: Level, mcEntity: MCEntity): Long {
-        val oldState = levelState(old).byUuid.remove(mcEntity.uuid) ?: return UNINITIALIZED_ENTITY_ID
-        val rebound = if (oldState.entity !== mcEntity) rebindStateEntity(oldState, mcEntity) else oldState
-        rebound.runtimeId = ids.getAndIncrement()
-        levelState(new).byUuid[mcEntity.uuid] = rebound
-        return rebound.runtimeId
-    }
-
-    fun coroutineScope(entity: Entity): CoroutineScope = state(entity).coroutineScope
+    fun coroutineScope(entity: Entity): CoroutineScope = state(entity).scope
 
     /** The entity's data store, or null when it has never been written to. Creates nothing. */
-    fun entityDataOrNull(entity: Entity): NbtDataStore? = stateOrNull(entity.level(), entity.uuid)?.data
+    fun entityDataOrNull(entity: Entity): NbtDataStore? = stateOrNull(entity.level(), entity.uuid)?.dataOrNull
 
-    /** The entity's data store, creating both it and the entity's state on first use. */
-    fun entityData(entity: Entity): NbtDataStore = state(entity).dataOrCreate()
+    /** The entity's data store, creating both it and the entity's attachments on first use. */
+    fun entityData(entity: Entity): NbtDataStore = state(entity).data
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
-        val state = stateOrNull(entity.level(), entity.uuid)
-        if (state == null) {
-            EntityNodeRuntime.save(entity, tag)
-            return
-        }
+        val state = stateOrNull(entity.level(), entity.uuid) ?: return
 
         try {
-            val snapshot = state.components.snapshot(entity)
-            if (snapshot == null) {
-                tag.remove(ENTITY_SNAPSHOT_NBT)
-            } else {
-                tag.put(ENTITY_SNAPSHOT_NBT, EntitySerialization.serializeToNbt(snapshot))
-            }
+            val root = CompoundTag()
+            root.putInt(VERSION_NBT, CURRENT_VERSION)
 
-            val data = state.data
-            if (data == null || data.isEmpty()) {
-                tag.remove(ENTITY_DATA_NBT)
-            } else {
-                tag.put(ENTITY_DATA_NBT, data.save())
-            }
+            state.components.snapshot(entity)
+                ?.let { root.put(COMPONENTS_NBT, EntitySerialization.serializeToNbt(it)) }
 
-            EntityNodeRuntime.save(entity, tag)
+            state.dataOrNull
+                ?.takeUnless { it.isEmpty() }
+                ?.let { root.put(DATA_NBT, it.save()) }
+
+            state.nodesOrNull
+                ?.serialize()
+                ?.takeUnless { it.isEmpty }
+                ?.let { root.put(NODES_NBT, it) }
+
+            if (root.allKeys.any { it != VERSION_NBT }) tag.put(ROOT_NBT, root) else tag.remove(ROOT_NBT)
+            LegacyEntityNbt.erase(tag)
         } catch (e: Exception) {
             HollowEngine.LOGGER.warn("Failed to save entity {} ({})", entity.id, entity.uuid, e)
         }
     }
 
     fun loadEntity(entity: Entity, tag: CompoundTag) {
-        val hasNodes = tag.contains("NodeAttachments", Tag.TAG_COMPOUND.toInt())
-        val hasData = tag.contains(ENTITY_DATA_NBT, Tag.TAG_COMPOUND.toInt())
-        val hasComponents = tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt())
-        if (!hasComponents && !hasNodes && !hasData) return
-
-        val state = state(entity)
-        if (hasComponents) {
-            val snapshot = EntitySerialization.deserializeFromNbt(tag.getCompound(ENTITY_SNAPSHOT_NBT))
-            state.components.replaceAll(snapshot.components)
+        val root = tag.takeIf { it.contains(ROOT_NBT, Tag.TAG_COMPOUND.toInt()) }?.getCompound(ROOT_NBT)
+        if (root != null) {
+            read(
+                entity = entity,
+                components = root.compoundOrNull(COMPONENTS_NBT),
+                data = root.compoundOrNull(DATA_NBT),
+                nodes = root.compoundOrNull(NODES_NBT),
+            )
+            return
         }
 
-        if (hasData) state.dataOrCreate().load(tag.getCompound(ENTITY_DATA_NBT))
+        if (!LegacyEntityNbt.isPresent(tag)) return
+        read(
+            entity = entity,
+            components = LegacyEntityNbt.componentsOrNull(tag),
+            data = LegacyEntityNbt.dataOrNull(tag),
+            nodes = LegacyEntityNbt.nodesOrNull(tag),
+        )
+    }
 
-        if (hasNodes) EntityNodeRuntime.load(entity, tag)
+    private fun read(entity: Entity, components: CompoundTag?, data: CompoundTag?, nodes: CompoundTag?) {
+        if (components == null && data == null && nodes == null) return
+
+        val state = state(entity)
+        components?.let { state.components.replaceAll(EntitySerialization.deserializeFromNbt(it).components) }
+        data?.let { state.data.load(it) }
+        nodes?.let { state.nodes.deserialize(it) }
     }
 
     fun onSetLevel(entity: Entity, newLevel: Level) {
@@ -226,16 +212,11 @@ object GearyRuntimeState {
         if (transfer || entity is Player) cacheForTransfer(level, entity.uuid, state)
 
         levelState(level).byUuid.remove(entity.uuid)
-        state.coroutineScope.cancel()
-        EntityNodeRuntime.remove(entity)
+        state.scope.cancel()
         ComponentSync.forget(entity)
 
         NoAiRuntime.cleanup(entity)
         AIComponentSystems.cleanup(entity)
-    }
-
-    fun onSetId(entity: Entity, newId: Int, previousId: Int) {
-        if (newId != previousId) markDirty(entity)
     }
 
     fun cloneOwnedState(old: Entity, new: Entity, dropLooseOnDeath: Boolean) {
@@ -244,27 +225,24 @@ object GearyRuntimeState {
         val target = state(new)
         target.components.clear()
         target.components.putAll(components)
-        // Data is deliberately kept across death: unlike loose components it is script-owned state.
-        source.data?.takeUnless { it.isEmpty() }?.let { target.data = it }
+        source.dataOrNull?.takeUnless { it.isEmpty() }?.let(target::adoptData)
     }
 
     fun entitySnapshot(level: Level, entityUuid: UUID): EntitySnapshot? {
         val state = stateOrNull(level, entityUuid) ?: return null
-        val entity = state.entity
-        return state.components.snapshot(entity)
+        return state.components.snapshot(state.entity)
     }
 
     fun entitySnapshots(level: Level): List<Pair<Entity, EntitySnapshot>> = synchronized(levelStates) {
         levelStates[level]?.byUuid?.values?.mapNotNull { state ->
-                val entity = state.entity
-                val snapshot = state.components.snapshot(entity) ?: return@mapNotNull null
-                entity to snapshot
-            }.orEmpty()
+            val entity = state.entity
+            val snapshot = state.components.snapshot(entity) ?: return@mapNotNull null
+            entity to snapshot
+        }.orEmpty()
     }
 
     fun updateEntitySnapshot(entity: Entity, snapshot: EntitySnapshot) {
         state(entity).components.replaceAll(snapshot.components)
-        markDirty(entity)
     }
 
     fun removeEntitySnapshot(level: Level, entityUuid: UUID): Entity? {
@@ -275,9 +253,7 @@ object GearyRuntimeState {
         }
         val state = stateOrNull(level, entityUuid) ?: return null
         state.components.clear()
-        val entity = state.entity
-        markDirty(entity)
-        return entity
+        return state.entity
     }
 
     fun onDimensionChanged(old: Entity, new: Entity, from: Level, to: Level) {
@@ -285,7 +261,7 @@ object GearyRuntimeState {
         stateOrNull(from, old.uuid)?.let { state ->
             cacheForTransfer(from, old.uuid, state)
             levelState(from).byUuid.remove(old.uuid)
-            state.coroutineScope.cancel()
+            state.scope.cancel()
         }
         restoreFromTransfer(to, new.uuid, state(new))
     }
@@ -295,20 +271,20 @@ object GearyRuntimeState {
         restoreFromTransfer(to, player.uuid, state(player))
     }
 
-    private fun cacheForTransfer(level: Level, uuid: UUID, state: EntityState) {
+    private fun cacheForTransfer(level: Level, uuid: UUID, state: HollowAttachments) {
         val components = state.components.copyOf().takeUnless { it.isEmpty() }
-        val data = state.data?.takeUnless { it.isEmpty() }
+        val data = state.dataOrNull?.takeUnless { it.isEmpty() }
         if (components == null && data == null) sideState(level).pendingByEntityUuid.remove(uuid)
         else sideState(level).pendingByEntityUuid[uuid] = PendingTransfer(components, data)
     }
 
-    private fun restoreFromTransfer(level: Level, uuid: UUID, target: EntityState) {
+    private fun restoreFromTransfer(level: Level, uuid: UUID, target: HollowAttachments) {
         sideState(level).pendingByEntityUuid.remove(uuid)?.let { cached ->
             cached.components?.let {
                 target.components.clear()
                 target.components.putAll(it)
             }
-            cached.data?.let { target.data = it }
+            cached.data?.let(target::adoptData)
         }
         sideState(level).transferringEntityUuids.remove(uuid)
     }
@@ -319,37 +295,27 @@ object GearyRuntimeState {
             levelStates.entries.forEach { (level, state) ->
                 if (level == newLevel) return@forEach
                 val moved = state.byUuid.remove(entity.uuid) ?: return@forEach
-                target[entity.uuid] = if (moved.entity !== entity) rebindStateEntity(moved, entity) else moved
+                target[entity.uuid] = if (moved.entity !== entity) rebind(moved, entity) else moved
             }
         }
     }
 
-    private fun stateOrNull(level: Level, uuid: UUID): EntityState? =
+    private fun stateOrNull(level: Level, uuid: UUID): HollowAttachments? =
         synchronized(levelStates) { levelStates[level]?.byUuid?.get(uuid) }
 
-    private fun state(entity: MCEntity): EntityState {
+    private fun state(entity: MCEntity): HollowAttachments {
         val map = levelState(entity.level()).byUuid
-        val existing = map[entity.uuid]
-        if (existing == null) {
-            return createState(entity).also { map[entity.uuid] = it }
-        }
+        val existing = map[entity.uuid] ?: return createState(entity).also { map[entity.uuid] = it }
         if (existing.entity === entity) return existing
-        return rebindStateEntity(existing, entity).also { map[entity.uuid] = it }
+        return rebind(existing, entity).also { map[entity.uuid] = it }
     }
 
-    private fun createState(entity: MCEntity): EntityState =
-        EntityState(entity = entity, coroutineScope = EntityScope(entity)).also {
-            restoreFromTransfer(entity.level(), entity.uuid, it)
-        }
+    private fun createState(entity: MCEntity): HollowAttachments =
+        HollowAttachments(entity).also { restoreFromTransfer(entity.level(), entity.uuid, it) }
 
-    private fun rebindStateEntity(source: EntityState, entity: MCEntity): EntityState {
-        source.coroutineScope.cancel()
-        return EntityState(
-            entity = entity,
-            data = source.data,
-            runtimeId = source.runtimeId,
-            coroutineScope = EntityScope(entity),
-        ).also { it.components.putAll(source.components.copyOf()) }
+    private fun rebind(source: HollowAttachments, entity: MCEntity): HollowAttachments {
+        source.scope.cancel()
+        return source.rebindTo(entity)
     }
 
     private fun levelState(level: Level): LevelEntityState = synchronized(levelStates) {
@@ -359,18 +325,14 @@ object GearyRuntimeState {
     private fun sideState(level: Level): SideTransferState = synchronized(sideTransferState) {
         sideTransferState.computeIfAbsent(level.isClientSide) { SideTransferState() }
     }
+
+    private fun CompoundTag.compoundOrNull(key: String): CompoundTag? =
+        takeIf { it.contains(key, Tag.TAG_COMPOUND.toInt()) }?.getCompound(key)
 }
 
-private fun EntityState.dataOrCreate(): NbtDataStore = data ?: NbtDataStore().also { data = it }
-
-fun Level.findEntityByUuid(uuid: UUID): Entity? = when (this) {
-    is ServerLevel -> getEntity(uuid)
-    is ClientLevel -> {
-        entitiesForRendering().forEach { entity ->
-            if (entity.uuid == uuid) return entity
-        }
-        null
+fun Level.findEntityByUuid(uuid: UUID): Entity? =
+    when (this) {
+        is ServerLevel -> getEntity(uuid)
+        is ClientLevel -> entitiesForRendering().firstOrNull { it.uuid == uuid }
+        else -> null
     }
-
-    else -> null
-}

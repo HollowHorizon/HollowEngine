@@ -10,20 +10,15 @@ import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 
-const val UNINITIALIZED_ENTITY_ID: Long = -1L
-
-fun bind(level: Level, entity: MCEntity, entityId: Int = entity.id, previousEntityId: Int = entity.id): Long =
-    GearyRuntimeState.bind(level, entity, entityId, previousEntityId)
-
-fun bindIfInitialized(level: Level, entity: MCEntity): Long? =
-    GearyRuntimeState.bindIfInitialized(level, entity)
-
-fun move(old: Level, new: Level, mcEntity: MCEntity): Long =
-    GearyRuntimeState.move(old, new, mcEntity)
+/**
+ * Points the attachments of an already-known entity at [entity] when the game hands out a new instance
+ * for the same UUID. Does nothing for entities that have no attachments.
+ */
+fun rebindIfPresent(level: Level, entity: MCEntity) = GearyRuntimeState.rebindIfPresent(level, entity)
 
 @SubscribeEvent
 fun onEntityLoaded(event: EntityLoadedEvent) {
-    bindIfInitialized(event.entity.level(), event.entity)
+    rebindIfPresent(event.entity.level(), event.entity)
 }
 
 @SubscribeEvent

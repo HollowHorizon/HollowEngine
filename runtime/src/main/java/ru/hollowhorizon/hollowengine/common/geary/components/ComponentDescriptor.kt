@@ -52,10 +52,27 @@ object ComponentDescriptorRegistry :
     }
 
     fun register(descriptor: ComponentDescriptor<*>): ComponentDescriptor<*> {
+        requireStructuralEquality(descriptor)
         ensureRegisteringState()
         mutableRegistry.register(descriptor.id) { descriptor }
         mutableRegistry.bake()
         return descriptor
+    }
+
+    /**
+     * A synced component is compared against the last value the clients were told, so identity equality
+     * makes every write look like a change and resends the component on every tick that touches it.
+     */
+    private fun requireStructuralEquality(descriptor: ComponentDescriptor<*>) {
+        if (descriptor.syncPolicy != ComponentSyncPolicy.SYNC) return
+        val equals = runCatching { descriptor.value.java.getMethod("equals", Any::class.java) }.getOrNull()
+        if (equals != null && equals.declaringClass != Any::class.java) return
+
+        error(
+            "Component ${descriptor.id} is @Syncable but does not override equals(). " +
+                    "Make ${descriptor.value.simpleName} a data class, or implement equals()/hashCode(), " +
+                    "otherwise it is resent to every tracking client on every write."
+        )
     }
 
     fun unregisterDescriptor(id: ResourceLocation): Boolean {
