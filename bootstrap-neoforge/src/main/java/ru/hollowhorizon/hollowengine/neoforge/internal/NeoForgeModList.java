@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.api.ModList;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.util.Objects;
 
@@ -96,7 +97,9 @@ public class NeoForgeModList implements ModList {
         Path tmp = CACHE_DIR.resolve(safeName + ".tmp");
 
         Files.deleteIfExists(tmp);
-        Files.copy(source, tmp, StandardCopyOption.REPLACE_EXISTING);
+        try (InputStream is = Files.newInputStream(source)) {
+            Files.copy(is, tmp, StandardCopyOption.REPLACE_EXISTING);
+        }
 
         if (Files.size(tmp) <= 0) {
             Files.deleteIfExists(tmp);
