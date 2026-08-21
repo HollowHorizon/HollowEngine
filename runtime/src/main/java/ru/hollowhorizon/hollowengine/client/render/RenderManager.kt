@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
@@ -105,7 +106,7 @@ object RenderManager {
     ) {
         val level = Minecraft.getInstance().level ?: return
         val materialization = NodeRuntimeState.service(level)
-        val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
+        val openedBatchedRenderTypes = LinkedHashSet<RenderType>()
         val allowInstancing = isWorldPass && shouldAllowInstancingInCurrentPass()
         var renderedAny = false
 
