@@ -57,21 +57,20 @@ class NodeRuntimeService(
         return true
     }
 
-    fun updateTransform(
-        id: UUID,
-        transform: TransformComponent,
-        nodeId: UUID? = null,
-        syncToClients: Boolean = false,
-    ): Boolean {
+    fun updateTransform(id: UUID, transform: TransformComponent, nodeId: UUID? = null): Boolean {
         val current = snapshot(id)
         if (current == null) {
             HollowEngine.LOGGER.warn("Cannot update transform for snapshot {}: snapshot not found", id)
             return false
         }
-        return updateSnapshot(id, current.withOrReplace(transform, nodeId), syncToClients = syncToClients)
+        return updateSnapshot(id, current.withOrReplace(transform, nodeId))
     }
 
-    fun updateSnapshot(id: UUID, snapshot: Snapshot, syncToClients: Boolean = false): Boolean {
+    /**
+     * Writing the components is all a caller has to do. [ComponentSync] batches the change out to the
+     * clients tracking the entity at the end of the tick.
+     */
+    fun updateSnapshot(id: UUID, snapshot: Snapshot): Boolean {
         when (snapshot) {
             is EntitySnapshot -> {
                 val entity = snapshot.entity ?: level.findEntityByUuid(id)
@@ -83,27 +82,10 @@ class NodeRuntimeService(
                     )
                     return false
                 }
-                val normalized = snapshot.withEntity(entity)
-                GearyRuntimeState.updateEntitySnapshot(entity, normalized)
-                if (syncToClients) syncSnapshot(normalized)
+                GearyRuntimeState.updateEntitySnapshot(entity, snapshot.withEntity(entity))
             }
         }
         return true
-    }
-
-    fun syncSnapshot(snapshot: Snapshot) {
-        if (level !is ServerLevel) return
-        when (snapshot) {
-            is EntitySnapshot -> {
-                val entity = snapshot.entity ?: return
-                EntitySnapshotPacket(entity.id, snapshot).sendTrackingEntityAndSelf(entity)
-            }
-        }
-    }
-
-    fun syncEntityNodesToPlayer(player: ServerPlayer, hostEntity: Entity) {
-        GearyRuntimeState.entitySnapshot(level, hostEntity.uuid)
-            ?.let { EntitySnapshotPacket(hostEntity.id, it).send(player) }
     }
 
     fun removeEntityNodesFromPlayer(player: ServerPlayer, hostEntityUuid: UUID) {

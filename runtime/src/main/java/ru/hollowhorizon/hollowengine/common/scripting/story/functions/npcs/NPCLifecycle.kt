@@ -8,13 +8,11 @@ import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.entities.setNameplate
 import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
 import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.StandardPlayerAnimatorPreset
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.geary.components.NameplateMode
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
@@ -83,10 +81,6 @@ fun npc(
         set(HitboxComponent(HitboxMode.PULLING))
         set(StandardPlayerAnimatorPreset.create())
         set(TransformComponent(TrsTransformF().rotate(180f.deg, Vec3f.Y_AXIS)))
-        EntitySnapshotPacket(
-            id,
-            snapshotOf(this),
-        ).sendTrackingEntityAndSelf(this)
 
         if (attributes.isNotEmpty()) {
             setAttributes(attributes)

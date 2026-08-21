@@ -72,6 +72,9 @@ object ComponentDescriptorRegistry :
 
     fun idFor(type: KClass<*>): ResourceLocation? = descriptorOrNull(type)?.id
 
+    fun isLooseOnDeath(component: Any): Boolean =
+        descriptorOrNull(component::class)?.persistencePolicy == ComponentPersistencePolicy.LOOSE_ON_DEATH
+
     fun serializersModule(): SerializersModule = SerializersModule {
         polymorphic(Component::class) {
             ComponentDescriptorRegistry.map { it.value }.forEach { descriptor ->

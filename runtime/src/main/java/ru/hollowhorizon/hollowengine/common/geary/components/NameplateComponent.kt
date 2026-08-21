@@ -18,7 +18,7 @@ enum class NameplateMode {
 @Syncable
 @Serializable
 @SerialName("hollowengine:entity/nameplate")
-class NameplateComponent(val mode: NameplateMode)
+data class NameplateComponent(val mode: NameplateMode)
 
 val Entity.nameplateComponent: NameplateComponent?
     get() = GearyRuntimeState.componentsById(this).values.filterIsInstance<NameplateComponent>().firstOrNull()

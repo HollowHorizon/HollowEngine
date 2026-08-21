@@ -9,13 +9,10 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
 import ru.hollowhorizon.hollowengine.common.geary.components.*
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import kotlin.math.ceil
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
@@ -82,11 +79,6 @@ object NpcAnimationRuntime {
             } ?: withoutOld
 
         components[animatorId] = updated
-        val serverEntity = entity.takeIf { !it.level().isClientSide } ?: return
-        EntitySnapshotPacket(
-            serverEntity.id,
-            snapshotOf(serverEntity),
-        ).sendTrackingEntityAndSelf(serverEntity)
     }
 
     fun removeLayer(entity: Entity, layerId: String) {
@@ -97,11 +89,6 @@ object NpcAnimationRuntime {
         if (updated == current) return
 
         components[animatorId] = updated
-        val serverEntity = entity.takeIf { !it.level().isClientSide } ?: return
-        EntitySnapshotPacket(
-            serverEntity.id,
-            snapshotOf(serverEntity),
-        ).sendTrackingEntityAndSelf(serverEntity)
     }
 
     fun clear(entity: Entity) {
@@ -112,11 +99,6 @@ object NpcAnimationRuntime {
         if (updated == current) return
 
         components[animatorId] = updated
-        val serverEntity = entity.takeIf { !it.level().isClientSide } ?: return
-        EntitySnapshotPacket(
-            serverEntity.id,
-            snapshotOf(serverEntity),
-        ).sendTrackingEntityAndSelf(serverEntity)
     }
 
     fun tick(server: MinecraftServer) {
@@ -136,10 +118,6 @@ object NpcAnimationRuntime {
             if (updated == animator) return@forEach
 
             GearyRuntimeState.componentsById(entity)[animatorId] = updated
-            EntitySnapshotPacket(
-                entity.id,
-                snapshotOf(entity),
-            ).sendTrackingEntityAndSelf(entity)
         }
     }
 

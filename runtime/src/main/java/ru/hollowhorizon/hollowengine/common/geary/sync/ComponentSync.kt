@@ -1,0 +1,224 @@
+package ru.hollowhorizon.hollowengine.common.geary.sync
+
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
+import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
+import java.lang.ref.WeakReference
+import java.util.*
+
+/**
+ * Keeps every `@Syncable` component in step with the clients tracking the entity.
+ *
+ * Writing a component marks its entity dirty; one batch per entity goes out at the end of the server
+ * tick. Batching is what makes a script safe: spawning an NPC, giving it a model and starting an
+ * animation in the same tick used to send three packets, the first of them before the entity existed
+ * for anyone.
+ */
+object ComponentSync {
+    /** How long a batch waits for an entity that has not arrived yet: ~5 seconds. */
+    internal const val PENDING_TIMEOUT_TICKS = 100
+
+    private val dirty = Collections.synchronizedSet(LinkedHashSet<Entity>())
+    private val deferred = LinkedHashMap<Int, DeferredBatches>()
+
+    /** Marks [entity]'s components as needing a batch. Called for every component write. */
+    fun markDirty(entity: Entity) {
+        if (entity.level().isClientSide) return
+        dirty += entity
+    }
+
+    fun forget(entity: Entity) {
+        dirty -= entity
+    }
+
+    @SubscribeEvent
+    fun onServerTick(event: TickEvent.Server) {
+        flush(event.server)
+    }
+
+    /**
+     * The baseline for a player that just started tracking entity. Vanilla has already sent the spawn
+     * packet by this point, so this is the earliest moment the client can make sense of the components.
+     */
+    @SubscribeEvent
+    fun onStartTracking(event: EntityTrackingEvent.Start) {
+        val player = event.player as? ServerPlayer ?: return
+        sendBaseline(player, event.entity)
+    }
+
+    /** A player does not track itself, so its own components have to be pushed explicitly. */
+    fun sendSelfBaseline(player: ServerPlayer) {
+        sendBaseline(player, player)
+    }
+
+    private fun sendBaseline(player: ServerPlayer, entity: Entity) {
+        val components = syncableOf(entity)
+        if (components.isEmpty()) return
+
+        EntityComponentSyncPacket(
+            entityId = entity.id,
+            version = GearyRuntimeState.syncVersion(entity),
+            full = true,
+            changed = EntitySnapshot(components.values.toList()),
+        ).send(player)
+    }
+
+    private fun flush(server: MinecraftServer) {
+        val pending = synchronized(dirty) {
+            if (dirty.isEmpty()) return
+            dirty.toList().also { dirty.clear() }
+        }
+
+        pending.forEach { entity ->
+            if (entity.level().isClientSide || entity.isRemoved) return@forEach
+            if (entity.level().server !== server) return@forEach
+            runCatching { flushEntity(entity) }
+        }
+    }
+
+    private fun flushEntity(entity: Entity) {
+        val current = syncableOf(entity)
+        val batch = batchOf(current, GearyRuntimeState.lastSyncedComponents(entity))
+        if (batch.isEmpty) return
+
+        val version = GearyRuntimeState.nextSyncVersion(entity)
+        GearyRuntimeState.setLastSyncedComponents(entity, current)
+
+        EntityComponentSyncPacket(
+            entityId = entity.id,
+            version = version,
+            full = false,
+            changed = EntitySnapshot(batch.changed.values.toList()),
+            removed = batch.removed,
+        ).sendTrackingEntityAndSelf(entity)
+    }
+
+    /**
+     * Applies a batch on the client, holding on to it when the entity is not there yet.
+     */
+    internal fun receive(level: Level, packet: EntityComponentSyncPacket) {
+        val entity = level.getEntity(packet.entityId)
+        if (entity == null) {
+            defer(level, packet)
+            return
+        }
+        applyTo(entity, packet)
+    }
+
+    private fun applyTo(entity: Entity, packet: EntityComponentSyncPacket) {
+        if (!shouldApply(packet.version, GearyRuntimeState.syncVersion(entity), packet.full)) return
+        GearyRuntimeState.setSyncVersion(entity, packet.version)
+
+        val components = GearyRuntimeState.componentsById(entity)
+        if (packet.full) {
+            components.clear()
+            packet.changed.components.forEach { component -> components[idOf(component)] = component }
+            return
+        }
+
+        packet.removed.forEach { id -> components.remove(id) }
+        packet.changed.components.forEach { component -> components[idOf(component)] = component }
+    }
+
+    private fun defer(level: Level, packet: EntityComponentSyncPacket) {
+        synchronized(deferred) {
+            val existing = deferred[packet.entityId]?.takeIf { it.level.get() === level }
+            val batches = existing ?: DeferredBatches(WeakReference(level)).also { deferred[packet.entityId] = it }
+            batches.enqueue(packet)
+            batches.expiresAtTick = TickHandler.clientFrame + PENDING_TIMEOUT_TICKS
+        }
+    }
+
+    /** Retries the parked batches; called once per client tick rather than once per packet. */
+    internal fun drainDeferred(level: Level?) {
+        synchronized(deferred) {
+            if (deferred.isEmpty()) return
+            val now = TickHandler.clientFrame
+            val iterator = deferred.entries.iterator()
+            while (iterator.hasNext()) {
+                val (entityId, batches) = iterator.next()
+                if (level == null || batches.level.get() !== level) {
+                    iterator.remove()
+                    continue
+                }
+
+                val entity = level.getEntity(entityId)
+                if (entity != null) {
+                    batches.drain().forEach { packet -> applyTo(entity, packet) }
+                    iterator.remove()
+                    continue
+                }
+
+                if (now >= batches.expiresAtTick) {
+                    HollowEngine.LOGGER.warn(
+                        "Dropping {} component batch(es) for entity {}: it never appeared within {} ticks",
+                        batches.size,
+                        entityId,
+                        PENDING_TIMEOUT_TICKS,
+                    )
+                    iterator.remove()
+                }
+            }
+        }
+    }
+
+    /** Batches waiting for their entity, kept in arrival order. */
+    internal class DeferredBatches(val level: WeakReference<Level>) {
+        private val packets = ArrayDeque<EntityComponentSyncPacket>()
+        var expiresAtTick: Int = 0
+
+        val size: Int get() = packets.size
+
+        fun enqueue(packet: EntityComponentSyncPacket) {
+            if (packet.full) packets.clear()
+            packets.addLast(packet)
+        }
+
+        fun drain(): List<EntityComponentSyncPacket> = packets.toList().also { packets.clear() }
+    }
+
+    private fun syncableOf(entity: Entity): Map<ResourceLocation, Component> =
+        GearyRuntimeState.syncableComponents(entity)
+
+    /** What a delta has to carry to turn [previous] into [current] on the client. */
+    internal fun batchOf(
+        current: Map<ResourceLocation, Component>,
+        previous: Map<ResourceLocation, Component>,
+    ): ComponentBatch = ComponentBatch(
+        changed = current.filter { (id, component) -> previous[id] != component },
+        removed = previous.keys.filterNot { it in current },
+    )
+
+    internal fun shouldApply(version: Long, applied: Long, full: Boolean): Boolean =
+        if (full) version >= applied else version > applied
+
+    internal data class ComponentBatch(
+        val changed: Map<ResourceLocation, Component>,
+        val removed: List<ResourceLocation>,
+    ) {
+        val isEmpty: Boolean get() = changed.isEmpty() && removed.isEmpty()
+    }
+
+    private fun idOf(component: Component): ResourceLocation =
+        ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+            .idFor(component::class)
+            ?: error("Component descriptor not found for ${component::class.qualifiedName}")
+
+    @SubscribeEvent
+    @ClientOnly
+    fun onClientTickDrainComponentSync(event: TickEvent.Client) {
+        drainDeferred(event.minecraft.level)
+    }
+}

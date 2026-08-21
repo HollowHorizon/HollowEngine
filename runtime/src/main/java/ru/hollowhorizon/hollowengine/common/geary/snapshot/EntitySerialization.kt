@@ -71,8 +71,12 @@ object EntitySerialization {
     }
 }
 
+/**
+ * The entity's components as a snapshot. Reuses the snapshot cached alongside the components, so the
+ * repeated calls behind every `sendTrackingEntityAndSelf` do not each copy the component list.
+ */
 fun snapshotOf(entity: Entity): EntitySnapshot =
-    EntitySnapshot(components = GearyRuntimeState.componentsById(entity).values.filterIsInstance<Component>().toList()).withEntity(entity)
+    GearyRuntimeState.entitySnapshot(entity.level(), entity.uuid) ?: EntitySnapshot().withEntity(entity)
 
 fun applySnapshot(target: Entity, snapshot: EntitySnapshot) {
     val desired = snapshot.componentById()

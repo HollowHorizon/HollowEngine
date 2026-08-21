@@ -44,7 +44,6 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.addNode
@@ -656,9 +655,6 @@ private fun setHideVanillaEntityModel(entity: net.minecraft.world.entity.Entity,
         components.remove(componentId)
     }
     GearyRuntimeState.markDirty(entity)
-    if (!entity.level().isClientSide) {
-        EntitySnapshotPacket(entity.id, snapshotOf(entity)).sendTrackingEntityAndSelf(entity)
-    }
     return true
 }
 
@@ -678,7 +674,7 @@ private fun attachNodeModel(
         ) + extraComponents
     ).withEntity(host)
     service.materialize(snapshot)
-    service.snapshot(snapshotId)?.let(service::syncSnapshot)
+
     return snapshotId
 }
 

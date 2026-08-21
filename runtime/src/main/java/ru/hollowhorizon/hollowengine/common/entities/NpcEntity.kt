@@ -18,11 +18,9 @@ import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
 import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.hitboxComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionController
 import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
@@ -132,10 +130,6 @@ class NpcEntity : PathfinderMob {
         get() = hitboxComponent?.mode ?: HitboxMode.PULLING
         set(value) {
             set(HitboxComponent(value))
-            EntitySnapshotPacket(
-                id,
-                snapshotOf(this),
-            ).sendTrackingEntityAndSelf(this)
         }
 
 

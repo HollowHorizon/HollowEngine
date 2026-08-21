@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 @Syncable
 @Serializable
 @SerialName("hollowengine:entity/hitbox")
-class HitboxComponent(val mode: HitboxMode)
+data class HitboxComponent(val mode: HitboxMode)
 
 val Entity.hitboxComponent: HitboxComponent?
     get() = GearyRuntimeState.componentsById(this).values.filterIsInstance<HitboxComponent>().firstOrNull()

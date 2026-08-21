@@ -12,34 +12,9 @@ import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import java.util.*
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-data class EntitySnapshotPacket(
-    val entityId: Int,
-    val snapshot: EntitySnapshot,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        val level = player.level()
-        val entity = level.getEntity(entityId)
-        if (entity != null) {
-            GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
-        } else {
-            Minecraft.getInstance().coroutineScope.launch {
-                var entity: Entity?
-                do {
-                    delay(50)
-                    entity = level.getEntity(entityId)
-                } while (entity == null)
-                GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
-            }
-        }
-    }
-}
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
@@ -62,7 +37,6 @@ data class EntitySnapshotUpdatePacket(
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) return
         val entity = player.level().getEntity(entityId) ?: return
         GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
-        EntitySnapshotPacket(entity.id, snapshot).sendTrackingEntityAndSelf(entity)
     }
 }
 
@@ -78,7 +52,7 @@ data class NodeTransformUpdatePacket(
         val server = player.server ?: return
         for (level in server.allLevels) {
             if (NodeRuntimeState.service(level)
-                    .updateTransform(snapshotId, transform, nodeId = nodeId, syncToClients = true)
+                    .updateTransform(snapshotId, transform, nodeId = nodeId)
             ) {
                 return
             }

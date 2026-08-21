@@ -15,30 +15,49 @@ import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
 import ru.hollowhorizon.hollowengine.common.geary.components.NoAi
 import ru.hollowhorizon.hollowengine.common.geary.components.NoAiRuntime
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.AIComponentSystems
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.sync.ComponentSync
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
-private data class EntityState(
+private class EntityState(
     var entity: MCEntity,
-    var snapshot: EntitySnapshot? = null,
     var data: NbtDataStore? = null,
     var runtimeId: Long = UNINITIALIZED_ENTITY_ID,
     val coroutineScope: CoroutineScope,
-)
+) {
+    val components = ComponentStore()
+
+    /**
+     * Rises with every batch [ComponentSync] sends for this entity on the server, and records the last
+     * batch applied on the client.
+     */
+    var syncVersion: Long = 0L
+
+    /** What the clients tracking this entity were last told, so a batch can carry only the difference. */
+    var lastSyncedComponents: Map<ResourceLocation, Component> = emptyMap()
+
+    init {
+        components.onChange = { ComponentSync.markDirty(entity) }
+    }
+}
 
 private data class LevelEntityState(
     val byUuid: MutableMap<UUID, EntityState> = linkedMapOf(),
 )
 
 /** The pieces of an [EntityState] that outlive the entity instance they were attached to. */
-private class PendingTransfer(val snapshot: EntitySnapshot?, val data: NbtDataStore?)
+private class PendingTransfer(
+    val components: Map<ResourceLocation, Component>?,
+    val data: NbtDataStore?,
+)
 
 private data class SideTransferState(
     val pendingByEntityUuid: MutableMap<UUID, PendingTransfer> = linkedMapOf(),
@@ -48,9 +67,6 @@ private data class SideTransferState(
 object GearyRuntimeState {
     private const val ENTITY_SNAPSHOT_NBT = "EntitySnapshot"
     private const val ENTITY_DATA_NBT = "HollowEngineData"
-
-    /** Left over from the resumable-coroutine scopes; only removed from tags now, never written. */
-    private const val LEGACY_ENTITY_SCOPE_NBT = "EntityScope"
 
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
@@ -72,10 +88,9 @@ object GearyRuntimeState {
         }
         states.forEach { state ->
             val entity = state.entity
-            if (entity.level() != level || state.snapshot == null) return@forEach
+            if (entity.level() != level) return@forEach
             if (state.runtimeId == UNINITIALIZED_ENTITY_ID) state.runtimeId = ids.getAndIncrement()
-
-            val components = EntityComponentMap(state)
+            val components = state.components.readOnly
             NoAiRuntime.apply(entity, components.containsKey(noAiId))
             AIComponentSystems.tickEntity(entity, components)
         }
@@ -88,8 +103,30 @@ object GearyRuntimeState {
         }
     }
 
-    fun componentsById(entity: MCEntity): MutableMap<ResourceLocation, Any> =
-        EntityComponentMap(state(entity))
+    fun componentsById(entity: MCEntity): MutableMap<ResourceLocation, Any> = state(entity).components.asMutableMap()
+
+    /** The components that are allowed over the network, i.e. the ones whose descriptor is `@Syncable`. */
+    fun syncableComponents(entity: Entity): Map<ResourceLocation, Component> {
+        val state = stateOrNull(entity.level(), entity.uuid) ?: return emptyMap()
+        return state.components.readOnly.filterKeys { id ->
+            ComponentDescriptorRegistry.descriptorOrNull(id)?.syncPolicy == ComponentSyncPolicy.SYNC
+        }
+    }
+
+    fun syncVersion(entity: Entity): Long = stateOrNull(entity.level(), entity.uuid)?.syncVersion ?: 0L
+
+    fun setSyncVersion(entity: Entity, version: Long) {
+        state(entity).syncVersion = version
+    }
+
+    fun nextSyncVersion(entity: Entity): Long = state(entity).let { ++it.syncVersion }
+
+    fun lastSyncedComponents(entity: Entity): Map<ResourceLocation, Component> =
+        stateOrNull(entity.level(), entity.uuid)?.lastSyncedComponents ?: emptyMap()
+
+    fun setLastSyncedComponents(entity: Entity, components: Map<ResourceLocation, Component>) {
+        state(entity).lastSyncedComponents = components
+    }
 
     fun markDirty(entity: MCEntity) {
         stateOrNull(entity.level(), entity.uuid)?.runtimeId = ids.getAndIncrement()
@@ -134,15 +171,12 @@ object GearyRuntimeState {
     fun saveEntity(entity: Entity, tag: CompoundTag) {
         val state = stateOrNull(entity.level(), entity.uuid)
         if (state == null) {
-            tag.remove(ENTITY_SNAPSHOT_NBT)
-            tag.remove(ENTITY_DATA_NBT)
-            tag.remove(LEGACY_ENTITY_SCOPE_NBT)
             EntityNodeRuntime.save(entity, tag)
             return
         }
 
         try {
-            val snapshot = state.snapshot
+            val snapshot = state.components.snapshot(entity)
             if (snapshot == null) {
                 tag.remove(ENTITY_SNAPSHOT_NBT)
             } else {
@@ -156,9 +190,6 @@ object GearyRuntimeState {
                 tag.put(ENTITY_DATA_NBT, data.save())
             }
 
-            // Legacy resumable-coroutine state: no longer written, dropped on the next save.
-            tag.remove(LEGACY_ENTITY_SCOPE_NBT)
-
             EntityNodeRuntime.save(entity, tag)
         } catch (e: Exception) {
             HollowEngine.LOGGER.warn("Failed to save entity {} ({})", entity.id, entity.uuid, e)
@@ -168,16 +199,13 @@ object GearyRuntimeState {
     fun loadEntity(entity: Entity, tag: CompoundTag) {
         val hasNodes = tag.contains("NodeAttachments", Tag.TAG_COMPOUND.toInt())
         val hasData = tag.contains(ENTITY_DATA_NBT, Tag.TAG_COMPOUND.toInt())
-        if (!tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt()) &&
-            !hasNodes &&
-            !hasData
-        ) {
-            return
-        }
+        val hasComponents = tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt())
+        if (!hasComponents && !hasNodes && !hasData) return
 
         val state = state(entity)
-        if (tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt())) {
-            state.snapshot = EntitySerialization.deserializeFromNbt(tag.getCompound(ENTITY_SNAPSHOT_NBT)).withEntity(entity)
+        if (hasComponents) {
+            val snapshot = EntitySerialization.deserializeFromNbt(tag.getCompound(ENTITY_SNAPSHOT_NBT))
+            state.components.replaceAll(snapshot.components)
         }
 
         if (hasData) state.dataOrCreate().load(tag.getCompound(ENTITY_DATA_NBT))
@@ -200,6 +228,7 @@ object GearyRuntimeState {
         levelState(level).byUuid.remove(entity.uuid)
         state.coroutineScope.cancel()
         EntityNodeRuntime.remove(entity)
+        ComponentSync.forget(entity)
 
         NoAiRuntime.cleanup(entity)
         AIComponentSystems.cleanup(entity)
@@ -211,31 +240,30 @@ object GearyRuntimeState {
 
     fun cloneOwnedState(old: Entity, new: Entity, dropLooseOnDeath: Boolean) {
         val source = stateOrNull(old.level(), old.uuid) ?: return
-        val snapshot = source.snapshot
-            ?.let { if (dropLooseOnDeath) it.dropLooseOnDeathComponents() else it }
-            ?.withEntity(new)
+        val components = if (dropLooseOnDeath) source.components.withoutLooseOnDeath() else source.components.copyOf()
         val target = state(new)
-        target.snapshot = snapshot
+        target.components.clear()
+        target.components.putAll(components)
         // Data is deliberately kept across death: unlike loose components it is script-owned state.
         source.data?.takeUnless { it.isEmpty() }?.let { target.data = it }
     }
 
-    fun entitySnapshot(level: Level, entityUuid: UUID): EntitySnapshot? =
-        stateOrNull(level, entityUuid)?.snapshot
+    fun entitySnapshot(level: Level, entityUuid: UUID): EntitySnapshot? {
+        val state = stateOrNull(level, entityUuid) ?: return null
+        val entity = state.entity
+        return state.components.snapshot(entity)
+    }
 
-    fun entitySnapshots(level: Level): List<Pair<Entity, EntitySnapshot>> =
-        synchronized(levelStates) {
-            levelStates[level]?.byUuid?.values
-                ?.mapNotNull { state ->
-                    val entity = state.entity as? Entity ?: return@mapNotNull null
-                    val snapshot = state.snapshot ?: return@mapNotNull null
-                    entity to snapshot.withEntity(entity)
-                }
-                .orEmpty()
-        }
+    fun entitySnapshots(level: Level): List<Pair<Entity, EntitySnapshot>> = synchronized(levelStates) {
+        levelStates[level]?.byUuid?.values?.mapNotNull { state ->
+                val entity = state.entity
+                val snapshot = state.components.snapshot(entity) ?: return@mapNotNull null
+                entity to snapshot
+            }.orEmpty()
+    }
 
     fun updateEntitySnapshot(entity: Entity, snapshot: EntitySnapshot) {
-        state(entity).snapshot = snapshot.withEntity(entity)
+        state(entity).components.replaceAll(snapshot.components)
         markDirty(entity)
     }
 
@@ -246,8 +274,8 @@ object GearyRuntimeState {
             else pending[entityUuid] = PendingTransfer(null, cached.data)
         }
         val state = stateOrNull(level, entityUuid) ?: return null
-        state.snapshot = null
-        val entity = state.entity as? Entity ?: return null
+        state.components.clear()
+        val entity = state.entity
         markDirty(entity)
         return entity
     }
@@ -268,15 +296,18 @@ object GearyRuntimeState {
     }
 
     private fun cacheForTransfer(level: Level, uuid: UUID, state: EntityState) {
-        val snapshot = state.snapshot
+        val components = state.components.copyOf().takeUnless { it.isEmpty() }
         val data = state.data?.takeUnless { it.isEmpty() }
-        if (snapshot == null && data == null) sideState(level).pendingByEntityUuid.remove(uuid)
-        else sideState(level).pendingByEntityUuid[uuid] = PendingTransfer(snapshot, data)
+        if (components == null && data == null) sideState(level).pendingByEntityUuid.remove(uuid)
+        else sideState(level).pendingByEntityUuid[uuid] = PendingTransfer(components, data)
     }
 
     private fun restoreFromTransfer(level: Level, uuid: UUID, target: EntityState) {
         sideState(level).pendingByEntityUuid.remove(uuid)?.let { cached ->
-            cached.snapshot?.let { target.snapshot = it.withEntity(target.entity as Entity) }
+            cached.components?.let {
+                target.components.clear()
+                target.components.putAll(it)
+            }
             cached.data?.let { target.data = it }
         }
         sideState(level).transferringEntityUuids.remove(uuid)
@@ -315,11 +346,10 @@ object GearyRuntimeState {
         source.coroutineScope.cancel()
         return EntityState(
             entity = entity,
-            snapshot = source.snapshot?.withEntity(entity as Entity),
             data = source.data,
             runtimeId = source.runtimeId,
             coroutineScope = EntityScope(entity),
-        )
+        ).also { it.components.putAll(source.components.copyOf()) }
     }
 
     private fun levelState(level: Level): LevelEntityState = synchronized(levelStates) {
@@ -333,60 +363,14 @@ object GearyRuntimeState {
 
 private fun EntityState.dataOrCreate(): NbtDataStore = data ?: NbtDataStore().also { data = it }
 
-private fun EntityState.entitySnapshotOrEmpty(): EntitySnapshot =
-    snapshot ?: EntitySnapshot().withEntity(entity as Entity)
-
-private fun EntityState.writeEntityComponents(components: Collection<Any>) {
-    snapshot = EntitySnapshot(components = components.filterIsInstance<Component>()).withEntity(entity as Entity)
-}
-
-private class EntityComponentMap(private val state: EntityState) : AbstractMutableMap<ResourceLocation, Any>() {
-    override val entries: MutableSet<MutableMap.MutableEntry<ResourceLocation, Any>>
-        get() = snapshotMap().map { (id, component) ->
-            object : MutableMap.MutableEntry<ResourceLocation, Any> {
-                override val key: ResourceLocation = id
-                override val value: Any get() = snapshotMap()[id] ?: component
-                override fun setValue(newValue: Any): Any = put(id, newValue) ?: component
-            }
-        }.toMutableSet()
-
-    override fun put(key: ResourceLocation, value: Any): Any? {
-        val previous = snapshotMap()[key]
-        val merged = LinkedHashMap(snapshotMap())
-        merged[key] = value
-        state.writeEntityComponents(merged.values)
-        return previous
-    }
-
-    override fun remove(key: ResourceLocation): Any? {
-        val merged = LinkedHashMap(snapshotMap())
-        val previous = merged.remove(key) ?: return null
-        state.writeEntityComponents(merged.values)
-        return previous
-    }
-
-    override fun clear() {
-        state.snapshot = null
-    }
-
-    private fun snapshotMap(): LinkedHashMap<ResourceLocation, Any> =
-        LinkedHashMap<ResourceLocation, Any>().apply {
-            state.entitySnapshotOrEmpty().components.forEach { component ->
-                val id = ComponentDescriptorRegistry.idFor(component::class)
-                    ?: error("Component descriptor not found for ${component::class.qualifiedName}")
-                put(id, component)
-            }
+fun Level.findEntityByUuid(uuid: UUID): Entity? = when (this) {
+    is ServerLevel -> getEntity(uuid)
+    is ClientLevel -> {
+        entitiesForRendering().forEach { entity ->
+            if (entity.uuid == uuid) return entity
         }
-}
-
-fun Level.findEntityByUuid(uuid: UUID): Entity? =
-    when (this) {
-        is ServerLevel -> getEntity(uuid)
-        is ClientLevel -> {
-            entitiesForRendering().forEach { entity ->
-                if (entity.uuid == uuid) return entity
-            }
-            null
-        }
-        else -> null
+        null
     }
+
+    else -> null
+}
