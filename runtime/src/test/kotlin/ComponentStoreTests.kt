@@ -2,10 +2,10 @@ import kotlinx.serialization.Serializable
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.common.geary.api.ComponentStore
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentPersistencePolicy
+import ru.hollowhorizon.hollowengine.common.attachments.api.ComponentStore
+import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptor
+import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentPersistencePolicy
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

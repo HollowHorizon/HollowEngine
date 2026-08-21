@@ -17,10 +17,10 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
-import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.components.HitboxComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.hitboxComponent
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.attachments.api.set
+import ru.hollowhorizon.hollowengine.common.attachments.components.HitboxComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.hitboxComponent
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionController
 import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory

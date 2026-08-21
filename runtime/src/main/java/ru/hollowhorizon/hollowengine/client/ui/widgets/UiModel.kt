@@ -26,11 +26,11 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.common.utils.Color
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationExpression
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.attachments.components.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.min

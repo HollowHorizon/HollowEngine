@@ -73,12 +73,12 @@ walking.await()
 Функции `play*` выше покрывают частый случай, но всегда затрагивают всю модель. Если нужен клип, ограниченный конкретными костями, смешанный аддитивно поверх того, что уже играет, или с явным контролем приоритета слоя - можно собрать слой самому и добавить его через `withLayer`, который сохраняет все остальные слои (locomotion, поворот головы и так далее) нетронутыми:
 
 ```kotlin
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.api.set
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 
 fun Entity.currentAnimator(): AnimatorComponent =
-    GearyRuntimeState.componentsById(this).values.filterIsInstance<AnimatorComponent>().firstOrNull() ?: AnimatorComponent()
+    AttachmentRegistry.componentsById(this).values.filterIsInstance<AnimatorComponent>().firstOrNull() ?: AnimatorComponent()
 
 @State
 suspend fun main() {

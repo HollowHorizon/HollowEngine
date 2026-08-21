@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.data
 
 import net.minecraft.world.entity.Entity
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 
 /**
  * The persistent typed NBT document attached to any entity, players included:
@@ -13,8 +13,8 @@ import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
  * */
 @JvmInline
 value class EntityData internal constructor(private val entity: Entity) {
-    private val existing: NbtDataStore? get() = GearyRuntimeState.entityDataOrNull(entity)
-    private val orCreate: NbtDataStore get() = GearyRuntimeState.entityData(entity)
+    private val existing: NbtDataStore? get() = AttachmentRegistry.entityDataOrNull(entity)
+    private val orCreate: NbtDataStore get() = AttachmentRegistry.entityData(entity)
 
     operator fun <T : Any> get(key: DataKey<T>): T? = existing?.get(key) ?: key.default()
 

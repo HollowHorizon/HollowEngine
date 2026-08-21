@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.common.utils.math.deg
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 
 class AnimatorRuntime {
     private val evaluator = AnimationExpressionEvaluator()

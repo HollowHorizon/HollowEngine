@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animator
 import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
-import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.LayerBlendMode
 
 class AnimationPose {
     private val bones = linkedMapOf<Int, BonePose>()

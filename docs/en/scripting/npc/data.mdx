@@ -80,6 +80,6 @@ suspend fun main() {
 |---------|----------|----------------------------|
 | `.data` (`npc.data`, `player.data`, ...) | Lives with the entity forever, including across death (players) and dimension changes. | No, works anywhere. |
 | `stateGet` / `stateSet` / `stateTag()` | Lives with the current state, and is cleared or replaced the way [States and Coroutines](/docs/hollowengine/scripting/node/states#saving-state-data) describes. | Yes. |
-| `onSave` / `onLoad` on a [node script](/docs/hollowengine/scripting/node) | Lives with that specific node script's own attachment. | No, it's a separate lifecycle entirely. |
+| `onSave` / `onLoad` or `persisted(...)` on a [node script](/docs/hollowengine/scripting/node) | Lives with that specific node script's own attachment. | No, it's a separate lifecycle entirely. |
 
 As a rule of thumb: if the data describes the entity itself (reputation, known players, unlocked dialogue), use `.data`. If it describes progress through a specific scene or quest step, use `stateTag()` / `stateGet` / `stateSet`.

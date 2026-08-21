@@ -28,7 +28,7 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEve
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
-import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
+import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper

@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRun
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.deg

@@ -8,8 +8,8 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -42,7 +42,7 @@ fun onNpcAnimationServerTick(event: TickEvent.Server) {
 
 object NpcAnimationRuntime {
     fun animationDuration(entity: Entity, animation: String): Float? {
-        val model = GearyRuntimeState.componentsById(entity).values.filterIsInstance<Model>().firstOrNull()?.model
+        val model = AttachmentRegistry.componentsById(entity).values.filterIsInstance<Model>().firstOrNull()?.model
             ?: return null
         return ServerModelAnimationMetadata.animationDuration(model, animation)
     }
@@ -57,7 +57,7 @@ object NpcAnimationRuntime {
         fadeOut: Float = DEFAULT_FADE_DURATION,
     ) {
         val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
-        val components = GearyRuntimeState.componentsById(entity)
+        val components = AttachmentRegistry.componentsById(entity)
         val current = components[animatorId] as? AnimatorComponent ?: AnimatorComponent()
         val withoutOld = from?.let { current.fadeOutClip(entity.level().gameTime, it, duration) } ?: current
         val model = components.values.filterIsInstance<Model>().firstOrNull()?.model
@@ -83,7 +83,7 @@ object NpcAnimationRuntime {
 
     fun removeLayer(entity: Entity, layerId: String) {
         val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
-        val components = GearyRuntimeState.componentsById(entity)
+        val components = AttachmentRegistry.componentsById(entity)
         val current = components[animatorId] as? AnimatorComponent ?: return
         val updated = current.withoutLayer(layerId)
         if (updated == current) return
@@ -93,7 +93,7 @@ object NpcAnimationRuntime {
 
     fun clear(entity: Entity) {
         val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
-        val components = GearyRuntimeState.componentsById(entity)
+        val components = AttachmentRegistry.componentsById(entity)
         val current = components[animatorId] as? AnimatorComponent ?: return
         val updated = current.copy(layers = current.layers.filterNot { it is ClipAnimationLayerSpec })
         if (updated == current) return
@@ -108,7 +108,7 @@ object NpcAnimationRuntime {
     private fun removeExpiredLayers(level: ServerLevel) {
         val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
         val now = level.gameTime
-        GearyRuntimeState.entitySnapshots(level).forEach { (entity, snapshot) ->
+        AttachmentRegistry.entitySnapshots(level).forEach { (entity, snapshot) ->
             val animator = snapshot.components.filterIsInstance<AnimatorComponent>().firstOrNull() ?: return@forEach
             val updated = animator.copy(
                 layers = animator.layers.filterNot { layer ->
@@ -117,7 +117,7 @@ object NpcAnimationRuntime {
             )
             if (updated == animator) return@forEach
 
-            GearyRuntimeState.componentsById(entity)[animatorId] = updated
+            AttachmentRegistry.componentsById(entity)[animatorId] = updated
         }
     }
 

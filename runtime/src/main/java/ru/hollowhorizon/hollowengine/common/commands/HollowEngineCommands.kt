@@ -36,12 +36,12 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.binding.*
-import ru.hollowhorizon.hollowengine.common.geary.components.*
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.binding.*
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.Snapshot
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
@@ -648,7 +648,7 @@ private fun animationPlayModeNames(): List<String> =
 
 private fun setHideVanillaEntityModel(entity: net.minecraft.world.entity.Entity, hidden: Boolean): Boolean {
     val componentId = ComponentDescriptorRegistry.idFor(HideVanillaEntityModelComponent::class) ?: return false
-    val components = GearyRuntimeState.componentsById(entity)
+    val components = AttachmentRegistry.componentsById(entity)
     if (hidden) {
         components[componentId] = HideVanillaEntityModelComponent()
     } else {

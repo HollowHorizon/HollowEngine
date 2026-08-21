@@ -73,12 +73,12 @@ walking.await()
 The `play*` functions above cover the common case, but they always affect the whole model. If you need a clip restricted to specific bones, blended additively on top of whatever is already playing, or with explicit control over layer priority, build the layer yourself and add it with `withLayer`, which keeps every other layer (locomotion, head look, and so on) untouched:
 
 ```kotlin
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.api.set
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 
 fun Entity.currentAnimator(): AnimatorComponent =
-    GearyRuntimeState.componentsById(this).values.filterIsInstance<AnimatorComponent>().firstOrNull() ?: AnimatorComponent()
+    AttachmentRegistry.componentsById(this).values.filterIsInstance<AnimatorComponent>().firstOrNull() ?: AnimatorComponent()
 
 @State
 suspend fun main() {
@@ -102,7 +102,7 @@ suspend fun main() {
 ```
 
 :::warning
-Do not `set(AnimatorComponent(layers = listOf(...)))` directly unless you actually mean to replace every layer, or you're using a fully custom model with its own rig that doesn't need the default one. That wipes locomotion, head look, and anything else the NPC already had. Always start from the entity's current component with `withLayer(...)` (or `withoutLayer(layerId)` to remove one layer by id) instead, as shown above. There is no built-in `entity.animatorComponent` shortcut yet (unlike `hitboxComponent`), so read it through `GearyRuntimeState` like the helper function above does.
+Do not `set(AnimatorComponent(layers = listOf(...)))` directly unless you actually mean to replace every layer, or you're using a fully custom model with its own rig that doesn't need the default one. That wipes locomotion, head look, and anything else the NPC already had. Always start from the entity's current component with `withLayer(...)` (or `withoutLayer(layerId)` to remove one layer by id) instead, as shown above. There is no built-in `entity.animatorComponent` shortcut yet (unlike `hitboxComponent`), so read it through `AttachmentRegistry` like the helper function above does.
 :::
 
 Layer parameters, shared by every layer type below:

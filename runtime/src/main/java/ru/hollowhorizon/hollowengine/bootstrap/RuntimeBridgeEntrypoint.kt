@@ -102,10 +102,10 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.SkinComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.SkinModel
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.components.SkinComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.SkinModel
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
@@ -547,7 +547,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onLevelCreated(level: Level) {
-        GearyRuntimeState.initLevel(level)
+        AttachmentRegistry.initLevel(level)
     }
 
     override fun onLevelUpdateNeighbors(level: Level, pos: BlockPos) {
@@ -563,20 +563,20 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onLevelTickBlockEntities(level: Level) {
         val profiler = level.profiler
         profiler.push("HollowEngine ECS")
-        GearyRuntimeState.tick(level)
+        AttachmentRegistry.tick(level)
         profiler.pop()
     }
 
     override fun onLevelClosed(level: Level) {
-        GearyRuntimeState.close(level)
+        AttachmentRegistry.close(level)
     }
 
     override fun onEntitySaved(entity: Entity, tag: net.minecraft.nbt.CompoundTag) {
-        GearyRuntimeState.saveEntity(entity, tag)
+        AttachmentRegistry.saveEntity(entity, tag)
     }
 
     override fun onEntityLoaded(entity: Entity, tag: net.minecraft.nbt.CompoundTag) {
-        GearyRuntimeState.loadEntity(entity, tag)
+        AttachmentRegistry.loadEntity(entity, tag)
     }
 
     override fun onEntityHurt(entity: Entity, damageSource: DamageSource, amount: Float): Boolean {
@@ -592,11 +592,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onEntitySetLevel(entity: Entity, level: Level) {
-        GearyRuntimeState.onSetLevel(entity, level)
+        AttachmentRegistry.onSetLevel(entity, level)
     }
 
     override fun onEntityRemoved(entity: Entity) {
-        GearyRuntimeState.onRemove(entity)
+        AttachmentRegistry.onRemove(entity)
     }
 
     override fun onRecipeManagerCreated(recipeManager: RecipeManager) {
@@ -748,7 +748,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     private fun skinComponent(player: AbstractClientPlayer): SkinComponent? {
         val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return null
-        return GearyRuntimeState.componentsById(player)[componentId] as? SkinComponent
+        return AttachmentRegistry.componentsById(player)[componentId] as? SkinComponent
     }
 
     override fun onIrisPipelineDestroyed() {

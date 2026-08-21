@@ -10,9 +10,9 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.plus
 import kotlinx.serialization.serializer
 import net.minecraft.network.FriendlyByteBuf
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerialization
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TagModule
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 

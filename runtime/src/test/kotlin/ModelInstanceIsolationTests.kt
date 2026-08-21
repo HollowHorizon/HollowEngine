@@ -14,10 +14,10 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animator.applyAnimat
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstanceMaterials
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.attachments.components.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertContentEquals

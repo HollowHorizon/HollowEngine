@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationVectorExpression
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationExpression
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationVectorExpression
 
 data class AnimatorEvaluationContext(
     val deltaTime: Float,

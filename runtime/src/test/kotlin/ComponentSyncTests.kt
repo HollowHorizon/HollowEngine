@@ -1,8 +1,8 @@
 import net.minecraft.resources.ResourceLocation
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.common.geary.api.Component
-import ru.hollowhorizon.hollowengine.common.geary.sync.ComponentSync
-import ru.hollowhorizon.hollowengine.common.geary.sync.EntityComponentSyncPacket
+import ru.hollowhorizon.hollowengine.common.attachments.api.Component
+import ru.hollowhorizon.hollowengine.common.attachments.sync.ComponentSync
+import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityComponentSyncPacket
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

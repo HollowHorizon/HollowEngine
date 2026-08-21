@@ -5,7 +5,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
-import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 
@@ -19,7 +19,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
  */
 object EntityNodeRuntime {
     fun attach(entity: Entity, path: String, tag: CompoundTag? = null, context: StateContext? = null): Boolean =
-        GearyRuntimeState.attachments(entity).nodes.attach(path, tag, context)
+        AttachmentRegistry.attachments(entity).nodes.attach(path, tag, context)
 
     fun detach(entity: Entity, path: String): Boolean =
         managerOrNull(entity)?.detach(path) ?: false
@@ -37,10 +37,10 @@ object EntityNodeRuntime {
     }
 
     private fun managerOrNull(entity: Entity): EntityNodeManager? =
-        GearyRuntimeState.attachmentsOrNull(entity)?.nodesOrNull
+        AttachmentRegistry.attachmentsOrNull(entity)?.nodesOrNull
 
     private inline fun forEachManager(action: (EntityNodeManager) -> Unit) {
-        GearyRuntimeState.allAttachments().forEach { attachments -> attachments.nodesOrNull?.let(action) }
+        AttachmentRegistry.allAttachments().forEach { attachments -> attachments.nodesOrNull?.let(action) }
     }
 }
 

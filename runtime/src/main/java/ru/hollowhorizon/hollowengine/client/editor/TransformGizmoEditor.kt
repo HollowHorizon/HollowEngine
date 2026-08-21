@@ -37,9 +37,9 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
-import ru.hollowhorizon.hollowengine.common.geary.binding.*
-import ru.hollowhorizon.hollowengine.common.geary.components.*
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
+import ru.hollowhorizon.hollowengine.common.attachments.binding.*
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import java.util.*
 import kotlin.math.*

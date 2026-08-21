@@ -94,8 +94,8 @@ val target = npc.target
 Модель, анимации, материал и часть визуальных настроек в v2.3 лучше задавать через компоненты:
 
 ```kotlin
-import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.attachments.api.set
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 
 npc.set(Model("my_mod:models/entity/guide.gltf"))
@@ -133,7 +133,7 @@ val guide = guideRef.resolve()
 ```kotlin
 import ru.hollowhorizon.hollowengine.common.entities.nameplateMode
 import ru.hollowhorizon.hollowengine.common.entities.setNameplate
-import ru.hollowhorizon.hollowengine.common.geary.components.NameplateMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.NameplateMode
 
 npc.setNameplate("Торговец", NameplateMode.SHOW_ON_HOVER)
 npc.nameplateMode = NameplateMode.SHOW

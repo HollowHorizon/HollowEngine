@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.dialogue.lang.list
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.number
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.string
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.MoveOptions
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.entities.play
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.entities.playAndWait
