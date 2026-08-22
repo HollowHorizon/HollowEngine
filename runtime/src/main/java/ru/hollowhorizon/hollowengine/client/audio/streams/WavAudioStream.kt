@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.audio.streams
 
 import net.minecraft.client.sounds.AudioStream
 import org.lwjgl.system.MemoryUtil
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.audio.Wave
 import ru.hollowhorizon.hollowengine.client.audio.WaveCue
 import ru.hollowhorizon.hollowengine.client.audio.WaveList
@@ -15,15 +15,14 @@ import java.nio.ByteBuffer
 import javax.sound.sampled.AudioFormat
 
 class WavAudioStream(wavInputStream: InputStream) : AudioStream {
+    private val inputStream = BufferedInputStream(wavInputStream)
     private val wave: Wave
-    private val inputStream: BufferedInputStream
     private val audioFormat: AudioFormat
     private var dataChunkSize: Int = -1
     private var bytesRead: Int = 0
     private var dataChunkReached: Boolean = false
 
     init {
-        inputStream = BufferedInputStream(wavInputStream)
         wave = readWaveHeader(inputStream)
 
         audioFormat = AudioFormat(
@@ -66,10 +65,12 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
                         bitsPerSample = wavFormat.readShort(stream)
                         if (chunk.size > 16) stream.skip((chunk.size - 16).toLong())
                     }
+
                     "data" -> {
                         dataChunkSize = chunk.size
                         dataChunkReached = true
                     }
+
                     else -> {
                         var cueData: ByteArray
                         var bytes: ByteArrayInputStream
@@ -88,6 +89,7 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
                                 }
                                 lists.add(list)
                             }
+
                             "cue " -> {
                                 cueData = ByteArray(chunk.size)
                                 stream.read(cueData)
@@ -105,12 +107,13 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
                                     cuesCount--
                                 }
                             }
+
                             else -> stream.skip(chunk.size.toLong())
                         }
                     }
                 }
             } catch (ex: EOFException) {
-                HollowCore.LOGGER.warn("End of file while reading WAV file!", ex)
+                HollowEngine.LOGGER.warn("End of file while reading WAV file!", ex)
             }
         }
 

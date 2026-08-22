@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import org.joml.Quaternionf
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
@@ -25,12 +25,8 @@ import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.utils.Color
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationExpression
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.attachments.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.min
@@ -148,7 +144,7 @@ class ModelViewerState(model: String) {
     fun render(rect: UiRect, stack: PoseStack) {
         if (autoRotate) yaw = (yaw + 20f * TickHandler.deltaFrameTime) % 360f
 
-        val step = if (AnimBlendTime > 0f) (TickHandler.deltaFrameTime / AnimBlendTime).coerceIn(0f, 1f) else 1f
+        val step = (TickHandler.deltaFrameTime / AnimBlendTime).coerceIn(0f, 1f)
         val animations = animations
         val activeAnimationNames = animations.mapTo(HashSet()) { it.name }
         animationWeights.keys.removeIf { it !in activeAnimationNames }
@@ -177,10 +173,7 @@ class ModelViewerState(model: String) {
                 },
             ),
             key = null,
-            context = AnimatorEvaluationContext(
-                deltaTime = 0f,
-                time = TickHandler.gameTime,
-            ),
+            context = AnimatorEvaluationContext().also { it.time = TickHandler.gameTime },
         )
         attachment.prepareFrame(TickHandler.deltaFrameTime)
 
@@ -203,7 +196,7 @@ class ModelViewerState(model: String) {
         val savedTextures = if (showWireframe) {
             attachment.materials.map { material ->
                 val old = material.texture
-                material.texture = "${HollowCore.MODID}:default_color_map".rl
+                material.texture = "${HollowEngine.MODID}:default_color_map".rl
                 material to old
             }
         } else emptyList()

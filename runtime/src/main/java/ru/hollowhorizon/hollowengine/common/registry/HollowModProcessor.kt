@@ -4,7 +4,7 @@ import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.serializerOrNull
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.*
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
@@ -58,7 +58,7 @@ object HollowModProcessor {
 
         registerClassHandler<HollowPacketHandler> { type, _ ->
             if (HollowPacket::class.java.isAssignableFrom(type)) registerPacket(type as Class<HollowPacket>)
-            else HollowCore.LOGGER.warn("Unsupported packet: ${type.simpleName}")
+            else HollowEngine.LOGGER.warn("Unsupported packet: ${type.simpleName}")
         }
 
         registerClassHandler<Polymorphic> { type, annotation ->
@@ -143,7 +143,7 @@ object HollowModProcessor {
 
     private inline fun <reified T> registerClassInitializers() {
         getSubTypes(T::class.java).forEach {
-            HollowCore.LOGGER.info("Registering initializer: ${it.simpleName}")
+            HollowEngine.LOGGER.info("Registering initializer: ${it.simpleName}")
             it.kotlin.objectInstance ?: throw IllegalArgumentException("${T::class.java.simpleName} must be an object!")
         }
     }

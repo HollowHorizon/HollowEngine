@@ -1,15 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import ru.hollowhorizon.hollowengine.common.utils.math.*
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.HollowCore.MODID
+import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.client.models.internal.*
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 
@@ -23,7 +23,7 @@ object GltfModelLoader : ModelLoader {
         return load(gltf.getOrThrow(), resolvedLocation, side)
     }
 
-    suspend fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): AnimatedModel {
+    fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): AnimatedModel {
         val skins = parseSkins(file)
         val materials = if (side == ModelSide.SERVER) emptyList() else {
             file.materials.map { material -> material.toMaterial(file, location) }
@@ -53,12 +53,10 @@ object GltfModelLoader : ModelLoader {
 
         val model = Model(file.scene, scenes, materials.toSet(), animations).apply {
             isBlockBench = file.asset.generator?.contains("blockbench", ignoreCase = true) == true
-            for (skin in skins) {
-                walkNodes().forEach { node ->
-                    node.skin?.let { skin ->
-                        node.mesh?.primitives?.forEach {
-                            it.jointCount = skin.jointsIds.size
-                        }
+            walkNodes().forEach { node ->
+                node.skin?.let { skin ->
+                    node.mesh?.primitives?.forEach {
+                        it.jointCount = skin.jointsIds.size
                     }
                 }
             }

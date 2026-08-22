@@ -4,43 +4,10 @@ import ru.hollowhorizon.hollowengine.common.dialogue.DialogueController
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryEngine
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryFunctionRegistry
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryString
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryCompiler
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryCompletionContext
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpr
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryFileCst
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryFunctionCatalog
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryFunctionSignature
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryLineKind
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryParser
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryRef
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StorySeverity
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryType
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.storyCompletionContext
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextPart
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextTemplate
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
-import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayContent
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayIcons
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayTags
-import ru.hollowhorizon.hollowengine.common.scripting.ide.OccurrenceRange
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Position
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Range
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.scripting.ide.buildTextLines
-import ru.hollowhorizon.hollowengine.common.scripting.ide.completionMatches
-import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.*
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
+import ru.hollowhorizon.hollowengine.common.utils.expressions.Ast
 
 /**
  * IDE support for `.story`. Everything here runs through the same parser and compiler the engine
@@ -115,12 +82,11 @@ object StoryScriptingAnalyzer : ScriptingAnalyzer {
         val file = artifacts.sourceFile?.takeIf { it.isFile } ?: return null
         val path = ScriptRegistry.display(artifacts.id)
         val offset = label?.let { labelOffset(runCatching { file.readText() }.getOrDefault(""), it) } ?: 0
-        return DefinitionLocation(path, offset ?: 0)
+        return DefinitionLocation(path, offset)
     }
 
     private fun labelOffset(text: String, label: String): Int? =
-        StoryParser.parse(text).cst.lines
-            .firstOrNull { (it.kind as? StoryLineKind.Label)?.name == label }
+        StoryParser.parse(text).cst.lines.firstOrNull { (it.kind as? StoryLineKind.Label)?.name == label }
             ?.let { (it.kind as StoryLineKind.Label).nameSpan.start }
 
     private fun stringLiteralAt(text: String, caret: Int): String? {
@@ -136,8 +102,7 @@ object StoryScriptingAnalyzer : ScriptingAnalyzer {
 private fun labelAt(cst: StoryFileCst, caret: Int): String? {
     for (line in cst.lines) {
         when (val kind = line.kind) {
-            is StoryLineKind.Label ->
-                if (caret in kind.nameSpan.start..kind.nameSpan.end) return kind.name
+            is StoryLineKind.Label -> if (caret in kind.nameSpan.start..kind.nameSpan.end) return kind.name
 
             is StoryLineKind.Jump -> targetLabelAt(kind.target, caret)?.let { return it }
             is StoryLineKind.Call -> targetLabelAt(kind.target, caret)?.let { return it }
@@ -157,8 +122,10 @@ private fun labelOccurrences(cst: StoryFileCst, label: String): List<OccurrenceR
     val ranges = ArrayList<OccurrenceRange>()
     for (line in cst.lines) {
         when (val kind = line.kind) {
-            is StoryLineKind.Label ->
-                if (kind.name == label) ranges += OccurrenceRange(kind.nameSpan.start, kind.nameSpan.end)
+            is StoryLineKind.Label -> if (kind.name == label) ranges += OccurrenceRange(
+                kind.nameSpan.start,
+                kind.nameSpan.end
+            )
 
             is StoryLineKind.Jump -> targetRange(kind.target, label)?.let { ranges += it }
             is StoryLineKind.Call -> targetRange(kind.target, label)?.let { ranges += it }
@@ -195,34 +162,16 @@ private fun variableOccurrences(cst: StoryFileCst, variable: String): List<Occur
         if (kind is StoryLineKind.Set && kind.variable == variable) {
             ranges += OccurrenceRange(kind.variableSpan.start, kind.variableSpan.end)
         }
-        variableReferences(kind)
-            .filter { it.name == variable }
+        variableReferences(kind).filter { it.name == variable }
             .forEach { ranges += OccurrenceRange(it.span.start, it.span.end) }
     }
     return ranges.sortedBy { it.start }
 }
 
-/** Every `VarRef` reachable from a line, whichever kind of line it is. */
-private fun variableReferences(kind: StoryLineKind): List<StoryExpr.VarRef> {
-    val found = ArrayList<StoryExpr.VarRef>()
-    fun collect(expr: StoryExpr) {
-        when (expr) {
-            is StoryExpr.VarRef -> found += expr
-            is StoryExpr.Unary -> collect(expr.operand)
-            is StoryExpr.Binary -> {
-                collect(expr.left)
-                collect(expr.right)
-            }
-
-            is StoryExpr.ListLit -> expr.items.forEach(::collect)
-            is StoryExpr.Index -> {
-                collect(expr.target)
-                collect(expr.index)
-            }
-
-            is StoryExpr.Property -> collect(expr.target)
-            is StoryExpr.Lit -> Unit
-        }
+private fun variableReferences(kind: StoryLineKind): List<Ast.Name> {
+    val found = ArrayList<Ast.Name>()
+    fun collect(expr: StoryExpression) {
+        found += expr.names()
     }
 
     fun collect(template: TextTemplate) {
@@ -244,6 +193,7 @@ private fun variableReferences(kind: StoryLineKind): List<StoryExpr.VarRef> {
             kind.speakerExpr?.let { collect(it) }
             collect(kind.text)
         }
+
         is StoryLineKind.Command -> collect(kind.text)
         is StoryLineKind.Choice -> {
             collect(kind.text)
@@ -286,15 +236,15 @@ internal fun storyCompletions(
     return when (val context = storyCompletionContext(line, line.length)) {
         is StoryCompletionContext.None -> emptyList()
 
-        is StoryCompletionContext.Command ->
-            (StoryHighlighter.BUILTIN_COMMANDS + registeredNames(catalog))
-                .distinct()
-                .filter { completionMatches(context.typed, it) }
-                .flatMap { command -> commandCompletions(command, catalog) }
+        is StoryCompletionContext.Command -> (StoryHighlighter.BUILTIN_COMMANDS + registeredNames(catalog)).distinct()
+            .filter { completionMatches(context.typed, it) }.flatMap { command -> commandCompletions(command, catalog) }
 
         is StoryCompletionContext.Label -> labelCompletions(text, context.typed)
 
-        is StoryCompletionContext.Expression -> variableCompletions(text, context.typed)
+        is StoryCompletionContext.Expression -> if (context.member) memberCompletions(context.typed) else variableCompletions(
+            text,
+            context.typed
+        )
 
         is StoryCompletionContext.Argument -> if (context.command == "set") {
             variableCompletions(text, context.typed)
@@ -310,9 +260,7 @@ private fun registeredNames(catalog: StoryFunctionCatalog): List<String> =
     (catalog as? StoryFunctionRegistry)?.names?.sorted().orEmpty()
 
 private fun labelCompletions(text: String, typed: String): List<CompletionItem> =
-    labelsOf(text)
-        .filter { completionMatches(typed, it) }
-        .map { label ->
+    labelsOf(text).filter { completionMatches(typed, it) }.map { label ->
             declarationCompletionItem {
                 show = "#$label"
                 insert = "#$label"
@@ -324,9 +272,7 @@ private fun labelCompletions(text: String, typed: String): List<CompletionItem> 
         }
 
 private fun variableCompletions(text: String, typed: String): List<CompletionItem> =
-    variablesOf(text)
-        .filter { it != typed && completionMatches(typed, it) }
-        .map { variable ->
+    variablesOf(text).filter { it != typed && completionMatches(typed, it) }.map { variable ->
             declarationCompletionItem {
                 show = variable
                 name = variable
@@ -335,27 +281,33 @@ private fun variableCompletions(text: String, typed: String): List<CompletionIte
             }
         }
 
+private fun memberCompletions(typed: String): List<CompletionItem> =
+    StoryDeclarations.types["value"]?.members?.allFields.orEmpty().flatMap { it.names }.distinct()
+        .filter { completionMatches(typed, it) }.map { member ->
+            declarationCompletionItem {
+                show = member
+                name = member
+                tag = CompletionItemTag.PROPERTY
+                tail = "member"
+            }
+        }
+
 private fun parameterNameCompletions(
     command: String,
     typed: String,
     catalog: StoryFunctionCatalog,
-): List<CompletionItem> = catalog.overloads(command).orEmpty()
-    .asSequence()
-    .flatMap(StoryFunctionSignature::params)
-    .map { it.name }
-    .distinct()
-    .filter { completionMatches(typed, it) }
-    .map { parameter ->
-        declarationCompletionItem {
-            show = "$parameter="
-            insert = "$parameter="
-            name = parameter
-            tag = CompletionItemTag.PROPERTY
-            tail = "parameter"
-            wordChars = "-"
-        }
-    }
-    .toList()
+): List<CompletionItem> =
+    catalog.overloads(command).orEmpty().asSequence().flatMap(StoryFunctionSignature::params).map { it.name }.distinct()
+        .filter { completionMatches(typed, it) }.map { parameter ->
+            declarationCompletionItem {
+                show = "$parameter="
+                insert = "$parameter="
+                name = parameter
+                tag = CompletionItemTag.PROPERTY
+                tail = "parameter"
+                wordChars = "-"
+            }
+        }.toList()
 
 private fun valueCompletions(
     text: String,
@@ -375,9 +327,7 @@ private fun valueCompletions(
         else -> return emptyList()
     }
 
-    return values
-        .filter { completionMatches(context.typed, it) }
-        .map { value ->
+    return values.filter { completionMatches(context.typed, it) }.map { value ->
             declarationCompletionItem {
                 show = value
                 name = value
@@ -427,27 +377,25 @@ private val BUILTIN_USAGE = mapOf(
     "command" to "vanilla command",
 )
 
-private fun labelsOf(text: String): List<String> = StoryParser.parse(text).cst.lines
-    .mapNotNull { (it.kind as? StoryLineKind.Label)?.name }
+private fun labelsOf(text: String): List<String> =
+    StoryParser.parse(text).cst.lines.mapNotNull { (it.kind as? StoryLineKind.Label)?.name }
 
 private fun actorsOf(text: String): List<String> {
-    val speakers = StoryParser.parse(text).cst.lines
-        .mapNotNull { (it.kind as? StoryLineKind.Dialogue)?.speaker }
-        .distinct()
+    val speakers =
+        StoryParser.parse(text).cst.lines.mapNotNull { (it.kind as? StoryLineKind.Dialogue)?.speaker }.distinct()
     return (listOf(DialogueController.PLAYER_ACTOR) + speakers).distinct()
 }
 
 private fun variablesOf(text: String): List<String> {
     val names = LinkedHashSet<String>()
     for (line in StoryParser.parse(text).cst.lines) {
-        when (val kind = line.kind) {
-            is StoryLineKind.Set -> names += kind.variable
-            else -> Unit
-        }
+        val kind = line.kind
+        if (kind is StoryLineKind.Set) names += kind.variable
+        variableReferences(kind).forEach { names += it.name }
     }
-    Regex("""\{\s*([A-Za-z_]\w*)""").findAll(text).forEach { names += it.groupValues[1] }
     return names.toList()
 }
+
 internal object StoryInlays {
     fun hints(text: String, catalog: StoryFunctionCatalog): List<InlayHint> {
         val parsed = StoryParser.parse(text)
@@ -458,8 +406,7 @@ internal object StoryInlays {
                 is StoryLineKind.Async -> kind.inline ?: continue
                 else -> continue
             }
-            val signature = catalog.overloads(call.function)
-                .orEmpty()
+            val signature = catalog.overloads(call.function).orEmpty()
                 .firstOrNull { it.params.size >= call.args.count { arg -> arg.name == null } }
 
             call.args.forEachIndexed { index, arg ->
@@ -468,7 +415,7 @@ internal object StoryInlays {
                         hints += InlayHint(arg.span.start, "${param.name}=", listOf(InlayTags.PARAMETER))
                     }
                 }
-                val literal = (arg.expr as? StoryExpr.Lit)?.value as? StoryString ?: return@forEachIndexed
+                val literal = arg.expr.constant as? StoryString ?: return@forEachIndexed
                 if (!ResourceLocationTargets.looksLikeLocation(literal.value)) return@forEachIndexed
                 val target = ResourceLocationTargets.targetOf(literal.value) ?: return@forEachIndexed
                 hints += InlayHint(

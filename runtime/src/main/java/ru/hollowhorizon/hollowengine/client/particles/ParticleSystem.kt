@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.client.particles.light.WorldLightProvider
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateSelfBy
 import ru.hollowhorizon.hollowengine.client.utils.use
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Query
+import ru.hollowhorizon.hollowengine.client.models.bedrock.Query
 import java.util.*
 
 class ParticleSystem(

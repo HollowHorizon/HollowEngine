@@ -8,10 +8,9 @@ import ru.hollowhorizon.hollowengine.client.audio.SoundPlayer
 import ru.hollowhorizon.hollowengine.client.particles.file.BedrockParticleFile
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateSelfBy
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.eval
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Query
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.VariablesMap
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.Query
+import ru.hollowhorizon.hollowengine.client.models.bedrock.VariablesMap
 
 class ParticleEmitter(
     val system: ParticleSystem,
@@ -27,7 +26,7 @@ class ParticleEmitter(
     private val components = effect.components
     private val curveVariables = CurveVariables({ context }, effect.curves)
     private val variables = VariablesMap().fallbackBackTo(curveVariables)
-    val context: MolangContext = MolangContext(Query.EMPTY, variables)
+    val context: BedrockContext = BedrockContext(Query.EMPTY, variables)
 
     init {
         variables["entity_scale"] = 1f

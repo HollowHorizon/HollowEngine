@@ -10,8 +10,8 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 import ru.hollowhorizon.hollowengine.common.utils.Color
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.*
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.*
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle
 import ru.hollowhorizon.hollowengine.common.utils.nbt.PairAsList
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TreeMap
@@ -524,7 +524,7 @@ data class ParticleComponents(
 
 @Serializable(with = MolangColorOrGradientSerializer::class)
 sealed interface MolangColorOrGradient {
-    fun eval(context: MolangContext): Color
+    fun eval(context: BedrockContext): Color
 }
 
 @Serializable(with = MolangColorSerializer::class)
@@ -534,7 +534,7 @@ data class MolangColor(
     val b: FloatExpr,
     val a: FloatExpr,
 ) : MolangColorOrGradient {
-    override fun eval(context: MolangContext): Color =
+    override fun eval(context: BedrockContext): Color =
         Color(r.eval(context), g.eval(context), b.eval(context), a.eval(context))
 }
 
@@ -544,7 +544,7 @@ data class MolangGradient(
     val gradient: TreeMap<Float, MolangColor>,
     val interpolant: FloatExpr,
 ) : MolangColorOrGradient {
-    override fun eval(context: MolangContext): Color {
+    override fun eval(context: BedrockContext): Color {
         val alpha = interpolant.eval(context)
         val floor = gradient.floorEntry(alpha)
         val ceil = gradient.ceilingEntry(alpha)
@@ -573,10 +573,10 @@ object MolangColorSerializer : KSerializer<MolangColor> {
     private fun parse(json: JsonElement): MolangColor = with(json) {
         if (this is JsonArray) {
             MolangColor(
-                (get(0) as JsonPrimitive).parseMolangExpression(),
-                (get(1) as JsonPrimitive).parseMolangExpression(),
-                (get(2) as JsonPrimitive).parseMolangExpression(),
-                (getOrNull(3) as JsonPrimitive?)?.parseMolangExpression() ?: FloatExpr.ONE,
+                (get(0) as JsonPrimitive).parseBedrockExpression(),
+                (get(1) as JsonPrimitive).parseBedrockExpression(),
+                (get(2) as JsonPrimitive).parseBedrockExpression(),
+                (getOrNull(3) as JsonPrimitive?)?.parseBedrockExpression() ?: FloatExpr.ONE,
             )
         } else {
             val v = (this as JsonPrimitive).content.substring(1).padStart(8, 'f').toLong(16)

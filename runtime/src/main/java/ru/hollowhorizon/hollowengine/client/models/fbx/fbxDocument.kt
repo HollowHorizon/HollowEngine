@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.fbx
 import ru.hollowhorizon.hollowengine.common.utils.math.Mat4f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.util.bool
 import ru.hollowhorizon.hollowengine.client.models.util.strncmp
 import ru.hollowhorizon.hollowengine.client.models.util.trimNUL
@@ -124,7 +124,7 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
             flags = flags or Flags.FAILED_TO_CONSTRUCT
 
             // note: the error message is already formatted, so raw logging is ok
-            HollowCore.LOGGER.error(ex)
+            HollowEngine.LOGGER.error(ex)
 
             if (dieOnError) throw Exception()
         }

@@ -8,7 +8,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 
 object SchematicParser {
 
@@ -41,7 +41,7 @@ object SchematicParser {
 
                     paletteMap[paletteTag.getInt(key)] = BlockInput(state.blockState, state.properties.keys, state.nbt)
                 } catch (e: Exception) {
-                    HollowCore.LOGGER.error("Error parsing $key", e)
+                    HollowEngine.LOGGER.error("Error parsing $key", e)
                     paletteMap[paletteTag.getInt(key)] = BlockInput(Blocks.BEDROCK.defaultBlockState(), emptySet(), null)
                 }
             }

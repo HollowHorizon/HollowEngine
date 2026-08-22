@@ -5,7 +5,7 @@ import com.mojang.brigadier.suggestion.Suggestion
 import net.minecraft.client.Minecraft
 import org.apache.logging.log4j.spi.StandardLevel
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
@@ -62,10 +62,10 @@ internal fun HollowIdeConsolePanel() {
         if (value.isEmpty()) return
         val connection = Minecraft.getInstance().connection
         if (connection == null) {
-            HollowCore.LOGGER.warn("Cannot execute console command without a server connection")
+            HollowEngine.LOGGER.warn("Cannot execute console command without a server connection")
         } else {
             connection.sendCommand(value.trimStart('/'))
-            HollowCore.LOGGER.info("Executed command: {}", value)
+            HollowEngine.LOGGER.info("Executed command: {}", value)
         }
         updateCommand("")
     }

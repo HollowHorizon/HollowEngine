@@ -267,7 +267,7 @@ class StoryCompiler(
             endJumps += emitPlaceholder(node.line)
 
             var id: String? = null
-            var condition: StoryExpr? = null
+            var condition: StoryExpression? = null
             val rest = mutableListOf<StoryArg>()
             for (arg in kind.args) {
                 when (arg.name) {
@@ -328,7 +328,7 @@ class StoryCompiler(
 
     private fun resolveCall(kind: StoryLineKind.FuncCall, line: StoryLine): StoryCall {
         var tag: String? = null
-        val metadata = LinkedHashMap<String, StoryExpr>()
+        val metadata = LinkedHashMap<String, StoryExpression>()
         val positional = mutableListOf<StoryArg>()
         val named = LinkedHashMap<String, StoryArg>()
 
@@ -403,7 +403,7 @@ class StoryCompiler(
 
     /** Only literal arguments can be type-checked ahead of time; anything dynamic passes. */
     private fun literalFits(param: StoryParam, arg: StoryArg): Boolean {
-        val literal = (arg.expr as? StoryExpr.Lit)?.value ?: return true
+        val literal = arg.expr.constant ?: return true
         return param.type.accepts(literal)
     }
 
@@ -413,7 +413,7 @@ class StoryCompiler(
         }
 
     private fun literalString(arg: StoryArg): String? =
-        ((arg.expr as? StoryExpr.Lit)?.value as? ru.hollowhorizon.hollowengine.common.dialogue.StoryString)?.value
+        (arg.expr.constant as? ru.hollowhorizon.hollowengine.common.dialogue.StoryString)?.value
 
     private fun validateTemplate(template: TextTemplate) {
         for (part in template.parts) {

@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.util
 
 import org.lwjgl.system.MemoryUtil
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import java.nio.ByteBuffer
 
 fun ByteBuffer.strtol10(begin: Int, end: Int): Int {
@@ -19,7 +19,7 @@ fun ByteBuffer.strtoul10_64(beginOutMax: IntArray): Long {
         if (c < '0' || c > '9') break
         val newValue = value * 10 + (c - '0')
         // numeric overflow, we rely on you
-        if (newValue < value) HollowCore.LOGGER.warn("Converting the string starting with \"$c\" into a value resulted in overflow.")
+        if (newValue < value) HollowEngine.LOGGER.warn("Converting the string starting with \"$c\" into a value resulted in overflow.")
         //throw std::overflow_error();
         value = newValue
         c = get(++begin).toInt().toChar()

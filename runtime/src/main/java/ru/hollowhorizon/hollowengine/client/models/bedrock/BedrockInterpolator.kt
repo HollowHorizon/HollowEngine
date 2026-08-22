@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.models.bedrock
 
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.common.utils.math.*
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TreeMap
 
 class BedrockInterpolator<T>(
@@ -12,7 +12,7 @@ class BedrockInterpolator<T>(
 ) : Interpolator<T> {
     override val duration: Float = keys.lastKey() ?: 0f
 
-    override fun compute(time: Float, context: MolangContext): T {
+    override fun compute(time: Float, context: BedrockContext): T {
         if (keys.isEmpty()) return type.create(0f, 0f, 0f)
 
         if (keys.containsKey(time)) {

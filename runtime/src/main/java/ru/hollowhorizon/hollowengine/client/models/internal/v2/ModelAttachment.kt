@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorExpressionEvaluator
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntime
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
@@ -35,7 +36,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
     private val localAnimatorRuntime = AnimatorRuntime()
     private var animatorComponent: AnimatorComponent? = null
     private var animatorRuntimeKey: AnimatorRuntimeKey? = null
-    private var animatorContext: AnimatorEvaluationContext = AnimatorEvaluationContext(0f, 0f)
+    private var animatorContext: AnimatorEvaluationContext = AnimatorEvaluationContext()
     private var lastAnimationFrame = Long.MIN_VALUE
     private var poseDirty = true
 
@@ -100,6 +101,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
     ) {
         if (animatorComponent != animator || animatorRuntimeKey != key) {
             poseDirty = true
+            animator?.let(AnimatorExpressionEvaluator::prepare)
         }
         animatorComponent = animator
         animatorRuntimeKey = key
@@ -194,7 +196,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
                 rootNodes = runtimeNodes,
                 runtimeNodes = indexedNodes,
                 animations = modelState.animations,
-                context = animatorContext.copy(deltaTime = dt),
+                context = animatorContext.also { it.deltaTime = dt },
             )
         } else if (animatorRuntimeKey == null) {
             localAnimatorRuntime.clear()

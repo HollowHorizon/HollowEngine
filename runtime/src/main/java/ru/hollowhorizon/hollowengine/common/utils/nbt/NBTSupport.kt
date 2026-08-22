@@ -5,13 +5,14 @@ import kotlinx.serialization.SealedSerializationApi
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
+import ru.hollowhorizon.hollowengine.HollowEngine
 
 internal inline fun <T> missingField(
     missingField: String,
     deserializing: String,
     defaultValue: () -> T
 ): T {
-    ru.hollowhorizon.hollowengine.HollowCore.LOGGER.warn(
+    HollowEngine.LOGGER.warn(
         "Missing $missingField while deserializing $deserializing"
     )
     return defaultValue()

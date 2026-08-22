@@ -71,7 +71,7 @@ object StandardPlayerAnimatorPreset {
         }
 
     private fun locomotionTransitions(): List<AnimationControllerTransitionSpec> = listOf(
-        transition("death", "is_alive == 0.0", priority = 100, duration = "0.1"),
+        transition("death", "death_progress > 0.0", priority = 100, duration = "0.1"),
         transition("sneak", "is_alive != 0.0 && is_sneaking != 0.0", priority = 80),
         transition("run", "is_alive != 0.0 && is_sprinting != 0.0 && horizontal_speed > 0.02", priority = 70),
         transition("levitation", "is_alive != 0.0 && is_on_ground == 0.0 && velocity_y > 0.05", priority = 60),

@@ -61,7 +61,7 @@ data class StoryRef(val address: String?, val label: String?, val span: StorySpa
 data class StoryArg(
     val name: String?,
     val nameSpan: StorySpan?,
-    val expr: StoryExpr,
+    val expr: StoryExpression,
     val span: StorySpan,
 )
 
@@ -77,11 +77,11 @@ sealed interface StoryLineKind {
 
     data class Label(val name: String, val nameSpan: StorySpan) : StoryLineKind
 
-    data class If(val condition: StoryExpr) : StoryLineKind
-    data class ElseIf(val condition: StoryExpr) : StoryLineKind
+    data class If(val condition: StoryExpression) : StoryLineKind
+    data class ElseIf(val condition: StoryExpression) : StoryLineKind
     data object Else : StoryLineKind
-    data class While(val condition: StoryExpr) : StoryLineKind
-    data class Set(val variable: String, val variableSpan: StorySpan, val value: StoryExpr) : StoryLineKind
+    data class While(val condition: StoryExpression) : StoryLineKind
+    data class Set(val variable: String, val variableSpan: StorySpan, val value: StoryExpression) : StoryLineKind
 
     data class Jump(val target: StoryRef) : StoryLineKind
     data class Call(val target: StoryRef) : StoryLineKind
@@ -126,7 +126,7 @@ sealed interface StoryLineKind {
         val speaker: String?,
         val speakerSpan: StorySpan?,
         val text: TextTemplate,
-        val speakerExpr: StoryExpr? = null,
+        val speakerExpr: StoryExpression? = null,
     ) : StoryLineKind
 }
 
@@ -140,7 +140,7 @@ sealed interface TextPart {
     val span: StorySpan
 
     data class Literal(val text: String, override val span: StorySpan) : TextPart
-    data class Interpolation(val expr: StoryExpr, override val span: StorySpan) : TextPart
+    data class Interpolation(val expr: StoryExpression, override val span: StorySpan) : TextPart
     data class InlineCall(val call: StoryLineKind.FuncCall, override val span: StorySpan) : TextPart
     data class WaitInput(override val span: StorySpan) : TextPart
 }

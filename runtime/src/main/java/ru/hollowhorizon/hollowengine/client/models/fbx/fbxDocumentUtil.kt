@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.fbx
 
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 
 /* DOM/Parse error reporting - does not return */
 fun domError(message: String, token: Token): Nothing = throw Exception(Util.addTokenText("FBX-DOM", message, token))
@@ -11,14 +11,14 @@ fun domError(message: String, element: Element? = null): Nothing {
 }
 
 // does return
-fun domWarning(message: String, token: Token) = HollowCore.LOGGER.warn(Util.addTokenText("FBX-DOM", message, token))
+fun domWarning(message: String, token: Token) = HollowEngine.LOGGER.warn(Util.addTokenText("FBX-DOM", message, token))
 
 fun domWarning(message: String, element: Element? = null) {
     element?.let {
         domWarning(message, element.keyToken)
         return
     }
-    HollowCore.LOGGER.warn("FBX-DOM: $message")
+    HollowEngine.LOGGER.warn("FBX-DOM: $message")
 }
 
 /** fetch a property table and the corresponding property template */

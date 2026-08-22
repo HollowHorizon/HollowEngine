@@ -1,15 +1,16 @@
 package ru.hollowhorizon.hollowengine.common.dialogue
 
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpr
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpression
+import ru.hollowhorizon.hollowengine.common.utils.expressions.Ast
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryLineKind
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryParser
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextPart
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.evaluate
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import ru.hollowhorizon.hollowengine.common.scripting.ide.story.StoryScriptingAnalyzer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -50,7 +51,7 @@ class StoryParserTest {
         val braced = parsed.cst.lines[0].kind
         assertIs<StoryLineKind.Dialogue>(braced)
         assertNull(braced.speaker)
-        assertEquals("player", (braced.speakerExpr as StoryExpr.VarRef).name)
+        assertEquals("player", (braced.speakerExpr!!.ast as Ast.Name).name)
         assertEquals("Стою!", braced.text.literalText())
 
         // The braces have to sit on the colon; anything between them makes it an ordinary line.
@@ -110,16 +111,16 @@ class StoryParserTest {
         val kind = parsed.cst.lines[0].kind
         assertIs<StoryLineKind.FuncCall>(kind)
 
-        val except = (kind.args.first { it.name == "except" }.expr as StoryExpr.ListLit).items
+        val except = (kind.args.first { it.name == "except" }.expr).parts
         assertEquals(
             listOf("chat", "subtitle_overlay"),
-            except.map { ((it as StoryExpr.Lit).value as StoryString).value },
+            except.map { (it.constant as StoryString).value },
         )
 
-        val numbers = (kind.args.first { it.name == "only" }.expr as StoryExpr.ListLit).items
+        val numbers = kind.args.first { it.name == "only" }.expr.parts
         assertEquals(
             listOf(10f, 2.5f),
-            numbers.map { ((it as StoryExpr.Lit).value as StoryNumber).value },
+            numbers.map { (it.constant as StoryNumber).value },
         )
     }
 
@@ -129,8 +130,8 @@ class StoryParserTest {
         val kind = parsed.cst.lines[0].kind
         assertIs<StoryLineKind.FuncCall>(kind)
 
-        fun numbers(argument: String) = (kind.args.first { it.name == argument }.expr as StoryExpr.ListLit)
-            .items.map { (it.evaluate { null } as StoryNumber).value }
+        fun numbers(argument: String) = kind.args.first { it.name == argument }.expr
+            .parts.map { (it.evaluate { null } as StoryNumber).value }
 
         assertEquals(listOf(25f, 70f, -171f), numbers("location"))
         assertEquals(listOf(-158f, 2f), numbers("rotation"))
@@ -153,20 +154,20 @@ class StoryParserTest {
         val kind = parsed.cst.lines[0].kind
         assertIs<StoryLineKind.FuncCall>(kind)
 
-        val items = (kind.args.single().expr as StoryExpr.ListLit).items
-        assertIs<StoryExpr.VarRef>(items[0])
-        assertIs<StoryExpr.Lit>(items[1])
+        val items = kind.args.single().expr.parts
+        assertIs<Ast.Name>(items[0].ast)
+        assertNotNull(items[1].constant)
     }
 
     @Test
     fun `a condition is an expression, spaces and all when quoted`() {
         val tight = StoryParser.parse("@choice \"Взять\" if=вещи.size>0").cst.lines[0].kind
         assertIs<StoryLineKind.Choice>(tight)
-        assertIs<StoryExpr.Binary>(tight.args.single().expr)
+        assertIs<Ast.Binary>(tight.args.single().expr.ast)
 
         val quoted = StoryParser.parse("@choice \"Взять\" if=\"вещи.size > 0\"").cst.lines[0].kind
         assertIs<StoryLineKind.Choice>(quoted)
-        assertIs<StoryExpr.Binary>(quoted.args.single().expr)
+        assertIs<Ast.Binary>(quoted.args.single().expr.ast)
     }
 
     @Test
@@ -214,5 +215,5 @@ class StoryParserTest {
         assertIs<StoryLineKind.Dialogue>(parsed.cst.lines[2].kind)
     }
 
-    private fun controllerless(expr: StoryExpr): StoryValue = expr.evaluate { null }
+    private fun controllerless(expr: StoryExpression): StoryValue = expr.evaluate { null }
 }

@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
 
 class AnimatorRuntime {
-    private val evaluator = AnimationExpressionEvaluator()
+    private val evaluator = AnimatorExpressionEvaluator
     private val layerStates = linkedMapOf<String, LayerRuntimeState>()
     private var bakedForNodes: List<RuntimeNode>? = null
     private val bakedMasks = linkedMapOf<BoneMask, Set<Int>>()
@@ -36,12 +36,10 @@ class AnimatorRuntime {
             .forEach { layer ->
                 val state = layerStates.getOrPut(layer.id) { LayerRuntimeState() }
                 state.advanceAge(context.deltaTime)
-                val layerContext = context.with(
-                    "layer_time" to state.time,
-                    "layer_age" to state.age,
-                    "layer_weight" to evaluator.float(layer.weight, context, 1f),
-                )
-                val weight = evaluator.float(layer.weight, layerContext, 1f)
+                context.layerTime = state.time
+                context.layerAge = state.age
+                context.layerWeight = evaluator.float(layer.weight, context, 1f)
+                val weight = evaluator.float(layer.weight, context, 1f)
                     .coerceIn(0f, 1f)
                     .times(layer.fadeInScale(state))
                 if (weight <= 0f) return@forEach
@@ -53,17 +51,17 @@ class AnimatorRuntime {
                         state,
                         animations,
                         allowedNodes,
-                        layerContext,
+                        context,
                     )
                     is AnimationControllerLayerSpec -> sampleControllerLayer(
                         layer,
                         state,
                         animations,
                         allowedNodes,
-                        layerContext
+                        context
                     )
 
-                    is ProceduralLayerSpec -> LayerSample(sampleProceduralLayer(layer, rootNodes, allowedNodes, layerContext))
+                    is ProceduralLayerSpec -> LayerSample(sampleProceduralLayer(layer, rootNodes, allowedNodes, context))
                 } ?: return@forEach
                 val finalWeight = weight * sample.weightScale
                 if (finalWeight <= 0f) return@forEach
@@ -149,7 +147,7 @@ class AnimatorRuntime {
         context: AnimatorEvaluationContext,
     ): AnimationPose {
         val animation = animations[spec.animation] ?: return AnimationPose()
-        val speed = evaluator.float(spec.speed, context.with("state_time" to (state.stateTimes[spec.id] ?: 0f)), 1f)
+        val speed = run { context.stateTime = state.stateTimes[spec.id] ?: 0f; evaluator.float(spec.speed, context, 1f) }
         val time = state.advanceState(spec.id, animation.duration, spec.playMode, speed, context.deltaTime)
         return AnimationPose.sample(animation, time, allowedNodes)
     }
@@ -170,7 +168,7 @@ class AnimatorRuntime {
                 val exitTime = transition.exitTime
                 exitTime == null || currentTime >= exitTime
             }
-            .filter { evaluator.boolean(it.condition, context.with("state_time" to currentTime), false) }
+            .filter { run { context.stateTime = currentTime; evaluator.boolean(it.condition, context, false) } }
             .sortedWith(compareByDescending<AnimationControllerTransitionSpec> { it.priority }.thenBy { it.to })
             .firstOrNull()
 

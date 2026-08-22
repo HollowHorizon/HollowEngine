@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.fbx
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec4f
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 
 open class Geometry(id: Long, element: Element, name: String, doc: Document) : Object(id, element, name) {
 
@@ -158,7 +158,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
             }
         }
 
-        HollowCore.LOGGER.error("failed to resolve vertex layer element: $type, index: $typedIndex")
+        HollowEngine.LOGGER.error("failed to resolve vertex layer element: $type, index: $typedIndex")
     }
 
     fun readVertexData(type: String, index: Int, source: Scope) {
@@ -170,7 +170,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
         when (type) {
             "LayerElementUV" -> {
                 if (index >= AI_MAX_NUMBER_OF_TEXTURECOORDS) {
-                    HollowCore.LOGGER.error("ignoring UV layer, maximum number of UV channels exceeded: $index (limit is $AI_MAX_NUMBER_OF_TEXTURECOORDS)")
+                    HollowEngine.LOGGER.error("ignoring UV layer, maximum number of UV channels exceeded: $index (limit is $AI_MAX_NUMBER_OF_TEXTURECOORDS)")
                     return
                 }
                 source["Name"]?.let { uvNames[index] = it[0].parseAsString }
@@ -180,7 +180,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
 
             "LayerElementMaterial" -> {
                 if (materials.isNotEmpty()) {
-                    HollowCore.LOGGER.error("ignoring additional material layer")
+                    HollowEngine.LOGGER.error("ignoring additional material layer")
                     return
                 }
                 val tempMaterials = ArrayList<Int>()
@@ -192,7 +192,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
                     losing the material if there are more material layers coming of which at least one contains actual
                     data (did observe that with one test file). */
                 if (tempMaterials.all { it < 0 }) {
-                    HollowCore.LOGGER.warn("ignoring dummy material layer (all entries -1)")
+                    HollowEngine.LOGGER.warn("ignoring dummy material layer (all entries -1)")
                     return
                 }
                 materials.clear()
@@ -201,7 +201,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
 
             "LayerElementNormal" -> {
                 if (normals.isNotEmpty()) {
-                    HollowCore.LOGGER.error("ignoring additional normal layer")
+                    HollowEngine.LOGGER.error("ignoring additional normal layer")
                     return
                 }
                 readVertexDataNormals(normals, source, mappingInformationType, referenceInformationType)
@@ -209,7 +209,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
 
             "LayerElementTangent" -> {
                 if (tangents.isNotEmpty()) {
-                    HollowCore.LOGGER.error("ignoring additional tangent layer")
+                    HollowEngine.LOGGER.error("ignoring additional tangent layer")
                     return
                 }
 
@@ -218,7 +218,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
 
             "LayerElementBinormal" -> {
                 if (binormals.isNotEmpty()) {
-                    HollowCore.LOGGER.error("ignoring additional binormal layer")
+                    HollowEngine.LOGGER.error("ignoring additional binormal layer")
                     return
                 }
 
@@ -227,7 +227,7 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
 
             "LayerElementColor" -> {
                 if (index >= AI_MAX_NUMBER_OF_COLOR_SETS) {
-                    HollowCore.LOGGER.error("ignoring vertex color layer, maximum number of color sets exceeded: $index (limit is $AI_MAX_NUMBER_OF_COLOR_SETS)")
+                    HollowEngine.LOGGER.error("ignoring vertex color layer, maximum number of color sets exceeded: $index (limit is $AI_MAX_NUMBER_OF_COLOR_SETS)")
                     return
                 }
 
@@ -314,16 +314,16 @@ class MeshGeometry(id: Long, element: Element, name: String, doc: Document) : Ge
         if (mappingInformationType == "AllSame") {
             // easy - same material for all faces
             if (materialsOut.isEmpty()) {
-                HollowCore.LOGGER.error("expected material index, ignoring")
+                HollowEngine.LOGGER.error("expected material index, ignoring")
                 return
             } else if (materialsOut.size > 1) {
-                HollowCore.LOGGER.warn("expected only a single material index, ignoring all except the first one")
+                HollowEngine.LOGGER.warn("expected only a single material index, ignoring all except the first one")
                 materialsOut.clear()
             }
             for (i in vertices.indices)
                 materials += materialsOut[0]
         } else
-            HollowCore.LOGGER.error("ignoring material assignments, access type not implemented: $mappingInformationType, $referenceInformationType")
+            HollowEngine.LOGGER.error("ignoring material assignments, access type not implemented: $mappingInformationType, $referenceInformationType")
     }
 
     /** Lengthy utility function to read and resolve a FBX vertex data array - that is, the output is in polygon vertex
