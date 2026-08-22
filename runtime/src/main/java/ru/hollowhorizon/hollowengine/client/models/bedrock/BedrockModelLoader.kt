@@ -37,7 +37,6 @@ object BedrockModelLoader : ModelLoader {
         }
 
         val modelWithAnim = parsedModel.copy(animations = animations)
-        modelWithAnim.isBlockBench = parsedModel.isBlockBench
         index = 0
         return AnimatedModel(modelWithAnim)
     }
@@ -49,14 +48,12 @@ object BedrockModelLoader : ModelLoader {
                     NodeDefinition(
                         index++,
                         children = geometry.convertNodes(location, side).toMutableList(),
-                        transform = TrsTransformF().scale(Vec3f(-1 / 16f, 1 / 16f, 1 / 16f))
+                        transform = TrsTransformF().scale(Vec3f(1 / 16f, 1 / 16f, 1 / 16f))
                     )
                 )
             )
         }
-        return Model(0, scenes, emptySet(), emptyList()).apply {
-            isBlockBench = true
-        }
+        return Model(0, scenes, emptySet(), emptyList())
     }
 
     private fun BedrockFile.Geometry.convertNodes(location: ResourceLocation, side: ModelSide): List<NodeDefinition> {

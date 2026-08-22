@@ -9,6 +9,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.client.models.internal.hostYawDegrees
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.common.attachments.components.Model
@@ -205,5 +206,4 @@ private fun sanitizeScaleComponent(value: Float): Float {
     return if (normalized == -0.0f) 0.01f else normalized
 }
 
-private fun hostEntityRotation(yaw: Float): QuatF =
-    QuatF((180f - yaw).deg, Vec3f.Y_AXIS)
+private fun hostEntityRotation(yaw: Float): QuatF = QuatF(hostYawDegrees(yaw).deg, Vec3f.Y_AXIS)

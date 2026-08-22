@@ -50,7 +50,8 @@ internal fun UiLayoutPipeline.placeNodeNow(
     }
     val opacityNeedsLayer = style.opacity < 1f && node.children.isNotEmpty()
     val needsFramebuffer = opacityNeedsLayer ||
-            nodeTransform.needsFramebuffer || !insideFramebuffer && node.requiresTextLayer(transform) ||
+            nodeTransform.needsFramebuffer && !node.drawsInSpace() ||
+            !insideFramebuffer && node.requiresTextLayer(transform) ||
             style.filter.requiresLayer ||
             style.backdropFilter.requiresLayer ||
             style.clipShape != null && style.clip

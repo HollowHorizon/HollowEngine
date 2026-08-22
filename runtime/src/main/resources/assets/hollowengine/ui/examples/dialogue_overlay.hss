@@ -67,6 +67,7 @@
     size: 30px 60px;
     align: center start;
     margin-top: 7px;
+    rotate-y: -20;
 }
 
 .line-text {

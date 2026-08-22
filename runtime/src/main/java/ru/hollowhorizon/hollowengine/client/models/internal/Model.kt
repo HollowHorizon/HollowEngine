@@ -8,8 +8,6 @@ data class Model(
     val materials: Set<Material>,
     val animations: List<AnimationClip> = emptyList(),
 ) {
-    var isBlockBench = false
-
     fun walkNodes(): Sequence<NodeDefinition> {
         return sequence {
             suspend fun SequenceScope<NodeDefinition>.walk(node: NodeDefinition) {

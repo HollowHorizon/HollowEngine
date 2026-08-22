@@ -62,19 +62,11 @@ fun Document.convert(location: ResourceLocation): InternalModel {
     // Сначала конвертируем узлы
     val rawNodes = convertNodes(0L, location)
     
-    // For BlockBench models, wrap all nodes in a root node with 1/16 scale
-    // BlockBench uses 16 units per block, Minecraft uses 1 unit per block
-    val nodes = if (isBlockBenchModel && rawNodes.isNotEmpty()) {
-        listOf(
-            NodeDefinition(
-                index = -1, // Special root node
-                children = rawNodes.toMutableList(),
-                transform = TrsTransformF().scale(Vec3f(1f / BBSCALE, 1f / BBSCALE, 1f / BBSCALE))
-            )
-        )
-    } else {
-        rawNodes
-    }
+    val nodes = ModelSpace.place(
+        rawNodes,
+        facesPositiveZ = !isBlockBenchModel,
+        unitsPerBlock = if (isBlockBenchModel) BBSCALE else 1f,
+    )
     
     val scene = Scene(nodes)
 
@@ -97,9 +89,7 @@ fun Document.convert(location: ResourceLocation): InternalModel {
         }
     }
 
-    return InternalModel(0, listOf(scene), setOf(), animations).apply {
-        isBlockBench = isBlockBenchModel
-    }
+    return InternalModel(0, listOf(scene), setOf(), animations)
 }
 
 context(doc: Document)

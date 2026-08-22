@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEva
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.fillAnimationVariables
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
+import ru.hollowhorizon.hollowengine.client.models.internal.hostYawDegrees
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
@@ -126,7 +127,7 @@ object RenderManager {
             }
             val local = node.transform.transform
             poseStack.pushPose()
-            poseStack.mulPose(Axis.YP.rotationDegrees(180f - hostYaw))
+            poseStack.mulPose(Axis.YP.rotationDegrees(hostYawDegrees(hostYaw)))
             poseStack.translate(
                 local.translation.x.toDouble(),
                 local.translation.y.toDouble(),

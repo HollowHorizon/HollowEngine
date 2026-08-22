@@ -29,7 +29,17 @@ object GltfModelLoader : ModelLoader {
             file.materials.map { material -> material.toMaterial(file, location) }
         }
 
-        val scenes = parseScenes(file, skins, materials, side)
+        // BlockBench exports facing the way a vanilla model does; every other exporter puts the front at +Z.
+        val fromBlockBench = file.asset.generator?.contains("blockbench", ignoreCase = true) == true
+        val scenes = parseScenes(file, skins, materials, side).mapIndexed { index, scene ->
+            Scene(
+                ModelSpace.place(
+                    scene.nodes,
+                    facesPositiveZ = !fromBlockBench,
+                    index = ModelSpace.ROOT_INDEX - index,
+                )
+            )
+        }
 
         val nodes = mutableListOf<NodeDefinition>()
 
@@ -52,7 +62,6 @@ object GltfModelLoader : ModelLoader {
             }
 
         val model = Model(file.scene, scenes, materials.toSet(), animations).apply {
-            isBlockBench = file.asset.generator?.contains("blockbench", ignoreCase = true) == true
             walkNodes().forEach { node ->
                 node.skin?.let { skin ->
                     node.mesh?.primitives?.forEach {

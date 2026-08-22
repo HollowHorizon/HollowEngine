@@ -80,7 +80,6 @@ fun npc(
         set(Model(model))
         set(HitboxComponent(HitboxMode.PULLING))
         set(StandardPlayerAnimatorPreset.create())
-        set(TransformComponent(TrsTransformF().rotate(180f.deg, Vec3f.Y_AXIS)))
 
         if (attributes.isNotEmpty()) {
             setAttributes(attributes)

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.obj
 
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.models.internal.ModelSpace
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.Scene
@@ -199,13 +200,16 @@ class OBJModel(
                         specularTexture = it.specularTexture ?: Material.MISSING_SPECULAR,
                     )
         }
+        val nodes = ModelSpace.place(
+            objects.mapIndexed { i, it -> it.toNode(materials, vertices, normals, textures, i) },
+            facesPositiveZ = !isBlockBench,
+        )
         val model = Model(
             scene = 0,
-            scenes = listOf(Scene(objects.mapIndexed { i, it -> it.toNode(materials, vertices, normals, textures, i) })),
+            scenes = listOf(Scene(nodes)),
             materials = materials.values.toSet()
         )
 
-        model.isBlockBench = isBlockBench
 
         return model
     }

@@ -187,7 +187,7 @@ class ModelViewerState(model: String) {
         val scale = baseSize * zoom
         stack.scale(scale, -scale, scale)
         stack.mulPose(Quaternionf().rotateX(pitch * Mth.DEG_TO_RAD))
-        stack.mulPose(Quaternionf().rotateY(yaw * Mth.DEG_TO_RAD))
+        stack.mulPose(Quaternionf().rotateY((yaw + PREVIEW_FRONT_YAW) * Mth.DEG_TO_RAD))
 
         val attachment = attachment
         val bounds = if (showBoundingBox) attachment.calculateBounds() else null
@@ -227,6 +227,7 @@ class ModelViewerState(model: String) {
     }
 
     companion object {
+        private const val PREVIEW_FRONT_YAW = 180f
         private const val FALLBACK_MODEL = "hollowengine:models/entity/player_model.gltf"
     }
 }

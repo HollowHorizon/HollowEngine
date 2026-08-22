@@ -121,3 +121,11 @@ internal fun UiComputedStyle.outerInsets(width: Float, height: Float, reserve: U
         bottom = border.bottom + padding.bottom + horizontalGutter(reserve, height),
     )
 }
+
+/**
+ * Whether the node draws its own content in three dimensions rather than as a picture.
+ *
+ * Such a node needs no framebuffer to be turned: the transform goes into the pose stack and rotates the
+ * thing itself. Flat content still gets a layer, since rotating it any other way would only skew a quad.
+ */
+internal fun UiNode.drawsInSpace(): Boolean = type == UiEntityType && children.isEmpty()

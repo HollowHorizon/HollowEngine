@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui
 
 import net.minecraft.client.Minecraft
+import org.joml.Matrix4f
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
 import kotlin.math.*
@@ -418,6 +419,13 @@ data class UiTransform(
 private fun Float.degreesToRadians(): Float = this * PI.toFloat() / 180f
 
 class UiMatrix4(private val values: FloatArray) {
+    fun toMatrix4f(): Matrix4f = Matrix4f(
+        values[0], values[4], values[8], values[12],
+        values[1], values[5], values[9], values[13],
+        values[2], values[6], values[10], values[14],
+        values[3], values[7], values[11], values[15],
+    )
+
     /**
      * Cached [inverse] result. Matrices are immutable after construction, and input handling +
      * rendering invert the same placement matrices every event/frame, so the inversion runs once.

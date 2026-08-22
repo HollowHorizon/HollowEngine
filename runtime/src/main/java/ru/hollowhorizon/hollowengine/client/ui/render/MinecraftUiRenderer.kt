@@ -2036,10 +2036,21 @@ class MinecraftUiRenderer {
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         val entity = command.entity.resolve()
-        val target = transformedLocalRect(UiRect(0f, 0f, command.rect.width, command.rect.height), transform)
-        if (entity == null || !renderEntity(entity, target)) {
+        if (entity == null) {
             drawEntityPlaceholder(command)
+            return
         }
+
+        val rect = UiRect(0f, 0f, command.rect.width, command.rect.height)
+        clearDepthOf(transformedLocalRect(rect, transform))
+        POSE_STACK.pushPose()
+        POSE_STACK.mulPose(transform.toMatrix4f())
+        val drawn = try {
+            renderEntity(entity, rect)
+        } finally {
+            POSE_STACK.popPose()
+        }
+        if (!drawn) drawEntityPlaceholder(command)
     }
 
     private fun drawEntityPlaceholder(command: DrawEntityCommand) {
@@ -2065,12 +2076,14 @@ class MinecraftUiRenderer {
         if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
-        val rect = localRect(command.rect)
+        val rect = UiRect(0f, 0f, command.rect.width, command.rect.height)
         val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         POSE_STACK.pushPose()
+        POSE_STACK.mulPose(transform.toMatrix4f())
         RenderSystem.enableDepthTest()
         GL11.glDepthMask(true)
+        clearDepthOf(transformedLocalRect(rect, transform))
         try {
             command.block(UiGlDrawScopeImpl(rect, command.opacity, POSE_STACK))
         } catch (e: Throwable) {
@@ -2096,8 +2109,7 @@ class MinecraftUiRenderer {
             POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
             val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
             POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
-            POSE_STACK.scale(scale, scale, scale)
-            POSE_STACK.mulPose(Quaternionf().rotateY(160f * Mth.DEG_TO_RAD))
+            POSE_STACK.scale(scale, scale, -scale)
 
             val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
             val light1 = Vector3f(0.3f, -1f, -1f).normalize()
@@ -2260,6 +2272,19 @@ class MinecraftUiRenderer {
         val layer = layerStack.lastOrNull() ?: return transform
         return UiMatrix4.translation(layer.padding, layer.padding, 0f) * (layer.transform.inverse()
             ?: UiMatrix4.translation(-layer.rect.x, -layer.rect.y, 0f)) * transform
+    }
+
+    /**
+     * Clears the depth buffer inside [rect].
+     */
+    private fun clearDepthOf(rect: UiRect) {
+        if (rect.width <= 0f || rect.height <= 0f) return
+
+        val previous = scissorState
+        setScissor(rect)
+        GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
+        scissorState = ScissorUnknown
+        setScissor(previous as? UiRect)
     }
 
     private fun localRect(rect: UiRect): UiRect = layerStack.lastOrNull()?.let {

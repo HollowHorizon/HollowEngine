@@ -120,10 +120,6 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
             if (compiledFor === animated) return
 
             val model = animated.model
-            if (model.isBlockBench) {
-                transform.rotation.set(180f.deg, Vec3f.Y_AXIS)
-            }
-
             modelState = animated
             configurePrimitiveRenderPaths(animated)
             runtimeMaterials = ModelInstanceMaterials(model)
