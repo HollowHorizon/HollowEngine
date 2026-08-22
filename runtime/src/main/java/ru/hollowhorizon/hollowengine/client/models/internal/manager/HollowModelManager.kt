@@ -21,7 +21,8 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import ru.hollowhorizon.hollowengine.client.models.internal.Model
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.configureStaticRenderPaths
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
 import ru.hollowhorizon.hollowengine.client.textures.GlTexture
 import ru.hollowhorizon.hollowengine.client.utils.stream
@@ -37,9 +38,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 
 object HollowModelManager :
-    SimplePreparableReloadListener<Map<ResourceLocation, PreparedModelUpdate<AnimatedModel>>>() {
+    SimplePreparableReloadListener<Map<ResourceLocation, PreparedModelUpdate<Model>>>() {
     lateinit var lightTexture: AbstractTexture
-    private val models = ConcurrentHashMap<ResourceLocation, MutableStateFlow<AnimatedModel>>()
+    private val models = ConcurrentHashMap<ResourceLocation, MutableStateFlow<Model>>()
     private val indexedModels = ConcurrentHashMap.newKeySet<ResourceLocation>()
     var glProgramSkinning = -1
     var glProgramMorphing = -1
@@ -48,7 +49,7 @@ object HollowModelManager :
         RegisterModelLoaderEvent.post(RegisterModelLoaderEvent(this))
     }
 
-    private fun loadIntoFlow(location: ResourceLocation, flow: MutableStateFlow<AnimatedModel>) {
+    private fun loadIntoFlow(location: ResourceLocation, flow: MutableStateFlow<Model>) {
         scopeAsync {
             try {
                 val loaded = loadModel(location)
@@ -59,27 +60,27 @@ object HollowModelManager :
         }
     }
 
-    fun getOrCreate(location: ResourceLocation): StateFlow<AnimatedModel> {
+    fun getOrCreate(location: ResourceLocation): StateFlow<Model> {
         return models.computeIfAbsent(location) {
-            val flow = MutableStateFlow(AnimatedModel.EMPTY)
+            val flow = MutableStateFlow(Model.EMPTY)
             loadIntoFlow(location, flow)
             flow
         }
     }
 
-    suspend fun loadModel(location: ResourceLocation): AnimatedModel {
+    suspend fun loadModel(location: ResourceLocation): Model {
         val extension = location.path.substringAfter('.', "")
 
         val loader = loaders.find { extension in it.supportedFormats }
             ?: error("No suitable model loader found for format .$extension")
 
-        return loader.load(location)
+        return loader.load(location).also(Model::configureStaticRenderPaths)
     }
 
     override fun prepare(
         manager: ResourceManager,
         profiler: ProfilerFiller,
-    ): Map<ResourceLocation, PreparedModelUpdate<AnimatedModel>> {
+    ): Map<ResourceLocation, PreparedModelUpdate<Model>> {
         val indexed = discoverIndexedModels(manager)
         indexedModels.clear()
         indexedModels.addAll(indexed)
@@ -95,21 +96,21 @@ object HollowModelManager :
     }
 
     override fun apply(
-        prepared: Map<ResourceLocation, PreparedModelUpdate<AnimatedModel>>,
+        prepared: Map<ResourceLocation, PreparedModelUpdate<Model>>,
         manager: ResourceManager,
         profiler: ProfilerFiller,
     ) {
         prepared.forEach { (location, update) ->
-            publish(location, models.computeIfAbsent(location) { MutableStateFlow(AnimatedModel.EMPTY) }, update)
+            publish(location, models.computeIfAbsent(location) { MutableStateFlow(Model.EMPTY) }, update)
         }
     }
 
     private fun publish(
         location: ResourceLocation,
-        flow: MutableStateFlow<AnimatedModel>,
-        update: PreparedModelUpdate<AnimatedModel>,
+        flow: MutableStateFlow<Model>,
+        update: PreparedModelUpdate<Model>,
     ) {
-        val swap = ModelReloadCoordinator.resolveSwap(flow.value, update, AnimatedModel.EMPTY)
+        val swap = ModelReloadCoordinator.resolveSwap(flow.value, update, Model.EMPTY)
         flow.value = swap.next
         swap.retired?.let(::destroyLater)
 
@@ -121,7 +122,7 @@ object HollowModelManager :
     private suspend fun prepareModelUpdate(
         manager: ResourceManager,
         location: ResourceLocation,
-    ): PreparedModelUpdate<AnimatedModel> {
+    ): PreparedModelUpdate<Model> {
         if (!manager.getResource(location).isPresent) {
             return PreparedModelUpdate(exists = false)
         }
@@ -141,7 +142,7 @@ object HollowModelManager :
         }.keys.filter { manager.getResource(it.withSuffix(".hemeta")).isPresent }.toSet()
     }
 
-    private fun destroyLater(model: AnimatedModel) {
+    private fun destroyLater(model: Model) {
         if (RenderSystem.isOnRenderThreadOrInit()) {
             model.destroy()
         } else {
@@ -256,7 +257,7 @@ object HollowModelManager :
 interface ModelLoader {
     val supportedFormats: Set<String>
 
-    suspend fun load(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): AnimatedModel
+    suspend fun load(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): Model
 }
 
 enum class ModelSide {

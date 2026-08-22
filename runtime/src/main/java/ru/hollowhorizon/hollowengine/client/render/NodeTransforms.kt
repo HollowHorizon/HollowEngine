@@ -10,9 +10,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.hostYawDegrees
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
-import ru.hollowhorizon.hollowengine.common.attachments.components.Model
 import ru.hollowhorizon.hollowengine.common.attachments.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.utils.math.*
@@ -76,8 +74,8 @@ fun resolveNodeTransform(
     )
 }
 
-fun buildNodeRenderBounds(model: Model, transform: TrsTransformF): AABB {
-    val localBounds = model.attachment.calculateBounds()
+/** The world-space box of a node, from the local bounds of whatever is drawn for it. */
+fun buildNodeRenderBounds(localBounds: Pair<Vec3f, Vec3f>?, transform: TrsTransformF): AABB {
     val worldTransform = TrsTransformF().set(transform)
 
     if (localBounds == null) {

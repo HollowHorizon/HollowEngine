@@ -13,11 +13,10 @@ import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.fillAnimationVariables
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
 import ru.hollowhorizon.hollowengine.client.models.internal.hostYawDegrees
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.modelInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
@@ -27,7 +26,6 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStag
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
-import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
 @ClientOnly
 object RenderManager {
@@ -58,34 +56,23 @@ object RenderManager {
     }
 
     /**
-     * Advances every model's animation once per frame.
+     * Advances every model animation once, before anything is drawn with it.
      */
     @SubscribeEvent(10)
     fun onPrepareModelFrames(event: RenderLevelStageEvent) {
-        if (event.stage != RenderStage.AFTER_ENTITIES) return
+        if (event.stage != RenderStage.AFTER_SKY) return
 
-        val level = Minecraft.getInstance().level ?: run {
-            AnimatorRuntimeRegistry.clear()
-            return
-        }
+        val level = Minecraft.getInstance().level ?: return
         val partialTick = event.partialTick
-        val activeAnimatorKeys = HashSet<AnimatorRuntimeKey>()
 
         NodeRuntimeState.service(level).forEachModelNodeRecord { record, node ->
-            val attachment = node.model.attachment
-            val animatorKey = AnimatorRuntimeKey(record.snapshotId, node.nodeId, node.model.model)
-            if (node.animator != null) activeAnimatorKeys += animatorKey
+            val host = record.hostEntity ?: return@forEachModelNodeRecord
+            val instance = host.modelInstance(node.nodeId, node.model.model)
 
-            attachment.entity = record.hostEntity as? LivingEntity
-            attachment.configureAnimator(
-                animator = node.animator,
-                key = animatorKey,
-                context = AnimatorEvaluationContext().also { fillAnimationVariables(it, record.hostEntity, partialTick) },
-            )
-            attachment.prepareFrame(if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime)
+            instance.attachment.entity = host as? LivingEntity
+            instance.animator.configure(node.animator)
+            instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, host, partialTick) })
         }
-
-        AnimatorRuntimeRegistry.retain(activeAnimatorKeys)
     }
 
     @SubscribeEvent
@@ -111,15 +98,12 @@ object RenderManager {
         val allowInstancing = isWorldPass && shouldAllowInstancingInCurrentPass()
         var renderedAny = false
 
-        materialization.forEachModelNodeOf(entity) { record, node ->
-            val attachment = node.model.attachment
+        materialization.forEachModelNodeOf(entity) { _, node ->
+            val instance = entity.modelInstance(node.nodeId, node.model.model)
+            val attachment = instance.attachment
             attachment.entity = entity as? LivingEntity
-            attachment.configureAnimator(
-                animator = node.animator,
-                key = AnimatorRuntimeKey(record.snapshotId, node.nodeId, node.model.model),
-                context = AnimatorEvaluationContext().also { fillAnimationVariables(it, entity, partialTick) },
-            )
-            attachment.prepareFrame(if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime)
+            instance.animator.configure(node.animator)
+            instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, entity, partialTick) })
 
             val hostYaw = when (entity) {
                 is LivingEntity -> Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)

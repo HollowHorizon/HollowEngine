@@ -31,7 +31,7 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `once playback clamps and marks ended`() {
-        val state = LayerRuntimeState()
+        val state = ClipPlayback()
 
         val sampleTime = state.advance(
             duration = 1f,
@@ -48,7 +48,7 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `loop playback wraps without ending`() {
-        val state = LayerRuntimeState()
+        val state = ClipPlayback()
 
         val sampleTime = state.advance(
             duration = 1f,
@@ -64,7 +64,7 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `clamp forever holds final frame without ending`() {
-        val state = LayerRuntimeState()
+        val state = ClipPlayback()
 
         val sampleTime = state.advance(
             duration = 1f,
@@ -80,7 +80,7 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `ping pong reflects time and toggles direction`() {
-        val state = LayerRuntimeState()
+        val state = ClipPlayback()
 
         val sampleTime = state.advance(
             duration = 1f,
@@ -184,7 +184,7 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `negative loop speed samples animation backwards`() {
-        val state = LayerRuntimeState()
+        val state = ClipPlayback()
 
         val sampleTime = state.advance(
             duration = 1f,
@@ -200,46 +200,83 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `layer fade in scales clip influence`() {
-        val runtime = AnimatorRuntime()
         val node = testNode()
-
-        runtime.apply(
-            animator = AnimatorComponent(
-                layers = listOf(
-                    clip(id = "manual:wave", animation = "wave").copy(fadeIn = 1f)
-                ),
-            ),
-            rootNodes = listOf(node),
-            animations = mapOf("wave" to constantTranslationAnimation()),
-            context = animationContext(deltaTime = 0.5f, time = 1f),
+        val animator = ModelAnimator()
+        animator.configure(
+            AnimatorComponent(layers = listOf(clip(id = "manual:wave", animation = "wave").copy(fadeIn = 1f)))
         )
+
+        animator.step(node, seconds = 0.5f)
 
         assertEquals(0.5f, node.transform.translation.x, 0.0001f)
     }
 
     @Test
-    fun `once layer fades out after final frame`() {
-        val runtime = AnimatorRuntime()
+    fun `configure updates clip spec without resetting playback`() {
         val node = testNode()
+        val animator = ModelAnimator()
+        val layer = clip(id = "manual:wave", animation = "wave", playMode = AnimationPlayMode.Loop)
+        animator.configure(AnimatorComponent(layers = listOf(layer)))
+        animator.step(node, seconds = 0.5f)
 
-        runtime.apply(
-            animator = AnimatorComponent(
+        animator.configure(
+            AnimatorComponent(
                 layers = listOf(
-                    clip(id = "manual:wave", animation = "wave").copy(fadeOut = 0.5f)
-                ),
-            ),
-            rootNodes = listOf(node),
-            animations = mapOf("wave" to constantTranslationAnimation()),
-            context = animationContext(deltaTime = 1.25f, time = 1f),
+                    layer.copy(
+                        weight = AnimationExpression("0.5"),
+                        priority = 2,
+                    )
+                )
+            )
         )
 
+        assertEquals(0.5f, animator.layerTime(layer.id)!!, 0.0001f)
+        animator.step(node, seconds = 0.25f)
+        assertEquals(0.75f, animator.layerTime(layer.id)!!, 0.0001f)
         assertEquals(0.5f, node.transform.translation.x, 0.0001f)
-        assertTrue(runtime.stateFor("manual:wave")?.ended == true)
+    }
+
+    @Test
+    fun `configure updates controller spec without resetting its state time`() {
+        val node = testNode()
+        val animator = ModelAnimator()
+        val layer = AnimationControllerLayerSpec(
+            id = "controller:preview",
+            states = listOf(AnimationControllerStateSpec(id = "wave", animation = "wave")),
+            entryState = "wave",
+        )
+        animator.configure(AnimatorComponent(layers = listOf(layer)))
+        animator.step(node, seconds = 0.5f)
+
+        animator.configure(
+            AnimatorComponent(layers = listOf(layer.copy(weight = AnimationExpression("0.5"))))
+        )
+
+        assertEquals(0.5f, animator.layerTime(layer.id)!!, 0.0001f)
+        animator.step(node, seconds = 0.25f)
+        assertEquals(0.75f, animator.layerTime(layer.id)!!, 0.0001f)
+        assertEquals(0.5f, node.transform.translation.x, 0.0001f)
+    }
+
+    /** A one-shot layer keeps posing while it fades, and is gone once the fade is over. */
+    @Test
+    fun `once layer fades out after final frame`() {
+        val node = testNode()
+        val animator = ModelAnimator()
+        animator.configure(
+            AnimatorComponent(layers = listOf(clip(id = "manual:wave", animation = "wave").copy(fadeOut = 0.5f)))
+        )
+
+        animator.step(node, seconds = 0.75f)
+        animator.step(node, seconds = 0.5f)
+        assertEquals(0.5f, node.transform.translation.x, 0.0001f)
+
+        animator.step(node, seconds = 0.5f)
+        assertTrue(animator.isEmpty)
     }
 
     @Test
     fun `controller keeps current state when it is the highest priority matching transition`() {
-        val runtime = AnimatorRuntime()
         val layer = AnimationControllerLayerSpec(
             id = "controller:locomotion",
             entryState = "run",
@@ -263,16 +300,16 @@ class AnimatorRuntimeTests {
             ),
         )
 
-        runtime.apply(
-            animator = AnimatorComponent(layers = listOf(layer)),
-            rootNodes = emptyList(),
-            animations = emptyMap(),
-            context = animationContext(deltaTime = 0.05f, time = 1f, values = mapOf("is_sprinting" to 1f, "horizontal_speed" to 0.5f)),
-        )
+        val controllerLayer = ControllerLayer(layer)
+        val target = PoseTarget(emptyMap(), emptyMap())
+        val context = animationContext(
+            time = 1f,
+            values = mapOf("is_sprinting" to 1f, "horizontal_speed" to 0.5f),
+        ).also { it.deltaTime = 0.05f }
 
-        val state = runtime.stateFor(layer.id)
-        assertEquals("run", state?.currentState)
-        assertEquals(null, state?.transition)
+        controllerLayer.sample(target, context)
+
+        assertEquals("run", controllerLayer.controller.stateId)
     }
 
     @Test
@@ -433,3 +470,34 @@ private fun animationContext(
     context.headPitch = values["head_x_rotation"] ?: 0f
     context.variables.putAll(values)
 }
+
+/**
+ * Advances [node]'s pose by [seconds] of game time.
+ *
+ * Two calls because the animator takes its step from the clock rather than from a delta handed to it:
+ * the first one only sets the clock, the second one is the frame being tested.
+ */
+private fun ModelAnimator.step(node: RuntimeNode, seconds: Float) {
+    val target = PoseTarget(mapOf(node.definition.index to node), mapOf("wave" to waveAnimation()))
+    node.resetPose()
+    applyTo(target, animationContext(time = clockTicks))
+    clockTicks += seconds * 20f
+    node.resetPose()
+    applyTo(target, animationContext(time = clockTicks))
+}
+
+private var clockTicks = 0f
+
+private fun waveAnimation(): AnimationClip =
+    AnimationClip(
+        name = "wave",
+        nodes = mapOf(
+            0 to AnimationData(
+                translation = ConstantVec3fInterpolator(Vec3f(1f, 0f, 0f), 1f),
+                rotation = null,
+                scale = null,
+                weights = null,
+            )
+        ),
+        duration = 1f,
+    )

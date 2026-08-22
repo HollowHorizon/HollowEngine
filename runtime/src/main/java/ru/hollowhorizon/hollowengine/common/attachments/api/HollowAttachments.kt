@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeManager
  * - [data] is the script-owned storage, addressed by entity rather than by script on purpose, so one script
  *   can read what another left on an NPC.
  * - [nodes] are script-behavior, server-side only.
+ * - [runtime] is whatever should live exactly as long as the entity and never be saved or sent.
  */
 class HollowAttachments internal constructor(entity: MCEntity) {
     var entity: MCEntity = entity
@@ -28,11 +29,18 @@ class HollowAttachments internal constructor(entity: MCEntity) {
 
     private var dataStore: NbtDataStore? = null
     private var nodeManager: EntityNodeManager? = null
+    private var runtimeState: RuntimeAttachments? = null
 
     /** The script storage, or null when nothing has ever been written to it. Creates nothing. */
     val dataOrNull: NbtDataStore? get() = dataStore
 
     val data: NbtDataStore get() = dataStore ?: NbtDataStore().also { dataStore = it }
+
+    /**
+     * State that lives exactly as long as this entity: drawn models, their animators, anything else
+     * worth keeping while it exists. Never saved, never synced, gone when the entity is removed.
+     */
+    val runtime: RuntimeAttachments get() = runtimeState ?: RuntimeAttachments().also { runtimeState = it }
 
     /** The node scripts attached to this entity, or null when none were ever attached. */
     val nodesOrNull: EntityNodeManager? get() = nodeManager

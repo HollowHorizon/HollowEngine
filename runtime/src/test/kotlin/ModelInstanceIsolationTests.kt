@@ -1,6 +1,5 @@
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Mesh
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
@@ -12,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimationPo
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.applyAnimationPose
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstanceMaterials
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
@@ -81,9 +81,9 @@ class ModelInstanceIsolationTests {
             materials = emptySet(),
             animations = listOf(animation),
         )
-        val attachment = ModelAttachment(MutableStateFlow(AnimatedModel(model)), null)
-        attachment.configureAnimator(
-            animator = AnimatorComponent(
+        val instance = ModelInstance(ModelAttachment(MutableStateFlow(model), null))
+        instance.animator.configure(
+            AnimatorComponent(
                 layers = listOf(
                     ClipAnimationLayerSpec(
                         id = "clock",
@@ -91,18 +91,22 @@ class ModelInstanceIsolationTests {
                         playMode = AnimationPlayMode.Loop,
                     )
                 )
-            ),
-            key = null,
-            context = AnimatorEvaluationContext().also { it.deltaTime = 0f; it.time = 0f },
+            )
         )
 
-        repeat(60) { frame ->
-            attachment.prepareFrame(dt = 1f / 60f, frame = frame.toLong())
-        }
-        attachment.prepareFrame(dt = 1f / 60f, frame = 59L)
+        val step = 20f / 60f
+        repeat(31) { frame -> instance.update(contextAt(frame * step), frame = frame.toLong()) }
+        val halfway = instance.animator.layerTime("clock")!!
 
-        assertEquals(1f, attachment.animationTime("clock")!!, 0.0001f)
+        instance.update(contextAt(60f), frame = 30L)
+
+        instance.update(contextAt(30 * step), frame = 31L)
+
+        assertEquals(0.5f, halfway, 0.0001f)
+        assertEquals(halfway, instance.animator.layerTime("clock")!!, 0.0001f)
     }
+
+    private fun contextAt(ticks: Float) = AnimatorEvaluationContext().also { it.time = ticks }
 
     private fun modelWith(material: Material, morphWeights: FloatArray): Model {
         val primitive = Primitive(

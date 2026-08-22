@@ -16,14 +16,14 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 object GltfModelLoader : ModelLoader {
     override val supportedFormats = setOf("gltf", "glb")
 
-    override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
+    override suspend fun load(location: ResourceLocation, side: ModelSide): Model {
         val resolvedLocation = if (!location.exists(side)) "$MODID:models/error.gltf".rl else location
 
         val gltf = loadGltf(resolvedLocation, side)
         return load(gltf.getOrThrow(), resolvedLocation, side)
     }
 
-    fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): AnimatedModel {
+    fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): Model {
         val skins = parseSkins(file)
         val materials = if (side == ModelSide.SERVER) emptyList() else {
             file.materials.map { material -> material.toMaterial(file, location) }
@@ -72,7 +72,7 @@ object GltfModelLoader : ModelLoader {
         }
 
 
-        return AnimatedModel(model)
+        return model
     }
 
 

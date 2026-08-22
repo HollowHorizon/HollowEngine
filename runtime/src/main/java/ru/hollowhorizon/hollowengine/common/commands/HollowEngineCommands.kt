@@ -23,7 +23,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.system
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
@@ -707,14 +707,14 @@ class ShowModelInfoPacket(val model: String) : HollowPacket {
         val location = model.rl
         Minecraft.getInstance().coroutineScope.launch {
             val hollowModel = HollowModelManager.getOrCreate(location)
-                .filter { it !== AnimatedModel.EMPTY }
+                .filter { it !== Model.EMPTY }
                 .first()
 
             player.sendSystemMessage(
                 "hollowengine.commands.model_animations".mcTranslate(model.substringAfterLast('/'))
             )
 
-            hollowModel.animations.keys.forEach { anim ->
+            hollowModel.animationsByName.keys.forEach { anim ->
                 player.sendSystemMessage(
                     ("- ".literal + anim.literal)
                         .onHoverText("hollowengine.tooltips.copy".mcTranslate)
@@ -726,7 +726,7 @@ class ShowModelInfoPacket(val model: String) : HollowPacket {
                 "hollowengine.commands.model_textures".mcTranslate(model.substringAfterLast('/'))
             )
 
-            hollowModel.model.materials.map { it.texture.path.removeSuffix(".png") }.forEach { texture ->
+            hollowModel.materials.map { it.texture.path.removeSuffix(".png") }.forEach { texture ->
                 player.sendSystemMessage(
                     ("- ".literal + texture.literal)
                         .onHoverText("hollowengine.tooltips.copy".mcTranslate)

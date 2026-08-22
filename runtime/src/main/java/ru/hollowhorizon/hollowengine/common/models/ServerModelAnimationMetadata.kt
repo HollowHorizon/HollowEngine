@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
@@ -20,25 +20,25 @@ object ServerModelAnimationMetadata {
         FbxModelLoader,
         BedrockModelLoader,
     )
-    private val modelCache = ConcurrentHashMap<String, Result<AnimatedModel>>()
+    private val modelCache = ConcurrentHashMap<String, Result<Model>>()
 
     fun animationDuration(model: String, animation: String): Float? =
-        model(model)?.animations?.get(animation)?.duration
+        model(model)?.animationsByName?.get(animation)?.duration
 
     fun animationDurations(model: String): Map<String, Float> =
         model(model)
-            ?.animations
+            ?.animationsByName
             ?.mapValues { (_, animation) -> animation.duration }
             .orEmpty()
 
-    fun model(model: String): AnimatedModel? =
+    fun model(model: String): Model? =
         modelCache.computeIfAbsent(model, ::loadModel).getOrNull()
 
     fun clearCache() {
         modelCache.clear()
     }
 
-    private fun loadModel(model: String): Result<AnimatedModel> =
+    private fun loadModel(model: String): Result<Model> =
         runCatching {
             val location = model.rl
             val loader = loaderFor(location)

@@ -8,6 +8,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
+import net.minecraft.world.entity.Entity
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.network.chat.Component
@@ -17,6 +18,7 @@ import org.joml.Matrix4f
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.render.ResolvedNodeTransform
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.modelInstanceOrNull
 import ru.hollowhorizon.hollowengine.client.render.buildNodeRenderBounds
 import ru.hollowhorizon.hollowengine.client.render.resolveNodeTransform
 import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
@@ -533,18 +535,19 @@ object TransformGizmoEditor {
     private fun computeTargetBounds(
         target: TransformGizmoTarget,
         resolved: ResolvedNodeTransform,
-        model: Model?,
+        localBounds: Pair<Vec3f, Vec3f>?,
     ): AABB =
         when (target.type) {
-            TransformGizmoTargetType.MODEL ->
-                if (model != null) buildNodeRenderBounds(
-                    model,
-                    resolved.transform
-                ) else buildGenericBounds(resolved.transform)
-
-
+            TransformGizmoTargetType.MODEL -> buildNodeRenderBounds(localBounds, resolved.transform)
             TransformGizmoTargetType.TRANSFORM -> buildGenericBounds(resolved.transform)
         }
+
+    /** The local box of what is drawn for a node, or null while nothing has drawn it yet. */
+    private fun localBoundsOf(entity: Entity?, nodeId: UUID, model: Model?): Pair<Vec3f, Vec3f>? {
+        val host = entity ?: return null
+        val name = model?.model ?: return null
+        return host.modelInstanceOrNull(nodeId, name)?.attachment?.calculateBounds()
+    }
 
     /**
      * While dragging, the bounding box and light preview follow the live working transform instead of
@@ -587,7 +590,8 @@ object TransformGizmoEditor {
                 entry.modelComponent = modelNode.model
                 val dragging = draggingKey == entryId
                 val display = displayResolved(entry, resolved, dragging)
-                entry.updateFromResolved(display, computeTargetBounds(target, display, modelNode.model), dragging)
+                val bounds = localBoundsOf(record.hostEntity, modelNode.nodeId, modelNode.model)
+                entry.updateFromResolved(display, computeTargetBounds(target, display, bounds), dragging)
                 seen += entryId
                 claimedNodes += modelNode.nodeId
             }
@@ -623,7 +627,9 @@ object TransformGizmoEditor {
         entry.target = target
         entry.modelComponent = model
         entry.lastAppliedTransform = transform
-        entry.updateFromResolved(resolved, computeTargetBounds(target, resolved, model), dragging = false)
+        val host = entry.entityId?.let(level::getEntity)
+        val bounds = localBoundsOf(host, entry.nodeId, model)
+        entry.updateFromResolved(resolved, computeTargetBounds(target, resolved, bounds), dragging = false)
     }
 
     private fun pickBounds(x: Float, y: Float): GizmoEntryId? {

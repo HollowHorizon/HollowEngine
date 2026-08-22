@@ -3,137 +3,88 @@ package ru.hollowhorizon.hollowengine.client.models.internal.v2
 import kotlinx.coroutines.flow.StateFlow
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
-import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorExpressionEvaluator
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntime
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.PoseTarget
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.byIndex
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.common.utils.math.deg
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.max
 import kotlin.math.min
 
 fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null)
-class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, var entity: LivingEntity? = null) :
+
+/**
+ * One rendered instance of a model: its own nodes, materials and draw commands.
+ */
+class ModelAttachment(val flow: StateFlow<Model>, parent: Attachment?, var entity: LivingEntity? = null) :
     Attachment(parent) {
-    private val rebuildLock = Any()
-    private var modelState: AnimatedModel = flow.value
+    private var builtFor: Model? = null
     private var runtimeNodes: List<RuntimeNode> = emptyList()
-    private var runtimeMaterials = ModelInstanceMaterials(modelState.model)
-    private var nodeIdToNode: Map<Int, RuntimeNode> = emptyMap()
-    private val localAnimatorRuntime = AnimatorRuntime()
-    private var animatorComponent: AnimatorComponent? = null
-    private var animatorRuntimeKey: AnimatorRuntimeKey? = null
-    private var animatorContext: AnimatorEvaluationContext = AnimatorEvaluationContext()
-    private var lastAnimationFrame = Long.MIN_VALUE
-    private var poseDirty = true
-
-    @Volatile
-    private var compiledFor: AnimatedModel? = null
-
-    @Volatile
-    private var renderPipeline: ListRenderPipeline = ListRenderPipeline()
-
-    @Volatile
+    private var nodesByIndex: Map<Int, RuntimeNode> = emptyMap()
+    private var runtimeMaterials = ModelInstanceMaterials(Model.EMPTY)
+    private var renderPipeline = ListRenderPipeline()
+    private var target: PoseTarget? = null
     private var cachedBounds: Pair<Vec3f, Vec3f>? = null
 
-    @Volatile
-    private var cachedBoundsFrame = Long.MIN_VALUE
+    val model: Model get() = builtFor ?: Model.EMPTY
+    val nodes: List<RuntimeNode> get() = runtimeNodes
+    val animations: Collection<AnimationClip> get() = model.animations
+    val materials: List<Material> get() = runtimeMaterials.values
+    val pipeline: RenderPipeline get() = renderPipeline
 
-    val model: Model
-        get() {
-            ensureCompiled(flow.value)
-            return modelState.model
-        }
-    val nodes: List<RuntimeNode>
-        get() {
-            ensureCompiled(flow.value)
-            return runtimeNodes
-        }
-    val animations: Collection<AnimationClip>
-        get() {
-            ensureCompiled(flow.value)
-            return modelState.animations.values
-        }
-    val materials: List<Material>
-        get() {
-            ensureCompiled(flow.value)
-            return runtimeMaterials.values
-        }
-    val pipeline: RenderPipeline
-        get() {
-            ensureCompiled(flow.value)
-            return renderPipeline
-        }
+    val triangles get() = model.nodes.sumOf { it.mesh?.primitives?.sumOf { p -> p.positionsCount / 3 } ?: 0 }
+    val shapekeys get() = model.nodes.sumOf { it.mesh?.primitives?.sumOf { p -> p.morphTargets.size } ?: 0 }
 
     init {
-        ensureCompiled(flow.value)
+        rebuild(flow.value)
     }
 
-    val triangles
-        get() =
-            model.walkNodes().sumOf {
-                it.mesh?.primitives?.sumOf { it.positionsCount / 3 } ?: 0
-            }
-
-    val shapekeys
-        get() =
-            model.walkNodes().sumOf {
-                it.mesh?.primitives?.sumOf { it.morphTargets.size } ?: 0
-            }
-
-    fun configureAnimator(
-        animator: AnimatorComponent?,
-        key: AnimatorRuntimeKey?,
-        context: AnimatorEvaluationContext,
-    ) {
-        if (animatorComponent != animator || animatorRuntimeKey != key) {
-            poseDirty = true
-            animator?.let(AnimatorExpressionEvaluator::prepare)
-        }
-        animatorComponent = animator
-        animatorRuntimeKey = key
-        animatorContext = context
+    /**
+     * Makes sure the instance matches the model that is loaded right now.
+     *
+     * Called once a frame from the instance's own update.
+     */
+    fun ensureReady() {
+        val current = flow.value
+        if (builtFor !== current) rebuild(current)
     }
 
-    fun animationTime(layerId: String): Float? {
-        val runtime = animatorRuntimeKey?.let(AnimatorRuntimeRegistry::get) ?: localAnimatorRuntime
-        return runtime.stateFor(layerId)?.time
+    /** Puts every node back in "T-pose"; the animator then poses on top. */
+    fun beginPose() {
+        ensureReady()
+        runtimeNodes.forEach { it.walk().forEach(RuntimeNode::resetPose) }
     }
 
-    private fun ensureCompiled(animated: AnimatedModel) {
-        if (compiledFor === animated) return
+    /** Turns the posed nodes into the matrices the renderer draws from. */
+    fun endPose() {
+        updateGlobalMatrix()
+        runtimeNodes.forEach(RuntimeNode::updateHierarchyMatrices)
+        cachedBounds = null
+    }
 
-        synchronized(rebuildLock) {
-            if (compiledFor === animated) return
+    /** What a pose is written into: this instance's nodes and the clips of its model. */
+    fun poseTarget(): PoseTarget = target ?: PoseTarget(
+        nodesByIndex = nodesByIndex,
+        animations = model.animationsByName,
+    ).also { target = it }
 
-            val model = animated.model
-            modelState = animated
-            configurePrimitiveRenderPaths(animated)
-            runtimeMaterials = ModelInstanceMaterials(model)
-            runtimeNodes = model.scenes.getOrNull(model.scene)?.nodes?.map {
-                RuntimeNode(it, this, runtimeMaterials::resolve)
-            } ?: emptyList()
-            nodeIdToNode = runtimeNodes.flatMap { it.walk() }.associateBy { it.definition.index }
-            nodeIdToNode.values.forEach(::customizeNode)
-            renderPipeline = ListRenderPipeline().apply(this@ModelAttachment::collectCommands)
-            cachedBounds = null
-            cachedBoundsFrame = Long.MIN_VALUE
-            poseDirty = true
-            compiledFor = animated
-        }
+    private fun rebuild(model: Model) {
+        builtFor = model
+        runtimeMaterials = ModelInstanceMaterials(model)
+        runtimeNodes = model.scenes.getOrNull(model.scene)?.nodes?.map {
+            RuntimeNode(it, this, runtimeMaterials::resolve)
+        } ?: emptyList()
+        nodesByIndex = runtimeNodes.byIndex()
+        nodesByIndex.values.forEach(::customizeNode)
+        renderPipeline = ListRenderPipeline().apply(this::collectCommands)
+        target = null
+        cachedBounds = null
     }
 
     private fun customizeNode(node: RuntimeNode) {
@@ -143,63 +94,6 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
         }
     }
 
-    private fun configurePrimitiveRenderPaths(animated: AnimatedModel) {
-        val allPrimitives = animated.model.walkNodes().mapNotNull { it.mesh }.flatMap { it.primitives }.toList()
-        val staticPrimitives = allPrimitives.filter { !it.hasSkinning && it.morphTargets.isEmpty() }
-
-        val primitiveCount = staticPrimitives.size
-        if (primitiveCount == 0) return
-
-        val totalCubeCount = staticPrimitives.sumOf(Primitive::estimatedCubeCount)
-        val averageCubesPerPrimitive = totalCubeCount.toFloat() / primitiveCount.toFloat()
-        val preferBatching = primitiveCount >= MODEL_BATCHING_PRIMITIVE_THRESHOLD ||
-                primitiveCount >= MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD &&
-                averageCubesPerPrimitive <= MODEL_BATCHING_DENSE_AVERAGE_CUBES ||
-                primitiveCount >= MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD &&
-                totalCubeCount >= MODEL_BATCHING_TOTAL_CUBE_THRESHOLD &&
-                averageCubesPerPrimitive <= MODEL_BATCHING_MIXED_AVERAGE_CUBES
-
-        val renderPath =
-            if (preferBatching) Primitive.StaticRenderPath.BATCHING else Primitive.StaticRenderPath.PIPELINE
-        staticPrimitives.forEach { it.setStaticRenderPath(renderPath) }
-    }
-
-    fun prepareFrame(dt: Float, frame: Long = TickHandler.renderFrame) {
-        ensureCompiled(flow.value)
-        val shouldAdvance = dt > 0f && lastAnimationFrame != frame
-        if (poseDirty || shouldAdvance) {
-            updateAnimation(if (shouldAdvance) dt else 0f)
-            poseDirty = false
-        }
-        if (shouldAdvance) {
-            lastAnimationFrame = frame
-        }
-
-        updateGlobalMatrix()
-        runtimeNodes.forEach(RuntimeNode::updateHierarchyMatrices)
-    }
-
-    private fun updateAnimation(dt: Float) {
-        val indexedNodes = nodeIdToNode
-        val currentAnimator = animatorComponent
-
-        indexedNodes.values.forEach(RuntimeNode::resetPose)
-
-        if (currentAnimator != null) {
-            val runtime = animatorRuntimeKey?.let(AnimatorRuntimeRegistry::get) ?: localAnimatorRuntime
-            runtime.apply(
-                animator = currentAnimator,
-                rootNodes = runtimeNodes,
-                runtimeNodes = indexedNodes,
-                animations = modelState.animations,
-                context = animatorContext.also { it.deltaTime = dt },
-            )
-        } else if (animatorRuntimeKey == null) {
-            localAnimatorRuntime.clear()
-        }
-
-        cachedBoundsFrame = Long.MIN_VALUE
-    }
 
     override fun collectCommands(pipeline: RenderPipeline) {
         super.collectCommands(pipeline)
@@ -207,26 +101,17 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
     }
 
     fun child(name: String): RuntimeNode {
-        ensureCompiled(flow.value)
+        ensureReady()
         return runtimeNodes.single { it.name == name }
     }
 
     fun findNode(name: String): RuntimeNode? {
-        ensureCompiled(flow.value)
+        ensureReady()
         return runtimeNodes.asSequence().flatMap { it.walk().asSequence() }.firstOrNull { it.name == name }
     }
 
-    fun calculateBoundsCached(frame: Long = TickHandler.renderFrame): Pair<Vec3f, Vec3f>? {
-        if (cachedBoundsFrame == frame) return cachedBounds
-
-        synchronized(rebuildLock) {
-            if (cachedBoundsFrame == frame) return cachedBounds
-            val bounds = calculateBoundsInternal()
-            cachedBounds = bounds
-            cachedBoundsFrame = frame
-            return bounds
-        }
-    }
+    /** The instance's bounds in its own space, recomputed after every pose. */
+    fun calculateBounds(): Pair<Vec3f, Vec3f>? = cachedBounds ?: calculateBoundsInternal().also { cachedBounds = it }
 
     private fun calculateBoundsInternal(): Pair<Vec3f, Vec3f>? {
         var minX = Float.POSITIVE_INFINITY
@@ -239,35 +124,33 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
         val source = MutableVec3f()
         val transformed = MutableVec3f()
 
-        nodes.forEach { node ->
-            node.walk().forEach { runtimeNode ->
-                val matrix = runtimeNode.globalMatrix
-                runtimeNode.definition.mesh?.primitives?.forEach { primitive ->
-                    val localBounds = primitive.localBounds ?: return@forEach
-                    val min = localBounds.first
-                    val max = localBounds.second
+        nodesByIndex.values.forEach { runtimeNode ->
+            val matrix = runtimeNode.globalMatrix
+            runtimeNode.definition.mesh?.primitives?.forEach { primitive ->
+                val localBounds = primitive.localBounds ?: return@forEach
+                val min = localBounds.first
+                val max = localBounds.second
 
-                    fun update(x: Float, y: Float, z: Float) {
-                        source.set(x, y, z)
-                        matrix.transform(source, 1f, transformed)
-                        minX = min(minX, transformed.x)
-                        minY = min(minY, transformed.y)
-                        minZ = min(minZ, transformed.z)
-                        maxX = max(maxX, transformed.x)
-                        maxY = max(maxY, transformed.y)
-                        maxZ = max(maxZ, transformed.z)
-                    }
-
-                    update(min.x, min.y, min.z)
-                    update(min.x, min.y, max.z)
-                    update(min.x, max.y, min.z)
-                    update(min.x, max.y, max.z)
-                    update(max.x, min.y, min.z)
-                    update(max.x, min.y, max.z)
-                    update(max.x, max.y, min.z)
-                    update(max.x, max.y, max.z)
-                    hasBounds = true
+                fun update(x: Float, y: Float, z: Float) {
+                    source.set(x, y, z)
+                    matrix.transform(source, 1f, transformed)
+                    minX = min(minX, transformed.x)
+                    minY = min(minY, transformed.y)
+                    minZ = min(minZ, transformed.z)
+                    maxX = max(maxX, transformed.x)
+                    maxY = max(maxY, transformed.y)
+                    maxZ = max(maxZ, transformed.z)
                 }
+
+                update(min.x, min.y, min.z)
+                update(min.x, min.y, max.z)
+                update(min.x, max.y, min.z)
+                update(min.x, max.y, max.z)
+                update(max.x, min.y, min.z)
+                update(max.x, min.y, max.z)
+                update(max.x, max.y, min.z)
+                update(max.x, max.y, max.z)
+                hasBounds = true
             }
         }
 
@@ -275,12 +158,3 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, v
         return Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
     }
 }
-
-fun ModelAttachment.calculateBounds(): Pair<Vec3f, Vec3f>? = calculateBoundsCached()
-
-private const val MODEL_BATCHING_PRIMITIVE_THRESHOLD = 48
-private const val MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD = 24
-private const val MODEL_BATCHING_TOTAL_CUBE_THRESHOLD = 128
-private const val MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD = 16
-private const val MODEL_BATCHING_DENSE_AVERAGE_CUBES = 4f
-private const val MODEL_BATCHING_MIXED_AVERAGE_CUBES = 8f

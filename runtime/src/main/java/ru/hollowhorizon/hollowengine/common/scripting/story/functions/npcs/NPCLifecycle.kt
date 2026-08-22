@@ -1,23 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import ru.hollowhorizon.hollowengine.common.utils.math.*
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.models.internal.Transform
+import ru.hollowhorizon.hollowengine.common.attachments.api.set
+import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.entities.setNameplate
-import ru.hollowhorizon.hollowengine.common.attachments.api.set
-import ru.hollowhorizon.hollowengine.common.attachments.components.HitboxComponent
-import ru.hollowhorizon.hollowengine.common.attachments.components.Model
-import ru.hollowhorizon.hollowengine.common.attachments.components.StandardPlayerAnimatorPreset
-import ru.hollowhorizon.hollowengine.common.attachments.components.TransformComponent
-import ru.hollowhorizon.hollowengine.common.attachments.snapshot.snapshotOf
-import ru.hollowhorizon.hollowengine.common.attachments.components.NameplateMode
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.inventory.NpcInventory
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
+import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import kotlin.contracts.ExperimentalContracts
 
 /**
@@ -40,9 +34,7 @@ import kotlin.contracts.ExperimentalContracts
  * @param model Путь к 3D-модели в формате `.gltf`. Используется для рендеринга внешности NPC.
  * @param rotation Начальная ориентация NPC в виде углов (yaw, pitch), в радианах.
  * @param world Идентификатор мира, в котором должен появиться NPC. Например: `"minecraft:overworld"`.
- * @param size Пара `(ширина, высота)` хитбокса NPC, влияет на столкновения и взаимодействие.
  * @param attributes Дополнительные числовые параметры NPC (например, `"health"` → `20f`, `"speed"` → `0.3f`), определяют поведение.
- * @param textures Словарь текстур по именам слоёв. Например: `"skin"` → `"modid:textures/entity/custom_skin.png"`.
  * @param transform Локальные трансформации модели: смещение, поворот и масштаб по всем осям.
  * @param nameplateMode Initial nameplate visibility mode.
  * @param inverseHeadRotation Если `true`, голова NPC будет поворачиваться в противоположную сторону (например, для камеры от 3-го лица).
@@ -56,10 +48,8 @@ fun npc(
     model: String = "hollowengine:models/entity/player_model.gltf",
     rotation: Vec2 = rotation(0, 0),
     world: String = "minecraft:overworld",
-    size: Pair<Float, Float> = 0.6f to 1.8f,
     attributes: Map<String, Float> = emptyMap(),
-    textures: Map<String, String> = emptyMap(),
-    transform: Transform = Transform(),
+    transform: TrsTransformF = TrsTransformF(),
     nameplateMode: NameplateMode = NameplateMode.SHOW,
     inverseHeadRotation: Boolean = false,
     inventorySize: Int = NpcInventory.DEFAULT_SIZE,
@@ -80,6 +70,7 @@ fun npc(
         set(Model(model))
         set(HitboxComponent(HitboxMode.PULLING))
         set(StandardPlayerAnimatorPreset.create())
+        set(TransformComponent(transform))
 
         if (attributes.isNotEmpty()) {
             setAttributes(attributes)

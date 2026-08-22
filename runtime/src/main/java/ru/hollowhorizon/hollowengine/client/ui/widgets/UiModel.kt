@@ -12,13 +12,14 @@ import org.joml.Quaternionf
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.fillAnimationVariables
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
 import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_0
 import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_1
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
@@ -40,8 +41,10 @@ class ModelViewerState(model: String) {
     var model: String by mutableStateOf(model)
         private set
 
-    var attachment: ModelAttachment by mutableStateOf(loadAttachment(model))
+    var instance: ModelInstance by mutableStateOf(loadInstance(model))
         private set
+
+    val attachment: ModelAttachment get() = instance.attachment
 
     var yaw by mutableStateOf(0f)
     var pitch by mutableStateOf(0f)
@@ -58,35 +61,38 @@ class ModelViewerState(model: String) {
 
     private val playing = mutableStateListOf<Int>()
     private val animationWeights = mutableMapOf<String, Float>()
+    private val animationContext = AnimatorEvaluationContext()
+    private var configuredAnimationNames = emptyList<String>()
+    private var animationWeightVariables = emptyList<String>()
 
     var nodeVisibilityRevision by mutableStateOf(0)
         private set
 
-    val modelFlow: StateFlow<AnimatedModel> get() = attachment.flow
+    val modelFlow: StateFlow<Model> get() = attachment.flow
 
     /** The model's runtime node hierarchy (roots), for inspection UIs. */
     val nodes: List<RuntimeNode>
         get() {
-            attachment.pipeline // touch to force compilation of the freshly-streamed model
+            attachment.ensureReady()
             return attachment.nodes
         }
 
     /** Snapshot of the loaded animations (empty while the model is still streaming in). */
     val animations: List<AnimationClip>
         get() {
-            attachment.pipeline
+            attachment.ensureReady()
             return attachment.animations.toList()
         }
 
     val triangles: Int
         get() {
-            attachment.pipeline
+            attachment.ensureReady()
             return attachment.triangles
         }
 
     val shapekeys: Int
         get() {
-            attachment.pipeline
+            attachment.ensureReady()
             return attachment.shapekeys
         }
 
@@ -96,7 +102,7 @@ class ModelViewerState(model: String) {
         get() {
             val animation = currentAnimation ?: return 0f
             if (animation.duration <= 0f) return 0f
-            return ((attachment.animationTime(previewLayerId(animation.name)) ?: 0f) / animation.duration)
+            return ((instance.animator.layerTime(previewLayerId(animation.name)) ?: 0f) / animation.duration)
                 .coerceIn(0f, 1f)
         }
 
@@ -108,10 +114,13 @@ class ModelViewerState(model: String) {
 
     fun changeModel(model: String) {
         this.model = model
-        attachment = loadAttachment(model)
+        instance = loadInstance(model)
         selectedAnimation = 0
         playing.clear()
         animationWeights.clear()
+        animationContext.variables.clear()
+        configuredAnimationNames = emptyList()
+        animationWeightVariables = emptyList()
     }
 
     fun selectAnimation(index: Int) {
@@ -159,23 +168,15 @@ class ModelViewerState(model: String) {
             }
         }
 
-        attachment.configureAnimator(
-            animator = AnimatorComponent(
-                layers = animations.mapNotNull { animation ->
-                    val weight = animationWeights[animation.name] ?: return@mapNotNull null
-                    ClipAnimationLayerSpec(
-                        id = previewLayerId(animation.name),
-                        animation = animation.name,
-                        playMode = AnimationPlayMode.Loop,
-                        weight = AnimationExpression(weight.toString()),
-                        blendMode = LayerBlendMode.Additive,
-                    )
-                },
-            ),
-            key = null,
-            context = AnimatorEvaluationContext().also { it.time = TickHandler.gameTime },
-        )
-        attachment.prepareFrame(TickHandler.deltaFrameTime)
+        configurePreviewAnimator(animations)
+
+        fillAnimationVariables(animationContext, null, TickHandler.partialTick)
+        animationContext.time = TickHandler.gameTime
+        animations.indices.forEach { index ->
+            animationContext.variables[animationWeightVariables[index]] =
+                animationWeights[animations[index].name] ?: 0f
+        }
+        instance.update(animationContext)
 
         GL33.glDepthFunc(GL33.GL_LEQUAL)
 
@@ -219,12 +220,39 @@ class ModelViewerState(model: String) {
         }
     }
 
-    private fun loadAttachment(model: String): ModelAttachment = try {
-        require(model.isValidRL()) { "Invalid model id: $model" }
-        ModelAttachment(model)
-    } catch (_: Exception) {
-        ModelAttachment(FALLBACK_MODEL)
+    /** Rebuilds only when the loaded model's animation set changes, including resource hot reloads. */
+    private fun configurePreviewAnimator(animations: List<AnimationClip>) {
+        if (animations.size == configuredAnimationNames.size &&
+            animations.indices.all { animations[it].name == configuredAnimationNames[it] }
+        ) return
+
+        val names = animations.map { it.name }
+        configuredAnimationNames = names
+        animationWeightVariables = names.indices.map(::previewWeightVariable)
+        animationContext.variables.clear()
+        instance.animator.configure(
+            AnimatorComponent(
+                layers = names.mapIndexed { index, animation ->
+                    ClipAnimationLayerSpec(
+                        id = previewLayerId(animation),
+                        animation = animation,
+                        playMode = AnimationPlayMode.Loop,
+                        weight = AnimationExpression("v.${animationWeightVariables[index]}"),
+                        blendMode = LayerBlendMode.Additive,
+                    )
+                },
+            )
+        )
     }
+
+    private fun loadInstance(model: String): ModelInstance = ModelInstance(
+        try {
+            require(model.isValidRL()) { "Invalid model id: $model" }
+            ModelAttachment(model)
+        } catch (_: Exception) {
+            ModelAttachment(FALLBACK_MODEL)
+        }
+    )
 
     companion object {
         private const val PREVIEW_FRONT_YAW = 180f
@@ -233,6 +261,8 @@ class ModelViewerState(model: String) {
 }
 
 private fun previewLayerId(animation: String): String = "preview:$animation"
+
+private fun previewWeightVariable(index: Int): String = "preview_animation_${index}_weight"
 
 /** Seconds an animation takes to fade fully in or out when toggled. */
 private const val AnimBlendTime = 0.25f

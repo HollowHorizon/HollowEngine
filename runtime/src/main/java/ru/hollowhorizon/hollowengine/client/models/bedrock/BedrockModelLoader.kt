@@ -19,7 +19,7 @@ object BedrockModelLoader : ModelLoader {
 
     private var index = 0
 
-    override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
+    override suspend fun load(location: ResourceLocation, side: ModelSide): Model {
         val modelData = location.open(side).use { JsonFormat.decodeFromStream<BedrockFile>(it) }
         val parsedModel = convertGeometry(modelData, location, side)
 
@@ -38,7 +38,7 @@ object BedrockModelLoader : ModelLoader {
 
         val modelWithAnim = parsedModel.copy(animations = animations)
         index = 0
-        return AnimatedModel(modelWithAnim)
+        return modelWithAnim
     }
 
     private fun convertGeometry(file: BedrockFile, location: ResourceLocation, side: ModelSide): Model {
