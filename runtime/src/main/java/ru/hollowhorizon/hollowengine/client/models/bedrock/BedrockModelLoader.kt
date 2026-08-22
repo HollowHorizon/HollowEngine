@@ -26,7 +26,9 @@ object BedrockModelLoader : ModelLoader {
         val animLocation = location.withPath(location.path.substringBefore('.') + ".animation.json")
         val animations = try {
             if (animLocation.exists(side)) {
-                val animFile = animLocation.open(side).use { JsonFormat.decodeFromStream<BedrockAnimationFile>(it) }
+                val animFile = BedrockExpressions.batch {
+                    animLocation.open(side).use { JsonFormat.decodeFromStream<BedrockAnimationFile>(it) }
+                }
                 convertAnimations(animFile, parsedModel)
             } else emptyList()
         } catch (e: Exception) {

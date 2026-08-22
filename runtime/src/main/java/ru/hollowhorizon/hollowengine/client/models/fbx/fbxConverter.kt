@@ -5,7 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.fbx.TransformationComp
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
@@ -189,7 +189,7 @@ fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<Node
 
         val `object` = connection.sourceObject
         if (`object` == null) {
-            HollowCore.LOGGER.warn("failed to convert source object for Model link")
+            HollowEngine.LOGGER.warn("failed to convert source object for Model link")
             continue
         }
 
@@ -515,7 +515,7 @@ fun Material.convert(model: ResourceLocation, color: Vec4f): InternalMaterial {
                         val dynamicTexture = DynamicTexture(nativeImage)
                         Minecraft.getInstance().textureManager.register(textureLocation, dynamicTexture)
                     } catch (e: IOException) {
-                        HollowCore.LOGGER.error("Invalid texture $textureLocation!")
+                        HollowEngine.LOGGER.error("Invalid texture $textureLocation!")
                     }
                 }
             }
@@ -580,7 +580,7 @@ fun needsComplexTransformationChain(model: Model): Boolean {
 fun getRotationMatrix(mode: Model.RotOrder, rotation: Vec3f): Mat4f {
     val out = MutableMat4f()
     if (mode == Model.RotOrder.SphericXYZ) {
-        HollowCore.LOGGER.error("Unsupported RotationMode: SphericXYZ")
+        HollowEngine.LOGGER.error("Unsupported RotationMode: SphericXYZ")
         return out
     }
 

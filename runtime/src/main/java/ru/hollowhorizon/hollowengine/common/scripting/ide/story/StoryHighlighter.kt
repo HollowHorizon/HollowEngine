@@ -1,17 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.story
 
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryBool
+import ru.hollowhorizon.hollowengine.common.dialogue.StoryValue
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryNumber
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryString
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryArg
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpr
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpression
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryFunctionCatalog
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryLine
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryLineKind
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryParser
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextPart
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextTemplate
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.UnaryOp
+import ru.hollowhorizon.hollowengine.common.utils.expressions.Ast
+import ru.hollowhorizon.hollowengine.common.utils.expressions.UnaryOp
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.TextSpan
 
@@ -183,46 +185,72 @@ internal object StoryHighlighter {
         exprSpans(arg.expr, out)
     }
 
-    private fun exprSpans(expr: StoryExpr, out: MutableList<TextSpan>) {
-        when (expr) {
-            is StoryExpr.Lit -> out += TextSpan(
-                expr.span.start,
-                expr.span.end,
-                when (expr.value) {
-                    is StoryString -> TokenType.STRING
-                    is StoryNumber -> TokenType.NUMERIC_LITERAL
-                    is StoryBool -> TokenType.KEYWORD
-                    else -> TokenType.DEFAULT
-                },
-            )
+    private fun exprSpans(expr: StoryExpression, out: MutableList<TextSpan>) {
+        expr.parts.forEach { exprSpans(it, out) }
+        expr.ast?.let { astSpans(it, out) }
+            ?: expr.constant?.let { out += TextSpan(expr.span.start, expr.span.end, it.tokenType()) }
+    }
 
-            is StoryExpr.VarRef -> out += TextSpan(expr.span.start, expr.span.end, TokenType.VARIABLE)
+    /** Colors the tree the language itself parsed. */
+    private fun astSpans(ast: Ast, out: MutableList<TextSpan>) {
+        when (ast) {
+            is Ast.StringLit -> out += TextSpan(ast.span.start, ast.span.end, TokenType.STRING)
+            is Ast.NumberLit -> out += TextSpan(ast.span.start, ast.span.end, TokenType.NUMERIC_LITERAL)
+            is Ast.BoolLit -> out += TextSpan(ast.span.start, ast.span.end, TokenType.KEYWORD)
 
-            is StoryExpr.Unary -> {
-                val operand = expr.operand
-                if (expr.op == UnaryOp.NEG && operand is StoryExpr.Lit && operand.value is StoryNumber) {
-                    out += TextSpan(expr.span.start, expr.span.end, TokenType.NUMERIC_LITERAL)
+            is Ast.Name -> out += TextSpan(ast.span.start, ast.span.end, TokenType.VARIABLE)
+
+            is Ast.Unary -> {
+                val operand = ast.operand
+                if (ast.op == UnaryOp.NEGATE && operand is Ast.NumberLit) {
+                    out += TextSpan(ast.span.start, ast.span.end, TokenType.NUMERIC_LITERAL)
                 } else {
-                    exprSpans(operand, out)
+                    astSpans(operand, out)
                 }
             }
-            is StoryExpr.Binary -> {
-                exprSpans(expr.left, out)
-                exprSpans(expr.right, out)
+
+            is Ast.Binary -> {
+                astSpans(ast.left, out)
+                astSpans(ast.right, out)
             }
 
-            is StoryExpr.ListLit -> expr.items.forEach { exprSpans(it, out) }
+            is Ast.ListLit -> ast.items.forEach { astSpans(it, out) }
 
-            is StoryExpr.Index -> {
-                exprSpans(expr.target, out)
-                exprSpans(expr.index, out)
+            is Ast.Index -> {
+                astSpans(ast.target, out)
+                astSpans(ast.index, out)
             }
 
-            is StoryExpr.Property -> {
-                exprSpans(expr.target, out)
-                out += TextSpan(expr.span.start, expr.span.end, TokenType.PROPERTY_IDENTIFIER)
+            is Ast.Access -> {
+                astSpans(ast.target, out)
+                out += TextSpan(ast.nameSpan.start, ast.nameSpan.end, TokenType.PROPERTY_IDENTIFIER)
             }
+
+            is Ast.Call -> {
+                ast.target?.let { astSpans(it, out) }
+                ast.arguments.forEach { astSpans(it, out) }
+            }
+
+            is Ast.Conditional -> {
+                astSpans(ast.condition, out)
+                astSpans(ast.ifTrue, out)
+                astSpans(ast.ifFalse, out)
+            }
+
+            is Ast.Assign -> {
+                astSpans(ast.target, out)
+                astSpans(ast.value, out)
+            }
+
+            is Ast.Sequence -> ast.statements.forEach { astSpans(it, out) }
         }
+    }
+
+    private fun StoryValue.tokenType(): TokenType = when (this) {
+        is StoryString -> TokenType.STRING
+        is StoryNumber -> TokenType.NUMERIC_LITERAL
+        is StoryBool -> TokenType.KEYWORD
+        else -> TokenType.DEFAULT
     }
 
     private fun List<TextSpan>.dropOverlaps(): List<TextSpan> {

@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.fabric
 
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonManager
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.registry.HollowModProcessor
@@ -19,7 +19,7 @@ object CoreInitialization {
             { superType ->
                 RuntimeAnnotationEnvironment.annotationIndex
                     .getSubTypes(superType.name, isPhysicalClient)
-                    .mapNotNull { loadBootstrapOrRuntimeClass(it, HollowCore::class.java.classLoader) }
+                    .mapNotNull { loadBootstrapOrRuntimeClass(it, HollowEngine::class.java.classLoader) }
                     .filter { isPhysicalClient || !it.isAnnotationPresent(ClientOnly::class.java) }
                     .toSet()
             }
@@ -27,7 +27,7 @@ object CoreInitialization {
             { annotation ->
                 RuntimeAnnotationEnvironment.annotationIndex
                     .getAnnotatedClasses(annotation.name, isPhysicalClient)
-                    .mapNotNull { loadBootstrapOrRuntimeClass(it, HollowCore::class.java.classLoader) }
+                    .mapNotNull { loadBootstrapOrRuntimeClass(it, HollowEngine::class.java.classLoader) }
                     .filter { isPhysicalClient || !it.isAnnotationPresent(ClientOnly::class.java) }
                     .toSet()
             }
@@ -35,7 +35,7 @@ object CoreInitialization {
             { annotation ->
                 RuntimeAnnotationEnvironment.annotationIndex
                     .getAnnotatedMethods(annotation.name, isPhysicalClient)
-                    .mapNotNull { it.resolve(HollowCore::class.java.classLoader) }
+                    .mapNotNull { it.resolve(HollowEngine::class.java.classLoader) }
                     .filter { isPhysicalClient || !it.isAnnotationPresent(ClientOnly::class.java) }
                     .toSet()
             }

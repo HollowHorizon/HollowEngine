@@ -132,11 +132,11 @@ class StoryParser(private val source: String) {
         while (i < end && (raw[i] == ' ' || raw[i] == '\t')) i++
         val tailStart = i
 
-        fun expr(): StoryExpr {
+        fun expr(): StoryExpression {
             if (tailStart >= end) {
                 throw StoryParseException("'@$name' expects a condition", nameSpan)
             }
-            return StoryExprParser(raw, offset, line, tailStart, end).parse()
+            return StoryExpressions.parse(raw, offset, line, tailStart, end)
         }
 
         fun requireEmptyTail() {
@@ -186,7 +186,7 @@ class StoryParser(private val source: String) {
     private fun parseSet(line: Int, offset: Int, raw: String, start: Int, end: Int, commandSpan: StorySpan): StoryLineKind {
         var i = start
         val nameStart = i
-        while (i < end && StoryExprParser.isIdentPart(raw[i])) i++
+        while (i < end && StoryExpressions.isIdentPart(raw[i])) i++
         if (i == nameStart) {
             throw StoryParseException("'@set' expects a variable name", commandSpan)
         }
@@ -197,7 +197,7 @@ class StoryParser(private val source: String) {
             throw StoryParseException("'@set' expects '=' after the variable name", variableSpan)
         }
         i++
-        val value = StoryExprParser(raw, offset, line, i, end).parse()
+        val value = StoryExpressions.parse(raw, offset, line, i, end)
         return StoryLineKind.Set(variable, variableSpan, value)
     }
 
@@ -300,9 +300,9 @@ class StoryParser(private val source: String) {
 
             var name: String? = null
             var nameSpan: StorySpan? = null
-            if (StoryExprParser.isIdentStart(raw[i])) {
+            if (StoryExpressions.isIdentStart(raw[i])) {
                 var j = i
-                while (j < end && StoryExprParser.isIdentPart(raw[j])) j++
+                while (j < end && StoryExpressions.isIdentPart(raw[j])) j++
                 if (j < end && raw[j] == '=' && j + 1 <= end) {
                     name = raw.substring(i, j)
                     nameSpan = span(offset, line, i, j)
@@ -318,8 +318,8 @@ class StoryParser(private val source: String) {
     }
 
 
-    private fun parseArgList(line: Int, offset: Int, raw: String, open: Int, close: Int): StoryExpr {
-        val items = mutableListOf<StoryExpr>()
+    private fun parseArgList(line: Int, offset: Int, raw: String, open: Int, close: Int): StoryExpression {
+        val items = mutableListOf<StoryExpression>()
         var i = open + 1
         while (i < close) {
             while (i < close && (raw[i] == ' ' || raw[i] == '\t' || raw[i] == ',')) i++
@@ -330,7 +330,7 @@ class StoryParser(private val source: String) {
             while (i < close && (raw[i] == ' ' || raw[i] == '\t')) i++
             if (i < close && raw[i] == ',') i++
         }
-        return StoryExpr.ListLit(items, span(offset, line, open, close + 1))
+        return StoryExpressions.list(items, span(offset, line, open, close + 1))
     }
 
     private fun parseArgValue(
@@ -341,7 +341,7 @@ class StoryParser(private val source: String) {
         end: Int,
         isCondition: Boolean,
         insideList: Boolean = false,
-    ): Pair<StoryExpr, Int> {
+    ): Pair<StoryExpression, Int> {
         if (start >= end) {
             throw StoryParseException("Expected a value", span(offset, line, start, start))
         }
@@ -350,17 +350,17 @@ class StoryParser(private val source: String) {
                 val closing = findClosingQuote(raw, start, end)
                     ?: throw StoryParseException("Unterminated string", span(offset, line, start, end))
                 return if (isCondition) {
-                    StoryExprParser(raw, offset, line, start + 1, closing).parse() to closing + 1
+                    StoryExpressions.parse(raw, offset, line, start + 1, closing) to closing + 1
                 } else {
                     val value = unescape(raw.substring(start + 1, closing))
-                    StoryExpr.Lit(StoryString(value), span(offset, line, start, closing + 1)) to closing + 1
+                    StoryExpressions.literal(StoryString(value), span(offset, line, start, closing + 1)) to closing + 1
                 }
             }
 
             '{' -> {
                 val closing = findClosingBracket(raw, start, end, '{', '}')
                     ?: throw StoryParseException("Unterminated '{'", span(offset, line, start, end))
-                val expr = StoryExprParser(raw, offset, line, start + 1, closing).parse()
+                val expr = StoryExpressions.parse(raw, offset, line, start + 1, closing)
                 return expr to closing + 1
             }
 
@@ -368,7 +368,7 @@ class StoryParser(private val source: String) {
                 val closing = findClosingBracket(raw, start, end, '[', ']')
                     ?: throw StoryParseException("Unterminated '['", span(offset, line, start, end))
                 if (isCondition) {
-                    return StoryExprParser(raw, offset, line, start, closing + 1).parse() to closing + 1
+                    return StoryExpressions.parse(raw, offset, line, start, closing + 1) to closing + 1
                 }
                 return parseArgList(line, offset, raw, start, closing) to closing + 1
             }
@@ -379,27 +379,27 @@ class StoryParser(private val source: String) {
         val token = raw.substring(start, i)
         val tokenSpan = span(offset, line, start, i)
         if (isCondition) {
-            return StoryExprParser(raw, offset, line, start, i).parse() to i
+            return StoryExpressions.parse(raw, offset, line, start, i) to i
         }
         val expr = when {
-            BARE_NUMBER.matches(token) -> StoryExprParser(raw, offset, line, start, i).parse()
-            token == "true" -> StoryExpr.Lit(StoryBool(true), tokenSpan)
-            token == "false" -> StoryExpr.Lit(StoryBool(false), tokenSpan)
-            else -> StoryExpr.Lit(StoryString(token), tokenSpan)
+            BARE_NUMBER.matches(token) -> StoryExpressions.parse(raw, offset, line, start, i)
+            token == "true" -> StoryExpressions.literal(StoryBool(true), tokenSpan)
+            token == "false" -> StoryExpressions.literal(StoryBool(false), tokenSpan)
+            else -> StoryExpressions.literal(StoryString(token), tokenSpan)
         }
         return expr to i
     }
 
     private fun parseDialogue(line: Int, offset: Int, raw: String, start: Int, end: Int): StoryLineKind {
         var speaker: String? = null
-        var speakerExpr: StoryExpr? = null
+        var speakerExpr: StoryExpression? = null
         var speakerSpan: StorySpan? = null
         var textStart = start
 
         if (raw[start] == '{') {
             val closing = findClosingBracket(raw, start, end, '{', '}')
             if (closing != null && closing + 1 < end && raw[closing + 1] == ':') {
-                speakerExpr = StoryExprParser(raw, offset, line, start + 1, closing).parse()
+                speakerExpr = StoryExpressions.parse(raw, offset, line, start + 1, closing)
                 speakerSpan = span(offset, line, start, closing + 1)
                 textStart = closing + 2
                 while (textStart < end && (raw[textStart] == ' ' || raw[textStart] == '\t')) textStart++
@@ -465,7 +465,7 @@ class StoryParser(private val source: String) {
                     val closing = findClosingBracket(raw, i, end, '{', '}')
                         ?: throw StoryParseException("Unterminated '{' in text", span(offset, line, i, end))
                     flushLiteral(i)
-                    val expr = StoryExprParser(raw, offset, line, i + 1, closing).parse()
+                    val expr = StoryExpressions.parse(raw, offset, line, i + 1, closing)
                     parts += TextPart.Interpolation(expr, span(offset, line, i, closing + 1))
                     i = closing + 1
                     literalStart = i

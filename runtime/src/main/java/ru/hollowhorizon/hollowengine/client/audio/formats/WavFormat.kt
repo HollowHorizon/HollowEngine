@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.audio.formats
 
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.audio.*
 import java.io.ByteArrayInputStream
 import java.io.EOFException
@@ -77,7 +77,7 @@ object WavFormat : BinaryReader() {
                 }
             }
         } catch (e: Exception) {
-            HollowCore.LOGGER.warn("Error parsing WAV file structure", e)
+            HollowEngine.LOGGER.warn("Error parsing WAV file structure", e)
         }
 
         if (data == null) {

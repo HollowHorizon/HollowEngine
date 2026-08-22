@@ -30,8 +30,11 @@ sealed interface StoryCompletionContext {
         override val typed: String,
     ) : StoryCompletionContext
 
-    /** Inside an interpolation or an expression, where variables live. */
-    data class Expression(override val typed: String) : StoryCompletionContext
+    /**
+     * Inside an interpolation or an expression, where variables live. [member] is set when the caret
+     * follows a dot, so what belongs there is a member of a value rather than a variable name.
+     */
+    data class Expression(override val typed: String, val member: Boolean = false) : StoryCompletionContext
 }
 
 /**
@@ -43,7 +46,7 @@ fun storyCompletionContext(line: String, caret: Int): StoryCompletionContext {
 
     while (i < end && (line[i] == ' ' || line[i] == '\t')) i++
     if (i >= end || line[i] != '@') {
-        return if (hasOpenBrace(line, i, end)) StoryCompletionContext.Expression(wordBefore(line, end))
+        return if (hasOpenBrace(line, i, end)) expressionContext(line, end)
         else StoryCompletionContext.None
     }
 
@@ -77,7 +80,7 @@ fun storyCompletionContext(line: String, caret: Int): StoryCompletionContext {
 
             line[i] == '{' -> {
                 val closing = skipBracketed(line, i, end, '{', '}')
-                    ?: return StoryCompletionContext.Expression(wordBefore(line, end))
+                    ?: return expressionContext(line, end)
                 i = closing
                 tokenStart = 0
             }
@@ -112,10 +115,13 @@ fun storyCompletionContext(line: String, caret: Int): StoryCompletionContext {
     if (command in LABEL_COMMANDS && (typed.startsWith('#') || parameter == null && positional == 0)) {
         return StoryCompletionContext.Label(typed.removePrefix("#"))
     }
+    if (command in CONDITION_COMMANDS || parameter == "if") return expressionContext(line, end)
+    if (command == "set" && line.indexOf('=').let { it in 0 until end }) return expressionContext(line, end)
     return StoryCompletionContext.Argument(command, parameter, positional, typed)
 }
 
 private val LABEL_COMMANDS = setOf("jump", "call")
+private val CONDITION_COMMANDS = setOf("if", "else-if", "while")
 
 /** True when a `{` before [end] has not been closed, so the caret sits in an expression. */
 private fun hasOpenBrace(line: String, from: Int, end: Int): Boolean {
@@ -162,9 +168,12 @@ private fun skipBracketed(line: String, opening: Int, end: Int, open: Char, clos
     return null
 }
 
-/** The identifier immediately before [end], which is what an expression is completing. */
-private fun wordBefore(line: String, end: Int): String {
+/** The identifier before [end], and whether it follows a dot, which decides what is typed. */
+private fun expressionContext(line: String, end: Int): StoryCompletionContext.Expression {
     var start = end
     while (start > 0 && (line[start - 1].isLetterOrDigit() || line[start - 1] == '_')) start--
-    return line.substring(start, end)
+    return StoryCompletionContext.Expression(
+        typed = line.substring(start, end),
+        member = start > 0 && line[start - 1] == '.',
+    )
 }

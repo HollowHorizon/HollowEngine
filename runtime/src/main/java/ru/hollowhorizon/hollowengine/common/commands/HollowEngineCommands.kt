@@ -57,7 +57,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.utils.*
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
+import ru.hollowhorizon.hollowengine.client.models.bedrock.LivingEntityQuery
 import java.io.File
 import java.util.*
 import kotlin.math.pow

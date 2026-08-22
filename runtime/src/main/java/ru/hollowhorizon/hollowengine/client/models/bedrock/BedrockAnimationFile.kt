@@ -8,9 +8,9 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.FloatExpr
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.FloatVec3Expr
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.parseMolangExpression
+import ru.hollowhorizon.hollowengine.client.models.bedrock.FloatExpr
+import ru.hollowhorizon.hollowengine.client.models.bedrock.FloatVec3Expr
+import ru.hollowhorizon.hollowengine.client.models.bedrock.parseBedrockExpression
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TreeMap
 
@@ -120,26 +120,26 @@ internal object KeyframeSerializer : KSerializer<Keyframe> {
     override fun serialize(encoder: Encoder, value: Keyframe) = throw UnsupportedOperationException()
 
     private fun parse(json: JsonElement): Keyframe = with(json) {
-        fun JsonElement.parseMolangVector(): FloatVec3Expr = if (this is JsonArray) {
+        fun JsonElement.parseVector(): FloatVec3Expr = if (this is JsonArray) {
             if (size == 3) {
                 FloatVec3Expr(
-                    (get(0) as JsonPrimitive).parseMolangExpression(),
-                    (get(1) as JsonPrimitive).parseMolangExpression(),
-                    (get(2) as JsonPrimitive).parseMolangExpression()
+                    (get(0) as JsonPrimitive).parseBedrockExpression(),
+                    (get(1) as JsonPrimitive).parseBedrockExpression(),
+                    (get(2) as JsonPrimitive).parseBedrockExpression()
                 )
             } else {
-                (get(0) as JsonPrimitive).parseMolangExpression().let { FloatVec3Expr(it, it, it) }
+                (get(0) as JsonPrimitive).parseBedrockExpression().let { FloatVec3Expr(it, it, it) }
             }
         } else {
-            (this as JsonPrimitive).parseMolangExpression().let { FloatVec3Expr(it, it, it) }
+            (this as JsonPrimitive).parseBedrockExpression().let { FloatVec3Expr(it, it, it) }
         }
         if (this is JsonObject) {
-            val pre = get("pre")?.parseMolangVector()
-            val post = get("post")!!.parseMolangVector()
+            val pre = get("pre")?.parseVector()
+            val post = get("post")!!.parseVector()
             val smooth = get("lerp_mode")?.jsonPrimitive?.contentOrNull
             Keyframe(pre ?: post, post, smooth ?: "linear")
         } else {
-            parseMolangVector().let { Keyframe(it, it, "linear") }
+            parseVector().let { Keyframe(it, it, "linear") }
         }
     }
 }

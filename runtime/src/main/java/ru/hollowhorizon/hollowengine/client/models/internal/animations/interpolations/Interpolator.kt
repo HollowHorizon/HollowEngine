@@ -1,17 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations
 
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
 
 interface Interpolator<T> {
     val duration: Float
 
-    fun compute(time: Float, context: MolangContext = MolangContext.EMPTY): T
+    fun compute(time: Float, context: BedrockContext = BedrockContext.EMPTY): T
 }
 
 abstract class StaticInterpolator<T>(val keys: FloatArray, val values: Array<T>) : Interpolator<T> {
     override val duration = keys.lastOrNull() ?: 0f
 
-    override fun compute(time: Float, context: MolangContext): T = compute(time)
+    override fun compute(time: Float, context: BedrockContext): T = compute(time)
 
     protected abstract fun compute(time: Float): T
 

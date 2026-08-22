@@ -14,7 +14,7 @@ import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.entityAnimationVariables
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.fillAnimationVariables
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
@@ -79,7 +79,7 @@ object RenderManager {
             attachment.configureAnimator(
                 animator = node.animator,
                 key = animatorKey,
-                context = entityAnimationVariables(record.hostEntity, partialTick),
+                context = AnimatorEvaluationContext().also { fillAnimationVariables(it, record.hostEntity, partialTick) },
             )
             attachment.prepareFrame(if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime)
         }
@@ -116,7 +116,7 @@ object RenderManager {
             attachment.configureAnimator(
                 animator = node.animator,
                 key = AnimatorRuntimeKey(record.snapshotId, node.nodeId, node.model.model),
-                context = entityAnimationVariables(entity, partialTick),
+                context = AnimatorEvaluationContext().also { fillAnimationVariables(it, entity, partialTick) },
             )
             attachment.prepareFrame(if (IrisHelper.isShadowRendering()) 0f else TickHandler.deltaFrameTime)
 

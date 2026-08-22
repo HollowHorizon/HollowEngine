@@ -4,12 +4,11 @@ import ru.hollowhorizon.hollowengine.client.particles.file.BedrockParticleFile
 import ru.hollowhorizon.hollowengine.client.utils.math.bezier
 import ru.hollowhorizon.hollowengine.client.utils.math.catmullRom
 import ru.hollowhorizon.hollowengine.client.utils.math.lerp
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.eval
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Variables
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.Variables
 
 class CurveVariables(
-    private val context: () -> MolangContext,
+    private val context: () -> BedrockContext,
     private val curves: Map<String, BedrockParticleFile.Curve>,
 ) : Variables {
     private var frame = 0
@@ -45,7 +44,7 @@ class CurveVariables(
     }
 }
 
-private fun BedrockParticleFile.Curve.eval(context: MolangContext): Float {
+private fun BedrockParticleFile.Curve.eval(context: BedrockContext): Float {
     val range = range.eval(context)
     val input = input.eval(context) / range
 

@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendAllInDimension
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntity
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
+import ru.hollowhorizon.hollowengine.client.models.bedrock.LivingEntityQuery
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForEntity
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
 import ru.hollowhorizon.hollowengine.common.utils.rl

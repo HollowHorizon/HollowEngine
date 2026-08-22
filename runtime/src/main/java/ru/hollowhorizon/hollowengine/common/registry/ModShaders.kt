@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.registry
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import net.minecraft.client.renderer.ShaderInstance
-import ru.hollowhorizon.hollowengine.HollowCore.MODID
+import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterShadersEvent

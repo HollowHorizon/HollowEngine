@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -145,8 +145,9 @@ class AnimatorRuntimeTests {
         val animator = StandardPlayerAnimatorPreset.create()
         val controller = animator.layers.filterIsInstance<AnimationControllerLayerSpec>().single()
         val procedural = animator.layers.filterIsInstance<ProceduralLayerSpec>().single()
-        val evaluator = AnimationExpressionEvaluator()
-        val context = AnimatorEvaluationContext(
+        val evaluator = AnimatorExpressionEvaluator
+        evaluator.prepareNow(animator)
+        val context = animationContext(
             deltaTime = 0.05f,
             time = 10f,
             values = mapOf(
@@ -210,7 +211,7 @@ class AnimatorRuntimeTests {
             ),
             rootNodes = listOf(node),
             animations = mapOf("wave" to constantTranslationAnimation()),
-            context = AnimatorEvaluationContext(deltaTime = 0.5f, time = 1f),
+            context = animationContext(deltaTime = 0.5f, time = 1f),
         )
 
         assertEquals(0.5f, node.transform.translation.x, 0.0001f)
@@ -229,7 +230,7 @@ class AnimatorRuntimeTests {
             ),
             rootNodes = listOf(node),
             animations = mapOf("wave" to constantTranslationAnimation()),
-            context = AnimatorEvaluationContext(deltaTime = 1.25f, time = 1f),
+            context = animationContext(deltaTime = 1.25f, time = 1f),
         )
 
         assertEquals(0.5f, node.transform.translation.x, 0.0001f)
@@ -266,11 +267,7 @@ class AnimatorRuntimeTests {
             animator = AnimatorComponent(layers = listOf(layer)),
             rootNodes = emptyList(),
             animations = emptyMap(),
-            context = AnimatorEvaluationContext(
-                deltaTime = 0.05f,
-                time = 1f,
-                values = mapOf("is_sprinting" to 1f, "horizontal_speed" to 0.5f),
-            ),
+            context = animationContext(deltaTime = 0.05f, time = 1f, values = mapOf("is_sprinting" to 1f, "horizontal_speed" to 0.5f)),
         )
 
         val state = runtime.stateFor(layer.id)
@@ -280,31 +277,33 @@ class AnimatorRuntimeTests {
 
     @Test
     fun `animation expressions reuse compiled evaluator with changed context`() {
-        val evaluator = AnimationExpressionEvaluator()
+        val evaluator = AnimatorExpressionEvaluator
         val expression = AnimationExpression("horizontal_speed > 0.02 && is_sprinting != 0.0")
+        evaluator.prepareNow(listOf(expression.source))
 
         assertTrue(
             evaluator.boolean(
                 expression,
-                AnimatorEvaluationContext( 0.05f, 1f, mapOf("horizontal_speed" to 0.12f, "is_sprinting" to 1f)),
+                animationContext(deltaTime = 0.05f, time = 1f, values = mapOf("horizontal_speed" to 0.12f, "is_sprinting" to 1f)),
             )
         )
         assertFalse(
             evaluator.boolean(
                 expression,
-                AnimatorEvaluationContext( 0.05f, 2f, mapOf("horizontal_speed" to 0.0f, "is_sprinting" to 1f)),
+                animationContext(deltaTime = 0.05f, time = 2f, values = mapOf("horizontal_speed" to 0.0f, "is_sprinting" to 1f)),
             )
         )
     }
 
     @Test
     fun `animation expressions can use game time for fade out`() {
-        val evaluator = AnimationExpressionEvaluator()
+        val evaluator = AnimatorExpressionEvaluator
         val expression = AnimationExpression("clamp(1 - (game_time - 10) / 40.0, 0, 1)")
+        evaluator.prepareNow(listOf(expression.source))
 
         assertEquals(
             0.5f,
-            evaluator.float(expression, AnimatorEvaluationContext( 0.05f, 1f, mapOf("game_time" to 30f))),
+            evaluator.float(expression, animationContext(deltaTime = 0.05f, time = 1f, values = mapOf("game_time" to 30f))),
             0.0001f,
         )
     }
@@ -413,5 +412,24 @@ private class ConstantVec3fInterpolator(
     private val value: Vec3f,
     override val duration: Float,
 ) : Interpolator<Vec3f> {
-    override fun compute(time: Float, context: MolangContext): Vec3f = value
+    override fun compute(time: Float, context: BedrockContext): Vec3f = value
+}
+
+/**
+ * A context with the given values pinned. Names that would normally come off an entity fall back to
+ * these, which is also how a model preview drives its animations without an entity in the world.
+ */
+private fun animationContext(
+    deltaTime: Float = 0f,
+    time: Float = 0f,
+    values: Map<String, Float> = emptyMap(),
+) = AnimatorEvaluationContext().also { context ->
+    context.deltaTime = deltaTime
+    context.time = time
+    context.gameTime = values["game_time"] ?: time
+    context.horizontalSpeed = values["horizontal_speed"] ?: 0f
+    context.signedHorizontalSpeed = values["movement_animation_speed"] ?: 0f
+    context.headBodyYawDelta = values["head_body_y_delta"] ?: 0f
+    context.headPitch = values["head_x_rotation"] ?: 0f
+    context.variables.putAll(values)
 }

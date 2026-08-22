@@ -18,7 +18,7 @@ import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryAnchor
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryArg
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryCall
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryEvalException
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpr
+import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryExpression
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryFunctionSignature
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryInstruction
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryParam
@@ -28,7 +28,6 @@ import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryType
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.StoryTarget
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextPart
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.TextTemplate
-import ru.hollowhorizon.hollowengine.common.dialogue.lang.evaluate
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -768,7 +767,7 @@ class DialogueController(
         return Frame(destinationAddress, pc)
     }
 
-    internal fun evaluate(expr: StoryExpr): StoryValue = try {
+    internal fun evaluate(expr: StoryExpression): StoryValue = try {
         expr.evaluate(::lookup)
     } catch (e: StoryEvalException) {
         throw StoryRuntimeException("${e.message} (line ${e.span.line + 1})", e)

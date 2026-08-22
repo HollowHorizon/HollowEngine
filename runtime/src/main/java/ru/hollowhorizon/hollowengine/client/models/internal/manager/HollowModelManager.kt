@@ -17,7 +17,6 @@ import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL12
 import org.lwjgl.opengl.GL20
 import org.lwjgl.opengl.GL30
-import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
@@ -229,9 +228,9 @@ object HollowModelManager :
 
 
 
-        textureManager.register("${HollowCore.MODID}:default_color_map".rl, GlTexture(defaultColorMap))
-        textureManager.register("${HollowCore.MODID}:default_normal_map".rl, GlTexture(defaultNormalMap))
-        textureManager.register("${HollowCore.MODID}:default_specular_map".rl, GlTexture(defaultSpecularMap))
+        textureManager.register("${HollowEngine.MODID}:default_color_map".rl, GlTexture(defaultColorMap))
+        textureManager.register("${HollowEngine.MODID}:default_normal_map".rl, GlTexture(defaultNormalMap))
+        textureManager.register("${HollowEngine.MODID}:default_specular_map".rl, GlTexture(defaultSpecularMap))
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, currentTexture)
 

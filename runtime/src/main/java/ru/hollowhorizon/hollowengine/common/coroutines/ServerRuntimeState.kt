@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.coroutines
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
@@ -43,7 +43,7 @@ object ServerRuntimeState {
                 }
             }
         } catch (exception: Exception) {
-            HollowCore.LOGGER.error("Failed to load HollowEngine server runtime from {}", state.runtimePath, exception)
+            HollowEngine.LOGGER.error("Failed to load HollowEngine server runtime from {}", state.runtimePath, exception)
         }
     }
 
@@ -62,7 +62,7 @@ object ServerRuntimeState {
             state.runtimeContext.serialize(tag)
             Files.newOutputStream(state.runtimePath).use { stream -> tag.save(stream) }
         } catch (exception: Exception) {
-            HollowCore.LOGGER.error("Failed to save HollowEngine server runtime to {}", state.runtimePath, exception)
+            HollowEngine.LOGGER.error("Failed to save HollowEngine server runtime to {}", state.runtimePath, exception)
         }
     }
 

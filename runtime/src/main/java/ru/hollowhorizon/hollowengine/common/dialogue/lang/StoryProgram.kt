@@ -51,7 +51,7 @@ sealed interface StoryInstruction {
         val speaker: String?,
         val text: TextTemplate,
         override val anchor: StoryAnchor,
-        val speakerExpr: StoryExpr? = null,
+        val speakerExpr: StoryExpression? = null,
     ) : StoryInstruction
 
     /**
@@ -64,12 +64,12 @@ sealed interface StoryInstruction {
         override val anchor: StoryAnchor,
     ) : StoryInstruction
 
-    data class Set(val variable: String, val value: StoryExpr, override val anchor: StoryAnchor) : StoryInstruction
+    data class Set(val variable: String, val value: StoryExpression, override val anchor: StoryAnchor) : StoryInstruction
 
     /** Internal control flow produced by `@if`/`@while`/choice bodies. */
     data class Goto(val target: Int, override val anchor: StoryAnchor) : StoryInstruction
 
-    data class GotoIfFalse(val condition: StoryExpr, val target: Int, override val anchor: StoryAnchor) : StoryInstruction
+    data class GotoIfFalse(val condition: StoryExpression, val target: Int, override val anchor: StoryAnchor) : StoryInstruction
 
     /** `@jump` replaces the whole frame stack. */
     data class Jump(val target: StoryTarget, override val anchor: StoryAnchor) : StoryInstruction
@@ -112,7 +112,7 @@ sealed interface StoryInstruction {
 data class MenuOption(
     val id: String?,
     val text: TextTemplate,
-    val condition: StoryExpr?,
+    val condition: StoryExpression?,
     val args: List<StoryArg>,
     val bodyStart: Int,
     val line: Int,
@@ -127,6 +127,6 @@ data class StoryCall(
     val function: String,
     val args: List<StoryArg>,
     val tag: String?,
-    val metadata: Map<String, StoryExpr>,
+    val metadata: Map<String, StoryExpression>,
     val span: StorySpan,
 )

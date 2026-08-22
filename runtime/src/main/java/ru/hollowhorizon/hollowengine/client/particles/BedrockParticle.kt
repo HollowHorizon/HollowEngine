@@ -12,12 +12,11 @@ import ru.hollowhorizon.hollowengine.client.utils.uv2
 import ru.hollowhorizon.hollowengine.client.utils.vertex
 import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.math.*
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.FloatExpr
-import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.eval
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Query
-import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.VariablesMap
+import ru.hollowhorizon.hollowengine.client.models.bedrock.FloatExpr
+import ru.hollowhorizon.hollowengine.client.models.bedrock.LivingEntityQuery
+import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
+import ru.hollowhorizon.hollowengine.client.models.bedrock.Query
+import ru.hollowhorizon.hollowengine.client.models.bedrock.VariablesMap
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.sqrt
@@ -27,9 +26,9 @@ class BedrockParticle(
     val localSpace: Transform?,
 ) {
     private val components = emitter.effect.components
-    private val curveVariables = CurveVariables({ molang }, emitter.effect.curves)
+    private val curveVariables = CurveVariables({ context }, emitter.effect.curves)
     private val variables = VariablesMap().fallbackBackTo(curveVariables).fallbackBackTo(emitter.context.variables)
-    private val molang: MolangContext = MolangContext(Query.EMPTY, variables)
+    private val context: BedrockContext = BedrockContext(Query.EMPTY, variables)
 
     private var firedCreationEvents = false
     private var firedExpirationEvents = false
@@ -42,7 +41,7 @@ class BedrockParticle(
         for (i in 1..4) variables["particle_random_$i"] = emitter.system.random.nextFloat()
 
         age = 0f
-        lifetime = components.particleLifetimeExpression?.maxLifetime?.eval(molang) ?: 0f
+        lifetime = components.particleLifetimeExpression?.maxLifetime?.eval(context) ?: 0f
         nextTimelineEvent = components.particleLifetimeEvents.timeline.lowestEntry()
     }
 
@@ -59,8 +58,8 @@ class BedrockParticle(
 
     val emitterRotationOnEmit = emitter.rotation
 
-    var rotationAngle = components.particleInitialSpin?.rotation?.eval(molang) ?: 0f
-    var rotationRate = components.particleInitialSpin?.rotationRate?.eval(molang) ?: 0f
+    var rotationAngle = components.particleInitialSpin?.rotation?.eval(context) ?: 0f
+    var rotationRate = components.particleInitialSpin?.rotationRate?.eval(context) ?: 0f
 
     var billboardPosition = Vec3f.ZERO
     var billboardRotation = QuatF.IDENTITY
@@ -74,13 +73,13 @@ class BedrockParticle(
         fun ParticleComponents.Direction.computeFor(point: Vec3f): Vec3f = when (this) {
             ParticleComponents.Direction.Inwards -> point.times(-1f)
             ParticleComponents.Direction.Outwards -> point
-            is ParticleComponents.Direction.Custom -> vec.eval(molang)
+            is ParticleComponents.Direction.Custom -> vec.eval(context)
         }
 
         val random = emitter.system.random
 
         components.emitterShapePoint?.let { config ->
-            pos = config.offset.eval(molang)
+            pos = config.offset.eval(context)
 
             val vec = createShape(random)
 
@@ -106,8 +105,8 @@ class BedrockParticle(
                 }
             }
 
-            point.mul(config.halfDimensions.eval(molang))
-            pos = config.offset.eval(molang).add(point, MutableVec3f())
+            point.mul(config.halfDimensions.eval(context))
+            pos = config.offset.eval(context).add(point, MutableVec3f())
             dir = config.direction.computeFor(point)
         }
 
@@ -116,14 +115,14 @@ class BedrockParticle(
 
             if (config.surfaceOnly) vec.norm()
 
-            vec.mul(config.radius.eval(molang))
-            pos = config.offset.eval(molang).add(vec, MutableVec3f())
+            vec.mul(config.radius.eval(context))
+            pos = config.offset.eval(context).add(vec, MutableVec3f())
             dir = config.direction.computeFor(vec)
         }
 
         components.emitterShapeDisc?.let { config ->
-            val radius = config.radius.eval(molang)
-            val normal = config.planeNormal.eval(molang).normed()
+            val radius = config.radius.eval(context)
+            val normal = config.planeNormal.eval(context).normed()
 
             var vec = MutableVec3f(1f, 0f, 0f)
             if (vec.dot(normal).absoluteValue > 0.9) vec.set(0f, 1f, 0f)
@@ -132,7 +131,7 @@ class BedrockParticle(
             vec.rotateSelfBy(QuatF.rotation((random.nextFloat() * 2f * Mth.PI).rad, normal))
             vec.mul(radius * if (config.surfaceOnly) 1f else sqrt(random.nextFloat()))
 
-            pos = config.offset.eval(molang).add(vec, MutableVec3f())
+            pos = config.offset.eval(context).add(vec, MutableVec3f())
             dir = config.direction.computeFor(vec)
         }
 
@@ -149,7 +148,7 @@ class BedrockParticle(
 
         position.set(pos)
         direction.set(dir).norm()
-        velocity.set(direction).mul(components.particleInitialSpeed.eval(molang))
+        velocity.set(direction).mul(components.particleInitialSpeed.eval(context))
 
         if (!inheritVelocity && components.emitterLocalSpace?.velocity != true) return
 
@@ -192,25 +191,25 @@ class BedrockParticle(
         if (age >= lifetime) return false
 
         components.particleLifetimeExpression?.let { config ->
-            if (config.expirationExpression.eval(molang) != 0f) return false
+            if (config.expirationExpression.eval(context) != 0f) return false
         }
 
         components.particleMotionParametric?.let { config ->
-            position.set(config.relativePosition.eval(molang))
-            rotationAngle = config.rotation.eval(molang)
+            position.set(config.relativePosition.eval(context))
+            rotationAngle = config.rotation.eval(context)
             if (config.direction != null) {
-                direction.set(config.direction.eval(molang))
+                direction.set(config.direction.eval(context))
                 velocity.set(Vec3f.ZERO)
             }
         }
 
         components.particleMotionDynamic?.let { config ->
-            var linearAcceleration = config.linearAcceleration.eval(molang)
-            linearAcceleration = linearAcceleration.add(Vec3f(velocity).mul(-config.linearDragCoefficient.eval(molang), MutableVec3f()), MutableVec3f())
+            var linearAcceleration = config.linearAcceleration.eval(context)
+            linearAcceleration = linearAcceleration.add(Vec3f(velocity).mul(-config.linearDragCoefficient.eval(context), MutableVec3f()), MutableVec3f())
             if (!move(dt, linearAcceleration)) return false
 
-            var rotAcceleration = config.rotationAcceleration.eval(molang)
-            rotAcceleration -= rotationRate * config.rotationDragCoefficient.eval(molang)
+            var rotAcceleration = config.rotationAcceleration.eval(context)
+            rotAcceleration -= rotationRate * config.rotationDragCoefficient.eval(context)
             rotAcceleration *= dt
             var deltaRotation = rotationRate
             rotationRate += rotAcceleration
@@ -321,7 +320,7 @@ class BedrockParticle(
         fun computeDirection(): Vec3f {
             val localDirection = when (val config = appearance.direction) {
                 is ParticleComponents.ParticleBillboard.Direction.FromVelocity -> direction
-                is ParticleComponents.ParticleBillboard.Direction.Custom -> config.direction.eval(molang)
+                is ParticleComponents.ParticleBillboard.Direction.Custom -> config.direction.eval(context)
             }
             return if (localSpace != null) localDirection.rotateBy(localSpace.rotation)
             else localDirection
@@ -393,15 +392,15 @@ class BedrockParticle(
 
         val appearance = components.particleAppearanceBillboard ?: throw UnsupportedOperationException()
 
-        components.particleInitialization?.perRenderExpression?.eval(molang)
+        components.particleInitialization?.perRenderExpression?.eval(context)
 
         val position = billboardPosition
         val rotation = billboardRotation
-        val size = appearance.size.eval(molang)
+        val size = appearance.size.eval(context)
         val sizeX = size.x
         val sizeY = size.y
         val textureSize = Vec2f(appearance.uv.textureWidth.toFloat(), appearance.uv.textureHeight.toFloat())
-        val color = components.particleAppearanceTinting?.color?.eval(molang) ?: Color.WHITE
+        val color = components.particleAppearanceTinting?.color?.eval(context) ?: Color.WHITE
         val light = if (components.particleAppearanceLighting != null) {
             emitter.system.lightProvider.query(position)
         } else {
@@ -413,10 +412,10 @@ class BedrockParticle(
 
         val flipbook = appearance.uv.flipbook
         if (flipbook != null) {
-            val base = flipbook.base.eval(molang)
+            val base = flipbook.base.eval(context)
             val size = flipbook.size.toVec2()
             val step = flipbook.step.toVec2()
-            val maxFrame = flipbook.maxFrame.eval(molang).toInt()
+            val maxFrame = flipbook.maxFrame.eval(context).toInt()
             val timePerFrame = if (flipbook.stretchToLifetime) {
                 lifetime / maxFrame
             } else {
@@ -432,8 +431,8 @@ class BedrockParticle(
             minUV = base.add(MutableVec2f(step).mul(frame.toFloat()), MutableVec2f())
             maxUV = MutableVec2f(minUV).add(size)
         } else {
-            val base = appearance.uv.uv?.eval(molang) ?: Vec2f.ZERO
-            val size = appearance.uv.uvSize?.eval(molang) ?: textureSize
+            val base = appearance.uv.uv?.eval(context) ?: Vec2f.ZERO
+            val size = appearance.uv.uvSize?.eval(context) ?: textureSize
             minUV = base
             maxUV = MutableVec2f(minUV).add(size)
         }
@@ -481,5 +480,5 @@ private fun reflect(vec: Vec3f, norm: Vec3f) = vec.add(MutableVec3f(norm).mul(-2
 
 private fun Pair<Float, Float>.toVec2() = Vec2f(first, second)
 
-private fun Pair<FloatExpr, FloatExpr>.eval(context: MolangContext) =
+private fun Pair<FloatExpr, FloatExpr>.eval(context: BedrockContext) =
     Vec2f(first.eval(context), second.eval(context))

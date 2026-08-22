@@ -5,7 +5,7 @@ import net.minecraft.core.Registry
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.CreativeModeTab
 import net.minecraft.world.item.Items
-import ru.hollowhorizon.hollowengine.HollowCore.MODID
+import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.api.AutoModelType
 import ru.hollowhorizon.hollowengine.api.RegistryHolder
 import ru.hollowhorizon.hollowengine.common.utils.HollowCreativeTab

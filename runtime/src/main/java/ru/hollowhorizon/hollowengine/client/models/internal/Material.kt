@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -16,8 +16,8 @@ data class Material(
     enum class Blend { OPAQUE, BLEND }
 
     companion object {
-        val MISSING_TEXTURE = "${HollowCore.MODID}:default_color_map".rl
-        val MISSING_NORMAL = "${HollowCore.MODID}:default_normal_map".rl
-        val MISSING_SPECULAR = "${HollowCore.MODID}:default_specular_map".rl
+        val MISSING_TEXTURE = "$MODID:default_color_map".rl
+        val MISSING_NORMAL = "$MODID:default_normal_map".rl
+        val MISSING_SPECULAR = "$MODID:default_specular_map".rl
     }
 }

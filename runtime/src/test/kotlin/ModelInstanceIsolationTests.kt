@@ -93,7 +93,7 @@ class ModelInstanceIsolationTests {
                 )
             ),
             key = null,
-            context = AnimatorEvaluationContext(deltaTime = 0f, time = 0f),
+            context = AnimatorEvaluationContext().also { it.deltaTime = 0f; it.time = 0f },
         )
 
         repeat(60) { frame ->

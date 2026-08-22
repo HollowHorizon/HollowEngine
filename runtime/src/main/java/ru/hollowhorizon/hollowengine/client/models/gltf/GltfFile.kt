@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.gltf
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
@@ -83,7 +83,7 @@ private fun loadGlb(data: Uint8Buffer): GltfFile {
         error("Unexpected glTF magic number: $magic (should be ${GltfFile.GLB_FILE_MAGIC} / 'glTF')")
     }
     if (version != 2) {
-        HollowCore.LOGGER.warn("Unexpected glTF version: $version (should be 2) - stuff might not work as expected")
+        HollowEngine.LOGGER.warn("Unexpected glTF version: $version (should be 2) - stuff might not work as expected")
     }
 
     var chunkLen = str.readUInt()
@@ -101,7 +101,7 @@ private fun loadGlb(data: Uint8Buffer): GltfFile {
         if (chunkType == GltfFile.GLB_CHUNK_MAGIC_BIN) {
             model.buffers[iChunk - 1].data = str.readData(chunkLen)
         } else {
-            HollowCore.LOGGER.warn("Unexpected chunk type for chunk $iChunk: $chunkType (should be ${GltfFile.GLB_CHUNK_MAGIC_BIN} / ' BIN')")
+            HollowEngine.LOGGER.warn("Unexpected chunk type for chunk $iChunk: $chunkType (should be ${GltfFile.GLB_CHUNK_MAGIC_BIN} / ' BIN')")
             str.index += chunkLen
         }
         iChunk++

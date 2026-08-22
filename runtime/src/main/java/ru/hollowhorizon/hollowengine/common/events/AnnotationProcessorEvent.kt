@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import java.lang.reflect.Method
 
@@ -20,7 +20,7 @@ class AnnotationProcessorEvent(
 
     inline fun <reified T> registerClassInitializers() {
         getSubTypes(T::class.java).forEach {
-            HollowCore.LOGGER.info("Registering initializer: ${it.simpleName}")
+            HollowEngine.LOGGER.info("Registering initializer: ${it.simpleName}")
             it.kotlin.objectInstance ?: throw IllegalArgumentException("${T::class.java.simpleName} must be an object!")
         }
     }
