@@ -146,6 +146,22 @@ internal class HollowIdeModel(
         }
     }
 
+    fun openVirtual(path: String, typeId: String, bytes: ByteArray): HollowIdeOpenResult {
+        files[path]?.let { opened ->
+            if (!opened.dirty) opened.refresh(bytes)
+            return HollowIdeOpenResult.File(opened, created = false)
+        }
+        val type = fileTypes.find(typeId) ?: return HollowIdeOpenResult.Unsupported
+        val opened = runCatching { type.open(path, bytes) }.getOrNull()
+            ?: return HollowIdeOpenResult.Unsupported
+        if (!opened.readOnly) {
+            opened.close()
+            return HollowIdeOpenResult.Unsupported
+        }
+        files[path] = opened
+        return HollowIdeOpenResult.File(opened, created = true)
+    }
+
     fun updateText(path: String, text: String) {
         val file = files[path]?.takeUnless { it.readOnly } ?: return
         file.update(text)
@@ -354,6 +370,7 @@ class HollowIdeOpenFile internal constructor(
     private var saveHandler: (() -> Boolean)? = null
 
     val readOnly: Boolean get() = document.readOnly
+    val virtual: Boolean get() = path.startsWith("resource://")
     val text: String get() = requireNotNull(textOrNull) { "File '$path' is not a text document" }
     internal val textOrNull: String? get() = (document as? HollowIdeTextDocument)?.text
     val id: String = fileDockItemId(path)
@@ -496,6 +513,7 @@ internal class HollowIdeFileTree {
     private val root = HollowIdeFileNode("HollowEngine", "", depth = 0, isDirectory = true).apply {
         expanded = true
     }
+    private var searchRoot: HollowIdeFileNode? = null
 
     init {
         refresh()
@@ -503,10 +521,11 @@ internal class HollowIdeFileTree {
 
     fun refresh() {
         root.refresh(root.expandedPaths())
+        searchRoot = null
     }
 
     fun toggle(path: String) {
-        val node = root.find(path) ?: return
+        val node = root.resolve(path) ?: return
         if (!node.isDirectory) return
         node.expanded = !node.expanded
         if (node.expanded) node.refresh()
@@ -529,7 +548,9 @@ internal class HollowIdeFileTree {
 
     fun visible(filter: String): List<HollowIdeFileNode> {
         val cleanFilter = filter.trim()
-        return root.visible(cleanFilter)
+        if (cleanFilter.isEmpty()) return root.visible("")
+        val searchable = searchRoot ?: root.searchSnapshot().also { searchRoot = it }
+        return searchable.visible(cleanFilter)
     }
 }
 
@@ -565,6 +586,31 @@ internal class HollowIdeFileNode(
     fun find(targetPath: String): HollowIdeFileNode? {
         if (path == targetPath) return this
         return children.firstNotNullOfOrNull { it.find(targetPath) }
+    }
+
+    fun resolve(targetPath: String): HollowIdeFileNode? {
+        if (targetPath.isEmpty()) return this
+        var node = this
+        var currentPath = ""
+        for (segment in targetPath.split('/').filter(String::isNotEmpty)) {
+            currentPath = if (currentPath.isEmpty()) segment else "$currentPath/$segment"
+            if (node.isDirectory && node.children.none { it.path == currentPath }) node.refresh()
+            node = node.children.firstOrNull { it.path == currentPath } ?: return null
+        }
+        return node
+    }
+
+    fun searchSnapshot(): HollowIdeFileNode = HollowIdeFileNode(name, path, depth, isDirectory).also { snapshot ->
+        snapshot.expanded = expanded
+        snapshot.refreshRecursively()
+    }
+
+    private fun refreshRecursively() {
+        refresh()
+        children.asSequence()
+            .filter(HollowIdeFileNode::isDirectory)
+            .filterNot { Files.isSymbolicLink(it.path.fromReadablePath().toPath()) }
+            .forEach(HollowIdeFileNode::refreshRecursively)
     }
 
     fun visible(filter: String): List<HollowIdeFileNode> {

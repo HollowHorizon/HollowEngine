@@ -300,3 +300,13 @@
     font-size: 11px;
     padding: 2px 4px;
 }
+.vanilla-model-error {
+    max-width: 420px;
+    height: fit;
+    padding: 5px 8px;
+    align: center end;
+    foreground: #ff8787;
+    background: rgba(36, 39, 46, 0.88);
+    border: 1px rgba(255, 135, 135, 0.45);
+    border-radius: 4px;
+}

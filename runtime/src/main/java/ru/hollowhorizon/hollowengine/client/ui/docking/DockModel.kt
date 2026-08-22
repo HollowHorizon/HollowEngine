@@ -112,6 +112,21 @@ internal fun DockNode.findStackWithItem(itemId: String): DockNode.Stack? {
     }
 }
 
+internal fun DockNode.findSplitSeparating(firstItemId: String, secondItemId: String): DockNode.Split? {
+    if (this is DockNode.Stack) return null
+    this as DockNode.Split
+
+    val firstHasFirst = first.containsItem(firstItemId)
+    val firstHasSecond = first.containsItem(secondItemId)
+    if (firstHasFirst && firstHasSecond) return first.findSplitSeparating(firstItemId, secondItemId)
+
+    val secondHasFirst = second.containsItem(firstItemId)
+    val secondHasSecond = second.containsItem(secondItemId)
+    if (secondHasFirst && secondHasSecond) return second.findSplitSeparating(firstItemId, secondItemId)
+
+    return takeIf { (firstHasFirst && secondHasSecond) || (firstHasSecond && secondHasFirst) }
+}
+
 internal fun DockNode.containsItem(itemId: String): Boolean {
     return findStackWithItem(itemId) != null
 }

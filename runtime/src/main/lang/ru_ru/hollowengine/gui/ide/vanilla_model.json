@@ -1,0 +1,11 @@
+{
+  "reference_grid": "Опорная сетка",
+  "auto_rotate": "Автовращение",
+  "reload": "Перезагрузить модель",
+  "error.builtin_renderer": "Модель использует встроенный рендерер и не содержит запечённой геометрии.",
+  "error.load_failed": "Не удалось загрузить модель %s.",
+  "error.not_json_model": "%s не является JSON-моделью Minecraft.",
+  "error.empty_baked_model": "Модель %s не создала запечённую геометрию.",
+  "error.missing_model": "Модель %s отсутствует.",
+  "error.invalid_asset_path": "Некорректный путь к ассету: %s"
+}

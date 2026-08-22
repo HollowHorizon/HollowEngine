@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
+import ru.hollowhorizon.hollowengine.client.ui.ide.asset.AssetManagerLang
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownSlider
@@ -69,6 +70,24 @@ internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState)
                 dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon))
             }
             dock.focus(ProjectTreeId)
+        },
+        UiDropdownItem(AssetManagerLang.TITLE.lang, AssetManagerIcon) {
+            if (!dock.contains(AssetManagerId)) {
+                val anchor = ProjectTreeId.takeIf(dock::contains)
+                    ?: model.files.values.firstOrNull { dock.contains(it.id) }?.id
+                dock.open(
+                    DockItem(
+                        AssetManagerId,
+                        AssetManagerLang.TITLE.lang,
+                        AssetManagerIcon,
+                        closable = true,
+                        minWidth = 520f,
+                        minHeight = 260f,
+                    ),
+                    DockTarget(anchor, DockPlacement.RIGHT),
+                )
+            }
+            dock.focus(AssetManagerId)
         },
         UiDropdownItem("hollowengine.gui.ide.console".lang, ConsoleIcon) {
             if (!dock.contains(ConsoleId)) {

@@ -18,7 +18,7 @@ internal fun textHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "text-overflow",
-        summary = "What happens to text that does not fit.",
+        summary = "What happens to text that does not fit; inherited by children.",
         syntax = syntax(keywordSlot("overflow", "show", "hidden", "dots")),
     ) { style { it.textOverflow = parseTextOverflow(value) } }
 

@@ -16,6 +16,7 @@ import kotlin.math.roundToInt
 internal class HollowIdeImageDocument(
     path: String,
     bytes: ByteArray,
+    override val readOnly: Boolean = false,
 ) : HollowIdeFileDocument {
     private val format = ImageFileFormat.fromPath(path)
     private var image = NativeImage.read(bytes)
@@ -33,8 +34,6 @@ internal class HollowIdeImageDocument(
     val canUndo: Boolean get() = history.canUndo
     val canRedo: Boolean get() = history.canRedo
     val isModified: Boolean get() = history.isModified
-    override val readOnly: Boolean = false
-
     fun beginEdit() = HollowIdeImageEdit()
 
     fun colorAt(x: Int, y: Int): UiColor? {

@@ -313,6 +313,7 @@ internal fun computeEditableFieldLayout(
     val reusable = previous?.takeIf {
         it.fontSize == fontSize && it.fontFamily == fontFamily && it.layoutWidth == layoutWidth && it.inlayRevision == inlayRevision
     }?.reusableLineLayouts()
+    val deferPlainLines = !wrapping && highlights.isEmpty() && inlayHints.isEmpty()
     var maxWidth = 0f
     var y = 0f
 
@@ -328,7 +329,7 @@ internal fun computeEditableFieldLayout(
 
         val input = EditableFieldLineInput(line.text, localHighlights, localInlays)
         lineInputs[index] = input
-        val layout = reusable?.get(input) ?: run {
+        val layout = if (deferPlainLines) null else reusable?.get(input) ?: run {
             val richText = line.text.toHighlightedRichText(
                 highlights = localHighlights,
                 inlayHints = localInlays,
@@ -346,8 +347,11 @@ internal fun computeEditableFieldLayout(
             )
         }
         layouts[index] = layout
-        maxWidth = maxOf(maxWidth, layout.maxNaturalLineWidth)
-        y += maxOf(layout.height, uniformHeight)
+        maxWidth = maxOf(
+            maxWidth,
+            layout?.maxNaturalLineWidth ?: UiTextLayouter.measureTextWidth(line.text, fontSize, fontFamily),
+        )
+        y += maxOf(layout?.height ?: uniformHeight, uniformHeight)
     }
 
     offsets[lines.size] = y
@@ -941,6 +945,14 @@ private fun EditableFieldRow(
     if (lineLayout != null) {
         EditableFieldLineFragments(
             lineLayout, layout, top, fontSize, fontFamily, state.textShadow, inlayMetrics, onInlayAction,
+        )
+    } else if (line.text.isNotEmpty()) {
+        val effects = listOfNotNull(state.textShadow)
+        Text(
+            line.text,
+            modifier = Modifier.position(0.px, top.px).fontSize(fontSize)
+                .let { if (fontFamily != null) it.fontFamily(fontFamily) else it }
+                .textEffects(*effects.toTypedArray()).textWrap(false),
         )
     }
 

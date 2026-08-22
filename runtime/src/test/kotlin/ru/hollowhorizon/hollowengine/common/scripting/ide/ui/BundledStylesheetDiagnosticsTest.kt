@@ -9,6 +9,7 @@ import kotlin.test.assertEquals
  */
 class BundledStylesheetDiagnosticsTest {
     private val stylesheets = listOf(
+        "asset-manager.hss",
         "docking.hss",
         "ide.hss",
         "image-editor.hss",

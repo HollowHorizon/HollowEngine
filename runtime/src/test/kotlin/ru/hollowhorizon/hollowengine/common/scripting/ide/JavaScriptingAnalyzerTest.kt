@@ -24,4 +24,11 @@ class JavaScriptingAnalyzerTest {
         assertTrue(lines.take(3).all { line -> line.spans.all { it.second.color == TokenType.COMMENT } })
         assertTrue(lines.last().spans.any { (text, style) -> text == "private" && style.color == TokenType.KEYWORD })
     }
+
+    @Test
+    fun `plain text analyzer does not allocate default spans for the whole document`() {
+        val source = (0 until 12_000).joinToString("\n") { "say line_$it" }
+
+        assertTrue(PlainTextScriptingAnalyzer.highlight("functions/large.mcfunction", source, 0).isEmpty())
+    }
 }

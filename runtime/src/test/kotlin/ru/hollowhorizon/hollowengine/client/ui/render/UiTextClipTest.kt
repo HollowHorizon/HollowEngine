@@ -1,7 +1,24 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.client.ui.BoxNode
+import ru.hollowhorizon.hollowengine.client.ui.DrawTextCommand
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.SpanNode
+import ru.hollowhorizon.hollowengine.client.ui.TestFontFamily
+import ru.hollowhorizon.hollowengine.client.ui.UiCommandRenderer
+import ru.hollowhorizon.hollowengine.client.ui.UiMeasurePolicies
+import ru.hollowhorizon.hollowengine.client.ui.fontFamily
+import ru.hollowhorizon.hollowengine.client.ui.fontSize
+import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.size
+import ru.hollowhorizon.hollowengine.client.ui.textOverflow
+import ru.hollowhorizon.hollowengine.client.ui.textWrap
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
+import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -21,5 +38,32 @@ class UiTextClipTest {
     @Test
     fun `show overflow never clips`() {
         assertFalse(requiresTextClip(UiTextOverflow.SHOW, 120f, 40f, 100f, 30f, 1f, 1f))
+    }
+
+    @Test
+    fun `overflow on a Text container reaches its span and produces dots`() {
+        val span = SpanNode("a_very_long_asset_name.json")
+        val text = BoxNode(
+            measurePolicy = UiMeasurePolicies.InlineFlow,
+            modifiers = listOf(
+                Modifier.size(40.px, 12.px).fontFamily(TestFontFamily).fontSize(10f)
+                    .textWrap(false).textOverflow(UiTextOverflow.DOTS),
+            ),
+        ).also { node ->
+            node.children += span
+            span.layoutState.attachTo(node)
+        }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { node ->
+            node.children += text
+            text.layoutState.attachTo(node)
+        }
+        UiModifierResolver().resolve(root, animate = false)
+        val layout = UiLayoutPipeline().compute(root, 100f, 100f, UiScrollState())
+        val command = UiCommandRenderer().collect(root, layout).filterIsInstance<DrawTextCommand>().single()
+
+        assertEquals(UiTextOverflow.DOTS, command.overflow)
+        assertEquals(40f, command.rect.width, 0.5f)
+        val displayed = UiTextOverflowResolver.ellipsizeLine(command, command.layout.lines.single())
+        assertTrue(displayed.text.endsWith("..."), "overflow result was '${displayed.text}'")
     }
 }

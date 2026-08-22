@@ -672,11 +672,18 @@ internal fun UiLayoutPipeline.placeInlineFlowChildren(scope: ChildPlacementScope
         inlineFlowChildLayouts[node].orEmpty()
     }
 
+    val singleSpan = node.children.singleOrNull() as? SpanNode
     for (placement in directChildren) {
         val target = placement.node
         if (target is SpanNode) target.lineLayout = placement.textLayout
         (target as? BaseUiNode)?.inlineDecoration = placement.decoration
-        placeScopedNode(scope, target, placement.rect)
+        val rect = if (target === singleSpan && scope.style.textOverflow != UiTextOverflow.SHOW) {
+            val remainingWidth = scope.content.x + scope.content.width - placement.rect.x
+            placement.rect.copy(width = minOf(placement.rect.width, remainingWidth.coerceAtLeast(0f)))
+        } else {
+            placement.rect
+        }
+        placeScopedNode(scope, target, rect)
     }
 }
 

@@ -94,12 +94,14 @@ object HollowIdeStandardFileActions {
             id = RevealId,
             label = "Select in Project View",
             icon = ProjectIcon,
+            isVisible = { !it.file.virtual },
             run = { it.revealInProjectView() },
         ),
         HollowIdeFileAction(
             id = ShowInExplorerId,
             label = "Show in Explorer",
             icon = FolderIcon,
+            isVisible = { !it.file.virtual },
             run = { it.showInExplorer() },
         ),
     )

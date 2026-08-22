@@ -17,7 +17,7 @@ internal class HollowIdeEditorSession(
     private val path: String,
     private val onUpdated: () -> Unit,
 ) {
-    private val languageService = languageServiceFor(path)
+    private val languageService = languageServiceForPath(path)
     private val analysisDispatcher = Executors.newSingleThreadExecutor { task ->
         Thread(task, "HollowEngine-ScriptingAnalysis-${path.substringAfterLast('/')}").apply {
             isDaemon = true
@@ -559,9 +559,11 @@ internal fun shiftDiagnosticsForEditedText(
     }
 }
 
-private fun languageServiceFor(path: String): EditorLanguageService {
+internal fun languageServiceForPath(path: String): EditorLanguageService {
+    val fileName = path.substringBefore('?').substringBefore('#').substringAfterLast('/')
+    val extension = fileName.substringAfterLast('.', "").lowercase()
     return runCatching {
-        EditorLanguageService(path.substringAfterLast('.', ""))
+        EditorLanguageService(extension)
     }.getOrNull() ?: PlainEditorLanguageService
 }
 

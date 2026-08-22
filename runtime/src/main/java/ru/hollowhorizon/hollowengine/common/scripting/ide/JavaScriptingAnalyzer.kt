@@ -140,11 +140,7 @@ object JavaScriptingAnalyzer : ScriptingAnalyzer {
 
 /** Fallback for file types without a language service: plain text, no diagnostics, no stub warnings. */
 object PlainTextScriptingAnalyzer : ScriptingAnalyzer {
-    private val defaultStyle = SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)
-
-    override fun highlight(name: String, text: String, offset: Int): List<TextLine> {
-        return text.lines().map { line -> TextLine(listOf(line to defaultStyle), ArrayList()) }
-    }
+    override fun highlight(name: String, text: String, offset: Int): List<TextLine> = emptyList()
 
     override fun diagnostic(name: String, text: String): List<Diagnostic> = emptyList()
 }

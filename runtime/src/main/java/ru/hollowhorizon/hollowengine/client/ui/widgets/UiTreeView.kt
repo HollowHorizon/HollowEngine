@@ -1,9 +1,28 @@
 package ru.hollowhorizon.hollowengine.client.ui.widgets
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
+import androidx.compose.runtime.*
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
+
+private const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
+private const val CloseIcon = "hollowengine:textures/gui/icons/cross.svg"
+
+@Stable
+class UiTreeFilterState(val inputId: String) {
+    var query by mutableStateOf("")
+    var expanded by mutableStateOf(false)
+        private set
+
+    fun open() {
+        expanded = true
+    }
+
+    fun close() {
+        query = ""
+        expanded = false
+    }
+}
 
 data class UiTreeItem<T>(
     val id: String,
@@ -27,20 +46,75 @@ fun <T> UiTreeView(
     fillRowWidth: Boolean = true,
     dragItem: ((UiTreeItem<T>) -> UiDragItem?)? = null,
     onDrop: ((UiTreeItem<T>, UiDragItem) -> Boolean)? = null,
+    filterState: UiTreeFilterState? = null,
+    filterPlaceholder: String = "Filter",
+    onFilterOpened: ((String) -> Unit)? = null,
 ) {
     val scroll = rememberScrollState()
     val dragAndDrop = LocalDragAndDrop.current
     Column(
         tags = listOf("tree-view") + tags,
-        modifier = modifier.scrollable(state = scroll)
+        modifier = modifier.focus().onKeyInput(FilterShortcutPriority) { input ->
+            if (filterState == null || input.repeat || !input.command || input.key != GLFW.GLFW_KEY_F) {
+                return@onKeyInput
+            }
+            filterState.open()
+            input.consume()
+        },
     ) {
-        items.forEach { item ->
-            key(item.id) {
-                UiTreeRow(item, onToggle, onSelect, onIconClick, fillRowWidth, onDrop) {
-                    if (dragItem == null) null else dragAndDrop?.let { state -> state to dragItem(item) }
+        if (filterState?.expanded == true) {
+            LaunchedEffect(filterState.inputId) {
+                onFilterOpened?.invoke(filterState.inputId)
+            }
+            UiTreeFilter(
+                state = filterState,
+                placeholder = filterPlaceholder,
+                onClose = filterState::close,
+            )
+        }
+        Column(
+            tags = listOf("tree-view-scroll"),
+            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scroll),
+        ) {
+            items.forEach { item ->
+                key(item.id) {
+                    UiTreeRow(item, onToggle, onSelect, onIconClick, fillRowWidth, onDrop) {
+                        if (dragItem == null) null else dragAndDrop?.let { state -> state to dragItem(item) }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UiTreeFilter(
+    state: UiTreeFilterState,
+    placeholder: String,
+    onClose: () -> Unit,
+) {
+    Row(tags = listOf("tree-filter-row")) {
+        Image(SearchIcon, tags = listOf("tree-filter-icon"))
+        TextField(
+            value = state.query,
+            placeholder = placeholder,
+            onChange = { state.query = it },
+            id = state.inputId,
+            tags = listOf("tree-filter-input"),
+            modifier = Modifier.grow(1f).onKeyInput(FilterShortcutPriority) { input ->
+                if (input.key != GLFW.GLFW_KEY_ESCAPE) return@onKeyInput
+                onClose()
+                input.consume()
+            },
+        )
+        Image(
+            CloseIcon,
+            tags = listOf("tree-filter-close"),
+            modifier = Modifier.cursor(UiCursorShape.HAND).onClick { event ->
+                onClose()
+                event.consume()
+            },
+        )
     }
 }
 
@@ -102,3 +176,5 @@ private fun <T> UiTreeRow(
         Text(item.label, tags = listOf("tree-label"))
     }
 }
+
+private const val FilterShortcutPriority = 100

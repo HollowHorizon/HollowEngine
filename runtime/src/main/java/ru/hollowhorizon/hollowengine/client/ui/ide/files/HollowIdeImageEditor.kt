@@ -22,6 +22,10 @@ internal fun HollowIdeImageEditor(
     onSave: () -> Unit,
 ) {
     val document = file.document as HollowIdeImageDocument
+    if (document.readOnly) {
+        HollowIdeReadOnlyImageViewer(document)
+        return
+    }
     val canvasScroll = remember(document) { UiScrollHandle() }
     val stroke = remember(document) { ImageStrokeState() }
     val recentColors = remember(document) { mutableStateListOf<UiColor>() }

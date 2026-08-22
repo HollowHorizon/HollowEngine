@@ -204,7 +204,7 @@ object UiProps {
 
     // Text
     val TextWrap = prop("text-wrap", true, fingerprint = true)
-    val TextOverflow = prop("text-overflow", UiTextOverflow.SHOW)
+    val TextOverflow = inheritedProp("text-overflow", UiTextOverflow.SHOW)
     val BoxDecorationBreak = prop("box-decoration-break", UiBoxDecorationBreak.SLICE, fingerprint = true)
     val TextAlign = inheritedProp("text-align", UiTextAlign.LEFT, fingerprint = true)
     val Whitespace = inheritedProp("white-space", UiWhitespace.COLLAPSE, fingerprint = true)
@@ -479,4 +479,3 @@ private val IdentityTransform = UiTransform()
 private val DefaultStyle by lazy { UiStylePatch().resolve() }
 
 fun defaultModifierSnapshot(): UiComputedStyle = DefaultStyle
-

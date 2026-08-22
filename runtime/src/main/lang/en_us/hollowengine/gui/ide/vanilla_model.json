@@ -1,0 +1,11 @@
+{
+  "reference_grid": "Reference grid",
+  "auto_rotate": "Auto-rotate",
+  "reload": "Reload model",
+  "error.builtin_renderer": "This model uses a built-in renderer and has no baked geometry.",
+  "error.load_failed": "Unable to load model %s.",
+  "error.not_json_model": "%s is not a Minecraft JSON model.",
+  "error.empty_baked_model": "Model %s produced no baked geometry.",
+  "error.missing_model": "Model %s is missing.",
+  "error.invalid_asset_path": "Invalid asset path: %s"
+}

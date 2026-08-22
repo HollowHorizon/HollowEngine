@@ -278,6 +278,14 @@ class DockingState {
         return changed
     }
 
+    /** Sets the share of the split branch containing [itemId] without disturbing ancestor splits. */
+    fun setSplitFractionForItem(itemId: String, siblingItemId: String, fraction: Float): Boolean {
+        val split = root?.findSplitSeparating(itemId, siblingItemId) ?: return false
+        val itemFraction = fraction.coerceIn(MinSplitFraction, MaxSplitFraction)
+        val splitFraction = if (split.first.containsItem(itemId)) itemFraction else 1f - itemFraction
+        return setSplitFraction(split.id, splitFraction)
+    }
+
     fun resizeSplitByFraction(splitId: String, deltaFraction: Float): Boolean {
         val split = root?.findNode(splitId) as? DockNode.Split ?: return false
         return setSplitFraction(splitId, split.fraction + deltaFraction)

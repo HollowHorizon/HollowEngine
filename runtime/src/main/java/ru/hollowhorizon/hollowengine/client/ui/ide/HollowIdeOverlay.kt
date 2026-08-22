@@ -9,11 +9,13 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsolePanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeUiProfilerPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.ModelEditorPanel
+import ru.hollowhorizon.hollowengine.client.ui.ide.panels.VanillaModelEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneTimelineDock
@@ -53,6 +55,7 @@ internal fun projectPathReference(path: String): String {
 }
 
 internal const val ProjectTreeId = "ide-project-tree"
+internal const val AssetManagerId = "ide-asset-manager"
 
 internal const val ProjectFilterInputId = "ide-project-filter"
 internal const val ConsoleId = "ide-console"
@@ -62,6 +65,7 @@ internal const val CutsceneViewportId = "ide-cutscene-viewport"
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
+internal const val AssetManagerIcon = "hollowengine:textures/gui/icons/folder_assets.svg"
 internal const val ConsoleIcon = "hollowengine:textures/gui/icons/console.svg"
 internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
 internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
@@ -84,6 +88,11 @@ object HollowIdeOverlay {
             soundsEditor = { file -> HollowIdeSoundsEditor(file) },
             textEditor = { file -> FileEditor(file) },
         )
+        registerAssetFileTypes(
+            imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+            textEditor = { file -> FileEditor(file) },
+            jsonModelEditor = { file -> VanillaModelEditorPanel(file.path) },
+        )
     }
     private val model = HollowIdeModel(fileTypes)
     private val dock = DockingState()
@@ -95,7 +104,7 @@ object HollowIdeOverlay {
     private var initialized = false
     private var activeButton: Int? = null
     private var collapsed by mutableStateOf(true)
-    private var filter by mutableStateOf("")
+    private val projectFilter = UiTreeFilterState(ProjectFilterInputId)
     private var openDropdown by mutableStateOf<String?>(null)
     private var statusText by mutableStateOf("")
     private val project = HollowIdeProjectController(
@@ -234,6 +243,7 @@ object HollowIdeOverlay {
     @SubscribeEvent
     fun render(event: RenderTickEvent.Blit) {
         if (!isVisible()) return
+        AssetManagerLifecycle.observe(event.minecraft)
         renderOverlay(currentBlitTarget())
     }
 
@@ -376,6 +386,7 @@ object HollowIdeOverlay {
                                     handleHollowIdeSearchKey(search, input.key, input.modifiers, ::openSearchResult) ||
                                     project.handleNameDialogKey(input.key) ||
                                     handleSearchOverlayShortcut(input.key, input.modifiers) ||
+                                    handleProjectFilterShortcut(input.key, input.modifiers) ||
                                     project.handleShortcut(input.key, input.modifiers) ||
                                     handleDockShortcut(input.key, input.modifiers) ||
                                     handleEditorShortcut(input.key, input.modifiers) ||
@@ -512,6 +523,7 @@ object HollowIdeOverlay {
     private fun DockContent(item: DockItem) {
         when (item.id) {
             ProjectTreeId -> ProjectTree()
+            AssetManagerId -> AssetManagerPanel(::openAssetFile, ::requestSurfaceFocus)
             ConsoleId -> HollowIdeConsolePanel()
             CutsceneTimelineId -> CutsceneTimelineDock(
                 session = CutsceneEditorSessions.default,
@@ -533,20 +545,13 @@ object HollowIdeOverlay {
     @Composable
     private fun ProjectTree() {
         Column(tags = listOf("ide-panel", "project-tree-panel"), modifier = Modifier.size(100.percent, 100.percent)) {
-            Row(tags = listOf("project-filter-row")) {
-                Image(SearchIcon, tags = listOf("project-filter-icon"))
-                TextField(
-                    value = filter,
-                    placeholder = "hollowengine.message.filter".lang,
-                    onChange = { filter = it },
-                    id = ProjectFilterInputId,
-                    tags = listOf("project-filter"),
-                )
-            }
             UiTreeView(
-                items = model.visibleTreeItems(filter),
+                items = model.visibleTreeItems(projectFilter.query),
                 onToggle = project::toggle,
                 onSelect = project::select,
+                filterState = projectFilter,
+                filterPlaceholder = "hollowengine.message.filter".lang,
+                onFilterOpened = ::requestSurfaceFocus,
                 dragItem = { item ->
                     val node = item.payload
                     node.takeIf { it.path.isNotEmpty() }?.let {
@@ -697,11 +702,47 @@ object HollowIdeOverlay {
             val hadOpenEditor = model.files.values.any { dock.contains(it.id) }
             dock.open(file.dockItem(), editorTarget())
             if (!hadOpenEditor) {
-                (dock.root as? DockNode.Split)?.let { split -> dock.setSplitFraction(split.id, 0.28f) }
+                dock.setSplitFractionForItem(ProjectTreeId, file.id, 0.28f)
             }
         } else {
             dock.updateItem(file.dockItem())
             dock.focus(file.id)
+        }
+    }
+
+    private fun openAssetFile(
+        scope: AssetResourceScope,
+        asset: AssetFile,
+        remoteBytes: ByteArray?,
+        forceText: Boolean,
+    ) {
+        val manager = assetResourceManager(scope)
+        if (manager == null && remoteBytes == null) {
+            statusText = AssetManagerLang.SERVER_UNAVAILABLE.lang
+            return
+        }
+        val modelTypeId = assetFileTypeId(scope, asset.location.path, ByteArray(0), forceText)
+            ?.takeIf { it == AssetJsonModelFileTypeId || it == "model" }
+        val bytes = if (modelTypeId != null) {
+            ByteArray(0)
+        } else {
+            remoteBytes ?: runCatching {
+                requireNotNull(manager).getResource(asset.location).orElseThrow().open().use { it.readAllBytes() }
+            }.getOrElse { failure ->
+                statusText = AssetManagerLang.CANNOT_READ.lang(asset.location, failure.message.orEmpty())
+                return
+            }
+        }
+        val typeId = modelTypeId ?: assetFileTypeId(scope, asset.location.path, bytes, forceText)
+        if (typeId == null) {
+            statusText = AssetManagerLang.NO_PREVIEW.lang(asset.location)
+            return
+        }
+        val path = "resource://${scope.name.lowercase()}/${scope.directory}/${asset.location.namespace}/${asset.location.path}"
+        when (val result = model.openVirtual(path, typeId, bytes)) {
+            HollowIdeOpenResult.Directory -> Unit
+            HollowIdeOpenResult.Unsupported -> statusText = AssetManagerLang.CANNOT_OPEN.lang(asset.location)
+            is HollowIdeOpenResult.File -> openFileDockItem(result.file)
         }
     }
 
@@ -720,10 +761,24 @@ object HollowIdeOverlay {
         return true
     }
 
+    /** Project filtering must work even when the tree itself does not own keyboard focus. */
+    private fun handleProjectFilterShortcut(key: Int, modifiers: Int): Boolean {
+        if (dock.focusedItemId != ProjectTreeId || key != GLFW.GLFW_KEY_F) return false
+        if (modifiers and GLFW.GLFW_MOD_CONTROL == 0) return false
+        if (modifiers and (GLFW.GLFW_MOD_SHIFT or GLFW.GLFW_MOD_ALT) != 0) return false
+        projectFilter.open()
+        return true
+    }
+
     /** Moves the keyboard focus to [nodeId] once the pending frame has been built. */
     internal fun focusSurface(nodeId: String) {
         pipeline.await()
         surface.runtime.focus(nodeId)
+    }
+
+    /** Defers focus until the asynchronous composition that created [nodeId] has completed. */
+    private fun requestSurfaceFocus(nodeId: String) {
+        Minecraft.getInstance().execute { focusSurface(nodeId) }
     }
 
     /** Editor-wide shortcuts that work wherever the focus sits inside the IDE. */

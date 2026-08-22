@@ -1,0 +1,25 @@
+package ru.hollowhorizon.hollowengine.client.ui.ide.asset
+
+internal object AssetManagerLang {
+    private const val ROOT = "hollowengine.gui.ide.asset_manager."
+
+    const val TITLE = ROOT + "title"
+    const val CLIENT_RESOURCES = ROOT + "client_resources"
+    const val SERVER_RESOURCES = ROOT + "server_resources"
+    const val FILTER_CURRENT_FOLDER = ROOT + "filter_current_folder"
+    const val CLOSE_FILTER = ROOT + "close_filter"
+    const val REFRESH = ROOT + "refresh"
+    const val LOADING = ROOT + "loading"
+    const val NO_RESOURCES = ROOT + "no_resources"
+    const val EMPTY_FOLDER = ROOT + "empty_folder"
+    const val OPEN = ROOT + "open"
+    const val OPEN_AS_TEXT = ROOT + "open_as_text"
+    const val LOCAL_COUNTS = ROOT + "local_counts"
+    const val REMOTE_COUNTS = ROOT + "remote_counts"
+    const val CONNECT_TO_SERVER = ROOT + "error.connect_to_server"
+    const val INDEX_FAILED = ROOT + "error.index_failed"
+    const val SERVER_UNAVAILABLE = ROOT + "error.server_unavailable"
+    const val CANNOT_READ = ROOT + "error.cannot_read"
+    const val NO_PREVIEW = ROOT + "error.no_preview"
+    const val CANNOT_OPEN = ROOT + "error.cannot_open"
+}

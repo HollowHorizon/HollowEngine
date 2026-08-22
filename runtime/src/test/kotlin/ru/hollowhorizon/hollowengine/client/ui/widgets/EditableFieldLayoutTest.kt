@@ -24,6 +24,7 @@ class EditableFieldLayoutTest {
         assertEquals(10.898f, l.lineTop(1), 0.5f)
         assertEquals(21.796f, l.lineTop(2), 0.5f)
         assertEquals(40f + fontSize, l.contentWidth, 0.5f, "widest line 'longer' (6*6.667=40px) + trailing margin")
+        assertTrue(l.lineLayouts.all { it == null }, "plain rows are laid out only while visible")
     }
 
     @Test

@@ -29,7 +29,7 @@ object JsonScriptingAnalyzer : ScriptingAnalyzer {
             val line = lines[caretLineIndex]
             linesToUpdate.add(caretLineIndex)
 
-            if (caretPosInLine < line.length) {
+            if (caretPosInLine in line.indices) {
                 val char = line[caretPosInLine]
                 if (char in "{}[]") {
                     bracketAtCaret = char
@@ -60,6 +60,9 @@ object JsonScriptingAnalyzer : ScriptingAnalyzer {
             TextLine(spans, ArrayList())
         }
     }
+
+    override fun lightweightHighlightLine(name: String, line: String): TextLine =
+        TextLine(tokenizeLineSimple(line), ArrayList())
 
     private fun tokenizeLineSimple(line: String): List<Pair<String, SpanStyle>> {
         val spans = mutableListOf<Pair<String, SpanStyle>>()

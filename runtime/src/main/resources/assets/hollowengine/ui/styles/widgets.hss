@@ -49,6 +49,7 @@
 }
 
 .dropdown-item {
+    width: 100%;
     gap: 4px;
     padding-vertical: 3px;
     padding-horizontal: 8px;
@@ -87,10 +88,41 @@
 }
 
 .tree-view {
+    clip: true;
+}
+
+.tree-view-scroll {
     scrollbar: 6px;
     scrollbar-track: rgba(255, 255, 255, 0.03);
     scrollbar-thumb: rgba(155, 169, 194, 0.38);
     scrollbar-thumb-radius: 3px;
+}
+
+.tree-filter-row {
+    width: 100%;
+    height: 22px;
+    margin-bottom: 3px;
+    padding: 1px 4px;
+    gap: 3px;
+    align-items: start center;
+    background: #31343D;
+    border-radius: 4px;
+}
+
+.tree-filter-icon, .tree-filter-close {
+    size: 12px 12px;
+    tint: #aeb8ca;
+}
+
+.tree-filter-input {
+    min-height: 18px;
+    padding: 2px;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+}
+
+.tree-filter-close:hover {
+    tint: #ffffff;
 }
 
 .tree-item {

@@ -244,6 +244,12 @@ object HollowModelManager :
         return loaders.any { extension in it.supportedFormats }
     }
 
+    fun supports(location: String): Boolean {
+        val extension = location.substringAfter('.', "")
+
+        return loaders.any { extension in it.supportedFormats }
+    }
+
     val allModels get() = indexedModels + models.keys
 
 }
