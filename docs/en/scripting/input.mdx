@@ -1,0 +1,31 @@
+---
+title: Keyboard Input
+order: 10
+---
+
+<center><h1>Keyboard Input</h1></center>
+
+## Waiting for a key
+
+`player.waitKey()` suspends the coroutine until the player releases their next key, then returns its code:
+
+```kotlin
+@State
+suspend fun onInteract(player: ServerPlayer) {
+    player.notify("Press Y to accept the quest.")
+    if (player.waitKey() == Key.Y) {
+        player.giveItem(item("minecraft:emerald"))
+    }
+}
+```
+
+Pass a `Key` constant or a latin character to wait for a particular key:
+
+```kotlin
+player.waitKey(Key.H)
+player.waitKey('h')
+player.waitKey(Key.ENTER)
+player.waitKey(Key.LEFT_SHIFT)
+```
+
+`Key` includes letters, digits, punctuation, arrows, navigation and function keys, the numeric keypad, plus Shift, Ctrl, Alt, and Win/Command. The input is not consumed, so both Minecraft and an open screen handle the key normally.

@@ -1,0 +1,31 @@
+---
+title: Ввод с клавиатуры
+order: 10
+---
+
+<center><h1>Ввод с клавиатуры</h1></center>
+
+## Ожидание клавиши
+
+`player.waitKey()` приостанавливает корутину до отпускания следующей клавиши и возвращает её код:
+
+```kotlin
+@State
+suspend fun onInteract(player: ServerPlayer) {
+    player.notify("Нажми Y, чтобы принять задание.")
+    if (player.waitKey() == Key.Y) {
+        player.giveItem(item("minecraft:emerald"))
+    }
+}
+```
+
+Чтобы ждать определённую клавишу, передай константу `Key` или символ латиницы:
+
+```kotlin
+player.waitKey(Key.H)
+player.waitKey('h')
+player.waitKey(Key.ENTER)
+player.waitKey(Key.LEFT_SHIFT)
+```
+
+`Key` содержит буквы, цифры, знаки препинания, стрелки, Numpad, а также Shift, Ctrl, Alt и Win/Command. Ввод не блокируется: игра и открытый экран продолжат обрабатывать клавишу как обычно.
