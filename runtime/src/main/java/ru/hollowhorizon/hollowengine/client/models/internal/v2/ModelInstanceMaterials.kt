@@ -16,6 +16,9 @@ class ModelInstanceMaterials(model: Model) {
     /** This instance's materials by name; a name the model uses twice keeps the first. */
     val byName: Map<String, Material>
 
+    /** What this instance was last dressed in, to put back on when a source finally resolves. */
+    private var wearing: Map<String, MaterialSource> = emptyMap()
+
     init {
         val sources = model.allMaterials()
         sources.forEach { source -> instancesBySource[source] = source.copyForInstance() }
@@ -33,12 +36,13 @@ class ModelInstanceMaterials(model: Model) {
      * Dresses this instance in [overrides], and puts everything else back the way the model authored it.
      */
     fun apply(overrides: Map<String, MaterialSource>) {
+        wearing = overrides
         instancesBySource.forEach { (source, instance) -> instance.restoreFrom(source) }
         if (overrides.isEmpty()) return
 
         overrides.forEach { (name, source) ->
             val material = byName[name] ?: return@forEach
-            val resolved = MaterialSources.resolve(source)
+            val resolved = MaterialSources.resolve(source) { apply(wearing) }
             resolved.texture?.let { material.texture = it }
             resolved.normal?.let { material.normalTexture = it }
             resolved.specular?.let { material.specularTexture = it }

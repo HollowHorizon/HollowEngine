@@ -1,47 +1,45 @@
 ---
 title: Animations
-order: 7
+order: 8
 ---
 
 <center><h1>Animations</h1></center>
 
-*Controlling entity animations with Kotlin, `AnimatorComponent`, and animator layers.*
+*Playing entity animations from Kotlin.*
 
 ![Animations](/docs/title-animations.webp)
 
 ---
 
-## Architecture in v2.3
+## Where animation comes from
 
-In the current HollowEngine architecture, animations are no longer described through the old Katari-style API such as `entity.playAnimation(...)`.
-A modeled entity carries a synchronized `AnimatorComponent` containing a list of layers:
+A model animates itself. Everything that runs on its own, walking, idling, looking around, is described by an **animator**, which the model names in its `.hemeta`:
 
-- `ClipAnimationLayerSpec` - a single animation clip;
-- `AnimationControllerLayerSpec` - a state machine with states and transitions;
-- `ProceduralLayerSpec` - procedural bone transforms;
-- `MaterialOverrideLayerSpec` - material texture overrides.
+```toml
+animation-controller = "hollowengine:standard_player"
+```
 
-An NPC created with `npc()` already receives `StandardPlayerAnimatorPreset`: a basic locomotion state machine (`idle`, `walk`, `run`, `sneak`, `levitation`, `death`) and a procedural layer for head and eye rotation.
+An NPC created with `npc()` uses the built-in player model, which already names the standard animator and provides procedural head and eye rotation. You get all of that without writing anything.
 
-You rarely need to touch this layer list by hand anymore, see the next section.
+What a script adds on top are **clips**: one-off gestures, looping animations, and poses to hold. Those are what this page is about; see [Models and Materials](/docs/hollowengine/scripting/models) for the metadata file itself.
 
 ---
 
-## Playing a clip from a script
+## Playing a clip
 
-For the common case, a one-off gesture or a looping idle variant, use these short functions on any `Entity` (NPC or otherwise). They manage a layer for you automatically: adding it, fading it in and out, and removing it once it's done, so there is nothing left over to clean up.
+These work on any `Entity`, not just an NPC, as long as the entity or player has a model.
 
 ```kotlin
 entity.play("wave")                 // fire-and-forget, once
 entity.playLooped("idle_alt")       // fire-and-forget, looping
 entity.playClamped("sit")           // fire-and-forget, holds the last frame
-entity.playPingPong("breathe")      // fire-and-forget, forward/backward
+entity.playPingPong("breathe")      // fire-and-forget, forward and backward
 entity.stopAnimation("wave")        // fades it out early
 
 val finished = entity.playAndWait("wave") // suspend: waits for the clip to actually finish
 ```
 
-`playAndWait` is a plain `suspend` function: your script pauses until the clip ends. On an `NpcEntity`, there is also a background form, `startAnimation(...)`, which runs on the `ANIMATION` channel described in [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions), meaning it can play at the same time as movement and looking. Each call has its own action handle, so several clips can run together:
+`playAndWait` is a plain `suspend` function: your script pauses until the clip finishes. On an `NpcEntity` there is also a background form, `startAnimation(...)`, which runs on the `ANIMATION` channel described in [Actions and Concurrency](/docs/hollowengine/scripting/npc/actions), so it can play at the same time as movement and looking:
 
 ```kotlin
 val walking = npc.startMove(player)
@@ -52,7 +50,7 @@ walking.await()
 `entity.stopAllAnimations()` removes every clip started this way at once.
 
 :::advice
-`play`/`playOnce`/`playLooped`/`playClamped`/`playPingPong` all take the same optional `fadeIn`/`fadeOut` (seconds, `0.33` by default). `playOnce`, `playLooped`, `playClamped`, and `playPingPong` are just `play(...)` with a fixed `playMode`, see the table below for what each mode does.
+`play`/`playOnce`/`playLooped`/`playClamped`/`playPingPong` all take the same optional `fadeIn`/`fadeOut` (seconds, `0.33` by default). The last four are just `play(...)` with a fixed `playMode`.
 :::
 
 ---
@@ -61,267 +59,33 @@ walking.await()
 
 | Mode | Behavior |
 |------|----------|
-| `AnimationPlayMode.Once` | Plays the clip once. By default, this layer is removed after it ends when `removeOnEnd = true`. |
+| `AnimationPlayMode.Once` | Plays the clip once, then the layer goes away. |
 | `AnimationPlayMode.Loop` | Loops the clip. Use it for idle/walk/ambient animations. |
 | `AnimationPlayMode.ClampForever` | Holds the final frame. Useful for poses such as `sit`, `sleep`, or `death`. |
 | `AnimationPlayMode.PingPong` | Plays forward and backward without snapping to the start. |
 
+```kotlin
+entity.play("cheer", playMode = AnimationPlayMode.Loop, fadeIn = 0.1, fadeOut = 0.25)
+```
+
 ---
 
-## Fine control with `ClipAnimationLayerSpec`
+## Writing your own animator
 
-The `play*` functions above cover the common case, but they always affect the whole model. If you need a clip restricted to specific bones, blended additively on top of whatever is already playing, or with explicit control over layer priority, build the layer yourself and add it with `withLayer`, which keeps every other layer (locomotion, head look, and so on) untouched:
+An animator is an asset, not something a script builds: a stack of layers with a state machine, procedural bones, masks and blend weights. A visual editor for it is on the way, and until then there is no file format to hand-write.
+
+If you need a custom one right now, you can register it from code and point a model at it by id:
 
 ```kotlin
-import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
-import ru.hollowhorizon.hollowengine.common.attachments.api.set
-import ru.hollowhorizon.hollowengine.common.attachments.components.*
-
-fun Entity.currentAnimator(): AnimatorComponent =
-    AttachmentRegistry.componentsById(this).values.filterIsInstance<AnimatorComponent>().firstOrNull() ?: AnimatorComponent()
-
-@State
-suspend fun main() {
-    val guide = npc(pos(0, 64, 0), name = "Guide")
-
-    guide.set(
-        guide.currentAnimator().withLayer(
-            ClipAnimationLayerSpec(
-                id = "gesture:wave",
-                animation = "wave",
-                playMode = AnimationPlayMode.Once,
-                priority = 50,
-                blendMode = LayerBlendMode.Override,
-                mask = BoneMask.of("RightArm", "LeftArm"),
-                fadeIn = 0.1f,
-                fadeOut = 0.25f,
-            )
-        )
-    )
-}
+AnimatorAssets.register(StandardPlayerAnimatorPreset.ID.rl, StandardPlayerAnimatorPreset.create())
 ```
+
+```toml
+animation-controller = "hollowengine:standard_player"
+```
+
+Take `StandardPlayerAnimatorPreset` as the worked example: it builds a locomotion state machine and a procedural look layer, which is very close to what most humanoid models want. Register your own under your own id, before models load.
 
 :::warning
-Do not `set(AnimatorComponent(layers = listOf(...)))` directly unless you actually mean to replace every layer, or you're using a fully custom model with its own rig that doesn't need the default one. That wipes locomotion, head look, and anything else the NPC already had. Always start from the entity's current component with `withLayer(...)` (or `withoutLayer(layerId)` to remove one layer by id) instead, as shown above. There is no built-in `entity.animatorComponent` shortcut yet (unlike `hitboxComponent`), so read it through `AttachmentRegistry` like the helper function above does.
+This is a temporary door, not the API. Everything about how an animator is described will be settled by the editor, so anything built this way is likely to need rewriting. If your entity only needs to play a clip in response to an event, use `play(...)` from a script instead and skip all of this.
 :::
-
-Layer parameters, shared by every layer type below:
-
-| Parameter | Purpose |
-|-----------|---------|
-| `id` | Stable layer identifier. A layer with the same `id` replaces the old one. |
-| `weight` | `AnimationExpression`, layer influence from `0` to `1`. |
-| `priority` | Layer application order. Higher values are applied later. |
-| `blendMode` | `LayerBlendMode.Override` or `LayerBlendMode.Additive`. |
-| `mask` | Restricts the layer to specific bones. |
-| `fadeIn`, `fadeOut` | Smooth layer fade in/out. |
-
-`ClipAnimationLayerSpec` additionally has `animation`, `playMode`, `speed` (`AnimationExpression`), `referencePose`, `removeOnEnd`, and `removeAtGameTime`, the same knobs `play(...)` sets for you automatically.
-
----
-
-## Creating your own controller
-
-For persistent, condition-driven behavior, such as switching between `idle` and `walk` on its own, or reacting to damage without your script polling every tick, use `AnimationControllerLayerSpec`: a small state machine that the engine evaluates every frame. You describe the states and the rules for switching between them, and the engine picks transitions itself, you never have to call anything from a script to drive it.
-
-### States
-
-Each state plays one clip:
-
-```kotlin
-AnimationControllerStateSpec(
-    id = "walk",
-    animation = "walk",
-    playMode = AnimationPlayMode.Loop,
-    speed = AnimationExpression("movement_animation_speed"),
-)
-```
-
-| Field | Meaning |
-|-------|---------|
-| `id` | Name used by transitions (`from`/`to`) and by the `state_time` expression variable below. |
-| `animation` | Clip name inside the `.gltf` model. |
-| `playMode` | Same `AnimationPlayMode` as above, usually `Loop` for locomotion states and `Once` for reactions. |
-| `speed` | `AnimationExpression`, playback speed, `movement_animation_speed` is a common choice for a walk state. |
-| `referencePose` | Reference pose for additive blending during transitions, optional. |
-
-### Transitions
-
-A transition says "switch to this state when this condition is true":
-
-```kotlin
-AnimationControllerTransitionSpec(
-    from = ANY_STATE,
-    to = "walk",
-    condition = AnimationExpression("horizontal_speed > 0.02"),
-    duration = AnimationExpression("0.18"),
-    priority = 20,
-)
-```
-
-| Field | Meaning |
-|-------|---------|
-| `from` | The state this transition applies from, or `ANY_STATE` to allow it from anywhere. |
-| `to` | The state to switch to. |
-| `condition` | `AnimationExpression` evaluated every frame; the transition fires when it becomes `true`. |
-| `duration` | `AnimationExpression`, blend time in seconds between the old and new state's poses. |
-| `priority` | When several transitions are eligible at the same time, the one with the highest `priority` wins. |
-| `exitTime` | A plain number of seconds (not an expression), if set, the transition only becomes eligible once the current state has been playing for at least that long, even if `condition` was already true earlier. `null` means no minimum time. |
-
-`ANY_STATE` means "transition from any state". Transitions are checked every frame the layer is not already mid-transition; the first one whose `condition` is true (after any `exitTime` has passed), sorted by `priority`, is taken.
-
-### A worked example: locomotion plus a hit reaction
-
-This combines a normal `idle`/`walk` locomotion controller with a state that interrupts it when the entity takes damage, using the built-in `hurt_time` value (Minecraft's own damage-flash timer, nonzero for a few ticks after a hit):
-
-```kotlin
-guide.set(
-    guide.currentAnimator().withLayer(
-        AnimationControllerLayerSpec(
-            id = "guide:locomotion",
-            entryState = "idle",
-            states = listOf(
-                AnimationControllerStateSpec(id = "idle", animation = "idle", playMode = AnimationPlayMode.Loop),
-                AnimationControllerStateSpec(
-                    id = "walk",
-                    animation = "walk",
-                    playMode = AnimationPlayMode.Loop,
-                    speed = AnimationExpression("movement_animation_speed"),
-                ),
-                AnimationControllerStateSpec(id = "hurt", animation = "hurt", playMode = AnimationPlayMode.Once),
-            ),
-            transitions = listOf(
-                // Getting hurt interrupts anything, at a higher priority than the locomotion transitions.
-                AnimationControllerTransitionSpec(
-                    from = ANY_STATE,
-                    to = "hurt",
-                    condition = AnimationExpression("hurt_time > 0"),
-                    duration = AnimationExpression("0.1"),
-                    priority = 100,
-                ),
-                // Only leave "hurt" once it has played for at least 0.5s, regardless of hurt_time by then.
-                AnimationControllerTransitionSpec(
-                    from = "hurt",
-                    to = "idle",
-                    condition = AnimationExpression.TRUE,
-                    duration = AnimationExpression("0.15"),
-                    priority = 10,
-                    exitTime = 0.5f,
-                ),
-                AnimationControllerTransitionSpec(
-                    from = ANY_STATE,
-                    to = "walk",
-                    condition = AnimationExpression("horizontal_speed > 0.02"),
-                    duration = AnimationExpression("0.18"),
-                    priority = 20,
-                ),
-                AnimationControllerTransitionSpec(
-                    from = ANY_STATE,
-                    to = "idle",
-                    condition = AnimationExpression("horizontal_speed <= 0.02"),
-                    duration = AnimationExpression("0.18"),
-                    priority = 0,
-                ),
-            ),
-        )
-    )
-)
-```
-
-Note that this uses `withLayer(...)`, so it adds the controller alongside whatever other layers the NPC already has (like the default head-look procedural layer), instead of replacing them.
-
-:::advice
-This controller reacts on its own, it reads the same `hurt_time` Minecraft already tracks. If you need custom, script-driven triggers instead of built-in values like `hurt_time` or `horizontal_speed`, use the [`onHurt`/`onDie`/`onInteract` node handlers](/docs/hollowengine/scripting/node#entity-specific-handlers) to call `entity.play(...)`/`startAnimation(...)` directly, or add a one-shot `ClipAnimationLayerSpec` layer from the script instead of trying to express the trigger as a condition.
-:::
-
----
-
-## Procedural layers
-
-`ProceduralLayerSpec` does not play a pre-authored clip. Instead, it computes bone transforms from expressions.
-This is how the default head rotation in `StandardPlayerAnimatorPreset` is implemented.
-
-```kotlin
-ProceduralLayerSpec(
-    id = "guide:look",
-    priority = 20,
-    blendMode = LayerBlendMode.Additive,
-    mask = BoneMask.of("Head", "BodyUp"),
-    transforms = listOf(
-        ProceduralBoneTransformSpec(
-            bone = "Head",
-            rotation = AnimationVectorExpression(
-                x = AnimationExpression("-head_x_rotation * 0.65"),
-                y = AnimationExpression("-head_body_y_delta * 0.62"),
-            ),
-        )
-    ),
-)
-```
-
----
-
-## Expressions
-
-`AnimationExpression` stores a string expression. It can be used in `speed`, `weight`, `condition`, `duration`, and procedural transforms (but not `exitTime`, which is a plain number of seconds).
-
-Common values:
-
-| Value | Example use |
-|-------|-------------|
-| `horizontal_speed` | Switching between `idle` and `walk`. |
-| `signed_horizontal_speed` | Same, but negative when moving backward. |
-| `movement_animation_speed` | Walk/run clip speed. |
-| `is_alive`, `is_sneaking`, `is_sprinting`, `is_on_ground` | Locomotion transition conditions. |
-| `hurt_time` | Nonzero for a few ticks after the entity takes damage, see the controller example above. |
-| `velocity_x`, `velocity_y`, `velocity_z` | Jump/fall/levitation transitions. |
-| `head_x_rotation`, `head_body_y_delta` | Procedural head rotation. |
-| `game_time`, `life_time`, `age` | Absolute timers. |
-| `layer_time`, `layer_age`, `state_time` | Timers scoped to the current layer or state, useful for fades and procedural effects that should restart per-state. |
-
----
-
-## Bone masks
-
-A mask restricts a layer to selected bones:
-
-```kotlin
-BoneMask.of("Head", "BodyUp")        // only head and upper body
-BoneMask.of("!LeftArm", "!RightArm") // everything except arms
-BoneMask.full()                      // the entire model
-```
-
-Bone names must match model bone names or bone paths.
-
----
-
-## What to use
-
-| Task | Recommended tool |
-|------|-------------------|
-| Quick one-off animation or looping clip from a script | `entity.play(...)` / `playAndWait(...)` / `npc.startAnimation(...)` |
-| Gesture with a mask, explicit priority, or additive blending | `ClipAnimationLayerSpec` via `withLayer` |
-| Idle/walk/run/death logic, or reacting to built-in values like damage without polling | `AnimationControllerLayerSpec` |
-| Head rotation, eyes, breathing, IK-like offsets | `ProceduralLayerSpec` |
-| Temporary material texture swap | `MaterialOverrideLayerSpec` |
-| Regular player-like NPC | `StandardPlayerAnimatorPreset.create()` |
-
----
-
-## Migrating from the old API
-
-Old examples such as:
-
-```kotlin
-npc.playAnimation("wave")
-npc.stopAnimation("wave")
-```
-
-are now close to a direct rename:
-
-```kotlin
-npc.play("wave")
-npc.stopAnimation("wave")
-```
-
-You no longer need to touch `AnimatorComponent` at all for a simple clip, `play`/`playAndWait`/`startAnimation` manage the layer for you. Reach for `ClipAnimationLayerSpec` and `AnimationControllerLayerSpec` directly only when you need the finer control described above.

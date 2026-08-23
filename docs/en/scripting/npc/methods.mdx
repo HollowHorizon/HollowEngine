@@ -152,6 +152,6 @@ val id = uuid("00000000-0000-0000-0000-000000000000")
 
 Old Katari/block-doc methods such as `npc.playAnimation(...)`, `npc.stopAnimation(...)`, `npc.setSkin(...)`, and separate `attack(...)` wrappers should not be treated as the main v2.3 API.
 
-- For animations, use [`AnimatorComponent`](/docs/hollowengine/scripting/animations) or the action-based [`startAnimation`](/docs/hollowengine/scripting/npc/actions).
+- For animations, use [`play`](/docs/hollowengine/scripting/animations) or the action-based [`startAnimation`](/docs/hollowengine/scripting/npc/actions).
 - For held items, use the standard Minecraft API: `setItemInHand(...)`, or [`equip`](/docs/hollowengine/scripting/npc/inventory).
-- For appearance, use the model, components, and material/texture override layers.
+- For appearance, use [`entity.materials`](/docs/hollowengine/scripting/models).

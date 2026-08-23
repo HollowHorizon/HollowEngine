@@ -37,6 +37,7 @@ class ModelAttachment(
     private var renderPipeline = ListRenderPipeline()
     private var target: PoseTarget? = null
     private var cachedBounds: Pair<Vec3f, Vec3f>? = null
+    private val modelChangeListeners = ArrayList<() -> Unit>()
 
     val model: Model get() = builtFor ?: Model.EMPTY
     val nodes: List<RuntimeNode> get() = runtimeNodes
@@ -86,6 +87,13 @@ class ModelAttachment(
         animations = model.animationsByName,
     ).also { target = it }
 
+    /**
+     * Runs [listener] when newly loaded model replaces older one.
+     */
+    fun onModelChange(listener: () -> Unit) {
+        modelChangeListeners += listener
+    }
+
     private fun rebuild(model: Model) {
         builtFor = model
         runtimeMaterials = ModelInstanceMaterials(model)
@@ -97,6 +105,7 @@ class ModelAttachment(
         renderPipeline = ListRenderPipeline().apply(this::collectCommands)
         target = null
         cachedBounds = null
+        modelChangeListeners.forEach { it() }
     }
 
     private fun customizeNode(node: RuntimeNode) {

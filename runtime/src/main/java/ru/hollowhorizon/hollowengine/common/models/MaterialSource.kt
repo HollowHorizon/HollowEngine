@@ -19,11 +19,6 @@ sealed interface MaterialSource {
         val specular: @Serializable(ForResourceLocation::class) ResourceLocation? = null,
         /** `#rrggbb` or `#aarrggbb`; null keeps the color the model was authored with. */
         val color: String? = null,
-        /**
-         * Arm shape, for a texture used as a player's own skin. Null keeps whatever the player's profile
-         * says, the usual case, since a skin swap rarely means an arm swap.
-         */
-        val slim: Boolean? = null,
     ) : MaterialSource
 
     /** Whatever a player wears: their skin, cape or elytra, by name or by uuid. */

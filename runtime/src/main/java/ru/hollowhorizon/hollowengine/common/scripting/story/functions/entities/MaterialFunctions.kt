@@ -66,13 +66,11 @@ fun texture(
     normal: String? = null,
     specular: String? = null,
     color: String? = null,
-    slim: Boolean? = null,
 ): MaterialSource = MaterialSource.Texture(
     texture = texture.rl,
     normal = normal?.rl,
     specular = specular?.rl,
     color = color,
-    slim = slim,
 )
 
 /** The skin of a player, by nickname or uuid. */

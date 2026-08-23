@@ -106,8 +106,9 @@ import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.components.MaterialsComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.PlayerArms
+import ru.hollowhorizon.hollowengine.common.attachments.components.PlayerArmsComponent
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.MaterialSources
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.ResolvedMaterial
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
@@ -740,24 +741,26 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun customizePlayerSkin(player: AbstractClientPlayer, vanilla: PlayerSkin): PlayerSkin? {
-        val componentId = ComponentDescriptorRegistry.idFor(MaterialsComponent::class) ?: return null
-        val materials = AttachmentRegistry.componentsById(player)[componentId] as? MaterialsComponent ?: return null
+        val components = AttachmentRegistry.componentsById(player)
+        val materialsId = ComponentDescriptorRegistry.idFor(MaterialsComponent::class)
+        val materials = materialsId?.let { components[it] as? MaterialsComponent }
+        val armsId = ComponentDescriptorRegistry.idFor(PlayerArmsComponent::class)
+        val arms = armsId?.let { (components[it] as? PlayerArmsComponent)?.arms }
 
-        fun resolve(name: String): ResolvedMaterial? = materials.materials[name]?.let(MaterialSources::resolve)
-
-        val skin = resolve(MaterialsComponent.SKIN)
-        val cape = resolve(MaterialsComponent.CAPE)
-        val elytra = resolve(MaterialsComponent.ELYTRA)
-        if (skin == null && cape == null && elytra == null) return null
+        val skinSource = materials?.materials?.get(MaterialsComponent.SKIN)
+        val skin = skinSource?.let(MaterialSources::resolve)
+        val cape = materials?.materials?.get(MaterialsComponent.CAPE)?.let(MaterialSources::resolve)
+        val elytra = materials?.materials?.get(MaterialsComponent.ELYTRA)?.let(MaterialSources::resolve)
+        if (skin == null && cape == null && elytra == null && arms == null) return null
 
         return PlayerSkin(
             skin?.texture ?: vanilla.texture(),
             vanilla.textureUrl(),
             cape?.texture ?: vanilla.capeTexture(),
             elytra?.texture ?: vanilla.elytraTexture(),
-            when (skin?.slim) {
-                true -> PlayerSkin.Model.SLIM
-                false -> PlayerSkin.Model.WIDE
+            when (arms ?: skinSource?.let(MaterialSources::armsOf)) {
+                PlayerArms.SLIM -> PlayerSkin.Model.SLIM
+                PlayerArms.WIDE -> PlayerSkin.Model.WIDE
                 null -> vanilla.model()
             },
             vanilla.secure(),
