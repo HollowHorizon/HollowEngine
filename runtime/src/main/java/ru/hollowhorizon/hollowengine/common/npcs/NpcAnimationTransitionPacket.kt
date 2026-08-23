@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.models.*
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -56,16 +57,16 @@ object NpcAnimationRuntime {
         fadeIn: Float = DEFAULT_FADE_DURATION,
         fadeOut: Float = DEFAULT_FADE_DURATION,
     ) {
-        val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
+        val animationsId = ComponentDescriptorRegistry.idFor(AnimationsComponent::class) ?: return
         val components = AttachmentRegistry.componentsById(entity)
-        val current = components[animatorId] as? AnimatorComponent ?: AnimatorComponent()
+        val current = components[animationsId] as? AnimationsComponent ?: AnimationsComponent()
         val withoutOld = from?.let { current.fadeOutClip(entity.level().gameTime, it, duration) } ?: current
         val model = components.values.filterIsInstance<Model>().firstOrNull()?.model
         val gameTime = entity.level().gameTime
         val updated = to
             ?.takeIf(String::isNotBlank)
             ?.let { animation ->
-                withoutOld.withLayer(
+                withoutOld.withClip(
                     ClipAnimationLayerSpec(
                         id = "npc:$animation",
                         animation = animation,
@@ -78,27 +79,26 @@ object NpcAnimationRuntime {
                 )
             } ?: withoutOld
 
-        components[animatorId] = updated
+        components[animationsId] = updated
     }
 
     fun removeLayer(entity: Entity, layerId: String) {
-        val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
+        val animationsId = ComponentDescriptorRegistry.idFor(AnimationsComponent::class) ?: return
         val components = AttachmentRegistry.componentsById(entity)
-        val current = components[animatorId] as? AnimatorComponent ?: return
+        val current = components[animationsId] as? AnimationsComponent ?: return
         val updated = current.withoutLayer(layerId)
         if (updated == current) return
 
-        components[animatorId] = updated
+        components[animationsId] = updated
     }
 
     fun clear(entity: Entity) {
-        val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
+        val animationsId = ComponentDescriptorRegistry.idFor(AnimationsComponent::class) ?: return
         val components = AttachmentRegistry.componentsById(entity)
-        val current = components[animatorId] as? AnimatorComponent ?: return
-        val updated = current.copy(layers = current.layers.filterNot { it is ClipAnimationLayerSpec })
-        if (updated == current) return
+        val current = components[animationsId] as? AnimationsComponent ?: return
+        if (current.clips.isEmpty()) return
 
-        components[animatorId] = updated
+        components[animationsId] = AnimationsComponent()
     }
 
     fun tick(server: MinecraftServer) {
@@ -106,40 +106,38 @@ object NpcAnimationRuntime {
     }
 
     private fun removeExpiredLayers(level: ServerLevel) {
-        val animatorId = ComponentDescriptorRegistry.idFor(AnimatorComponent::class) ?: return
+        val animationsId = ComponentDescriptorRegistry.idFor(AnimationsComponent::class) ?: return
         val now = level.gameTime
         AttachmentRegistry.entitySnapshots(level).forEach { (entity, snapshot) ->
-            val animator = snapshot.components.filterIsInstance<AnimatorComponent>().firstOrNull() ?: return@forEach
-            val updated = animator.copy(
-                layers = animator.layers.filterNot { layer ->
-                    layer is ClipAnimationLayerSpec && layer.removeAtGameTime?.let { it <= now } == true
-                }
+            val animations = snapshot.components.filterIsInstance<AnimationsComponent>().firstOrNull() ?: return@forEach
+            val updated = animations.copy(
+                clips = animations.clips.filterNot { clip -> clip.removeAtGameTime?.let { it <= now } == true }
             )
-            if (updated == animator) return@forEach
+            if (updated == animations) return@forEach
 
-            AttachmentRegistry.componentsById(entity)[animatorId] = updated
+            AttachmentRegistry.componentsById(entity)[animationsId] = updated
         }
     }
 
-    private fun AnimatorComponent.fadeOutClip(
+    private fun AnimationsComponent.fadeOutClip(
         gameTime: Long,
         animation: String,
         duration: Float,
-    ): AnimatorComponent {
+    ): AnimationsComponent {
         if (duration <= 0f) return withoutClip(animation)
         val durationTicks = duration.toDouble().secondsToTicksCeil()
         val removeAt = gameTime + durationTicks
         var changed = false
-        val updatedLayers = layers.map { layer ->
-            if (layer !is ClipAnimationLayerSpec || layer.animation != animation) return@map layer
+        val updatedClips = clips.map { clip ->
+            if (clip.animation != animation) return@map clip
             changed = true
-            layer.copy(
-                weight = AnimationExpression(layer.weight.source.fadeOutExpression(gameTime, durationTicks)),
+            clip.copy(
+                weight = AnimationExpression(clip.weight.source.fadeOutExpression(gameTime, durationTicks)),
                 removeOnEnd = false,
                 removeAtGameTime = removeAt,
             )
         }
-        return if (changed) copy(layers = updatedLayers) else this
+        return if (changed) copy(clips = updatedClips) else this
     }
 
     private fun completionGameTime(

@@ -22,6 +22,8 @@ import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
+import ru.hollowhorizon.hollowengine.common.models.Animator
+import ru.hollowhorizon.hollowengine.common.models.ModelMetadata
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.configureStaticRenderPaths
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
 import ru.hollowhorizon.hollowengine.client.textures.GlTexture
@@ -42,6 +44,7 @@ object HollowModelManager :
     lateinit var lightTexture: AbstractTexture
     private val models = ConcurrentHashMap<ResourceLocation, MutableStateFlow<Model>>()
     private val indexedModels = ConcurrentHashMap.newKeySet<ResourceLocation>()
+    private val metadata = ConcurrentHashMap<ResourceLocation, ModelMetadata>()
     var glProgramSkinning = -1
     var glProgramMorphing = -1
 
@@ -81,7 +84,8 @@ object HollowModelManager :
         manager: ResourceManager,
         profiler: ProfilerFiller,
     ): Map<ResourceLocation, PreparedModelUpdate<Model>> {
-        val indexed = discoverIndexedModels(manager)
+        AnimatorAssets.reload(manager)
+        val indexed = readMetadata(manager)
         indexedModels.clear()
         indexedModels.addAll(indexed)
         val targets = ModelReloadCoordinator.reloadTargets(models.keys, indexed)
@@ -135,12 +139,27 @@ object HollowModelManager :
         )
     }
 
-    private fun discoverIndexedModels(manager: ResourceManager): Set<ResourceLocation> {
+    private fun readMetadata(manager: ResourceManager): Set<ResourceLocation> {
         val supportedFormats = loaders.flatMap { it.supportedFormats }.toSet()
-        return manager.listResources("models") { path ->
+        metadata.clear()
+
+        manager.listResources("models") { path ->
             path.path.substringAfter('.') in supportedFormats
-        }.keys.filter { manager.getResource(it.withSuffix(".hemeta")).isPresent }.toSet()
+        }.keys.forEach { location ->
+            val resource = manager.getResource(location.withSuffix(".hemeta")).orElse(null) ?: return@forEach
+            val source = runCatching { resource.open().use { it.readBytes().decodeToString() } }.getOrDefault("")
+            metadata[location] = ModelMetadata.parse(source, location.toString())
+        }
+
+        return metadata.filterValues(ModelMetadata::preload).keys
     }
+
+    /** What the model's `.hemeta` says, or empty metadata when it has none. */
+    fun metadata(location: ResourceLocation?): ModelMetadata = location?.let(metadata::get) ?: ModelMetadata.EMPTY
+
+    /** The animator this model wears by default, named by its metadata. */
+    fun animatorOf(location: ResourceLocation?): Animator? =
+        AnimatorAssets.get(metadata(location).animationController)
 
     private fun destroyLater(model: Model) {
         if (RenderSystem.isOnRenderThreadOrInit()) {

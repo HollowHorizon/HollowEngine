@@ -13,6 +13,8 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentPersistencePolicy
+import ru.hollowhorizon.hollowengine.common.utils.bytebuf.FriendlyByteBufDecoder
+import ru.hollowhorizon.hollowengine.common.utils.bytebuf.FriendlyByteBufEncoder
 
 @Serializable
 sealed class Snapshot {
@@ -52,14 +54,19 @@ object ComponentListSerializer : KSerializer<List<Component>> {
         ListSerializer(componentSerializer).descriptor
 
     override fun serialize(encoder: Encoder, value: List<Component>) {
+        val buffer = (encoder as? FriendlyByteBufEncoder)?.buf
         encoder.encodeCollection(descriptor, value.size) {
             value.forEachIndexed { index, component ->
+                val lengthAt = buffer?.writerIndex()?.also { buffer.writeInt(0) }
                 encodeSerializableElement(
                     descriptor,
                     index,
                     componentSerializer,
                     component
                 )
+                if (buffer != null && lengthAt != null) {
+                    buffer.setInt(lengthAt, buffer.writerIndex() - lengthAt - Int.SIZE_BYTES)
+                }
             }
         }
     }
@@ -67,8 +74,10 @@ object ComponentListSerializer : KSerializer<List<Component>> {
     override fun deserialize(decoder: Decoder): List<Component> {
         val result = mutableListOf<Component>()
         val composite = decoder.beginStructure(descriptor)
+        val buffer = (composite as? FriendlyByteBufDecoder)?.input
 
         fun decodeComponent(index: Int) {
+            val endsAt = buffer?.let { it.readInt() + it.readerIndex() }
             try {
                 val component = composite.decodeSerializableElement(
                     descriptor,
@@ -81,6 +90,8 @@ object ComponentListSerializer : KSerializer<List<Component>> {
                     "Failed to deserialize component at index $index: ${e.message}",
                     e
                 )
+            } finally {
+                endsAt?.let(buffer::readerIndex)
             }
         }
 

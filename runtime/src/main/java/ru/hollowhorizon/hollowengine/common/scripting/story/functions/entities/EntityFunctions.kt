@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions.entities
 import kotlinx.coroutines.delay
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.models.AnimationPlayMode
 import ru.hollowhorizon.hollowengine.common.npcs.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcAction
 import ru.hollowhorizon.hollowengine.common.npcs.actions.NpcActionKeys

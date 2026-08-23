@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.fillAnimationVariables
 import ru.hollowhorizon.hollowengine.client.models.internal.hostYawDegrees
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatorAssets
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.modelInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
@@ -26,11 +27,14 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStag
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
+import ru.hollowhorizon.hollowengine.common.models.StandardPlayerAnimatorPreset
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 @ClientOnly
 object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
+        AnimatorAssets.register(StandardPlayerAnimatorPreset.ID.rl, StandardPlayerAnimatorPreset.create())
     }
 
     private var isWorldPass = false
@@ -70,7 +74,7 @@ object RenderManager {
             val instance = host.modelInstance(node.nodeId, node.model.model)
 
             instance.attachment.entity = host as? LivingEntity
-            instance.animator.configure(node.animator)
+            instance.configure(node.animations)
             instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, host, partialTick) })
         }
     }
@@ -102,7 +106,7 @@ object RenderManager {
             val instance = entity.modelInstance(node.nodeId, node.model.model)
             val attachment = instance.attachment
             attachment.entity = entity as? LivingEntity
-            instance.animator.configure(node.animator)
+            instance.configure(node.animations)
             instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, entity, partialTick) })
 
             val hostYaw = when (entity) {

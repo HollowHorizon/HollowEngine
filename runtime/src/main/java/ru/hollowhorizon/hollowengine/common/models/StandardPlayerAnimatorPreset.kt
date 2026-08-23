@@ -1,12 +1,14 @@
-package ru.hollowhorizon.hollowengine.common.attachments.components
+package ru.hollowhorizon.hollowengine.common.models
 
 object StandardPlayerAnimatorPreset {
     const val MODEL = "hollowengine:models/entity/player_model.gltf"
 
+    const val ID = "hollowengine:standard_player"
+
     private val loopedStates = setOf("idle", "walk", "run", "sneak", "levitation")
     private val clampedStates = setOf("death", "sit", "sleep", "lay")
 
-    fun create(): AnimatorComponent = AnimatorComponent(
+    fun create(): Animator = Animator(
         layers = listOf(
             AnimationControllerLayerSpec(
                 id = "standard_player:locomotion",

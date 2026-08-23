@@ -70,6 +70,32 @@ class EntitySerializationTests {
     }
 
     @Test
+    fun `a component the game no longer knows is skipped`() {
+        registerDescriptors()
+        val saved = EntitySerialization.serializeToNbt(
+            EntitySnapshot(components = listOf(LooseComponent("removed from the engine"), BasicComponent("keep"))),
+        )
+        ComponentDescriptorRegistry.unregisterDescriptor(looseId)
+
+        val decoded = EntitySerialization.deserializeFromNbt(saved)
+
+        assertEquals(listOf(BasicComponent("keep")), decoded.components)
+    }
+
+    @Test
+    fun `a component the client does not know is skipped`() {
+        registerDescriptors()
+        val sent = EntitySerialization.serializeToByteBuf(
+            EntitySnapshot(components = listOf(LooseComponent("server only"), BasicComponent("keep"))),
+        )
+        ComponentDescriptorRegistry.unregisterDescriptor(looseId)
+
+        val received = EntitySerialization.deserializeFromByteBuf(sent)
+
+        assertEquals(listOf(BasicComponent("keep")), received.components)
+    }
+
+    @Test
     fun `ai components roundtrip preserves patrol paths and entity references`() {
         registerAiDescriptorsIfNeeded()
         assertNotNull(ComponentDescriptorRegistry.descriptorOrNull(lookAtId))

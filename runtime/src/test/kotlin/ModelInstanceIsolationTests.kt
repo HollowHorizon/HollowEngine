@@ -14,10 +14,10 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstanceMaterials
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.attachments.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.models.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationsComponent
+import ru.hollowhorizon.hollowengine.common.models.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertContentEquals
@@ -83,8 +83,9 @@ class ModelInstanceIsolationTests {
         )
         val instance = ModelInstance(ModelAttachment(MutableStateFlow(model), null))
         instance.animator.configure(
-            AnimatorComponent(
-                layers = listOf(
+            model = null,
+            animations = AnimationsComponent(
+                clips = listOf(
                     ClipAnimationLayerSpec(
                         id = "clock",
                         animation = animation.name,

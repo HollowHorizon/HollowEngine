@@ -4,6 +4,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.models.*
 import ru.hollowhorizon.hollowengine.common.coroutines.scopeAsync
 import ru.hollowhorizon.hollowengine.common.utils.expressions.*
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
@@ -198,7 +199,7 @@ class AnimatorEvaluationContext {
 }
 
 /**
- * Evaluates the expressions of an [AnimatorComponent].
+ * Evaluates the expressions of an [Animator].
  */
 object AnimatorExpressionEvaluator {
     private val baked = ConcurrentHashMap<String, FloatExpression<AnimatorEvaluationContext>>()
@@ -230,13 +231,13 @@ object AnimatorExpressionEvaluator {
         float(expression.z, context),
     )
 
-    /** Bakes every expression of [component] in one background pass. */
-    fun prepare(component: AnimatorComponent) {
-        bakeLater(sourcesOf(component))
+    /** Bakes every expression of [layers] in one background pass. */
+    fun prepare(layers: List<AnimatorLayerSpec>) {
+        bakeLater(sourcesOf(layers))
     }
 
     /** Bakes and waits. For callers already off the render thread, such as resource loading. */
-    fun prepareNow(component: AnimatorComponent) = prepareNow(sourcesOf(component))
+    fun prepareNow(animator: Animator) = prepareNow(sourcesOf(animator.layers))
 
     fun prepareNow(sources: Collection<String>) {
         val pending = sources.filter { it.isNotBlank() && it.toFloatOrNull() == null }
@@ -244,9 +245,9 @@ object AnimatorExpressionEvaluator {
         compile(pending)
     }
 
-    private fun sourcesOf(component: AnimatorComponent): List<String> {
+    private fun sourcesOf(layers: List<AnimatorLayerSpec>): List<String> {
         val sources = LinkedHashSet<String>()
-        component.layers.forEach { layer ->
+        layers.forEach { layer ->
             sources += layer.weight.source
             when (layer) {
                 is ClipAnimationLayerSpec -> sources += layer.speed.source

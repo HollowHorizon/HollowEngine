@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.models.*
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.Snapshot
 import java.util.*
@@ -28,7 +29,7 @@ data class ModelNodeEntry(
     val nodeId: UUID,
     val model: Model,
     val transform: TransformComponent,
-    val animator: AnimatorComponent?,
+    val animations: AnimationsComponent?,
 )
 
 fun Snapshot.snapshotIdOrNull(): UUID? = when (this) {
@@ -46,14 +47,14 @@ fun Snapshot.transformOrNull(): TransformComponent? =
 fun Snapshot.modelOrNull(): Model? =
     components.filterIsInstance<Model>().firstOrNull()
 
-fun Snapshot.animatorOrNull(): AnimatorComponent? =
-    components.filterIsInstance<AnimatorComponent>().firstOrNull()
+fun Snapshot.animationsOrNull(): AnimationsComponent? =
+    components.filterIsInstance<AnimationsComponent>().firstOrNull()
 
 fun Snapshot.modelNodes(): List<ModelNodeEntry> {
     val model = components.filterIsInstance<Model>().firstOrNull() ?: return emptyList()
     val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
-    val animator = components.filterIsInstance<AnimatorComponent>().firstOrNull()
-    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform, animator))
+    val animations = components.filterIsInstance<AnimationsComponent>().firstOrNull()
+    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform, animations))
 }
 
 fun <T : Snapshot> T.withOrReplace(component: Component, nodeId: UUID? = null): T {

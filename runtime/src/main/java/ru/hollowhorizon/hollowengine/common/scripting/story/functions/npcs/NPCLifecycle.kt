@@ -69,7 +69,6 @@ fun npc(
 
         set(Model(model))
         set(HitboxComponent(HitboxMode.PULLING))
-        set(StandardPlayerAnimatorPreset.create())
         set(TransformComponent(transform))
 
         if (attributes.isNotEmpty()) {

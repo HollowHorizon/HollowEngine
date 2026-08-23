@@ -1,17 +1,14 @@
-package ru.hollowhorizon.hollowengine.common.attachments.components
+package ru.hollowhorizon.hollowengine.common.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.api.Registerable
-import ru.hollowhorizon.hollowengine.api.Syncable
 import java.util.*
 
-@Registerable
-@Syncable
+/**
+ * Everything a model animates with: a stack of layers, blended in priority order.
+ */
 @Serializable
-@SerialName("hollowengine:animator")
-data class AnimatorComponent(
-    val enabled: Boolean = true,
+data class Animator(
     val layers: List<AnimatorLayerSpec> = emptyList(),
 )
 
@@ -155,12 +152,3 @@ enum class AnimationPlayMode {
 const val ANY_STATE = "__any__"
 
 fun newAnimationLayerId(prefix: String): String = "$prefix:${UUID.randomUUID()}"
-
-fun AnimatorComponent.withLayer(layer: AnimatorLayerSpec): AnimatorComponent =
-    copy(layers = layers.filterNot { it.id == layer.id } + layer)
-
-fun AnimatorComponent.withoutLayer(layerId: String): AnimatorComponent =
-    copy(layers = layers.filterNot { it.id == layerId })
-
-fun AnimatorComponent.withoutClip(animation: String): AnimatorComponent =
-    copy(layers = layers.filterNot { it is ClipAnimationLayerSpec && it.animation == animation })

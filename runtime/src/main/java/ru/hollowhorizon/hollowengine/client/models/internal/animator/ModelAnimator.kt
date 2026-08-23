@@ -1,35 +1,47 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationControllerLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.ProceduralLayerSpec
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationsComponent
+import ru.hollowhorizon.hollowengine.common.models.AnimationControllerLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.Animator
+import ru.hollowhorizon.hollowengine.common.models.AnimatorLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.ProceduralLayerSpec
 
 /**
  * Animator for one model instance: a stack of layers, blended in priority order.
  */
 class ModelAnimator {
-    private val fromComponent = LinkedHashMap<String, SpecLayer>()
+    private val specLayers = LinkedHashMap<String, SpecLayer>()
     private val clientLayers = LinkedHashMap<String, AnimationLayer>()
-    private var component: AnimatorComponent? = null
+    private var model: Animator? = null
+    private var animations: AnimationsComponent? = null
     private var lastTicks: Float = Float.NaN
 
-    /** Reconciles component layers by stable id; playback survives spec updates of the same layer kind. */
-    fun configure(animator: AnimatorComponent?) {
-        if (component == animator) return
-        component = animator
-        animator?.let(AnimatorExpressionEvaluator::prepare)
+    /**
+     * Sets the layers this animator runs.
+     *
+     * [model] is the animator the model wears, [animations] is what gameplay asked this entity to play;
+     * the clips go on top, and one with the same id replaces a layer of the model's. Layers are reconciled
+     * by id, so playback survives an update that leaves a layer's spec alone.
+     */
+    fun configure(model: Animator?, animations: AnimationsComponent?) {
+        if (this.model == model && this.animations == animations) return
+        this.model = model
+        this.animations = animations
+        model?.layers?.let(AnimatorExpressionEvaluator::prepare)
+        animations?.clips?.let(AnimatorExpressionEvaluator::prepare)
 
-        val specs = animator?.takeIf { it.enabled }?.layers.orEmpty()
+        val specs = LinkedHashMap<String, AnimatorLayerSpec>()
+        model?.layers?.forEach { specs[it.id] = it }
+        animations?.clips?.forEach { specs[it.id] = it }
         val rebuilt = LinkedHashMap<String, SpecLayer>(specs.size)
-        specs.forEach { spec ->
-            val existing = fromComponent[spec.id]?.takeIf { it.reconfigure(spec) }
+        specs.values.forEach { spec ->
+            val existing = specLayers[spec.id]?.takeIf { it.reconfigure(spec) }
             rebuilt[spec.id] = existing ?: layerFor(spec)
         }
-        fromComponent.clear()
-        fromComponent.putAll(rebuilt)
+        specLayers.clear()
+        specLayers.putAll(rebuilt)
     }
 
     /** Adds a layer the server knows nothing about; replaces one with the same id. */
@@ -42,9 +54,9 @@ class ModelAnimator {
     }
 
     /** Where a layer is inside its animation, for progress bars and the editor. */
-    fun layerTime(id: String): Float? = (fromComponent[id] ?: clientLayers[id] as? SpecLayer)?.time
+    fun layerTime(id: String): Float? = (specLayers[id] ?: clientLayers[id] as? SpecLayer)?.time
 
-    val isEmpty: Boolean get() = fromComponent.isEmpty() && clientLayers.isEmpty()
+    val isEmpty: Boolean get() = specLayers.isEmpty() && clientLayers.isEmpty()
 
     /**
      * Poses [attachment]'s nodes for this frame.
@@ -56,7 +68,7 @@ class ModelAnimator {
         context.deltaTime = deltaSeconds(context.time)
         if (isEmpty) return
 
-        val layers = (fromComponent.values + clientLayers.values).sortedBy { it.priority }
+        val layers = (specLayers.values + clientLayers.values).sortedBy { it.priority }
         layers.forEach { layer ->
             val weight = layer.weight(context)
             if (weight <= 0f) return@forEach
@@ -68,7 +80,7 @@ class ModelAnimator {
             target.apply(sampled.pose, layer.blendMode, finalWeight, sampled.reference)
         }
 
-        fromComponent.values.removeIf(AnimationLayer::finished)
+        specLayers.values.removeIf(AnimationLayer::finished)
         clientLayers.values.removeIf(AnimationLayer::finished)
     }
 

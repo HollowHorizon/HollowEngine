@@ -1,12 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorExpressionEvaluator as evaluator
-import ru.hollowhorizon.hollowengine.common.attachments.components.ANY_STATE
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationControllerLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationControllerStateSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationControllerTransitionSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.ANY_STATE
+import ru.hollowhorizon.hollowengine.common.models.AnimationControllerLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.AnimationControllerStateSpec
+import ru.hollowhorizon.hollowengine.common.models.AnimationControllerTransitionSpec
+import ru.hollowhorizon.hollowengine.common.models.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.models.AnimatorLayerSpec
 
 /**
  * A state machine over clips: which state the model is in, and the crossfade while it moves to the next.

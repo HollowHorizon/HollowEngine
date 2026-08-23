@@ -10,7 +10,7 @@ import net.minecraft.network.FriendlyByteBuf
 @OptIn(ExperimentalSerializationApi::class)
 class FriendlyByteBufEncoder(
     override val serializersModule: SerializersModule,
-    private val buf: FriendlyByteBuf,
+    internal val buf: FriendlyByteBuf,
 ) : AbstractEncoder() {
     override fun encodeBoolean(value: Boolean) {
         buf.writeBoolean(value)

@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpola
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.*
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.models.*
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
@@ -20,12 +21,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AnimatorRuntimeTests {
-    private val animatorId = "hollowengine:animator".rl
+    private val animationsId = "hollowengine:animations".rl
     private val hideVanillaModelId = "hollowengine:hide_vanilla_entity_model".rl
 
     @AfterEach
     fun cleanup() {
-        ComponentDescriptorRegistry.unregisterDescriptor(animatorId)
+        ComponentDescriptorRegistry.unregisterDescriptor(animationsId)
         ComponentDescriptorRegistry.unregisterDescriptor(hideVanillaModelId)
     }
 
@@ -101,24 +102,23 @@ class AnimatorRuntimeTests {
         val replacement = clip(id = "manual:idle", animation = "walk", priority = 2)
         val attack = clip(id = "manual:attack", animation = "attack")
 
-        val animator = AnimatorComponent()
-            .withLayer(first)
-            .withLayer(attack)
-            .withLayer(replacement)
+        val animations = AnimationsComponent()
+            .withClip(first)
+            .withClip(attack)
+            .withClip(replacement)
             .withoutClip("attack")
 
-        assertEquals(listOf(replacement), animator.layers)
+        assertEquals(listOf(replacement), animations.clips)
     }
 
     @Test
-    fun `animator component roundtrips through snapshot serializers`() {
-        registerAnimatorDescriptor()
+    fun `animations component roundtrips through snapshot serializers`() {
+        registerAnimationsDescriptor()
         registerHideVanillaModelDescriptor()
         val snapshot = EntitySnapshot(
             components = listOf(
-                AnimatorComponent(
-                    enabled = true,
-                    layers = listOf(
+                AnimationsComponent(
+                    clips = listOf(
                         clip(
                             id = "manual:wave",
                             animation = "wave",
@@ -203,7 +203,8 @@ class AnimatorRuntimeTests {
         val node = testNode()
         val animator = ModelAnimator()
         animator.configure(
-            AnimatorComponent(layers = listOf(clip(id = "manual:wave", animation = "wave").copy(fadeIn = 1f)))
+            model = null,
+            AnimationsComponent(clips = listOf(clip(id = "manual:wave", animation = "wave").copy(fadeIn = 1f)))
         )
 
         animator.step(node, seconds = 0.5f)
@@ -216,12 +217,13 @@ class AnimatorRuntimeTests {
         val node = testNode()
         val animator = ModelAnimator()
         val layer = clip(id = "manual:wave", animation = "wave", playMode = AnimationPlayMode.Loop)
-        animator.configure(AnimatorComponent(layers = listOf(layer)))
+        animator.configure(model = null, animations = AnimationsComponent(clips = listOf(layer)))
         animator.step(node, seconds = 0.5f)
 
         animator.configure(
-            AnimatorComponent(
-                layers = listOf(
+            model = null,
+            AnimationsComponent(
+                clips = listOf(
                     layer.copy(
                         weight = AnimationExpression("0.5"),
                         priority = 2,
@@ -245,11 +247,12 @@ class AnimatorRuntimeTests {
             states = listOf(AnimationControllerStateSpec(id = "wave", animation = "wave")),
             entryState = "wave",
         )
-        animator.configure(AnimatorComponent(layers = listOf(layer)))
+        animator.configure(model = Animator(layers = listOf(layer)), animations = null)
         animator.step(node, seconds = 0.5f)
 
         animator.configure(
-            AnimatorComponent(layers = listOf(layer.copy(weight = AnimationExpression("0.5"))))
+            model = Animator(layers = listOf(layer.copy(weight = AnimationExpression("0.5")))),
+            animations = null,
         )
 
         assertEquals(0.5f, animator.layerTime(layer.id)!!, 0.0001f)
@@ -264,7 +267,8 @@ class AnimatorRuntimeTests {
         val node = testNode()
         val animator = ModelAnimator()
         animator.configure(
-            AnimatorComponent(layers = listOf(clip(id = "manual:wave", animation = "wave").copy(fadeOut = 0.5f)))
+            model = null,
+            AnimationsComponent(clips = listOf(clip(id = "manual:wave", animation = "wave").copy(fadeOut = 0.5f)))
         )
 
         animator.step(node, seconds = 0.75f)
@@ -422,13 +426,13 @@ class AnimatorRuntimeTests {
             duration = 1f,
         )
 
-    private fun registerAnimatorDescriptor() {
-        if (ComponentDescriptorRegistry.descriptorOrNull(animatorId) != null) return
+    private fun registerAnimationsDescriptor() {
+        if (ComponentDescriptorRegistry.descriptorOrNull(animationsId) != null) return
         ComponentDescriptorRegistry.register(
             ComponentDescriptor(
-                id = animatorId,
-                value = AnimatorComponent::class,
-                serializer = AnimatorComponent.serializer(),
+                id = animationsId,
+                value = AnimationsComponent::class,
+                serializer = AnimationsComponent.serializer(),
             )
         )
     }

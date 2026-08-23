@@ -3,6 +3,8 @@ package ru.hollowhorizon.hollowengine.client.models.internal.v2
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.ModelAnimator
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationsComponent
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
 import java.util.UUID
@@ -13,6 +15,11 @@ import java.util.UUID
 class ModelInstance(val attachment: ModelAttachment) {
     val animator = ModelAnimator()
     private var posedFrame = Long.MIN_VALUE
+
+    /** Runs the animator the model wears, with the entity's [animations] layered on top of it. */
+    fun configure(animations: AnimationsComponent?) {
+        animator.configure(HollowModelManager.animatorOf(attachment.location), animations)
+    }
 
     /**
      * Advances the animation and leaves the nodes ready to draw, once per frame.

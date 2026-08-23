@@ -10,7 +10,7 @@ import net.minecraft.network.FriendlyByteBuf
 @OptIn(ExperimentalSerializationApi::class)
 class FriendlyByteBufDecoder(
     override val serializersModule: SerializersModule,
-    private val input: FriendlyByteBuf,
+    internal val input: FriendlyByteBuf,
     private var elementsCount: Int = 0,
 ) : AbstractDecoder() {
     private var elementIndex = 0

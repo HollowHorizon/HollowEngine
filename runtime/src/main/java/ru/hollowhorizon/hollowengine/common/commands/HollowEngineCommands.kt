@@ -39,6 +39,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.binding.*
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.models.*
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.snapshotOf
@@ -570,7 +571,6 @@ private fun applyStandardPlayerAnimationPreset(
     val snapshotId = attachNodeModel(
         host = host,
         modelName = StandardPlayerAnimatorPreset.MODEL,
-        extraComponents = listOf(StandardPlayerAnimatorPreset.create()),
     )
     if (!setHideVanillaEntityModel(host, hideVanilla)) {
         source.sendFailure("Hide vanilla model component is not registered".literal)

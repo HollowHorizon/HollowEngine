@@ -4,15 +4,15 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorExpressionEvaluator as evaluator
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimatorLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.BoneMask
-import ru.hollowhorizon.hollowengine.common.attachments.components.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.models.AnimatorLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.BoneMask
+import ru.hollowhorizon.hollowengine.common.models.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.deg
-import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.attachments.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.attachments.components.ProceduralLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.models.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.models.ProceduralLayerSpec
 
 class PoseTarget(
     val nodesByIndex: Map<Int, RuntimeNode>,

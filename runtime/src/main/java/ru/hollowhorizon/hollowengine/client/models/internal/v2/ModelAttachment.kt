@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.v2
 import kotlinx.coroutines.flow.StateFlow
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
@@ -17,13 +18,17 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.max
 import kotlin.math.min
 
-fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null)
+fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null, location = model.rl)
 
 /**
  * One rendered instance of a model: its own nodes, materials and draw commands.
  */
-class ModelAttachment(val flow: StateFlow<Model>, parent: Attachment?, var entity: LivingEntity? = null) :
-    Attachment(parent) {
+class ModelAttachment(
+    val flow: StateFlow<Model>,
+    parent: Attachment?,
+    var entity: LivingEntity? = null,
+    val location: ResourceLocation? = null,
+) : Attachment(parent) {
     private var builtFor: Model? = null
     private var runtimeNodes: List<RuntimeNode> = emptyList()
     private var nodesByIndex: Map<Int, RuntimeNode> = emptyMap()

@@ -27,6 +27,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
+import ru.hollowhorizon.hollowengine.common.models.*
 import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -231,8 +232,9 @@ class ModelViewerState(model: String) {
         animationWeightVariables = names.indices.map(::previewWeightVariable)
         animationContext.variables.clear()
         instance.animator.configure(
-            AnimatorComponent(
-                layers = names.mapIndexed { index, animation ->
+            model = null,
+            animations = AnimationsComponent(
+                clips = names.mapIndexed { index, animation ->
                     ClipAnimationLayerSpec(
                         id = previewLayerId(animation),
                         animation = animation,
