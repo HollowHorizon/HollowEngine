@@ -1,2 +1,5 @@
 preload = true
 animation-controller = "hollowengine:standard_player"
+
+[materials]
+skin = "material_0"

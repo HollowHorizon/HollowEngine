@@ -26,7 +26,7 @@ object GltfModelLoader : ModelLoader {
     fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): Model {
         val skins = parseSkins(file)
         val materials = if (side == ModelSide.SERVER) emptyList() else {
-            file.materials.map { material -> material.toMaterial(file, location) }
+            file.materials.mapIndexed { index, material -> material.toMaterial(file, location, index) }
         }
 
         // BlockBench exports facing the way a vanilla model does; every other exporter puts the front at +Z.

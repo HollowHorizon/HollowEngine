@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
+import ru.hollowhorizon.hollowengine.client.models.internal.renameMaterials
 import ru.hollowhorizon.hollowengine.common.models.Animator
 import ru.hollowhorizon.hollowengine.common.models.ModelMetadata
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.configureStaticRenderPaths
@@ -77,7 +78,9 @@ object HollowModelManager :
         val loader = loaders.find { extension in it.supportedFormats }
             ?: error("No suitable model loader found for format .$extension")
 
-        return loader.load(location).also(Model::configureStaticRenderPaths)
+        return loader.load(location)
+            .also { it.renameMaterials(metadata(location)) }
+            .also(Model::configureStaticRenderPaths)
     }
 
     override fun prepare(

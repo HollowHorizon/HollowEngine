@@ -74,7 +74,7 @@ object RenderManager {
             val instance = host.modelInstance(node.nodeId, node.model.model)
 
             instance.attachment.entity = host as? LivingEntity
-            instance.configure(node.animations)
+            instance.configure(node.animations, node.materials)
             instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, host, partialTick) })
         }
     }
@@ -106,7 +106,7 @@ object RenderManager {
             val instance = entity.modelInstance(node.nodeId, node.model.model)
             val attachment = instance.attachment
             attachment.entity = entity as? LivingEntity
-            instance.configure(node.animations)
+            instance.configure(node.animations, node.materials)
             instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, entity, partialTick) })
 
             val hostYaw = when (entity) {

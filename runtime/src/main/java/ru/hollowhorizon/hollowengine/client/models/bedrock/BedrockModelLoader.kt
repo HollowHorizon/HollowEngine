@@ -58,8 +58,9 @@ object BedrockModelLoader : ModelLoader {
 
     private fun BedrockFile.Geometry.convertNodes(location: ResourceLocation, side: ModelSide): List<NodeDefinition> {
         val material = Material(
-            description.color,
-            location.withPath(location.path.removeSuffix("geo.json") + "png")
+            name = "texture",
+            color = description.color,
+            texture = location.withPath(location.path.removeSuffix("geo.json") + "png")
                 ?.takeIf { it.exists(side) } ?: description.texture.rl,
             blend = if (description.textureTranslucent) Material.Blend.BLEND else Material.Blend.OPAQUE,
             doubleSided = true

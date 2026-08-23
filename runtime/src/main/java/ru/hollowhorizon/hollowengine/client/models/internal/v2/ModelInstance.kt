@@ -4,7 +4,10 @@ import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.ModelAnimator
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.models.internal.Model
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.MaterialSources
 import ru.hollowhorizon.hollowengine.common.attachments.components.AnimationsComponent
+import ru.hollowhorizon.hollowengine.common.attachments.components.MaterialsComponent
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
 import java.util.UUID
@@ -15,10 +18,17 @@ import java.util.UUID
 class ModelInstance(val attachment: ModelAttachment) {
     val animator = ModelAnimator()
     private var posedFrame = Long.MIN_VALUE
+    private var materials: MaterialsComponent? = null
+    private var dressedModel: Model? = null
+    private var dressedMaterials: MaterialsComponent? = null
+    private var dressedGeneration = Int.MIN_VALUE
 
-    /** Runs the animator the model wears, with the entity's [animations] layered on top of it. */
-    fun configure(animations: AnimationsComponent?) {
+    /**
+     * Sets what this instance plays and what it wears.
+     */
+    fun configure(animations: AnimationsComponent?, materials: MaterialsComponent?) {
         animator.configure(HollowModelManager.animatorOf(attachment.location), animations)
+        this.materials = materials
     }
 
     /**
@@ -29,8 +39,23 @@ class ModelInstance(val attachment: ModelAttachment) {
         posedFrame = frame
 
         attachment.beginPose()
+        dress()
         animator.applyTo(attachment, context)
         attachment.endPose()
+    }
+
+    /**
+     * Puts the overrides back on the instance's materials when anything they depend on has moved.
+     */
+    private fun dress() {
+        val model = attachment.model
+        val generation = MaterialSources.generation
+        if (dressedModel === model && dressedMaterials == materials && dressedGeneration == generation) return
+
+        dressedModel = model
+        dressedMaterials = materials
+        dressedGeneration = generation
+        attachment.applyMaterials(materials?.materials ?: emptyMap())
     }
 }
 

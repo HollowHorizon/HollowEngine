@@ -114,6 +114,7 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.npcs.HitboxMode",
                     "ru.hollowhorizon.hollowengine.common.entities.*",
                     "ru.hollowhorizon.hollowengine.common.attachments.components.*",
+                    "ru.hollowhorizon.hollowengine.common.models.*",
                     "ru.hollowhorizon.hollowengine.common.attachments.api.set",
                     "ru.hollowhorizon.hollowengine.common.dialogue.*",
                     "ru.hollowhorizon.hollowengine.common.utils.rl",

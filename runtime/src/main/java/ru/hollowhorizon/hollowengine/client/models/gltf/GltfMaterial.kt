@@ -25,8 +25,8 @@ data class GltfMaterial(
     val doubleSided: Boolean = false,
 ) {
 
-    fun toMaterial(file: GltfFile, location: ResourceLocation): Material {
-        val material = Material()
+    fun toMaterial(file: GltfFile, location: ResourceLocation, index: Int): Material {
+        val material = Material(name = name?.takeIf(String::isNotBlank) ?: "material_$index")
         val colorList = pbrMetallicRoughness.baseColorFactor
         material.color = Color(colorList[0], colorList[1], colorList[2], colorList[3])
 

@@ -18,18 +18,10 @@ public abstract class AbstractClientPlayerMixin extends LivingEntity {
         super(entityType, level);
     }
 
-    @Inject(method = "getSkin", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getSkin", at = @At("RETURN"), cancellable = true)
     private void onGetSkin(CallbackInfoReturnable<PlayerSkin> cir) {
-        ResourceLocation texture = BootstrapRuntimeManager.bridge()
-                .getCustomPlayerSkinTexture((AbstractClientPlayer) (Object) this);
-        if (texture == null) return;
-
-        ResourceLocation cape = BootstrapRuntimeManager.bridge()
-                .getCustomPlayerSkinCape((AbstractClientPlayer) (Object) this);
-        boolean slim = BootstrapRuntimeManager.bridge()
-                .isCustomPlayerSkinSlim((AbstractClientPlayer) (Object) this);
-
-        PlayerSkin.Model model = slim ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE;
-        cir.setReturnValue(new PlayerSkin(texture, null, cape, null, model, false));
+        PlayerSkin custom = BootstrapRuntimeManager.bridge()
+                .customizePlayerSkin((AbstractClientPlayer) (Object) this, cir.getReturnValue());
+        if (custom != null) cir.setReturnValue(custom);
     }
 }

@@ -30,6 +30,7 @@ data class ModelNodeEntry(
     val model: Model,
     val transform: TransformComponent,
     val animations: AnimationsComponent?,
+    val materials: MaterialsComponent?,
 )
 
 fun Snapshot.snapshotIdOrNull(): UUID? = when (this) {
@@ -50,11 +51,15 @@ fun Snapshot.modelOrNull(): Model? =
 fun Snapshot.animationsOrNull(): AnimationsComponent? =
     components.filterIsInstance<AnimationsComponent>().firstOrNull()
 
+fun Snapshot.materialsOrNull(): MaterialsComponent? =
+    components.filterIsInstance<MaterialsComponent>().firstOrNull()
+
 fun Snapshot.modelNodes(): List<ModelNodeEntry> {
     val model = components.filterIsInstance<Model>().firstOrNull() ?: return emptyList()
     val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
     val animations = components.filterIsInstance<AnimationsComponent>().firstOrNull()
-    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform, animations))
+    val materials = components.filterIsInstance<MaterialsComponent>().firstOrNull()
+    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform, animations, materials))
 }
 
 fun <T : Snapshot> T.withOrReplace(component: Component, nodeId: UUID? = null): T {

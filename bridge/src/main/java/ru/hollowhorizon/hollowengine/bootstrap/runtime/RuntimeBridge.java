@@ -16,6 +16,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -225,11 +226,13 @@ public interface RuntimeBridge extends AutoCloseable {
 
     boolean onRenderPlayer(AbstractClientPlayer player, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
 
-    @Nullable ResourceLocation getCustomPlayerSkinTexture(AbstractClientPlayer player);
-
-    @Nullable ResourceLocation getCustomPlayerSkinCape(AbstractClientPlayer player);
-
-    boolean isCustomPlayerSkinSlim(AbstractClientPlayer player);
+    /**
+     * The skin this player should render with, or null to leave the one vanilla worked out alone.
+     *
+     * @param vanilla what vanilla would have returned, to derive from: overriding a skin should not
+     *                cost the player their cape.
+     */
+    @Nullable PlayerSkin customizePlayerSkin(AbstractClientPlayer player, PlayerSkin vanilla);
 
     void onIrisPipelineDestroyed();
 

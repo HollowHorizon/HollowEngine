@@ -13,6 +13,10 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
  * ```toml
  * preload = true
  * animation-controller = "hollowengine:standard_player"
+ *
+ * [materials]
+ * skin = "Body"
+ * cape = "material_3"
  * ```
  */
 @Serializable
@@ -23,7 +27,16 @@ data class ModelMetadata(
     /** The animator this model wears; a `.animator` file, or an id registered from code. */
     @SerialName("animation-controller")
     val animationController: @Serializable(ForResourceLocation::class) ResourceLocation? = null,
+
+    /**
+     * New name for a material of the model, keyed by the name it already has.
+     */
+    val materials: Map<String, String> = emptyMap(),
 ) {
+    /** The name a material should answer to, given the name it was loaded with. */
+    fun renameOf(loadedName: String): String? =
+        materials.entries.firstOrNull { it.value == loadedName }?.key
+
     companion object {
         val EMPTY = ModelMetadata()
 

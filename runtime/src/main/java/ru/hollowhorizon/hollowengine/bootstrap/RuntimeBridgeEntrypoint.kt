@@ -17,6 +17,7 @@ import net.minecraft.client.model.geom.builders.LayerDefinition
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.particle.ParticleEngine
 import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.client.player.KeyboardInput
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LevelRenderer
@@ -104,8 +105,9 @@ import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.attachments.components.SkinComponent
-import ru.hollowhorizon.hollowengine.common.attachments.components.SkinModel
+import ru.hollowhorizon.hollowengine.common.attachments.components.MaterialsComponent
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.MaterialSources
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ResolvedMaterial
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
@@ -737,18 +739,29 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         return event.isCanceled
     }
 
-    override fun getCustomPlayerSkinTexture(player: AbstractClientPlayer): ResourceLocation? =
-        skinComponent(player)?.texture?.takeIf(String::isNotBlank)?.let { it.rl }
+    override fun customizePlayerSkin(player: AbstractClientPlayer, vanilla: PlayerSkin): PlayerSkin? {
+        val componentId = ComponentDescriptorRegistry.idFor(MaterialsComponent::class) ?: return null
+        val materials = AttachmentRegistry.componentsById(player)[componentId] as? MaterialsComponent ?: return null
 
-    override fun getCustomPlayerSkinCape(player: AbstractClientPlayer): ResourceLocation? =
-        skinComponent(player)?.cape?.takeIf(String::isNotBlank)?.let { it.rl }
+        fun resolve(name: String): ResolvedMaterial? = materials.materials[name]?.let(MaterialSources::resolve)
 
-    override fun isCustomPlayerSkinSlim(player: AbstractClientPlayer): Boolean =
-        skinComponent(player)?.model == SkinModel.SLIM
+        val skin = resolve(MaterialsComponent.SKIN)
+        val cape = resolve(MaterialsComponent.CAPE)
+        val elytra = resolve(MaterialsComponent.ELYTRA)
+        if (skin == null && cape == null && elytra == null) return null
 
-    private fun skinComponent(player: AbstractClientPlayer): SkinComponent? {
-        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return null
-        return AttachmentRegistry.componentsById(player)[componentId] as? SkinComponent
+        return PlayerSkin(
+            skin?.texture ?: vanilla.texture(),
+            vanilla.textureUrl(),
+            cape?.texture ?: vanilla.capeTexture(),
+            elytra?.texture ?: vanilla.elytraTexture(),
+            when (skin?.slim) {
+                true -> PlayerSkin.Model.SLIM
+                false -> PlayerSkin.Model.WIDE
+                null -> vanilla.model()
+            },
+            vanilla.secure(),
+        )
     }
 
     override fun onIrisPipelineDestroyed() {

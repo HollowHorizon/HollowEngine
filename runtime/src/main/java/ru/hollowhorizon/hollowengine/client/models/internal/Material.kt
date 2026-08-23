@@ -5,7 +5,14 @@ import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
+/**
+ * How a surface of a model is drawn.
+ *
+ * The name is how everything else addresses it: `.hemeta` renames it, and the materials of an entity
+ * are keyed by it. Models that name nothing get `material_0`, `material_1`, and so on.
+ */
 data class Material(
+    var name: String = "",
     var color: Color = Color(1f, 1f, 1f, 1f),
     var texture: ResourceLocation = MISSING_TEXTURE,
     var normalTexture: ResourceLocation = MISSING_NORMAL,

@@ -5,6 +5,7 @@ import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
+import ru.hollowhorizon.hollowengine.common.models.MaterialSource
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.PoseTarget
@@ -72,6 +73,12 @@ class ModelAttachment(
         runtimeNodes.forEach(RuntimeNode::updateHierarchyMatrices)
         cachedBounds = null
     }
+
+    /**
+     * Dresses this instance's materials, by the names the model gave them.
+     */
+    fun applyMaterials(overrides: Map<String, MaterialSource>) = runtimeMaterials.apply(overrides)
+
 
     /** What a pose is written into: this instance's nodes and the clips of its model. */
     fun poseTarget(): PoseTarget = target ?: PoseTarget(
