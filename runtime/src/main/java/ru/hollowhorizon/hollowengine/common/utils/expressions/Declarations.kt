@@ -84,7 +84,8 @@ class DeclarationsBuilder<C> internal constructor() {
         valueType: ExprType = ExprType.Primitive.FLOAT,
         read: (owner: Any?, key: String) -> Any?,
         write: ((owner: Any?, key: String, value: Any?) -> Unit)? = null,
-    ): ExprType.Dynamic = ExprType.Dynamic(name, valueType, read, write).also { types[name] = it }
+        nested: Boolean = false,
+    ): ExprType.Dynamic = ExprType.Dynamic(name, valueType, read, write, nested).also { types[name] = it }
 
     /**
      * Property, such as `query` or `math`. A namespace of functions is just a property whose

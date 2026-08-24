@@ -19,6 +19,7 @@ class ExpressionEvalTests {
     ) {
         val variables = HashMap<String, Float>()
         val temps = HashMap<String, Float>()
+        val data = HashMap<String, Float>()
     }
 
     private val float = ExprType.Primitive.FLOAT
@@ -53,10 +54,17 @@ class ExpressionEvalTests {
             write = { owner, key, value -> (owner as Ctx).variables[key] = (value as Number).toFloat() },
         )
 
+        val entityData = dynamic(
+            name = "data",
+            read = { owner, key -> (owner as Ctx).data[key] ?: 0f },
+            nested = true,
+        )
+
         property("query", query, alias = "q") { it }
         property("math", math) { it }
         property("variable", variables, alias = "v") { it }
         property("temp", temporaries, alias = "t") { it }
+        property("data", entityData, alias = "d") { it }
         receiver("query")
         receiver("math")
     }
@@ -192,6 +200,25 @@ class ExpressionEvalTests {
     fun `the standard preset sneak condition only fires while sneaking`() {
         assertFalse(evalBool("is_alive != 0.0 && is_sneaking != 0.0", Ctx(alive = true)))
         assertTrue(evalBool("is_alive != 0.0 && is_sneaking != 0.0", Ctx(alive = true, sneaking = true)))
+    }
+
+    @Test
+    fun `a nested bag keeps taking path segments`() {
+        val context = Ctx().apply {
+            data["emotion"] = 1f
+            data["emotion.happy"] = 0.75f
+            data["quest.stage.index"] = 3f
+        }
+
+        assertEquals(1f, evalFloat("d.emotion", context))
+        assertEquals(0.75f, evalFloat("d.emotion.happy", context))
+        assertEquals(3f, evalFloat("d.quest.stage.index", context))
+    }
+
+    @Test
+    fun `an unset path in a nested bag reads as zero`() {
+        assertEquals(0f, evalFloat("d.nothing.here.at.all"))
+        assertTrue(evalBool("d.quest.done == 0"))
     }
 
     @Test

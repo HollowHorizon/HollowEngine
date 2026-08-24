@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
+import ru.hollowhorizon.hollowengine.common.data.Sync
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.ROOT_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
@@ -21,7 +22,7 @@ import ru.hollowhorizon.hollowengine.common.attachments.components.NoAiRuntime
 import ru.hollowhorizon.hollowengine.common.attachments.components.ai.AIComponentSystems
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.attachments.sync.ComponentSync
+import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityStateSync
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
 import java.util.*
 
@@ -49,6 +50,12 @@ object AttachmentRegistry {
     private const val VERSION_NBT = "version"
     private const val COMPONENTS_NBT = "components"
     private const val DATA_NBT = "data"
+
+    /**
+     * The sync policy of every synced data key, kept beside [DATA_NBT] rather than inside it so the
+     * document itself stays exactly what the script wrote.
+     */
+    private const val DATA_SYNC_NBT = "dataSync"
     private const val NODES_NBT = "nodes"
 
     /** Bump when the layout under [ROOT_NBT] changes. */
@@ -135,6 +142,20 @@ object AttachmentRegistry {
         state(entity).lastSyncedComponents = components
     }
 
+    fun lastSyncedData(entity: Entity): CompoundTag =
+        stateOrNull(entity.level(), entity.uuid)?.lastSyncedData ?: CompoundTag()
+
+    fun setLastSyncedData(entity: Entity, data: CompoundTag) {
+        state(entity).lastSyncedData = data
+    }
+
+    fun lastSyncedOwnerData(entity: Entity): CompoundTag =
+        stateOrNull(entity.level(), entity.uuid)?.lastSyncedOwnerData ?: CompoundTag()
+
+    fun setLastSyncedOwnerData(entity: Entity, data: CompoundTag) {
+        state(entity).lastSyncedOwnerData = data
+    }
+
     fun coroutineScope(entity: Entity): CoroutineScope = state(entity).scope
 
     /** The entity's data store, or null when it has never been written to. Creates nothing. */
@@ -155,7 +176,10 @@ object AttachmentRegistry {
 
             state.dataOrNull
                 ?.takeUnless { it.isEmpty() }
-                ?.let { root.put(DATA_NBT, it.save()) }
+                ?.let {
+                    root.put(DATA_NBT, it.save())
+                    writeSyncPolicies(root, it.syncPolicies())
+                }
 
             state.nodesOrNull
                 ?.serialize()
@@ -176,6 +200,7 @@ object AttachmentRegistry {
                 entity = entity,
                 components = root.compoundOrNull(COMPONENTS_NBT),
                 data = root.compoundOrNull(DATA_NBT),
+                dataSync = root.compoundOrNull(DATA_SYNC_NBT),
                 nodes = root.compoundOrNull(NODES_NBT),
             )
             return
@@ -186,17 +211,42 @@ object AttachmentRegistry {
             entity = entity,
             components = LegacyEntityNbt.componentsOrNull(tag),
             data = LegacyEntityNbt.dataOrNull(tag),
+            dataSync = null,
             nodes = LegacyEntityNbt.nodesOrNull(tag),
         )
     }
 
-    private fun read(entity: Entity, components: CompoundTag?, data: CompoundTag?, nodes: CompoundTag?) {
+    private fun read(
+        entity: Entity,
+        components: CompoundTag?,
+        data: CompoundTag?,
+        dataSync: CompoundTag?,
+        nodes: CompoundTag?,
+    ) {
         if (components == null && data == null && nodes == null) return
 
         val state = state(entity)
         components?.let { state.components.replaceAll(EntitySerialization.deserializeFromNbt(it).components) }
-        data?.let { state.data.load(it) }
+        data?.let {
+            state.data.load(it)
+            state.data.loadSyncPolicies(readSyncPolicies(dataSync))
+        }
         nodes?.let { state.nodes.deserialize(it) }
+    }
+
+    private fun writeSyncPolicies(root: CompoundTag, policies: Map<String, Sync>) {
+        if (policies.isEmpty()) return
+        root.put(DATA_SYNC_NBT, CompoundTag().apply {
+            policies.forEach { (name, sync) -> putString(name, sync.name) }
+        })
+    }
+
+    private fun readSyncPolicies(saved: CompoundTag?): Map<String, Sync> {
+        if (saved == null) return emptyMap()
+        return saved.allKeys.mapNotNull { name ->
+            val sync = runCatching { Sync.valueOf(saved.getString(name)) }.getOrNull() ?: return@mapNotNull null
+            if (sync == Sync.NEVER) null else name to sync
+        }.toMap()
     }
 
     fun onSetLevel(entity: Entity, newLevel: Level) {
@@ -213,7 +263,7 @@ object AttachmentRegistry {
 
         levelState(level).byUuid.remove(entity.uuid)
         state.scope.cancel()
-        ComponentSync.forget(entity)
+        EntityStateSync.forget(entity)
 
         NoAiRuntime.cleanup(entity)
         AIComponentSystems.cleanup(entity)

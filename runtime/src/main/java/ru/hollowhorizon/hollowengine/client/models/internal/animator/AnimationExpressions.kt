@@ -145,10 +145,17 @@ val AnimationDeclarations: Declarations<AnimatorEvaluationContext> = Declaration
         },
     )
 
+    val entityData = dynamic(
+        name = "data",
+        read = { owner, key -> (owner as AnimatorEvaluationContext).data[key] ?: 0f },
+        nested = true,
+    )
+
     property("query", query, alias = "q") { it }
     property("math", math) { it }
     property("variable", variables, alias = "v") { it }
     property("temp", temporaries, alias = "t") { it }
+    property("data", entityData, alias = "d") { it }
     receiver("query")
     receiver("math")
 }
@@ -190,6 +197,12 @@ class AnimatorEvaluationContext {
 
     /** Molang scratch space: `t.` values live for one frame, unlike `v.` which persists. */
     val temporaries = HashMap<String, Float>()
+
+    /**
+     * The numeric leaves of the entity's data document by path, refilled once per frame. Server-owned
+     * and read-only here; `d.` reads it, `v.` does not.
+     */
+    var data: Map<String, Float> = emptyMap()
 
     /**
      * The value of an entity-derived name when there is no entity, as in a model preview: whatever was

@@ -44,6 +44,62 @@ player.data.update(VISITS) { it + 1 }
 Because `.data` lives on the entity itself, it works from anywhere: a `@State` scene, an `onInteract`/`onHurt` handler on a [node script attached to the entity](/docs/hollowengine/scripting/node), or a plain `.reload.kts` event handler. It does not need a running story or an active `@State`.
 :::
 
+## Syncing to the client
+
+By default `.data` lives on the server only. When the client needs a value - a UI, an animator, a hint under the crosshair - declare the key with a sync policy:
+
+```kotlin
+val QUEST_GIVER = dataKey<Boolean>("quest_giver", sync = Sync.TRACKING) { false }
+val STAMINA = dataKey<Float>("stamina", sync = Sync.OWNER) { 1f }
+
+npc.data[QUEST_GIVER] = true // the clients hear about it at the end of the same tick
+```
+
+| Policy | Who receives the value |
+|--------|------------------------|
+| `Sync.NEVER` (default) | Nobody, the value stays on the server. |
+| `Sync.TRACKING` | Every client that can see the entity. For what is on show anyway: an NPC's role, its mood, whether the shop is open. |
+| `Sync.OWNER` | The player itself and nobody else. For a player's own state - quest progress, stamina - that everyone standing nearby has no business receiving. On a non-player entity this is the same as `Sync.NEVER`. |
+
+There is no separate "send": writing a synced key marks the entity by itself, and one packet carrying the difference goes out at the end of the server tick, together with that entity's components - so data never arrives before the model it belongs to. A client that has just started seeing the entity gets a full snapshot.
+
+The client reads it through the same `.data`, and in a UI it reads reactively: the screen recomposes itself when the server sends a new value.
+
+```kotlin
+// .ui.kts
+import net.minecraft.client.Minecraft
+val QUEST_GIVER = dataKey<Boolean>("quest_giver", sync = Sync.TRACKING) { false }
+
+overlay("mypack:interact_hint") {
+    anchor = "crosshair"
+    autoShow = true
+    rebuildEveryFrame = true // the crosshair target changes every frame, not per packet
+    content {
+        val target = Minecraft.getInstance().crosshairPickEntity ?: return@content
+        if (target.data[QUEST_GIVER] == true) Text("Press F to talk")
+    }
+}
+```
+
+The value has one owner, the server. A synced key written on the client survives only until the next packet, and the engine says so in the log. A plain (`Sync.NEVER`) key written on the client, on the other hand, goes nowhere and is never overwritten - that is the right place for purely client-side scratch such as the current hover target.
+
+### In animator conditions
+
+The numeric values of synced keys are visible to [expressions](/docs/hollowengine/scripting/animator-editor) under the `d.` prefix, addressed by their path inside the NBT. That is how a server script turns an animation layer on without sending anything by hand:
+
+```kotlin
+@Serializable data class Emotion(val happy: Float = 0f, val angry: Float = 0f)
+val EMOTION = dataKey<Emotion>("emotion", sync = Sync.TRACKING) { Emotion() }
+
+npc.data[EMOTION] = Emotion(happy = 1f)
+```
+
+```text
+d.emotion.happy > 0.5
+```
+
+A path that is not set, or that holds text rather than a number, reads as `0`, like any other unknown variable.
+
 ## Persistence and lifetime
 
 `.data` is saved with the rest of the entity's state, so it follows its owner the same way the engine's other per-entity state does:

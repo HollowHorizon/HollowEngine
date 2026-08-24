@@ -93,8 +93,10 @@ internal class KotlinCompiledScriptJar(
         }
 
     override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
-        val result = runBlocking {
-            evaluator(script, evaluationConfiguration.with(body))
+        val result = try {
+            runBlocking { evaluator(script, evaluationConfiguration.with(body)) }
+        } catch (e: LinkageError) {
+            return Result.failure(e)
         }
 
         if (result !is ResultWithDiagnostics.Success) {
@@ -188,6 +190,8 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                 }
             }
         }
+    } catch (e: LinkageError) {
+        throw e
     } catch (e: Throwable) {
         ResultWithDiagnostics.Failure(
             e.asDiagnostics(path = compiledScript.sourceLocationId)

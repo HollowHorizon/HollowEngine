@@ -17,20 +17,20 @@ fun onClone(event: PlayerEvent.Clone) {
 
     new.server?.coroutineScope?.launch {
         yield()
-        (new as? ServerPlayer)?.let(ComponentSync::sendSelfBaseline)
+        (new as? ServerPlayer)?.let(EntityStateSync::sendSelfBaseline)
     }
 }
 
 @SubscribeEvent
 fun onJoin(event: PlayerEvent.Join) {
     val player = event.player as? ServerPlayer ?: return
-    ComponentSync.sendSelfBaseline(player)
+    EntityStateSync.sendSelfBaseline(player)
 }
 
 @SubscribeEvent
 fun onRespawn(event: PlayerEvent.Respawn) {
     val player = event.player as? ServerPlayer ?: return
-    ComponentSync.sendSelfBaseline(player)
+    EntityStateSync.sendSelfBaseline(player)
 }
 
 @SubscribeEvent
@@ -38,6 +38,6 @@ fun onChangeDimension(event: PlayerEvent.ChangeDimension) {
     val player = event.player as? ServerPlayer ?: return
     player.server?.coroutineScope?.launch {
         yield()
-        ComponentSync.sendSelfBaseline(player)
+        EntityStateSync.sendSelfBaseline(player)
     }
 }

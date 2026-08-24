@@ -39,6 +39,7 @@ sealed interface ExprType {
         val valueType: ExprType,
         val read: (owner: Any?, key: String) -> Any?,
         val write: ((owner: Any?, key: String, value: Any?) -> Unit)? = null,
+        val nested: Boolean = false,
     ) : ExprType {
         override val members: Members get() = Members.EMPTY
     }

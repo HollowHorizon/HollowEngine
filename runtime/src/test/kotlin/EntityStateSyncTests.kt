@@ -1,8 +1,9 @@
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
-import ru.hollowhorizon.hollowengine.common.attachments.sync.ComponentSync
-import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityComponentSyncPacket
+import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityStateSync
+import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityStateSyncPacket
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,14 +13,43 @@ import kotlin.test.assertTrue
  * The two rules that decide what goes over the wire and what is applied on arrival. Both used to be
  * absent: every change resent every component, and batches were applied in whatever order they landed.
  */
-class ComponentSyncTests {
+class EntityStateSyncTests {
     private val model = "test:model".rl
     private val animator = "test:animator".rl
 
     private fun batch(
         current: Map<ResourceLocation, Component>,
         previous: Map<ResourceLocation, Component>,
-    ) = ComponentSync.batchOf(current, previous)
+    ) = EntityStateSync.batchOf(current, previous)
+
+    private fun data(vararg entries: Pair<String, Int>) = CompoundTag().apply {
+        entries.forEach { (name, value) -> putInt(name, value) }
+    }
+
+    @Test
+    fun `a data delta carries only what changed`() {
+        val batch = EntityStateSync.dataBatchOf(
+            current = data("stage" to 2, "gold" to 7),
+            previous = data("stage" to 1, "gold" to 7, "escort" to 1),
+        )
+
+        assertEquals(setOf("stage"), batch.changed.allKeys)
+        assertEquals(listOf("escort"), batch.removed)
+        assertFalse(batch.isEmpty)
+    }
+
+    @Test
+    fun `a key that left the snapshot is removed`() {
+        val batch = EntityStateSync.dataBatchOf(current = CompoundTag(), previous = data("stage" to 1))
+
+        assertTrue(batch.changed.isEmpty)
+        assertEquals(listOf("stage"), batch.removed)
+    }
+
+    @Test
+    fun `an unchanged document produces no batch`() {
+        assertTrue(EntityStateSync.dataBatchOf(data("stage" to 1), data("stage" to 1)).isEmpty)
+    }
 
     @Test
     fun `an unchanged component is not resent`() {
@@ -63,29 +93,29 @@ class ComponentSyncTests {
 
     @Test
     fun `a delta must be strictly newer than what was applied`() {
-        assertTrue(ComponentSync.shouldApply(version = 5, applied = 4, full = false))
-        assertFalse(ComponentSync.shouldApply(version = 4, applied = 4, full = false))
-        assertFalse(ComponentSync.shouldApply(version = 3, applied = 4, full = false))
+        assertTrue(EntityStateSync.shouldApply(version = 5, applied = 4, full = false))
+        assertFalse(EntityStateSync.shouldApply(version = 4, applied = 4, full = false))
+        assertFalse(EntityStateSync.shouldApply(version = 3, applied = 4, full = false))
     }
 
     @Test
     fun `a baseline applies at an equal version`() {
-        assertTrue(ComponentSync.shouldApply(version = 0, applied = 0, full = true))
-        assertTrue(ComponentSync.shouldApply(version = 7, applied = 7, full = true))
-        assertTrue(ComponentSync.shouldApply(version = 8, applied = 7, full = true))
+        assertTrue(EntityStateSync.shouldApply(version = 0, applied = 0, full = true))
+        assertTrue(EntityStateSync.shouldApply(version = 7, applied = 7, full = true))
+        assertTrue(EntityStateSync.shouldApply(version = 8, applied = 7, full = true))
     }
 
     @Test
     fun `a stale baseline is still dropped`() {
-        assertFalse(ComponentSync.shouldApply(version = 6, applied = 7, full = true))
+        assertFalse(EntityStateSync.shouldApply(version = 6, applied = 7, full = true))
     }
 
-    private fun deferred() = ComponentSync.DeferredBatches(java.lang.ref.WeakReference(null))
+    private fun deferred() = EntityStateSync.DeferredBatches(java.lang.ref.WeakReference(null))
 
-    private fun delta(version: Long) = EntityComponentSyncPacket(entityId = 1, version = version)
+    private fun delta(version: Long) = EntityStateSyncPacket(entityId = 1, version = version)
 
     private fun baseline(version: Long) =
-        EntityComponentSyncPacket(entityId = 1, version = version, full = true)
+        EntityStateSyncPacket(entityId = 1, version = version, full = true)
 
     @Test
     fun `parked batches come back in arrival order`() {

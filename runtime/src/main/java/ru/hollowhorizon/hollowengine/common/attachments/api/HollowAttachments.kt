@@ -4,8 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
+import androidx.compose.runtime.mutableStateMapOf
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
-import ru.hollowhorizon.hollowengine.common.attachments.sync.ComponentSync
+import ru.hollowhorizon.hollowengine.common.data.Sync
+import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityStateSync
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeManager
 
@@ -34,7 +37,7 @@ class HollowAttachments internal constructor(entity: MCEntity) {
     /** The script storage, or null when nothing has ever been written to it. Creates nothing. */
     val dataOrNull: NbtDataStore? get() = dataStore
 
-    val data: NbtDataStore get() = dataStore ?: NbtDataStore().also { dataStore = it }
+    val data: NbtDataStore get() = dataStore ?: createDataStore().also { dataStore = it }
 
     /**
      * State that lives exactly as long as this entity: drawn models, their animators, anything else
@@ -49,7 +52,7 @@ class HollowAttachments internal constructor(entity: MCEntity) {
         get() = nodeManager ?: EntityNodeManager(entity).also { nodeManager = it }
 
     /**
-     * Rises with every batch [ComponentSync] sends for this entity on the server, and records the last
+     * Rises with every batch [EntityStateSync] sends for this entity on the server, and records the last
      * batch applied on the client.
      */
     var syncVersion: Long = 0L
@@ -57,12 +60,26 @@ class HollowAttachments internal constructor(entity: MCEntity) {
     /** What the clients tracking this entity were last told, so a batch can carry only the difference. */
     var lastSyncedComponents: Map<ResourceLocation, Component> = emptyMap()
 
+    /** The [Sync.TRACKING] data every tracking client was last told, for the same reason. */
+    var lastSyncedData: CompoundTag = CompoundTag()
+
+    /** The [Sync.OWNER] data the entity itself was last told, sent to nobody else. */
+    var lastSyncedOwnerData: CompoundTag = CompoundTag()
+
     init {
-        components.onChange = { ComponentSync.markDirty(entity) }
+        components.onChange = { EntityStateSync.markDirty(entity) }
     }
 
+    /**
+     * The client copy holds each key in Compose state, so a screen that reads `entity.data[Key]`
+     * recomposes when the value the server sent for it changes.
+     */
+    private fun createDataStore(): NbtDataStore =
+        NbtDataStore(if (entity.level().isClientSide) mutableStateMapOf() else LinkedHashMap())
+            .also { store -> store.onChange = { EntityStateSync.markDirty(entity) } }
+
     internal fun adoptData(store: NbtDataStore?) {
-        dataStore = store
+        dataStore = store?.also { it.onChange = { EntityStateSync.markDirty(entity) } }
     }
 
     /**
@@ -72,8 +89,10 @@ class HollowAttachments internal constructor(entity: MCEntity) {
     internal fun rebindTo(newEntity: MCEntity): HollowAttachments =
         HollowAttachments(newEntity).also { target ->
             target.components.putAll(components.copyOf())
-            target.dataStore = dataStore
+            target.adoptData(dataStore)
             target.syncVersion = syncVersion
             target.lastSyncedComponents = lastSyncedComponents
+            target.lastSyncedData = lastSyncedData
+            target.lastSyncedOwnerData = lastSyncedOwnerData
         }
 }

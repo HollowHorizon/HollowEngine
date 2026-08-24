@@ -88,25 +88,30 @@ object ScriptLoader {
     ): Result<T> {
         var lastFailure: Throwable? = null
         repeat(2) { attempt ->
-            val compiled = compile(id).getOrElse { return Result.failure(it) }
             val result = runCatching {
+                val compiled = compile(id).getOrThrow()
                 validate(compiled)
                 compiled.execute<T>(body).getOrThrow()
             }
             val failure = result.exceptionOrNull() ?: return result
-            if (failure !is LinkageError || attempt > 0 || !ScriptingEnvironment.isAvailable()) {
+            if (!isStaleArtifact(failure) || attempt > 0 || !ScriptingEnvironment.isAvailable()) {
                 return Result.failure(failure)
             }
             lastFailure = failure
-            HollowEngine.LOGGER.warn(
-                "Compiled '{}' does not match the running game; rebuilding it",
+            HollowEngine.LOGGER.info(
+                "Rebuilding '{}': its compiled copy was built against a different version of the engine",
                 ScriptRegistry.display(id),
-                failure,
             )
+            HollowEngine.LOGGER.debug("What the outdated '{}' failed on", ScriptRegistry.display(id), failure)
             reject(id)
         }
         return Result.failure(lastFailure ?: IllegalStateException("Failed to execute '${ScriptRegistry.display(id)}'"))
     }
+
+    internal fun isStaleArtifact(failure: Throwable): Boolean =
+        generateSequence(failure) { it.cause?.takeIf { cause -> cause !== it } }
+            .take(MAX_CAUSE_DEPTH)
+            .any { it is LinkageError }
 
     /**
      * Compiles every known script so a pack can be shipped to players who have no compiler addon.
@@ -146,4 +151,5 @@ object ScriptLoader {
     }
 
     private const val SCRIPT_EXTENSION = ".kts"
+    private const val MAX_CAUSE_DEPTH = 8
 }

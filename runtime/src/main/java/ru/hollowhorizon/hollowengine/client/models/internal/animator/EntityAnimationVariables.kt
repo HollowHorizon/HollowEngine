@@ -5,6 +5,7 @@ import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import kotlin.math.abs
 
 /**
@@ -18,6 +19,7 @@ fun fillAnimationVariables(context: AnimatorEvaluationContext, entity: Entity?, 
     context.partialTick = partialTick
     context.gameTime = gameTime + partialTick
     context.time = (entity?.tickCount?.toFloat() ?: gameTime) + partialTick
+    context.data = entity?.let { AttachmentRegistry.entityDataOrNull(it)?.numericPaths() }.orEmpty()
 
     if (entity == null) return
 

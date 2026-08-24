@@ -71,7 +71,7 @@ class NodeRuntimeService(
     }
 
     /**
-     * Writing the components is all a caller has to do. [ComponentSync] batches the change out to the
+     * Writing the components is all a caller has to do. [EntityStateSync] batches the change out to the
      * clients tracking the entity at the end of the tick.
      */
     fun updateSnapshot(id: UUID, snapshot: Snapshot): Boolean {

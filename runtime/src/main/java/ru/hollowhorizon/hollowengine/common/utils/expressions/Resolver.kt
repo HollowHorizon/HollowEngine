@@ -50,6 +50,10 @@ internal class Resolver(
             return Ir.BagRead(target, bag, ast.name)
         }
 
+        (target as? Ir.BagRead)?.takeIf { it.bag.nested }?.let { parent ->
+            return Ir.BagRead(parent.owner, parent.bag, "${parent.key}.${ast.name}")
+        }
+
         val field = target.type.members.field(ast.name)
         if (field != null) return Ir.FieldRead(target, field)
 

@@ -89,6 +89,8 @@ Fade in and out belong to a layer, not to a state: a smooth change between anima
 
 Weight, speed, duration and condition are [expressions](/docs/hollowengine/scripting/animations), not numbers. The fields come with highlighting, completion (including after a dot: `q.` offers the members of `q`) and diagnostics.
 
+Besides `q.` (entity state), `v.`/`t.` (your own variables) and `math.` there is `d.` - the [synced entity data](/docs/hollowengine/scripting/npc/data#syncing-to-the-client), addressed by its path inside the NBT: `d.emotion.happy > 0.5`.
+
 ```text
 horizontal_speed > 0.02
 is_alive != 0.0 && is_sneaking != 0.0
