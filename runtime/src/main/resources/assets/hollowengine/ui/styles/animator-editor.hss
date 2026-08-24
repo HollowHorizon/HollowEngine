@@ -1,0 +1,153 @@
+.animator-button {
+    size: 100% 22px;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+    background: #2E323C;
+    border: 1px #FFFFFF1A;
+    border-radius: 3px;
+    cursor: hand;
+    transition: background 250ms ease-out, border-color 250ms ease-out;
+}
+
+.animator-button:hover {
+    background: #3A404C;
+    border-color: #6B7385;
+}
+
+.animator-button-label {
+    font-size: 9px;
+    foreground: #DCE0EB;
+    text-wrap: false;
+    text-overflow: dots;
+}
+
+.animator-icon-button {
+    padding: 3px;
+    background: #00000000;
+    border-radius: 3px;
+    cursor: hand;
+    transition: background 250ms ease-out;
+}
+
+.animator-icon-button:hover {
+    background: #FFFFFF14;
+}
+
+.animator-pill {
+    padding: 5px 3px;
+    background: #2E323C;
+    border: 1px #FFFFFF1A;
+    border-radius: 3px;
+    cursor: hand;
+    transition: background 250ms ease-out, border-color 250ms ease-out;
+}
+
+.animator-pill:hover {
+    background: #3A404C;
+    border-color: #DCE0EB;
+}
+
+.animator-pill.active {
+    background: #6199EB;
+    border-color: #FFFFFF1A;
+}
+
+.animator-pill-label {
+    font-size: 8px;
+    foreground: #DCE0EB;
+    text-wrap: false;
+}
+
+.animator-layer-row {
+    size: 100% 30px;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: #21242B;
+    border: 1px #FFFFFF1A;
+    border-radius: 3px;
+    cursor: hand;
+    transition: background 250ms ease-out, border-color 250ms ease-out;
+}
+
+.animator-layer-row:hover {
+    background: #2E323C;
+}
+
+.animator-layer-row.open {
+    background: #2E323C;
+}
+
+.animator-layer-row.selected {
+    border-color: #EB9433;
+}
+
+.animator-delete {
+    size: 18px 18px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: #00000000;
+    cursor: hand;
+    transition: background 250ms ease-out;
+}
+
+.animator-delete:hover {
+    background: #D95757;
+}
+
+.animator-delete-label {
+    font-size: 11px;
+    foreground: #D95757;
+    transition: foreground 250ms ease-out;
+}
+
+.animator-delete:hover .animator-delete-label {
+    foreground: #DCE0EB;
+}
+
+.animator-splitter {
+    size: 4px 100%;
+    background: #FFFFFF1A;
+    cursor: resize-horizontal;
+    transition: background 250ms ease-out;
+}
+
+.animator-splitter:hover {
+    background: #6199EB;
+}
+
+.animator-node {
+    border-radius: 5px;
+    cursor: hand;
+    transition: border-color 250ms ease-out;
+}
+
+.animator-node:hover {
+    border-color: #C4CBD9;
+}
+
+.animator-minimap-mark {
+    border-radius: 2px;
+    cursor: hand;
+    transition: background 250ms ease-out;
+}
+
+.animator-edge-label {
+    padding: 3px;
+    background: #21242B;
+    border: 1px #FFFFFF1A;
+    border-radius: 3px;
+    cursor: hand;
+    transition: background 250ms ease-out, border-color 250ms ease-out;
+}
+
+.animator-edge-label:hover {
+    background: #2E323C;
+    border-color: #C4CBD9;
+}
+
+.animator-edge-label.selected {
+    border-color: #EB9433;
+}

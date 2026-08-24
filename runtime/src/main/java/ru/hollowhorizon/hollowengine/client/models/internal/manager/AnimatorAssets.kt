@@ -28,7 +28,6 @@ object AnimatorAssets {
             manager.listResources(root) { it.path.endsWith(SUFFIX) }.forEach { (location, resource) ->
                 try {
                     val tag = resource.open().use { it.loadAsNBT() }
-                    if (location in assets.keys) return@forEach
                     assets[location] = NBTFormat.deserialize(Animator.serializer(), tag)
                 } catch (e: Exception) {
                     HollowEngine.LOGGER.warn("Could not read animator '{}': {}", location, e.message)

@@ -10,7 +10,17 @@ import java.util.*
 @Serializable
 data class Animator(
     val layers: List<AnimatorLayerSpec> = emptyList(),
+    /**
+     * Where the editor left each state on its canvas, keyed by [graphKey].
+     */
+    val layout: Map<String, GraphPoint> = emptyMap(),
 )
+
+@Serializable
+data class GraphPoint(val x: Float = 0f, val y: Float = 0f)
+
+/** Names one state of one layer in [Animator.layout]. */
+fun graphKey(layerId: String, stateId: String): String = "$layerId/$stateId"
 
 @Serializable
 sealed class AnimatorLayerSpec {

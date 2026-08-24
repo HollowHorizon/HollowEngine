@@ -35,6 +35,7 @@ internal fun editableFieldCompletionGeometry(
     viewportWidth: Float,
     viewportHeight: Float,
     caretOffsetX: Float = 0f,
+    caretOffsetY: Float = 0f,
 ): EditableFieldCompletionGeometry? {
     if (items.isEmpty() || viewportWidth <= 0f || viewportHeight <= 0f) return null
     val fontSize = layout.fontSize
@@ -51,7 +52,7 @@ internal fun editableFieldCompletionGeometry(
     val footerHeight = (textHeight + CompletionPopupFooterVerticalChrome).coerceAtLeast(rowHeight)
     val caret = layout.caretAt(anchor)
     val caretX = caretOffsetX + caret.x - scrollX
-    val caretY = caret.y - scrollY
+    val caretY = caretOffsetY + caret.y - scrollY
     val belowY = caretY + textHeight + CompletionPopupAnchorGap
     val belowSpace = viewportHeight - belowY - CompletionPopupViewportMargin
     val aboveSpace = caretY - CompletionPopupAnchorGap - CompletionPopupViewportMargin
@@ -119,15 +120,18 @@ internal fun EditableFieldCompletionPopup(
     contentOffsetX: Float = 0f,
 ) {
     val items = completion.items
+    val field = scrollState.viewport
+    val surface = LocalUiViewport.current.takeIf { it.width > 0f && it.height > 0f } ?: field
     val geometry = editableFieldCompletionGeometry(
         layout = layout,
         anchor = completion.anchor,
         items = items,
         scrollX = scrollState.offsetX,
         scrollY = scrollState.offsetY,
-        viewportWidth = scrollState.viewport.width,
-        viewportHeight = scrollState.viewport.height,
-        caretOffsetX = contentOffsetX,
+        viewportWidth = surface.width,
+        viewportHeight = surface.height,
+        caretOffsetX = contentOffsetX + field.x - surface.x,
+        caretOffsetY = field.y - surface.y,
     ) ?: return
 
     val listScroll = rememberScrollState()
@@ -154,9 +158,8 @@ internal fun EditableFieldCompletionPopup(
         .take(CompletionPopupWindowSize)
         .toList()
 
-    val viewport = scrollState.viewport
     Popup(
-        anchorBounds = UiRect(viewport.x + geometry.x, viewport.y + geometry.y, 0f, 0f),
+        anchorBounds = UiRect(surface.x + geometry.x, surface.y + geometry.y, 0f, 0f),
         alignment = UiPopupAlignment(anchorVertical = UiAlign.START),
         id = "editable-text-field-completion",
         tags = listOf("editable-text-field-completion-popup", "ide-completion-popup"),

@@ -212,15 +212,17 @@ class HollowUiInputController {
             height = layoutNode.rect.height,
         )
         val pressHandled = dispatch(press)
-        if (pressHandled && press.consumed) return UiInputResult(true, hit.node, hit.node.id)
 
-        if (hit.node.resolvedSnapshot.draggable && button in 0..2) {
+        val startsDrag = hit.node.resolvedSnapshot.draggable && button in 0..2
+        if (startsDrag) {
             draggingNode = hit.node
             dragStartX = mouseX
             dragStartY = mouseY
             dragMoved = false
-            return UiInputResult(true, hit.node, hit.node.id)
         }
+
+        if (pressHandled && press.consumed) return UiInputResult(true, hit.node, hit.node.id)
+        if (startsDrag) return UiInputResult(true, hit.node, hit.node.id)
 
         val clickHandled =
             dispatchClick(frame, hit.node, button, mouseX, mouseY, hit.localX, hit.localY, modifiers, dispatch)
@@ -426,7 +428,8 @@ class HollowUiInputController {
             if (dispatch(event)) handled = true
             if (event.consumed) return UiInputResult(true, node, node.id, consumed = true)
         }
-        if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch)) {
+        val backwards = effectiveModifiers and GLFW.GLFW_MOD_SHIFT != 0
+        if (keyCode == GLFW.GLFW_KEY_TAB && focusNext(frame, dispatch, backwards)) {
             return UiInputResult(true, primaryFocus(), primaryFocus()?.id, consumed = true)
         }
         return UiInputResult(handled, primaryFocus(), primaryFocus()?.id)
@@ -466,13 +469,21 @@ class HollowUiInputController {
         activeScope = null
     }
 
-    private fun focusNext(frame: HollowUiFrame, dispatch: (UiEvent) -> Boolean): Boolean {
+    /** Moves focus to the next focusable of the active scope, or the previous one when [backwards]. */
+    private fun focusNext(
+        frame: HollowUiFrame,
+        dispatch: (UiEvent) -> Boolean,
+        backwards: Boolean = false,
+    ): Boolean {
         val scope = activeScope ?: frame.nodes.lastOrNull { it.resolvedSnapshot.focusScope } ?: return false
         val targets = frame.nodes.filter { it.resolvedSnapshot.focusable && it.enclosingFocusScope() === scope }
         if (targets.isEmpty()) return false
         val current = focusByScope[scope]
         val currentIndex = targets.indexOfFirst { it === current }
-        val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % targets.size
+        val nextIndex = when {
+            currentIndex < 0 -> if (backwards) targets.lastIndex else 0
+            else -> (currentIndex + if (backwards) -1 else 1).mod(targets.size)
+        }
         setFocus(frame, scope, targets[nextIndex], dispatch)
         return true
     }

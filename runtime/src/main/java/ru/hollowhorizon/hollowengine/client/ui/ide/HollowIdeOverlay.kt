@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsolePanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeUiProfilerPanel
@@ -86,6 +87,7 @@ object HollowIdeOverlay {
                 )
             },
             soundsEditor = { file -> HollowIdeSoundsEditor(file) },
+            animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
             textEditor = { file -> FileEditor(file) },
         )
         registerAssetFileTypes(

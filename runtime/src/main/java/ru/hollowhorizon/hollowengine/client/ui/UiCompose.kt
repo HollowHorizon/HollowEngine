@@ -26,6 +26,7 @@ import kotlin.math.roundToInt
 typealias HollowUiContent = @Composable () -> Unit
 
 val LocalUiFrameTimeNanos = staticCompositionLocalOf { 0L }
+val LocalUiViewport = compositionLocalOf { UiRect.Zero }
 val LocalStylesheets = staticCompositionLocalOf<List<UiStylesheetReference>> { emptyList() }
 
 private fun Modifier?.styleReferences(): List<UiStylesheetReference> = when (this) {

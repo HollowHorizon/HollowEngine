@@ -506,6 +506,7 @@ fun EditableTextField(
         inlayHintsProvider = inlayHintsProvider,
         inlayRevision = inlayRevision,
     )
+    val uiViewport = LocalUiViewport.current
     val gutterWidth = if (lineNumbers && state.multiline) {
         editableFieldGutterWidth(text, fontSize)
     } else {
@@ -595,6 +596,7 @@ fun EditableTextField(
             }.onHover { event ->
                 hoverTooltip = if (diagnostics.isEmpty()) null else {
                     val viewport = scrollState.viewport
+                    val surface = uiViewport.takeIf { it.width > 0f && it.height > 0f } ?: viewport
                     editableFieldDiagnosticTooltipAt(
                         diagnostics = diagnostics,
                         layout = layout,
@@ -602,9 +604,11 @@ fun EditableTextField(
                         pointerY = event.y - viewport.y,
                         scrollX = scrollState.offsetX,
                         scrollY = scrollState.offsetY,
-                        viewportWidth = viewport.width,
-                        viewportHeight = viewport.height,
+                        viewportWidth = surface.width,
+                        viewportHeight = surface.height,
                         contentOffsetX = gutterWidth,
+                        originX = viewport.x - surface.x,
+                        originY = viewport.y - surface.y,
                     )
                 }
                 codeHoverTarget = if (hoverTooltip == null && hoverInfoProvider != null) {
@@ -674,7 +678,7 @@ fun EditableTextField(
             }
         }
         hoverTooltip?.let { tooltip ->
-            EditableFieldDiagnosticTooltipOverlay(tooltip, scrollState)
+            EditableFieldDiagnosticTooltipOverlay(tooltip)
         }
         EditableFieldCodeInsight(
             state = codeInsight,

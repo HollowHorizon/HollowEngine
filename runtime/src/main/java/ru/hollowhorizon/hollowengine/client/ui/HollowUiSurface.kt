@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import kotlin.coroutines.CoroutineContext
@@ -22,6 +23,7 @@ class HollowUiSurface(
 
     private var frameTimeNanos by mutableStateOf(0L)
     private var pointer by mutableStateOf(UiPointer.Unknown)
+    private var viewport by mutableStateOf(UiRect.Zero)
     private val overlayManager = OverlayManager()
 
     fun setContent(content: HollowUiContent): BoxNode {
@@ -31,6 +33,7 @@ class HollowUiSurface(
                 LocalUiFrameTimeNanos provides frameTimeNanos,
                 LocalPointer provides pointer,
                 LocalOverlayManager provides overlayManager,
+                LocalUiViewport provides viewport,
             ) {
                 content()
                 OverlayHost()
@@ -57,6 +60,7 @@ class HollowUiSurface(
         check(hasContent) { "UI content has not been set" }
         val profile = profiler.beginFrame()
         pointer = UiPointer(x, y)
+        if (viewport.width != width || viewport.height != height) viewport = UiRect(0f, 0f, width, height)
         val nowMillis = nowNanos / NanosPerMillisecond
         runtime.prepareFrame(nowMillis)
         val root = composition.frameRoot(nowNanos, profile)

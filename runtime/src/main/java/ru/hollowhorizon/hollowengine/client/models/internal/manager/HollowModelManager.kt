@@ -162,7 +162,7 @@ object HollowModelManager :
 
     /** The animator this model wears by default, named by its metadata. */
     fun animatorOf(location: ResourceLocation?): Animator? =
-        AnimatorAssets.get(metadata(location).animationController)
+        AnimatorAssets.get(metadata(location).animationController ?: return null)
 
     private fun destroyLater(model: Model) {
         if (RenderSystem.isOnRenderThreadOrInit()) {

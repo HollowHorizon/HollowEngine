@@ -74,6 +74,7 @@ class HollowIdeFileTypeRegistryTest {
                 imageEditor = {},
                 videoEditor = {},
                 soundsEditor = {},
+                animatorEditor = {},
                 textEditor = {},
             )
         }
@@ -82,6 +83,7 @@ class HollowIdeFileTypeRegistryTest {
         assertEquals("video", registry.find("assets/demo/videos/intro.MP4", byteArrayOf())?.id)
         assertEquals("image", registry.find("assets/demo/textures/icon.PNG", byteArrayOf(0, 1, 2))?.id)
         assertEquals("sounds", registry.find("assets/demo/sounds.json", "{}".toByteArray())?.id)
+        assertEquals("animator", registry.find("assets/demo/models/player.animator", byteArrayOf())?.id)
         assertEquals("text", registry.find("assets/demo/other.json", "{}".toByteArray())?.id)
         assertEquals("text", registry.find("scripts/example.kts", "println(1)".toByteArray())?.id)
         assertNull(registry.find("unknown.bin", ByteArray(64) { 0 }))

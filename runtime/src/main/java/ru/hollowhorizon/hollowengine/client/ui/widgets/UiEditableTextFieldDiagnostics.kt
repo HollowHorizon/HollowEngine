@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPath
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
@@ -125,6 +124,8 @@ internal fun editableFieldDiagnosticTooltipAt(
     viewportWidth: Float,
     viewportHeight: Float,
     contentOffsetX: Float = 0f,
+    originX: Float = 0f,
+    originY: Float = 0f,
 ): EditableFieldDiagnosticTooltip? {
     if (diagnostics.isEmpty()) return null
     val contentX = pointerX - contentOffsetX + scrollX
@@ -147,8 +148,8 @@ internal fun editableFieldDiagnosticTooltipAt(
     val width = (measured.width + DiagnosticTooltipHorizontalPadding).coerceIn(140f, maxWidth)
     val height = (measured.height + DiagnosticTooltipVerticalPadding)
         .coerceIn(DiagnosticTooltipMinHeight, DiagnosticTooltipMaxHeight)
-    val x = (pointerX + 12f).coerceIn(4f, (viewportWidth - width - 4f).coerceAtLeast(4f))
-    val y = (pointerY + 16f).coerceIn(4f, (viewportHeight - height - 4f).coerceAtLeast(4f))
+    val x = (originX + pointerX + 12f).coerceIn(4f, (viewportWidth - width - 4f).coerceAtLeast(4f))
+    val y = (originY + pointerY + 16f).coerceIn(4f, (viewportHeight - height - 4f).coerceAtLeast(4f))
     return EditableFieldDiagnosticTooltip(
         message = message,
         severity = diagnostic.severity,
@@ -158,23 +159,22 @@ internal fun editableFieldDiagnosticTooltipAt(
     )
 }
 
+/**
+ * The message of the diagnostic under the pointer.
+ */
 @Composable
-internal fun EditableFieldDiagnosticTooltipOverlay(
-    tooltip: EditableFieldDiagnosticTooltip,
-    scrollState: UiScrollHandle,
-) {
-    Box(
-        mode = UiBoxMode.STACK,
+internal fun EditableFieldDiagnosticTooltipOverlay(tooltip: EditableFieldDiagnosticTooltip) {
+    Popup(
+        anchorBounds = UiRect(tooltip.x, tooltip.y, 0f, 0f),
+        alignment = UiPopupAlignment(anchorVertical = UiAlign.START),
+        layer = 31,
         tags = listOf(
             "editable-text-field-diagnostic-tooltip",
             "ide-diagnostic-tooltip",
             tooltip.severity.name.lowercase(),
         ),
-        modifier = Modifier
-            .position(tooltip.x.px, tooltip.y.px, 50f)
-            .layer(31)
-            .pinnedToViewport()
-            .size(tooltip.width.px, UiLength.Auto),
+        modifier = Modifier.size(tooltip.width.px, UiLength.Auto).inputTransparent(),
+        dismissOnOutside = false,
     ) {
         Text(
             tooltip.message,
