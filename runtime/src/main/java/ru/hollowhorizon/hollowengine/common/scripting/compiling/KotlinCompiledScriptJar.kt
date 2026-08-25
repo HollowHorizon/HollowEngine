@@ -39,7 +39,6 @@ import kotlin.script.experimental.api.onSuccess
 import kotlin.script.experimental.api.previousSnippets
 import kotlin.script.experimental.api.providedProperties
 import kotlin.script.experimental.api.refineBeforeEvaluation
-import kotlin.script.experimental.api.resultField
 import kotlin.script.experimental.api.scriptExecutionWrapper
 import kotlin.script.experimental.api.valueOr
 import kotlin.script.experimental.api.with
@@ -113,9 +112,6 @@ internal class KotlinCompiledScriptJar(
 internal val JvmScriptEvaluationConfigurationKeys.actualClassLoader by PropertiesCollection.key<ClassLoader?>(
     isTransient = true
 )
-internal val JvmScriptEvaluationConfigurationKeys.scriptsInstancesSharingMap by PropertiesCollection.key<MutableMap<KClass<*>, EvaluationResult>>(
-    isTransient = true
-)
 
 /** Whether this compiled script opted into instance sharing with `@file:SharedScript`. */
 val ScriptCompilationConfigurationKeys.isSharedScript by PropertiesCollection.key<Boolean>()
@@ -140,11 +136,10 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
             }
             val canShareInstance =
                 compiledScript.compilationConfiguration[ScriptCompilationConfiguration.isSharedScript] == true
-            val sharedScripts = sharedConfiguration[ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap]
-                ?.takeIf { canShareInstance }
 
-            sharedScripts?.get(scriptClass)?.asSuccess()
-                ?.let { return@evaluation it }
+            if (canShareInstance) {
+                SharedScriptClasses.instanceOf(scriptClass)?.asSuccess()?.let { return@evaluation it }
+            }
 
             compiledScript.otherScripts.mapSuccess {
                 invoke(it, configurationForOtherScripts)
@@ -188,7 +183,9 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                 }
 
                 EvaluationResult(resultValue, refinedEvalConfiguration).let { result ->
-                    if (resultValue !is ResultValue.Error) sharedScripts?.put(scriptClass, result)
+                    if (canShareInstance && resultValue !is ResultValue.Error) {
+                        SharedScriptClasses.rememberInstance(scriptClass, result)
+                    }
                     ResultWithDiagnostics.Success(result)
                 }
             }
@@ -272,7 +269,6 @@ private fun ScriptEvaluationConfiguration.getOrPrepareShared(classLoader: ClassL
     else
         with {
             ScriptEvaluationConfiguration.jvm.actualClassLoader(classLoader)
-            ScriptEvaluationConfiguration.jvm.scriptsInstancesSharingMap(mutableMapOf())
         }
 
 internal class KJvmCompiledScriptFromJar(
@@ -290,8 +286,12 @@ internal class KJvmCompiledScriptFromJar(
         val actualEvaluationConfiguration = scriptEvaluationConfiguration ?: ScriptEvaluationConfiguration()
         val baseClassLoader = actualEvaluationConfiguration[ScriptEvaluationConfiguration.jvm.baseClassLoader]
             ?: Thread.currentThread().contextClassLoader
-        val classLoader = createScriptMemoryClassLoader(baseClassLoader)
+        val entries = readJarEntries()
+        val classLoader = MemoryClassLoader(entries, baseClassLoader)
         loadedScript = createScriptFromClassLoader(scriptClassName, classLoader)
+        classLoader.shareClassesOf(
+            SharedScriptClasses.loadersFor(getScriptOrFail().otherScripts, entries, baseClassLoader),
+        )
 
         return getScriptOrFail().getClass(scriptEvaluationConfiguration)
     }
@@ -308,19 +308,35 @@ internal class KJvmCompiledScriptFromJar(
     override val resultField
         get() = getScriptOrFail().resultField
 
-    private fun createScriptMemoryClassLoader(parent: ClassLoader?): ClassLoader {
-        val jarFile = JarFile(file)
-        val entries = jarFile.use { jar ->
-            jar.entries().asSequence().associate { it.name to jar.getInputStream(it).readBytes() }
-        }
-        return MemoryClassLoader(entries, parent)
+    private fun readJarEntries(): Map<String, ByteArray> = JarFile(file).use { jar ->
+        jar.entries().asSequence().associate { it.name to jar.getInputStream(it).readBytes() }
     }
 }
 
-internal class MemoryClassLoader(
+class MemoryClassLoader(
     private val resources: Map<String, ByteArray>,
     parent: ClassLoader?,
 ) : ClassLoader(parent) {
+    /** Classes of shared scripts, which this loader must link against instead of defining its own. */
+    private var shared: Map<String, ClassLoader> = emptyMap()
+
+    fun shareClassesOf(loaders: Map<String, ClassLoader>) {
+        shared = loaders
+    }
+
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        val owner = sharedOwnerOf(name) ?: return super.loadClass(name, resolve)
+        return owner.loadClass(name).also { if (resolve) resolveClass(it) }
+    }
+
+    /** Nested and synthetic classes belong to the script that declared them: `Quests$Payload` to `Quests`. */
+    private fun sharedOwnerOf(name: String): ClassLoader? {
+        if (shared.isEmpty()) return null
+        shared[name]?.let { return it }
+        val outer = name.substringBefore('$')
+        return if (outer == name) null else shared[outer]
+    }
+
     override fun findClass(name: String): Class<*> {
         val resource = name.replace('.', '/') + ".class"
 

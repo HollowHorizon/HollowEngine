@@ -6,6 +6,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.SharedScriptClasses
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeManager
 
 class ServerRuntimeContext(
@@ -26,6 +27,7 @@ class ServerRuntimeContext(
     fun dispose() {
         nodes.dispose()
         scope.cancel()
+        SharedScriptClasses.clearInstances()
     }
 }
 

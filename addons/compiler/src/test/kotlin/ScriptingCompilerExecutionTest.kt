@@ -358,6 +358,88 @@ class ScriptingCompilerExecutionTest {
     }
 
     @Test
+    fun `two unrelated scripts share one instance of what they both import`() {
+        val scriptsDirectory = File("build/tmp/shared-across-roots").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("registry.kts").writeText(
+            """
+                @file:SharedScript
+                class Entry(val title: String)
+                val entries = mutableListOf<Entry>()
+                fun register(entry: Entry) { entries += entry }
+                fun titles() = entries.joinToString(",") { it.title }
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("writer.importing.kts").writeText(
+            """
+                @file:Import("registry.kts")
+                register(Entry("written"))
+                output += titles()
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("reader.hello.kts").writeText(
+            """
+                @file:Import("registry.kts")
+                register(Entry("read"))
+                output += titles()
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(
+            Import::class.qualifiedName!!,
+            SharedScript::class.qualifiedName!!,
+        )
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider("kts", "kotlin.Any", defaultImports),
+                ScriptClassProvider(
+                    ".importing.kts",
+                    ImportingScript::class.qualifiedName!!,
+                    defaultImports,
+                ),
+                ScriptClassProvider(
+                    ".hello.kts",
+                    HelloWorldScript::class.qualifiedName!!,
+                    defaultImports,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "shared-across-roots"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "writer.importing.kts")) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+            ScriptLoader.execute<HelloWorldScript>(ScriptId(namespace, "reader.hello.kts")) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+
+            assertEquals(listOf("written", "written,read"), output)
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
     fun `an imported script evaluation error reaches the caller`() {
         val scriptsDirectory = File("build/tmp/script-import-error").apply {
             deleteRecursively()
@@ -428,11 +510,11 @@ class ScriptingCompilerExecutionTest {
 
     @Test
     fun `only shared imported scripts reuse their instance`() {
-        assertImportedValues(shared = false, expected = "1:1")
-        assertImportedValues(shared = true, expected = "1:2")
+        assertImportedValues(shared = false, expected = "1:1", afterReload = null)
+        assertImportedValues(shared = true, expected = "1:2", afterReload = "3:4")
     }
 
-    private fun assertImportedValues(shared: Boolean, expected: String) {
+    private fun assertImportedValues(shared: Boolean, expected: String, afterReload: String?) {
         val scriptsDirectory = File("build/tmp/shared-script-${if (shared) "enabled" else "disabled"}").apply {
             deleteRecursively()
             mkdirs()
@@ -501,7 +583,7 @@ class ScriptingCompilerExecutionTest {
 
             assertEquals(listOf(expected), output)
 
-            if (shared) {
+            if (afterReload != null) {
                 assertTrue(ScriptCache.artifact(id).isFile)
                 ScriptingEnvironment.clear()
                 output.clear()
@@ -510,7 +592,7 @@ class ScriptingCompilerExecutionTest {
                     constructorArgs(output as Any)
                 }.getOrThrow()
 
-                assertEquals(listOf(expected), output)
+                assertEquals(listOf(afterReload), output)
             }
         } finally {
             ScriptRegistry.unregister(namespace)

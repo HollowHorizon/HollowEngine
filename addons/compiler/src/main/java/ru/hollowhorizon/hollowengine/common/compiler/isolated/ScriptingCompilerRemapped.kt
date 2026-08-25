@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.common.compiler.createHollowEngineCompilerP
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.SharedScriptClasses
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.NeoForgeEnvironmentSetup
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.ClassRemappingSession
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.RemappingClasspath
@@ -74,7 +75,8 @@ class ScriptJvmCompilerRemapped(
             outputFiles.mapValues { (path, bytes) ->
                 debugSave(path, bytes)
                 if (path.endsWith(".class")) remappingSession?.remap(bytes) ?: bytes else bytes
-            }
+            },
+            jvmScript.otherScripts,
         )
         return KJvmCompiledScript(
             jvmScript.sourceLocationId,
@@ -184,11 +186,14 @@ internal fun withScriptCompilationCache(
 
 private class RemappedCompiledModule(
     override val compilerOutputFiles: Map<String, ByteArray>,
+    @Transient private val imports: List<CompiledScript> = emptyList(),
 ) : KJvmCompiledModuleInMemory, Serializable {
     override fun createClassLoader(baseClassLoader: ClassLoader?): ClassLoader {
+        val parent = baseClassLoader ?: HollowEngine::class.java.classLoader
         return RemappedCompiledScriptClassLoader(
             compilerOutputFiles,
-            baseClassLoader ?: HollowEngine::class.java.classLoader,
+            parent,
+            SharedScriptClasses.loadersFor(imports, compilerOutputFiles, parent),
         )
     }
 }
@@ -196,7 +201,21 @@ private class RemappedCompiledModule(
 private class RemappedCompiledScriptClassLoader(
     private val files: Map<String, ByteArray>,
     parent: ClassLoader?,
+    private val shared: Map<String, ClassLoader>,
 ) : ClassLoader(parent) {
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        val owner = sharedOwnerOf(name) ?: return super.loadClass(name, resolve)
+        return owner.loadClass(name).also { if (resolve) resolveClass(it) }
+    }
+
+    /** Nested and synthetic classes belong to the script that declared them: `Quests$Payload` to `Quests`. */
+    private fun sharedOwnerOf(name: String): ClassLoader? {
+        if (shared.isEmpty()) return null
+        shared[name]?.let { return it }
+        val outer = name.substringBefore('$')
+        return if (outer == name) null else shared[outer]
+    }
+
     override fun findClass(name: String): Class<*> {
         val path = name.replace('.', '/') + ".class"
         val bytes = files[path] ?: throw ClassNotFoundException(name)
