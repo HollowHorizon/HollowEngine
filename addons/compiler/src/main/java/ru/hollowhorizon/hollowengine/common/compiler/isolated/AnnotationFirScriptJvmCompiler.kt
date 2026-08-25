@@ -21,25 +21,23 @@ import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.config.messageCollector
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
 import org.jetbrains.kotlin.diagnostics.impl.DiagnosticsCollectorImpl
+import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.FirSourceModuleData
 import org.jetbrains.kotlin.fir.SessionConfiguration
 import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirFile
-import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.FirScript
 import org.jetbrains.kotlin.fir.packageFqName
 import org.jetbrains.kotlin.fir.pipeline.AllModulesFrontendOutput
 import org.jetbrains.kotlin.fir.pipeline.resolveAndCheckFir
 import org.jetbrains.kotlin.fir.pipeline.runPlatformCheckers
-import org.jetbrains.kotlin.fir.resolve.transformers.FirGlobalResolveProcessor
-import org.jetbrains.kotlin.fir.resolve.transformers.FirTransformerBasedResolveProcessor
-import org.jetbrains.kotlin.fir.resolve.transformers.createAllCompilerResolveProcessors
 import org.jetbrains.kotlin.fir.session.FirJvmSessionFactory.createSourceSession
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectFileSearchScope
-import org.jetbrains.kotlin.fir.withFileAnalysisExceptionWrapping
 import org.jetbrains.kotlin.modules.TargetId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.NameUtils
+import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.scripting.compiler.plugin.configureFirSession
 import org.jetbrains.kotlin.scripting.compiler.plugin.definitions.getOrStoreRefinedCompilationConfiguration
 import org.jetbrains.kotlin.scripting.compiler.plugin.definitions.getRefinedOrBaseCompilationConfiguration
@@ -75,12 +73,12 @@ import kotlin.script.experimental.impl._languageVersion
 import kotlin.script.experimental.jvm.util.toClassPathOrEmpty
 
 /**
- * Kotlin's standalone K2 script compiler keeps the annotation-resolution source module as a dependency of the real
- * compilation module, but leaves its declarations as raw FIR. Imported declarations are therefore visible twice, and
- * call resolution can select the raw symbol instead of the resolved declaration from the compilation source session.
+ * Kotlin's standalone K2 script compiler records annotation-resolution source modules in the same module history as
+ * compilation modules. Their FIR declarations then leak into compilation as friend dependencies and become visible
+ * alongside the real source declarations.
  *
- * Keep this adapter aligned with [org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptJvmK2CompilerImpl]. Its only
- * intentional pipeline difference is [prepareAnnotationFir], which resolves that dependency before it becomes visible.
+ * Keep annotation sessions transient and compile imported sources before their importers. The annotation FIR remains
+ * available for refinement without becoming part of the compilation symbol graph.
  */
 internal class AnnotationFirScriptJvmCompiler(
     state: K2ScriptingCompilerEnvironment,
@@ -88,7 +86,7 @@ internal class AnnotationFirScriptJvmCompiler(
 ) {
     private val state = state as? K2ScriptingCompilerEnvironmentInternal
         ?: error("Expected the internal K2 scripting compiler environment, got ${state::class}")
-    private val annotationFirFiles = linkedSetOf<FirFile>()
+    private val annotationResolutionSessions = mutableMapOf<AnnotationResolutionSessionKey, FirSession>()
 
     fun compile(script: SourceCode): ResultWithDiagnostics<CompiledScript> =
         compile(script, state.baseScriptCompilationConfiguration)
@@ -121,10 +119,8 @@ internal class AnnotationFirScriptJvmCompiler(
                 source,
                 configuration,
                 state.hostConfiguration,
-                { _, refinedConfiguration -> annotationResolutionSession(refinedConfiguration) },
-                { session, diagnosticsReporter ->
-                    convertToFir(session, diagnosticsReporter).also(annotationFirFiles::add)
-                },
+                { source, refinedConfiguration -> annotationResolutionSession(source, refinedConfiguration) },
+                { session, diagnosticsReporter -> convertToFir(session, diagnosticsReporter) },
             )
         }.onSuccess {
             it.with {
@@ -169,7 +165,7 @@ internal class AnnotationFirScriptJvmCompiler(
                 }
             }.valueOr { return it }
         allSourceFiles.addAll(importedSources)
-        prepareAnnotationFir()
+        val compilationSources = importedSources + script
 
         val ignoredOptionsReportingState = state.compilerContext.ignoredOptionsReportingState
         val updatedCompilerOptions = allSourceFiles.flatMapTo(mutableListOf()) {
@@ -211,14 +207,14 @@ internal class AnnotationFirScriptJvmCompiler(
             FirScriptCompilationComponent::class,
             FirScriptCompilationComponent(
                 state.hostConfiguration,
-                getSessionForAnnotationResolution = { _, refinedConfiguration ->
-                    annotationResolutionSession(refinedConfiguration)
+                getSessionForAnnotationResolution = { source, refinedConfiguration ->
+                    annotationResolutionSession(source, refinedConfiguration)
                 },
             ),
         )
         state.hostConfiguration[ScriptingHostConfiguration.configureFirSession]?.invoke(session)
 
-        val sourcesToFir = allSourceFiles.associateWith {
+        val sourcesToFir = compilationSources.associateWith {
             it.convertToFir(session, reporting.diagnosticsCollector)
         }
         if (reporting.diagnosticsCollector.hasErrors) return failure(reporting, reporting.diagnosticsCollector)
@@ -263,6 +259,7 @@ internal class AnnotationFirScriptJvmCompiler(
 
     @OptIn(SessionConfiguration::class)
     private fun annotationResolutionSession(
+        script: SourceCode,
         scriptCompilationConfiguration: ScriptCompilationConfiguration,
     ): FirSession {
         val dependencies = scriptCompilationConfiguration[ScriptCompilationConfiguration.dependencies].toClassPathOrEmpty()
@@ -273,57 +270,47 @@ internal class AnnotationFirScriptJvmCompiler(
                 dependencies,
             )
         }
-        return state.dummySessionForAnnotationResolution ?: createSourceSession(
-            state.moduleDataProvider.addNewScriptModuleData(Name.special("<raw-script>")),
-            AbstractProjectFileSearchScope.EMPTY,
-            createIncrementalCompilationSymbolProviders = { null },
-            state.extensionRegistrars,
-            state.compilerContext.environment.configuration,
-            context = state.sessionFactoryContext,
-            needRegisterJavaElementFinder = true,
-            isForLeafHmppModule = false,
-            init = {},
-        ).apply {
-            register(
-                FirScriptCompilationComponent::class,
-                FirScriptCompilationComponent(
-                    state.hostConfiguration,
-                    getSessionForAnnotationResolution = { _, _ -> this },
-                ),
+        val libraryModules = state.moduleDataProvider.allModuleData
+            .filter { it.dependencies.isEmpty() }
+            .asReversed()
+        val key = AnnotationResolutionSessionKey(script, libraryModules)
+        return annotationResolutionSessions.getOrPut(key) {
+            val moduleData = FirSourceModuleData(
+                Name.special("<raw-script-${annotationResolutionSessions.size + 1}>"),
+                dependencies = libraryModules,
+                dependsOnDependencies = emptyList(),
+                friendDependencies = emptyList(),
+                JvmPlatforms.defaultJvmPlatform,
             )
-            state.dummySessionForAnnotationResolution = this
+            createSourceSession(
+                moduleData,
+                AbstractProjectFileSearchScope.EMPTY,
+                createIncrementalCompilationSymbolProviders = { null },
+                state.extensionRegistrars,
+                state.compilerContext.environment.configuration,
+                context = state.sessionFactoryContext,
+                needRegisterJavaElementFinder = true,
+                isForLeafHmppModule = false,
+                init = {},
+            ).apply {
+                register(
+                    FirScriptCompilationComponent::class,
+                    FirScriptCompilationComponent(
+                        state.hostConfiguration,
+                        getSessionForAnnotationResolution = { _, _ -> this },
+                    ),
+                )
+            }
         }
     }
 
     private fun getRefinedConfiguration(script: SourceCode): ScriptCompilationConfiguration =
         state.hostConfiguration.getRefinedOrBaseCompilationConfiguration(script).valueOrThrow()
 
-    private fun prepareAnnotationFir() {
-        val session = state.dummySessionForAnnotationResolution ?: return
-        if (annotationFirFiles.isEmpty()) return
-
-        for (processor in createAllCompilerResolveProcessors(session)) {
-            val phase = processor.phase ?: continue
-            if (phase > FirResolvePhase.ANNOTATION_ARGUMENTS) break
-
-            processor.beforePhase()
-            try {
-                when (processor) {
-                    is FirTransformerBasedResolveProcessor -> {
-                        for (file in annotationFirFiles) {
-                            withFileAnalysisExceptionWrapping(file) {
-                                processor.processFile(file)
-                            }
-                        }
-                    }
-
-                    is FirGlobalResolveProcessor -> processor.process(annotationFirFiles)
-                }
-            } finally {
-                processor.afterPhase()
-            }
-        }
-    }
+    private data class AnnotationResolutionSessionKey(
+        val script: SourceCode,
+        val libraryModules: List<FirModuleData>,
+    )
 
     private class ErrorReportingContext(
         val messageCollector: ScriptDiagnosticsMessageCollector,

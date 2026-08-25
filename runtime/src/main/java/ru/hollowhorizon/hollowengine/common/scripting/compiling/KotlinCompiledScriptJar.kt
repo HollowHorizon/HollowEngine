@@ -149,6 +149,9 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
             compiledScript.otherScripts.mapSuccess {
                 invoke(it, configurationForOtherScripts)
             }.onSuccess { importedScriptsEvalResults ->
+                importedScriptsEvalResults.firstOrNull { it.returnValue is ResultValue.Error }?.let {
+                    return@onSuccess it.asSuccess()
+                }
 
                 val refinedEvalConfiguration =
                     sharedConfiguration.with {
@@ -184,9 +187,9 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                     ResultValue.Error(e, e, scriptClass)
                 }
 
-                EvaluationResult(resultValue, refinedEvalConfiguration).let {
-                    sharedScripts?.put(scriptClass, it)
-                    ResultWithDiagnostics.Success(it)
+                EvaluationResult(resultValue, refinedEvalConfiguration).let { result ->
+                    if (resultValue !is ResultValue.Error) sharedScripts?.put(scriptClass, result)
+                    ResultWithDiagnostics.Success(result)
                 }
             }
         }

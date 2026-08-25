@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
+import ru.hollowhorizon.hollowengine.common.scripting.annotations.SharedScript
 import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.source.DirectoryScriptSource
@@ -202,6 +203,220 @@ class ScriptingCompilerExecutionTest {
             }.getOrThrow()
 
             assertEquals(listOf("model:42:true"), output)
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `a function taking a type of its own imported script is not ambiguous`() {
+        val scriptsDirectory = File("build/tmp/script-import-declarations").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("core.kts").writeText(
+            """
+                class Faction(val title: String)
+                val factions = mutableListOf<String>()
+                fun register(faction: Faction) { factions += faction.title }
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("main.importing.kts").writeText(
+            """
+                @file:Import("core.kts")
+                register(Faction("science"))
+                output += factions.joinToString(",")
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(Import::class.qualifiedName!!)
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = "kts",
+                    baseClass = "kotlin.Any",
+                    defaultImports = defaultImports,
+                ),
+                ScriptClassProvider(
+                    extension = ".importing.kts",
+                    baseClass = ImportingScript::class.qualifiedName!!,
+                    defaultImports = defaultImports,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "script-import-declarations"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "main.importing.kts")) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+
+            assertEquals(listOf("science"), output)
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `a script reached both directly and through a neighbour is declared once`() {
+        val scriptsDirectory = File("build/tmp/script-import-diamond").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("core.kts").writeText(
+            """
+                @file:SharedScript
+                class Faction(val title: String)
+                val factions = mutableListOf<String>()
+                fun register(faction: Faction) { factions += faction.title }
+            """.trimIndent(),
+        )
+        // core.kts достаётся сюда напрямую, а до main - ещё раз через этот скрипт.
+        scriptsDirectory.resolve("content.kts").writeText(
+            """
+                @file:SharedScript
+                @file:Import("core.kts")
+                register(Faction("blog"))
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("main.importing.kts").writeText(
+            """
+                @file:Import("core.kts", "content.kts")
+                register(Faction("science"))
+                output += factions.joinToString(",")
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(
+            Import::class.qualifiedName!!,
+            SharedScript::class.qualifiedName!!,
+        )
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = "kts",
+                    baseClass = "kotlin.Any",
+                    defaultImports = defaultImports,
+                ),
+                ScriptClassProvider(
+                    extension = ".importing.kts",
+                    baseClass = ImportingScript::class.qualifiedName!!,
+                    defaultImports = defaultImports,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "script-import-diamond"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "main.importing.kts")) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+
+            // Один список на оба пути: core.kts выполнился ровно один раз.
+            assertEquals(listOf("blog,science"), output)
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `an imported script evaluation error reaches the caller`() {
+        val scriptsDirectory = File("build/tmp/script-import-error").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("failing.kts").writeText(
+            """
+                @file:SharedScript
+                error("import failed")
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("main.importing.kts").writeText(
+            """
+                @file:Import("failing.kts")
+                output += "unreachable"
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(
+            Import::class.qualifiedName!!,
+            SharedScript::class.qualifiedName!!,
+        )
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = "kts",
+                    baseClass = "kotlin.Any",
+                    defaultImports = defaultImports,
+                ),
+                ScriptClassProvider(
+                    extension = ".importing.kts",
+                    baseClass = ImportingScript::class.qualifiedName!!,
+                    defaultImports = defaultImports,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "script-import-error"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            val failure = ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "main.importing.kts")) {
+                constructorArgs(output as Any)
+            }.exceptionOrNull()
+
+            assertTrue(failure is IllegalStateException, "Expected the imported script failure, got $failure")
+            assertEquals("import failed", failure.message)
+            assertTrue(output.isEmpty())
         } finally {
             ScriptRegistry.unregister(namespace)
             ScriptingEnvironment.clear()
