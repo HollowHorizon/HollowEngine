@@ -38,7 +38,7 @@ import ru.hollowhorizon.hollowengine.common.dialogue.DialogueController
 val gateDialogue = DialogueController("project:stories/gate.story")
 
 @State
-suspend fun talkToGuard(player: ServerPlayer, guard: NpcEntity) {
+suspend fun talkToGuard() {
     gateDialogue.start(player) {
         character("Стражник", DialogueCharacter.of(guard))
         put("money", 35)
