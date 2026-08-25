@@ -89,9 +89,12 @@ object AttachmentRegistry {
 
     fun close(level: Level) {
         NodeRuntimeState.close(level)
-        synchronized(levelStates) {
+        val lastOfItsSide = synchronized(levelStates) {
             levelStates.remove(level)?.byUuid?.values?.forEach { it.scope.cancel() }
+            levelStates.keys.none { it.isClientSide == level.isClientSide }
         }
+
+        if (lastOfItsSide) synchronized(sideTransferState) { sideTransferState.remove(level.isClientSide) }
     }
 
     /** The attachments of [entity], created on first use. */
@@ -343,7 +346,7 @@ object AttachmentRegistry {
         val target = levelState(newLevel).byUuid
         synchronized(levelStates) {
             levelStates.entries.forEach { (level, state) ->
-                if (level == newLevel) return@forEach
+                if (level === newLevel || level.isClientSide != newLevel.isClientSide) return@forEach
                 val moved = state.byUuid.remove(entity.uuid) ?: return@forEach
                 target[entity.uuid] = if (moved.entity !== entity) rebind(moved, entity) else moved
             }
