@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import java.io.File
 import java.net.URI
 import java.nio.file.Path
+import java.util.jar.JarFile
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.implicitReceivers
 import kotlin.test.Test
@@ -430,6 +431,15 @@ class ScriptingCompilerExecutionTest {
             }.getOrThrow()
 
             assertEquals(listOf("written", "written,read"), output)
+
+            assertTrue(ScriptCache.sharedArtifact(ScriptId(namespace, "registry.kts")).isFile)
+            listOf("writer.importing.kts", "reader.hello.kts").forEach { root ->
+                val classes = classNamesOf(ScriptCache.artifact(ScriptId(namespace, root)))
+                assertTrue(
+                    classes.none { it == "Registry.class" || it.startsWith("Registry$") },
+                    "$root should not carry a copy of the shared script, got $classes",
+                )
+            }
         } finally {
             ScriptRegistry.unregister(namespace)
             ScriptingEnvironment.clear()
@@ -613,4 +623,8 @@ class ScriptingCompilerExecutionTest {
             .distinctBy { it.absoluteFile.normalize() }
             .toList()
     }
+}
+
+private fun classNamesOf(jar: File): List<String> = JarFile(jar).use { archive ->
+    archive.entries().asSequence().map { it.name }.filter { it.endsWith(".class") }.toList()
 }

@@ -36,6 +36,12 @@ runSomeDialogue()
 
 That means two dots move one folder up relative to the current file. If the scripts are in the same folder, you can simply specify the file name.
 
+Several scripts go into one annotation rather than several in a row (`@file:Import` is one per script):
+
+```kotlin
+@file:Import("../common/dialogue.kts", "../common/rewards.kts")
+```
+
 :::warning
 `@file:Import(...)` must appear before classic declaration imports such as `import ru.hollowhorizon.HollowEngine.*`.
 :::
@@ -81,4 +87,12 @@ fun sayLine(text: String) {
 In that case, all scripts that import `common/dialogue.kts` will access the same instance and the shared `dialogueHistory`. This is useful for services that share state during gameplay—for example, a dialogue system that is read from `.reload.kts` and modified within `.node.kts`.
 
 `SharedScript` is imported by default, meaning a separate `import ...` statement is not required for it. The annotation must be placed at the beginning of the file, before the regular imports.
+
+A shared script is compiled once into a cache artifact of its own instead of being copied into every importer. Its instance is created once per game and lives until the world is closed.
+
+:::warning
+Editing a shared script in a running world is at your own risk. Scripts that already started keep the old classes while re-read ones get the new: handlers keep working, but the shared script's state starts from scratch and newly added fields come up empty. Saving may not work either, because `.reload.kts` has already restarted by then.
+
+The safe route is to leave the world and come back.
+:::
 
