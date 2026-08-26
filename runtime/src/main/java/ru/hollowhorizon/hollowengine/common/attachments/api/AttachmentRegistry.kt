@@ -162,7 +162,7 @@ object AttachmentRegistry {
     fun coroutineScope(entity: Entity): CoroutineScope = state(entity).scope
 
     /** The entity's data store, or null when it has never been written to. Creates nothing. */
-    fun entityDataOrNull(entity: Entity): NbtDataStore? = stateOrNull(entity.level(), entity.uuid)?.dataOrNull
+    fun entityDataOrNull(entity: Entity): NbtDataStore? = resolveState(entity)?.dataOrNull
 
     /** The entity's data store, creating both it and the entity's attachments on first use. */
     fun entityData(entity: Entity): NbtDataStore = state(entity).data
@@ -355,6 +355,17 @@ object AttachmentRegistry {
 
     private fun stateOrNull(level: Level, uuid: UUID): HollowAttachments? =
         synchronized(levelStates) { levelStates[level]?.byUuid?.get(uuid) }
+
+    /**
+     * The entity's attachments, including pendingByEntityUuid by cloned/died player.
+     */
+    private fun resolveState(entity: MCEntity): HollowAttachments? {
+        stateOrNull(entity.level(), entity.uuid)?.let { return it }
+        val pending = synchronized(sideTransferState) {
+            sideState(entity.level()).pendingByEntityUuid.containsKey(entity.uuid)
+        }
+        return if (pending) state(entity) else null
+    }
 
     private fun state(entity: MCEntity): HollowAttachments {
         val map = levelState(entity.level()).byUuid
