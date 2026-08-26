@@ -32,6 +32,7 @@ assets/project/models/entity/
 
 ```toml
 preload = true
+frustum-culling = false
 animation-controller = "project:models/entity/guide.animator"
 
 [materials]
@@ -42,6 +43,7 @@ cape = "material_3"
 | Field | Meaning |
 |------|---------|
 | `preload` | Loads the model when resources load rather than when it is first used. Useful for frequently used models. It is disabled by default so that models used only a few times in a pack or map do not take up resources. |
+| `frustum-culling` | Allows the model to be culled outside the camera frustum. Enabled by default. Set it to `false` when GPU skinning or morph targets move vertices beyond the model's calculated bounds. This disables only frustum culling; the entity's distance culling still applies. |
 | `animation-controller` | The animator the model uses by default, see the [Animator Editor](/docs/hollowengine/scripting/animator-editor). |
 | `[materials]` | New names for the model's materials, see below. |
 
