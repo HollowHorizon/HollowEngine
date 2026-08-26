@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.phys.AABB
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
@@ -29,9 +30,14 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.models.StandardPlayerAnimatorPreset
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.util.Collections
+import java.util.IdentityHashMap
 
 @ClientOnly
 object RenderManager {
+    private val modelCullingBounds = IdentityHashMap<Entity, AABB>()
+    private val frustumCullingDisabledHosts = Collections.newSetFromMap(IdentityHashMap<Entity, Boolean>())
+
     fun onInitialize() {
         HollowModelManager.initialize()
         AnimatorAssets.register(StandardPlayerAnimatorPreset.ID.rl, StandardPlayerAnimatorPreset.create())
@@ -66,6 +72,8 @@ object RenderManager {
     fun onPrepareModelFrames(event: RenderLevelStageEvent) {
         if (event.stage != RenderStage.AFTER_SKY) return
 
+        modelCullingBounds.clear()
+        frustumCullingDisabledHosts.clear()
         val level = Minecraft.getInstance().level ?: return
         val partialTick = event.partialTick
 
@@ -76,8 +84,23 @@ object RenderManager {
             instance.attachment.entity = host as? LivingEntity
             instance.configure(node.animations, node.materials)
             instance.update(AnimatorEvaluationContext().also { fillAnimationVariables(it, host, partialTick) })
+
+            if (!instance.attachment.isFrustumCullingEnabled) {
+                frustumCullingDisabledHosts.add(host)
+                return@forEachModelNodeRecord
+            }
+
+            val localBounds = instance.attachment.calculateBounds() ?: return@forEachModelNodeRecord
+            val worldTransform = resolveNodeWorldTransform(host, node.transform, partialTick)
+            val worldBounds = buildNodeRenderBounds(localBounds, worldTransform)
+            modelCullingBounds.merge(host, worldBounds) { current, added -> current.minmax(added) }
         }
     }
+
+    fun extendCullingBounds(entity: Entity, vanillaBounds: AABB): AABB =
+        modelCullingBounds[entity]?.let(vanillaBounds::minmax) ?: vanillaBounds
+
+    fun isFrustumCullingDisabled(entity: Entity): Boolean = entity in frustumCullingDisabledHosts
 
     @SubscribeEvent
     fun onRenderEntityNodes(event: RenderEntityEvent.Pre) {

@@ -52,6 +52,7 @@ import net.minecraft.world.item.crafting.RecipeManager
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.SkullBlock
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.BlockHitResult
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.ConsoleAppender
@@ -71,6 +72,7 @@ import ru.hollowhorizon.hollowengine.client.input.ClientKeyWaitManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
+import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
@@ -647,6 +649,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             )
         )
     }
+
+    override fun extendEntityCullingBounds(entity: Entity, vanillaBounds: AABB): AABB =
+        RenderManager.extendCullingBounds(entity, vanillaBounds)
+
+    override fun isEntityFrustumCullingDisabled(entity: Entity): Boolean =
+        RenderManager.isFrustumCullingDisabled(entity)
 
     override fun onRenderEntityNameplate(entity: Entity, vanillaVisible: Boolean): Boolean {
         val event = RenderEntityNameplateEvent(entity, vanillaVisible)

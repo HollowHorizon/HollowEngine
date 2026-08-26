@@ -49,6 +49,7 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SkullBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -211,6 +212,10 @@ public interface RuntimeBridge extends AutoCloseable {
     boolean onRenderEntityPre(Entity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
 
     void onRenderEntityPost(Entity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
+
+    AABB extendEntityCullingBounds(Entity entity, AABB vanillaBounds);
+
+    boolean isEntityFrustumCullingDisabled(Entity entity);
 
     boolean onRenderEntityNameplate(Entity entity, boolean vanillaVisible);
 

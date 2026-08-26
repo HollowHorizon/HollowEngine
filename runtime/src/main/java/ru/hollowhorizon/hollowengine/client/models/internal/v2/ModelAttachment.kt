@@ -44,6 +44,7 @@ class ModelAttachment(
     val animations: Collection<AnimationClip> get() = model.animations
     val materials: List<Material> get() = runtimeMaterials.values
     val pipeline: RenderPipeline get() = renderPipeline
+    val isFrustumCullingEnabled: Boolean get() = HollowModelManager.metadata(location).frustumCulling
 
     val triangles get() = model.nodes.sumOf { it.mesh?.primitives?.sumOf { p -> p.positionsCount / 3 } ?: 0 }
     val shapekeys get() = model.nodes.sumOf { it.mesh?.primitives?.sumOf { p -> p.morphTargets.size } ?: 0 }

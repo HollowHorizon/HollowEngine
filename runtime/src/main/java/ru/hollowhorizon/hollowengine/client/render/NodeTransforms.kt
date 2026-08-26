@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.Mth
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.AABB
@@ -41,24 +42,7 @@ fun resolveNodeTransform(
         TrsTransformF().set(transform.transform)
     } else {
         val host = findNodeHostEntity(level, hostEntityUuid) ?: return null
-        val hostYaw = when (host) {
-            is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
-            else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
-        }
-        val hostPosition = Vec3f(
-            Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
-            Mth.lerp(partialTick.toDouble(), host.yOld, host.y).toFloat(),
-            Mth.lerp(partialTick.toDouble(), host.zOld, host.z).toFloat(),
-        )
-        val hostRotation = hostEntityRotation(hostYaw)
-        val local = transform.transform
-        val worldTranslation = Vec3f(local.translation).rotateBy(hostRotation) + hostPosition
-        val worldRotation = MutableQuatF(hostRotation).mul(local.rotation).norm()
-        TrsTransformF().setCompositionOf(
-            worldTranslation,
-            worldRotation,
-            Vec3f(local.scale),
-        )
+        resolveNodeWorldTransform(host, transform, partialTick)
     }
 
     return ResolvedNodeTransform(
@@ -71,6 +55,31 @@ fun resolveNodeTransform(
                 worldTransform.translation.z.toDouble()
             )
         ),
+    )
+}
+
+fun resolveNodeWorldTransform(
+    host: Entity,
+    transform: TransformComponent,
+    partialTick: Float,
+): TrsTransformF {
+    val hostYaw = when (host) {
+        is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
+        else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
+    }
+    val hostPosition = Vec3f(
+        Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
+        Mth.lerp(partialTick.toDouble(), host.yOld, host.y).toFloat(),
+        Mth.lerp(partialTick.toDouble(), host.zOld, host.z).toFloat(),
+    )
+    val hostRotation = hostEntityRotation(hostYaw)
+    val local = transform.transform
+    val worldTranslation = Vec3f(local.translation).rotateBy(hostRotation) + hostPosition
+    val worldRotation = MutableQuatF(hostRotation).mul(local.rotation).norm()
+    return TrsTransformF().setCompositionOf(
+        worldTranslation,
+        worldRotation,
+        Vec3f(local.scale),
     )
 }
 

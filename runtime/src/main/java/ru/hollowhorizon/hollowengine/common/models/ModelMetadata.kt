@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
  *
  * ```toml
  * preload = true
+ * frustum-culling = false
  * animation-controller = "hollowengine:standard_player"
  *
  * [materials]
@@ -23,6 +24,10 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 data class ModelMetadata(
     /** Load the model when resources load, rather than when something first asks for it. */
     val preload: Boolean = false,
+
+    /** Whether instances of this model may be rejected by the camera frustum. */
+    @SerialName("frustum-culling")
+    val frustumCulling: Boolean = true,
 
     /** The animator this model wears; a `.animator` file, or an id registered from code. */
     @SerialName("animation-controller")
