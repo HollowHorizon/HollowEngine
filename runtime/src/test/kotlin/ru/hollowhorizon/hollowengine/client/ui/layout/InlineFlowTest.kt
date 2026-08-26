@@ -205,6 +205,22 @@ class InlineFlowTest {
     }
 
     @Test
+    fun `a word split across spans wraps as one word`() {
+        val revealed = span("aaaa bb")
+        val pending = span("bb")
+        val (layout, container) = flow(42f, revealed, pending)
+        val revealedLayout = layout.nodes.getValue(revealed)
+
+        assertEquals(20f, layout.nodes.getValue(container).rect.height, 0.6f, "the whole word moves to the next line")
+        assertEquals(
+            revealedLayout.rect.y + revealedLayout.textLayout!!.lines.last().y,
+            layout.nodes.getValue(pending).rect.y,
+            0.1f,
+            "both parts of the split word stay on the same line",
+        )
+    }
+
+    @Test
     fun `spans keep their own font size in the flow`() {
         val small = span("aa")
         val big = span("aa", Modifier.fontSize(20f))

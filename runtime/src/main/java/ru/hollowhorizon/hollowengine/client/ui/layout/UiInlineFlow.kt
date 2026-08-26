@@ -359,46 +359,85 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
         line = FlowLine()
     }
 
+    fun append(piece: Piece) {
+        line.pieces += piece
+        line.width += piece.width
+    }
+
     var breakBefore = false
-    for (piece in pieces) {
+    var index = 0
+    while (index < pieces.size) {
+        val piece = pieces[index]
         when (piece) {
             is BreakPiece -> {
                 commit(hard = true)
                 breakBefore = false
+                index++
             }
 
             is SpacePiece, is GapPiece -> {
                 val preserve = piece is SpacePiece && piece.preserve
                 if (line.pieces.isNotEmpty() || preserve) {
-                    line.pieces += piece
-                    line.width += piece.width
+                    append(piece)
                 }
                 breakBefore = !preserve
+                index++
             }
 
             is PadPiece -> {
-                line.pieces += piece
-                line.width += piece.width
+                append(piece)
+                index++
             }
 
-            is WordPiece, is AtomPiece -> {
-                if (wrapping && piece is WordPiece && piece.width > wrapWidth + WrapEpsilon) {
-                    if (line.pieces.isNotEmpty()) commit(hard = false)
-                    splitOversizedWordPiece(piece, wrapWidth).forEachIndexed { index, chunk ->
-                        if (index > 0) commit(hard = false)
-                        line.pieces += chunk
-                        line.width += chunk.width
-                    }
-                } else {
+            is WordPiece -> {
+                val wordStart = index
+                var wordWidth = 0f
+                while (index < pieces.size) {
+                    val word = pieces[index] as? WordPiece ?: break
+                    wordWidth += word.width
+                    index++
+                }
+
+                if (!wrapping || wordWidth <= wrapWidth + WrapEpsilon) {
                     if (wrapping && breakBefore && line.pieces.isNotEmpty() &&
-                        line.width + piece.width > wrapWidth + WrapEpsilon
+                        line.width + wordWidth > wrapWidth + WrapEpsilon
                     ) {
                         commit(hard = false)
                     }
-                    line.pieces += piece
-                    line.width += piece.width
+                    for (wordIndex in wordStart until index) append(pieces[wordIndex])
+                } else {
+                    var mayBreakBefore = breakBefore
+                    for (wordIndex in wordStart until index) {
+                        val word = pieces[wordIndex] as WordPiece
+                        if (word.width > wrapWidth + WrapEpsilon) {
+                            if (line.pieces.isNotEmpty()) commit(hard = false)
+                            splitOversizedWordPiece(word, wrapWidth).forEachIndexed { chunkIndex, chunk ->
+                                if (chunkIndex > 0) commit(hard = false)
+                                append(chunk)
+                            }
+                        } else {
+                            if (mayBreakBefore && line.pieces.isNotEmpty() &&
+                                line.width + word.width > wrapWidth + WrapEpsilon
+                            ) {
+                                commit(hard = false)
+                            }
+                            append(word)
+                        }
+                        mayBreakBefore = false
+                    }
                 }
                 breakBefore = false
+            }
+
+            is AtomPiece -> {
+                if (wrapping && breakBefore && line.pieces.isNotEmpty() &&
+                    line.width + piece.width > wrapWidth + WrapEpsilon
+                ) {
+                    commit(hard = false)
+                }
+                append(piece)
+                breakBefore = false
+                index++
             }
         }
     }
@@ -415,7 +454,7 @@ private fun splitOversizedWordPiece(word: WordPiece, width: Float): List<WordPie
     fun flush() {
         if (buffer.isEmpty()) return
         val text = buffer.toString()
-            chunks += WordPiece(text, word.style, measure(text), word.height, word.group, chunkStart, word.fontFamily)
+        chunks += WordPiece(text, word.style, measure(text), word.height, word.group, chunkStart, word.fontFamily)
         chunkStart += text.length
         buffer.setLength(0)
     }
