@@ -172,7 +172,7 @@ internal object ExpressionCompiler {
 
         fun float(ir: Ir) {
             when (ir) {
-                is Ir.Const -> mv.visitLdcInsn(ir.constantFloat() ?: 0f)
+                is Ir.Const -> mv.visitLdcInsn(Coercions.toFloat(ir.constant))
 
                 is Ir.FieldRead -> when (val member = ir.member) {
                     is Member.FloatField -> {
