@@ -102,8 +102,11 @@ internal class HollowIdeProjectController(
     }
 
     fun pasteInto(path: String = model.selectedTreePath) {
-        setStatus(model.pasteInto(path).statusText())
         contextMenu = null
+        setStatus("Pasting...")
+        model.pasteIntoAsync(path) { result ->
+            setStatus(result.statusText())
+        }
     }
 
     /** Drag and drop inside the tree: moves [path] into the folder [targetPath] belongs to. */
@@ -140,39 +143,37 @@ internal class HollowIdeProjectController(
     }
 
     fun handleShortcut(key: Int, modifiers: Int): Boolean {
-        val command = modifiers and GLFW.GLFW_MOD_CONTROL != 0
         if (!shortcutsActive()) return false
-        return when {
-            command && key == GLFW.GLFW_KEY_C -> {
+        return when (resolveProjectShortcut(key, modifiers, model.selectedTreePath.isNotBlank())) {
+            ProjectShortcut.Copy -> {
                 copy(cut = false)
                 true
             }
-            command && key == GLFW.GLFW_KEY_X -> {
+            ProjectShortcut.Cut -> {
                 copy(cut = true)
                 true
             }
-            command && key == GLFW.GLFW_KEY_V -> {
+            ProjectShortcut.Paste -> {
                 pasteInto()
                 true
             }
-            key == GLFW.GLFW_KEY_DELETE -> {
+            ProjectShortcut.Delete -> {
                 delete()
                 true
             }
-            key == GLFW.GLFW_KEY_F2 && model.selectedTreePath.isNotBlank() -> {
+            ProjectShortcut.Rename -> {
                 openRenameDialog(model.selectedTreePath)
                 true
             }
-            key == GLFW.GLFW_KEY_INSERT && modifiers and GLFW.GLFW_MOD_ALT != 0 &&
-                    modifiers and GLFW.GLFW_MOD_SHIFT != 0 -> {
+            ProjectShortcut.CreateFolder -> {
                 openCreateFolderDialog(model.selectedTreePath)
                 true
             }
-            key == GLFW.GLFW_KEY_INSERT && modifiers and GLFW.GLFW_MOD_ALT != 0 -> {
+            ProjectShortcut.CreateFile -> {
                 openCreateFileDialog(model.selectedTreePath)
                 true
             }
-            else -> false
+            null -> false
         }
     }
 
@@ -231,6 +232,36 @@ internal class HollowIdeProjectController(
     private fun rememberClick(path: String, now: Long = System.currentTimeMillis()) {
         lastClickPath = path
         lastClickAtMillis = now
+    }
+}
+
+internal enum class ProjectShortcut {
+    Copy,
+    Cut,
+    Paste,
+    Delete,
+    Rename,
+    CreateFolder,
+    CreateFile,
+}
+
+internal fun resolveProjectShortcut(
+    key: Int,
+    modifiers: Int,
+    hasSelectedPath: Boolean,
+): ProjectShortcut? {
+    val command = modifiers and GLFW.GLFW_MOD_CONTROL != 0
+    val alt = modifiers and GLFW.GLFW_MOD_ALT != 0
+    val shift = modifiers and GLFW.GLFW_MOD_SHIFT != 0
+    return when {
+        command && key == GLFW.GLFW_KEY_C && hasSelectedPath -> ProjectShortcut.Copy
+        command && key == GLFW.GLFW_KEY_X && hasSelectedPath -> ProjectShortcut.Cut
+        command && key == GLFW.GLFW_KEY_V -> ProjectShortcut.Paste
+        key == GLFW.GLFW_KEY_DELETE && hasSelectedPath -> ProjectShortcut.Delete
+        key == GLFW.GLFW_KEY_F2 && hasSelectedPath -> ProjectShortcut.Rename
+        key == GLFW.GLFW_KEY_INSERT && alt && shift -> ProjectShortcut.CreateFolder
+        key == GLFW.GLFW_KEY_INSERT && alt -> ProjectShortcut.CreateFile
+        else -> null
     }
 }
 

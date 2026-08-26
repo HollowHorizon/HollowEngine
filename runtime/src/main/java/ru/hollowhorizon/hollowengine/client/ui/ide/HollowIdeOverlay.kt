@@ -116,8 +116,7 @@ object HollowIdeOverlay {
             if (surface.runtime.focusedKey != ProjectFilterInputId) surface.runtime.unfocus()
         },
         shortcutsActive = {
-            model.selectedTreePath.isNotBlank() &&
-                    dock.focusedItemId == ProjectTreeId &&
+            dock.focusedItemId == ProjectTreeId &&
                     surface.runtime.focusedKey != ProjectFilterInputId
         },
         closeDockItem = { dock.close(it) },

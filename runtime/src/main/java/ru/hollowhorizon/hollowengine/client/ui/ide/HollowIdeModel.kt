@@ -11,21 +11,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.InputStream
-import java.awt.Toolkit
-import java.awt.datatransfer.Clipboard
-import java.awt.datatransfer.DataFlavor
-import java.awt.datatransfer.SystemFlavorMap
-import java.awt.datatransfer.Transferable
-import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -47,7 +42,8 @@ internal class HollowIdeModel(
     val selectedTreePaths = mutableStateListOf<String>()
     var selectedTreePath by mutableStateOf("")
         private set
-    private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val pasteMutex = Mutex()
     private val pendingSaves = mutableMapOf<String, Job>()
 
     fun visibleTreeItems(filter: String): List<UiTreeItem<HollowIdeFileNode>> {
@@ -297,26 +293,33 @@ internal class HollowIdeModel(
         return HollowIdeFileOperationResult.Success
     }
 
-    fun pasteInto(targetPath: String): HollowIdeFileOperationResult {
-        val targetDir = targetDirectory(targetPath).toPath().normalizeInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
-        val clipboard = HollowIdeFileClipboard.get()
-        if (clipboard.files.isEmpty()) return HollowIdeFileOperationResult.NotFound
-        Files.createDirectories(targetDir)
-        clipboard.files.forEach { sourceFile ->
-            val source = sourceFile.toPath()
-            if (!Files.exists(source)) return@forEach
-            if (targetDir.swallowedBy(source)) return@forEach
-            val destination = uniqueDestination(targetDir, source.fileName.toString())
-            if (Files.isDirectory(source)) {
-                source.copyDirectory(destination)
-            } else {
-                Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES)
-            }
-            if (clipboard.cut) runCatching { source.toFile().deleteRecursively() }
+    fun pasteIntoAsync(
+        targetPath: String,
+        onComplete: (HollowIdeFileOperationResult) -> Unit,
+    ) {
+        val targetDir = targetDirectory(targetPath).toPath().normalizeInsideRoot()
+        if (targetDir == null) {
+            onComplete(HollowIdeFileOperationResult.InvalidName)
+            return
         }
-        if (clipboard.cut) HollowIdeFileClipboard.clearInternalCut()
-        tree.refresh()
-        return HollowIdeFileOperationResult.Success
+        ioScope.launch {
+            val result = pasteMutex.withLock {
+                runCatching {
+                    Files.createDirectories(targetDir)
+                    if (HollowIdeFileClipboard.pasteInto(targetDir)) {
+                        HollowIdeFileOperationResult.Success
+                    } else {
+                        HollowIdeFileOperationResult.NotFound
+                    }
+                }.onFailure { error ->
+                    HollowEngine.LOGGER.warn("Could not paste clipboard contents into '{}'", targetDir, error)
+                }.getOrDefault(HollowIdeFileOperationResult.NotFound)
+            }
+            Minecraft.getInstance().execute {
+                if (result == HollowIdeFileOperationResult.Success) tree.refresh()
+                onComplete(result)
+            }
+        }
     }
 
     fun saveAll(): Int {
@@ -331,7 +334,7 @@ internal class HollowIdeModel(
         val file = files[path]?.takeIf { it.dirty } ?: return
         val text = file.textOrNull ?: return
         pendingSaves.remove(path)?.cancel()
-        pendingSaves[path] = saveScope.launch {
+        pendingSaves[path] = ioScope.launch {
             delay(AutoSaveDelayMillis)
             runCatching {
                 path.fromReadablePath().writeText(text)
@@ -425,88 +428,6 @@ class HollowIdeOpenFile internal constructor(
     fun encode(): ByteArray = document.encode()
 
     fun close() = document.close()
-}
-
-private data class HollowIdeClipboardPayload(
-    val files: List<File>,
-    val cut: Boolean,
-)
-
-/**
- * The IDE's cut/copy buffer, which is the system one: files copied here paste into the file manager
- * and back. Whether a transfer was a cut travels in the `Preferred DropEffect` format Windows
- * Explorer uses; where that is unavailable a foreign transfer simply reads as a copy.
- */
-private object HollowIdeFileClipboard {
-    private const val DropEffectNative = "Preferred DropEffect"
-    private const val DropEffectMove: Byte = 2
-    private const val DropEffectCopy: Byte = 5
-
-    private var internal: HollowIdeClipboardPayload? = null
-
-    private val dropEffectFlavor: DataFlavor? = runCatching {
-        val flavor = DataFlavor("application/x-java-serialized-object;class=java.io.InputStream", DropEffectNative)
-        (SystemFlavorMap.getDefaultFlavorMap() as? SystemFlavorMap)?.apply {
-            addUnencodedNativeForFlavor(flavor, DropEffectNative)
-            addFlavorForUnencodedNative(DropEffectNative, flavor)
-        }
-        flavor
-    }.getOrNull()
-
-    fun set(files: List<File>, cut: Boolean) {
-        internal = HollowIdeClipboardPayload(files, cut)
-        val clipboard = runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull() ?: return
-        val cutEffect = dropEffectFlavor.takeIf { cut }
-        runCatching { clipboard.setContents(FileListTransferable(files, cut, cutEffect), null) }
-            .onFailure { runCatching { clipboard.setContents(FileListTransferable(files, cut, null), null) } }
-    }
-
-    fun get(): HollowIdeClipboardPayload {
-        val clipboard = runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull()
-            ?: return internal ?: HollowIdeClipboardPayload(emptyList(), cut = false)
-        val systemFiles = runCatching {
-            if (!clipboard.isDataFlavorAvailable(DataFlavor.javaFileListFlavor)) return@runCatching emptyList<File>()
-            @Suppress("UNCHECKED_CAST")
-            clipboard.getData(DataFlavor.javaFileListFlavor) as? List<File> ?: emptyList()
-        }.getOrDefault(emptyList())
-        if (systemFiles.isEmpty()) return internal ?: HollowIdeClipboardPayload(emptyList(), cut = false)
-
-        val own = internal?.takeIf { it.files.map(File::getAbsolutePath) == systemFiles.map(File::getAbsolutePath) }
-        return HollowIdeClipboardPayload(systemFiles, cut = own?.cut ?: clipboard.readsAsMove())
-    }
-
-    fun clearInternalCut() {
-        if (internal?.cut == true) internal = null
-    }
-
-    private fun Clipboard.readsAsMove(): Boolean {
-        val flavor = dropEffectFlavor ?: return false
-        return runCatching {
-            if (!isDataFlavorAvailable(flavor)) return false
-            (getData(flavor) as? InputStream)?.use { it.read() == DropEffectMove.toInt() } == true
-        }.getOrDefault(false)
-    }
-
-    private class FileListTransferable(
-        private val files: List<File>,
-        private val cut: Boolean,
-        private val dropEffectFlavor: DataFlavor?,
-    ) : Transferable {
-        override fun getTransferDataFlavors(): Array<DataFlavor> =
-            listOfNotNull(DataFlavor.javaFileListFlavor, dropEffectFlavor).toTypedArray()
-
-        override fun isDataFlavorSupported(flavor: DataFlavor): Boolean =
-            flavor == DataFlavor.javaFileListFlavor || flavor == dropEffectFlavor
-
-        override fun getTransferData(flavor: DataFlavor): Any = when (flavor) {
-            DataFlavor.javaFileListFlavor -> files
-            dropEffectFlavor -> ByteArrayInputStream(
-                byteArrayOf(if (cut) DropEffectMove else DropEffectCopy, 0, 0, 0),
-            )
-
-            else -> throw UnsupportedFlavorException(flavor)
-        }
-    }
 }
 
 internal class HollowIdeFileTree {
@@ -677,7 +598,7 @@ private fun Path.deleteTree() {
     })
 }
 
-private fun Path.swallowedBy(source: Path): Boolean =
+internal fun Path.swallowedBy(source: Path): Boolean =
     toAbsolutePath().normalize().isSameOrNestedIn(source.toAbsolutePath().normalize())
 
 private fun Path.isSameOrNestedIn(parent: Path): Boolean {
@@ -696,21 +617,25 @@ private fun Path.toReadablePathInsideRoot(): String {
     return root.relativize(normalized).toString().replace('\\', '/')
 }
 
-private fun uniqueDestination(targetDir: Path, fileName: String): Path {
+internal fun uniqueDestination(
+    targetDir: Path,
+    fileName: String,
+    isReserved: (Path) -> Boolean = { false },
+): Path {
     var candidate = targetDir.resolve(fileName)
-    if (!Files.exists(candidate)) return candidate
+    if (!Files.exists(candidate) && !isReserved(candidate)) return candidate
     val extensionStart = fileName.lastIndexOf('.').takeIf { it > 0 }
     val baseName = extensionStart?.let { fileName.substring(0, it) } ?: fileName
     val extension = extensionStart?.let { fileName.substring(it) }.orEmpty()
     var index = 1
-    while (Files.exists(candidate)) {
+    while (Files.exists(candidate) || isReserved(candidate)) {
         candidate = targetDir.resolve("$baseName copy${if (index == 1) "" else " $index"}$extension")
         index++
     }
     return candidate
 }
 
-private fun Path.copyDirectory(target: Path) {
+internal fun Path.copyDirectory(target: Path) {
     Files.walk(this).use { stream ->
         stream.forEach { source ->
             val destination = target.resolve(relativize(source).toString())
