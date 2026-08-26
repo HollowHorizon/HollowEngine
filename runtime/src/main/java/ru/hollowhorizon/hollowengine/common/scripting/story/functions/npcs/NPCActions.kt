@@ -6,7 +6,9 @@ import net.minecraft.ChatFormatting
 import net.minecraft.commands.arguments.item.ItemParser
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
+import net.minecraft.core.RegistryAccess
 import net.minecraft.core.component.DataComponentPatch
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.*
 import net.minecraft.server.level.ServerLevel
@@ -29,6 +31,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.state.waitRealtime
 import ru.hollowhorizon.hollowengine.common.scripting.state.waitUntil
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.currentServerOrNull
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.plus
 import java.time.Instant
@@ -370,10 +373,15 @@ fun uuid(uuid: String): UUID = UUID.fromString(uuid)
  */
 fun item(item: String, count: Int = 1): ItemStack = item(item, count, DataComponentPatch.EMPTY)
 
+private val builtInRegistryAccess by lazy {
+    RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY)
+}
+
 fun item(item: String, count: Int = 1, components: DataComponentPatch): ItemStack {
     require(count > 0) { "Item count must be greater than zero" }
     val reader = StringReader(item)
-    val parsed = runCatching { ItemParser(currentServer.registryAccess()).parse(reader) }
+    val registries = currentServerOrNull()?.registryAccess() ?: builtInRegistryAccess
+    val parsed = runCatching { ItemParser(registries).parse(reader) }
         .getOrElse { error -> throw IllegalArgumentException("Invalid item specification '$item'", error) }
     require(!reader.canRead()) { "Unexpected trailing data in item specification '$item'" }
 

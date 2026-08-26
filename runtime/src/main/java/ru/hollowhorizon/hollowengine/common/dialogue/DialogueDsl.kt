@@ -44,7 +44,8 @@ object StoryEngine {
     val library = StoryLibrary { functions }
 
     init {
-        installFunctions()
+        prepareReload()
+        postRegistrationEvent()
         // Stories live alongside scripts, so every script namespace is a story source too.
         library.addProvider(ScriptRegistryStorySource)
         ScriptRegistry.addListener(ScriptRegistryStorySource)
@@ -58,14 +59,24 @@ object StoryEngine {
      * The next load re-reads from disk.
      */
     fun reload() {
-        installFunctions()
-        library.invalidate()
+        prepareReload()
+        completeReload()
     }
 
-    private fun installFunctions() {
+    /** Reinstalls engine-owned functions before reload scripts replace their event handlers. */
+    internal fun prepareReload() {
         StoryBuiltinFunctions.install(functions)
         StoryNpcFunctions.install(functions)
         StoryEffectFunctions.install(functions)
+    }
+
+    /** Publishes the rebuilt registry after reload scripts have installed their new handlers. */
+    internal fun completeReload() {
+        postRegistrationEvent()
+        library.invalidate()
+    }
+
+    private fun postRegistrationEvent() {
         RegisterStoryFunctionsEvent.post(RegisterStoryFunctionsEvent(functions))
     }
 }

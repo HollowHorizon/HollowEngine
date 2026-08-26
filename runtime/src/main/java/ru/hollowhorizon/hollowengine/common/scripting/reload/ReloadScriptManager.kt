@@ -5,6 +5,7 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.ReloadListener
 import ru.hollowhorizon.hollowengine.common.compat.util.currentRecipeManagerOrNull
+import ru.hollowhorizon.hollowengine.common.dialogue.StoryEngine
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventListener
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -46,6 +47,7 @@ object ReloadScriptManager : ResourceManagerReloadListener {
 
     private fun run(context: ReloadScriptContext) {
         lastContext = context
+        StoryEngine.prepareReload()
 
         events.forEach { handle ->
             runCatching { handle.unsubscribe() }
@@ -72,6 +74,8 @@ object ReloadScriptManager : ResourceManagerReloadListener {
                 }
             }
             .makeHandles()
+
+        StoryEngine.completeReload()
     }
 
     private fun List<LoadedReloadScript>.makeHandles(): List<EventHandle> {

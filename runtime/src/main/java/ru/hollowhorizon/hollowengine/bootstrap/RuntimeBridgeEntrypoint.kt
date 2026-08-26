@@ -523,6 +523,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         RegisterCommandsEvent.clearReplay()
         RuntimeDispatcherState.stopServer(server)
         ServerRuntimeState.remove(server)
+        clearCurrentServer(server)
     }
 
     override fun onClientCreated(client: Minecraft) {

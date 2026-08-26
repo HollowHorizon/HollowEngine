@@ -47,9 +47,20 @@ private object RandomSourceHolder {
 /**
  * Stores the current Minecraft server instance.
  */
-lateinit var currentServer: MinecraftServer
+@Volatile
+private var currentServerReference: MinecraftServer? = null
 
-fun currentServerOrNull(): MinecraftServer? = if (::currentServer.isInitialized) currentServer else null
+var currentServer: MinecraftServer
+    get() = currentServerReference ?: error("Minecraft server is not initialized")
+    set(value) {
+        currentServerReference = value
+    }
+
+fun currentServerOrNull(): MinecraftServer? = currentServerReference
+
+fun clearCurrentServer(server: MinecraftServer) {
+    if (currentServerReference === server) currentServerReference = null
+}
 
 /**
  * Converts a string to a Minecraft resource location.

@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.network.SSyncTagDataPacket
 import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.currentServerOrNull
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
 import java.io.File
@@ -81,7 +81,7 @@ object TagDataManager {
     }
 
     fun syncAll() {
-        val server = currentServer ?: return
+        val server = currentServerOrNull() ?: return
         server.playerList.players.filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }.forEach { player ->
             SSyncTagDataPacket(blockChanges, "BLOCK").send(player)
             SSyncTagDataPacket(itemChanges, "ITEM").send(player)
