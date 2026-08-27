@@ -190,6 +190,24 @@ internal class HollowIdeModel(
         return HollowIdeFileOperationResult.Success
     }
 
+    /** Replaces a project file with externally supplied bytes and closes a stale editor tab for it. */
+    fun replaceFile(path: String, bytes: ByteArray): HollowIdeFileOperationResult {
+        val target = path.toPathInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
+        if (Files.isDirectory(target)) return HollowIdeFileOperationResult.InvalidName
+        return runCatching {
+            pendingSaves.remove(path)?.cancel()
+            files.remove(path)?.close()
+            onFileRemoved?.invoke(path)
+            Files.createDirectories(target.parent)
+            Files.write(target, bytes)
+            tree.refresh()
+            revealPath(path)
+            HollowIdeFileOperationResult.Success
+        }.onFailure { error ->
+            HollowEngine.LOGGER.warn("Could not replace project file '{}'", path, error)
+        }.getOrDefault(HollowIdeFileOperationResult.NotFound)
+    }
+
     /** Creates (if missing) and opens a starter `sounds.json` inside [dirPath], for the sounds editor. */
     fun createSoundsFile(dirPath: String): HollowIdeOpenResult {
         val directory = targetDirectory(dirPath)

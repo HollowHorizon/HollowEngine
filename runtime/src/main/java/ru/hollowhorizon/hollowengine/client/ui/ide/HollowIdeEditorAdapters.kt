@@ -608,6 +608,7 @@ private fun CompletionItem.toUi(): UiTextCompletion {
         detail = declaration?.middle.orEmpty(),
         tail = declaration?.tail.orEmpty(),
         icon = tag.completionIcon(),
+        itemIcon = declaration?.itemIcon,
         caretOffset = (insert.length + moveCaret).coerceIn(0, insert.length),
         importFqName = declaration?.fqName?.takeIf { declaration.import },
         wordChars = wordChars,

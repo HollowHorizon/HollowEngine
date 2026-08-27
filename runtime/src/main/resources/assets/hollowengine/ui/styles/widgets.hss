@@ -325,6 +325,10 @@
     tint: rgba(160, 188, 230, 0.96);
 }
 
+.ide-completion-item {
+    size: 16px 16px;
+}
+
 .ide-completion-main {
     grow: 1;
     clip: true;

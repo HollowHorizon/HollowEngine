@@ -11,6 +11,8 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeFilterState
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeView
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -22,27 +24,16 @@ private const val CloseIcon = "hollowengine:textures/gui/icons/cross.svg"
 
 @Composable
 internal fun AssetManagerPanel(
+    state: AssetManagerState,
     onOpenFile: (AssetResourceScope, AssetFile, ByteArray?, Boolean) -> Unit,
+    onOverrideFile: (AssetResourceScope, AssetFile) -> Unit,
+    onHideFile: (AssetResourceScope, AssetFile) -> Unit,
+    onRestoreFile: (AssetResourceScope, AssetFile) -> Unit,
     onFocusFilter: (String) -> Unit,
 ) {
-    var scope by remember { mutableStateOf(AssetResourceScope.CLIENT) }
-    var sidebarWidth by remember { mutableStateOf(DefaultSidebarWidth) }
-    var refreshRevision by remember { mutableIntStateOf(0) }
-    var remoteConnection by remember { mutableStateOf<Any?>(null) }
-    var remoteRefreshRevision by remember { mutableIntStateOf(-1) }
-    var remoteLifecycleRevision by remember { mutableIntStateOf(-1) }
-    val indexes = remember { mutableStateMapOf<AssetResourceScope, AssetIndex>() }
-    val localLoading = remember { mutableStateMapOf<AssetResourceScope, Boolean>() }
-    val localErrors = remember { mutableStateMapOf<AssetResourceScope, String>() }
-    val localLoadTokens = remember { mutableMapOf<AssetResourceScope, Any>() }
-    val selectedDirectories = remember { mutableStateMapOf<AssetResourceScope, String>() }
-    val expandedDirectories = remember { mutableStateMapOf<String, Boolean>() }
-    var selectedEntryKey by remember { mutableStateOf<String?>(null) }
-    var contextMenu by remember { mutableStateOf<AssetContextMenu?>(null) }
-    val treeClicks = remember { AssetClickTracker() }
-    val gridClicks = remember { AssetClickTracker() }
-    val treeFilter = remember { UiTreeFilterState("asset-tree-filter") }
-    val gridFilter = remember { UiTreeFilterState("asset-grid-filter") }
+    val scope = state.scope
+    val treeFilter = state.treeFilter
+    val gridFilter = state.gridFilter
 
     LaunchedEffect(gridFilter.expanded) {
         if (gridFilter.expanded) onFocusFilter(gridFilter.inputId)
@@ -57,55 +48,62 @@ internal fun AssetManagerPanel(
     val connection = minecraft.connection
     val remoteServer = scope == AssetResourceScope.SERVER && resourceManager == null && connection != null
 
-    LaunchedEffect(scope, resourceManager, connection, refreshRevision, lifecycleRevision) {
+    LaunchedEffect(scope, resourceManager, connection, state.refreshRevision, lifecycleRevision) {
         val requestedScope = scope
         val requestedManager = resourceManager
         if (remoteServer) {
-            localLoadTokens.remove(requestedScope)
-            localLoading.remove(requestedScope)
-            indexes.remove(requestedScope)
+            state.localLoadTokens.remove(requestedScope)
+            state.localLoadKeys.remove(requestedScope)
+            state.localLoading.remove(requestedScope)
+            state.indexes.remove(requestedScope)
             if (
-                remoteConnection !== connection ||
-                remoteRefreshRevision != refreshRevision ||
-                remoteLifecycleRevision != lifecycleRevision
+                state.remoteConnection !== connection ||
+                state.remoteRefreshRevision != state.refreshRevision ||
+                state.remoteLifecycleRevision != lifecycleRevision
             ) {
                 RemoteServerAssetState.reset()
-                remoteConnection = connection
-                remoteRefreshRevision = refreshRevision
-                remoteLifecycleRevision = lifecycleRevision
+                state.remoteConnection = connection
+                state.remoteRefreshRevision = state.refreshRevision
+                state.remoteLifecycleRevision = lifecycleRevision
             }
-            localErrors.remove(requestedScope)
+            state.localErrors.remove(requestedScope)
             RemoteServerAssetState.requestRoot()
             return@LaunchedEffect
         }
         if (requestedManager == null) {
-            localLoadTokens.remove(requestedScope)
-            indexes.remove(requestedScope)
-            localErrors[requestedScope] = AssetManagerLang.CONNECT_TO_SERVER.lang
-            localLoading.remove(requestedScope)
+            state.localLoadTokens.remove(requestedScope)
+            state.localLoadKeys.remove(requestedScope)
+            state.indexes.remove(requestedScope)
+            state.localErrors[requestedScope] = AssetManagerLang.CONNECT_TO_SERVER.lang
+            state.localLoading.remove(requestedScope)
             return@LaunchedEffect
         }
+        val loadKey = AssetLoadKey(requestedManager, state.refreshRevision, lifecycleRevision)
+        if (state.localLoadKeys[requestedScope] == loadKey &&
+            (requestedScope in state.indexes || requestedScope in state.localErrors)
+        ) return@LaunchedEffect
+        state.localLoadKeys[requestedScope] = loadKey
         val loadToken = Any()
-        localLoadTokens[requestedScope] = loadToken
-        localLoading[requestedScope] = true
-        localErrors.remove(requestedScope)
+        state.localLoadTokens[requestedScope] = loadToken
+        state.localLoading[requestedScope] = true
+        state.localErrors.remove(requestedScope)
         try {
             val loaded = withContext(Dispatchers.Default) {
-                AssetIndex.load(requestedManager, requestedScope.packType)
+                AssetIndex.load(requestedManager, requestedScope)
             }
-            if (localLoadTokens[requestedScope] === loadToken) indexes[requestedScope] = loaded
+            if (state.localLoadTokens[requestedScope] === loadToken) state.indexes[requestedScope] = loaded
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
-            if (localLoadTokens[requestedScope] === loadToken) {
-                indexes.remove(requestedScope)
+            if (state.localLoadTokens[requestedScope] === loadToken) {
+                state.indexes.remove(requestedScope)
                 val detail = failure.message ?: failure::class.simpleName.orEmpty()
-                localErrors[requestedScope] = AssetManagerLang.INDEX_FAILED.lang(detail)
+                state.localErrors[requestedScope] = AssetManagerLang.INDEX_FAILED.lang(detail)
             }
         } finally {
-            if (localLoadTokens[requestedScope] === loadToken) {
-                localLoadTokens.remove(requestedScope)
-                localLoading.remove(requestedScope)
+            if (state.localLoadTokens[requestedScope] === loadToken) {
+                state.localLoadTokens.remove(requestedScope)
+                state.localLoading.remove(requestedScope)
             }
         }
     }
@@ -114,45 +112,45 @@ internal fun AssetManagerPanel(
     val index = if (remoteServer) {
         remember(remoteRevision) { RemoteServerAssetState.snapshot() }
     } else {
-        indexes[scope] ?: AssetIndex.Empty
+        state.indexes[scope] ?: AssetIndex.Empty
     }
     LaunchedEffect(scope, index.directoryKeys) {
-        val selected = index.directory(selectedDirectories[scope]) ?: index.rootDirectories.firstOrNull()
+        val selected = index.directory(state.selectedDirectories[scope]) ?: index.rootDirectories.firstOrNull()
         if (selected != null) {
-            selectedDirectories[scope] = selected.key
-            expandedDirectories[scope.expandedKey(selected.key)] = true
+            state.selectedDirectories[scope] = selected.key
+            state.expandedDirectories[scope.expandedKey(selected.key)] = true
             if (remoteServer) RemoteServerAssetState.requestDirectory(selected)
         }
     }
 
-    val selectedDirectory = index.directory(selectedDirectories[scope])
-    val expandedKeys = index.visibleExpandedKeys(scope, expandedDirectories)
-    val loading = if (remoteServer) RemoteServerAssetState.loading else localLoading[scope] == true
-    val error = if (remoteServer) RemoteServerAssetState.error ?: localErrors[scope] else localErrors[scope]
+    val selectedDirectory = index.directory(state.selectedDirectories[scope])
+    val expandedKeys = index.visibleExpandedKeys(scope, state.expandedDirectories)
+    val loading = if (remoteServer) RemoteServerAssetState.loading else state.localLoading[scope] == true
+    val error = if (remoteServer) RemoteServerAssetState.error ?: state.localErrors[scope] else state.localErrors[scope]
 
     fun selectDirectory(directory: AssetDirectory) {
-        selectedDirectories[scope] = directory.key
-        selectedEntryKey = null
+        state.selectedDirectories[scope] = directory.key
+        state.selectedEntryKey = null
         if (remoteServer) RemoteServerAssetState.requestDirectory(directory)
     }
 
     fun openDirectory(directory: AssetDirectory) {
         directory.ancestorKeys().forEach { key ->
-            expandedDirectories[scope.expandedKey(key)] = true
+            state.expandedDirectories[scope.expandedKey(key)] = true
         }
         selectDirectory(directory)
     }
 
     fun openFile(file: AssetFile, forceText: Boolean = false) {
         val requestedScope = scope
-        localErrors.remove(requestedScope)
+        state.localErrors.remove(requestedScope)
         if (!remoteServer) {
             onOpenFile(requestedScope, file, null, forceText)
             return
         }
         RemoteServerAssetState.requestFile(file) { bytes, requestError ->
             if (requestError != null) {
-                localErrors[requestedScope] = requestError
+                state.localErrors[requestedScope] = requestError
             } else {
                 onOpenFile(requestedScope, file, bytes, forceText)
             }
@@ -163,12 +161,13 @@ internal fun AssetManagerPanel(
         tags = listOf("ide-panel", "asset-manager-root"),
         modifier = Modifier.style("hollowengine:ui/styles/asset-manager.hss").size(100.percent, 100.percent),
     ) {
-        Column(tags = listOf("asset-sidebar"), modifier = Modifier.size(sidebarWidth.px, 100.percent)) {
+        Column(tags = listOf("asset-sidebar"), modifier = Modifier.size(state.sidebarWidth.px, 100.percent)) {
             AssetScopeTabs(scope) { next ->
-                scope = next
-                selectedEntryKey = null
-                contextMenu = null
-                localErrors.remove(next)
+                state.scope = next
+                state.selectedEntryKey = null
+                state.contextMenu = null
+                state.recipeFilterExpanded = false
+                state.localErrors.remove(next)
             }
             UiTreeView(
                 items = index.visibleDirectories(expandedKeys, treeFilter.query).map { directory ->
@@ -186,25 +185,26 @@ internal fun AssetManagerPanel(
                 },
                 onToggle = { item ->
                     val key = scope.expandedKey(item.payload.key)
-                    val expanding = expandedDirectories[key] != true
-                    expandedDirectories[key] = expanding
+                    val expanding = state.expandedDirectories[key] != true
+                    state.expandedDirectories[key] = expanding
                     if (expanding && remoteServer) RemoteServerAssetState.requestDirectory(item.payload)
                 },
                 onSelect = { item, event ->
                     if (!event.isLeftClick()) return@UiTreeView
                     selectDirectory(item.payload)
-                    if (treeClicks.isDoubleClick(item.id)) {
+                    if (state.treeClicks.isDoubleClick(item.id)) {
                         val key = scope.expandedKey(item.payload.key)
-                        expandedDirectories[key] = expandedDirectories[key] != true
+                        state.expandedDirectories[key] = state.expandedDirectories[key] != true
                     }
                     event.consume()
                 },
                 filterState = treeFilter,
                 onFilterOpened = onFocusFilter,
+                scrollState = state.treeScroll(scope),
             )
         }
 
-        AssetSidebarSplitter(sidebarWidth) { sidebarWidth = it }
+        AssetSidebarSplitter(state.sidebarWidth) { state.sidebarWidth = it }
 
         Column(
             tags = listOf("asset-content"),
@@ -223,7 +223,13 @@ internal fun AssetManagerPanel(
                 loading = loading,
                 remote = remoteServer,
                 filter = gridFilter,
-                onRefresh = { refreshRevision++ },
+                recipeFilter = state.recipeFilter.takeIf {
+                    !remoteServer && scope == AssetResourceScope.SERVER && selectedDirectory?.isRecipeDirectory() == true
+                },
+                recipeFilterExpanded = state.recipeFilterExpanded,
+                onRecipeFilterExpandedChange = { state.recipeFilterExpanded = it },
+                onRecipeFilterChange = { state.recipeFilter = it },
+                onRefresh = state::refresh,
             )
             when {
                 error != null -> AssetMessage(error.lang)
@@ -233,11 +239,15 @@ internal fun AssetManagerPanel(
                     scope = scope,
                     entries = index.children(selectedDirectory).filter { entry ->
                         val query = gridFilter.query.trim()
-                        query.isEmpty() || entry.name.contains(query, ignoreCase = true)
+                        val matchesText = query.isEmpty() || entry.name.contains(query, ignoreCase = true)
+                        val matchesRecipeState = selectedDirectory.isRecipeDirectory().not() ||
+                                remoteServer || state.recipeFilter.accepts(entry)
+                        matchesText && matchesRecipeState
                     },
-                    selectedEntryKey = selectedEntryKey,
-                    clicks = gridClicks,
-                    onSelect = { entry -> selectedEntryKey = entry.entryKey },
+                    state = state.gridState(scope, selectedDirectory),
+                    selectedEntryKey = state.selectedEntryKey,
+                    clicks = state.gridClicks,
+                    onSelect = { entry -> state.selectedEntryKey = entry.entryKey },
                     onOpen = { entry ->
                         when (entry) {
                             is AssetGridEntry.Directory -> openDirectory(entry.directory)
@@ -245,27 +255,43 @@ internal fun AssetManagerPanel(
                         }
                     },
                     onContext = { entry, x, y ->
-                        selectedEntryKey = entry.entryKey
-                        contextMenu = AssetContextMenu(entry, x, y)
+                        state.selectedEntryKey = entry.entryKey
+                        state.contextMenu = AssetContextMenu(entry, x, y)
                     },
                 )
             }
         }
 
         AssetEntryContextMenu(
-            menu = contextMenu,
+            menu = state.contextMenu,
+            canModify = !remoteServer,
             onOpen = { entry ->
-                contextMenu = null
+                state.contextMenu = null
                 when (entry) {
                     is AssetGridEntry.Directory -> openDirectory(entry.directory)
                     is AssetGridEntry.File -> openFile(entry.file)
                 }
             },
             onOpenAsText = { file ->
-                contextMenu = null
+                state.contextMenu = null
                 openFile(file, forceText = true)
             },
-            onDismiss = { contextMenu = null },
+            onOverride = { file ->
+                state.contextMenu = null
+                onOverrideFile(scope, file)
+                state.refresh()
+            },
+            onHide = { file ->
+                state.contextMenu = null
+                onHideFile(scope, file)
+                state.refresh()
+            },
+            onRestore = { file ->
+                state.contextMenu = null
+                onRestoreFile(scope, file)
+                state.refresh()
+            },
+            onDismiss = { state.contextMenu = null },
         )
     }
 }
@@ -294,6 +320,10 @@ private fun AssetToolbar(
     loading: Boolean,
     remote: Boolean,
     filter: UiTreeFilterState,
+    recipeFilter: AssetRecipeFilter?,
+    recipeFilterExpanded: Boolean,
+    onRecipeFilterExpandedChange: (Boolean) -> Unit,
+    onRecipeFilterChange: (AssetRecipeFilter) -> Unit,
     onRefresh: () -> Unit,
 ) {
     Row(tags = listOf("asset-toolbar")) {
@@ -333,6 +363,21 @@ private fun AssetToolbar(
                 },
                 tags = listOf("asset-count"),
             )
+            if (recipeFilter != null) {
+                UiDropdown(
+                    id = "asset-recipe-filter",
+                    label = recipeFilter.labelKey.lang,
+                    expanded = recipeFilterExpanded,
+                    onExpandedChange = onRecipeFilterExpandedChange,
+                    items = AssetRecipeFilter.entries.map { option ->
+                        UiDropdownItem(option.labelKey.lang) {
+                            onRecipeFilterChange(option)
+                            onRecipeFilterExpandedChange(false)
+                        }
+                    },
+                    tags = listOf("asset-recipe-filter"),
+                )
+            }
         }
         Box(
             tags = if (loading) listOf("asset-refresh", "loading") else listOf("asset-refresh"),
@@ -372,7 +417,6 @@ private fun AssetIndex.visibleExpandedKeys(
     expanded: Map<String, Boolean>,
 ): Set<String> = directoryKeys.filterTo(mutableSetOf()) { expanded[scope.expandedKey(it)] == true }
 
-private const val DefaultSidebarWidth = 230f
 private const val MinSidebarWidth = 170f
 private const val MaxSidebarWidth = 460f
 private const val FilterShortcutPriority = 100

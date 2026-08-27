@@ -64,6 +64,10 @@ object JsonScriptingAnalyzer : ScriptingAnalyzer {
     override fun lightweightHighlightLine(name: String, line: String): TextLine =
         TextLine(tokenizeLineSimple(line), ArrayList())
 
+    override fun completions(name: String, text: String, offset: Int, sink: CompletionSink) {
+        completeRecipeItems(name, text, offset, sink)
+    }
+
     private fun tokenizeLineSimple(line: String): List<Pair<String, SpanStyle>> {
         val spans = mutableListOf<Pair<String, SpanStyle>>()
         var i = 0

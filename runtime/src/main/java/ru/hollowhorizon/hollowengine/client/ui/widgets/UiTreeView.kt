@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 
 private const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
@@ -49,8 +50,8 @@ fun <T> UiTreeView(
     filterState: UiTreeFilterState? = null,
     filterPlaceholder: String = "Filter",
     onFilterOpened: ((String) -> Unit)? = null,
+    scrollState: UiScrollHandle = rememberScrollState(),
 ) {
-    val scroll = rememberScrollState()
     val dragAndDrop = LocalDragAndDrop.current
     Column(
         tags = listOf("tree-view") + tags,
@@ -74,7 +75,7 @@ fun <T> UiTreeView(
         }
         Column(
             tags = listOf("tree-view-scroll"),
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scroll),
+            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState),
         ) {
             items.forEach { item ->
                 key(item.id) {

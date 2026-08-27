@@ -97,6 +97,7 @@ object HollowIdeOverlay {
         )
     }
     private val model = HollowIdeModel(fileTypes)
+    private val assetManagerState = AssetManagerState()
     private val dock = DockingState()
     private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
@@ -524,7 +525,14 @@ object HollowIdeOverlay {
     private fun DockContent(item: DockItem) {
         when (item.id) {
             ProjectTreeId -> ProjectTree()
-            AssetManagerId -> AssetManagerPanel(::openAssetFile, ::requestSurfaceFocus)
+            AssetManagerId -> AssetManagerPanel(
+                state = assetManagerState,
+                onOpenFile = ::openAssetFile,
+                onOverrideFile = ::overrideAssetFile,
+                onHideFile = ::hideAssetFile,
+                onRestoreFile = ::restoreAssetFile,
+                onFocusFilter = ::requestSurfaceFocus,
+            )
             ConsoleId -> HollowIdeConsolePanel()
             CutsceneTimelineId -> CutsceneTimelineDock(
                 session = CutsceneEditorSessions.default,
@@ -741,6 +749,52 @@ object HollowIdeOverlay {
         }
         val path = "resource://${scope.name.lowercase()}/${scope.directory}/${asset.location.namespace}/${asset.location.path}"
         when (val result = model.openVirtual(path, typeId, bytes)) {
+            HollowIdeOpenResult.Directory -> Unit
+            HollowIdeOpenResult.Unsupported -> statusText = AssetManagerLang.CANNOT_OPEN.lang(asset.location)
+            is HollowIdeOpenResult.File -> openFileDockItem(result.file)
+        }
+    }
+
+    private fun overrideAssetFile(scope: AssetResourceScope, asset: AssetFile) {
+        val path = asset.projectPath(scope)
+        if (asset.state == AssetResourceState.OVERRIDDEN) {
+            openProjectAsset(path, asset)
+            return
+        }
+        val manager = assetResourceManager(scope)
+        if (manager == null) {
+            statusText = AssetManagerLang.SERVER_UNAVAILABLE.lang
+            return
+        }
+        val bytes = runCatching {
+            manager.readAsset(scope, asset, original = asset.state == AssetResourceState.HIDDEN)
+        }.getOrElse { failure ->
+            statusText = AssetManagerLang.CANNOT_OVERRIDE.lang(asset.location, failure.message.orEmpty())
+            return
+        }
+        if (model.replaceFile(path, bytes) != HollowIdeFileOperationResult.Success) {
+            statusText = AssetManagerLang.CANNOT_OVERRIDE.lang(asset.location, path)
+            return
+        }
+        openProjectAsset(path, asset)
+    }
+
+    private fun hideAssetFile(scope: AssetResourceScope, asset: AssetFile) {
+        val result = model.replaceFile(asset.projectPath(scope), ByteArray(0))
+        if (result != HollowIdeFileOperationResult.Success) {
+            statusText = AssetManagerLang.CANNOT_HIDE.lang(asset.location, result.name)
+        }
+    }
+
+    private fun restoreAssetFile(scope: AssetResourceScope, asset: AssetFile) {
+        val result = model.delete(listOf(asset.projectPath(scope)))
+        if (result != HollowIdeFileOperationResult.Success) {
+            statusText = AssetManagerLang.CANNOT_RESTORE.lang(asset.location, result.name)
+        }
+    }
+
+    private fun openProjectAsset(path: String, asset: AssetFile) {
+        when (val result = model.openFile(path)) {
             HollowIdeOpenResult.Directory -> Unit
             HollowIdeOpenResult.Unsupported -> statusText = AssetManagerLang.CANNOT_OPEN.lang(asset.location)
             is HollowIdeOpenResult.File -> openFileDockItem(result.file)

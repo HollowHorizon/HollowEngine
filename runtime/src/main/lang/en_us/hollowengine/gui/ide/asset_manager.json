@@ -10,6 +10,14 @@
   "empty_folder": "This folder is empty",
   "open": "Open",
   "open_as_text": "Open as Text",
+  "override_resource": "Override Resource",
+  "edit_override": "Edit Override",
+  "hide_resource": "Hide Resource",
+  "restore_resource": "Restore Original",
+  "filter.all": "All Recipes",
+  "filter.overridden": "Overridden",
+  "filter.untouched": "Untouched",
+  "filter.hidden": "Hidden",
   "local_counts": "%s namespaces | %s files",
   "remote_counts": "%s namespaces | %s loaded",
   "error.connect_to_server": "Connect to a server to browse server resources.",
@@ -21,5 +29,8 @@
   "error.preview_too_large": "The resource exceeds the 16 MiB preview limit.",
   "error.cannot_read": "Cannot read %s: %s",
   "error.no_preview": "No preview is available for %s",
-  "error.cannot_open": "Cannot open %s"
+  "error.cannot_open": "Cannot open %s",
+  "error.cannot_override": "Cannot override %s: %s",
+  "error.cannot_hide": "Cannot hide %s: %s",
+  "error.cannot_restore": "Cannot restore %s: %s"
 }

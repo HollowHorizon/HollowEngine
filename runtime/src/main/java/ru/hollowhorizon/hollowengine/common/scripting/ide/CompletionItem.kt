@@ -27,6 +27,7 @@ sealed interface CompletionItem {
         val fqName: String?,
         val tail: String?,
         val middle: String?,
+        val itemIcon: String? = null,
         override val wordChars: String = "",
         override val closeness: Int = CompletionCloseness.DEFAULT,
     ) : CompletionItem
@@ -95,6 +96,7 @@ class DeclarationCompletionItemBuilder {
     var name: String? = null
     var tail: String? = null
     var middle: String? = null
+    var itemIcon: String? = null
     var wordChars: String = ""
     var closeness: Int = CompletionCloseness.DEFAULT
 
@@ -113,6 +115,7 @@ class DeclarationCompletionItemBuilder {
         name = completionItem.name
         tail = completionItem.tail
         middle = completionItem.middle
+        itemIcon = completionItem.itemIcon
         closeness = completionItem.closeness
     }
 
@@ -127,6 +130,7 @@ class DeclarationCompletionItemBuilder {
             fqName = fqName,
             tail = tail,
             middle = middle,
+            itemIcon = itemIcon,
             wordChars = wordChars,
             closeness = closeness,
         )

@@ -75,6 +75,7 @@ data class UiTextCompletion(
     val detail: String = "",
     val tail: String = "",
     val icon: String? = null,
+    val itemIcon: String? = null,
     val caretOffset: Int? = null,
     val importFqName: String? = null,
     val wordChars: String = "",
