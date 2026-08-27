@@ -171,6 +171,9 @@ class ScriptSourceTests {
             jar.putNextEntry(JarEntry("META-INF/hollowengine/scripts/quest.node.kts.jar"))
             jar.write(byteArrayOf(1, 2, 3))
             jar.closeEntry()
+            jar.putNextEntry(JarEntry("scripts/stories/quest.story"))
+            jar.write("Виталик: Привет".toByteArray())
+            jar.closeEntry()
             jar.putNextEntry(JarEntry("ru/example/Ignored.class"))
             jar.write(byteArrayOf(4))
             jar.closeEntry()
@@ -186,11 +189,21 @@ class ScriptSourceTests {
             storageKey = "test-storage-key",
         )
         try {
-            assertEquals(listOf(ScriptId("jar-addon", "quest.node.kts")), source.list())
+            assertEquals(
+                listOf(
+                    ScriptId("jar-addon", "quest.node.kts"),
+                    ScriptId("jar-addon", "stories/quest.story"),
+                ),
+                source.list(),
+            )
 
             val artifacts = assertNotNull(source.read(ScriptId("jar-addon", "quest.node.kts")))
             assertEquals("// quest", artifacts.sourceFile?.readText())
             assertEquals(listOf<Byte>(1, 2, 3), artifacts.precompiled?.readBytes()?.toList())
+
+            val story = assertNotNull(source.read(ScriptId("jar-addon", "stories/quest.story")))
+            assertEquals("Виталик: Привет", story.sourceFile?.readText())
+            assertNull(story.precompiled)
         } finally {
             DirectoryManager.SCRIPT_SOURCE_CACHE.resolve("jar-addon").deleteRecursively()
             DirectoryManager.SCRIPT_BUNDLE_CACHE.resolve("jar-addon").deleteRecursively()

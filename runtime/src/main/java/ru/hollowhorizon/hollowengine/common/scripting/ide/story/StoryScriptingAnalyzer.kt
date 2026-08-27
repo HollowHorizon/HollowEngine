@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.common.dialogue.DialogueController
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryEngine
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryFunctionRegistry
 import ru.hollowhorizon.hollowengine.common.dialogue.StoryString
+import ru.hollowhorizon.hollowengine.common.dialogue.text.FormattedTextParser
 import ru.hollowhorizon.hollowengine.common.dialogue.lang.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
@@ -25,7 +26,7 @@ object StoryScriptingAnalyzer : ScriptingAnalyzer {
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         val result = StoryCompiler.compile(name, text, catalog())
         val offsets = LineOffsets(text)
-        return result.diagnostics.map { diagnostic ->
+        val compilerDiagnostics = result.diagnostics.map { diagnostic ->
             Diagnostic(
                 range = Range(offsets.position(diagnostic.span.start), offsets.position(diagnostic.span.end)),
                 severity = when (diagnostic.severity) {
@@ -35,6 +36,23 @@ object StoryScriptingAnalyzer : ScriptingAnalyzer {
                 message = diagnostic.message,
             )
         }
+        val formattingDiagnostics = StoryParser.parse(text).cst.lines.flatMap { line ->
+            line.kind.formattedTemplates().flatMap { template ->
+                val source = text.substring(template.span.start, template.span.end)
+                FormattedTextParser.parse(source).diagnostics.map { diagnostic ->
+                    val start = template.span.start + diagnostic.offset
+                    Diagnostic(
+                        range = Range(
+                            offsets.position(start),
+                            offsets.position(start + diagnostic.length),
+                        ),
+                        severity = Severity.WARNING,
+                        message = diagnostic.message,
+                    )
+                }
+            }
+        }
+        return compilerDiagnostics + formattingDiagnostics
     }
 
     override fun completions(name: String, text: String, offset: Int, sink: CompletionSink) {
@@ -96,6 +114,12 @@ object StoryScriptingAnalyzer : ScriptingAnalyzer {
         while (end < text.length && !text[end].isWhitespace() && text[end] != '"') end++
         return text.substring(start, end).takeIf { it.isNotEmpty() }
     }
+}
+
+private fun StoryLineKind.formattedTemplates(): List<TextTemplate> = when (this) {
+    is StoryLineKind.Dialogue -> listOf(text)
+    is StoryLineKind.Choice -> listOf(text)
+    else -> emptyList()
 }
 
 /** The label named at [caret], whether that is its declaration or a jump/call that reaches it. */

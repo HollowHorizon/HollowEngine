@@ -131,7 +131,7 @@
  * keeps a word from hopping to the next line the moment its last letter arrives.
  */
 .dialogue-text-pending {
-    color: transparent;
+    opacity: 0;
 }
 
 /*

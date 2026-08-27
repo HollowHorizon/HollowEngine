@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
 import ru.hollowhorizon.hollowengine.common.data.write
+import ru.hollowhorizon.hollowengine.common.dialogue.text.FormattedTextParser
 import ru.hollowhorizon.hollowengine.common.ui.net.UiSession
 import ru.hollowhorizon.hollowengine.common.ui.net.UiSessionManager
 import ru.hollowhorizon.hollowengine.common.ui.net.UiSurfaceKind
@@ -72,9 +73,15 @@ class UiDialoguePresentation(
 
     override suspend fun appendText(session: DialogueSession, text: String) {
         if (text.isEmpty()) return
-        line = line.copy(text = line.text + text, awaiting = false)
+        val formatted = FormattedTextParser.parse(line.text + text)
+        val appendedCharacters = (formatted.visibleLength - line.visibleLength).coerceAtLeast(0)
+        line = line.copy(
+            text = line.text + text,
+            visibleLength = formatted.visibleLength,
+            awaiting = false,
+        )
         broadcast { it[DialogueUiKeys.Line] = line }
-        typeOut(session, text.length)
+        typeOut(session, appendedCharacters)
     }
 
     override suspend fun waitForInput(session: DialogueSession) = awaitAdvance(session)

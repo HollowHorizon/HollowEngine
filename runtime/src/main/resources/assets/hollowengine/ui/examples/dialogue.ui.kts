@@ -63,33 +63,36 @@ fun UiScope.LineOverlay(line: DialogueLineView) {
 
 @Composable
 fun TypedText(line: DialogueLineView) {
-    val reveal = remember(line.id) { mutableStateOf(if (line.awaiting) line.text.length else 0) }
+    val reveal = remember(line.id) { mutableStateOf(if (line.awaiting) line.visibleLength else 0) }
 
-    LaunchedEffect(line.id, line.text.length, line.charDelay) {
+    LaunchedEffect(line.id, line.visibleLength, line.charDelay) {
         if (line.charDelay <= 0) {
-            reveal.value = line.text.length
+            reveal.value = line.visibleLength
             return@LaunchedEffect
         }
         val from = reveal.value
         var startNanos = -1L
-        while (reveal.value < line.text.length) {
+        while (reveal.value < line.visibleLength) {
             withFrameNanos { now ->
                 if (startNanos < 0L) startNanos = now
                 val elapsed = (now - startNanos) / 1_000_000L
-                reveal.value = (from + elapsed / line.charDelay).toInt().coerceAtMost(line.text.length)
+                reveal.value = (from + elapsed / line.charDelay).toInt().coerceAtMost(line.visibleLength)
             }
         }
     }
 
     LaunchedEffect(line.id, line.skips) {
-        if (line.skips > 0) reveal.value = line.text.length
+        if (line.skips > 0) reveal.value = line.visibleLength
     }
 
-    val shown = reveal.value.coerceIn(0, line.text.length)
+    val shown = reveal.value.coerceIn(0, line.visibleLength)
     Text(tags = listOf("line-text")) {
         if (line.speaker.isNotEmpty()) Span("[${line.speaker}]: ", tags = listOf("speaker-text"))
-        Span(line.text.take(shown))
-        if (shown < line.text.length) Span(line.text.substring(shown), tags = listOf("line-text-pending"))
+        FormattedTextSpans(
+            value = line.text,
+            visibleCharacters = shown,
+            pendingTags = listOf("line-text-pending"),
+        )
     }
 }
 
@@ -112,7 +115,9 @@ fun UiScope.ChoiceWindow(choices: DialogueChoicesView) {
                 }
             }
 
-            Box(tags = listOf("choice"), modifier = button) { Text(option.text, tags = listOf("choice-text")) }
+            Box(tags = listOf("choice"), modifier = button) {
+                FormattedText(option.text, tags = listOf("choice-text"))
+            }
         }
     }
 }

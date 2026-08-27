@@ -45,7 +45,7 @@ class AddonScriptSource(
         val collected = LinkedHashMap<String, ArchiveEntry>()
         jar.entries().asSequence().filter { !it.isDirectory }.forEach { entry ->
             val name = entry.name
-            if (name.startsWith(SOURCE_PREFIX) && name.endsWith(SCRIPT_EXTENSION)) {
+            if (name.startsWith(SOURCE_PREFIX) && isSource(name)) {
                 val path = name.removePrefix(SOURCE_PREFIX)
                 collected[path] = collected[path].orEmpty().copy(source = name)
             } else if (name.startsWith(COMPILED_PREFIX) && name.endsWith(COMPILED_EXTENSION)) {
@@ -82,6 +82,10 @@ class AddonScriptSource(
         const val COMPILED_PREFIX = "META-INF/hollowengine/scripts/"
         const val COMPILED_SUFFIX = ".jar"
         const val SCRIPT_EXTENSION = ".kts"
+        const val STORY_EXTENSION = ".story"
         private const val COMPILED_EXTENSION = SCRIPT_EXTENSION + COMPILED_SUFFIX
+
+        private fun isSource(name: String): Boolean =
+            name.endsWith(SCRIPT_EXTENSION) || name.endsWith(STORY_EXTENSION)
     }
 }
