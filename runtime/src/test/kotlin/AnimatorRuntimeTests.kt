@@ -279,6 +279,49 @@ class AnimatorRuntimeTests {
         assertTrue(animator.isEmpty)
     }
 
+    /**
+     * A state that clamps leaves its time pinned at the end of the clip. Coming back to it has to
+     * start the clip over, or the second visit shows nothing but the final frame - and every exitTime
+     * measured from that state fires the moment it is entered.
+     */
+    @Test
+    fun `re-entering a state restarts its clip`() {
+        val layer = AnimationControllerLayerSpec(
+            id = "controller:crate",
+            entryState = "closed",
+            states = listOf(
+                AnimationControllerStateSpec(id = "closed", animation = "wave"),
+                AnimationControllerStateSpec(
+                    id = "opening",
+                    animation = "wave",
+                    playMode = AnimationPlayMode.ClampForever,
+                ),
+            ),
+            transitions = listOf(
+                AnimationControllerTransitionSpec(from = "closed", to = "opening", condition = AnimationExpression("v.open > 0")),
+                AnimationControllerTransitionSpec(from = "opening", to = "closed", condition = AnimationExpression("v.open <= 0")),
+            ),
+        )
+        AnimatorExpressionEvaluator.prepareNow(Animator(layers = listOf(layer)))
+        val controllerLayer = ControllerLayer(layer)
+        val target = PoseTarget(emptyMap(), mapOf("wave" to waveAnimation()))
+
+        fun step(open: Float, frames: Int) = repeat(frames) {
+            controllerLayer.sample(target, animationContext(deltaTime = 0.25f, values = mapOf("open" to open)))
+        }
+
+        // Open, run the one-second clip past its end, then close again.
+        step(open = 1f, frames = 8)
+        assertEquals("opening", controllerLayer.controller.stateId)
+        assertEquals(1f, controllerLayer.controller.stateTime, 0.0001f)
+        step(open = 0f, frames = 2)
+        assertEquals("closed", controllerLayer.controller.stateId)
+
+        step(open = 1f, frames = 1)
+        assertEquals("opening", controllerLayer.controller.stateId)
+        assertEquals(0.25f, controllerLayer.controller.stateTime, 0.0001f, "the clip has to start over")
+    }
+
     @Test
     fun `controller keeps current state when it is the highest priority matching transition`() {
         val layer = AnimationControllerLayerSpec(
