@@ -38,6 +38,34 @@ Guard: Wait here.[wait 750ms] Now we can continue.
 
 Inline calls are available only in dialogue text. Choice captions can use interpolation, but do not execute inline commands.
 
+### Formatting
+
+Dialogue lines and choice captions support nested markup. Tags do not count as typewriter characters:
+
+```story
+Vitalik: I am <b>bold</b> now. Fear me!
+Vitalik: <color=gold>Gold and <i>gold italic</i>.</color>
+Vitalik: <wave amplitude=2 speed=3>This sentence moves in a wave.</wave>
+@choice "<b>Answer confidently</b>" id=confident
+```
+
+| Tag | Result |
+| --- | --- |
+| `<b>`, `<strong>` | Bold text |
+| `<i>`, `<em>` | Italic text |
+| `<u>` | Underline |
+| `<s>`, `<strike>` | Strikethrough |
+| `<color=red>`, `<color=#55FFFF>` | A named color or `#RGB[A]` / `#RRGGBB[AA]` |
+| `<gradient from=#FF5555 to=#5555FF speed=0.25>` | A gradient between two colors |
+| `<rainbow>`, `<pulse>`, `<wave>`, `<shake>`, `<wiggle>`, `<swing>`, `<glitch>` | Animated Hollow UI effects |
+| `<br>` | A line break |
+
+Animation parameters may be overridden, for example with `<wave amplitude=4 frequency=1.5 speed=2>` or `<glitch frequency=3 intensity=2 chromatic=false>`. Every parameter is optional. An unknown or invalid tag is shown literally, so a typo never deletes author text. An unclosed known tag applies to the end of the current line; this lets formatting surround interpolations and inline pauses.
+
+Use `&lt;`, `&gt;`, `&amp;`, `&quot;`, and `&apos;` for literal reserved characters. For example, `&lt;b&gt;text&lt;/b&gt;` displays `<b>text</b>` without making it bold.
+
+The built-in dialogue window already uses `FormattedText(...)`. In a custom `.ui.kts` layout, call `FormattedText(line.text, visibleCharacters = line.visibleLength)`, or `FormattedTextSpans(...)` when the line must share an inline flow with a prefix. Chat preserves bold, italic, rules, and colors; motion effects gracefully render as ordinary text there.
+
 ## Variables and expressions
 
 ```story

@@ -6,6 +6,10 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Style
+import ru.hollowhorizon.hollowengine.common.dialogue.text.FormattedTextDocument
+import ru.hollowhorizon.hollowengine.common.dialogue.text.FormattedTextParser
+import ru.hollowhorizon.hollowengine.common.dialogue.text.FormattedTextSpan
+import ru.hollowhorizon.hollowengine.common.dialogue.text.FormattedTextStyle
 import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -19,10 +23,12 @@ class ChatPresentation(
 ) : DialoguePresenter {
     private val buffer = StringBuilder()
     private var speaker: DialogueCharacter? = null
+    private var emittedCharacters = 0
 
     override suspend fun beginLine(session: DialogueSession, speaker: DialogueCharacter?) {
         buffer.clear()
         this.speaker = speaker
+        emittedCharacters = 0
     }
 
     override suspend fun appendText(session: DialogueSession, text: String) {
@@ -41,10 +47,11 @@ class ChatPresentation(
 
     override suspend fun showChoices(session: DialogueSession, options: List<PresentedChoice>) {
         for (option in options) {
-            val line: MutableComponent = Component.literal("  ▶ ${option.text}").withStyle { style: Style ->
+            val line: MutableComponent = Component.literal("  ▶ ").withStyle { style: Style ->
                 style.withColor(ChatFormatting.AQUA)
                     .withClickEvent(ClickEvent(ClickEvent.Action.RUN_COMMAND, "/hollowengine dialogue choose ${option.index}"))
             }
+            line.appendFormatted(FormattedTextParser.parse(option.text))
             session.onlineParticipants.forEach { it.sendSystemMessage(line) }
         }
     }
@@ -53,12 +60,13 @@ class ChatPresentation(
 
     private fun flush(session: DialogueSession) {
         if (buffer.isEmpty()) return
-        val text = buffer.toString()
-        buffer.clear()
+        val formatted = FormattedTextParser.parse(buffer.toString())
+        if (formatted.visibleLength <= emittedCharacters) return
         val message = Component.empty().apply {
             speaker?.let { append(Component.literal("${it.name}: ").withStyle(speakerColor)) }
-            append(Component.literal(text))
+            appendFormatted(formatted, emittedCharacters)
         }
+        emittedCharacters = formatted.visibleLength
         session.onlineParticipants.forEach { it.sendSystemMessage(message) }
     }
 
@@ -84,3 +92,37 @@ class ChatPresentation(
         controller.awaitAdvance()
     }
 }
+
+private fun MutableComponent.appendFormatted(document: FormattedTextDocument, fromCharacter: Int = 0) {
+    var consumed = 0
+    document.spans.forEach { span ->
+        val length = span.text.codePointCount(0, span.text.length)
+        val skip = (fromCharacter - consumed).coerceIn(0, length)
+        if (skip < length) append(span.component(skip))
+        consumed += length
+    }
+}
+
+private fun FormattedTextSpan.component(skipCharacters: Int): MutableComponent {
+    val start = text.offsetByCodePoints(0, skipCharacters)
+    return Component.literal(text.substring(start)).withStyle(styles.toChatStyle())
+}
+
+/** Chat keeps static formatting. Motion-only effects gracefully reduce to ordinary text. */
+private fun List<FormattedTextStyle>.toChatStyle(): Style {
+    var result = Style.EMPTY
+    for (style in this) {
+        result = when (style) {
+            FormattedTextStyle.Bold -> result.withBold(true)
+            FormattedTextStyle.Italic -> result.withItalic(true)
+            FormattedTextStyle.Underline -> result.withUnderlined(true)
+            FormattedTextStyle.Strikethrough -> result.withStrikethrough(true)
+            is FormattedTextStyle.Color -> result.withColor(style.rgb)
+            is FormattedTextStyle.Gradient -> result.withColor(style.from.rgb)
+            is FormattedTextStyle.Animation -> result
+        }
+    }
+    return result
+}
+
+private val FormattedTextStyle.Color.rgb: Int get() = (red shl 16) or (green shl 8) or blue

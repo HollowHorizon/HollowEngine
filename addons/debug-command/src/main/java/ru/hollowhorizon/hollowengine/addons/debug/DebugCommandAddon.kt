@@ -7,11 +7,17 @@ import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonContext
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonEntrypoint
+import ru.hollowhorizon.hollowengine.common.dialogue.DialogueCharacter
+import ru.hollowhorizon.hollowengine.common.dialogue.DialogueController
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 
 class DebugCommandAddon : HollowAddonEntrypoint {
-    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) = Unit
+    private lateinit var addonScope: CoroutineScope
+
+    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+        addonScope = scope
+    }
 
     @SubscribeEvent(priority = -1_000)
     fun registerCommands(event: RegisterCommandsEvent) {
@@ -38,6 +44,20 @@ class DebugCommandAddon : HollowAddonEntrypoint {
                 },
             )
 
+        val formattedDialogueCommand = Commands.literal("formatted-dialogue")
+            .executes { commandContext ->
+                val player = commandContext.source.playerOrException
+                DialogueController(FORMATTED_DIALOGUE).launchIn(addonScope, player) {
+                    character("Виталик", DialogueCharacter.of("Виталик"))
+                }
+                1
+            }
+
         hollowEngineCommand.addChild(textCommand.build())
+        hollowEngineCommand.addChild(formattedDialogueCommand.build())
+    }
+
+    private companion object {
+        const val FORMATTED_DIALOGUE = "hollowengine-debug-command:formatted_dialogue.story"
     }
 }

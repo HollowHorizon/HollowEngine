@@ -83,6 +83,28 @@ class StoryScriptingAnalyzerTest {
     }
 
     @Test
+    fun `formatting tags are highlighted without swallowing their text`() {
+        val source = "Виталик: <b>Очень <color=red>громко</color></b>!"
+
+        assertEquals(TokenType.ANNOTATION, styleOf(source, "<b>"))
+        assertEquals(TokenType.ANNOTATION, styleOf(source, "<color=red>"))
+        assertEquals(TokenType.DEFAULT, styleOf(source, "Очень "))
+    }
+
+    @Test
+    fun `formatted dialogue tags are validated in lines and choices`() {
+        val valid = "Виталик: <b>Смело <color=gold>и ярко</color></b>.\n" +
+                "@choice \"<wave speed=2>Ответ</wave>\"\n    Виталик: Хорошо."
+        assertEquals(emptyList(), StoryScriptingAnalyzer.diagnostic("example.story", valid))
+
+        val invalid = StoryScriptingAnalyzer.diagnostic(
+            "example.story",
+            "Виталик: <wave speed=быстро>Ошибка</wave>",
+        )
+        assertTrue(invalid.any { it.severity == Severity.WARNING && "finite number" in it.message })
+    }
+
+    @Test
     fun `commands complete after an at sign`() {
         val source = "@ch"
         val items = StoryScriptingAnalyzer.collectCompletions("example.story", source, source.length)

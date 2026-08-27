@@ -64,6 +64,8 @@ data class DialogueLineView(
      */
     val speakerEntity: Int = -1,
     val text: String = "",
+    /** Number of rendered Unicode characters in [text], excluding formatting markup. */
+    val visibleLength: Int = 0,
     /** Milliseconds per character; 0 shows the whole line at once. */
     val charDelay: Int = 0,
     /** Bumped when a reader asked to see the rest of the line immediately. */

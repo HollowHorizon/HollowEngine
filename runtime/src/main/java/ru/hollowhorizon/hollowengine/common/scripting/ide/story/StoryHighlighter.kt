@@ -33,7 +33,7 @@ internal object StoryHighlighter {
     fun spans(text: String, catalog: StoryFunctionCatalog = StoryFunctionCatalog.PERMISSIVE): List<TextSpan> {
         val parsed = StoryParser.parse(text)
         val spans = ArrayList<TextSpan>()
-        parsed.cst.lines.forEach { line -> lineSpans(line, spans, catalog) }
+        parsed.cst.lines.forEach { line -> lineSpans(text, line, spans, catalog) }
         return spans.sortedBy { it.start }.dropOverlaps()
     }
 
@@ -48,7 +48,7 @@ internal object StoryHighlighter {
         else -> TextSpan(start, end, TokenType.FUNCTION, italic = true)
     }
 
-    private fun lineSpans(line: StoryLine, out: MutableList<TextSpan>, catalog: StoryFunctionCatalog) {
+    private fun lineSpans(source: String, line: StoryLine, out: MutableList<TextSpan>, catalog: StoryFunctionCatalog) {
         line.commentStart?.let { start ->
             out += TextSpan(line.offset + start, line.offset + line.raw.length, TokenType.COMMENT, italic = true)
         }
@@ -66,12 +66,12 @@ internal object StoryHighlighter {
                     out += TextSpan(it.start, it.end, if (speakerExpr == null) TokenType.CLASS else TokenType.VARIABLE)
                 }
                 speakerExpr?.let { exprSpans(it, out) }
-                templateSpans(kind.text, out, catalog)
+                templateSpans(source, kind.text, out, catalog)
             }
 
             is StoryLineKind.Command -> {
                 out += commandKeyword(line, contentStart, contentEnd, catalog)
-                templateSpans(kind.text, out, catalog, literalType = TokenType.STRING)
+                templateSpans(source, kind.text, out, catalog, literalType = TokenType.STRING)
             }
 
             is StoryLineKind.If -> {
@@ -110,7 +110,7 @@ internal object StoryHighlighter {
                 // The quotes belong to the string but sit outside the template's span.
                 out += TextSpan(kind.text.span.start - 1, kind.text.span.start, TokenType.STRING)
                 out += TextSpan(kind.text.span.end, kind.text.span.end + 1, TokenType.STRING)
-                templateSpans(kind.text, out, catalog, literalType = TokenType.STRING)
+                templateSpans(source, kind.text, out, catalog, literalType = TokenType.STRING)
                 kind.args.forEach { argSpans(it, out) }
             }
 
@@ -157,6 +157,7 @@ internal object StoryHighlighter {
     }
 
     private fun templateSpans(
+        source: String,
         template: TextTemplate,
         out: MutableList<TextSpan>,
         catalog: StoryFunctionCatalog,
@@ -164,8 +165,7 @@ internal object StoryHighlighter {
     ) {
         for (part in template.parts) {
             when (part) {
-                is TextPart.Literal ->
-                    literalType?.let { out += TextSpan(part.span.start, part.span.end, it) }
+                is TextPart.Literal -> literalSpans(source, part, out, literalType)
                 is TextPart.WaitInput -> out += TextSpan(part.span.start, part.span.end, TokenType.KEYWORD)
                 is TextPart.Interpolation -> {
                     out += TextSpan(part.span.start, part.span.end, TokenType.VARIABLE)
@@ -178,6 +178,24 @@ internal object StoryHighlighter {
                 }
             }
         }
+    }
+
+    private fun literalSpans(
+        source: String,
+        part: TextPart.Literal,
+        out: MutableList<TextSpan>,
+        literalType: TokenType?,
+    ) {
+        val raw = source.substring(part.span.start, part.span.end)
+        var cursor = part.span.start
+        FormattingTag.findAll(raw).forEach { match ->
+            val start = part.span.start + match.range.first
+            val end = part.span.start + match.range.last + 1
+            if (literalType != null && cursor < start) out += TextSpan(cursor, start, literalType)
+            out += TextSpan(start, end, TokenType.ANNOTATION)
+            cursor = end
+        }
+        if (literalType != null && cursor < part.span.end) out += TextSpan(cursor, part.span.end, literalType)
     }
 
     private fun argSpans(arg: StoryArg, out: MutableList<TextSpan>) {
@@ -265,4 +283,6 @@ internal object StoryHighlighter {
         }
         return result
     }
+
+    private val FormattingTag = Regex("<[^>\\r\\n]+>")
 }

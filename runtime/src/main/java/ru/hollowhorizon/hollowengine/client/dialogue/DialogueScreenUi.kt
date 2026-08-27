@@ -11,9 +11,9 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.Box
 import ru.hollowhorizon.hollowengine.client.ui.Column
+import ru.hollowhorizon.hollowengine.client.ui.FormattedText
 import ru.hollowhorizon.hollowengine.client.ui.Image
 import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.Span
 import ru.hollowhorizon.hollowengine.client.ui.Text
 import ru.hollowhorizon.hollowengine.client.ui.UiBoxMode
 import ru.hollowhorizon.hollowengine.client.ui.UiState
@@ -131,34 +131,34 @@ private fun DialogueBox(line: DialogueLineView, showContinue: Boolean) {
 @Composable
 private fun TypedText(line: DialogueLineView) {
     val reveal = remember(line.id) { mutableStateOf(0) }
+    val textLength = line.visibleLength
 
-    LaunchedEffect(line.id, line.text.length, line.charDelay) {
+    LaunchedEffect(line.id, textLength, line.charDelay) {
         if (line.charDelay <= 0) {
-            reveal.value = line.text.length
+            reveal.value = textLength
             return@LaunchedEffect
         }
         val from = reveal.value
         var startNanos = -1L
-        while (reveal.value < line.text.length) {
+        while (reveal.value < textLength) {
             withFrameNanos { now ->
                 if (startNanos < 0L) startNanos = now
                 val elapsedMillis = (now - startNanos) / 1_000_000L
-                reveal.value = (from + elapsedMillis / line.charDelay).toInt().coerceAtMost(line.text.length)
+                reveal.value = (from + elapsedMillis / line.charDelay).toInt().coerceAtMost(textLength)
             }
         }
     }
 
     LaunchedEffect(line.id, line.skips) {
-        if (line.skips > 0) reveal.value = line.text.length
+        if (line.skips > 0) reveal.value = textLength
     }
 
-    val shown = reveal.value.coerceIn(0, line.text.length)
-    Text(tags = listOf("dialogue-text")) {
-        Span(line.text.take(shown))
-        if (shown < line.text.length) {
-            Span(line.text.substring(shown), tags = listOf("dialogue-text-pending"))
-        }
-    }
+    FormattedText(
+        value = line.text,
+        tags = listOf("dialogue-text"),
+        visibleCharacters = reveal.value.coerceIn(0, textLength),
+        pendingTags = listOf("dialogue-text-pending"),
+    )
 }
 
 @Composable
@@ -220,7 +220,7 @@ private fun UiScope.Choice(option: DialogueChoiceView, choices: DialogueChoicesV
         if (!option.icon.equals(NO_ICON, ignoreCase = true)) {
             Image(option.icon.ifEmpty { DESC_TEXTURE }, tags = listOf("choice-desc"))
         }
-        Box(tags = listOf("choice-button")) { Text(option.text, tags = listOf("choice-text")) }
+        Box(tags = listOf("choice-button")) { FormattedText(option.text, tags = listOf("choice-text")) }
         Image(CURSOR_TEXTURE, tags = listOf("choice-cursor"))
     }
 }

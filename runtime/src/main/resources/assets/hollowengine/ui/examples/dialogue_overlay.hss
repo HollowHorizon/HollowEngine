@@ -80,7 +80,7 @@
 }
 
 .line-text-pending {
-    color: transparent;
+    opacity: 0;
 }
 
 #advance-hint {
