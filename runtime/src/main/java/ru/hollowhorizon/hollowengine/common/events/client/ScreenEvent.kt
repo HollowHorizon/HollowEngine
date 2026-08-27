@@ -11,10 +11,17 @@ open class ScreenEvent(var screen: Screen): ClientEvent {
         companion object: EventHandler<Open>()
     }
     open class Render(screen: Screen): ScreenEvent(screen) {
+        /** Before the screen draws anything; cancelling it takes the screen's own drawing away. */
         class Pre(screen: Screen, val guiGraphics: GuiGraphics, val mouseX: Int, val mouseY: Int, val partialTick: Float): Render(screen), Cancellable {
             companion object: EventHandler<Pre>()
             override var isCanceled = false
         }
+
+        /**
+         * After the screen's background and widgets, but before what a container screen draws on top
+         * of them: slots, labels and item tooltips. Drawing here lands above the screen's dimming and
+         * still under a tooltip.
+         */
         class Post(screen: Screen, val guiGraphics: GuiGraphics, val mouseX: Int, val mouseY: Int, val partialTick: Float): Render(screen) {
             companion object: EventHandler<Post>()
         }

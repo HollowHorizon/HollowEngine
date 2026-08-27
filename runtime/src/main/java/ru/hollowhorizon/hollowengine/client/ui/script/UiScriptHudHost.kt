@@ -93,8 +93,10 @@ object UiScriptHudHost {
     /** Draws every overlay anchored at [anchor]/[placement] that is not currently suppressed. */
     fun render(anchor: ResourceLocation, placement: HudPlacement, nowNanos: Long) {
         if (shown.isEmpty()) return
+        val screenOpen = Minecraft.getInstance().screen != null
         shown.values.forEach { overlay ->
             if (overlay.definition.anchor != anchor || overlay.definition.placement != placement) return@forEach
+            if (screenOpen && overlay.definition.aboveScreens) return@forEach
             renderOne(overlay, nowNanos)
         }
     }

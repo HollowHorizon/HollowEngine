@@ -20,6 +20,13 @@ interface UiScope {
     /** True while a server session backs this UI; false for a purely client-side overlay. */
     val isServerBound: Boolean get() = sessionId != null
 
+    /**
+     * True while the UI is playing itself out after something asked it to close, which is the window
+     * an exit animation has. Content that wants one reads this and puts its root in
+     * [ru.hollowhorizon.hollowengine.client.ui.UiState.CLOSING], the state its stylesheet selects on.
+     */
+    val isClosing: Boolean get() = false
+
     /** Sends a payload to the server session that opened this UI. No-op when not server-bound. */
     fun send(payload: CompoundTag)
 

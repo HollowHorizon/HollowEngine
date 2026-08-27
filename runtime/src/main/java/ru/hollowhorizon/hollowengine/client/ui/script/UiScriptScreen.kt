@@ -1,6 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui.script
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
@@ -38,6 +41,11 @@ class UiScriptScreen(
 
     override fun shouldCloseOnEsc(): Boolean = definition.closeOnEscape
 
+    override fun onClose() {
+        if (dismiss()) return
+        super.onClose()
+    }
+
     /**
      * Slots override a script's `pausesGame`. A paused singleplayer world stops ticking its server, and the
      * server is what owns the slots: pausing would freeze the very side that answers every click.
@@ -67,7 +75,9 @@ class UiScriptScreen(
     }
 
     /** When the server dismissed this screen, or 0 while it is still live. */
-    private var dismissedAt = 0L
+    private var dismissedAt by mutableStateOf(0L)
+
+    override val isClosing: Boolean get() = dismissedAt != 0L
 
     private fun hasSlots(): Boolean = sessionId?.let { ClientSlots[it] } != null
 
