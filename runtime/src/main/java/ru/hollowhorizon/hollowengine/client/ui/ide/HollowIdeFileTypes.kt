@@ -89,16 +89,35 @@ class HollowIdeFileType(
 }
 
 class HollowIdeFileTypeRegistry {
-    private data class Entry(val type: HollowIdeFileType, val order: Long)
+    private data class Entry(
+        val registrationId: String,
+        val type: HollowIdeFileType,
+        val order: Long,
+    )
 
     private val entries = mutableListOf<Entry>()
     private var nextOrder = 0L
 
     @Synchronized
     fun register(type: HollowIdeFileType) {
-        require(entries.none { it.type.id == type.id }) { "File type '${type.id}' is already registered" }
-        entries += Entry(type, nextOrder++)
+        register(type.id, type)
+    }
+
+    @Synchronized
+    fun register(registrationId: String, type: HollowIdeFileType) {
+        require(registrationId.isNotBlank()) { "File type registration ID cannot be blank" }
+        require(entries.none { it.registrationId == registrationId }) {
+            "File type '$registrationId' is already registered"
+        }
+        entries += Entry(registrationId, type, nextOrder++)
         entries.sortWith(compareByDescending<Entry> { it.type.priority }.thenBy { it.order })
+    }
+
+    @Synchronized
+    fun unregister(registrationId: String): HollowIdeFileType? {
+        val index = entries.indexOfFirst { it.registrationId == registrationId }
+        if (index < 0) return null
+        return entries.removeAt(index).type
     }
 
     @Synchronized
@@ -106,7 +125,10 @@ class HollowIdeFileTypeRegistry {
         entries.firstOrNull { it.type.matches(path, bytes) }?.type
 
     @Synchronized
-    fun find(id: String): HollowIdeFileType? = entries.firstOrNull { it.type.id == id }?.type
+    fun find(id: String): HollowIdeFileType? {
+        entries.firstOrNull { it.registrationId == id }?.let { return it.type }
+        return entries.filter { it.type.id == id }.singleOrNull()?.type
+    }
 
     fun open(path: String, readContent: () -> ByteArray): HollowIdeOpenFile? {
         val types = synchronized(this) { entries.map(Entry::type) }

@@ -1,0 +1,785 @@
+---
+title: Разработка аддонов
+order: 5
+hidden: false
+---
+
+# Разработка аддонов
+
+Аддон HollowEngine — JAR, который загружается из `hollowengine/addons` в отдельном classloader.
+Аддон может добавлять поведение Minecraft, команды, пакеты, сервисы, панели и редакторы Hollow IDE,
+не становясь обычным Fabric- или NeoForge-модом.
+
+Главное свойство API — **владение временем жизни**. Регистрация, сделанная через
+`context.extensions`, `context.minecraft` или `context.hostServices`, принадлежит конкретному
+аддону. HollowEngine удаляет её при ошибке загрузки, disable, reload и unload до закрытия старого
+classloader.
+
+## Когда нужен аддон, а когда — скрипт или обычный мод
+
+| Задача | Выбор | Почему |
+| --- | --- | --- |
+| Квест, диалог, кат-сцена или небольшая игровая логика | Скрипт | Минимальная сборка и быстрый reload |
+| Команды, события, packets, сервисы, HUD или расширение Hollow IDE | Аддон | Типизированный Kotlin API и управляемый hot-swap |
+| Новые блоки, предметы, сущности, меню или другие frozen registry entries | Обычный мод | Регистрация должна произойти в ранней loader-фазе |
+| Mixin, access widener/transformer, coremod или изменение загрузки классов | Обычный мод/companion | Эти механизмы нельзя безопасно подключить после старта JVM |
+| Связь HollowEngine с публичным API другого мода | Аддон либо аддон + companion-мод | Выбор зависит от того, можно ли полностью отменить регистрации в runtime |
+
+Аддон не является security sandbox. Он исполняет произвольный JVM-код с теми же правами, что и
+HollowEngine, Minecraft и обычные моды. Устанавливай только доверенные JAR.
+
+## Быстрый старт
+
+В исходниках HollowEngine создай проект внутри `addons/`. Любая вложенная директория с
+`build.gradle.kts` автоматически попадает в Gradle graph.
+
+```text
+addons/my-addon/
+├── build.gradle.kts
+└── src/main/
+    ├── java/com/example/myaddon/MyAddon.kt
+    └── resources/META-INF/plugin.properties
+```
+
+Минимальный `build.gradle.kts`:
+
+```kotlin
+base {
+    archivesName.set("MyAddon")
+}
+```
+
+Общая Gradle-конвенция уже добавляет Minecraft, mappings, HollowEngine runtime, Kotlin,
+coroutines, serialization и Koin в compile classpath.
+
+Поддерживаемый способ разработки сейчас — проект внутри исходного дерева HollowEngine. Публичного
+standalone Gradle plugin для внешнего репозитория в текущей реализации нет. Если аддон ведётся
+отдельно, его сборка должна точно воспроизводить корневую convention и формат universal JAR; обычный
+Kotlin `jar` загрузчик отклонит как legacy format.
+
+Descriptor `src/main/resources/META-INF/plugin.properties`:
+
+```properties
+id=my-addon
+name=My Addon
+version=${version}
+entry=com.example.myaddon.MyAddon
+environment=common
+```
+
+| Поле | Обязательное | Значение |
+| --- | --- | --- |
+| `id` | да | Стабильный ID: строчные латинские буквы, цифры, `_`, `-` и `.` |
+| `entry` | да | Полное имя класса, реализующего `HollowAddonEntrypoint` |
+| `name` | нет | Отображаемое имя; по умолчанию равно `id` |
+| `version` | нет | Версия; `${version}` раскрывается Gradle-сборкой |
+| `environment` | нет | `common`, `client` или `server`; по умолчанию `common` |
+| `dependsOn` | нет | ID обязательных аддонов через запятую |
+| `requiredClasses` | нет | Классы через запятую, наличие которых проверяется до `load()` |
+
+Дополнительные правила descriptor:
+
+- `id` не может быть пустым, содержать `:` или совпадать с зарезервированным `hollowengine`;
+- `version` по умолчанию равна `1.0.0`, но сейчас носит информационный характер и участвует в
+  fingerprint упакованных скриптов, а не в разрешении semver;
+- `name` — только отображаемое имя;
+- `entry` должен указывать на публичный класс с доступным конструктором без аргументов;
+- `dependsOn` не допускает самого себя и повторяющиеся ID;
+- зависимость из `dependsOn` обязательна: optional dependencies отдельным полем пока не описываются;
+- `requiredClasses` проверяет доступность бинарного API через classloader аддона, но не проверяет
+  mod ID или версию мода.
+
+`environment=common` означает «загружать и на физическом клиенте, и на dedicated server», а не
+«внутри класса можно безусловно ссылаться на client API». Для IDE, Compose, HUD и
+`Minecraft.getInstance()` используй `client`. Значение `server` не загружается на физическом клиенте,
+включая integrated server.
+
+Entrypoint:
+
+```kotlin
+class MyAddon : HollowAddonEntrypoint {
+    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+        context.hostServices.log("Loaded ${context.descriptor.id}")
+    }
+
+    override suspend fun unload(context: HollowAddonContext) {
+        // Нужен только для собственного состояния, которым не владеет lifecycle API.
+    }
+}
+```
+
+## Как происходит загрузка
+
+Для каждого аддона runtime выполняет следующий цикл:
+
+1. Выбирает из универсального JAR вариант байткода для активного loader/mapping namespace.
+2. Создаёт изолированный classloader. Classloader-ы из `dependsOn` подключаются как зависимости.
+3. Создаёт отдельный `Job`, `CoroutineScope`, Koin-контейнер и owner-scoped API.
+4. Создаёт entrypoint и вызывает `load(context, scope)`.
+5. Находит `@SubscribeEvent`, регистрирует пакеты и подключает скрипты аддона.
+6. Только после успешного завершения публикует аддон как загруженный.
+
+Если любой этап завершается ошибкой, уже созданные регистрации откатываются. При штатной выгрузке
+runtime останавливает скрипты и scope, вызывает `unload()`, удаляет расширения и опубликованные
+сервисы, закрывает Koin и затем classloader.
+
+Из этого следуют два правила:
+
+- запускай фоновые coroutine через переданный `scope`, а не через `GlobalScope`;
+- любой внешний ресурс, который runtime не знает как закрыть, передавай в
+  `context.extensions.onUnload { ... }`.
+
+```kotlin
+override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+    val watcher = createMyWatcher()
+    context.extensions.onUnload(watcher::close)
+
+    scope.launch {
+        watcher.events.collect { event -> handle(event) }
+    }
+}
+```
+
+Cleanup выполняется в порядке, обратном регистрации. Возвращаемый `HollowAddonRegistration` можно
+закрыть раньше вручную; повторный `close()` безопасен.
+
+### Точный порядок lifecycle
+
+При загрузке runtime:
+
+1. копирует исходный JAR в cache по SHA-256 и выбирает variant текущей платформы/mappings;
+2. проверяет environment, disabled state, bootstrap-библиотеки и зависимости;
+3. извлекает обычные библиотеки, создаёт classloader и проверяет `requiredClasses`;
+4. создаёт entrypoint, `SupervisorJob`, addon `CoroutineScope`, owner-scoped API и Koin;
+5. вызывает `load()`;
+6. сканирует variant JAR на `@SubscribeEvent` и `@HollowPacketHandler`;
+7. публикует встроенные скрипты;
+8. только после успеха добавляет аддон в `HollowAddonManager.loaded`.
+
+Если загрузка падает, runtime отменяет scope, удаляет packets/extensions/services, закрывает Koin и
+classloader. **`unload()` для частично загруженного аддона не вызывается.** Поэтому внешний ресурс
+нужно передавать в `onUnload` сразу после успешного создания, до следующей операции, которая может
+выбросить исключение.
+
+Штатная выгрузка выполняется так:
+
+1. namespace скриптов удаляется;
+2. addon job отменяется и runtime ждёт завершения дочерних coroutine;
+3. addon packets удаляются;
+4. вызывается `unload()` уже с отменённым scope;
+5. extensions и произвольные cleanup закрываются в обратном порядке;
+6. закрывается Koin, удаляются опубликованные сервисы и закрывается classloader.
+
+`unload()` подходит для финального сохранения состояния, но не для запуска новых задач в переданном
+при загрузке scope: этот scope уже отменён. Ошибка в `unload()` логируется и не останавливает
+остальные этапы очистки.
+
+## Что находится в `HollowAddonContext`
+
+| Свойство | Назначение |
+| --- | --- |
+| `descriptor` | ID, имя, версия, environment и зависимости аддона |
+| `addonFile` | Загруженный артефакт аддона |
+| `classLoader` | Изолированный classloader текущей версии аддона |
+| `koin` | Koin-контейнер аддона и host bindings |
+| `hostServices` | Обмен типизированными сервисами между аддонами |
+| `extensions` | Owner-scoped точки расширения и произвольный cleanup |
+| `minecraft` | События, команды, пакеты и игровые dispatchers |
+
+`extensions` и `minecraft` — extension-свойства, поэтому для них нужны соответствующие импорты из
+`ru.hollowhorizon.hollowengine.common.addons`.
+
+`addonFile` указывает на staged cache-копию universal JAR, а не на исходный файл из папки addons.
+Не изменяй этот файл и не используй его директорию для persistent state. Для собственных данных
+выбирай стабильный namespaced путь, например `hollowengine/data/my-addon/`, выполняй IO вне игровых
+потоков и записывай файлы атомарно. Специального `pluginStorage()` в текущем host API нет.
+
+Обычные ресурсы JAR доступны через `context.classLoader.getResourceAsStream(...)`; поток нужно
+закрывать. Наличие `assets/` или `data/` внутри addon JAR само по себе не делает его Minecraft
+resource/data pack: для участия в pack discovery нужен поддерживаемый reload hook или companion-мод.
+
+## Extension points и ID
+
+`HollowAddonExtensionPoint<T>` хранит типизированные contributions. Аддон не передаёт owner ID
+вручную: `context.extensions` уже привязан к `context.descriptor.id`.
+
+```kotlin
+val fullId = context.extensions.qualify("overview")
+// my-addon:overview
+```
+
+Правила ID:
+
+- локальный `overview` автоматически становится `my-addon:overview`;
+- можно передать `my-addon:overview` явно;
+- чужой namespace будет отклонён;
+- в одной точке расширения нельзя дважды зарегистрировать один qualified ID;
+- contributions сортируются по убыванию `priority`, затем по порядку регистрации.
+
+Для стандартных функций используй готовые `registerIdePanel`, `registerHudLayer` и другие helpers.
+Низкоуровневый `register(point, id, value, priority)` нужен для собственных extension points.
+
+Extension point обычно принадлежит подсистеме-потребителю, а аддоны поставляют в него значения.
+Если одна группа аддонов вводит собственную точку расширения, вынеси её типы в API аддона и добавь
+его ID в `dependsOn` каждого contributor. Не копируй один и тот же интерфейс в несколько JAR: для JVM
+класс с тем же именем, загруженный другим classloader, является другим типом.
+
+## Minecraft API
+
+### События
+
+`subscribe<T>()` создаёт явную синхронную подписку. Callback выполняется в потоке, который отправил
+событие, поэтому он не должен блокироваться. Исключение из callback логируется с ID аддона, а
+подписка автоматически удаляется вместе со scope.
+
+```kotlin
+context.minecraft.subscribe<TickEvent.Server>(priority = 100) { event ->
+    updateServerState(event.server)
+}
+```
+
+Аннотированные обработчики также поддерживаются:
+
+```kotlin
+@SubscribeEvent
+fun onServerTick(event: TickEvent.Server) {
+    updateServerState(event.server)
+}
+```
+
+Публичные методы entrypoint, Kotlin `object`, static и top-level функции обнаруживаются
+автоматически. Явный `subscribe` удобнее для динамически созданных обработчиков и замыканий.
+
+Для аннотированного обработчика действуют строгие правила:
+
+- declaring class и метод должны быть public;
+- метод принимает ровно один `Event` и возвращает `Unit`/`void`;
+- instance-метод может находиться только на entrypoint или в Kotlin `object`;
+- `@ClientOnly` пропускает class/file/function на dedicated server;
+- `@RequireMod("mod-id")` пропускает конкретный handler, если мод отсутствует;
+- `priority` обрабатывается по убыванию; событие выполняется синхронно на posting thread.
+
+Автоматическое сканирование происходит **после** `load()`. Если `load()` зависит от события,
+регистрируй его явно через `context.minecraft.subscribe`.
+
+### Команды
+
+```kotlin
+context.minecraft.registerCommands { dispatcher ->
+    dispatcher.register(
+        Commands.literal("my-addon")
+            .executes { command ->
+                command.source.sendSuccess({ Component.literal("Addon is active") }, false)
+                1
+            },
+    )
+}
+```
+
+`registerCommands` работает и при hot load: активный dispatcher переигрывается для нового аддона.
+Созданные Brigadier nodes отслеживаются и удаляются при unload/reload; после серверного изменения
+дерево команд повторно отправляется игрокам.
+
+Клиентские команды регистрируются через `registerClientCommands`. Этот вызов допустим только для
+аддона, загруженного в клиентском окружении.
+
+### Пакеты
+
+Addon packets передаются внутри одного стабильного HollowEngine payload. Поэтому их типы можно
+добавлять и удалять во время работы, не изменяя замороженный payload registry Fabric/NeoForge.
+
+```kotlin
+@Serializable
+data class ShowNoticePacket(val text: String) : HollowAddonPacket {
+    override fun handle(player: Player) {
+        // Выполняется на стороне, куда пришёл пакет.
+    }
+}
+
+context.minecraft.registerPacket(
+    ShowNoticePacket::class,
+    HollowPacketHandler.Direction.TO_CLIENT,
+)
+```
+
+После регистрации пакет отправляется его обычными методами: `packet.send(player)`, `packet.send()`
+или helpers для tracking entity/dimension. Direction проверяется при отправке и при получении.
+
+Можно оставить `@HollowPacketHandler` и автоматическое сканирование. Явная регистрация нужна, когда
+direction выбирается кодом или пакет не должен находиться annotation scanner-ом.
+
+Packet key строится из addon ID и имени класса. На обеих сторонах соединения должны быть установлены
+совместимые версии аддона и зарегистрирован тот же тип с тем же направлением. Не меняй бинарную форму
+пакета без миграции протокола. Все данные с клиента считай недоверенными: проверяй размер, права,
+существование сущностей/ресурсов и допустимые значения на сервере. `handle(player)` вызывается на
+принимающей стороне; перенос тяжёлой работы и мутаций в правильный поток остаётся обязанностью
+аддона.
+
+### Игровые потоки
+
+```kotlin
+val accepted = context.minecraft.dispatchers.executeServer {
+    // Minecraft server thread.
+}
+
+context.minecraft.dispatchers.executeClient {
+    // Minecraft render/client thread.
+}
+```
+
+`executeServer` возвращает `false`, если активного сервера нет. `executeClient` возвращает `false`
+на dedicated server или после остановки аддона. Уже поставленная в очередь задача дополнительно
+проверяет lifecycle перед исполнением.
+
+`serverOrNull()` и `clientOrNull()` возвращают `CoroutineDispatcher`, когда соответствующий игровой
+цикл доступен. Запускай работу на них через переданный addon `scope`, чтобы отмена аддона
+распространялась на coroutine.
+
+Переданный scope использует `Dispatchers.Default`, `SupervisorJob` и автоматически устанавливает
+addon classloader как thread context classloader. Ошибка одной дочерней coroutine не отменяет соседей,
+поэтому каждую долгоживущую задачу нужно логировать и проектировать с явной обработкой ошибок.
+`Dispatchers.IO` допустим через `withContext`, но созданные вручную executor/thread/scheduler должны
+быть закрыты через `onUnload`.
+
+## Сервисы и Koin
+
+`hostServices` предназначен для связи между аддонами без глобального mutable-state:
+
+```kotlin
+interface QuestApi {
+    fun start(id: String)
+}
+
+context.hostServices.publish<QuestApi>(questApi)
+val api = context.hostServices.find<QuestApi>()
+```
+
+Опубликованный сервис удаляется автоматически. Если тип сервиса объявлен другим аддоном, добавь его
+ID в `dependsOn`: тогда classloader потребителя увидит API зависимости, а runtime обеспечит порядок
+загрузки и выгрузки.
+
+`find<T>()` возвращает последний опубликованный экземпляр, `findAll<T>()` — snapshot всех. Отсутствие
+сервиса является нормальным состоянием во время загрузки, disable и reload. Не кешируй найденный
+экземпляр в global singleton; разрешай его заново либо сбрасывай ссылку вместе с lifecycle.
+
+Для устойчивого cross-addon API:
+
+1. помести интерфейсы и простые DTO в provider/API аддон;
+2. объяви `dependsOn=provider-addon` у потребителя;
+3. не передавай наружу addon `CoroutineScope`, Koin types, Minecraft transient objects или детали DI;
+4. версионируй контракт обратно совместимо, потому что descriptor не проверяет диапазоны версий;
+5. возвращай registration/token для callback API, чтобы потребитель мог снять подписку.
+
+Локальные зависимости можно описать через `koinModules` entrypoint. В Koin уже доступны
+`HollowAddonDescriptor`, `HollowAddonHostServices`, `HollowAddonExtensions` и
+`HollowAddonMinecraftApi`.
+
+```kotlin
+class MyAddon : HollowAddonEntrypoint {
+    override val koinModules = listOf(
+        module {
+            single { QuestRepository() }
+            factory { QuestSession(get()) }
+        },
+    )
+
+    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+        val repository = context.koin.get<QuestRepository>()
+        context.extensions.onUnload(repository::close)
+    }
+}
+```
+
+Это отдельный Koin application, а не модуль глобального Koin хоста. Не экспортируй Koin definitions
+как способ связи аддонов. Singleton, запускающий coroutine или владеющий файлом/socket, должен
+получать addon scope либо иметь явный cleanup; одного удаления definitions недостаточно для
+гарантированной выгрузки classloader.
+
+`koinModules` должны быть декларативными и не создавать внешние ресурсы как побочный эффект getter.
+Callback `onUnload` синхронный и должен завершаться быстро; для suspend-сохранения используй
+`unload()`, а cleanup частично созданного ресурса при ошибке `load()` обеспечивай также локальным
+`try`/`finally`.
+
+## Расширение Hollow IDE
+
+IDE API относится к клиенту. Аддон, импортирующий IDE или Compose-классы, должен указывать
+`environment=client`, чтобы его entrypoint не загрузился на dedicated server.
+
+Доступные helpers:
+
+| Helper | Что добавляет |
+| --- | --- |
+| `registerIdeFileType` | Matcher, document loader, редактор и действия нового типа файлов |
+| `registerIdePanel` | Dock-панель с декларативным размещением |
+| `registerIdeMenuItem` | Пункт File, Window, Tools или Help |
+| `registerIdeFileActions` | Действия контекстного меню вкладки |
+| `registerIdeProjectActions` | Действия контекстного меню дерева проекта |
+| `registerIdeLanguage` | Выбор `ScriptingAnalyzer` по пути файла |
+| `registerIdeCodeInsight` | Completion, diagnostics, inlays, definition, signature и hover |
+
+Встроенные и addon-панели/редакторы проходят через одни и те же registry. Центрального `when`,
+который нужно менять для нового типа, нет.
+
+### Панель и меню
+
+```kotlin
+override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+    val overviewId = context.extensions.qualify("overview")
+
+    context.extensions.registerIdePanel(
+        HollowIdePanel(
+            id = "overview",
+            title = "My Addon",
+            placement = HollowIdePanelPlacement(
+                anchor = HollowIdePanelAnchor.Project,
+                placement = DockPlacement.RIGHT,
+            ),
+            content = { ide ->
+                Column {
+                    Text("Focused: ${ide.focusedFile?.path ?: "none"}")
+                }
+            },
+        ),
+    )
+
+    context.extensions.registerIdeMenuItem(
+        HollowIdeMenuItem(
+            id = "open-overview",
+            menu = HollowIdeMenu.TOOLS,
+            label = "Open My Addon",
+            run = { ide -> ide.openPanel(overviewId) },
+        ),
+    )
+}
+```
+
+`HollowIdeContext` позволяет открыть файл или панель, закрыть/проверить панель, сохранить все файлы,
+обновить дерево проекта и показать status message. Для ссылки на addon-панель используй qualified ID
+из `context.extensions.qualify()`.
+
+`title` панели и `label` пункта меню могут быть обычным текстом или Minecraft translation key.
+Перевод вычисляется во время отрисовки, когда language manager уже готов, поэтому ключи не нужно
+заранее преобразовывать через `.lang`.
+
+### Тип файла и редактор
+
+```kotlin
+private class QuestDocument(var text: String) : HollowIdeFileDocument {
+    override val readOnly = false
+
+    override fun encode(): ByteArray = text.toByteArray()
+
+    override fun reload(bytes: ByteArray) {
+        text = bytes.toString(Charsets.UTF_8)
+    }
+}
+
+context.extensions.registerIdeFileType(
+    HollowIdeFileType.extensions(
+        id = "quest",
+        extensions = listOf(".quest"),
+        priority = 100,
+        loader = { _, bytes -> QuestDocument(bytes.toString(Charsets.UTF_8)) },
+        editor = { file ->
+            val document = file.document as QuestDocument
+            Text(document.text)
+        },
+    ),
+)
+```
+
+`loader` создаёт document для открытого файла, `editor` рисует его содержимое. `encode()` задаёт
+данные для сохранения; `reload()`, `markSaved()` и `close()` можно переопределить для собственного
+состояния. При удалении file type IDE сначала закрывает связанные вкладки и documents, и только
+после этого runtime освобождает classloader аддона.
+
+### Язык и code insight
+
+`registerIdeLanguage` выбирает базовый `ScriptingAnalyzer`. `registerIdeCodeInsight` накладывает
+дополнительные возможности поверх выбранного анализатора, поэтому несколько аддонов могут совместно
+добавлять completion и диагностику к одному языку.
+
+```kotlin
+context.extensions.registerIdeCodeInsight(
+    id = "quest-symbols",
+    contributor = object : HollowIdeCodeInsightContributor {
+        override fun supports(path: String) = path.endsWith(".quest")
+
+        override fun completions(
+            path: String,
+            text: String,
+            offset: Int,
+        ): List<CompletionItem> = questCompletions(text, offset)
+
+        override fun diagnostics(path: String, text: String): List<Diagnostic> =
+            validateQuest(text)
+    },
+)
+```
+
+Code insight выполняется в фоновом analysis thread. Не обращайся оттуда напрямую к Minecraft или
+Compose state; для игровых изменений переключайся через `context.minecraft.dispatchers`.
+
+## HUD-слои
+
+Клиентский аддон может рисовать слой относительно ванильного HUD anchor или overlay после всего HUD:
+
+```kotlin
+context.extensions.registerHudLayer(
+    HollowAddonHudLayer(
+        id = ResourceLocation.parse("my-addon:status"),
+        anchor = VanillaHudLayers.HOTBAR,
+        placement = HollowAddonHudPlacement.AFTER,
+    ) { render ->
+        render.graphics.drawString(font, "Active", 8, 8, 0xFFFFFF)
+    },
+)
+```
+
+ID слоя обязан принадлежать namespace аддона. Callback получает `Window`, `GuiGraphics` и
+`partialTick`, выполняется в render thread и не должен блокироваться или сохранять `GuiGraphics` для
+последующего использования. `registerHudOverlay` работает аналогично, но вызывается после полного
+ванильного HUD.
+
+## Зависимости и упаковка
+
+### Compile-only и packaged зависимости
+
+Зависимость от HollowEngine, Minecraft или установленного мода обычно должна оставаться
+compile-only. Она уже существует в процессе игры и не должна дублироваться внутри addon JAR:
+
+```kotlin
+dependencies {
+    add("compileOnly", "com.example:public-api:1.0.0")
+    add("modCompileOnly", "com.example:target-mod:1.21.1-4.0.0")
+}
+```
+
+Выбор `compileOnly` или `modCompileOnly` зависит от публикации целевого проекта: обычный Java API
+использует `compileOnly`, remappable Minecraft mod artifact — конфигурацию Loom `modCompileOnly`.
+Добавь нужный Maven repository локально в `build.gradle.kts` аддона. Не добавляй JAR другого мода в
+`addonLibraries`: это создаст вторую копию его классов и нарушит loader lifecycle.
+
+Для библиотек, которыми владеет сам аддон, доступны следующие конфигурации:
+
+```kotlin
+dependencies {
+    add("addonLibraries", "com.example:library:1.0.0")
+    add("addonRuntimeLibraries", "com.example:runtime-only:1.0.0")
+    add("addonBootstrapLibraries", "com.example:native-wrapper:1.0.0")
+}
+```
+
+| Configuration | Compile classpath | Внутри addon JAR | Особенности |
+| --- | --- | --- | --- |
+| `addonLibraries` | да | `hollowengine-addon-libs` | Обычная библиотека аддона |
+| `addonRuntimeLibraries` | нет | `hollowengine-addon-libs` | Нужна только во время исполнения |
+| `addonBootstrapLibraries` | да | `hollowengine-addon-bootstrap` | Стабильный classloader, изменение требует рестарт |
+
+Не упаковывай библиотеки, которыми владеет игра: Kotlin, coroutines, Koin, Log4j, LWJGL, Netty,
+JNA, OSHI и нативные стеки Minecraft. Сборка исключает host-provided зависимости, а запрещённые
+native artifacts отклоняет.
+
+Стандартный `addonJar` — **один универсальный JAR**. Внутри него находятся named-вариант для
+NeoForge и intermediary-вариант для Fabric; runtime сам выбирает подходящий.
+
+Упрощённая структура результата:
+
+```text
+MyAddon-<version>.jar
+├── META-INF/MANIFEST.MF
+├── META-INF/plugin.properties
+├── META-INF/hollowengine/variants/named.jar
+├── META-INF/hollowengine/variants/intermediary.jar
+├── hollowengine-addon-libs/*.jar
+├── hollowengine-addon-bootstrap/*.jar
+└── другие runtime-ресурсы
+```
+
+`named.jar` используется NeoForge/official runtime, `intermediary.jar` — Fabric production runtime.
+Оба содержат классы и заранее скомпилированные script artifacts соответствующего namespace.
+Manifest format сейчас равен `2`; вручную собранный flat JAR без manifest variants не поддерживается.
+
+### Как classloader разрешает классы
+
+Каждый аддон получает отдельный child-first `URLClassLoader`, но важные общие пакеты всегда
+parent-first: HollowEngine shared API, Minecraft/Mojang, основные Kotlin/coroutines, SLF4J и Log4j.
+Для остальных классов порядок такой:
+
+1. classloader каждого `dependsOn` в порядке descriptor;
+2. собственный variant JAR и `hollowengine-addon-libs`;
+3. parent classloader.
+
+Из этого следуют правила:
+
+- API между аддонами должен существовать в одном classloader, обычно у dependency/provider;
+- не включай HollowEngine/Kotlin/Minecraft classes в свой JAR;
+- если две частные библиотеки имеют одинаковые packages, используй shading с relocation на этапе
+  сборки; одного совпадения версии недостаточно для безопасного hot-swap;
+- `META-INF/services` и другие resource-based registry могут кешировать provider classloader;
+- `requiredClasses` видит host, зависимости аддона и его packaged libraries.
+
+Текущая реализация не предоставляет выбираемые `shared-preferred`, `strict-shared` и другие
+dependency policies из раннего концепта. Поведение задаётся описанным фиксированным порядком.
+
+### Bootstrap-библиотеки
+
+`addonBootstrapLibraries` предназначена только для библиотеки, которая должна быть видна стабильному
+bootstrap/runtime classloader до загрузки аддона. Это не способ «починить» обычный конфликт
+зависимостей. Все bootstrap JAR проверяются до runtime:
+
+- одинаковое имя библиотеки у двух аддонов допустимо только при одинаковом содержимом;
+- конфликтующие classes/native resources отклоняются;
+- LWJGL, Netty, JNA, OSHI и другие host native stacks запрещено поставлять;
+- добавление или изменение такого аддона после старта даёт `RESTART_REQUIRED`;
+- native library, однажды загруженную JVM, нельзя реально выгрузить hot-swap-ом.
+
+```shell
+# Проверить фактический Gradle graph
+.\gradlew.bat projects
+
+# Собрать один аддон
+.\gradlew.bat :addons:my-addon:addonJar
+
+# Собрать все аддоны в build/addon-jars
+.\gradlew.bat buildAddons
+```
+
+Скопируй итоговый JAR без classifier из `build/addons/my-addon/libs/` либо собранный артефакт из
+`build/addon-jars/` в `hollowengine/addons/` запущенной игры.
+
+Не распространяй `classes-named`, `classes-intermediary` или `variant-*` как самостоятельный аддон:
+runtime ожидает внешний universal JAR.
+
+## Управление и hot reload
+
+Runtime следит за `hollowengine/addons` и обрабатывает добавление, замену и удаление JAR.
+
+```text
+/he addons list
+/he addons enable <addon-id>
+/he addons disable <addon-id>
+/he addons reload <addon-id>
+```
+
+Отключённые ID сохраняются в `hollowengine/addons/.disabled-addons`.
+
+Аддон с `addonBootstrapLibraries` нельзя безопасно заменить в работающем процессе. Он получит статус
+`RESTART_REQUIRED` и загрузится после перезапуска. Обычные аддоны без bootstrap-зависимостей можно
+перезагружать на лету.
+
+Watcher проверяет каталог примерно раз в две секунды. Исходный JAR сначала полностью копируется в
+cache и проверяется по SHA-256, поэтому runtime не удерживает файл сборки открытым и не читает
+полузаписанную замену. На практике безопаснее собирать во временный путь и затем атомарно заменять JAR.
+
+| Состояние | Значение |
+| --- | --- |
+| `LOADED` | Текущий candidate успешно активен |
+| `DISABLED` | ID записан в `.disabled-addons` |
+| `RESTART_REQUIRED` | Нужны bootstrap libraries, которых нет в текущем процессе |
+| `WAITING_FOR_DEPENDENCIES` | Обязательный addon dependency ещё не загружен или есть цикл |
+| `REJECTED` | Bootstrap safety validation отклонил packaged libraries |
+| `INACTIVE` | JAR известен, но не прошёл environment/class/mapping/load проверки |
+
+При reload зависимости выгружаются безопасно: сначала все прямые и транзитивные dependants, затем
+целевой аддон. После загрузки новой версии dependants загружаются снова. Если новая версия падает,
+runtime пытается восстановить прежний candidate. In-memory состояние при этом не восстанавливается —
+важные данные должны быть сохранены вне classloader.
+
+Два JAR с одинаковым `id` неоднозначны и не загружаются как две версии. Удали дубликаты, даже если
+имена файлов различаются.
+
+## Скрипты внутри аддона
+
+Файлы из `src/main/resources/scripts/**/*.kts` компилируются при сборке и помещаются в оба mapping
+variant. Скрипты получают namespace из `id` аддона и видят его классы и `addonLibraries`.
+
+```text
+/he scripting run my-addon:nodes/quest.node.kts
+```
+
+Импорт из другого namespace требует зависимости в `dependsOn`:
+
+```kotlin
+@file:Import("other-addon:shared.kts")
+```
+
+Чтобы не включать исходники скриптов в итоговый JAR:
+
+```shell
+.\gradlew.bat buildAddons -Phollowengine.scripts.includeSources=false
+```
+
+## Ограничения и частые ошибки
+
+- **Блоки, предметы и сущности.** Замороженные registry Minecraft намеренно отсутствуют в runtime
+  API: для них нужна ранняя bootstrap-фаза и перезапуск игры.
+- **Client-классы на сервере.** IDE, HUD, `Minecraft` и Compose используй только при
+  `environment=client` либо за отдельной client-only границей.
+- **Утечка classloader.** Не сохраняй addon-классы в глобальных singleton-ах хоста. Для сторонней
+  подписки или executor обязательно зарегистрируй `onUnload`.
+- **Долгая работа.** Не блокируй event, render и server threads; используй addon `scope` и игровые
+  dispatchers.
+- **Дубликат ID.** Один addon не может зарегистрировать одинаковый local ID дважды в одной extension
+  point. Для ссылок между contributions используй qualified ID.
+- **Ожидание зависимостей.** `WAITING_FOR_DEPENDENCIES` означает отсутствующий `dependsOn` или цикл.
+  `REJECTED` обычно означает конфликт упакованных библиотек. Причина всегда записывается в log и
+  показывается через `/he addons list`.
+
+### Что принципиально нельзя считать hot-swappable
+
+- классы, уже внедрённые Mixin/transformer-ом, access widener/transformer и loader entrypoints;
+- frozen registries и объекты, идентичность которых Minecraft хранит весь процесс;
+- native libraries, JVM shutdown hooks и неконтролируемые потоки сторонней библиотеки;
+- registrations в чужом моде, если его API не возвращает unregister/dispose token;
+- сериализованные addon objects, сохранённые по имени JVM-класса и читаемые новой версией без
+  явной migration schema;
+- API, передавшее addon instance в вечный host singleton или static cache.
+
+### Checklist против утечки classloader
+
+Перед публикацией проверь, что после disable/reload не остаются:
+
+- `GlobalScope`, собственные `CoroutineScope`, raw `Thread`, executor или timer;
+- `ThreadLocal`, shutdown hook, JMX registration или library-global callback;
+- listener/lambda в target mod, event bus, UI tree, открытом screen или Compose state;
+- HTTP client, file watcher, database pool, socket, channel или stream без `close()`;
+- service, packet type, serializer module или ServiceLoader cache с addon class;
+- сильная ссылка на `context`, entrypoint, Koin, scope или addon DTO в host singleton.
+
+Слабая ссылка не заменяет корректный lifecycle. Предпочтителен явный registration token, закрываемый
+через `onUnload`.
+
+## Тестирование аддона
+
+Минимальный набор проверок:
+
+1. unit-тесты доменной логики без Minecraft thread;
+2. тест успешного `load` и повторного cleanup/`close`;
+3. ошибка в середине `load` без оставшихся registrations;
+4. disable → enable и reload с сохранением persistent state;
+5. отсутствующий `dependsOn`, dependency cycle и дубликат ID;
+6. физический client и dedicated server для `common` кода;
+7. Fabric/intermediary и NeoForge/official variant;
+8. обе стороны packets, неверное направление и недоверенные данные;
+9. отсутствие optional target mod и несовместимый публичный API;
+10. несколько последовательных reload с контролем threads/listeners/classloaders.
+
+Команды сборки и тестов запускай только Wrapper-ом:
+
+```shell
+.\gradlew.bat :addons:my-addon:test
+.\gradlew.bat :addons:my-addon:addonJar
+.\gradlew.bat buildAddons
+```
+
+После сборки полезно открыть universal JAR как ZIP и проверить descriptor, manifest variants,
+отсутствие host libraries и наличие нужных ресурсов. Компиляция только одного mapping variant не
+заменяет запуск на обеих платформах.
+
+## Интеграция с другим модом
+
+Аддон может служить полноценным runtime-адаптером между HollowEngine и публичным API другого мода:
+преобразовывать события и DTO, публиковать сервис для скриптов/других аддонов, добавлять команды,
+IDE-инструменты или packets. Подробная архитектура, код обязательной и опциональной интеграции,
+правила потоков, сети и companion-мода разобраны в [отдельной главе](./addons-mod-integration.mdx).

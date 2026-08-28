@@ -68,6 +68,9 @@ import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
+import ru.hollowhorizon.hollowengine.client.addons.HollowAddonClientRendering
+import ru.hollowhorizon.hollowengine.client.addons.HollowAddonHudPlacement
+import ru.hollowhorizon.hollowengine.client.addons.HollowAddonHudRenderContext
 import ru.hollowhorizon.hollowengine.client.input.ClientKeyWaitManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
@@ -99,6 +102,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractE
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterClientCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
@@ -574,6 +578,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onLevelClosed(level: Level) {
+        if (level.isClientSide) RegisterClientCommandsEvent.clearReplay()
         AttachmentRegistry.close(level)
     }
 
@@ -803,10 +808,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         RenderOverlayEvent.Pre.post(event)
 
         val nowNanos = System.nanoTime()
+        val addonContext = HollowAddonHudRenderContext(window, guiGraphics, partialTick)
+        HollowAddonClientRendering.renderLayers(layer, HollowAddonHudPlacement.BEFORE, addonContext)
         UiScriptHudHost.render(layer, HudPlacement.BEFORE, nowNanos)
 
         val skip = event.isCanceled || HudLayerRegistry.isHidden(layer)
-        if (skip) UiScriptHudHost.render(layer, HudPlacement.AFTER, nowNanos)
+        if (skip) {
+            UiScriptHudHost.render(layer, HudPlacement.AFTER, nowNanos)
+            HollowAddonClientRendering.renderLayers(layer, HollowAddonHudPlacement.AFTER, addonContext)
+        }
         return skip
     }
 
@@ -819,10 +829,16 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val layer = ResourceLocation.parse(layerId)
         RenderOverlayEvent.Post.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, layer))
         UiScriptHudHost.render(layer, HudPlacement.AFTER, System.nanoTime())
+        HollowAddonClientRendering.renderLayers(
+            layer,
+            HollowAddonHudPlacement.AFTER,
+            HollowAddonHudRenderContext(window, guiGraphics, partialTick),
+        )
     }
 
     override fun onRenderHudPost(window: Window, guiGraphics: GuiGraphics, partialTick: Float) {
         RenderHudEvent.post(RenderHudEvent(window, guiGraphics, partialTick))
+        HollowAddonClientRendering.renderOverlays(HollowAddonHudRenderContext(window, guiGraphics, partialTick))
     }
 
     override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {

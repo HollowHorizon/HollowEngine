@@ -26,14 +26,30 @@ internal object HollowAddonPacketRegistry {
         val annotation = requireNotNull(type.getAnnotation(HollowPacketHandler::class.java)) {
             "Addon packet must be annotated with @HollowPacketHandler: ${type.name}"
         }
+        register(addonId, type, annotation.toTarget)
+    }
+
+    fun register(
+        addonId: String,
+        type: Class<out HollowAddonPacket>,
+        direction: HollowPacketHandler.Direction,
+    ) {
         val key = HollowAddonPacket.nameFor(addonId, type)
-        val registration = RegisteredAddonPacket(addonId, key, type, annotation.toTarget)
+        val registration = RegisteredAddonPacket(addonId, key, type, direction)
 
         lock.write {
             require(key !in packetsByKey) { "Duplicate addon packet key '$key'" }
             require(type !in packetsByType) { "Addon packet is already registered: ${type.name}" }
             packetsByKey[key] = registration
             packetsByType[type] = registration
+        }
+    }
+
+    fun unregister(addonId: String, type: Class<out HollowAddonPacket>) {
+        lock.write {
+            val registration = packetsByType[type]?.takeIf { it.addonId == addonId } ?: return@write
+            packetsByType.remove(type)
+            packetsByKey.remove(registration.key)
         }
     }
 

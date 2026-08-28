@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
+import ru.hollowhorizon.hollowengine.HollowEngine
+
 /**
  * One entry of the menu a right click on a file tab opens. A file type contributes its own on top
  * of [HollowIdeStandardFileActions], so an editor can offer what only it can do without the IDE
@@ -108,7 +110,18 @@ object HollowIdeStandardFileActions {
 }
 
 internal fun fileContextMenuActions(context: HollowIdeFileActionContext): List<HollowIdeFileAction> {
-    val declared = context.file.type.actions
+    val declared = context.file.type.actions + HollowIdeExtensionPoints.FILE_ACTIONS.extensions().flatMap { extension ->
+        runCatching { extension.invoke { provider -> provider.actions(context) } }
+            .onFailure { failure ->
+                HollowEngine.LOGGER.error(
+                    "IDE file action extension '{}' failed for '{}'",
+                    extension.qualifiedId,
+                    context.file.path,
+                    failure,
+                )
+            }
+            .getOrDefault(emptyList())
+    }
     if (declared.isEmpty()) return HollowIdeStandardFileActions.actions.filter { it.isVisible(context) }
 
     val overrides = declared.associateBy(HollowIdeFileAction::id)

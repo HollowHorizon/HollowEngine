@@ -26,6 +26,8 @@ internal fun HollowIdeProjectContextMenu(
     onPaste: (String) -> Unit,
     onShowInExplorer: (String) -> Unit,
     onDelete: (String) -> Unit,
+    additionalActions: List<HollowIdeProjectMenuEntry> = emptyList(),
+    onAdditionalAction: (HollowIdeProjectAction) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     if (menu == null) return
@@ -47,6 +49,16 @@ internal fun HollowIdeProjectContextMenu(
         ProjectMenuItem("Paste", "Ctrl+V", PASTE.toString()) { onPaste(menu.path) }
         ProjectMenuItem("Show in Explorer", "", FOLDER.toString()) { onShowInExplorer(menu.path) }
         ProjectMenuItem("Delete", "Del", REMOVE.toString()) { onDelete(menu.path) }
+        additionalActions.forEach { entry ->
+            ProjectMenuItem(
+                label = entry.action.label,
+                shortcut = entry.action.shortcut,
+                icon = entry.action.icon,
+                enabled = entry.enabled,
+            ) {
+                onAdditionalAction(entry.action)
+            }
+        }
     }
 }
 
@@ -95,14 +107,24 @@ internal fun HollowIdeProjectNameDialog(
 }
 
 @Composable
-private fun ProjectMenuItem(label: String, shortcut: String, icon: String? = null, action: () -> Unit) {
+private fun ProjectMenuItem(
+    label: String,
+    shortcut: String,
+    icon: String? = null,
+    enabled: Boolean = true,
+    action: () -> Unit,
+) {
     Row(
-        tags = listOf("dropdown-item", "project-context-menu-item"),
-        modifier = Modifier.input(hoverable = true, clickable = true)
-            .cursor(UiCursorShape.HAND)
+        tags = buildList {
+            add("dropdown-item")
+            add("project-context-menu-item")
+            if (!enabled) add("disabled")
+        },
+        modifier = Modifier.input(hoverable = enabled, clickable = enabled)
+            .cursor(if (enabled) UiCursorShape.HAND else UiCursorShape.DEFAULT)
             .alignItems(vertical = UiAlign.CENTER)
             .onClick { event ->
-                action()
+                if (enabled) action()
                 event.consume()
             }
     ) {
@@ -111,6 +133,11 @@ private fun ProjectMenuItem(label: String, shortcut: String, icon: String? = nul
         if (shortcut.isNotBlank()) Text(shortcut, tags = listOf("dropdown-item-shortcut", "project-context-menu-shortcut"))
     }
 }
+
+internal data class HollowIdeProjectMenuEntry(
+    val action: HollowIdeProjectAction,
+    val enabled: Boolean,
+)
 
 internal data class ProjectContextMenu(
     val path: String,

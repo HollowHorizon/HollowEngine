@@ -1,21 +1,204 @@
 # HollowEngine addons
 
-Every directory below `addons/` that contains a `build.gradle.kts` is discovered automatically as a Gradle subproject. Addon builds receive Minecraft, mappings, HollowEngine runtime, Kotlin, coroutines, and Koin on their compile classpath.
+This directory contains dynamically loaded HollowEngine addons and the addon build convention.
+Complete guides:
 
-Build every addon with:
+- [English addon development guide](../docs/en/addons.mdx)
+- [English guide to integrating another mod](../docs/en/addons-mod-integration.mdx)
+- [Руководство по разработке аддонов](../docs/ru/addons.mdx)
+- [Интеграция HollowEngine с другим модом через аддон](../docs/ru/addons-mod-integration.mdx)
+
+Every nested directory containing a `build.gradle.kts` is discovered by `settings.gradle.kts` and
+added to the Gradle graph. Check the actual graph before building:
 
 ```shell
-./gradlew buildAddons
+.\gradlew.bat projects
 ```
 
-The resulting platform artifacts are collected in `build/addon-jars/`:
+## Included examples
 
-- `*-fabric.jar` is remapped to Fabric's intermediary namespace.
-- `*-neoforge.jar` uses the official namespace used by NeoForge.
+- `debug-command` demonstrates a common addon, a hot-reloadable command, and a packaged script.
+- `ide-example` is a client-only API/ABI example. It adds:
+  - **Tools → Open IDE Addon Example**;
+  - an **IDE Addon Example** dock panel showing the currently focused file;
+  - a read-only preview editor for `*.quest` files.
+- `compiler` is a specialized addon with its own build because it packages the Kotlin compiler and
+  IntelliJ analysis APIs.
 
-Copy the artifact for the active loader to the game's `hollowengine/addons/` directory. The runtime watches this directory and reloads changed jars.
+The IDE example intentionally contains no gameplay system. It is a small, buildable reference and a
+smoke test for addon-owned Compose UI and file type registrations.
 
-Runtime diagnostics and lifecycle controls are available to operators:
+## Minimal project
+
+```text
+addons/my-addon/
+├── build.gradle.kts
+└── src/main/
+    ├── java/com/example/myaddon/MyAddon.kt
+    └── resources/META-INF/plugin.properties
+```
+
+`build.gradle.kts`:
+
+```kotlin
+base {
+    archivesName.set("MyAddon")
+}
+```
+
+The standard convention applies Kotlin/JVM, serialization, the Compose compiler, Architectury Loom,
+Minecraft mappings, and the addon packaging tasks. Compose Runtime is compile-only because
+HollowEngine supplies it in the game.
+
+`plugin.properties`:
+
+```properties
+id=my-addon
+name=My Addon
+version=${version}
+entry=com.example.myaddon.MyAddon
+environment=common
+dependsOn=another-addon
+```
+
+Use `environment=client` if the entrypoint references Hollow IDE, HUD, Minecraft client, or Compose
+types. `dependsOn` is a comma-separated list and controls both load order and classloader
+visibility.
+
+## Entrypoint and lifecycle
+
+```kotlin
+class MyAddon : HollowAddonEntrypoint {
+    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+        // Register features and start coroutines in scope.
+    }
+
+    override suspend fun unload(context: HollowAddonContext) {
+        // Only finalize state not owned by the lifecycle APIs.
+    }
+}
+```
+
+Each addon receives an isolated classloader, a dedicated coroutine `Job`, a Koin container, owned
+host services, and owned extension/Minecraft APIs. A failed load rolls back partial registrations.
+Disable, reload, and unload cancel the scope and remove owned state before the classloader closes.
+
+Use `context.extensions.onUnload` for a third-party resource the runtime cannot track:
+
+```kotlin
+val executor = createExecutor()
+context.extensions.onUnload(executor::close)
+```
+
+Cleanup runs in reverse registration order. A returned `HollowAddonRegistration` can also be closed
+manually and is idempotent.
+
+## API map
+
+| API | Use |
+| --- | --- |
+| `context.extensions` | Typed contributions, qualified IDs, arbitrary cleanup |
+| `context.minecraft.subscribe` | Explicit lifecycle-owned event listeners |
+| `registerCommands` / `registerClientCommands` | Hot-reloadable Brigadier nodes |
+| `registerPacket` | Runtime addon packet types with direction validation |
+| `context.minecraft.dispatchers` | Guarded server/client thread execution |
+| `context.hostServices` | Publish and find typed cross-addon services |
+| `context.koin` / `koinModules` | Addon-local dependency injection |
+
+Local extension IDs are qualified with the descriptor ID. For example:
+
+```kotlin
+val panelId = context.extensions.qualify("overview")
+// my-addon:overview
+```
+
+The owner namespace cannot be forged, duplicate IDs in one extension point are rejected, and
+contributions are ordered by descending priority followed by registration order.
+
+### Minecraft example
+
+```kotlin
+context.minecraft.subscribe<TickEvent.Server> { event ->
+    // Synchronous callback; do not block the server thread.
+}
+
+context.minecraft.registerCommands { dispatcher ->
+    dispatcher.register(Commands.literal("my-addon").executes { 1 })
+}
+
+context.minecraft.dispatchers.executeServer {
+    // Runs only if an active server and addon still exist.
+}
+```
+
+Command registration replays the current dispatcher to hot-loaded addons. Its command nodes are
+removed automatically on unload/reload.
+
+Items, blocks, entities, and other frozen Minecraft registries are deliberately not runtime
+extension points. They need an early startup phase and cannot support safe hot reload.
+
+### Hollow IDE example
+
+```kotlin
+val panelId = context.extensions.qualify("overview")
+
+context.extensions.registerIdePanel(
+    HollowIdePanel(
+        id = "overview",
+        title = "My Addon",
+        content = { ide -> Text("Focused: ${ide.focusedFile?.path ?: "none"}") },
+    ),
+)
+context.extensions.registerIdeMenuItem(
+    HollowIdeMenuItem(
+        id = "open-overview",
+        menu = HollowIdeMenu.TOOLS,
+        label = "Open My Addon",
+        run = { ide -> ide.openPanel(panelId) },
+    ),
+)
+```
+
+Panel titles and menu labels may be literal text or Minecraft translation keys. Translation is
+resolved when the UI is rendered, not while the addon registry is initialized.
+
+The IDE exposes file types/editors, panels, menu entries, file/project actions, languages, and
+code-insight contributors. Built-in and addon contributions use the same registries; no central
+`when` must be changed.
+
+## Dependencies
+
+```kotlin
+dependencies {
+    add("addonLibraries", "com.example:library:1.0.0")
+    add("addonRuntimeLibraries", "com.example:runtime-only:1.0.0")
+    add("addonBootstrapLibraries", "com.example:native-wrapper:1.0.0")
+}
+```
+
+- `addonLibraries`: compile + runtime, stored in `hollowengine-addon-libs`.
+- `addonRuntimeLibraries`: runtime only, stored in `hollowengine-addon-libs`.
+- `addonBootstrapLibraries`: stable host classloader, stored in
+  `hollowengine-addon-bootstrap`; installing or changing one requires restart.
+
+Do not bundle Kotlin, coroutines, Koin, Log4j, LWJGL, Netty, JNA, OSHI, or other Minecraft-owned
+native stacks. The build excludes host-provided libraries and rejects forbidden native artifacts.
+
+## Build and install
+
+```shell
+# One standard addon
+.\gradlew.bat :addons:my-addon:addonJar
+
+# Every discovered addon, collected under build/addon-jars
+.\gradlew.bat buildAddons
+```
+
+The standard `addonJar` is one universal artifact containing named and intermediary variants.
+Copy the JAR without a classifier to the game's `hollowengine/addons/` directory; the runtime
+selects the NeoForge or Fabric variant itself.
+
+Runtime controls:
 
 ```text
 /he addons list
@@ -24,78 +207,26 @@ Runtime diagnostics and lifecycle controls are available to operators:
 /he addons reload <addon-id>
 ```
 
-Disabled ids are persisted in `hollowengine/addons/.disabled-addons`. The `debug-command` example has no bootstrap libraries and can therefore be copied and loaded while Minecraft is running. It directly handles `RegisterCommandsEvent` and adds `/he addon-text <text>`.
+Disabled IDs are persisted in `hollowengine/addons/.disabled-addons`. An addon containing bootstrap
+libraries reports `RESTART_REQUIRED`; an ordinary addon can be hot-loaded and replaced.
 
-Command addons use Brigadier directly from `@SubscribeEvent`. `RegisterCommandsEvent` replays the active dispatcher for a hot-loaded addon, and command nodes added by that scoped listener are removed automatically when the addon is disabled or reloaded. The video addon demonstrates the same mechanism with `/he video <local-path-or-url>`.
+## Packaged scripts
 
-An addon's `build.gradle.kts` only needs its own settings and libraries. Dependencies added to `addonLibraries` are available during compilation, embedded as nested jars, and loaded in the addon's isolated classloader. Pure Java runtime-only libraries belong in `addonRuntimeLibraries`.
-
-Libraries that load native code or keep process-global state belong in `addonBootstrapLibraries`. They are loaded into HollowEngine's stable runtime classloader before addon initialization. A newly copied or updated addon that contains bootstrap libraries is deliberately not hot-loaded: `HollowAddonManager.restartRequired` reports it, the log asks for a restart, and it becomes available on the next game launch.
-
-```kotlin
-base.archivesName.set("MyAddon")
-
-dependencies {
-    add("addonLibraries", "com.example:library:1.0.0")
-    add("addonRuntimeLibraries", "com.example:pure-java-runtime-library:1.0.0")
-    add("addonBootstrapLibraries", "com.example:native-library:1.0.0:windows-x86_64")
-}
-```
-
-Do not bundle Minecraft-owned native stacks such as LWJGL, jemalloc, GLFW, OpenAL, OpenGL, STB, Vulkan, JNA, JInput, Netty, or OSHI. Addon builds reject them and the bootstrap validates external addon jars before loading. The game-provided versions must be used.
-
-Declare the addon in `src/main/resources/META-INF/plugin.properties`:
-
-```properties
-id=my-addon
-name=My Addon
-version=${version}
-entry=com.example.myaddon.MyAddon
-dependsOn=another-addon
-environment=common
-```
-
-Entrypoints receive a lifecycle `CoroutineScope`. Public `@SubscribeEvent` methods declared on the entrypoint, a Kotlin `object`, or as static/top-level functions are discovered automatically. HollowEngine registers them in that scope; cancelling the scope during unload removes all of them.
-
-```kotlin
-class MyAddon : HollowAddonEntrypoint {
-    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
-        // Start addon coroutines and publish services here.
-    }
-
-    @SubscribeEvent
-    fun onServerTick(event: TickEvent.Server) {
-        // Handle the event synchronously.
-    }
-}
-```
-
-## Scripts
-
-An addon can ship `.kts` scripts of its own in `src/main/resources/scripts`. The build compiles them with the same compiler and the same remapping the game uses, and packs both the sources and the compiled artifacts into the platform variants of the addon jar, so the scripts run in a modpack that never installs the compiler addon. A compilation error fails the build. `debug-command` carries one as an example.
-
-Scripts belong to the namespace named by the addon's `id`, and are addressed with it everywhere a script path is accepted:
+Put addon scripts under `src/main/resources/scripts`. The build compiles and remaps them for both
+variants, and the runtime exposes them under the addon ID namespace:
 
 ```text
 /he scripting run my-addon:nodes/quest.node.kts
 ```
 
-The `hollowengine` directory is the same kind of thing - an unpacked addon. Its scripts live in `hollowengine/scripts` and its namespace comes from an optional `hollowengine/META-INF/plugin.properties`, defaulting to `hollowengine-sandbox`, which addons may not claim. Paths written without a namespace always mean that directory, so existing world saves and commands keep working whatever it calls itself.
+An import from another namespace requires that addon in `dependsOn`:
 
-Scripts compile against the classpath of the namespace that owns them and run under its classloader, so an addon's scripts see the addon's own classes and its `addonLibraries`. `@file:Import("other-addon:shared.kts")` reaches into another namespace and requires it in `dependsOn`; a plain name is resolved next to the importing script.
-
-Enabling, reloading or disabling an addon starts and stops its scripts with it. A disabled addon's nodes keep the state they were stopped with, and resume from it when it comes back.
-
-Compiled scripts are also cached at runtime, in `hollowengine/cache/scripts`, keyed by the sources, the engine build, the Kotlin and Minecraft versions and the mapping namespace. Fill the cache for a whole pack before shipping it with:
-
-```text
-/he scripting compile
+```kotlin
+@file:Import("other-addon:shared.kts")
 ```
 
-If a cached or shipped artifact no longer matches its sources and no compiler is installed, it is used anyway and the log says so - a modpack without the compiler has nothing better to fall back on.
-
-To ship compiled scripts without their sources, build the addon with:
+Build without script sources when required:
 
 ```shell
-./gradlew buildAddons -Phollowengine.scripts.includeSources=false
+.\gradlew.bat buildAddons -Phollowengine.scripts.includeSources=false
 ```
