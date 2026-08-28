@@ -216,7 +216,7 @@ val fullId = context.extensions.qualify("overview")
 - в одной точке расширения нельзя дважды зарегистрировать один qualified ID;
 - contributions сортируются по убыванию `priority`, затем по порядку регистрации.
 
-Для стандартных функций используй готовые `registerIdePanel`, `registerHudLayer` и другие helpers.
+Для стандартных функций используй готовые `registerIdePanel`, `registerIdeLanguage` и другие helpers.
 Низкоуровневый `register(point, id, value, priority)` нужен для собственных extension points.
 
 Extension point обычно принадлежит подсистеме-потребителю, а аддоны поставляют в него значения.
@@ -289,24 +289,18 @@ Addon packets передаются внутри одного стабильно�
 добавлять и удалять во время работы, не изменяя замороженный payload registry Fabric/NeoForge.
 
 ```kotlin
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
 data class ShowNoticePacket(val text: String) : HollowAddonPacket {
     override fun handle(player: Player) {
         // Выполняется на стороне, куда пришёл пакет.
     }
 }
-
-context.minecraft.registerPacket(
-    ShowNoticePacket::class,
-    HollowPacketHandler.Direction.TO_CLIENT,
-)
 ```
 
-После регистрации пакет отправляется его обычными методами: `packet.send(player)`, `packet.send()`
-или helpers для tracking entity/dimension. Direction проверяется при отправке и при получении.
-
-Можно оставить `@HollowPacketHandler` и автоматическое сканирование. Явная регистрация нужна, когда
-direction выбирается кодом или пакет не должен находиться annotation scanner-ом.
+Типы пакетов автоматически находятся по `@HollowPacketHandler` после загрузки entrypoint и удаляются
+вместе со своим аддоном. Отправляй пакет обычными методами: `packet.send(player)`, `packet.send()` или
+helpers для tracking entity/dimension. Направление из аннотации проверяется при отправке и получении.
 
 Packet key строится из addon ID и имени класса. На обеих сторонах соединения должны быть установлены
 совместимые версии аддона и зарегистрирован тот же тип с тем же направлением. Не меняй бинарную форму
@@ -415,7 +409,6 @@ IDE API относится к клиенту. Аддон, импортирующ
 | `registerIdeFileActions` | Действия контекстного меню вкладки |
 | `registerIdeProjectActions` | Действия контекстного меню дерева проекта |
 | `registerIdeLanguage` | Выбор `ScriptingAnalyzer` по пути файла |
-| `registerIdeCodeInsight` | Completion, diagnostics, inlays, definition, signature и hover |
 
 Встроенные и addon-панели/редакторы проходят через одни и те же registry. Центрального `when`,
 который нужно менять для нового типа, нет.
@@ -493,53 +486,59 @@ context.extensions.registerIdeFileType(
 состояния. При удалении file type IDE сначала закрывает связанные вкладки и documents, и только
 после этого runtime освобождает classloader аддона.
 
-### Язык и code insight
+### Языковой сервис
 
-`registerIdeLanguage` выбирает базовый `ScriptingAnalyzer`. `registerIdeCodeInsight` накладывает
-дополнительные возможности поверх выбранного анализатора, поэтому несколько аддонов могут совместно
-добавлять completion и диагностику к одному языку.
+`registerIdeLanguage` выбирает полный `ScriptingAnalyzer` для подходящих путей. Анализатор отвечает
+за highlighting, completion, diagnostics, inlays, definitions, signature help, hover и formatting.
 
 ```kotlin
-context.extensions.registerIdeCodeInsight(
-    id = "quest-symbols",
-    contributor = object : HollowIdeCodeInsightContributor {
-        override fun supports(path: String) = path.endsWith(".quest")
-
-        override fun completions(
-            path: String,
-            text: String,
-            offset: Int,
-        ): List<CompletionItem> = questCompletions(text, offset)
-
-        override fun diagnostics(path: String, text: String): List<Diagnostic> =
-            validateQuest(text)
-    },
+context.extensions.registerIdeLanguage(
+    HollowIdeLanguageService.extensions(
+        id = "quest",
+        extensions = listOf("quest"),
+        analyzer = { QuestScriptingAnalyzer },
+    ),
+    priority = 100,
 )
 ```
 
-Code insight выполняется в фоновом analysis thread. Не обращайся оттуда напрямую к Minecraft или
-Compose state; для игровых изменений переключайся через `context.minecraft.dispatchers`.
+Встроенные и addon-сервисы находятся в одном упорядоченном registry. Побеждает первый подходящий
+сервис: сначала сравнивается `priority`, затем порядок регистрации. Addon-сервис с приоритетом по
+умолчанию перекрывает встроенный; более высокий приоритет позволяет явно перекрыть другой аддон.
+При удалении сервиса IDE закрывает затронутые analysis sessions до освобождения его classloader.
 
-## HUD-слои
+Анализ выполняется в фоновом потоке. Не обращайся оттуда напрямую к Minecraft или Compose state;
+для игровых изменений переключайся через `context.minecraft.dispatchers`.
 
-Клиентский аддон может рисовать слой относительно ванильного HUD anchor или overlay после всего HUD:
+## HUD UI и низкоуровневый рендер
+
+Для интерактивного или декларативного HUD положи в аддон `.ui.kts`-скрипт. Он участвует в том же
+lifecycle загрузки, выгрузки и reload аддона и поддерживает ввод, состояние и серверные сессии:
 
 ```kotlin
-context.extensions.registerHudLayer(
-    HollowAddonHudLayer(
-        id = ResourceLocation.parse("my-addon:status"),
-        anchor = VanillaHudLayers.HOTBAR,
-        placement = HollowAddonHudPlacement.AFTER,
-    ) { render ->
-        render.graphics.drawString(font, "Active", 8, 8, 0xFFFFFF)
-    },
-)
+overlay("my-addon:status") {
+    anchor = "hotbar"
+    placement = HudPlacement.AFTER
+    autoShow = true
+    content { Text("Active") }
+}
 ```
 
-ID слоя обязан принадлежать namespace аддона. Callback получает `Window`, `GuiGraphics` и
-`partialTick`, выполняется в render thread и не должен блокироваться или сохранять `GuiGraphics` для
-последующего использования. `registerHudOverlay` работает аналогично, но вызывается после полного
-ванильного HUD.
+Layouts, ввод и серверное состояние описаны в [руководстве по UI-скриптам](./scripting/ui/ui-files.mdx).
+
+Существующие render events нужны только когда требуется прямой доступ к `GuiGraphics`:
+
+```kotlin
+context.minecraft.subscribe<RenderOverlayEvent.Post> { event ->
+    if (event.layer != VanillaHudLayers.HOTBAR) return@subscribe
+    val font = Minecraft.getInstance().font
+    event.guiGraphics.drawString(font, "Active", 8, 8, 0xFFFFFF)
+}
+```
+
+`RenderOverlayEvent.Pre/Post` вызываются вокруг отдельного ванильного слоя, а `RenderHudEvent` — один
+раз после всего HUD. Это client-only callbacks, выполняемые в render thread. Не блокируй их и не
+сохраняй `GuiGraphics` после завершения callback.
 
 ## Зависимости и упаковка
 
@@ -693,6 +692,9 @@ runtime пытается восстановить прежний candidate. In-m
 
 Файлы из `src/main/resources/scripts/**/*.kts` компилируются при сборке и помещаются в оба mapping
 variant. Скрипты получают namespace из `id` аддона и видят его классы и `addonLibraries`.
+
+Сюда входят и `.ui.kts`-файлы. Их экраны и overlays регистрируются в namespace аддона; unload удаляет
+их, а reload освобождает прежние UI surfaces до повторного создания auto-show overlays.
 
 ```text
 /he scripting run my-addon:nodes/quest.node.kts

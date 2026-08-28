@@ -1,18 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.Composable
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.BuiltinLanguages
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeLanguageService
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensionPoint
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensions
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRegistration
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.HoverInfo
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
-import ru.hollowhorizon.hollowengine.common.scripting.ide.OccurrenceRange
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SignatureHelp
+import ru.hollowhorizon.hollowengine.common.addons.HostHollowAddonExtensions
 
 /** Typed extension points consumed by the in-game Hollow IDE. */
 object HollowIdeExtensionPoints {
@@ -25,10 +21,6 @@ object HollowIdeExtensionPoints {
         HollowIdeProjectActionProvider::class,
     )
     val LANGUAGES = HollowAddonExtensionPoint("hollowengine:ide/languages", HollowIdeLanguageService::class)
-    val CODE_INSIGHT = HollowAddonExtensionPoint(
-        "hollowengine:ide/code-insight",
-        HollowIdeCodeInsightContributor::class,
-    )
 }
 
 /** Operations a contributed panel or menu action may request from the IDE host. */
@@ -143,31 +135,6 @@ fun interface HollowIdeProjectActionProvider {
     fun actions(context: HollowIdeProjectActionContext): List<HollowIdeProjectAction>
 }
 
-/** An inlay at an absolute UTF-16 offset. The IDE converts it to its line-relative representation. */
-data class HollowIdePositionedInlayHint(
-    val offset: Int,
-    val hint: InlayHint,
-)
-
-/** Additional language intelligence layered over the selected language analyzer. */
-interface HollowIdeCodeInsightContributor {
-    fun supports(path: String): Boolean = true
-
-    fun occurrences(path: String, text: String, offset: Int): List<OccurrenceRange> = emptyList()
-
-    fun completions(path: String, text: String, offset: Int): List<CompletionItem> = emptyList()
-
-    fun diagnostics(path: String, text: String): List<Diagnostic> = emptyList()
-
-    fun inlays(path: String, text: String): List<HollowIdePositionedInlayHint> = emptyList()
-
-    fun definition(path: String, text: String, offset: Int): DefinitionLocation? = null
-
-    fun signatureHelp(path: String, text: String, offset: Int): SignatureHelp? = null
-
-    fun hover(path: String, text: String, offset: Int): HoverInfo? = null
-}
-
 fun HollowAddonExtensions.registerIdeFileType(type: HollowIdeFileType): HollowAddonRegistration =
     register(HollowIdeExtensionPoints.FILE_TYPES, type.id, type, type.priority)
 
@@ -193,13 +160,29 @@ fun HollowAddonExtensions.registerIdeProjectActions(
     priority: Int = 0,
 ): HollowAddonRegistration = register(HollowIdeExtensionPoints.PROJECT_ACTIONS, id, provider, priority)
 
+/**
+ * Registers a language service in the shared resolver. Higher-priority matching services override
+ * lower-priority addon and built-in services until this registration is closed.
+ */
 fun HollowAddonExtensions.registerIdeLanguage(
     language: HollowIdeLanguageService,
     priority: Int = 0,
 ): HollowAddonRegistration = register(HollowIdeExtensionPoints.LANGUAGES, language.id, language, priority)
 
-fun HollowAddonExtensions.registerIdeCodeInsight(
-    id: String,
-    contributor: HollowIdeCodeInsightContributor,
-    priority: Int = 0,
-): HollowAddonRegistration = register(HollowIdeExtensionPoints.CODE_INSIGHT, id, contributor, priority)
+internal fun ensureBuiltinIdeLanguagesRegistered() {
+    BuiltinIdeLanguages.ensureRegistered()
+}
+
+private object BuiltinIdeLanguages {
+    private const val BUILTIN_PRIORITY = Int.MIN_VALUE
+    private val extensions = HostHollowAddonExtensions(
+        HollowEngine.MODID,
+        HollowIdeLanguageService::class.java.classLoader,
+    )
+
+    init {
+        BuiltinLanguages.forEach { language -> extensions.registerIdeLanguage(language, BUILTIN_PRIORITY) }
+    }
+
+    fun ensureRegistered() = Unit
+}

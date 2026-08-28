@@ -175,6 +175,7 @@ object HollowIdeOverlay {
     private var lastMouseY = 0f
 
     init {
+        ensureBuiltinIdeLanguagesRegistered()
         installBuiltinExtensions()
         HollowIdeExtensionPoints.FILE_TYPES.extensions().forEach(::installFileType)
         extensionObservers += HollowIdeExtensionPoints.FILE_TYPES.observe(::onFileTypeChanged)
@@ -183,7 +184,6 @@ object HollowIdeOverlay {
         extensionObservers += HollowIdeExtensionPoints.FILE_ACTIONS.observe { extensionRevision++ }
         extensionObservers += HollowIdeExtensionPoints.PROJECT_ACTIONS.observe { extensionRevision++ }
         extensionObservers += HollowIdeExtensionPoints.LANGUAGES.observe(::onLanguageExtensionChanged)
-        extensionObservers += HollowIdeExtensionPoints.CODE_INSIGHT.observe(::onCodeInsightChanged)
         initialize()
     }
 
@@ -320,11 +320,6 @@ object HollowIdeOverlay {
     private fun onLanguageExtensionChanged(change: HollowAddonExtensionChange<*>) {
         editorSessions.values.forEach(HollowIdeEditorSession::close)
         editorSessions.clear()
-        editorAnalysisRevision++
-        extensionRevision++
-    }
-
-    private fun onCodeInsightChanged(change: HollowAddonExtensionChange<*>) {
         editorAnalysisRevision++
         extensionRevision++
     }

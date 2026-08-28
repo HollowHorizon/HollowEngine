@@ -2,15 +2,11 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeLanguageService
 import ru.hollowhorizon.hollowengine.common.addons.OwnedHollowAddonExtensions
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionSink
-import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayHint
+import ru.hollowhorizon.hollowengine.common.scripting.ide.JsonScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.PlainTextScriptingAnalyzer
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 class HollowIdeExtensionApiTest {
     @Test
@@ -19,51 +15,53 @@ class HollowIdeExtensionApiTest {
         val analyzer = PlainTextScriptingAnalyzer
         val language = HollowIdeLanguageService.extensions("quest", listOf("quest")) { analyzer }
 
-        scope.register(HollowIdeExtensionPoints.LANGUAGES, "quest", language)
-        assertSame(analyzer, languageServiceForPath("quests/intro.quest").analyzer)
+        try {
+            scope.registerIdeLanguage(language)
+            assertSame(analyzer, languageServiceForPath("quests/intro.quest").analyzer)
+        } finally {
+            scope.cleanup()
+        }
 
-        scope.cleanup()
         assertSame(PlainTextScriptingAnalyzer, languageServiceForPath("quests/intro.quest").analyzer)
     }
 
     @Test
-    fun `code insight contributors are layered and disappear after cleanup`() {
-        val scope = OwnedHollowAddonExtensions("quest-addon", javaClass.classLoader)
-        val provider = HollowIdeAnalyzerProvider()
-        val contributor = object : HollowIdeCodeInsightContributor {
-            override fun supports(path: String): Boolean = path.endsWith(".quest")
+    fun `addon language overrides builtin and cleanup restores it`() {
+        val scope = OwnedHollowAddonExtensions("json-addon", javaClass.classLoader)
+        val analyzer = distinctAnalyzer()
+        val language = HollowIdeLanguageService.extensions("custom-json", listOf("json")) { analyzer }
 
-            override fun completions(path: String, text: String, offset: Int): List<CompletionItem> =
-                listOf(CompletionItem.Keyword("spawn", name = "spawn"))
-
-            override fun inlays(path: String, text: String): List<HollowIdePositionedInlayHint> =
-                listOf(HollowIdePositionedInlayHint(text.length, InlayHint(0, " quest")))
+        try {
+            scope.registerIdeLanguage(language)
+            assertSame(analyzer, languageServiceForPath("data/example.json").analyzer)
+        } finally {
+            scope.cleanup()
         }
-        scope.register(HollowIdeExtensionPoints.CODE_INSIGHT, "quest", contributor)
 
-        val matching = provider.current(PlainTextScriptingAnalyzer)
-        val completions = mutableListOf<CompletionItem>()
-        matching.completions("demo.quest", "spa", 3, CompletionSink { items ->
-            completions += items
-            true
-        })
-        assertEquals(listOf("spawn"), completions.map(CompletionItem::show))
-        assertTrue(matching.highlight("demo.quest", "spawn", 5).single().hints.any { it.text == " quest" })
-
-        val nonMatching = mutableListOf<CompletionItem>()
-        matching.completions("demo.txt", "spa", 3, CompletionSink { items ->
-            nonMatching += items
-            true
-        })
-        assertTrue(nonMatching.isEmpty())
-
-        scope.cleanup()
-        val cleaned = provider.current(PlainTextScriptingAnalyzer)
-        val afterCleanup = mutableListOf<CompletionItem>()
-        cleaned.completions("demo.quest", "spa", 3, CompletionSink { items ->
-            afterCleanup += items
-            true
-        })
-        assertFalse(afterCleanup.any { it.show == "spawn" })
+        assertSame(JsonScriptingAnalyzer, languageServiceForPath("data/example.json").analyzer)
     }
+
+    @Test
+    fun `higher priority language wins and cleanup restores previous match`() {
+        val lowerScope = OwnedHollowAddonExtensions("lower-addon", javaClass.classLoader)
+        val higherScope = OwnedHollowAddonExtensions("higher-addon", javaClass.classLoader)
+        val lowerAnalyzer = distinctAnalyzer()
+        val higherAnalyzer = distinctAnalyzer()
+        val lower = HollowIdeLanguageService.extensions("quest", listOf("quest")) { lowerAnalyzer }
+        val higher = HollowIdeLanguageService.extensions("quest", listOf("quest")) { higherAnalyzer }
+
+        try {
+            lowerScope.registerIdeLanguage(lower, priority = 10)
+            higherScope.registerIdeLanguage(higher, priority = 20)
+            assertSame(higherAnalyzer, languageServiceForPath("quests/intro.quest").analyzer)
+
+            higherScope.cleanup()
+            assertSame(lowerAnalyzer, languageServiceForPath("quests/intro.quest").analyzer)
+        } finally {
+            higherScope.cleanup()
+            lowerScope.cleanup()
+        }
+    }
+
+    private fun distinctAnalyzer(): ScriptingAnalyzer = object : ScriptingAnalyzer by PlainTextScriptingAnalyzer {}
 }

@@ -1,68 +1,108 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.serialization.Serializable
-import net.minecraft.world.entity.player.Player
+import net.minecraft.commands.CommandBuildContext
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.core.RegistryAccess
+import net.minecraft.world.flag.FeatureFlags
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
-import ru.hollowhorizon.hollowengine.common.network.HollowAddonPacket
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.network.HollowAddonPacketRegistry
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class HollowAddonMinecraftApiTests {
     private val coroutineScope = CoroutineScope(Job())
-    private val extensions = OwnedHollowAddonExtensions(AddonId, javaClass.classLoader)
-    private val api = OwnedHollowAddonMinecraftApi(AddonId, coroutineScope, extensions, javaClass.classLoader)
+    private val api = OwnedHollowAddonMinecraftApi(ADDON_ID, coroutineScope, javaClass.classLoader)
 
     @AfterTest
     fun cleanup() {
-        extensions.cleanup()
         coroutineScope.cancel()
-        HollowAddonPacketRegistry.unregister(AddonId)
         TestEvent.clear()
+        RegisterCommandsEvent.clear()
+        RegisterCommandsEvent.clearReplaySnapshot()
     }
 
     @Test
-    fun `explicit event subscription is removed by addon cleanup`() {
+    fun `explicit event subscription follows addon scope`() {
         var calls = 0
         api.subscribe(TestEvent::class) { calls++ }
 
         TestEvent.post(TestEvent())
-        extensions.cleanup()
+        coroutineScope.cancel()
         TestEvent.post(TestEvent())
 
         assertEquals(1, calls)
     }
 
     @Test
-    fun `explicit packet registration does not require annotation and is reversible`() {
-        api.registerPacket(ExplicitPacket::class, HollowPacketHandler.Direction.TO_CLIENT)
+    fun `closing event registration removes its listener`() {
+        var calls = 0
+        val registration = api.subscribe(TestEvent::class) { calls++ }
 
-        val packet = ExplicitPacket("payload")
-        HollowAddonPacketRegistry.encodeForClient(packet)
-        extensions.cleanup()
+        TestEvent.post(TestEvent())
+        registration.close()
+        TestEvent.post(TestEvent())
 
-        assertFailsWith<IllegalArgumentException> {
-            HollowAddonPacketRegistry.encodeForClient(packet)
-        }
+        assertEquals(1, calls)
+        assertFalse(registration.isActive)
     }
+
+    @Test
+    fun `closing command registration removes nodes added by late replay`() {
+        val dispatcher = CommandDispatcher<CommandSourceStack>()
+        RegisterCommandsEvent.post(commandEvent(dispatcher))
+
+        val registration = api.registerCommands { commands ->
+            commands.register(literal<CommandSourceStack>(COMMAND_NAME).executes { 1 })
+        }
+        assertNotNull(dispatcher.root.getChild(COMMAND_NAME))
+
+        registration.close()
+        assertNull(dispatcher.root.getChild(COMMAND_NAME))
+    }
+
+    @Test
+    fun `clearing replay snapshot preserves listener for the next dispatcher`() {
+        val previous = CommandDispatcher<CommandSourceStack>()
+        RegisterCommandsEvent.post(commandEvent(previous))
+        RegisterCommandsEvent.clearReplaySnapshot()
+
+        var calls = 0
+        api.registerCommands { commands ->
+            calls++
+            commands.register(literal<CommandSourceStack>(COMMAND_NAME).executes { 1 })
+        }
+        assertEquals(0, calls)
+        assertNull(previous.root.getChild(COMMAND_NAME))
+
+        val current = CommandDispatcher<CommandSourceStack>()
+        RegisterCommandsEvent.post(commandEvent(current))
+        assertEquals(1, calls)
+        assertNotNull(current.root.getChild(COMMAND_NAME))
+    }
+
+    private fun commandEvent(dispatcher: CommandDispatcher<CommandSourceStack>) = RegisterCommandsEvent(
+        dispatcher = dispatcher,
+        registryAccess = CommandBuildContext.simple(RegistryAccess.EMPTY, FeatureFlags.DEFAULT_FLAGS),
+        environment = Commands.CommandSelection.ALL,
+    )
 
     class TestEvent : Event {
         companion object : EventHandler<TestEvent>()
     }
 
-    @Serializable
-    private data class ExplicitPacket(val value: String) : HollowAddonPacket {
-        override fun handle(player: Player) = Unit
-    }
-
     private companion object {
-        const val AddonId = "minecraft-api-test"
+        const val ADDON_ID = "minecraft-api-test"
+        const val COMMAND_NAME = "addon-test-command"
     }
 }

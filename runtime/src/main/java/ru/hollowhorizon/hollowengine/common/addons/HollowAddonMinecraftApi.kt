@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
@@ -15,10 +16,7 @@ import ru.hollowhorizon.hollowengine.common.events.eventListenerOf
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterClientCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hollowengine.common.network.HollowAddonPacket
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.currentServerOrNull
-import ru.hollowhorizon.hollowengine.network.HollowAddonPacketRegistry
 import kotlin.reflect.KClass
 
 /** Reversible runtime interactions with Minecraft. Frozen game registries intentionally live outside this API. */
@@ -40,11 +38,6 @@ interface HollowAddonMinecraftApi {
     fun registerClientCommands(
         priority: Int = 0,
         registration: (CommandDispatcher<SharedSuggestionProvider>) -> Unit,
-    ): HollowAddonRegistration
-
-    fun registerPacket(
-        type: KClass<out HollowAddonPacket>,
-        direction: HollowPacketHandler.Direction = HollowPacketHandler.Direction.ANY,
     ): HollowAddonRegistration
 }
 
@@ -70,7 +63,6 @@ inline fun <reified T : Event> HollowAddonMinecraftApi.subscribe(
 internal class OwnedHollowAddonMinecraftApi(
     override val addonId: String,
     private val addonScope: CoroutineScope,
-    private val extensions: HollowAddonExtensions,
     private val classLoader: ClassLoader,
 ) : HollowAddonMinecraftApi {
     override val dispatchers: HollowAddonMinecraftDispatchers = OwnedMinecraftDispatchers(addonScope, classLoader)
@@ -80,7 +72,13 @@ internal class OwnedHollowAddonMinecraftApi(
         priority: Int,
         listener: (T) -> Unit,
     ): HollowAddonRegistration {
+        val parentJob = requireNotNull(addonScope.coroutineContext[Job]) {
+            "Addon '$addonId' scope must contain a Job"
+        }
+        val subscriptionJob = SupervisorJob(parentJob)
+        val subscriptionScope = CoroutineScope(addonScope.coroutineContext + subscriptionJob)
         val eventListener = eventListenerOf(priority) { event: T ->
+            if (!subscriptionJob.isActive) return@eventListenerOf
             withHollowAddonClassLoader(classLoader) {
                 runCatching { listener(event) }
                     .onFailure { failure ->
@@ -94,8 +92,13 @@ internal class OwnedHollowAddonMinecraftApi(
             }
         }
         val handler = EventHandler.get(type)
-        handler.register(addonScope, eventListener)
-        return extensions.onUnload { handler.unregister(eventListener) }
+        return try {
+            handler.register(subscriptionScope, eventListener)
+            AddonScopeRegistration(subscriptionJob)
+        } catch (failure: Throwable) {
+            subscriptionJob.cancel()
+            throw failure
+        }
     }
 
     override fun registerCommands(
@@ -116,14 +119,16 @@ internal class OwnedHollowAddonMinecraftApi(
             registration(event.dispatcher)
         }
     }
+}
 
-    override fun registerPacket(
-        type: KClass<out HollowAddonPacket>,
-        direction: HollowPacketHandler.Direction,
-    ): HollowAddonRegistration {
-        val javaType = type.java
-        HollowAddonPacketRegistry.register(addonId, javaType, direction)
-        return extensions.onUnload { HollowAddonPacketRegistry.unregister(addonId, javaType) }
+private class AddonScopeRegistration(
+    private val job: Job,
+) : HollowAddonRegistration {
+    override val isActive: Boolean
+        get() = job.isActive
+
+    override fun close() {
+        job.cancel()
     }
 }
 

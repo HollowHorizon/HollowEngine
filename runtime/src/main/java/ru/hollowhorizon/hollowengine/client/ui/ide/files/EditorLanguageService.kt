@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files
 
+import ru.hollowhorizon.hollowengine.client.ui.ide.languageServiceForPath
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.story.StoryScriptingAnalyzer
@@ -44,7 +45,7 @@ class HollowIdeLanguageService(
 
 fun EditorLanguageService(extension: String): EditorLanguageService {
     val path = "file.$extension"
-    return BuiltinLanguages.firstOrNull { language -> language.matches(path) }
+    return languageServiceForPath(path).takeUnless { language -> language === PlainEditorLanguageService }
         ?: error("Unsupported language: $extension")
 }
 

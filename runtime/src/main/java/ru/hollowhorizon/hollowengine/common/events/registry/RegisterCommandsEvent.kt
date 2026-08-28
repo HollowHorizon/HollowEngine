@@ -52,8 +52,12 @@ class RegisterCommandsEvent(
             return super.post(event)
         }
 
+        /**
+         * Drops the dispatcher snapshot used to replay registration to late subscribers.
+         * Scoped listeners remain registered and receive the next registration event.
+         */
         @Synchronized
-        fun clearReplay() {
+        fun clearReplaySnapshot() {
             current = null
         }
 
@@ -119,8 +123,12 @@ class RegisterClientCommandsEvent(
             return super.post(event)
         }
 
+        /**
+         * Drops the dispatcher snapshot used to replay registration to late subscribers.
+         * Scoped listeners remain registered and receive the next registration event.
+         */
         @Synchronized
-        fun clearReplay() {
+        fun clearReplaySnapshot() {
             current = null
         }
 

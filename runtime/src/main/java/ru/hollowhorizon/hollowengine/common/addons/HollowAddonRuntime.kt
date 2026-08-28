@@ -395,7 +395,6 @@ internal class HollowAddonRuntime(
             val minecraftApi = OwnedHollowAddonMinecraftApi(
                 addonId = descriptor.id,
                 addonScope = addonScope,
-                extensions = extensions,
                 classLoader = classLoader,
             )
             val bridgeModule = module {

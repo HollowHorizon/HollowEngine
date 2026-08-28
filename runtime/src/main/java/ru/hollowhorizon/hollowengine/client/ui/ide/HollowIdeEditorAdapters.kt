@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.BuiltinLanguages
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.EditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.PlainEditorLanguageService
@@ -21,7 +20,6 @@ internal class HollowIdeEditorSession(
     private val onUpdated: () -> Unit,
 ) {
     private val languageService = languageServiceForPath(path)
-    private val analyzerProvider = HollowIdeAnalyzerProvider()
     private val analysisDispatcher = Executors.newSingleThreadExecutor { task ->
         Thread(task, "HollowEngine-ScriptingAnalysis-${path.substringAfterLast('/')}").apply {
             isDaemon = true
@@ -317,7 +315,7 @@ internal class HollowIdeEditorSession(
     private val reportedFailures = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private fun currentAnalyzer(): ScriptingAnalyzer {
-        return analyzerProvider.current(languageService.analyzer)
+        return languageService.analyzer
     }
 }
 
@@ -564,6 +562,7 @@ internal fun shiftDiagnosticsForEditedText(
 }
 
 internal fun languageServiceForPath(path: String): EditorLanguageService {
+    ensureBuiltinIdeLanguagesRegistered()
     val contributed = HollowIdeExtensionPoints.LANGUAGES.extensions().firstOrNull { extension ->
         runCatching { extension.invoke { language -> language.matches(path) } }
             .onFailure { failure ->
@@ -572,7 +571,7 @@ internal fun languageServiceForPath(path: String): EditorLanguageService {
             .getOrDefault(false)
     }
     if (contributed != null) return ExtensionEditorLanguageService(contributed)
-    return BuiltinLanguages.firstOrNull { language -> language.matches(path) } ?: PlainEditorLanguageService
+    return PlainEditorLanguageService
 }
 
 private class ExtensionEditorLanguageService(
