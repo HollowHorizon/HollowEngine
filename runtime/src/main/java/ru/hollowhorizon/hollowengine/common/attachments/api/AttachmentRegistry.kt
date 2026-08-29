@@ -11,6 +11,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.api.extensions.EntityExtension
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.DATA_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.ROOT_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
@@ -66,11 +67,13 @@ object AttachmentRegistry {
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
 
     /**
-     * Attachments of entities that are not in a level. For example, instance being read from NBT before it is
-     * added, and the copies worldgen builds only to write a structure's entities into a chunk and then
-     * forgets.
+     * Attachments of an entity that is not in a level. For example, an instance being read from NBT
+     * before it is added, and the copies worldgen builds only to write a structure's entities into a
+     * chunk and then forgets.
      */
-    private val detachedStates = Collections.synchronizedMap(WeakHashMap<MCEntity, HollowAttachments>())
+    private var MCEntity.detachedState: HollowAttachments?
+        get() = (this as EntityExtension).`hollowengine$detachedAttachments`() as HollowAttachments?
+        set(value) = (this as EntityExtension).`hollowengine$setDetachedAttachments`(value)
 
     private val noAiId by lazy {
         ComponentDescriptorRegistry.idFor(NoAi::class)
@@ -83,11 +86,6 @@ object AttachmentRegistry {
     }
 
     fun tick(level: Level) {
-        val arrived = synchronized(detachedStates) {
-            detachedStates.keys.filter { it.level() === level && it.isInLevel }
-        }
-        arrived.forEach(::onEntityJoinedLevel)
-
         val states = synchronized(levelStates) {
             levelStates[level]?.byUuid?.values?.toList().orEmpty()
         }
@@ -103,7 +101,6 @@ object AttachmentRegistry {
 
     fun close(level: Level) {
         NodeRuntimeState.close(level)
-        synchronized(detachedStates) { detachedStates.keys.removeIf { it.level() === level } }
         val lastOfItsSide = synchronized(levelStates) {
             levelStates.remove(level)?.byUuid?.values?.forEach { it.scope.cancel() }
             levelStates.keys.none { it.isClientSide == level.isClientSide }
@@ -116,7 +113,10 @@ object AttachmentRegistry {
     fun attachments(entity: MCEntity): HollowAttachments = state(entity)
 
     /** The attachments of [entity], or null when it has none. Creates nothing. */
-    fun attachmentsOrNull(entity: MCEntity): HollowAttachments? = stateOrNull(entity.level(), entity.uuid)
+    fun attachmentsOrNull(entity: MCEntity): HollowAttachments? {
+        entity.detachedState?.let { return if (entity.isInLevel) promote(entity) else it }
+        return stateOrNull(entity.level(), entity.uuid)
+    }
 
     /** Every live attachment set, for engine-wide passes such as an addon being reloaded. */
     fun allAttachments(): List<HollowAttachments> = synchronized(levelStates) {
@@ -183,7 +183,7 @@ object AttachmentRegistry {
     fun saveEntity(entity: Entity, tag: CompoundTag) {
         // Detached first: worldgen serializes its copies into the chunk, and reading the live entity's
         // state for one of them would write the wrong thing or nothing at all, before it exists.
-        val state = detachedStates[entity] ?: stateOrNull(entity.level(), entity.uuid) ?: return
+        val state = entity.detachedState ?: stateOrNull(entity.level(), entity.uuid) ?: return
 
         try {
             val root = CompoundTag()
@@ -379,7 +379,7 @@ object AttachmentRegistry {
     private fun state(entity: MCEntity): HollowAttachments {
         stateOrNull(entity.level(), entity.uuid)?.let { if (it.entity === entity) return it }
         if (entity.isInLevel) return promote(entity)
-        return detachedStates[entity] ?: createState(entity).also { detachedStates[entity] = it }
+        return entity.detachedState ?: createState(entity).also { entity.detachedState = it }
     }
 
     /**
@@ -390,7 +390,7 @@ object AttachmentRegistry {
         val previous = map[entity.uuid]
         if (previous?.entity === entity) return previous
 
-        val loaded = detachedStates.remove(entity)
+        val loaded = entity.detachedState?.also { entity.detachedState = null }
         val state = when {
             loaded != null -> loaded.also { previous?.scope?.cancel() }
             previous != null -> rebind(previous, entity)
