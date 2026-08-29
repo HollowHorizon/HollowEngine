@@ -11,8 +11,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
-import ru.hollowhorizon.hollowengine.common.data.Sync
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.DATA_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.ROOT_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
@@ -24,6 +23,8 @@ import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerializa
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityStateSync
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
+import ru.hollowhorizon.hollowengine.common.data.Sync
 import java.util.*
 
 private data class LevelEntityState(
@@ -64,6 +65,13 @@ object AttachmentRegistry {
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
 
+    /**
+     * Attachments of entities that are not in a level. For example, instance being read from NBT before it is
+     * added, and the copies worldgen builds only to write a structure's entities into a chunk and then
+     * forgets.
+     */
+    private val detachedStates = Collections.synchronizedMap(WeakHashMap<MCEntity, HollowAttachments>())
+
     private val noAiId by lazy {
         ComponentDescriptorRegistry.idFor(NoAi::class)
             ?: error("Component descriptor not found for ${NoAi::class.qualifiedName}")
@@ -75,12 +83,18 @@ object AttachmentRegistry {
     }
 
     fun tick(level: Level) {
+        val arrived = synchronized(detachedStates) {
+            detachedStates.keys.filter { it.level() === level && it.isInLevel }
+        }
+        arrived.forEach(::onEntityJoinedLevel)
+
         val states = synchronized(levelStates) {
             levelStates[level]?.byUuid?.values?.toList().orEmpty()
         }
         states.forEach { state ->
             val entity = state.entity
             if (entity.level() != level) return@forEach
+            if (state.hasPendingNodes && entity.isInLevel) state.activateNodes()
             val components = state.components.readOnly
             NoAiRuntime.apply(entity, components.containsKey(noAiId))
             AIComponentSystems.tickEntity(entity, components)
@@ -89,6 +103,7 @@ object AttachmentRegistry {
 
     fun close(level: Level) {
         NodeRuntimeState.close(level)
+        synchronized(detachedStates) { detachedStates.keys.removeIf { it.level() === level } }
         val lastOfItsSide = synchronized(levelStates) {
             levelStates.remove(level)?.byUuid?.values?.forEach { it.scope.cancel() }
             levelStates.keys.none { it.isClientSide == level.isClientSide }
@@ -109,15 +124,13 @@ object AttachmentRegistry {
     }
 
     /**
-     * Points an existing attachment set at a new instance of the same entity. Nothing happens when the
-     * entity has no attachments, so this stays free for the many entities the engine never touches.
+     * Points entity's attachments and start the node scripts that were waiting for it.
      */
-    fun rebindIfPresent(level: Level, entity: MCEntity) {
-        synchronized(levelStates) {
-            val map = levelStates[level]?.byUuid ?: return
-            val existing = map[entity.uuid] ?: return
-            if (existing.entity !== entity) map[entity.uuid] = rebind(existing, entity)
-        }
+    fun onEntityJoinedLevel(entity: MCEntity) {
+        val owner = stateOrNull(entity.level(), entity.uuid)?.entity
+        if (owner != null && owner !== entity && owner.isInLevel) return
+
+        promote(entity).activateNodes()
     }
 
     fun componentsById(entity: MCEntity): MutableMap<ResourceLocation, Any> = state(entity).components.asMutableMap()
@@ -168,26 +181,22 @@ object AttachmentRegistry {
     fun entityData(entity: Entity): NbtDataStore = state(entity).data
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
-        val state = stateOrNull(entity.level(), entity.uuid) ?: return
+        // Detached first: worldgen serializes its copies into the chunk, and reading the live entity's
+        // state for one of them would write the wrong thing or nothing at all, before it exists.
+        val state = detachedStates[entity] ?: stateOrNull(entity.level(), entity.uuid) ?: return
 
         try {
             val root = CompoundTag()
             root.putInt(VERSION_NBT, CURRENT_VERSION)
 
-            state.components.snapshot(entity)
-                ?.let { root.put(COMPONENTS_NBT, EntitySerialization.serializeToNbt(it)) }
+            state.components.snapshot(entity)?.let { root.put(COMPONENTS_NBT, EntitySerialization.serializeToNbt(it)) }
 
-            state.dataOrNull
-                ?.takeUnless { it.isEmpty() }
-                ?.let {
+            state.dataOrNull?.takeUnless { it.isEmpty() }?.let {
                     root.put(DATA_NBT, it.save())
                     writeSyncPolicies(root, it.syncPolicies())
                 }
 
-            state.nodesOrNull
-                ?.serialize()
-                ?.takeUnless { it.isEmpty }
-                ?.let { root.put(NODES_NBT, it) }
+            state.nodesNbt?.takeUnless { it.isEmpty }?.let { root.put(NODES_NBT, it) }
 
             if (root.allKeys.any { it != VERSION_NBT }) tag.put(ROOT_NBT, root) else tag.remove(ROOT_NBT)
             LegacyEntityNbt.erase(tag)
@@ -234,7 +243,7 @@ object AttachmentRegistry {
             state.data.load(it)
             state.data.loadSyncPolicies(readSyncPolicies(dataSync))
         }
-        nodes?.let { state.nodes.deserialize(it) }
+        nodes?.let { state.holdNodes(it) }
     }
 
     private fun writeSyncPolicies(root: CompoundTag, policies: Map<String, Sync>) {
@@ -368,18 +377,38 @@ object AttachmentRegistry {
     }
 
     private fun state(entity: MCEntity): HollowAttachments {
-        val map = levelState(entity.level()).byUuid
-        val existing = map[entity.uuid] ?: return createState(entity).also { map[entity.uuid] = it }
-        if (existing.entity === entity) return existing
-        return rebind(existing, entity).also { map[entity.uuid] = it }
+        stateOrNull(entity.level(), entity.uuid)?.let { if (it.entity === entity) return it }
+        if (entity.isInLevel) return promote(entity)
+        return detachedStates[entity] ?: createState(entity).also { detachedStates[entity] = it }
     }
+
+    /**
+     * Applies attachments to [entity], which the level holds.
+     */
+    private fun promote(entity: MCEntity): HollowAttachments = synchronized(levelStates) {
+        val map = levelState(entity.level()).byUuid
+        val previous = map[entity.uuid]
+        if (previous?.entity === entity) return previous
+
+        val loaded = detachedStates.remove(entity)
+        val state = when {
+            loaded != null -> loaded.also { previous?.scope?.cancel() }
+            previous != null -> rebind(previous, entity)
+            else -> createState(entity)
+        }
+        map[entity.uuid] = state
+        state
+    }
+
+    private val MCEntity.isInLevel: Boolean get() = level().getEntity(id) === this
 
     private fun createState(entity: MCEntity): HollowAttachments =
         HollowAttachments(entity).also { restoreFromTransfer(entity.level(), entity.uuid, it) }
 
     private fun rebind(source: HollowAttachments, entity: MCEntity): HollowAttachments {
+        val nodes = source.nodesNbt
         source.scope.cancel()
-        return source.rebindTo(entity)
+        return source.rebindTo(entity, nodes)
     }
 
     private fun levelState(level: Level): LevelEntityState = synchronized(levelStates) {
@@ -394,9 +423,8 @@ object AttachmentRegistry {
         takeIf { it.contains(key, Tag.TAG_COMPOUND.toInt()) }?.getCompound(key)
 }
 
-fun Level.findEntityByUuid(uuid: UUID): Entity? =
-    when (this) {
-        is ServerLevel -> getEntity(uuid)
-        is ClientLevel -> entitiesForRendering().firstOrNull { it.uuid == uuid }
-        else -> null
-    }
+fun Level.findEntityByUuid(uuid: UUID): Entity? = when (this) {
+    is ServerLevel -> getEntity(uuid)
+    is ClientLevel -> entitiesForRendering().firstOrNull { it.uuid == uuid }
+    else -> null
+}

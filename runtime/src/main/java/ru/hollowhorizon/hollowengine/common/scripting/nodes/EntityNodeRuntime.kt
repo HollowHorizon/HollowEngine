@@ -54,7 +54,21 @@ class EntityNodeManager(private val entity: Entity) {
     fun attach(path: String, tag: CompoundTag?, context: StateContext?): Boolean {
         val canonicalPath = canonicalNodePath(path)
         if (nodes.containsKey(canonicalPath)) return false
-        dormant.remove(canonicalPath)
+
+        if (tag == null && context == null) {
+            dormant[canonicalPath]?.let { return attachSaved(canonicalPath, it) }
+        }
+        return start(canonicalPath, tag, context)
+    }
+
+    /** Attaches a node from the state [serialize] wrote for it. */
+    private fun attachSaved(canonicalPath: String, nodeTag: CompoundTag): Boolean = start(
+        canonicalPath,
+        nodeTag.getCompound("extras"),
+        (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) },
+    )
+
+    private fun start(canonicalPath: String, tag: CompoundTag?, context: StateContext?): Boolean {
         val server = entity.server ?: return false
 
         val (script, executor) = buildNode(
@@ -65,6 +79,7 @@ class EntityNodeManager(private val entity: Entity) {
             receivers = listOf(server, entity),
         ) ?: return false
 
+        dormant.remove(canonicalPath)
         nodes[canonicalPath] = RunningNode(script, executor, context)
         context?.let { executor.start(it) }
         return true
@@ -90,19 +105,28 @@ class EntityNodeManager(private val entity: Entity) {
         return tag
     }
 
+    /**
+     * A node that cannot be attached right now stays dormant rather than being dropped: [serialize]
+     * writes dormant nodes back out, so a script that was briefly unavailable costs the entity a node
+     * until something attaches it again, not forever at the next world save.
+     */
     fun deserialize(tag: CompoundTag) {
         tag.allKeys.forEach { path ->
-            runCatching {
-                val nodeTag = tag.getCompound(path)
-                if (ScriptRegistry.source(ScriptRegistry.parse(path).namespace) == null) {
-                    dormant[path] = nodeTag
-                    return@runCatching
-                }
-                val extras = nodeTag.getCompound("extras")
-                val context = (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) }
-                attach(path, extras, context)
-            }.onFailure {
-                HollowEngine.LOGGER.error("Error while deserializing entity node '$path'", it)
+            val canonicalPath = canonicalNodePath(path)
+            val nodeTag = tag.getCompound(path)
+            if (nodes.containsKey(canonicalPath)) return@forEach
+
+            val available = ScriptRegistry.source(ScriptRegistry.parse(path).namespace) != null
+            val attached = runCatching { available && attachSaved(canonicalPath, nodeTag) }
+                .onFailure { HollowEngine.LOGGER.error("Error while deserializing entity node '$path'", it) }
+                .getOrDefault(false)
+
+            if (attached) return@forEach
+            dormant[canonicalPath] = nodeTag
+            // A missing namespace is an ordinary wait. Anything else means the node is not running on an
+            // entity that is saved with it, which is worth hearing about the first time it happens.
+            if (available) {
+                HollowEngine.LOGGER.warn("Entity node '{}' of {} stays dormant: nothing attached it", canonicalPath, entity.uuid)
             }
         }
     }
@@ -120,11 +144,8 @@ class EntityNodeManager(private val entity: Entity) {
     internal fun resumeNamespace(namespace: String) {
         dormant.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
             .forEach { (path, nodeTag) ->
-                dormant.remove(path)
-                runCatching {
-                    val context = (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) }
-                    attach(path, nodeTag.getCompound("extras"), context)
-                }.onFailure { HollowEngine.LOGGER.error("Error while resuming entity node '$path'", it) }
+                runCatching { attachSaved(path, nodeTag) }
+                    .onFailure { HollowEngine.LOGGER.error("Error while resuming entity node '$path'", it) }
             }
     }
 }

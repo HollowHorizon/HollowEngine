@@ -61,6 +61,8 @@ public abstract class ChunkGeneratorStructureStateMixin implements StructurePlac
         ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
         int centerX = chunkPos.getMiddleBlockX();
         int centerZ = chunkPos.getMiddleBlockZ();
+        if (!hollowengine$mayBePreferredBiome(chunkGenerator, placement, centerX, centerZ)) return false;
+
         Integer centerHeight = hollowengine$sampleHeight(chunkGenerator, heightAccessor, placement, centerX, centerZ);
         if (centerHeight == null) return false;
 
@@ -86,6 +88,17 @@ public abstract class ChunkGeneratorStructureStateMixin implements StructurePlac
         }
 
         return true;
+    }
+
+    @Unique
+    private boolean hollowengine$mayBePreferredBiome(ChunkGenerator chunkGenerator, SurfaceStructurePlacement placement, int blockX, int blockZ) {
+        Holder<Biome> biome = biomeSource.getNoiseBiome(
+                QuartPos.fromBlock(blockX),
+                QuartPos.fromBlock(chunkGenerator.getSeaLevel() + placement.biomeYOffset()),
+                QuartPos.fromBlock(blockZ),
+                randomState.sampler()
+        );
+        return placement.preferredBiomes().contains(biome);
     }
 
     @Unique
