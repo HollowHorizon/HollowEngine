@@ -12,7 +12,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.audio.SoundBuffer
-import ru.hollowhorizon.hollowengine.client.audio.SoundPlayer
+import ru.hollowhorizon.hollowengine.client.audio.SoundEffects
 import ru.hollowhorizon.hollowengine.client.audio.Wave
 import ru.hollowhorizon.hollowengine.client.audio.formats.Mp3Format
 import ru.hollowhorizon.hollowengine.client.audio.formats.OggFormat
@@ -145,7 +145,7 @@ class SoundEffectPacket(
     private val relative: Boolean,
 ) : HollowPacket {
     override fun handle(player: Player) {
-        SoundPlayer(SoundBuffer(loadWave(location))).apply {
+        SoundEffects.play(SoundBuffer(loadWave(location))) {
             setVolume(volume)
             setPitch(pitch)
             position?.let {
@@ -155,7 +155,7 @@ class SoundEffectPacket(
                 setVelocity(it.x.toFloat(), it.y.toFloat(), it.z.toFloat())
             }
             setRelative(relative)
-        }.play()
+        }
     }
 }
 

@@ -80,6 +80,9 @@ class SoundPlayer(val sound: SoundBuffer) {
             else sourceState == 4116 || sourceState == 4113
         }
 
+    val hasFinished: Boolean
+        get() = source == -1 || sourceState == AL10.AL_STOPPED
+
     var playbackPosition: Float
         get() = AL10.alGetSourcef(source, 4132)
         set(seconds) {
