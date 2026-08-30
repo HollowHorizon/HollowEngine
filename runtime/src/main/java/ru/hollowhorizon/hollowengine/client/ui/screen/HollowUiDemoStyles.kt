@@ -137,6 +137,7 @@ internal val DemoStyles = compileHss(
     .preview-image {
         size: 72px 72px;
         image-fit: contain;
+        shadow: 0px 0px 5px #000000;
     }
 
     .item-preview {

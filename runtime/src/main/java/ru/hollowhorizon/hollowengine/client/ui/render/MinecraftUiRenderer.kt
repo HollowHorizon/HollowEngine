@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.DynamicTexture
+import net.minecraft.client.renderer.texture.SimpleTexture
 import net.minecraft.client.renderer.texture.TextureAtlas
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
@@ -123,6 +124,7 @@ class MinecraftUiRenderer {
     private val commandRenderer = UiCommandRenderer()
     private val segment = ArrayList<UiRenderCommand>()
     private val framebuffers = UiFramebufferPool()
+    private val imageShadows = UiImageShadowCache()
     private val layerStack = ArrayDeque<LayerState>()
     private val clipStack = ArrayDeque<UiRect>()
     private val shapeBatch = UiTriangleBatch()
@@ -140,6 +142,7 @@ class MinecraftUiRenderer {
     private val preparedLayers = IdentityHashMap<UiNode, PreparedUiLayer>()
     private val brokenSvgSources = mutableSetOf<String>()
     private val svgRasterTextures = ConcurrentHashMap<SvgRasterKey, SvgRasterTexture>()
+    private var svgRasterGeneration = -1
     private var layerProjectionActive = false
     private var renderTarget: UiRenderTarget? = null
     private var preparingLayerAtlas = false
@@ -252,6 +255,11 @@ class MinecraftUiRenderer {
         val blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND)
         try {
             UiGlyphFonts.pumpDynamicGlyphs()
+            if (svgRasterGeneration != UiPathTileResources.generation) {
+                releaseSvgRasters()
+                svgRasterGeneration = UiPathTileResources.generation
+            }
+            imageShadows.beginFrame()
             releasePreparedLayers()
             itemDepthOffset = 0f
             val hasFramebufferLayers = prepareFramebuffers(frame.layout)
@@ -283,6 +291,8 @@ class MinecraftUiRenderer {
             if (!blendEnabled) RenderSystem.disableBlend()
             releasePreparedLayers()
             renderTarget = previousTarget
+            activeProfile?.let { it.imageDraws += imageShadows.draws }
+            imageShadows.endFrame()
             activeProfile = null
             if (profile != null) {
                 profile.renderNanos += System.nanoTime() - renderStartedAt
@@ -319,12 +329,12 @@ class MinecraftUiRenderer {
 
     fun close() {
         while (layerStack.isNotEmpty()) finishLayer()
-        svgRasterTextures.values.forEach { it.texture.close() }
-        svgRasterTextures.clear()
+        releaseSvgRasters()
         analyticRectRenderer.close()
         pathTileRenderer.close()
         msdfTextBatch.close()
         framebuffers.close()
+        imageShadows.close()
     }
 
     private fun render(command: UiRenderCommand) {
@@ -1266,6 +1276,11 @@ class MinecraftUiRenderer {
     }
 
     private fun drawShadow(command: DrawShadowCommand) {
+        if (command.image != null) {
+            appendImageShadows(command)
+            flushPhaseImageBatches()
+            return
+        }
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         command.shadows.forEach { shadow ->
@@ -1282,6 +1297,7 @@ class MinecraftUiRenderer {
     }
 
     private fun appendShapeShadows(command: DrawShadowCommand): Boolean {
+        if (command.image != null) return appendImageShadows(command)
         val shape = command.shape ?: return appendAnalyticRectShadows(command)
         if (!pathTileRenderer.isAvailable) return false
         command.shadows.forEach { shadow ->
@@ -1308,6 +1324,62 @@ class MinecraftUiRenderer {
             check(appendPathTile(shapeCommand)) { "Shape shadow unexpectedly rejected by the path tile batch" }
         }
         return true
+    }
+
+    private fun appendImageShadows(command: DrawShadowCommand): Boolean {
+        val image = command.image ?: return false
+        if (ModShaders.UI_IMAGE_SHADOW == null || ModShaders.UI_EFFECT == null) return true
+        if (command.opacity <= 0f || image.tintAlpha <= 0f || image.rect.width <= 0f || image.rect.height <= 0f) return true
+        val svg = svgRasterQuad(image.rect.width, image.rect.height, image.source, 1f, UiMatrix4.identity(), image.fit)
+        val location = svg?.texture ?: ResourceLocation.tryParse(image.source) ?: return true
+        if (svg == null && svgLocation(image.source) != null) return true
+        val sourceTexture = Minecraft.getInstance().textureManager.getTexture(location)
+        val placement = if (svg != null) {
+            ImagePlacement(svg.transform.transformX(0f), svg.transform.transformY(0f), svg.width, svg.height)
+        } else imagePlacement(image.rect.width, image.rect.height, image.fit, location)
+        val sourceBounds = UiRect(image.rect.x + placement.x, image.rect.y + placement.y, placement.width, placement.height)
+        val bounds = image.clipRect?.let(sourceBounds::intersect) ?: sourceBounds
+        if (bounds.width <= 0f || bounds.height <= 0f) return true
+        val cacheImage = image.copy(tintAlpha = 1f)
+        for (shadow in command.shadows) {
+            if (shadow.color.alpha <= 0f) continue
+            val transform = effective(UiMatrix4.translation(shadow.offset.x, shadow.offset.y, shadow.offset.z) * command.transform)
+            if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) continue
+            val shadowBounds = imageShadowBounds(bounds, shadow.blur, shadow.spread)
+            val shadowTransform = transform.translated(shadowBounds.x, shadowBounds.y)
+            computeQuadBounds(shadowBounds.width, shadowBounds.height, shadowTransform)
+            if (quadFullyClipped()) continue
+            flushBatchesOverlappingQuad(UiBatchKind.IMAGE)
+            val mask = imageShadows.get(
+                UiImageShadowKey(cacheImage, sourceTexture.id, HollowUiResourceAccess.version(location), bounds,
+                    command.rect.width, command.rect.height, layerScale(), shadow.blur.coerceAtLeast(0f), shadow.spread),
+                cacheAcrossFrames = svg != null || sourceTexture.javaClass == SimpleTexture::class.java,
+            ) { capture ->
+                RenderSystem.setShaderTexture(0, location)
+                UiTextureEffects.drawTexturedQuad(
+                    svg?.width ?: image.rect.width, svg?.height ?: image.rect.height,
+                    capture.translated(image.rect.x, image.rect.y) * (svg?.transform ?: UiMatrix4.identity()),
+                    1f, false, fit = if (svg != null) image.fit.svgRasterDrawFit() else image.fit,
+                    texture = location, slice = image.slice, alphaMask = true,
+                )
+            }
+            val overlapsOtherTextures = phaseImageBatches.keys.any { it != mask.texture } &&
+                    imageBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+            if (phaseImageBatches.isNotEmpty() && (imageBatchClip != phaseClip || overlapsOtherTextures)) flushPhaseImageBatches()
+            phaseImageBatches.getOrPut(mask.texture) { ArrayList() } += UiTexturedQuad(
+                mask.bounds.width, mask.bounds.height, shadowTransform, command.opacity * image.tintAlpha,
+                flipY = true, tint = shadow.color.filtered(command.filter), alphaMask = true,
+            )
+            imageBatchClip = phaseClip
+            imageBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        }
+        return true
+    }
+
+    private fun releaseSvgRasters() {
+        svgRasterTextures.values.forEach { Minecraft.getInstance().textureManager.release(it.location) }
+        svgRasterTextures.clear()
+        brokenSvgSources.clear()
     }
 
     private fun appendAnalyticRectShadows(command: DrawShadowCommand): Boolean {

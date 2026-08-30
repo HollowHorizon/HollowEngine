@@ -13,6 +13,7 @@ object ModShaders {
     lateinit var GLTF_ENTITY: ShaderInstance
     lateinit var GLTF_ENTITY_INSTANCED: ShaderInstance
     var UI_EFFECT: ShaderInstance? = null
+    var UI_IMAGE_SHADOW: ShaderInstance? = null
     var MSDF_TEXT: ShaderInstance? = null
 
     @SubscribeEvent
@@ -40,6 +41,9 @@ object ModShaders {
             DefaultVertexFormat.POSITION_TEX_COLOR
         ) {
             MSDF_TEXT = it
+        }
+        event.register("$MODID:ui_image_shadow".rl, DefaultVertexFormat.POSITION_TEX_COLOR) {
+            UI_IMAGE_SHADOW = it
         }
     }
 }

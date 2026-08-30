@@ -65,6 +65,7 @@ data class DrawShadowCommand(
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val image: UiImageShadow? = null,
 ) : UiRenderCommand
 
 data class PushClipCommand(
@@ -398,7 +399,8 @@ class UiCommandRenderer {
                 opacity = style.opacity,
                 transform = layoutNode.worldTransform,
                 filter = baseFilter,
-                backfaceVisibility = style.backfaceVisibility
+                backfaceVisibility = style.backfaceVisibility,
+                image = imageShadow(style, layoutNode),
             )
         }
 

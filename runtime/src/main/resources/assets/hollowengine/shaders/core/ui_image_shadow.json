@@ -1,0 +1,11 @@
+{
+  "vertex": "hollowengine:ui_image_shadow",
+  "fragment": "hollowengine:ui_image_shadow",
+  "attributes": ["Position", "UV0"],
+  "samplers": [{"name": "Sampler0"}],
+  "uniforms": [
+    {"name": "TexelDirection", "type": "float", "count": 2, "values": [0.0, 0.0]},
+    {"name": "Radius", "type": "float", "count": 1, "values": [0.0]},
+    {"name": "Spread", "type": "float", "count": 1, "values": [0.0]}
+  ]
+}

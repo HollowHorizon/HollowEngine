@@ -137,13 +137,13 @@ object AttachmentRegistry {
 
     /** The components that are allowed over the network, i.e. the ones whose descriptor is `@Syncable`. */
     fun syncableComponents(entity: Entity): Map<ResourceLocation, Component> {
-        val state = stateOrNull(entity.level(), entity.uuid) ?: return emptyMap()
+        val state = existingState(entity) ?: return emptyMap()
         return state.components.readOnly.filterKeys { id ->
             ComponentDescriptorRegistry.descriptorOrNull(id)?.syncPolicy == ComponentSyncPolicy.SYNC
         }
     }
 
-    fun syncVersion(entity: Entity): Long = stateOrNull(entity.level(), entity.uuid)?.syncVersion ?: 0L
+    fun syncVersion(entity: Entity): Long = existingState(entity)?.syncVersion ?: 0L
 
     fun setSyncVersion(entity: Entity, version: Long) {
         state(entity).syncVersion = version
@@ -152,21 +152,21 @@ object AttachmentRegistry {
     fun nextSyncVersion(entity: Entity): Long = state(entity).let { ++it.syncVersion }
 
     fun lastSyncedComponents(entity: Entity): Map<ResourceLocation, Component> =
-        stateOrNull(entity.level(), entity.uuid)?.lastSyncedComponents ?: emptyMap()
+        existingState(entity)?.lastSyncedComponents ?: emptyMap()
 
     fun setLastSyncedComponents(entity: Entity, components: Map<ResourceLocation, Component>) {
         state(entity).lastSyncedComponents = components
     }
 
     fun lastSyncedData(entity: Entity): CompoundTag =
-        stateOrNull(entity.level(), entity.uuid)?.lastSyncedData ?: CompoundTag()
+        existingState(entity)?.lastSyncedData ?: CompoundTag()
 
     fun setLastSyncedData(entity: Entity, data: CompoundTag) {
         state(entity).lastSyncedData = data
     }
 
     fun lastSyncedOwnerData(entity: Entity): CompoundTag =
-        stateOrNull(entity.level(), entity.uuid)?.lastSyncedOwnerData ?: CompoundTag()
+        existingState(entity)?.lastSyncedOwnerData ?: CompoundTag()
 
     fun setLastSyncedOwnerData(entity: Entity, data: CompoundTag) {
         state(entity).lastSyncedOwnerData = data
@@ -181,9 +181,7 @@ object AttachmentRegistry {
     fun entityData(entity: Entity): NbtDataStore = state(entity).data
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
-        // Detached first: worldgen serializes its copies into the chunk, and reading the live entity's
-        // state for one of them would write the wrong thing or nothing at all, before it exists.
-        val state = entity.detachedState ?: stateOrNull(entity.level(), entity.uuid) ?: return
+        val state = existingState(entity) ?: return
 
         try {
             val root = CompoundTag()
@@ -366,10 +364,20 @@ object AttachmentRegistry {
         synchronized(levelStates) { levelStates[level]?.byUuid?.get(uuid) }
 
     /**
+     * What [entity] is reading and writing right now, creating nothing.
+     *
+     * Addressing attachments by uuid answers for whichever instance the level holds, which is not this
+     * one while it is still being built. Everything that takes an entity has to resolve them the same
+     * way its writes do, or a caller ends up reading an empty set and putting it back.
+     */
+    private fun existingState(entity: MCEntity): HollowAttachments? =
+        entity.detachedState ?: stateOrNull(entity.level(), entity.uuid)
+
+    /**
      * The entity's attachments, including pendingByEntityUuid by cloned/died player.
      */
     private fun resolveState(entity: MCEntity): HollowAttachments? {
-        stateOrNull(entity.level(), entity.uuid)?.let { return it }
+        existingState(entity)?.let { return it }
         val pending = synchronized(sideTransferState) {
             sideState(entity.level()).pendingByEntityUuid.containsKey(entity.uuid)
         }

@@ -16,6 +16,7 @@ uniform vec2 GradientDirection;
 uniform vec4 GradientStops;
 uniform vec4 GradientAlphas;
 uniform float OpaqueSource;
+uniform float AlphaMask;
 
 in vec2 texCoord0;
 in vec4 vertexColor;
@@ -130,7 +131,10 @@ vec4 sampleBlurred(vec2 uv) {
 void main() {
     vec4 color = sampleBlurred(texCoord0) * vertexColor * ColorModulator;
     color.a *= roundedMask(texCoord0) * gradientMask(texCoord0);
-    if (color.a <= 0.001) {
+    if (AlphaMask > 0.5) {
+        color.rgb = vertexColor.rgb * ColorModulator.rgb;
+    }
+    if (color.a <= 0.001 && AlphaMask < 0.5) {
         discard;
     }
     float luminance = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));

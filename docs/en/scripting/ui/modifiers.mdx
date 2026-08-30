@@ -57,6 +57,23 @@ For texture frames use `Modifier.background("mypack:textures/ui/panel.png")` and
 
 `clip()` prevents children from drawing outside the node. `shape(...)`/`shapeFill(...)`/`shapeStroke(...)` draw vector shapes, while `layer(value)` sets a local drawing layer. Avoid filters and oversized blurred shadows on large or frequently rebuilt surfaces: they can require an extra render layer.
 
+## Image shadows
+
+For `Image` / `Modifier.image(...)` and `background: image(...)`, the ordinary outer
+`shadow` follows the image's alpha channel. Transparent pixels cast no shadow; partially
+transparent pixels reduce its strength proportionally. Image tint alpha, node opacity,
+padding, contain/cover/nine-slice placement and clipping are respected. Source RGB does
+not color the shadow; `UiShadow.color` still controls its color.
+
+Offset, blur and spread remain available. Blur can spread a neighboring opaque pixel's
+shadow into a transparent area. Positive spread dilates the mask, negative spread erodes
+it, and fractional spread interpolates continuously. Nodes without images retain geometric
+shadows. For a rectangular shadow around an image, put the shadow on a parent `Box` and
+keep the image in its child.
+
+Static GPU masks are cached independently of shadow color, opacity and offset. Dynamic
+textures refresh once per displayed frame. Resource reloads invalidate cached masks.
+
 ## Transforms and filters
 
 Transforms use the centre pivot by default. Use `pivot(...)` to rotate or scale from another point.
