@@ -24,6 +24,16 @@ enum class OverlayInput {
 }
 
 /**
+ * A standard or modified screen that replaces the script screen declared using `override(...)`.
+ */
+class ScreenOverride(
+    /** The name of the screen class in binary format, for example, `net.minecraft.client.gui.screens.TitleScreen`. */
+    val className: String,
+    /** Specifies whether subclasses of [className] will also be replaced, rather than just this specific class. */
+    val includeSubclasses: Boolean
+)
+
+/**
  * A screen declared by a `.ui.kts` script. The server opens it by [id]; the options travel with the
  * declaration rather than the open call, so a script stays the single source of truth for how its
  * own screen behaves.
@@ -41,6 +51,11 @@ class UiScreenDefinition(
      */
     val exitDuration: Long,
     val content: UiContent,
+    /**
+     * Screens this one replaces. An override needs no server session: the client swaps the screen the
+     * moment the game opens it, which is what lets a script own the main menu.
+     */
+    val overrides: List<ScreenOverride> = emptyList(),
 )
 
 /**

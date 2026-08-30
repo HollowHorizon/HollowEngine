@@ -1,4 +1,7 @@
 Since 2.2.0.1:
+- `.ui.kts` screens can replace existing ones: `override(TitleScreen::class)` inside `screen { }` hands
+  the game's screen to the script instead. It is client-side and needs no world, so a pack can own the
+  main menu; `LocalReplacedScreen` carries the screen that was replaced;
 - modal popups: a popup opened with `modal = true` takes the keyboard for itself, so a dialog's own
   field is no longer typed into alongside whatever was focused behind it (the ctrl+N overlay and the
   new file/folder dialog are modal now);
