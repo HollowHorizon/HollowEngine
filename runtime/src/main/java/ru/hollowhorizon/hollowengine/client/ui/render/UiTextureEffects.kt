@@ -28,6 +28,7 @@ internal data class UiTexturedQuad(
     val fit: UiImageFit = UiImageFit.STRETCH,
     val slice: UiInsets = UiInsets.Zero,
     val tint: UiColor = UiColor.White,
+    val region: ImagePlacement? = null,
 )
 
 internal object UiTextureEffects {
@@ -125,7 +126,7 @@ internal object UiTextureEffects {
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         for (quad in quads) {
-            val placement = imagePlacement(quad.width, quad.height, quad.fit, textureSize)
+            val placement = quad.region ?: imagePlacement(quad.width, quad.height, quad.fit, textureSize)
             val finalTint = quad.tint.withOpacity(quad.opacity).filtered(filter)
             val quadTransform = quad.transform.translated(placement.x, placement.y)
             if (quad.fit.isSliced) {

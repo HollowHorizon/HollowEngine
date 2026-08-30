@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.DynamicTexture
+import net.minecraft.client.renderer.texture.TextureAtlas
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
@@ -112,6 +113,7 @@ internal fun UiRenderCommand.isSegmentBatchable(): Boolean = when (this) {
     is DrawBoxCommand -> !renderToFramebuffer
     is DrawShapeCommand -> true
     is DrawImageCommand -> !renderToFramebuffer && filter == UiFilterChain.Empty
+    is DrawParticlesCommand -> filter == UiFilterChain.Empty
     is DrawTextCommand -> true
     is PushClipCommand, is PopClipCommand -> true
     else -> false
@@ -297,6 +299,7 @@ class MinecraftUiRenderer {
                 is DrawBoxCommand -> segmentPhases[command.phase.ordinal] = true
                 is DrawShapeCommand -> segmentPhases[command.phase.ordinal] = true
                 is DrawImageCommand -> segmentPhases[command.phase.ordinal] = true
+                is DrawParticlesCommand -> segmentPhases[command.phase.ordinal] = true
                 is DrawTextCommand -> segmentPhases[command.phase.ordinal] = true
                 else -> Unit
             }
@@ -339,6 +342,7 @@ class MinecraftUiRenderer {
             is DrawTextCommand -> drawText(command)
             is DrawImageCommand -> drawImage(command)
             is DrawRawTextureCommand -> drawRawTexture(command)
+            is DrawParticlesCommand -> drawParticles(command)
             is DrawItemCommand -> drawItem(command)
             is DrawEntityCommand -> drawEntity(command)
             is DrawCanvasGlCommand -> drawCanvasGl(command)
@@ -495,6 +499,10 @@ class MinecraftUiRenderer {
                     appendPhaseImage(command)
                 }
 
+                is DrawParticlesCommand -> if (command.phase == phase) {
+                    appendPhaseParticles(command)
+                }
+
                 is DrawRawTextureCommand -> if (command.phase == phase) {
                     computeQuadBounds(command.rect.width, command.rect.height, effective(command.transform))
                     flushBatchesOverlappingQuad(except = null)
@@ -525,6 +533,31 @@ class MinecraftUiRenderer {
         if (!appendSvgImage(command, phaseImageBatches)) appendImageBatch(command, phaseImageBatches)
         imageBatchClip = phaseClip
         imageBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+    }
+
+    private fun appendPhaseParticles(command: DrawParticlesCommand) {
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        computeQuadBounds(command.rect.width, command.rect.height, transform)
+        if (quadFullyClipped()) return
+        flushBatchesOverlappingQuad(UiBatchKind.IMAGE)
+        val overlapsOtherTextures = phaseImageBatches.keys.any { it != TextureAtlas.LOCATION_PARTICLES } &&
+                imageBatchBounds.overlaps(quadMinX, quadMinY, quadMaxX, quadMaxY)
+        if (phaseImageBatches.isNotEmpty() && (imageBatchClip != phaseClip || overlapsOtherTextures)) {
+            flushPhaseImageBatches()
+        }
+        appendParticleQuads(command, transform, phaseImageBatches)
+        imageBatchClip = phaseClip
+        imageBatchBounds.add(quadMinX, quadMinY, quadMaxX, quadMaxY)
+    }
+
+    private fun drawParticles(command: DrawParticlesCommand) {
+        val transform = effective(command.transform)
+        if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
+        val batches = linkedMapOf<ResourceLocation, MutableList<UiTexturedQuad>>()
+        appendParticleQuads(command, transform, batches)
+        activeProfile?.let { it.imageDraws += batches.size }
+        batches.forEach { (texture, quads) -> UiTextureEffects.drawTexturedQuads(texture, quads, command.filter) }
     }
 
     private fun appendPhaseText(command: DrawTextCommand) {

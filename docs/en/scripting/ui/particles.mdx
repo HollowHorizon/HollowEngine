@@ -1,0 +1,73 @@
+---
+title: Particles
+order: 10
+---
+
+# Minecraft particles in UI
+
+UI particles use Minecraft sprite sets, including animation frames and resource-pack changes,
+with an independent simulation. They work without a loaded world. Positions and sizes use UI
+pixels, velocities use pixels per second, and lifetimes use seconds. Vanilla world physics,
+block collisions, world lighting and particle-provider side effects are not executed.
+
+```kotlin
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import ru.hollowhorizon.hollowengine.client.ui.Box
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.particles.UiParticleEmitter
+import ru.hollowhorizon.hollowengine.client.ui.particles.particleBackground
+import ru.hollowhorizon.hollowengine.client.ui.particles.rememberUiParticleSystem
+import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.size
+
+@Composable
+fun SmokePanel() {
+    val smoke = rememberUiParticleSystem(remember { UiParticleEmitter.smoke() })
+    Box(
+        id = "smoke-panel",
+        modifier = Modifier.size(320.px, 180.px).particleBackground(smoke),
+    ) {
+        // Content above the particles; keep background colors and appearance in HSS.
+    }
+}
+```
+
+`particleBackground` draws above the styled background and below content. Within
+`Modifier.drawBehind` or `Modifier.draw`, call `drawParticles(system, rect = bounds)`.
+The rectangle is node-local. Sprites and their UVs are cropped to that rectangle before
+applying node transforms. Parent clipping, opacity and framebuffer filters use the normal
+UI renderer. Use node `clip`/`clipShape` for an additional shaped boundary.
+
+Create a separate system for each independent area. Remember emitter definitions and callbacks;
+changing the definitions passed to `rememberUiParticleSystem` starts a new simulation.
+
+## Emitter configuration
+
+| Property | Purpose |
+| --- | --- |
+| `particle` | Minecraft sprite-set ID, such as `minecraft:smoke`, `minecraft:flame` or `minecraft:soul` |
+| `rate`, `initialCount` | Particles per second and initial burst |
+| `spawn` | Initial position, velocity, size, color and lifetime |
+| `accelerationX/Y`, `drag` | Acceleration and motion damping |
+| `update` | Custom behavior before each integration step |
+| `scale`, `alpha` | Curves receiving normalized lifetime progress from 0 to 1 |
+| `animation` | `OVER_LIFETIME` or a stable `RANDOM_FRAME` |
+
+The spawn scope provides `width`, `height` and `random`. Positive Y points down. A particle's
+`x/y` is its center; `size` is its square sprite's side length. Callbacks run on the render
+thread. Do not retain a `UiParticle`: dead particles are pooled and reused. Vanilla provider
+tints are not inferred; set `color` in `spawn` for effects such as colored dust.
+
+Multiple emitters can share one system and its `maxParticles` budget (512 by default).
+When full, births are dropped without a backlog; emitters claim capacity in declaration order.
+`seed` makes randomness reproducible. Set `paused` to freeze the simulation or `emitting`
+to false to stop new births while existing particles expire. Call `reset()` on the render
+thread to clear particles and timing and re-enable the configured initial burst.
+
+## Lifecycle and rendering
+
+The Compose helper receives `withFrameNanos` timestamps without invalidating composition or
+layout. Its coroutine ends when removed from composition. Simulation happens only when drawn,
+using a 1/60-second fixed step with position interpolation. Catch-up after a hidden interval is
+limited to 0.25 seconds. Resizing affects new spawns; existing particles retain local pixel positions.

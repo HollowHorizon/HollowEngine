@@ -288,6 +288,7 @@ private fun UiRenderCommand.renderPhaseOrdinal(): Int = when (this) {
     is DrawTextCommand -> phase.ordinal
     is DrawImageCommand -> phase.ordinal
     is DrawRawTextureCommand -> phase.ordinal
+    is DrawParticlesCommand -> phase.ordinal
     is DrawCanvasGlCommand -> phase.ordinal
     is DrawShadowCommand, is DrawBackdropFilterCommand -> UiRenderPhase.BACKGROUND.ordinal
     else -> UiRenderPhase.CONTENT.ordinal
@@ -301,6 +302,7 @@ private fun UiRenderCommand.drawsPixels(): Boolean = when (this) {
     is DrawTextCommand,
     is DrawImageCommand,
     is DrawRawTextureCommand,
+    is DrawParticlesCommand,
     is DrawItemCommand,
     is DrawEntityCommand,
     is DrawCanvasGlCommand,
