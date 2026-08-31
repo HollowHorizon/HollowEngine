@@ -119,6 +119,15 @@ fun interface UiSignatureHelpProvider {
     fun help(context: UiCompletionContext): UiTextSignatureHelp?
 }
 
+/** Null means analysis is pending; a result containing null means there is no active call. */
+interface UiDeferredSignatureHelpProvider : UiSignatureHelpProvider {
+    fun query(context: UiCompletionContext): UiSignatureHelpResult?
+
+    override fun help(context: UiCompletionContext): UiTextSignatureHelp? = query(context)?.help
+}
+
+data class UiSignatureHelpResult(val help: UiTextSignatureHelp?)
+
 data class UiTextHoverInfo(
     val start: Int,
     val end: Int,
@@ -162,9 +171,8 @@ sealed interface UiInlayContent {
     data class Swatch(val argb: Int) : UiInlayContent
 }
 
-/** Opaque identity of an inlay's action; the field hands it back to its host on click. */
-@JvmInline
-value class UiInlayAction(val id: String)
+/** Opaque action plus an optional document range, tracked through edits until analysis catches up. */
+data class UiInlayAction(val id: String, val range: IntRange? = null)
 
 /**
  * A hint drawn between the glyphs at [offset]. [tags] reach the stylesheet as tags of the
@@ -261,7 +269,16 @@ fun shiftTextInlayHintsThroughEdit(
             hint.offset >= edit.oldEnd -> hint.offset + edit.delta
             else -> maxOf(edit.oldStart, hint.offset + edit.delta)
         }.coerceIn(0, editedText.length)
-        if (offset == hint.offset) hint else hint.copy(offset = offset)
+        val action = hint.action?.let { action ->
+            val range = action.range ?: return@let action
+            when {
+                edit.oldEnd <= range.first -> action.copy(range =
+                    (range.first + edit.delta)..(range.last + edit.delta))
+                edit.oldStart > range.last + 1 -> action
+                else -> null // The action's target was edited; wait for a fresh analysis.
+            }
+        }
+        if (offset == hint.offset && action == hint.action) hint else hint.copy(offset = offset, action = action)
     }
 }
 

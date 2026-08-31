@@ -163,11 +163,12 @@ internal fun editableFieldDiagnosticTooltipAt(
  * The message of the diagnostic under the pointer.
  */
 @Composable
-internal fun EditableFieldDiagnosticTooltipOverlay(tooltip: EditableFieldDiagnosticTooltip) {
+internal fun EditableFieldDiagnosticTooltipOverlay(tooltip: EditableFieldDiagnosticTooltip, visible: Boolean = true) {
     Popup(
         anchorBounds = UiRect(tooltip.x, tooltip.y, 0f, 0f),
         alignment = UiPopupAlignment(anchorVertical = UiAlign.START),
         layer = 31,
+        visible = visible,
         tags = listOf(
             "editable-text-field-diagnostic-tooltip",
             "ide-diagnostic-tooltip",

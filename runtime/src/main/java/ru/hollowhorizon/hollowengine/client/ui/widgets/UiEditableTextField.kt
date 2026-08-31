@@ -41,8 +41,8 @@ internal class EditableFieldLayout(
     val fontFamily: String?,
     val contentWidth: Float,
     val naturalWidth: Float,
-    /** The hints this layout reserved room for, by widget id. */
-    val inlayHints: Map<String, UiInlayHint> = emptyMap(),
+    /** Widget ids are line-local, allowing unchanged line layouts to be reused after edits. */
+    val inlayHints: Array<Map<String, UiInlayHint>> = Array(lines.size) { emptyMap() },
     /** Measurement revision the reservations were made with; see [EditableFieldInlayMetrics]. */
     internal val inlayRevision: Long = 0L,
     private val inlayOffsets: Set<Int> = emptySet(),
@@ -300,7 +300,7 @@ internal fun computeEditableFieldLayout(
     val offsets = FloatArray(lines.size + 1)
     val layouts = arrayOfNulls<UiTextLayout>(lines.size)
     val lineInputs = arrayOfNulls<EditableFieldLineInput>(lines.size)
-    val hintsById = linkedMapOf<String, UiInlayHint>()
+    val hintsById = Array<Map<String, UiInlayHint>>(lines.size) { emptyMap() }
     val uniformHeight = UiTextLayouter.layout(
         "X", Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, false, UiTextAlign.LEFT, fontSize, fontFamily,
         preserveWhitespace = true,
@@ -323,8 +323,8 @@ internal fun computeEditableFieldLayout(
 
         val localHighlights = highlightBuckets[index]
         val localInlays = inlayBuckets[index]
-        localInlays.forEachIndexed { hintIndex, hint ->
-            hintsById[textFieldInlayWidgetId(hint, hintIndex)] = hint
+        if (localInlays.isNotEmpty()) hintsById[index] = buildMap(localInlays.size) {
+            localInlays.forEachIndexed { hintIndex, hint -> put(textFieldInlayWidgetId(hint, hintIndex), hint) }
         }
 
         val input = EditableFieldLineInput(line.text, localHighlights, localInlays)
@@ -678,13 +678,14 @@ fun EditableTextField(
             }
         }
         hoverTooltip?.let { tooltip ->
-            EditableFieldDiagnosticTooltipOverlay(tooltip)
+            EditableFieldDiagnosticTooltipOverlay(tooltip, visible = completion.items.isEmpty())
         }
         EditableFieldCodeInsight(
             state = codeInsight,
             text = text,
             caret = state.caret,
             focused = state.focused,
+            completionVisible = completion.items.isNotEmpty(),
             hoverTarget = codeHoverTarget,
             signatureProvider = signatureHelpProvider,
             hoverProvider = hoverInfoProvider,
@@ -948,7 +949,7 @@ private fun EditableFieldRow(
 
     if (lineLayout != null) {
         EditableFieldLineFragments(
-            lineLayout, layout, top, fontSize, fontFamily, state.textShadow, inlayMetrics, onInlayAction,
+            lineLayout, layout.inlayHints[index], top, fontSize, fontFamily, state.textShadow, inlayMetrics, onInlayAction,
         )
     } else if (line.text.isNotEmpty()) {
         val effects = listOfNotNull(state.textShadow)
@@ -983,7 +984,7 @@ private fun EditableFieldRow(
 @Composable
 private fun EditableFieldLineFragments(
     lineLayout: UiTextLayout,
-    fieldLayout: EditableFieldLayout,
+    inlayHints: Map<String, UiInlayHint>,
     top: Float,
     fontSize: Float,
     fontFamily: String?,
@@ -1032,7 +1033,7 @@ private fun EditableFieldLineFragments(
                 }
 
                 is UiInlineWidgetRun -> {
-                    val hint = fieldLayout.inlayHints[fragment.widget.id]
+                    val hint = inlayHints[fragment.widget.id]
                     if (hint != null) {
                         key("inlay", visualIndex, fragmentIndex, fragment.widget.id) {
                             InlayHint(hint, x, y, inlayMetrics, onInlayAction)

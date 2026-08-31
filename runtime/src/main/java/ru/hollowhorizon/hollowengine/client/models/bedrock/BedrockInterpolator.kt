@@ -80,13 +80,13 @@ class BedrockInterpolator<T>(
         override fun create(x: Float, y: Float, z: Float) = Vec3f(x, y, z)
     }
 
+    object PositionConverter : ConverterType<Vec3f> {
+        override fun convert(vec: Vec3f) = BedrockCoordinates.position(vec)
+        override fun create(x: Float, y: Float, z: Float) = convert(Vec3f(x, y, z))
+    }
+
     object QuatConverter : ConverterType<QuatF> {
-        override fun convert(vec: Vec3f): QuatF {
-            return MutableQuatF().setIdentity()
-                .rotate(-vec.z.deg, Vec3f.Z_AXIS)
-                .rotate(vec.y.deg, Vec3f.Y_AXIS)
-                .rotate(-vec.x.deg, Vec3f.X_AXIS)
-        }
+        override fun convert(vec: Vec3f): QuatF = BedrockCoordinates.rotation(vec)
 
         override fun create(x: Float, y: Float, z: Float) = convert(Vec3f(x, y, z))
     }

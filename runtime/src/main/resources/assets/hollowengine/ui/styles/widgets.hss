@@ -145,6 +145,15 @@
     foreground: #ffffff;
 }
 
+.tree-item.drop-target {
+    background: rgba(88, 123, 174, 0.55);
+    foreground: #ffffff;
+}
+
+.tree-item.drop-rejected {
+    background: rgba(190, 60, 60, 0.35);
+}
+
 .tree-indent {
     size: 14px 100%;
 }

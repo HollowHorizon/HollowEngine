@@ -40,6 +40,7 @@ import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
+import java.io.File
 
 /** A file dragged out of the project tree; anything that accepts drops can look for this payload. */
 data class HollowIdeFileDrag(val path: String, val isDirectory: Boolean = false)
@@ -133,6 +134,28 @@ object HollowIdeOverlay {
     private val editorStates = mutableMapOf<String, TextFieldState>()
     private var fileContextMenu by mutableStateOf<FileContextMenu?>(null)
     private val dragAndDrop = UiDragAndDropState()
+    private var refreshFilesRequested = false
+    private val externalFiles = HollowIdeExternalFiles(
+        onFocusGained = { refreshFilesRequested = true },
+        onMove = { files, x, y -> updateExternalDrag(files, x, y) },
+        onLeave = {
+            pipeline.await()
+            if (dragAndDrop.item?.payload is HollowIdeExternalFileDrag) finishFileDrag()
+        },
+        onDrop = { files, x, y ->
+            try {
+                updateExternalDrag(files, x, y) && dragAndDrop.drop()
+            } finally {
+                finishFileDrag()
+            }
+        },
+        onFocusLost = {
+            if (dragAndDrop.item?.externalFiles?.isNotEmpty() == true) {
+                pipeline.await()
+                exportFileDrag()
+            }
+        },
+    )
     private val findStates = mutableStateMapOf<String, HollowIdeFindState>()
     private val search = HollowIdeSearchController { statusText = it }
     private var colorPicker by mutableStateOf<EditorColorPicker?>(null)
@@ -173,7 +196,12 @@ object HollowIdeOverlay {
 
     fun hasFocusedInput(): Boolean = isVisible() && surface.runtime.isAnyFocused
 
+    /** While Windows owns the gesture the IDE must not act on the input it keeps receiving. */
+    private val nativeFileDragActive: Boolean
+        get() = WindowsFileDragSource.active || externalFiles.active
+
     fun handleMouseMove(x: Float, y: Float): Boolean {
+        if (nativeFileDragActive) return true
         if (!isVisible()) return false
         pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
@@ -182,10 +210,41 @@ object HollowIdeOverlay {
         lastMouseX = point.x
         lastMouseY = point.y
         val button = activeButton ?: return false
-        return surface.runtime.mouseDragged(point.x, point.y, button, deltaX, deltaY, currentUiKeyModifiers())
+        val handled = surface.runtime.mouseDragged(point.x, point.y, button, deltaX, deltaY, currentUiKeyModifiers())
+        if (point.x < 0f || point.y < 0f ||
+            point.x >= HollowIdeScale.scaledWidth() || point.y >= HollowIdeScale.scaledHeight()) {
+            exportFileDrag()
+        }
+        return handled
+    }
+
+    private fun exportFileDrag() {
+        val files = dragAndDrop.item?.externalFiles.orEmpty()
+        if (files.isEmpty()) return
+        if (activeButton == null) return
+        if (WindowsFileDragSource.request(files, ::finishFileDrag)) finishFileDrag()
+    }
+
+    private fun finishFileDrag() {
+        activeButton = null
+        dragAndDrop.cancel()
+        surface.runtime.cancelPointerInput()
+    }
+
+    private fun updateExternalDrag(files: List<File>, x: Float, y: Float): Boolean {
+        if (!isVisible() || collapsed) return false
+        pipeline.await()
+        lastMouseX = x
+        lastMouseY = y
+        val current = dragAndDrop.item?.payload as? HollowIdeExternalFileDrag
+        if (current?.files != files) {
+            dragAndDrop.begin(UiDragItem(HollowIdeExternalFileDrag(files)), x, y)
+        } else dragAndDrop.move(x, y)
+        return dragAndDrop.canDrop
     }
 
     fun handleMouseButton(x: Float, y: Float, button: Int, action: Int): Boolean {
+        if (nativeFileDragActive) return true
         if (!isVisible()) return false
         pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
@@ -208,6 +267,7 @@ object HollowIdeOverlay {
     }
 
     fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
+        if (nativeFileDragActive) return true
         if (!isVisible()) return false
         pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
@@ -221,6 +281,7 @@ object HollowIdeOverlay {
     }
 
     fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
+        if (nativeFileDragActive) return true
         if (!isVisible() || collapsed) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return false
         pipeline.await()
@@ -237,6 +298,7 @@ object HollowIdeOverlay {
     }
 
     fun handleChar(codePoint: Int, modifiers: Int): Boolean {
+        if (nativeFileDragActive) return true
         if (!isVisible() || collapsed) return false
         pipeline.await()
         return surface.runtime.charTyped(codePoint.toChar(), modifiers)
@@ -244,7 +306,17 @@ object HollowIdeOverlay {
 
     @SubscribeEvent
     fun render(event: RenderTickEvent.Blit) {
+        if (WindowsFileDragSource.active) {
+            pipeline.await()
+            WindowsFileDragSource.runPending(event.minecraft.window.window)
+        }
+        externalFiles.update(event.minecraft.window.window, isVisible() && !collapsed)
         if (!isVisible()) return
+        if (refreshFilesRequested && !externalFiles.active) {
+            pipeline.await()
+            refreshFilesRequested = false
+            model.refreshExternalFiles()
+        }
         AssetManagerLifecycle.observe(event.minecraft)
         renderOverlay(currentBlitTarget())
     }
@@ -553,7 +625,20 @@ object HollowIdeOverlay {
 
     @Composable
     private fun ProjectTree() {
-        Column(tags = listOf("ide-panel", "project-tree-panel"), modifier = Modifier.size(100.percent, 100.percent)) {
+        val rootDrop = "ide-project-root-drop"
+        val rootHighlighted = dragAndDrop.hoveredTargetId == rootDrop && dragAndDrop.canDrop
+        Column(
+            tags = listOfNotNull("ide-panel", "project-tree-panel", "drop-target".takeIf { rootHighlighted }),
+            modifier = Modifier.size(100.percent, 100.percent)
+                .dropTarget(
+                    id = rootDrop,
+                    accepts = { (it.payload as? HollowIdeExternalFileDrag)?.canImportInto("".fromReadablePath()) == true },
+                    onDrop = { item, _, _ ->
+                        val files = item.payload as? HollowIdeExternalFileDrag
+                        files != null && project.importFiles(files.files, "")
+                    },
+                ),
+        ) {
             UiTreeView(
                 items = model.visibleTreeItems(projectFilter.query),
                 onToggle = project::toggle,
@@ -568,12 +653,24 @@ object HollowIdeOverlay {
                             payload = HollowIdeFileDrag(node.path, node.isDirectory),
                             icon = IconHelper.forPath(node.path, node.isDirectory).toString(),
                             label = node.name,
+                            externalFiles = model.exportFiles(model.selectedOr(node.path)),
                         )
                     }
                 },
                 onDrop = { item, dragged ->
-                    val file = dragged.payload as? HollowIdeFileDrag ?: return@UiTreeView false
-                    project.moveInto(file.path, item.payload.path)
+                    when (val file = dragged.payload) {
+                        is HollowIdeFileDrag -> project.moveInto(file.path, item.payload.path)
+                        is HollowIdeExternalFileDrag -> project.importFiles(file.files, item.payload.dropDirectoryPath)
+                        else -> false
+                    }
+                },
+                canDrop = { item, dragged ->
+                    when (val payload = dragged.payload) {
+                        is HollowIdeExternalFileDrag -> payload.canImportInto(item.payload.dropDirectoryPath.fromReadablePath())
+                        is HollowIdeFileDrag -> item.payload.isDirectory && payload.path != item.payload.path &&
+                            !item.payload.path.startsWith(payload.path + "/")
+                        else -> false
+                    }
                 },
             )
             HollowIdeProjectContextMenu(
@@ -1029,7 +1126,9 @@ object HollowIdeOverlay {
                 }
             }
 
-            is InlayAction.PickColor -> openColorPicker(file, decoded)
+            is InlayAction.PickColor -> openColorPicker(file, action.range?.let {
+                decoded.copy(start = it.first, end = it.last + 1)
+            } ?: decoded)
 
             null -> statusText = "Unsupported inlay action"
         }
@@ -1041,7 +1140,7 @@ object HollowIdeOverlay {
             return
         }
         val text = file.text
-        if (action.start < 0 || action.end > text.length ||
+        if (action.start < 0 || action.end !in action.start..text.length ||
             text.substring(action.start, action.end) != action.literal
         ) {
             statusText = EditorLang.COLOR_MOVED.lang
@@ -1050,6 +1149,7 @@ object HollowIdeOverlay {
         val color = runCatching { parseColor(action.literal) }.getOrNull() ?: return
         colorPicker = EditorColorPicker(
             path = file.path,
+            text = text,
             start = action.start,
             end = action.end,
             color = color,
@@ -1079,14 +1179,15 @@ object HollowIdeOverlay {
         val picker = colorPicker ?: return
         val file = model.files[picker.path] ?: return
         val text = file.text
-        if (picker.end > text.length) {
+        if (text != picker.text) {
             colorPicker = null
+            statusText = EditorLang.COLOR_MOVED.lang
             return
         }
         val literal = hssColorLiteralText(color.toArgb())
         val next = text.substring(0, picker.start) + literal + text.substring(picker.end)
         applyEditorText(file, next, picker.start + literal.length)
-        colorPicker = picker.copy(end = picker.start + literal.length, color = color)
+        colorPicker = picker.copy(text = next, end = picker.start + literal.length, color = color)
     }
 
     private fun openDefinition(definition: DefinitionLocation) {
@@ -1179,6 +1280,7 @@ internal object EditorLang {
 
 private data class EditorColorPicker(
     val path: String,
+    val text: String,
     val start: Int,
     val end: Int,
     val color: UiColor,
