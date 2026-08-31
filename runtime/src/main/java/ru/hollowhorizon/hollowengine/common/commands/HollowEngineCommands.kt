@@ -287,6 +287,17 @@ private fun CommandExtension.registerScriptingCommands() {
     "scripting" {
         requires { hasPermission(2) }
 
+        "run"(runnableScriptArgument()) {
+            executes {
+                val id = ScriptPathArgument.getScript(this, "path")
+                if (isNodeScriptPath(id.path)) {
+                    source.server.addNode(ScriptRegistry.display(id))
+                    return@executes SUCCESS
+                }
+                runPlainScript(source, id)
+            }
+        }
+
         "run"(
             nodeScriptArgument(),
             arg("state", StringArgumentType.string())
@@ -304,17 +315,6 @@ private fun CommandExtension.registerScriptingCommands() {
                     context = StateContext(nextState = StringArgumentType.getString(this, "state"))
                 )
                 SUCCESS
-            }
-        }
-
-        "run"(runnableScriptArgument()) {
-            executes {
-                val id = ScriptPathArgument.getScript(this, "path")
-                if (isNodeScriptPath(id.path)) {
-                    source.server.addNode(ScriptRegistry.display(id))
-                    return@executes SUCCESS
-                }
-                runPlainScript(source, id)
             }
         }
 

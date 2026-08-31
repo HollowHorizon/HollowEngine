@@ -19,6 +19,7 @@ object UiCursorManager {
 
     private val cursors = HashMap<UiCursorShape, Long>()
     private val claims = LinkedHashMap<Any, Claim>()
+    private val nativeOwners = HashSet<Any>()
     private var current: UiCursorShape? = null
 
     private data class Claim(val shape: UiCursorShape, val priority: Int, val claimedAtNanos: Long)
@@ -36,8 +37,18 @@ object UiCursorManager {
 
     fun release(window: Long, owner: Any) = claim(window, owner, shape = null)
 
+    /** OLE supplies its own copy/forbidden cursor while a native drag is over a surface. */
+    fun nativeControl(window: Long, owner: Any, active: Boolean) {
+        if (active) {
+            nativeOwners += owner
+        } else if (nativeOwners.remove(owner) && nativeOwners.isEmpty()) {
+            current = null
+            claim(window, owner, shape = null)
+        }
+    }
+
     private fun apply(window: Long, shape: UiCursorShape) {
-        if (window == 0L || shape == current) return
+        if (window == 0L || nativeOwners.isNotEmpty() || shape == current) return
         current = shape
         glfwSetCursor(window, cursorHandle(shape))
     }

@@ -602,7 +602,9 @@ private fun List<TextLine>.toInlayHints(lineStarts: List<Int>, textLength: Int):
                 offset = (lineStart + hint.index).coerceIn(0, textLength),
                 content = hint.content.map { it.toUi() },
                 tags = hint.tags,
-                action = hint.action?.let { UiInlayAction(it.id) },
+                action = hint.action?.let { action ->
+                    UiInlayAction(action.id, (action as? InlayAction.PickColor)?.let { it.start until it.end })
+                },
             )
         }
     }
@@ -622,6 +624,7 @@ private fun CompletionItem.toUi(): UiTextCompletion {
         detail = declaration?.middle.orEmpty(),
         tail = declaration?.tail.orEmpty(),
         icon = tag.completionIcon(),
+        itemIcon = declaration?.itemIcon,
         caretOffset = (insert.length + moveCaret).coerceIn(0, insert.length),
         importFqName = declaration?.fqName?.takeIf { declaration.import },
         wordChars = wordChars,

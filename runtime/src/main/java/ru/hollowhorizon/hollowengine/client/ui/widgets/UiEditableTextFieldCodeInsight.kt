@@ -6,7 +6,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.delay
 import ru.hollowhorizon.hollowengine.client.ui.Column
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
@@ -24,16 +23,13 @@ import ru.hollowhorizon.hollowengine.client.ui.fontSize
 import ru.hollowhorizon.hollowengine.client.ui.foreground
 import ru.hollowhorizon.hollowengine.client.ui.gap
 import ru.hollowhorizon.hollowengine.client.ui.maxSize
-import ru.hollowhorizon.hollowengine.client.ui.opacity
 import ru.hollowhorizon.hollowengine.client.ui.padding
 import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.ui.scrollable
 import ru.hollowhorizon.hollowengine.client.ui.textWrap
-import ru.hollowhorizon.hollowengine.client.ui.transition
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.client.ui.ide.toUiColor
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
@@ -84,6 +80,7 @@ internal fun EditableFieldCodeInsight(
     text: String,
     caret: Int,
     focused: Boolean,
+    completionVisible: Boolean,
     hoverTarget: EditableFieldHoverTarget?,
     signatureProvider: UiSignatureHelpProvider?,
     hoverProvider: UiHoverInfoProvider?,
@@ -92,40 +89,47 @@ internal fun EditableFieldCodeInsight(
     scrollState: UiScrollHandle,
     contentOffsetX: Float,
 ) {
-    LaunchedEffect(text, caret, focused, signatureProvider, revision) {
+    LaunchedEffect(text, caret, focused, completionVisible, signatureProvider, revision) {
         if (focused && signatureProvider != null) {
+            if (completionVisible) return@LaunchedEffect
+            val context = UiCompletionContext(text, caret)
+            val help = if (signatureProvider is UiDeferredSignatureHelpProvider) {
+                // A completed empty result closes the popup; a pending one preserves it.
+                val result = signatureProvider.query(context) ?: return@LaunchedEffect
+                result.help
+            } else signatureProvider.help(context)
             state.publishSignature(
                 text = text,
                 caret = caret,
                 provider = signatureProvider,
-                help = signatureProvider.help(UiCompletionContext(text, caret)),
+                help = help,
             )
         } else {
             state.clearSignature()
         }
     }
     state.signatureHelp?.takeIf { it.signatures.isNotEmpty() }?.let { help ->
-        EditableFieldSignatureHelpPopup(help, layout, scrollState, contentOffsetX)
+        EditableFieldSignatureHelpPopup(help, layout, scrollState, contentOffsetX, !completionVisible && focused)
     }
 
     var hoverReady by remember { mutableStateOf(false) }
     var hoverInfo by remember { mutableStateOf<UiTextHoverInfo?>(null) }
-    LaunchedEffect(text, hoverTarget?.offset, hoverProvider) {
+    LaunchedEffect(text, hoverTarget?.offset, hoverProvider, completionVisible) {
         hoverReady = false
         hoverInfo = null
-        if (hoverTarget == null || hoverProvider == null) return@LaunchedEffect
+        if (completionVisible || hoverTarget == null || hoverProvider == null) return@LaunchedEffect
         delay(EditorHoverDelayMillis)
         hoverReady = true
     }
-    LaunchedEffect(text, hoverTarget?.offset, hoverReady, hoverProvider, revision) {
-        hoverInfo = if (hoverReady && hoverTarget != null && hoverProvider != null) {
+    LaunchedEffect(text, hoverTarget?.offset, hoverReady, hoverProvider, revision, completionVisible) {
+        hoverInfo = if (!completionVisible && hoverReady && hoverTarget != null && hoverProvider != null) {
             hoverProvider.hover(UiCompletionContext(text, hoverTarget.offset))
         } else {
             null
         }
     }
     hoverInfo?.let { info ->
-        EditableFieldHoverPopup(info, layout, scrollState, contentOffsetX)
+        EditableFieldHoverPopup(info, layout, scrollState, contentOffsetX, !completionVisible)
     }
 }
 
@@ -135,6 +139,7 @@ private fun EditableFieldSignatureHelpPopup(
     layout: EditableFieldLayout,
     scrollState: UiScrollHandle,
     contentOffsetX: Float,
+    visible: Boolean,
 ) {
     val anchor = layout.caretAt(help.anchor)
     val viewport = scrollState.viewport
@@ -151,6 +156,7 @@ private fun EditableFieldSignatureHelpPopup(
             offsetY = -CodeInsightPopupGap,
         ),
         id = "editable-text-field-signature-help",
+        visible = visible,
         tags = listOf("ide-code-insight-popup", "ide-signature-help"),
         modifier = codeInsightPopupModifier(layout, viewport),
         dismissOnOutside = false,
@@ -183,15 +189,11 @@ private fun EditableFieldHoverPopup(
     layout: EditableFieldLayout,
     scrollState: UiScrollHandle,
     contentOffsetX: Float,
+    visible: Boolean,
 ) {
     val viewport = scrollState.viewport
     val start = layout.caretAt(info.start)
     val end = layout.caretAt(info.end)
-    var shown by remember(info) { mutableStateOf(false) }
-    LaunchedEffect(info) {
-        withFrameNanos { }
-        shown = true
-    }
     Popup(
         anchorBounds = UiRect(
             viewport.x + contentOffsetX + start.x - scrollState.offsetX,
@@ -201,10 +203,9 @@ private fun EditableFieldHoverPopup(
         ),
         alignment = UiPopupAlignment.BelowStart.copy(offsetY = CodeInsightPopupGap),
         id = "editable-text-field-hover-info",
+        visible = visible,
         tags = listOf("ide-code-insight-popup", "ide-hover-info"),
-        modifier = codeInsightPopupModifier(layout, viewport)
-            .opacity(if (shown) 1f else 0f)
-            .transition(UiTransition("opacity", durationMillis = EditorHoverFadeMillis)),
+        modifier = codeInsightPopupModifier(layout, viewport),
         dismissOnOutside = false,
     ) {
         Column(modifier = Modifier.size(UiLength.Fit, UiLength.Fit).gap(5.px)) {
@@ -321,7 +322,6 @@ private fun codeInsightPopupModifier(layout: EditableFieldLayout, viewport: UiRe
 }
 
 private const val EditorHoverDelayMillis = 1_000L
-private const val EditorHoverFadeMillis = 180L
 private const val CodeInsightPopupGap = 5f
 private const val CodeInsightViewportMargin = 8f
 private const val CodeInsightMaxVisibleSignatures = 6

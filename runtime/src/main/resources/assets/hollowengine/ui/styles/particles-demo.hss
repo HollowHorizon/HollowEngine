@@ -1,0 +1,25 @@
+.particles-demo {
+    width: 100%;
+    padding: 16px;
+    gap: 12px;
+}
+
+.particle-previews { gap: 16px; }
+
+.particle-preview {
+    size: 260px 180px;
+    padding: 12px;
+    background: rgba(16, 22, 32, 0.96);
+    border: 1px rgba(120, 150, 180, 0.4);
+    border-radius: 12px;
+    clip: true;
+}
+
+.particle-control {
+    padding: 8px 16px;
+    background: #283850;
+    border-radius: 6px;
+}
+
+.particle-control:hover { background: #384e70; }
+.particle-control:active { background: #203048; }

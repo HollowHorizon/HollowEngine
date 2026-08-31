@@ -132,6 +132,7 @@ abstract class HollowComposeUiScreen(
     }
 
     override fun removed() {
+        UiCursorManager.release(mc.window.window, this)
         pipeline.reset()
         renderer.close()
         surface.close()

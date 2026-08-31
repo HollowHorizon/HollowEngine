@@ -418,10 +418,16 @@ class HollowUiRuntime(
             val modifiers = node.resolvedModifiers
             for (index in modifiers.indices) {
                 val modifier = modifiers[index]
+                if (modifier is UiDropTargetModifier) {
+                    val placed = layout[node]
+                    modifier.target.bounds = placed.rect
+                    modifier.target.clip = placed.outerClip ?: placed.clip
+                    continue
+                }
                 if (modifier !is OnPlacedModifier) continue
                 if (rect == null) {
                     val current = layout[node].rect
-                    if (placedBounds[node] == current) break
+                    if (placedBounds[node] == current) continue
                     placedBounds[node] = current
                     rect = current
                 }
@@ -479,6 +485,12 @@ class HollowUiRuntime(
 
     fun mouseReleased(mouseX: Float, mouseY: Float, button: Int, modifiers: Int = 0): Boolean =
         profileInput { dispatchInput(QueuedUiInput.MouseReleased(mouseX, mouseY, button, modifiers)) }
+
+    /** Ends a pointer gesture handed to the OS without generating a click or changing keyboard focus. */
+    fun cancelPointerInput() {
+        input.clearInteraction(clearFocus = false)
+        lastFrame?.root?.let { input.prepareRoot(it) }
+    }
 
     fun mouseDragged(
         mouseX: Float,

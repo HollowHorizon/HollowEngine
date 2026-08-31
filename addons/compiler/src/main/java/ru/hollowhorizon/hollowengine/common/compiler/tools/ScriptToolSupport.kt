@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.compiler.tools
 
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
 import java.io.File
 
 internal class ScriptToolArguments(args: Array<String>) {
@@ -21,31 +23,27 @@ internal class ScriptToolArguments(args: Array<String>) {
 
     fun optional(name: String): String? = values[name]
 
-    fun list(name: String): List<String> = values[name].orEmpty()
-        .split(',')
-        .map(String::trim)
-        .filter(String::isNotEmpty)
+    fun list(name: String): List<String> =
+        values[name].orEmpty().split(',').map(String::trim).filter(String::isNotEmpty)
 }
 
-internal fun currentClasspath(): List<File> = System.getProperty("java.class.path")
-    .split(File.pathSeparator)
-    .asSequence()
-    .filter(String::isNotBlank)
-    .map(::File)
-    .filter(File::exists)
-    .distinctBy { it.absoluteFile.normalize() }
-    .toList()
+internal fun currentClasspath(): List<File> =
+    System.getProperty("java.class.path").split(File.pathSeparator).asSequence().filter(String::isNotBlank).map(::File)
+        .filter(File::exists).distinctBy { it.absoluteFile.normalize() }.toList()
+
+internal fun expectedArtifacts(outputDirectory: File, ids: Collection<ScriptId>): List<File> = ids.flatMap {
+    listOf(ScriptCache.artifactIn(outputDirectory, it), ScriptCache.sharedArtifactIn(outputDirectory, it))
+}
 
 internal fun pruneScriptArtifacts(outputDirectory: File, expected: Collection<File>) {
     if (!outputDirectory.isDirectory) return
     val expectedPaths = expected.mapTo(HashSet()) { it.canonicalPath }
     outputDirectory.walkBottomUp().forEach { file ->
         when {
-            file.isFile && file.canonicalPath !in expectedPaths ->
-                check(file.delete()) { "Cannot remove stale script artifact '$file'" }
+            file.isFile && file.canonicalPath !in expectedPaths -> check(file.delete()) { "Cannot remove stale script artifact '$file'" }
 
-            file.isDirectory && file != outputDirectory && file.list()?.isEmpty() == true ->
-                check(file.delete()) { "Cannot remove empty script artifact directory '$file'" }
+            file.isDirectory && file != outputDirectory && file.list()
+                ?.isEmpty() == true -> check(file.delete()) { "Cannot remove empty script artifact directory '$file'" }
         }
     }
 }

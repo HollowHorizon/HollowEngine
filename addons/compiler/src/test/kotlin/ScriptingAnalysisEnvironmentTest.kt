@@ -403,6 +403,25 @@ class ScriptingAnalysisEnvironmentTest {
     }
 
     @Test
+    fun `diagnostic resolves declarations reached through another script`() {
+        withEnvironment { environment ->
+            writeSandboxScript("deep.analysis.kts", "class Frame(val biome: String)\nfun newest() = Frame(\"river\")")
+            writeSandboxScript("middle.analysis.kts", "@file:Import(\"deep.analysis.kts\")\nval ready = true")
+            val text = """
+                @file:Import("middle.analysis.kts")
+                val answer = newest().biome
+            """.trimIndent()
+
+            val diagnostics = environment.analyzer.diagnostic("scripts/main.analysis.kts", text)
+
+            assertFalse(
+                diagnostics.any { diagnostic -> diagnostic.message.contains("newest") },
+                diagnostics.toString(),
+            )
+        }
+    }
+
+    @Test
     fun `highlight provides hints for declarations using imported scripts`() {
         withEnvironment { environment ->
             writeSandboxScript("shared.analysis.kts", "val importedValue = 21")

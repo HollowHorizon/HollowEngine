@@ -70,7 +70,9 @@ class AnimationController(initialSpec: AnimationControllerLayerSpec) {
         val selected = selectTransition(current, context) ?: return
         val duration = evaluator.float(selected.duration, context, 0f).coerceAtLeast(0f)
         transition = Transition(from = current.id, to = selected.to, duration = duration)
-        stateTimes.getOrPut(selected.to) { 0f }
+
+        stateTimes[selected.to] = 0f
+        stateReversed[selected.to] = false
     }
 
     private fun selectTransition(

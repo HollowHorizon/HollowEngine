@@ -8,53 +8,45 @@ import ru.hollowhorizon.hollowengine.client.audio.Wave
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.ShortBuffer
 
 object OggFormat {
     @Throws(IOException::class)
     fun read(stream: InputStream): Wave {
+        val encoded = stream.readBytes().toDirectBuffer()
+        var samples: ShortBuffer? = null
+        var decoder = 0L
         val info = STBVorbisInfo.malloc()
-        val stack = MemoryStack.stackPush()
 
         try {
-            val buffer: ByteBuffer = readByteBuffer(stream)
-            val error = stack.mallocInt(1)
-            val decoder = STBVorbis.stb_vorbis_open_memory(buffer, error, null)
-
-            if (decoder == 0L) throw IllegalArgumentException("Failed to read Ogg audio... Error code: " + error.get())
+            MemoryStack.stackPush().use { stack ->
+                val error = stack.mallocInt(1)
+                decoder = STBVorbis.stb_vorbis_open_memory(encoded, error, null)
+                if (decoder == 0L) throw IOException("Failed to read Ogg audio. Error code: ${error.get(0)}")
+            }
 
             STBVorbis.stb_vorbis_get_info(decoder, info)
             val channels = info.channels()
-            val size = STBVorbis.stb_vorbis_stream_length_in_samples(decoder) * channels
-            val samples = MemoryUtil.memAllocShort(size)
-            STBVorbis.stb_vorbis_get_samples_short_interleaved(decoder, channels, samples)
-            STBVorbis.stb_vorbis_close(decoder)
-            val byteBuffer = MemoryUtil.memAlloc(size * 2)
+            val capacity = STBVorbis.stb_vorbis_stream_length_in_samples(decoder) * channels
+            val buffer = MemoryUtil.memAllocShort(capacity).also { samples = it }
+            val decoded = STBVorbis.stb_vorbis_get_samples_short_interleaved(decoder, channels, buffer)
 
-            for (i in 0 until samples.limit()) byteBuffer.putShort(samples.get())
-
-            byteBuffer.flip()
-            val finalBytes = ByteArray(byteBuffer.limit())
-
-            for (i in 0 until byteBuffer.limit()) finalBytes[i] = byteBuffer.get()
-
-            val wave = Wave(channels, info.sample_rate(), 16, finalBytes)
-            MemoryUtil.memFree(buffer)
-            MemoryUtil.memFree(samples)
-            MemoryUtil.memFree(byteBuffer)
-
-            return wave
-        } catch (e: Exception) {
-            stack.close()
-            info.close()
-            throw IllegalArgumentException("Failed to read Ogg audio...", e)
+            return Wave(channels, info.sample_rate(), 16, buffer.toPcm16(decoded * channels))
+        } finally {
+            if (decoder != 0L) STBVorbis.stb_vorbis_close(decoder)
+            info.free()
+            samples?.let(MemoryUtil::memFree)
+            MemoryUtil.memFree(encoded)
         }
     }
 
-    fun readByteBuffer(stream: InputStream): ByteBuffer {
-        val bytes: ByteArray = stream.readBytes()
-        val buffer = MemoryUtil.memAlloc(bytes.size)
-        buffer.put(bytes)
-        buffer.flip()
-        return buffer
+    private fun ByteArray.toDirectBuffer(): ByteBuffer = MemoryUtil.memAlloc(size).put(this).flip()
+
+    private fun ShortBuffer.toPcm16(count: Int): ByteArray {
+        val data = ByteArray(count * 2)
+        val out = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until count) out.putShort(get(i))
+        return data
     }
 }

@@ -33,14 +33,20 @@ sealed interface UiStylesheetReference {
         private var cachedVersion: Long? = null
         private var cachedStylesheet: CompiledHss? = null
 
+        @Synchronized
         override fun resolve(): CompiledHss {
             val version = revision()
             val stylesheet = cachedStylesheet
             if (stylesheet != null && cachedVersion == version) return stylesheet
-            return loader.load(location).also {
-                cachedStylesheet = it
-                cachedVersion = version
+            val loaded = try {
+                loader.load(location)
+            } catch (error: Exception) {
+                HollowEngine.LOGGER.warn("Could not reload HSS '{}'; keeping the last working stylesheet", location, error)
+                stylesheet ?: CompiledHss(emptyList())
             }
+            cachedVersion = version
+            cachedStylesheet = loaded
+            return loaded
         }
 
         override fun revision(): Long = loader.version(location)
@@ -49,14 +55,16 @@ sealed interface UiStylesheetReference {
 
 object MinecraftHssResourceLoader : HssResourceLoader {
     private val locations = ConcurrentHashMap<String, ResourceLocation>()
+    private val stylesheets = ConcurrentHashMap<String, UiStylesheetReference.Resource>()
+    private val source = object : HssResourceLoader {
+        override fun load(location: String): CompiledHss =
+            compileHss(HollowUiResourceAccess.readText(resourceLocation(location)))
+
+        override fun version(location: String): Long = MinecraftHssResourceLoader.version(location)
+    }
 
     override fun load(location: String): CompiledHss {
-        return runCatching {
-            compileHss(HollowUiResourceAccess.readText(resourceLocation(location)))
-        }.getOrElse {
-            HollowEngine.LOGGER.error("Error while loading $location", it)
-            CompiledHss(emptyList())
-        }
+        return stylesheets.computeIfAbsent(location) { UiStylesheetReference.Resource(it, source) }.resolve()
     }
 
     override fun version(location: String): Long {

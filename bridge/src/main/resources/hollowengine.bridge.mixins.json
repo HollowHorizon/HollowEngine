@@ -9,7 +9,10 @@
     "ListTagAccessor",
     "RecipeManagerAccessor",
     "registry.HolderReferenceAccessor",
-    "tags.TagEntryAccessor"
+    "tags.TagEntryAccessor",
+    "worldgen.ChunkGeneratorMixin",
+    "worldgen.ChunkGeneratorStructureStateMixin",
+    "worldgen.ChunkMapMixin"
   ],
   "client": [
     "client.CameraInvoker",

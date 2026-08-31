@@ -4,6 +4,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonMappingNamespace
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRuntimeEnvironment
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
 import java.io.File
 
 /**
@@ -34,16 +35,14 @@ class ClasspathScriptSource(
         if (id.namespace != namespace || id.path !in paths) return null
         val sourceFile = extract("$SOURCE_PREFIX${id.path}", sourceCacheFile(id))
         val compiledFile = extract("$COMPILED_PREFIX$variant/${id.path}$COMPILED_SUFFIX", bundledCacheFile(id))
+        val sharedFile = extract("$COMPILED_PREFIX$variant/${id.path}$SHARED_SUFFIX", bundledSharedCacheFile(id))
         if (sourceFile == null && compiledFile == null) return null
-        return ScriptArtifacts(id, sourceFile = sourceFile, precompiled = compiledFile)
+        return ScriptArtifacts(id, sourceFile, precompiled = compiledFile, precompiledShared = sharedFile)
     }
 
     private fun readIndex(): List<String> = classLoader.getResourceAsStream(INDEX_PATH)?.use { input ->
-        input.bufferedReader().readLines()
-            .map { it.trim().replace('\\', '/') }
-            .filter { it.isNotEmpty() && it.endsWith(SCRIPT_EXTENSION) }
-            .distinct()
-            .sorted()
+        input.bufferedReader().readLines().map { it.trim().replace('\\', '/') }
+            .filter { it.isNotEmpty() && it.endsWith(SCRIPT_EXTENSION) }.distinct().sorted()
     }.orEmpty()
 
     private fun sourceCacheFile(id: ScriptId): File =
@@ -52,6 +51,10 @@ class ClasspathScriptSource(
     private fun bundledCacheFile(id: ScriptId): File =
         DirectoryManager.SCRIPT_BUNDLE_CACHE.resolve(namespace).resolve(fingerprint).resolve(variant)
             .resolve(id.path + COMPILED_SUFFIX)
+
+    private fun bundledSharedCacheFile(id: ScriptId): File =
+        DirectoryManager.SCRIPT_BUNDLE_CACHE.resolve(namespace).resolve(fingerprint).resolve(variant)
+            .resolve(id.path + SHARED_SUFFIX)
 
     private fun extract(resource: String, target: File): File? {
         val bytes = classLoader.getResourceAsStream(resource)?.use { it.readBytes() } ?: return null
@@ -67,13 +70,15 @@ class ClasspathScriptSource(
         const val INDEX_PATH = "META-INF/hollowengine/scripts.index"
         const val SOURCE_PREFIX = "scripts/"
         const val COMPILED_PREFIX = "META-INF/hollowengine/scripts/"
-        const val COMPILED_SUFFIX = ".jar"
+        const val COMPILED_SUFFIX = ScriptCache.ARTIFACT_SUFFIX
+        const val SHARED_SUFFIX = ScriptCache.SHARED_ARTIFACT_SUFFIX
         const val SCRIPT_EXTENSION = ".kts"
 
         /** Bytecode is remapped per namespace, so only one of the packaged variants can be used. */
         fun currentVariant(): String {
-            val namespace = runCatching { HollowAddonRuntimeEnvironment.mappingNamespace() }
-                .getOrDefault(HollowAddonMappingNamespace.NAMED)
+            val namespace = runCatching { HollowAddonRuntimeEnvironment.mappingNamespace() }.getOrDefault(
+                    HollowAddonMappingNamespace.NAMED
+                )
             return if (namespace == HollowAddonMappingNamespace.INTERMEDIARY) "intermediary" else "named"
         }
     }

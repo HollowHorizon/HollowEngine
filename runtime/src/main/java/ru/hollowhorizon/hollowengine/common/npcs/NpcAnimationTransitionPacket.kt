@@ -125,14 +125,14 @@ object NpcAnimationRuntime {
         duration: Float,
     ): AnimationsComponent {
         if (duration <= 0f) return withoutClip(animation)
-        val durationTicks = duration.toDouble().secondsToTicksCeil()
-        val removeAt = gameTime + durationTicks
+        val removeAt = gameTime + duration.toDouble().secondsToTicksCeil()
         var changed = false
         val updatedClips = clips.map { clip ->
-            if (clip.animation != animation) return@map clip
+            if (clip.animation != animation || clip.stopAtGameTime != null) return@map clip
             changed = true
             clip.copy(
-                weight = AnimationExpression(clip.weight.source.fadeOutExpression(gameTime, durationTicks)),
+                fadeOut = duration,
+                stopAtGameTime = gameTime,
                 removeOnEnd = false,
                 removeAtGameTime = removeAt,
             )
@@ -150,11 +150,6 @@ object NpcAnimationRuntime {
         if (playMode != AnimationPlayMode.Once || model == null) return null
         val duration = ServerModelAnimationMetadata.animationDuration(model, animation) ?: return null
         return gameTime + (duration + fadeOut.coerceAtLeast(0f)).toDouble().secondsToTicksCeil()
-    }
-
-    private fun String.fadeOutExpression(gameTime: Long, durationTicks: Long): String {
-        val base = if (isBlank()) "1" else this
-        return "($base) * clamp(1 - (game_time - $gameTime) / ${durationTicks.toFloat()}, 0, 1)"
     }
 
     private fun Double.secondsToTicksCeil(): Long =

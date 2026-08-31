@@ -1,18 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import com.sun.jna.Memory
-import com.sun.jna.Native
 import com.sun.jna.Platform
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
-import com.sun.jna.platform.win32.BaseTSD.SIZE_T
 import com.sun.jna.platform.win32.COM.Unknown
 import com.sun.jna.platform.win32.Ole32
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.PointerByReference
-import com.sun.jna.win32.StdCallLibrary
-import com.sun.jna.win32.W32APIOptions
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.io.OutputStream
 import java.nio.ByteBuffer
@@ -69,21 +65,21 @@ internal object WindowsVirtualFileClipboard {
     }
 
     private fun WindowsClipboardDataObject.readDescriptors(): List<WindowsVirtualFileDescriptor> {
-        val format = NativeApis.fileDescriptorFormat
+        val format = ClipboardFormats.fileDescriptor
         if (format == 0) return emptyList()
         val medium = requestData(format, index = -1, acceptedStorage = StorageGlobal) ?: return emptyList()
         try {
             if (medium.tymed != StorageGlobal) return emptyList()
             val handle = medium.data ?: return emptyList()
-            val size = NativeApis.kernel32.GlobalSize(handle).toLong()
+            val size = WindowsApis.kernel32.GlobalSize(handle).toLong()
             if (size < DescriptorHeaderSize) return emptyList()
-            val memory = NativeApis.kernel32.GlobalLock(handle) ?: return emptyList()
+            val memory = WindowsApis.kernel32.GlobalLock(handle) ?: return emptyList()
             return try {
                 parseWindowsFileGroupDescriptor(size, memory::getInt) { offset, length ->
                     memory.getByteArray(offset, length)
                 }
             } finally {
-                NativeApis.kernel32.GlobalUnlock(handle)
+                WindowsApis.kernel32.GlobalUnlock(handle)
             }
         } finally {
             releaseWindowsStorageMedium(medium)
@@ -130,7 +126,7 @@ internal object WindowsVirtualFileClipboard {
     }
 
     private fun WindowsClipboardDataObject.writeContents(entry: WindowsVirtualFilePasteEntry, output: OutputStream): Boolean {
-        val format = NativeApis.fileContentsFormat
+        val format = ClipboardFormats.fileContents
         if (format == 0) return false
         val acceptedStorage = StorageGlobal or StorageFile or StorageStream
         val medium = requestData(format, entry.sourceIndex, acceptedStorage) ?: return false
@@ -148,11 +144,11 @@ internal object WindowsVirtualFileClipboard {
     }
 
     private fun writeGlobalMemory(handle: Pointer, expectedSize: Long?, output: OutputStream): Boolean {
-        val allocationSize = NativeApis.kernel32.GlobalSize(handle).toLong()
+        val allocationSize = WindowsApis.kernel32.GlobalSize(handle).toLong()
         val contentSize = expectedSize ?: allocationSize
         if (contentSize > allocationSize) return false
         if (contentSize == 0L) return true
-        val memory = NativeApis.kernel32.GlobalLock(handle) ?: return false
+        val memory = WindowsApis.kernel32.GlobalLock(handle) ?: return false
         return try {
             var offset = 0L
             while (offset < contentSize) {
@@ -162,7 +158,7 @@ internal object WindowsVirtualFileClipboard {
             }
             true
         } finally {
-            NativeApis.kernel32.GlobalUnlock(handle)
+            WindowsApis.kernel32.GlobalUnlock(handle)
         }
     }
 
@@ -348,12 +344,9 @@ private class ClipboardStream(pointer: Pointer) : Unknown(pointer) {
         _invokeNativeInt(3, arrayOf(pointer, buffer, capacity, bytesRead.pointer))
 }
 
-private object NativeApis {
-    val ole32: ClipboardOle32 = Native.load("Ole32", ClipboardOle32::class.java, W32APIOptions.DEFAULT_OPTIONS)
-    val kernel32: GlobalMemoryKernel32 =
-        Native.load("Kernel32", GlobalMemoryKernel32::class.java, W32APIOptions.DEFAULT_OPTIONS)
-    val fileDescriptorFormat: Int = User32.INSTANCE.RegisterClipboardFormat(FileGroupDescriptorWide)
-    val fileContentsFormat: Int = User32.INSTANCE.RegisterClipboardFormat(FileContents)
+private object ClipboardFormats {
+    val fileDescriptor: Int = User32.INSTANCE.RegisterClipboardFormat(FileGroupDescriptorWide)
+    val fileContents: Int = User32.INSTANCE.RegisterClipboardFormat(FileContents)
 }
 
 internal fun <T> withWindowsClipboardDataObject(block: (WindowsClipboardDataObject) -> T): T? {
@@ -361,7 +354,7 @@ internal fun <T> withWindowsClipboardDataObject(block: (WindowsClipboardDataObje
     if (initialized.toInt() < 0) return null
     try {
         val dataObjectReference = PointerByReference()
-        if (NativeApis.ole32.OleGetClipboard(dataObjectReference) < 0) return null
+        if (WindowsApis.ole32.OleGetClipboard(dataObjectReference) < 0) return null
         val dataObjectPointer = dataObjectReference.value ?: return null
         val dataObject = WindowsClipboardDataObject(dataObjectPointer)
         return try {
@@ -375,19 +368,5 @@ internal fun <T> withWindowsClipboardDataObject(block: (WindowsClipboardDataObje
 }
 
 internal fun releaseWindowsStorageMedium(medium: WindowsStorageMedium) {
-    NativeApis.ole32.ReleaseStgMedium(medium)
-}
-
-private interface ClipboardOle32 : StdCallLibrary {
-    fun OleGetClipboard(dataObject: PointerByReference): Int
-
-    fun ReleaseStgMedium(medium: WindowsStorageMedium)
-}
-
-private interface GlobalMemoryKernel32 : StdCallLibrary {
-    fun GlobalLock(memory: Pointer): Pointer?
-
-    fun GlobalUnlock(memory: Pointer): Boolean
-
-    fun GlobalSize(memory: Pointer): SIZE_T
+    WindowsApis.ole32.ReleaseStgMedium(medium)
 }

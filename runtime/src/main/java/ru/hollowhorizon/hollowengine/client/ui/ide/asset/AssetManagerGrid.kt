@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 internal fun AssetGrid(
     scope: AssetResourceScope,
     entries: List<AssetGridEntry>,
+    state: LazyListState,
     selectedEntryKey: String?,
     clicks: AssetClickTracker,
     onSelect: (AssetGridEntry) -> Unit,
@@ -25,7 +26,6 @@ internal fun AssetGrid(
         AssetMessage(AssetManagerLang.EMPTY_FOLDER.lang)
         return
     }
-    val state = rememberLazyListState()
     val columns = assetGridColumnCount(state.scroll.viewport.width)
     val rows = assetGridRowCount(entries.size, columns)
     LazyColumn(
@@ -121,8 +121,12 @@ private fun AssetTile(
 @Composable
 internal fun AssetEntryContextMenu(
     menu: AssetContextMenu?,
+    canModify: Boolean,
     onOpen: (AssetGridEntry) -> Unit,
     onOpenAsText: (AssetFile) -> Unit,
+    onOverride: (AssetFile) -> Unit,
+    onHide: (AssetFile) -> Unit,
+    onRestore: (AssetFile) -> Unit,
     onDismiss: () -> Unit,
 ) {
     if (menu == null) return
@@ -134,6 +138,19 @@ internal fun AssetEntryContextMenu(
             val file = (menu.entry as? AssetGridEntry.File)?.file
             if (file?.location?.path?.endsWith(".json", ignoreCase = true) == true) {
                 add(UiDropdownItem(AssetManagerLang.OPEN_AS_TEXT.lang) { onOpenAsText(file) })
+            }
+            if (file != null && canModify) {
+                if (file.state != AssetResourceState.OVERRIDDEN) {
+                    add(UiDropdownItem(AssetManagerLang.OVERRIDE_RESOURCE.lang) { onOverride(file) })
+                } else {
+                    add(UiDropdownItem(AssetManagerLang.EDIT_OVERRIDE.lang) { onOverride(file) })
+                }
+                if (file.state != AssetResourceState.HIDDEN) {
+                    add(UiDropdownItem(AssetManagerLang.HIDE_RESOURCE.lang) { onHide(file) })
+                }
+                if (file.state != AssetResourceState.UNTOUCHED) {
+                    add(UiDropdownItem(AssetManagerLang.RESTORE_RESOURCE.lang) { onRestore(file) })
+                }
             }
         },
         onExpandedChange = { if (!it) onDismiss() },

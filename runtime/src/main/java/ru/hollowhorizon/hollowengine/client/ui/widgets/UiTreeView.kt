@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.widgets
 import androidx.compose.runtime.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 
 private const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
@@ -46,12 +47,12 @@ fun <T> UiTreeView(
     fillRowWidth: Boolean = true,
     dragItem: ((UiTreeItem<T>) -> UiDragItem?)? = null,
     onDrop: ((UiTreeItem<T>, UiDragItem) -> Boolean)? = null,
+    canDrop: (UiTreeItem<T>, UiDragItem) -> Boolean = { _, _ -> true },
     filterState: UiTreeFilterState? = null,
     filterPlaceholder: String = "Filter",
     onFilterOpened: ((String) -> Unit)? = null,
+    scrollState: UiScrollHandle = rememberScrollState(),
 ) {
-    val scroll = rememberScrollState()
-    val dragAndDrop = LocalDragAndDrop.current
     Column(
         tags = listOf("tree-view") + tags,
         modifier = modifier.focus().onKeyInput(FilterShortcutPriority) { input ->
@@ -74,12 +75,15 @@ fun <T> UiTreeView(
         }
         Column(
             tags = listOf("tree-view-scroll"),
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scroll),
+            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState),
         ) {
             items.forEach { item ->
                 key(item.id) {
-                    UiTreeRow(item, onToggle, onSelect, onIconClick, fillRowWidth, onDrop) {
-                        if (dragItem == null) null else dragAndDrop?.let { state -> state to dragItem(item) }
+                    UiTreeRow(
+                        item, onToggle, onSelect, onIconClick, fillRowWidth, onDrop, canDrop,
+                        draggable = dragItem != null,
+                    ) {
+                        dragItem?.invoke(item)
                     }
                 }
             }
@@ -93,7 +97,7 @@ private fun UiTreeFilter(
     placeholder: String,
     onClose: () -> Unit,
 ) {
-    Row(tags = listOf("tree-filter-row")) {
+    Row(tags = listOf("tree-filter-row"), modifier = Modifier.dropTarget(accepts = { false }, onDrop = { _, _, _ -> false })) {
         Image(SearchIcon, tags = listOf("tree-filter-icon"))
         TextField(
             value = state.query,
@@ -126,23 +130,34 @@ private fun <T> UiTreeRow(
     onIconClick: ((UiTreeItem<T>) -> Unit)?,
     fillRowWidth: Boolean,
     onDrop: ((UiTreeItem<T>, UiDragItem) -> Boolean)?,
-    drag: () -> Pair<UiDragAndDropState, UiDragItem?>?,
+    canDrop: (UiTreeItem<T>, UiDragItem) -> Boolean,
+    draggable: Boolean,
+    drag: () -> UiDragItem?,
 ) {
+    val id = "tree-item-${item.id}"
+    val dragAndDrop = LocalDragAndDrop.current
+    val dragSource = dragAndDrop.takeIf { draggable }
     val dropModifier = if (onDrop == null) Modifier else Modifier.dropTarget(
+        id = id,
+        accepts = { canDrop(item, it) },
         onDrop = { dragged, _, _ -> onDrop(item, dragged) },
     )
+    val select: (UiEvent) -> Unit = { event ->
+        onSelect(item, event)
+        event.consume()
+    }
     Row(
-        id = "tree-item-${item.id}",
-        tags = if (item.selected) listOf("tree-item", "selected") else listOf("tree-item"),
+        id = id,
+        tags = listOfNotNull("tree-item", "selected".takeIf { item.selected },
+            if (dragAndDrop?.hoveredTargetId == id) {
+                if (dragAndDrop.canDrop) "drop-target" else "drop-rejected"
+            } else null),
         modifier = Modifier.size(if (fillRowWidth) 100.percent else UiLength.Auto, 24.px)
             .alignItems(vertical = UiAlign.CENTER)
             .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
-            .onClick { event ->
-                onSelect(item, event)
-                event.consume()
-            }
-            .dragSource(drag()?.first) { drag()?.second }
+            .then(if (dragSource != null) Modifier.onPress { onSelect(item, it) } else Modifier.onClick(select))
+            .dragSource(dragSource, drag)
             .then(dropModifier)
     ) {
         repeat(item.depth) {

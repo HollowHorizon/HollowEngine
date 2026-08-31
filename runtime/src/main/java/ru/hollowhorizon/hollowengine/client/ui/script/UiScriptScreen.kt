@@ -1,7 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.script
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
 import ru.hollowhorizon.hollowengine.client.slots.SlotTooltips
@@ -21,6 +26,7 @@ class UiScriptScreen(
     private val definition: UiScreenDefinition,
     override val data: UiData,
     override val sessionId: Int?,
+    val replaced: Screen? = null,
 ) : HollowComposeUiScreen(definition.title, EmptyStyles), UiScope {
 
     override fun send(payload: CompoundTag) {
@@ -33,10 +39,17 @@ class UiScriptScreen(
 
     @Composable
     override fun Content() {
-        definition.content(this)
+        CompositionLocalProvider(LocalReplacedScreen provides replaced) {
+            definition.content(this@UiScriptScreen)
+        }
     }
 
     override fun shouldCloseOnEsc(): Boolean = definition.closeOnEscape
+
+    override fun onClose() {
+        if (dismiss()) return
+        super.onClose()
+    }
 
     /**
      * Slots override a script's `pausesGame`. A paused singleplayer world stops ticking its server, and the
@@ -67,7 +80,9 @@ class UiScriptScreen(
     }
 
     /** When the server dismissed this screen, or 0 while it is still live. */
-    private var dismissedAt = 0L
+    private var dismissedAt by mutableStateOf(0L)
+
+    override val isClosing: Boolean get() = dismissedAt != 0L
 
     private fun hasSlots(): Boolean = sessionId?.let { ClientSlots[it] } != null
 

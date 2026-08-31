@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.widgets.Video
 import ru.hollowhorizon.hollowengine.client.utils.mc
+import ru.hollowhorizon.hollowengine.client.utils.lang
 
 class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
     private var selectedTab by mutableStateOf("overview")
@@ -46,6 +47,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                 tab("docking", "Docking", "hollowengine:textures/gui/icons/code_editor.svg")
                 tab("effects", "Эффекты", "hollowengine:textures/gui/npc_menu/character.png")
                 tab("shapes", "Shapes", "hollowengine:textures/gui/icons/code_editor.svg")
+                tab("particles", "hollowengine.gui.particles.title".lang, "hollowengine:textures/gui/npc_menu/character.png")
                 tab("video", "Видео", "hollowengine:textures/gui/icons/play.svg")
             }
             Box(id = "content", tags = listOf("content")) {
@@ -59,6 +61,7 @@ class HollowUiDemoScreen : HollowComposeUiScreen("Hollow UI Demo", DemoStyles) {
                     "docking" -> docking()
                     "effects" -> effects()
                     "shapes" -> shapesDemo()
+                    "particles" -> particlesDemo()
                     "video" -> videoDemo()
                     else -> overview()
                 }

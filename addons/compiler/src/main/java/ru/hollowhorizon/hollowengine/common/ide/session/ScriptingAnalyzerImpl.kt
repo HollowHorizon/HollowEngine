@@ -4,6 +4,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.PsiFileEx
 import com.intellij.psi.impl.PsiManagerEx
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -113,12 +114,23 @@ class ScriptingAnalyzerImpl(
             file, KaScriptModule(
                 file, project, buildList {
                     addAll(libraries)
-                    addAll(imports.files.mapNotNull { it.contextModule })
+                    addAll(importedModules(imports.files))
                     add(builtins.kaModule)
-                }
+                }.distinct()
             )
         )
         return file
+    }
+
+    /**
+     * Modules of imported scripts.
+     */
+    private fun importedModules(imported: List<KtFile>): List<KaModule> = buildList {
+        imported.forEach { file ->
+            val module = file.contextModule ?: return@forEach
+            add(module)
+            addAll(module.directRegularDependencies)
+        }
     }
 
     /**

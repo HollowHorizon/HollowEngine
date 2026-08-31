@@ -32,5 +32,6 @@ object UiScriptLoader : ResourceManagerReloadListener {
 
         // The old composables belong to classes that no longer exist, so nothing shown may survive.
         UiScriptHudHost.reload()
+        UiScreenOverrides.reload()
     }
 }

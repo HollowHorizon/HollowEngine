@@ -83,10 +83,10 @@ object BedrockModelLoader : ModelLoader {
         val transform = TrsTransformF()
 
         val translation = bone.pivot - parentPivot
-        transform.translate(translation)
+        transform.translate(BedrockCoordinates.position(translation))
 
         if (bone.rotation != Vec3f.ZERO) {
-            transform.rotate((-bone.rotation.x).deg, bone.rotation.y.deg, (-bone.rotation.z).deg)
+            transform.rotate(BedrockCoordinates.rotation(bone.rotation))
         }
 
         val primitives = bone.cubes.map { cube ->
@@ -141,16 +141,17 @@ object BedrockModelLoader : ModelLoader {
         val (sx, sy, sz) = size
         val inf = inflate
 
-        val x0 = ox - inf
+        // Keep the Bedrock corner/UV association while reflecting positions into engine space.
+        val x0 = -(ox - inf)
         val y0 = oy - inf
         val z0 = oz - inf
-        val x1 = ox + sx + inf
+        val x1 = -(ox + sx + inf)
         val y1 = oy + sy + inf
         val z1 = oz + sz + inf
         
         val rotMat = rotation.takeIf { it != Vec3f.ZERO }
-            ?.let { MutableMat3f().rotate((-it.x).deg, it.y.deg, (-it.z).deg) }
-        val cubePivotLocal = pivot - bonePivot
+            ?.let { MutableMat3f().rotate(BedrockCoordinates.rotation(it)) }
+        val cubePivotLocal = BedrockCoordinates.position(pivot - bonePivot)
 
         fun place(v: Vec3f): Vec3f {
             if (rotMat == null) return v
@@ -168,8 +169,8 @@ object BedrockModelLoader : ModelLoader {
         val faces = listOf(
             listOf(0, 1, 2, 3) to Vec3f(0f, 0f, -16f) to "north",
             listOf(5, 4, 7, 6) to Vec3f(0f, 0f, 16f) to "south",
-            listOf(4, 0, 3, 7) to Vec3f(-16f, 0f, 0f) to "west",
-            listOf(1, 5, 6, 2) to Vec3f(16f, 0f, 0f) to "east",
+            listOf(4, 0, 3, 7) to Vec3f(16f, 0f, 0f) to "west",
+            listOf(1, 5, 6, 2) to Vec3f(-16f, 0f, 0f) to "east",
             listOf(3, 2, 6, 7) to Vec3f(0f, 16f, 0f) to "up",
             listOf(4, 5, 1, 0) to Vec3f(0f, -16f, 0f) to "down"
         )
@@ -255,7 +256,7 @@ object BedrockModelLoader : ModelLoader {
                 }
 
                 val translation = channels.position?.let {
-                    BedrockInterpolator(it.frames, BedrockInterpolator.Vec3Converter)
+                    BedrockInterpolator(it.frames, BedrockInterpolator.PositionConverter)
                 }
                 val rotation = channels.rotation?.let {
                     BedrockInterpolator(it.frames, BedrockInterpolator.QuatConverter)

@@ -1,0 +1,94 @@
+---
+title: Частицы
+order: 10
+---
+
+# Ванильные частицы в UI
+
+UI использует спрайты частиц Minecraft, включая их анимацию и изменения из ресурспаков.
+Симуляция работает отдельно от мира: координаты и скорость заданы в пикселях, а 
+время жизни - в секундах. Можно рисовать частицы в меню без загруженного мира.
+
+## Фон
+
+```kotlin
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import ru.hollowhorizon.hollowengine.client.ui.Box
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.particles.UiParticleEmitter
+import ru.hollowhorizon.hollowengine.client.ui.particles.particleBackground
+import ru.hollowhorizon.hollowengine.client.ui.particles.rememberUiParticleSystem
+import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.size
+
+@Composable
+fun SmokePanel() {
+    val smoke = rememberUiParticleSystem(remember { UiParticleEmitter.smoke() })
+    Box(
+        id = "smoke-panel",
+        modifier = Modifier.size(320.px, 180.px).particleBackground(smoke),
+    ) {
+        // Содержимое поверх частиц. Цвет фона и оформление задаются обычными HSS-стилями.
+    }
+}
+```
+
+`particleBackground` рисует над фоном HSS, но под содержимым узла. Для каждой независимой
+области создавайте свою систему; `remember` сохраняет эмиттер и его обратные вызовы при рекомпозиции.
+Изменение определения эмиттера в `rememberUiParticleSystem` создаёт новую симуляцию (положение партиклов сбросится).
+
+## drawBehind и draw
+
+Внутри `Modifier.drawBehind { ... }` или `Modifier.draw { ... }` доступен метод
+`drawParticles(system, rect = bounds)`. `rect` использует локальные координаты узла.
+Импортируйте `drawBehind` / `draw` из `ru.hollowhorizon.hollowengine.client.ui`, а `UiRect` -
+из `ru.hollowhorizon.hollowengine.client.ui.layout`.
+
+```kotlin
+Modifier.drawBehind(smoke) {
+    drawParticles(smoke, UiRect(8f, 8f, size.width - 16f, size.height - 16f))
+}
+```
+
+Спрайты всегда обрезаются по прямоугольнку. Трансформации узла, непрозрачность, 
+родительский clip и слои с фильтрами работают без изменений.
+Для кастомнымх форм используйте `clip`/`clipShape` узла.
+
+## Настройка
+
+`UiParticleEmitter` принимает:
+
+| Параметр | Назначение |
+| --- | --- |
+| `particle` | ID набора спрайтов, например `minecraft:smoke`, `minecraft:flame`, `minecraft:soul` |
+| `rate`, `initialCount` | Частиц в секунду и начальный выброс |
+| `spawn` | Начальные координаты, скорость, размер, цвет и время жизни частицы |
+| `accelerationX/Y`, `drag` | Ускорение и сопротивление движению |
+| `update` | Дополнительное поведение перед каждым шагом интеграции |
+| `scale`, `alpha` | Кривые размера и прозрачности, аргумент - доля прожитой жизни от 0 до 1 |
+| `animation` | Кадры по времени жизни (`OVER_LIFETIME`) либо случайный постоянный кадр (`RANDOM_FRAME`) |
+
+В `spawn` доступны `area.width`, `area.height` и `area.random`. Положительный Y направлен
+вниз. `size` - сторона квадратного спрайта, `x/y` - его центр. `update` может менять
+координаты, скорость, цвет, размер и время жизни. Не сохраняйте ссылку на `UiParticle`:
+объекты переиспользуются после смерти. Callback выполняется на потоке рендеринга.
+
+В одну систему можно передать несколько эмиттеров. Все они разделяют `maxParticles`
+(по умолчанию 512); при заполнении лишний спавн отбрасывается без накопления очереди.
+При нехватке места эмиттеры обрабатываются в порядке объявления. `seed` задаёт
+воспроизводимую случайность. Цвет ванильного провайдера автоматически не вычисляется:
+задавайте `color` в `spawn`, например для окрашенных частиц пыли.
+
+`system.paused = true` замораживает эффект. `system.emitting = false` отключает новые
+частицы, оставляя существующим возможность дожить до конца. `reset()` очищает состояние
+и повторно разрешает начальный выброс при следующем обновлении; вызывайте его на потоке рендеринга.
+
+## Жизненный цикл и производительность
+
+`rememberUiParticleSystem` получает время через `withFrameNanos`, не вызывая рекомпозицию
+и повторный layout для каждой частицы. При удалении из композиции подписка отменяется.
+Сама симуляция обновляется только при отрисовке видимой области, с шагом 1/60 секунды и
+интерполяцией позиций. Возвращение к скрытой области догоняет не более 0,25 секунды;
+длительные паузы не вызывают каскад обновлений. Изменение размера влияет на последующий
+спавн, существующие частицы остаются в своих локальных пиксельных координатах.

@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 class PopupEntry(val key: Any) {
     var layer by mutableStateOf(0)
     var dismissOnOutside by mutableStateOf(true)
+    var animated by mutableStateOf(true)
+    var visible by mutableStateOf(true)
 
     /**
      * The owning [Popup] has left the composition and the entry is only still here so its content can
@@ -31,11 +33,11 @@ class OverlayManager {
     val popups = mutableStateListOf<PopupEntry>()
 
     val hasDismissable: Boolean
-        get() = popups.any { !it.exiting && it.dismissOnOutside && it.onDismiss != null }
+        get() = popups.any { it.visible && !it.exiting && it.dismissOnOutside && it.onDismiss != null }
 
     /**
-     * Registers an overlay; returns the dispose handle. Disposing does not remove the entry outright,
-     * it flips it to [PopupEntry.exiting] so the host can play the closing animation, then drop it.
+     * Registers an overlay; returns its dispose handle. Animated entries stay until the host
+     * finishes the exit transition; immediate entries are removed on disposal.
      */
     fun register(entry: PopupEntry): () -> Unit {
         entry.exiting = false
@@ -44,6 +46,7 @@ class OverlayManager {
             entry.exiting = true
             entry.onDismiss = null
             entry.dismissOnOutside = false
+            if (!entry.animated || !entry.visible) remove(entry)
         }
     }
 
@@ -53,7 +56,7 @@ class OverlayManager {
     }
 
     fun dismissAll() {
-        popups.toList().forEach { if (!it.exiting && it.dismissOnOutside) it.onDismiss?.invoke() }
+        popups.toList().forEach { if (it.visible && !it.exiting && it.dismissOnOutside) it.onDismiss?.invoke() }
     }
 }
 

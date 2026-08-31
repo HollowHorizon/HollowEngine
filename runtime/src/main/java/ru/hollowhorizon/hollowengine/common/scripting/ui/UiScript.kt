@@ -1,9 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ui
 
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.ui.*
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.common.ui.net.UiSurfaceKind
+import kotlin.reflect.KClass
 
 /**
  * Base class of `.ui.kts` scripts. The script body declares screens and HUD overlays; both are
@@ -88,9 +90,34 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
     var exitDuration: Long = 0L
 
     private var content: UiContent? = null
+    private val overrides = mutableListOf<ScreenOverride>()
 
     fun content(body: UiContent) {
         content = body
+    }
+
+    /**
+     * This screen replaces [target]: whenever the game displays this screen, the player sees
+     * this one instead. The server is not involved in this, so the override also applies in the main menu,
+     * where the world and session do not yet exist:
+     *
+     * ```kotlin
+     * screen("mypack:main_menu") {
+     *     override(TitleScreen::class)
+     *     content { ... }
+     * }
+     * ```
+     */
+    fun override(target: KClass<out Screen>, subclasses: Boolean = false) {
+        override(target.java.name, subclasses)
+    }
+
+    /**
+     * Redefines the screen by class name if this script cannot import it. A binary
+     * name is used, so a nested class is written as `com.example.Outer$Inner`.
+     */
+    fun override(target: String, subclasses: Boolean = false) {
+        overrides += ScreenOverride(target, subclasses)
     }
 
     internal fun build(): UiScreenDefinition = UiScreenDefinition(
@@ -102,6 +129,7 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
         guiScale = guiScale,
         exitDuration = exitDuration,
         content = content ?: error("UI screen '$id' declares no content { } block"),
+        overrides = overrides.toList(),
     )
 }
 

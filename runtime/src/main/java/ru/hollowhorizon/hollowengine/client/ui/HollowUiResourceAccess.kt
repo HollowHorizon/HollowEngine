@@ -5,13 +5,18 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.utils.HollowJavaUtils
 import java.io.InputStreamReader
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileTime
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 object HollowUiResourceAccess {
     private const val VersionCacheNanos = 250_000_000L
 
     private val textCache = ConcurrentHashMap<ResourceLocation, TextCacheEntry>()
     private val versionCache = ConcurrentHashMap<ResourceLocation, VersionCacheEntry>()
+    private val revisions = AtomicLong()
 
     fun readText(location: ResourceLocation): String {
         val version = version(location)
@@ -24,10 +29,22 @@ object HollowUiResourceAccess {
     fun version(location: ResourceLocation): Long {
         val now = System.nanoTime()
         versionCache[location]?.takeIf { now - it.checkedAtNanos <= VersionCacheNanos }?.let { return it.version }
-        val local = localPath(location)
-        val version = if (Files.isRegularFile(local)) Files.getLastModifiedTime(local).toMillis() else 0L
-        versionCache[location] = VersionCacheEntry(version, now)
-        return version
+        return versionCache.compute(location) { _, previous ->
+            if (previous != null && now - previous.checkedAtNanos <= VersionCacheNanos) return@compute previous
+            val attributes = try {
+                Files.readAttributes(localPath(location), BasicFileAttributes::class.java).takeIf { it.isRegularFile }
+            } catch (_: NoSuchFileException) {
+                null
+            }
+            val modified = attributes?.lastModifiedTime()
+            val size = attributes?.size()
+            val version = if (previous != null && previous.modified == modified && previous.size == size) {
+                previous.version
+            } else {
+                revisions.incrementAndGet()
+            }
+            VersionCacheEntry(version, now, modified, size)
+        }!!.version
     }
 
     fun clearCache() {
@@ -56,5 +73,7 @@ object HollowUiResourceAccess {
     private data class VersionCacheEntry(
         val version: Long,
         val checkedAtNanos: Long,
+        val modified: FileTime?,
+        val size: Long?,
     )
 }
