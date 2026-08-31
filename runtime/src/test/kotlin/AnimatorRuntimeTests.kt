@@ -278,6 +278,32 @@ class AnimatorRuntimeTests {
         animator.step(node, seconds = 0.5f)
         assertTrue(animator.isEmpty)
     }
+    
+    @Test
+    fun `stopping a clip fades it out instead of dropping it`() {
+        clockTicks = 0f
+        val node = testNode()
+        val animator = ModelAnimator()
+        val playing = clip(id = "npc:wave", animation = "wave", playMode = AnimationPlayMode.Loop)
+        animator.configure(model = null, animations = AnimationsComponent(clips = listOf(playing)))
+        animator.step(node, seconds = 0.5f)
+
+        val stopping = playing.copy(
+            fadeOut = 0.5f,
+            stopAtGameTime = clockTicks.toLong(),
+            removeOnEnd = false,
+        )
+        animator.configure(model = null, animations = AnimationsComponent(clips = listOf(stopping)))
+
+        animator.step(node, seconds = 0f)
+        assertEquals(1f, node.transform.translation.x, 0.0001f)
+
+        animator.step(node, seconds = 0.25f)
+        assertEquals(0.5f, node.transform.translation.x, 0.0001f)
+
+        animator.step(node, seconds = 0.25f)
+        assertTrue(animator.isEmpty)
+    }
 
     /**
      * A state that clamps leaves its time pinned at the end of the clip. Coming back to it has to
