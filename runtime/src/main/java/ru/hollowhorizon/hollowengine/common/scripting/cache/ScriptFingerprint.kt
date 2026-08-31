@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptImports
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
+import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptText
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
 import java.security.MessageDigest
@@ -22,13 +23,18 @@ import java.security.MessageDigest
  */
 object ScriptFingerprint {
     /** Bumped whenever the layout of a cached artifact changes in a way older jars cannot satisfy. */
-    const val FORMAT_VERSION = 1
+    const val FORMAT_VERSION = 2
+
+    /**
+     * What an artifact was built from, at two levels of detail.
+     */
+    data class Fingerprint(val code: String, val layout: String)
 
     /**
      * Hash of [id] and everything it is built from, or `null` when the script has no sources to hash
      * (an addon that shipped compiled artifacts only).
      */
-    fun compute(id: ScriptId): String? {
+    fun compute(id: ScriptId): Fingerprint? {
         val closure = ScriptImports.closure(id)
         val sources = closure.mapNotNull { member ->
             val artifacts = ScriptRegistry.artifacts(member) ?: return@mapNotNull null
@@ -37,19 +43,28 @@ object ScriptFingerprint {
         }
         if (sources.none { (member, _) -> member == id }) return null
 
-        val digest = MessageDigest.getInstance("SHA-256")
-        digest.updateText("format=$FORMAT_VERSION")
-        digest.updateText("engine=${HollowEngineBuild.VERSION}")
-        digest.updateText("kotlin=${HollowEngineBuild.KOTLIN_VERSION}")
-        digest.updateText("minecraft=${HollowEngineBuild.MINECRAFT_VERSION}")
-        digest.updateText("runtime=$currentRuntimeIdentity")
-        digest.updateText("definition=${definitionIdentity(id)}")
-        digest.updateText("source=${ScriptRegistry.source(id.namespace)?.fingerprint.orEmpty()}")
-        sources.forEach { (member, file) ->
-            digest.updateText("script=${member.qualified}")
-            digest.update(file.readBytes())
+        val code = MessageDigest.getInstance("SHA-256")
+        val layout = MessageDigest.getInstance("SHA-256")
+
+        fun updateBoth(text: String) {
+            code.updateText(text)
+            layout.updateText(text)
         }
-        return digest.digest().toHexString()
+
+        updateBoth("format=$FORMAT_VERSION")
+        updateBoth("engine=${HollowEngineBuild.VERSION}")
+        updateBoth("kotlin=${HollowEngineBuild.KOTLIN_VERSION}")
+        updateBoth("minecraft=${HollowEngineBuild.MINECRAFT_VERSION}")
+        updateBoth("runtime=$currentRuntimeIdentity")
+        updateBoth("definition=${definitionIdentity(id)}")
+        updateBoth("source=${ScriptRegistry.source(id.namespace)?.fingerprint.orEmpty()}")
+        sources.forEach { (member, file) ->
+            val bytes = file.readBytes()
+            updateBoth("script=${member.qualified}")
+            code.updateText(ScriptText.normalize(String(bytes, Charsets.UTF_8)))
+            layout.update(bytes)
+        }
+        return Fingerprint(code.digest().toHexString(), layout.digest().toHexString())
     }
 
     /**
@@ -68,16 +83,16 @@ object ScriptFingerprint {
     private val currentRuntimeIdentity: String
         get() = runtimeIdentity ?: runtimeIdentity(
             platform = runCatching { HollowAddonRuntimeEnvironment.platform.id() }.getOrDefault("unknown"),
-            mappingNamespace = runCatching { HollowAddonRuntimeEnvironment.mappingNamespace().id }
-                .getOrDefault("unknown"),
+            mappingNamespace = runCatching { HollowAddonRuntimeEnvironment.mappingNamespace().id }.getOrDefault("unknown"),
             production = isProduction,
         )
 
     private val providers: List<ScriptClassProvider> by lazy {
         // Fingerprinting must never be the thing that breaks script loading, and the definitions pull in
         // Minecraft classes that are not there in every environment this code runs in.
-        runCatching { DefaultScriptDefinitions.providers().sortedByDescending { it.extension.length } }
-            .onFailure { HollowEngine.LOGGER.error("Cannot read the script definitions for cache keys", it) }
+        runCatching {
+            DefaultScriptDefinitions.providers().sortedByDescending { it.extension.length }
+        }.onFailure { HollowEngine.LOGGER.error("Cannot read the script definitions for cache keys", it) }
             .getOrDefault(emptyList())
     }
 

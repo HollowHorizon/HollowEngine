@@ -53,7 +53,7 @@ object ScriptImports {
         fun visit(id: ScriptId) {
             if (!ordered.add(id)) return
             val source = ScriptRegistry.artifacts(id)?.sourceFile?.takeIf(java.io.File::isFile) ?: return
-            parse(source.readText()).forEach { reference ->
+            parse(ScriptText.normalize(source.readText())).forEach { reference ->
                 runCatching { resolve(id, reference) }.getOrNull()?.let(::visit)
             }
         }

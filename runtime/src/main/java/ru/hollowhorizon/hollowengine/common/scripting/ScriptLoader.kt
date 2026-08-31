@@ -28,10 +28,10 @@ object ScriptLoader {
     fun compile(id: ScriptId): Result<CompiledScript> {
         val artifacts = ScriptRegistry.artifacts(id)
             ?: return Result.failure(NoSuchElementException("Unknown script '${ScriptRegistry.display(id)}'"))
-        val expectedHash = ScriptFingerprint.compute(id)
+        val fingerprint = ScriptFingerprint.compute(id)
         val cached = ScriptCache.artifact(id)
 
-        usableArtifact(artifacts, expectedHash, cached)?.let { jar ->
+        currentArtifact(artifacts, fingerprint, cached)?.let { jar ->
             return runCatching { load(id, jar) }
         }
 
@@ -41,25 +41,21 @@ object ScriptLoader {
             val context = ScriptCompilationContext(
                 extraClasspath = source?.classpath.orEmpty(),
                 baseClassLoader = source?.classLoader,
-                cacheOutput = expectedHash?.let { cached },
-                cacheHash = expectedHash,
+                cacheOutput = fingerprint?.let { cached },
+                cacheFingerprint = fingerprint,
             )
-            return scripting.compiler.compile(artifacts.sourceFile, context)
-                .onSuccess {
-                    // The artifact at this path has just been rewritten, so an earlier rejection of it
-                    // says nothing about the new one.
-                    rejectedArtifacts -= cached.canonicalPath
-                }
-                .map { it as CompiledScript }
+            return scripting.compiler.compile(artifacts.sourceFile, context).onSuccess {
+                // The artifact at this path has just been rewritten, so an earlier rejection of it
+                // says nothing about the new one.
+                rejectedArtifacts -= cached.canonicalPath
+            }.map { it as CompiledScript }
         }
 
-        val stale = listOfNotNull(cached.takeIf(File::isFile), artifacts.precompiled)
-            .firstOrNull { it.isFile && it.canonicalPath !in rejectedArtifacts }
+        val stale = listOfNotNull(
+            cached.takeIf(File::isFile), artifacts.precompiled
+        ).firstOrNull { it.isFile && it.canonicalPath !in rejectedArtifacts }
         if (stale != null) {
-            HollowEngine.LOGGER.warn(
-                "Using an outdated compiled '{}': its sources changed but the Kotlin compiler addon is not installed",
-                ScriptRegistry.display(id),
-            )
+            report(id, stale, fingerprint)
             return runCatching { load(id, stale) }
         }
 
@@ -109,8 +105,7 @@ object ScriptLoader {
     }
 
     internal fun isStaleArtifact(failure: Throwable): Boolean =
-        generateSequence(failure) { it.cause?.takeIf { cause -> cause !== it } }
-            .take(MAX_CAUSE_DEPTH)
+        generateSequence(failure) { it.cause?.takeIf { cause -> cause !== it } }.take(MAX_CAUSE_DEPTH)
             .any { it is LinkageError }
 
     /**
@@ -133,16 +128,32 @@ object ScriptLoader {
         ScriptCache.invalidate(id)
     }
 
-    private fun usableArtifact(artifacts: ScriptArtifacts, expectedHash: String?, cached: File): File? {
+    private fun currentArtifact(
+        artifacts: ScriptArtifacts,
+        fingerprint: ScriptFingerprint.Fingerprint?,
+        cached: File,
+    ): File? {
         val bundled = artifacts.precompiled?.takeIf { it.canonicalPath !in rejectedArtifacts }
         if (bundled != null) {
-            // An addon built without sources has nothing to compare against, so its artifact is the
-            // only truth available.
             if (artifacts.sourceFile == null) return bundled
-            if (ScriptCache.isValid(bundled, expectedHash)) return bundled
+            if (ScriptCache.isCurrent(bundled, fingerprint)) return bundled
         }
         if (cached.canonicalPath in rejectedArtifacts) return null
-        return cached.takeIf { ScriptCache.isValid(it, expectedHash) }
+        return cached.takeIf { ScriptCache.isCurrent(it, fingerprint) }
+    }
+
+    private fun report(id: ScriptId, jar: File, fingerprint: ScriptFingerprint.Fingerprint?) {
+        if (ScriptCache.isValid(jar, fingerprint)) {
+            HollowEngine.LOGGER.info(
+                "'{}' was compiled from the same code formatted differently; the line numbers it reports may not be the ones in the file",
+                ScriptRegistry.display(id),
+            )
+        } else {
+            HollowEngine.LOGGER.warn(
+                "Using an outdated compiled '{}': its sources changed but the Kotlin compiler addon is not installed",
+                ScriptRegistry.display(id),
+            )
+        }
     }
 
     private fun load(id: ScriptId, jar: File): CompiledScript {

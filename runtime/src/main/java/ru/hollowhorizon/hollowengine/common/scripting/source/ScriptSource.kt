@@ -33,11 +33,15 @@ interface ScriptSource {
 /**
  * What a source can provide for a single script. [sourceFile] is absent when an addon was built
  * without its sources, [precompiled] is absent for scripts that were never compiled ahead of time.
+ *
+ * [precompiledShared] is this script's classes as a `@file:SharedScript`, which the compiler keeps out
+ * of every artifact importing it. It travels beside [precompiled] and is absent for anything not shared.
  */
 data class ScriptArtifacts(
     val id: ScriptId,
     val sourceFile: File?,
     val precompiled: File?,
+    val precompiledShared: File? = null,
 ) {
     init {
         require(sourceFile != null || precompiled != null) {

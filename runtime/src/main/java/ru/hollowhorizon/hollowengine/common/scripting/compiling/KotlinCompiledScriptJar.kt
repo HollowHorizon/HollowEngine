@@ -1,47 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.scripting.compiling
 
 import kotlinx.coroutines.runBlocking
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Position
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Range
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.io.File
 import java.io.InputStream
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.InvocationTargetException
 import java.security.ProtectionDomain
-import java.util.ArrayList
-import java.util.Collections
-import java.util.WeakHashMap
+import java.util.*
 import java.util.jar.JarFile
 import java.util.jar.JarInputStream
-import kotlin.io.inputStream
-import kotlin.io.readBytes
 import kotlin.reflect.KClass
-import kotlin.script.experimental.api.EvaluationResult
-import kotlin.script.experimental.api.ResultValue
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptCompilationConfiguration
-import kotlin.script.experimental.api.ScriptCompilationConfigurationKeys
-import kotlin.script.experimental.api.ScriptDiagnostic
-import kotlin.script.experimental.api.ScriptEvaluationConfiguration
-import kotlin.script.experimental.api.ScriptEvaluator
-import kotlin.script.experimental.api.ScriptExecutionWrapper
-import kotlin.script.experimental.api.asDiagnostics
-import kotlin.script.experimental.api.asSuccess
-import kotlin.script.experimental.api.compilationConfiguration
-import kotlin.script.experimental.api.constructorArgs
-import kotlin.script.experimental.api.implicitReceivers
-import kotlin.script.experimental.api.mapSuccess
-import kotlin.script.experimental.api.onSuccess
-import kotlin.script.experimental.api.previousSnippets
-import kotlin.script.experimental.api.providedProperties
-import kotlin.script.experimental.api.refineBeforeEvaluation
-import kotlin.script.experimental.api.scriptExecutionWrapper
-import kotlin.script.experimental.api.valueOr
-import kotlin.script.experimental.api.with
+import kotlin.script.experimental.api.*
 import kotlin.script.experimental.impl._languageVersion
 import kotlin.script.experimental.jvm.JvmScriptEvaluationConfigurationKeys
 import kotlin.script.experimental.jvm.baseClassLoader
@@ -104,8 +76,7 @@ internal class KotlinCompiledScriptJar(
         val value = result.value.returnValue
         if (value is ResultValue.Error) return Result.failure(value.error)
 
-        @Suppress("UNCHECKED_CAST")
-        return Result.success(value.scriptInstance as T)
+        @Suppress("UNCHECKED_CAST") return Result.success(value.scriptInstance as T)
     }
 }
 
@@ -118,8 +89,7 @@ val ScriptCompilationConfigurationKeys.isSharedScript by PropertiesCollection.ke
 
 open class HollowEngineScriptEvaluator : ScriptEvaluator {
     companion object {
-        private val constructorCache: MutableMap<Class<*>, MethodHandle> =
-            Collections.synchronizedMap(WeakHashMap())
+        private val constructorCache: MutableMap<Class<*>, MethodHandle> = Collections.synchronizedMap(WeakHashMap())
     }
 
     override suspend operator fun invoke(
@@ -148,29 +118,22 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                     return@onSuccess it.asSuccess()
                 }
 
-                val refinedEvalConfiguration =
-                    sharedConfiguration.with {
-                        compilationConfiguration(compiledScript.compilationConfiguration)
-                    }.refineBeforeEvaluation(compiledScript).valueOr {
-                        return@invoke ResultWithDiagnostics.Failure(it.reports)
-                    }
+                val refinedEvalConfiguration = sharedConfiguration.with {
+                    compilationConfiguration(compiledScript.compilationConfiguration)
+                }.refineBeforeEvaluation(compiledScript).valueOr {
+                    return@invoke ResultWithDiagnostics.Failure(it.reports)
+                }
 
                 val resultValue = try {
-                    val instance =
-                        scriptClass.evalWithConfigAndOtherScriptsResults(
-                            refinedEvalConfiguration,
-                            importedScriptsEvalResults
-                        )
+                    val instance = scriptClass.evalWithConfigAndOtherScriptsResults(
+                        refinedEvalConfiguration, importedScriptsEvalResults
+                    )
 
                     compiledScript.resultField?.let { (resultFieldName, resultType) ->
                         scriptClass.java.declaredFields.find { it.name == resultFieldName }?.let {
                             it.isAccessible = true
                             ResultValue.Value(
-                                resultFieldName,
-                                it.get(instance),
-                                resultType.typeName,
-                                scriptClass,
-                                instance
+                                resultFieldName, it.get(instance), resultType.typeName, scriptClass, instance
                             )
                         } ?: ResultValue.Unit(scriptClass, instance)
                     } ?: ResultValue.Unit(scriptClass, instance)
@@ -202,18 +165,16 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
         refinedEvalConfiguration: ScriptEvaluationConfiguration,
         importedScriptsEvalResults: List<EvaluationResult>,
     ): Any {
-        val isCompiledWithK2 =
-            refinedEvalConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]
-                ?.get(ScriptCompilationConfiguration._languageVersion)
-                ?.let { it.substringBefore('.').toIntOrNull()?.let { ver -> ver >= 2 } } == true
+        val isCompiledWithK2 = refinedEvalConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]?.get(
+                ScriptCompilationConfiguration._languageVersion
+            )?.let { it.substringBefore('.').toIntOrNull()?.let { ver -> ver >= 2 } } == true
 
         val providedProps = refinedEvalConfiguration[ScriptEvaluationConfiguration.providedProperties]
         val implicitReceivers = refinedEvalConfiguration[ScriptEvaluationConfiguration.implicitReceivers]
         val expectedImplicitReceiverCount =
-            refinedEvalConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]
-                ?.get(ScriptCompilationConfiguration.implicitReceivers)
-                ?.size
-                ?: 0
+            refinedEvalConfiguration[ScriptEvaluationConfiguration.compilationConfiguration]?.get(
+                    ScriptCompilationConfiguration.implicitReceivers
+                )?.size ?: 0
         val ctorArgs = refinedEvalConfiguration[ScriptEvaluationConfiguration.constructorArgs]
         val prevSnippets = refinedEvalConfiguration[ScriptEvaluationConfiguration.previousSnippets]
 
@@ -242,8 +203,7 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
             providedProps?.forEach { args.add(it.value) }
         }
 
-        @Suppress("UNCHECKED_CAST")
-        val wrapper: ScriptExecutionWrapper<Any>? =
+        @Suppress("UNCHECKED_CAST") val wrapper: ScriptExecutionWrapper<Any>? =
             refinedEvalConfiguration[ScriptEvaluationConfiguration.scriptExecutionWrapper] as ScriptExecutionWrapper<Any>?
 
         val saveClassLoader = Thread.currentThread().contextClassLoader
@@ -255,8 +215,9 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                 MethodHandles.publicLookup().unreflectConstructor(ctor)
             }
 
-            wrapper?.invoke { constructorHandle.invokeWithArguments(args) }
-                ?: constructorHandle.invokeWithArguments(args)
+            wrapper?.invoke { constructorHandle.invokeWithArguments(args) } ?: constructorHandle.invokeWithArguments(
+                args
+            )
         } finally {
             Thread.currentThread().contextClassLoader = saveClassLoader
         }
@@ -264,12 +225,10 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
 }
 
 private fun ScriptEvaluationConfiguration.getOrPrepareShared(classLoader: ClassLoader): ScriptEvaluationConfiguration =
-    if (this[ScriptEvaluationConfiguration.jvm.actualClassLoader] != null)
-        this
-    else
-        with {
-            ScriptEvaluationConfiguration.jvm.actualClassLoader(classLoader)
-        }
+    if (this[ScriptEvaluationConfiguration.jvm.actualClassLoader] != null) this
+    else with {
+        ScriptEvaluationConfiguration.jvm.actualClassLoader(classLoader)
+    }
 
 internal class KJvmCompiledScriptFromJar(
     private val scriptClassName: String,
@@ -277,8 +236,8 @@ internal class KJvmCompiledScriptFromJar(
 ) : KotlinCompiledScript {
     private var loadedScript: KJvmCompiledScript? = null
 
-    private fun getScriptOrFail(): KJvmCompiledScript = loadedScript
-        ?: throw IllegalStateException("Compiled script is not loaded yet")
+    private fun getScriptOrFail(): KJvmCompiledScript =
+        loadedScript ?: throw IllegalStateException("Compiled script is not loaded yet")
 
     override suspend fun getClass(scriptEvaluationConfiguration: ScriptEvaluationConfiguration?): ResultWithDiagnostics<KClass<*>> {
         if (loadedScript != null) return getScriptOrFail().getClass(scriptEvaluationConfiguration)
@@ -290,7 +249,12 @@ internal class KJvmCompiledScriptFromJar(
         val classLoader = MemoryClassLoader(entries, baseClassLoader)
         loadedScript = createScriptFromClassLoader(scriptClassName, classLoader)
         classLoader.shareClassesOf(
-            SharedScriptClasses.loadersFor(getScriptOrFail().otherScripts, entries, baseClassLoader),
+            SharedScriptClasses.loadersFor(
+                getScriptOrFail().otherScripts,
+                entries,
+                baseClassLoader,
+                ScriptCache.sharedScriptsOf(file),
+            ),
         )
 
         return getScriptOrFail().getClass(scriptEvaluationConfiguration)
@@ -350,20 +314,16 @@ class MemoryClassLoader(
 }
 
 fun ScriptDiagnostic.convert(): Diagnostic {
-    return Diagnostic(
-        location?.let {
-            Range(
-                Position(it.start.line, it.start.col),
-                Position(it.end?.line ?: it.start.line, it.end?.col ?: it.start.col)
-            )
-        } ?: Range(Position(-1, -1), Position(-1, -1)),
-        when (severity) {
-            ScriptDiagnostic.Severity.DEBUG -> Severity.DEBUG
-            ScriptDiagnostic.Severity.INFO -> Severity.INFO
-            ScriptDiagnostic.Severity.WARNING -> Severity.WARNING
-            ScriptDiagnostic.Severity.ERROR -> Severity.ERROR
-            ScriptDiagnostic.Severity.FATAL -> Severity.FATAL
-        },
-        message
-    )
+    return Diagnostic(location?.let {
+        Range(
+            Position(it.start.line, it.start.col),
+            Position(it.end?.line ?: it.start.line, it.end?.col ?: it.start.col)
+        )
+    } ?: Range(Position(-1, -1), Position(-1, -1)), when (severity) {
+        ScriptDiagnostic.Severity.DEBUG -> Severity.DEBUG
+        ScriptDiagnostic.Severity.INFO -> Severity.INFO
+        ScriptDiagnostic.Severity.WARNING -> Severity.WARNING
+        ScriptDiagnostic.Severity.ERROR -> Severity.ERROR
+        ScriptDiagnostic.Severity.FATAL -> Severity.FATAL
+    }, message)
 }

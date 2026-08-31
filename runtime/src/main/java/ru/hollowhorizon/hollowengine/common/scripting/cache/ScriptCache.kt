@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.common.scripting.cache
 
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache.SHARED_ATTRIBUTE
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache.parseSharedScripts
 import ru.hollowhorizon.hollowengine.common.scripting.source.DEFAULT_SANDBOX_NAMESPACE
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
 import java.io.File
@@ -16,32 +18,93 @@ import java.util.jar.JarInputStream
  * classes are defined once for everybody.
  */
 object ScriptCache {
+    /** Fingerprint of the code used to compile the artifact, excluding any formatting of that code. */
     const val HASH_ATTRIBUTE = "Script-Hashcode"
 
-    /** Which shared scripts a root was built against, as `namespace:path=fingerprint` entries. */
+    /** Fingerprint of the exact source bytes that identify only the line numbers where the errors occur. */
+    const val LAYOUT_ATTRIBUTE = "Script-Layout"
+
+    /** Which shared scripts were used when building root set. */
     const val SHARED_ATTRIBUTE = "Shared-Scripts"
 
-    fun artifact(id: ScriptId): File =
-        DirectoryManager.SCRIPT_CACHE.resolve(id.namespace).resolve(id.path + ".jar")
+    /**
+     * Single script used to compile an artifact.
+     */
+    data class SharedScriptRef(val scriptClass: String, val id: ScriptId, val fingerprint: String)
+
+    /** What the artifact says about itself in its manifest. */
+    data class Stamp(
+        val code: String?,
+        val layout: String?,
+        val shared: Map<String, SharedScriptRef>,
+    )
+
+    const val ARTIFACT_SUFFIX = ".jar"
+
+    /** Shared script classes are located next to the root artifact of that same script, under this suffix. */
+    const val SHARED_ARTIFACT_SUFFIX = ".shared.jar"
+
+    fun artifact(id: ScriptId): File = artifactIn(cacheDirectory(id), id)
 
     /** Classes of one shared script, referenced by every artifact that imports it. */
-    fun sharedArtifact(id: ScriptId): File =
-        DirectoryManager.SCRIPT_CACHE.resolve(id.namespace).resolve(id.path + ".shared.jar")
+    fun sharedArtifact(id: ScriptId): File = sharedArtifactIn(cacheDirectory(id), id)
 
-    /** The fingerprint a jar was built for, or `null` if it is missing, unreadable or unstamped. */
-    fun hashOf(jar: File): String? {
+    fun artifactIn(directory: File, id: ScriptId): File = directory.resolve(id.path + ARTIFACT_SUFFIX)
+
+    /**
+     * The location in the [directory] where the shared script classes should be located.
+     */
+    fun sharedArtifactIn(directory: File, id: ScriptId): File = directory.resolve(id.path + SHARED_ARTIFACT_SUFFIX)
+
+    private fun cacheDirectory(id: ScriptId): File = DirectoryManager.SCRIPT_CACHE.resolve(id.namespace)
+
+    /** What [jar] was compiled from, or `null` if it is missing. */
+    fun stampOf(jar: File): Stamp? {
         if (!jar.isFile) return null
         return runCatching {
             jar.inputStream().use { input ->
                 JarInputStream(input).use { archive ->
-                    archive.manifest?.mainAttributes?.getValue(HASH_ATTRIBUTE)
+                    val attributes = archive.manifest?.mainAttributes ?: return@use null
+                    Stamp(
+                        code = attributes.getValue(HASH_ATTRIBUTE),
+                        layout = attributes.getValue(LAYOUT_ATTRIBUTE),
+                        shared = parseSharedScripts(attributes.getValue(SHARED_ATTRIBUTE)),
+                    )
                 }
             }
         }.onFailure { HollowEngine.LOGGER.warn("Unreadable compiled script '{}'", jar, it) }.getOrNull()
     }
 
-    fun isValid(jar: File, expectedHash: String?): Boolean =
-        expectedHash != null && hashOf(jar) == expectedHash
+    /** The code fingerprint for which the JAR file was compiled, or `null` if it is missing. */
+    fun hashOf(jar: File): String? = stampOf(jar)?.code
+
+    /**
+     * Does [jar] file contain bytecode that corresponds to the same code as [fingerprint],
+     * regardless of how that code was organized.
+     */
+    fun isValid(jar: File, fingerprint: ScriptFingerprint.Fingerprint?): Boolean =
+        fingerprint != null && stampOf(jar)?.code == fingerprint.code
+
+    /**
+     * Shows if [jar] was compiled from the source code currently on the disk,
+     * including formatting, so that recompiling would serve no purpose.
+     */
+    fun isCurrent(jar: File, fingerprint: ScriptFingerprint.Fingerprint?): Boolean {
+        if (fingerprint == null) return false
+        val stamp = stampOf(jar) ?: return false
+        return stamp.code == fingerprint.code && stamp.layout == fingerprint.layout
+    }
+
+    /**
+     * Specifies whether [jar] is up to date and whether the classes of all shared scripts it references are located in
+     * [sharedDirectory].
+     */
+    fun isComplete(jar: File, fingerprint: ScriptFingerprint.Fingerprint?, sharedDirectory: File): Boolean {
+        if (!isCurrent(jar, fingerprint)) return false
+        return sharedScriptsOf(jar).values.all { reference ->
+            hashOf(sharedArtifactIn(sharedDirectory, reference.id)) == reference.fingerprint
+        }
+    }
 
     fun invalidate(id: ScriptId) {
         val file = artifact(id)
@@ -50,25 +113,27 @@ object ScriptCache {
         }
     }
 
-    fun sharedScriptsOf(jar: File): Map<ScriptId, String> {
-        val raw = runCatching {
-            jar.inputStream().use { input ->
-                JarInputStream(input).use { archive ->
-                    archive.manifest?.mainAttributes?.getValue(SHARED_ATTRIBUTE)
-                }
-            }
-        }.getOrNull() ?: return emptyMap()
+    /** Links to shared scripts [jar] associated with the class name that each one defines. */
+    fun sharedScriptsOf(jar: File): Map<String, SharedScriptRef> = stampOf(jar)?.shared.orEmpty()
 
-        return raw.split(';')
-            .mapNotNull { entry ->
-                val separator = entry.lastIndexOf('=')
-                if (separator <= 0) return@mapNotNull null
-                val id = runCatching {
-                    ScriptId.parse(entry.substring(0, separator), DEFAULT_SANDBOX_NAMESPACE)
-                }.getOrNull() ?: return@mapNotNull null
-                id to entry.substring(separator + 1)
-            }
-            .toMap()
+    /** The value of [SHARED_ATTRIBUTE] for [references]; [parseSharedScripts] reads it back. */
+    fun sharedScriptsAttribute(references: Collection<SharedScriptRef>): String =
+        references.joinToString(";") { "${it.scriptClass}=${it.id.qualified}=${it.fingerprint}" }
+
+    private fun parseSharedScripts(raw: String?): Map<String, SharedScriptRef> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return raw.split(';').mapNotNull { entry ->
+            val nameEnd = entry.indexOf('=')
+            if (nameEnd <= 0) return@mapNotNull null
+            val name = entry.substring(0, nameEnd)
+            val rest = entry.substring(nameEnd + 1)
+            val separator = rest.lastIndexOf('=')
+            if (separator <= 0) return@mapNotNull null
+            val id = runCatching {
+                ScriptId.parse(rest.substring(0, separator), DEFAULT_SANDBOX_NAMESPACE)
+            }.getOrNull() ?: return@mapNotNull null
+            name to SharedScriptRef(name, id, rest.substring(separator + 1))
+        }.toMap()
     }
 
     /**

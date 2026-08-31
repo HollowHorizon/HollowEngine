@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentImpl
 import ru.hollowhorizon.hollowengine.common.compiler.caching.saveScriptToJar
 import ru.hollowhorizon.hollowengine.common.compiler.isolated.ScriptJvmCompilerRemapped
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptCompilationContext
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptingCompiler
@@ -39,7 +40,9 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
             return Result.failure(ScriptCompilationException(file.name, result.reports.map { it.convert() }))
         }
 
-        context.cacheOutput?.let { output -> cache(result.value, output, context.cacheHash) }
+        context.cacheOutput?.let { output ->
+            cache(result.value, output, context.cacheFingerprint, context.sharedCacheOutput)
+        }
 
         return Result.success(
             CompiledScript.WithFile(
@@ -89,14 +92,15 @@ class ScriptingCompilerImpl(val environment: ScriptingEnvironmentImpl) : Scripti
     private fun cache(
         compiled: KotlinScript,
         output: File,
-        hash: String?,
+        fingerprint: ScriptFingerprint.Fingerprint?,
+        sharedDirectory: File?,
     ) {
-        if (hash == null) return
+        if (fingerprint == null) return
         val jvmScript = compiled as? KJvmCompiledScript ?: return
         runCatching {
             output.parentFile?.mkdirs()
             val temporary = File(output.parentFile, output.name + ".tmp")
-            jvmScript.saveScriptToJar(temporary, hash)
+            jvmScript.saveScriptToJar(temporary, fingerprint, sharedDirectory)
             Files.move(temporary.toPath(), output.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }.onFailure { logW("Failed to cache the compiled script '$output': $it") }
     }
