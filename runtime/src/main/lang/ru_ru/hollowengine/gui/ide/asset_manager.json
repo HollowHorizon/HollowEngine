@@ -10,6 +10,14 @@
   "empty_folder": "Папка пуста",
   "open": "Открыть",
   "open_as_text": "Открыть как текст",
+  "override_resource": "Переопределить ресурс",
+  "edit_override": "Редактировать переопределение",
+  "hide_resource": "Скрыть ресурс",
+  "restore_resource": "Восстановить оригинал",
+  "filter.all": "Все рецепты",
+  "filter.overridden": "Переопределённые",
+  "filter.untouched": "Нетронутые",
+  "filter.hidden": "Скрытые",
   "local_counts": "Пространств имён: %s | файлов: %s",
   "remote_counts": "Пространств имён: %s | загружено: %s",
   "error.connect_to_server": "Подключитесь к серверу, чтобы просматривать серверные ресурсы.",
@@ -21,5 +29,8 @@
   "error.preview_too_large": "Размер ресурса превышает ограничение предпросмотра в 16 МиБ.",
   "error.cannot_read": "Не удалось прочитать %s: %s",
   "error.no_preview": "Для %s нет доступного предпросмотра",
-  "error.cannot_open": "Не удалось открыть %s"
+  "error.cannot_open": "Не удалось открыть %s",
+  "error.cannot_override": "Не удалось переопределить %s: %s",
+  "error.cannot_hide": "Не удалось скрыть %s: %s",
+  "error.cannot_restore": "Не удалось восстановить %s: %s"
 }

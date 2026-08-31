@@ -65,6 +65,7 @@ data class DrawShadowCommand(
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
+    val image: UiImageShadow? = null,
 ) : UiRenderCommand
 
 data class PushClipCommand(
@@ -288,6 +289,7 @@ private fun UiRenderCommand.renderPhaseOrdinal(): Int = when (this) {
     is DrawTextCommand -> phase.ordinal
     is DrawImageCommand -> phase.ordinal
     is DrawRawTextureCommand -> phase.ordinal
+    is DrawParticlesCommand -> phase.ordinal
     is DrawCanvasGlCommand -> phase.ordinal
     is DrawShadowCommand, is DrawBackdropFilterCommand -> UiRenderPhase.BACKGROUND.ordinal
     else -> UiRenderPhase.CONTENT.ordinal
@@ -301,6 +303,7 @@ private fun UiRenderCommand.drawsPixels(): Boolean = when (this) {
     is DrawTextCommand,
     is DrawImageCommand,
     is DrawRawTextureCommand,
+    is DrawParticlesCommand,
     is DrawItemCommand,
     is DrawEntityCommand,
     is DrawCanvasGlCommand,
@@ -396,7 +399,8 @@ class UiCommandRenderer {
                 opacity = style.opacity,
                 transform = layoutNode.worldTransform,
                 filter = baseFilter,
-                backfaceVisibility = style.backfaceVisibility
+                backfaceVisibility = style.backfaceVisibility,
+                image = imageShadow(style, layoutNode),
             )
         }
 

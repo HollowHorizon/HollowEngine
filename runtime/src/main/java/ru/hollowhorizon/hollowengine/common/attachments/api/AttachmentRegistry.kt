@@ -11,8 +11,8 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
-import ru.hollowhorizon.hollowengine.common.data.Sync
+import ru.hollowhorizon.hollowengine.api.extensions.EntityExtension
+import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.DATA_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry.ROOT_NBT
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
@@ -24,6 +24,8 @@ import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerializa
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.attachments.sync.EntityStateSync
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
+import ru.hollowhorizon.hollowengine.common.data.Sync
 import java.util.*
 
 private data class LevelEntityState(
@@ -64,6 +66,15 @@ object AttachmentRegistry {
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
     private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
 
+    /**
+     * Attachments of an entity that is not in a level. For example, an instance being read from NBT
+     * before it is added, and the copies worldgen builds only to write a structure's entities into a
+     * chunk and then forgets.
+     */
+    private var MCEntity.detachedState: HollowAttachments?
+        get() = (this as EntityExtension).`hollowengine$detachedAttachments`() as HollowAttachments?
+        set(value) = (this as EntityExtension).`hollowengine$setDetachedAttachments`(value)
+
     private val noAiId by lazy {
         ComponentDescriptorRegistry.idFor(NoAi::class)
             ?: error("Component descriptor not found for ${NoAi::class.qualifiedName}")
@@ -81,6 +92,7 @@ object AttachmentRegistry {
         states.forEach { state ->
             val entity = state.entity
             if (entity.level() != level) return@forEach
+            if (state.hasPendingNodes && entity.isInLevel) state.activateNodes()
             val components = state.components.readOnly
             NoAiRuntime.apply(entity, components.containsKey(noAiId))
             AIComponentSystems.tickEntity(entity, components)
@@ -101,7 +113,10 @@ object AttachmentRegistry {
     fun attachments(entity: MCEntity): HollowAttachments = state(entity)
 
     /** The attachments of [entity], or null when it has none. Creates nothing. */
-    fun attachmentsOrNull(entity: MCEntity): HollowAttachments? = stateOrNull(entity.level(), entity.uuid)
+    fun attachmentsOrNull(entity: MCEntity): HollowAttachments? {
+        entity.detachedState?.let { return if (entity.isInLevel) promote(entity) else it }
+        return stateOrNull(entity.level(), entity.uuid)
+    }
 
     /** Every live attachment set, for engine-wide passes such as an addon being reloaded. */
     fun allAttachments(): List<HollowAttachments> = synchronized(levelStates) {
@@ -109,28 +124,26 @@ object AttachmentRegistry {
     }
 
     /**
-     * Points an existing attachment set at a new instance of the same entity. Nothing happens when the
-     * entity has no attachments, so this stays free for the many entities the engine never touches.
+     * Points entity's attachments and start the node scripts that were waiting for it.
      */
-    fun rebindIfPresent(level: Level, entity: MCEntity) {
-        synchronized(levelStates) {
-            val map = levelStates[level]?.byUuid ?: return
-            val existing = map[entity.uuid] ?: return
-            if (existing.entity !== entity) map[entity.uuid] = rebind(existing, entity)
-        }
+    fun onEntityJoinedLevel(entity: MCEntity) {
+        val owner = stateOrNull(entity.level(), entity.uuid)?.entity
+        if (owner != null && owner !== entity && owner.isInLevel) return
+
+        promote(entity).activateNodes()
     }
 
     fun componentsById(entity: MCEntity): MutableMap<ResourceLocation, Any> = state(entity).components.asMutableMap()
 
     /** The components that are allowed over the network, i.e. the ones whose descriptor is `@Syncable`. */
     fun syncableComponents(entity: Entity): Map<ResourceLocation, Component> {
-        val state = stateOrNull(entity.level(), entity.uuid) ?: return emptyMap()
+        val state = existingState(entity) ?: return emptyMap()
         return state.components.readOnly.filterKeys { id ->
             ComponentDescriptorRegistry.descriptorOrNull(id)?.syncPolicy == ComponentSyncPolicy.SYNC
         }
     }
 
-    fun syncVersion(entity: Entity): Long = stateOrNull(entity.level(), entity.uuid)?.syncVersion ?: 0L
+    fun syncVersion(entity: Entity): Long = existingState(entity)?.syncVersion ?: 0L
 
     fun setSyncVersion(entity: Entity, version: Long) {
         state(entity).syncVersion = version
@@ -139,21 +152,21 @@ object AttachmentRegistry {
     fun nextSyncVersion(entity: Entity): Long = state(entity).let { ++it.syncVersion }
 
     fun lastSyncedComponents(entity: Entity): Map<ResourceLocation, Component> =
-        stateOrNull(entity.level(), entity.uuid)?.lastSyncedComponents ?: emptyMap()
+        existingState(entity)?.lastSyncedComponents ?: emptyMap()
 
     fun setLastSyncedComponents(entity: Entity, components: Map<ResourceLocation, Component>) {
         state(entity).lastSyncedComponents = components
     }
 
     fun lastSyncedData(entity: Entity): CompoundTag =
-        stateOrNull(entity.level(), entity.uuid)?.lastSyncedData ?: CompoundTag()
+        existingState(entity)?.lastSyncedData ?: CompoundTag()
 
     fun setLastSyncedData(entity: Entity, data: CompoundTag) {
         state(entity).lastSyncedData = data
     }
 
     fun lastSyncedOwnerData(entity: Entity): CompoundTag =
-        stateOrNull(entity.level(), entity.uuid)?.lastSyncedOwnerData ?: CompoundTag()
+        existingState(entity)?.lastSyncedOwnerData ?: CompoundTag()
 
     fun setLastSyncedOwnerData(entity: Entity, data: CompoundTag) {
         state(entity).lastSyncedOwnerData = data
@@ -162,32 +175,26 @@ object AttachmentRegistry {
     fun coroutineScope(entity: Entity): CoroutineScope = state(entity).scope
 
     /** The entity's data store, or null when it has never been written to. Creates nothing. */
-    fun entityDataOrNull(entity: Entity): NbtDataStore? = stateOrNull(entity.level(), entity.uuid)?.dataOrNull
+    fun entityDataOrNull(entity: Entity): NbtDataStore? = resolveState(entity)?.dataOrNull
 
     /** The entity's data store, creating both it and the entity's attachments on first use. */
     fun entityData(entity: Entity): NbtDataStore = state(entity).data
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
-        val state = stateOrNull(entity.level(), entity.uuid) ?: return
+        val state = existingState(entity) ?: return
 
         try {
             val root = CompoundTag()
             root.putInt(VERSION_NBT, CURRENT_VERSION)
 
-            state.components.snapshot(entity)
-                ?.let { root.put(COMPONENTS_NBT, EntitySerialization.serializeToNbt(it)) }
+            state.components.snapshot(entity)?.let { root.put(COMPONENTS_NBT, EntitySerialization.serializeToNbt(it)) }
 
-            state.dataOrNull
-                ?.takeUnless { it.isEmpty() }
-                ?.let {
+            state.dataOrNull?.takeUnless { it.isEmpty() }?.let {
                     root.put(DATA_NBT, it.save())
                     writeSyncPolicies(root, it.syncPolicies())
                 }
 
-            state.nodesOrNull
-                ?.serialize()
-                ?.takeUnless { it.isEmpty }
-                ?.let { root.put(NODES_NBT, it) }
+            state.nodesNbt?.takeUnless { it.isEmpty }?.let { root.put(NODES_NBT, it) }
 
             if (root.allKeys.any { it != VERSION_NBT }) tag.put(ROOT_NBT, root) else tag.remove(ROOT_NBT)
             LegacyEntityNbt.erase(tag)
@@ -234,7 +241,7 @@ object AttachmentRegistry {
             state.data.load(it)
             state.data.loadSyncPolicies(readSyncPolicies(dataSync))
         }
-        nodes?.let { state.nodes.deserialize(it) }
+        nodes?.let { state.holdNodes(it) }
     }
 
     private fun writeSyncPolicies(root: CompoundTag, policies: Map<String, Sync>) {
@@ -356,19 +363,60 @@ object AttachmentRegistry {
     private fun stateOrNull(level: Level, uuid: UUID): HollowAttachments? =
         synchronized(levelStates) { levelStates[level]?.byUuid?.get(uuid) }
 
-    private fun state(entity: MCEntity): HollowAttachments {
-        val map = levelState(entity.level()).byUuid
-        val existing = map[entity.uuid] ?: return createState(entity).also { map[entity.uuid] = it }
-        if (existing.entity === entity) return existing
-        return rebind(existing, entity).also { map[entity.uuid] = it }
+    /**
+     * What [entity] is reading and writing right now, creating nothing.
+     *
+     * Addressing attachments by uuid answers for whichever instance the level holds, which is not this
+     * one while it is still being built. Everything that takes an entity has to resolve them the same
+     * way its writes do, or a caller ends up reading an empty set and putting it back.
+     */
+    private fun existingState(entity: MCEntity): HollowAttachments? =
+        entity.detachedState ?: stateOrNull(entity.level(), entity.uuid)
+
+    /**
+     * The entity's attachments, including pendingByEntityUuid by cloned/died player.
+     */
+    private fun resolveState(entity: MCEntity): HollowAttachments? {
+        existingState(entity)?.let { return it }
+        val pending = synchronized(sideTransferState) {
+            sideState(entity.level()).pendingByEntityUuid.containsKey(entity.uuid)
+        }
+        return if (pending) state(entity) else null
     }
+
+    private fun state(entity: MCEntity): HollowAttachments {
+        stateOrNull(entity.level(), entity.uuid)?.let { if (it.entity === entity) return it }
+        if (entity.isInLevel) return promote(entity)
+        return entity.detachedState ?: createState(entity).also { entity.detachedState = it }
+    }
+
+    /**
+     * Applies attachments to [entity], which the level holds.
+     */
+    private fun promote(entity: MCEntity): HollowAttachments = synchronized(levelStates) {
+        val map = levelState(entity.level()).byUuid
+        val previous = map[entity.uuid]
+        if (previous?.entity === entity) return previous
+
+        val loaded = entity.detachedState?.also { entity.detachedState = null }
+        val state = when {
+            loaded != null -> loaded.also { previous?.scope?.cancel() }
+            previous != null -> rebind(previous, entity)
+            else -> createState(entity)
+        }
+        map[entity.uuid] = state
+        state
+    }
+
+    private val MCEntity.isInLevel: Boolean get() = level().getEntity(id) === this
 
     private fun createState(entity: MCEntity): HollowAttachments =
         HollowAttachments(entity).also { restoreFromTransfer(entity.level(), entity.uuid, it) }
 
     private fun rebind(source: HollowAttachments, entity: MCEntity): HollowAttachments {
+        val nodes = source.nodesNbt
         source.scope.cancel()
-        return source.rebindTo(entity)
+        return source.rebindTo(entity, nodes)
     }
 
     private fun levelState(level: Level): LevelEntityState = synchronized(levelStates) {
@@ -383,9 +431,8 @@ object AttachmentRegistry {
         takeIf { it.contains(key, Tag.TAG_COMPOUND.toInt()) }?.getCompound(key)
 }
 
-fun Level.findEntityByUuid(uuid: UUID): Entity? =
-    when (this) {
-        is ServerLevel -> getEntity(uuid)
-        is ClientLevel -> entitiesForRendering().firstOrNull { it.uuid == uuid }
-        else -> null
-    }
+fun Level.findEntityByUuid(uuid: UUID): Entity? = when (this) {
+    is ServerLevel -> getEntity(uuid)
+    is ClientLevel -> entitiesForRendering().firstOrNull { it.uuid == uuid }
+    else -> null
+}

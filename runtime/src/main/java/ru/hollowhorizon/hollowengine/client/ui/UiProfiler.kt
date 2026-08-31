@@ -382,7 +382,7 @@ class UiProfileFrame internal constructor(
             is DrawBoxCommand -> rectangleCommands++
             is DrawShapeCommand -> shapeCommands++
             is DrawTextCommand -> textCommands++
-            is DrawImageCommand -> imageCommands++
+            is DrawImageCommand, is DrawParticlesCommand -> imageCommands++
             is DrawItemCommand, is DrawEntityCommand -> itemEntityCommands++
             is PushClipCommand, is PopClipCommand -> clipChanges++
             is BeginLayerCommand -> framebufferLayers++

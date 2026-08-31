@@ -36,6 +36,12 @@ class ComponentStore internal constructor() {
             .also { cachedSnapshot = it }
     }
 
+    /** Puts [component] under the id its descriptor gives it, replacing whatever was there. */
+    fun put(component: Component) {
+        components[idOf(component)] = component
+        invalidate()
+    }
+
     fun replaceAll(source: Collection<Component>) {
         components.clear()
         source.forEach { component -> components[idOf(component)] = component }

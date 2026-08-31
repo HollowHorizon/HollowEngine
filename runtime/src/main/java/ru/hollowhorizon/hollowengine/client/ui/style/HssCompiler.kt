@@ -112,6 +112,8 @@ class HssCompiler(private val origin: StyleOrigin = StyleOrigin.STYLESHEET) {
     fun compile(document: HssDocument): CompiledHss {
         val rules = document.rules.flatMap { rule ->
             val patch = StylePatch(dedupeDeclarations(rule.declarations).mapNotNull(::compileDeclaration))
+            // Validate lazy property conversion before publishing a live stylesheet.
+            patch.compiledPatch
             rule.selectors.map { selector ->
                 val ruleOrigin = if (selector.stateDependent) StyleOrigin.STATE_STYLESHEET else origin
                 StyleRule(selector, patch, ruleOrigin, rule.order)

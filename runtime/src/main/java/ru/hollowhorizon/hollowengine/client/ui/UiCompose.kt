@@ -582,13 +582,13 @@ fun TextField(
         state = fieldState,
         modifier = (modifier ?: Modifier).onResolvedStyle { style ->
             val textFieldStyle = style[UiProps.TextField]
-            val next = if (textFieldStyle != null && textFieldStyle.textShadowSet) {
+            val next = if (textFieldStyle.textShadowSet) {
                 HssShadowResolution.Override(textFieldStyle.textShadow)
             } else {
                 HssShadowResolution.Inherit
             }
             if (next != hssShadow) hssShadow = next
-            val hintsEnabled = textFieldStyle?.inlayHints != false
+            val hintsEnabled = textFieldStyle.inlayHints != false
             if (hintsEnabled != hssInlayHints) hssInlayHints = hintsEnabled
         },
         id = id,
@@ -703,6 +703,8 @@ fun Popup(
     dismissOnOutside: Boolean = true,
     modal: Boolean = false,
     onDismiss: (() -> Unit)? = null,
+    animated: Boolean = true,
+    visible: Boolean = true,
     content: PopupContent = {},
 ) {
     val manager = LocalOverlayManager.current ?: return
@@ -736,6 +738,8 @@ fun Popup(
                     stylesheets = stylesheets.value,
                     modal = isModal.value,
                     exiting = exiting,
+                    animated = this.animated,
+                    visible = this.visible,
                 ) { popupContent.value.invoke(scope) }
             }
         }
@@ -744,6 +748,8 @@ fun Popup(
         entry.layer = layer
         entry.dismissOnOutside = dismissOnOutside
         entry.onDismiss = onDismiss
+        entry.animated = animated
+        entry.visible = visible
     }
     DisposableEffect(manager, entry) {
         val unregister = manager.register(entry)
@@ -762,15 +768,19 @@ private fun PopupNodeEmitter(
     stylesheets: List<UiStylesheetReference>,
     modal: Boolean,
     exiting: Boolean,
+    animated: Boolean,
+    visible: Boolean,
     content: HollowUiContent,
 ) {
     var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animated) {
+        if (!animated) return@LaunchedEffect
         withFrameNanos { }
         appeared = true
     }
+    if (!visible) return
     val shown = appeared && !exiting
-    val appearance = Modifier
+    val appearance = if (!animated) Modifier else Modifier
         .transition(
             UiTransition(UiProps.Opacity.name, PopupAppearMillis, TransitionEasing.EASE_OUT),
             UiTransition(UiProps.Translate.name, PopupAppearMillis, TransitionEasing.EASE_OUT),

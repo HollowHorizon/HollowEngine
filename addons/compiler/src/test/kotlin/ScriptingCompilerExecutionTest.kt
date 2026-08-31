@@ -450,6 +450,84 @@ class ScriptingCompilerExecutionTest {
     }
 
     @Test
+    fun `an elvis over an imported type inside a captured lambda compiles`() {
+        val scriptsDirectory = File("build/tmp/elvis-over-import").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("frames.kts").writeText(
+            """
+                @file:SharedScript
+                class Frame(val biome: String)
+                fun newest(): Frame? = Frame("river")
+                fun label(id: String) = "biome:" + id
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("core.kts").writeText(
+            """
+                @file:SharedScript
+                @file:Import("frames.kts")
+                fun greeting() = "ready"
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("main.importing.kts").writeText(
+            """
+                @file:Import("core.kts")
+
+                fun seed(block: MutableMap<String, String>.() -> Unit) {
+                    val map = mutableMapOf<String, String>()
+                    map.block()
+                    output += map["biome"] ?: "missing"
+                }
+
+                seed {
+                    val frame = newest()
+                    put("biome", frame?.let { label(it.biome) } ?: "")
+                }
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(
+            Import::class.qualifiedName!!,
+            SharedScript::class.qualifiedName!!,
+        )
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider("kts", "kotlin.Any", defaultImports),
+                ScriptClassProvider(".importing.kts", ImportingScript::class.qualifiedName!!, defaultImports),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "elvis-over-import"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "main.importing.kts")) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+
+            assertEquals(listOf("biome:river"), output)
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
     fun `an imported script evaluation error reaches the caller`() {
         val scriptsDirectory = File("build/tmp/script-import-error").apply {
             deleteRecursively()

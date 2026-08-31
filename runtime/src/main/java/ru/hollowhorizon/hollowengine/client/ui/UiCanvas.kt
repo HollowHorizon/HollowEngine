@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutNode
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.particles.UiParticleSystem
 import ru.hollowhorizon.hollowengine.client.ui.shape.*
 import ru.hollowhorizon.hollowengine.client.ui.style.UiBackfaceVisibility
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
@@ -76,6 +77,9 @@ interface UiCanvasDrawScope {
     fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false)
 
     fun drawTexture(textureId: Int, flipY: Boolean = false) = drawTexture(bounds, textureId, flipY)
+
+    /** Draws world-independent Minecraft sprite particles, clipped to the given local rectangle. */
+    fun drawParticles(system: UiParticleSystem, rect: UiRect = bounds)
 
     /**
      * Escapes to raw OpenGL for [rect] (node-local coordinates; defaults to the whole node). Unlike the
@@ -208,6 +212,14 @@ internal class UiCommandCanvasScope(
             filter = filter,
             backfaceVisibility = backfaceVisibility,
             phase = phase,
+        )
+    }
+
+    override fun drawParticles(system: UiParticleSystem, rect: UiRect) {
+        if (!rect.isDrawable() || opacity <= 0f) return
+        sink += DrawParticlesCommand(
+            node, rect.toCommandRect(), system, opacity,
+            layoutNode.worldTransform.translated(rect.x, rect.y), filter, backfaceVisibility, phase,
         )
     }
 

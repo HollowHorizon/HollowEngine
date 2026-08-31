@@ -7,8 +7,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.DimensionTransition;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import ru.hollowhorizon.hollowengine.api.extensions.EntityExtension;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,9 +22,23 @@ import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 import java.util.Set;
 
 @Mixin(Entity.class)
-public abstract class EntityMixin {
+public abstract class EntityMixin implements EntityExtension {
     @Shadow private Level level;
     @Shadow public abstract Level level();
+
+    @Unique
+    @Nullable
+    private Object hollowengine$detachedAttachments;
+
+    @Override
+    public @Nullable Object hollowengine$detachedAttachments() {
+        return hollowengine$detachedAttachments;
+    }
+
+    @Override
+    public void hollowengine$setDetachedAttachments(@Nullable Object attachments) {
+        hollowengine$detachedAttachments = attachments;
+    }
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void onSave(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {

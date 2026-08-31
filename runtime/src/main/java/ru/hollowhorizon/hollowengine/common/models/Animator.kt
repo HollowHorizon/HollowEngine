@@ -49,6 +49,7 @@ data class ClipAnimationLayerSpec(
     val referencePose: String? = null,
     val removeOnEnd: Boolean = playMode == AnimationPlayMode.Once,
     val removeAtGameTime: Long? = null,
+    val stopAtGameTime: Long? = null,
 ) : AnimatorLayerSpec()
 
 @Serializable

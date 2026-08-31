@@ -28,6 +28,8 @@ internal data class UiTexturedQuad(
     val fit: UiImageFit = UiImageFit.STRETCH,
     val slice: UiInsets = UiInsets.Zero,
     val tint: UiColor = UiColor.White,
+    val region: ImagePlacement? = null,
+    val alphaMask: Boolean = false,
 )
 
 internal object UiTextureEffects {
@@ -86,6 +88,7 @@ internal object UiTextureEffects {
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
+        alphaMask: Boolean = false,
     ) {
         setTextureShader(
             filter,
@@ -95,8 +98,9 @@ internal object UiTextureEffects {
             height,
             maskRadius,
             maskPadding,
-            blurDirectionX,
-            blurDirectionY
+            blurDirectionX = blurDirectionX,
+            blurDirectionY = blurDirectionY,
+            alphaMask = alphaMask,
         )
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -121,11 +125,11 @@ internal object UiTextureEffects {
         val textureSize = textureSize(texture)
         val shaderTextureSize = textureSize ?: (1f to 1f)
         RenderSystem.setShaderTexture(0, texture)
-        setTextureShader(filter, shaderTextureSize.first, shaderTextureSize.second)
+        setTextureShader(filter, shaderTextureSize.first, shaderTextureSize.second, alphaMask = quads.any { it.alphaMask })
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         for (quad in quads) {
-            val placement = imagePlacement(quad.width, quad.height, quad.fit, textureSize)
+            val placement = quad.region ?: imagePlacement(quad.width, quad.height, quad.fit, textureSize)
             val finalTint = quad.tint.withOpacity(quad.opacity).filtered(filter)
             val quadTransform = quad.transform.translated(placement.x, placement.y)
             if (quad.fit.isSliced) {
@@ -168,6 +172,7 @@ internal object UiTextureEffects {
         blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
         opaqueSource: Boolean = false,
+        alphaMask: Boolean = false,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -191,6 +196,7 @@ internal object UiTextureEffects {
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
             opaqueSource = opaqueSource,
+            alphaMask = alphaMask,
         )
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -222,6 +228,7 @@ internal object UiTextureEffects {
         textureWidth: Int,
         textureHeight: Int,
         tint: UiColor = UiColor.White,
+        alphaMask: Boolean = false,
     ) {
         val triangles = cachedFillTriangles(shape, width, height)
         if (triangles.isEmpty()) return
@@ -239,6 +246,7 @@ internal object UiTextureEffects {
                 sampleV = minOf(v0, v1),
                 sampleWidth = abs(u1 - u0),
                 sampleHeight = abs(v1 - v0),
+                alphaMask = alphaMask,
             )
             val buffer =
                 Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR)
@@ -272,10 +280,11 @@ internal object UiTextureEffects {
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
         opaqueSource: Boolean = false,
+        alphaMask: Boolean = false,
     ) {
         val effectShader = ModShaders.UI_EFFECT
         val hasMask = maskRadius > 0f
-        if (filter.effects.isEmpty() && !hasMask || effectShader == null) {
+        if (filter.effects.isEmpty() && !hasMask && !alphaMask || effectShader == null) {
             // Nothing the effect shader would do differently; the plain path is cheaper.
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
             configureUiBlend()
@@ -307,6 +316,7 @@ internal object UiTextureEffects {
         effectShader.getUniform("MaskRadius")?.set(maskRadius * radiusScale)
         effectShader.getUniform("MaskSoftness")?.set(1.25f * radiusScale)
         effectShader.getUniform("OpaqueSource")?.set(if (opaqueSource) 1f else 0f)
+        effectShader.getUniform("AlphaMask")?.set(if (alphaMask) 1f else 0f)
         setGradientMask(effectShader, filter.linearMask())
     }
 

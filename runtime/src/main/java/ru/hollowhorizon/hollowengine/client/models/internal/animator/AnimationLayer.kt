@@ -137,8 +137,8 @@ class ClipLayer(clip: ClipAnimationLayerSpec) : SpecLayer(clip) {
         val speed = evaluator.float(clip.speed, context, 1f)
         val sampleTime = playback.advance(animation.duration, clip.playMode, speed, context.deltaTime)
 
-        val fadeOut = fadeOutScale()
-        if (playback.ended && clip.removeOnEnd && fadeOut <= 0f) {
+        val fadeOut = fadeOutScale(context)
+        if (fadeOut <= 0f && (clip.stopAtGameTime != null || (playback.ended && clip.removeOnEnd))) {
             finished = true
             return null
         }
@@ -153,9 +153,19 @@ class ClipLayer(clip: ClipAnimationLayerSpec) : SpecLayer(clip) {
         )
     }
 
-    private fun fadeOutScale(): Float =
-        if (clip.playMode != AnimationPlayMode.Once || clip.fadeOut <= 0f || !playback.ended) 1f
+    /**
+     * How much of the clip is left this frame: a stop request fades from the game time it was asked at,
+     * everything else fades only once a one-shot has played out.
+     */
+    private fun fadeOutScale(context: AnimatorEvaluationContext): Float {
+        clip.stopAtGameTime?.let { stoppedAt ->
+            if (clip.fadeOut <= 0f) return 0f
+            val elapsed = (context.gameTime - stoppedAt) / TICKS_PER_SECOND
+            return (1f - elapsed / clip.fadeOut).coerceIn(0f, 1f)
+        }
+        return if (clip.playMode != AnimationPlayMode.Once || clip.fadeOut <= 0f || !playback.ended) 1f
         else (1f - playback.endElapsed / clip.fadeOut).coerceIn(0f, 1f)
+    }
 }
 
 /** Poses named bones straight from expressions, without any clip behind them. */
@@ -261,6 +271,8 @@ internal fun wrapTime(time: Float, duration: Float, playMode: AnimationPlayMode,
     }
 
 private fun Float.modPositive(divisor: Float): Float = (this % divisor + divisor) % divisor
+
+private const val TICKS_PER_SECOND = 20f
 
 /** Every node of the hierarchy, indexed the way poses address them. */
 fun List<RuntimeNode>.byIndex(): Map<Int, RuntimeNode> =

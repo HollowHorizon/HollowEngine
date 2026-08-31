@@ -82,6 +82,13 @@
     wrap: false;
 }
 
+.asset-recipe-filter {
+    min-width: 78px;
+    min-height: 16px;
+    padding: 1px 4px;
+    font-size: 7px;
+}
+
 .asset-refresh {
     size: 15px 15px;
     align-items: center center;

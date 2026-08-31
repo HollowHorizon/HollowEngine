@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
+import java.io.File
 
 internal class HollowIdeProjectController(
     private val model: HollowIdeModel,
@@ -52,7 +53,8 @@ internal class HollowIdeProjectController(
             return
         }
         val doubleClick = isDoubleClick(item.payload.path)
-        model.select(item.payload)
+        if (item.payload.path in model.selectedTreePaths) model.focusSelection(item.payload)
+        else model.select(item.payload)
         if (!doubleClick) return
         rememberClick("")
         when (val result = model.open(item.payload)) {
@@ -107,6 +109,15 @@ internal class HollowIdeProjectController(
         model.pasteIntoAsync(path) { result ->
             setStatus(result.statusText())
         }
+    }
+
+    /** Imports a native file drop through the same serialized IO path as clipboard paste. */
+    fun importFiles(files: List<File>, targetPath: String): Boolean {
+        if (files.isEmpty()) return false
+        contextMenu = null
+        focusProjectTree()
+        model.importFilesAsync(files, targetPath) { result -> setStatus(result.statusText()) }
+        return true
     }
 
     /** Drag and drop inside the tree: moves [path] into the folder [targetPath] belongs to. */

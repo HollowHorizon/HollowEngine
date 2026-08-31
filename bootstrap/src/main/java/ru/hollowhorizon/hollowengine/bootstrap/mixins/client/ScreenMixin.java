@@ -32,7 +32,14 @@ public class ScreenMixin {
         }
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
+    @Inject(
+            method = "renderWithTooltip",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/screens/Screen;render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V",
+                    shift = At.Shift.AFTER
+            )
+    )
     private void hollowengine$onRenderPost(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onScreenRenderPost((Screen) (Object) this, guiGraphics, mouseX, mouseY, partialTick);
     }

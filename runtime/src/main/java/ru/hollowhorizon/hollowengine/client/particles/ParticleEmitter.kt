@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.client.audio.SoundBuffer
-import ru.hollowhorizon.hollowengine.client.audio.SoundPlayer
+import ru.hollowhorizon.hollowengine.client.audio.SoundEffects
 import ru.hollowhorizon.hollowengine.client.particles.file.BedrockParticleFile
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateSelfBy
@@ -248,14 +248,14 @@ class ParticleEmitter(
         event.sound?.let { config ->
             val targetSound = effect.referencedSounds[config.eventName] ?: return@let
 
-            SoundPlayer(SoundBuffer(targetSound)).apply {
+            SoundEffects.play(SoundBuffer(targetSound)) {
                 setPosition(
                     transform?.position?.x ?: 0f,
                     transform?.position?.y ?: 0f,
                     transform?.position?.z ?: 0f
                 )
                 setRelative(transform == null)
-            }.play()
+            }
         }
     }
 }

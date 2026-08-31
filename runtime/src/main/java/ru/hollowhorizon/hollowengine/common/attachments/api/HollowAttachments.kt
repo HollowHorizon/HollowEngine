@@ -34,6 +34,11 @@ class HollowAttachments internal constructor(entity: MCEntity) {
     private var nodeManager: EntityNodeManager? = null
     private var runtimeState: RuntimeAttachments? = null
 
+    /**
+     * Nodes that this entity was saved with, held it until entity actually joins a level.
+     */
+    private var pendingNodes: CompoundTag? = null
+
     /** The script storage, or null when nothing has ever been written to it. Creates nothing. */
     val dataOrNull: NbtDataStore? get() = dataStore
 
@@ -50,6 +55,24 @@ class HollowAttachments internal constructor(entity: MCEntity) {
 
     val nodes: EntityNodeManager
         get() = nodeManager ?: EntityNodeManager(entity).also { nodeManager = it }
+
+    /** What [nodes] would serialize to, without starting them. */
+    internal val nodesNbt: CompoundTag? get() = nodeManager?.serialize() ?: pendingNodes
+
+    /** Whether entity is still waiting to have its saved nodes attached. */
+    internal val hasPendingNodes: Boolean get() = pendingNodes != null
+
+    /** Remembers what [activateNodes] should attach once this entity joins a level. */
+    internal fun holdNodes(tag: CompoundTag) {
+        pendingNodes = tag
+    }
+
+    /** Attaches the held nodes. Called when the entity joins a level. */
+    internal fun activateNodes() {
+        val held = pendingNodes ?: return
+        pendingNodes = null
+        nodes.deserialize(held)
+    }
 
     /**
      * Rises with every batch [EntityStateSync] sends for this entity on the server, and records the last
@@ -84,10 +107,12 @@ class HollowAttachments internal constructor(entity: MCEntity) {
 
     /**
      * Rebinds this attachment set to a new instance of the same entity. The scope is not carried over:
-     * the old one is canceled by the caller, and node scripts are re-attached from their saved state.
+     * the old one is canceled by the caller, which hands [nodes] over as the state the new instance
+     * re-attaches them from once it joins a level.
      */
-    internal fun rebindTo(newEntity: MCEntity): HollowAttachments =
+    internal fun rebindTo(newEntity: MCEntity, nodes: CompoundTag?): HollowAttachments =
         HollowAttachments(newEntity).also { target ->
+            target.pendingNodes = nodes
             target.components.putAll(components.copyOf())
             target.adoptData(dataStore)
             target.syncVersion = syncVersion

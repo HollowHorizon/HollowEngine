@@ -62,24 +62,28 @@ object ScriptPrecompiler {
             ScriptRegistry.register(source)
 
             val failures = LinkedHashMap<String, Throwable>()
-            val outputs = source.list().associateWith { id -> options.output.resolve(id.path + ".jar") }
+            val outputs = source.list().associateWith { id -> ScriptCache.artifactIn(options.output, id) }
             outputs.forEach { (id, output) ->
                 val artifacts = ScriptRegistry.artifacts(id) ?: return@forEach
                 val sourceFile = artifacts.sourceFile ?: return@forEach
-                val hash = ScriptFingerprint.compute(id) ?: run {
+                val fingerprint = ScriptFingerprint.compute(id) ?: run {
                     failures[id.path] = IllegalStateException("Cannot fingerprint the script")
                     return@forEach
                 }
-                if (ScriptCache.isValid(output, hash)) return@forEach
+                if (ScriptCache.isComplete(output, fingerprint, options.output)) return@forEach
                 environment.compiler.compile(
                     sourceFile,
-                    ScriptCompilationContext(cacheOutput = output, cacheHash = hash),
+                    ScriptCompilationContext(
+                        cacheOutput = output,
+                        cacheFingerprint = fingerprint,
+                        sharedCacheOutput = options.output,
+                    ),
                 ).onFailure { failures[id.path] = it }
                 if (id.path !in failures && !output.isFile) {
                     failures[id.path] = IllegalStateException("The compiler produced no artifact")
                 }
             }
-            pruneScriptArtifacts(options.output, outputs.values)
+            pruneScriptArtifacts(options.output, expectedArtifacts(options.output, outputs.keys))
             failures
         } finally {
             ScriptRegistry.unregister(options.namespace)

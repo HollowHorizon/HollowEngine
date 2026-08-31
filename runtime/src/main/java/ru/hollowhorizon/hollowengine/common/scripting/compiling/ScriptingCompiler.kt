@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.compiling
 
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 import java.io.File
 
 /**
@@ -7,13 +8,14 @@ import java.io.File
  *
  * [extraClasspath] and [baseClassLoader] come from the namespace that owns the script, so an addon's
  * scripts see the addon's own classes and libraries. When [cacheOutput] is set the compiler also
- * writes the compiled module there, stamped with [cacheHash], for later runs to reuse.
+ * writes the compiled module there, stamped with [cacheFingerprint], for later runs to reuse.
  */
 data class ScriptCompilationContext(
     val extraClasspath: List<File> = emptyList(),
     val baseClassLoader: ClassLoader? = null,
     val cacheOutput: File? = null,
-    val cacheHash: String? = null,
+    val cacheFingerprint: ScriptFingerprint.Fingerprint? = null,
+    val sharedCacheOutput: File? = null,
 )
 
 interface ScriptingCompiler {

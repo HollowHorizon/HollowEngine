@@ -239,8 +239,12 @@ private fun CompletionPopupRow(
                 event.consume()
             },
     ) {
-        item.icon?.let { icon ->
-            Image(icon, tags = listOf("ide-completion-icon"))
+        if (item.itemIcon != null) {
+            Item(item.itemIcon, tags = listOf("ide-completion-item"))
+        } else {
+            item.icon?.let { icon ->
+                Image(icon, tags = listOf("ide-completion-icon"))
+            }
         }
         CompletionRowContent(item.label, item.detail, item.tail, item.matchRanges, active, fadeColor)
     }

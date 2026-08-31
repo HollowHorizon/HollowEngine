@@ -31,6 +31,50 @@ screen("mypack:settings") {
 
 `title` defaults to the id path, `closeOnEscape` defaults to `true`, and `pausesGame` defaults to `false`. Set `rebuildEveryFrame = true` only for content that reads live client state every frame.
 
+## Replacing existing screens
+
+`override(...)` makes a scripted screen stand in for a vanilla or modded one: whenever the game opens that screen, the player gets this one instead.
+
+```kotlin
+import net.minecraft.client.gui.screens.TitleScreen
+
+screen("mypack:main_menu") {
+    override(TitleScreen::class)
+    content { MainMenu() }
+}
+```
+
+The swap is client-side and needs no server, so it holds at the main menu, before any world is loaded. That also means an overriding screen has no session: `data` is empty and answers only with its keys' defaults, and `send { }` goes nowhere. Client state and `mc` are all it has.
+
+`override(target, subclasses = true)` widens the match to anything extending `target`, for a screen a mod has subclassed. A screen that a script cannot import is named by class name instead:
+
+```kotlin
+override("com.example.mod.FancyScreen")
+```
+
+One declaration may override several screens. `LocalReplacedScreen` holds the screen that was replaced, which is how content tells its targets apart and hands work back to the original:
+
+```kotlin
+screen("mypack:menus") {
+    override(TitleScreen::class)
+    override(PauseScreen::class)
+    content {
+        when (LocalReplacedScreen.current) {
+            is TitleScreen -> MainMenu()
+            else -> PauseMenu()
+        }
+    }
+}
+```
+
+| Rule | Meaning |
+| --- | --- |
+| Last script wins | Two scripts overriding the same class: the one loaded later takes it, and a warning is logged |
+| Engine screens are never replaced | HollowUi's own Compose screens are skipped, so a broad override cannot swallow the engine's UI |
+| Reload rebuilds the open override | The screen is rebuilt from the new script; if the override is gone the screen closes |
+
+The replaced screen has already been detached by the time the swap happens, so container screens (an inventory and anything else backed by a menu) are not a supported target - their menu is closed with them.
+
 ## HUD overlays
 
 `overlay(id) { ... }` registers a HUD layer. It may be server-driven or purely client-owned.

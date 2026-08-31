@@ -11,6 +11,7 @@ import org.lwjgl.opengl.GL20
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL31
 import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryUtil
 import ru.hollowhorizon.hollowengine.HollowEngine
 
 /** Compiles a UI shader stage from a mod resource, throwing with the shader log on failure. */
@@ -19,7 +20,17 @@ internal fun compileUiShader(type: Int, location: ResourceLocation, label: Strin
         IllegalStateException("Missing UI $label shader resource: $location")
     }.open().bufferedReader(Charsets.UTF_8).use { it.readText() }
     val shader = GL20.glCreateShader(type)
-    GL20.glShaderSource(shader, source)
+    // LWJGL's CharSequence overload is not null-terminated; some AMD drivers read past its explicit length.
+    val encodedSource = MemoryUtil.memUTF8(source, true)
+    try {
+        MemoryStack.stackPush().use { stack ->
+            val sources = stack.mallocPointer(1)
+            sources.put(0, MemoryUtil.memAddress(encodedSource))
+            GL20.glShaderSource(shader, sources, stack.ints(encodedSource.remaining() - 1))
+        }
+    } finally {
+        MemoryUtil.memFree(encodedSource)
+    }
     GL20.glCompileShader(shader)
     if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == GL11.GL_TRUE) return shader
     val log = GL20.glGetShaderInfoLog(shader)

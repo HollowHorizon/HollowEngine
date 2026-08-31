@@ -2,6 +2,10 @@
     background: none;
 }
 
+.project-tree-panel.drop-target {
+    background: rgba(88, 123, 174, 0.20);
+}
+
 #ide-toolbar {
     size: 100% fit;
     gap: 2px;

@@ -167,7 +167,7 @@ internal class HollowIdeModel(
     fun save(path: String): Boolean {
         val file = files[path]?.takeUnless { it.readOnly } ?: return false
         pendingSaves.remove(path)?.cancel()
-        path.fromReadablePath().writeBytes(file.encode())
+        writeIdeFile(path.fromReadablePath().toPath(), file.encode())
         file.markSaved()
         tree.refresh()
         return true
@@ -188,6 +188,24 @@ internal class HollowIdeModel(
         tree.refresh()
         selectPath(target.toReadablePathInsideRoot())
         return HollowIdeFileOperationResult.Success
+    }
+
+    /** Replaces a project file with externally supplied bytes and closes a stale editor tab for it. */
+    fun replaceFile(path: String, bytes: ByteArray): HollowIdeFileOperationResult {
+        val target = path.toPathInsideRoot() ?: return HollowIdeFileOperationResult.InvalidName
+        if (Files.isDirectory(target)) return HollowIdeFileOperationResult.InvalidName
+        return runCatching {
+            pendingSaves.remove(path)?.cancel()
+            files.remove(path)?.close()
+            onFileRemoved?.invoke(path)
+            Files.createDirectories(target.parent)
+            Files.write(target, bytes)
+            tree.refresh()
+            revealPath(path)
+            HollowIdeFileOperationResult.Success
+        }.onFailure { error ->
+            HollowEngine.LOGGER.warn("Could not replace project file '{}'", path, error)
+        }.getOrDefault(HollowIdeFileOperationResult.NotFound)
     }
 
     /** Creates (if missing) and opens a starter `sounds.json` inside [dirPath], for the sounds editor. */
@@ -262,10 +280,31 @@ internal class HollowIdeModel(
     }
 
     fun copyToClipboard(paths: List<String>, cut: Boolean = false): HollowIdeFileOperationResult {
-        val files = paths.mapNotNull { it.toPathInsideRoot()?.toFile() }.filter { it.exists() }
+        val files = exportFiles(paths)
         if (files.isEmpty()) return HollowIdeFileOperationResult.NotFound
-        HollowIdeFileClipboard.set(files, cut)
-        return HollowIdeFileOperationResult.Success
+        return if (HollowIdeFileClipboard.set(files, cut)) HollowIdeFileOperationResult.Success
+        else HollowIdeFileOperationResult.NotFound
+    }
+
+    /** Flush edited documents before another application can move their files away. */
+    fun exportFiles(paths: List<String>): List<File> {
+        files.values.filter { file -> file.dirty && paths.any { file.path == it || file.path.startsWith("$it/") } }
+            .forEach { save(it.path) }
+        return paths.mapNotNull { it.toPathInsideRoot() }.withoutNestedChildren().map { it.toFile() }.filter { it.exists() }
+    }
+
+    /** Reconcile once on return from another application, without polling the filesystem per frame. */
+    fun refreshExternalFiles() {
+        tree.refresh()
+        files.values.toList().filter { !it.readOnly && !it.path.fromReadablePath().exists() }.forEach { file ->
+            pendingSaves.remove(file.path)?.cancel()
+            if (!file.dirty) {
+                files.remove(file.path)?.close()
+                onFileRemoved?.invoke(file.path)
+            }
+        }
+        selectedTreePaths.removeAll { !it.fromReadablePath().exists() }
+        if (selectedTreePath !in selectedTreePaths) selectedTreePath = selectedTreePaths.lastOrNull().orEmpty()
     }
 
     /** Moves [paths] into the folder [targetPath] names (or the folder holding it, for a file). */
@@ -296,6 +335,18 @@ internal class HollowIdeModel(
     fun pasteIntoAsync(
         targetPath: String,
         onComplete: (HollowIdeFileOperationResult) -> Unit,
+    ) = transferIntoAsync(targetPath, HollowIdeFileClipboard::pasteInto, onComplete)
+
+    fun importFilesAsync(
+        files: List<File>,
+        targetPath: String,
+        onComplete: (HollowIdeFileOperationResult) -> Unit,
+    ) = transferIntoAsync(targetPath, { HollowIdeFileClipboard.importFiles(files, it) }, onComplete)
+
+    private fun transferIntoAsync(
+        targetPath: String,
+        transfer: (Path) -> Boolean,
+        onComplete: (HollowIdeFileOperationResult) -> Unit,
     ) {
         val targetDir = targetDirectory(targetPath).toPath().normalizeInsideRoot()
         if (targetDir == null) {
@@ -306,7 +357,7 @@ internal class HollowIdeModel(
             val result = pasteMutex.withLock {
                 runCatching {
                     Files.createDirectories(targetDir)
-                    if (HollowIdeFileClipboard.pasteInto(targetDir)) {
+                    if (transfer(targetDir)) {
                         HollowIdeFileOperationResult.Success
                     } else {
                         HollowIdeFileOperationResult.NotFound
@@ -352,7 +403,7 @@ internal class HollowIdeModel(
         pendingSaves[path] = ioScope.launch {
             delay(AutoSaveDelayMillis)
             runCatching {
-                path.fromReadablePath().writeText(text)
+                writeIdeFile(path.fromReadablePath().toPath(), text.toByteArray(Charsets.UTF_8))
             }.onSuccess {
                 Minecraft.getInstance().execute {
                     pendingSaves.remove(path)
@@ -496,6 +547,7 @@ internal class HollowIdeFileNode(
     val depth: Int,
     val isDirectory: Boolean,
 ) {
+    val dropDirectoryPath: String = if (isDirectory) path else path.substringBeforeLast('/', "")
     val children = mutableStateListOf<HollowIdeFileNode>()
     var expanded by mutableStateOf(false)
 
@@ -590,7 +642,7 @@ private fun Path.normalizeInsideRoot(): Path? {
 }
 
 private fun List<Path>.withoutNestedChildren(): List<Path> {
-    val sorted = map { it.toAbsolutePath().normalize() }.sortedBy { it.nameCount }
+    val sorted = map { it.toAbsolutePath().normalize() }.distinct().sortedBy { it.nameCount }
     val result = mutableListOf<Path>()
     for (path in sorted) {
         if (result.none { parent -> path != parent && path.isSameOrNestedIn(parent) }) result.add(path)
@@ -598,7 +650,7 @@ private fun List<Path>.withoutNestedChildren(): List<Path> {
     return result
 }
 
-private fun Path.deleteTree() {
+internal fun Path.deleteTree() {
     if (!Files.exists(this, LinkOption.NOFOLLOW_LINKS)) return
     Files.walkFileTree(this, object : SimpleFileVisitor<Path>() {
         override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
@@ -616,15 +668,8 @@ private fun Path.deleteTree() {
 internal fun Path.swallowedBy(source: Path): Boolean =
     toAbsolutePath().normalize().isSameOrNestedIn(source.toAbsolutePath().normalize())
 
-private fun Path.isSameOrNestedIn(parent: Path): Boolean {
-    val value = toComparablePathString()
-    val root = parent.toComparablePathString().trimEnd('/')
-    return value == root || value.startsWith("$root/")
-}
-
-private fun Path.toComparablePathString(): String {
-    return toAbsolutePath().normalize().toString().replace('\\', '/')
-}
+private fun Path.isSameOrNestedIn(parent: Path): Boolean =
+    toAbsolutePath().normalize().startsWith(parent.toAbsolutePath().normalize())
 
 private fun Path.toReadablePathInsideRoot(): String {
     val root = DirectoryManager.HOLLOW_ENGINE.toAbsolutePath().normalize()
@@ -654,11 +699,11 @@ internal fun Path.copyDirectory(target: Path) {
     Files.walk(this).use { stream ->
         stream.forEach { source ->
             val destination = target.resolve(relativize(source).toString())
-            if (Files.isDirectory(source)) {
+            if (Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)) {
                 Files.createDirectories(destination)
             } else {
                 Files.createDirectories(destination.parent)
-                Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES)
+                Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS)
             }
         }
     }

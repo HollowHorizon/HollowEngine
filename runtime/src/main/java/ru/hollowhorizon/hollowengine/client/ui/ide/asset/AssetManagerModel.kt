@@ -3,7 +3,11 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.asset
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.ResourceManager
+import ru.hollowhorizon.hollowengine.common.data.HollowEnginePack
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.utils.PackResourceEntry
 import ru.hollowhorizon.hollowengine.common.utils.listPackResources
+import java.nio.file.Files
 
 internal enum class AssetResourceScope(
     val packType: PackType,
@@ -14,12 +18,22 @@ internal enum class AssetResourceScope(
     SERVER(PackType.SERVER_DATA, "data", AssetManagerLang.SERVER_RESOURCES),
 }
 
+internal enum class AssetResourceState {
+    UNTOUCHED,
+    OVERRIDDEN,
+    HIDDEN,
+}
+
 internal data class AssetFile(
     val location: ResourceLocation,
     val sourcePackId: String,
+    val state: AssetResourceState = AssetResourceState.UNTOUCHED,
 ) {
     val name: String get() = location.path.substringAfterLast('/')
     val directoryPath: String get() = location.path.substringBeforeLast('/', "")
+
+    fun projectPath(scope: AssetResourceScope): String =
+        "${scope.directory}/${location.namespace}/${location.path}"
 }
 
 internal data class AssetDirectory(
@@ -121,11 +135,29 @@ internal class AssetIndex(
     companion object {
         val Empty = AssetIndex(emptyList())
 
-        fun load(resourceManager: ResourceManager, packType: PackType): AssetIndex = AssetIndex(
-            resourceManager.listPackResources(packType).map { resource ->
-                AssetFile(resource.location, resource.sourcePackId)
+        fun load(resourceManager: ResourceManager, scope: AssetResourceScope): AssetIndex = AssetIndex(
+            resourceManager.listPackResources(scope.packType).map { resource ->
+                AssetFile(
+                    location = resource.location,
+                    sourcePackId = resource.sourcePackId,
+                    state = resource.localState(scope),
+                )
             },
         )
+    }
+}
+
+private fun PackResourceEntry.localState(
+    scope: AssetResourceScope,
+): AssetResourceState {
+    if (sourcePackId != HollowEnginePack.packId()) return AssetResourceState.UNTOUCHED
+    val path = DirectoryManager.HOLLOW_ENGINE.resolve(scope.directory)
+        .resolve(location.namespace)
+        .resolve(location.path)
+    return if (runCatching { Files.size(path) }.getOrNull() == 0L) {
+        AssetResourceState.HIDDEN
+    } else {
+        AssetResourceState.OVERRIDDEN
     }
 }
 

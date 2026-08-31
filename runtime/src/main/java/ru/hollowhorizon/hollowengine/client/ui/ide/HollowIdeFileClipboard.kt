@@ -1,5 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
+import com.sun.jna.Platform
+import com.sun.jna.Pointer
+import net.minecraft.client.Minecraft
+import org.lwjgl.glfw.GLFWNativeWin32
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
@@ -10,8 +14,10 @@ import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
@@ -21,14 +27,13 @@ private data class HollowIdeClipboardPayload(
 )
 
 /**
- * The IDE's cut/copy buffer. Real files use AWT's cross-platform file-list flavor. Windows
- * applications can also expose files that do not exist on disk yet; those are handled by
- * [WindowsVirtualFileClipboard] after the regular format has been tried.
+ * The IDE's cut/copy buffer. Windows uses native shell formats even in a headless JVM;
+ * other desktops use AWT's file-list flavor. Virtual Windows files are materialized on paste.
  */
 internal object HollowIdeFileClipboard : ClipboardOwner {
     private const val DropEffectNative = "Preferred DropEffect"
     private const val DropEffectMove: Byte = 2
-    private const val DropEffectCopy: Byte = 5
+    private const val DropEffectCopy: Byte = 1
 
     @Volatile
     private var internal: HollowIdeClipboardPayload? = null
@@ -36,28 +41,40 @@ internal object HollowIdeFileClipboard : ClipboardOwner {
     @Volatile
     private var ownedTransferable: Transferable? = null
 
-    private val dropEffectFlavor: DataFlavor? = runCatching {
-        val flavor = DataFlavor("application/x-java-serialized-object;class=java.io.InputStream", DropEffectNative)
-        (SystemFlavorMap.getDefaultFlavorMap() as? SystemFlavorMap)?.apply {
-            addUnencodedNativeForFlavor(flavor, DropEffectNative)
-            addFlavorForUnencodedNative(DropEffectNative, flavor)
+    private val dropEffectFlavor: DataFlavor? by lazy {
+        runCatching {
+            val flavor = DataFlavor("application/x-java-serialized-object;class=java.io.InputStream", DropEffectNative)
+            (SystemFlavorMap.getDefaultFlavorMap() as? SystemFlavorMap)?.apply {
+                addUnencodedNativeForFlavor(flavor, DropEffectNative)
+                addFlavorForUnencodedNative(DropEffectNative, flavor)
+            }
+            flavor
+        }.getOrNull()
+    }
+
+    fun set(files: List<File>, cut: Boolean): Boolean {
+        val payload = HollowIdeClipboardPayload(files.toList(), cut)
+        if (Platform.isWindows()) {
+            val window = GLFWNativeWin32.glfwGetWin32Window(Minecraft.getInstance().window.window)
+            return WindowsDropFileClipboard.write(payload.files, cut, Pointer(window))
         }
-        flavor
-    }.getOrNull()
-
-    fun set(files: List<File>, cut: Boolean) {
-        val payload = HollowIdeClipboardPayload(files, cut)
         internal = payload
-        val clipboard = systemClipboard() ?: return
+        val clipboard = systemClipboard() ?: return false
         val cutEffect = dropEffectFlavor.takeIf { cut }
-        val primary = FileListTransferable(files, cut, cutEffect)
-        if (setSystemContents(clipboard, primary)) return
+        val primary = FileListTransferable(payload.files, cut, cutEffect)
+        if (setSystemContents(clipboard, primary)) return true
 
-        val fallback = FileListTransferable(files, cut, null)
-        setSystemContents(clipboard, fallback)
+        val fallback = FileListTransferable(payload.files, cut, null)
+        return setSystemContents(clipboard, fallback)
     }
 
     fun pasteInto(targetDir: Path): Boolean {
+        if (Platform.isWindows()) {
+            WindowsDropFileClipboard.read()?.let { payload ->
+                return if (payload.cut) moveFiles(payload.files, targetDir) else importFiles(payload.files, targetDir)
+            }
+            return WindowsVirtualFileClipboard.pasteInto(targetDir)
+        }
         val clipboard = systemClipboard()
         val systemFiles = clipboard?.readFiles().orEmpty()
         if (systemFiles.isNotEmpty()) {
@@ -66,11 +83,6 @@ internal object HollowIdeFileClipboard : ClipboardOwner {
             if (pasteRealFiles(payload, targetDir)) return true
         }
 
-        WindowsDropFileClipboard.read()?.let { payload ->
-            if (pasteRealFiles(HollowIdeClipboardPayload(payload.files, payload.cut), targetDir)) return true
-        }
-
-        if (WindowsVirtualFileClipboard.pasteInto(targetDir)) return true
         return internal?.let { pasteRealFiles(it, targetDir) } == true
     }
 
@@ -89,15 +101,19 @@ internal object HollowIdeFileClipboard : ClipboardOwner {
 
     private fun pasteRealFiles(payload: HollowIdeClipboardPayload, targetDir: Path): Boolean {
         var pasted = false
+        val realTarget = targetDir.toRealPath()
         payload.files.forEach { sourceFile ->
             val source = sourceFile.toPath()
-            if (!Files.exists(source) || targetDir.swallowedBy(source)) return@forEach
+            if (!Files.exists(source)) return@forEach
             val destination = uniqueDestination(targetDir, source.fileName.toString())
             val copied = runCatching {
-                if (Files.isDirectory(source)) {
+                if (realTarget.swallowedBy(source.toRealPath())) return@forEach
+                if (payload.cut) {
+                    moveClipboardFile(source, destination)
+                } else if (Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)) {
                     source.copyDirectory(destination)
                 } else {
-                    Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES)
+                    Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS)
                 }
             }.onFailure { error ->
                 HollowEngine.LOGGER.warn("Could not paste clipboard file '{}' into '{}'", source, targetDir, error)
@@ -105,11 +121,16 @@ internal object HollowIdeFileClipboard : ClipboardOwner {
             if (!copied) return@forEach
 
             pasted = true
-            if (payload.cut) runCatching { sourceFile.deleteRecursively() }
         }
         if (payload.cut) internal = null
         return pasted
     }
+
+    fun importFiles(files: List<File>, targetDir: Path): Boolean =
+        pasteRealFiles(HollowIdeClipboardPayload(files, cut = false), targetDir)
+
+    fun moveFiles(files: List<File>, targetDir: Path): Boolean =
+        pasteRealFiles(HollowIdeClipboardPayload(files, cut = true), targetDir)
 
     private fun systemClipboard(): Clipboard? =
         runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull()
@@ -152,4 +173,17 @@ internal object HollowIdeFileClipboard : ClipboardOwner {
             else -> throw UnsupportedFlavorException(flavor)
         }
     }
+}
+
+/** Fast rename on the same filesystem; cross-volume moves delete only after a complete copy. */
+private fun moveClipboardFile(source: Path, destination: Path) {
+    try {
+        Files.move(source, destination)
+        return
+    } catch (failure: IOException) {
+        if (Files.getFileStore(source) == Files.getFileStore(destination.parent)) throw failure
+    }
+    if (Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)) source.copyDirectory(destination)
+    else Files.copy(source, destination, StandardCopyOption.COPY_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS)
+    source.deleteTree()
 }

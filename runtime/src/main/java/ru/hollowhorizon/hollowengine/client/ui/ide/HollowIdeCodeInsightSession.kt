@@ -7,7 +7,8 @@ import kotlinx.coroutines.launch
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContext
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCodeInsightHighlight
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiHoverInfoProvider
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSignatureHelpProvider
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDeferredSignatureHelpProvider
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSignatureHelpResult
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextHoverInfo
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSignature
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextSignatureHelp
@@ -34,11 +35,13 @@ internal class HollowIdeCodeInsightSession(
     private var signatureJob: Job? = null
     private var hoverJob: Job? = null
 
-    val signatures = UiSignatureHelpProvider { context ->
-        val analyzer = currentAnalyzer()
-        val key = InsightKey.of(context, analyzer)
-        requestSignature(context, key, analyzer)
-        signatureSnapshot.takeIf { it.key == key }?.help
+    val signatures = object : UiDeferredSignatureHelpProvider {
+        override fun query(context: UiCompletionContext): UiSignatureHelpResult? {
+            val analyzer = currentAnalyzer()
+            val key = InsightKey.of(context, analyzer)
+            requestSignature(context, key, analyzer)
+            return signatureSnapshot.takeIf { it.key == key }?.let { UiSignatureHelpResult(it.help) }
+        }
     }
 
     val hover = UiHoverInfoProvider { context ->

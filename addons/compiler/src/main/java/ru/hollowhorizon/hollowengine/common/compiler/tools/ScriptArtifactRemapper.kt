@@ -44,23 +44,30 @@ object ScriptArtifactRemapper {
         return try {
             ScriptRegistry.register(source)
             val failures = LinkedHashMap<String, Throwable>()
-            val outputs = source.list().associateWith { id -> options.output.resolve(id.path + ".jar") }
+            val outputs = source.list().associateWith { id -> ScriptCache.artifactIn(options.output, id) }
             outputs.forEach { (id, output) ->
-                val hash = ScriptFingerprint.compute(id) ?: run {
+                val fingerprint = ScriptFingerprint.compute(id) ?: run {
                     failures[id.path] = IllegalStateException("Cannot fingerprint the script")
                     return@forEach
                 }
-                if (ScriptCache.isValid(output, hash)) return@forEach
+                if (ScriptCache.isComplete(output, fingerprint, options.output)) return@forEach
 
-                val input = options.input.resolve(id.path + ".jar")
+                val input = ScriptCache.artifactIn(options.input, id)
                 if (!input.isFile) {
                     failures[id.path] = IllegalStateException("Missing named artifact '$input'")
                     return@forEach
                 }
-                remapArtifact(input, output, hash, mappings.value, classpath.value)
+                remapArtifact(input, output, fingerprint, mappings.value, classpath.value)
                     .onFailure { failures[id.path] = it }
+
+                val sharedInput = ScriptCache.sharedArtifactIn(options.input, id)
+                if (sharedInput.isFile) {
+                    val sharedOutput = ScriptCache.sharedArtifactIn(options.output, id)
+                    remapArtifact(sharedInput, sharedOutput, fingerprint, mappings.value, classpath.value)
+                        .onFailure { failures[id.path] = it }
+                }
             }
-            pruneScriptArtifacts(options.output, outputs.values)
+            pruneScriptArtifacts(options.output, expectedArtifacts(options.output, outputs.keys))
             failures
         } finally {
             if (classpath.isInitialized()) classpath.value.close()
@@ -72,7 +79,7 @@ object ScriptArtifactRemapper {
     private fun remapArtifact(
         input: File,
         output: File,
-        hash: String,
+        fingerprint: ScriptFingerprint.Fingerprint,
         mappings: Mappings,
         classpath: RemappingClasspath,
     ): Result<Unit> = runCatching {
@@ -86,7 +93,8 @@ object ScriptArtifactRemapper {
             manifest to entries
         }
         manifest.mainAttributes.putValue("Manifest-Version", "1.0")
-        manifest.mainAttributes.putValue(ScriptCache.HASH_ATTRIBUTE, hash)
+        manifest.mainAttributes.putValue(ScriptCache.HASH_ATTRIBUTE, fingerprint.code)
+        manifest.mainAttributes.putValue(ScriptCache.LAYOUT_ATTRIBUTE, fingerprint.layout)
 
         val session = ClassRemappingSession(
             mappings,

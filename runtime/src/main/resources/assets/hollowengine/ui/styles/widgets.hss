@@ -145,6 +145,15 @@
     foreground: #ffffff;
 }
 
+.tree-item.drop-target {
+    background: rgba(88, 123, 174, 0.55);
+    foreground: #ffffff;
+}
+
+.tree-item.drop-rejected {
+    background: rgba(190, 60, 60, 0.35);
+}
+
 .tree-indent {
     size: 14px 100%;
 }
@@ -323,6 +332,10 @@
 .ide-completion-icon {
     size: 14px 14px;
     tint: rgba(160, 188, 230, 0.96);
+}
+
+.ide-completion-item {
+    size: 16px 16px;
 }
 
 .ide-completion-main {
