@@ -147,6 +147,7 @@ object UiProps {
     val Layer = prop("layer", 0)
     val ImageFit = prop("image-fit", UiImageFit.STRETCH)
     val ImageSlice = prop("image-slice", UiInsets.all(4.px))
+    val ImageUv = prop("image-uv", UiImageUv.Full, aliases = setOf("uv"))
     val NodeShape = prop<Shape?>("shape", null)
     val ShapeFill = prop<UiPaint?>(
         "shape-fill", null, aliases = setOf("fill"), interpolate = ::interpolateOptionalPaint,
@@ -285,6 +286,7 @@ var UiStylePatch.clipShape by UiProps.ClipShape
 var UiStylePatch.layer by UiProps.Layer
 var UiStylePatch.imageFit by UiProps.ImageFit
 var UiStylePatch.imageSlice by UiProps.ImageSlice
+var UiStylePatch.imageUv by UiProps.ImageUv
 var UiStylePatch.shape by UiProps.NodeShape
 var UiStylePatch.shapeFill by UiProps.ShapeFill
 var UiStylePatch.shapeStroke by UiProps.ShapeStroke
@@ -409,6 +411,7 @@ val UiComputedStyle.clipShape by UiProps.ClipShape
 val UiComputedStyle.layer by UiProps.Layer
 val UiComputedStyle.imageFit by UiProps.ImageFit
 val UiComputedStyle.imageSlice by UiProps.ImageSlice
+val UiComputedStyle.imageUv by UiProps.ImageUv
 val UiComputedStyle.shape by UiProps.NodeShape
 val UiComputedStyle.shapeFill by UiProps.ShapeFill
 val UiComputedStyle.shapeStroke by UiProps.ShapeStroke

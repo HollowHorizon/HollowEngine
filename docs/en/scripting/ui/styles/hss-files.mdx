@@ -66,7 +66,7 @@ State rules stack with each other and are applied over everything else, which is
 
 The same stylesheet language covers gradients, texture backgrounds, `image-fit`/nine-slice, `clip`, shapes, shadows, opacity, tint, filters, transforms, and scrollbars. Use `background: image("namespace:textures/...")` for a texture; use `image-fit: 9-slice 16px` for scalable framed panels.
 
-`@keyframes` defines reusable animation frames. Attach a named animation from Kotlin with `Modifier.animation(name, durationMillis, iterationCount, easing)` or declare it in HSS where the rule is shared.
+`@keyframes` defines reusable animation frames. Selectors are `from`, `to` or percentages of one iteration, and a comma-separated list (`0%, 100%`) gives several offsets the same block. An edge you leave out is implicit: a missing `0%`/`100%` runs to or from the node's own value. Attach a named animation from Kotlin with `Modifier.animation(name, durationMillis, iterationCount, easing)` or declare it in HSS where the rule is shared.
 
 ## Complete property reference
 
@@ -110,6 +110,7 @@ Alignment values are `auto`, `start`/`flex-start`, `center`, `end`/`flex-end`, `
 | `opacity`, `tint` | number, colour | Overall alpha or image tint |
 | `image-fit` or `fit` | `stretch`, `contain`/`fit`, `cover`/`zoom`, `none`, `9-slice`, `3-slice-vertical`, `3-slice-horizontal` | Image scaling mode |
 | `image-slice` or `slice` | 1–4 lengths | Nine-/three-slice edges; it can follow `image-fit` |
+| `image-uv` or `uv` | `none` or `<x> <y> <width> <height>` | Part of the source texture to draw, in the texture's own coordinates: `px`/bare numbers are source pixels, `%` is a fraction of the source. `image-fit`, cover cropping and nine-slice all measure against that rectangle, so one atlas can back many nodes |
 | `shape` | `path("...")`, `svg-path("..." [, viewBox])`, or `svg("namespace:path")` | Vector node shape |
 | `shape-fill`/`fill`, `shape-stroke`/`stroke`, `shape-stroke-width`/`stroke-width` | paint, paint, length | Shape rendering |
 | `clip` or `clip-path` | boolean, `path(...)`, `svg-path(...)`, or `svg(...)` | Clips children to bounds or a vector shape |

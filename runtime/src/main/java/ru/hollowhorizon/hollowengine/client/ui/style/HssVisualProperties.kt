@@ -250,6 +250,18 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
     ) { style { it.imageSlice = parseInsets(value, allowAuto = false) } }
 
     property(
+        "image-uv", "uv",
+        summary = "Part of the source texture to draw, so one atlas can back many nodes.",
+        syntax = syntax(
+            slot("x", HssValueKind.LENGTH, keywords = listOf("none")),
+            sizeSlot("y", auto = false).copy(optional = true),
+            sizeSlot("width", auto = false).copy(optional = true),
+            sizeSlot("height", auto = false).copy(optional = true),
+        ),
+        examples = listOf("none", "16px 0px 16px 16px", "0% 0% 50% 50%"),
+    ) { style { it.imageUv = parseImageUv(value) } }
+
+    property(
         "shape",
         summary = "Vector shape drawn instead of a rectangle.",
         syntax = syntax(slot("shape", HssValueKind.SHAPE)),

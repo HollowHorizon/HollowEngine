@@ -140,6 +140,29 @@ class HssScriptingAnalyzerTest {
     }
 
     @Test
+    fun `image-uv accepts both a reset keyword and a four value region`() {
+        assertEquals(emptyList(), HssScriptingAnalyzer.diagnostic("style.hss", ".icon {\n    image-uv: none;\n}"))
+        assertEquals(
+            emptyList(),
+            HssScriptingAnalyzer.diagnostic("style.hss", ".icon {\n    image-uv: 16px 0px 16px 16px;\n}"),
+        )
+        assertEquals(emptyList(), HssScriptingAnalyzer.diagnostic("style.hss", ".icon {\n    uv: 0% 0% 50% 50%;\n}"))
+    }
+
+    @Test
+    fun `an incomplete image-uv region is reported`() {
+        val source = ".icon {\n    image-uv: 16px 0px;\n}"
+        val diagnostic = HssScriptingAnalyzer.diagnostic("style.hss", source).single()
+        assertEquals(Severity.ERROR, diagnostic.severity)
+    }
+
+    @Test
+    fun `keyframe selectors are completed`() {
+        val offered = labels("@keyframes bounce {\n    ")
+        assertTrue(offered.containsAll(listOf("from", "to", "50%")), offered.toString())
+    }
+
+    @Test
     fun `a syntax error does not hide the rest of the file`() {
         val source = ".broken { aaa }\n.panel {\n    marrgin: 8px;\n}"
         val diagnostics = HssScriptingAnalyzer.diagnostic("style.hss", source)

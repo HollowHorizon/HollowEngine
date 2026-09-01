@@ -309,6 +309,12 @@ fun Modifier.image(source: String) = prop(UiProps.Image, source)
 
 fun Modifier.imageFit(value: UiImageFit) = prop(UiProps.ImageFit, value)
 
+/** Draws only the given rectangle of the source texture; the engine treats it as the whole image. */
+fun Modifier.imageUv(value: UiImageUv) = prop(UiProps.ImageUv, value)
+
+fun Modifier.imageUv(x: UiLength, y: UiLength, width: UiLength, height: UiLength) =
+    prop(UiProps.ImageUv, UiImageUv(x, y, width, height))
+
 fun Modifier.item(stack: ItemStack) = prop(UiProps.Item, UiItem(stack))
 
 /** Shorthand for a plain, single-count item id such as `minecraft:diamond`. */

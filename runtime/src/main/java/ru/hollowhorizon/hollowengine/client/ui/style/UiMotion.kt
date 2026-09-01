@@ -111,14 +111,25 @@ data class UiKeyframes(
     fun sample(base: UiComputedStyle, progress: Float, easing: TransitionEasing): UiComputedStyle {
         if (sortedFrames.isEmpty()) return base
         val offset = progress.coerceIn(0f, 1f)
-        val previous = sortedFrames.lastOrNull { it.offset <= offset } ?: sortedFrames.first()
-        val next = sortedFrames.firstOrNull { it.offset >= offset } ?: sortedFrames.last()
-        if (previous == next || previous.offset == next.offset) return base.withKeyframePatch(next)
-        val local = ((offset - previous.offset) / (next.offset - previous.offset)).coerceIn(0f, 1f)
-        val eased = easing.transform(local)
-        return base.withKeyframePatch(previous)
-            .interpolate(base.withKeyframePatch(next), UiTransitionProgress.all(eased))
+        val previous = sortedFrames.lastOrNull { it.offset <= offset }
+        val next = sortedFrames.firstOrNull { it.offset >= offset }
+        if (previous == null) {
+            val first = next ?: return base
+            if (first.offset <= 0f) return base.withKeyframePatch(first)
+            return base.segment(base.withKeyframePatch(first), offset / first.offset, easing)
+        }
+        if (next == null) {
+            if (previous.offset >= 1f) return base.withKeyframePatch(previous)
+            val local = (offset - previous.offset) / (1f - previous.offset)
+            return base.withKeyframePatch(previous).segment(base, local, easing)
+        }
+        if (previous.offset == next.offset) return base.withKeyframePatch(next)
+        val local = (offset - previous.offset) / (next.offset - previous.offset)
+        return base.withKeyframePatch(previous).segment(base.withKeyframePatch(next), local, easing)
     }
+
+    private fun UiComputedStyle.segment(to: UiComputedStyle, local: Float, easing: TransitionEasing) =
+        interpolate(to, UiTransitionProgress.all(easing.transform(local.coerceIn(0f, 1f))))
 }
 
 data class UiKeyframe(

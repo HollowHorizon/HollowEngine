@@ -18,6 +18,36 @@ enum class UiBackfaceVisibility {
     VISIBLE, HIDDEN
 }
 
+data class UiImageUv(
+    val x: UiLength = 0.px,
+    val y: UiLength = 0.px,
+    val width: UiLength = 100.percent,
+    val height: UiLength = 100.percent,
+) {
+    fun resolve(textureWidth: Float, textureHeight: Float): UiUvRect {
+        if (this == Full || textureWidth <= 0f || textureHeight <= 0f) return UiUvRect.Full
+        val u0 = (x.resolve(textureWidth) / textureWidth).coerceIn(0f, 1f)
+        val v0 = (y.resolve(textureHeight) / textureHeight).coerceIn(0f, 1f)
+        val u1 = (u0 + width.resolve(textureWidth) / textureWidth).coerceIn(u0, 1f)
+        val v1 = (v0 + height.resolve(textureHeight) / textureHeight).coerceIn(v0, 1f)
+        if (u1 <= u0 || v1 <= v0) return UiUvRect.Full
+        return UiUvRect(u0, v0, u1, v1)
+    }
+
+    companion object {
+        val Full = UiImageUv()
+    }
+}
+
+data class UiUvRect(val u0: Float, val v0: Float, val u1: Float, val v1: Float) {
+    val width get() = u1 - u0
+    val height get() = v1 - v0
+
+    companion object {
+        val Full = UiUvRect(0f, 0f, 1f, 1f)
+    }
+}
+
 sealed interface UiPaint {
     data object None : UiPaint
     data class Color(val color: UiColor) : UiPaint

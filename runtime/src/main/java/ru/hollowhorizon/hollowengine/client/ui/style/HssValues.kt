@@ -53,6 +53,20 @@ internal val UiImageFitKeywords = listOf(
     "3-slice-horizontal",
 )
 
+/** `none` or `<x> <y> <width> <height>` in the source texture's own coordinates. */
+internal fun parseImageUv(value: String): UiImageUv {
+    val trimmed = value.trim()
+    if (trimmed.equals("none", ignoreCase = true) || trimmed.equals("full", ignoreCase = true)) return UiImageUv.Full
+    val parts = splitWhitespace(trimmed)
+    require(parts.size == 4) { "Expected image-uv x y width height, got '$value'" }
+    return UiImageUv(
+        x = parseLength(parts[0], allowAuto = false),
+        y = parseLength(parts[1], allowAuto = false),
+        width = parseLength(parts[2], allowAuto = false),
+        height = parseLength(parts[3], allowAuto = false),
+    )
+}
+
 internal fun parseImageFitSlice(value: String): UiInsets? {
     val parts = splitWhitespace(value)
     return parts.drop(1).takeIf { it.isNotEmpty() }?.joinToString(" ")?.let { parseInsets(it, allowAuto = false) }

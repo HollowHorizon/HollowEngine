@@ -147,6 +147,7 @@ class MinecraftUiRenderer {
     private var renderTarget: UiRenderTarget? = null
     private var preparingLayerAtlas = false
     private val itemAxisScales = FloatArray(2)
+    private val resolutionScratch = FloatArray(2)
 
     /**
      * Depth handed to the next item this frame.
@@ -622,6 +623,7 @@ class MinecraftUiRenderer {
             fit = command.fit,
             slice = command.slice,
             tint = command.tint,
+            uv = command.uv,
         )
     }
 
@@ -666,8 +668,9 @@ class MinecraftUiRenderer {
         return runCatching {
             val intrinsicSize = UiSvgRasterizer.intrinsicSize(location, revision)
             val placement = imagePlacement(width, height, fit, intrinsicSize)
-            val pixelWidth = rasterPixelSize(placement.width)
-            val pixelHeight = rasterPixelSize(placement.height)
+            val resolution = transformResolutionScale(transform, resolutionScratch)
+            val pixelWidth = rasterPixelSize(placement.width * resolution)
+            val pixelHeight = rasterPixelSize(placement.height * resolution)
             val texture =
                 svgRasterTextures.computeIfAbsent(SvgRasterKey(location, revision, pixelWidth, pixelHeight)) { key ->
                     createSvgRasterTexture(key)
@@ -918,8 +921,9 @@ class MinecraftUiRenderer {
             if (!layoutNode.needsFramebuffer) continue
             val padding = layerPadding(node.resolvedSnapshot.filter, overflows[node] ?: 0f)
             layerPaddings[node] = padding
-            val width = ceil((layoutNode.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
-            val height = ceil((layoutNode.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
+            val layerScale = scale * transformResolutionScale(layoutNode.worldTransform, resolutionScratch)
+            val width = ceil((layoutNode.rect.width + padding * 2f) * layerScale).toInt().coerceAtLeast(1)
+            val height = ceil((layoutNode.rect.height + padding * 2f) * layerScale).toInt().coerceAtLeast(1)
             layerRequests += UiLayerRequest(width, height)
         }
         framebuffers.beginFrame(
@@ -932,7 +936,9 @@ class MinecraftUiRenderer {
 
     private fun beginLayer(command: BeginLayerCommand) {
         scissorState = ScissorUnknown
-        val scale = layerScale()
+        // Must match prepareFramebuffers, which sized the atlas this layer is allocated from.
+        val resolution = transformResolutionScale(command.transform, resolutionScratch)
+        val scale = layerScale() * resolution
         val padding = layerPaddings[command.node] ?: layerPadding(command)
         val logicalWidth = command.rect.width + padding * 2f
         val logicalHeight = command.rect.height + padding * 2f
@@ -965,6 +971,7 @@ class MinecraftUiRenderer {
                 backfaceVisibility = command.backfaceVisibility,
                 padding = padding,
                 opacity = command.opacity,
+                resolutionScale = resolution,
             )
         )
         clipStack.clear()
@@ -993,7 +1000,7 @@ class MinecraftUiRenderer {
 
         val copiedSource =
             if (parentLayer != null || layer.filter.blurRadius() > 0f) copyLayerToScratch(layer) else null
-        val blurredSource = blurIfNeeded(copiedSource, layer.filter.blurRadius())
+        val blurredSource = blurIfNeeded(copiedSource, layer.filter.blurRadius() * layer.resolutionScale)
 
         val source = resolveRenderSource(layer, copiedSource, blurredSource)
         val compositeFilter = layer.filter.withoutBlur()
@@ -1336,7 +1343,7 @@ class MinecraftUiRenderer {
         val sourceTexture = Minecraft.getInstance().textureManager.getTexture(location)
         val placement = if (svg != null) {
             ImagePlacement(svg.transform.transformX(0f), svg.transform.transformY(0f), svg.width, svg.height)
-        } else imagePlacement(image.rect.width, image.rect.height, image.fit, location)
+        } else imagePlacement(image.rect.width, image.rect.height, image.fit, location, image.uv)
         val sourceBounds = UiRect(image.rect.x + placement.x, image.rect.y + placement.y, placement.width, placement.height)
         val bounds = image.clipRect?.let(sourceBounds::intersect) ?: sourceBounds
         if (bounds.width <= 0f || bounds.height <= 0f) return true
@@ -1361,6 +1368,7 @@ class MinecraftUiRenderer {
                     capture.translated(image.rect.x, image.rect.y) * (svg?.transform ?: UiMatrix4.identity()),
                     1f, false, fit = if (svg != null) image.fit.svgRasterDrawFit() else image.fit,
                     texture = location, slice = image.slice, alphaMask = true,
+                    uv = if (svg != null) UiImageUv.Full else image.uv,
                 )
             }
             val overlapsOtherTextures = phaseImageBatches.keys.any { it != mask.texture } &&
@@ -1451,6 +1459,7 @@ class MinecraftUiRenderer {
                 slice = command.slice,
                 filter = command.filter,
                 tint = command.tint,
+                uv = command.uv,
             )
 
             is UiResolvedPaint.Shader -> drawLocalPaint(
@@ -2013,6 +2022,7 @@ class MinecraftUiRenderer {
         filter: UiFilterChain = UiFilterChain.Empty,
         slice: UiInsets = UiInsets.Zero,
         tint: UiColor = UiColor.White,
+        uv: UiImageUv = UiImageUv.Full,
     ) {
         val svgQuad = svgRasterQuad(width, height, source, opacity, transform, fit)
         if (svgQuad != null) {
@@ -2045,6 +2055,7 @@ class MinecraftUiRenderer {
             filter = filter,
             slice = slice,
             tint = tint,
+            uv = uv,
         )
     }
 

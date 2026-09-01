@@ -93,6 +93,7 @@ data class DrawBoxCommand(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+    val uv: UiImageUv = UiImageUv.Full,
 ) : UiRenderCommand
 
 data class DrawShapeCommand(
@@ -146,6 +147,7 @@ data class DrawImageCommand(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+    val uv: UiImageUv = UiImageUv.Full,
 ) : UiRenderCommand
 
 /** Draws an existing OpenGL texture without registering it as a Minecraft resource. */
@@ -624,6 +626,7 @@ class UiCommandRenderer {
                         commands += DrawImageCommand(
                             node, layoutNode.content, source, opacity, style.tint, contentTransform,
                             false, style.imageFit, style.imageSlice, filter, backface,
+                            uv = style.imageUv,
                         )
                     }
                 }
@@ -705,6 +708,7 @@ class UiCommandRenderer {
             filter = filter,
             backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
             phase = UiRenderPhase.BACKGROUND,
+            uv = style.imageUv,
         )
     }
 
@@ -779,6 +783,7 @@ class UiCommandRenderer {
                 filter = filter,
                 backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
                 phase = UiRenderPhase.BACKGROUND,
+                uv = style.imageUv,
             )
         }
     }
