@@ -7,6 +7,7 @@ import net.irisshaders.iris.shadows.ShadowRenderer
 import net.minecraft.Util
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
+import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.RenderStateShard
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.texture.TextureManager
@@ -45,25 +46,23 @@ inline fun drawWithShader(
     state.clearRenderState()
 }
 
+fun Material.packedLight(worldLight: Int): Int = if (emissive) LightTexture.FULL_BRIGHT else worldLight
+
 fun opaqueShaderState(): RenderType = RenderType.entityCutoutNoCull(TextureManager.INTENTIONAL_MISSING_TEXTURE)
 
 fun translucentShaderState(): RenderType = RenderType.entityTranslucent(TextureManager.INTENTIONAL_MISSING_TEXTURE)
 
 val batchingRenderType: Function<Material, RenderType> = Util.memoize<Material, RenderType> { material: Material ->
-    val compositeState =
-        RenderType.CompositeState.builder()
-            .setShaderState(RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeEntityCutoutShader))
-            .setTextureState(RenderStateShard.TextureStateShard(material.texture, false, false))
-            .setTransparencyState(
-                when (material.blend) {
-                    Material.Blend.BLEND -> RenderStateShard.TRANSLUCENT_TRANSPARENCY
-                    Material.Blend.OPAQUE -> RenderStateShard.NO_TRANSPARENCY
-                }
-            )
-            .setCullState(if (material.doubleSided) RenderStateShard.NO_CULL else RenderStateShard.CULL)
-            .setLightmapState(RenderStateShard.LIGHTMAP)
-            .setOverlayState(RenderStateShard.OVERLAY)
-            .createCompositeState(true)
+    val compositeState = RenderType.CompositeState.builder()
+        .setShaderState(RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeEntityCutoutShader))
+        .setTextureState(RenderStateShard.TextureStateShard(material.texture, false, false)).setTransparencyState(
+            when (material.blend) {
+                Material.Blend.BLEND -> RenderStateShard.TRANSLUCENT_TRANSPARENCY
+                Material.Blend.OPAQUE -> RenderStateShard.NO_TRANSPARENCY
+            }
+        ).setCullState(if (material.doubleSided) RenderStateShard.NO_CULL else RenderStateShard.CULL)
+        .setLightmapState(RenderStateShard.LIGHTMAP).setOverlayState(RenderStateShard.OVERLAY)
+        .createCompositeState(true)
     RenderType.create(
         "hollowengine:entity_cutout",
         DefaultVertexFormat.NEW_ENTITY,
@@ -76,9 +75,8 @@ val batchingRenderType: Function<Material, RenderType> = Util.memoize<Material, 
 }
 
 val SHADER
-    get() =
-        if (IrisHelper.hasIris && (ShadowRenderer.ACTIVE || shouldOverrideShaders())) GameRenderer.getRendertypeEntityCutoutShader()!!
-        else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
+    get() = if (IrisHelper.hasIris && (ShadowRenderer.ACTIVE || shouldOverrideShaders())) GameRenderer.getRendertypeEntityCutoutShader()!!
+    else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
 
 val INSTANCED_SHADER
     get() = ModShaders.GLTF_ENTITY_INSTANCED

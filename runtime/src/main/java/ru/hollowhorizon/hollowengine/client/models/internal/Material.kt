@@ -19,6 +19,7 @@ data class Material(
     var specularTexture: ResourceLocation = MISSING_SPECULAR,
     var doubleSided: Boolean = false,
     var blend: Blend = Blend.OPAQUE,
+    var emissive: Boolean = false,
 ) {
     enum class Blend { OPAQUE, BLEND }
 

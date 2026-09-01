@@ -46,8 +46,12 @@ class BatchingRenderer(
             val normal = stack.last().normal()
             val color = material.color
 
+            val packedLight = material.packedLight(light)
             for (i in iterator) {
-                putVertex(instance, i, vertexConsumer, pose, normal, color, overlay, light, posArray, normArray, texArray)
+                putVertex(
+                    instance, i, vertexConsumer, pose, normal, color, overlay, packedLight,
+                    posArray, normArray, texArray,
+                )
             }
         }
     }

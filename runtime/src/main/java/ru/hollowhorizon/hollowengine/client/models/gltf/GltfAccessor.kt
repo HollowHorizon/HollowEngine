@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
-import ru.hollowhorizon.hollowengine.common.utils.math.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 
 @Serializable
 data class GltfAccessor(
@@ -74,6 +74,8 @@ data class GltfAccessor(
     }
 }
 
+private const val NoSparseIndex = -1
+
 abstract class DataStreamAccessor(val accessor: GltfAccessor) {
     private val elemByteSize: Int
     private val byteStride: Int
@@ -88,6 +90,8 @@ abstract class DataStreamAccessor(val accessor: GltfAccessor) {
     private val sparseIndexType: Int
     private var nextSparseIndex: Int
 
+    private var remainingSparse: Int = 0
+
     var index: Int = 0
         set(value) {
             field = value
@@ -98,18 +102,21 @@ abstract class DataStreamAccessor(val accessor: GltfAccessor) {
 
         if (accessor.sparse != null) {
             sparseIndexStream = DataStream(
-                accessor.sparse.indices.bufferViewRef.bufferRef.data, accessor.sparse.indices.bufferViewRef.byteOffset
+                accessor.sparse.indices.bufferViewRef.bufferRef.data,
+                accessor.sparse.indices.bufferViewRef.byteOffset + accessor.sparse.indices.byteOffset,
             )
             sparseValueStream = DataStream(
-                accessor.sparse.values.bufferViewRef.bufferRef.data, accessor.sparse.values.bufferViewRef.byteOffset
+                accessor.sparse.values.bufferViewRef.bufferRef.data,
+                accessor.sparse.values.bufferViewRef.byteOffset + accessor.sparse.values.byteOffset,
             )
             sparseIndexType = accessor.sparse.indices.componentType
-            nextSparseIndex = sparseIndexStream.nextIntComponent(sparseIndexType)
+            remainingSparse = accessor.sparse.count
+            nextSparseIndex = readNextSparseIndex(sparseIndexStream)
         } else {
             sparseIndexStream = null
             sparseValueStream = null
             sparseIndexType = 0
-            nextSparseIndex = -1
+            nextSparseIndex = NoSparseIndex
         }
 
         val compByteSize = when (accessor.componentType) {
@@ -177,10 +184,16 @@ abstract class DataStreamAccessor(val accessor: GltfAccessor) {
     }
 
     protected fun advance() {
-        if (index == nextSparseIndex && sparseIndexStream?.hasRemaining() == true) {
-            nextSparseIndex = sparseIndexStream.nextIntComponent(sparseIndexType)
+        if (index == nextSparseIndex) {
+            nextSparseIndex = sparseIndexStream?.let(::readNextSparseIndex) ?: NoSparseIndex
         }
         index++
+    }
+
+    private fun readNextSparseIndex(stream: DataStream): Int {
+        if (remainingSparse <= 0 || !stream.hasRemaining()) return NoSparseIndex
+        remainingSparse--
+        return stream.nextIntComponent(sparseIndexType)
     }
 }
 

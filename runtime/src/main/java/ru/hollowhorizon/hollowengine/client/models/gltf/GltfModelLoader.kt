@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
@@ -16,6 +17,8 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 object GltfModelLoader : ModelLoader {
     override val supportedFormats = setOf("gltf", "glb")
 
+    private val supportedExtensions = setOf("KHR_texture_transform")
+
     override suspend fun load(location: ResourceLocation, side: ModelSide): Model {
         val resolvedLocation = if (!location.exists(side)) "$MODID:models/error.gltf".rl else location
 
@@ -24,6 +27,7 @@ object GltfModelLoader : ModelLoader {
     }
 
     fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): Model {
+        warnUnsupportedExtensions(file, location)
         val skins = parseSkins(file)
         val materials = if (side == ModelSide.SERVER) emptyList() else {
             file.materials.mapIndexed { index, material -> material.toMaterial(file, location, index) }
@@ -56,10 +60,9 @@ object GltfModelLoader : ModelLoader {
             }
         }
 
-        val animations: List<AnimationClip> =
-            parseAnimations(file).map {
-                AnimationLoader.createAnimation(nodes.associateBy { it.index }, it)
-            }
+        val animations: List<AnimationClip> = parseAnimations(file).map {
+            AnimationLoader.createAnimation(nodes.associateBy { it.index }, it)
+        }
 
         val model = Model(file.scene, scenes, materials.toSet(), animations).apply {
             walkNodes().forEach { node ->
@@ -79,8 +82,7 @@ object GltfModelLoader : ModelLoader {
     private fun parseSkins(file: GltfFile): List<Skin> {
         return file.skins.map { skin ->
             return@map Skin(
-                skin.joints,
-                Mat4fAccessor(skin.inverseBindMatrixAccessorRef!!).list
+                skin.joints, Mat4fAccessor(skin.inverseBindMatrixAccessorRef!!).list
             )
         }
     }
@@ -113,20 +115,31 @@ object GltfModelLoader : ModelLoader {
         val mesh = node.meshRef?.let { mesh ->
             val primitives = mesh.primitives.map { prim ->
                 val attributes = prim.attributes.map { it.key to file.accessors[it.value] }.toMap()
-                val positions =
-                    attributes[GltfMesh.Primitive.ATTRIBUTE_POSITION]?.let { Vec3fAccessor(it) }?.list
+                val positions = attributes[GltfMesh.Primitive.ATTRIBUTE_POSITION]?.let { Vec3fAccessor(it) }?.list
                 val normals = attributes[GltfMesh.Primitive.ATTRIBUTE_NORMAL]?.let { Vec3fAccessor(it) }?.list
+                val uvTransform = file.materials.getOrNull(prim.material)?.uvTransform()
                 val texCoord0 =
-                    attributes[GltfMesh.Primitive.ATTRIBUTE_TEXCOORD_0]?.let { Vec2fAccessor(it) }?.list
+                    attributes[GltfMesh.Primitive.ATTRIBUTE_TEXCOORD_0]?.let { Vec2fAccessor(it) }?.list?.transformedBy(
+                            uvTransform,
+                            texCoord = 0
+                        )
                 val texCoord1 =
-                    attributes[GltfMesh.Primitive.ATTRIBUTE_TEXCOORD_1]?.let { Vec2fAccessor(it) }?.list
+                    attributes[GltfMesh.Primitive.ATTRIBUTE_TEXCOORD_1]?.let { Vec2fAccessor(it) }?.list?.transformedBy(
+                            uvTransform,
+                            texCoord = 1
+                        )
                 val tangents = attributes[GltfMesh.Primitive.ATTRIBUTE_TANGENT]?.let { Vec4fAccessor(it) }?.list
                 val joints = attributes[GltfMesh.Primitive.ATTRIBUTE_JOINTS_0]?.let { Vec4iAccessor(it) }?.list
-                val weights =
-                    attributes[GltfMesh.Primitive.ATTRIBUTE_WEIGHTS_0]?.let { Vec4fAccessor(it) }?.list
+                val weights = attributes[GltfMesh.Primitive.ATTRIBUTE_WEIGHTS_0]?.let { Vec4fAccessor(it) }?.list
 
                 Primitive(
-                    positions, normals, texCoord0, texCoord1, tangents, joints, weights,
+                    positions,
+                    normals,
+                    texCoord0,
+                    texCoord1,
+                    tangents,
+                    joints,
+                    weights,
                     if (prim.indices != -1) IntAccessor(file.accessors[prim.indices]).list.toIntArray() else null,
                     if (side == ModelSide.CLIENT && prim.material != -1) materials[prim.material] else Material(),
                     prim.targets.map { map ->
@@ -134,13 +147,11 @@ object GltfModelLoader : ModelLoader {
                             entry.key to file.accessors[entry.value].let { accessor ->
                                 when (entry.key) {
                                     GltfMesh.Primitive.ATTRIBUTE_POSITION, GltfMesh.Primitive.ATTRIBUTE_NORMAL -> {
-                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z) }
-                                            .toFloatArray()
+                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()
                                     }
 
                                     GltfMesh.Primitive.ATTRIBUTE_TANGENT -> {
-                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z) }
-                                            .toFloatArray()
+                                        Vec3fAccessor(accessor).list.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()
                                     }
 
                                     else -> throw IllegalStateException("Unsupported morph target!")
@@ -148,18 +159,14 @@ object GltfModelLoader : ModelLoader {
                             }
                         }.toMap()
                     },
-                    (node.weights ?: mesh.weights).toFloatArray()
-                        .takeIf { it.isNotEmpty() }
-                        ?: FloatArray(prim.targets.size) { 0f }
-                )
+                    (node.weights ?: mesh.weights).toFloatArray().takeIf { it.isNotEmpty() }
+                        ?: FloatArray(prim.targets.size) { 0f })
             }
 
             return@let Mesh(
                 primitives,
-                mesh.weights.toFloatArray().takeIf { it.isNotEmpty() }
-                    ?: primitives.firstOrNull()?.weights?.copyOf()
-                    ?: FloatArray(0)
-            )
+                mesh.weights.toFloatArray().takeIf { it.isNotEmpty() } ?: primitives.firstOrNull()?.weights?.copyOf()
+                ?: FloatArray(0))
         }
         val skin = if (node.skin != -1) skins[node.skin] else null
 
@@ -205,17 +212,28 @@ object GltfModelLoader : ModelLoader {
     @Suppress("SENSELESS_COMPARISON")
     private fun parseAnimations(file: GltfFile): List<ImportedAnimation> {
         return file.animations.filter { it.channels != null }.map { animation ->
-            val channels = animation.channels
-                .filter { it.target.node != -1 } // Некоторые экспортеры почему-то считают, что экспортировать анимацию без объекта - хорошая идея
-                .map { parseChannel(file, it, animation.samplers) }
+            val channels =
+                animation.channels.filter { it.target.node != -1 } // Некоторые экспортеры почему-то считают, что экспортировать анимацию без объекта - хорошая идея
+                    .map { parseChannel(file, it, animation.samplers) }
             ImportedAnimation(animation.name, channels)
         }
     }
 
-    private fun ResourceLocation.exists(side: ModelSide): Boolean =
-        when (side) {
-            ModelSide.CLIENT -> exists()
-            ModelSide.SERVER -> ModelResourceIO.exists(this)
+    private fun Array<Vec2f>.transformedBy(uvTransform: BakedUvTransform?, texCoord: Int): Array<Vec2f> {
+        if (uvTransform == null || uvTransform.texCoord != texCoord) return this
+        return Array(size) { index -> uvTransform.transform.apply(this[index].x, this[index].y) }
+    }
+
+    private fun warnUnsupportedExtensions(file: GltfFile, location: ResourceLocation) {
+        val missing = file.extensionsRequired.filterNot { it in supportedExtensions }
+        if (missing.isNotEmpty()) {
+            HollowEngine.LOGGER.warn("Model $location requires glTF extensions the engine ignores: ${missing.joinToString()}")
         }
+    }
+
+    private fun ResourceLocation.exists(side: ModelSide): Boolean = when (side) {
+        ModelSide.CLIENT -> exists()
+        ModelSide.SERVER -> ModelResourceIO.exists(this)
+    }
 
 }

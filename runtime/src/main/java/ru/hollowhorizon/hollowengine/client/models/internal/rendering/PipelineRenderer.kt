@@ -378,7 +378,7 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
             modelNormal = modelNormal,
             modelViewNormal = modelViewNormal,
             overlay = overlay,
-            light = light,
+            light = instance.material.packedLight(light),
             sortKey = computeSortKey(modelView),
             material = instance.material,
             entityInfo = instancingEntityInfo
@@ -553,6 +553,9 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         val nodeMatrix = instance.matrix.asMatrix4f()
 
         applyMaterial(shader, instance.material)
+
+        val packedLight = instance.material.packedLight(light)
+        GL33.glVertexAttribI2i(4, packedLight and FFFF, packedLight shr 16 and FFFF)
 
         RenderSystem.glBindVertexArray(vao)
 

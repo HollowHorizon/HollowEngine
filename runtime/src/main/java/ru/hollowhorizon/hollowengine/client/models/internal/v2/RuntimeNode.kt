@@ -42,7 +42,7 @@ open class RuntimeNode(
 
     val attachments = arrayListOf<Attachment>()
 
-    private val baseMorphWeights: FloatArray = definition.mesh
+    val baseMorphWeights: FloatArray = definition.mesh
         ?.primitives
         ?.firstOrNull()
         ?.weights

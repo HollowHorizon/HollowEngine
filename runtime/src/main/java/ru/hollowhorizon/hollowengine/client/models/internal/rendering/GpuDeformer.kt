@@ -11,6 +11,8 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.PrimitiveInstance
 import ru.hollowhorizon.hollowengine.common.utils.math.Mat4f
 import kotlin.math.min
 
+private const val MaxMorphTargets = 64
+
 class GpuDeformer(private val primitive: Primitive) {
     private var processingVao = -1
 
@@ -36,6 +38,8 @@ class GpuDeformer(private val primitive: Primitive) {
     private var outTanBufferId = -1
 
     private var drawCount = 0
+
+    private val activeMorphCount get() = min(primitive.morphTargets.size, MaxMorphTargets)
 
     fun init(dstPos: Int, dstNor: Int, dstTan: Int) {
         this.outPosBufferId = dstPos
@@ -243,18 +247,20 @@ class GpuDeformer(private val primitive: Primitive) {
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphTanTexture)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "morphDeltasTangent"), 3)
 
-            GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "activeMorphCount"), primitive.morphTargets.size)
+            GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "activeMorphCount"), activeMorphCount)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "vertexCount"), drawCount)
 
-            val locWeights = GL20.glGetUniformLocation(shaderId, "morphWeights")
-            if (locWeights != -1 && morphWeights.isNotEmpty()) {
-                val weightArray = FloatArray(64)
-                val copyLength = min(morphWeights.size, 64)
-                System.arraycopy(morphWeights, 0, weightArray, 0, copyLength)
-                GL20.glUniform1fv(locWeights, weightArray)
-            }
+            uploadMorphWeights(shaderId, morphWeights)
         } else {
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "activeMorphCount"), 0)
+        }
+    }
+
+    private fun uploadMorphWeights(shaderId: Int, morphWeights: FloatArray) {
+        for (index in 0 until min(morphWeights.size, activeMorphCount)) {
+            val location = GL20.glGetUniformLocation(shaderId, "morphWeights[$index]")
+            if (location == -1) continue
+            GL20.glUniform1f(location, morphWeights[index])
         }
     }
 

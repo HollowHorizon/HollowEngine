@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import ru.hollowhorizon.hollowengine.common.utils.math.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.common.models.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.utils.math.*
 
 class AnimationPose {
     private val bones = linkedMapOf<Int, BonePose>()
@@ -46,7 +46,11 @@ class AnimationPose {
                 val mixed = result.bone(node)
 
                 mixed.translation = when {
-                    a?.translation != null && b?.translation != null -> Vec3f(a.translation!!).mix(b.translation!!, clamped)
+                    a?.translation != null && b?.translation != null -> Vec3f(a.translation!!).mix(
+                        b.translation!!,
+                        clamped
+                    )
+
                     b?.translation != null -> Vec3f.ZERO.mix(b.translation!!, clamped)
                     a?.translation != null -> Vec3f(a.translation!!).mix(Vec3f.ZERO, clamped)
                     else -> null
@@ -100,7 +104,13 @@ fun applyAnimationPose(
         }
 
         bonePose.weights?.let { weights ->
-            blendWeights(runtimeNode.morphWeights, weights, blendMode, clampedWeight)
+            blendWeights(
+                current = runtimeNode.morphWeights,
+                sampled = weights,
+                reference = reference?.weights ?: runtimeNode.baseMorphWeights,
+                blendMode = blendMode,
+                weight = clampedWeight,
+            )
         }
     }
 }
@@ -149,6 +159,7 @@ private fun TrsTransformF.applyAdditive(
 private fun blendWeights(
     current: FloatArray,
     sampled: FloatArray,
+    reference: FloatArray,
     blendMode: LayerBlendMode,
     weight: Float,
 ) {
@@ -156,7 +167,7 @@ private fun blendWeights(
     for (index in 0 until count) {
         current[index] = when (blendMode) {
             LayerBlendMode.Override -> current[index] + (sampled[index] - current[index]) * weight
-            LayerBlendMode.Additive -> current[index] + sampled[index] * weight
+            LayerBlendMode.Additive -> current[index] + (sampled[index] - reference.getOrElse(index) { 0f }) * weight
         }
     }
 }
