@@ -74,9 +74,10 @@ interface UiCanvasDrawScope {
 
     fun drawSvg(document: UiSvgPathDocument) = drawSvg(document, bounds)
 
-    fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false)
+    fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false, opaque: Boolean = false)
 
-    fun drawTexture(textureId: Int, flipY: Boolean = false) = drawTexture(bounds, textureId, flipY)
+    fun drawTexture(textureId: Int, flipY: Boolean = false, opaque: Boolean = false) =
+        drawTexture(bounds, textureId, flipY, opaque)
 
     /** Draws world-independent Minecraft sprite particles, clipped to the given local rectangle. */
     fun drawParticles(system: UiParticleSystem, rect: UiRect = bounds)
@@ -200,7 +201,7 @@ internal class UiCommandCanvasScope(
         )
     }
 
-    override fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean) {
+    override fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean, opaque: Boolean) {
         if (!rect.isDrawable() || textureId == 0 || opacity <= 0f) return
         sink += DrawRawTextureCommand(
             node = node,
@@ -208,6 +209,7 @@ internal class UiCommandCanvasScope(
             textureId = textureId,
             opacity = opacity,
             flipY = flipY,
+            opaque = opaque,
             transform = layoutNode.worldTransform.translated(rect.x, rect.y),
             filter = filter,
             backfaceVisibility = backfaceVisibility,

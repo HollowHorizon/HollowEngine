@@ -134,9 +134,20 @@ void main() {
 
     if (geometry.x < 0.0) {
         int glyphPage = int(geometry.w);
-        vec4 texel = sampleGlyphAtlas(glyphPage, glyphUv);
-        vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
         int glyphMode = int(geometry.z);
+        vec2 uv = glyphUv;
+        if (glyphMode != GLYPH_MSDF) {
+            vec2 atlasSize = GlyphAtlasSize[glyphPage];
+            if (atlasSize.x > 1.5 && atlasSize.y > 1.5) {
+                vec4 uvRect = texelFetch(RecordBuffer, base + 1);
+                vec2 halfTexel = 0.5 / atlasSize;
+                vec2 low = min(uvRect.xy, uvRect.zw) + halfTexel;
+                vec2 high = max(uvRect.xy, uvRect.zw) - halfTexel;
+                uv = clamp(glyphUv, min(low, high), max(low, high));
+            }
+        }
+        vec4 texel = sampleGlyphAtlas(glyphPage, uv);
+        vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
         vec3 rgb = glyphColor.rgb;
         float coverage;
         if (glyphMode == GLYPH_MSDF) {

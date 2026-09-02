@@ -6,12 +6,13 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.dialogue.StoryCameraSystem
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderArmEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderItemInHandEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
 @ClientOnly
 object CutsceneCameraSystem {
     private var controller: CutscenePlaybackController? = null
+    private var isPreview = false
 
     val activeController: CutscenePlaybackController?
         get() = controller
@@ -27,19 +28,22 @@ object CutsceneCameraSystem {
     /** Whether anything is holding the camera, a cutscene or a story. */
     val isOverriding: Boolean get() = currentPose != null
 
-    fun play(data: CutsceneData, loop: Boolean = false) {
+    fun play(data: CutsceneData, loop: Boolean = false, anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED) {
+        isPreview = false
         controller = CutscenePlaybackController().also {
-            it.setupTracks(data, loop)
+            it.setupTracks(data, loop, anchor)
             it.play()
         }
     }
 
     fun play(controller: CutscenePlaybackController) {
+        isPreview = false
         this.controller = controller
         controller.play()
     }
 
     fun preview(controller: CutscenePlaybackController) {
+        isPreview = true
         this.controller = controller
         controller.pause()
     }
@@ -47,6 +51,7 @@ object CutsceneCameraSystem {
     fun stop() {
         controller?.stop()
         controller = null
+        isPreview = false
     }
 
     fun update(minecraft: Minecraft) {
@@ -58,7 +63,7 @@ object CutsceneCameraSystem {
         }
 
         active.update(minecraft.timer.realtimeDeltaTicks / 20f)
-        if (!active.isPlaying && active.currentTime >= active.duration) {
+        if (!isPreview && !active.isPlaying && active.currentTime >= active.duration) {
             controller = null
         }
     }
@@ -81,7 +86,7 @@ object CutsceneCameraSystem {
     }
 
     @SubscribeEvent
-    fun onRenderHand(event: RenderArmEvent) {
+    fun onRenderHand(event: RenderItemInHandEvent) {
         if (controller != null) event.isCanceled = true
     }
 }

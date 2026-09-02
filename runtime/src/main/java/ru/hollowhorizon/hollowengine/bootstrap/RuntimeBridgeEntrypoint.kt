@@ -368,6 +368,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         arm: HumanoidArm,
     ): Boolean = RenderArmEvent.post(RenderArmEvent(stack, multiBufferSource, packedLight, player, arm)).isCanceled
 
+    override fun onRenderItemInHand(camera: Camera, partialTick: Float, projectionMatrix: Matrix4f): Boolean =
+        RenderItemInHandEvent.post(RenderItemInHandEvent(camera, partialTick, projectionMatrix)).isCanceled
+
     override fun onRegisterParticles(particleEngine: ParticleEngine) {
         RegisterParticlesEvent.post(RegisterParticlesEvent(particleEngine))
     }

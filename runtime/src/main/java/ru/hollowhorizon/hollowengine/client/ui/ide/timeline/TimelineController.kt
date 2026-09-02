@@ -1,17 +1,32 @@
+@file:Suppress("UNCHECKED_CAST")
+
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import ru.hollowhorizon.hollowengine.common.utils.math.Easing
-import ru.hollowhorizon.hollowengine.common.utils.math.Vec2f
-import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+
+enum class PlaybackMode {
+    LOOP, ONCE
+}
+
+/** Which editor the timeline lanes are showing. */
+enum class TimelineViewMode {
+    /** Keys as points on their lane. */
+    DOPE_SHEET,
+
+    /** Channel values as editable curves, shaping the motion itself. */
+    CURVES,
+}
 
 class TimelineController {
     companion object {
-        const val KEYFRAME_TIME_EPSILON = 0.0001f
+        const val KEYFRAME_TIME_EPSILON = ChannelCurve.KEY_TIME_EPSILON
+        private const val DEFAULT_CURVE_SPAN = 20f
     }
 
     val groups = mutableStateListOf<TrackGroup>()
@@ -20,42 +35,101 @@ class TimelineController {
     var isPlaying by mutableStateOf(false)
     var workAreaEnd by mutableStateOf(10f)
     val playbackMode = mutableStateOf(PlaybackMode.LOOP)
-
     val playbackSpeed = mutableStateOf(1f)
 
     var pixelsPerSecond by mutableStateOf(100f)
+    var viewMode by mutableStateOf(TimelineViewMode.DOPE_SHEET)
+    var headerWidth by mutableStateOf(240f)
+    val curveAxis = TimelineCurveAxis(DEFAULT_CURVE_SPAN)
 
-    val selectedKeyframes = mutableStateListOf<Keyframe<*>>()
+    val curveValueCenter: Float get() = curveAxis.center
+    val curveValueSpan: Float get() = curveAxis.span
+
+    val selectedKeyframes = mutableStateListOf<Keyframe>()
+
+    val focusedCurves = mutableStateListOf<ChannelCurve>()
     var isWorkAreaSelected by mutableStateOf(false)
     var isCameraPreviewEnabled by mutableStateOf(false)
+
+    var activeLayer by mutableStateOf<AnimLayer?>(null)
 
     val history = TimelineHistory(this)
 
     var onChanged: (() -> Unit)? = null
     var onTimeChanged: (() -> Unit)? = null
     var onPreviewChanged: (() -> Unit)? = null
-    fun addTrack(groupName: String, track: BaseAnimTrack) = addTrack(listOf(groupName), track)
+    var captureExtraState: (() -> Any?)? = null
+    var restoreExtraState: ((Any?) -> Unit)? = null
 
-    fun addTrack(groupPath: List<String>, track: BaseAnimTrack) {
-        require(groupPath.isNotEmpty()) { "Timeline track must belong to at least one group" }
-        val group = findOrCreateGroup(groupPath)
-        group.tracks.add(track)
-    }
-
-    private fun findOrCreateGroup(path: List<String>): TrackGroup {
+    fun group(path: List<String>): TrackGroup {
+        require(path.isNotEmpty()) { "Timeline group path must not be empty" }
         var currentGroups: MutableList<TrackGroup> = groups
         var group: TrackGroup? = null
-
         for (name in path) {
-            group = currentGroups.find { it.nameState == name }
-            if (group == null) {
-                group = TrackGroup(name)
-                currentGroups.add(group)
-            }
+            group = currentGroups.find { it.nameState == name } ?: TrackGroup(name).also { currentGroups.add(it) }
             currentGroups = group.children
         }
-
         return group ?: error("Timeline group path is empty")
+    }
+
+    fun <T> addProperty(path: List<String>, property: AnimProperty<T>): AnimProperty<T> {
+        group(path).properties.add(property)
+        if (property.layers.isEmpty()) property.addLayer(BASE_LAYER_NAME)
+        if (activeLayer == null) activeLayer = property.layers.firstOrNull()
+        return property
+    }
+
+    fun allProperties(): List<AnimProperty<*>> = groups.flatMap { it.allProperties() }
+
+    fun allLayers(): List<AnimLayer> = allProperties().flatMap { it.layers }
+
+    fun allCurves(): List<ChannelCurve> = allLayers().flatMap { it.channels }
+
+    fun propertyOf(layer: AnimLayer): AnimProperty<*>? = allProperties().firstOrNull { layer in it.layers }
+
+    fun targetLayer(property: AnimProperty<*>): AnimLayer? {
+        val active = activeLayer
+        if (active != null && active in property.layers) return active
+        return property.layers.firstOrNull()
+    }
+
+    fun layerOf(keyframe: Keyframe): AnimLayer? = allLayers().firstOrNull { it.curveOf(keyframe) != null }
+
+    fun curveOf(keyframe: Keyframe): ChannelCurve? = allCurves().firstOrNull { curve ->
+        curve.keyframes.any { it === keyframe }
+    }
+
+    fun isLocked(layer: AnimLayer): Boolean {
+        if (layer.isLocked) return true
+        val owner = propertyOf(layer) ?: return false
+        return groupOf(owner)?.let { isLocked(it) } == true
+    }
+
+    fun groupOf(property: AnimProperty<*>): TrackGroup? {
+        fun findIn(candidates: List<TrackGroup>): TrackGroup? {
+            candidates.forEach { group ->
+                if (property in group.properties) return group
+                findIn(group.children)?.let { return it }
+            }
+            return null
+        }
+        return findIn(groups)
+    }
+
+    private fun isLocked(group: TrackGroup): Boolean {
+        if (group.isLocked) return true
+        return parentOf(group)?.let { isLocked(it) } == true
+    }
+
+    private fun parentOf(group: TrackGroup): TrackGroup? {
+        fun findIn(candidates: List<TrackGroup>): TrackGroup? {
+            candidates.forEach { candidate ->
+                if (group in candidate.children) return candidate
+                findIn(candidate.children)?.let { return it }
+            }
+            return null
+        }
+        return findIn(groups)
     }
 
     fun onUpdate(deltaSeconds: Float) {
@@ -70,29 +144,7 @@ class TimelineController {
                 }
             }
         }
-
-        getAllTracks().forEach { track ->
-            track.update(currentTime)
-        }
-    }
-
-    fun getAllTracks(): List<BaseAnimTrack> {
-        return groups.flatMap { it.allTracks() }
-    }
-
-    fun findTrack(keyframe: Keyframe<*>): AnimTrack<*>? {
-        return getAllTracks().filterIsInstance<AnimTrack<*>>().find { keyframe in it.keyframes }
-    }
-
-    fun clearSelection() {
-        selectedKeyframes.clear()
-        isWorkAreaSelected = false
-    }
-
-    fun deleteSelectedKeyframes() {
-        history.record("Delete keyframes") {
-            deleteSelectedKeyframesInternal()
-        }
+        allProperties().forEach { it.update(currentTime) }
     }
 
     fun applyCurrentTime(time: Float) {
@@ -109,121 +161,280 @@ class TimelineController {
         isPlaying = !isPlaying
     }
 
-    private fun deleteSelectedKeyframesInternal() {
-        val allTracks = getAllTracks()
+    fun isSelected(keyframe: Keyframe): Boolean = selectedKeyframes.any { it === keyframe }
 
-        val keysToRemove = selectedKeyframes.toList()
-
-        allTracks.forEach { track ->
-            val group = findGroup(track)
-            val isLocked = track is AnimTrack<*> && track.isLocked || group?.isLocked == true
-
-            if (!isLocked) {
-                val trackKeys = track.getKeysAsList()
-                trackKeys.removeAll(keysToRemove.toSet())
-            }
-        }
+    fun clearSelection() {
         selectedKeyframes.clear()
-        onChanged?.invoke()
+        isWorkAreaSelected = false
     }
 
-    fun duplicateKeyframe(track: BaseAnimTrack, original: Keyframe<*>): Keyframe<*> {
-        return history.record("Duplicate keyframe") {
-            val sourceTrack = track as? AnimTrack<*> ?: return@record null
-            val targetTime = findFreeTime(sourceTrack, original.time + KEYFRAME_TIME_EPSILON * 2f)
-            duplicateKeyframeInternal(track, original, targetTime)
-        } ?: original
+    fun select(keys: List<Keyframe>, additive: Boolean) {
+        if (!additive) selectedKeyframes.clear()
+        keys.forEach { key -> if (!isSelected(key)) selectedKeyframes.add(key) }
+        isWorkAreaSelected = false
     }
 
-    fun duplicateKeyframe(track: BaseAnimTrack, original: Keyframe<*>, targetTime: Float): Keyframe<*>? {
-        return history.record("Duplicate keyframe") {
-            duplicateKeyframeInternal(track, original, targetTime)
+    fun isFocused(curve: ChannelCurve): Boolean = focusedCurves.any { it === curve }
+
+    fun focusCurves(curves: List<ChannelCurve>, additive: Boolean) {
+        if (curves.isEmpty()) return
+        if (additive) {
+            val allFocused = curves.all { isFocused(it) }
+            if (allFocused) curves.forEach { curve -> focusedCurves.removeAll { it === curve } }
+            else curves.forEach { curve -> if (!isFocused(curve)) focusedCurves.add(curve) }
+            return
         }
+        val alreadyExactly = focusedCurves.size == curves.size && curves.all { isFocused(it) }
+        focusedCurves.clear()
+        if (!alreadyExactly) focusedCurves.addAll(curves)
     }
 
-    fun addKeyframe(track: AnimTrack<*>, time: Float): Keyframe<*>? {
-        @Suppress("UNCHECKED_CAST")
-        val typedTrack = track as AnimTrack<Any?>
-        return addKeyframe(typedTrack, time, typedTrack.getInsertionValue(time))
-    }
-
-    fun <T> addKeyframe(track: AnimTrack<T>, time: Float, value: T): Keyframe<T>? {
-        return history.record("Add keyframe") {
-            addKeyframeInternal(track, time, value, select = true)
+    fun selectStacked(pressed: Keyframe, stacked: List<Keyframe>, additive: Boolean) {
+        if (additive) {
+            toggleSelection(listOf(pressed))
+            return
         }
-    }
-
-    fun <T> upsertKeyframe(track: AnimTrack<T>, time: Float, value: T): Keyframe<T> {
-        return history.record("Capture keyframe") {
-            val clamped = time.coerceIn(0f, workAreaEnd)
-            val existing = track.keyframes.firstOrNull { abs(it.time - clamped) <= KEYFRAME_TIME_EPSILON }
-            if (existing != null) {
-                existing.value = copyValue(value)
-                selectedKeyframes.clear()
-                selectedKeyframes.add(existing)
-                isWorkAreaSelected = false
-                onChanged?.invoke()
-                existing
-            } else {
-                addKeyframeInternal(track, clamped, value, select = true) ?: error("Unable to create keyframe")
+        val stack = if (stacked.any { it === pressed }) stacked else stacked + pressed
+        if (stack.size > 1 && selectedKeyframes.size == 1) {
+            val current = stack.indexOfFirst { isSelected(it) }
+            if (current >= 0) {
+                select(listOf(stack[(current + 1) % stack.size]), additive = false)
+                return
             }
         }
+        if (!isSelected(pressed)) select(listOf(pressed), additive = false)
     }
 
-    fun updateSelectedValues(label: String, block: () -> Unit) {
+    fun toggleSelection(keys: List<Keyframe>) {
+        val allSelected = keys.all { isSelected(it) }
+        if (allSelected) keys.forEach { key -> selectedKeyframes.removeAll { it === key } }
+        else keys.forEach { key -> if (!isSelected(key)) selectedKeyframes.add(key) }
+        isWorkAreaSelected = false
+    }
+
+    fun edit(label: String, block: () -> Unit) {
         history.record(label) {
             block()
             onChanged?.invoke()
         }
     }
 
-    fun moveKeyframe(track: BaseAnimTrack, keyframe: Keyframe<*>, targetTime: Float): Boolean {
-        val typedTrack = track as? AnimTrack<*> ?: return false
-        val clamped = targetTime.coerceIn(0f, workAreaEnd)
-        if (typedTrack.hasKeyAt(clamped, except = keyframe)) return false
-        keyframe.time = clamped
+    fun deleteSelectedKeyframes() {
+        edit("Delete keyframes") {
+            val doomed = selectedKeyframes.toList()
+            allLayers().forEach { layer ->
+                if (isLocked(layer)) return@forEach
+                layer.channels.forEach { curve ->
+                    curve.keyframes.removeAll { key -> doomed.any { it === key } }
+                }
+            }
+            selectedKeyframes.clear()
+        }
+    }
+
+    fun setKey(curve: ChannelCurve, time: Float, value: Float, selectKey: Boolean = true): Keyframe {
+        val clamped = time.coerceIn(0f, workAreaEnd)
+        val bounded = boundsOf(curve).clamp(value)
+        val existing = curve.keyAt(clamped)
+        val key = if (existing != null) {
+            existing.value = bounded
+            existing
+        } else {
+            val previous = curve.keyframes.filter { it.time <= clamped }.maxByOrNull { it.time }
+            Keyframe(
+                time = clamped,
+                value = bounded,
+                interpolation = previous?.interpolation ?: KeyInterpolation.BEZIER,
+            ).also { curve.keyframes.add(it) }
+        }
+        curve.sort()
+        if (selectKey) select(listOf(key), additive = false)
+        return key
+    }
+
+    fun addKeyframes(layer: AnimLayer, time: Float): List<Keyframe> {
+        if (isLocked(layer)) return emptyList()
+        return edited("Add keyframe") {
+            val property = propertyOf(layer)
+            layer.channels.mapIndexed { channel, curve ->
+                val fallback = property?.let { defaultChannel(it, channel) } ?: 0f
+                setKey(curve, time, curve.valueAt(time, fallback), selectKey = false)
+            }.also { select(it, additive = false) }
+        }
+    }
+
+    private fun defaultChannel(property: AnimProperty<*>, channel: Int): Float {
+        val values = FloatArray(property.channels.size)
+        property.decomposeDefault(values)
+        return values.getOrElse(channel) { 0f }
+    }
+
+    private class KeyframeClip(val curve: ChannelCurve, val offset: Float, val state: KeyframeState)
+
+    private var clipboard: List<KeyframeClip> = emptyList()
+
+    val canPaste: Boolean get() = clipboard.isNotEmpty()
+
+    fun copySelectedKeyframes() {
+        val keys = selectedKeyframes.toList()
+        if (keys.isEmpty()) return
+        val earliest = keys.minOf { it.time }
+        clipboard = keys.mapNotNull { key ->
+            val curve = curveOf(key) ?: return@mapNotNull null
+            KeyframeClip(curve, key.time - earliest, KeyframeState.of(key))
+        }
+    }
+
+    fun cutSelectedKeyframes() {
+        copySelectedKeyframes()
+        deleteSelectedKeyframes()
+    }
+
+    fun pasteKeyframes(time: Float = currentTime) {
+        if (clipboard.isEmpty()) return
+        val live = allCurves()
+        edit("Paste keyframes") {
+            val created = mutableListOf<Keyframe>()
+            clipboard.forEach { clip ->
+                if (live.none { it === clip.curve }) return@forEach
+                val layer = layerOfCurve(clip.curve)
+                if (layer != null && isLocked(layer)) return@forEach
+                val target = (time + clip.offset).coerceIn(0f, workAreaEnd)
+                clip.curve.keyframes.removeAll { abs(it.time - target) <= KEYFRAME_TIME_EPSILON }
+                val key = clip.state.toKeyframe().also {
+                    it.time = target
+                    it.value = boundsOf(clip.curve).clamp(it.value)
+                }
+                clip.curve.keyframes.add(key)
+                clip.curve.sort()
+                created += key
+            }
+            select(created, additive = false)
+        }
+    }
+
+    private fun boundsOf(curve: ChannelCurve?): ChannelBounds {
+        curve ?: return ChannelBounds.Unbounded
+        val property = allProperties().firstOrNull { owner ->
+            owner.layers.any { layer -> layer.channels.any { it === curve } }
+        } ?: return ChannelBounds.Unbounded
+        val channel = property.layers.firstNotNullOfOrNull { layer ->
+            layer.channels.indexOfFirst { it === curve }.takeIf { it >= 0 }
+        } ?: return ChannelBounds.Unbounded
+        return property.bounds(channel)
+    }
+
+    private fun layerOfCurve(curve: ChannelCurve): AnimLayer? =
+        allLayers().firstOrNull { layer -> layer.channels.any { it === curve } }
+
+    fun duplicateSelectedKeyframes() {
+
+        val originals = selectedKeyframes.toList()
+        if (originals.isEmpty()) return
+        edit("Duplicate keyframes") {
+            val created = mutableListOf<Keyframe>()
+            originals.forEach { original ->
+                val curve = curveOf(original) ?: return@forEach
+                val layer = layerOf(original) ?: return@forEach
+                if (isLocked(layer)) return@forEach
+                val target = findFreeTime(curve, original.time + KEYFRAME_TIME_EPSILON * 2f)
+                if (curve.keyAt(target) != null) return@forEach
+                val copy = original.copy(target)
+                curve.keyframes.add(copy)
+                curve.sort()
+                created += copy
+            }
+            select(created, additive = false)
+        }
+    }
+
+    var dragStartTimes: Map<Keyframe, Float>? = null
+        private set
+    var dragFocusKeyframe: Keyframe? = null
+        private set
+
+    var dragDriver: Keyframe? = null
+        private set
+
+    private var dragStartValues: Map<Keyframe, Float>? = null
+
+    fun isDragDriver(keyframe: Keyframe): Boolean = dragDriver === keyframe
+
+    fun beginKeyframeDrag(focus: Keyframe) {
+        beginHistoryTransaction("Move keyframes")
+        dragStartTimes = selectedKeyframes.associateWith { it.time }
+        dragFocusKeyframe = focus
+        dragDriver = focus
+    }
+
+    fun beginCloneDrag(driver: Keyframe, withValues: Boolean): Boolean {
+        val originals = selectedKeyframes.toList().ifEmpty { listOf(driver) }
+        beginHistoryTransaction("Clone keyframes")
+        val clones = LinkedHashMap<Keyframe, Keyframe>()
+        originals.forEach { original ->
+            val curve = curveOf(original) ?: return@forEach
+            val layer = layerOf(original) ?: return@forEach
+            if (isLocked(layer)) return@forEach
+            val target = findFreeTime(curve, original.time + KEYFRAME_TIME_EPSILON * 2f)
+            if (curve.keyAt(target) != null) return@forEach
+            val copy = original.copy(target)
+            curve.keyframes.add(copy)
+            curve.sort()
+            clones[original] = copy
+        }
+        if (clones.isEmpty()) {
+            commitHistoryTransaction()
+            return false
+        }
+        select(clones.values.toList(), additive = false)
+        dragStartTimes = clones.values.associateWith { it.time }
+        if (withValues) dragStartValues = clones.values.associateWith { it.value }
+        dragFocusKeyframe = clones[driver] ?: clones.values.first()
+        dragDriver = driver
         onChanged?.invoke()
         return true
     }
 
-    /** Times of every selected keyframe captured at drag start, so a drag can move the whole group. */
-    var dragStartTimes: Map<Keyframe<*>, Float>? = null
-        private set
-    var dragFocusKeyframe: Keyframe<*>? = null
-        private set
-
-    fun beginKeyframeDrag(focus: Keyframe<*>) {
-        beginHistoryTransaction("Move keyframes")
-        dragStartTimes = selectedKeyframes.associateWith { it.time }
-        dragFocusKeyframe = focus
+    fun beginCurveDrag(focus: Keyframe) {
+        beginKeyframeDrag(focus)
+        dragStartValues = selectedKeyframes.associateWith { it.value }
     }
 
-    /**
-     * Moves every dragged keyframe to `start + [deltaSeconds]` (clamped to the work area). The delta is
-     * the total offset from the grab point, not an increment, so hitting a bound and coming back stays
-     * in sync with the cursor. A move is skipped only when a non-dragged key already holds that slot.
-     */
     fun applyKeyframeDrag(deltaSeconds: Float) {
         val starts = dragStartTimes ?: return
         if (moveKeyframesFromStarts(starts, deltaSeconds)) onChanged?.invoke()
     }
 
+    fun applyCurveDrag(deltaSeconds: Float, deltaValue: Float) {
+        val starts = dragStartTimes ?: return
+        var changed = moveKeyframesFromStarts(starts, deltaSeconds)
+        dragStartValues?.forEach { (keyframe, startValue) ->
+            val target = boundsOf(curveOf(keyframe)).clamp(startValue + deltaValue)
+            if (keyframe.value != target) {
+                keyframe.value = target
+                changed = true
+            }
+        }
+        if (changed) onChanged?.invoke()
+    }
+
     fun endKeyframeDrag() {
         dragStartTimes = null
         dragFocusKeyframe = null
+        dragDriver = null
+        dragStartValues = null
         commitHistoryTransaction()
     }
 
-    /** Shifts every selected keyframe by [deltaSeconds] (clamped), recorded as one undo step. */
     fun nudgeSelectedKeyframes(deltaSeconds: Float) {
         if (selectedKeyframes.isEmpty()) return
-        history.record("Nudge keyframes") {
+        edit("Nudge keyframes") {
             val starts = selectedKeyframes.associateWith { it.time }
-            if (moveKeyframesFromStarts(starts, deltaSeconds)) onChanged?.invoke()
+            moveKeyframesFromStarts(starts, deltaSeconds)
         }
     }
 
-    private fun moveKeyframesFromStarts(starts: Map<Keyframe<*>, Float>, deltaSeconds: Float): Boolean {
+    private fun moveKeyframesFromStarts(starts: Map<Keyframe, Float>, deltaSeconds: Float): Boolean {
         if (starts.isEmpty()) return false
         val clampedDelta = deltaSeconds.coerceIn(
             minimumValue = -starts.values.min(),
@@ -232,8 +443,8 @@ class TimelineController {
         val dragged = starts.keys
         val targets = starts.mapValues { (_, startTime) -> startTime + clampedDelta }
         val blocked = targets.any { (keyframe, target) ->
-            findTrack(keyframe)?.keyframes?.any { other ->
-                other !in dragged && abs(other.time - target) <= KEYFRAME_TIME_EPSILON
+            curveOf(keyframe)?.keyframes?.any { other ->
+                dragged.none { it === other } && abs(other.time - target) <= KEYFRAME_TIME_EPSILON
             } == true
         }
         if (blocked) return false
@@ -245,40 +456,117 @@ class TimelineController {
                 changed = true
             }
         }
+        if (changed) allCurves().forEach { it.sort() }
         return changed
     }
 
-    /** Duplicates every selected keyframe just after itself, selecting the new copies. */
-    @Suppress("UNCHECKED_CAST")
-    fun duplicateSelectedKeyframes() {
-        val originals = selectedKeyframes.toList()
-        if (originals.isEmpty()) return
-        history.record("Duplicate keyframes") {
-            val created = mutableListOf<Keyframe<*>>()
-            for (original in originals) {
-                val track = findTrack(original) ?: continue
-                val target = findFreeTime(track, original.time + KEYFRAME_TIME_EPSILON * 2f)
-                val typedTrack = track as AnimTrack<Any?>
-                if (typedTrack.hasKeyAt(target)) continue
-                val typedKey = original as Keyframe<Any?>
-                val copy = Keyframe(target, copyValue(typedKey.value), typedKey.easing)
-                typedTrack.keyframes.add(copy)
-                created += copy
+    fun applyPreset(preset: CurvePreset) {
+        if (selectedKeyframes.isEmpty()) return
+        edit("Apply curve preset") {
+            selectedKeyframes.toList().forEach { key ->
+                val curve = curveOf(key) ?: return@forEach
+                val index = curve.keyframes.indexOfFirst { it === key }
+                CurvePresets.apply(preset, key, curve.keyframes.getOrNull(index + 1))
             }
-            selectedKeyframes.clear()
-            selectedKeyframes.addAll(created)
-            isWorkAreaSelected = false
-            onChanged?.invoke()
         }
     }
 
-    fun beginHistoryTransaction(label: String) {
-        history.begin(label)
+    fun setSelectedHandleMode(mode: HandleMode) {
+        edit("Edit keyframe handles") {
+            selectedKeyframes.forEach { key ->
+                if (mode != HandleMode.AUTO) freezeAutoTangents(key)
+                key.handleMode = mode
+            }
+        }
     }
 
-    fun commitHistoryTransaction() {
-        history.commit()
+    fun setTangent(
+        keyframe: Keyframe,
+        side: TangentSide,
+        tangent: KeyTangent,
+        mode: HandleMode,
+        timeScale: Float,
+        valueScale: Float,
+    ) {
+        val curve = curveOf(keyframe) ?: return
+        if (keyframe.handleMode == HandleMode.AUTO) freezeAutoTangents(keyframe)
+        keyframe.handleMode = mode
+        curve.useSpline(keyframe, side)
+
+        val clamped = when (side) {
+            TangentSide.OUTGOING -> KeyTangent(tangent.time.coerceAtLeast(0f), tangent.value)
+            TangentSide.INCOMING -> KeyTangent(tangent.time.coerceAtMost(0f), tangent.value)
+        }
+        keyframe.setTangent(side, clamped)
+
+        if (mode == HandleMode.FREE) {
+            onChanged?.invoke()
+            return
+        }
+        val partnerSide = if (side == TangentSide.OUTGOING) TangentSide.INCOMING else TangentSide.OUTGOING
+        val partner = TimelineCurve.mirror(
+            dragged = clamped,
+            partner = keyframe.tangent(partnerSide),
+            timeScale = timeScale,
+            valueScale = valueScale,
+            mirrorLength = mode == HandleMode.MIRRORED,
+        )
+        if (partner != null) {
+            keyframe.setTangent(partnerSide, partner)
+            curve.useSpline(keyframe, partnerSide)
+        }
+        onChanged?.invoke()
     }
+
+    fun smoothSelectedKeyframes() {
+        edit("Smooth keyframes") {
+            selectedKeyframes.forEach { key ->
+                key.interpolation = KeyInterpolation.BEZIER
+                key.handleMode = HandleMode.AUTO
+                key.incoming = KeyTangent.ZERO
+                key.outgoing = KeyTangent.ZERO
+            }
+        }
+    }
+
+    private fun freezeAutoTangents(keyframe: Keyframe) {
+        if (keyframe.handleMode != HandleMode.AUTO) return
+        val curve = curveOf(keyframe) ?: return
+        val tangents = curve.effectiveTangents(keyframe)
+        keyframe.incoming = tangents.incoming
+        keyframe.outgoing = tangents.outgoing
+    }
+
+    fun enterCurveView() {
+        val wasDopeSheet = viewMode == TimelineViewMode.DOPE_SHEET
+        viewMode = TimelineViewMode.CURVES
+        if (wasDopeSheet) frameCurves()
+    }
+
+    fun frameCurves() {
+        var lowest = Float.MAX_VALUE
+        var highest = -Float.MAX_VALUE
+        allLayers().forEach { layer ->
+            if (!layer.isVisible) return@forEach
+            layer.channels.forEach { curve ->
+                if (!curve.isVisible) return@forEach
+                if (focusedCurves.isNotEmpty() && !isFocused(curve)) return@forEach
+                curve.keyframes.forEach { key ->
+                    lowest = min(lowest, key.value)
+                    highest = max(highest, key.value)
+                }
+            }
+        }
+        if (lowest > highest) {
+            curveAxis.glideTo(0f, DEFAULT_CURVE_SPAN)
+            return
+        }
+        curveAxis.glideTo((lowest + highest) * 0.5f, max(highest - lowest, 1f) * 1.4f)
+    }
+
+    fun beginHistoryTransaction(label: String) = history.begin(label)
+
+    fun commitHistoryTransaction() = history.commit()
 
     fun undo() {
         history.undo()
@@ -292,180 +580,139 @@ class TimelineController {
         onTimeChanged?.invoke()
     }
 
-    fun clearHistory() {
-        history.clear()
-    }
+    fun clearHistory() = history.clear()
 
-    @Suppress("UNCHECKED_CAST")
+    internal fun createSnapshot(): TimelineSnapshot = TimelineSnapshot(
+        properties = allProperties().map { property ->
+            PropertySnapshot(
+                property = property,
+                type = property.type,
+                layers = property.layers.map { layer ->
+                    LayerSnapshot(
+                        layer = layer,
+                        state = LayerState.of(layer),
+                        curves = layer.channels.map { curve -> curve.keyframes.map { KeyframeState.of(it) } },
+                    )
+                },
+            )
+        },
+        currentTime = currentTime,
+        workAreaEnd = workAreaEnd,
+        extra = captureExtraState?.invoke(),
+    )
+
     internal fun restoreSnapshot(snapshot: TimelineSnapshot) {
-        val tracks = getAnimTracksForSnapshot()
-        snapshot.tracks.forEachIndexed { index, keyframes ->
-            val track = tracks.getOrNull(index) ?: return@forEachIndexed
-            track.keyframes.clear()
-            track.keyframes.addAll(keyframes.map { it.copyKeyframe() })
+        snapshot.properties.forEach { propertySnapshot ->
+            propertySnapshot.layers.forEach { layerSnapshot ->
+                layerSnapshot.state.applyTo(layerSnapshot.layer)
+                layerSnapshot.layer.channels.forEachIndexed { index, curve ->
+                    curve.keyframes.clear()
+                    layerSnapshot.curves.getOrNull(index)
+                        ?.let { keys -> curve.keyframes.addAll(keys.map { it.toKeyframe() }) }
+                }
+            }
+            propertySnapshot.property.restoreState(
+                propertySnapshot.type,
+                propertySnapshot.layers.map { it.layer },
+            )
         }
         selectedKeyframes.clear()
+        val liveCurves = allCurves()
+        focusedCurves.retainAll { curve -> liveCurves.any { it === curve } }
+        val liveLayers = allLayers()
+        if (liveLayers.none { it === activeLayer }) activeLayer = liveLayers.firstOrNull()
         currentTime = snapshot.currentTime
         workAreaEnd = snapshot.workAreaEnd
+        restoreExtraState?.invoke(snapshot.extra)
     }
 
-    internal fun createSnapshot(): TimelineSnapshot {
-        val tracks = getAnimTracksForSnapshot()
-            .map { track -> track.keyframes.map { it.copyKeyframe() } }
-        return TimelineSnapshot(tracks, currentTime, workAreaEnd)
+    private fun <T> edited(label: String, block: () -> T): T {
+        var result: T? = null
+        edit(label) { result = block() }
+        return result as T
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun duplicateKeyframeInternal(
-        track: BaseAnimTrack,
-        original: Keyframe<*>,
-        targetTime: Float,
-    ): Keyframe<*>? {
-        @Suppress("UNCHECKED_CAST")
-        val typedTrack = track as AnimTrack<Any?>
-
-        @Suppress("UNCHECKED_CAST")
-        val typedKey = original as Keyframe<Any?>
-
-        if (typedTrack.hasKeyAt(targetTime)) return null
-        val newKey = Keyframe(targetTime, copyValue(typedKey.value), typedKey.easing)
-
-        typedTrack.keyframes.add(newKey)
-
-        selectedKeyframes.clear()
-        selectedKeyframes.add(newKey)
-        isWorkAreaSelected = false
-        onChanged?.invoke()
-
-        return newKey
-    }
-
-    private fun <T> addKeyframeInternal(track: AnimTrack<T>, time: Float, value: T, select: Boolean): Keyframe<T>? {
-        val clamped = time.coerceIn(0f, workAreaEnd)
-        if (track.hasKeyAt(clamped)) return null
-
-        val easing = track.keyframes
-            .filter { it.time <= clamped }
-            .maxByOrNull { it.time }
-            ?.easing ?: Easing.linear
-        val newKey = Keyframe(clamped, copyValue(value), easing)
-        track.keyframes.add(newKey)
-
-        if (select) {
-            selectedKeyframes.clear()
-            selectedKeyframes.add(newKey)
-            isWorkAreaSelected = false
-        }
-        onChanged?.invoke()
-        return newKey
-    }
-
-    private fun TrackGroup.allTracks(): List<BaseAnimTrack> {
-        return tracks + children.flatMap { it.allTracks() }
-    }
-
-    private fun findGroup(track: BaseAnimTrack): TrackGroup? {
-        fun findIn(groups: List<TrackGroup>): TrackGroup? {
-            groups.forEach { group ->
-                if (track in group.tracks) return group
-                findIn(group.children)?.let { return it }
-            }
-            return null
-        }
-
-        return findIn(groups)
-    }
-
-    private fun AnimTrack<*>.hasKeyAt(time: Float, except: Keyframe<*>? = null): Boolean {
-        return keyframes.any { it !== except && abs(it.time - time) <= KEYFRAME_TIME_EPSILON }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun getAnimTracksForSnapshot(): List<AnimTrack<Any?>> {
-        return getAllTracks()
-            .filterIsInstance<AnimTrack<*>>()
-            .map { it as AnimTrack<Any?> }
-    }
-
-    private fun findFreeTime(track: AnimTrack<*>, requestedTime: Float): Float {
+    private fun findFreeTime(curve: ChannelCurve, requestedTime: Float): Float {
         var time = requestedTime.coerceIn(0f, workAreaEnd)
-        while (track.hasKeyAt(time) && time < workAreaEnd) {
+        while (curve.keyAt(time) != null && time < workAreaEnd) {
             time = (time + KEYFRAME_TIME_EPSILON * 2f).coerceAtMost(workAreaEnd)
         }
         return time
     }
 }
 
-data class TimelineSnapshot(
-    val tracks: List<List<Keyframe<Any?>>>,
-    val currentTime: Float,
-    val workAreaEnd: Float,
-)
+internal const val BASE_LAYER_NAME = "Base"
 
-class TimelineHistory(private val controller: TimelineController) {
-    private val undoStack = ArrayDeque<TimelineSnapshot>()
-    private val redoStack = ArrayDeque<TimelineSnapshot>()
-    private var transactionStart: TimelineSnapshot? = null
-
-    fun begin(label: String) {
-        if (transactionStart == null) {
-            transactionStart = controller.createSnapshot()
-        }
-    }
-
-    fun commit() {
-        val before = transactionStart ?: return
-        transactionStart = null
-        val after = controller.createSnapshot()
-        if (before != after) {
-            undoStack += before
-            redoStack.clear()
-        }
-    }
-
-    fun <T> record(label: String, block: () -> T): T {
-        if (transactionStart != null) {
-            return block()
-        }
-        val before = controller.createSnapshot()
-        val result = block()
-        val after = controller.createSnapshot()
-        if (before != after) {
-            undoStack += before
-            redoStack.clear()
-        }
-        return result
-    }
-
-    fun undo() {
-        val snapshot = undoStack.removeLastOrNull() ?: return
-        redoStack += controller.createSnapshot()
-        controller.restoreSnapshot(snapshot)
-    }
-
-    fun redo() {
-        val snapshot = redoStack.removeLastOrNull() ?: return
-        undoStack += controller.createSnapshot()
-        controller.restoreSnapshot(snapshot)
-    }
-
-    fun clear() {
-        undoStack.clear()
-        redoStack.clear()
-        transactionStart = null
-    }
+internal fun AnimProperty<*>.decomposeDefault(into: FloatArray) {
+    (type as PropertyType<Any?>).decompose(defaultValue, into)
 }
 
-@Suppress("UNCHECKED_CAST")
-private fun <T> Keyframe<T>.copyKeyframe(): Keyframe<Any?> {
-    return Keyframe(time, copyValue(value), easing)
+internal fun AnimProperty<*>.decomposeAt(time: Float): FloatArray {
+    val values = FloatArray(channels.size)
+    (type as PropertyType<Any?>).decompose(valueAt(time), values)
+    return values
 }
 
-@Suppress("UNCHECKED_CAST")
-private fun <T> copyValue(value: T): T {
-    return when (value) {
-        is Vec2f -> Vec2f(value.x, value.y) as T
-        is Vec3f -> Vec3f(value.x, value.y, value.z) as T
-        else -> value
+class TimelineCurveAxis(defaultSpan: Float) {
+    var center by mutableStateOf(0f)
+        private set
+    var span by mutableStateOf(defaultSpan)
+        private set
+
+    var targetCenter by mutableStateOf(0f)
+        private set
+    var targetSpan by mutableStateOf(defaultSpan)
+        private set
+
+    private var centerVelocity = 0f
+    private var spanVelocity = 0f
+    private var lastFrame = 0L
+
+    fun glideTo(center: Float, span: Float) {
+        targetCenter = center
+        targetSpan = span
+    }
+
+    fun snapTo(center: Float, span: Float) {
+        glideTo(center, span)
+        this.center = center
+        this.span = span
+        centerVelocity = 0f
+        spanVelocity = 0f
+    }
+
+    fun advance(frameNanos: Long): Boolean {
+        val previous = lastFrame
+        lastFrame = frameNanos
+        if (previous == 0L) return false
+
+        val centerError = targetCenter - center
+        val spanError = targetSpan - span
+        val settled =
+            abs(centerError) < span * 0.0005f && abs(centerVelocity) < span * 0.0005f && abs(spanError) < span * 0.0005f && abs(
+                spanVelocity
+            ) < span * 0.0005f
+        if (settled) {
+            if (center != targetCenter || span != targetSpan) {
+                center = targetCenter
+                span = targetSpan
+                centerVelocity = 0f
+                spanVelocity = 0f
+                return true
+            }
+            return false
+        }
+
+        val dt = ((frameNanos - previous) / 1_000_000_000f).coerceIn(0f, 0.05f)
+        centerVelocity += (centerError * SPRING_STIFFNESS - centerVelocity * SPRING_DAMPING) * dt
+        spanVelocity += (spanError * SPRING_STIFFNESS - spanVelocity * SPRING_DAMPING) * dt
+        center += centerVelocity * dt
+        span = (span + spanVelocity * dt).coerceAtLeast(1e-4f)
+        return true
+    }
+
+    private companion object {
+        const val SPRING_STIFFNESS = 260f
+        const val SPRING_DAMPING = 30f
     }
 }

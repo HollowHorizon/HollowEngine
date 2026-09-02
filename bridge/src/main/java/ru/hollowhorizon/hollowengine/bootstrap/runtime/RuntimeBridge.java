@@ -136,6 +136,8 @@ public interface RuntimeBridge extends AutoCloseable {
 
     boolean onRenderArm(PoseStack stack, MultiBufferSource multiBufferSource, int packedLight, AbstractClientPlayer player, HumanoidArm arm);
 
+    boolean onRenderItemInHand(Camera camera, float partialTick, Matrix4f projectionMatrix);
+
     void onRegisterParticles(ParticleEngine particleEngine);
 
     boolean onClientUseItemOn(Player player, InteractionHand hand, BlockHitResult hitResult);

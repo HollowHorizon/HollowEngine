@@ -15,11 +15,12 @@ internal object UiTextOverflowResolver {
     private const val ELLIPSIS = "..."
 
     fun ellipsizeLine(command: DrawTextCommand, line: UiTextLine): UiTextLine {
-        val availableWidth = (command.rect.width - line.x).coerceAtLeast(0f)
+        val start = line.x.coerceAtLeast(0f)
+        val availableWidth = (command.rect.width - start).coerceAtLeast(0f)
         if (line.naturalWidth <= availableWidth + 0.01f) return line
         if (availableWidth <= 0f) return line.copy(text = "", width = 0f, naturalWidth = 0f, fragments = emptyList())
 
-        val result = EllipsisBuilder(command, availableWidth)
+        val result = EllipsisBuilder(command, availableWidth, start)
         for (fragment in line.fragments.ifEmpty { listOf(line.asTextRun(command)) }) {
             if (!result.append(fragment)) return result.toLine(line)
         }
@@ -31,6 +32,7 @@ internal object UiTextOverflowResolver {
     private class EllipsisBuilder(
         private val command: DrawTextCommand,
         private val availableWidth: Float,
+        private val start: Float,
     ) {
         private val fragments = mutableListOf<UiTextFragment>()
         private val text = StringBuilder()
@@ -67,6 +69,7 @@ internal object UiTextOverflowResolver {
         fun toLine(line: UiTextLine): UiTextLine {
             return line.copy(
                 text = text.toString(),
+                x = start,
                 width = availableWidth,
                 naturalWidth = availableWidth,
                 fragments = fragments

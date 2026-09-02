@@ -1492,6 +1492,7 @@ class MinecraftUiRenderer {
             opacity = command.opacity,
             flipY = command.flipY,
             filter = command.filter,
+            opaqueSource = command.opaque,
         )
     }
 

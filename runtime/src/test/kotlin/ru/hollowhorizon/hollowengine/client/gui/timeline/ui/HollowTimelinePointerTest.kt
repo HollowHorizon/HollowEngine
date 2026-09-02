@@ -2,10 +2,13 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.FloatPropertyDriver
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelCurve
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.FloatPropertyType
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TranslationPropertyType
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiFrame
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.HollowTimelineEditor
@@ -17,8 +20,8 @@ import kotlin.test.assertTrue
 class HollowTimelinePointerTest {
     @Test
     fun `ctrl click on empty lane keeps the keyframe selection`() {
-        val (controller, track) = timelineWithKeys(1f, 2f)
-        controller.selectedKeyframes.addAll(track.keyframes)
+        val (controller, curve) = timelineWithKeys(1f, 2f)
+        controller.selectedKeyframes.addAll(curve.keyframes)
 
         HollowUiSurface().use { surface ->
             surface.setContent { HollowTimelineEditor(controller, refresh = {}) }
@@ -34,7 +37,7 @@ class HollowTimelinePointerTest {
             val y = laneRect.y + laneRect.height * 0.5f
 
             assertTrue(surface.runtime.mouseClicked(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_CONTROL))
-            assertEquals(track.keyframes.toSet(), controller.selectedKeyframes.toSet())
+            assertEquals(curve.keyframes.toSet(), controller.selectedKeyframes.toSet())
 
             assertTrue(surface.runtime.mouseClicked(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT))
             assertTrue(controller.selectedKeyframes.isEmpty())
@@ -70,13 +73,58 @@ class HollowTimelinePointerTest {
         }
     }
 
-    private fun timelineWithKeys(vararg times: Float): Pair<TimelineController, AnimTrack<Float>> {
+    @Test
+    fun `hovering one key across a multi-channel rig animates only that key`() {
         val controller = TimelineController()
-        val track = AnimTrack("Value", FloatPropertyDriver(onApply = {}), 0f)
-        times.forEachIndexed { index, time -> track.keyframes += Keyframe(time, index.toFloat()) }
-        controller.addTrack("Test", track)
+        val translation = controller.addProperty(
+            listOf("Camera", "Transform"),
+            AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
+        )
+        val fov = controller.addProperty(
+            listOf("Camera", "Lens"),
+            AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 70f),
+        )
+        listOf(translation, fov).forEach { property ->
+            property.layers.first().channels.forEach { curve ->
+                listOf(0.5f, 1.5f, 2.5f).forEach { time -> curve.keyframes += Keyframe(time, time) }
+            }
+        }
+
+        HollowUiSurface(stylesheet = widgetStyles()).use { surface ->
+            surface.setContent { HollowTimelineEditor(controller, refresh = {}) }
+            surface.frame(900f, 600f, -1f, -1f, 0L)
+            var frame = surface.frame(900f, 600f, -1f, -1f, 16_000_000L)
+            val keyframes = frame.timelineKeyframes()
+            assertTrue(keyframes.size >= 8, "expected a key per channel per moment, got ${keyframes.size}")
+
+            val target = frame.layout[keyframes[keyframes.size / 2]].rect
+            val x = target.x + target.width * 0.5f
+            val y = target.y + target.height * 0.5f
+            surface.frame(900f, 600f, x, y, 32_000_000L)
+            surface.frame(900f, 600f, x, y, 112_000_000L)
+            frame = surface.frame(900f, 600f, x, y, 400_000_000L)
+
+            val scaled = frame.timelineKeyframes().filter { it.resolvedSnapshot.scale.x > 1.001f }
+            assertEquals(1, scaled.size, "hover at $x,$y landed on ${scaled.size} keys")
+
+            translation.isExpanded = false
+            surface.frame(900f, 600f, x, y, 420_000_000L)
+            frame = surface.frame(900f, 600f, x, y, 700_000_000L)
+            val afterCollapse = frame.timelineKeyframes().count { it.resolvedSnapshot.scale.x > 1.001f }
+            assertTrue(afterCollapse <= 1, "restructuring the rows left $afterCollapse keys hovered")
+        }
+    }
+
+    private fun timelineWithKeys(vararg times: Float): Pair<TimelineController, ChannelCurve> {
+        val controller = TimelineController()
+        val property = controller.addProperty(
+            listOf("Test"),
+            AnimProperty("test.value", "Value", FloatPropertyType(), 0f),
+        )
+        val curve = property.layers.first().channels.first()
+        times.forEachIndexed { index, time -> curve.keyframes += Keyframe(time, index.toFloat()) }
         controller.selectedKeyframes.clear()
-        return controller to track
+        return controller to curve
     }
 
     private fun widgetStyles() = compileHss(

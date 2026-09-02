@@ -38,6 +38,9 @@ object UiVanillaFont {
     private val glyphFonts = ConcurrentHashMap<ResourceLocation, UiVanillaGlyphFont>()
     private val failedAt = ConcurrentHashMap<ResourceLocation, Long>()
 
+    @Volatile
+    private var epoch = UiFontResources.generation
+
     fun isVanillaFamily(fontFamily: String): Boolean =
         fontFamily == FamilyPrefix || fontFamily.startsWith("$FamilyPrefix:")
 
@@ -49,6 +52,7 @@ object UiVanillaFont {
 
     fun face(fontFamily: String): UiVanillaFontFace? {
         val location = locationOf(fontFamily) ?: return null
+        dropStaleCaches()
         faces[location]?.let { return it }
         val lastFailure = failedAt[location]
         if (lastFailure != null && System.nanoTime() - lastFailure < RetryCooldownNanos) return null
@@ -66,6 +70,7 @@ object UiVanillaFont {
 
     fun glyphFont(fontFamily: String): UiGlyphFont? {
         val location = locationOf(fontFamily) ?: return null
+        dropStaleCaches()
         glyphFonts[location]?.let { return it }
         val face = face(fontFamily) ?: return null
         return UiVanillaGlyphFont(face).also { glyphFonts[location] = it }
@@ -77,11 +82,18 @@ object UiVanillaFont {
         failedAt.clear()
     }
 
+    private fun dropStaleCaches() {
+        val generation = UiFontResources.generation
+        if (epoch == generation) return
+        epoch = generation
+        unloadAll()
+    }
+
     private fun loadFace(location: ResourceLocation): UiVanillaFontFace {
         val target = FaceBuilder()
         readFont(location, target, HashSet())
         check(target.glyphs.isNotEmpty()) { "no usable providers in font/${location.path}.json" }
-        return UiVanillaFontFace(location, target.glyphs, target.coloredSheets)
+        return UiVanillaFontFace(location, target.glyphs, target.coloredSheets, target.sheetSizes)
     }
 
     private fun readFont(
@@ -160,6 +172,7 @@ object UiVanillaFont {
             val cellHeight = image.height / grid.size
             if (cellWidth <= 0 || cellHeight <= 0) return
             if (hasColouredInk(image)) target.coloredSheets += texture
+            target.sheetSizes[texture] = UiSheetSize(image.width.toFloat(), image.height.toFloat())
             val scale = height.toFloat() / cellHeight.toFloat()
             val top = -ascent / EmPixels
             val bottom = (height - ascent) / EmPixels
@@ -222,6 +235,9 @@ object UiVanillaFont {
     private class FaceBuilder {
         val glyphs = HashMap<Int, UiVanillaGlyph>()
         val coloredSheets = HashSet<ResourceLocation>()
+
+        /** Pixel size of each sheet, so the renderer can sample texel centres rather than cell seams. */
+        val sheetSizes = HashMap<ResourceLocation, UiSheetSize>()
     }
 
     private fun trimmedWidth(image: NativeImage, cellWidth: Int, cellHeight: Int, column: Int, row: Int): Int {
@@ -266,10 +282,14 @@ internal data class UiVanillaGlyph(
     }
 }
 
+/** How many pixels a font sheet is across, which is what turns a UV back into texels. */
+internal data class UiSheetSize(val width: Float, val height: Float)
+
 class UiVanillaFontFace internal constructor(
     val location: ResourceLocation,
     internal val glyphs: Map<Int, UiVanillaGlyph>,
     internal val coloredSheets: Set<ResourceLocation> = emptySet(),
+    internal val sheetSizes: Map<ResourceLocation, UiSheetSize> = emptyMap(),
 ) {
     internal fun glyphOrFallback(codepoint: Int): UiVanillaGlyph? {
         glyphs[codepoint]?.let { return it }

@@ -51,6 +51,7 @@ internal object UiTextureEffects {
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
+        opaqueSource: Boolean = false,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -69,6 +70,7 @@ internal object UiTextureEffects {
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
             tint = tint,
+            opaqueSource = opaqueSource,
         )
     }
 
@@ -92,6 +94,7 @@ internal object UiTextureEffects {
         tint: UiColor = UiColor.White,
         alphaMask: Boolean = false,
         uv: UiImageUv = UiImageUv.Full,
+        opaqueSource: Boolean = false,
     ) {
         setTextureShader(
             filter,
@@ -103,6 +106,7 @@ internal object UiTextureEffects {
             maskPadding,
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
+            opaqueSource = opaqueSource,
             alphaMask = alphaMask,
         )
         val tessellator = Tesselator.getInstance()
@@ -287,7 +291,7 @@ internal object UiTextureEffects {
     ) {
         val effectShader = ModShaders.UI_EFFECT
         val hasMask = maskRadius > 0f
-        if (filter.effects.isEmpty() && !hasMask && !alphaMask || effectShader == null) {
+        if (filter.effects.isEmpty() && !hasMask && !alphaMask && !opaqueSource || effectShader == null) {
             // Nothing the effect shader would do differently; the plain path is cheaper.
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
             configureUiBlend()

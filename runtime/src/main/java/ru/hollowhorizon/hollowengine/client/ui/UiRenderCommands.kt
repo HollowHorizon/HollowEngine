@@ -157,6 +157,7 @@ data class DrawRawTextureCommand(
     val textureId: Int,
     val opacity: Float,
     val flipY: Boolean,
+    val opaque: Boolean,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,

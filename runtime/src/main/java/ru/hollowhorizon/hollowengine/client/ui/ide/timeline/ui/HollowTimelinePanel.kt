@@ -4,10 +4,10 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.isActive
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BaseAnimTrack
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimLayer
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineViewMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSession
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneStorage
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -15,32 +15,24 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
-import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import kotlin.math.round
 
 private const val TimelineZoomWheelStep = 12f
 private const val TimelineScrollStep = 44f
-private const val TimelineKeyframeSize = 13f
+private const val TimelineValueZoomStep = 0.12f
+private const val TimelineMinValueSpan = 0.001f
+private const val TimelineMaxValueSpan = 100_000f
 
-/**
- * Whole-subtree refresh signal for the cutscene panels. The timeline UI reads Kool
- * [de.fabmax.kool.modules.ui2.MutableStateValue]s that Compose cannot observe, so a change in
- * `session.uiRevision` is fanned out by providing it through this STATIC local — changing a static
- * local recomposes the entire content under the provider (exactly the "refresh everything" the old
- * Kool `surface.triggerUpdate()` did), reaching every leaf regardless of parameter stability.
- */
 internal val LocalTimelineRevision = staticCompositionLocalOf { 0 }
 
 @Composable
 fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean = true) {
-    // Subscribe to the shared revision so this dock recomposes whenever any panel edits the timeline.
     session.uiRevision.value
     var dialog by remember { mutableStateOf(CutsceneDialog.NONE) }
+    var layerSettings by remember { mutableStateOf<AnimLayer?>(null) }
+    var propertySettings by remember { mutableStateOf<AnimProperty<*>?>(null) }
 
-    // The controller's playback clock is not Compose-observable, so a persistent per-frame loop advances
-    // the simulation while playing; onTimeChanged then bumps the shared revision to move the playhead.
-    // Delta comes from the Compose frame clock (Kool's Time is only ticked while a Kool surface renders).
     LaunchedEffect(session) {
         var lastNanos = -1L
         while (isActive) {
@@ -49,6 +41,7 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
                     if (lastNanos < 0L) 0f else ((now - lastNanos) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.1f)
                 lastNanos = now
                 if (session.timeline.isPlaying) session.update(delta)
+                if (session.timeline.curveAxis.advance(now)) session.invalidateUi()
             }
         }
     }
@@ -63,12 +56,20 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
                 onCapture = { session.captureFrame(session.timeline.currentTime) },
                 onSave = { dialog = CutsceneDialog.SAVE },
                 onLoad = { dialog = CutsceneDialog.LOAD },
+                onLayerSettings = { layerSettings = it },
+                onPropertySettings = { propertySettings = it },
             )
 
             when (dialog) {
                 CutsceneDialog.SAVE -> SaveCutsceneDialog(session) { dialog = CutsceneDialog.NONE }
                 CutsceneDialog.LOAD -> LoadCutsceneDialog(session) { dialog = CutsceneDialog.NONE }
                 CutsceneDialog.NONE -> {}
+            }
+            layerSettings?.let { layer ->
+                LayerSettingsDialog(session.timeline, layer, session::invalidateUi) { layerSettings = null }
+            }
+            propertySettings?.let { property ->
+                PropertySettingsDialog(session.timeline, property, session::invalidateUi) { propertySettings = null }
             }
         }
     }
@@ -79,7 +80,7 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
 fun CutscenePropertiesDock(session: CutsceneEditorSession) {
     CompositionLocalProvider(LocalTimelineRevision provides session.uiRevision.value) {
         HollowTimelineProperties(
-            controller = session.timeline,
+            session = session,
             modifier = Modifier.size(100.percent, 100.percent),
             refresh = session::invalidateUi,
         )
@@ -97,33 +98,33 @@ fun HollowTimelineEditor(
     onCapture: () -> Unit = {},
     onSave: () -> Unit = {},
     onLoad: () -> Unit = {},
+    onLayerSettings: (AnimLayer) -> Unit = {},
+    onPropertySettings: (AnimProperty<*>) -> Unit = {},
 ) {
     val bump = refresh
     val scroll = rememberScrollState()
-    val rows = timelineRows(controller.groups)
+    val headerScroll = rememberScrollState()
+    val rows = timelineRows(controller)
     val rowsHeight = rows.sumOf { it.height.toDouble() }.toFloat()
-    val tracks = controller.getAllTracks()
     val pxPerSec = controller.pixelsPerSecond
     val contentWidth = timelineContentWidth(
         controller.workAreaEnd,
-        timelineMaxKeyTime(tracks),
+        timelineMaxKeyTime(controller),
         pxPerSec,
         TimelineMinContentWidth,
     )
 
+    val isCurveView = controller.viewMode == TimelineViewMode.CURVES
     var laneViewport by remember { mutableStateOf(UiRect.Zero) }
-    var laneMenu by remember { mutableStateOf<LaneMenuState?>(null) }
     var isScrubbing by remember { mutableStateOf(false) }
     val scrollContentHeight = rowsHeight + if (laneViewport.height > 0f && rowsHeight > laneViewport.height) {
         TimelineScrollbarClearance
     } else {
         0f
     }
-    val showLaneMenu: (UiEvent, AnimTrack<*>, Float) -> Unit = { event, track, time ->
-        laneMenu = LaneMenuState(event.x, event.y, track, time)
-    }
+    val visibleTimes = visibleTimeRange(scroll.offsetX, laneViewport.width, pxPerSec)
 
-    // Keep the moving focus (playhead while playing, or a dragged keyframe) in view by panning the canvas.
+    // Keep the moving focus (playhead while playing, or a dragged keyframe) in view by panning.
     val focusContentX = when {
         controller.dragFocusKeyframe != null ->
             TimelineLeftPadding + controller.dragFocusKeyframe!!.time * pxPerSec
@@ -148,8 +149,18 @@ fun HollowTimelineEditor(
         TimelineToolbar(controller, onCapture, onSave, onLoad, bump)
 
         Row(modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
-            TimelineHeaders(controller, rows, scroll.offsetY, scrollContentHeight, bump)
-            Box(modifier = Modifier.size(1.px, 100.percent).background(TimelineColors.Border))
+            TimelineHeaders(
+                controller = controller,
+                rows = rows,
+                scroll = headerScroll,
+                verticalOffset = if (isCurveView) headerScroll.offsetY else scroll.offsetY,
+                ownsVerticalScroll = isCurveView,
+                contentHeight = scrollContentHeight,
+                onLayerSettings = onLayerSettings,
+                onPropertySettings = onPropertySettings,
+                refresh = bump,
+            )
+            HeaderSplitter(controller, bump)
 
             Column(modifier = Modifier.size(0.px, 100.percent).grow(1f)) {
                 // Ruler: horizontally synced to the lane scroll, pinned vertically.
@@ -167,7 +178,7 @@ fun HollowTimelineEditor(
                     }
                 }
 
-                // Lanes: the only real scroll container; ruler and headers mirror its offset.
+                // Lanes: the only real scroll container; the ruler mirrors its offset.
                 Box(
                     id = "timeline-lane-viewport",
                     tags = listOf("timeline-scroll"),
@@ -175,54 +186,65 @@ fun HollowTimelineEditor(
                         .grow(1f)
                         .background(TimelineColors.Background)
                         .clip()
-                        .scrollable(state = scroll)
+                        .scrollable(state = scroll, vertical = !isCurveView)
                         .onPlaced { laneViewport = it }
                         .onScroll { event -> handleTimelineScroll(event, controller, scroll, laneViewport, bump) },
                 ) {
-                    Box(
-                        id = "timeline-lane-content",
-                        modifier = Modifier.size(contentWidth.px, scrollContentHeight.coerceAtLeast(1f).px),
-                    ) {
-                        rows.forEach { row ->
-                            TimelineLane(row, controller, pxPerSec, contentWidth, bump, showLaneMenu)
-                        }
-                        WorkAreaShade(controller, pxPerSec, contentWidth, rowsHeight)
-                        Playhead(controller, pxPerSec, rowsHeight)
+                    if (isCurveView) {
+                        TimelineCurveGraph(
+                            controller = controller,
+                            lanes = curveLanes(rows, controller),
+                            pxPerSec = pxPerSec,
+                            contentWidth = contentWidth,
+                            height = laneViewport.height,
+                            scrollX = scroll.offsetX,
+                            visibleTimes = visibleTimes,
+                            scroll = scroll,
+                            refresh = bump,
+                        )
+                    } else {
+                        TimelineLanes(
+                            controller = controller,
+                            rows = rows,
+                            pxPerSec = pxPerSec,
+                            contentWidth = contentWidth,
+                            contentHeight = scrollContentHeight,
+                            rowsHeight = rowsHeight,
+                            visibleTimes = visibleTimes,
+                            scroll = scroll,
+                            refresh = bump,
+                        )
                     }
                 }
             }
         }
     }
-
-    laneMenu?.let { menu ->
-        ContextMenu(
-            id = "cutscene-lane-menu",
-            anchorBounds = UiRect(menu.x, menu.y, 0f, 0f),
-            items = listOf(
-                UiDropdownItem("Add keyframe here", icon = "hollowengine:textures/gui/icons/pulse.svg") {
-                    controller.addKeyframe(menu.track, menu.time)
-                    refresh()
-                },
-                UiDropdownItem(
-                    "Delete selected",
-                    icon = "hollowengine:textures/gui/icons/remove.svg",
-                    enabled = controller.selectedKeyframes.isNotEmpty(),
-                ) {
-                    controller.deleteSelectedKeyframes()
-                    refresh()
-                },
-            ),
-            onExpandedChange = { open -> if (!open) laneMenu = null },
-        )
-    }
 }
 
-private class LaneMenuState(val x: Float, val y: Float, val track: AnimTrack<*>, val time: Float)
+/** Drag to give the track list more or less room. */
+@Composable
+private fun HeaderSplitter(controller: TimelineController, refresh: () -> Unit) {
+    val start = remember { floatArrayOf(controller.headerWidth) }
+    Box(
+        id = "timeline-header-splitter",
+        modifier = Modifier.size(4.px, 100.percent)
+            .background(TimelineColors.Border)
+            .cursor(UiCursorShape.RESIZE_HORIZONTAL)
+            .input(hoverable = true, draggable = true)
+            .onPress { start[0] = controller.headerWidth }
+            .onDrag { event ->
+                controller.headerWidth = (start[0] + event.dragTotalX)
+                    .coerceIn(TimelineMinHeaderWidth, TimelineMaxHeaderWidth)
+                event.consume()
+                refresh()
+            },
+    )
+}
 
 /**
  * Wheel handling for the lane viewport. The raw scroll event carries no modifiers, so query GLFW.
- * Ctrl = zoom around the cursor; otherwise the wheel pans horizontally (the natural timeline axis) and
- * Shift pans vertically — the inverse of the default. Always consumes so the native scroll never runs.
+ * Ctrl = zoom time around the cursor; in the curve editor Shift zooms the value axis and Alt pans it.
+ * Otherwise the wheel pans horizontally (the natural timeline axis) and Shift pans vertically.
  */
 private fun handleTimelineScroll(
     event: UiEvent,
@@ -253,6 +275,28 @@ private fun handleTimelineScroll(
         event.consume()
         return
     }
+
+    if (controller.viewMode == TimelineViewMode.CURVES && viewport.height > 0f) {
+        val axis = controller.curveAxis
+        if (modifiers and GLFW.GLFW_MOD_SHIFT != 0) {
+            val height = viewport.height
+            val localY = event.y - viewport.y
+            val cursorValue = curveYToValue(localY, controller.curveValueCenter, controller.curveValueSpan, height)
+            val span = (axis.targetSpan * (1f + wheel * TimelineValueZoomStep))
+                .coerceIn(TimelineMinValueSpan, TimelineMaxValueSpan)
+            axis.glideTo(cursorValue + (localY - height * 0.5f) / height * span, span)
+            refresh()
+            event.consume()
+            return
+        }
+        if (modifiers and GLFW.GLFW_MOD_ALT != 0) {
+            axis.glideTo(axis.targetCenter - wheel * axis.targetSpan * 0.05f, axis.targetSpan)
+            refresh()
+            event.consume()
+            return
+        }
+    }
+
     val amount = wheel * TimelineScrollStep
     if (modifiers and GLFW.GLFW_MOD_SHIFT != 0) {
         scroll.animateScrollBy(deltaY = amount)
@@ -280,23 +324,13 @@ private fun TimeRuler(
                 onScrubbingChange(true)
                 controller.clearSelection()
                 controller.applyCurrentTime(
-                    timelineTimeAt(
-                        event.localX,
-                        pxPerSec,
-                        controller.workAreaEnd,
-                        event.modifiers
-                    )
+                    timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd, event.modifiers)
                 )
                 refresh()
             }
             .onDrag { event ->
                 controller.applyCurrentTime(
-                    timelineTimeAt(
-                        event.localX,
-                        pxPerSec,
-                        controller.workAreaEnd,
-                        event.modifiers
-                    )
+                    timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd, event.modifiers)
                 )
                 event.consume()
                 refresh()
@@ -361,173 +395,6 @@ private fun rulerMajorStep(pxPerSec: Float): Float = when {
 }
 
 @Composable
-private fun TimelineLane(
-    row: TimelineRow,
-    controller: TimelineController,
-    pxPerSec: Float,
-    contentWidth: Float,
-    refresh: () -> Unit,
-    onLaneContextMenu: (UiEvent, AnimTrack<*>, Float) -> Unit,
-) {
-    val top = row.y - TimelineRulerHeight
-    val background = when {
-        row.kind == TimelineRowKind.GROUP -> TimelineColors.Group
-        row.locked -> UiColor(0.08f, 0.08f, 0.09f, 1f)
-        !row.visible -> UiColor(0.09f, 0.09f, 0.1f, 1f)
-        else -> TimelineColors.Row
-    }
-    Box(
-        id = "lane-${row.id}",
-        modifier = Modifier.position(0.px, top.px)
-            .size(contentWidth.px, row.height.px)
-            .background(background)
-            .onPress { event ->
-                val track = row.track as? AnimTrack<*> ?: return@onPress
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && !row.locked) {
-                    val time = timelineTimeAt(event.localX, pxPerSec, controller.workAreaEnd, event.modifiers)
-                    onLaneContextMenu(event, track, time)
-                } else if (event.modifiers and GLFW.GLFW_MOD_CONTROL == 0) {
-                    controller.clearSelection()
-                }
-                refresh()
-            },
-    ) {
-        // Single 1px bottom divider instead of a per-lane border (which doubled up and left a seam).
-        Box(
-            modifier = Modifier.position(0.px, (row.height - 1f).px)
-                .size(contentWidth.px, 1.px)
-                .background(TimelineColors.Border),
-        )
-        (row.track as? AnimTrack<*>)?.let { track ->
-            val sortedKeyframes = track.keyframes.sortedBy { it.time }
-            KeyframeConnections(track, row, pxPerSec, sortedKeyframes)
-            sortedKeyframes.forEachIndexed { index, keyframe ->
-                val halfSize = TimelineKeyframeSize * 0.5f
-                val leftHalfWidth = sortedKeyframes.getOrNull(index - 1)?.let { previous ->
-                    ((keyframe.time - previous.time) * pxPerSec * 0.5f).coerceIn(0f, halfSize)
-                } ?: halfSize
-                val rightHalfWidth = sortedKeyframes.getOrNull(index + 1)?.let { next ->
-                    ((next.time - keyframe.time) * pxPerSec * 0.5f).coerceIn(0f, halfSize)
-                } ?: halfSize
-                key(keyframe) {
-                    TimelineKeyframe(
-                        keyframe,
-                        track,
-                        row,
-                        controller,
-                        pxPerSec,
-                        leftHalfWidth,
-                        rightHalfWidth,
-                        refresh,
-                        onLaneContextMenu,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TimelineKeyframe(
-    keyframe: Keyframe<*>,
-    track: BaseAnimTrack,
-    row: TimelineRow,
-    controller: TimelineController,
-    pxPerSec: Float,
-    leftHalfWidth: Float,
-    rightHalfWidth: Float,
-    refresh: () -> Unit,
-    onContextMenu: (UiEvent, AnimTrack<*>, Float) -> Unit,
-) {
-    val selected = keyframe in controller.selectedKeyframes
-    val color = track.color.toUiColor(if (row.visible) 1f else 0.4f)
-    val halfSize = TimelineKeyframeSize * 0.5f
-    val x = TimelineLeftPadding + keyframe.time * pxPerSec - leftHalfWidth
-    val y = row.height * 0.5f - halfSize
-    Box(
-        tags = buildList {
-            add("timeline-keyframe")
-            if (selected) add("selected")
-            if (row.locked) add("locked")
-        },
-        modifier = Modifier.position(x.px, y.px)
-            .size((leftHalfWidth + rightHalfWidth).px, TimelineKeyframeSize.px)
-            .cursor(if (row.locked) UiCursorShape.DEFAULT else UiCursorShape.MOVE)
-            .onPress { event ->
-                if (row.locked) return@onPress
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-                    if (keyframe !in controller.selectedKeyframes) {
-                        controller.selectedKeyframes.clear()
-                        controller.selectedKeyframes.add(keyframe)
-                        controller.isWorkAreaSelected = false
-                    }
-                    (track as? AnimTrack<*>)?.let { onContextMenu(event, it, keyframe.time) }
-                    event.consume()
-                    refresh()
-                    return@onPress
-                }
-                if (event.button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return@onPress
-                updateKeyframeSelection(controller, keyframe, event)
-                // Capture the whole selection's times so the drag moves the group in sync.
-                controller.beginKeyframeDrag(keyframe)
-                refresh()
-            }
-            .onDrag { event ->
-                if (!row.locked) {
-                    val delta = timelineTimeDelta(event.dragTotalX, pxPerSec)
-                    val origin = controller.dragStartTimes?.get(keyframe) ?: keyframe.time
-                    controller.applyKeyframeDrag(snapTimelineTime(origin + delta, event.modifiers) - origin)
-                    event.consume()
-                    refresh()
-                }
-            }
-            .onRelease {
-                if (!row.locked && controller.dragFocusKeyframe === keyframe) {
-                    controller.endKeyframeDrag()
-                    refresh()
-                }
-            },
-    ) {
-        Box(
-            tags = listOf("timeline-keyframe-visual"),
-            modifier = Modifier.position((leftHalfWidth - halfSize).px, 0.px)
-                .size(TimelineKeyframeSize.px, TimelineKeyframeSize.px)
-                .shape(TimelineDiamondShape)
-                .shapeFill(color)
-                .inputTransparent(),
-        )
-    }
-}
-
-/**
- * A thin bar connecting neighbouring keyframes on the (compact) lane. A constant hold (equal values)
- * reads brighter; interpolated segments are dimmer. The actual easing curve is previewed in Properties.
- */
-@Composable
-private fun KeyframeConnections(
-    track: AnimTrack<*>,
-    row: TimelineRow,
-    pxPerSec: Float,
-    sortedKeys: List<Keyframe<*>>,
-) {
-    val alpha = if (row.visible) 1f else 0.25f
-    for (index in 0 until sortedKeys.lastIndex) {
-        val first = sortedKeys[index]
-        val second = sortedKeys[index + 1]
-        val x = TimelineLeftPadding + first.time * pxPerSec
-        val width = (second.time - first.time) * pxPerSec
-        if (width <= 1f) continue
-        val hold = timelineKeyValuesEqual(first.value, second.value)
-        Box(
-            modifier = Modifier.position(x.px, (row.height * 0.5f - 1f).px)
-                .size(width.px, 2.px)
-                .background(track.color.toUiColor(alpha * (if (hold) 0.8f else 0.4f)))
-                .borderRadius(1f),
-        )
-    }
-}
-
-@Composable
 private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refresh: () -> Unit) {
     val x = TimelineLeftPadding + controller.workAreaEnd * pxPerSec
     val color = if (controller.isWorkAreaSelected) UiColor.White else TimelineColors.Accent
@@ -547,7 +414,7 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
                 refresh()
             }
             .onDrag { event ->
-                val maxKeyTime = timelineMaxKeyTime(controller.getAllTracks())
+                val maxKeyTime = timelineMaxKeyTime(controller)
                 val raw = (dragStartEnd + timelineTimeDelta(event.dragTotalX, pxPerSec))
                     .coerceAtLeast(maxKeyTime)
                     .coerceAtLeast(0.1f)
@@ -568,44 +435,15 @@ private fun WorkAreaHandle(controller: TimelineController, pxPerSec: Float, refr
 }
 
 @Composable
-private fun WorkAreaShade(controller: TimelineController, pxPerSec: Float, contentWidth: Float, rowsHeight: Float) {
-    val x = TimelineLeftPadding + controller.workAreaEnd * pxPerSec
-    if (x >= contentWidth) return
-    Box(
-        modifier = Modifier.position(x.px, 0.px)
-            .size((contentWidth - x).px, rowsHeight.coerceAtLeast(1f).px)
-            .background(UiColor(0f, 0f, 0f, 0.38f)),
-    )
-}
-
-@Composable
-private fun Playhead(controller: TimelineController, pxPerSec: Float, rowsHeight: Float) {
+internal fun Playhead(controller: TimelineController, pxPerSec: Float, rowsHeight: Float) {
     val x = TimelineLeftPadding + controller.currentTime * pxPerSec
     Box(
         id = "timeline-playhead",
         modifier = Modifier.position((x - 0.5f).px, 0.px)
             .size(1.px, rowsHeight.coerceAtLeast(1f).px)
-            .background(TimelineColors.Accent),
+            .background(TimelineColors.Accent)
+            .inputTransparent(),
     )
-}
-
-private fun updateKeyframeSelection(controller: TimelineController, keyframe: Keyframe<*>, event: UiEvent) {
-    val ctrl = event.modifiers and GLFW.GLFW_MOD_CONTROL != 0
-    when {
-        ctrl ->
-            if (keyframe in controller.selectedKeyframes) {
-                controller.selectedKeyframes.remove(keyframe)
-            } else {
-                controller.selectedKeyframes.add(keyframe)
-            }
-        // Plain press on a key that is already part of the selection keeps the group (so it can be
-        // dragged together); pressing an unselected key selects just it.
-        keyframe !in controller.selectedKeyframes -> {
-            controller.selectedKeyframes.clear()
-            controller.selectedKeyframes.add(keyframe)
-        }
-    }
-    controller.isWorkAreaSelected = false
 }
 
 // ---------------------------------------------------------------------------
@@ -615,8 +453,8 @@ private fun updateKeyframeSelection(controller: TimelineController, keyframe: Ke
 @Composable
 private fun SaveCutsceneDialog(session: CutsceneEditorSession, onClose: () -> Unit) {
     var name by remember { mutableStateOf(session.playback.toData().name) }
-    DialogFrame("Save cutscene", onClose) {
-        Text("Name", modifier = Modifier.fontSize(10f).foreground(TimelineColors.Muted))
+    DialogFrame(CutsceneLang.SAVE_TITLE.lang, onClose) {
+        Text(CutsceneLang.NAME.lang, modifier = Modifier.fontSize(10f).foreground(TimelineColors.Muted))
         TextField(
             value = name,
             onChange = { name = it },
@@ -628,8 +466,8 @@ private fun SaveCutsceneDialog(session: CutsceneEditorSession, onClose: () -> Un
                 .fontSize(11f),
         )
         Row(modifier = Modifier.size(100.percent, UiLength.Auto).gap(8.px).align(horizontal = UiAlign.END)) {
-            ToolbarButton("Cancel", "cutscene-save-cancel") { onClose() }
-            ToolbarButton("Save", "cutscene-save-confirm", TimelineColors.Blue) {
+            ToolbarButton(CutsceneLang.CANCEL.lang, "cutscene-save-cancel") { onClose() }
+            ToolbarButton(CutsceneLang.SAVE.lang, "cutscene-save-confirm", TimelineColors.Blue) {
                 if (name.isNotBlank()) {
                     session.exportCutscene("", name.trim())
                     onClose()
@@ -642,9 +480,9 @@ private fun SaveCutsceneDialog(session: CutsceneEditorSession, onClose: () -> Un
 @Composable
 private fun LoadCutsceneDialog(session: CutsceneEditorSession, onClose: () -> Unit) {
     val files = remember { CutsceneStorage.listFiles() }
-    DialogFrame("Load cutscene", onClose) {
+    DialogFrame(CutsceneLang.LOAD_TITLE.lang, onClose) {
         if (files.isEmpty()) {
-            Text("No saved cutscenes", modifier = Modifier.fontSize(11f).foreground(TimelineColors.Muted))
+            Text(CutsceneLang.NO_CUTSCENES.lang, modifier = Modifier.fontSize(11f).foreground(TimelineColors.Muted))
         } else {
             Column(
                 modifier = Modifier.size(100.percent, UiLength.Auto)
@@ -675,34 +513,41 @@ private fun LoadCutsceneDialog(session: CutsceneEditorSession, onClose: () -> Un
             }
         }
         Row(modifier = Modifier.size(100.percent, UiLength.Auto).align(horizontal = UiAlign.END)) {
-            ToolbarButton("Close", "cutscene-load-close") { onClose() }
+            ToolbarButton(CutsceneLang.CLOSE.lang, "cutscene-load-close") { onClose() }
         }
     }
 }
 
 @Composable
-private fun DialogFrame(title: String, onClose: () -> Unit, content: HollowUiContent) {
-    // Scrim: click outside to dismiss.
-    Box(
-        mode = UiBoxMode.STACK,
-        modifier = Modifier.size(100.percent, 100.percent)
-            .background(UiColor(0f, 0f, 0f, 0.45f))
-            .layer(500)
-            .onClick { onClose() },
+internal fun DialogFrame(title: String, onClose: () -> Unit, content: HollowUiContent) {
+    val viewport = LocalUiViewport.current
+    Popup(
+        anchorBounds = viewport,
+        alignment = CenteredOnAnchor,
+        id = "cutscene-dialog-popup",
+        layer = 100,
+        modal = true,
+        onDismiss = onClose,
     ) {
         Column(
             id = "cutscene-dialog",
-            modifier = Modifier.size(320.px, UiLength.Auto)
-                .align(UiAlign.CENTER, UiAlign.CENTER)
+            modifier = Modifier.size(340.px, UiLength.Auto)
+                .maxSize(height = (viewport.height - 80f).coerceAtLeast(120f).px)
                 .background(TimelineColors.Panel)
                 .border(1.px, TimelineColors.Border, 6f)
                 .padding(14.px)
                 .gap(8.px)
-                // Swallow clicks so they don't reach the scrim.
-                .onClick { it.consume() },
+                .scrollable(horizontal = false),
         ) {
             Text(title, modifier = Modifier.fontSize(13f).foreground(TimelineColors.Text))
             content()
         }
     }
 }
+
+private val CenteredOnAnchor = UiPopupAlignment(
+    anchorHorizontal = UiAlign.CENTER,
+    anchorVertical = UiAlign.CENTER,
+    popupHorizontal = UiAlign.CENTER,
+    popupVertical = UiAlign.CENTER,
+)

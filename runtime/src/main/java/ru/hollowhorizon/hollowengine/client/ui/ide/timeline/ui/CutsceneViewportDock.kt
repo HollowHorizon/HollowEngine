@@ -11,10 +11,10 @@ fun CutsceneViewportDock() {
     Box(
         id = "cutscene-viewport",
         modifier = Modifier.size(100.percent, 100.percent)
-            .background(UiColor.Black)
+            .background(TimelineColors.Background)
             .drawBehind(key = "cutscene-viewport") {
                 val target = Minecraft.getInstance().mainRenderTarget
-                if (target.width <= 0 || target.height <= 0) return@drawBehind
+                if (target == null || target.width <= 0 || target.height <= 0) return@drawBehind
                 val scale = min(size.width / target.width, size.height / target.height)
                 val width = target.width * scale
                 val height = target.height * scale
@@ -22,6 +22,7 @@ fun CutsceneViewportDock() {
                     rect = UiRect((size.width - width) * 0.5f, (size.height - height) * 0.5f, width, height),
                     textureId = target.colorTextureId,
                     flipY = true,
+                    opaque = true,
                 )
             },
     )

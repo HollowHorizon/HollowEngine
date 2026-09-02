@@ -1,10 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.FloatPropertyDriver
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Vec3PropertyDriver
-import ru.hollowhorizon.hollowengine.common.utils.Color
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.*
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.math.max
 import kotlin.math.min
@@ -19,59 +15,87 @@ data class CameraPose(
     val roll: Float get() = rotation.z
 }
 
+/** The ids the camera rig is built from; a saved file binds back to its drivers through them. */
+object CameraRig {
+    const val CAMERA_ID = "camera"
+    const val TRANSFORM_ID = "camera.transform"
+    const val LENS_ID = "camera.lens"
+    const val TRANSLATION_ID = "camera.translation"
+    const val ROTATION_ID = "camera.rotation"
+    const val FOV_ID = "camera.fov"
+
+    const val DEFAULT_FOV = 70f
+
+    val FOV_BOUNDS = ChannelBounds(minimum = 1f, maximum = 200f)
+}
+
 class CutscenePlaybackController {
-    private var pose = CameraPose()
+    val timeline = TimelineController()
 
-    init {
-        CameraCutsceneTracks.ensureRegistered()
-    }
+    private var localPosition = Vec3f.ZERO
+    private var localRotation = Vec3f.ZERO
+    private var lensFov = CameraRig.DEFAULT_FOV
 
-    val positionTrack = AnimTrack(
-        name = "Position",
-        driver = Vec3PropertyDriver("Координаты") { pose = pose.copy(position = it) },
-        defaultValue = Vec3f.ZERO,
-        trackColor = Color("68C783"),
-    )
-
-    val rotationTrack = AnimTrack(
-        name = "Rotation",
-        driver = Vec3PropertyDriver("Поворот") { pose = pose.copy(rotation = it) },
-        defaultValue = Vec3f.ZERO,
-        trackColor = Color("6C8CFF"),
-    )
-
-    val fovTrack = AnimTrack(
-        name = "FOV",
-        driver = FloatPropertyDriver { pose = pose.copy(fov = it) },
-        defaultValue = 70f,
-        trackColor = Color("F0B85A"),
-    )
-
-    var duration: Float = 10f
+    lateinit var translation: AnimProperty<Vec3f>
+        private set
+    lateinit var rotation: AnimProperty<Vec3f>
+        private set
+    lateinit var fov: AnimProperty<Float>
         private set
 
-    var currentTime: Float = 0f
+    /** Where the coordinates in this scene are measured from */
+    var origin: CutsceneOrigin = CutsceneOrigin()
+        set(value) {
+            field = value
+            refreshFrame()
+        }
+
+    /** The placement a script asked for. */
+    var anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED
+        set(value) {
+            field = value
+            refreshFrame()
+        }
+
+    var frame: CutsceneFrame = CutsceneFrame.IDENTITY
         private set
+
+    private var followsAnchor = false
 
     var isPlaying: Boolean = false
         private set
-
     var isLooping: Boolean = false
         private set
 
-    val currentPose: CameraPose get() = pose
+    val duration: Float get() = timeline.workAreaEnd
+    val currentTime: Float get() = timeline.currentTime
 
-    fun setupTracks(data: CutsceneData, loop: Boolean = false) {
-        duration = max(0f, data.duration)
+    init {
+        buildDefaultRig()
+    }
+
+    val currentPose: CameraPose
+        get() = CameraPose(
+            position = frame.toWorld(localPosition),
+            rotation = frame.toWorldRotation(localRotation),
+            fov = lensFov,
+        )
+
+    fun setupTracks(data: CutsceneData, loop: Boolean = false, anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED) {
+        timeline.groups.clear()
+        timeline.clearSelection()
+        timeline.activeLayer = null
+        timeline.workAreaEnd = max(0.1f, data.duration)
+        timeline.currentTime = 0f
         isLooping = loop
-        currentTime = 0f
         isPlaying = false
 
-        positionTrack.keyframes.replaceVec3Keyframes(data.findVec3Track(CameraCutsceneTracks.POSITION_ID))
-        rotationTrack.keyframes.replaceVec3Keyframes(data.findVec3Track(CameraCutsceneTracks.ROTATION_ID))
-        fovTrack.keyframes.replaceFloatKeyframes(data.findFloatTrack(CameraCutsceneTracks.FOV_ID))
+        data.nodes.forEach { node -> readNode(node, timeline, emptyList()) }
+        buildDefaultRig()
 
-        updateTracks()
+        this.anchor = anchor
+        origin = data.origin
+        updateProperties()
     }
 
     fun play() {
@@ -88,148 +112,276 @@ class CutscenePlaybackController {
     }
 
     fun seek(time: Float) {
-        currentTime = time.coerceIn(0f, duration)
-        updateTracks()
+        timeline.currentTime = time.coerceIn(0f, duration)
+        updateProperties()
     }
 
     fun setDuration(duration: Float) {
-        this.duration = max(0f, duration)
-        if (currentTime > this.duration) {
-            seek(this.duration)
-        }
+        timeline.workAreaEnd = max(0.1f, duration)
+        if (timeline.currentTime > timeline.workAreaEnd) seek(timeline.workAreaEnd)
     }
 
     fun update(deltaSeconds: Float) {
-        if (!isPlaying || duration <= 0f) return
+        if (followsAnchor) refreshFrame()
+        if (isPlaying && duration > 0f) {
+            val next = timeline.currentTime + max(0f, deltaSeconds)
+            timeline.currentTime = if (isLooping) next % duration else min(duration, next)
+            if (!isLooping && timeline.currentTime >= duration) isPlaying = false
+        }
+        updateProperties()
+    }
 
-        val nextTime = currentTime + max(0f, deltaSeconds)
-        currentTime = if (isLooping) nextTime % duration else min(duration, nextTime)
-        updateTracks()
+    fun updateProperties() {
+        timeline.allProperties().forEach { it.update(timeline.currentTime) }
+    }
 
-        if (!isLooping && currentTime >= duration) {
-            isPlaying = false
+    fun refreshFrame() {
+        frame = CutsceneAnchors.resolve(origin, anchor)
+        followsAnchor = CutsceneAnchors.follows(anchor)
+    }
+
+    /**
+     * Shifts the origin without shifting the scene.
+     */
+    fun reanchor(position: Vec3f, yaw: Float) {
+        val previous = origin.frame
+        val next = origin.moved(position, yaw).frame
+        translation.layers.filter { it.blendMode == BlendMode.OVERRIDE }.forEach { layer ->
+            rebaseLayer(layer, translation) { local -> next.toLocal(previous.toWorld(local)) }
+        }
+        rotation.layers.filter { it.blendMode == BlendMode.OVERRIDE }.forEach { layer ->
+            rebaseLayer(layer, rotation) { local -> next.toLocalRotation(previous.toWorldRotation(local)) }
+        }
+        origin = origin.moved(position, yaw)
+        updateProperties()
+    }
+
+    /**
+     * Resamples the keys of a single layer using [convert]
+     */
+    private fun <T> rebaseLayer(layer: AnimLayer, property: AnimProperty<T>, convert: (T) -> T) {
+        val type = property.type
+        val size = type.channels.size
+        val times = layer.channels.flatMap { curve -> curve.keyframes.map { it.time } }.distinct().sorted()
+        if (times.isEmpty()) return
+
+        val buffer = FloatArray(size)
+        val converted = times.associateWith { time ->
+            property.decomposeDefault(buffer)
+            layer.channels.forEachIndexed { index, curve -> buffer[index] = curve.valueAt(time, buffer[index]) }
+            val next = FloatArray(size)
+            type.decompose(convert(type.compose(buffer)), next)
+            next
+        }
+        layer.channels.forEachIndexed { index, curve ->
+            converted.forEach { (time, values) ->
+                val key = curve.keyAt(time) ?: Keyframe(time, 0f).also { curve.keyframes.add(it) }
+                key.value = values.getOrElse(index) { key.value }
+            }
+            curve.sort()
+        }
+        rotateTangents(layer, property, convert, times)
+    }
+
+    private fun <T> rotateTangents(
+        layer: AnimLayer,
+        property: AnimProperty<T>,
+        convert: (T) -> T,
+        times: List<Float>,
+    ) {
+        val type = property.type
+        if (!type.isChannelSpaceLinear) return
+        val size = type.channels.size
+        val linear = linearPart(type, convert, size) ?: return
+
+        val incoming = FloatArray(size)
+        val outgoing = FloatArray(size)
+        times.forEach { time ->
+            val keys = layer.channels.map { it.keyAt(time) }
+            if (keys.all { it == null }) return@forEach
+            keys.forEachIndexed { index, key ->
+                incoming[index] = key?.incoming?.value ?: 0f
+                outgoing[index] = key?.outgoing?.value ?: 0f
+            }
+            val turnedIn = linear.applyTo(incoming)
+            val turnedOut = linear.applyTo(outgoing)
+            keys.forEachIndexed { index, key ->
+                key ?: return@forEachIndexed
+                key.incoming = KeyTangent(key.incoming.time, turnedIn[index])
+                key.outgoing = KeyTangent(key.outgoing.time, turnedOut[index])
+            }
         }
     }
 
-    fun toData(name: String = "New Cutscene"): CutsceneData {
-        return CutsceneData(
-            name = name,
-            duration = duration,
-            nodes = listOf(
-                CutsceneNodeData(
-                    id = "camera",
-                    name = "Camera",
-                    kind = CutsceneNodeKind.GROUP,
-                    children = listOf(
-                        positionTrack.toVec3Node(
-                            "camera.position",
-                            CameraCutsceneTracks.POSITION_ID,
-                            CameraCutsceneTracks.VEC3_VALUE,
-                        ),
-                        rotationTrack.toVec3Node(
-                            "camera.rotation",
-                            CameraCutsceneTracks.ROTATION_ID,
-                            CameraCutsceneTracks.VEC3_VALUE,
-                        ),
-                        fovTrack.toFloatNode(
-                            "camera.fov",
-                            CameraCutsceneTracks.FOV_ID,
-                            CameraCutsceneTracks.FLOAT_VALUE,
-                        ),
-                    ),
-                ),
-            )
-        )
-    }
-
-    private fun updateTracks() {
-        positionTrack.update(currentTime)
-        rotationTrack.update(currentTime)
-        fovTrack.update(currentTime)
-    }
-
-    private fun MutableList<Keyframe<Vec3f>>.replaceVec3Keyframes(values: List<Keyframe<Vec3f>>) {
-        clear()
-        addAll(values)
-    }
-
-    private fun MutableList<Keyframe<Float>>.replaceFloatKeyframes(values: List<Keyframe<Float>>) {
-        clear()
-        addAll(values)
-    }
-
-    private fun AnimTrack<Vec3f>.toVec3Node(id: String, trackType: String, valueType: String): CutsceneNodeData {
-        return CutsceneNodeData(
-            id = id,
-            name = nameState.value,
-            kind = CutsceneNodeKind.TRACK,
-            track = CutsceneTrackData(
-                type = trackType,
-                valueType = valueType,
-                keyframes = keyframes.map { it.toTrackKeyframeData(KeyframeSnapshot.Vec3fSnapshot::from) },
-            ),
-        )
-    }
-
-    private fun AnimTrack<Float>.toFloatNode(id: String, trackType: String, valueType: String): CutsceneNodeData {
-        return CutsceneNodeData(
-            id = id,
-            name = nameState.value,
-            kind = CutsceneNodeKind.TRACK,
-            track = CutsceneTrackData(
-                type = trackType,
-                valueType = valueType,
-                keyframes = keyframes.map { it.toTrackKeyframeData(KeyframeSnapshot::FloatSnapshot) },
-            ),
-        )
-    }
-
-    private fun <T : Any> Keyframe<T>.toTrackKeyframeData(snapshot: (T) -> KeyframeSnapshot): CutsceneTrackKeyframeData {
-        return CutsceneTrackKeyframeData(time, snapshot(value), EasingRegistry.nameOf(easing))
-    }
-}
-
-object CameraCutsceneTracks {
-    const val POSITION_ID = "hollowengine:camera.position"
-    const val ROTATION_ID = "hollowengine:camera.rotation"
-    const val FOV_ID = "hollowengine:camera.fov"
-    const val VEC3_VALUE = "vec3"
-    const val FLOAT_VALUE = "float"
-
-    private var registered = false
-
-    fun ensureRegistered() {
-        if (registered) return
-        registered = true
-        CutsceneTrackRegistry.register(CutsceneTrackType(POSITION_ID, Vec3f.ZERO))
-        CutsceneTrackRegistry.register(CutsceneTrackType(ROTATION_ID, Vec3f.ZERO))
-        CutsceneTrackRegistry.register(CutsceneTrackType(FOV_ID, 70f))
-    }
-}
-
-private fun CutsceneData.findVec3Track(type: String): List<Keyframe<Vec3f>> {
-    return findTrack(type)?.keyframes.orEmpty().mapNotNull { frame ->
-        val value = (frame.value as? KeyframeSnapshot.Vec3fSnapshot)?.vector ?: return@mapNotNull null
-        Keyframe(frame.time, value, EasingRegistry.resolve(frame.easing))
-    }
-}
-
-private fun CutsceneData.findFloatTrack(type: String): List<Keyframe<Float>> {
-    return findTrack(type)?.keyframes.orEmpty().mapNotNull { frame ->
-        val value = (frame.value as? KeyframeSnapshot.FloatSnapshot)?.value ?: return@mapNotNull null
-        Keyframe(frame.time, value, EasingRegistry.resolve(frame.easing))
-    }
-}
-
-private fun CutsceneData.findTrack(type: String): CutsceneTrackData? {
-    fun find(nodes: List<CutsceneNodeData>): CutsceneTrackData? {
-        nodes.forEach { node ->
-            val track = node.track
-            if (track?.type == type) return track
-            find(node.children)?.let { return it }
+    private fun <T> linearPart(type: PropertyType<T>, convert: (T) -> T, size: Int): LinearMap {
+        val zero = FloatArray(size)
+        val shifted = FloatArray(size)
+        type.decompose(convert(type.compose(zero)), shifted)
+        val columns = Array(size) { axis ->
+            val basis = FloatArray(size)
+            basis[axis] = 1f
+            val mapped = FloatArray(size)
+            type.decompose(convert(type.compose(basis)), mapped)
+            FloatArray(size) { row -> mapped[row] - shifted[row] }
         }
-        return null
+        return LinearMap(columns)
     }
 
-    return find(nodes)
+    fun toData(name: String = "New Cutscene"): CutsceneData = CutsceneData(
+        name = name,
+        duration = duration,
+        origin = origin,
+        nodes = timeline.groups.map { it.toNode() },
+    )
+
+    private fun buildDefaultRig() {
+        val transform = listOf("Camera", "Transform")
+        val lens = listOf("Camera", "Lens")
+        translation = bind(transform, CameraRig.TRANSLATION_ID, "Translation", TranslationPropertyType(), Vec3f.ZERO) {
+            localPosition = it
+        }
+        rotation = bind(transform, CameraRig.ROTATION_ID, "Rotation", RotationPropertyType(), Vec3f.ZERO) {
+            localRotation = it
+        }
+        fov =
+            bind(lens, CameraRig.FOV_ID, "FOV", FloatPropertyType("FOV", CameraRig.FOV_BOUNDS), CameraRig.DEFAULT_FOV) {
+                lensFov = it
+            }
+        if (timeline.activeLayer == null) timeline.activeLayer = translation.layers.firstOrNull()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> bind(
+        path: List<String>,
+        id: String,
+        name: String,
+        type: PropertyType<T>,
+        defaultValue: T,
+        apply: (T) -> Unit,
+    ): AnimProperty<T> {
+        val existing = timeline.allProperties().firstOrNull { it.id == id }
+        if (existing != null && existing.type.id == type.id) {
+            val bound = AnimProperty(id, existing.nameState, existing.type as PropertyType<T>, defaultValue, apply)
+            bound.layers.addAll(existing.layers)
+            bound.isExpanded = existing.isExpanded
+            if (bound.layers.isEmpty()) bound.addLayer(BASE_LAYER_NAME)
+            val group = timeline.groupOf(existing) ?: timeline.group(path)
+            group.properties[group.properties.indexOf(existing)] = bound
+            return bound
+        }
+        if (existing != null) timeline.groupOf(existing)?.properties?.remove(existing)
+        return timeline.addProperty(path, AnimProperty(id, name, type, defaultValue, apply))
+    }
 }
+
+/** Columns of a square matrix over the channel space. */
+private class LinearMap(private val columns: Array<FloatArray>) {
+    fun applyTo(vector: FloatArray): FloatArray {
+        val result = FloatArray(vector.size)
+        for (axis in columns.indices) {
+            val scale = vector.getOrElse(axis) { 0f }
+            if (scale == 0f) continue
+            val column = columns[axis]
+            for (row in result.indices) result[row] += column.getOrElse(row) { 0f } * scale
+        }
+        return result
+    }
+}
+
+private fun readNode(node: CutsceneNodeData, timeline: TimelineController, path: List<String>) {
+    when (node.kind) {
+        CutsceneNodeKind.GROUP -> {
+            val next = path + node.name
+            timeline.group(next)
+            node.children.forEach { readNode(it, timeline, next) }
+        }
+
+        CutsceneNodeKind.PROPERTY -> {
+            val data = node.property ?: return
+            val property = createProperty(node.id, node.name, data)
+            timeline.addProperty(path.ifEmpty { listOf(node.name) }, property)
+        }
+    }
+}
+
+private fun createProperty(id: String, name: String, data: CutscenePropertyData): AnimProperty<*> {
+    val property: AnimProperty<*> = when {
+        data.type == TranslationPropertyType.ID -> AnimProperty(id, name, TranslationPropertyType(), Vec3f.ZERO)
+        data.type == RotationPropertyType.ID -> AnimProperty(
+            id, name, RotationPropertyType(CutsceneEnums.rotationMode(data.rotationMode)), Vec3f.ZERO,
+        )
+
+        id == CameraRig.FOV_ID -> AnimProperty(
+            id, name, FloatPropertyType(name, CameraRig.FOV_BOUNDS), CameraRig.DEFAULT_FOV
+        )
+
+        else -> AnimProperty(id, name, FloatPropertyType(name), 0f)
+    }
+    data.layers.forEach { layerData ->
+        val layer = property.addLayer(layerData.name, CutsceneEnums.blendMode(layerData.blend))
+        layer.blendMode = CutsceneEnums.blendMode(layerData.blend)
+        layer.weight = layerData.weight
+        layer.isVisible = layerData.visible
+        layer.isLocked = layerData.locked
+        layerData.curves.forEach { curveData ->
+            val curve = layer.channels.firstOrNull { it.name == curveData.channel } ?: return@forEach
+            curve.isVisible = curveData.visible
+            curveData.keyframes.forEach { curve.keyframes.add(it.toKeyframe()) }
+            curve.sort()
+        }
+    }
+    return property
+}
+
+private fun CutsceneKeyData.toKeyframe() = Keyframe(
+    time = time,
+    value = value,
+    interpolation = CutsceneEnums.interpolation(interpolation),
+    handleMode = CutsceneEnums.handleMode(handles),
+    incoming = KeyTangent(inTime, inValue),
+    outgoing = KeyTangent(outTime, outValue),
+)
+
+private fun TrackGroup.toNode(): CutsceneNodeData = CutsceneNodeData(
+    id = nameState,
+    name = nameState,
+    kind = CutsceneNodeKind.GROUP,
+    children = children.map { it.toNode() } + properties.map { it.toNode() },
+)
+
+private fun AnimProperty<*>.toNode(): CutsceneNodeData = CutsceneNodeData(
+    id = id,
+    name = nameState,
+    kind = CutsceneNodeKind.PROPERTY,
+    property = CutscenePropertyData(
+        type = type.id,
+        rotationMode = CutsceneEnums.nameOf((type as? RotationPropertyType)?.mode ?: RotationMode.EULER),
+        layers = layers.map { it.toData() },
+    ),
+)
+
+private fun AnimLayer.toData() = CutsceneLayerData(
+    name = nameState,
+    blend = CutsceneEnums.nameOf(blendMode),
+    weight = weight,
+    visible = isVisible,
+    locked = isLocked,
+    curves = channels.map { it.toData() },
+)
+
+private fun ChannelCurve.toData() = CutsceneCurveData(
+    channel = name,
+    visible = isVisible,
+    keyframes = keyframes.map { key ->
+        CutsceneKeyData(
+            time = key.time,
+            value = key.value,
+            interpolation = CutsceneEnums.nameOf(key.interpolation),
+            handles = CutsceneEnums.nameOf(key.handleMode),
+            inTime = key.incoming.time,
+            inValue = key.incoming.value,
+            outTime = key.outgoing.time,
+            outValue = key.outgoing.value,
+        )
+    },
+)
