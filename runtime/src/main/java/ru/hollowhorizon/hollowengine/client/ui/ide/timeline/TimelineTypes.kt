@@ -128,10 +128,3 @@ fun AnimProperty<*>.setRotationMode(mode: RotationMode) {
     if (current.mode == mode) return
     @Suppress("UNCHECKED_CAST") (this as AnimProperty<Vec3f>).retype(RotationPropertyType(mode))
 }
-
-fun unwrapAngle(value: Float, reference: Float): Float {
-    var result = value
-    while (result - reference > 180f) result -= 360f
-    while (reference - result > 180f) result += 360f
-    return result
-}

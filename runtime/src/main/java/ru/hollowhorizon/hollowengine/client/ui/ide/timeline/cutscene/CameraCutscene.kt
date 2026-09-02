@@ -35,12 +35,18 @@ class CutscenePlaybackController {
     private var localPosition = Vec3f.ZERO
     private var localRotation = Vec3f.ZERO
     private var lensFov = CameraRig.DEFAULT_FOV
+    private var environmentTime = 0f
+    private var environmentWeather = CutsceneWeather.CLEAR
 
     lateinit var translation: AnimProperty<Vec3f>
         private set
     lateinit var rotation: AnimProperty<Vec3f>
         private set
     lateinit var fov: AnimProperty<Float>
+        private set
+    lateinit var timeOfDay: AnimProperty<Float>
+        private set
+    lateinit var weather: AnimProperty<CutsceneWeather>
         private set
 
     /** Where the coordinates in this scene are measured from */
@@ -79,6 +85,12 @@ class CutscenePlaybackController {
             position = frame.toWorld(localPosition),
             rotation = frame.toWorldRotation(localRotation),
             fov = lensFov,
+        )
+
+    val currentEnvironment: CutsceneEnvironment
+        get() = CutsceneEnvironment(
+            timeOfDay = environmentTime.takeIf { timeOfDay.hasVisibleKeys() },
+            weather = environmentWeather.takeIf { weather.hasVisibleKeys() },
         )
 
     fun setupTracks(data: CutsceneData, loop: Boolean = false, anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED) {
@@ -237,6 +249,7 @@ class CutscenePlaybackController {
     private fun buildDefaultRig() {
         val transform = listOf("Camera", "Transform")
         val lens = listOf("Camera", "Lens")
+        val environment = listOf("World", "Environment")
         translation = bind(transform, CameraRig.TRANSLATION_ID, "Translation", TranslationPropertyType(), Vec3f.ZERO) {
             localPosition = it
         }
@@ -247,6 +260,20 @@ class CutscenePlaybackController {
             bind(lens, CameraRig.FOV_ID, "FOV", FloatPropertyType("FOV", CameraRig.FOV_BOUNDS), CameraRig.DEFAULT_FOV) {
                 lensFov = it
             }
+        timeOfDay = bind(
+            environment,
+            EnvironmentRig.TIME_OF_DAY_ID,
+            "Time of Day",
+            TimeOfDayPropertyType(),
+            0f,
+        ) { environmentTime = it }
+        weather = bind(
+            environment,
+            EnvironmentRig.WEATHER_ID,
+            "Weather",
+            WeatherPropertyType(),
+            CutsceneWeather.CLEAR,
+        ) { environmentWeather = it }
         if (timeline.activeLayer == null) timeline.activeLayer = translation.layers.firstOrNull()
     }
 
@@ -315,32 +342,45 @@ private fun createProperty(id: String, name: String, data: CutscenePropertyData)
             id, name, FloatPropertyType(name, CameraRig.FOV_BOUNDS), CameraRig.DEFAULT_FOV
         )
 
+        data.type == TimeOfDayPropertyType.ID -> AnimProperty(id, name, TimeOfDayPropertyType(), 0f)
+        data.type == WeatherPropertyType.ID ->
+            AnimProperty(id, name, WeatherPropertyType(), CutsceneWeather.CLEAR)
+
         else -> AnimProperty(id, name, FloatPropertyType(name), 0f)
     }
     data.layers.forEach { layerData ->
         val layer = property.addLayer(layerData.name, CutsceneEnums.blendMode(layerData.blend))
-        layer.blendMode = CutsceneEnums.blendMode(layerData.blend)
         layer.weight = layerData.weight
         layer.isVisible = layerData.visible
         layer.isLocked = layerData.locked
         layerData.curves.forEach { curveData ->
             val curve = layer.channels.firstOrNull { it.name == curveData.channel } ?: return@forEach
             curve.isVisible = curveData.visible
-            curveData.keyframes.forEach { curve.keyframes.add(it.toKeyframe()) }
+            curveData.keyframes.forEach { curve.keyframes.add(it.toKeyframe(curve.spec)) }
             curve.sort()
         }
     }
     return property
 }
 
-private fun CutsceneKeyData.toKeyframe() = Keyframe(
+private fun CutsceneKeyData.toKeyframe(spec: ChannelSpec) = Keyframe(
     time = time,
-    value = value,
-    interpolation = CutsceneEnums.interpolation(interpolation),
+    value = spec.normalize(value),
+    interpolation = if (spec.supportsCurveEditor) {
+        CutsceneEnums.interpolation(interpolation)
+    } else {
+        KeyInterpolation.CONSTANT
+    },
     handleMode = CutsceneEnums.handleMode(handles),
     incoming = KeyTangent(inTime, inValue),
     outgoing = KeyTangent(outTime, outValue),
 )
+
+private fun AnimProperty<*>.hasVisibleKeys(): Boolean = layers.any { layer ->
+    layer.isVisible && layer.weight != 0f && layer.channels.any { curve ->
+        curve.isVisible && curve.keyframes.isNotEmpty()
+    }
+}
 
 private fun TrackGroup.toNode(): CutsceneNodeData = CutsceneNodeData(
     id = nameState,

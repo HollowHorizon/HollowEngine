@@ -11,13 +11,44 @@ import kotlin.math.min
 import kotlin.math.round
 
 
-/** Name and color of one scalar component of a property. */
+enum class ChannelSampling {
+    CONTINUOUS,
+    DISCRETE,
+}
+
+fun interface ChannelValueFormatter {
+    fun format(value: Float): String
+}
+
+data class ChannelValueOption(
+    val value: Float,
+    val labelKey: String,
+)
+
+/** Name, color and editor behaviour of one scalar component of a property. */
 data class ChannelSpec(
     val name: String,
     val color: Color,
     /** Whether the channel is an angle in degrees, and so wraps at +-180. */
     val isAngle: Boolean = false,
-)
+    /** Period used to keep captured cyclic values close to the neighbouring curve value. */
+    val cyclePeriod: Float? = if (isAngle) 360f else null,
+    val sampling: ChannelSampling = ChannelSampling.CONTINUOUS,
+    /** Optional labels for enum-like values. Their keys are localized by the editor. */
+    val valueOptions: List<ChannelValueOption> = emptyList(),
+    /** Optional graph-axis formatter, used when every visible curve has the same formatter. */
+    val graphValueFormatter: ChannelValueFormatter? = null,
+) {
+    val supportsCurveEditor: Boolean get() = sampling == ChannelSampling.CONTINUOUS
+
+    fun normalize(value: Float): Float =
+        valueOptions.minByOrNull { option -> abs(option.value - value) }?.value ?: value
+
+    fun unwrap(value: Float, reference: Float): Float {
+        val period = cyclePeriod?.takeIf { it > 0f } ?: return value
+        return value + round((reference - value) / period) * period
+    }
+}
 
 /** How a layer's value is folded into layers below it produced. */
 enum class BlendMode {
@@ -105,6 +136,7 @@ class ChannelCurve(val spec: ChannelSpec) {
         val end = keys[index + 1]
         val duration = end.time - start.time
         if (duration <= KEY_TIME_EPSILON) return start.value
+        if (spec.sampling == ChannelSampling.DISCRETE) return start.value
 
         return when (start.interpolation) {
             KeyInterpolation.CONSTANT -> start.value
@@ -141,6 +173,7 @@ class ChannelCurve(val spec: ChannelSpec) {
     }
 
     fun isTangentUsed(keyframe: Keyframe, side: TangentSide): Boolean {
+        if (!spec.supportsCurveEditor) return false
         val keys = ordered()
         val index = keys.indexOfFirst { it === keyframe }
         if (index < 0) return false
@@ -152,6 +185,7 @@ class ChannelCurve(val spec: ChannelSpec) {
     }
 
     fun useSpline(keyframe: Keyframe, side: TangentSide) {
+        if (!spec.supportsCurveEditor) return
         val keys = ordered()
         val index = keys.indexOfFirst { it === keyframe }
         if (index < 0) return
@@ -216,7 +250,11 @@ class AnimProperty<T>(
 
     fun addLayer(name: String = "Layer ${layers.size + 1}", blendMode: BlendMode = BlendMode.OVERRIDE): AnimLayer {
         val layer = AnimLayer(name, type.channels.map { ChannelCurve(it) })
-        layer.blendMode = if (layers.isEmpty()) BlendMode.OVERRIDE else blendMode
+        layer.blendMode = when {
+            layers.isEmpty() -> BlendMode.OVERRIDE
+            blendMode in type.blendModes -> blendMode
+            else -> type.blendModes.first()
+        }
         layers.add(layer)
         return layer
     }
@@ -285,9 +323,13 @@ class AnimProperty<T>(
                 val curve = layer.channels.getOrNull(channel) ?: continue
                 if (!curve.isVisible) continue
                 val base = values[channel]
-                val neutral = layer.blendMode.neutral(base)
-                val sampled = curve.valueAt(time, neutral)
-                values[channel] = layer.blendMode.blend(base, sampled, weight)
+                if (curve.spec.sampling == ChannelSampling.DISCRETE) {
+                    values[channel] = curve.spec.normalize(curve.valueAt(time, base))
+                } else {
+                    val neutral = layer.blendMode.neutral(base)
+                    val sampled = curve.valueAt(time, neutral)
+                    values[channel] = layer.blendMode.blend(base, sampled, weight)
+                }
             }
         }
         for (channel in 0 until size) values[channel] = type.bounds(channel).clamp(values[channel])

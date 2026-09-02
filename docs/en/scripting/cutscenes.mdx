@@ -13,12 +13,14 @@ order: 12
 
 1. Open **Windows > Cutscenes** and create a new cutscene.
 2. Place the scene's origin (the **Origin** section) - **Move here** is the quick way.
-3. Add keyframes with the capture button: the current camera pose is written onto the active layer of every property.
+3. Add keyframes with the capture button: the current camera pose, time of day, and weather are written onto the active layer of every property.
 4. Set the duration and preview the result from the timeline.
 5. Save the cutscene. A name such as `intro` is stored as `hollowengine/cutscenes/intro.dat`.
 6. Start it for a player from a server script.
 
-The camera tracks are evaluated on the receiving client. The player keeps their normal world state; only their camera, HUD, and hand rendering are controlled while the cutscene is active.
+The tracks are evaluated on the receiving client. Camera, HUD, hand rendering, time of day, and weather
+can be controlled locally while the cutscene is active. The server world is not changed, and the client's
+previous time and weather are restored when the cutscene or preview stops.
 
 ## What the file holds?
 
@@ -34,8 +36,12 @@ re-expressed relative to it, and the old easings become curves. Nothing moves on
 ## Objects, properties and layers
 
 The timeline animates **properties**. On the camera these are `Transform` (Translation, Rotation) and
-`Lens` (FOV). A property breaks down into **channels** - X/Y/Z, Pitch/Yaw/Roll, FOV - and every channel
-owns its keys, so X can be retimed and shaped without dragging Y and Z along.
+`Lens` (FOV); `World / Environment` contains Time of Day and Weather. A property breaks down into
+**channels**, and every channel owns its keys, so X can be retimed and shaped without dragging Y and Z along.
+
+Time of Day is continuous and uses Minecraft's 24,000-tick day. When it is the only selected graph track,
+the value axis is shown as a 24-hour clock. Weather is discrete (`Clear`, `Rain`, `Thunder`): it changes on
+a key and is intentionally absent from the curve editor.
 
 A property can carry several **layers**. A layer is a full set of curves plus how it folds into the
 layers below it:

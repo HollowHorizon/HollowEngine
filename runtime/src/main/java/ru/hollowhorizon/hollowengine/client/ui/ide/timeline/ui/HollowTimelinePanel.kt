@@ -104,7 +104,8 @@ fun HollowTimelineEditor(
     val bump = refresh
     val scroll = rememberScrollState()
     val headerScroll = rememberScrollState()
-    val rows = timelineRows(controller)
+    val isCurveView = controller.viewMode == TimelineViewMode.CURVES
+    val rows = timelineRows(controller, curveEditorOnly = isCurveView)
     val rowsHeight = rows.sumOf { it.height.toDouble() }.toFloat()
     val pxPerSec = controller.pixelsPerSecond
     val contentWidth = timelineContentWidth(
@@ -114,7 +115,6 @@ fun HollowTimelineEditor(
         TimelineMinContentWidth,
     )
 
-    val isCurveView = controller.viewMode == TimelineViewMode.CURVES
     var laneViewport by remember { mutableStateOf(UiRect.Zero) }
     var isScrubbing by remember { mutableStateOf(false) }
     val scrollContentHeight = rowsHeight + if (laneViewport.height > 0f && rowsHeight > laneViewport.height) {

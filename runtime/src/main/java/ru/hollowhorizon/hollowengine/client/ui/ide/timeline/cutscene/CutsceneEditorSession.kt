@@ -41,7 +41,9 @@ class CutsceneEditorSession {
     }
 
     fun captureFrame(time: Float) {
-        val pose = CutsceneCameraSystem.capturePlayerPose(Minecraft.getInstance()) ?: return
+        val minecraft = Minecraft.getInstance()
+        val pose = CutsceneCameraSystem.capturePlayerPose(minecraft) ?: return
+        val environment = minecraft.level?.captureCutsceneEnvironment() ?: return
         val frame = authoringFrame
         timeline.edit("Capture keyframe") {
             timeline.clearSelection()
@@ -49,6 +51,8 @@ class CutsceneEditorSession {
             writeChannels(playback.translation, time, listOf(position.x, position.y, position.z))
             writeChannels(playback.rotation, time, frame.toLocalRotation(pose.rotation).decomposedBy(playback.rotation))
             writeChannels(playback.fov, time, listOf(pose.fov))
+            writeChannels(playback.timeOfDay, time, listOfNotNull(environment.timeOfDay))
+            writeChannels(playback.weather, time, listOfNotNull(environment.weather?.value))
         }
         playback.seek(time)
         updatePreviewState()
@@ -65,7 +69,7 @@ class CutsceneEditorSession {
         if (timeline.isLocked(layer)) return
         val created = layer.channels.mapIndexedNotNull { channel, curve ->
             val value = values.getOrNull(channel) ?: return@mapIndexedNotNull null
-            val unwrapped = if (curve.spec.isAngle) unwrapAngle(value, curve.valueAt(time, value)) else value
+            val unwrapped = curve.spec.unwrap(value, curve.valueAt(time, value))
             timeline.setKey(curve, time, unwrapped, selectKey = false)
         }
         timeline.select(created, additive = true)

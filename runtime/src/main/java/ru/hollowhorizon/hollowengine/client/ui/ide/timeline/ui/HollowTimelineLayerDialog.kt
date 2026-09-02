@@ -35,9 +35,11 @@ internal fun LayerSettingsDialog(
             }
         }
 
-        FloatField(CutsceneLang.LAYER_WEIGHT.lang, layer.weight, 0f, 1f) { next ->
-            controller.edit("Edit layer weight") { layer.weight = next }
-            refresh()
+        if (property.channels.any { it.supportsCurveEditor }) {
+            FloatField(CutsceneLang.LAYER_WEIGHT.lang, layer.weight, 0f, 1f) { next ->
+                controller.edit("Edit layer weight") { layer.weight = next }
+                refresh()
+            }
         }
 
         Row(modifier = Modifier.size(100.percent, 24.px).alignItems(vertical = UiAlign.CENTER).gap(6.px)) {

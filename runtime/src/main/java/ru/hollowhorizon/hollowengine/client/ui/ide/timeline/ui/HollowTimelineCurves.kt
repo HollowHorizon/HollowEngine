@@ -25,7 +25,7 @@ internal fun curveLanes(rows: List<TimelineRow>, controller: TimelineController)
     val lanes = rows.filter { it.kind == TimelineRowKind.PROPERTY && it.visible }
         .mapNotNull { row -> row.property?.let { row to it } }.flatMap { (row, property) ->
             property.layers.filter { it.isVisible }.flatMap { layer ->
-                layer.channels.filter { it.isVisible }.map { curve ->
+                layer.channels.filter { it.isVisible && it.spec.supportsCurveEditor }.map { curve ->
                     CurveLane(layer, curve, curve.color.toUiColor(), row.locked || layer.isLocked)
                 }
             }
@@ -126,7 +126,7 @@ internal fun TimelineCurveGraph(
             }
         }
         MarqueeOverlay(marquee)
-        CurveValueLabels(center, span, height, scrollX)
+        CurveValueLabels(center, span, height, scrollX, commonValueFormatter(lanes))
         Playhead(controller, pxPerSec, height)
     }
 
@@ -136,7 +136,13 @@ internal fun TimelineCurveGraph(
 }
 
 @Composable
-private fun CurveValueLabels(center: Float, span: Float, height: Float, scrollX: Float) {
+private fun CurveValueLabels(
+    center: Float,
+    span: Float,
+    height: Float,
+    scrollX: Float,
+    formatter: ChannelValueFormatter?,
+) {
     val step = curveValueStep(span)
     val top = center + span * 0.5f
     val bottom = center - span * 0.5f
@@ -149,7 +155,7 @@ private fun CurveValueLabels(center: Float, span: Float, height: Float, scrollX:
             val y = curveValueToY(value, center, span, height)
             if (y in 0f..height) {
                 Text(
-                    formatCurveValue(value),
+                    formatter?.format(value) ?: formatCurveValue(value),
                     modifier = Modifier.position(2.px, (y - 6f).px).size((CurveValueGutter - 6f).px, 12.px).fontSize(9f)
                         .foreground(TimelineColors.Muted).textAlign(UiTextAlign.RIGHT),
                 )
@@ -158,6 +164,9 @@ private fun CurveValueLabels(center: Float, span: Float, height: Float, scrollX:
         }
     }
 }
+
+private fun commonValueFormatter(lanes: List<CurveLane>): ChannelValueFormatter? =
+    lanes.map { lane -> lane.curve.spec.graphValueFormatter }.distinct().singleOrNull()
 
 @Composable
 private fun CurveKeyPoint(

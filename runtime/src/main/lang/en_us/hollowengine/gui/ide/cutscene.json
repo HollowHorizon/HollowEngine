@@ -74,5 +74,8 @@
   "rotation.quaternion": "Quaternion",
   "rotation.mode_hint": "Switching resamples the curves onto the new channels; handles are reset.",
   "limits.title": "Limits",
-  "limits.hint": "Set by the property type; the editor keeps keys inside them."
+  "limits.hint": "Set by the property type; the editor keeps keys inside them.",
+  "weather.clear": "Clear",
+  "weather.rain": "Rain",
+  "weather.thunder": "Thunder"
 }

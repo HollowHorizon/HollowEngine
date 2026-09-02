@@ -363,6 +363,7 @@ internal fun TimelineContextMenu(
     var presetCategory by remember { mutableStateOf<String?>(null) }
     var showPresets by remember { mutableStateOf(false) }
     val hasSelection = controller.selectedKeyframes.isNotEmpty()
+    val hasCurveSelection = controller.canEditSelectedCurves
 
     val items = when {
         showPresets && presetCategory != null -> CurvePresets.of(presetCategory!!).map { preset ->
@@ -390,10 +391,10 @@ internal fun TimelineContextMenu(
                 UiDropdownItem(
                     CutsceneLang.CURVE_PRESET.lang,
                     icon = GraphIcon,
-                    enabled = hasSelection,
+                    enabled = hasCurveSelection,
                     closeOnClick = false,
                 ) { showPresets = true })
-            add(UiDropdownItem(CutsceneLang.SMOOTH_SELECTED.lang, icon = GraphIcon, enabled = hasSelection) {
+            add(UiDropdownItem(CutsceneLang.SMOOTH_SELECTED.lang, icon = GraphIcon, enabled = hasCurveSelection) {
                 controller.smoothSelectedKeyframes()
                 refresh()
             })

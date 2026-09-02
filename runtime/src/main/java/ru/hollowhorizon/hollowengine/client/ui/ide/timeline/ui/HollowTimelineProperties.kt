@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelBounds
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelCurve
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelValueOption
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.CurvePresets
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.HandleMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.KeyInterpolation
@@ -42,7 +44,9 @@ internal fun HollowTimelineProperties(
         when {
             selectedKey != null && selectedCurve != null -> {
                 KeyframeSection(session, selectedKey, selectedCurve, refresh)
-                CurveSection(controller, selectedKey, selectedCurve, refresh)
+                if (selectedCurve.spec.supportsCurveEditor) {
+                    CurveSection(controller, selectedKey, selectedCurve, refresh)
+                }
                 ToolbarButton(
                     if (controller.selectedKeyframes.size == 1) CutsceneLang.DELETE_KEY.lang
                     else CutsceneLang.DELETE_KEYS.lang,
@@ -135,14 +139,42 @@ private fun KeyframeSection(
             controller.nudgeSelectedKeyframes(snapTimelineTime(time, currentUiKeyModifiers()) - keyframe.time)
             refresh()
         }
-        FloatField(CutsceneLang.VALUE.lang, keyframe.value, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
-            val delta = next - keyframe.value
-            controller.edit("Edit keyframe value") {
-                controller.selectedKeyframes.forEach { it.value += delta }
+        if (curve.spec.valueOptions.isEmpty()) {
+            val layer = controller.layerOf(keyframe)
+            val channel = layer?.channels?.indexOf(curve) ?: -1
+            val bounds = if (channel >= 0) {
+                layer?.let(controller::propertyOf)?.bounds(channel)
+            } else {
+                null
+            } ?: ChannelBounds.Unbounded
+            FloatField(
+                CutsceneLang.VALUE.lang,
+                keyframe.value,
+                bounds.minimum ?: -Float.MAX_VALUE,
+                bounds.maximum ?: Float.MAX_VALUE,
+            ) { next ->
+                controller.setSelectedKeyframeValue(keyframe, next)
+                refresh()
             }
-            refresh()
+        } else {
+            DiscreteValueField(curve.spec.valueOptions, keyframe.value) { next ->
+                controller.setSelectedKeyframeValue(keyframe, next)
+                refresh()
+            }
         }
         WorldReadout(session)
+    }
+}
+
+@Composable
+private fun DiscreteValueField(options: List<ChannelValueOption>, value: Float, onChange: (Float) -> Unit) {
+    Text(CutsceneLang.VALUE.lang, modifier = Modifier.fontSize(9f).foreground(TimelineColors.Muted))
+    PillFlow(id = "timeline-discrete-values") {
+        options.forEachIndexed { index, option ->
+            Pill("timeline-discrete-value-$index", option.labelKey.lang, value == option.value) {
+                onChange(option.value)
+            }
+        }
     }
 }
 

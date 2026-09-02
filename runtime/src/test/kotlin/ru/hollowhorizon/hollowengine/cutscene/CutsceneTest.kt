@@ -7,11 +7,17 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BlendMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelBounds
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelCurve
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.FloatPropertyType
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.KeyInterpolation
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TranslationPropertyType
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CameraRig
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutscenePlaybackController
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneWeather
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.TimeOfDayPropertyType
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.TimeOfDayValueFormatter
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.snapTimelineTime
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.timelineRows
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -351,6 +357,63 @@ class CutsceneTest {
 
         assertEquals(listOf(1f, 4f), property.layers.map { it.channels.first().keyframes.first().value })
         assertEquals(5f, property.valueAt(0f), 0.001f, "the survivors keep their own keys")
+    }
+
+    @Test
+    fun `weather keys are discrete even if serialized interpolation says bezier`() {
+        val playback = CutscenePlaybackController()
+        val curve = playback.weather.layers.first().channels.first()
+        val clear = playback.timeline.setKey(curve, 0f, CutsceneWeather.CLEAR.value)
+        playback.timeline.setKey(curve, 10f, CutsceneWeather.THUNDER.value)
+        clear.interpolation = KeyInterpolation.BEZIER
+
+        assertEquals(CutsceneWeather.CLEAR, playback.weather.valueAt(9.99f))
+        assertEquals(CutsceneWeather.THUNDER, playback.weather.valueAt(10f))
+    }
+
+    @Test
+    fun `environment tracks survive a cutscene round trip`() {
+        val playback = CutscenePlaybackController()
+        val timeCurve = playback.timeOfDay.layers.first().channels.first()
+        val weatherCurve = playback.weather.layers.first().channels.first()
+        playback.timeline.setKey(timeCurve, 0f, 6_000f).interpolation = KeyInterpolation.LINEAR
+        playback.timeline.setKey(timeCurve, 10f, 18_000f)
+        playback.timeline.setKey(weatherCurve, 0f, CutsceneWeather.CLEAR.value)
+        playback.timeline.setKey(weatherCurve, 5f, CutsceneWeather.RAIN.value)
+
+        val restored = CutscenePlaybackController()
+        restored.setupTracks(playback.toData("Environment"))
+        restored.seek(5f)
+
+        assertTrue(restored.timeOfDay.type is TimeOfDayPropertyType)
+        assertEquals(12_000f, restored.currentEnvironment.timeOfDay!!, 0.01f)
+        assertEquals(CutsceneWeather.RAIN, restored.currentEnvironment.weather)
+    }
+
+    @Test
+    fun `empty environment tracks do not override the world`() {
+        val playback = CutscenePlaybackController()
+
+        assertEquals(null, playback.currentEnvironment.timeOfDay)
+        assertEquals(null, playback.currentEnvironment.weather)
+    }
+
+    @Test
+    fun `time of day formatter follows the minecraft clock`() {
+        assertEquals("06:00", TimeOfDayValueFormatter.format(0f))
+        assertEquals("12:00", TimeOfDayValueFormatter.format(6_000f))
+        assertEquals("00:00", TimeOfDayValueFormatter.format(18_000f))
+        assertEquals("05:59", TimeOfDayValueFormatter.format(23_999f))
+        assertEquals("07:00", TimeOfDayValueFormatter.format(25_000f))
+    }
+
+    @Test
+    fun `discrete tracks are omitted from curve editor rows`() {
+        val playback = CutscenePlaybackController()
+        val rows = timelineRows(playback.timeline, curveEditorOnly = true)
+
+        assertTrue(rows.any { it.property === playback.timeOfDay })
+        assertFalse(rows.any { it.property === playback.weather })
     }
 
     private fun floatCurve(controller: TimelineController): ChannelCurve {

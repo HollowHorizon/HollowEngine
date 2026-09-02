@@ -137,7 +137,7 @@ internal fun TimelineToolbar(
                 UiDropdownItem(
                     CutsceneLang.SMOOTH_SELECTED.lang,
                     icon = CurvesIcon,
-                    enabled = controller.selectedKeyframes.isNotEmpty(),
+                    enabled = controller.canEditSelectedCurves,
                 ) {
                     controller.smoothSelectedKeyframes(); refresh()
                 },
@@ -277,7 +277,7 @@ private fun TimelineHeaderRow(
     val top = row.y - TimelineRulerHeight
     val isActiveLayer = row.kind == TimelineRowKind.LAYER && controller.activeLayer === row.layer
     val isCurveView = controller.viewMode == TimelineViewMode.CURVES
-    val rowCurves = row.curves
+    val rowCurves = if (isCurveView) row.curves.filter { it.spec.supportsCurveEditor } else row.curves
     val isFocused = isCurveView && rowCurves.isNotEmpty() && rowCurves.all { controller.isFocused(it) }
     val color = when {
         row.kind == TimelineRowKind.GROUP -> TimelineColors.Group

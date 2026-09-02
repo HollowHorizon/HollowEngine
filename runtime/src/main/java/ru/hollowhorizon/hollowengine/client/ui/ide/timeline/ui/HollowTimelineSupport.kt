@@ -87,11 +87,14 @@ internal data class TimelineRow(
         }
 }
 
-internal fun timelineRows(controller: TimelineController): List<TimelineRow> {
+internal fun timelineRows(controller: TimelineController, curveEditorOnly: Boolean = false): List<TimelineRow> {
     val rows = mutableListOf<TimelineRow>()
     var y = TimelineRulerHeight
 
     fun appendGroup(group: TrackGroup, depth: Int, parentLocked: Boolean, parentVisible: Boolean) {
+        if (curveEditorOnly && group.allProperties().none { property ->
+                property.channels.any { it.supportsCurveEditor }
+            }) return
         val locked = parentLocked || group.isLocked
         val visible = parentVisible && group.isVisible
         rows += TimelineRow(
@@ -110,6 +113,7 @@ internal fun timelineRows(controller: TimelineController): List<TimelineRow> {
 
         group.children.forEach { appendGroup(it, depth + 1, locked, visible) }
         group.properties.forEach { property ->
+            if (curveEditorOnly && property.channels.none { it.supportsCurveEditor }) return@forEach
             rows += TimelineRow(
                 id = "timeline-property-${System.identityHashCode(property)}",
                 label = property.nameState,
@@ -141,7 +145,7 @@ internal fun timelineRows(controller: TimelineController): List<TimelineRow> {
                 y += TimelineLayerRowHeight
                 if (!layer.isExpanded) return@forEach
 
-                layer.channels.forEach { curve ->
+                layer.channels.filter { !curveEditorOnly || it.spec.supportsCurveEditor }.forEach { curve ->
                     rows += TimelineRow(
                         id = "timeline-channel-${System.identityHashCode(curve)}",
                         label = curve.name,

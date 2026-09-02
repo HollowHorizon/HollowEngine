@@ -177,16 +177,17 @@ class TimelineController {
     fun isFocused(curve: ChannelCurve): Boolean = focusedCurves.any { it === curve }
 
     fun focusCurves(curves: List<ChannelCurve>, additive: Boolean) {
-        if (curves.isEmpty()) return
+        val editable = curves.filter { it.spec.supportsCurveEditor }
+        if (editable.isEmpty()) return
         if (additive) {
-            val allFocused = curves.all { isFocused(it) }
-            if (allFocused) curves.forEach { curve -> focusedCurves.removeAll { it === curve } }
-            else curves.forEach { curve -> if (!isFocused(curve)) focusedCurves.add(curve) }
+            val allFocused = editable.all { isFocused(it) }
+            if (allFocused) editable.forEach { curve -> focusedCurves.removeAll { it === curve } }
+            else editable.forEach { curve -> if (!isFocused(curve)) focusedCurves.add(curve) }
             return
         }
-        val alreadyExactly = focusedCurves.size == curves.size && curves.all { isFocused(it) }
+        val alreadyExactly = focusedCurves.size == editable.size && editable.all { isFocused(it) }
         focusedCurves.clear()
-        if (!alreadyExactly) focusedCurves.addAll(curves)
+        if (!alreadyExactly) focusedCurves.addAll(editable)
     }
 
     fun selectStacked(pressed: Keyframe, stacked: List<Keyframe>, additive: Boolean) {
@@ -234,7 +235,7 @@ class TimelineController {
 
     fun setKey(curve: ChannelCurve, time: Float, value: Float, selectKey: Boolean = true): Keyframe {
         val clamped = time.coerceIn(0f, workAreaEnd)
-        val bounded = boundsOf(curve).clamp(value)
+        val bounded = curve.spec.normalize(boundsOf(curve).clamp(value))
         val existing = curve.keyAt(clamped)
         val key = if (existing != null) {
             existing.value = bounded
@@ -244,12 +245,35 @@ class TimelineController {
             Keyframe(
                 time = clamped,
                 value = bounded,
-                interpolation = previous?.interpolation ?: KeyInterpolation.BEZIER,
+                interpolation = if (curve.spec.supportsCurveEditor) {
+                    previous?.interpolation ?: KeyInterpolation.BEZIER
+                } else {
+                    KeyInterpolation.CONSTANT
+                },
             ).also { curve.keyframes.add(it) }
         }
         curve.sort()
         if (selectKey) select(listOf(key), additive = false)
         return key
+    }
+
+    fun setSelectedKeyframeValue(reference: Keyframe, value: Float) {
+        val referenceCurve = curveOf(reference) ?: return
+        val delta = value - reference.value
+        edit("Edit keyframe value") {
+            selectedKeyframes.forEach { key ->
+                val layer = layerOf(key) ?: return@forEach
+                if (isLocked(layer)) return@forEach
+                val curve = layer.curveOf(key) ?: return@forEach
+                val candidate = if (referenceCurve.spec.sampling == ChannelSampling.DISCRETE) {
+                    if (curve.spec.valueOptions != referenceCurve.spec.valueOptions) return@forEach
+                    value
+                } else {
+                    key.value + delta
+                }
+                key.value = curve.spec.normalize(boundsOf(curve).clamp(candidate))
+            }
+        }
     }
 
     fun addKeyframes(layer: AnimLayer, time: Float): List<Keyframe> {
@@ -461,10 +485,11 @@ class TimelineController {
     }
 
     fun applyPreset(preset: CurvePreset) {
-        if (selectedKeyframes.isEmpty()) return
+        if (!canEditSelectedCurves) return
         edit("Apply curve preset") {
             selectedKeyframes.toList().forEach { key ->
                 val curve = curveOf(key) ?: return@forEach
+                if (!curve.spec.supportsCurveEditor) return@forEach
                 val index = curve.keyframes.indexOfFirst { it === key }
                 CurvePresets.apply(preset, key, curve.keyframes.getOrNull(index + 1))
             }
@@ -474,6 +499,8 @@ class TimelineController {
     fun setSelectedHandleMode(mode: HandleMode) {
         edit("Edit keyframe handles") {
             selectedKeyframes.forEach { key ->
+                val curve = curveOf(key) ?: return@forEach
+                if (!curve.spec.supportsCurveEditor) return@forEach
                 if (mode != HandleMode.AUTO) freezeAutoTangents(key)
                 key.handleMode = mode
             }
@@ -489,6 +516,7 @@ class TimelineController {
         valueScale: Float,
     ) {
         val curve = curveOf(keyframe) ?: return
+        if (!curve.spec.supportsCurveEditor) return
         if (keyframe.handleMode == HandleMode.AUTO) freezeAutoTangents(keyframe)
         keyframe.handleMode = mode
         curve.useSpline(keyframe, side)
@@ -519,8 +547,11 @@ class TimelineController {
     }
 
     fun smoothSelectedKeyframes() {
+        if (!canEditSelectedCurves) return
         edit("Smooth keyframes") {
             selectedKeyframes.forEach { key ->
+                val curve = curveOf(key) ?: return@forEach
+                if (!curve.spec.supportsCurveEditor) return@forEach
                 key.interpolation = KeyInterpolation.BEZIER
                 key.handleMode = HandleMode.AUTO
                 key.incoming = KeyTangent.ZERO
@@ -539,6 +570,7 @@ class TimelineController {
 
     fun enterCurveView() {
         val wasDopeSheet = viewMode == TimelineViewMode.DOPE_SHEET
+        focusedCurves.removeAll { !it.spec.supportsCurveEditor }
         viewMode = TimelineViewMode.CURVES
         if (wasDopeSheet) frameCurves()
     }
@@ -550,6 +582,7 @@ class TimelineController {
             if (!layer.isVisible) return@forEach
             layer.channels.forEach { curve ->
                 if (!curve.isVisible) return@forEach
+                if (!curve.spec.supportsCurveEditor) return@forEach
                 if (focusedCurves.isNotEmpty() && !isFocused(curve)) return@forEach
                 curve.keyframes.forEach { key ->
                     lowest = min(lowest, key.value)
@@ -563,6 +596,9 @@ class TimelineController {
         }
         curveAxis.glideTo((lowest + highest) * 0.5f, max(highest - lowest, 1f) * 1.4f)
     }
+
+    val canEditSelectedCurves: Boolean
+        get() = selectedKeyframes.any { key -> curveOf(key)?.spec?.supportsCurveEditor == true }
 
     fun beginHistoryTransaction(label: String) = history.begin(label)
 
