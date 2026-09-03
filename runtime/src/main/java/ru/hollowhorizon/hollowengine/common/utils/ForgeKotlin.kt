@@ -4,6 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import net.minecraft.ChatFormatting
 import net.minecraft.Util
+import net.minecraft.core.HolderLookup
+import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
@@ -14,7 +16,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.RandomSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.client.utils.registryAccess
+import ru.hollowhorizon.hollowengine.client.utils.clientRegistryAccess
 
 /**
  * Checks if the game is running in a production environment.
@@ -61,6 +63,17 @@ fun currentServerOrNull(): MinecraftServer? = currentServerReference
 fun clearCurrentServer(server: MinecraftServer) {
     if (currentServerReference === server) currentServerReference = null
 }
+
+/**
+ * Registries of the side currently working with the data.
+ */
+val registryAccess: RegistryAccess
+    get() = (if (isLogicalClient) clientRegistries() ?: serverRegistries() else serverRegistries() ?: clientRegistries())
+        ?: error("No registries to serialize against: neither a server nor a client connection is running")
+
+private fun serverRegistries() = currentServerOrNull()?.registryAccess()
+
+private fun clientRegistries() = if (isPhysicalClient) clientRegistryAccess else null
 
 /**
  * Converts a string to a Minecraft resource location.
@@ -146,5 +159,5 @@ fun ItemStack.save() = save(registryAccess)
  *
  * @return An ItemStack instance loaded from the CompoundTag.
  */
-fun CompoundTag.readItem() =
-    if (isEmpty) ItemStack.EMPTY else ItemStack.parse(registryAccess, this).orElseThrow()
+fun CompoundTag.readItem(registries: HolderLookup.Provider = registryAccess) =
+    if (isEmpty) ItemStack.EMPTY else ItemStack.parse(registries, this).orElseThrow()
