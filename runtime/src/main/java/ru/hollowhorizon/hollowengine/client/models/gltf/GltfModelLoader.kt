@@ -20,7 +20,7 @@ object GltfModelLoader : ModelLoader {
     private val supportedExtensions = setOf("KHR_texture_transform")
 
     override suspend fun load(location: ResourceLocation, side: ModelSide): Model {
-        val resolvedLocation = if (!location.exists(side)) "$MODID:models/error.gltf".rl else location
+        val resolvedLocation = if (!location.exists(side)) ModelLoader.FALLBACK_MODEL else location
 
         val gltf = loadGltf(resolvedLocation, side)
         return load(gltf.getOrThrow(), resolvedLocation, side)

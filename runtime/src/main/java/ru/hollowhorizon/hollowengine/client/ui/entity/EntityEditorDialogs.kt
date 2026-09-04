@@ -1,0 +1,170 @@
+package ru.hollowhorizon.hollowengine.client.ui.entity
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateSetOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.client.slots.PlayerInventory
+import ru.hollowhorizon.hollowengine.client.slots.SlotGrid
+import ru.hollowhorizon.hollowengine.client.slots.Slots
+import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeView
+import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
+import ru.hollowhorizon.hollowengine.common.attachments.editor.EntityEditorSlots
+import ru.hollowhorizon.hollowengine.common.ui.UiData
+import ru.hollowhorizon.hollowengine.common.ui.UiScope
+
+internal data class AssetPickerRequest(
+    val title: String,
+    val candidates: List<String>,
+    val current: String,
+    val onPick: (String) -> Unit,
+)
+
+private val CenteredOnViewport = UiPopupAlignment(
+    anchorHorizontal = UiAlign.CENTER,
+    anchorVertical = UiAlign.CENTER,
+    popupHorizontal = UiAlign.CENTER,
+    popupVertical = UiAlign.CENTER,
+)
+
+@Composable
+private fun EditorDialog(id: String, title: String, width: Float, onClose: () -> Unit, content: HollowUiContent) {
+    val viewport = LocalUiViewport.current
+    Popup(
+        anchorBounds = viewport,
+        alignment = CenteredOnViewport,
+        id = "$id-popup",
+        layer = 100,
+        modal = true,
+        onDismiss = onClose,
+    ) {
+        Column(
+            id = id,
+            tags = listOf("ee-dialog"),
+            modifier = Modifier.size(width.px, UiLength.Fit)
+                .maxSize(height = (viewport.height - 80f).coerceAtLeast(160f).px),
+        ) {
+            Row(tags = listOf("ee-dialog-head")) {
+                Text(title, tags = listOf("ee-dialog-title"), modifier = Modifier.grow(1f))
+                EditorIconButton(EntityEditorIcons.CLOSE, EntityEditorLang.close) { onClose() }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+internal fun AssetPickerDialog(request: AssetPickerRequest) {
+    val session = LocalEntityEditorSession.current
+    var filter by remember(request) { mutableStateOf("") }
+    val expanded = remember(request) { mutableStateSetOf<String>() }
+    val close = { session?.pendingPicker = null }
+
+    val rows = PathTree.rows(
+        paths = request.candidates,
+        expanded = expanded,
+        query = filter,
+        folderIcon = EntityEditorIcons.FOLDER,
+        fileIcon = ::assetIconFor,
+        selected = request.current,
+    )
+
+    EditorDialog("ee-asset-dialog", request.title, 420f, close) {
+        Row(tags = listOf("ee-search")) {
+            Image(EntityEditorIcons.SEARCH, tags = listOf("ee-search-icon"))
+            TextField(
+                value = filter,
+                id = "ee-asset-filter",
+                placeholder = EntityEditorLang.searchHint,
+                fontSize = 9f,
+                onChange = { filter = it },
+                tags = listOf("ee-input", "flat"),
+                modifier = Modifier.grow(1f),
+            )
+        }
+
+        if (rows.isEmpty()) {
+            Text(EntityEditorLang.nothingFound, tags = listOf("ee-hint"))
+            return@EditorDialog
+        }
+
+        UiTreeView(
+            items = rows,
+            onToggle = { item -> if (!expanded.add(item.id)) expanded.remove(item.id) },
+            onSelect = { item, _ ->
+                val picked = item.payload
+                if (picked == null) {
+                    if (!expanded.add(item.id)) expanded.remove(item.id)
+                } else {
+                    request.onPick(picked)
+                    close()
+                }
+            },
+            modifier = Modifier.size(100.percent, 280.px),
+            tags = listOf("ee-asset-tree"),
+        )
+    }
+}
+
+private fun assetIconFor(path: String): String = when {
+    path.endsWith(".png") -> "hollowengine:textures/gui/icons/file_image.svg"
+    path.endsWith(".kts") -> EntityEditorIcons.SCRIPT
+    else -> "hollowengine:textures/gui/icons/file_model.svg"
+}
+
+@Composable
+internal fun InventoryDialog(session: EntityEditorSession) {
+    val sessionId = session.slotSessionId ?: return
+    val scope = remember(sessionId) { EntitySlotScope(sessionId, session::closeSlots) }
+
+    EditorDialog("ee-inventory-dialog", EntityEditorLang.inventory, 380f, session::closeSlots) {
+        Text(EntityEditorLang.inventoryHint, tags = listOf("ee-hint"))
+
+        with(scope) {
+            Slots(
+                tags = listOf("ee-slots"),
+                modifier = Modifier.size(100.percent, UiLength.Fit),
+                dropOutside = false,
+            ) {
+                Column(tags = listOf("ee-slot-groups")) {
+                    if (slotZoneExists(sessionId, EntityEditorSlots.EQUIPMENT)) {
+                        Text(EntityEditorLang.equipment, tags = listOf("ee-section-title"))
+                        SlotGrid(EntityEditorSlots.EQUIPMENT, columns = SlotsPerRow)
+                    }
+                    if (slotZoneExists(sessionId, EntityEditorSlots.INVENTORY)) {
+                        Text(EntityEditorLang.carried, tags = listOf("ee-section-title"))
+                        SlotGrid(EntityEditorSlots.INVENTORY, columns = SlotsPerRow)
+                    }
+                    Text(EntityEditorLang.playerItems, tags = listOf("ee-section-title"))
+                    PlayerInventory()
+                }
+            }
+        }
+    }
+}
+
+private const val SlotsPerRow = 9
+
+private fun slotZoneExists(sessionId: Int, zone: String): Boolean =
+    ClientSlots[sessionId]?.layout?.zone(zone) != null
+
+/**
+ * The [UiScope] the slot widgets need, for a screen written in Kotlin rather than declared in a script.
+ *
+ * The document stays empty: this UI's state is the slots, and those have their own session-bound sync.
+ */
+private class EntitySlotScope(
+    override val sessionId: Int,
+    private val onClose: () -> Unit,
+) : UiScope {
+    override val data: UiData = UiData()
+
+    override fun send(payload: CompoundTag) = Unit
+
+    override fun close() = onClose()
+}

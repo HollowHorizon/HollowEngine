@@ -2163,9 +2163,10 @@ class MinecraftUiRenderer {
         POSE_STACK.pushPose()
         POSE_STACK.mulPose(transform.toMatrix4f())
         val drawn = try {
-            renderEntity(entity, rect)
+            renderEntity(entity, rect, command.entity.view)
         } finally {
             POSE_STACK.popPose()
+            clearDepthOf(transformedLocalRect(rect, transform))
         }
         if (!drawn) drawEntityPlaceholder(command)
     }
@@ -2208,6 +2209,7 @@ class MinecraftUiRenderer {
         } finally {
             Lighting.setupFor3DItems()
             POSE_STACK.popPose()
+            clearDepthOf(transformedLocalRect(rect, transform))
             if (depthEnabled) RenderSystem.enableDepthTest() else RenderSystem.disableDepthTest()
             GL11.glDepthMask(depthMask)
             RenderSystem.enableBlend()
@@ -2216,17 +2218,19 @@ class MinecraftUiRenderer {
     }
 
     /** Returns false when nothing can draw this entity, so the caller shows the placeholder. */
-    private fun renderEntity(entity: Entity, rect: UiRect): Boolean {
+    private fun renderEntity(entity: Entity, rect: UiRect, view: UiEntityView): Boolean {
         val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         POSE_STACK.pushPose()
         try {
-            val xOffset = rect.x + rect.width / 2f
-            val yOffset = rect.y + rect.height
+            val xOffset = rect.x + rect.width / 2f + view.offsetX
+            val yOffset = rect.y + rect.height + view.offsetY
             POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
-            val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
-            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
+            val fit = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
+            val scale = fit * view.zoom.coerceAtLeast(0.01f)
             POSE_STACK.scale(scale, scale, -scale)
+            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
+            if (view.pitch != 0f) POSE_STACK.mulPose(Axis.XP.rotationDegrees(view.pitch))
 
             val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
             val light1 = Vector3f(0.3f, -1f, -1f).normalize()
@@ -2239,7 +2243,7 @@ class MinecraftUiRenderer {
             RenderSystem.enableDepthTest()
             GL11.glDepthMask(true)
             try {
-                facingTheViewer(entity) {
+                facingTheViewer(entity, view.yaw) {
                     RenderSystem.runAsFancy {
                         dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
                     }
@@ -2257,7 +2261,7 @@ class MinecraftUiRenderer {
         }
     }
     
-    private inline fun facingTheViewer(entity: Entity, block: () -> Unit) {
+    private inline fun facingTheViewer(entity: Entity, yaw: Float, block: () -> Unit) {
         val yRot = entity.yRot
         val yRotO = entity.yRotO
         val xRot = entity.xRot
@@ -2270,15 +2274,16 @@ class MinecraftUiRenderer {
         val nameVisible = entity.isCustomNameVisible
         val oldName = entity.customName
         try {
-            entity.yRot = PORTRAIT_YAW
-            entity.yRotO = PORTRAIT_YAW
+            val portraitYaw = PORTRAIT_YAW + yaw
+            entity.yRot = portraitYaw
+            entity.yRotO = portraitYaw
             entity.xRot = 0f
             entity.xRotO = 0f
             living?.let {
-                it.yBodyRot = PORTRAIT_YAW
-                it.yBodyRotO = PORTRAIT_YAW
-                it.yHeadRot = PORTRAIT_YAW
-                it.yHeadRotO = PORTRAIT_YAW
+                it.yBodyRot = portraitYaw
+                it.yBodyRotO = portraitYaw
+                it.yHeadRot = portraitYaw
+                it.yHeadRotO = portraitYaw
             }
             entity.isCustomNameVisible = false
             entity.customName = null

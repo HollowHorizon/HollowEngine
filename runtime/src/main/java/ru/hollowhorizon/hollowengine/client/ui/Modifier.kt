@@ -321,10 +321,12 @@ fun Modifier.item(stack: ItemStack) = prop(UiProps.Item, UiItem(stack))
 fun Modifier.item(id: String) = prop(UiProps.Item, UiItem.of(id))
 
 /** Draws [entity] itself, the one this client is already ticking, equipment and pose included. */
-fun Modifier.entity(entity: Entity) = prop(UiProps.Entity, UiEntityRef.of(entity))
+fun Modifier.entity(entity: Entity, view: UiEntityView = UiEntityView.Portrait) =
+    prop(UiProps.Entity, UiEntityRef.of(entity, view))
 
 /** Draws the entity this client knows by [networkId]; how a server-driven UI names one. */
-fun Modifier.entity(networkId: Int) = prop(UiProps.Entity, UiEntityRef.ofId(networkId))
+fun Modifier.entity(networkId: Int, view: UiEntityView = UiEntityView.Portrait) =
+    prop(UiProps.Entity, UiEntityRef.ofId(networkId, view))
 
 fun Modifier.shader(name: String) = prop(UiProps.Shader, name)
 

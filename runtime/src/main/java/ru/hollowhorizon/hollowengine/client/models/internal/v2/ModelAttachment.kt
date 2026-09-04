@@ -1,25 +1,39 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
 import kotlinx.coroutines.flow.StateFlow
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
-import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
-import ru.hollowhorizon.hollowengine.common.models.MaterialSource
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationClip
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.PoseTarget
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.byIndex
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
+import ru.hollowhorizon.hollowengine.common.models.MaterialSource
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.max
 import kotlin.math.min
 
-fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null, location = model.rl)
+/**
+ * The model at [model] or fallback.
+ */
+fun ModelAttachment(model: String): ModelAttachment {
+    val location = ResourceLocation.tryParse(model) ?: run {
+        HollowEngine.LOGGER.warn("Model path '{}' is not a valid resource location, using the fallback", model)
+        ModelLoader.FALLBACK_MODEL
+    }
+    return ModelAttachment(location)
+}
+
+fun ModelAttachment(location: ResourceLocation): ModelAttachment {
+    return ModelAttachment(HollowModelManager.getOrCreate(location), null, location = location)
+}
 
 /**
  * One rendered instance of a model: its own nodes, materials and draw commands.

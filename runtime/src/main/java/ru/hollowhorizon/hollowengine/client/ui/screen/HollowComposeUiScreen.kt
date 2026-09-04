@@ -47,6 +47,11 @@ abstract class HollowComposeUiScreen(
      */
     protected open fun renderAfterUi(graphics: GuiGraphics, mouseX: Int, mouseY: Int) = Unit
 
+    protected fun focusInput(nodeId: String) {
+        pipeline.await()
+        surface.runtime.focus(nodeId)
+    }
+
     override fun init() {
         // init() also runs on window resize while a build may be in flight.
         pipeline.reset()

@@ -67,6 +67,11 @@ class SlotZoneLayout(
      * client knows its prediction would be a guess.
      */
     val predictable: Boolean = true,
+    /**
+     * An editing zone: a click writes a copy of the carried stack into the slot and leaves the cursor
+     * holding it, and an empty-handed click clears the slot instead of picking it up.
+     */
+    val copyOnClick: Boolean = false,
 ) {
     val flatIndices: IntRange get() = offset until offset + size
 
@@ -109,6 +114,9 @@ class SlotLayout(
         val zone = zoneOf(flat) ?: return EmptyRules
         return zone.rulesAt(flat - zone.offset)
     }
+
+    /** Whether this slot edits by copying rather than by moving; see [SlotZoneLayout.copyOnClick]. */
+    fun copiesAt(flat: Int): Boolean = zoneOf(flat)?.copyOnClick ?: false
 
     /** Flat index of [local] within [name], or -1 when the zone or index does not exist. */
     fun flatIndex(name: String, local: Int): Int {

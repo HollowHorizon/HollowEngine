@@ -18,13 +18,12 @@ import org.lwjgl.opengl.GL12
 import org.lwjgl.opengl.GL20
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.renameMaterials
-import ru.hollowhorizon.hollowengine.common.models.Animator
-import ru.hollowhorizon.hollowengine.common.models.ModelMetadata
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.configureStaticRenderPaths
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
 import ru.hollowhorizon.hollowengine.client.textures.GlTexture
@@ -34,14 +33,15 @@ import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
+import ru.hollowhorizon.hollowengine.common.models.Animator
+import ru.hollowhorizon.hollowengine.common.models.ModelMetadata
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.ConcurrentHashMap
 
 
-object HollowModelManager :
-    SimplePreparableReloadListener<Map<ResourceLocation, PreparedModelUpdate<Model>>>() {
+object HollowModelManager : SimplePreparableReloadListener<Map<ResourceLocation, PreparedModelUpdate<Model>>>() {
     lateinit var lightTexture: AbstractTexture
     private val models = ConcurrentHashMap<ResourceLocation, MutableStateFlow<Model>>()
     private val indexedModels = ConcurrentHashMap.newKeySet<ResourceLocation>()
@@ -78,8 +78,7 @@ object HollowModelManager :
         val loader = loaders.find { extension in it.supportedFormats }
             ?: error("No suitable model loader found for format .$extension")
 
-        return loader.load(location)
-            .also { it.renameMaterials(metadata(location)) }
+        return loader.load(location).also { it.renameMaterials(metadata(location)) }
             .also(Model::configureStaticRenderPaths)
     }
 
@@ -134,12 +133,9 @@ object HollowModelManager :
             return PreparedModelUpdate(exists = false)
         }
 
-        return PreparedModelUpdate(
-            exists = true,
-            loaded = runCatching { loadModel(location) }.onFailure {
-                HollowEngine.LOGGER.error("Can't reload model $location", it)
-            }
-        )
+        return PreparedModelUpdate(exists = true, loaded = runCatching { loadModel(location) }.onFailure {
+            HollowEngine.LOGGER.error("Can't reload model $location", it)
+        })
     }
 
     private fun readMetadata(manager: ResourceManager): Set<ResourceLocation> {
@@ -175,8 +171,7 @@ object HollowModelManager :
     private fun createSkinningProgramGL33() {
         var glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
         GL20.glShaderSource(
-            glShader,
-            "hollowengine:shaders/core/gltf_skinning.vsh".rl.stream.readBytes().decodeToString()
+            glShader, "hollowengine:shaders/core/gltf_skinning.vsh".rl.stream.readBytes().decodeToString()
         )
         GL20.glCompileShader(glShader)
 
@@ -191,8 +186,7 @@ object HollowModelManager :
 
         glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
         GL20.glShaderSource(
-            glShader,
-            "hollowengine:shaders/core/gltf_morphing.vsh".rl.stream.readBytes().decodeToString()
+            glShader, "hollowengine:shaders/core/gltf_morphing.vsh".rl.stream.readBytes().decodeToString()
         )
         GL20.glCompileShader(glShader)
 
@@ -251,9 +245,9 @@ object HollowModelManager :
 
 
 
-        textureManager.register("${HollowEngine.MODID}:default_color_map".rl, GlTexture(defaultColorMap))
-        textureManager.register("${HollowEngine.MODID}:default_normal_map".rl, GlTexture(defaultNormalMap))
-        textureManager.register("${HollowEngine.MODID}:default_specular_map".rl, GlTexture(defaultSpecularMap))
+        textureManager.register("${MODID}:default_color_map".rl, GlTexture(defaultColorMap))
+        textureManager.register("${MODID}:default_normal_map".rl, GlTexture(defaultNormalMap))
+        textureManager.register("${MODID}:default_specular_map".rl, GlTexture(defaultSpecularMap))
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, currentTexture)
 
@@ -272,6 +266,7 @@ object HollowModelManager :
         return loaders.any { extension in it.supportedFormats }
     }
 
+    val allSupportedFormats get() = loaders.flatMap { loader -> loader.supportedFormats }
     val allModels get() = indexedModels + models.keys
 
 }
@@ -280,6 +275,10 @@ interface ModelLoader {
     val supportedFormats: Set<String>
 
     suspend fun load(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): Model
+
+    companion object {
+        val FALLBACK_MODEL = "$MODID:models/error.gltf".rl
+    }
 }
 
 enum class ModelSide {

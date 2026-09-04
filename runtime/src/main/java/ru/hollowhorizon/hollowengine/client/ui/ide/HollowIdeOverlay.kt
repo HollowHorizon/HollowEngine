@@ -196,6 +196,14 @@ object HollowIdeOverlay {
 
     fun hasFocusedInput(): Boolean = isVisible() && surface.runtime.isAnyFocused
 
+    fun openPath(path: String): Boolean {
+        val result = model.openFile(path)
+        if (result !is HollowIdeOpenResult.File) return false
+        collapsed = false
+        openFileDockItem(result.file)
+        return true
+    }
+
     /** While Windows owns the gesture the IDE must not act on the input it keeps receiving. */
     private val nativeFileDragActive: Boolean
         get() = WindowsFileDragSource.active || externalFiles.active

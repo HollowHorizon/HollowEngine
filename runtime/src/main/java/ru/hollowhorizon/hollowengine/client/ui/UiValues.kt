@@ -6,25 +6,43 @@ import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
 import kotlin.math.*
 
+data class UiEntityView(
+    val yaw: Float = 0f,
+    val pitch: Float = 0f,
+    val zoom: Float = 1f,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+) {
+    companion object {
+        val Portrait = UiEntityView()
+    }
+}
+
 /**
  * The entity a node draws.
  */
-class UiEntityRef private constructor(private val direct: Entity?, val networkId: Int) {
+class UiEntityRef private constructor(
+    private val direct: Entity?,
+    val networkId: Int,
+    val view: UiEntityView,
+) {
     /** The entity to draw, or null when the id names nothing the client currently knows about. */
     fun resolve(): Entity? = direct ?: Minecraft.getInstance().level?.getEntity(networkId)
 
     override fun equals(other: Any?): Boolean =
-        other is UiEntityRef && other.direct === direct && other.networkId == networkId
+        other is UiEntityRef && other.direct === direct && other.networkId == networkId && other.view == view
 
-    override fun hashCode(): Int = 31 * (direct?.id ?: 0) + networkId
+    override fun hashCode(): Int = 31 * (31 * (direct?.id ?: 0) + networkId) + view.hashCode()
 
     override fun toString(): String = "UiEntityRef(${direct?.name?.string ?: networkId})"
 
     companion object {
-        fun of(entity: Entity): UiEntityRef = UiEntityRef(entity, entity.id)
+        fun of(entity: Entity, view: UiEntityView = UiEntityView.Portrait): UiEntityRef =
+            UiEntityRef(entity, entity.id, view)
 
         /** Names an entity by the id it has on this client; see [Entity.getId]. */
-        fun ofId(networkId: Int): UiEntityRef = UiEntityRef(null, networkId)
+        fun ofId(networkId: Int, view: UiEntityView = UiEntityView.Portrait): UiEntityRef =
+            UiEntityRef(null, networkId, view)
     }
 }
 

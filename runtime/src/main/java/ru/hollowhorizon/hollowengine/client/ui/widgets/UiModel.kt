@@ -17,6 +17,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.fillAnimationVariables
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
@@ -252,13 +253,12 @@ class ModelViewerState(model: String) {
             require(model.isValidRL()) { "Invalid model id: $model" }
             ModelAttachment(model)
         } catch (_: Exception) {
-            ModelAttachment(FALLBACK_MODEL)
+            ModelAttachment(ModelLoader.FALLBACK_MODEL)
         }
     )
 
     companion object {
         private const val PREVIEW_FRONT_YAW = 180f
-        private const val FALLBACK_MODEL = "hollowengine:models/entity/player_model.gltf"
     }
 }
 

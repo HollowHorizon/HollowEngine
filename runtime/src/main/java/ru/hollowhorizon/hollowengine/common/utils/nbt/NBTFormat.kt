@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.editor.VirtualComponentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
@@ -38,6 +39,8 @@ internal val TagModule
                 subclass(it.value, JavaHacks.forceCast(it.serializer))
             }
         }
+        VirtualComponentRegistry.registerSerializers(this)
+
         polymorphic(Tag::class) {
             subclass(ByteTag::class, ForByteNBT)
             subclass(ShortTag::class, ForShortNBT)
