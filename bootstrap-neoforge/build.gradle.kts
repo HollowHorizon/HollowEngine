@@ -24,6 +24,7 @@ base.archivesName.set("$modName-neoforge-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
+val runtimePayloadNotice = rootProject.file("bootstrap/runtime-payload/README.MD")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
 val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
@@ -125,6 +126,7 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
     description = "Embeds the isolated runtime jar into bootstrap resources."
 
     inputs.files(embeddedRuntime)
+    inputs.file(runtimePayloadNotice)
     outputs.dir(embeddedRuntimeDir)
 
     doLast {
@@ -139,6 +141,8 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
             .digest(targetJar.readBytes())
             .joinToString("") { "%02x".format(it) }
         outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+
+        runtimePayloadNotice.copyTo(outputDir.resolve("README.MD"), overwrite = true)
     }
 }
 

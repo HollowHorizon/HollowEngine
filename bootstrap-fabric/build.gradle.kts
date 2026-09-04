@@ -25,6 +25,7 @@ base.archivesName.set("$modName-fabric-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
+val runtimePayloadNotice = rootProject.file("bootstrap/runtime-payload/README.MD")
 val embeddedProductionRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime-production")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
@@ -137,6 +138,7 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
     description = "Embeds the isolated runtime jar into bootstrap resources."
 
     inputs.files(embeddedRuntime)
+    inputs.file(runtimePayloadNotice)
     outputs.dir(embeddedRuntimeDir)
 
     doLast {
@@ -151,6 +153,8 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
             .digest(targetJar.readBytes())
             .joinToString("") { "%02x".format(it) }
         outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+
+        runtimePayloadNotice.copyTo(outputDir.resolve("README.MD"), overwrite = true)
     }
 }
 
@@ -159,6 +163,7 @@ val embedProductionRuntimeJar = tasks.register("embedProductionRuntimeJar") {
     description = "Embeds the remapped Fabric runtime jar into the production bootstrap resources."
 
     inputs.files(embeddedProductionRuntime)
+    inputs.file(runtimePayloadNotice)
     outputs.dir(embeddedProductionRuntimeDir)
 
     doLast {
@@ -173,6 +178,8 @@ val embedProductionRuntimeJar = tasks.register("embedProductionRuntimeJar") {
             .digest(targetJar.readBytes())
             .joinToString("") { "%02x".format(it) }
         outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+
+        runtimePayloadNotice.copyTo(outputDir.resolve("README.MD"), overwrite = true)
     }
 }
 
