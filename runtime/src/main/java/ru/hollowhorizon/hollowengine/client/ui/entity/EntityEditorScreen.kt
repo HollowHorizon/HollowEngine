@@ -2,8 +2,10 @@ package ru.hollowhorizon.hollowengine.client.ui.entity
 
 import androidx.compose.runtime.*
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.world.entity.LivingEntity
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.slots.SlotTooltips
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
@@ -73,6 +75,10 @@ internal class EntityEditorScreen(
     override fun removed() {
         session.closeSlots()
         super.removed()
+    }
+
+    override fun renderAfterUi(graphics: GuiGraphics, mouseX: Int, mouseY: Int) {
+        if (session.slotSessionId != null) SlotTooltips.render(graphics, mouseX, mouseY)
     }
 
     override fun isPauseScreen(): Boolean = false

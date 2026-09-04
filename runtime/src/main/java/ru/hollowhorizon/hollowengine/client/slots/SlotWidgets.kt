@@ -264,6 +264,7 @@ private fun CarriedStack() {
     var origin by remember { mutableStateOf(UiRect.Zero) }
     Box(
         modifier = Modifier
+            .position(0.px, 0.px)
             .size(UiLength.Fill, UiLength.Fill)
             .alignItems(UiAlign.START, UiAlign.START)
             .layer(OverlayLayer)

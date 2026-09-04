@@ -2404,7 +2404,10 @@ class MinecraftUiRenderer {
 
         val previous = scissorState
         setScissor(rect)
+        val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
+        if (!depthMask) GL11.glDepthMask(true)
         GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
+        if (!depthMask) GL11.glDepthMask(false)
         scissorState = ScissorUnknown
         setScissor(previous as? UiRect)
     }

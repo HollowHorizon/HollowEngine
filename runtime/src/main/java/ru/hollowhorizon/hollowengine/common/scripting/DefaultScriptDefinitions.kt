@@ -15,7 +15,16 @@ const val UI_SCRIPT_EXTENSION = "ui.kts"
 const val RELOAD_SCRIPT_EXTENSION = "reload.kts"
 
 object DefaultScriptDefinitions {
-    fun providers(): List<Provider> {
+    private val definitions by lazy(::createProviders)
+
+    fun providerFor(fileName: String): Provider? =
+        definitions.asSequence()
+            .filter { fileName.endsWith(it.extension) }
+            .maxByOrNull { it.extension.length }
+
+    fun providers(): List<Provider> = definitions
+
+    private fun createProviders(): List<Provider> {
         return buildList {
             this += Provider(
                 "kts", "kotlin.Any", defaultImports = listOf(
