@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
@@ -8,18 +7,11 @@ import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoa
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapJars
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.runtime.bootstrap.HollowEngineRuntimeBootstrap
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.Path
+import java.net.URI
 import java.util.jar.JarFile
 
 object CommonEnvironment {
-    const val RUNTIME_JAR: String = "META-INF/hollowengine/runtime/HollowEngineRuntime.jar"
-    const val RUNTIME_SHA: String = "META-INF/hollowengine/runtime/HollowEngineRuntime.sha256"
-
     private val outputDir = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/deobf").toFile()
 
     fun setup(compilerJar: File): Pair<Mappings, MutableList<File>> {
@@ -60,27 +52,15 @@ object CommonEnvironment {
     }
     //@formatter:on
 
+    /**
+     * The jar the isolated runtime was actually loaded from.
+     */
     private fun resolveRuntimeJar(): File? {
-        val cacheDir = File("hollowengine/.cache")
-        val classLoader: ClassLoader = HollowEngineRuntimeBootstrap::class.java.classLoader
-        val checksum: String?
-        classLoader.getResourceAsStream(RUNTIME_SHA).use { shaStream ->
-            if (shaStream == null) return null
-            BufferedReader(InputStreamReader(shaStream, StandardCharsets.UTF_8)).use { reader ->
-                checksum = reader.readLine()
-            }
-        }
+        val anchor = HollowEngineRuntimeBootstrap::class.java
+        val resource = anchor.classLoader?.getResource(anchor.name.replace('.', '/') + ".class") ?: return null
+        if (resource.protocol != "jar") return null
 
-        if (checksum.isNullOrBlank()) return null
-
-        val runtimeDir: Path = cacheDir.toPath().resolve("runtime")
-        Files.createDirectories(runtimeDir)
-        val target = runtimeDir.resolve("HollowEngineRuntime-" + checksum + ".jar")
-        if (Files.exists(target)) return target.toFile()
-
-        return HollowEngine::class.java.protectionDomain?.codeSource?.location
-            ?.let { File(it.toURI()) }
-            ?.takeIf(File::exists)
+        val jar = resource.path.substringBefore("!/")
+        return runCatching { File(URI(jar)) }.getOrNull()?.takeIf(File::isFile)
     }
-
 }

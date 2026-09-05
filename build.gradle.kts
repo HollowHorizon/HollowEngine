@@ -261,13 +261,6 @@ publishMods {
 }
 
 tasks.named<Sync>("buildAndCollect") {
-    enabledPlatforms.forEach { platform ->
-        val projectPath = ":bootstrap:$platform"
-        val bootstrapProject = project(projectPath)
-        val remapJar = bootstrapProject.tasks.named<RemapJarTask>("remapJar")
-        dependsOn(remapJar)
-        from(remapJar.flatMap { it.archiveFile })
-    }
     val compilerJar = project(":addons:compiler").tasks.named<Jar>("addonJar")
     dependsOn(compilerJar)
     from(compilerJar.flatMap { it.archiveFile })
@@ -300,3 +293,5 @@ gradle.projectsEvaluated {
 tasks.named("buildAndCollect") {
     dependsOn(buildAddons)
 }
+
+apply(from = rootProject.file("gradle/universal-jar.gradle.kts"))

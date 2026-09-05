@@ -26,7 +26,7 @@ base.archivesName.set("$modName-fabric-$minecraftVersion")
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
 val runtimePayloadNotice = rootProject.file("bootstrap/runtime-payload/README.MD")
-val embeddedProductionRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime-production")
+val embeddedRemapTableDir = layout.buildDirectory.dir("generated/embedded-remap-table")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
 val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
@@ -91,13 +91,10 @@ val embeddedRuntime by configurations.creating {
     }
 }
 
-val embeddedProductionRuntime by configurations.creating {
+val payloadRemapTable by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
-    attributes {
-        attribute(runtimeMappingAttribute, "fabric")
-    }
 }
 
 repositories {
@@ -128,7 +125,7 @@ dependencies {
     implementation("io.github.douira:glsl-transformer:2.0.1")
 
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
-    add("embeddedProductionRuntime", project(path = ":runtime", configuration = "embeddedFabricRuntimeElements"))
+    add("payloadRemapTable", project(path = ":runtime", configuration = "payloadRemapTableElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
     "shadowBundle"(project(path = ":bridge", configuration = "transformProductionFabric")) { isTransitive = false }
 }
@@ -158,28 +155,17 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
     }
 }
 
-val embedProductionRuntimeJar = tasks.register("embedProductionRuntimeJar") {
+val embedRemapTable = tasks.register("embedRemapTable") {
     group = "build"
-    description = "Embeds the remapped Fabric runtime jar into the production bootstrap resources."
+    description = "Embeds Fabric remap table next to the runtime payload."
 
-    inputs.files(embeddedProductionRuntime)
-    inputs.file(runtimePayloadNotice)
-    outputs.dir(embeddedProductionRuntimeDir)
+    inputs.files(payloadRemapTable)
+    outputs.dir(embeddedRemapTableDir)
 
     doLast {
-        val outputDir = embeddedProductionRuntimeDir.get().dir("META-INF/hollowengine/runtime").asFile
+        val outputDir = embeddedRemapTableDir.get().dir("META-INF/hollowengine/runtime").asFile
         outputDir.mkdirs()
-
-        val runtimeJar = embeddedProductionRuntime.singleFile
-        val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
-        runtimeJar.copyTo(targetJar, overwrite = true)
-
-        val sha256 = MessageDigest.getInstance("SHA-256")
-            .digest(targetJar.readBytes())
-            .joinToString("") { "%02x".format(it) }
-        outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
-
-        runtimePayloadNotice.copyTo(outputDir.resolve("README.MD"), overwrite = true)
+        payloadRemapTable.singleFile.copyTo(outputDir.resolve("payload-remap-fabric.tbl.gz"), overwrite = true)
     }
 }
 
@@ -272,16 +258,14 @@ val bootstrapProductionJar = tasks.register<Jar>("bootstrapProductionJar") {
     group = "build"
     description = "Packages the production bootstrap jar with the remapped isolated runtime payload."
 
-    dependsOn("classes", embedProductionRuntimeJar, ":bridge:transformProductionFabric")
+    dependsOn("classes", embedRemapTable, ":bridge:transformProductionFabric")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set(base.archivesName.get())
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("production-dev")
 
-    from(sourceSets.named("main").map { it.output }) {
-        exclude("META-INF/hollowengine/runtime/**")
-    }
-    from(embeddedProductionRuntimeDir)
+    from(sourceSets.named("main").map { it.output })
+    from(embeddedRemapTableDir)
     from({ project.configurations.getByName("shadowBundle").map { zipTree(it) } })
 }
 

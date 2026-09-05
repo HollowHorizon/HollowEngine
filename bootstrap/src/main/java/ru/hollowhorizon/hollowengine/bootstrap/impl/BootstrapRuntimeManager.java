@@ -15,6 +15,7 @@ import java.util.Set;
 public final class BootstrapRuntimeManager {
     private static final Logger LOGGER = LogManager.getLogger("HollowEngineBootstrap");
     private static final String BRIDGE_CLASS = "ru.hollowhorizon.hollowengine.bootstrap.RuntimeBridgeEntrypoint";
+    private static final String ENGINE_PACKAGE = enginePackage();
     private static final Set<String> PARENT_FIRST_PACKAGES = Set.of(
             "java.",
             "javax.",
@@ -27,14 +28,20 @@ public final class BootstrapRuntimeManager {
             "cpw.mods.",
             "org.spongepowered.",
             "org.apache.logging.log4j.",
-            "ru.hollowhorizon.hollowengine.bootstrap.runtime.",
-            "ru.hollowhorizon.hollowengine.bridge."
+            ENGINE_PACKAGE + ".bootstrap.runtime.",
+            ENGINE_PACKAGE + ".bridge."
     );
 
     private static ChildFirstUrlClassLoader classLoader;
     private static RuntimeBridge bridge;
 
     private BootstrapRuntimeManager() {
+    }
+
+    private static String enginePackage() {
+        String name = RuntimeBridge.class.getName();
+        int boundary = name.indexOf(".bootstrap.runtime.");
+        return name.substring(0, boundary);
     }
 
     public static synchronized void initialize() {
@@ -92,7 +99,12 @@ public final class BootstrapRuntimeManager {
         File cacheDir = new File("hollowengine/.cache");
         File runtimeJar = EmbeddedRuntimeJar.extract(BootstrapRuntimeManager.class, cacheDir);
         if (runtimeJar != null) {
-            return runtimeJar;
+            return RuntimePayloadRemapper.remapIfRequired(
+                    BootstrapRuntimeManager.class,
+                    runtimeJar,
+                    PARENT_FIRST_PACKAGES,
+                    LOGGER
+            );
         }
 
         throw new IllegalStateException("Embedded runtime jar was not found in bootstrap resources");

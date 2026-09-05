@@ -350,3 +350,5 @@ kotlin {
         )
     }
 }
+
+apply(from = rootProject.file("gradle/payload-remap.gradle.kts"))
