@@ -4,10 +4,12 @@ import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.EditorLanguageService
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.PlainEditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtension
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
@@ -560,11 +562,23 @@ internal fun shiftDiagnosticsForEditedText(
 }
 
 internal fun languageServiceForPath(path: String): EditorLanguageService {
-    val fileName = path.substringBefore('?').substringBefore('#').substringAfterLast('/')
-    val extension = fileName.substringAfterLast('.', "").lowercase()
-    return runCatching {
-        EditorLanguageService(extension)
-    }.getOrNull() ?: PlainEditorLanguageService
+    ensureBuiltinIdeLanguagesRegistered()
+    val contributed = HollowIdeExtensionPoints.LANGUAGES.extensions().firstOrNull { extension ->
+        runCatching { extension.invoke { language -> language.matches(path) } }
+            .onFailure { failure ->
+                HollowEngine.LOGGER.error("IDE language extension '{}' failed while matching '{}'", extension.qualifiedId, path, failure)
+            }
+            .getOrDefault(false)
+    }
+    if (contributed != null) return ExtensionEditorLanguageService(contributed)
+    return PlainEditorLanguageService
+}
+
+private class ExtensionEditorLanguageService(
+    private val extension: HollowAddonExtension<HollowIdeLanguageService>,
+) : EditorLanguageService {
+    override val analyzer: ScriptingAnalyzer
+        get() = extension.invoke(HollowIdeLanguageService::analyzer)
 }
 
 private fun List<TextLine>.toHighlights(text: String, lineStarts: List<Int>): List<UiTextHighlight> {

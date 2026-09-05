@@ -51,6 +51,23 @@ class HollowIdeFileTypeRegistryTest {
     }
 
     @Test
+    fun `qualified registrations isolate equal local file type ids and can be removed`() {
+        val registry = HollowIdeFileTypeRegistry()
+        val first = fileType("preview", listOf(".first"), priority = 10)
+        val second = fileType("preview", listOf(".second"), priority = 20)
+
+        registry.register("first-addon:preview", first)
+        registry.register("second-addon:preview", second)
+
+        assertSame(first, registry.find("first-addon:preview"))
+        assertSame(second, registry.find("second-addon:preview"))
+        assertNull(registry.find("preview"), "an ambiguous local id must not select an arbitrary addon")
+        assertSame(first, registry.unregister("first-addon:preview"))
+        assertNull(registry.find("first-addon:preview"))
+        assertSame(second, registry.find("preview"), "the local id is usable again once it is unambiguous")
+    }
+
+    @Test
     fun `binary fallback rejects control-heavy data`() {
         val registry = HollowIdeFileTypeRegistry()
         registry.register(

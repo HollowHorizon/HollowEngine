@@ -5,11 +5,7 @@ import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.UiProfiler
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
-import ru.hollowhorizon.hollowengine.client.ui.ide.asset.AssetManagerLang
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownSlider
@@ -23,7 +19,6 @@ private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"
 private const val ReformatIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 private const val SaveIcon = "hollowengine:textures/gui/icons/save.svg"
 private const val DocsIcon = "hollowengine:textures/gui/icons/docs.svg"
-private const val OptionsIcon = "hollowengine:textures/gui/icons/options.svg"
 
 internal fun hollowIdeFileMenuItems(
     model: HollowIdeModel,
@@ -63,95 +58,11 @@ internal fun hollowIdeFileMenuItems(
     )
 }
 
-internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState): List<UiDropdownItem> {
-    return listOf(
-        UiDropdownItem("hollowengine.gui.ide.project_tree".lang, ProjectIcon) {
-            if (!dock.contains(ProjectTreeId)) {
-                dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon))
-            }
-            dock.focus(ProjectTreeId)
-        },
-        UiDropdownItem(AssetManagerLang.TITLE.lang, AssetManagerIcon) {
-            if (!dock.contains(AssetManagerId)) {
-                val anchor = ProjectTreeId.takeIf(dock::contains)
-                    ?: model.files.values.firstOrNull { dock.contains(it.id) }?.id
-                dock.open(
-                    DockItem(
-                        AssetManagerId,
-                        AssetManagerLang.TITLE.lang,
-                        AssetManagerIcon,
-                        closable = true,
-                        minWidth = 520f,
-                        minHeight = 260f,
-                    ),
-                    DockTarget(anchor, DockPlacement.RIGHT),
-                )
-            }
-            dock.focus(AssetManagerId)
-        },
-        UiDropdownItem("hollowengine.gui.ide.console".lang, ConsoleIcon) {
-            if (!dock.contains(ConsoleId)) {
-                val anchor = model.files.values.firstOrNull { dock.contains(it.id) }?.id
-                    ?: ProjectTreeId.takeIf(dock::contains)
-                dock.open(
-                    DockItem(
-                        ConsoleId,
-                        "hollowengine.gui.ide.console".lang,
-                        ConsoleIcon,
-                        closable = true,
-                        minWidth = 360f,
-                        minHeight = 180f,
-                    ),
-                    DockTarget(anchor, DockPlacement.BOTTOM),
-                )
-            }
-            dock.focus(ConsoleId)
-        },
-        UiDropdownItem("Cutscene Timeline", CutsceneIcon) {
-            if (!dock.contains(CutsceneTimelineId)) {
-                val anchor = model.files.values.firstOrNull { dock.contains(it.id) }?.id
-                    ?: ProjectTreeId.takeIf(dock::contains)
-                dock.open(
-                    DockItem(CutsceneTimelineId, "Cutscene Timeline", CutsceneIcon, closable = true, minWidth = 520f, minHeight = 260f),
-                    DockTarget(anchor, DockPlacement.BOTTOM),
-                )
-            }
-            dock.focus(CutsceneTimelineId)
-        },
-        UiDropdownItem("Cutscene Properties", OptionsIcon) {
-            if (!dock.contains(CutscenePropertiesId)) {
-                val anchor = if (dock.contains(CutsceneTimelineId)) {
-                    CutsceneTimelineId
-                } else {
-                    model.files.values.firstOrNull { dock.contains(it.id) }?.id
-                        ?: ProjectTreeId.takeIf(dock::contains)
-                }
-                dock.open(
-                    DockItem(CutscenePropertiesId, "Cutscene Properties", OptionsIcon, closable = true, minWidth = 240f, minHeight = 260f),
-                    DockTarget(anchor, DockPlacement.RIGHT),
-                )
-            }
-            dock.focus(CutscenePropertiesId)
-        },
-        UiDropdownItem("Cutscene Viewport", CutsceneIcon) {
-            if (!dock.contains(CutsceneViewportId)) {
-                val anchor = if (dock.contains(CutsceneTimelineId)) {
-                    CutsceneTimelineId
-                } else {
-                    model.files.values.firstOrNull { dock.contains(it.id) }?.id
-                        ?: ProjectTreeId.takeIf(dock::contains)
-                }
-                dock.open(
-                    DockItem(CutsceneViewportId, "Cutscene Viewport", CutsceneIcon, minWidth = 320f, minHeight = 180f),
-                    DockTarget(anchor, DockPlacement.TOP),
-                )
-            }
-            dock.focus(CutsceneViewportId)
-        },
-    )
-}
-
-internal fun hollowIdeToolMenuItems(dock: DockingState, profiler: UiProfiler): List<UiDropdownItem> {
+internal fun hollowIdeToolMenuItems(
+    context: HollowIdeContext,
+    dock: DockingState,
+    profiler: UiProfiler,
+): List<UiDropdownItem> {
     return listOf(
         UiDropdownItem(
             label = "UI Profiler",
@@ -160,19 +71,10 @@ internal fun hollowIdeToolMenuItems(dock: DockingState, profiler: UiProfiler): L
             closeOnClick = false,
         ) {
             if (dock.contains(UiProfilerId)) {
-                dock.close(UiProfilerId)
+                context.closePanel(UiProfilerId)
                 profiler.enabled = false
             } else {
-                val anchor = if (dock.contains(CutsceneTimelineId)) {
-                    CutsceneTimelineId
-                } else {
-                    ProjectTreeId.takeIf(dock::contains)
-                }
-                dock.open(
-                    DockItem(UiProfilerId, "UI Profiler", OptionsIcon, closable = true, minWidth = 360f, minHeight = 260f),
-                    DockTarget(anchor, DockPlacement.BOTTOM),
-                )
-                dock.focus(UiProfilerId)
+                context.openPanel(UiProfilerId)
                 profiler.enabled = true
             }
         },

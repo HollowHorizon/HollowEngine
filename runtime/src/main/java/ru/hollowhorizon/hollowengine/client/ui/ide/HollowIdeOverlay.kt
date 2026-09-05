@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.ChatScreen
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
@@ -32,6 +33,10 @@ import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtension
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensionChange
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRegistration
+import ru.hollowhorizon.hollowengine.common.addons.HostHollowAddonExtensions
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
@@ -40,7 +45,7 @@ import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
-import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /** A file dragged out of the project tree; anything that accepts drops can look for this payload. */
 data class HollowIdeFileDrag(val path: String, val isDirectory: Boolean = false)
@@ -76,27 +81,9 @@ internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
 object HollowIdeOverlay {
     var useHollowUiOverlay: Boolean = true
 
-    private val fileTypes = HollowIdeFileTypeRegistry().apply {
-        registerBuiltinFileTypes(
-            modelEditor = { file -> ModelEditorPanel(file.path) },
-            imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
-            videoEditor = { file ->
-                Video(
-                    source = file.path,
-                    fit = UiImageFit.CONTAIN,
-                    modifier = Modifier.size(100.percent, 100.percent),
-                )
-            },
-            soundsEditor = { file -> HollowIdeSoundsEditor(file) },
-            animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
-            textEditor = { file -> FileEditor(file) },
-        )
-        registerAssetFileTypes(
-            imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
-            textEditor = { file -> FileEditor(file) },
-            jsonModelEditor = { file -> VanillaModelEditorPanel(file.path) },
-        )
-    }
+    private val builtinExtensions = HostHollowAddonExtensions(HollowEngine.MODID, HollowIdeOverlay::class.java.classLoader)
+    private val extensionObservers = mutableListOf<HollowAddonRegistration>()
+    private val fileTypes = HollowIdeFileTypeRegistry()
     private val model = HollowIdeModel(fileTypes)
     private val assetManagerState = AssetManagerState()
     private val dock = DockingState()
@@ -159,6 +146,39 @@ object HollowIdeOverlay {
     private val findStates = mutableStateMapOf<String, HollowIdeFindState>()
     private val search = HollowIdeSearchController { statusText = it }
     private var colorPicker by mutableStateOf<EditorColorPicker?>(null)
+    private var extensionRevision by mutableStateOf(0L)
+    private val reportedExtensionFailures = ConcurrentHashMap.newKeySet<String>()
+    private val ideContext = object : HollowIdeContext {
+        override val focusedFile: HollowIdeOpenFile?
+            get() = this@HollowIdeOverlay.focusedFile()
+
+        override fun openFile(path: String): Boolean {
+            return when (val result = model.openFile(path)) {
+                HollowIdeOpenResult.Directory,
+                HollowIdeOpenResult.Unsupported,
+                    -> false
+
+                is HollowIdeOpenResult.File -> {
+                    openFileDockItem(result.file)
+                    true
+                }
+            }
+        }
+
+        override fun openPanel(id: String): Boolean = openRegisteredPanel(id)
+
+        override fun closePanel(id: String): Boolean = resolvePanel(id)?.let { dock.close(it.dockId) } ?: false
+
+        override fun isPanelOpen(id: String): Boolean = resolvePanel(id)?.let { dock.contains(it.dockId) } == true
+
+        override fun saveAll(): Int = model.saveAll()
+
+        override fun refreshProject() = model.refreshProject()
+
+        override fun setStatus(message: String) {
+            statusText = message
+        }
+    }
 
     private fun editorState(file: HollowIdeOpenFile): TextFieldState = editorStates.getOrPut(file.path) {
         TextFieldState(
@@ -178,12 +198,203 @@ object HollowIdeOverlay {
     private var lastMouseY = 0f
 
     init {
+        ensureBuiltinIdeLanguagesRegistered()
+        installBuiltinExtensions()
+        HollowIdeExtensionPoints.FILE_TYPES.extensions().forEach(::installFileType)
+        extensionObservers += HollowIdeExtensionPoints.FILE_TYPES.observe(::onFileTypeChanged)
+        extensionObservers += HollowIdeExtensionPoints.PANELS.observe(::onPanelChanged)
+        extensionObservers += HollowIdeExtensionPoints.MENU_ITEMS.observe { extensionRevision++ }
+        extensionObservers += HollowIdeExtensionPoints.FILE_ACTIONS.observe { extensionRevision++ }
+        extensionObservers += HollowIdeExtensionPoints.PROJECT_ACTIONS.observe { extensionRevision++ }
+        extensionObservers += HollowIdeExtensionPoints.LANGUAGES.observe(::onLanguageExtensionChanged)
         initialize()
     }
 
-    /** Registers a new IDE file type. IDs must be unique; higher priorities are matched first. */
+    /** Compatibility bridge. Dynamic addons should use `context.extensions.registerIdeFileType`. */
+    @Deprecated("Use HollowAddonContext.extensions.registerIdeFileType so reload can remove the contribution")
     fun registerFileType(type: HollowIdeFileType) {
-        fileTypes.register(type)
+        builtinExtensions.registerIdeFileType(type)
+    }
+
+    private fun installBuiltinExtensions() {
+        val builtins = HollowIdeFileTypeRegistry().apply {
+            registerBuiltinFileTypes(
+                modelEditor = { file -> ModelEditorPanel(file.path) },
+                imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+                videoEditor = { file ->
+                    Video(
+                        source = file.path,
+                        fit = UiImageFit.CONTAIN,
+                        modifier = Modifier.size(100.percent, 100.percent),
+                    )
+                },
+                soundsEditor = { file -> HollowIdeSoundsEditor(file) },
+                animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
+                textEditor = { file -> FileEditor(file) },
+            )
+            registerAssetFileTypes(
+                imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+                textEditor = { file -> FileEditor(file) },
+                jsonModelEditor = { file -> VanillaModelEditorPanel(file.path) },
+            )
+        }
+        builtins.registeredTypes().forEach { type -> builtinExtensions.registerIdeFileType(type) }
+
+        listOf(
+            HollowIdePanel(
+                id = ProjectTreeId,
+                title = "hollowengine.gui.ide.project_tree",
+                icon = ProjectIcon,
+                minWidth = 220f,
+                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Root, DockPlacement.CENTER),
+                content = { ProjectTree() },
+            ),
+            HollowIdePanel(
+                id = AssetManagerId,
+                title = AssetManagerLang.TITLE,
+                icon = AssetManagerIcon,
+                minWidth = 520f,
+                minHeight = 260f,
+                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Project, DockPlacement.RIGHT),
+                content = { AssetManagerPanel(::openAssetFile, ::requestSurfaceFocus) },
+            ),
+            HollowIdePanel(
+                id = ConsoleId,
+                title = "hollowengine.gui.ide.console",
+                icon = ConsoleIcon,
+                minWidth = 360f,
+                minHeight = 180f,
+                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Editor, DockPlacement.BOTTOM),
+                content = { HollowIdeConsolePanel() },
+            ),
+            HollowIdePanel(
+                id = CutsceneTimelineId,
+                title = "Cutscene Timeline",
+                icon = CutsceneIcon,
+                minWidth = 520f,
+                minHeight = 260f,
+                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Editor, DockPlacement.BOTTOM),
+                content = {
+                    CutsceneTimelineDock(
+                        session = CutsceneEditorSessions.default,
+                        keyboardActive = dock.focusedItemId == CutsceneTimelineId,
+                    )
+                },
+            ),
+            HollowIdePanel(
+                id = CutscenePropertiesId,
+                title = "Cutscene Properties",
+                icon = "hollowengine:textures/gui/icons/options.svg",
+                minWidth = 240f,
+                minHeight = 260f,
+                placement = HollowIdePanelPlacement(
+                    HollowIdePanelAnchor.Panel(CutsceneTimelineId),
+                    DockPlacement.RIGHT,
+                ),
+                content = { CutscenePropertiesDock(CutsceneEditorSessions.default) },
+            ),
+            HollowIdePanel(
+                id = CutsceneViewportId,
+                title = "Cutscene Viewport",
+                icon = CutsceneIcon,
+                minWidth = 320f,
+                minHeight = 180f,
+                placement = HollowIdePanelPlacement(
+                    HollowIdePanelAnchor.Panel(CutsceneTimelineId),
+                    DockPlacement.TOP,
+                ),
+                content = { CutsceneViewportDock() },
+            ),
+            HollowIdePanel(
+                id = UiProfilerId,
+                title = "UI Profiler",
+                icon = "hollowengine:textures/gui/icons/options.svg",
+                minWidth = 360f,
+                minHeight = 260f,
+                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Project, DockPlacement.BOTTOM),
+                showInWindowMenu = false,
+                content = { HollowIdeUiProfilerPanel(surface.runtime.profiler) },
+            ),
+        ).forEach { panel -> builtinExtensions.registerIdePanel(panel) }
+    }
+
+    private fun onFileTypeChanged(change: HollowAddonExtensionChange<HollowIdeFileType>) {
+        when (change) {
+            is HollowAddonExtensionChange.Added -> installFileType(change.extension)
+            is HollowAddonExtensionChange.Removed -> {
+                model.closeFilesUsing(change.extension.value)
+                fileTypes.unregister(extensionUiId(change.extension))
+            }
+        }
+        extensionRevision++
+    }
+
+    private fun installFileType(extension: HollowAddonExtension<HollowIdeFileType>) {
+        fileTypes.register(extensionUiId(extension), extension.value)
+    }
+
+    private fun onPanelChanged(change: HollowAddonExtensionChange<HollowIdePanel>) {
+        if (change is HollowAddonExtensionChange.Removed) {
+            dock.close(extensionUiId(change.extension))
+        }
+        extensionRevision++
+    }
+
+    private fun onLanguageExtensionChanged(change: HollowAddonExtensionChange<*>) {
+        editorSessions.values.forEach(HollowIdeEditorSession::close)
+        editorSessions.clear()
+        editorAnalysisRevision++
+        extensionRevision++
+    }
+
+    private fun <T : Any> extensionUiId(extension: HollowAddonExtension<T>): String =
+        if (extension.ownerId == HollowEngine.MODID) extension.qualifiedId.substringAfter(':') else extension.qualifiedId
+
+    private fun registeredPanels(): List<RegisteredIdePanel> = HollowIdeExtensionPoints.PANELS.extensions().map { extension ->
+        RegisteredIdePanel(extension, extensionUiId(extension))
+    }
+
+    private fun resolvePanel(id: String): RegisteredIdePanel? = registeredPanels().firstOrNull { panel ->
+        panel.dockId == id || panel.extension.qualifiedId == id
+    }
+
+    private fun openRegisteredPanel(id: String): Boolean {
+        val registered = resolvePanel(id) ?: return false
+        if (!dock.contains(registered.dockId)) {
+            val panel = registered.extension.value
+            dock.open(
+                DockItem(
+                    id = registered.dockId,
+                    title = panel.title,
+                    icon = panel.icon,
+                    closable = panel.closable,
+                    minWidth = panel.minWidth,
+                    minHeight = panel.minHeight,
+                ),
+                panelTarget(panel.placement),
+            )
+        }
+        dock.focus(registered.dockId)
+        return true
+    }
+
+    private fun panelTarget(placement: HollowIdePanelPlacement): DockTarget {
+        if (placement.anchor == HollowIdePanelAnchor.Root) {
+            return DockTarget(placement = placement.placement)
+        }
+        val anchorItem = when (val anchor = placement.anchor) {
+            HollowIdePanelAnchor.Root -> null
+            HollowIdePanelAnchor.Project -> ProjectTreeId.takeIf(dock::contains)
+            HollowIdePanelAnchor.Console -> ConsoleId.takeIf(dock::contains)
+            HollowIdePanelAnchor.Editor -> model.files.values.firstOrNull { file -> dock.contains(file.id) }?.id
+            is HollowIdePanelAnchor.Panel -> resolvePanel(anchor.id)?.dockId?.takeIf(dock::contains)
+        }
+        val fallback = anchorItem
+            ?: model.files.values.firstOrNull { file -> dock.contains(file.id) }?.id
+            ?: ProjectTreeId.takeIf(dock::contains)
+        val stackId = fallback?.let(dock::stackIdOf)
+        return stackId?.let { DockTarget(it, placement.placement) }
+            ?: DockTarget(placement = placement.placement)
     }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
@@ -334,7 +545,7 @@ object HollowIdeOverlay {
         initialized = true
         dock.onTabContextMenu = ::openFileContextMenu
         model.onFileRemoved = ::forgetFile
-        dock.open(DockItem(ProjectTreeId, "hollowengine.gui.ide.project_tree".lang, ProjectIcon))
+        check(openRegisteredPanel(ProjectTreeId)) { "The built-in project panel is not registered" }
         surface.setContent { Content() }
     }
     
@@ -576,59 +787,138 @@ object HollowIdeOverlay {
                 focusedFile = ::focusedFile,
                 canReformat = { file -> fileActionContext(file).canFormat },
                 onReformat = ::formatFile,
-            ),
+            ) + contributedMenuItems(HollowIdeMenu.FILE),
         )
         UiDropdown(
             id = "ide-windows-menu",
             label = "hollowengine.gui.ide.windows".lang,
             expanded = openDropdown == "windows",
             onExpandedChange = { openDropdown = if (it) "windows" else null },
-            items = hollowIdeWindowMenuItems(model, dock),
+            items = windowMenuItems() + contributedMenuItems(HollowIdeMenu.WINDOW),
         )
         UiDropdown(
             id = "ide-tools-menu",
             label = "hollowengine.gui.ide.tools".lang,
             expanded = openDropdown == "tools",
             onExpandedChange = { openDropdown = if (it) "tools" else null },
-            items = hollowIdeToolMenuItems(dock, surface.runtime.profiler),
+            items = hollowIdeToolMenuItems(ideContext, dock, surface.runtime.profiler) +
+                    contributedMenuItems(HollowIdeMenu.TOOLS),
         )
         UiDropdown(
             id = "ide-help-menu",
             label = "hollowengine.gui.ide.help".lang,
             expanded = openDropdown == "help",
             onExpandedChange = { openDropdown = if (it) "help" else null },
-            items = hollowIdeHelpMenuItems(),
+            items = hollowIdeHelpMenuItems() + contributedMenuItems(HollowIdeMenu.HELP),
         )
     }
 
     @Composable
     private fun DockContent(item: DockItem) {
-        when (item.id) {
-            ProjectTreeId -> ProjectTree()
-            AssetManagerId -> AssetManagerPanel(
-                state = assetManagerState,
-                onOpenFile = ::openAssetFile,
-                onOverrideFile = ::overrideAssetFile,
-                onHideFile = ::hideAssetFile,
-                onRestoreFile = ::restoreAssetFile,
-                onFocusFilter = ::requestSurfaceFocus,
-            )
-            ConsoleId -> HollowIdeConsolePanel()
-            CutsceneTimelineId -> CutsceneTimelineDock(
-                session = CutsceneEditorSessions.default,
-                keyboardActive = dock.focusedItemId == CutsceneTimelineId,
-            )
-
-            CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
-            CutsceneViewportId -> CutsceneViewportDock()
-            UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
-            else -> model.files.values.firstOrNull { it.id == item.id }?.let { file ->
-                file.type.editor(file)
-                LaunchedEffect(file.dirty) {
-                    dock.updateItem(file.dockItem())
-                }
-            } ?: EmptyEditor()
+        extensionRevision
+        val panel = registeredPanels().firstOrNull { registered -> registered.dockId == item.id }
+        if (panel != null) {
+            PanelContent(panel.extension)
+            return
         }
+        model.files.values.firstOrNull { it.id == item.id }?.let { file ->
+            file.type.editor(file)
+            LaunchedEffect(file.dirty) {
+                dock.updateItem(file.dockItem())
+            }
+        } ?: EmptyEditor()
+    }
+
+    @Composable
+    private fun PanelContent(extension: HollowAddonExtension<HollowIdePanel>) {
+        extension.value.content(ideContext)
+    }
+
+    private fun windowMenuItems(): List<UiDropdownItem> {
+        extensionRevision
+        return registeredPanels().filter { registered -> registered.extension.value.showInWindowMenu }.map { registered ->
+            val panel = registered.extension.value
+            UiDropdownItem(panel.title.lang, panel.icon) {
+                openRegisteredPanel(registered.extension.qualifiedId)
+            }
+        }
+    }
+
+    private fun contributedMenuItems(menu: HollowIdeMenu): List<UiDropdownItem> {
+        extensionRevision
+        return HollowIdeExtensionPoints.MENU_ITEMS.extensions().mapNotNull { extension ->
+            val item = extension.value
+            if (item.menu != menu) return@mapNotNull null
+            val visible = runCatching { extension.invoke { it.isVisible(ideContext) } }
+                .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-visibility", it) }
+                .getOrDefault(false)
+            if (!visible) return@mapNotNull null
+            val enabled = runCatching { extension.invoke { it.isEnabled(ideContext) } }
+                .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-enabled", it) }
+                .getOrDefault(false)
+            val checked = runCatching { extension.invoke { it.isChecked(ideContext) } }
+                .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-checked", it) }
+                .getOrDefault(false)
+            UiDropdownItem(
+                label = item.label.lang,
+                icon = item.icon,
+                enabled = enabled,
+                checked = checked,
+                mark = when (item.mark) {
+                    HollowIdeMenuMark.CHECKBOX -> UiDropdownMark.CHECKBOX
+                    HollowIdeMenuMark.RADIO -> UiDropdownMark.RADIO
+                    null -> null
+                },
+                closeOnClick = item.closeOnClick,
+            ) {
+                runCatching { extension.invoke { it.run(ideContext) } }
+                    .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-action", it) }
+            }
+        }
+    }
+
+    private fun projectActionContext(menu: ProjectContextMenu): HollowIdeProjectActionContext =
+        object : HollowIdeProjectActionContext {
+            override val ide: HollowIdeContext = ideContext
+            override val path: String = menu.path
+            override val selectedPaths: List<String> = model.selectedOr(menu.path)
+            override val isDirectory: Boolean = menu.path.fromReadablePath().isDirectory
+        }
+
+    private fun projectActionEntries(context: HollowIdeProjectActionContext): List<HollowIdeProjectMenuEntry> {
+        extensionRevision
+        return HollowIdeExtensionPoints.PROJECT_ACTIONS.extensions().flatMap { extension ->
+            val actions = runCatching { extension.invoke { provider -> provider.actions(context) } }
+                .onFailure { reportExtensionFailure(extension.qualifiedId, "project-actions", it) }
+                .getOrDefault(emptyList())
+            actions.mapNotNull { action ->
+                val visible = runCatching { extension.invoke { action.isVisible(context) } }
+                    .onFailure { reportExtensionFailure(extension.qualifiedId, "project-action-visibility", it) }
+                    .getOrDefault(false)
+                if (!visible) return@mapNotNull null
+                val enabled = runCatching { extension.invoke { action.isEnabled(context) } }
+                    .onFailure { reportExtensionFailure(extension.qualifiedId, "project-action-enabled", it) }
+                    .getOrDefault(false)
+                HollowIdeProjectMenuEntry(
+                    action = HollowIdeProjectAction(
+                        id = action.id,
+                        label = action.label,
+                        shortcut = action.shortcut,
+                        icon = action.icon,
+                    ) { actionContext ->
+                        runCatching { extension.invoke { action.run(actionContext) } }
+                            .onFailure { reportExtensionFailure(extension.qualifiedId, "project-action", it) }
+                    },
+                    enabled = enabled,
+                )
+            }
+        }
+    }
+
+    private fun reportExtensionFailure(id: String, stage: String, failure: Throwable) {
+        val key = "$id:$stage:${failure::class.qualifiedName}:${failure.message}"
+        if (!reportedExtensionFailures.add(key)) return
+        HollowEngine.LOGGER.error("IDE extension '{}' failed during {}", id, stage, failure)
     }
 
     @Composable
@@ -681,8 +971,10 @@ object HollowIdeOverlay {
                     }
                 },
             )
+            val projectMenu = project.contextMenu
+            val projectActionContext = projectMenu?.let(::projectActionContext)
             HollowIdeProjectContextMenu(
-                menu = project.contextMenu,
+                menu = projectMenu,
                 onCreateFile = project::openCreateFileDialog,
                 onCreateFolder = project::openCreateFolderDialog,
                 onCreateSoundEvents = project::createSoundEvents,
@@ -692,6 +984,11 @@ object HollowIdeOverlay {
                 onPaste = project::pasteInto,
                 onShowInExplorer = project::showInExplorer,
                 onDelete = project::delete,
+                additionalActions = projectActionContext?.let(::projectActionEntries).orEmpty(),
+                onAdditionalAction = { action ->
+                    projectActionContext?.let { context -> action.run(context) }
+                    project.closePopups()
+                },
                 onDismiss = { project.closePopups() },
             )
             val dialog = project.nameDialog
@@ -803,9 +1100,9 @@ object HollowIdeOverlay {
     }
 
     @Composable
-    private fun EmptyEditor() {
+    private fun EmptyEditor(message: String = "Open a file from Project Tree") {
         Column(tags = listOf("ide-empty-editor")) {
-            Text("Open a file from Project Tree", tags = listOf("ide-empty-title"))
+            Text(message, tags = listOf("ide-empty-title"))
             Text(statusText, tags = listOf("ide-status"))
         }
     }
@@ -1278,6 +1575,11 @@ object HollowIdeOverlay {
     }
 
 }
+
+private data class RegisteredIdePanel(
+    val extension: HollowAddonExtension<HollowIdePanel>,
+    val dockId: String,
+)
 
 internal object EditorLang {
     private const val ROOT = "hollowengine.gui.ide.editor."

@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.events.registry
 import com.mojang.brigadier.CommandDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
@@ -51,8 +52,12 @@ class RegisterCommandsEvent(
             return super.post(event)
         }
 
+        /**
+         * Drops the dispatcher snapshot used to replay registration to late subscribers.
+         * Scoped listeners remain registered and receive the next registration event.
+         */
         @Synchronized
-        fun clearReplay() {
+        fun clearReplaySnapshot() {
             current = null
         }
 
@@ -85,5 +90,55 @@ class RegisterClientCommandsEvent(
     val dispatcher: CommandDispatcher<SharedSuggestionProvider>,
     val registryAccess: CommandBuildContext,
 ) : Event {
-    companion object : EventHandler<RegisterClientCommandsEvent>()
+    companion object : EventHandler<RegisterClientCommandsEvent>() {
+        @Volatile
+        private var current: RegisterClientCommandsEvent? = null
+
+        @Synchronized
+        override fun register(
+            scope: CoroutineScope,
+            listener: EventListener<RegisterClientCommandsEvent>,
+        ): EventListener<RegisterClientCommandsEvent> {
+            val registration = ScopedCommandRegistration<SharedSuggestionProvider>(scope, ::executeCommandMutation)
+            val trackedListener = object : EventListener<RegisterClientCommandsEvent> {
+                override val priority = listener.priority
+
+                override fun invoke(event: RegisterClientCommandsEvent) {
+                    registration.register(event.dispatcher) { listener(event) }
+                }
+            }
+            val registered = super.register(scope, trackedListener)
+            val job = requireNotNull(scope.coroutineContext[Job])
+            current?.let { event ->
+                executeCommandMutation {
+                    if (job.isActive) trackedListener(event)
+                }
+            }
+            return registered
+        }
+
+        @Synchronized
+        override fun post(event: RegisterClientCommandsEvent): RegisterClientCommandsEvent {
+            current = event
+            return super.post(event)
+        }
+
+        /**
+         * Drops the dispatcher snapshot used to replay registration to late subscribers.
+         * Scoped listeners remain registered and receive the next registration event.
+         */
+        @Synchronized
+        fun clearReplaySnapshot() {
+            current = null
+        }
+
+        private fun executeCommandMutation(mutation: () -> Unit) {
+            if (current == null) {
+                mutation()
+                return
+            }
+            val minecraft = Minecraft.getInstance()
+            if (minecraft.isSameThread) mutation() else minecraft.execute(mutation)
+        }
+    }
 }

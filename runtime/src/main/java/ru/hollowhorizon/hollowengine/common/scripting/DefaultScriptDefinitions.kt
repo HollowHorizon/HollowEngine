@@ -39,6 +39,7 @@ object DefaultScriptDefinitions {
                     ResourceLocation::class.qualifiedName!!,
                     ItemStack::class.qualifiedName!!,
                     "net.minecraft.core.component.DataComponentPatch",
+                    "net.minecraft.world.entity.EntityAttachment",
                     SubscribeEvent::class.qualifiedName!!,
                     Import::class.qualifiedName!!,
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.item",
@@ -52,6 +53,10 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.dialogue.lang.number",
                     "ru.hollowhorizon.hollowengine.common.dialogue.lang.signature",
                     "ru.hollowhorizon.hollowengine.common.dialogue.lang.string",
+                    "ru.hollowhorizon.hollowengine.common.integrations.acoustic.*",
+                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.playAcoustic",
+                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.updateAcoustic",
+                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.stopAcoustic",
                 )
             )
             this += Provider(
@@ -98,6 +103,7 @@ object DefaultScriptDefinitions {
                     ResourceLocation::class.qualifiedName!!,
                     "net.minecraft.nbt.CompoundTag",
                     "net.minecraft.world.entity.Entity",
+                    "net.minecraft.world.entity.EntityAttachment",
                     "net.minecraft.world.entity.LivingEntity",
                     "net.minecraft.world.entity.player.Player",
                     "net.minecraft.world.entity.EquipmentSlot",
@@ -108,6 +114,7 @@ object DefaultScriptDefinitions {
                     "net.minecraft.core.BlockPos",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
+                    "ru.hollowhorizon.hollowengine.common.integrations.acoustic.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.entities.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",

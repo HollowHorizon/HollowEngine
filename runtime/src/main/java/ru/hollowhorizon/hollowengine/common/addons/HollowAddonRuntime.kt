@@ -378,6 +378,7 @@ internal class HollowAddonRuntime(
             dependencies = dependencyLoaders,
         )
         val hostServices = services.ownedBy(descriptor.id)
+        val extensions = OwnedHollowAddonExtensions(descriptor.id, classLoader)
         var koinApplication: KoinApplication? = null
         var addonJob: Job? = null
         return runCatching {
@@ -386,8 +387,20 @@ internal class HollowAddonRuntime(
                 .asSubclass(HollowAddonEntrypoint::class.java)
                 .getDeclaredConstructor()
                 .newInstance()
+            val createdJob = SupervisorJob(runtimeJob)
+            addonJob = createdJob
+            val addonScope = CoroutineScope(
+                Dispatchers.Default + createdJob + CoroutineName("Addon ${descriptor.id}") + ClassLoaderContextElement(classLoader),
+            )
+            val minecraftApi = OwnedHollowAddonMinecraftApi(
+                addonId = descriptor.id,
+                addonScope = addonScope,
+                classLoader = classLoader,
+            )
             val bridgeModule = module {
                 single<HollowAddonHostServices> { hostServices }
+                single<HollowAddonExtensions> { extensions }
+                single<HollowAddonMinecraftApi> { minecraftApi }
                 single { descriptor }
             }
             val createdKoinApplication = koinApplication {
@@ -400,11 +413,6 @@ internal class HollowAddonRuntime(
                 addonFile = candidate.artifactFile,
                 classLoader = classLoader,
                 koin = createdKoinApplication.koin,
-            )
-            val createdJob = SupervisorJob(runtimeJob)
-            addonJob = createdJob
-            val addonScope = CoroutineScope(
-                Dispatchers.Default + createdJob + CoroutineName("Addon ${descriptor.id}") + ClassLoaderContextElement(classLoader),
             )
             withContext(Dispatchers.Default + ClassLoaderContextElement(classLoader)) {
                 entrypoint.load(context, addonScope)
@@ -419,6 +427,7 @@ internal class HollowAddonRuntime(
                 job = createdJob,
                 koinApplication = createdKoinApplication,
                 hostServices = hostServices,
+                extensions = extensions,
             )
             refreshSnapshot()
             HollowEngine.LOGGER.info("Loaded addon {} {}", descriptor.id, descriptor.version)
@@ -428,6 +437,7 @@ internal class HollowAddonRuntime(
             ScriptRegistry.unregister(descriptor.id)
             addonJob?.cancelAndJoin()
             HollowAddonPacketRegistry.unregister(descriptor.id)
+            extensions.cleanup()
             koinApplication?.close()
             hostServices.cleanup()
             classLoader.close()
@@ -469,6 +479,7 @@ internal class HollowAddonRuntime(
                 addon.entrypoint.unload(addon.context)
             }
         }.onFailure { HollowEngine.LOGGER.error("Failed to run unload hook for addon '$id'", it) }
+        addon.extensions.cleanup()
         runCatching { addon.koinApplication.close() }
             .onFailure { HollowEngine.LOGGER.error("Failed to close Koin for addon '$id'", it) }
         addon.hostServices.cleanup()
@@ -524,5 +535,6 @@ internal class HollowAddonRuntime(
         val job: Job,
         val koinApplication: KoinApplication,
         val hostServices: OwnedHollowAddonHostServices,
+        val extensions: OwnedHollowAddonExtensions,
     )
 }

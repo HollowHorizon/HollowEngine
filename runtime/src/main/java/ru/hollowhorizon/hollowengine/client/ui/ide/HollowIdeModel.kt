@@ -381,6 +381,21 @@ internal class HollowIdeModel(
         return count
     }
 
+    /** Releases every document backed by a file type which is about to leave an addon classloader. */
+    fun closeFilesUsing(type: HollowIdeFileType): List<String> {
+        val paths = files.values.filter { file -> file.type === type }.map(HollowIdeOpenFile::path)
+        paths.forEach { path ->
+            pendingSaves.remove(path)?.cancel()
+            files.remove(path)?.close()
+            onFileRemoved?.invoke(path)
+        }
+        return paths
+    }
+
+    fun refreshProject() {
+        tree.refresh()
+    }
+
     private fun scheduleSave(path: String) {
         val file = files[path]?.takeIf { it.dirty } ?: return
         val text = file.textOrNull ?: return
