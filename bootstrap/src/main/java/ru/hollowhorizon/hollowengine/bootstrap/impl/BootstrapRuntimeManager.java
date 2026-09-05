@@ -16,26 +16,16 @@ public final class BootstrapRuntimeManager {
     private static final Logger LOGGER = LogManager.getLogger("HollowEngineBootstrap");
     private static final String BRIDGE_CLASS = "ru.hollowhorizon.hollowengine.bootstrap.RuntimeBridgeEntrypoint";
     private static final String ENGINE_PACKAGE = enginePackage();
-    private static final Set<String> PARENT_FIRST_PACKAGES = Set.of(
-            "java.",
-            "javax.",
-            "jdk.",
-            "sun.",
-            "com.sun.",
-            "net.minecraft.",
-            "net.minecraftforge.",
-            "net.neoforged.",
-            "cpw.mods.",
-            "org.spongepowered.",
-            "org.apache.logging.log4j.",
-            ENGINE_PACKAGE + ".bootstrap.runtime.",
-            ENGINE_PACKAGE + ".bridge."
-    );
+    private static final Set<String> PARENT_FIRST_PACKAGES = Set.of("java.", "javax.", "jdk.", "sun.", "com.sun.", "net.minecraft.", "net.minecraftforge.", "net.neoforged.", "cpw.mods.", "org.spongepowered.", "org.apache.logging.log4j.", ENGINE_PACKAGE + ".bootstrap.runtime.", ENGINE_PACKAGE + ".bridge.");
 
     private static ChildFirstUrlClassLoader classLoader;
     private static RuntimeBridge bridge;
 
     private BootstrapRuntimeManager() {
+    }
+
+    private static List<File> addonSources(File hollowEngineDirectory) {
+        return List.of(new File(hollowEngineDirectory, "addons"), new File("mods"));
     }
 
     private static String enginePackage() {
@@ -50,21 +40,12 @@ public final class BootstrapRuntimeManager {
         try {
             File runtimeJar = resolveRuntimeJar();
             File hollowEngineDirectory = new File("hollowengine");
-            AddonBootstrapLibraries.Result addonLibraries = AddonBootstrapLibraries.discover(
-                    new File(hollowEngineDirectory, "addons"),
-                    new File(hollowEngineDirectory, ".cache"),
-                    LOGGER
-            );
+            AddonBootstrapLibraries.Result addonLibraries = AddonBootstrapLibraries.discover(addonSources(hollowEngineDirectory), new File(hollowEngineDirectory, ".cache"), LOGGER);
             List<URL> runtimeClasspath = new ArrayList<>();
             runtimeClasspath.add(runtimeJar.toURI().toURL());
             runtimeClasspath.addAll(addonLibraries.urls());
 
-            ChildFirstUrlClassLoader loader = new ChildFirstUrlClassLoader(
-                    runtimeClasspath.toArray(URL[]::new),
-                    RuntimeBridge.class.getClassLoader(),
-                    PARENT_FIRST_PACKAGES,
-                    RuntimeClassTransformers.createDefault()
-            );
+            ChildFirstUrlClassLoader loader = new ChildFirstUrlClassLoader(runtimeClasspath.toArray(URL[]::new), RuntimeBridge.class.getClassLoader(), PARENT_FIRST_PACKAGES, RuntimeClassTransformers.createDefault());
 
             Thread thread = Thread.currentThread();
             ClassLoader previous = thread.getContextClassLoader();
@@ -99,12 +80,7 @@ public final class BootstrapRuntimeManager {
         File cacheDir = new File("hollowengine/.cache");
         File runtimeJar = EmbeddedRuntimeJar.extract(BootstrapRuntimeManager.class, cacheDir);
         if (runtimeJar != null) {
-            return RuntimePayloadRemapper.remapIfRequired(
-                    BootstrapRuntimeManager.class,
-                    runtimeJar,
-                    PARENT_FIRST_PACKAGES,
-                    LOGGER
-            );
+            return RuntimePayloadRemapper.remapIfRequired(BootstrapRuntimeManager.class, runtimeJar, PARENT_FIRST_PACKAGES, LOGGER);
         }
 
         throw new IllegalStateException("Embedded runtime jar was not found in bootstrap resources");

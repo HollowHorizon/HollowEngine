@@ -256,8 +256,11 @@ val verifyCompilerPluginPackaging = tasks.register("verifyCompilerPluginPackagin
     }
 }
 
+apply(from = rootProject.file("gradle/addon-mod-metadata.gradle.kts"))
+val addonModMetadata = tasks.named("generateAddonModMetadata")
+
 val addonJar = tasks.register<Jar>("addonJar") {
-    dependsOn(processAddonResources, compilerClassesJar)
+    dependsOn(processAddonResources, compilerClassesJar, addonModMetadata)
     archiveClassifier.set("")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest.attributes(
@@ -265,6 +268,7 @@ val addonJar = tasks.register<Jar>("addonJar") {
         "HollowEngine-Variant-Common-Agnostic" to "META-INF/hollowengine/variants/agnostic.jar",
     )
     from(processAddonResources)
+    from(addonModMetadata)
     from(compilerClassesJar.flatMap { it.archiveFile }) {
         into("META-INF/hollowengine/variants")
         rename { "agnostic.jar" }

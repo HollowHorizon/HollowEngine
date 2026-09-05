@@ -28,6 +28,9 @@ val fabricScriptIdentity = "fabric/intermediary/production"
 fun Project.shipsScriptSources(): Boolean =
     (findProperty("hollowengine.scripts.includeSources") as String?)?.toBooleanStrictOrNull() ?: true
 
+apply(from = rootProject.file("gradle/addon-mod-metadata.gradle.kts"))
+val addonModMetadata = tasks.named("generateAddonModMetadata")
+
 fun Project.readHollowAddonId(): String {
     val descriptor = projectDir.resolve("src/main/resources/META-INF/plugin.properties")
     if (!descriptor.isFile) return name
@@ -269,7 +272,7 @@ val intermediaryVariantJar = tasks.register<Jar>("intermediaryVariantJar") {
 }
 
 val addonJar = tasks.register<Jar>("addonJar") {
-    dependsOn(processAddonResources, namedVariantJar, intermediaryVariantJar)
+    dependsOn(processAddonResources, namedVariantJar, intermediaryVariantJar, addonModMetadata)
     archiveClassifier.set("")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest.attributes(
@@ -281,6 +284,7 @@ val addonJar = tasks.register<Jar>("addonJar") {
     from(processAddonResources) {
         exclude("$hollowScriptsDirectory/**")
     }
+    from(addonModMetadata)
     from(namedVariantJar.flatMap { it.archiveFile }) {
         into("META-INF/hollowengine/variants")
         rename { "named.jar" }

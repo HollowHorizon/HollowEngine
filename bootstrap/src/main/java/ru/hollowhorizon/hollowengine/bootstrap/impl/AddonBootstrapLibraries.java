@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.bootstrap.impl;
 
 import org.apache.logging.log4j.Logger;
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonVersions;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -31,16 +33,18 @@ final class AddonBootstrapLibraries {
     private AddonBootstrapLibraries() {
     }
 
-    static Result discover(File addonsDirectory, File cacheDirectory, Logger logger) throws IOException {
-        File[] addonFiles = addonsDirectory.listFiles(file -> file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".jar"));
-        if (addonFiles == null || addonFiles.length == 0) {
+    /**
+     * [directories] are searched in order, and that order decides ties: the engine's own addon folder
+     * comes before the loader's mods folder.
+     */
+    static Result discover(List<File> directories, File cacheDirectory, Logger logger) throws IOException {
+        List<File> sortedAddons = selectAddons(directories, logger);
+        if (sortedAddons.isEmpty()) {
             System.clearProperty(AddonBootstrapContract.LOADED_ADDON_FINGERPRINTS_PROPERTY);
             System.clearProperty(AddonBootstrapContract.REJECTED_ADDON_FINGERPRINTS_PROPERTY);
             return new Result(List.of());
         }
 
-        List<File> sortedAddons = new ArrayList<>(List.of(addonFiles));
-        sortedAddons.sort(Comparator.comparing(File::getName));
         Map<String, ExtractedLibrary> librariesByName = new LinkedHashMap<>();
         Set<String> loadedAddonFingerprints = new LinkedHashSet<>();
         Set<String> rejectedAddonFingerprints = new LinkedHashSet<>();
@@ -90,6 +94,74 @@ final class AddonBootstrapLibraries {
                         throw new IllegalStateException(exception);
                     }
                 }).toList());
+    }
+
+    private static List<File> selectAddons(List<File> directories, Logger logger) {
+        Map<String, AddonFile> selected = new LinkedHashMap<>();
+
+        for (int priority = 0; priority < directories.size(); priority++) {
+            File directory = directories.get(priority);
+            File[] files = directory.listFiles(file ->
+                    file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".jar"));
+            if (files == null) continue;
+
+            List<File> sorted = new ArrayList<>(List.of(files));
+            sorted.sort(Comparator.comparing(File::getName));
+            for (File file : sorted) {
+                AddonFile addon = readAddon(file, priority);
+                if (addon == null) continue;
+
+                AddonFile previous = selected.get(addon.id());
+                if (previous == null) {
+                    selected.put(addon.id(), addon);
+                    continue;
+                }
+
+                AddonFile winner = preferred(previous, addon);
+                selected.put(addon.id(), winner);
+                AddonFile ignored = winner == previous ? addon : previous;
+                logger.warn(
+                        "Addon '{}' found twice: using {} ({}), ignoring {} ({})",
+                        addon.id(),
+                        winner.file().getName(),
+                        winner.version(),
+                        ignored.file().getName(),
+                        ignored.version()
+                );
+            }
+        }
+
+        List<File> addons = new ArrayList<>();
+        selected.values().stream()
+                .sorted(Comparator.comparing(addon -> addon.file().getName()))
+                .forEach(addon -> addons.add(addon.file()));
+        return addons;
+    }
+
+    private static AddonFile preferred(AddonFile left, AddonFile right) {
+        int byVersion = AddonVersions.compare(left.version(), right.version());
+        if (byVersion != 0) return byVersion > 0 ? left : right;
+        return left.priority() <= right.priority() ? left : right;
+    }
+
+    private static AddonFile readAddon(File file, int priority) {
+        try (JarFile jar = new JarFile(file, false)) {
+            JarEntry descriptor = jar.getJarEntry(AddonBootstrapContract.DESCRIPTOR_PATH);
+            if (descriptor == null) return null;
+
+            Properties properties = new Properties();
+            try (InputStream input = jar.getInputStream(descriptor)) {
+                properties.load(input);
+            }
+            String id = properties.getProperty("id", "").trim();
+            if (id.isEmpty()) return null;
+            return new AddonFile(file, id, properties.getProperty("version", "1.0.0").trim(), priority);
+        } catch (IOException exception) {
+            return null;
+        }
+    }
+
+    private record AddonFile(File file, String id, String version, int priority) {
     }
 
     private static boolean inspectAddon(

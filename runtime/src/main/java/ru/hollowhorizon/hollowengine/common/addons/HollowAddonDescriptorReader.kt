@@ -1,12 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
 import ru.hollowhorizon.hollowengine.common.scripting.source.DEFAULT_SANDBOX_NAMESPACE
 import java.io.File
 import java.util.Properties
 import java.util.jar.JarFile
 
 internal object HollowAddonDescriptorReader {
-    private const val DESCRIPTOR_PATH = "META-INF/plugin.properties"
+    private val DESCRIPTOR_PATH = AddonBootstrapContract.DESCRIPTOR_PATH
     private val addonIdPattern = Regex("[a-z0-9_.-]+")
 
     fun read(file: File): HollowAddonDescriptor = JarFile(file).use { jar ->

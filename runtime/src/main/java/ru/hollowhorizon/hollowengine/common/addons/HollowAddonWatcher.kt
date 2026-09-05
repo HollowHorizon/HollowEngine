@@ -18,6 +18,7 @@ internal class HollowAddonWatcher(
 ) {
     private val tracked = ConcurrentHashMap<String, HollowAddonCandidate>()
     private val failedFingerprints = ConcurrentHashMap<String, String>()
+    private val foreignStamps = ConcurrentHashMap<String, String>()
 
     fun start(initialCandidates: Collection<HollowAddonCandidate>): Job {
         initialCandidates.forEach { candidate -> tracked[candidate.sourceFile.canonicalPath] = candidate }
@@ -33,7 +34,7 @@ internal class HollowAddonWatcher(
     private suspend fun scan() {
         val filesByPath = directory.listFiles { file ->
             file.isFile && file.extension.equals("jar", ignoreCase = true)
-        }.orEmpty().associateBy { it.canonicalPath }
+        }.orEmpty().filter(::isAddon).associateBy { it.canonicalPath }
 
         filesByPath.forEach { (path, file) ->
             val oldCandidate = tracked[path]
@@ -76,12 +77,28 @@ internal class HollowAddonWatcher(
         (tracked.keys - filesByPath.keys).forEach { deletedPath ->
             val deleted = tracked.remove(deletedPath) ?: return@forEach
             failedFingerprints.remove(deletedPath)
+            foreignStamps.remove(deletedPath)
             runtime.removeCandidate(deleted)
             tracked.values
                 .filter { it.descriptor.id == deleted.descriptor.id }
                 .singleOrNull()
                 ?.let { replacement -> runtime.addCandidate(replacement) }
         }
+    }
+
+    private fun isAddon(file: File): Boolean {
+        val path = file.canonicalPath
+        if (tracked.containsKey(path)) return true
+
+        val stamp = file.length().toString() + ':' + file.lastModified()
+        if (foreignStamps[path] == stamp) return false
+        if (HollowAddonProbe.isAddonJar(file)) {
+            foreignStamps.remove(path)
+            return true
+        }
+
+        foreignStamps[path] = stamp
+        return false
     }
 
     private companion object {
