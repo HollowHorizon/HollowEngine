@@ -546,16 +546,6 @@
     margin: 4px 0px 0px 0px;
 }
 
-.ee-script-row {
-    size: 100% fit;
-    gap: 6px;
-    padding: 6px;
-    align-items: start center;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
-}
-
 .ee-script-icon {
     size: 14px 14px;
     tint: #8B93A5;

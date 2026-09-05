@@ -1,0 +1,147 @@
+---
+title: Editor Properties
+order: 4
+---
+
+<center><h1>Editor Properties</h1></center>
+
+*Create properties for node script in the entity editor.*
+
+## Why
+
+A node attached to an entity often needs one or two values that belong to that particular entity: which dialogue this NPC starts, how far this guard patrols, whether this merchant restocks.
+Hardcoding them means a copy of the script per NPC. `editor` lets the script declare them once and hands the editing over to the entity editor, where a game designer changes them without opening the file.
+
+Every value belongs to one attachment: two entities running the same script keep their own, saved with the entity and restored with it.
+
+```kotlin
+@file:Attach(ru.hollowhorizon.hollowengine.common.entities.NpcEntity::class)
+
+editor.name("On Interact Dialogue")
+editor.description("Starts a dialogue for the player who interacted with this entity.")
+editor.icon("hollowengine:textures/gui/icons/file_kts.svg")
+
+val dialogue by editor.property<String>("Dialogue path", assets = listOf("story")) { "stories/example.story" }
+
+onInteract { event ->
+    DialogueController(dialogue).start(event.player as ServerPlayer)
+}
+```
+
+Open the entity editor, switch to the **Scripts** tab, and the attached script shows up under that name with a field for every property.
+
+---
+
+## Naming the script
+
+- `editor.name(...)` - what the editor calls the script instead of its file name.
+- `editor.description(...)` - the line under its header.
+- `editor.icon(...)` - a `namespace:textures/...` icon shown beside it.
+
+All three are translation keys when a language file has them, and shown as written when it does not.
+So a script can ship readable English and be translated later without touching its code:
+
+```kotlin
+editor.name("mypack.script.guard.name")
+```
+
+```json
+{
+  "mypack.script.guard.name": "Guard behaviour"
+}
+```
+
+---
+
+## `editor.property(...)`
+
+```kotlin
+val radius by editor.property<Int>("Patrol radius", min = 1.0, max = 32.0, slider = true) { 8 }
+val greeting by editor.property<String>("Greeting", multiline = true) { "Hello, traveller!" }
+val hostile by editor.property<Boolean>("Attacks on sight") { false }
+```
+
+The property is stored under **its own name in Kotlin** (`radius`, `greeting`), not under its label, so translating or rewording a label keeps the saved value; renaming the property itself starts it over from its default.
+
+The delegate reads the current value every time, so a handler written against it always sees what the editor last set:
+
+```kotlin
+val greeting by editor.property<String>("Greeting") { "Hello!" }
+
+onInteract { event ->
+    event.player.sendToast(greeting.literal) // Always the value the editor shows right now
+}
+```
+
+### Value types
+
+Anything serializable and non-null, the same rule [`persisted`](/docs/hollowengine/scripting/node) follows: primitives, strings, enums, lists, maps and your own `@Serializable` classes.
+Each one gets the editor it deserves - a checkbox, a number field, a set of pills for an enum, an add/remove list, a folding card for a class:
+
+```kotlin
+@Serializable
+data class Reward(
+    @EditorName("Item") val item: String = "minecraft:bread",
+    @EditorRange("1", "64") val count: Int = 1,
+)
+
+val rewards by editor.property<List<Reward>>("Quest rewards") { emptyList() }
+```
+
+The `@Editor...` annotations of a class carry over to its fields in the editor, exactly as they do for a component.
+A field of such a class may be nullable, and gets a checkbox that turns it on and off - the property itself may not, just like `persisted`.
+
+A type the editor cannot draw is still listed, just not editable, so one exotic property does not hide the rest of the script.
+
+### Parameters
+
+| Parameter                | What it does                                                                             |
+|--------------------------|------------------------------------------------------------------------------------------|
+| `name`                   | The label. Left out, the property's own name is used, prettified.                         |
+| `description`            | A line under the field.                                                                   |
+| `icon`                   | An icon beside the field.                                                                 |
+| `min`, `max`             | Bounds for a number.                                                                      |
+| `slider`                 | Draws a bounded number as a slider.                                                       |
+| `multiline`              | Gives a string more than one line.                                                        |
+| `assets`                 | File extensions this value points at, which turns the field into a picker over what the pack has. |
+| `restart`                | Runs the script again after the value changes (see below).                                |
+| `onChange`               | Hands the new value to a block, right after it is set.                                    |
+
+### Assets
+
+`assets` lists the extensions the value points at, and the editor offers what the pack actually has instead of asking a designer to remember paths:
+
+```kotlin
+val model by editor.property<String>("Model", assets = listOf("gltf", "glb")) { "models/npc.gltf" }
+val script by editor.property<String>("Sub-node", assets = listOf("node.kts")) { "" }
+```
+
+### Reacting to a change
+
+A value read once while the script is starting - to build an object, say - does not follow the editor by itself.
+That is what `restart` and `onChange` are for:
+
+```kotlin
+// The whole script runs again after the change, so `controller` is rebuilt
+val dialogue by editor.property<String>("Dialogue", restart = true) { "stories/hello.story" }
+val controller = DialogueController(dialogue)
+
+// Or keep the node running and react by hand
+val radius by editor.property<Double>("Radius", onChange = { rebuildPatrol(it) }) { 8.0 }
+```
+
+A restart keeps everything the node had saved - persisted values, editor values, the current state - and starts it from there, exactly like a world reload does.
+The editor reports a change per keystroke, so `restart` suits a picker, a number or an enum better than a field someone types into freely; a value that did not actually change never restarts anything.
+
+:::advice
+Editor values are stored apart from [`persisted`](/docs/hollowengine/scripting/node) ones, so the same name may safely be used for both.
+:::
+
+---
+
+## What the editor shows
+
+A script's name and properties are read from the running node, so they appear once the script is attached to the entity.
+Until then the attach list shows the file path alone.
+
+Scripts with no properties still show up in the **Scripts** tab as a plain row - `editor` is optional, and a node that declares nothing keeps behaving exactly as before.

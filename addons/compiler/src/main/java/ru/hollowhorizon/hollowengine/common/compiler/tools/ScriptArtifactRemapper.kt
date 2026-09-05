@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoader
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.RemappingClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.source.DirectoryScriptSource
+import ru.hollowhorizon.hollowengine.common.scripting.source.isCompilableScriptFile
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import java.io.File
 import java.nio.file.Files
@@ -44,7 +45,8 @@ object ScriptArtifactRemapper {
         return try {
             ScriptRegistry.register(source)
             val failures = LinkedHashMap<String, Throwable>()
-            val outputs = source.list().associateWith { id -> ScriptCache.artifactIn(options.output, id) }
+            val outputs = source.list().filter { isCompilableScriptFile(it.path) }
+                .associateWith { id -> ScriptCache.artifactIn(options.output, id) }
             outputs.forEach { (id, output) ->
                 val fingerprint = ScriptFingerprint.compute(id) ?: run {
                     failures[id.path] = IllegalStateException("Cannot fingerprint the script")

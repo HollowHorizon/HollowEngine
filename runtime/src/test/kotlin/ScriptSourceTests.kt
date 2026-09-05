@@ -64,11 +64,12 @@ class ScriptSourceTests {
         root.resolve("nodes").mkdirs()
         root.resolve("nodes/a.node.kts").writeText("// a")
         root.resolve("b.ui.kts").writeText("// b")
+        root.resolve("c.story").writeText("Vitalik: hi")
         root.resolve("notes.txt").writeText("ignored")
 
         val source = directorySource("demo", root)
         assertEquals(
-            listOf("b.ui.kts", "nodes/a.node.kts"),
+            listOf("b.ui.kts", "c.story", "nodes/a.node.kts"),
             source.list().map(ScriptId::path),
         )
 

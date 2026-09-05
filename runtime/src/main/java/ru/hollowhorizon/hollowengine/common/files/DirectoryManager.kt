@@ -37,7 +37,5 @@ object DirectoryManager {
         return HOLLOW_ENGINE.resolve(this).toFile()
     }
 
-    val scripts: List<ScriptId> get() = ScriptRegistry.list()
-
     val componentScripts: List<ScriptId> get() = ScriptRegistry.list(".$NODE_SCRIPT_EXTENSION")
 }

@@ -7,6 +7,9 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
+import ru.hollowhorizon.hollowengine.common.attachments.editor.ScriptEditorInfo
+import ru.hollowhorizon.hollowengine.common.attachments.editor.ScriptEditorJson
+import ru.hollowhorizon.hollowengine.common.attachments.editor.toDescriptor
 
 @Composable
 internal fun EntitySidebar(session: EntityEditorSession, width: Float) {
@@ -261,17 +264,13 @@ private fun AddComponentFooter(session: EntityEditorSession) {
 @Composable
 private fun ScriptsTab(session: EntityEditorSession) {
     val query = session.query
-    val attached = session.attachedScripts.filter { query.isBlank() || it.contains(query, ignoreCase = true) }
+    val attached = session.attachedScripts.filter { matchesScript(it, query) }
 
     Text(EntityEditorLang.attached, tags = listOf("ee-section-title"))
-    if (attached.isEmpty()) {
-        Text(EntityEditorLang.noScripts, tags = listOf("ee-hint"))
-    } else {
-        attached.forEach { path ->
-            key(path) {
-                ScriptRow(path, EntityEditorIcons.REMOVE, EntityEditorLang.detach) { session.detachScript(path) }
-            }
-        }
+    when {
+        session.attachedScripts.isEmpty() -> Text(EntityEditorLang.noScripts, tags = listOf("ee-hint"))
+        attached.isEmpty() -> Text(EntityEditorLang.nothingFound, tags = listOf("ee-hint"))
+        else -> attached.forEach { script -> key(script.path) { ScriptCard(session, script, query) } }
     }
 
     EditorButton(
@@ -294,13 +293,67 @@ private fun ScriptsTab(session: EntityEditorSession) {
 }
 
 @Composable
-private fun ScriptRow(path: String, icon: String, tooltip: String, onClick: () -> Unit) {
-    Row(tags = listOf("ee-script-row")) {
-        Image(EntityEditorIcons.SCRIPT, tags = listOf("ee-script-icon"))
-        Column(modifier = Modifier.grow(1f)) {
-            Text(path.substringAfterLast('/'), tags = listOf("ee-script-name"))
-            Text(path, tags = listOf("ee-script-path"))
+private fun ScriptCard(session: EntityEditorSession, script: ScriptEditorInfo, query: String) {
+    var expanded by remember(script.path) { mutableStateOf(false) }
+
+    val fields = script.fields.filterNot { it.hidden }
+    val name = scriptName(script)
+    val nameMatches = query.isBlank() || name.contains(query, ignoreCase = true) || script.path
+        .contains(query, ignoreCase = true)
+    val open = fields.isNotEmpty() && (expanded || !nameMatches)
+
+    Column(tags = listOf("ee-card")) {
+        Row(
+            tags = listOf("ee-card-head"),
+            modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND)
+                .onClick { expanded = !expanded },
+        ) {
+            Image(script.icon.ifBlank { EntityEditorIcons.SCRIPT }, tags = listOf("ee-script-icon"))
+            Column(modifier = Modifier.grow(1f)) {
+                Text(name, tags = listOf("ee-script-name"))
+                Text(script.path, tags = listOf("ee-script-path"))
+            }
+            EditorIconButton(EntityEditorIcons.REMOVE, EntityEditorLang.detach, tags = listOf("ee-card-remove")) {
+                session.detachScript(script.path)
+            }
+            if (fields.isNotEmpty()) EditorArrow(open)
         }
-        EditorIconButton(icon, tooltip, onClick = onClick)
+
+        if (!open) return@Column
+
+        if (script.description.isNotBlank()) {
+            Text(ComponentLabels.translate(script.description), tags = listOf("ee-hint"))
+        }
+
+        val descriptor = remember(fields) { fields.toDescriptor("hollowengine.node.${script.path}") }
+        val values = remember(script.values) { scriptValues(script.values) }
+
+        Column(tags = listOf("ee-card-body")) {
+            ComponentFields(
+                owner = null,
+                descriptor = descriptor,
+                value = values,
+                path = "/script/${script.path}",
+                query = if (nameMatches) "" else query,
+                onChange = { edited -> session.updateScript(script, edited) },
+            )
+        }
+    }
+}
+
+private fun scriptName(script: ScriptEditorInfo): String =
+    if (script.name.isNotBlank()) ComponentLabels.translate(script.name)
+    else ComponentLabels.prettify(script.path.substringAfterLast('/').substringBefore(".node.kts"))
+
+private fun scriptValues(text: String): JsonObject =
+    runCatching { ScriptEditorJson.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: JsonObject(emptyMap())
+
+private fun matchesScript(script: ScriptEditorInfo, query: String): Boolean {
+    if (query.isBlank()) return true
+    if (script.path.contains(query, ignoreCase = true)) return true
+    if (scriptName(script).contains(query, ignoreCase = true)) return true
+    return script.fields.any { field ->
+        field.name.contains(query, ignoreCase = true) ||
+                ComponentLabels.translate(field.label).contains(query, ignoreCase = true)
     }
 }

@@ -5,6 +5,7 @@ package ru.hollowhorizon.hollowengine.common.attachments.editor
 import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonObject
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
@@ -16,9 +17,9 @@ import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.scripting.NODE_SCRIPT_EXTENSION
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.EntityNodeRuntime
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeAttachTargets
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
@@ -38,26 +39,33 @@ data class EntityEditorSnapshot(
     val isPlayer: Boolean = false,
     val stored: List<@Polymorphic Component> = emptyList(),
     val virtual: List<@Polymorphic Component> = emptyList(),
-    val attachedScripts: List<String> = emptyList(),
+    val attachedScripts: List<ScriptEditorInfo> = emptyList(),
     val availableScripts: List<String> = emptyList(),
+    val scriptFiles: List<String> = emptyList(),
     val hasSlots: Boolean = false,
 )
 
 fun Player.canEditEntities(): Boolean = hasPermissions(PlayerPermissions.GAMEMASTER)
 
 object EntityEditorService {
-    fun snapshot(entity: Entity): EntityEditorSnapshot = EntityEditorSnapshot(
-        entityId = entity.id,
-        title = entity.displayName?.string ?: entity.name.string,
-        typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.type).toString(),
-        isPlayer = entity is Player,
-        stored = AttachmentRegistry.entitySnapshot(entity.level(), entity.uuid)?.components.orEmpty(),
-        virtual = VirtualComponentRegistry.read(entity),
-        attachedScripts = EntityNodeRuntime.paths(entity).sorted(),
-        availableScripts = DirectoryManager.componentScripts.filter { NodeAttachTargets.accepts(it, entity.javaClass) }
-            .map(ScriptRegistry::display).sorted(),
-        hasSlots = entity is LivingEntity,
-    )
+    fun snapshot(entity: Entity): EntityEditorSnapshot {
+        val files = ScriptRegistry.list()
+
+        return EntityEditorSnapshot(
+            entityId = entity.id,
+            title = entity.displayName?.string ?: entity.name.string,
+            typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.type).toString(),
+            isPlayer = entity is Player,
+            stored = AttachmentRegistry.entitySnapshot(entity.level(), entity.uuid)?.components.orEmpty(),
+            virtual = VirtualComponentRegistry.read(entity),
+            attachedScripts = EntityNodeRuntime.editors(entity),
+            availableScripts = files
+                .filter { it.path.endsWith(".$NODE_SCRIPT_EXTENSION") && NodeAttachTargets.accepts(it, entity.javaClass) }
+                .map(ScriptRegistry::display).sorted(),
+            scriptFiles = files.map(ScriptRegistry::display).sorted(),
+            hasSlots = entity is LivingEntity,
+        )
+    }
 
     fun sendState(player: ServerPlayer, entity: Entity) {
         EntityEditorStatePacket(snapshot(entity)).send(player)
@@ -126,6 +134,18 @@ class EntityNodeScriptPacket(val entityId: Int, val path: String, val attach: Bo
         val target = player.level().getEntity(entityId) ?: return
         if (attach) EntityNodeRuntime.attach(target, path) else EntityNodeRuntime.detach(target, path)
         EntityEditorService.sendState(player as? ServerPlayer ?: return, target)
+    }
+}
+
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@Serializable
+class SetEntityScriptValuesPacket(val entityId: Int, val path: String, val values: String) : HollowPacket {
+    override fun handle(player: Player) {
+        if (!player.canEditEntities()) return
+        val target = player.level().getEntity(entityId) ?: return
+        val parsed = runCatching { ScriptEditorJson.parseToJsonElement(values) as? JsonObject }.getOrNull() ?: return
+        EntityNodeRuntime.applyEditorValues(target, path, parsed)
     }
 }
 

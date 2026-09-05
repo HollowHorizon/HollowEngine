@@ -39,10 +39,13 @@ internal class PersistedValue<T : Any>(
     /** Whether this value was ever loaded or assigned, as opposed to merely falling back to [default]. */
     private var stored = false
 
-    override fun getValue(thisRef: Any?, property: KProperty<*>): T =
-        value ?: default().also { value = it }
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T = current()
 
-    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) = assign(value)
+
+    fun current(): T = value ?: default().also { value = it }
+
+    fun assign(value: T) {
         this.value = value
         stored = true
     }

@@ -72,8 +72,13 @@ internal class EntityEditorSession(initial: EntityEditorSnapshot) {
                 .sortedBy { it.id.toString() }
         }
 
-    val attachedScripts: List<String> get() = snapshot.attachedScripts
-    val availableScripts: List<String> get() = snapshot.availableScripts.filter { it !in snapshot.attachedScripts }
+    val attachedScripts: List<ScriptEditorInfo> get() = snapshot.attachedScripts
+
+    val availableScripts: List<String>
+        get() {
+            val attached = snapshot.attachedScripts.mapTo(mutableSetOf(), ScriptEditorInfo::path)
+            return snapshot.availableScripts.filter { it !in attached }
+        }
 
     fun accept(next: EntityEditorSnapshot) {
         if (next.entityId != entityId) return
@@ -134,11 +139,19 @@ internal class EntityEditorSession(initial: EntityEditorSnapshot) {
         EntityNodeScriptPacket(entityId, path, attach = false).send()
     }
 
-    /** What an `@EditorAsset` field can offer for [extensions]. */
-    fun assets(extensions: List<String>): List<String> = when {
-        extensions.any { it.endsWith("node.kts") } -> snapshot.availableScripts
-        else -> extensions.flatMap { EditorAssetSources.list(it) }
+    fun updateScript(script: ScriptEditorInfo, values: JsonObject) {
+        val text = values.toString()
+        snapshot = snapshot.copy(
+            attachedScripts = snapshot.attachedScripts.map {
+                if (it.path == script.path) it.copy(values = text) else it
+            },
+        )
+        SetEntityScriptValuesPacket(entityId, script.path, text).send()
     }
+
+    fun assets(extensions: List<String>): List<String> = extensions.flatMap { extension ->
+        snapshot.scriptFiles.filter { it.endsWith(extension) } + EditorAssetSources.list(extension)
+    }.distinct().sorted()
 
     val hasSlots: Boolean get() = snapshot.hasSlots
 

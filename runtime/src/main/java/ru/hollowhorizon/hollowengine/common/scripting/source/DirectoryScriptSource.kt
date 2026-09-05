@@ -18,7 +18,7 @@ open class DirectoryScriptSource(
         if (!directory.isDirectory) return emptyList()
         val base = directory.toPath()
         return directory.walkTopDown()
-            .filter { it.isFile && it.name.endsWith(SCRIPT_EXTENSION) }
+            .filter { it.isFile && isScriptSourceFile(it.name) }
             .map { file -> ScriptId(namespace, base.relativize(file.toPath()).toString().replace('\\', '/')) }
             .sortedBy(ScriptId::path)
             .toList()
@@ -36,9 +36,5 @@ open class DirectoryScriptSource(
         // A path may not climb out of the directory through `..` segments.
         if (!file.toPath().startsWith(directory.canonicalFile.toPath())) return null
         return file
-    }
-
-    private companion object {
-        const val SCRIPT_EXTENSION = ".kts"
     }
 }
