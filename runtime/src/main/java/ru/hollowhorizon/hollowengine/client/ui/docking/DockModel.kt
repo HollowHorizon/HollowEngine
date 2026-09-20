@@ -8,7 +8,13 @@ data class DockItem(
     val minWidth: Float = 96f,
     val minHeight: Float = 64f,
     val dirty: Boolean = false,
+    val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
 )
+
+enum class DockSingleTabPresentation {
+    BAR,
+    OVERLAY,
+}
 
 sealed interface DockNode {
     val id: String

@@ -24,7 +24,7 @@ import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeModifierMask
-import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeOverlayPoint
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeWorldPoint
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
@@ -197,7 +197,7 @@ object TransformGizmoEditor {
     @SubscribeEvent
     fun onApplyCursor(event: RenderTickEvent.Post) {
         val window = Minecraft.getInstance().window.window
-        if (!isInitialized || !isEditorAvailable() || crosshairMode()) {
+        if (!isInitialized || !isEditorAvailable() || crosshairMode() || pointerOverIde()) {
             UiCursorManager.release(window, this)
             return
         }
@@ -213,7 +213,7 @@ object TransformGizmoEditor {
     fun handleMouseButton(physX: Float, physY: Float, button: Int, action: Int): Boolean {
         ensureInitialized()
         if (!isEditorAvailable()) return false
-        if (!crosshairMode() && pointerOverIde(physX, physY) && action == GLFW.GLFW_PRESS) return false
+        if (!crosshairMode() && pointerOverIde() && action == GLFW.GLFW_PRESS) return false
         if (!crosshairMode() && overlay.handleMouseButton(physX, physY, button, action)) return true
         val (x, y) = pointerLogical(physX, physY)
         return when (action) {
@@ -221,6 +221,16 @@ object TransformGizmoEditor {
             GLFW.GLFW_RELEASE -> onRelease(button)
             else -> false
         }
+    }
+
+    /**
+     * The editor took the pointer away, so nothing in the world is under it any more. A drag keeps
+     * its handle: it is being held, not hovered.
+     */
+    fun releasePointer() {
+        if (currentDrag != null) return
+        hoveredHandleId = null
+        hoveredKey = null
     }
 
     fun handleMouseMove(physX: Float, physY: Float): Boolean {
@@ -231,7 +241,7 @@ object TransformGizmoEditor {
         overlay.handleMouseMove(physX, physY)
         val (x, y) = pointerLogical(physX, physY)
         val drag = currentDrag
-        if (drag == null && pointerOverIde(physX, physY)) {
+        if (drag == null && pointerOverIde()) {
             hoveredHandleId = null
             hoveredKey = null
             return false
@@ -269,7 +279,7 @@ object TransformGizmoEditor {
         if (!isInitialized || !isEditorAvailable()) return false
         if (draggingKey != null) return true
         if (!crosshairMode()) {
-            if (HollowIdeOverlay.isMouseOver(physX, physY) || pointerOverIde(physX, physY)) return false
+            if (pointerOverIde()) return false
             if (overlay.isMouseOver(physX, physY)) return true
         }
         val (x, y) = pointerLogical(physX, physY)
@@ -567,14 +577,13 @@ object TransformGizmoEditor {
 
     private fun crosshairMode(): Boolean = Minecraft.getInstance().screen == null
 
-    private fun pointerOverIde(physX: Float, physY: Float): Boolean =
-        HollowIdeOverlay.isVisible() && HollowIdeOverlay.isMouseOver(physX, physY)
+    private fun pointerOverIde(): Boolean = HollowIdeOverlay.holdsPointer()
 
     private fun pointerLogical(physX: Float, physY: Float): Pair<Float, Float> =
         if (crosshairMode()) {
             WorldToScreenProjector.screenCenter()
         } else {
-            val point = hollowIdeOverlayPoint(physX, physY)
+            val point = hollowIdeWorldPoint(physX, physY)
             point.x to point.y
         }
 

@@ -1489,10 +1489,12 @@ class MinecraftUiRenderer {
 
     private fun drawRawTexture(command: DrawRawTextureCommand) {
         if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        val texture = command.texture?.invoke() ?: command.textureId
+        if (texture == 0) return
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         UiTextureEffects.drawTexture(
-            texture = command.textureId,
+            texture = texture,
             width = command.rect.width,
             height = command.rect.height,
             transform = transform,

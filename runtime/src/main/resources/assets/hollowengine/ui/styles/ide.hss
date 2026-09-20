@@ -78,6 +78,11 @@
     align-items: center center;
 }
 
+.game-viewport-hint {
+    foreground: #8d96a8;
+    text-align: center;
+}
+
 .project-filter-row {
     size: fill fit;
     padding: 0px 4px;

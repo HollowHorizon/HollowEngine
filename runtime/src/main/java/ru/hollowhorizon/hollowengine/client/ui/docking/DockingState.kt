@@ -59,6 +59,40 @@ class DockingState {
         focus(item.id)
     }
 
+    fun newStack(items: List<DockItem>, selectedItemId: String? = null): DockNode.Stack? {
+        if (items.isEmpty()) return null
+        val selected = selectedItemId?.takeIf { id -> items.any { it.id == id } } ?: items.first().id
+        return DockNode.Stack(ids.nextStackId(), items, selected)
+    }
+
+    fun newSplit(
+        orientation: DockOrientation,
+        first: DockNode,
+        second: DockNode,
+        fraction: Float = 0.5f,
+    ): DockNode.Split = DockNode.Split(
+        ids.nextSplitId(), orientation, first, second, fraction.coerceIn(MinSplitFraction, MaxSplitFraction),
+    )
+
+    fun newWindow(stack: DockNode.Stack, x: Float, y: Float, width: Float, height: Float): FloatingDockWindow =
+        FloatingDockWindow(ids.nextWindowId(), stack, x, y, width, height)
+
+    /**
+     * Replaces everything on screen at once. This is how a layout arrives whole, the default one,
+     * or the one the last session left behind.
+     */
+    fun applyLayout(
+        root: DockNode?,
+        floating: List<FloatingDockWindow> = emptyList(),
+        focused: String? = null,
+    ) {
+        this.root = root
+        floatingWindows.clear()
+        floatingWindows += floating
+        focusedItemId = focused?.takeIf(::contains) ?: firstItemId()
+        focusedItemId?.let { this.root = this.root?.select(it) }
+    }
+
     fun close(itemId: String): Boolean {
         val dockedRemoval = root?.removeItem(itemId)
         if (dockedRemoval?.item != null) {
@@ -110,6 +144,15 @@ class DockingState {
     }
 
     fun select(itemId: String): Boolean = focus(itemId)
+
+    /** Whether the window holding [itemId] floats over the dock instead of being docked in it. */
+    fun isFloating(itemId: String): Boolean =
+        floatingWindows.any { window -> window.stack.items.any { it.id == itemId } }
+
+    /** Leaves every window unfocused, for when the focus has gone somewhere outside the dock. */
+    fun unfocus() {
+        focusedItemId = null
+    }
 
     fun dock(itemId: String, target: DockTarget): Boolean {
         val removal = removeItemForDock(itemId) ?: return false

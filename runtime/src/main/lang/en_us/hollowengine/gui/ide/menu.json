@@ -8,5 +8,6 @@
   "chat_only": "Show only with chat open",
   "collapse": "Collapse",
   "expand": "Expand",
-  "hide": "Hide…"
+  "hide": "Hide…",
+  "reset_layout": "Reset Window Layout"
 }

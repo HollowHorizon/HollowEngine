@@ -155,6 +155,7 @@ data class DrawRawTextureCommand(
     override val node: UiNode,
     val rect: UiRect,
     val textureId: Int,
+    val texture: (() -> Int)? = null,
     val opacity: Float,
     val flipY: Boolean,
     val opaque: Boolean,

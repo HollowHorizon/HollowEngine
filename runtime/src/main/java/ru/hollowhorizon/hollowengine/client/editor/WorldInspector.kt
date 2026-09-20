@@ -9,7 +9,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.entity.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
-import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeOverlayPoint
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeWorldPoint
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorTarget
 import ru.hollowhorizon.hollowengine.client.ui.inspector.LocalInspectorHost
@@ -60,7 +60,7 @@ object WorldInspector {
             gizmoOwned = emptySet()
             return
         }
-        hovered = entityAt(lastPointerX, lastPointerY)
+        hovered = if (pointerHeldByEditor()) null else entityAt(lastPointerX, lastPointerY)
         gizmoOwned = TransformGizmoEditor.boxedEntityIds()
         boxed = boxableEntities()
         overlay.render()
@@ -80,10 +80,13 @@ object WorldInspector {
         lastPointerY = physY
     }
 
+    private fun pointerHeldByEditor(): Boolean =
+        Minecraft.getInstance().screen != null && HollowIdeOverlay.holdsPointer()
+
     fun pickAt(physX: Float, physY: Float, button: Int, action: Int): Boolean {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT || action != GLFW.GLFW_PRESS) return false
         if (!EditorMode.isActive()) return false
-        if (HollowIdeOverlay.isVisible() && HollowIdeOverlay.isMouseOver(physX, physY)) return false
+        if (HollowIdeOverlay.holdsPointer()) return false
 
         val entity = hovered ?: run {
             close()
@@ -204,7 +207,7 @@ object WorldInspector {
             val origin = player.eyePosition
             return origin to origin.add(player.lookAngle.scale(EditorReach))
         }
-        val point = hollowIdeOverlayPoint(physX, physY)
+        val point = hollowIdeWorldPoint(physX, physY)
         val ray = WorldToScreenProjector.screenRay(point.x, point.y) ?: return null
         return ray.origin to ray.origin.add(ray.direction.scale(EditorReach))
     }

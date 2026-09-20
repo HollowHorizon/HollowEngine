@@ -79,6 +79,8 @@ interface UiCanvasDrawScope {
     fun drawTexture(textureId: Int, flipY: Boolean = false, opaque: Boolean = false) =
         drawTexture(bounds, textureId, flipY, opaque)
 
+    fun drawTexture(rect: UiRect, texture: () -> Int, flipY: Boolean = false, opaque: Boolean = false)
+
     /** Draws world-independent Minecraft sprite particles, clipped to the given local rectangle. */
     fun drawParticles(system: UiParticleSystem, rect: UiRect = bounds)
 
@@ -202,11 +204,27 @@ internal class UiCommandCanvasScope(
     }
 
     override fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean, opaque: Boolean) {
-        if (!rect.isDrawable() || textureId == 0 || opacity <= 0f) return
+        if (textureId == 0) return
+        rawTexture(rect, textureId, null, flipY, opaque)
+    }
+
+    override fun drawTexture(rect: UiRect, texture: () -> Int, flipY: Boolean, opaque: Boolean) {
+        rawTexture(rect, 0, texture, flipY, opaque)
+    }
+
+    private fun rawTexture(
+        rect: UiRect,
+        textureId: Int,
+        texture: (() -> Int)?,
+        flipY: Boolean,
+        opaque: Boolean,
+    ) {
+        if (!rect.isDrawable() || opacity <= 0f) return
         sink += DrawRawTextureCommand(
             node = node,
             rect = rect.toCommandRect(),
             textureId = textureId,
+            texture = texture,
             opacity = opacity,
             flipY = flipY,
             opaque = opaque,

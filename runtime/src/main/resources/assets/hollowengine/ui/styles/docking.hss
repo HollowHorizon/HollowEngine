@@ -17,6 +17,19 @@
             translate 140ms ease-out,
 }
 
+.dock-tab-bar {
+    scrollbar-overlay: true;
+    scrollbar-thickness: 3px;
+    scrollbar-margin: 0px;
+    scrollbar-track: none;
+    scrollbar-thumb: rgba(155, 169, 194, 0.48);
+    scrollbar-thumb-radius: 2px;
+}
+
+.dock-tab-bar.compact {
+    background: none;
+}
+
 .dock-tab:hover {
     background: #31343D;
 }

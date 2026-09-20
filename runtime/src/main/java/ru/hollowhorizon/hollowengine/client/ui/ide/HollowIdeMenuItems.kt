@@ -84,9 +84,13 @@ internal fun hollowIdeFileMenuItems(
 }
 
 /** Every tool window, ticked while it is on screen; picking one opens it or brings it to the front. */
-internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState): List<UiDropdownItem> {
+internal fun hollowIdeWindowMenuItems(
+    model: HollowIdeModel,
+    dock: DockingState,
+    onResetLayout: () -> Unit,
+): List<UiDropdownItem> {
     var separate = false
-    return HollowIdeToolWindows.menu.mapNotNull { window ->
+    val windows = HollowIdeToolWindows.menu.mapNotNull { window ->
         if (window == null) {
             separate = true
             return@mapNotNull null
@@ -100,6 +104,11 @@ internal fun hollowIdeWindowMenuItems(model: HollowIdeModel, dock: DockingState)
             dock.openToolWindow(window, model)
         }.also { separate = false }
     }
+    return windows + UiDropdownItem(
+        label = "$MenuLang.reset_layout".lang,
+        separatorBefore = true,
+        onClick = onResetLayout,
+    )
 }
 
 internal fun hollowIdeToolMenuItems(

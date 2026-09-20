@@ -37,8 +37,17 @@ public class MinecraftMixin {
         BootstrapRuntimeManager.bridge().onClientRenderTickPost((Minecraft) (Object) this);
     }
 
-    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/pipeline/RenderTarget;blitToScreen(II)V", shift = At.Shift.AFTER))
+    @Inject(method = "runTick", at = @At(
+            value = "INVOKE",
+            target = "Lcom/mojang/blaze3d/pipeline/RenderTarget;unbindWrite()V",
+            shift = At.Shift.AFTER
+    ))
     private void beforeBlit(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onBeforeBlitScreen((Minecraft) (Object) this);
+    }
+
+    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/pipeline/RenderTarget;blitToScreen(II)V", shift = At.Shift.AFTER))
+    private void afterBlit(CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onBlitScreen((Minecraft) (Object) this);
     }
 

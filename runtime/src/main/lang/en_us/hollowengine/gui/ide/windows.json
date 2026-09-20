@@ -1,5 +1,6 @@
 {
   "cutscene_timeline": "Cutscene Timeline",
   "inspector": "Inspector",
-  "cutscene_viewport": "Cutscene Viewport"
+  "game_viewport": "Game View",
+  "game_viewport.detached": "The game is only shown while this panel is docked"
 }

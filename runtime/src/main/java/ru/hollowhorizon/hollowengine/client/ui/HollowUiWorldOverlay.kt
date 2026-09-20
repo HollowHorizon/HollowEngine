@@ -6,7 +6,7 @@ import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeScale
-import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeOverlayPoint
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeWorldPoint
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
@@ -95,8 +95,8 @@ class HollowUiWorldOverlay(
     fun render() {
         if (!contentSet) return
         val target = currentBlitTarget()
-        val frameWidth = HollowIdeScale.scaledWidth()
-        val frameHeight = HollowIdeScale.scaledHeight()
+        val frameWidth = target.logicalWidth
+        val frameHeight = target.logicalHeight
         val (px, py) = pointerOverride() ?: (lastX to lastY)
         val frame = (if (pipelineFrames) pipeline.take(frameWidth, frameHeight) else null)
             ?: surface.frame(frameWidth, frameHeight, px, py, System.nanoTime())
@@ -122,26 +122,31 @@ class HollowUiWorldOverlay(
         surface.close()
     }
 
+    /**
+     * The pointer arrives in the pixels of whatever the world was drawn into, and the scale that
+     * sizes this overlay's frame is what turns those into its logical coordinates.
+     */
     private fun logicalPoint(x: Float, y: Float): Pair<Float, Float> {
         pointerOverride()?.let { return it }
-        val point = hollowIdeOverlayPoint(x, y)
+        val point = hollowIdeWorldPoint(x, y)
         return point.x to point.y
     }
 
     private fun currentBlitTarget(): UiRenderTarget {
         val viewport = IntArray(4)
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport)
-        val logicalWidth = HollowIdeScale.scaledWidth()
-        val logicalHeight = HollowIdeScale.scaledHeight()
+        val scale = HollowIdeScale.factor()
+        val width = viewport[2].coerceAtLeast(1)
+        val height = viewport[3].coerceAtLeast(1)
         return UiRenderTarget(
             framebufferId = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),
             x = viewport[0],
             y = viewport[1],
-            width = viewport[2],
-            height = viewport[3],
-            logicalWidth = logicalWidth,
-            logicalHeight = logicalHeight,
-            scale = viewport[2] / logicalWidth,
+            width = width,
+            height = height,
+            logicalWidth = (width / scale).coerceAtLeast(1f),
+            logicalHeight = (height / scale).coerceAtLeast(1f),
+            scale = scale,
         )
     }
 }

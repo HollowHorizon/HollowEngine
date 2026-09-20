@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -148,22 +149,71 @@ private fun DockStackView(
     tabBarActions: DockTabBarActions,
     content: DockItemContent,
 ) {
+    val selected = stack.selectedItem ?: return
+    if (stack.items.size == 1 && selected.singleTabPresentation == DockSingleTabPresentation.OVERLAY) {
+        Box(
+            id = stack.id,
+            mode = UiBoxMode.STACK,
+            tags = listOf(DockTags.Stack),
+            modifier = Modifier.size(100.percent, 100.percent),
+        ) {
+            DockSelectedContent(stack.id, selected, content, Modifier.size(100.percent, 100.percent))
+            DockSingleTabBadge(stack, state, tabContent, tabBarActions)
+        }
+        return
+    }
+
     Column(
         id = stack.id,
         tags = listOf(DockTags.Stack),
         modifier = Modifier.size(100.percent, 100.percent),
     ) {
         DockTabBar(stack, state, tabContent, tabBarActions, allowUndock = true)
-        val selected = stack.selectedItem ?: return@Column
-        Box(
-            id = "${stack.id}-content",
-            tags = listOf(DockTags.Content),
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).clip()
-        ) {
-            key(selected.id) {
-                content(selected)
-            }
+        DockSelectedContent(
+            stack.id,
+            selected,
+            content,
+            Modifier.size(100.percent, 0.px).grow(1f),
+        )
+    }
+}
+
+@Composable
+private fun DockSelectedContent(
+    stackId: String,
+    selected: DockItem,
+    content: DockItemContent,
+    modifier: Modifier,
+) {
+    Box(
+        id = "$stackId-content",
+        tags = listOf(DockTags.Content),
+        modifier = modifier.clip(),
+    ) {
+        key(selected.id) {
+            content(selected)
         }
+    }
+}
+
+@Composable
+private fun DockSingleTabBadge(
+    stack: DockNode.Stack,
+    state: DockingState,
+    tabContent: DockHeaderContent,
+    tabBarActions: DockTabBarActions,
+) {
+    val item = stack.selectedItem ?: return
+    Row(
+        id = "${stack.id}-tab-badge",
+        tags = listOf(DockTags.TabBar, DockTags.CompactTabBar),
+        modifier = Modifier.position(DockTabMargin.px, DockTabMargin.px)
+            .size(UiLength.Auto, 24.px)
+            .alignItems(vertical = UiAlign.CENTER)
+            .layer(20),
+    ) {
+        DockTab(stack.id, 0, item, true, state, tabContent, allowUndock = true) { 0f }
+        tabBarActions(item)
     }
 }
 
@@ -245,6 +295,7 @@ private fun DockTabBar(
     allowUndock: Boolean,
 ) {
     val itemIds = stack.items.map { it.id }
+    val scroll = rememberScrollState()
     val measurePolicy = remember(stack.id, itemIds) {
         dockTabBarMeasurePolicy(stack.id, itemIds, state)
     }
@@ -257,13 +308,28 @@ private fun DockTabBar(
                 stack.items.forEachIndexed { index, item ->
                     val selected = stack.selectedItem?.id == item.id
                     key(item.id) {
-                        DockTab(stack.id, index, item, selected, state, tabContent, allowUndock)
+                        DockTab(
+                            stack.id,
+                            index,
+                            item,
+                            selected,
+                            state,
+                            tabContent,
+                            allowUndock,
+                        ) { scroll.offsetX }
                     }
                 }
             },
             id = "${stack.id}-tabs",
             tags = listOf(DockTags.TabBar),
-            modifier = Modifier.size(0.px, 24.px).grow(1f),
+            modifier = Modifier.size(0.px, 24.px).grow(1f).clip()
+                .scrollable(
+                    vertical = false,
+                    horizontal = true,
+                    hasVerticalScrollbar = false,
+                    hasHorizontalScrollbar = true,
+                    state = scroll,
+                ),
             measurePolicy = measurePolicy,
         )
         stack.selectedItem?.let { selected ->
@@ -283,6 +349,7 @@ private fun DockTab(
     state: DockingState,
     tabContent: DockHeaderContent,
     allowUndock: Boolean,
+    scrollOffsetX: () -> Float = { 0f },
 ) {
     val dragOffset = state.tabDragOffset(stackId, item.id, index)
     val swap = if (dragOffset == null) state.tabSwapOffset(stackId, item.id) else null
@@ -313,7 +380,7 @@ private fun DockTab(
             .tabTransform(dragOffset, DockTabOffset.DRAG).tabTransform(swap?.offset, DockTabOffset.SWAP)
             .cursor(if (dragOffset != null) UiCursorShape.MOVE else UiCursorShape.HAND)
             .input(hoverable = true, clickable = true, draggable = true)
-            .buildTabInputModifier(stackId, item, state, allowUndock)
+            .buildTabInputModifier(stackId, item, state, allowUndock, scrollOffsetX)
     ) {
         TabContentWrapper(item, tabContent)
 
@@ -354,6 +421,7 @@ private fun Modifier.buildTabInputModifier(
     item: DockItem,
     state: DockingState,
     allowUndock: Boolean,
+    scrollOffsetX: () -> Float,
 ): Modifier = onPress { event ->
     if (event.isMiddleClick()) {
         if (item.closable) state.close(item.id)
@@ -384,7 +452,12 @@ private fun Modifier.buildTabInputModifier(
     val grab = state.tabGrab(stackId, item.id)
 
     if (event.isInsideTabBar()) {
-        state.dragTabInBar(stackId, item.id, event.parentLocalX, grab?.x ?: event.localX)
+        state.dragTabInBar(
+            stackId,
+            item.id,
+            event.parentLocalX + scrollOffsetX(),
+            grab?.x ?: event.localX,
+        )
         event.consume()
         return@onDrag
     }
@@ -504,6 +577,7 @@ object DockTags {
     const val Splitter = "dock-splitter"
     const val Stack = "dock-stack"
     const val TabBar = "dock-tab-bar"
+    const val CompactTabBar = "compact"
     const val Tab = "dock-tab"
     const val Selected = "selected"
     const val Dirty = "dirty"

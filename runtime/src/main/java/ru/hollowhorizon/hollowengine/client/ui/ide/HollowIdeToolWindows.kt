@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockSingleTabPresentation
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.AssetManagerLang
@@ -27,10 +28,19 @@ internal class HollowIdeToolWindow(
     val minWidth: Float = 96f,
     val minHeight: Float = 64f,
     val closable: Boolean = true,
+    val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
 ) {
     val title: String get() = titleKey.lang
 
-    fun dockItem(): DockItem = DockItem(id, title, icon, closable, minWidth, minHeight)
+    fun dockItem(): DockItem = DockItem(
+        id = id,
+        title = title,
+        icon = icon,
+        closable = closable,
+        minWidth = minWidth,
+        minHeight = minHeight,
+        singleTabPresentation = singleTabPresentation,
+    )
 }
 
 internal object HollowIdeToolWindows {
@@ -77,14 +87,15 @@ internal object HollowIdeToolWindows {
         minWidth = 240f,
         minHeight = 260f,
     )
-    val CutsceneViewport = HollowIdeToolWindow(
-        id = CutsceneViewportId,
-        titleKey = "hollowengine.gui.ide.windows.cutscene_viewport",
+    val GameViewport = HollowIdeToolWindow(
+        id = GameViewportId,
+        titleKey = "hollowengine.gui.ide.windows.game_viewport",
         icon = CutsceneIcon,
         placement = DockPlacement.TOP,
         anchors = listOf(ToolWindowAnchor.TIMELINE, ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
         minWidth = 320f,
         minHeight = 180f,
+        singleTabPresentation = DockSingleTabPresentation.OVERLAY,
     )
     val UiProfiler = HollowIdeToolWindow(
         id = UiProfilerId,
@@ -99,8 +110,15 @@ internal object HollowIdeToolWindows {
     val menu: List<HollowIdeToolWindow?> = listOf(
         Project, Inspector, AssetManager, Console,
         null,
-        CutsceneTimeline, CutsceneViewport,
+        CutsceneTimeline, GameViewport,
     )
+
+    /** Every window the editor knows how to open, for turning a remembered id back into one. */
+    val all: List<HollowIdeToolWindow> = listOf(
+        Project, AssetManager, Console, CutsceneTimeline, Inspector, GameViewport, UiProfiler,
+    )
+
+    fun byId(id: String): HollowIdeToolWindow? = all.firstOrNull { it.id == id }
 }
 
 /** Opens [window] beside its preferred neighbour, or just focuses it if it is already open. */

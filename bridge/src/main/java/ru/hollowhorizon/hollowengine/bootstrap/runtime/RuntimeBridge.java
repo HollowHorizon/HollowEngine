@@ -16,13 +16,13 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -71,7 +71,9 @@ public interface RuntimeBridge extends AutoCloseable {
     EventBridge events();
 
     void setPlatform(RuntimePlatform platform);
+
     void setProduction(boolean production);
+
     void setClient(boolean physicalClient);
 
     boolean shouldApplyMixin(String targetClassName, String mixinClassName);
@@ -205,11 +207,7 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onRecipeManagerCreated(RecipeManager recipeManager);
 
-    void onAddEntityRendererLayers(
-            Map<EntityType<?>, EntityRenderer<?>> renderers,
-            Map<String, EntityRenderer<? extends Player>> playerRenderers,
-            EntityRendererProvider.Context context
-    );
+    void onAddEntityRendererLayers(Map<EntityType<?>, EntityRenderer<?>> renderers, Map<String, EntityRenderer<? extends Player>> playerRenderers, EntityRendererProvider.Context context);
 
     boolean onRenderEntityPre(Entity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
 
@@ -267,9 +265,25 @@ public interface RuntimeBridge extends AutoCloseable {
 
     MouseMoveResult onMouseMove(Minecraft minecraft, long windowPointer, double xPos, double yPos);
 
-    boolean onMousePress(Minecraft minecraft, float x, float y, long windowPointer, int button, int action, int modifiers);
+    boolean onMousePress(Minecraft minecraft, double windowX, double windowY, long windowPointer, int button, int action, int modifiers);
 
-    boolean onMouseScroll(Minecraft minecraft, float x, float y, long windowPointer, double xOffset, double yOffset);
+    boolean onMouseScroll(Minecraft minecraft, double windowX, double windowY, long windowPointer, double xOffset, double yOffset);
+
+    /**
+     * Whether the game may take the cursor away. The editor overlay keeps it while it is open, and
+     * hands it back once the game panel is the one being driven.
+     */
+    boolean allowMouseGrab();
+
+    /**
+     * Virtual framebuffer and GUI dimensions used while the editor embeds the game in a dock.
+     * GUI dimensions remain active for input and screen layout; framebuffer dimensions are only
+     * exposed while {@link #isGameViewportRendering()} is true, so the IDE itself still renders
+     * against the real window.
+     */
+    @Nullable GameViewportMetrics getGameViewportMetrics();
+
+    boolean isGameViewportRendering();
 
     void onRenderLevelStage(LevelRenderer renderer, PoseStack poseStack, Matrix4f projectionMatrix, int ticks, float partialTick, Camera camera, @Nullable Frustum frustum, RenderLevelStage stage);
 
@@ -294,65 +308,33 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void initRegistryProvider(RegistryProvider<?> provider);
 
+    void onBeforeBlitScreen(Minecraft minecraft);
+
     void onBlitScreen(Minecraft minecraft);
 
     enum RenderLevelStage {
-        AFTER_LEVEL,
-        AFTER_SKY,
-        AFTER_ENTITIES,
-        AFTER_BLOCK_ENTITIES,
-        AFTER_PARTICLES,
-        AFTER_WEATHER,
-        AFTER_SOLID_BLOCKS,
-        AFTER_CUTOUT_MIPPED_BLOCKS,
-        AFTER_CUTOUT_BLOCKS,
-        AFTER_TRANSLUCENT_BLOCKS,
-        AFTER_TRIPWIRE_BLOCKS
+        AFTER_LEVEL, AFTER_SKY, AFTER_ENTITIES, AFTER_BLOCK_ENTITIES, AFTER_PARTICLES, AFTER_WEATHER, AFTER_SOLID_BLOCKS, AFTER_CUTOUT_MIPPED_BLOCKS, AFTER_CUTOUT_BLOCKS, AFTER_TRANSLUCENT_BLOCKS, AFTER_TRIPWIRE_BLOCKS
     }
 
-    final class BreedResult {
-        private final @Nullable AgeableMob child;
-        private final boolean cancelled;
-
-        public BreedResult(@Nullable AgeableMob child, boolean cancelled) {
-            this.child = child;
-            this.cancelled = cancelled;
-        }
-
-        public @Nullable AgeableMob getChild() {
-            return child;
-        }
-
-        public boolean isCancelled() {
-            return cancelled;
-        }
+    record BreedResult(@Nullable AgeableMob child, boolean cancelled) {
     }
 
-    final class ChatResult {
-        private final Component message;
-        private final boolean cancelled;
-
-        public ChatResult(Component message, boolean cancelled) {
-            this.message = message;
-            this.cancelled = cancelled;
-        }
-
-        public Component getMessage() {
-            return message;
-        }
-
-        public boolean isCancelled() {
-            return cancelled;
-        }
+    record ChatResult(Component message, boolean cancelled) {
     }
 
     record CameraSetup(float yaw, float pitch, float roll) {
     }
 
-    record CameraOverride(boolean active, double x, double y, double z, float yaw, float pitch, float roll, double fov) {
+    record CameraOverride(boolean active, double x, double y, double z, float yaw, float pitch, float roll,
+                          double fov) {
         public static final CameraOverride NONE = new CameraOverride(false, 0.0D, 0.0D, 0.0D, 0.0F, 0.0F, 0.0F, 70.0D);
     }
 
-    record MouseMoveResult(float x, float y, boolean cancel, boolean resetMousePosition) {
+    record MouseMoveResult(boolean cancel, boolean resetMousePosition, boolean redirect, double redirectX,
+                           double redirectY) {
+    }
+
+    record GameViewportMetrics(int framebufferWidth, int framebufferHeight, int guiScaledWidth, int guiScaledHeight,
+                               double guiScale) {
     }
 }
