@@ -22,8 +22,14 @@ final class RuntimePayloadRemapper {
     private RuntimePayloadRemapper() {
     }
 
-    static File remapIfRequired(Class<?> anchor, File payload, Set<String> parentFirstPackages, Logger logger) throws Exception {
-        if (!runsIntermediary()) return payload;
+    static File remapIfRequired(
+            Class<?> anchor,
+            File payload,
+            boolean requiresIntermediaryRemap,
+            Set<String> parentFirstPackages,
+            Logger logger
+    ) throws Exception {
+        if (!requiresIntermediaryRemap) return payload;
 
         String name = payload.getName();
         int extension = name.lastIndexOf('.');
@@ -45,19 +51,6 @@ final class RuntimePayloadRemapper {
         Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
         logger.info("Remapped runtime payload to intermediary in {} ms", System.currentTimeMillis() - started);
         return target;
-    }
-
-    /**
-     * True on production Fabric, where the game itself runs in the intermediary namespace.
-     */
-    private static boolean runsIntermediary() {
-        try {
-            Class<?> loaderClass = Class.forName("net.fabricmc.loader.api.FabricLoader");
-            Object loader = loaderClass.getMethod("getInstance").invoke(null);
-            return !(Boolean) loaderClass.getMethod("isDevelopmentEnvironment").invoke(loader);
-        } catch (ReflectiveOperationException | ClassCastException exception) {
-            return false;
-        }
     }
 
     private static @Nullable File extractTable(Class<?> anchor, File directory) throws Exception {

@@ -83,7 +83,13 @@ public final class BootstrapRuntimeManager {
         File cacheDir = new File("hollowengine/.cache");
         File runtimeJar = EmbeddedRuntimeJar.extract(BootstrapRuntimeManager.class, cacheDir);
         if (runtimeJar != null) {
-            return RuntimePayloadRemapper.remapIfRequired(BootstrapRuntimeManager.class, runtimeJar, PARENT_FIRST_PACKAGES, LOGGER);
+            return RuntimePayloadRemapper.remapIfRequired(
+                    BootstrapRuntimeManager.class,
+                    runtimeJar,
+                    RuntimePayloadNamespace.requiresIntermediaryRemap(),
+                    PARENT_FIRST_PACKAGES,
+                    LOGGER
+            );
         }
 
         throw new IllegalStateException("Embedded runtime jar was not found in bootstrap resources");

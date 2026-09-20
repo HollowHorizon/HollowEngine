@@ -106,9 +106,10 @@ object UniversalJarTool {
         }
 
         entries[NEOFORGE_DESCRIPTOR]?.let { bytes ->
-            // Without it Sinytra Connector loads the Fabric half of the jar next to the NeoForge one.
-            if (CONNECTOR_PLACEHOLDER !in String(bytes, Charsets.UTF_8)) {
-                add("$NEOFORGE_DESCRIPTOR does not mark the jar as $CONNECTOR_PLACEHOLDER")
+            // Connector skips Fabric discovery for native NeoForge jars. Marking this descriptor as a
+            // placeholder reverses that decision and makes it rediscover the universal jar as a Fabric mod.
+            if (CONNECTOR_PLACEHOLDER in String(bytes, Charsets.UTF_8)) {
+                add("$NEOFORGE_DESCRIPTOR must not mark the native NeoForge mod as $CONNECTOR_PLACEHOLDER")
             }
         }
 
