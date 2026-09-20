@@ -1,0 +1,397 @@
+/*
+ * The look of every inspector in the engine: entity components, the animator, the rig, the cutscene
+ * timeline, the model and sound editors. Editors bring their own chrome and canvas; everything that
+ * shows a property lives here, so a field looks the same wherever it is opened.
+ *
+ * Orange marks what the pointer acts on, blue marks structure.
+ */
+
+.insp-panel {
+    size: 100% 100%;
+    gap: 8px;
+    padding: 10px;
+    background: #1E1F22;
+    border: 1px #31343D;
+}
+
+.insp-head {
+    size: 100% fit;
+    gap: 6px;
+    align-items: start center;
+}
+
+.insp-icon {
+    size: 14px 14px;
+    tint: #8B93A5;
+}
+
+.insp-title {
+    size: fit fit;
+    grow: 1;
+    foreground: #E4E9F4;
+    font-size: 11px;
+    wrap: false;
+    text-overflow: dots;
+}
+
+.insp-subtitle {
+    size: fit fit;
+    foreground: #8B93A5;
+    font-size: 9px;
+    wrap: false;
+    text-overflow: dots;
+}
+
+.insp-body {
+    size: 100% fit;
+    gap: 8px;
+}
+
+.insp-empty {
+    size: 100% fit;
+    padding: 12px 6px;
+    foreground: #5F6677;
+    font-size: 9px;
+}
+
+/* ---- sections ---- */
+
+.insp-section {
+    size: 100% fit;
+    gap: 5px;
+}
+
+.insp-section-title {
+    size: 100% fit;
+    foreground: #6E9FE0;
+    font-size: 10px;
+    wrap: false;
+    text-overflow: dots;
+}
+
+.insp-section-rule {
+    size: 100% 1px;
+    background: #31343D;
+}
+
+.insp-section-body {
+    size: 100% fit;
+    gap: 6px;
+}
+
+.insp-section.boxed {
+    padding: 8px;
+    background: #24272E;
+    border-radius: 5px;
+    border: 1px #31343D;
+}
+
+/* ---- fields ---- */
+
+.insp-field {
+    size: 100% fit;
+    gap: 3px;
+}
+
+.insp-field-head {
+    size: 100% fit;
+    gap: 6px;
+    align-items: start center;
+}
+
+.insp-label {
+    size: 100% fit;
+    foreground: #8B93A5;
+    font-size: 9px;
+}
+
+.insp-help {
+    size: 9px 9px;
+    opacity: 0.45;
+    cursor: hand;
+}
+
+.insp-help:hover {
+    opacity: 1;
+}
+
+.insp-hint {
+    size: 100% fit;
+    foreground: #5F6677;
+    font-size: 8px;
+}
+
+.insp-readonly {
+    size: 100% fit;
+    min-height: 16px;
+    gap: 6px;
+    align-items: start center;
+}
+
+.insp-readonly-label {
+    size: fit fit;
+    grow: 1;
+    foreground: #8B93A5;
+    font-size: 9px;
+}
+
+.insp-readonly-value {
+    size: fit fit;
+    foreground: #C4CBDA;
+    font-size: 9px;
+    wrap: false;
+    text-overflow: dots;
+}
+
+.insp-input-row {
+    size: 100% fit;
+    gap: 4px;
+    align-items: start center;
+}
+
+.insp-input {
+    size: 100% fit;
+    min-height: 22px;
+    padding: 5px 6px;
+    background: #16181C;
+    border-radius: 4px;
+    border: 1px #31343D;
+    foreground: #C4CBDA;
+    font-size: 9px;
+}
+
+.insp-input:focus { border: 1px #D77F1C; }
+
+.insp-input.flat {
+    background: none;
+    border-width: 0px;
+}
+
+.insp-input.numeric { text-align: right; }
+
+.insp-check-row {
+    size: 100% fit;
+    min-height: 20px;
+    gap: 6px;
+    align-items: start center;
+    hoverable: true;
+    clickable: true;
+}
+
+.insp-check-label {
+    size: fit fit;
+    grow: 1;
+    foreground: #C4CBDA;
+    font-size: 9px;
+}
+
+.insp-checkbox {
+    size: 13px 13px;
+}
+
+.insp-slider { grow: 1; }
+
+.insp-slider-value {
+    size: fit fit;
+    min-width: 44px;
+    foreground: #C4CBDA;
+    font-size: 9px;
+    wrap: false;
+}
+
+.insp-vector {
+    size: 100% fit;
+    gap: 4px;
+}
+
+.insp-vector-cell {
+    grow: 1;
+    size: 0px fit;
+    gap: 2px;
+}
+
+.insp-vector-label {
+    size: fit fit;
+    foreground: #5F6677;
+    font-size: 8px;
+}
+
+.insp-nested {
+    size: 100% fit;
+    gap: 4px;
+    padding: 5px;
+    background: rgba(42, 45, 53, 0.55);
+    border-radius: 5px;
+}
+
+.insp-nested-head {
+    size: 100% fit;
+    gap: 5px;
+    align-items: start center;
+}
+
+.insp-nested-body {
+    size: 100% fit;
+    gap: 6px;
+    padding: 0px 0px 0px 6px;
+}
+
+.insp-list-item {
+    size: 100% fit;
+    gap: 5px;
+    align-items: start start;
+}
+
+/* ---- pills, buttons ---- */
+
+.insp-pill-flow {
+    size: 100% fit;
+    gap: 3px;
+}
+
+.insp-pill {
+    padding: 3px 8px;
+    background: #24272E;
+    border-radius: 9px;
+    border: 1px #31343D;
+    hoverable: true;
+    clickable: true;
+    transition: background 140ms ease-out, border 140ms ease-out;
+}
+
+.insp-pill:hover { background: #31343D; }
+
+.insp-pill.active {
+    background: rgba(215, 127, 28, 0.22);
+    border: 1px #D77F1C;
+}
+
+.insp-pill-label {
+    size: fit fit;
+    foreground: #C4CBDA;
+    font-size: 8px;
+    wrap: false;
+}
+
+.insp-pill.active .insp-pill-label { foreground: #E8912E; }
+
+.insp-icon-button {
+    size: 16px 16px;
+    tint: #8B93A5;
+    hoverable: true;
+    clickable: true;
+    transition: tint 140ms ease-out;
+}
+
+.insp-icon-button:hover { tint: #E8912E; }
+
+.insp-icon-button.active { tint: #E8912E; }
+
+.insp-pick-button {
+    size: 20px 20px;
+    padding: 2px;
+    background: #24272E;
+    border-radius: 4px;
+    border: 1px #31343D;
+}
+
+.insp-button {
+    size: 100% fit;
+    min-height: 24px;
+    gap: 6px;
+    padding: 5px 10px;
+    align-items: center center;
+    background: #31343D;
+    border-radius: 6px;
+    border: 1px #3B3F49;
+    hoverable: true;
+    clickable: true;
+    transition: background 140ms ease-out;
+}
+
+.insp-button:hover { background: #3B3F49; }
+
+.insp-button.primary {
+    background: #D77F1C;
+    border: 1px #E8912E;
+}
+
+.insp-button.primary:hover { background: #E8912E; }
+
+.insp-button.danger {
+    background: rgba(194, 87, 87, 0.18);
+    border: 1px #C25757;
+}
+
+.insp-button.danger:hover { background: rgba(194, 87, 87, 0.32); }
+
+.insp-button-icon {
+    size: 13px 13px;
+    tint: #C4CBDA;
+}
+
+.insp-button.primary .insp-button-icon { tint: #1E1F22; }
+
+.insp-button-label {
+    size: fit fit;
+    foreground: #C4CBDA;
+    font-size: 9px;
+    wrap: false;
+}
+
+.insp-button.primary .insp-button-label { foreground: #1E1F22; }
+
+.insp-button.danger .insp-button-label { foreground: #E79797; }
+
+/* ---- bone picker ---- */
+
+.insp-bone {
+    padding: 4px 6px;
+    gap: 4px;
+    background: #16181C;
+    border-radius: 4px;
+    border: 1px #31343D;
+    foreground: #C4CBDA;
+    transition: border 140ms ease-out;
+}
+
+.insp-bone:hover { border: 1px #D77F1C; }
+
+.insp-bone.empty .insp-bone-label { foreground: #5F6677; }
+
+.insp-bone-label {
+    font-size: 9px;
+}
+
+.insp-bone-popup {
+    size: 190px fit;
+    max-height: 220px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.insp-bone-list {
+    size: 100% fit;
+    max-height: 180px;
+}
+
+/* ---- disclosure ---- */
+
+.insp-arrow {
+    size: 10px 10px;
+    margin: 0px 2px;
+    shape: path("M 3 2 L 8 6 L 3 10", 12 12);
+    fill: none;
+    stroke: #7f8a9d;
+    stroke-width: 1.5px;
+    transition: rotate 120ms ease-out;
+}
+
+.insp-arrow[expanded="false"] { rotate: 0px 0px 0px; }
+.insp-arrow[expanded="true"] { rotate: 0px 0px 90px; }
+
+.insp-section-head {
+    size: 100% fit;
+    gap: 4px;
+    align-items: start center;
+}

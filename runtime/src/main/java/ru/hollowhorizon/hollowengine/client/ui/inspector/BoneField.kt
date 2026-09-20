@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.ui.entity
+package ru.hollowhorizon.hollowengine.client.ui.inspector
 
 import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.ui.*
@@ -13,10 +13,10 @@ internal fun BoneField(label: String?, description: String?, value: String, onCh
     var open by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(UiRect.Zero) }
 
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         FieldLabel(label, description)
         Row(
-            tags = listOf("ee-bone", if (value.isBlank()) "empty" else "set"),
+            tags = listOf("insp-bone", if (value.isBlank()) "empty" else "set"),
             modifier = Modifier.size(100.percent, 22.px)
                 .input(hoverable = true, clickable = true)
                 .cursor(UiCursorShape.HAND)
@@ -29,7 +29,7 @@ internal fun BoneField(label: String?, description: String?, value: String, onCh
         ) {
             Text(
                 value.ifBlank { boneText("none") },
-                tags = listOf("ee-bone-label"),
+                tags = listOf("insp-bone-label"),
                 modifier = Modifier.grow(1f),
             )
             Box(tags = listOf("dropdown-button-arrow"))
@@ -57,29 +57,29 @@ private fun BonePopup(
 
     Popup(
         anchorBounds = anchor,
-        id = "ee-bone-popup",
-        tags = listOf("dropdown-popup", "ee-bone-popup"),
+        id = "insp-bone-popup",
+        tags = listOf("dropdown-popup", "insp-bone-popup"),
         onDismiss = onDismiss,
     ) {
         TextField(
             value = query,
-            id = "ee-bone-search",
+            id = "insp-bone-search",
             placeholder = boneText("search"),
             fontSize = 9f,
             onChange = { query = it },
-            tags = listOf("ee-input"),
+            tags = listOf("insp-input"),
             modifier = Modifier.size(100.percent, 20.px),
         )
 
         Column(
-            tags = listOf("ee-bone-list"),
+            tags = listOf("insp-bone-list"),
             modifier = Modifier.scrollable(horizontal = false),
         ) {
             if (selected.isNotBlank()) BoneRow(boneText("clear"), selected = false) { onPick("") }
             matches.forEach { bone ->
                 key(bone) { BoneRow(bone, selected = bone == selected) { onPick(bone) } }
             }
-            if (matches.isEmpty()) Text(boneText("no_matches"), tags = listOf("ee-hint"))
+            if (matches.isEmpty()) Text(boneText("no_matches"), tags = listOf("insp-hint"))
         }
     }
 }
@@ -100,4 +100,4 @@ private fun BoneRow(label: String, selected: Boolean, onPick: () -> Unit) {
     }
 }
 
-private fun boneText(name: String): String = "hollowengine.gui.entity_editor.bone.$name".lang
+private fun boneText(name: String): String = "hollowengine.gui.inspector.bone.$name".lang

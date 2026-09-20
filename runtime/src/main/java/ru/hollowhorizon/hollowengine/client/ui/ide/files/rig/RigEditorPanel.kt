@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.client.render.DebugSkeletonRenderer
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.entity.LocalEditorBones
+import ru.hollowhorizon.hollowengine.client.ui.inspector.PublishInspector
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOpenFile
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeRigDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.AnimatorColors
@@ -25,7 +25,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val AutoSaveDelayMillis = 900L
 private const val BoneListWidth = 210f
-private const val InspectorWidth = 250f
 private const val MinPanelWidth = 160f
 private const val MaxPanelWidth = 420f
 
@@ -72,6 +71,10 @@ internal fun RigEditorPanel(file: HollowIdeOpenFile) {
     }
 
     val bones = remember(viewer.nodes) { viewer.nodes.flatMap { node -> node.walk().map(RuntimeNode::name) } }
+
+    PublishInspector(source = "rig-${file.path}", key = state.selected to bones) {
+        state.selected?.let { bone -> rigInspectorTarget(document, bone, bones) }
+    }
 
     Row(
         modifier = Modifier.size(100.percent, 100.percent).style(AnimatorStylesheet).background(AnimatorColors.Canvas)
@@ -125,20 +128,6 @@ internal fun RigEditorPanel(file: HollowIdeOpenFile) {
                 }
             }
         }
-
-        val bone = state.selected
-        if (bone != null) {
-            Splitter(state.inspectorSize, reversed = true) {
-                state.inspectorSize = it.coerceIn(MinPanelWidth, MaxPanelWidth)
-            }
-            CompositionLocalProvider(LocalEditorBones provides bones) {
-                RigInspector(
-                    document = document,
-                    bone = bone,
-                    modifier = Modifier.size(state.inspectorSize.px, 100.percent),
-                )
-            }
-        }
     }
 }
 
@@ -149,7 +138,6 @@ internal class RigEditorState(modelId: String) {
     val viewer = ModelViewerState(modelId)
     var selected by mutableStateOf<String?>(null)
     var boneListSize by mutableStateOf(BoneListWidth)
-    var inspectorSize by mutableStateOf(InspectorWidth)
     var showSkeleton by mutableStateOf(true)
     var showColliders by mutableStateOf(true)
 }

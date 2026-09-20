@@ -297,8 +297,8 @@ fun parseColor(value: String): UiColor {
 internal fun parseBorder(value: String, previous: UiBorder): UiBorder {
     val parts = splitTopLevelWhitespace(value)
     val width = parseLength(parts.first())
-    val color = parts.drop(1).joinToString(" ").takeIf { it.isNotBlank() }?.let(::parseColor) ?: previous.color
-    return previous.copy(width = UiInsets.all(width), color = color)
+    val paint = parts.drop(1).joinToString(" ").takeIf { it.isNotBlank() }?.let(::parsePaint) ?: previous.paint
+    return previous.copy(width = UiInsets.all(width), paint = paint)
 }
 
 internal fun parseShadows(value: String): List<UiShadow> {

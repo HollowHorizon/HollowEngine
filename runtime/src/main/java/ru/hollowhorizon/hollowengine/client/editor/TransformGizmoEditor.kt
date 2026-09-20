@@ -10,7 +10,6 @@ import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import net.minecraft.world.entity.Entity
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -32,7 +31,6 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
-import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -42,7 +40,7 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.attachments.binding.*
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.Snapshot
-import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.util.*
 import kotlin.math.*
 
@@ -72,13 +70,33 @@ object TransformGizmoEditor {
     private var labelState by mutableStateOf<OverlayLabelState?>(null)
     private var contextMenuState by mutableStateOf<ContextMenuState?>(null)
 
-    private var enabledValue by mutableStateOf(false)
     private var modesValue by mutableStateOf(setOf(GizmoEditMode.TRANSLATE))
+    private var enabledValue by mutableStateOf(false)
 
-    val isEnabled: Boolean get() = enabledValue
+    val isEnabled: Boolean
+        get() {
+            ensureInitialized()
+            return enabledValue && !isProduction
+        }
+
+    fun setEnabled(enabled: Boolean) {
+        ensureInitialized()
+        if (enabledValue == enabled) return
+        enabledValue = enabled
+        HollowEngineConfig.gizmoEnabled = enabled
+        if (!enabled) cancelInteraction()
+    }
 
     /** The manipulators drawn together; never empty, the last one stays remembered while the gizmo is off. */
     val modes: Set<GizmoEditMode> get() = modesValue
+
+    /**
+     * Entities the gizmo already boxes, because a node of theirs is on screen.
+     */
+    internal fun boxedEntityIds(): Set<Int> {
+        if (!isEditorAvailable()) return emptySet()
+        return entries.values.filter { it.visible }.mapNotNullTo(HashSet()) { it.entityId }
+    }
 
     private val overlay: HollowUiWorldOverlay by lazy {
         HollowUiWorldOverlay(
@@ -91,32 +109,21 @@ object TransformGizmoEditor {
         }
     }
 
-    fun toggleEnabled() = setEnabled(!isEnabled)
-
-    fun setEnabled(enabled: Boolean) {
-        ensureInitialized()
-        if (enabledValue == enabled) return
-        enabledValue = enabled
-        HollowEngineConfig.gizmoEnabled = enabled
-        if (!enabled) cancelInteraction()
-    }
-
-    fun isModeShown(mode: GizmoEditMode): Boolean = enabledValue && mode in modesValue
+    fun isModeShown(mode: GizmoEditMode): Boolean = isEnabled && mode in modesValue
 
     /**
-     * Shows or hides one manipulator. Turning one on also turns the gizmo on; turning off the last
-     * one turns the gizmo off instead of leaving an empty gizmo, and keeps that mode for next time.
+     * Shows or hides gizmo manipulator and it's mode.
      */
     fun setModeShown(mode: GizmoEditMode, shown: Boolean) {
         ensureInitialized()
         when {
-            shown && !enabledValue -> {
+            shown && !isEnabled -> {
                 setModes(setOf(mode))
                 setEnabled(true)
             }
 
             shown -> setModes(modesValue + mode)
-            !enabledValue || mode !in modesValue -> Unit
+            !isEnabled || mode !in modesValue -> Unit
             modesValue.size == 1 -> setEnabled(false)
             else -> setModes(modesValue - mode)
         }
@@ -293,7 +300,10 @@ object TransformGizmoEditor {
         val hit = pickBounds(x, y)
         return when {
             hit != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
-                activeKey = hit; contextMenuState = null; true
+                activeKey = hit
+                contextMenuState = null
+                entries[hit]?.entityId?.let(WorldInspector::select)
+                true
             }
 
             hit != null && button == GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
@@ -568,13 +578,7 @@ object TransformGizmoEditor {
             point.x to point.y
         }
 
-    private fun isEditorAvailable(): Boolean {
-        val minecraft = Minecraft.getInstance()
-        return isEnabled &&
-                minecraft.level != null &&
-                minecraft.player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true &&
-                (minecraft.screen == null || minecraft.screen is ChatScreen)
-    }
+    private fun isEditorAvailable(): Boolean = isEnabled && EditorMode.isAvailable()
 
     internal fun resolveTarget(model: Model?): TransformGizmoTarget =
         if (model != null) TransformGizmoTarget(TransformGizmoTargetType.MODEL, "Model", MODEL_ICON)

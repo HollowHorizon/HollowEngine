@@ -1,3 +1,6 @@
 {
-  "title": "Notification"
+  "addon_restart": "Addon '%s' will be enabled after a restart",
+  "startup_failed": "Startup scripts failed, see the log: %s",
+  "title": "Notification",
+  "undo": "Undo"
 }

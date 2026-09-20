@@ -4,6 +4,9 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.isActive
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.CutsceneIcon
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorTarget
+import ru.hollowhorizon.hollowengine.client.ui.inspector.PublishInspector
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimLayer
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
@@ -46,6 +49,10 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
         }
     }
 
+    PublishInspector(source = "cutscene", key = cutsceneInspectorKey(session)) {
+        cutsceneInspectorTarget(session)
+    }
+
     CompositionLocalProvider(LocalTimelineRevision provides session.uiRevision.value) {
         Box(id = "cutscene-timeline-dock", mode = UiBoxMode.STACK, modifier = Modifier.size(100.percent, 100.percent)) {
             HollowTimelineEditor(
@@ -75,16 +82,21 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
     }
 }
 
-/** The Properties inspector as its own dock panel; shares the session's timeline and revision. */
-@Composable
-fun CutscenePropertiesDock(session: CutsceneEditorSession) {
+private fun cutsceneInspectorTarget(session: CutsceneEditorSession) = InspectorTarget(
+    id = "cutscene-${cutsceneInspectorKey(session)}",
+    title = CutsceneLang.PROPERTIES.lang,
+    icon = CutsceneIcon,
+) {
     CompositionLocalProvider(LocalTimelineRevision provides session.uiRevision.value) {
-        HollowTimelineProperties(
-            session = session,
-            modifier = Modifier.size(100.percent, 100.percent),
-            refresh = session::invalidateUi,
-        )
+        HollowTimelineProperties(session, refresh = session::invalidateUi)
     }
+}
+
+private fun cutsceneInspectorKey(session: CutsceneEditorSession): String {
+    val controller = session.timeline
+    val keyframe = controller.selectedKeyframes.firstOrNull()
+        ?: return if (controller.isWorkAreaSelected) "work-area" else "none"
+    return "key-${controller.curveOf(keyframe)?.spec?.name}-${keyframe.time}"
 }
 
 private enum class CutsceneDialog { NONE, SAVE, LOAD }

@@ -6,16 +6,18 @@ import androidx.compose.runtime.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonObject
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextFieldMode
 import ru.hollowhorizon.hollowengine.common.attachments.editor.ScriptEditorInfo
 import ru.hollowhorizon.hollowengine.common.attachments.editor.ScriptEditorJson
 import ru.hollowhorizon.hollowengine.common.attachments.editor.toDescriptor
 
 @Composable
-internal fun EntitySidebar(session: EntityEditorSession, width: Float) {
+internal fun EntitySidebar(session: EntityEditorSession, width: Float?) {
     Column(
         tags = listOf("ee-sidebar"),
-        modifier = Modifier.size(width.px, 100.percent),
+        modifier = if (width != null) Modifier.size(width.px, 100.percent)
+        else Modifier.size(100.percent, UiLength.Fit),
     ) {
         SidebarHeader(session)
         SidebarTabs(session)
@@ -23,7 +25,8 @@ internal fun EntitySidebar(session: EntityEditorSession, width: Float) {
 
         Column(
             tags = listOf("ee-sidebar-body"),
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(horizontal = false),
+            modifier = if (width != null) Modifier.size(100.percent, 0.px).grow(1f).scrollable(horizontal = false)
+            else Modifier.size(100.percent, UiLength.Fit),
         ) {
             when (session.tab) {
                 EntityEditorTab.COMPONENTS -> ComponentsTab(session)
@@ -40,11 +43,11 @@ private fun SidebarHeader(session: EntityEditorSession) {
     Row(tags = listOf("ee-header")) {
         Text(EntityEditorLang.title, tags = listOf("ee-header-title"), modifier = Modifier.grow(1f))
         if (session.isBusy) BusySpinner()
-        EditorIconButton(EntityEditorIcons.SEARCH, EntityEditorLang.search) {
+        InspectorIconButton(EntityEditorIcons.SEARCH, EntityEditorLang.search) {
             session.searchOpen = !session.searchOpen
             if (!session.searchOpen) session.query = ""
         }
-        EditorIconButton(EntityEditorIcons.RELOAD, EntityEditorLang.refresh) { session.requestRefresh() }
+        InspectorIconButton(EntityEditorIcons.RELOAD, EntityEditorLang.refresh) { session.requestRefresh() }
     }
 }
 
@@ -82,11 +85,11 @@ private fun SidebarSearch(session: EntityEditorSession) {
             placeholder = EntityEditorLang.searchHint,
             fontSize = 9f,
             onChange = { session.query = it },
-            tags = listOf("ee-input", "flat"),
+            tags = listOf("insp-input", "flat"),
             modifier = Modifier.grow(1f),
         )
         if (session.query.isNotEmpty()) {
-            EditorIconButton(EntityEditorIcons.CLOSE, EntityEditorLang.search) { session.query = "" }
+            InspectorIconButton(EntityEditorIcons.CLOSE, EntityEditorLang.search) { session.query = "" }
         }
     }
 }
@@ -97,7 +100,7 @@ private fun ComponentsTab(session: EntityEditorSession) {
     val entries = session.entries.filter { entry -> matchesComponent(entry, query) }
 
     if (session.hasSlots) {
-        EditorButton(
+        InspectorButton(
             label = EntityEditorLang.inventory,
             icon = EntityEditorIcons.COMPONENT,
             modifier = Modifier.size(100.percent, UiLength.Fit),
@@ -105,7 +108,7 @@ private fun ComponentsTab(session: EntityEditorSession) {
     }
 
     if (entries.isEmpty()) {
-        Text(EntityEditorLang.nothingFound, tags = listOf("ee-hint"))
+        Text(EntityEditorLang.nothingFound, tags = listOf("insp-hint"))
         return
     }
 
@@ -162,17 +165,21 @@ private fun ComponentCard(session: EntityEditorSession, entry: ComponentEntry, q
             if (entry.virtual) {
                 Text(EntityEditorLang.virtual, tags = listOf("ee-badge"))
             } else {
-                EditorIconButton(EntityEditorIcons.REMOVE, EntityEditorLang.remove, tags = listOf("ee-card-remove")) {
+                InspectorIconButton(
+                    EntityEditorIcons.REMOVE,
+                    EntityEditorLang.remove,
+                    tags = listOf("ee-card-remove")
+                ) {
                     session.remove(entry)
                 }
             }
-            EditorArrow(open)
+            DisclosureArrow(open)
         }
 
         if (!open) return@Column
 
-        ComponentLabels.componentDescription(descriptor)?.let { Text(it, tags = listOf("ee-hint")) }
-        if (entry.virtual) Text(EntityEditorLang.virtualHint, tags = listOf("ee-hint"))
+        ComponentLabels.componentDescription(descriptor)?.let { Text(it, tags = listOf("insp-hint")) }
+        if (entry.virtual) Text(EntityEditorLang.virtualHint, tags = listOf("insp-hint"))
 
         val extras = ComponentEditors.of(entry.id)
         val scope = remember(entry.id, document) { ComponentEditorScope(entry, document, apply) }
@@ -180,7 +187,7 @@ private fun ComponentCard(session: EntityEditorSession, entry: ComponentEntry, q
         Column(tags = listOf("ee-card-body")) {
             if (extras != null && extras.before) extras.content(scope)
             if (extras == null || !extras.replacesFields) {
-                ComponentFields(
+                AutoFields(
                     owner = entry.id,
                     descriptor = descriptor,
                     value = document,
@@ -204,8 +211,7 @@ private fun AddComponentFooter(session: EntityEditorSession) {
             val candidates = session.addable.filter { descriptor ->
                 filter.isBlank() || descriptor.id.toString()
                     .contains(filter, ignoreCase = true) || ComponentLabels.componentName(
-                    descriptor.id,
-                    descriptor.serializer.descriptor
+                    descriptor.id, descriptor.serializer.descriptor
                 ).contains(filter, ignoreCase = true)
             }
 
@@ -216,7 +222,7 @@ private fun AddComponentFooter(session: EntityEditorSession) {
                     placeholder = EntityEditorLang.searchHint,
                     fontSize = 9f,
                     onChange = { filter = it },
-                    tags = listOf("ee-input"),
+                    tags = listOf("insp-input"),
                     modifier = Modifier.size(100.percent, 22.px),
                 )
                 Column(
@@ -247,12 +253,12 @@ private fun AddComponentFooter(session: EntityEditorSession) {
                             }
                         }
                     }
-                    if (candidates.isEmpty()) Text(EntityEditorLang.allAdded, tags = listOf("ee-hint"))
+                    if (candidates.isEmpty()) Text(EntityEditorLang.allAdded, tags = listOf("insp-hint"))
                 }
             }
         }
 
-        EditorButton(
+        InspectorButton(
             label = EntityEditorLang.addComponent,
             icon = EntityEditorIcons.ADD,
             tags = listOf("primary"),
@@ -268,18 +274,18 @@ private fun ScriptsTab(session: EntityEditorSession) {
 
     Text(EntityEditorLang.attached, tags = listOf("ee-section-title"))
     when {
-        session.attachedScripts.isEmpty() -> Text(EntityEditorLang.noScripts, tags = listOf("ee-hint"))
-        attached.isEmpty() -> Text(EntityEditorLang.nothingFound, tags = listOf("ee-hint"))
+        session.attachedScripts.isEmpty() -> Text(EntityEditorLang.noScripts, tags = listOf("insp-hint"))
+        attached.isEmpty() -> Text(EntityEditorLang.nothingFound, tags = listOf("insp-hint"))
         else -> attached.forEach { script -> key(script.path) { ScriptCard(session, script, query) } }
     }
 
-    EditorButton(
+    InspectorButton(
         label = EntityEditorLang.attach,
         icon = EntityEditorIcons.ADD,
         tags = listOf("primary"),
         modifier = Modifier.size(100.percent, UiLength.Fit),
     ) {
-        session.pendingPicker = AssetPickerRequest(
+        session.pendingPicker = InspectorAssetRequest(
             title = EntityEditorLang.attach,
             candidates = session.availableScripts,
             current = "",
@@ -288,7 +294,7 @@ private fun ScriptsTab(session: EntityEditorSession) {
     }
 
     if (session.availableScripts.isEmpty()) {
-        Text(EntityEditorLang.noSuitableScripts, tags = listOf("ee-hint"))
+        Text(EntityEditorLang.noSuitableScripts, tags = listOf("insp-hint"))
     }
 }
 
@@ -298,8 +304,8 @@ private fun ScriptCard(session: EntityEditorSession, script: ScriptEditorInfo, q
 
     val fields = script.fields.filterNot { it.hidden }
     val name = scriptName(script)
-    val nameMatches = query.isBlank() || name.contains(query, ignoreCase = true) || script.path
-        .contains(query, ignoreCase = true)
+    val nameMatches =
+        query.isBlank() || name.contains(query, ignoreCase = true) || script.path.contains(query, ignoreCase = true)
     val open = fields.isNotEmpty() && (expanded || !nameMatches)
 
     Column(tags = listOf("ee-card")) {
@@ -313,23 +319,23 @@ private fun ScriptCard(session: EntityEditorSession, script: ScriptEditorInfo, q
                 Text(name, tags = listOf("ee-script-name"))
                 Text(script.path, tags = listOf("ee-script-path"))
             }
-            EditorIconButton(EntityEditorIcons.REMOVE, EntityEditorLang.detach, tags = listOf("ee-card-remove")) {
+            InspectorIconButton(EntityEditorIcons.REMOVE, EntityEditorLang.detach, tags = listOf("ee-card-remove")) {
                 session.detachScript(script.path)
             }
-            if (fields.isNotEmpty()) EditorArrow(open)
+            if (fields.isNotEmpty()) DisclosureArrow(open)
         }
 
         if (!open) return@Column
 
         if (script.description.isNotBlank()) {
-            Text(ComponentLabels.translate(script.description), tags = listOf("ee-hint"))
+            Text(ComponentLabels.translate(script.description), tags = listOf("insp-hint"))
         }
 
         val descriptor = remember(fields) { fields.toDescriptor("hollowengine.node.${script.path}") }
         val values = remember(script.values) { scriptValues(script.values) }
 
         Column(tags = listOf("ee-card-body")) {
-            ComponentFields(
+            AutoFields(
                 owner = null,
                 descriptor = descriptor,
                 value = values,
@@ -353,7 +359,7 @@ private fun matchesScript(script: ScriptEditorInfo, query: String): Boolean {
     if (script.path.contains(query, ignoreCase = true)) return true
     if (scriptName(script).contains(query, ignoreCase = true)) return true
     return script.fields.any { field ->
-        field.name.contains(query, ignoreCase = true) ||
-                ComponentLabels.translate(field.label).contains(query, ignoreCase = true)
+        field.name.contains(query, ignoreCase = true) || ComponentLabels.translate(field.label)
+            .contains(query, ignoreCase = true)
     }
 }

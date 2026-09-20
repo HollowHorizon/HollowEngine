@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.entity.ComponentFields
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeRigDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -18,19 +18,26 @@ import ru.hollowhorizon.hollowengine.common.models.RigAttachmentType
 import ru.hollowhorizon.hollowengine.common.models.RigAttachmentTypes
 import ru.hollowhorizon.hollowengine.common.models.RigBone
 
-private const val FieldStylesheet = "hollowengine:ui/styles/entity-editor.hss"
+
+private const val BoneIcon = "hollowengine:textures/gui/icons/graph.svg"
 
 /**
  * What is authored onto the selected bone: its alias, whether it is drawn, and everything hung on it.
+ *
+ * The bone list the picker offers travels with the target, because the shared inspector composes it
+ * somewhere else entirely and knows nothing about this rig.
  */
-@Composable
-internal fun RigInspector(document: HollowIdeRigDocument, bone: String, modifier: Modifier) {
-    Column(
-        modifier = modifier.background(AnimatorColors.Panel).border(1.px, AnimatorColors.Border).style(FieldStylesheet)
-            .padding(10.px).gap(8.px).scrollable(horizontal = false),
-    ) {
-        Text(rigText("parameters"), modifier = Modifier.fontSize(11f).foreground(AnimatorColors.Muted))
-
+internal fun rigInspectorTarget(
+    document: HollowIdeRigDocument,
+    bone: String,
+    bones: List<String>,
+): InspectorTarget = InspectorTarget(
+    id = "rig-bone-$bone",
+    title = bone,
+    icon = BoneIcon,
+    subtitle = rigText("section_bone"),
+) {
+    CompositionLocalProvider(LocalEditorBones provides bones) {
         key(bone) { BoneFields(document, bone) }
     }
 }
@@ -39,13 +46,13 @@ internal fun RigInspector(document: HollowIdeRigDocument, bone: String, modifier
 private fun BoneFields(document: HollowIdeRigDocument, bone: String) {
     val current = document.rig.bone(bone) ?: RigBone.EMPTY
 
-    Column(tags = listOf("ee-bone-fields"), modifier = Modifier.size(100.percent, UiLength.Fit).gap(8.px)) {
+    Column(tags = listOf("insp-body")) {
         Section(rigText("section_bone")) {
             Readonly(rigText("name"), bone)
             TextRow(rigText("alias"), current.alias.orEmpty()) { value ->
                 document.edit { it.withBone(bone, current.copy(alias = value.trim().ifBlank { null })) }
             }
-            PillRows(listOf(false, true), current.hidden, { rigText(if (it) "hidden" else "visible") }) { hidden ->
+            Pills(listOf(false, true), current.hidden, { rigText(if (it) "hidden" else "visible") }) { hidden ->
                 document.edit { it.withBone(bone, current.copy(hidden = hidden)) }
             }
         }
@@ -76,11 +83,7 @@ private fun AttachmentSection(
             }
         }
 
-        AnimatorButton(
-            rigText("remove_attachment"),
-            modifier = Modifier.size(100.percent, 20.px),
-            color = AnimatorColors.Danger,
-        ) {
+        InspectorButton(rigText("remove_attachment"), tags = listOf("danger")) {
             document.edit { it.withBone(bone, current.withoutAttachment(attachment.id)) }
         }
     }
@@ -106,7 +109,7 @@ private fun AttachmentFields(
         }.onFailure { HollowEngine.LOGGER.warn("Could not show attachment '{}': {}", type.id, it.message) }.getOrNull()
     } ?: return Hint(rigText("no_attachment_editor"))
 
-    ComponentFields(
+    AutoFields(
         owner = null,
         descriptor = serializer.descriptor,
         value = encoded,
@@ -124,10 +127,11 @@ private fun AddAttachment(document: HollowIdeRigDocument, bone: String, current:
     val kinds = RigAttachmentTypes.all.filter { it.createDefault != null }
     if (kinds.isEmpty()) return
 
-    AnimatorButton(
+    InspectorButton(
         rigText("add_attachment"),
-        modifier = Modifier.size(100.percent, 22.px).onPlaced { anchor = it },
-        color = AnimatorColors.Accent,
+        icon = "hollowengine:textures/gui/icons/add.svg",
+        modifier = Modifier.onPlaced { anchor = it },
+        tags = listOf("primary"),
     ) { open = true }
 
     if (!open) return

@@ -68,12 +68,12 @@ internal object HollowIdeToolWindows {
         minWidth = 520f,
         minHeight = 260f,
     )
-    val CutsceneProperties = HollowIdeToolWindow(
-        id = CutscenePropertiesId,
-        titleKey = "hollowengine.gui.ide.windows.cutscene_properties",
+    val Inspector = HollowIdeToolWindow(
+        id = InspectorId,
+        titleKey = "hollowengine.gui.ide.windows.inspector",
         icon = OptionsIcon,
         placement = DockPlacement.RIGHT,
-        anchors = listOf(ToolWindowAnchor.TIMELINE, ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
+        anchors = listOf(ToolWindowAnchor.EDITORS, ToolWindowAnchor.TIMELINE, ToolWindowAnchor.PROJECT),
         minWidth = 240f,
         minHeight = 260f,
     )
@@ -97,9 +97,9 @@ internal object HollowIdeToolWindows {
     )
 
     val menu: List<HollowIdeToolWindow?> = listOf(
-        Project, AssetManager, Console,
+        Project, Inspector, AssetManager, Console,
         null,
-        CutsceneTimeline, CutsceneProperties, CutsceneViewport,
+        CutsceneTimeline, CutsceneViewport,
     )
 }
 

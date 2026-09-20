@@ -903,12 +903,13 @@ class MinecraftUiRenderer {
 
     private fun appendBorderShapes(command: DrawBoxCommand, transform: UiMatrix4) {
         val borderWidth = command.border.width.left.resolve(command.rect.width)
-        if (borderWidth <= 0f || command.border.color.alpha <= 0f) return
+        if (borderWidth <= 0f) return
         val width = command.rect.width
         val height = command.rect.height
+        val colorAt = command.border.paint.resolve()
+            .localColorAt(width, height, command.opacity, command.filter) ?: return
         val thickness = borderWidth.coerceAtLeast(1f).coerceAtMost(minOf(width, height) * 0.5f)
-        val color = command.border.color.withOpacity(command.opacity).filtered(command.filter)
-        shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, color, transform)
+        shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, colorAt, transform)
     }
 
     private fun prepareFramebuffers(layout: UiLayoutResult): Boolean {
@@ -1471,11 +1472,17 @@ class MinecraftUiRenderer {
                 command.filter,
             )
         }
-        if (command.border.width.left.resolve(command.rect.width) > 0f && command.border.color.alpha > 0f) {
-            val borderWidth = command.border.width.left.resolve(command.rect.width).coerceAtLeast(1f)
-            val borderColor = command.border.color.withOpacity(command.opacity).filtered(command.filter)
+        val borderWidth = command.border.width.left.resolve(command.rect.width)
+        val borderColorAt = command.border.paint.resolve()
+            .localColorAt(command.rect.width, command.rect.height, command.opacity, command.filter)
+        if (borderWidth > 0f && borderColorAt != null) {
             drawLocalBorder(
-                command.rect.width, command.rect.height, command.border.radius, borderWidth, borderColor, transform
+                command.rect.width,
+                command.rect.height,
+                command.border.radius,
+                borderWidth.coerceAtLeast(1f),
+                borderColorAt,
+                transform,
             )
         }
     }

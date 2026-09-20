@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -196,8 +197,8 @@ internal enum class ProjectNameAction {
 internal fun HollowIdeFileOperationResult.statusText(): String {
     return when (this) {
         HollowIdeFileOperationResult.Success -> ""
-        HollowIdeFileOperationResult.InvalidName -> "Invalid file name"
-        HollowIdeFileOperationResult.AlreadyExists -> "File already exists"
-        HollowIdeFileOperationResult.NotFound -> "File not found"
+        HollowIdeFileOperationResult.InvalidName -> "hollowengine.gui.ide.file.invalid_name".lang
+        HollowIdeFileOperationResult.AlreadyExists -> "hollowengine.gui.ide.file.already_exists".lang
+        HollowIdeFileOperationResult.NotFound -> "hollowengine.gui.ide.file.not_found".lang
     }
 }

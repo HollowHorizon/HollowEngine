@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.entity
 
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 
 

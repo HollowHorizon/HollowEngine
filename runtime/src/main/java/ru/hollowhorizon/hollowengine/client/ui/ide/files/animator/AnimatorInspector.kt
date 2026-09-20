@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocument
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
@@ -14,36 +15,38 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 import ru.hollowhorizon.hollowengine.common.models.*
 
 
-@Composable
-internal fun AnimatorInspector(
+private const val AnimatorIcon = "hollowengine:textures/gui/icons/state.svg"
+
+internal fun animatorInspectorTarget(
     document: HollowIdeAnimatorDocument,
     selection: AnimatorSelection,
     onSelect: (AnimatorSelection) -> Unit,
-    modifier: Modifier,
-    leading: (@Composable () -> Unit)? = null,
-) {
-    Column(
-        modifier = modifier
-            .background(AnimatorColors.Panel)
-            .border(1.px, AnimatorColors.Border)
-            .padding(10.px)
-            .gap(8.px)
-            .scrollable(horizontal = false),
-    ) {
-        Row(modifier = Modifier.size(100.percent).gap(6.px).alignItems(vertical = UiAlign.CENTER)) {
-            leading?.invoke()
-            Text(animatorText("parameters"), modifier = Modifier.fontSize(11f).foreground(AnimatorColors.Muted))
-        }
+): InspectorTarget? = when (selection) {
+    is AnimatorSelection.None -> null
 
-        when (selection) {
-            is AnimatorSelection.None -> Hint(animatorText("nothing_selected"))
-            is AnimatorSelection.Layer -> LayerSection(document, selection.layerId) { renamed ->
-                onSelect(AnimatorSelection.Layer(renamed))
-            }
-            is AnimatorSelection.State -> StateSection(document, selection, onSelect)
-            is AnimatorSelection.Transition -> TransitionSection(document, selection, onSelect)
-        }
-    }
+    is AnimatorSelection.Layer -> InspectorTarget(
+        id = "animator-layer-${selection.layerId}",
+        title = selection.layerId,
+        icon = AnimatorIcon,
+        subtitle = animatorText("section_layer"),
+    ) { LayerSection(document, selection.layerId) { renamed -> onSelect(AnimatorSelection.Layer(renamed)) } }
+
+    is AnimatorSelection.State -> InspectorTarget(
+        id = "animator-state-${selection.layerId}-${selection.stateId}",
+        title = selection.stateId,
+        icon = AnimatorIcon,
+        subtitle = animatorText("section_state"),
+    ) { StateSection(document, selection, onSelect) }
+
+    is AnimatorSelection.Transition -> InspectorTarget(
+        id = "animator-link-${selection.layerId}-${selection.index}",
+        title = document.animator.controller(selection.layerId)
+            ?.transitions?.getOrNull(selection.index)
+            ?.let { "${it.from} → ${it.to}" }
+            ?: animatorText("section_link"),
+        icon = AnimatorIcon,
+        subtitle = animatorText("section_transition"),
+    ) { TransitionSection(document, selection, onSelect) }
 }
 
 @Composable
@@ -60,14 +63,14 @@ private fun LayerSection(
             document.edit { it.withLayerRenamed(layerId, value) }
             onRenamed(value)
         }
-        IntField(animatorText("priority"), layer.priority) { value -> document.edit { it.withLayer(layer.withCommon(priority = value)) } }
+        IntRow(animatorText("priority"), layer.priority) { value -> document.edit { it.withLayer(layer.withCommon(priority = value)) } }
         ExpressionField(animatorText("weight"), layer.weight.source) { value ->
             document.edit { it.withLayer(layer.withCommon(weight = AnimationExpression(value))) }
         }
-        FloatField(animatorText("fade_in"), layer.fadeIn) { value -> document.edit { it.withLayer(layer.withCommon(fadeIn = value)) } }
-        FloatField(animatorText("fade_out"), layer.fadeOut) { value -> document.edit { it.withLayer(layer.withCommon(fadeOut = value)) } }
+        FloatRow(animatorText("fade_in"), layer.fadeIn) { value -> document.edit { it.withLayer(layer.withCommon(fadeIn = value)) } }
+        FloatRow(animatorText("fade_out"), layer.fadeOut) { value -> document.edit { it.withLayer(layer.withCommon(fadeOut = value)) } }
         Label(animatorText("blend"))
-        PillRows(LayerBlendMode.entries, layer.blendMode, { it.name.lowercase() }) { mode ->
+        Pills(LayerBlendMode.entries, layer.blendMode, { it.name.lowercase() }) { mode ->
             document.edit { it.withLayer(layer.withCommon(blendMode = mode)) }
         }
     }
@@ -153,29 +156,17 @@ private fun StateSection(
     if (links.isNotEmpty()) {
         Section(animatorText("state_transitions")) {
             links.forEach { (index, transition) ->
-                AnimatorButton(
-                    "${transition.from} → ${transition.to}",
-                    modifier = Modifier.size(100.percent, 20.px),
-                    color = AnimatorColors.Muted,
-                ) {
+                InspectorButton("${transition.from} → ${transition.to}") {
                     onSelect(AnimatorSelection.Transition(layerId, index))
                 }
             }
         }
     }
 
-    AnimatorButton(
-        animatorText("make_entry"),
-        modifier = Modifier.size(100.percent, 22.px),
-        color = AnimatorColors.Accent,
-    ) {
+    InspectorButton(animatorText("make_entry"), tags = listOf("primary")) {
         document.edit { it.withEntryState(layerId, state.id) }
     }
-    AnimatorButton(
-        animatorText("delete_state"),
-        modifier = Modifier.size(100.percent, 22.px),
-        color = AnimatorColors.Danger,
-    ) {
+    InspectorButton(animatorText("delete_state"), tags = listOf("danger")) {
         document.edit { it.withoutState(layerId, state.id) }
         onSelect(AnimatorSelection.Layer(layerId))
     }
@@ -206,17 +197,13 @@ private fun TransitionSection(
         ExpressionField(animatorText("duration"), transition.duration.source) { value ->
             update { it.copy(duration = AnimationExpression(value)) }
         }
-        IntField(animatorText("priority"), transition.priority) { value -> update { it.copy(priority = value) } }
-        FloatField(animatorText("exit_time"), transition.exitTime ?: 0f) { value ->
+        IntRow(animatorText("priority"), transition.priority) { value -> update { it.copy(priority = value) } }
+        FloatRow(animatorText("exit_time"), transition.exitTime ?: 0f) { value ->
             update { it.copy(exitTime = value.takeIf { time -> time > 0f }) }
         }
     }
 
-    AnimatorButton(
-        animatorText("delete_transition"),
-        modifier = Modifier.size(100.percent, 22.px),
-        color = AnimatorColors.Danger,
-    ) {
+    InspectorButton(animatorText("delete_transition"), tags = listOf("danger")) {
         document.edit { it.withoutTransitionAt(layerId, selection.index) }
         onSelect(AnimatorSelection.Layer(layerId))
     }
@@ -225,6 +212,6 @@ private fun TransitionSection(
 @Composable
 private fun PlayModeRow(current: AnimationPlayMode, onChange: (AnimationPlayMode) -> Unit) {
     Label(animatorText("play_mode"))
-    PillRows(AnimationPlayMode.entries, current, { it.name.lowercase() }, onChange)
+    Pills(AnimationPlayMode.entries, current, { it.name.lowercase() }, onChange)
 }
 

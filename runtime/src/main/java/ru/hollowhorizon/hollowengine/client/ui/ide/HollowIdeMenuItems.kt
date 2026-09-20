@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
+import ru.hollowhorizon.hollowengine.client.editor.EditorMode
 import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
@@ -11,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.addons.ClientResources
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.network.ReloadServerResourcesPacket
 import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"
@@ -114,20 +116,23 @@ internal fun hollowIdeToolMenuItems(
         TransformGizmoEditor.toggleMode(mode)
     }
 
-    val gizmo = if (!operator) emptyList() else listOf(
+    val editor = if (!operator) emptyList() else listOf(
         UiDropdownItem(
-            label = "hollowengine.gui.ide.gizmo".lang,
-            checked = TransformGizmoEditor.isEnabled,
+            label = "hollowengine.gui.ide.editor_mode".lang,
+            checked = EditorMode.isEnabled,
             mark = UiDropdownMark.CHECKBOX,
             closeOnClick = false,
         ) {
-            TransformGizmoEditor.toggleEnabled()
+            EditorMode.toggle()
         },
+    )
+
+    val gizmo = if (!operator || isProduction) emptyList() else listOf(
         gizmoMode("hollowengine.gui.ide.gizmo.translate", GizmoEditMode.TRANSLATE),
         gizmoMode("hollowengine.gui.ide.gizmo.rotate", GizmoEditMode.ROTATE),
         gizmoMode("hollowengine.gui.ide.gizmo.scale", GizmoEditMode.SCALE),
     )
-    return gizmo + listOf(
+    return editor + gizmo + listOf(
         UiDropdownItem(
             label = HollowIdeToolWindows.UiProfiler.title,
             checked = dock.contains(UiProfilerId),

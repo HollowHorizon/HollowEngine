@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 
-package ru.hollowhorizon.hollowengine.client.ui.entity
+package ru.hollowhorizon.hollowengine.client.ui.inspector
 
 import androidx.compose.runtime.*
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -18,7 +18,7 @@ import java.math.RoundingMode
  * The generic component editor. One composable per serial kind, recursing the way the descriptor does.
  */
 @Composable
-internal fun ComponentFields(
+internal fun AutoFields(
     owner: ResourceLocation?,
     descriptor: SerialDescriptor,
     value: JsonObject,
@@ -60,8 +60,8 @@ internal fun ComponentFields(
 internal fun FieldLabel(label: String?, description: String?) {
     if (label == null) return FieldHelp(description)
 
-    Row(tags = listOf("ee-field-head")) {
-        Text(label, tags = listOf("ee-label"), modifier = Modifier.grow(1f))
+    Row(tags = listOf("insp-field-head")) {
+        Text(label, tags = listOf("insp-label"), modifier = Modifier.grow(1f))
         FieldHelp(description)
     }
 }
@@ -72,7 +72,7 @@ internal fun FieldHelp(description: String?) {
 
     Image(
         HelpIcon,
-        tags = listOf("ee-help"),
+        tags = listOf("insp-help"),
         modifier = Modifier.size(9.px, 9.px).input(hoverable = true).tooltipOnHover(text),
     )
 }
@@ -151,22 +151,22 @@ private fun NullableEditor(
     val present = value !is JsonNull
     val inner = descriptor.nonNullOriginal
 
-    Column(tags = listOf("ee-field")) {
-        Row(tags = listOf("ee-field-head")) {
-            if (label != null) Text(label, tags = listOf("ee-label"), modifier = Modifier.grow(1f))
+    Column(tags = listOf("insp-field")) {
+        Row(tags = listOf("insp-field-head")) {
+            if (label != null) Text(label, tags = listOf("insp-label"), modifier = Modifier.grow(1f))
             FieldHelp(description)
             Checkbox(
                 checked = present,
                 onCheckedChange = { checked ->
                     onChange(if (checked) ComponentJson.defaultJson(inner) else JsonNull)
                 },
-                tags = listOf("ee-checkbox"),
+                tags = listOf("insp-checkbox"),
             )
         }
         if (present) {
             ValueEditor(null, description, owner, inner, hints, value, path, onChange)
         } else {
-            Text(EntityEditorLang.notSet, tags = listOf("ee-hint"))
+            Text(InspectorLang.notSet, tags = listOf("insp-hint"))
         }
     }
 }
@@ -179,18 +179,18 @@ private fun BooleanField(
     onChange: (JsonElement) -> Unit,
 ) {
     val checked = (value as? JsonPrimitive)?.booleanOrNull ?: false
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         Row(
-            tags = listOf("ee-check-row"),
+            tags = listOf("insp-check-row"),
             modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND)
                 .onClick { onChange(JsonPrimitive(!checked)) },
         ) {
             Checkbox(
                 checked = checked,
                 onCheckedChange = { onChange(JsonPrimitive(it)) },
-                tags = listOf("ee-checkbox"),
+                tags = listOf("insp-checkbox"),
             )
-            if (label != null) Text(label, tags = listOf("ee-check-label"), modifier = Modifier.grow(1f))
+            if (label != null) Text(label, tags = listOf("insp-check-label"), modifier = Modifier.grow(1f))
             FieldHelp(description)
         }
     }
@@ -208,24 +208,24 @@ private fun StringField(
     val text = (value as? JsonPrimitive)?.contentOrNull.orEmpty()
     if (hints.bone) return BoneField(label, description, text) { onChange(JsonPrimitive(it)) }
 
-    val session = LocalEntityEditorSession.current
-    val candidates = if (hints.asset.isEmpty()) emptyList() else remember(hints.asset, session) {
-        session?.assets(hints.asset).orEmpty()
+    val host = LocalInspectorHost.current
+    val candidates = if (hints.asset.isEmpty()) emptyList() else remember(hints.asset, host) {
+        host?.assets(hints.asset).orEmpty()
     }
 
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         FieldLabel(label, description)
-        Row(tags = listOf("ee-input-row")) {
+        Row(tags = listOf("insp-input-row")) {
             TextField(
                 value = text,
-                id = "ee-input$path",
+                id = "insp-input$path",
                 mode = if (hints.multiline) UiTextFieldMode.MULTI_LINE else UiTextFieldMode.SINGLE_LINE,
                 fontSize = 9f,
                 completionContributor = if (candidates.isEmpty()) null else assetCompletions(candidates),
                 onChange = { typed ->
                     onChange(JsonPrimitive(if (hints.asset.isEmpty()) typed else sanitizeAssetPath(typed)))
                 },
-                tags = listOf("ee-input"),
+                tags = listOf("insp-input"),
                 modifier = if (hints.multiline) Modifier.size(100.percent, 66.px) else Modifier.grow(1f),
             )
             hints.asset.takeIf { it.isNotEmpty() }?.let { extension ->
@@ -262,10 +262,10 @@ private fun NumberField(
         kind == PrimitiveKind.BYTE || kind == PrimitiveKind.SHORT || kind == PrimitiveKind.INT || kind == PrimitiveKind.LONG
     val range = hints.range
 
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         FieldLabel(label, description)
         if (range != null && range.slider && range.min.isFinite() && range.max.isFinite()) {
-            Row(tags = listOf("ee-input-row")) {
+            Row(tags = listOf("insp-input-row")) {
                 Slider(
                     value = number.toFloat(),
                     min = range.min.toFloat(),
@@ -273,9 +273,9 @@ private fun NumberField(
                     step = if (whole) 1f else 0f,
                     onValueChange = { onChange(numberJson(kind, it.toDouble())) },
                     modifier = Modifier.grow(1f),
-                    tags = listOf("ee-slider"),
+                    tags = listOf("insp-slider"),
                 )
-                Text(formatNumber(number, whole), tags = listOf("ee-slider-value"))
+                Text(formatNumber(number, whole), tags = listOf("insp-slider-value"))
             }
         } else {
             NumberInput(path, number, whole) { next ->
@@ -306,14 +306,14 @@ internal fun NumberInput(
 
     TextField(
         value = draft,
-        id = "ee-number$path",
+        id = "insp-number$path",
         filter = if (whole) UiTextInputFilter.INTEGER else UiTextInputFilter.DECIMAL,
         fontSize = 9f,
         onChange = { text ->
             draft = text
             text.toDoubleOrNull()?.let(onChange)
         },
-        tags = listOf("ee-input"),
+        tags = listOf("insp-input"),
         modifier = modifier.grow(1f),
     )
 }
@@ -327,11 +327,11 @@ private fun EnumField(
     onChange: (JsonElement) -> Unit,
 ) {
     val current = (value as? JsonPrimitive)?.contentOrNull
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         FieldLabel(label, description)
         PillFlow {
             descriptor.elementNames.forEach { name ->
-                EditorPill(ComponentLabels.prettify(name), name == current) { onChange(JsonPrimitive(name)) }
+                Pill(ComponentLabels.prettify(name), name == current) { onChange(JsonPrimitive(name)) }
             }
         }
     }
@@ -347,16 +347,16 @@ private fun VectorField(
     onChange: (JsonElement) -> Unit,
 ) {
     val body = value as? JsonObject ?: JsonObject(emptyMap())
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         FieldLabel(label, description)
-        Row(tags = listOf("ee-vector")) {
+        Row(tags = listOf("insp-vector")) {
             for (index in 0 until descriptor.elementsCount) {
                 val name = descriptor.getElementName(index)
                 val kind = descriptor.getElementDescriptor(index).kind as? PrimitiveKind ?: continue
                 val whole = kind == PrimitiveKind.INT || kind == PrimitiveKind.LONG
                 val number = (body[name] as? JsonPrimitive)?.doubleOrNull ?: 0.0
-                Column(tags = listOf("ee-vector-cell")) {
-                    Text(name, tags = listOf("ee-vector-label"))
+                Column(tags = listOf("insp-vector-cell")) {
+                    Text(name, tags = listOf("insp-vector-label"))
                     NumberInput("$path/$name", number, whole) { next ->
                         onChange(body.withField(name, numberJson(kind, next)))
                     }
@@ -379,17 +379,17 @@ private fun NestedField(
     val body = value as? JsonObject ?: JsonObject(emptyMap())
     val title = label ?: ComponentLabels.prettify(descriptor.serialName.substringAfterLast('.'))
 
-    Column(tags = listOf("ee-nested")) {
+    Column(tags = listOf("insp-nested")) {
         Row(
-            tags = listOf("ee-nested-head"),
+            tags = listOf("insp-nested-head"),
             modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND)
                 .onClick { expanded = !expanded },
         ) {
-            EditorArrow(expanded)
-            Text(title, tags = listOf("ee-label"))
+            DisclosureArrow(expanded)
+            Text(title, tags = listOf("insp-label"))
         }
-        if (expanded) Column(tags = listOf("ee-nested-body")) {
-            ComponentFields(owner, descriptor, body, path, onChange = onChange)
+        if (expanded) Column(tags = listOf("insp-nested-body")) {
+            AutoFields(owner, descriptor, body, path, onChange = onChange)
         }
     }
 }
@@ -407,17 +407,17 @@ private fun ListField(
     val items = value as? JsonArray ?: JsonArray(emptyList())
     val element = descriptor.getElementDescriptor(0)
 
-    Column(tags = listOf("ee-nested")) {
-        Row(tags = listOf("ee-nested-head")) {
-            Text("${label.orEmpty()} (${items.size})", tags = listOf("ee-label"), modifier = Modifier.grow(1f))
-            EditorIconButton(EntityEditorIcons.ADD, EntityEditorLang.add) {
+    Column(tags = listOf("insp-nested")) {
+        Row(tags = listOf("insp-nested-head")) {
+            Text("${label.orEmpty()} (${items.size})", tags = listOf("insp-label"), modifier = Modifier.grow(1f))
+            InspectorIconButton(InspectorIcons.ADD, InspectorLang.add) {
                 onChange(items.withItemAdded(ComponentJson.defaultJson(element)))
             }
         }
-        Column(tags = listOf("ee-nested-body")) {
+        Column(tags = listOf("insp-nested-body")) {
             items.forEachIndexed { index, item ->
                 key(index) {
-                    Row(tags = listOf("ee-list-item")) {
+                    Row(tags = listOf("insp-list-item")) {
                         Column(modifier = Modifier.grow(1f).gap(4.px)) {
                             ValueEditor(
                                 label = "#${index + 1}",
@@ -430,13 +430,13 @@ private fun ListField(
                                 onChange = { onChange(items.withItem(index, it)) },
                             )
                         }
-                        EditorIconButton(EntityEditorIcons.REMOVE, EntityEditorLang.remove) {
+                        InspectorIconButton(InspectorIcons.REMOVE, InspectorLang.remove) {
                             onChange(items.withoutItem(index))
                         }
                     }
                 }
             }
-            if (items.isEmpty()) Text(EntityEditorLang.emptyList, tags = listOf("ee-hint"))
+            if (items.isEmpty()) Text(InspectorLang.emptyList, tags = listOf("insp-hint"))
         }
     }
 }
@@ -453,25 +453,25 @@ private fun MapField(
     val body = value as? JsonObject ?: JsonObject(emptyMap())
     val valueDescriptor = descriptor.getElementDescriptor(1)
 
-    Column(tags = listOf("ee-nested")) {
-        Row(tags = listOf("ee-nested-head")) {
-            Text("${label.orEmpty()} (${body.size})", tags = listOf("ee-label"), modifier = Modifier.grow(1f))
-            EditorIconButton(EntityEditorIcons.ADD, EntityEditorLang.add) {
+    Column(tags = listOf("insp-nested")) {
+        Row(tags = listOf("insp-nested-head")) {
+            Text("${label.orEmpty()} (${body.size})", tags = listOf("insp-label"), modifier = Modifier.grow(1f))
+            InspectorIconButton(InspectorIcons.ADD, InspectorLang.add) {
                 val name = generateSequence(1) { it + 1 }.first { "key$it" !in body }
                 onChange(body.withField("key$name", ComponentJson.defaultJson(valueDescriptor)))
             }
         }
-        Column(tags = listOf("ee-nested-body")) {
+        Column(tags = listOf("insp-nested-body")) {
             body.forEach { (mapKey, mapValue) ->
                 key(mapKey) {
-                    Row(tags = listOf("ee-list-item")) {
+                    Row(tags = listOf("insp-list-item")) {
                         Column(modifier = Modifier.grow(1f).gap(4.px)) {
                             TextField(
                                 value = mapKey,
-                                id = "ee-key$path/$mapKey",
+                                id = "insp-key$path/$mapKey",
                                 fontSize = 9f,
                                 onChange = { renamed -> onChange(body.withKeyRenamed(mapKey, renamed)) },
-                                tags = listOf("ee-input"),
+                                tags = listOf("insp-input"),
                                 modifier = Modifier.size(100.percent, 22.px),
                             )
                             ValueEditor(
@@ -485,13 +485,13 @@ private fun MapField(
                                 onChange = { onChange(body.withField(mapKey, it)) },
                             )
                         }
-                        EditorIconButton(EntityEditorIcons.REMOVE, EntityEditorLang.remove) {
+                        InspectorIconButton(InspectorIcons.REMOVE, InspectorLang.remove) {
                             onChange(body.withoutField(mapKey))
                         }
                     }
                 }
             }
-            if (body.isEmpty()) Text(EntityEditorLang.emptyList, tags = listOf("ee-hint"))
+            if (body.isEmpty()) Text(InspectorLang.emptyList, tags = listOf("insp-hint"))
         }
     }
 }
@@ -510,18 +510,18 @@ private fun PolymorphicField(
     val current = ComponentJson.discriminatorOf(body)
     val selected = alternatives.firstOrNull { it.serialName == current } ?: alternatives.firstOrNull()
 
-    Column(tags = listOf("ee-nested")) {
+    Column(tags = listOf("insp-nested")) {
         FieldLabel(label, description = null)
         PillFlow {
             alternatives.forEach { alternative ->
                 val name = alternative.serialName
-                EditorPill(ComponentLabels.prettify(name.substringAfterLast('/')), name == current) {
+                Pill(ComponentLabels.prettify(name.substringAfterLast('/')), name == current) {
                     if (name != current) onChange(ComponentJson.defaultOfSubclass(alternative))
                 }
             }
         }
-        if (selected != null) Column(tags = listOf("ee-nested-body")) {
-            ComponentFields(owner, selected, body, path, onChange = { edited ->
+        if (selected != null) Column(tags = listOf("insp-nested-body")) {
+            AutoFields(owner, selected, body, path, onChange = { edited ->
                 onChange(ComponentJson.withDiscriminator(edited, selected.serialName))
             })
         }
@@ -530,9 +530,9 @@ private fun PolymorphicField(
 
 @Composable
 private fun UnsupportedField(label: String?, descriptor: SerialDescriptor) {
-    Column(tags = listOf("ee-field")) {
+    Column(tags = listOf("insp-field")) {
         FieldLabel(label, description = null)
-        Text(EntityEditorLang.unsupported(descriptor.serialName), tags = listOf("ee-hint"))
+        Text(InspectorLang.unsupported(descriptor.serialName), tags = listOf("insp-hint"))
     }
 }
 

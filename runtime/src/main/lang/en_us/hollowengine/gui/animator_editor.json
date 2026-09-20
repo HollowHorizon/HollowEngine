@@ -9,6 +9,8 @@
   "hide_layers": "Hide layers",
   "reset_view": "Reset view",
   "parameters": "Parameters",
+  "no_graph": "This layer has no graph; its parameters are in the inspector.",
+  "no_layers": "No layers",
   "nothing_selected": "Nothing selected",
   "pick_controller": "Select a controller layer",
   "layer_removed": "Layer removed",

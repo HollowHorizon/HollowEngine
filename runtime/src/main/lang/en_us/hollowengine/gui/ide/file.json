@@ -1,6 +1,11 @@
 {
+  "already_exists": "A file by that name is already there",
+  "deleted": "Deleted: %s",
+  "invalid_name": "That file name cannot be used",
   "no_permissions_reload_server": "You don't have permissions to reload server resources!",
+  "not_found": "No such file",
   "open_mod_folder": "Open mod folder",
   "reload_client_resources": "Reload client resources",
-  "reload_server_resources": "Reload server resources"
+  "reload_server_resources": "Reload server resources",
+  "renamed": "Renamed to %s"
 }

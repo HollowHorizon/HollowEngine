@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 
 import androidx.compose.runtime.Composable
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -28,7 +29,7 @@ internal fun LayerSettingsDialog(
             val modes = if (property.layers.firstOrNull() === layer) setOf(layer.blendMode)
             else property.type.blendModes
             modes.forEach { mode ->
-                Pill("layer-blend-${mode.name}", blendModeLabel(mode), layer.blendMode == mode) {
+                Pill(blendModeLabel(mode), layer.blendMode == mode, id = "layer-blend-${mode.name}") {
                     controller.edit("Edit layer blending") { layer.blendMode = mode }
                     refresh()
                 }
@@ -36,18 +37,18 @@ internal fun LayerSettingsDialog(
         }
 
         if (property.channels.any { it.supportsCurveEditor }) {
-            FloatField(CutsceneLang.LAYER_WEIGHT.lang, layer.weight, 0f, 1f) { next ->
+            FloatRow(CutsceneLang.LAYER_WEIGHT.lang, layer.weight, min = 0f, max = 1f) { next ->
                 controller.edit("Edit layer weight") { layer.weight = next }
                 refresh()
             }
         }
 
         Row(modifier = Modifier.size(100.percent, 24.px).alignItems(vertical = UiAlign.CENTER).gap(6.px)) {
-            TogglePill(CutsceneLang.LAYER_VISIBLE.lang, layer.isVisible) {
+            Pill(CutsceneLang.LAYER_VISIBLE.lang, layer.isVisible) {
                 layer.isVisible = !layer.isVisible
                 refresh()
             }
-            TogglePill(CutsceneLang.LAYER_LOCKED.lang, layer.isLocked) {
+            Pill(CutsceneLang.LAYER_LOCKED.lang, layer.isLocked) {
                 layer.isLocked = !layer.isLocked
                 refresh()
             }
@@ -130,7 +131,7 @@ private fun RotationModeRow(property: AnimProperty<*>, controller: TimelineContr
     Text(CutsceneLang.ROTATION_MODE.lang, modifier = Modifier.fontSize(9f).foreground(TimelineColors.Muted))
     PillFlow(id = "property-rotation-modes") {
         RotationMode.entries.forEach { mode ->
-            Pill("rotation-mode-${mode.name}", rotationModeLabel(mode), type.mode == mode) {
+            Pill(rotationModeLabel(mode), type.mode == mode, id = "rotation-mode-${mode.name}") {
                 controller.edit("Change rotation basis") { property.setRotationMode(mode) }
                 refresh()
             }

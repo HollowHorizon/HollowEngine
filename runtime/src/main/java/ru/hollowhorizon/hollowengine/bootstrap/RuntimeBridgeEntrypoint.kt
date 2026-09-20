@@ -77,6 +77,8 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
 import ru.hollowhorizon.hollowengine.common.ui.HudPlacement
+import ru.hollowhorizon.hollowengine.client.editor.WorldInspector
+import ru.hollowhorizon.hollowengine.client.ui.notification.NotificationOverlay
 import ru.hollowhorizon.hollowengine.common.ui.hud.HudLayerRegistry
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
@@ -854,13 +856,17 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedX = (xPos * scaleFactor).toFloat()
         val convertedY = (yPos * scaleFactor).toFloat()
 
+        WorldInspector.handleMouseMove(convertedX, convertedY)
+
+        val isNotificationCaptured = NotificationOverlay.handleMouseMove(convertedX, convertedY)
         val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
         val isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(convertedX, convertedY)
         val (guiX, guiY) = guiScaledPointer(minecraft, xPos, yPos)
         val isScriptOverlayCaptured = UiScriptHudHost.handleMouseMove(guiX, guiY)
         val isScreenOpen = minecraft.screen != null
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isScriptOverlayCaptured || isGizmoBlocking && isScreenOpen
+        val shouldCancel = isNotificationCaptured || isOverlayInputCaptured ||
+                isGizmoInputCaptured || isScriptOverlayCaptured || isGizmoBlocking && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
@@ -883,8 +889,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         modifiers: Int,
     ): Boolean {
         val (guiX, guiY) = guiScaledPointer(minecraft, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
-        return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
+        return NotificationOverlay.handleMouseButton(x, y, button, action) ||
+                HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
                 TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
+                WorldInspector.pickAt(x, y, button, action) ||
                 UiScriptHudHost.handleMouseButton(guiX, guiY, button, action) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)
     }
@@ -898,7 +906,8 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         yOffset: Double,
     ): Boolean {
         val (guiX, guiY) = guiScaledPointer(minecraft, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
-        return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
+        return NotificationOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
+                HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
                 TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
                 UiScriptHudHost.handleMouseScroll(guiX, guiY, xOffset, yOffset) ||
                 TransformGizmoEditor.shouldBlockScreenInput(x, y)

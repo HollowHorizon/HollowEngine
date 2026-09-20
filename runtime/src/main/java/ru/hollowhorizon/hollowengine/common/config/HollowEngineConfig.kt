@@ -29,7 +29,11 @@ object HollowEngineConfig : Config() {
     @PropertyRange(0.0f, 6.0f)
     var ideGuiScale by property(3f)
 
-    @PropertyComment("Is Tranform Gizmo enabled")
+    @PropertyComment("Turns the world into an editor: clicking something fills the inspector with it")
+    @PropertyName("editor_mode")
+    var editorMode by property(false)
+
+    @PropertyComment("Draws the transform handles on scene nodes. Independent of editor mode; a development tool")
     @PropertyName("transform_gizmo_enabled")
     var gizmoEnabled by property(false)
 

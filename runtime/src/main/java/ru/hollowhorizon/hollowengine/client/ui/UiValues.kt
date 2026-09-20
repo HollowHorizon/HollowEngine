@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft
 import org.joml.Matrix4f
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import kotlin.math.*
 
 data class UiEntityView(
@@ -405,11 +406,20 @@ data class UiColor(
     }
 }
 
+/**
+ * The ring drawn around a node. [paint] is a full paint, so a border can carry
+ * a gradient the same way a background does.
+ */
 data class UiBorder(
     val width: UiInsets = UiInsets.Zero,
-    val color: UiColor = UiColor.Transparent,
+    val paint: UiPaint = UiPaint.None,
     val radius: Float = 0f,
-)
+) {
+    constructor(width: UiInsets, color: UiColor, radius: Float = 0f) : this(width, UiPaint.Color(color), radius)
+
+    /** The flat color of a solid border, and `null` for a gradient one. */
+    val color: UiColor? get() = (paint as? UiPaint.Color)?.color
+}
 
 data class UiTransform(
     val translate: UiVec3 = UiVec3(),

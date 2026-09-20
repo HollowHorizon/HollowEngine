@@ -114,7 +114,11 @@ object UiProps {
     val Grow = prop("grow", 0f, fingerprint = true)
     val Position = prop("position", UiPosition(), fingerprint = true)
     val BorderWidth = prop("border-width", UiInsets.Zero, fingerprint = true)
-    val BorderColor = prop("border-color", UiColor.Transparent)
+    val BorderPaint = prop(
+        "border-color", UiPaint.None,
+        aliases = setOf("border-paint"),
+        interpolate = ::interpolatePaint,
+    )
     val BorderRadius = prop("border-radius", 0f)
 
     // Visuals
@@ -252,21 +256,21 @@ var UiStylePatch.justifyContent by UiProps.JustifyContent
 var UiStylePatch.grow by UiProps.Grow
 var UiStylePatch.position by UiProps.Position
 var UiStylePatch.borderWidth by UiProps.BorderWidth
-var UiStylePatch.borderColor by UiProps.BorderColor
+var UiStylePatch.borderPaint by UiProps.BorderPaint
 var UiStylePatch.borderRadius by UiProps.BorderRadius
 
 /** Composite view over the three independent border props. */
 var UiStylePatch.border: UiBorder?
     get() {
         val width = this[UiProps.BorderWidth]
-        val color = this[UiProps.BorderColor]
+        val paint = this[UiProps.BorderPaint]
         val radius = this[UiProps.BorderRadius]
-        if (width == null && color == null && radius == null) return null
-        return UiBorder(width ?: UiInsets.Zero, color ?: UiColor.Transparent, radius ?: 0f)
+        if (width == null && paint == null && radius == null) return null
+        return UiBorder(width ?: UiInsets.Zero, paint ?: UiPaint.None, radius ?: 0f)
     }
     set(value) {
         this[UiProps.BorderWidth] = value?.width
-        this[UiProps.BorderColor] = value?.color
+        this[UiProps.BorderPaint] = value?.paint
         this[UiProps.BorderRadius] = value?.radius
     }
 var UiStylePatch.background by UiProps.Background
@@ -393,7 +397,7 @@ val UiComputedStyle.grow by UiProps.Grow
 val UiComputedStyle.position by UiProps.Position
 
 val UiComputedStyle.border: UiBorder
-    get() = UiBorder(this[UiProps.BorderWidth], this[UiProps.BorderColor], this[UiProps.BorderRadius])
+    get() = UiBorder(this[UiProps.BorderWidth], this[UiProps.BorderPaint], this[UiProps.BorderRadius])
 val UiComputedStyle.background by UiProps.Background
 val UiComputedStyle.foreground by UiProps.Foreground
 val UiComputedStyle.image by UiProps.Image

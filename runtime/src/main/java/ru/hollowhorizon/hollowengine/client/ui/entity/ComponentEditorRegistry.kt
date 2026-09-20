@@ -6,10 +6,10 @@ import androidx.compose.runtime.compositionLocalOf
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.ui.inspector.withField
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 
-internal val LocalEntityEditorSession: ProvidableCompositionLocal<EntityEditorSession?> =
-    compositionLocalOf { null }
+internal val LocalEntityEditorSession: ProvidableCompositionLocal<EntityEditorSession?> = compositionLocalOf { null }
 
 class ComponentEditorScope internal constructor(
     private val entry: ComponentEntry,

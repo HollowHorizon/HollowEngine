@@ -173,7 +173,10 @@ void main() {
     float borderWidth = geometry.w;
     vec4 effect = texelFetch(RecordBuffer, base + 1);
     int paintIndex = int(effect.x);
-    vec4 borderColor = texelFetch(RecordBuffer, base + 2);
+    int borderPaintIndex = effect.w > 0.5 ? -1 : int(effect.y);
+    vec4 borderColor = borderPaintIndex >= 0
+        ? samplePaint(borderPaintIndex)
+        : texelFetch(RecordBuffer, base + 2);
 
     if (radius <= 0.0 && borderWidth <= 0.0 && effect.w <= 0.5) {
         vec4 fill = samplePaint(paintIndex);

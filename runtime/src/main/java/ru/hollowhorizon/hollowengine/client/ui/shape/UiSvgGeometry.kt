@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.shape
 
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import java.awt.BasicStroke
 import java.awt.geom.Area
 import java.awt.geom.Path2D
@@ -20,7 +21,7 @@ data class UiSvgPathElement(
     val path: UiPath,
     val style: UiSvgStyle = UiSvgStyle.Default,
     val id: String? = null,
-    val paint: UiColor? = style.fillColor(),
+    val paint: UiPaint = style.fillColor()?.let(UiPaint::Color) ?: UiPaint.None,
     val filterEffects: List<UiSvgFilterEffect> = emptyList(),
 )
 
@@ -61,8 +62,11 @@ enum class UiSvgFillRule {
 
 data class UiSvgStyle(
     val fill: UiColor? = UiColor.Black,
+    /** A `url(#id)` fill: the gradient or pattern the paint comes from instead of [fill]. */
+    val fillRef: String? = null,
     val fillRule: UiSvgFillRule = UiSvgFillRule.NON_ZERO,
     val stroke: UiColor? = null,
+    val strokeRef: String? = null,
     val strokeWidth: Float = 1f,
     val strokeLineCap: UiSvgStrokeLineCap = UiSvgStrokeLineCap.BUTT,
     val strokeLineJoin: UiSvgStrokeLineJoin = UiSvgStrokeLineJoin.MITER,
@@ -82,6 +86,11 @@ data class UiSvgStyle(
     fun fillColor(): UiColor? = fill?.withAlphaMultiplier(opacity * fillOpacity)
 
     fun strokeColor(): UiColor? = stroke?.withAlphaMultiplier(opacity * strokeOpacity)
+
+    /** How much a referenced fill is faded by the element's own opacity. */
+    fun fillAlpha(): Float = opacity * fillOpacity
+
+    fun strokeAlpha(): Float = opacity * strokeOpacity
 
     companion object {
         val Default = UiSvgStyle()
@@ -225,6 +234,22 @@ internal fun combineSvgPaths(paths: List<UiPath>): UiPath {
     for (path in paths) area.add(Area(path.toAwtPath()))
     return area.toUiPath()
 }
+
+/**
+ * Flattens a `<mask>` into the area it lets through.
+ */
+internal fun combineSvgMask(shapes: List<Pair<UiPath, UiColor>>): UiPath {
+    if (shapes.isEmpty()) return UiPath(emptyList())
+    val area = Area()
+    for ((path, color) in shapes) {
+        val shape = Area(path.toAwtPath())
+        if (color.isMaskOpaque()) area.add(shape) else area.subtract(shape)
+    }
+    return area.toUiPath()
+}
+
+/** Bright enough to let what it covers through; anything darker punches a hole instead. */
+private fun UiColor.isMaskOpaque(): Boolean = alpha > 0.01f && (red + green + blue) / 3f > 0.5f
 
 internal fun UiPath.toSvgStrokePath(style: UiSvgStyle): UiPath? {
     val strokeWidth = style.strokeWidth
@@ -458,7 +483,7 @@ internal fun AwtShape.toUiPath(): UiPath {
     return builder.build()
 }
 
-private fun UiColor.withAlphaMultiplier(multiplier: Float): UiColor {
+internal fun UiColor.withAlphaMultiplier(multiplier: Float): UiColor {
     return copy(alpha = alpha * multiplier.coerceAtLeast(0f))
 }
 

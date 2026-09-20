@@ -4,13 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.withFrameNanos
-import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextCompletion
+
+import ru.hollowhorizon.hollowengine.client.ui.Image
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.rotate
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
-import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 internal object EntityEditorIcons {
@@ -38,7 +36,6 @@ internal object EntityEditorLang {
     val refresh: String get() = (ROOT + "refresh").lang
     val search: String get() = (ROOT + "search").lang
     val searchHint: String get() = (ROOT + "search_hint").lang
-    val notSet: String get() = (ROOT + "not_set").lang
     val emptyList: String get() = (ROOT + "empty_list").lang
     val nothingFound: String get() = (ROOT + "nothing_found").lang
     val virtual: String get() = (ROOT + "virtual").lang
@@ -64,36 +61,9 @@ internal object EntityEditorLang {
     val resetView: String get() = (ROOT + "reset_view").lang
     val busy: String get() = (ROOT + "busy").lang
     val playerItems: String get() = (ROOT + "player_items").lang
-
-    fun unsupported(type: String): String = (ROOT + "unsupported").lang.format(type)
 }
 
-@Composable
-internal fun PillFlow(content: HollowUiContent) {
-    Layout(
-        content = content,
-        modifier = Modifier.size(100.percent, UiLength.Fit).gap(3.px).lineSpacing(3f).textWrap(),
-        measurePolicy = UiMeasurePolicies.InlineFlow,
-    )
-}
-
-@Composable
-internal fun EditorPill(label: String, active: Boolean, onClick: () -> Unit) {
-    InlineWidget(
-        id = "ee-pill-$label",
-        tags = if (active) listOf("ee-pill", "active") else listOf("ee-pill"),
-        modifier = Modifier
-            .input(hoverable = true, clickable = true)
-            .cursor(UiCursorShape.HAND)
-            .onClick { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
-                event.consume()
-            },
-    ) {
-        Text(label, tags = listOf("ee-pill-label"))
-    }
-}
-
+/** Spins while the editor waits for the server to answer. */
 @Composable
 internal fun BusySpinner() {
     val frame by produceState(0) {
@@ -107,116 +77,4 @@ internal fun BusySpinner() {
         tags = listOf("ee-busy"),
         modifier = Modifier.rotate(0f, 0f, (frame * 4f) % 360f).tooltipOnHover(EntityEditorLang.busy),
     )
-}
-
-@Composable
-internal fun EditorArrow(expanded: Boolean) {
-    Box(
-        tags = listOf("ee-arrow"),
-        attributes = mapOf("expanded" to if (expanded) "true" else "false"),
-    )
-}
-
-@Composable
-internal fun EditorIconButton(
-    icon: String,
-    tooltip: String,
-    modifier: Modifier = Modifier,
-    tags: List<String> = emptyList(),
-    onClick: () -> Unit,
-) {
-    Image(
-        icon,
-        tags = listOf("ee-icon-button") + tags,
-        modifier = modifier
-            .input(hoverable = true, clickable = true)
-            .cursor(UiCursorShape.HAND)
-            .tooltipOnHover(tooltip)
-            .onClick { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
-                event.consume()
-            },
-    )
-}
-
-@Composable
-internal fun EditorButton(
-    label: String,
-    icon: String? = null,
-    modifier: Modifier = Modifier,
-    tags: List<String> = emptyList(),
-    onClick: () -> Unit,
-) {
-    Row(
-        tags = listOf("ee-button") + tags,
-        modifier = modifier
-            .input(hoverable = true, clickable = true)
-            .cursor(UiCursorShape.HAND)
-            .onClick { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
-                event.consume()
-            },
-    ) {
-        icon?.let { Image(it, tags = listOf("ee-button-icon")) }
-        Text(label, tags = listOf("ee-button-label"))
-    }
-}
-
-@Composable
-internal fun AssetPickerButton(extensions: List<String>, current: String, label: String, onPick: (String) -> Unit) {
-    val session = LocalEntityEditorSession.current ?: return
-    EditorIconButton(EntityEditorIcons.FOLDER, EntityEditorLang.pick, tags = listOf("ee-pick-button")) {
-        session.pendingPicker = AssetPickerRequest(label, session.assets(extensions), current, onPick)
-    }
-}
-
-internal fun assetCompletions(candidates: List<String>): UiCompletionContributor = UiCompletionContributor { context ->
-    val prefix = context.text.take(context.caret).trim()
-    candidates.asSequence()
-        .filter { prefix.isBlank() || it.contains(prefix, ignoreCase = true) }
-        .take(AssetCompletionLimit)
-        .map { candidate ->
-            UiTextCompletion(
-                label = candidate,
-                insertText = candidate,
-                icon = IconHelper.forPath(candidate).toString(),
-                wordChars = ":/._-",
-            )
-        }
-        .toList()
-}
-
-private const val AssetCompletionLimit = 60
-
-/**
- * Where an `@EditorAsset` field's suggestions come from.
- *
- * Sources are registered rather than hardcoded so an addon that ships a new kind of asset can offer it
- * in the editor without this file knowing about it.
- */
-object EditorAssetSources {
-    private val providers = LinkedHashMap<String, () -> List<String>>()
-
-    fun register(vararg extensions: String, provider: () -> List<String>) {
-        extensions.forEach {
-            providers[it] = provider
-        }
-    }
-
-    fun list(extension: String): List<String> =
-        providers[extension]?.invoke()?.sorted() ?: resourcesEndingWith(extension)
-
-    private fun resourcesEndingWith(extension: String): List<String> {
-        val manager = Minecraft.getInstance().resourceManager ?: return emptyList()
-        val root = when {
-            extension.endsWith("png") -> "textures"
-            extension.endsWith("ogg") || extension.endsWith("wav") -> "sounds"
-            else -> "models"
-        }
-        return runCatching {
-            manager.listResources(root) { it.path.endsWith(extension) }.keys
-                .map { it.toString() }
-                .sorted()
-        }.getOrDefault(emptyList())
-    }
 }

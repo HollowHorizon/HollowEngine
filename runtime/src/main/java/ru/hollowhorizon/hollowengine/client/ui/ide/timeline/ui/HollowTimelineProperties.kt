@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelBounds
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelCurve
@@ -20,47 +21,33 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEdi
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
+/** The cutscene's own fields, composed inside whichever panel the shared inspector is drawn in. */
 @Composable
-internal fun HollowTimelineProperties(
-    session: CutsceneEditorSession,
-    modifier: Modifier,
-    refresh: () -> Unit,
-) {
+internal fun HollowTimelineProperties(session: CutsceneEditorSession, refresh: () -> Unit) {
     val controller = session.timeline
     val selectedKey = controller.selectedKeyframes.firstOrNull()
     val selectedCurve = selectedKey?.let { controller.curveOf(it) }
 
-    Column(
-        id = "timeline-properties",
-        modifier = modifier.background(TimelineColors.Panel)
-            .border(1.px, TimelineColors.Border)
-            .padding(10.px)
-            .gap(8.px)
-            .scrollable(horizontal = false)
-    ) {
-        Text(CutsceneLang.PROPERTIES.lang, modifier = Modifier.fontSize(13f).foreground(TimelineColors.Text))
-        PreviewSection(controller, refresh)
-        OriginSection(session, refresh)
-        when {
-            selectedKey != null && selectedCurve != null -> {
-                KeyframeSection(session, selectedKey, selectedCurve, refresh)
-                if (selectedCurve.spec.supportsCurveEditor) {
-                    CurveSection(controller, selectedKey, selectedCurve, refresh)
-                }
-                ToolbarButton(
-                    if (controller.selectedKeyframes.size == 1) CutsceneLang.DELETE_KEY.lang
-                    else CutsceneLang.DELETE_KEYS.lang,
-                    "timeline-properties-delete",
-                    TimelineColors.Danger,
-                ) {
-                    controller.deleteSelectedKeyframes()
-                    refresh()
-                }
+    PreviewSection(controller, refresh)
+    OriginSection(session, refresh)
+    when {
+        selectedKey != null && selectedCurve != null -> {
+            KeyframeSection(session, selectedKey, selectedCurve, refresh)
+            if (selectedCurve.spec.supportsCurveEditor) {
+                CurveSection(controller, selectedKey, selectedCurve, refresh)
             }
-
-            controller.isWorkAreaSelected -> WorkAreaSection(controller, refresh)
-            else -> EmptySection()
+            InspectorButton(
+                if (controller.selectedKeyframes.size == 1) CutsceneLang.DELETE_KEY.lang
+                else CutsceneLang.DELETE_KEYS.lang,
+                tags = listOf("danger"),
+            ) {
+                controller.deleteSelectedKeyframes()
+                refresh()
+            }
         }
+
+        controller.isWorkAreaSelected -> WorkAreaSection(controller, refresh)
+        else -> EmptySection()
     }
 }
 
@@ -72,7 +59,7 @@ private fun PreviewSection(controller: TimelineController, refresh: () -> Unit) 
                 .alignItems(vertical = UiAlign.CENTER)
                 .gap(8.px)
         ) {
-            TogglePill(
+            Pill(
                 if (controller.isCameraPreviewEnabled) CutsceneLang.CAMERA_ON.lang
                 else CutsceneLang.CAMERA_OFF.lang,
                 controller.isCameraPreviewEnabled
@@ -85,8 +72,8 @@ private fun PreviewSection(controller: TimelineController, refresh: () -> Unit) 
                 modifier = Modifier.fontSize(10f).foreground(TimelineColors.Muted),
             )
         }
-        PropertyLine(CutsceneLang.CURRENT_TIME.lang, "%.3f s".format(controller.currentTime).replace(',', '.'))
-        PropertyLine(CutsceneLang.DURATION.lang, "%.3f s".format(controller.workAreaEnd).replace(',', '.'))
+        Readonly(CutsceneLang.CURRENT_TIME.lang, "%.3f s".format(controller.currentTime).replace(',', '.'))
+        Readonly(CutsceneLang.DURATION.lang, "%.3f s".format(controller.workAreaEnd).replace(',', '.'))
     }
 }
 
@@ -94,19 +81,19 @@ private fun PreviewSection(controller: TimelineController, refresh: () -> Unit) 
 private fun OriginSection(session: CutsceneEditorSession, refresh: () -> Unit) {
     val origin = session.playback.origin
     Section(CutsceneLang.ORIGIN.lang, id = "timeline-origin-section") {
-        FloatField(CutsceneLang.ORIGIN_X.lang, origin.x, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
+        FloatRow(CutsceneLang.ORIGIN_X.lang, origin.x, min = -Float.MAX_VALUE, max = Float.MAX_VALUE) { next ->
             session.moveOrigin(Vec3f(next, origin.y, origin.z), origin.yaw, keepWorld = false)
             refresh()
         }
-        FloatField(CutsceneLang.ORIGIN_Y.lang, origin.y, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
+        FloatRow(CutsceneLang.ORIGIN_Y.lang, origin.y, min = -Float.MAX_VALUE, max = Float.MAX_VALUE) { next ->
             session.moveOrigin(Vec3f(origin.x, next, origin.z), origin.yaw, keepWorld = false)
             refresh()
         }
-        FloatField(CutsceneLang.ORIGIN_Z.lang, origin.z, -Float.MAX_VALUE, Float.MAX_VALUE) { next ->
+        FloatRow(CutsceneLang.ORIGIN_Z.lang, origin.z, min = -Float.MAX_VALUE, max = Float.MAX_VALUE) { next ->
             session.moveOrigin(Vec3f(origin.x, origin.y, next), origin.yaw, keepWorld = false)
             refresh()
         }
-        FloatField(CutsceneLang.ORIGIN_YAW.lang, origin.yaw, -360f, 360f) { next ->
+        FloatRow(CutsceneLang.ORIGIN_YAW.lang, origin.yaw, min = -360f, max = 360f) { next ->
             session.moveOrigin(origin.position, next, keepWorld = false)
             refresh()
         }
@@ -134,8 +121,8 @@ private fun KeyframeSection(
     val count = controller.selectedKeyframes.size
     val title = if (count == 1) CutsceneLang.KEYFRAME.lang else CutsceneLang.KEYFRAMES.lang(count)
     Section(title) {
-        PropertyLine(CutsceneLang.CHANNEL.lang, channelPath(controller, curve))
-        FloatField(CutsceneLang.TIME.lang, keyframe.time, 0f, controller.workAreaEnd) { time ->
+        Readonly(CutsceneLang.CHANNEL.lang, channelPath(controller, curve))
+        FloatRow(CutsceneLang.TIME.lang, keyframe.time, min = 0f, max = controller.workAreaEnd) { time ->
             controller.nudgeSelectedKeyframes(snapTimelineTime(time, currentUiKeyModifiers()) - keyframe.time)
             refresh()
         }
@@ -147,11 +134,11 @@ private fun KeyframeSection(
             } else {
                 null
             } ?: ChannelBounds.Unbounded
-            FloatField(
+            FloatRow(
                 CutsceneLang.VALUE.lang,
                 keyframe.value,
-                bounds.minimum ?: -Float.MAX_VALUE,
-                bounds.maximum ?: Float.MAX_VALUE,
+                min = bounds.minimum ?: -Float.MAX_VALUE,
+                max = bounds.maximum ?: Float.MAX_VALUE,
             ) { next ->
                 controller.setSelectedKeyframeValue(keyframe, next)
                 refresh()
@@ -171,7 +158,7 @@ private fun DiscreteValueField(options: List<ChannelValueOption>, value: Float, 
     Text(CutsceneLang.VALUE.lang, modifier = Modifier.fontSize(9f).foreground(TimelineColors.Muted))
     PillFlow(id = "timeline-discrete-values") {
         options.forEachIndexed { index, option ->
-            Pill("timeline-discrete-value-$index", option.labelKey.lang, value == option.value) {
+            Pill(option.labelKey.lang, value == option.value, id = "timeline-discrete-value-$index") {
                 onChange(option.value)
             }
         }
@@ -187,8 +174,8 @@ private fun channelPath(controller: TimelineController, curve: ChannelCurve): St
 @Composable
 private fun WorldReadout(session: CutsceneEditorSession) {
     val pose = session.playback.currentPose
-    PropertyLine(CutsceneLang.WORLD.lang, formatVec3(pose.position))
-    PropertyLine(CutsceneLang.WORLD_ROTATION.lang, formatVec3(pose.rotation))
+    Readonly(CutsceneLang.WORLD.lang, formatVec3(pose.position))
+    Readonly(CutsceneLang.WORLD_ROTATION.lang, formatVec3(pose.rotation))
 }
 
 private fun formatVec3(vector: Vec3f): String =
@@ -214,12 +201,12 @@ private fun CurveSection(
         active?.let { CurvePreview(it) }
         PillFlow(id = "timeline-preset-categories") {
             CurvePresets.categories.forEach { name ->
-                Pill("preset-category-$name", name, category == name) { category = name }
+                Pill(name, category == name, id = "preset-category-$name") { category = name }
             }
         }
         PillFlow(id = "timeline-presets") {
             CurvePresets.of(category).forEach { preset ->
-                Pill("preset-${preset.id}", preset.name, active?.id == preset.id) {
+                Pill(preset.name, active?.id == preset.id, id = "preset-${preset.id}") {
                     controller.applyPreset(preset)
                     refresh()
                 }
@@ -230,7 +217,7 @@ private fun CurveSection(
         Text(CutsceneLang.HANDLES.lang, modifier = Modifier.fontSize(9f).foreground(TimelineColors.Muted))
         PillFlow(id = "timeline-handle-modes") {
             HandleMode.entries.forEach { mode ->
-                Pill("handle-mode-${mode.name}", handleLabel(mode), keyframe.handleMode == mode) {
+                Pill(handleLabel(mode), keyframe.handleMode == mode, id = "handle-mode-${mode.name}") {
                     controller.setSelectedHandleMode(mode)
                     refresh()
                 }
@@ -267,11 +254,11 @@ private fun TangentRow(
 ) {
     val tangent = keyframe.tangent(side)
     Row(modifier = Modifier.size(100.percent, UiLength.Fit).gap(4.px)) {
-        FloatField(label, tangent.time) { next ->
+        FloatRow(label, tangent.time) { next ->
             applyTangent(controller, keyframe, side, KeyTangent(next, keyframe.tangent(side).value))
             refresh()
         }
-        FloatField("", tangent.value) { next ->
+        FloatRow("", tangent.value) { next ->
             applyTangent(controller, keyframe, side, KeyTangent(keyframe.tangent(side).time, next))
             refresh()
         }
@@ -292,7 +279,7 @@ private fun applyTangent(
 @Composable
 private fun WorkAreaSection(controller: TimelineController, refresh: () -> Unit) {
     Section(CutsceneLang.WORK_AREA.lang) {
-        FloatField(CutsceneLang.END.lang, controller.workAreaEnd, 0.1f, Float.POSITIVE_INFINITY) { time ->
+        FloatRow(CutsceneLang.END.lang, controller.workAreaEnd, min = 0.1f, max = Float.POSITIVE_INFINITY) { time ->
             controller.workAreaEnd = snapTimelineTime(time, currentUiKeyModifiers()).coerceAtLeast(0.1f)
             if (controller.currentTime > controller.workAreaEnd) controller.applyCurrentTime(0f)
             refresh()

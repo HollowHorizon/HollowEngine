@@ -262,7 +262,7 @@ internal class UiCommandCanvasScope(
                 submitSvgShape(
                     shape = shape,
                     rect = contentRect,
-                    color = effect.color,
+                    fill = UiResolvedPaint.Color(effect.color),
                     offsetX = effect.offsetX * scaleX,
                     offsetY = effect.offsetY * scaleY,
                     blurRadius = effect.standardDeviation * effectScale,
@@ -270,7 +270,7 @@ internal class UiCommandCanvasScope(
             }
         }
         for (element in document.elements) {
-            val color = element.paint ?: continue
+            if (element.paint == UiPaint.None) continue
             val shape = SvgPathShape(element.path, viewBox)
             var blurRadius = 0f
             for (effect in element.filterEffects) {
@@ -285,7 +285,7 @@ internal class UiCommandCanvasScope(
             submitSvgShape(
                 shape = shape,
                 rect = contentRect,
-                color = color.tintedBy(tint),
+                fill = element.paint.tintedBy(tint).resolve(),
                 blurRadius = blurRadius,
             )
         }
@@ -296,10 +296,23 @@ internal class UiCommandCanvasScope(
         return UiColor(red * tint.red, green * tint.green, blue * tint.blue, alpha * tint.alpha)
     }
 
+    private fun UiPaint.tintedBy(tint: UiColor): UiPaint {
+        if (tint == UiColor.White) return this
+        return when (this) {
+            is UiPaint.Color -> UiPaint.Color(color.tintedBy(tint))
+            is UiPaint.LinearGradient -> copy(stops = stops.map { it.copy(color = it.color.tintedBy(tint)) })
+            is UiPaint.RadialGradient -> UiPaint.RadialGradient(
+                gradient.copy(stops = gradient.stops.map { it.copy(color = it.color.tintedBy(tint)) }),
+            )
+
+            UiPaint.None, is UiPaint.Image, is UiPaint.Shader -> this
+        }
+    }
+
     private fun submitSvgShape(
         shape: Shape,
         rect: UiRect,
-        color: UiColor,
+        fill: UiResolvedPaint,
         offsetX: Float = 0f,
         offsetY: Float = 0f,
         blurRadius: Float = 0f,
@@ -308,7 +321,7 @@ internal class UiCommandCanvasScope(
             node = node,
             rect = rect.toCommandRect(),
             shape = shape,
-            fill = UiResolvedPaint.Color(color),
+            fill = fill,
             stroke = UiResolvedPaint.None,
             strokeWidth = 0f,
             opacity = opacity,

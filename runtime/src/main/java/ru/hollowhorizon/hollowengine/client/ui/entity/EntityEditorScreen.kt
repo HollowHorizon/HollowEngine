@@ -6,22 +6,23 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.world.entity.LivingEntity
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.slots.SlotTooltips
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.ui.style.MinecraftHssResourceLoader
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 
-private const val Stylesheet = "hollowengine:ui/styles/entity-editor.hss"
-private const val WidgetStylesheet = "hollowengine:ui/styles/widgets.hss"
+internal const val EntityEditorStylesheet = "hollowengine:ui/styles/entity-editor.hss"
+internal const val WidgetStylesheet = "hollowengine:ui/styles/widgets.hss"
 internal const val EntityEditorSearchInput = "ee-search-input"
 
 private const val SidebarMinWidth = 240f
 private const val SidebarMaxWidth = 520f
 
 
-private fun editorStylesheet(): CompiledHss {
-    val sheets = listOf(WidgetStylesheet, Stylesheet).map(MinecraftHssResourceLoader::load)
+internal fun editorStylesheet(): CompiledHss {
+    val sheets = listOf(WidgetStylesheet, InspectorStylesheet, EntityEditorStylesheet).map(MinecraftHssResourceLoader::load)
     var offset = 0
     return CompiledHss(
         rules = sheets.flatMap { sheet ->
@@ -39,7 +40,10 @@ internal class EntityEditorScreen(
 
     @Composable
     override fun Content() {
-        CompositionLocalProvider(LocalEntityEditorSession provides session) {
+        CompositionLocalProvider(
+            LocalEntityEditorSession provides session,
+            LocalInspectorHost provides session,
+        ) {
             var sidebarWidth by remember { mutableStateOf(320f) }
 
             Row(tags = listOf("ee-root"), modifier = Modifier.size(100.percent, 100.percent)) {
@@ -144,7 +148,7 @@ private fun EntityViewport(session: EntityEditorSession) {
             },
     ) {
         if (entity == null) {
-            Text(EntityEditorLang.noPreview, tags = listOf("ee-hint"))
+            Text(EntityEditorLang.noPreview, tags = listOf("insp-hint"))
         } else {
             Entity(entity, view = view, modifier = Modifier.size(100.percent, 100.percent))
         }

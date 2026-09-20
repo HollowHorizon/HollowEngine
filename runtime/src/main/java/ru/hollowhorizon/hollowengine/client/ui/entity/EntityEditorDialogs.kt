@@ -11,19 +11,13 @@ import ru.hollowhorizon.hollowengine.client.slots.PlayerInventory
 import ru.hollowhorizon.hollowengine.client.slots.SlotGrid
 import ru.hollowhorizon.hollowengine.client.slots.Slots
 import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeView
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.common.attachments.editor.EntityEditorSlots
 import ru.hollowhorizon.hollowengine.common.ui.UiData
 import ru.hollowhorizon.hollowengine.common.ui.UiScope
-
-internal data class AssetPickerRequest(
-    val title: String,
-    val candidates: List<String>,
-    val current: String,
-    val onPick: (String) -> Unit,
-)
 
 private val CenteredOnViewport = UiPopupAlignment(
     anchorHorizontal = UiAlign.CENTER,
@@ -51,7 +45,7 @@ private fun EditorDialog(id: String, title: String, width: Float, onClose: () ->
         ) {
             Row(tags = listOf("ee-dialog-head")) {
                 Text(title, tags = listOf("ee-dialog-title"), modifier = Modifier.grow(1f))
-                EditorIconButton(EntityEditorIcons.CLOSE, EntityEditorLang.close) { onClose() }
+                InspectorIconButton(EntityEditorIcons.CLOSE, EntityEditorLang.close) { onClose() }
             }
             content()
         }
@@ -59,7 +53,7 @@ private fun EditorDialog(id: String, title: String, width: Float, onClose: () ->
 }
 
 @Composable
-internal fun AssetPickerDialog(request: AssetPickerRequest) {
+internal fun AssetPickerDialog(request: InspectorAssetRequest) {
     val session = LocalEntityEditorSession.current
     var filter by remember(request) { mutableStateOf("") }
     val expanded = remember(request) { mutableStateSetOf<String>() }
@@ -83,13 +77,13 @@ internal fun AssetPickerDialog(request: AssetPickerRequest) {
                 placeholder = EntityEditorLang.searchHint,
                 fontSize = 9f,
                 onChange = { filter = it },
-                tags = listOf("ee-input", "flat"),
+                tags = listOf("insp-input", "flat"),
                 modifier = Modifier.grow(1f),
             )
         }
 
         if (rows.isEmpty()) {
-            Text(EntityEditorLang.nothingFound, tags = listOf("ee-hint"))
+            Text(EntityEditorLang.nothingFound, tags = listOf("insp-hint"))
             return@EditorDialog
         }
 
@@ -123,7 +117,7 @@ internal fun InventoryDialog(session: EntityEditorSession) {
     val scope = remember(sessionId) { EntitySlotScope(sessionId, session::closeSlots) }
 
     EditorDialog("ee-inventory-dialog", EntityEditorLang.inventory, 380f, session::closeSlots) {
-        Text(EntityEditorLang.inventoryHint, tags = listOf("ee-hint"))
+        Text(EntityEditorLang.inventoryHint, tags = listOf("insp-hint"))
 
         with(scope) {
             Slots(

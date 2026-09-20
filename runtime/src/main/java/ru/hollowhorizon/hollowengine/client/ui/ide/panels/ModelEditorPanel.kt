@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.common.models.ModelRig
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
@@ -112,12 +114,12 @@ private fun ModelAnimationBar(viewer: ModelViewerState, frameTick: State<Long>) 
     val current = viewer.currentAnimation
 
     Column(tags = listOf("model-anim-bar")) {
-        Text("Анимация", tags = listOf("model-anim-title"))
+        Text(modelText("animation"), tags = listOf("model-anim-title"))
 
         Row(tags = listOf("model-anim-controls")) {
             UiDropdown(
                 id = "model-anim-dropdown",
-                label = current?.name ?: if (animations.isEmpty()) "нет анимаций" else "—",
+                label = current?.name ?: if (animations.isEmpty()) modelText("no_animations") else modelText("none"),
                 expanded = dropdownOpen,
                 onExpandedChange = { dropdownOpen = it },
                 items = animations.mapIndexed { index, animation ->
@@ -157,22 +159,22 @@ private fun ModelSidebar(viewer: ModelViewerState, width: Float, loaded: Any?) {
 
     Column(
         tags = listOf("model-sidebar"),
-        modifier = Modifier.size(width.px, 100.percent).scrollable(horizontal = false),
+        modifier = Modifier.style(InspectorStylesheet).size(width.px, 100.percent).scrollable(horizontal = false),
     ) {
-        CollapsibleSection("Информация", expanded["info"] == true, { expanded["info"] = expanded["info"] != true }) {
-            InfoRow("Полигоны", viewer.triangles.toString())
-            InfoRow("Анимации", viewer.animations.size.toString())
-            InfoRow("Shape keys", viewer.shapekeys.toString())
+        CollapsibleSection(modelText("info"), expanded["info"] == true, onToggle = { expanded["info"] = expanded["info"] != true }) {
+            Readonly(modelText("polygons"), viewer.triangles.toString())
+            Readonly(modelText("animations"), viewer.animations.size.toString())
+            Readonly(modelText("shape_keys"), viewer.shapekeys.toString())
         }
 
         CollapsibleSection(
-            "Анимации",
+            modelText("animations"),
             expanded["animations"] == true,
-            { expanded["animations"] = expanded["animations"] != true },
+            onToggle = { expanded["animations"] = expanded["animations"] != true },
         ) {
             val animations = viewer.animations
             if (animations.isEmpty()) {
-                Text("Список пуст", tags = listOf("model-empty"))
+                Text(modelText("no_animations"), tags = listOf("model-empty"))
             }
             animations.forEachIndexed { index, animation ->
                 key(animation.name) {
@@ -188,7 +190,7 @@ private fun ModelSidebar(viewer: ModelViewerState, width: Float, loaded: Any?) {
             }
         }
 
-        CollapsibleSection("Узлы", expanded["nodes"] == true, { expanded["nodes"] = expanded["nodes"] != true }) {
+        CollapsibleSection(modelText("nodes"), expanded["nodes"] == true, onToggle = { expanded["nodes"] = expanded["nodes"] != true }) {
             ModelNodeTree(viewer, loaded)
         }
     }
@@ -202,7 +204,7 @@ private fun ModelNodeTree(viewer: ModelViewerState, loaded: Any?) {
     }
 
     if (items.isEmpty()) {
-        Text("Нет узлов", tags = listOf("model-empty"))
+        Text(modelText("no_nodes"), tags = listOf("model-empty"))
         return
     }
 
@@ -246,34 +248,5 @@ private fun MutableList<UiTreeItem<RuntimeNode>>.appendNodeItems(
     }
 }
 
-@Composable
-private fun CollapsibleSection(
-    title: String,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    body: @Composable () -> Unit,
-) {
-    Column(tags = listOf("model-section")) {
-        Row(
-            tags = listOf("model-section-header"),
-            modifier = Modifier.cursor(UiCursorShape.HAND).onClick { onToggle() },
-        ) {
-            Box(
-                tags = listOf("model-section-arrow"),
-                attributes = mapOf("expanded" to expanded.toString()),
-            )
-            Text(title, tags = listOf("model-section-title"))
-        }
-        if (expanded) {
-            Column(tags = listOf("model-section-body")) { body() }
-        }
-    }
-}
 
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(tags = listOf("model-info-row")) {
-        Text(label, tags = listOf("model-info-label"))
-        Text(value, tags = listOf("model-info-value"))
-    }
-}
+private fun modelText(name: String): String = "hollowengine.gui.model_editor.$name".lang

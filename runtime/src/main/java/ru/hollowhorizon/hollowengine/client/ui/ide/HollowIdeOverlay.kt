@@ -9,6 +9,9 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorLang
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorPanel
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
@@ -21,7 +24,6 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeUiProfilerPan
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.ModelEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.VanillaModelEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneTimelineDock
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneViewportDock
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -33,6 +35,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.hssColorLiteralText
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
@@ -65,7 +68,7 @@ internal const val AssetManagerId = "ide-asset-manager"
 internal const val ProjectFilterInputId = "ide-project-filter"
 internal const val ConsoleId = "ide-console"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
-internal const val CutscenePropertiesId = "ide-cutscene-properties"
+internal const val InspectorId = "ide-inspector"
 internal const val CutsceneViewportId = "ide-cutscene-viewport"
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
@@ -349,6 +352,7 @@ object HollowIdeOverlay {
         dock.onTabContextMenu = ::openFileContextMenu
         model.onFileRemoved = ::forgetFile
         dock.open(HollowIdeToolWindows.Project.dockItem())
+        dock.open(HollowIdeToolWindows.Inspector.dockItem(), DockTarget(null, DockPlacement.RIGHT))
         surface.setContent { Content() }
     }
     
@@ -616,7 +620,7 @@ object HollowIdeOverlay {
             val operator = AssetManagerLifecycle.operator
             GearButton()
             ToolbarMenus(operator)
-            if (operator) {
+            if (operator && !isProduction) {
                 Box(tags = listOf("ide-toolbar-divider"))
                 HollowIdeGizmoSwitcher()
             }
@@ -706,7 +710,10 @@ object HollowIdeOverlay {
                 keyboardActive = dock.focusedItemId == CutsceneTimelineId,
             )
 
-            CutscenePropertiesId -> CutscenePropertiesDock(CutsceneEditorSessions.default)
+            InspectorId -> InspectorPanel(
+                target = InspectorSelection.current,
+                empty = InspectorLang.nothingSelected,
+            )
             CutsceneViewportId -> CutsceneViewportDock()
             UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file ->

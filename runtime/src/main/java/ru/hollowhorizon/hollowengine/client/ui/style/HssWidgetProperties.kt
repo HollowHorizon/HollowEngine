@@ -10,7 +10,7 @@ private fun partFitSyntax() = syntax(
     sizeSlot("slice", auto = false).copy(optional = true),
 )
 
-private fun borderSyntax() = syntax(sizeSlot("width", auto = false), slot("color", HssValueKind.COLOR))
+private fun borderSyntax() = syntax(sizeSlot("width", auto = false), slot("color", HssValueKind.PAINT))
 
 /** Styling of the built-in widgets: scrollbars, sliders and checkboxes. */
 internal fun widgetHssProperties(): List<HssProperty> = hssProperties {

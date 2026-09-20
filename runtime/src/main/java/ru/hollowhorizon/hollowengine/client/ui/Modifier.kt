@@ -331,7 +331,14 @@ fun Modifier.entity(networkId: Int, view: UiEntityView = UiEntityView.Portrait) 
 fun Modifier.shader(name: String) = prop(UiProps.Shader, name)
 
 fun Modifier.border(width: UiLength, color: UiColor, radius: Float = 0f) =
-    prop(UiProps.BorderWidth, UiInsets.all(width)).prop(UiProps.BorderColor, color).prop(UiProps.BorderRadius, radius)
+    border(width, UiPaint.Color(color), radius)
+
+/** A border stroked with a full paint, so the ring can carry a gradient. */
+fun Modifier.border(width: UiLength, paint: UiPaint, radius: Float = 0f) =
+    prop(UiProps.BorderWidth, UiInsets.all(width)).prop(UiProps.BorderPaint, paint).prop(UiProps.BorderRadius, radius)
+
+fun Modifier.border(width: UiLength, angleDegrees: Float, stops: List<UiGradientStop>, radius: Float = 0f) =
+    border(width, UiPaint.LinearGradient(angleDegrees, stops), radius)
 
 fun Modifier.borderRadius(radius: Float) = prop(UiProps.BorderRadius, radius)
 

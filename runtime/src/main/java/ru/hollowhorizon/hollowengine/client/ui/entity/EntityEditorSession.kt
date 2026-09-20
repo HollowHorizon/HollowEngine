@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.UiEntityView
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptor
@@ -32,7 +33,7 @@ internal data class ComponentEntry(
  * The client's copy of one entity's editable state.
  */
 @Stable
-internal class EntityEditorSession(initial: EntityEditorSnapshot) {
+internal class EntityEditorSession(initial: EntityEditorSnapshot) : InspectorHost {
     var snapshot by mutableStateOf(initial)
         private set
 
@@ -41,7 +42,7 @@ internal class EntityEditorSession(initial: EntityEditorSnapshot) {
     var searchOpen by mutableStateOf(false)
     var view by mutableStateOf(UiEntityView.Portrait)
     var autoRotate by mutableStateOf(false)
-    var pendingPicker by mutableStateOf<AssetPickerRequest?>(null)
+    var pendingPicker by mutableStateOf<InspectorAssetRequest?>(null)
     var slotSessionId by mutableStateOf<Int?>(null)
         private set
 
@@ -149,7 +150,13 @@ internal class EntityEditorSession(initial: EntityEditorSnapshot) {
         SetEntityScriptValuesPacket(entityId, script.path, text).send()
     }
 
-    fun assets(extensions: List<String>): List<String> = extensions.flatMap { extension ->
+    override val canPickAssets: Boolean get() = true
+
+    override fun pickAsset(request: InspectorAssetRequest) {
+        pendingPicker = request
+    }
+
+    override fun assets(extensions: List<String>): List<String> = extensions.flatMap { extension ->
         snapshot.scriptFiles.filter { it.endsWith(extension) } + EditorAssetSources.list(extension)
     }.distinct().sorted()
 

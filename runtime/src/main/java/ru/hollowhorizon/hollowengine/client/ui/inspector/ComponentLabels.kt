@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 
-package ru.hollowhorizon.hollowengine.client.ui.entity
+package ru.hollowhorizon.hollowengine.client.ui.inspector
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.descriptors.SerialDescriptor

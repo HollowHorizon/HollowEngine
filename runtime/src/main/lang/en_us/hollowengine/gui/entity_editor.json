@@ -1,8 +1,4 @@
 {
-  "bone.none": "not set",
-  "bone.search": "Find a bone",
-  "bone.clear": "Leave it unset",
-  "bone.no_matches": "No bone by that name.",
   "add": "Add",
   "add_component": "Add component",
   "all_added": "Every component is already here",
@@ -25,7 +21,6 @@
   "no_preview": "Nothing to preview",
   "no_scripts": "No scripts attached",
   "no_suitable_scripts": "No scripts fit this entity",
-  "not_set": "Not set",
   "nothing_found": "Nothing found",
   "pick": "Pick from loaded assets",
   "player_items": "Your inventory",
@@ -47,7 +42,6 @@
   "stat_health": "Health",
   "stat_scripts": "Scripts",
   "title": "Entity components",
-  "unsupported": "%s cannot be edited here",
   "virtual": "entity",
   "virtual_hint": "Read straight off the entity; not stored as a component."
 }

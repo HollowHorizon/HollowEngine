@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonObject
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
@@ -47,15 +48,15 @@ private fun ModelExtras(scope: ComponentEditorScope) {
     val animator = model.model.takeIf { it.isValidRL() }?.let { HollowModelManager.metadata(it.rl).animationController }
 
     if (animator == null) {
-        Text(EntityEditorComponentLang.noAnimator, tags = listOf("ee-hint"))
+        Text(EntityEditorComponentLang.noAnimator, tags = listOf("insp-hint"))
         return
     }
 
-    Text(animator.toString(), tags = listOf("ee-hint"))
+    Text(animator.toString(), tags = listOf("insp-hint"))
     val path = "assets/${animator.namespace}/${animator.path}"
     if (!path.fromReadablePath().isFile) return
 
-    EditorButton(
+    InspectorButton(
         label = EntityEditorComponentLang.editAnimator,
         icon = EntityEditorIcons.STATE,
         modifier = Modifier.size(100.percent, 24.px),
@@ -75,10 +76,10 @@ private fun MaterialsExtras(scope: ComponentEditorScope) {
 
     if (missing.isEmpty()) return
 
-    Text(EntityEditorComponentLang.quickMaterials, tags = listOf("ee-label"))
+    Text(EntityEditorComponentLang.quickMaterials, tags = listOf("insp-label"))
     PillFlow {
         missing.forEach { (name, part) ->
-            EditorPill(name, active = false) {
+            Pill(name, active = false) {
                 val body = scope.json["materials"]?.jsonObject ?: JsonObject(emptyMap())
                 val source = ComponentJson.withDiscriminator(
                     JsonObject(
@@ -109,11 +110,11 @@ private fun AnimationsExtras(scope: ComponentEditorScope) {
 
     if (names.isEmpty()) return
 
-    Text(EntityEditorComponentLang.playAnimation, tags = listOf("ee-label"))
+    Text(EntityEditorComponentLang.playAnimation, tags = listOf("insp-label"))
     PillFlow {
         names.forEach { name ->
             val playing = component.clips.any { it.animation == name }
-            EditorPill(name, playing) {
+            Pill(name, playing) {
                 val next = if (playing) {
                     component.withoutClip(name)
                 } else {

@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
+import ru.hollowhorizon.hollowengine.client.ui.notification.HollowNotifications
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import java.io.File
@@ -151,7 +153,15 @@ internal class HollowIdeProjectController(
     }
 
     fun delete(path: String = model.selectedTreePath) {
-        setStatus(model.delete(model.selectedOr(path)).statusText())
+        val targets = model.selectedOr(path)
+        val result = model.delete(targets)
+        setStatus(result.statusText())
+        if (result == HollowIdeFileOperationResult.Success) {
+            val what = targets.singleOrNull()?.substringAfterLast('/') ?: targets.size.toString()
+            HollowNotifications.warning("hollowengine.gui.ide.file.deleted".lang.format(what))
+        } else {
+            HollowNotifications.error(result.statusText())
+        }
         contextMenu = null
     }
 
@@ -219,13 +229,24 @@ internal class HollowIdeProjectController(
     private fun rename(dialog: ProjectNameDialog): HollowIdeFileOperationResult {
         val oldPath = dialog.path
         val parent = oldPath.substringBeforeLast('/', "")
-        val newPath = if (parent.isBlank()) dialog.name.trim() else "$parent/${dialog.name.trim()}"
+        val newName = dialog.name.trim()
+        val newPath = if (parent.isBlank()) newName else "$parent/$newName"
         val result = model.rename(oldPath, dialog.name)
         if (result == HollowIdeFileOperationResult.Success) {
             closeDockItem(fileDockItemId(oldPath))
             model.files[newPath]?.let(openFile)
+            HollowNotifications.undo(
+                title = "hollowengine.gui.ide.file.renamed".lang.format(newName),
+                label = "hollowengine.gui.notification.undo".lang,
+            ) { rename(newPath, oldPath.substringAfterLast('/')) }
         }
         return result
+    }
+
+    private fun rename(path: String, name: String) {
+        val result = model.rename(path, name)
+        setStatus(result.statusText())
+        if (result != HollowIdeFileOperationResult.Success) HollowNotifications.error(result.statusText())
     }
 
     private fun openNameDialog(action: ProjectNameAction, path: String, template: ScriptTemplate? = null) {

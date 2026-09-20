@@ -669,7 +669,7 @@ class UiCommandRenderer {
         if (shape != null) {
             val fill = (style.shapeFill ?: style.background).resolve()
             val strokePaint =
-                style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
+                style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.paint
             val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
             val stroke = strokePaint?.resolve() ?: UiResolvedPaint.None
             val hasFill = fill.hasVisiblePixels()
@@ -830,7 +830,7 @@ internal fun UiResolvedPaint.hasVisiblePixels(): Boolean = when (this) {
         -> true
 }
 
-internal fun UiBorder.hasVisiblePixels(): Boolean = color.alpha > 0f && width != UiInsets.Zero
+internal fun UiBorder.hasVisiblePixels(): Boolean = width != UiInsets.Zero && paint.resolve().hasVisiblePixels()
 
 internal fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None

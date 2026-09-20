@@ -42,13 +42,18 @@ internal fun UiSvgStyle.applySvgDeclarations(declarations: Map<String, String>):
         val value = rawValue.trim()
         if (value.isEmpty()) return@forEach
         style = when (name) {
-            "fill" -> style.copy(
-                fill = if (value.startsWith("url(", ignoreCase = true)) style.fill
-                else parseSvgColor(value, style.color),
-            )
+            "fill" -> if (value.startsWith("url(", ignoreCase = true)) {
+                style.copy(fillRef = value)
+            } else {
+                style.copy(fill = parseSvgColor(value, style.color), fillRef = null)
+            }
 
             "fill-rule" -> style.copy(fillRule = parseFillRule(value, style.fillRule))
-            "stroke" -> style.copy(stroke = parseSvgColor(value, style.color))
+            "stroke" -> if (value.startsWith("url(", ignoreCase = true)) {
+                style.copy(strokeRef = value)
+            } else {
+                style.copy(stroke = parseSvgColor(value, style.color), strokeRef = null)
+            }
             "stroke-width" -> style.copy(strokeWidth = parseSvgLength(value) ?: style.strokeWidth)
             "stroke-linecap" -> style.copy(strokeLineCap = parseStrokeLineCap(value, style.strokeLineCap))
             "stroke-linejoin" -> style.copy(strokeLineJoin = parseStrokeLineJoin(value, style.strokeLineJoin))
