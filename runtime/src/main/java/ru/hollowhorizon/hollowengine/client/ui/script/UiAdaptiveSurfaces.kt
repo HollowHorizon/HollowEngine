@@ -53,18 +53,19 @@ internal object UiAdaptiveSurfaces {
     /** Returns true when this session was an adaptive surface. */
     fun close(sessionId: Int): Boolean {
         val mounted = sessions.remove(sessionId) ?: return false
-        unmount(sessionId, mounted, mounted.kind)
+        dismiss(mounted, mounted.kind)
         return true
     }
-
-    /** Whether [sessionId] belongs here; the screen asks before reporting itself closed. */
-    fun owns(sessionId: Int): Boolean = sessionId in sessions
 
     /** Whether the screen for [sessionId] is being taken down by a switch rather than by the player. */
     fun isSwapping(sessionId: Int): Boolean = swapping == sessionId
 
+    /** Forgets every mounted surface at once; leaving the world is no moment for an exit animation. */
     fun reset() {
-        sessions.keys.toList().forEach(::close)
+        sessions.keys.toList().forEach { sessionId ->
+            val mounted = sessions.remove(sessionId) ?: return@forEach
+            unmount(sessionId, mounted, mounted.kind)
+        }
     }
 
     /** Mounts the host the surface currently asks for, if it is not the one already up. */
@@ -83,6 +84,9 @@ internal object UiAdaptiveSurfaces {
         }
     }
 
+    /**
+     * Takes the mounted host down for a switch to the other one.
+     */
     private fun unmount(sessionId: Int, mounted: Mounted, kind: UiSurfaceKind?) {
         when (kind) {
             UiSurfaceKind.SCREEN -> {
@@ -92,6 +96,18 @@ internal object UiAdaptiveSurfaces {
                 } finally {
                     swapping = null
                 }
+            }
+
+            UiSurfaceKind.OVERLAY, UiSurfaceKind.ADAPTIVE -> UiScriptHudHost.drop(mounted.definition.id)
+            null -> Unit
+        }
+    }
+
+    private fun dismiss(mounted: Mounted, kind: UiSurfaceKind?) {
+        when (kind) {
+            UiSurfaceKind.SCREEN -> {
+                val screen = mc.screen as? UiScriptScreen ?: return
+                if (!screen.dismiss()) mc.setScreen(null)
             }
 
             UiSurfaceKind.OVERLAY, UiSurfaceKind.ADAPTIVE -> UiScriptHudHost.hide(mounted.definition.id)

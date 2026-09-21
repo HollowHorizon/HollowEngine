@@ -148,7 +148,8 @@ object RenderManager {
                     it.modelToWorld = worldTransform
                 }
             )
-            val light = lightAt(level, entity, attachment, worldTransform, packedLight)
+            val light =
+                if (isWorldPass) lightAt(level, entity, attachment, worldTransform, packedLight) else packedLight
 
             val hostYaw = when (entity) {
                 is LivingEntity -> Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)

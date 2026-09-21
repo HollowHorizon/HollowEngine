@@ -2,14 +2,12 @@ package ru.hollowhorizon.hollowengine.client.ui.script
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
 import ru.hollowhorizon.hollowengine.client.slots.SlotTooltips
+import ru.hollowhorizon.hollowengine.client.ui.UiExitWindow
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
 import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
 import ru.hollowhorizon.hollowengine.client.utils.mc
@@ -28,6 +26,11 @@ class UiScriptScreen(
     override val sessionId: Int?,
     val replaced: Screen? = null,
 ) : HollowComposeUiScreen(definition.title, EmptyStyles), UiScope {
+    private val exit = UiExitWindow(definition.exitDuration)
+
+    private var reportsClose = true
+
+    override val isClosing: Boolean get() = exit.isClosing
 
     override fun send(payload: CompoundTag) {
         sessionId?.let { UiScriptClient.send(it, payload) }
@@ -47,7 +50,7 @@ class UiScriptScreen(
     override fun shouldCloseOnEsc(): Boolean = definition.closeOnEscape
 
     override fun onClose() {
-        if (dismiss()) return
+        if (beginExit()) return
         super.onClose()
     }
 
@@ -61,11 +64,17 @@ class UiScriptScreen(
 
     override fun guiScale(): UiGuiScale = definition.guiScale
 
+    override fun render(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
+        if (exit.isFinished()) {
+            mc.setScreen(null)
+            return
+        }
+        super.render(graphics, mouseX, mouseY, partialTick)
+        exit.markDrawn()
+    }
+
     override fun renderAfterUi(graphics: GuiGraphics, mouseX: Int, mouseY: Int) {
         if (hasSlots()) SlotTooltips.render(graphics, mouseX, mouseY)
-        if (dismissedAt != 0L && System.currentTimeMillis() - dismissedAt >= definition.exitDuration) {
-            mc.setScreen(null)
-        }
     }
 
     /**
@@ -74,21 +83,23 @@ class UiScriptScreen(
      * animation to wait for and the caller should close it outright.
      */
     fun dismiss(): Boolean {
-        if (definition.exitDuration <= 0L) return false
-        if (dismissedAt == 0L) dismissedAt = System.currentTimeMillis()
-        return true
+        reportsClose = false
+        return beginExit()
     }
 
-    /** When the server dismissed this screen, or 0 while it is still live. */
-    private var dismissedAt by mutableStateOf(0L)
-
-    override val isClosing: Boolean get() = dismissedAt != 0L
+    /** Opens the exit window and puts the tree in `:closing`. False when there is nothing to play. */
+    private fun beginExit(): Boolean {
+        if (!exit.begin()) return false
+        closing = true
+        return true
+    }
 
     private fun hasSlots(): Boolean = sessionId?.let { ClientSlots[it] } != null
 
     override fun removed() {
         super.removed()
         val session = sessionId ?: return
+        if (!reportsClose) return
         if (UiAdaptiveSurfaces.isSwapping(session)) return
         UiScriptClient.notifyClosed(session)
     }

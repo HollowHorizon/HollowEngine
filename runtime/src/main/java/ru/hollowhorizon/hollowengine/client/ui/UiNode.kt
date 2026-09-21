@@ -135,23 +135,6 @@ class PopupNode(
         }
 }
 
-fun UiNode.setClosingState(closing: Boolean) {
-    val stack = ArrayDeque<UiNode>()
-    stack.add(this)
-    while (stack.isNotEmpty()) {
-        val node = stack.removeLast()
-        if (closing) {
-            node.states += UiState.CLOSING
-        } else {
-            node.states -= UiState.CLOSING
-        }
-        for (index in node.children.indices.reversed()) {
-            stack.add(node.children[index])
-        }
-    }
-}
-
-
 private fun String.trimIdPrefix() = removePrefix("#")
 
 private fun String.trimTagPrefix() = removePrefix(".")

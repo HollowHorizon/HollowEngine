@@ -54,6 +54,7 @@ object UiScriptHudHost {
                 sessionId = sessionId,
                 interactive = definition.isInteractive,
                 rebuildEveryFrame = definition.rebuildEveryFrame,
+                exitDuration = definition.exitDuration,
                 onSend = sessionId?.let { id -> { payload -> UiScriptClient.send(id, payload) } },
                 onClose = { hide(definition.id, surface) },
             )
@@ -86,12 +87,34 @@ object UiScriptHudHost {
             shown.entries
                 .filter { it.value.sessionId == sessionId }
                 .map { it.key }
-                .forEach { id -> hideNow(id) }
+                .forEach { id -> beginExit(id) }
+        }
+    }
+
+    /**
+     * Drops the overlays whose exit animation has played out.
+     */
+    fun tick() = dropFinishedExits()
+
+    /**
+     * Drops every overlay whose exit window has run out, before anything draws it.
+     */
+    private fun dropFinishedExits() {
+        if (shown.isEmpty()) return
+        onRenderThread {
+            val overlays = shown.values.iterator()
+            while (overlays.hasNext()) {
+                val overlay = overlays.next()
+                if (!overlay.surface.isExitFinished) continue
+                overlays.remove()
+                overlay.surface.dispose()
+            }
         }
     }
 
     /** Draws every overlay anchored at [anchor]/[placement] that is not currently suppressed. */
     fun render(anchor: ResourceLocation, placement: HudPlacement, nowNanos: Long) {
+        dropFinishedExits()
         if (shown.isEmpty()) return
         val screenOpen = Minecraft.getInstance().screen != null
         shown.values.forEach { overlay ->
@@ -103,14 +126,12 @@ object UiScriptHudHost {
 
     /** Draws the overlays that opted to sit on top of an open screen. */
     fun renderAboveScreens(nowNanos: Long) {
+        dropFinishedExits()
         if (shown.isEmpty()) return
         shown.values.forEach { overlay ->
             if (overlay.definition.aboveScreens) renderOne(overlay, nowNanos)
         }
     }
-
-    /** Whether any interactive overlay currently holds keyboard focus (e.g. a focused text field). */
-    fun hasFocusedInput(): Boolean = shown.values.any { it.surface.hasFocusedInput }
 
     fun handleMouseMove(x: Float, y: Float): Boolean = dispatch { it.surface.mouseMoved(x, y) }
 
@@ -143,8 +164,23 @@ object UiScriptHudHost {
         onRenderThread(::hideAllNow)
     }
 
+    /** Drops an overlay at once, without its exit animation: a switch between hosts has none to play. */
+    fun drop(id: ResourceLocation) {
+        onRenderThread { hideNow(id) }
+    }
+
     private fun hide(id: ResourceLocation, expectedSurface: UiScriptSurface?) {
-        onRenderThread { hideNow(id, expectedSurface) }
+        onRenderThread { beginExit(id, expectedSurface) }
+    }
+
+    /**
+     * Starts the overlay's exit animation. [dropFinishedExits] takes it away once that has played
+     * out or drops it right away when it declares no exit duration.
+     */
+    private fun beginExit(id: ResourceLocation, expectedSurface: UiScriptSurface? = null) {
+        val overlay = shown[id] ?: return
+        if (expectedSurface != null && overlay.surface !== expectedSurface) return
+        if (!overlay.surface.dismiss()) hideNow(id, expectedSurface)
     }
 
     private fun hideNow(id: ResourceLocation, expectedSurface: UiScriptSurface? = null) {
@@ -172,7 +208,7 @@ object UiScriptHudHost {
         if (HudLayerRegistry.isHidden(overlay.definition.id)) return
         runCatching { overlay.surface.render(nowNanos) }.onFailure { error ->
             HollowEngine.LOGGER.error("Failed to render UI overlay {}", overlay.definition.id, error)
-            hide(overlay.definition.id)
+            drop(overlay.definition.id)
         }
     }
 

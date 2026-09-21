@@ -18,7 +18,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
 import org.joml.Quaternionf
-import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -2241,9 +2240,7 @@ class MinecraftUiRenderer {
             POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
             if (view.pitch != 0f) POSE_STACK.mulPose(Axis.XP.rotationDegrees(view.pitch))
 
-            val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
-            val light1 = Vector3f(0.3f, -1f, -1f).normalize()
-            RenderSystem.setShaderLights(light0, light1)
+            Lighting.setupForEntityInInventory()
 
             val mc = Minecraft.getInstance()
             val dispatcher = mc.entityRenderDispatcher

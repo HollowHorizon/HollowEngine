@@ -57,7 +57,30 @@ abstract class UiScript {
     }
 }
 
-class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
+/**
+ * What every declared host has in common. Composable body, whether it recomposes per frame, and
+ * the room it asks for its exit animation.
+ */
+sealed class UiHostBuilder(protected val id: ResourceLocation) {
+    /** Recomposes the host every frame; enable only for content that tracks live game state. */
+    var rebuildEveryFrame: Boolean = false
+
+    /**
+     * How long the host keeps drawing after something asks it to close, in milliseconds.
+     */
+    var exitDuration: Long = 0L
+
+    private var body: UiContent? = null
+
+    fun content(body: UiContent) {
+        this.body = body
+    }
+
+    protected fun requireContent(kind: String): UiContent =
+        body ?: error("UI $kind '$id' declares no content { } block")
+}
+
+class UiScreenBuilder internal constructor(id: ResourceLocation) : UiHostBuilder(id) {
     /** Narration title; also what the game shows for the screen. */
     var title: String = id.path
 
@@ -66,9 +89,6 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
 
     /** Whether the screen pauses a singleplayer world while open. */
     var pausesGame: Boolean = false
-
-    /** Recomposes the screen every frame; enable only for content that tracks live game state. */
-    var rebuildEveryFrame: Boolean = false
 
     /**
      * The GUI scale this screen lays itself out at, independent of the player's video setting:
@@ -82,19 +102,7 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
         guiScale = UiGuiScale.of(factor)
     }
 
-    /**
-     * How long the screen keeps drawing after the server closes it, in milliseconds the room its
-     * exit animation needs. The server does not wait for it: the session ends at once and whatever
-     * opened the screen carries on, while the closing frames play out here.
-     */
-    var exitDuration: Long = 0L
-
-    private var content: UiContent? = null
     private val overrides = mutableListOf<ScreenOverride>()
-
-    fun content(body: UiContent) {
-        content = body
-    }
 
     /**
      * This screen replaces [target]: whenever the game displays this screen, the player sees
@@ -128,7 +136,7 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
         rebuildEveryFrame = rebuildEveryFrame,
         guiScale = guiScale,
         exitDuration = exitDuration,
-        content = content ?: error("UI screen '$id' declares no content { } block"),
+        content = requireContent("screen"),
         overrides = overrides.toList(),
     )
 }
@@ -138,27 +146,18 @@ class UiScreenBuilder internal constructor(private val id: ResourceLocation) {
  * the overlay's anchor and the screen's title, escape handling and scale, because the same surface
  * really is both at different moments.
  */
-class UiSurfaceBuilder internal constructor(private val id: ResourceLocation) {
+class UiSurfaceBuilder internal constructor(id: ResourceLocation) : UiHostBuilder(id) {
     var title: String = id.path
     var closeOnEscape: Boolean = true
     var pausesGame: Boolean = false
     var guiScale: UiGuiScale = UiGuiScale.Inherit
-    var exitDuration: Long = 0L
 
     var anchor: String = VanillaHudLayers.HOTBAR.toString()
     var placement: HudPlacement = HudPlacement.AFTER
     var aboveScreens: Boolean = false
     var input: OverlayInput = OverlayInput.NONE
 
-    /** Applies to whichever host is mounted. */
-    var rebuildEveryFrame: Boolean = false
-
-    private var content: UiContent? = null
     private var mode: ((UiData) -> UiSurfaceKind)? = null
-
-    fun content(body: UiContent) {
-        content = body
-    }
 
     /**
      * Decides which host the surface is right now, from the bound document. Called on the client
@@ -174,7 +173,7 @@ class UiSurfaceBuilder internal constructor(private val id: ResourceLocation) {
     }
 
     internal fun build(): UiSurfaceDefinition {
-        val body = content ?: error("UI surface '$id' declares no content { } block")
+        val body = requireContent("surface")
         return UiSurfaceDefinition(
             id = id,
             screen = UiScreenDefinition(
@@ -195,6 +194,7 @@ class UiSurfaceBuilder internal constructor(private val id: ResourceLocation) {
                 input = input,
                 aboveScreens = aboveScreens,
                 rebuildEveryFrame = rebuildEveryFrame,
+                exitDuration = exitDuration,
                 content = body,
             ),
             mode = mode ?: error("UI surface '$id' declares no mode { } block"),
@@ -202,7 +202,7 @@ class UiSurfaceBuilder internal constructor(private val id: ResourceLocation) {
     }
 }
 
-class UiOverlayBuilder internal constructor(private val id: ResourceLocation) {
+class UiOverlayBuilder internal constructor(id: ResourceLocation) : UiHostBuilder(id) {
     /**
      * The HUD layer this overlay draws next to; see [VanillaHudLayers]. Accepts bare vanilla names
      * (`"crosshair"`) as well as fully qualified ids.
@@ -232,15 +232,6 @@ class UiOverlayBuilder internal constructor(private val id: ResourceLocation) {
      */
     var aboveScreens: Boolean = false
 
-    /** Recomposes the overlay every frame; enable for content that tracks live game state per frame. */
-    var rebuildEveryFrame: Boolean = false
-
-    private var content: UiContent? = null
-
-    fun content(body: UiContent) {
-        content = body
-    }
-
     /** Shorthand for `input = OverlayInput.INTERACTIVE`. */
     fun interactive() {
         input = OverlayInput.INTERACTIVE
@@ -254,6 +245,7 @@ class UiOverlayBuilder internal constructor(private val id: ResourceLocation) {
         input = input,
         aboveScreens = aboveScreens,
         rebuildEveryFrame = rebuildEveryFrame,
-        content = content ?: error("UI overlay '$id' declares no content { } block"),
+        exitDuration = exitDuration,
+        content = requireContent("overlay"),
     )
 }

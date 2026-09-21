@@ -29,6 +29,15 @@ abstract class HollowComposeUiScreen(
 
     protected open fun rebuildEveryFrame(): Boolean = false
 
+    /**
+     * Puts the whole tree in [UiState.CLOSING] so the stylesheet's `:closing` rules apply.
+     */
+    protected var closing: Boolean
+        get() = surface.isClosing
+        set(value) {
+            surface.isClosing = value
+        }
+
     /** The scale this screen lays itself out at; [UiGuiScale.Inherit] follows the player's setting. */
     protected open fun guiScale(): UiGuiScale = UiGuiScale.Inherit
 
@@ -148,16 +157,19 @@ abstract class HollowComposeUiScreen(
     private fun Double.toSurface(): Float = (this * (surfaceScale()?.ratio ?: 1f)).toFloat()
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        if (closing) return false
         pipeline.await()
         return surface.runtime.mouseClicked(mouseX.toSurface(), mouseY.toSurface(), button, currentUiKeyModifiers())
     }
 
     override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        if (closing) return false
         pipeline.await()
         return surface.runtime.mouseReleased(mouseX.toSurface(), mouseY.toSurface(), button, currentUiKeyModifiers())
     }
 
     override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, dragX: Double, dragY: Double): Boolean {
+        if (closing) return false
         pipeline.await()
         return surface.runtime.mouseDragged(
             mouseX.toSurface(), mouseY.toSurface(), button, dragX.toSurface(), dragY.toSurface(),
@@ -166,6 +178,7 @@ abstract class HollowComposeUiScreen(
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
+        if (closing) return false
         pipeline.await()
         return surface.runtime.mouseScrolled(
             mouseX.toSurface(),
@@ -177,12 +190,14 @@ abstract class HollowComposeUiScreen(
     }
 
     override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        if (closing) return false
         if (super.charTyped(codePoint, modifiers)) return true
         pipeline.await()
         return surface.runtime.charTyped(codePoint, modifiers)
     }
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        if (closing) return false
         if (super.keyPressed(keyCode, scanCode, modifiers)) return true
         pipeline.await()
         return surface.runtime.keyPressed(keyCode, scanCode, modifiers)

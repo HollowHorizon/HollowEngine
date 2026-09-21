@@ -21,6 +21,16 @@ class HollowUiSurface(
     val runtime = HollowUiRuntime(theme, stylesheet, scrollState, profiler = profiler)
     private var hasContent = false
 
+    /**
+     * Puts the tree in [UiState.CLOSING] while the host plays its exit animation; see
+     * [HollowUiRuntime.isClosing].
+     */
+    var isClosing: Boolean
+        get() = runtime.isClosing
+        set(value) {
+            runtime.isClosing = value
+        }
+
     private var frameTimeNanos by mutableStateOf(0L)
     private var pointer by mutableStateOf(UiPointer.Unknown)
     private var viewport by mutableStateOf(UiRect.Zero)

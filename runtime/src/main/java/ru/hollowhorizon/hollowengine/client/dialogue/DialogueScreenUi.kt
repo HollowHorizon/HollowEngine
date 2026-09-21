@@ -32,7 +32,6 @@ import ru.hollowhorizon.hollowengine.client.ui.style
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueChoiceView
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueChoicesView
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueLineView
-import ru.hollowhorizon.hollowengine.common.dialogue.DialoguePhase
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueUiKeys
 import ru.hollowhorizon.hollowengine.common.dialogue.UiDialoguePresentation
 import ru.hollowhorizon.hollowengine.common.ui.UiGuiScale
@@ -87,9 +86,8 @@ private val ADVANCE_KEYS = intArrayOf(
 private fun UiScope.DialogueScreen() {
     val line = data[DialogueUiKeys.Line]
     val choices = data[DialogueUiKeys.Choices]
-    val closing = data[DialogueUiKeys.Phase] == DialoguePhase.CLOSING
 
-    var root = Modifier
+    val root = Modifier
         .style(DialogueScreenUi.STYLESHEET)
         .focusScope()
         .input(clickable = true)
@@ -100,7 +98,6 @@ private fun UiScope.DialogueScreen() {
                 advance()
             }
         }
-    if (closing) root = root.state(UiState.CLOSING)
 
     Box(id = "dialogue-root", mode = UiBoxMode.FREE, modifier = root) {
         Box(id = "dialogue-dim")

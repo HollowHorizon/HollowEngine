@@ -21,9 +21,11 @@ interface UiScope {
     val isServerBound: Boolean get() = sessionId != null
 
     /**
-     * True while the UI is playing itself out after something asked it to close, which is the window
-     * an exit animation has. Content that wants one reads this and puts its root in
-     * [ru.hollowhorizon.hollowengine.client.ui.UiState.CLOSING], the state its stylesheet selects on.
+     * True while the UI is playing itself out after something asked it to close, the window its
+     * `exitDuration` reserves for an exit animation. The host puts the whole tree in
+     * [ru.hollowhorizon.hollowengine.client.ui.UiState.CLOSING] on its own, so a stylesheet needs
+     * nothing from the content to select on `:closing`; read this only to compose something else
+     * while the UI is on its way out.
      */
     val isClosing: Boolean get() = false
 

@@ -194,6 +194,13 @@ class HollowUiRuntime(
     /** Cursor shape for the node under the pointer - apply to the window via [UiCursorManager]. */
     val cursor: UiCursorShape get() = input.hoveredCursor
 
+    /**
+     * Puts the whole tree in [UiState.CLOSING] while the host that owns this runtime plays itself
+     * out, which is what `:closing` rules select on. The host sets it from its [UiExitWindow], so no
+     * content has to carry the state itself.
+     */
+    var isClosing: Boolean = false
+
     fun frame(
         root: UiNode,
         width: Float,
@@ -212,7 +219,7 @@ class HollowUiRuntime(
         nowMillis: Long,
         profile: UiProfileFrame?,
     ): HollowUiFrame {
-        input.prepareRoot(root, false)
+        input.prepareRoot(root, isClosing)
         if (preparedAtMillis == nowMillis) {
             preparedAtMillis = null
         } else {
@@ -489,7 +496,7 @@ class HollowUiRuntime(
     /** Ends a pointer gesture handed to the OS without generating a click or changing keyboard focus. */
     fun cancelPointerInput() {
         input.clearInteraction(clearFocus = false)
-        lastFrame?.root?.let { input.prepareRoot(it) }
+        lastFrame?.root?.let { input.prepareRoot(it, isClosing) }
     }
 
     fun mouseDragged(
