@@ -3,9 +3,12 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.apache.logging.log4j.LogManager
+import ru.hollowhorizon.hollowengine.client.ui.docking.DefaultPinnedWidth
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockNode
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockOrientation
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockPinnedItem
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockSide
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.common.config.Config
 import java.util.*
@@ -36,12 +39,22 @@ internal data class StoredDockWindow(
     val height: Float = 220f,
 )
 
+@Serializable
+internal data class StoredPinnedItem(
+    val id: String,
+    val side: DockSide = DockSide.LEFT,
+    val width: Float = DefaultPinnedWidth,
+    val expanded: Boolean = false,
+)
+
 /** The editor's windows as they located when it was last used. */
 @Serializable
 internal data class StoredDockLayout(
     val root: StoredDockNode? = null,
     val floating: List<StoredDockWindow> = emptyList(),
     val focused: String? = null,
+    val pinned: List<StoredPinnedItem> = emptyList(),
+    val stripesVisible: Boolean = true,
 )
 
 /**
@@ -78,13 +91,25 @@ internal object HollowIdeLayoutStore {
     }
 }
 
-internal fun DockingState.capture(): StoredDockLayout = StoredDockLayout(
-    root = root?.toStored(),
-    floating = floatingWindows.map { window ->
-        StoredDockWindow(window.stack.toStored(), window.x, window.y, window.width, window.height)
-    },
-    focused = focusedItemId,
-)
+internal fun DockingState.capture(): StoredDockLayout {
+    val expanded = expandedPinned()
+    return StoredDockLayout(
+        root = root?.toStored(),
+        floating = floatingWindows.map { window ->
+            StoredDockWindow(window.stack.toStored(), window.x, window.y, window.width, window.height)
+        },
+        focused = focusedItemId,
+        pinned = pinnedItems.map { pinned ->
+            StoredPinnedItem(
+                id = pinned.item.id,
+                side = pinned.side,
+                width = pinned.width,
+                expanded = expanded[pinned.side] == pinned.item.id,
+            )
+        },
+        stripesVisible = stripesVisible,
+    )
+}
 
 private fun DockNode.toStored(): StoredDockNode = when (this) {
     is DockNode.Stack -> StoredDockNode(items = items.map { it.id }, selected = selectedItemId)
@@ -102,8 +127,17 @@ internal fun DockingState.restore(layout: StoredDockLayout, resolve: (String) ->
         val stack = restoreNode(window.node, resolve) as? DockNode.Stack ?: return@mapNotNull null
         newWindow(stack, window.x, window.y, window.width, window.height)
     }
-    if (root == null && floating.isEmpty()) return false
+    val pinned = layout.pinned.mapNotNull { stored ->
+        val item = resolve(stored.id)?.takeIf { it.pinnable } ?: return@mapNotNull null
+        DockPinnedItem(item, stored.side, stored.width)
+    }
+    if (root == null && floating.isEmpty() && pinned.isEmpty()) return false
     applyLayout(root, floating, layout.focused)
+    applyPinned(
+        items = pinned,
+        expanded = layout.pinned.filter { it.expanded }.associate { it.side to it.id },
+        visible = layout.stripesVisible,
+    )
     return true
 }
 

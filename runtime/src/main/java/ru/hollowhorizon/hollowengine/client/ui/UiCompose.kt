@@ -761,6 +761,7 @@ fun Popup(
         entry.onDismiss = onDismiss
         entry.animated = animated
         entry.visible = visible
+        entry.modal = modal
     }
     DisposableEffect(manager, entry) {
         val unregister = manager.register(entry)
@@ -832,6 +833,12 @@ fun OverlayHost() {
     val manager = LocalOverlayManager.current ?: return
     if (manager.popups.isEmpty()) return
     Box(mode = UiBoxMode.STACK, modifier = Modifier.size(100.percent, 100.percent).layer(OverlayLayer)) {
+        if (manager.hasModal) {
+            Box(
+                tags = listOf("overlay-scrim"),
+                modifier = Modifier.size(100.percent, 100.percent).inputTransparent().style("hollowengine:ui/styles/widgets.hss"),
+            )
+        }
         if (manager.hasDismissable) {
             Box(
                 tags = listOf("overlay-dismiss"),

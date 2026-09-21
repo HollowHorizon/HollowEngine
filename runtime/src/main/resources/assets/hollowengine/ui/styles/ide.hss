@@ -33,14 +33,15 @@
 }
 
 .ide-toolbar-group {
-    padding: 1px;
     gap: 1px;
     background: #1E2127;
     border-radius: 4px;
 }
 
 .ide-toolbar-button {
-    size: 22px 22px;
+    size: fit fit;
+    margin: 1px;
+    padding: 4px;
     border-radius: 3px;
     background: #00000000;
     transition: background 110ms ease-out;
@@ -224,6 +225,7 @@
     height: 18px;
     padding: 0px 6px;
     background: #24272E;
+    border: 1px #383D48;
     border-radius: 3px;
 }
 
@@ -232,6 +234,7 @@
     height: 20px;
     padding: 0px 6px;
     background: #24272E;
+    border: 1px #383D48;
     border-radius: 3px;
 }
 
@@ -241,14 +244,12 @@
     min-height: 26px;
     padding: 2px 4px;
     gap: 4px;
-    background: #31343D;
-    border-radius: 4px;
 }
 
 .console-filter, .console-command {
     padding: 2px 5px;
-    background: #1E2127;
-    border: 1px #4b5362;
+    background: #24272E;
+    border: 1px #383D48;
     border-radius: 3px;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
@@ -279,7 +280,8 @@
 .console-button {
     size: 22px 22px;
     border-radius: 3px;
-    background: #414653;
+    background: #24272E;
+    border: 1px #383D48;
     transition: background 110ms ease-out;
 }
 
@@ -342,13 +344,16 @@
 }
 
 .project-actions {
-    size: fit 20px;
-    padding: 0px 3px;
+    size: fit 100%;
+    padding: 0px 2px;
     gap: 1px;
+    align-items: center center;
 }
 
 .project-action {
-    size: 20px 20px;
+    size: fit fit;
+    margin: 2px 0px;
+    padding: 3px;
     border-radius: 3px;
     background: #00000000;
     transition: background 110ms ease-out;

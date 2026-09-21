@@ -30,6 +30,8 @@ private val ShortcutGroups = listOf(
             "Ctrl+N" to "$LANG.search",
             "Ctrl+W" to "$LANG.close_tab",
             "Ctrl+S" to "$LANG.save",
+            "1 - 9" to "$LANG.stripe_left",
+            "Alt+1 - 9" to "$LANG.stripe_right",
             "F3+T" to "$LANG.reload_client",
         ),
     ),

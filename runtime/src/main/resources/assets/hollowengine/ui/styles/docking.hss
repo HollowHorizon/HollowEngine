@@ -14,7 +14,18 @@
     transition:
             background 120ms ease-out,
             foreground 120ms ease-out,
-            translate 140ms ease-out,
+            translate 140ms ease-out;
+    animations: dock-tab-in 150ms ease-out;
+}
+
+@keyframes dock-tab-in {
+    from { opacity: 0; scale: 0.94; }
+    to   { opacity: 1; scale: 1; }
+}
+
+.dock-tab-icon {
+    size: 12px 12px;
+    margin-right: 5px;
 }
 
 .dock-tab-bar {
@@ -47,6 +58,9 @@
 }
 
 .dock-close-button {
+    margin: 3px;
+    padding: 0px;
+    border-radius: 3px;
     foreground: #8d96a8;
     transition:
             foreground 100ms ease-out,
@@ -54,6 +68,71 @@
 }
 
 .dock-close-button:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.10);
     foreground: #ffffff;
+}
+
+.dock-stripe {
+    background: #191A1D;
+    padding: 0px 0px;
+    gap: 2px;
+    transition: size 160ms ease-out;
+}
+
+.dock-stripe-button {
+    border-radius: 4px;
+    scale: 0.75;
+    opacity: 0.66;
+    transition:
+            background 120ms ease-out,
+            opacity 120ms ease-out;
+}
+
+.dock-stripe-button:hover {
+    background: #31343D;
+    scale: 0.95;
+    opacity: 1;
+}
+
+.dock-stripe-button.selected {
+    background: #3A3F4B;
+    opacity: 1;
+}
+
+.dock-stripe-icon {
+    size: 14px 14px;
+}
+
+.dock-pinned-panel {
+    background: #1E1F22;
+}
+
+.dock-pinned-panel.sliding,
+.dock-splitter.sliding {
+    transition: size 160ms ease-out;
+}
+
+.dock-pinned-header {
+    background: #1E1F22;
+    padding: 0px 4px 0px 6px;
+    gap: 5px;
+    border-bottom: 1px #2B2D31;
+}
+
+.dock-pinned-header-icon {
+    size: 12px 12px;
+}
+
+.dock-pinned-header-label {
+    font-size: 10px;
+    foreground: #c8cfdb;
+}
+
+.dock-content-body {
+    animations: dock-content-in 150ms ease-out;
+}
+
+@keyframes dock-content-in {
+    from { opacity: 0; translate: 0 4 0; }
+    to   { opacity: 1; translate: 0 0 0; }
 }

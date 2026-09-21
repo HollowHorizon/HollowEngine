@@ -68,6 +68,8 @@ internal const val GameViewportId = "ide-game-viewport"
 internal const val GameViewportNodeId = "game-viewport"
 
 private const val LayoutSaveDelayMillis = 600L
+
+private const val StripeShortcutCount = 9
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
@@ -698,7 +700,10 @@ object HollowIdeOverlay {
                         ) || handleProjectFilterShortcut(
                             input.key,
                             input.modifiers
-                        ) || project.handleShortcut(input.key, input.modifiers) || handleDockShortcut(
+                        ) || project.handleShortcut(input.key, input.modifiers) || handleStripeShortcut(
+                            input.key,
+                            input.modifiers
+                        ) || handleDockShortcut(
                             input.key,
                             input.modifiers
                         ) || handleEditorShortcut(
@@ -958,6 +963,7 @@ object HollowIdeOverlay {
                 items = model.visibleTreeItems(projectFilter.query, rootLabel = packaging.properties.displayName),
                 onToggle = project::toggle,
                 onSelect = project::select,
+                fillRowWidth = false,
                 filterState = projectFilter,
                 filterPlaceholder = "hollowengine.message.filter".lang,
                 onFilterOpened = ::requestSurfaceFocus,
@@ -1118,15 +1124,15 @@ object HollowIdeOverlay {
 
     private fun openFileDockItem(file: HollowIdeOpenFile) {
         statusText = ""
-        if (!dock.contains(file.id)) {
-            val hadOpenEditor = model.files.values.any { dock.contains(it.id) }
-            dock.open(file.dockItem(), editorTarget())
-            if (!hadOpenEditor) {
-                dock.setSplitFractionForItem(ProjectTreeId, file.id, 0.28f)
-            }
-        } else {
+        if (dock.contains(file.id)) {
             dock.updateItem(file.dockItem())
             dock.focus(file.id)
+            return
+        }
+        val target = editorTarget()
+        dock.open(file.dockItem(), target)
+        if (target.placement == DockPlacement.RIGHT) {
+            dock.setSplitFractionForItem(ProjectTreeId, file.id, 0.28f)
         }
     }
 
@@ -1221,6 +1227,18 @@ object HollowIdeOverlay {
         val command = modifiers and GLFW.GLFW_MOD_CONTROL != 0
         if (!command || key != GLFW.GLFW_KEY_W) return false
         return dock.closeFocused()
+    }
+
+    private fun handleStripeShortcut(key: Int, modifiers: Int): Boolean {
+        if (modifiers and (GLFW.GLFW_MOD_CONTROL or GLFW.GLFW_MOD_SHIFT or GLFW.GLFW_MOD_SUPER) != 0) return false
+        val index = key - GLFW.GLFW_KEY_1
+        if (index < 0 || index >= StripeShortcutCount) return false
+        val alt = modifiers and GLFW.GLFW_MOD_ALT != 0
+        if (!alt && surface.runtime.isAnyFocused) return false
+        val side = if (alt) DockSide.RIGHT else DockSide.LEFT
+        val pinned = dock.pinnedOn(side).getOrNull(index) ?: return false
+        dock.togglePinned(pinned.item.id)
+        return true
     }
 
     /** Ctrl+N opens the project-wide search overlay, wherever the focus is. */
@@ -1395,9 +1413,14 @@ object HollowIdeOverlay {
         return true
     }
 
+    /**
+     * Where a newly opened file goes: in with the files that are already open, else into the main
+     * panel the game view sits in, and only failing both of those into a split off the project tree.
+     */
     private fun editorTarget(): DockTarget {
         model.files.values.firstOrNull { dock.contains(it.id) }?.let { dock.stackIdOf(it.id) }
             ?.let { return DockTarget(it) }
+        dock.stackIdOf(GameViewportId)?.let { return DockTarget(it) }
         dock.stackIdOf(ProjectTreeId)?.let { return DockTarget(it, DockPlacement.RIGHT) }
         return DockTarget.Root
     }

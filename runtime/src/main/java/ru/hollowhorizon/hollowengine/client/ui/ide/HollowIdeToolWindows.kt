@@ -25,8 +25,8 @@ internal class HollowIdeToolWindow(
     val icon: String,
     val placement: DockPlacement,
     val anchors: List<ToolWindowAnchor>,
-    val minWidth: Float = 96f,
-    val minHeight: Float = 64f,
+    val minWidth: Float = 48f,
+    val minHeight: Float = 32f,
     val closable: Boolean = true,
     val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
 ) {
@@ -40,6 +40,7 @@ internal class HollowIdeToolWindow(
         minWidth = minWidth,
         minHeight = minHeight,
         singleTabPresentation = singleTabPresentation,
+        pinnable = true,
     )
 }
 
@@ -57,8 +58,8 @@ internal object HollowIdeToolWindows {
         icon = AssetManagerIcon,
         placement = DockPlacement.RIGHT,
         anchors = listOf(ToolWindowAnchor.PROJECT, ToolWindowAnchor.EDITORS),
-        minWidth = 520f,
-        minHeight = 260f,
+        minWidth = 260f,
+        minHeight = 130f,
     )
     val Console = HollowIdeToolWindow(
         id = ConsoleId,
@@ -66,8 +67,8 @@ internal object HollowIdeToolWindows {
         icon = ConsoleIcon,
         placement = DockPlacement.BOTTOM,
         anchors = listOf(ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
-        minWidth = 360f,
-        minHeight = 180f,
+        minWidth = 180f,
+        minHeight = 90f,
     )
     val CutsceneTimeline = HollowIdeToolWindow(
         id = CutsceneTimelineId,
@@ -75,8 +76,8 @@ internal object HollowIdeToolWindows {
         icon = CutsceneIcon,
         placement = DockPlacement.BOTTOM,
         anchors = listOf(ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
-        minWidth = 520f,
-        minHeight = 260f,
+        minWidth = 260f,
+        minHeight = 130f,
     )
     val Inspector = HollowIdeToolWindow(
         id = InspectorId,
@@ -84,8 +85,8 @@ internal object HollowIdeToolWindows {
         icon = OptionsIcon,
         placement = DockPlacement.RIGHT,
         anchors = listOf(ToolWindowAnchor.EDITORS, ToolWindowAnchor.TIMELINE, ToolWindowAnchor.PROJECT),
-        minWidth = 240f,
-        minHeight = 260f,
+        minWidth = 120f,
+        minHeight = 130f,
     )
     val GameViewport = HollowIdeToolWindow(
         id = GameViewportId,
@@ -93,8 +94,8 @@ internal object HollowIdeToolWindows {
         icon = CutsceneIcon,
         placement = DockPlacement.TOP,
         anchors = listOf(ToolWindowAnchor.TIMELINE, ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
-        minWidth = 320f,
-        minHeight = 180f,
+        minWidth = 160f,
+        minHeight = 90f,
         singleTabPresentation = DockSingleTabPresentation.OVERLAY,
     )
     val UiProfiler = HollowIdeToolWindow(
@@ -103,8 +104,8 @@ internal object HollowIdeToolWindows {
         icon = OptionsIcon,
         placement = DockPlacement.BOTTOM,
         anchors = listOf(ToolWindowAnchor.TIMELINE, ToolWindowAnchor.PROJECT),
-        minWidth = 360f,
-        minHeight = 260f,
+        minWidth = 180f,
+        minHeight = 130f,
     )
 
     val menu: List<HollowIdeToolWindow?> = listOf(

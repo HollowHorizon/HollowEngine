@@ -5,11 +5,31 @@ data class DockItem(
     val title: String,
     val icon: String? = null,
     val closable: Boolean = true,
-    val minWidth: Float = 96f,
-    val minHeight: Float = 64f,
+    val minWidth: Float = 48f,
+    val minHeight: Float = 32f,
     val dirty: Boolean = false,
     val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
+    val pinnable: Boolean = false,
 )
+
+/** Which edge of the dock space a pinned item's stripe button sits on. */
+enum class DockSide {
+    LEFT,
+    RIGHT;
+
+    val placement: DockPlacement get() = if (this == LEFT) DockPlacement.LEFT else DockPlacement.RIGHT
+
+    val opposite: DockSide get() = if (this == LEFT) RIGHT else LEFT
+}
+
+data class DockPinnedItem(
+    val item: DockItem,
+    val side: DockSide,
+    val width: Float = DefaultPinnedWidth,
+)
+
+/** Width a tool window's panel takes the first time it is pinned. */
+const val DefaultPinnedWidth = 260f
 
 enum class DockSingleTabPresentation {
     BAR,

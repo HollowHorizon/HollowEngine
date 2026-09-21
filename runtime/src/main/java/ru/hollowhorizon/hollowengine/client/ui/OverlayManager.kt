@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 class PopupEntry(val key: Any) {
     var layer by mutableStateOf(0)
     var dismissOnOutside by mutableStateOf(true)
+
+    var modal by mutableStateOf(false)
     var animated by mutableStateOf(true)
     var visible by mutableStateOf(true)
 
@@ -34,6 +36,9 @@ class OverlayManager {
 
     val hasDismissable: Boolean
         get() = popups.any { it.visible && !it.exiting && it.dismissOnOutside && it.onDismiss != null }
+
+    val hasModal: Boolean
+        get() = popups.any { it.visible && !it.exiting && it.modal }
 
     /**
      * Registers an overlay; returns its dispose handle. Animated entries stay until the host

@@ -265,6 +265,17 @@
     tint: #687588;
 }
 
+.overlay-scrim {
+    background: rgba(8, 9, 12, 0.46);
+    backdrop-filter: blur(8px);
+    animations: overlay-scrim-in 140ms ease-out both;
+}
+
+@keyframes overlay-scrim-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
 .ui-tooltip {
     max-width: 260px;
     padding: 3px 6px;

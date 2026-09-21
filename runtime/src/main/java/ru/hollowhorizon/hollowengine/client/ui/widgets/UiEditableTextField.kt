@@ -470,7 +470,7 @@ fun EditableTextField(
     modifier: Modifier? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
-    scrollState: UiScrollHandle = rememberScrollState(),
+    scrollState: UiScrollHandle = state.scroll,
     syntaxHighlighter: UiSyntaxHighlighter? = null,
     inlayHints: List<UiInlayHint> = emptyList(),
     inlayHintsProvider: UiInlayHintsProvider? = null,

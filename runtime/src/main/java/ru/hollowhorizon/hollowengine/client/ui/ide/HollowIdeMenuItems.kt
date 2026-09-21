@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 import ru.hollowhorizon.hollowengine.client.editor.EditorMode
 import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockLang
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
@@ -97,16 +98,23 @@ internal fun hollowIdeWindowMenuItems(
         }
         UiDropdownItem(
             label = window.title,
-            checked = dock.contains(window.id),
+            checked = dock.isOnScreen(window.id),
             mark = UiDropdownMark.CHECKBOX,
             separatorBefore = separate,
         ) {
-            dock.openToolWindow(window, model)
+            if (!dock.toggleOnScreen(window.id)) dock.openToolWindow(window, model)
         }.also { separate = false }
     }
     return windows + UiDropdownItem(
-        label = "$MenuLang.reset_layout".lang,
+        label = DockLang.ShowStripes,
+        checked = dock.stripesVisible,
+        mark = UiDropdownMark.CHECKBOX,
         separatorBefore = true,
+        closeOnClick = false,
+    ) {
+        dock.stripesVisible = !dock.stripesVisible
+    } + UiDropdownItem(
+        label = "$MenuLang.reset_layout".lang,
         onClick = onResetLayout,
     )
 }

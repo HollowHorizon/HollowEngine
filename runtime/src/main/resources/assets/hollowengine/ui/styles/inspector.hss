@@ -12,6 +12,7 @@
     padding: 10px;
     background: #1E1F22;
     border: 1px #31343D;
+    border-radius: 4px;
 }
 
 .insp-head {

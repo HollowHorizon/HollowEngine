@@ -5,6 +5,8 @@ import ru.hollowhorizon.hollowengine.client.ui.UiEvent
 
 private const val MinSplitFraction = 0.1f
 private const val MaxSplitFraction = 0.9f
+private const val MinPinnedWidth = 60f
+private const val MaxPinnedWidth = 900f
 
 class DockingState {
     private val ids = DockIdGenerator()
@@ -27,6 +29,15 @@ class DockingState {
 
     var tabDrag: DockTabDragState? by mutableStateOf(null)
         private set
+
+    /** Tool windows parked on the side stripes, in the order their buttons appear. */
+    val pinnedItems = mutableStateListOf<DockPinnedItem>()
+
+    /** The item each side currently has expanded into a panel, by side. */
+    private val expandedBySide = mutableStateMapOf<DockSide, String>()
+
+    /** Whether the stripes are drawn at all. Hidden, the editor runs edge to edge. */
+    var stripesVisible: Boolean by mutableStateOf(true)
 
     private var tabGrab: DockTabGrabState? by mutableStateOf(null)
     private val tabSwapOffsets = mutableStateMapOf<String, DockTabSwap>()
@@ -89,11 +100,21 @@ class DockingState {
         this.root = root
         floatingWindows.clear()
         floatingWindows += floating
+        pinnedItems.clear()
+        expandedBySide.clear()
         focusedItemId = focused?.takeIf(::contains) ?: firstItemId()
         focusedItemId?.let { this.root = this.root?.select(it) }
     }
 
     fun close(itemId: String): Boolean {
+        val pinnedIndex = pinnedItems.indexOfFirst { it.item.id == itemId }
+        if (pinnedIndex >= 0) {
+            val pinned = pinnedItems.removeAt(pinnedIndex)
+            if (expandedBySide[pinned.side] == itemId) expandedBySide.remove(pinned.side)
+            if (focusedItemId == itemId) focusedItemId = firstItemId()
+            return true
+        }
+
         val dockedRemoval = root?.removeItem(itemId)
         if (dockedRemoval?.item != null) {
             root = dockedRemoval.root
@@ -124,6 +145,7 @@ class DockingState {
     }
 
     fun focus(itemId: String): Boolean {
+        if (isPinned(itemId)) return expand(itemId)
         if (!contains(itemId)) return false
         focusedItemId = itemId
         root = root?.select(itemId)
@@ -154,6 +176,115 @@ class DockingState {
         focusedItemId = null
     }
 
+    /** The stripe buttons on [side], in the order they are drawn. */
+    fun pinnedOn(side: DockSide): List<DockPinnedItem> = pinnedItems.filter { it.side == side }
+
+    /** The item [side] currently has expanded into a panel, or null while the side is collapsed. */
+    fun expandedOn(side: DockSide): DockPinnedItem? {
+        val itemId = expandedBySide[side] ?: return null
+        return pinnedItems.firstOrNull { it.item.id == itemId && it.side == side }
+    }
+
+    fun pinnedItem(itemId: String): DockPinnedItem? = pinnedItems.firstOrNull { it.item.id == itemId }
+
+    fun isPinned(itemId: String): Boolean = pinnedItem(itemId) != null
+
+    /**
+     * Parks a tool window on [side]'s stripe and expands it there. An item already on a stripe just
+     * moves to the other side, keeping the width it had.
+     */
+    fun pin(itemId: String, side: DockSide): Boolean {
+        val index = pinnedItems.indexOfFirst { it.item.id == itemId }
+        if (index >= 0) {
+            val current = pinnedItems[index]
+            if (current.side == side) return expand(itemId)
+            if (expandedBySide[current.side] == itemId) expandedBySide.remove(current.side)
+            pinnedItems[index] = current.copy(side = side)
+            return expand(itemId)
+        }
+
+        val item = item(itemId) ?: return false
+        if (!item.pinnable) return false
+        removeItemForDock(itemId) ?: return false
+        pinnedItems += DockPinnedItem(item, side, DefaultPinnedWidth.coerceAtLeast(item.minWidth))
+        stripesVisible = true
+        return expand(itemId)
+    }
+
+    /** Takes a pinned item off its stripe and docks it back into the tree at [target]. */
+    fun unpin(itemId: String, target: DockTarget = DockTarget.Root): Boolean {
+        val index = pinnedItems.indexOfFirst { it.item.id == itemId }
+        if (index < 0) return false
+        val pinned = pinnedItems.removeAt(index)
+        if (expandedBySide[pinned.side] == itemId) expandedBySide.remove(pinned.side)
+        open(pinned.item, target)
+        return true
+    }
+
+    /** Expands a pinned item's panel, collapsing whatever its side had open. */
+    fun expand(itemId: String): Boolean {
+        val pinned = pinnedItem(itemId) ?: return false
+        expandedBySide[pinned.side] = itemId
+        focusedItemId = itemId
+        return true
+    }
+
+    /** Collapses [side] back to its bare stripe. */
+    fun collapse(side: DockSide) {
+        val itemId = expandedBySide.remove(side) ?: return
+        if (focusedItemId == itemId) focusedItemId = firstItemId()
+    }
+
+    /** Whether the window is actually in front of the player: docked, floating, or an open panel. */
+    fun isOnScreen(itemId: String): Boolean {
+        val pinned = pinnedItem(itemId) ?: return contains(itemId)
+        return expandedBySide[pinned.side] == itemId
+    }
+
+    /**
+     * Turns a window off, or back on, wherever it lives.
+     */
+    fun toggleOnScreen(itemId: String): Boolean {
+        if (isPinned(itemId)) return togglePinned(itemId)
+        if (!contains(itemId)) return false
+        return close(itemId)
+    }
+
+    /** What a click on a stripe button does: opens that panel, or closes it if it was already open. */
+    fun togglePinned(itemId: String): Boolean {
+        val pinned = pinnedItem(itemId) ?: return false
+        if (expandedBySide[pinned.side] == itemId) {
+            collapse(pinned.side)
+            return true
+        }
+        return expand(itemId)
+    }
+
+    /** Remembers the width the player dragged a pinned panel to. */
+    fun setPinnedWidth(itemId: String, width: Float): Boolean {
+        val index = pinnedItems.indexOfFirst { it.item.id == itemId }
+        if (index < 0) return false
+        val pinned = pinnedItems[index]
+        val next = width.coerceIn(pinned.item.minWidth.coerceAtLeast(MinPinnedWidth), MaxPinnedWidth)
+        if (next == pinned.width) return false
+        pinnedItems[index] = pinned.copy(width = next)
+        return true
+    }
+
+    /** Restores the stripes from a stored layout, dropping items the tree already holds. */
+    fun applyPinned(items: List<DockPinnedItem>, expanded: Map<DockSide, String>, visible: Boolean = true) {
+        pinnedItems.clear()
+        pinnedItems += items.filterNot { contains(it.item.id) }
+        expandedBySide.clear()
+        expanded.forEach { (side, itemId) ->
+            if (pinnedItems.any { it.item.id == itemId && it.side == side }) expandedBySide[side] = itemId
+        }
+        stripesVisible = visible
+    }
+
+    /** Which item each side has expanded, for storing the layout. */
+    fun expandedPinned(): Map<DockSide, String> = expandedBySide.toMap()
+
     fun dock(itemId: String, target: DockTarget): Boolean {
         val removal = removeItemForDock(itemId) ?: return false
         val node = DockNode.Stack(ids.nextStackId(), listOf(removal), removal.id)
@@ -168,26 +299,6 @@ class DockingState {
         val window = floatingWindows.removeAt(index)
         root = root?.insert(window.stack, defaultStackTarget(target), ids) ?: window.stack
         focus(window.stack.selectedItem?.id ?: window.stack.items.first().id)
-        return true
-    }
-
-    fun undockToFloating(
-        itemId: String,
-        x: Float,
-        y: Float,
-        width: Float = 320f,
-        height: Float = 220f,
-    ): Boolean {
-        val item = removeItemForDock(itemId) ?: return false
-        floatingWindows += FloatingDockWindow(
-            id = ids.nextWindowId(),
-            stack = DockNode.Stack(ids.nextStackId(), listOf(item), item.id),
-            x = x,
-            y = y,
-            width = width,
-            height = height,
-        )
-        focus(itemId)
         return true
     }
 
@@ -255,27 +366,14 @@ class DockingState {
         return docked
     }
 
-    fun resizeFloating(
-        windowId: String,
-        edge: DockResizeEdge,
-        deltaX: Float,
-        deltaY: Float,
-        minWidth: Float = 160f,
-        minHeight: Float = 120f,
-    ): Boolean {
-        val index = floatingWindows.indexOfFirst { it.id == windowId }
-        if (index < 0) return false
-        return resizeFloatingFrom(windowId, edge, floatingWindows[index], deltaX, deltaY, minWidth, minHeight)
-    }
-
     fun resizeFloatingFrom(
         windowId: String,
         edge: DockResizeEdge,
         start: FloatingDockWindow,
         deltaX: Float,
         deltaY: Float,
-        minWidth: Float = 160f,
-        minHeight: Float = 120f,
+        minWidth: Float = 80f,
+        minHeight: Float = 60f,
     ): Boolean {
         val index = floatingWindows.indexOfFirst { it.id == windowId }
         if (index < 0) return false
@@ -428,7 +526,7 @@ class DockingState {
     }
 
     fun contains(itemId: String): Boolean {
-        return root?.containsItem(itemId) == true || floatingWindows.any { window ->
+        return root?.containsItem(itemId) == true || isPinned(itemId) || floatingWindows.any { window ->
             window.stack.items.any { it.id == itemId }
         }
     }
@@ -440,6 +538,7 @@ class DockingState {
 
     fun item(itemId: String): DockItem? {
         return root?.findItem(itemId)
+            ?: pinnedItem(itemId)?.item
             ?: floatingWindows.firstNotNullOfOrNull { window -> window.stack.items.firstOrNull { it.id == itemId } }
     }
 
@@ -450,6 +549,11 @@ class DockingState {
 
     fun updateItem(item: DockItem): Boolean {
         var changed = false
+        val pinnedIndex = pinnedItems.indexOfFirst { it.item.id == item.id }
+        if (pinnedIndex >= 0 && pinnedItems[pinnedIndex].item != item) {
+            pinnedItems[pinnedIndex] = pinnedItems[pinnedIndex].copy(item = item)
+            changed = true
+        }
         root = root?.mapStacks { stack ->
             val index = stack.items.indexOfFirst { it.id == item.id }
             if (index < 0) return@mapStacks stack
