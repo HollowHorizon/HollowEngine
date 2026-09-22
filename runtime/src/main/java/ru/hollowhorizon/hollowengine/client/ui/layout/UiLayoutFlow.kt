@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.layout
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollOffset
 import ru.hollowhorizon.hollowengine.client.ui.style.*
+import kotlin.math.min
 
 private class EngineMeasurable(
     private val pipeline: UiLayoutPipeline,
@@ -135,15 +136,24 @@ internal fun UiLayoutPipeline.placeFreeChildren(scope: ChildPlacementScope) {
         val height = child.style.size.height
         val childWidth = if (width.dependsOnAvailableSpace) {
             width.resolveWidth(alignX, child.style, child, content)
-        } else child.size.width
+        } else {
+            child.size.width.boundToBox(width, content.width - child.margin.horizontal, style.scrollable)
+        }
         val childHeight = if (height.dependsOnAvailableSpace) {
             height.resolveHeight(alignY, child.style, child, content)
-        } else child.size.height
+        } else {
+            child.size.height.boundToBox(height, content.height - child.margin.vertical, style.scrollable)
+        }
         val x = content.x + alignX.crossOffset(content.width, childWidth, child.margin.left, child.margin.right)
         val y = content.y + alignY.crossOffset(content.height, childHeight, child.margin.top, child.margin.bottom)
         val rect = UiRect(x + position.x, y + position.y, childWidth, childHeight)
         placeScopedNode(scope, child.node, rect)
     }
+}
+
+private fun Float.boundToBox(length: UiLength, available: Float, scrollable: Boolean): Float {
+    if (scrollable || !length.isContentSized || available <= 0f) return this
+    return min(this, available)
 }
 
 internal fun UiLayoutPipeline.measureFlowChildren(

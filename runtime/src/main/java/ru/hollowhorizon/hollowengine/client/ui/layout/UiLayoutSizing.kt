@@ -40,19 +40,9 @@ internal fun UiLength.resolveWidth(
         is UiLength.Px -> child.size.width
             .coerceIn(childStyle.minSize.width, childStyle.maxSize.width, content.width)
 
-        is UiLength.Addition -> first.resolveWidth(align, childStyle, child, content) + second.resolveWidth(
-            align,
-            childStyle,
-            child,
-            content
-        )
-
-        is UiLength.Substraction -> first.resolveWidth(align, childStyle, child, content) - second.resolveWidth(
-            align,
-            childStyle,
-            child,
-            content
-        )
+        is UiLength.Addition, is UiLength.Substraction ->
+            resolve((content.width - child.margin.left - child.margin.right).coerceAtLeast(0f))
+                .coerceIn(childStyle.minSize.width, childStyle.maxSize.width, content.width)
     }
 }
 
@@ -81,19 +71,9 @@ internal fun UiLength.resolveHeight(
         is UiLength.Px -> child.size.height
             .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)
 
-        is UiLength.Addition -> first.resolveHeight(align, childStyle, child, content) + second.resolveHeight(
-            align,
-            childStyle,
-            child,
-            content
-        )
-
-        is UiLength.Substraction -> first.resolveHeight(align, childStyle, child, content) - second.resolveHeight(
-            align,
-            childStyle,
-            child,
-            content
-        )
+        is UiLength.Addition, is UiLength.Substraction ->
+            resolve((content.height - child.margin.top - child.margin.bottom).coerceAtLeast(0f))
+                .coerceIn(childStyle.minSize.height, childStyle.maxSize.height, content.height)
     }
 }
 

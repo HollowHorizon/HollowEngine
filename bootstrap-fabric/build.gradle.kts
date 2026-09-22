@@ -25,7 +25,8 @@ base.archivesName.set("$modName-fabric-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
-val embeddedProductionRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime-production")
+val runtimePayloadNotice = rootProject.file("bootstrap/runtime-payload/README.MD")
+val embeddedRemapTableDir = layout.buildDirectory.dir("generated/embedded-remap-table")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
 val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
@@ -90,13 +91,10 @@ val embeddedRuntime by configurations.creating {
     }
 }
 
-val embeddedProductionRuntime by configurations.creating {
+val payloadRemapTable by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
-    attributes {
-        attribute(runtimeMappingAttribute, "fabric")
-    }
 }
 
 repositories {
@@ -116,7 +114,9 @@ dependencies {
     })
 
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
+    val fabricApi = "net.fabricmc.fabric-api:fabric-api:$fabricApiVersion"
+    modImplementation(fabricApi)
+    include(fabricApi)
     modImplementation("lib:iris-fabric:1.8.8+mc1.21.1")
     modImplementation("lib:sodium-fabric:0.6.13+mc1.21.1")
     val mixinExtras = "io.github.llamalad7:mixinextras-fabric:0.4.1"
@@ -127,7 +127,7 @@ dependencies {
     implementation("io.github.douira:glsl-transformer:2.0.1")
 
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
-    add("embeddedProductionRuntime", project(path = ":runtime", configuration = "embeddedFabricRuntimeElements"))
+    add("payloadRemapTable", project(path = ":runtime", configuration = "payloadRemapTableElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
     "shadowBundle"(project(path = ":bridge", configuration = "transformProductionFabric")) { isTransitive = false }
 }
@@ -137,6 +137,7 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
     description = "Embeds the isolated runtime jar into bootstrap resources."
 
     inputs.files(embeddedRuntime)
+    inputs.file(runtimePayloadNotice)
     outputs.dir(embeddedRuntimeDir)
 
     doLast {
@@ -151,28 +152,22 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
             .digest(targetJar.readBytes())
             .joinToString("") { "%02x".format(it) }
         outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+
+        runtimePayloadNotice.copyTo(outputDir.resolve("README.MD"), overwrite = true)
     }
 }
 
-val embedProductionRuntimeJar = tasks.register("embedProductionRuntimeJar") {
+val embedRemapTable = tasks.register("embedRemapTable") {
     group = "build"
-    description = "Embeds the remapped Fabric runtime jar into the production bootstrap resources."
+    description = "Embeds Fabric remap table next to the runtime payload."
 
-    inputs.files(embeddedProductionRuntime)
-    outputs.dir(embeddedProductionRuntimeDir)
+    inputs.files(payloadRemapTable)
+    outputs.dir(embeddedRemapTableDir)
 
     doLast {
-        val outputDir = embeddedProductionRuntimeDir.get().dir("META-INF/hollowengine/runtime").asFile
+        val outputDir = embeddedRemapTableDir.get().dir("META-INF/hollowengine/runtime").asFile
         outputDir.mkdirs()
-
-        val runtimeJar = embeddedProductionRuntime.singleFile
-        val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
-        runtimeJar.copyTo(targetJar, overwrite = true)
-
-        val sha256 = MessageDigest.getInstance("SHA-256")
-            .digest(targetJar.readBytes())
-            .joinToString("") { "%02x".format(it) }
-        outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+        payloadRemapTable.singleFile.copyTo(outputDir.resolve("payload-remap-fabric.tbl.gz"), overwrite = true)
     }
 }
 
@@ -265,16 +260,14 @@ val bootstrapProductionJar = tasks.register<Jar>("bootstrapProductionJar") {
     group = "build"
     description = "Packages the production bootstrap jar with the remapped isolated runtime payload."
 
-    dependsOn("classes", embedProductionRuntimeJar, ":bridge:transformProductionFabric")
+    dependsOn("classes", embedRemapTable, ":bridge:transformProductionFabric")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set(base.archivesName.get())
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("production-dev")
 
-    from(sourceSets.named("main").map { it.output }) {
-        exclude("META-INF/hollowengine/runtime/**")
-    }
-    from(embeddedProductionRuntimeDir)
+    from(sourceSets.named("main").map { it.output })
+    from(embeddedRemapTableDir)
     from({ project.configurations.getByName("shadowBundle").map { zipTree(it) } })
 }
 

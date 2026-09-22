@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.compiling
 
 import kotlinx.coroutines.runBlocking
+import ru.hollowhorizon.hollowengine.common.scripting.STARTUP_SCRIPT_EXTENSION
 import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.io.File
@@ -44,7 +45,7 @@ fun File.loadKotlinCompiledScriptFromJar(baseClassLoader: ClassLoader? = null): 
 
 internal class KotlinCompiledScriptJar(
     override val name: String,
-    private val script: KotlinCompiledScript,
+    private val script: KJvmCompiledScriptFromJar,
     private val evaluationConfiguration: ScriptEvaluationConfiguration,
 ) : CompiledScript {
     private val evaluator = HollowEngineScriptEvaluator()
@@ -63,7 +64,15 @@ internal class KotlinCompiledScriptJar(
             return script.compilationConfiguration[ScriptCompilationConfiguration.implicitReceivers]?.size ?: 0
         }
 
-    override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
+    override val isClientSide: Boolean
+        get() = script.metadata(evaluationConfiguration)
+            .compilationConfiguration[ScriptCompilationConfiguration.isClientSideScript] == true
+
+    override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> =
+        @Suppress("UNCHECKED_CAST")
+        evaluate(body).map { result -> result.instance as T }
+
+    override fun evaluate(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<ScriptResult> {
         val result = try {
             runBlocking { evaluator(script, evaluationConfiguration.with(body)) }
         } catch (e: LinkageError) {
@@ -75,8 +84,8 @@ internal class KotlinCompiledScriptJar(
         }
         val value = result.value.returnValue
         if (value is ResultValue.Error) return Result.failure(value.error)
-
-        @Suppress("UNCHECKED_CAST") return Result.success(value.scriptInstance as T)
+        return ScriptResult.of(value)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException("Script '$name' was not evaluated"))
     }
 }
 
@@ -87,6 +96,9 @@ internal val JvmScriptEvaluationConfigurationKeys.actualClassLoader by Propertie
 /** Whether this compiled script opted into instance sharing with `@file:SharedScript`. */
 val ScriptCompilationConfigurationKeys.isSharedScript by PropertiesCollection.key<Boolean>()
 
+/** Whether this compiled script declared `@file:ClientSide`. */
+val ScriptCompilationConfigurationKeys.isClientSideScript by PropertiesCollection.key<Boolean>()
+
 open class HollowEngineScriptEvaluator : ScriptEvaluator {
     companion object {
         private val constructorCache: MutableMap<Class<*>, MethodHandle> = Collections.synchronizedMap(WeakHashMap())
@@ -95,6 +107,12 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
     override suspend operator fun invoke(
         compiledScript: KotlinCompiledScript,
         scriptEvaluationConfiguration: ScriptEvaluationConfiguration,
+    ): ResultWithDiagnostics<EvaluationResult> = evaluate(compiledScript, scriptEvaluationConfiguration, imported = false)
+
+    private suspend fun evaluate(
+        compiledScript: KotlinCompiledScript,
+        scriptEvaluationConfiguration: ScriptEvaluationConfiguration,
+        imported: Boolean,
     ): ResultWithDiagnostics<EvaluationResult> = try {
         compiledScript.getClass(scriptEvaluationConfiguration).onSuccess evaluation@{ scriptClass ->
             val sharedConfiguration = scriptEvaluationConfiguration.getOrPrepareShared(scriptClass.java.classLoader)
@@ -108,11 +126,12 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                 compiledScript.compilationConfiguration[ScriptCompilationConfiguration.isSharedScript] == true
 
             if (canShareInstance) {
+                if (!imported) SharedScriptClasses.adopt(compiledScript, scriptClass)
                 SharedScriptClasses.instanceOf(scriptClass)?.asSuccess()?.let { return@evaluation it }
             }
 
             compiledScript.otherScripts.mapSuccess {
-                invoke(it, configurationForOtherScripts)
+                evaluate(it, configurationForOtherScripts, imported = true)
             }.onSuccess { importedScriptsEvalResults ->
                 importedScriptsEvalResults.firstOrNull { it.returnValue is ResultValue.Error }?.let {
                     return@onSuccess it.asSuccess()
@@ -121,10 +140,11 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
                 val refinedEvalConfiguration = sharedConfiguration.with {
                     compilationConfiguration(compiledScript.compilationConfiguration)
                 }.refineBeforeEvaluation(compiledScript).valueOr {
-                    return@invoke ResultWithDiagnostics.Failure(it.reports)
+                    return@evaluate ResultWithDiagnostics.Failure(it.reports)
                 }
 
                 val resultValue = try {
+                    if (imported) checkCreatableByImporter(compiledScript, scriptClass, canShareInstance)
                     val instance = scriptClass.evalWithConfigAndOtherScriptsResults(
                         refinedEvalConfiguration, importedScriptsEvalResults
                     )
@@ -159,6 +179,24 @@ open class HollowEngineScriptEvaluator : ScriptEvaluator {
         ResultWithDiagnostics.Failure(
             e.asDiagnostics(path = compiledScript.sourceLocationId)
         )
+    }
+
+    /**
+     * An importer passes no constructor arguments to its imports, so a script whose base class needs them
+     * can only be imported as a shared script, once whoever runs it has created the instance.
+     */
+    private fun checkCreatableByImporter(compiledScript: KotlinCompiledScript, scriptClass: KClass<*>, shared: Boolean) {
+        val base = scriptClass.java.superclass ?: return
+        if (base.constructors.isEmpty() || base.constructors.any { it.parameterCount == 0 }) return
+        val name = compiledScript.sourceLocationId?.substringAfterLast('/')?.substringAfterLast('\\')
+            ?: scriptClass.java.name
+        val reason = when {
+            !shared -> "its base class ${base.simpleName} takes constructor arguments that only the engine passes"
+            name.endsWith(STARTUP_SCRIPT_EXTENSION) ->
+                "it runs once while the game starts, and this version of it has not run. If it failed, or was added or changed after the game started, restart the game"
+            else -> "it has to run on its own before anything imports it, and it has not"
+        }
+        throw IllegalStateException("Cannot import '$name': $reason")
     }
 
     private fun KClass<*>.evalWithConfigAndOtherScriptsResults(
@@ -239,25 +277,34 @@ internal class KJvmCompiledScriptFromJar(
     private fun getScriptOrFail(): KJvmCompiledScript =
         loadedScript ?: throw IllegalStateException("Compiled script is not loaded yet")
 
-    override suspend fun getClass(scriptEvaluationConfiguration: ScriptEvaluationConfiguration?): ResultWithDiagnostics<KClass<*>> {
-        if (loadedScript != null) return getScriptOrFail().getClass(scriptEvaluationConfiguration)
+    /** The fingerprint of the sources this jar was built from, as stamped into it. */
+    val fingerprint: String? by lazy { ScriptCache.hashOf(file) }
+
+    override suspend fun getClass(scriptEvaluationConfiguration: ScriptEvaluationConfiguration?): ResultWithDiagnostics<KClass<*>> =
+        metadata(scriptEvaluationConfiguration).getClass(scriptEvaluationConfiguration)
+
+    /**
+     * The serialized description of the script, read without defining the script class.
+     */
+    fun metadata(scriptEvaluationConfiguration: ScriptEvaluationConfiguration?): KJvmCompiledScript {
+        loadedScript?.let { return it }
 
         val actualEvaluationConfiguration = scriptEvaluationConfiguration ?: ScriptEvaluationConfiguration()
         val baseClassLoader = actualEvaluationConfiguration[ScriptEvaluationConfiguration.jvm.baseClassLoader]
             ?: Thread.currentThread().contextClassLoader
         val entries = readJarEntries()
         val classLoader = MemoryClassLoader(entries, baseClassLoader)
-        loadedScript = createScriptFromClassLoader(scriptClassName, classLoader)
+        val script = createScriptFromClassLoader(scriptClassName, classLoader)
         classLoader.shareClassesOf(
             SharedScriptClasses.loadersFor(
-                getScriptOrFail().otherScripts,
+                script.otherScripts,
                 entries,
                 baseClassLoader,
                 ScriptCache.sharedScriptsOf(file),
             ),
         )
-
-        return getScriptOrFail().getClass(scriptEvaluationConfiguration)
+        loadedScript = script
+        return script
     }
 
     override val compilationConfiguration: ScriptCompilationConfiguration

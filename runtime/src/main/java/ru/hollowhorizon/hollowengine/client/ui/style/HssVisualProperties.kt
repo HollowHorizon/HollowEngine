@@ -49,22 +49,27 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "border",
-        summary = "Border width and colour; the radius stays whatever `border-radius` set.",
-        syntax = syntax(sizeSlot("width", auto = false), colorSlot()),
-        examples = listOf("1px #5F6677", "2px rgba(255, 255, 255, 0.5)"),
+        summary = "Border width and fill; the radius stays whatever `border-radius` set.",
+        syntax = syntax(sizeSlot("width", auto = false), paintSlot("color")),
+        examples = listOf(
+            "1px #5F6677",
+            "2px rgba(255, 255, 255, 0.5)",
+            "1px linear-gradient(120deg, #9BF763, #70A832)",
+        ),
     ) {
         style {
             val parsed = parseBorder(value, UiBorder())
             it.borderWidth = parsed.width
-            it.borderColor = parsed.color
+            it.borderPaint = parsed.paint
         }
     }
 
     property(
         "border-color",
-        summary = "Border colour.",
-        syntax = syntax(colorSlot()),
-    ) { style { it.borderColor = parseColor(value) } }
+        summary = "Border fill: a colour, or a gradient stroked around the node.",
+        syntax = syntax(paintSlot("color")),
+        examples = listOf("#5F6677", "linear-gradient(120deg, #9BF763, #70A832)"),
+    ) { style { it.borderPaint = parsePaint(value) } }
 
     property(
         "border-width",
@@ -250,6 +255,18 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
     ) { style { it.imageSlice = parseInsets(value, allowAuto = false) } }
 
     property(
+        "image-uv", "uv",
+        summary = "Part of the source texture to draw, so one atlas can back many nodes.",
+        syntax = syntax(
+            slot("x", HssValueKind.LENGTH, keywords = listOf("none")),
+            sizeSlot("y", auto = false).copy(optional = true),
+            sizeSlot("width", auto = false).copy(optional = true),
+            sizeSlot("height", auto = false).copy(optional = true),
+        ),
+        examples = listOf("none", "16px 0px 16px 16px", "0% 0% 50% 50%"),
+    ) { style { it.imageUv = parseImageUv(value) } }
+
+    property(
         "shape",
         summary = "Vector shape drawn instead of a rectangle.",
         syntax = syntax(slot("shape", HssValueKind.SHAPE)),
@@ -311,15 +328,15 @@ private fun HssPropertyBuilder.borderEdge(
 ) {
     property(
         name,
-        summary = "Width of the $edge border, and the border colour.",
-        syntax = syntax(sizeSlot("width", auto = false), colorSlot().copy(optional = true)),
+        summary = "Width of the $edge border, and the border fill.",
+        syntax = syntax(sizeSlot("width", auto = false), paintSlot("color").copy(optional = true)),
         examples = listOf("1px", "1px #323846"),
     ) {
         style {
             val parts = splitTopLevelWhitespace(value)
             it.borderWidth = patch(it.borderWidth ?: UiInsets.Zero, parseLength(parts.first(), allowAuto = false))
-            parts.drop(1).joinToString(" ").takeIf(String::isNotBlank)?.let { color ->
-                it.borderColor = parseColor(color)
+            parts.drop(1).joinToString(" ").takeIf(String::isNotBlank)?.let { paint ->
+                it.borderPaint = parsePaint(paint)
             }
         }
     }

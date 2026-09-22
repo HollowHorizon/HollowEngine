@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.editor
 
+import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import org.joml.Vector4f
@@ -43,8 +44,10 @@ object WorldToScreenProjector {
         camY = cameraPosition.y
         camZ = cameraPosition.z
         fovYRadians = Math.toRadians(fovDegrees.toDouble()).toFloat()
-        logicalWidth = HollowIdeScale.scaledWidth()
-        logicalHeight = HollowIdeScale.scaledHeight()
+        val target = Minecraft.getInstance().mainRenderTarget
+        val scale = HollowIdeScale.factor()
+        logicalWidth = (target.width / scale).coerceAtLeast(1f)
+        logicalHeight = (target.height / scale).coerceAtLeast(1f)
     }
 
     val width: Float get() = logicalWidth

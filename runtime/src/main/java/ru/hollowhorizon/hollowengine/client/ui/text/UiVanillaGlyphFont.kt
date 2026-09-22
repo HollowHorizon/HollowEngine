@@ -7,6 +7,8 @@ internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyph
     private val pages = HashMap<ResourceLocation, UiGlyphAtlasPage>()
     private val placed = HashMap<Int, UiPlacedGlyph>()
 
+    private var epoch = UiFontResources.generation
+
     override val lineHeight: Float get() = UiVanillaFont.lineHeightEm
     override val ascender: Float get() = UiVanillaFont.ascenderEm
     override val descender: Float get() = UiVanillaFont.descenderEm
@@ -19,6 +21,11 @@ internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyph
     override fun advance(codepoint: Int): Float = face.advance(codepoint)
 
     override fun glyph(codepoint: Int): UiPlacedGlyph? {
+        if (epoch != UiFontResources.generation) {
+            epoch = UiFontResources.generation
+            pages.clear()
+            placed.clear()
+        }
         placed[codepoint]?.let { return it }
         val glyph = face.glyphOrFallback(codepoint) ?: return null
         val texture = glyph.texture ?: return null
@@ -37,11 +44,14 @@ internal class UiVanillaGlyphFont(private val face: UiVanillaFontFace) : UiGlyph
         ).also { placed[codepoint] = it }
     }
 
-    private fun pageFor(texture: ResourceLocation) = UiGlyphAtlasPage(
-        textureId = Minecraft.getInstance().textureManager.getTexture(texture).id,
-        width = 1f,
-        height = 1f,
-        distanceRange = 0f,
-        sampling = if (texture in face.coloredSheets) UiGlyphSampling.COLOR else UiGlyphSampling.ALPHA,
-    )
+    private fun pageFor(texture: ResourceLocation): UiGlyphAtlasPage {
+        val size = face.sheetSizes[texture]
+        return UiGlyphAtlasPage(
+            textureId = Minecraft.getInstance().textureManager.getTexture(texture).id,
+            width = size?.width ?: 1f,
+            height = size?.height ?: 1f,
+            distanceRange = 0f,
+            sampling = if (texture in face.coloredSheets) UiGlyphSampling.COLOR else UiGlyphSampling.ALPHA,
+        )
+    }
 }

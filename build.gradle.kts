@@ -110,14 +110,12 @@ fun Project.configureHollowAddon() {
         add("testImplementation", "androidx.compose.runtime:runtime:$composeRuntimeVersion")
     }
 
-    val namedClassesJar = tasks.named<Jar>("jar") {
+    tasks.named<Jar>("jar") {
         archiveClassifier.set("classes-named")
         include("**/*.class")
     }
     tasks.named<RemapJarTask>("remapJar") {
-        dependsOn(namedClassesJar)
-        inputFile.set(namedClassesJar.flatMap { it.archiveFile })
-        archiveClassifier.set("classes-intermediary")
+        enabled = false
     }
 
     apply(from = rootProject.file("gradle/addon-packaging.gradle.kts"))
@@ -130,6 +128,11 @@ fun Project.configureHollowAddon() {
     }
     tasks.withType<JavaCompile>().configureEach {
         options.release.set(21)
+    }
+    tasks.withType<Test>().configureEach {
+        val sandbox = layout.buildDirectory.dir("test-workdir")
+        workingDir = sandbox.get().asFile
+        doFirst { workingDir.mkdirs() }
     }
 }
 
@@ -206,6 +209,8 @@ fun releaseTypeProvider(): Provider<ReleaseType> {
         .orElse(ReleaseType.STABLE)
 }
 
+apply(from = rootProject.file("gradle/universal-jar.gradle.kts"))
+
 publishMods {
     changelog.set(providers.gradleProperty("publish.changelog").orElse(providers.provider {
         if (publishChangelogFile.exists()) {
@@ -233,45 +238,27 @@ publishMods {
         minecraftVersions.add(minecraftVersion)
     }
 
-    curseforge("curseforgeFabric") {
+    val universalJar = tasks.named("universalJar")
+    val universalJarFile = layout.file(universalJar.map { it.outputs.files.singleFile })
+
+    curseforge {
         from(curseforgeOptions)
-        file(project(":bootstrap:fabric"))
-        displayName.set("$modName $modVersion Fabric $minecraftVersion")
-        modLoaders.add("fabric")
-        requires("fabric-api")
+        file.set(universalJarFile)
+        displayName.set("$modName $modVersion $minecraftVersion")
+        modLoaders.addAll(enabledPlatforms)
+        embeds("fabric-api")
     }
 
-    curseforge("curseforgeNeoForge") {
-        from(curseforgeOptions)
-        file(project(":bootstrap:neoforge"))
-        displayName.set("$modName $modVersion NeoForge $minecraftVersion")
-        modLoaders.add("neoforge")
-    }
-
-    modrinth("modrinthFabric") {
+    modrinth {
         from(modrinthOptions)
-        file(project(":bootstrap:fabric"))
-        displayName.set("$modName $modVersion Fabric $minecraftVersion")
-        modLoaders.add("fabric")
-        requires("fabric-api")
-    }
-
-    modrinth("modrinthNeoForge") {
-        from(modrinthOptions)
-        file(project(":bootstrap:neoforge"))
-        displayName.set("$modName $modVersion NeoForge $minecraftVersion")
-        modLoaders.add("neoforge")
+        file.set(universalJarFile)
+        displayName.set("$modName $modVersion $minecraftVersion")
+        modLoaders.addAll(enabledPlatforms)
+        embeds("fabric-api")
     }
 }
 
 tasks.named<Sync>("buildAndCollect") {
-    enabledPlatforms.forEach { platform ->
-        val projectPath = ":bootstrap:$platform"
-        val bootstrapProject = project(projectPath)
-        val remapJar = bootstrapProject.tasks.named<RemapJarTask>("remapJar")
-        dependsOn(remapJar)
-        from(remapJar.flatMap { it.archiveFile })
-    }
     val compilerJar = project(":addons:compiler").tasks.named<Jar>("addonJar")
     dependsOn(compilerJar)
     from(compilerJar.flatMap { it.archiveFile })

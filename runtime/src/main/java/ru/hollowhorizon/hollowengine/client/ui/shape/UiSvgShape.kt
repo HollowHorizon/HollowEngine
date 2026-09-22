@@ -7,6 +7,7 @@ import org.xml.sax.InputSource
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import java.awt.Font
 import java.awt.GraphicsEnvironment
 import java.awt.font.FontRenderContext
@@ -71,19 +72,20 @@ private class SvgParseSession(
     private val root = parseRoot(source)
     private val cssRules = parseSvgCssRules(root)
     private val idIndex = buildIdIndex(root)
+    private val viewBox = parseViewBox(root)
 
     fun parse(): UiSvgPathDocument {
         require(root.svgName() == "svg") { "Expected <svg> root, got <${root.tagName}>" }
         val elements = collect(root, SvgContext(isRoot = true))
         val path = combineSvgPaths(elements.map { it.path })
         require(!path.isEmpty()) { "SVG file does not contain drawable geometry" }
-        return UiSvgPathDocument(path = path, viewBox = parseViewBox(root), elements = elements)
+        return UiSvgPathDocument(path = path, viewBox = viewBox, elements = elements)
     }
 
     private fun collect(element: Element, context: SvgContext): List<UiSvgPathElement> {
         val name = element.svgName()
         if (name in ignoredElements) return emptyList()
-        if (name == "defs" && context.renderDefinitions.not()) return emptyList()
+        if (name in definitionElements && context.renderDefinitions.not()) return emptyList()
 
         val style = element.resolveSvgStyle(context.style, cssRules)
         if (!style.display || !style.visibility || style.opacity <= 0f) return emptyList()
@@ -202,26 +204,40 @@ private class SvgParseSession(
         if (sourcePath.isEmpty()) return emptyList()
         val id = element.svgId()
         val result = mutableListOf<UiSvgPathElement>()
+        val bounds = sourcePath.bounds()
 
-        context.style.fillColor()?.let { color ->
-            appendElementPath(result, sourcePath.withFillRule(context.style.fillRule), context, id, color)
+        val fill = svgPaint(context.style.fillRef, context, bounds, context.style.fillAlpha())
+            ?: context.style.fillColor()?.let(UiPaint::Color)
+        if (fill != null) {
+            appendElementPath(result, sourcePath.withFillRule(context.style.fillRule), context, id, fill)
         }
 
         val strokePath = sourcePath.toSvgStrokePath(context.style)
-        val strokeColor = context.style.strokeColor()
-        if (strokePath != null && strokeColor != null) {
-            appendElementPath(result, strokePath, context, id, strokeColor)
+        val stroke = svgPaint(context.style.strokeRef, context, bounds, context.style.strokeAlpha())
+            ?: context.style.strokeColor()?.let(UiPaint::Color)
+        if (strokePath != null && stroke != null) {
+            appendElementPath(result, strokePath, context, id, stroke)
         }
 
         return result
     }
+
+    private fun svgPaint(reference: String?, context: SvgContext, bounds: UiRect?, alpha: Float): UiPaint? =
+        resolveSvgPaint(
+            reference = reference,
+            viewBox = viewBox,
+            transform = context.transform,
+            objectBounds = bounds,
+            alpha = alpha,
+            elementById = idIndex::get,
+        )
 
     private fun appendElementPath(
         result: MutableList<UiSvgPathElement>,
         sourcePath: UiPath,
         context: SvgContext,
         id: String?,
-        color: UiColor,
+        paint: UiPaint,
     ) {
         val transformed = sourcePath.transformed(context.transform)
         val clipped = applyClipAndMask(transformed, context)
@@ -230,7 +246,7 @@ private class SvgParseSession(
                 path = clipped,
                 style = context.style,
                 id = id,
-                paint = color,
+                paint = paint,
                 filterEffects = parseSvgFilterEffects(context.style.filter, idIndex::get),
             )
         }
@@ -240,26 +256,26 @@ private class SvgParseSession(
         val clipReference = parseUrlReference(context.style.clipPath)
         val maskReference = parseUrlReference(context.style.mask)
         var result = path
-        if (clipReference != null) referencePathOrNull(clipReference, context)?.let {
+        if (clipReference != null) referencePathOrNull(clipReference, context, luminance = false)?.let {
             result = result.intersectedWith(it)
         }
-        if (maskReference != null) referencePathOrNull(maskReference, context)?.let {
+        if (maskReference != null) referencePathOrNull(maskReference, context, luminance = true)?.let {
             result = result.intersectedWith(it)
         }
         return result
     }
 
-    private fun referencePathOrNull(href: String, context: SvgContext): UiPath? {
+    private fun referencePathOrNull(href: String, context: SvgContext, luminance: Boolean): UiPath? {
         return runCatching {
-            combineSvgPaths(
-                collectReference(
-                    href,
-                    context.copy(style = context.style.withoutGeometryEffects())
-                ).map { it.path })
+            val elements = collectReference(href, context.copy(style = context.style.withoutGeometryEffects()))
+            if (!luminance) combineSvgPaths(elements.map { it.path })
+            else combineSvgMask(elements.map { it.path to (it.paint as? UiPaint.Color)?.color.orWhite() })
         }.getOrElse { error ->
             if (error.message?.contains("was not found") == true) null else throw error
         }
     }
+
+    private fun UiColor?.orWhite(): UiColor = this ?: UiColor.White
 
     private fun collectChildren(element: Element, context: SvgContext): List<UiSvgPathElement> {
         val paths = mutableListOf<UiSvgPathElement>()
@@ -458,16 +474,6 @@ private fun parseOptionalViewBox(element: Element): UiRect? {
     return UiRect(numbers[0], numbers[1], numbers[2], numbers[3])
 }
 
-private fun Element.children(): List<Element> {
-    val result = mutableListOf<Element>()
-    var child = firstChild
-    while (child != null) {
-        if (child.nodeType == Node.ELEMENT_NODE) result += child as Element
-        child = child.nextSibling
-    }
-    return result
-}
-
 private fun Element.href(): String {
     return getAttribute("href").ifBlank { getAttribute("xlink:href") }.trim()
 }
@@ -560,4 +566,6 @@ private val genericFamilies = mapOf(
 )
 
 private val ignoredElements = setOf("desc", "metadata", "style", "title", "stop")
+
+private val definitionElements = setOf("defs", "clippath", "mask", "symbol")
 private val fontRenderContext = FontRenderContext(null, true, true)

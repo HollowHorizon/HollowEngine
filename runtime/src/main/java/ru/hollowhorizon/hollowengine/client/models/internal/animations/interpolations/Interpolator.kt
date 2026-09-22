@@ -9,7 +9,7 @@ interface Interpolator<T> {
 }
 
 abstract class StaticInterpolator<T>(val keys: FloatArray, val values: Array<T>) : Interpolator<T> {
-    override val duration = keys.lastOrNull() ?: 0f
+    override val duration: Float = keys.lastOrNull() ?: 0f
 
     override fun compute(time: Float, context: BedrockContext): T = compute(time)
 
@@ -20,4 +20,17 @@ abstract class StaticInterpolator<T>(val keys: FloatArray, val values: Array<T>)
             val index = java.util.Arrays.binarySearch(keys, this)
             return if (index >= 0) index else (-index - 2).coerceAtLeast(0)
         }
+}
+
+/**
+ * Track in which keys retain their values until the next track, rather than smoothly transitioning into it.
+ */
+abstract class SteppedInterpolator<T>(keys: FloatArray, values: Array<T>) : StaticInterpolator<T>(keys, values) {
+    override val duration: Float = when {
+        keys.isEmpty() -> 0f
+        keys.size < 2 -> keys.last()
+        else -> keys.last() + (keys.last() - keys[keys.size - 2])
+    }
+
+    override fun compute(time: Float): T = values[time.animIndex.coerceAtMost(values.lastIndex)]
 }

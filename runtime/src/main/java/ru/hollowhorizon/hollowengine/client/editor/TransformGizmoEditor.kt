@@ -10,7 +10,6 @@ import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import net.minecraft.world.entity.Entity
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -25,14 +24,13 @@ import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeModifierMask
-import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeOverlayPoint
+import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeWorldPoint
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
-import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -42,7 +40,7 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.attachments.binding.*
 import ru.hollowhorizon.hollowengine.common.attachments.components.*
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.Snapshot
-import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.util.*
 import kotlin.math.*
 
@@ -72,11 +70,33 @@ object TransformGizmoEditor {
     private var labelState by mutableStateOf<OverlayLabelState?>(null)
     private var contextMenuState by mutableStateOf<ContextMenuState?>(null)
 
+    private var modesValue by mutableStateOf(setOf(GizmoEditMode.TRANSLATE))
     private var enabledValue by mutableStateOf(false)
-    private var modeValue by mutableStateOf(GizmoEditMode.TRANSLATE)
 
-    val isEnabled: Boolean get() = enabledValue
-    val mode: GizmoEditMode get() = modeValue
+    val isEnabled: Boolean
+        get() {
+            ensureInitialized()
+            return enabledValue && !isProduction
+        }
+
+    fun setEnabled(enabled: Boolean) {
+        ensureInitialized()
+        if (enabledValue == enabled) return
+        enabledValue = enabled
+        HollowEngineConfig.gizmoEnabled = enabled
+        if (!enabled) cancelInteraction()
+    }
+
+    /** The manipulators drawn together; never empty, the last one stays remembered while the gizmo is off. */
+    val modes: Set<GizmoEditMode> get() = modesValue
+
+    /**
+     * Entities the gizmo already boxes, because a node of theirs is on screen.
+     */
+    internal fun boxedEntityIds(): Set<Int> {
+        if (!isEditorAvailable()) return emptySet()
+        return entries.values.filter { it.visible }.mapNotNullTo(HashSet()) { it.entityId }
+    }
 
     private val overlay: HollowUiWorldOverlay by lazy {
         HollowUiWorldOverlay(
@@ -89,28 +109,47 @@ object TransformGizmoEditor {
         }
     }
 
-    fun toggleEnabled() = setEnabled(!isEnabled)
+    fun isModeShown(mode: GizmoEditMode): Boolean = isEnabled && mode in modesValue
 
-    fun setEnabled(enabled: Boolean) {
-        if (enabledValue == enabled) return
-        enabledValue = enabled
-        HollowEngineConfig.gizmoEnabled = enabled
-        if (!enabled) cancelInteraction()
+    /**
+     * Shows or hides gizmo manipulator and it's mode.
+     */
+    fun setModeShown(mode: GizmoEditMode, shown: Boolean) {
+        ensureInitialized()
+        when {
+            shown && !isEnabled -> {
+                setModes(setOf(mode))
+                setEnabled(true)
+            }
+
+            shown -> setModes(modesValue + mode)
+            !isEnabled || mode !in modesValue -> Unit
+            modesValue.size == 1 -> setEnabled(false)
+            else -> setModes(modesValue - mode)
+        }
     }
 
-    fun setMode(mode: GizmoEditMode) {
-        if (modeValue == mode) return
-        modeValue = mode
-        HollowEngineConfig.gizmoMode = mode
-        cancelInteraction()
-    }
+    fun toggleMode(mode: GizmoEditMode) = setModeShown(mode, !isModeShown(mode))
 
+    private fun setModes(modes: Set<GizmoEditMode>) {
+        if (modes.isEmpty() || modesValue == modes) return
+        modesValue = modes
+        HollowEngineConfig.gizmoModes = GizmoEditMode.entries.filter(modes::contains).joinToString(",") { it.name }
+        currentDrag = null
+        draggingKey = null
+        draggingHandleId = null
+        hoveredHandleId = null
+        labelState = null
+    }
 
     private fun ensureInitialized() {
         if (isInitialized) return
         isInitialized = true
         enabledValue = HollowEngineConfig.gizmoEnabled
-        modeValue = HollowEngineConfig.gizmoMode
+        modesValue = HollowEngineConfig.gizmoModes.split(',')
+            .mapNotNull { name -> GizmoEditMode.entries.firstOrNull { it.name.equals(name.trim(), ignoreCase = true) } }
+            .toSet()
+            .ifEmpty { setOf(GizmoEditMode.TRANSLATE) }
     }
 
     @SubscribeEvent
@@ -158,7 +197,7 @@ object TransformGizmoEditor {
     @SubscribeEvent
     fun onApplyCursor(event: RenderTickEvent.Post) {
         val window = Minecraft.getInstance().window.window
-        if (!isInitialized || !isEditorAvailable() || crosshairMode()) {
+        if (!isInitialized || !isEditorAvailable() || crosshairMode() || pointerOverIde()) {
             UiCursorManager.release(window, this)
             return
         }
@@ -174,7 +213,7 @@ object TransformGizmoEditor {
     fun handleMouseButton(physX: Float, physY: Float, button: Int, action: Int): Boolean {
         ensureInitialized()
         if (!isEditorAvailable()) return false
-        if (!crosshairMode() && pointerOverIde(physX, physY) && action == GLFW.GLFW_PRESS) return false
+        if (!crosshairMode() && pointerOverIde() && action == GLFW.GLFW_PRESS) return false
         if (!crosshairMode() && overlay.handleMouseButton(physX, physY, button, action)) return true
         val (x, y) = pointerLogical(physX, physY)
         return when (action) {
@@ -182,6 +221,16 @@ object TransformGizmoEditor {
             GLFW.GLFW_RELEASE -> onRelease(button)
             else -> false
         }
+    }
+
+    /**
+     * The editor took the pointer away, so nothing in the world is under it any more. A drag keeps
+     * its handle: it is being held, not hovered.
+     */
+    fun releasePointer() {
+        if (currentDrag != null) return
+        hoveredHandleId = null
+        hoveredKey = null
     }
 
     fun handleMouseMove(physX: Float, physY: Float): Boolean {
@@ -192,7 +241,7 @@ object TransformGizmoEditor {
         overlay.handleMouseMove(physX, physY)
         val (x, y) = pointerLogical(physX, physY)
         val drag = currentDrag
-        if (drag == null && pointerOverIde(physX, physY)) {
+        if (drag == null && pointerOverIde()) {
             hoveredHandleId = null
             hoveredKey = null
             return false
@@ -230,7 +279,7 @@ object TransformGizmoEditor {
         if (!isInitialized || !isEditorAvailable()) return false
         if (draggingKey != null) return true
         if (!crosshairMode()) {
-            if (HollowIdeOverlay.isMouseOver(physX, physY) || pointerOverIde(physX, physY)) return false
+            if (pointerOverIde()) return false
             if (overlay.isMouseOver(physX, physY)) return true
         }
         val (x, y) = pointerLogical(physX, physY)
@@ -261,7 +310,10 @@ object TransformGizmoEditor {
         val hit = pickBounds(x, y)
         return when {
             hit != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
-                activeKey = hit; contextMenuState = null; true
+                activeKey = hit
+                contextMenuState = null
+                entries[hit]?.entityId?.let(WorldInspector::select)
+                true
             }
 
             hit != null && button == GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
@@ -299,7 +351,7 @@ object TransformGizmoEditor {
     private fun activeEntryHandleAt(x: Float, y: Float): GizmoHandle? {
         val entry = activeKey?.let(entries::get)?.takeIf { it.visible } ?: return null
         val working = entry.working ?: return null
-        val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, mode)
+        val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, modes)
         return GizmoPicker.pick(handles, x, y)
     }
 
@@ -398,7 +450,7 @@ object TransformGizmoEditor {
         val working = active.working ?: return
 
         val drag = currentDrag
-        if (mode == GizmoEditMode.ROTATE && drag != null && draggingKey == active.entryId) {
+        if (drag != null && drag.handleId.isRotation() && draggingKey == active.entryId) {
             drag.axis?.let { axis ->
                 val perPixel = WorldToScreenProjector.worldPerPixel(drag.origin)
                 GizmoGeometry.buildRotationSector(drag.origin, axis, drag.startAngle, drag.angle, perPixel)
@@ -409,21 +461,37 @@ object TransformGizmoEditor {
             }
         }
 
-        val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, mode, cullRings = false)
+        val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, modes)
             .sortedByDescending { it.depth }
         for (handle in handles) {
             val highlighted =
                 handle.id == draggingHandleId || (draggingHandleId == null && handle.id == hoveredHandleId)
-            val color = if (highlighted) GizmoColors.highlighted(handle.color) else handle.color
+            val base = if (highlighted) GizmoColors.highlighted(handle.color) else handle.color
+            val emphasis = if (highlighted) 1f else handle.emphasis
             handle.fillPolygon?.let { fill ->
-                val alpha = if (handle.id.isSolidHandle()) 0.72f else 0.22f
-                fillPolygon(scope, fill, UiColor(color.red, color.green, color.blue, alpha))
+                val alpha = (if (handle.id.isSolidHandle()) 0.72f else 0.22f) * emphasis
+                fillPolygon(scope, fill, base.withAlpha(alpha))
             }
-            for (stroke in handle.renderLines) strokeLine(scope, stroke.points, color, handle.width, stroke.closed)
+            for (stroke in handle.renderLines) {
+                val strokeEmphasis = if (highlighted) 1f else emphasis * stroke.emphasis
+                strokeLine(
+                    scope,
+                    stroke.points,
+                    base.withAlpha(base.alpha * strokeEmphasis),
+                    handle.width * (0.55f + 0.45f * strokeEmphasis),
+                    stroke.closed,
+                )
+            }
         }
     }
 
+    private fun UiColor.withAlpha(alpha: Float) = UiColor(red, green, blue, alpha)
+
+    private fun GizmoHandleId.isRotation(): Boolean =
+        this == GizmoHandleId.ROTATE_X || this == GizmoHandleId.ROTATE_Y || this == GizmoHandleId.ROTATE_Z
+
     private fun GizmoHandleId.isSolidHandle(): Boolean = when (this) {
+        GizmoHandleId.AXIS_X, GizmoHandleId.AXIS_Y, GizmoHandleId.AXIS_Z,
         GizmoHandleId.SCALE_X, GizmoHandleId.SCALE_Y, GizmoHandleId.SCALE_Z, GizmoHandleId.SCALE_UNIFORM -> true
         else -> false
     }
@@ -509,24 +577,17 @@ object TransformGizmoEditor {
 
     private fun crosshairMode(): Boolean = Minecraft.getInstance().screen == null
 
-    private fun pointerOverIde(physX: Float, physY: Float): Boolean =
-        HollowIdeOverlay.isVisible() && HollowIdeOverlay.isMouseOver(physX, physY)
+    private fun pointerOverIde(): Boolean = HollowIdeOverlay.holdsPointer()
 
     private fun pointerLogical(physX: Float, physY: Float): Pair<Float, Float> =
         if (crosshairMode()) {
             WorldToScreenProjector.screenCenter()
         } else {
-            val point = hollowIdeOverlayPoint(physX, physY)
+            val point = hollowIdeWorldPoint(physX, physY)
             point.x to point.y
         }
 
-    private fun isEditorAvailable(): Boolean {
-        val minecraft = Minecraft.getInstance()
-        return isEnabled &&
-                minecraft.level != null &&
-                minecraft.player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true &&
-                (minecraft.screen == null || minecraft.screen is ChatScreen)
-    }
+    private fun isEditorAvailable(): Boolean = isEnabled && EditorMode.isAvailable()
 
     internal fun resolveTarget(model: Model?): TransformGizmoTarget =
         if (model != null) TransformGizmoTarget(TransformGizmoTargetType.MODEL, "Model", MODEL_ICON)

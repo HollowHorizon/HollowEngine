@@ -1,9 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.compiler.configuration
 
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Attach
+import ru.hollowhorizon.hollowengine.common.scripting.annotations.ClientSide
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
+import ru.hollowhorizon.hollowengine.common.scripting.annotations.ServerSide
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.SharedScript
-import ru.hollowhorizon.hollowengine.common.utils.isProduction
+import ru.hollowhorizon.hollowengine.common.utils.RuntimeFlags
 import java.io.File
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.jvm.dependenciesFromCurrentContext
@@ -27,17 +29,19 @@ open class HollowScriptConfiguration(classpath: List<File>, body: Builder.() -> 
         )
 
         updateClasspath(classpath)
-        if(!isProduction) dependenciesFromCurrentContext(wholeClasspath = true)
+        if (!RuntimeFlags.production) dependenciesFromCurrentContext(wholeClasspath = true)
     }
 
     defaultImports(Import::class)
     defaultImports(Attach::class)
     defaultImports(SharedScript::class)
+    defaultImports(ClientSide::class, ServerSide::class)
 
     refineConfiguration {
         onAnnotations(Import::class, handler = HollowScriptConfigurator())
         onAnnotations(Attach::class, handler = AttachConfigurator())
         onAnnotations(SharedScript::class, handler = SharedScriptConfigurator())
+        onAnnotations(ClientSide::class, ServerSide::class, handler = ScriptSideConfigurator())
     }
 
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }

@@ -12,9 +12,13 @@ import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.attachments.api.Component
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.editor.VirtualComponentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.attachments.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.attachments.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.models.AnimatorLayerTypes
+import ru.hollowhorizon.hollowengine.common.models.AnimatorStateTypes
+import ru.hollowhorizon.hollowengine.common.models.RigAttachmentTypes
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
@@ -38,6 +42,11 @@ internal val TagModule
                 subclass(it.value, JavaHacks.forceCast(it.serializer))
             }
         }
+        VirtualComponentRegistry.registerSerializers(this)
+        AnimatorLayerTypes.registerInto(this)
+        AnimatorStateTypes.registerInto(this)
+        RigAttachmentTypes.registerInto(this)
+
         polymorphic(Tag::class) {
             subclass(ByteTag::class, ForByteNBT)
             subclass(ShortTag::class, ForShortNBT)
@@ -80,8 +89,37 @@ internal val TagModule
         contextual(ForUuid)
     }
 
-open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<Tag> {
-    override val serializersModule = TagModule.overwriteWith(context)
+/**
+ * Says when [TagModule] has to be built again.
+ */
+object TagModuleRevision {
+    @Volatile
+    var current: Int = 0
+        private set
+
+    @Synchronized
+    fun invalidate() {
+        current++
+    }
+}
+
+open class NBTFormat(private val context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<Tag> {
+    @Volatile
+    private var cachedModule: SerializersModule? = null
+
+    @Volatile
+    private var cachedRevision = -1
+
+    override val serializersModule: SerializersModule
+        get() {
+            val revision = TagModuleRevision.current
+            cachedModule?.takeIf { cachedRevision == revision }?.let { return it }
+
+            return TagModule.overwriteWith(context).also {
+                cachedModule = it
+                cachedRevision = revision
+            }
+        }
 
     companion object Default : NBTFormat() {
         @JvmField
@@ -90,11 +128,6 @@ open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : Se
         init {
             LOGGER.info("Default Serializer loaded!")
         }
-
-        fun serializeEntity(snapshot: EntitySnapshot): Tag = EntitySerialization.serializeToNbt(snapshot)
-        fun serializeEntity(entity: MCEntity): Tag = EntitySerialization.serializeEntityToNbt(entity)
-        fun deserializeEntity(tag: Tag): EntitySnapshot = EntitySerialization.deserializeFromNbt(tag)
-        fun deserializeInto(target: MCEntity, tag: Tag): EntitySnapshot = EntitySerialization.deserializeInto(target, tag)
     }
 
     @Serializable
@@ -155,5 +188,3 @@ internal fun compoundTagInvalidKeyKind(keyDescriptor: SerialDescriptor) = Illega
     "Value of type ${keyDescriptor.serialName} can't be used in a compound tag as map key. " +
             "It should have either primitive or enum kind, but its kind is ${keyDescriptor.kind}."
 )
-
-fun KClass<*>.isSerializable() = annotations.any { it is Serializable }

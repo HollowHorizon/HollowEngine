@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.inspector.TextRow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 
 internal const val AnimatorStylesheet = "hollowengine:ui/styles/animator-editor.hss"
@@ -57,9 +58,7 @@ internal fun AnimatorButton(
     Box(
         mode = UiBoxMode.STACK,
         tags = listOf("animator-button"),
-        modifier = modifier
-            .input(hoverable = true, clickable = true)
-            .onClick { event ->
+        modifier = modifier.input(hoverable = true, clickable = true).onClick { event ->
                 if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
                 event.consume()
             },
@@ -73,17 +72,15 @@ internal fun AnimatorIconButton(
     icon: String,
     tooltip: String,
     size: Float = 16f,
+    active: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Image(
         icon,
-        tags = listOf("animator-icon-button"),
-        modifier = modifier
-            .size((size + 6f).px, (size + 6f).px)
-            .input(hoverable = true, clickable = true)
-            .tooltipOnHover(tooltip)
-            .onClick { event ->
+        tags = if (active) listOf("animator-icon-button", "active") else listOf("animator-icon-button"),
+        modifier = modifier.size((size + 6f).px, (size + 6f).px).input(hoverable = true, clickable = true)
+            .tooltipOnHover(tooltip).onClick { event ->
                 if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
                 event.consume()
             },
@@ -91,30 +88,14 @@ internal fun AnimatorIconButton(
 }
 
 /**
- * A row of choices that wraps by itself.
+ * Field that holding an animation expression.
  */
 @Composable
-internal fun AnimatorPillFlow(content: HollowUiContent) {
-    Layout(
-        content = content,
-        modifier = Modifier.size(100.percent, UiLength.Fit).gap(3.px).lineSpacing(3f).textWrap(),
-        measurePolicy = UiMeasurePolicies.InlineFlow,
-    )
-}
-
-/** One choice out of a small set, the shape the editor uses instead of a dropdown. */
-@Composable
-internal fun AnimatorPill(label: String, active: Boolean, onClick: () -> Unit) {
-    InlineWidget(
-        id = "animator-pill-$label",
-        tags = listOf("animator-pill") + if (active) listOf("active") else emptyList(),
-        modifier = Modifier
-            .input(hoverable = true, clickable = true)
-            .onClick { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
-                event.consume()
-            },
-    ) {
-        Text(label, tags = listOf("animator-pill-label"))
-    }
-}
+internal fun ExpressionField(label: String, value: String, onChange: (String) -> Unit) = TextRow(
+    label = label,
+    value = value,
+    completions = AnimationExpressionCompletions,
+    highlighter = AnimationExpressionHighlighter,
+    diagnostics = animationExpressionDiagnostics(value),
+    onChange = onChange,
+)

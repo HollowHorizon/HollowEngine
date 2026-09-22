@@ -36,6 +36,20 @@ object UiSessionManager {
         return session
     }
 
+    /**
+     * A session for a screen the client already has open.
+     */
+    fun openHeadless(
+        player: ServerPlayer,
+        surface: ResourceLocation,
+        body: UiSession.() -> Unit,
+    ): UiSession {
+        val session = UiSession(nextId.getAndIncrement(), player, surface, UiSurfaceKind.SCREEN)
+        sessions[session.id] = session
+        session.body()
+        return session
+    }
+
     fun close(session: UiSession) {
         if (sessions.remove(session.id) == null) return
         if (!session.player.hasDisconnected()) CloseUiPacket(session.id).send(session.player)

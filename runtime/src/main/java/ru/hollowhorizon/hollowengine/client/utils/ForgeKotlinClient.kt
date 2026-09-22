@@ -4,13 +4,11 @@ import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.renderer.texture.AbstractTexture
-import net.minecraft.client.server.IntegratedServer
 import net.minecraft.core.RegistryAccess
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.VanillaInstancingBackend
 import ru.hollowhorizon.hollowengine.common.utils.HollowJavaUtils
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import java.io.InputStream
 
@@ -38,10 +36,8 @@ data class InstancingEntityInfo(
     val item: Int = -1,
 )
 
-val registryAccess: RegistryAccess
-    get() = if (currentServer is IntegratedServer) Minecraft.getInstance().connection?.registryAccess()
-        ?: currentServer.registryAccess()
-    else currentServer.registryAccess()
+val clientRegistryAccess: RegistryAccess?
+    get() = mc.connection?.registryAccess()
 
 
 fun ResourceLocation.exists(): Boolean {

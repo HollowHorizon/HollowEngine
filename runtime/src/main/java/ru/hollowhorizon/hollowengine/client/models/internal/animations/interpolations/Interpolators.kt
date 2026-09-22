@@ -8,13 +8,11 @@ import kotlin.math.cos
 import kotlin.math.atan2
 import kotlin.math.sin
 
-class Vec3Step(keys: FloatArray, values: Array<Vec3f>) : StaticInterpolator<Vec3f>(keys, values) {
-    override fun compute(time: Float): Vec3f = values[time.animIndex]
-}
+class Vec3Step(keys: FloatArray, values: Array<Vec3f>) : SteppedInterpolator<Vec3f>(keys, values)
 
-class QuatStep(keys: FloatArray, values: Array<QuatF>) : StaticInterpolator<QuatF>(keys, values) {
-    override fun compute(time: Float): QuatF = values[time.animIndex]
-}
+class QuatStep(keys: FloatArray, values: Array<QuatF>) : SteppedInterpolator<QuatF>(keys, values)
+
+class FloatsStep(keys: FloatArray, values: Array<FloatArray>) : SteppedInterpolator<FloatArray>(keys, values)
 
 class LinearSingle(keys: FloatArray, values: Array<FloatArray>) : StaticInterpolator<FloatArray>(keys, values) {
     override fun compute(time: Float): FloatArray {

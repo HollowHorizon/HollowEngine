@@ -30,22 +30,19 @@ object HollowIdeScale {
 
     fun factor(): Float {
         val mc = Minecraft.getInstance()
-        val window = mc.window
-        val fits = min(window.width / MinLogicalWidth, window.height / MinLogicalHeight).coerceAtLeast(1f)
+        val width = HollowIdeGameViewport.windowWidth().toFloat()
+        val height = HollowIdeGameViewport.windowHeight().toFloat()
+        val fits = min(width / MinLogicalWidth, height / MinLogicalHeight).coerceAtLeast(1f)
         val scale = guiScale
         if (scale >= MinScale) return scale.coerceAtMost(fits)
-        return window.calculateScale(0, mc.isEnforceUnicode).coerceAtLeast(1).toFloat()
+        return mc.window.calculateScale(0, mc.isEnforceUnicode).coerceAtLeast(1).toFloat()
     }
 
-    fun scaledWidth(): Float {
-        val window = Minecraft.getInstance().window
-        return ceil(window.width.toDouble() / factor()).toFloat().coerceAtLeast(1f)
-    }
+    fun scaledWidth(): Float =
+        ceil(HollowIdeGameViewport.windowWidth().toDouble() / factor()).toFloat().coerceAtLeast(1f)
 
-    fun scaledHeight(): Float {
-        val window = Minecraft.getInstance().window
-        return ceil(window.height.toDouble() / factor()).toFloat().coerceAtLeast(1f)
-    }
+    fun scaledHeight(): Float =
+        ceil(HollowIdeGameViewport.windowHeight().toDouble() / factor()).toFloat().coerceAtLeast(1f)
 
     /** What the slider shows: whole steps, with the configured fraction spelled out as it is. */
     fun label(scale: Float): String = when {

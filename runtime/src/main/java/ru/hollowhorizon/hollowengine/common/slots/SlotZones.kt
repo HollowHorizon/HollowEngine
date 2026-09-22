@@ -33,6 +33,7 @@ class SlotRulesBuilder internal constructor() {
  */
 class SlotZoneBuilder internal constructor(val name: String, val source: SlotSource) {
     var role: SlotZoneRole = SlotZoneRole.BOTH
+    var copyOnClick: Boolean = false
     var canInsert: SlotFilter = SlotFilter.Any
     var canExtract: SlotFilter = SlotFilter.Any
 
@@ -140,6 +141,7 @@ class SlotZoneBuilder internal constructor(val name: String, val source: SlotSou
             role = role,
             rules = defaults(),
             overrides = resolved,
+            copyOnClick = copyOnClick,
             predictable = allowInsertCheck == null && allowExtractCheck == null &&
                     resolved.all { it.rules.isPredictable },
         )

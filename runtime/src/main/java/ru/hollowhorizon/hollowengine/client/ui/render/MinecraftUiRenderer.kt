@@ -18,7 +18,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
 import org.joml.Quaternionf
-import org.joml.Vector3f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -147,6 +146,7 @@ class MinecraftUiRenderer {
     private var renderTarget: UiRenderTarget? = null
     private var preparingLayerAtlas = false
     private val itemAxisScales = FloatArray(2)
+    private val resolutionScratch = FloatArray(2)
 
     /**
      * Depth handed to the next item this frame.
@@ -622,6 +622,7 @@ class MinecraftUiRenderer {
             fit = command.fit,
             slice = command.slice,
             tint = command.tint,
+            uv = command.uv,
         )
     }
 
@@ -666,8 +667,9 @@ class MinecraftUiRenderer {
         return runCatching {
             val intrinsicSize = UiSvgRasterizer.intrinsicSize(location, revision)
             val placement = imagePlacement(width, height, fit, intrinsicSize)
-            val pixelWidth = rasterPixelSize(placement.width)
-            val pixelHeight = rasterPixelSize(placement.height)
+            val resolution = transformResolutionScale(transform, resolutionScratch)
+            val pixelWidth = rasterPixelSize(placement.width * resolution)
+            val pixelHeight = rasterPixelSize(placement.height * resolution)
             val texture =
                 svgRasterTextures.computeIfAbsent(SvgRasterKey(location, revision, pixelWidth, pixelHeight)) { key ->
                     createSvgRasterTexture(key)
@@ -900,12 +902,13 @@ class MinecraftUiRenderer {
 
     private fun appendBorderShapes(command: DrawBoxCommand, transform: UiMatrix4) {
         val borderWidth = command.border.width.left.resolve(command.rect.width)
-        if (borderWidth <= 0f || command.border.color.alpha <= 0f) return
+        if (borderWidth <= 0f) return
         val width = command.rect.width
         val height = command.rect.height
+        val colorAt = command.border.paint.resolve()
+            .localColorAt(width, height, command.opacity, command.filter) ?: return
         val thickness = borderWidth.coerceAtLeast(1f).coerceAtMost(minOf(width, height) * 0.5f)
-        val color = command.border.color.withOpacity(command.opacity).filtered(command.filter)
-        shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, color, transform)
+        shapeBatch.appendLocalBorder(width, height, command.border.radius, thickness, colorAt, transform)
     }
 
     private fun prepareFramebuffers(layout: UiLayoutResult): Boolean {
@@ -918,8 +921,9 @@ class MinecraftUiRenderer {
             if (!layoutNode.needsFramebuffer) continue
             val padding = layerPadding(node.resolvedSnapshot.filter, overflows[node] ?: 0f)
             layerPaddings[node] = padding
-            val width = ceil((layoutNode.rect.width + padding * 2f) * scale).toInt().coerceAtLeast(1)
-            val height = ceil((layoutNode.rect.height + padding * 2f) * scale).toInt().coerceAtLeast(1)
+            val layerScale = scale * transformResolutionScale(layoutNode.worldTransform, resolutionScratch)
+            val width = ceil((layoutNode.rect.width + padding * 2f) * layerScale).toInt().coerceAtLeast(1)
+            val height = ceil((layoutNode.rect.height + padding * 2f) * layerScale).toInt().coerceAtLeast(1)
             layerRequests += UiLayerRequest(width, height)
         }
         framebuffers.beginFrame(
@@ -932,7 +936,9 @@ class MinecraftUiRenderer {
 
     private fun beginLayer(command: BeginLayerCommand) {
         scissorState = ScissorUnknown
-        val scale = layerScale()
+        // Must match prepareFramebuffers, which sized the atlas this layer is allocated from.
+        val resolution = transformResolutionScale(command.transform, resolutionScratch)
+        val scale = layerScale() * resolution
         val padding = layerPaddings[command.node] ?: layerPadding(command)
         val logicalWidth = command.rect.width + padding * 2f
         val logicalHeight = command.rect.height + padding * 2f
@@ -965,6 +971,7 @@ class MinecraftUiRenderer {
                 backfaceVisibility = command.backfaceVisibility,
                 padding = padding,
                 opacity = command.opacity,
+                resolutionScale = resolution,
             )
         )
         clipStack.clear()
@@ -993,7 +1000,7 @@ class MinecraftUiRenderer {
 
         val copiedSource =
             if (parentLayer != null || layer.filter.blurRadius() > 0f) copyLayerToScratch(layer) else null
-        val blurredSource = blurIfNeeded(copiedSource, layer.filter.blurRadius())
+        val blurredSource = blurIfNeeded(copiedSource, layer.filter.blurRadius() * layer.resolutionScale)
 
         val source = resolveRenderSource(layer, copiedSource, blurredSource)
         val compositeFilter = layer.filter.withoutBlur()
@@ -1336,7 +1343,7 @@ class MinecraftUiRenderer {
         val sourceTexture = Minecraft.getInstance().textureManager.getTexture(location)
         val placement = if (svg != null) {
             ImagePlacement(svg.transform.transformX(0f), svg.transform.transformY(0f), svg.width, svg.height)
-        } else imagePlacement(image.rect.width, image.rect.height, image.fit, location)
+        } else imagePlacement(image.rect.width, image.rect.height, image.fit, location, image.uv)
         val sourceBounds = UiRect(image.rect.x + placement.x, image.rect.y + placement.y, placement.width, placement.height)
         val bounds = image.clipRect?.let(sourceBounds::intersect) ?: sourceBounds
         if (bounds.width <= 0f || bounds.height <= 0f) return true
@@ -1361,6 +1368,7 @@ class MinecraftUiRenderer {
                     capture.translated(image.rect.x, image.rect.y) * (svg?.transform ?: UiMatrix4.identity()),
                     1f, false, fit = if (svg != null) image.fit.svgRasterDrawFit() else image.fit,
                     texture = location, slice = image.slice, alphaMask = true,
+                    uv = if (svg != null) UiImageUv.Full else image.uv,
                 )
             }
             val overlapsOtherTextures = phaseImageBatches.keys.any { it != mask.texture } &&
@@ -1451,6 +1459,7 @@ class MinecraftUiRenderer {
                 slice = command.slice,
                 filter = command.filter,
                 tint = command.tint,
+                uv = command.uv,
             )
 
             is UiResolvedPaint.Shader -> drawLocalPaint(
@@ -1462,27 +1471,36 @@ class MinecraftUiRenderer {
                 command.filter,
             )
         }
-        if (command.border.width.left.resolve(command.rect.width) > 0f && command.border.color.alpha > 0f) {
-            val borderWidth = command.border.width.left.resolve(command.rect.width).coerceAtLeast(1f)
-            val borderColor = command.border.color.withOpacity(command.opacity).filtered(command.filter)
+        val borderWidth = command.border.width.left.resolve(command.rect.width)
+        val borderColorAt = command.border.paint.resolve()
+            .localColorAt(command.rect.width, command.rect.height, command.opacity, command.filter)
+        if (borderWidth > 0f && borderColorAt != null) {
             drawLocalBorder(
-                command.rect.width, command.rect.height, command.border.radius, borderWidth, borderColor, transform
+                command.rect.width,
+                command.rect.height,
+                command.border.radius,
+                borderWidth.coerceAtLeast(1f),
+                borderColorAt,
+                transform,
             )
         }
     }
 
     private fun drawRawTexture(command: DrawRawTextureCommand) {
         if (command.rect.width <= 0f || command.rect.height <= 0f || command.opacity <= 0f) return
+        val texture = command.texture?.invoke() ?: command.textureId
+        if (texture == 0) return
         val transform = effective(command.transform)
         if (isBackfaceHidden(command.rect.width, command.rect.height, transform, command.backfaceVisibility)) return
         UiTextureEffects.drawTexture(
-            texture = command.textureId,
+            texture = texture,
             width = command.rect.width,
             height = command.rect.height,
             transform = transform,
             opacity = command.opacity,
             flipY = command.flipY,
             filter = command.filter,
+            opaqueSource = command.opaque,
         )
     }
 
@@ -2013,6 +2031,7 @@ class MinecraftUiRenderer {
         filter: UiFilterChain = UiFilterChain.Empty,
         slice: UiInsets = UiInsets.Zero,
         tint: UiColor = UiColor.White,
+        uv: UiImageUv = UiImageUv.Full,
     ) {
         val svgQuad = svgRasterQuad(width, height, source, opacity, transform, fit)
         if (svgQuad != null) {
@@ -2045,6 +2064,7 @@ class MinecraftUiRenderer {
             filter = filter,
             slice = slice,
             tint = tint,
+            uv = uv,
         )
     }
 
@@ -2151,9 +2171,10 @@ class MinecraftUiRenderer {
         POSE_STACK.pushPose()
         POSE_STACK.mulPose(transform.toMatrix4f())
         val drawn = try {
-            renderEntity(entity, rect)
+            renderEntity(entity, rect, command.entity.view)
         } finally {
             POSE_STACK.popPose()
+            clearDepthOf(transformedLocalRect(rect, transform))
         }
         if (!drawn) drawEntityPlaceholder(command)
     }
@@ -2196,6 +2217,7 @@ class MinecraftUiRenderer {
         } finally {
             Lighting.setupFor3DItems()
             POSE_STACK.popPose()
+            clearDepthOf(transformedLocalRect(rect, transform))
             if (depthEnabled) RenderSystem.enableDepthTest() else RenderSystem.disableDepthTest()
             GL11.glDepthMask(depthMask)
             RenderSystem.enableBlend()
@@ -2204,21 +2226,21 @@ class MinecraftUiRenderer {
     }
 
     /** Returns false when nothing can draw this entity, so the caller shows the placeholder. */
-    private fun renderEntity(entity: Entity, rect: UiRect): Boolean {
+    private fun renderEntity(entity: Entity, rect: UiRect, view: UiEntityView): Boolean {
         val depthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST)
         val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         POSE_STACK.pushPose()
         try {
-            val xOffset = rect.x + rect.width / 2f
-            val yOffset = rect.y + rect.height
+            val xOffset = rect.x + rect.width / 2f + view.offsetX
+            val yOffset = rect.y + rect.height + view.offsetY
             POSE_STACK.translate(xOffset.toDouble(), yOffset.toDouble(), 0.0)
-            val scale = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
-            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
+            val fit = min(rect.width / entity.bbWidth, rect.height / entity.bbHeight) * 0.92f
+            val scale = fit * view.zoom.coerceAtLeast(0.01f)
             POSE_STACK.scale(scale, scale, -scale)
+            POSE_STACK.mulPose(Axis.ZP.rotationDegrees(-180f))
+            if (view.pitch != 0f) POSE_STACK.mulPose(Axis.XP.rotationDegrees(view.pitch))
 
-            val light0 = Vector3f(-0.3f, 1f, 1f).normalize()
-            val light1 = Vector3f(0.3f, -1f, -1f).normalize()
-            RenderSystem.setShaderLights(light0, light1)
+            Lighting.setupForEntityInInventory()
 
             val mc = Minecraft.getInstance()
             val dispatcher = mc.entityRenderDispatcher
@@ -2227,7 +2249,7 @@ class MinecraftUiRenderer {
             RenderSystem.enableDepthTest()
             GL11.glDepthMask(true)
             try {
-                facingTheViewer(entity) {
+                facingTheViewer(entity, view.yaw) {
                     RenderSystem.runAsFancy {
                         dispatcher.render(entity, 0.0, 0.0, 0.0, 0f, 1f, POSE_STACK, buffers, LightTexture.FULL_BRIGHT)
                     }
@@ -2245,7 +2267,7 @@ class MinecraftUiRenderer {
         }
     }
     
-    private inline fun facingTheViewer(entity: Entity, block: () -> Unit) {
+    private inline fun facingTheViewer(entity: Entity, yaw: Float, block: () -> Unit) {
         val yRot = entity.yRot
         val yRotO = entity.yRotO
         val xRot = entity.xRot
@@ -2258,15 +2280,16 @@ class MinecraftUiRenderer {
         val nameVisible = entity.isCustomNameVisible
         val oldName = entity.customName
         try {
-            entity.yRot = PORTRAIT_YAW
-            entity.yRotO = PORTRAIT_YAW
+            val portraitYaw = PORTRAIT_YAW + yaw
+            entity.yRot = portraitYaw
+            entity.yRotO = portraitYaw
             entity.xRot = 0f
             entity.xRotO = 0f
             living?.let {
-                it.yBodyRot = PORTRAIT_YAW
-                it.yBodyRotO = PORTRAIT_YAW
-                it.yHeadRot = PORTRAIT_YAW
-                it.yHeadRotO = PORTRAIT_YAW
+                it.yBodyRot = portraitYaw
+                it.yBodyRotO = portraitYaw
+                it.yHeadRot = portraitYaw
+                it.yHeadRotO = portraitYaw
             }
             entity.isCustomNameVisible = false
             entity.customName = null
@@ -2387,7 +2410,10 @@ class MinecraftUiRenderer {
 
         val previous = scissorState
         setScissor(rect)
+        val depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
+        if (!depthMask) GL11.glDepthMask(true)
         GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
+        if (!depthMask) GL11.glDepthMask(false)
         scissorState = ScissorUnknown
         setScissor(previous as? UiRect)
     }

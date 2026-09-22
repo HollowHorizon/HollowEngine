@@ -23,6 +23,8 @@ abstract class NodeScript(
     internal val onSaveHandlers = mutableListOf<(SerializationContext) -> Unit>()
     internal val onLoadHandlers = mutableListOf<(SerializationContext) -> Unit>()
     internal val onStartHandlers = mutableListOf<suspend CoroutineScope.() -> Unit>()
+
+    val editor: NodeEditor = NodeEditor(this)
 }
 
 data class SerializationContext(

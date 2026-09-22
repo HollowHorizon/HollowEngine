@@ -6,7 +6,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hollowengine.common.utils.nbt.save
-import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
 import java.io.DataOutputStream
 import java.io.File
@@ -17,7 +16,7 @@ object CutsceneStorage {
     const val ROOT_READABLE_PATH = "cutscenes"
     const val EXTENSION = "dat"
 
-    private const val VERSION = 1
+    private const val VERSION = CutsceneMigrations.CURRENT_VERSION
     private const val VERSION_KEY = "version"
     private const val NAME_KEY = "name"
     private const val DATA_KEY = "data"
@@ -56,7 +55,7 @@ object CutsceneStorage {
             ?: error("Cutscene file is not a compound NBT tag: $readablePath")
         val payload = tag.get(DATA_KEY)
             ?: error("Cutscene file has no `$DATA_KEY` payload: $readablePath")
-        return NBTFormat.deserialize(payload)
+        return CutsceneMigrations.read(payload, tag.getInt(VERSION_KEY))
     }
 
     fun listFiles(): List<String> {

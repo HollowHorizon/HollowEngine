@@ -6,12 +6,14 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.dialogue.StoryCameraSystem
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderArmEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderItemInHandEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
 @ClientOnly
 object CutsceneCameraSystem {
     private var controller: CutscenePlaybackController? = null
+    private var isPreview = false
+    private val environmentOverride = CutsceneEnvironmentOverride()
 
     val activeController: CutscenePlaybackController?
         get() = controller
@@ -27,39 +29,55 @@ object CutsceneCameraSystem {
     /** Whether anything is holding the camera, a cutscene or a story. */
     val isOverriding: Boolean get() = currentPose != null
 
-    fun play(data: CutsceneData, loop: Boolean = false) {
-        controller = CutscenePlaybackController().also {
-            it.setupTracks(data, loop)
-            it.play()
+    fun play(data: CutsceneData, loop: Boolean = false, anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED) {
+        val playback = CutscenePlaybackController().also {
+            it.setupTracks(data, loop, anchor)
         }
+        activate(playback, preview = false)
     }
 
     fun play(controller: CutscenePlaybackController) {
-        this.controller = controller
-        controller.play()
+        activate(controller, preview = false)
     }
 
     fun preview(controller: CutscenePlaybackController) {
-        this.controller = controller
-        controller.pause()
+        activate(controller, preview = true)
     }
 
     fun stop() {
         controller?.stop()
+        releaseController()
+    }
+
+    private fun activate(controller: CutscenePlaybackController, preview: Boolean) {
+        if (this.controller !== controller) environmentOverride.restore()
+        this.controller = controller
+        isPreview = preview
+        if (preview) controller.pause() else controller.play()
+        Minecraft.getInstance().level?.let { level ->
+            environmentOverride.apply(level, controller.currentEnvironment)
+        }
+    }
+
+    private fun releaseController() {
+        environmentOverride.restore()
         controller = null
+        isPreview = false
     }
 
     fun update(minecraft: Minecraft) {
         StoryCameraSystem.update()
         val active = controller ?: return
-        if (minecraft.level == null || minecraft.player == null) {
+        val level = minecraft.level
+        if (level == null || minecraft.player == null) {
             stop()
             return
         }
 
         active.update(minecraft.timer.realtimeDeltaTicks / 20f)
-        if (!active.isPlaying && active.currentTime >= active.duration) {
-            controller = null
+        environmentOverride.apply(level, active.currentEnvironment)
+        if (!isPreview && !active.isPlaying && active.currentTime >= active.duration) {
+            releaseController()
         }
     }
 
@@ -81,7 +99,7 @@ object CutsceneCameraSystem {
     }
 
     @SubscribeEvent
-    fun onRenderHand(event: RenderArmEvent) {
+    fun onRenderHand(event: RenderItemInHandEvent) {
         if (controller != null) event.isCanceled = true
     }
 }

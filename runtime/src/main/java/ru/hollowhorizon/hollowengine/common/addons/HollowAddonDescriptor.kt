@@ -3,8 +3,9 @@ package ru.hollowhorizon.hollowengine.common.addons
 data class HollowAddonDescriptor(
     val id: String,
     val version: String,
-    val entrypoint: String,
+    val entrypoint: String?,
     val dependencies: List<String> = emptyList(),
+    val modDependencies: List<String> = emptyList(),
     val name: String = id,
     val environment: HollowAddonEnvironment = HollowAddonEnvironment.COMMON,
     val requiredClasses: List<String> = emptyList(),

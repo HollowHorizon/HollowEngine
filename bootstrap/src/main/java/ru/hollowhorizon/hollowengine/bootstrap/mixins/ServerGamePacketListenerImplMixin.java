@@ -21,12 +21,12 @@ public abstract class ServerGamePacketListenerImplMixin {
     private void hollowengine$onHandleChat(PlayerChatMessage message, CallbackInfo ci) {
         Component content = message.decoratedContent();
         RuntimeBridge.ChatResult result = BootstrapRuntimeManager.bridge().onServerChat(player, content);
-        if (result.getMessage() != content) {
-            player.server.getPlayerList().getPlayers().forEach(target -> target.sendSystemMessage(result.getMessage()));
+        if (result.message() != content) {
+            player.server.getPlayerList().getPlayers().forEach(target -> target.sendSystemMessage(result.message()));
             detectRateSpam();
             ci.cancel();
             return;
         }
-        if (result.isCancelled()) ci.cancel();
+        if (result.cancelled()) ci.cancel();
     }
 }

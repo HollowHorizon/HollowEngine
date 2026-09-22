@@ -3,6 +3,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.common.attachments.api.ComponentStore
+import ru.hollowhorizon.hollowengine.common.attachments.api.withoutLooseOnDeath
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptor
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.components.ComponentPersistencePolicy
@@ -131,7 +132,7 @@ class ComponentStoreTests {
         val store = ComponentStore()
         store.replaceAll(listOf(KeptComponent("keep"), DroppedComponent("drop")))
 
-        val survivors = store.withoutLooseOnDeath()
+        val survivors = store.copyOf().withoutLooseOnDeath()
 
         assertEquals(setOf(keptId), survivors.keys)
         assertEquals(KeptComponent("keep"), survivors[keptId])

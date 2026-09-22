@@ -1,12 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
 import ru.hollowhorizon.hollowengine.common.scripting.source.DEFAULT_SANDBOX_NAMESPACE
 import java.io.File
 import java.util.Properties
 import java.util.jar.JarFile
 
 internal object HollowAddonDescriptorReader {
-    private const val DESCRIPTOR_PATH = "META-INF/plugin.properties"
+    private val DESCRIPTOR_PATH = AddonBootstrapContract.DESCRIPTOR_PATH
     private val addonIdPattern = Regex("[a-z0-9_.-]+")
 
     fun read(file: File): HollowAddonDescriptor = JarFile(file).use { jar ->
@@ -19,8 +20,9 @@ internal object HollowAddonDescriptorReader {
         HollowAddonDescriptor(
             id = id,
             version = properties.getProperty("version", "1.0.0").trim(),
-            entrypoint = properties.required("entry"),
+            entrypoint = properties.getProperty("entry")?.trim()?.takeIf(String::isNotEmpty),
             dependencies = properties.list("dependsOn"),
+            modDependencies = properties.list("dependsOnMods"),
             name = properties.getProperty("name", id).trim(),
             environment = properties.getProperty("environment", "common")
                 .trim()
@@ -36,7 +38,6 @@ internal object HollowAddonDescriptorReader {
             "Addon id '$DEFAULT_SANDBOX_NAMESPACE' is reserved for the hollowengine directory"
         }
         require(descriptor.version.isNotBlank()) { "Addon '${descriptor.id}' has an empty version" }
-        require(descriptor.entrypoint.isNotBlank()) { "Addon '${descriptor.id}' has an empty entrypoint" }
         require(descriptor.id !in descriptor.dependencies) { "Addon '${descriptor.id}' cannot depend on itself" }
         require(descriptor.dependencies.distinct().size == descriptor.dependencies.size) {
             "Addon '${descriptor.id}' declares duplicate dependencies"

@@ -134,9 +134,20 @@ void main() {
 
     if (geometry.x < 0.0) {
         int glyphPage = int(geometry.w);
-        vec4 texel = sampleGlyphAtlas(glyphPage, glyphUv);
-        vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
         int glyphMode = int(geometry.z);
+        vec2 uv = glyphUv;
+        if (glyphMode != GLYPH_MSDF) {
+            vec2 atlasSize = GlyphAtlasSize[glyphPage];
+            if (atlasSize.x > 1.5 && atlasSize.y > 1.5) {
+                vec4 uvRect = texelFetch(RecordBuffer, base + 1);
+                vec2 halfTexel = 0.5 / atlasSize;
+                vec2 low = min(uvRect.xy, uvRect.zw) + halfTexel;
+                vec2 high = max(uvRect.xy, uvRect.zw) - halfTexel;
+                uv = clamp(glyphUv, min(low, high), max(low, high));
+            }
+        }
+        vec4 texel = sampleGlyphAtlas(glyphPage, uv);
+        vec4 glyphColor = texelFetch(RecordBuffer, base + 2);
         vec3 rgb = glyphColor.rgb;
         float coverage;
         if (glyphMode == GLYPH_MSDF) {
@@ -162,7 +173,10 @@ void main() {
     float borderWidth = geometry.w;
     vec4 effect = texelFetch(RecordBuffer, base + 1);
     int paintIndex = int(effect.x);
-    vec4 borderColor = texelFetch(RecordBuffer, base + 2);
+    int borderPaintIndex = effect.w > 0.5 ? -1 : int(effect.y);
+    vec4 borderColor = borderPaintIndex >= 0
+        ? samplePaint(borderPaintIndex)
+        : texelFetch(RecordBuffer, base + 2);
 
     if (radius <= 0.0 && borderWidth <= 0.0 && effect.w <= 0.5) {
         vec4 fill = samplePaint(paintIndex);

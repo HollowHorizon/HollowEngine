@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.style.DefaultUiFontSize
 import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 
@@ -32,6 +33,8 @@ class TextFieldState(
     private val historyMergeWindowNanos: Long = TextFieldStateHistoryMergeWindowNanos,
     private val nanoTime: () -> Long = System::nanoTime,
 ) {
+    val scroll: UiScrollHandle = UiScrollHandle()
+
     var fontSize: Float by mutableStateOf(fontSize)
     var fontFamily: String? by mutableStateOf(fontFamily)
     var wrap: Boolean by mutableStateOf(wrap)

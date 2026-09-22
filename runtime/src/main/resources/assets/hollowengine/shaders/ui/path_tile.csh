@@ -35,6 +35,7 @@ uniform int CandidateOffset;
 
 const int PATH_STRIDE = 8;
 const int VERTEX_STRIDE = 6;
+const uint VERTICES_PER_TILE = 6u;
 const int TILE_FULL_COVERAGE = 1;
 const int TILE_STYLE_FILL = 0;
 const int TILE_STYLE_STROKE = 1;
@@ -85,9 +86,28 @@ void writeVertex(uint vertexIndex, int pathBase, vec2 localPoint, uint tileIndex
     vertices[offset + 5] = float(tileIndex);
 }
 
+void discardTile(uint vertexStart, uint tileOffset) {
+    tiles[tileOffset] = ivec4(0, 0, 0, 0);
+    tiles[tileOffset + 1u] = ivec4(0, 0, 0, 0);
+    for (uint index = 0u; index < VERTICES_PER_TILE; index++) {
+        uint offset = (vertexStart + index) * uint(VERTEX_STRIDE);
+        vertices[offset] = 0.0;
+        vertices[offset + 1] = 0.0;
+        vertices[offset + 2] = 0.0;
+        vertices[offset + 3] = 0.0;
+        vertices[offset + 4] = 0.0;
+        vertices[offset + 5] = 0.0;
+    }
+}
+
 void main() {
     uint candidateIndex = gl_GlobalInvocationID.x;
     if (candidateIndex >= uint(CandidateCount)) return;
+
+    uint tileIndex = candidateIndex;
+    uint vertexStart = tileIndex * VERTICES_PER_TILE;
+    uint tileOffset = tileIndex * 2u;
+
     ivec4 candidate = ivec4(inputs[CandidateOffset + int(candidateIndex)]);
     int pathBase = candidate.x * PATH_STRIDE;
     vec4 pathMeta = inputs[pathBase];
@@ -102,7 +122,10 @@ void main() {
     bool stroke = strokeRadius > 0.0;
     vec2 tileMin = vec2(candidate.yz) * tileSize;
     vec2 tileMax = (vec2(candidate.yz) + 1.0) * tileSize;
-    if (any(lessThanEqual(tileMax, tileMin))) return;
+    if (any(lessThanEqual(tileMax, tileMin))) {
+        discardTile(vertexStart, tileOffset);
+        return;
+    }
 
     vec2 center = (tileMin + tileMax) * 0.5;
     int winding = 0;
@@ -114,11 +137,10 @@ void main() {
         if (tileOverlaps(segment, tileMin, tileMax, margin)) boundary = true;
         winding += crossingDelta(segment, center);
     }
-    if (!boundary && (stroke || winding == 0)) return;
-
-    uint vertexStart = atomicAdd(vertexCount, 6u);
-    uint tileIndex = vertexStart / 6u;
-    uint tileOffset = tileIndex * 2u;
+    if (!boundary && (stroke || winding == 0)) {
+        discardTile(vertexStart, tileOffset);
+        return;
+    }
 
     uint outputSegmentStart = 0;
     if (boundary) {

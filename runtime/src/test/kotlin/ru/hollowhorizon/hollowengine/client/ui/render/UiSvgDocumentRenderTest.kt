@@ -16,11 +16,13 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.SvgFileParser
 import ru.hollowhorizon.hollowengine.client.ui.shape.SvgPathShape
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiPathCommand
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
+import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.shape.UiSvgPathDocument
 import ru.hollowhorizon.hollowengine.client.ui.shape.toAwtPath
 import java.awt.geom.Area
 import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -85,7 +87,47 @@ class UiSvgDocumentRenderTest {
         val document = parseResource("/assets/hollowengine/ui/shapes/demo-quest-map.svg")
 
         assertTrue(document.elements.size > 8)
-        assertEquals(UiColor(214f / 255f, 230f / 255f, 1f), document.elements.last().paint)
+        assertEquals(UiPaint.Color(UiColor(214f / 255f, 230f / 255f, 1f)), document.elements.last().paint)
+    }
+
+    @Test
+    fun `a design tool's gradient fill spans the box it is drawn into`() {
+        val document = parseResource("/assets/hollowengine/textures/gui/icons/success.svg")
+        val gradient = assertIs<UiPaint.LinearGradient>(document.elements.first().paint)
+
+        // The icon's own axis runs down and to the left, so the angle has to as well.
+        assertTrue(gradient.angleDegrees > 90f && gradient.angleDegrees < 180f, "angle ${gradient.angleDegrees}")
+        assertEquals(0f, gradient.stops.first().offset)
+        assertEquals(1f, gradient.stops.last().offset)
+        assertTrue(gradient.stops.zipWithNext().all { (a, b) -> a.offset <= b.offset }, "stops out of order")
+        assertTrue(gradient.stops.any { it.color.green > it.color.red }, "the green of the authored gradient is gone")
+    }
+
+    @Test
+    fun `a mask's backing sheet is never painted over the icon`() {
+        val document = parseResource("/assets/hollowengine/textures/gui/icons/changed.svg")
+
+        // The icon's masks each carry a white rectangle covering everything, which is theirs to cut
+        assertTrue(
+            document.elements.none { element ->
+                element.paint == UiPaint.Color(UiColor.White) &&
+                        (element.path.bounds()?.width ?: 0f) >= document.viewBox.width
+            },
+            "a mask's own sheet ended up among the drawn elements",
+        )
+    }
+
+    @Test
+    fun `a shadow spelled out as filter primitives does not blur the shape it belongs to`() {
+        val document = parseResource("/assets/hollowengine/textures/gui/icons/changed.svg")
+        val effects = document.elements.flatMap { it.filterEffects }
+
+        val shadow = assertIs<UiSvgFilterEffect.DropShadow>(effects.first { it is UiSvgFilterEffect.DropShadow })
+        assertEquals(1.6f, shadow.offsetX)
+        assertEquals(1.6f, shadow.offsetY)
+        assertTrue(shadow.color.red > 0.9f && shadow.color.blue < 0.3f, "shadow lost its colour: ${shadow.color}")
+
+        assertEquals(1, effects.count { it is UiSvgFilterEffect.GaussianBlur })
     }
 
     @Test

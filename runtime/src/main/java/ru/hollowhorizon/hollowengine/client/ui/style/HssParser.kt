@@ -119,8 +119,9 @@ class HssParser(private val source: String) {
         return when {
             value.equals("from", ignoreCase = true) -> 0f
             value.equals("to", ignoreCase = true) -> 1f
-            value.endsWith("%") -> value.dropLast(1).trim().toFloatOrNull()
-                ?: throw HssParseException("Expected a keyframe offset, got '$value'", start, end)
+            // A selector is a percentage of the iteration, so `50%` is offset 0.5, not 50.
+            value.endsWith("%") -> (value.dropLast(1).trim().toFloatOrNull()
+                ?: throw HssParseException("Expected a keyframe offset, got '$value'", start, end)) / 100f
 
             else -> throw HssParseException(
                 "Expected 'from', 'to' or a percentage, got '$value'",

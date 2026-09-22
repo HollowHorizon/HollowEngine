@@ -93,6 +93,7 @@ data class DrawBoxCommand(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+    val uv: UiImageUv = UiImageUv.Full,
 ) : UiRenderCommand
 
 data class DrawShapeCommand(
@@ -146,6 +147,7 @@ data class DrawImageCommand(
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
     val phase: UiRenderPhase = UiRenderPhase.CONTENT,
+    val uv: UiImageUv = UiImageUv.Full,
 ) : UiRenderCommand
 
 /** Draws an existing OpenGL texture without registering it as a Minecraft resource. */
@@ -153,8 +155,10 @@ data class DrawRawTextureCommand(
     override val node: UiNode,
     val rect: UiRect,
     val textureId: Int,
+    val texture: (() -> Int)? = null,
     val opacity: Float,
     val flipY: Boolean,
+    val opaque: Boolean,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
@@ -624,6 +628,7 @@ class UiCommandRenderer {
                         commands += DrawImageCommand(
                             node, layoutNode.content, source, opacity, style.tint, contentTransform,
                             false, style.imageFit, style.imageSlice, filter, backface,
+                            uv = style.imageUv,
                         )
                     }
                 }
@@ -665,7 +670,7 @@ class UiCommandRenderer {
         if (shape != null) {
             val fill = (style.shapeFill ?: style.background).resolve()
             val strokePaint =
-                style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.let { UiPaint.Color(it.color) }
+                style.shapeStroke ?: style.border.takeIf { it.width != UiInsets.Zero }?.paint
             val strokeWidth = (style.shapeStrokeWidth ?: style.border.width.left).resolve(layoutNode.rect.width)
             val stroke = strokePaint?.resolve() ?: UiResolvedPaint.None
             val hasFill = fill.hasVisiblePixels()
@@ -705,6 +710,7 @@ class UiCommandRenderer {
             filter = filter,
             backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
             phase = UiRenderPhase.BACKGROUND,
+            uv = style.imageUv,
         )
     }
 
@@ -779,6 +785,7 @@ class UiCommandRenderer {
                 filter = filter,
                 backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
                 phase = UiRenderPhase.BACKGROUND,
+                uv = style.imageUv,
             )
         }
     }
@@ -824,7 +831,7 @@ internal fun UiResolvedPaint.hasVisiblePixels(): Boolean = when (this) {
         -> true
 }
 
-internal fun UiBorder.hasVisiblePixels(): Boolean = color.alpha > 0f && width != UiInsets.Zero
+internal fun UiBorder.hasVisiblePixels(): Boolean = width != UiInsets.Zero && paint.resolve().hasVisiblePixels()
 
 internal fun UiPaint.resolve(): UiResolvedPaint = when (this) {
     UiPaint.None -> UiResolvedPaint.None
@@ -885,6 +892,7 @@ class UiHitTester {
                 is HitTestTask.Test -> {
                     val current = task.node
                     val style = resolved[current]
+                    if (style.inputTransparent) continue
                     if (!style.hoverable && !style.clickable && !style.focusable && !style.draggable && !style.scrollable) {
                         continue
                     }

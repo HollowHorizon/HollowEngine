@@ -1,11 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
 import kotlinx.coroutines.job
+import kotlinx.serialization.json.JsonObject
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
+import ru.hollowhorizon.hollowengine.common.attachments.editor.ScriptEditorInfo
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 
@@ -25,6 +27,12 @@ object EntityNodeRuntime {
         managerOrNull(entity)?.detach(path) ?: false
 
     fun paths(entity: Entity): Set<String> = managerOrNull(entity)?.paths().orEmpty()
+
+    fun editors(entity: Entity): List<ScriptEditorInfo> =
+        managerOrNull(entity)?.editors().orEmpty().sortedBy(ScriptEditorInfo::path)
+
+    fun applyEditorValues(entity: Entity, path: String, values: JsonObject): Boolean =
+        managerOrNull(entity)?.applyEditorValues(path, values) ?: false
 
     /** Stops every attached node of [namespace] on every entity, keeping their state. */
     fun suspendNamespace(namespace: String) {
@@ -90,6 +98,27 @@ class EntityNodeManager(private val entity: Entity) {
         dormant.remove(canonicalPath)
         val removed = nodes.remove(canonicalPath) ?: return false
         removed.script.coroutineContext.job.cancel()
+        return true
+    }
+
+    fun restart(path: String): Boolean {
+        val canonicalPath = canonicalNodePath(path)
+        val node = nodes[canonicalPath] ?: return false
+        val saved = runCatching { node.persist(node.script.server) }
+            .onFailure { HollowEngine.LOGGER.error("Error while restarting entity node '$canonicalPath'", it) }
+            .getOrNull() ?: return false
+
+        detach(canonicalPath)
+        return attachSaved(canonicalPath, saved)
+    }
+
+    internal fun editors(): List<ScriptEditorInfo> =
+        nodes.map { (path, node) -> node.script.editor.describe(path) }
+
+    internal fun applyEditorValues(path: String, values: JsonObject): Boolean {
+        val canonicalPath = canonicalNodePath(path)
+        val node = nodes[canonicalPath] ?: return false
+        if (node.script.editor.apply(values)) restart(canonicalPath)
         return true
     }
 

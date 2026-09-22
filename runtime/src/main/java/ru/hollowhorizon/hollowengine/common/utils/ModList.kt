@@ -18,6 +18,10 @@ object ModList : ModList {
         return modList.getFile(modId)
     }
 
+    override fun getMods(): List<ModList.ModInfo> {
+        return modList.mods
+    }
+
     fun getAllFiles(modId: String): List<File> = listOf(getFile(modId))
 }
 
@@ -36,7 +40,7 @@ fun getModFile(modId: String): File {
 
         val copy = Files.newInputStream(path)
 
-        val newFile = File("hollowengine/.cache/mods/$fileName").apply {
+        val newFile = File("hollowengine/.cache/mods/$fileName").absoluteFile.apply {
             if (!this.parentFile.exists()) this.parentFile.mkdirs()
         }
 

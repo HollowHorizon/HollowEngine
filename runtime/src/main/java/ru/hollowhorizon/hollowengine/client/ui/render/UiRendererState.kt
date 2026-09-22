@@ -55,6 +55,7 @@ internal data class LayerState(
     val backfaceVisibility: UiBackfaceVisibility,
     val padding: Float,
     val opacity: Float,
+    val resolutionScale: Float = 1f,
 )
 
 internal data class ScissorBounds(
@@ -98,6 +99,17 @@ internal fun backdropSampleBounds(
 }
 
 internal const val LayerSupersampling = 1f
+internal const val MaxTransformResolutionScale = 4f
+internal const val RotatedResolutionScale = 2f
+
+internal fun transformResolutionScale(transform: UiMatrix4, scratch: FloatArray = FloatArray(2)): Float {
+    transform.axisScales(scratch)
+    val magnification = max(scratch[0], scratch[1])
+    val supersampling = if (transform.isAxisAligned) 1f else RotatedResolutionScale
+    if (!magnification.isFinite()) return 1f
+    return (magnification * supersampling).coerceIn(1f, MaxTransformResolutionScale)
+}
+
 internal fun layerPadding(command: BeginLayerCommand): Float = layerPadding(command.filter)
 
 internal fun layerPadding(filter: UiFilterChain, overflow: Float = 0f): Float {

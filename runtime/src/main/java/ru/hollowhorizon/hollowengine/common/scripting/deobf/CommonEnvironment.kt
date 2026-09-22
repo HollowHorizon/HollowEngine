@@ -1,52 +1,76 @@
 package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
-import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
+import ru.hollowhorizon.hollowengine.common.files.CacheCleanup
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.CommonEnvironment.earlyClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoader
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.remapJars
-import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.runtime.bootstrap.HollowEngineRuntimeBootstrap
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.Path
+import java.net.URI
 import java.util.jar.JarFile
 
 object CommonEnvironment {
-    const val RUNTIME_JAR: String = "META-INF/hollowengine/runtime/HollowEngineRuntime.jar"
-    const val RUNTIME_SHA: String = "META-INF/hollowengine/runtime/HollowEngineRuntime.sha256"
-
     private val outputDir = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/deobf").toFile()
+    private val modCopies = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/mods").toFile()
+
+    /** Classes the compiler dumps when debugging is on; they describe one session of compilations. */
+    private val compilerDumps = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/compiler").toFile()
+
+    /** Remapped jars of [earlyClasspath], which only the launch that built them uses. */
+    private val earlyOutputDir = DirectoryManager.HOLLOW_ENGINE.resolve(".cache/deobf-early").toFile()
 
     fun setup(compilerJar: File): Pair<Mappings, MutableList<File>> {
         if (outputDir.exists()) {
             outputDir.deleteRecursively()
             outputDir.mkdirs()
         }
+        if (earlyOutputDir.exists()) CacheCleanup.delete(earlyOutputDir)
+        if (compilerDumps.exists()) CacheCleanup.report(compilerDumps, CacheCleanup.delete(compilerDumps))
 
-        val mappings = setupMappings(compilerJar)
+        val mappings = loadMappings(compilerJar)
+        val built = classpath(mappings, outputDir, ScriptingMods.requested(), ScriptingAddons.classpath())
+        CompilerClasspathSnapshot.write(built.classpath)
+        retainModCopies(built.classpath + built.modSources)
+        return mappings to built.classpath.toMutableList()
+    }
 
+    /**
+     * The classpath scripts compile against, built while mixins are prepared, before the game or any addon
+     * has started.
+     */
+    fun earlyClasspath(compilerJar: File, mods: List<String>, addons: List<File>): List<File> {
+        if (earlyOutputDir.exists()) CacheCleanup.delete(earlyOutputDir)
+        return classpath(loadMappings(compilerJar), earlyOutputDir, mods, addons).classpath
+    }
+
+    private class Built(val classpath: List<File>, val modSources: List<File>)
+
+    private fun classpath(mappings: Mappings, outputDir: File, mods: List<String>, addons: List<File>): Built {
         val classpath = setupPlatform(mappings, outputDir).toMutableList()
         resolveRuntimeJar()?.takeIf(File::isFile)?.let { runtimeJar ->
-            if(!NeoForgeEnvironmentSetup.isAvailable()) {
+            if (!NeoForgeEnvironmentSetup.isAvailable()) {
                 classpath += remapJars(mappings, listOf(runtimeJar), outputDir, from = "intermediary", to = "named")
-            } else {
-                if (classpath.none { it.absoluteFile == runtimeJar.absoluteFile }) {
-                    classpath += runtimeJar
-                }
+            } else if (classpath.none { it.absoluteFile == runtimeJar.absoluteFile }) {
+                classpath += runtimeJar
             }
         }
 
-        if (isProduction) classpath += ModsEnvironment(*HollowEngineConfig.scriptingMods.toTypedArray()).setup(mappings, outputDir)
-
-        return mappings to classpath
+        val modsEnvironment = ModsEnvironment(mods)
+        classpath += modsEnvironment.setup(mappings, outputDir)
+        classpath += addons
+        return Built(classpath.distinctBy { it.absoluteFile.normalize() }, modsEnvironment.sources)
     }
 
-    private fun setupMappings(compilerJar: File): Mappings {
+    private fun retainModCopies(used: List<File>) {
+        val directory = modCopies.absoluteFile
+        val names = used.filter { it.absoluteFile.parentFile == directory }.mapTo(HashSet(), File::getName)
+        CacheCleanup.retain(directory, names)
+    }
+
+    /** The mappings shipped in the compiler addon. Reading them touches no game class. */
+    fun loadMappings(compilerJar: File): Mappings {
         JarFile(compilerJar).use { jar ->
             val file = jar.getJarEntry("mappings-1.21.1.tiny")
             return MappingsLoader.loadMappings(jar.getInputStream(file))
@@ -60,27 +84,15 @@ object CommonEnvironment {
     }
     //@formatter:on
 
-    private fun resolveRuntimeJar(): File? {
-        val cacheDir = File("hollowengine/.cache")
-        val classLoader: ClassLoader = HollowEngineRuntimeBootstrap::class.java.classLoader
-        val checksum: String?
-        classLoader.getResourceAsStream(RUNTIME_SHA).use { shaStream ->
-            if (shaStream == null) return null
-            BufferedReader(InputStreamReader(shaStream, StandardCharsets.UTF_8)).use { reader ->
-                checksum = reader.readLine()
-            }
-        }
+    /**
+     * The jar the isolated runtime was actually loaded from.
+     */
+    internal fun resolveRuntimeJar(): File? {
+        val anchor = HollowEngineRuntimeBootstrap::class.java
+        val resource = anchor.classLoader?.getResource(anchor.name.replace('.', '/') + ".class") ?: return null
+        if (resource.protocol != "jar") return null
 
-        if (checksum.isNullOrBlank()) return null
-
-        val runtimeDir: Path = cacheDir.toPath().resolve("runtime")
-        Files.createDirectories(runtimeDir)
-        val target = runtimeDir.resolve("HollowEngineRuntime-" + checksum + ".jar")
-        if (Files.exists(target)) return target.toFile()
-
-        return HollowEngine::class.java.protectionDomain?.codeSource?.location
-            ?.let { File(it.toURI()) }
-            ?.takeIf(File::exists)
+        val jar = resource.path.substringBefore("!/")
+        return runCatching { File(URI(jar)) }.getOrNull()?.takeIf(File::isFile)
     }
-
 }

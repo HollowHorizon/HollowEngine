@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.common.compiler
 
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.HollowEngineScriptEvaluator
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptResult
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.isClientSideScript
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
 import kotlin.reflect.KClass
 import kotlin.script.experimental.api.ResultValue
@@ -28,22 +30,26 @@ data class CompiledScriptImpl(
     override val implicitReceiverCount: Int
         get() = script.compilationConfiguration[ScriptCompilationConfiguration.implicitReceivers]?.size ?: 0
 
-    override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> {
+    override val isClientSide: Boolean
+        get() = script.compilationConfiguration[ScriptCompilationConfiguration.isClientSideScript] == true
+
+    override fun <T> execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<T> =
+        @Suppress("UNCHECKED_CAST")
+        evaluate(body).map { result -> result.instance as T }
+
+    override fun evaluate(body: ScriptEvaluationConfiguration.Builder.() -> Unit): Result<ScriptResult> {
         val evaluator = HollowEngineScriptEvaluator()
 
         val result = runScriptingBlocking {
             evaluator(script, evalConfiguration.with(body))
         }
 
-        return if (result is ResultWithDiagnostics.Success) {
-            val value = result.value.returnValue
-            if (value is ResultValue.Error) {
-                Result.failure(value.error)
-            } else {
-                Result.success(result.value.returnValue.scriptInstance as T)
-            }
-        } else {
-            Result.failure(ScriptEvaluationException(name, result.reports.map { it.convert() }))
+        if (result !is ResultWithDiagnostics.Success) {
+            return Result.failure(ScriptEvaluationException(name, result.reports.map { it.convert() }))
         }
+        val value = result.value.returnValue
+        if (value is ResultValue.Error) return Result.failure(value.error)
+        return ScriptResult.of(value)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException("Script '$name' was not evaluated"))
     }
 }

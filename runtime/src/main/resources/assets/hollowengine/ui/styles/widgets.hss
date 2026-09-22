@@ -14,6 +14,16 @@
     foreground: #ffffff;
 }
 
+.dropdown-button[expanded="true"] {
+    background: rgba(255, 255, 255, 0.10);
+    foreground: #ffffff;
+}
+
+.dropdown-button[expanded="true"] .dropdown-button-arrow {
+    rotate: 0px 0px 180px;
+    fill: #ffffff;
+}
+
 .dropdown-button-icon,
 .dropdown-item-icon,
 .tree-icon {
@@ -26,6 +36,12 @@
     checkbox-active: #5f8ccd;
     checkbox-mark: #ffffff;
     border: 1px #647084;
+}
+
+/* Fills the free space of a button wider than its text, so the arrow sits flush against the right edge. */
+.dropdown-button-label {
+    grow: 1;
+    wrap: false;
 }
 
 .dropdown-button-arrow {
@@ -66,10 +82,22 @@
 .dropdown-item-shortcut {
     wrap: false;
     align: end center;
+    margin-left: 18px;
+    font-size: 10px;
     foreground: #7f8a9d;
 }
 
+.dropdown-separator {
+    size: fill 1px;
+    margin: 2px 4px;
+    background: #3a3f4b;
+}
+
 .dropdown-item:hover {
+    background: #31343D;
+}
+
+.dropdown-item.open {
     background: #31343D;
 }
 
@@ -235,6 +263,17 @@
     size: 12px 12px;
     align-y: center;
     tint: #687588;
+}
+
+.overlay-scrim {
+    background: rgba(8, 9, 12, 0.46);
+    backdrop-filter: blur(8px);
+    animations: overlay-scrim-in 140ms ease-out both;
+}
+
+@keyframes overlay-scrim-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 .ui-tooltip {

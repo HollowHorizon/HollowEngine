@@ -1,22 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
-import net.minecraft.client.Minecraft
-import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.ui.notification.HollowNotifications
+import ru.hollowhorizon.hollowengine.client.utils.lang
 
 internal object HollowAddonNotifications {
     fun restartRequired(descriptor: HollowAddonDescriptor) {
-        val message = "Addon '${descriptor.name}' will be enabled after restarting the game."
-        HollowEngine.LOGGER.warn(message)
+        HollowEngine.LOGGER.warn("Addon '{}' will be enabled after restarting the game.", descriptor.name)
         if (!HollowAddonRuntimeEnvironment.isClient) return
-        Client.notify(message)
+        Client.restartRequired(descriptor.name)
     }
 
     private object Client {
-        fun notify(message: String) {
-            Minecraft.getInstance().execute {
-                Minecraft.getInstance().player?.sendSystemMessage(Component.literal("HollowEngine: $message"))
-            }
+        fun restartRequired(name: String) {
+            HollowNotifications.warning("hollowengine.gui.notification.addon_restart".lang.format(name))
         }
     }
 }

@@ -26,6 +26,46 @@
     scale: 1.2;
 }
 
+.ide-toolbar-divider {
+    size: 1px 14px;
+    margin: 0px 6px;
+    background: #3a3f4b;
+}
+
+.ide-toolbar-group {
+    gap: 1px;
+    background: #1E2127;
+    border-radius: 4px;
+}
+
+.ide-toolbar-button {
+    size: fit fit;
+    margin: 1px;
+    padding: 4px;
+    border-radius: 3px;
+    background: #00000000;
+    transition: background 110ms ease-out;
+}
+
+.ide-toolbar-button:hover {
+    background: #414653;
+}
+
+.ide-toolbar-button.active {
+    background: rgba(67, 106, 154, 0.62);
+}
+
+.ide-toolbar-button-icon {
+    size: 13px 13px;
+    tint: #aeb8ca;
+    transition: all 110ms ease-out;
+}
+
+.ide-toolbar-button:hover .ide-toolbar-button-icon,
+.ide-toolbar-button.active .ide-toolbar-button-icon {
+    tint: #ffffff;
+}
+
 .ide-panel, .ide-empty-editor, .ide-editor-shell {
     size: fill fill;
     margin: 2px;
@@ -37,6 +77,11 @@
 
 .ide-empty-editor {
     align-items: center center;
+}
+
+.game-viewport-hint {
+    foreground: #8d96a8;
+    text-align: center;
 }
 
 .project-filter-row {
@@ -68,6 +113,63 @@
 
 .ide-status {
     height: 16px;
+    margin-right: 6px;
+    max-width: 360px;
+    wrap: false;
+    text-overflow: dots;
+    font-size: 10px;
+    foreground: #8f9bad;
+}
+
+.ide-empty-editor .ide-status {
+    font-size: 11px;
+}
+
+.ide-shortcuts-dialog {
+    padding: 12px;
+}
+
+.ide-shortcuts-content {
+    gap: 3px;
+    padding: 0px 8px 0px 0px;
+    scrollbar: 6px;
+    scrollbar-thumb: rgba(155, 169, 194, 0.42);
+    scrollbar-thumb-radius: 3px;
+}
+
+.ide-shortcuts-title {
+    margin-bottom: 4px;
+    font-size: 14px;
+    foreground: #F0F3F8;
+}
+
+.ide-shortcuts-group {
+    margin-top: 6px;
+    font-size: 10px;
+    foreground: #8f9bad;
+}
+
+.ide-shortcuts-row {
+    min-height: 20px;
+    padding: 0px 6px;
+    gap: 12px;
+    background: #2A2E36;
+    border-radius: 3px;
+}
+
+.ide-shortcuts-description {
+    width: 0px;
+    foreground: #d7deea;
+}
+
+.ide-shortcuts-keys {
+    wrap: false;
+    padding: 1px 5px;
+    font-size: 10px;
+    foreground: #F0F3F8;
+    background: #3A3F49;
+    border: 1px #4b5362;
+    border-radius: 3px;
 }
 
 .ui-profiler-panel {
@@ -111,105 +213,61 @@
     gap: 4px;
 }
 
-.console-toolbar, .console-command-row {
-    width: 100%;
-    height: fit;
-    min-height: 24px;
-    padding: 2px 4px;
+.console-toolbar {
+    size: fit 22px;
+    padding: 0px 3px;
     gap: 5px;
     align-items: start center;
-    background: #31343D;
-    border-radius: 4px;
-}
-
-.console-toolbar-label {
-    height: fit;
-    foreground: #aeb8ca;
-    wrap: false;
 }
 
 .console-level-dropdown {
-    min-width: 72px;
+    min-width: 64px;
+    height: 18px;
+    padding: 0px 6px;
+    background: #24272E;
+    border: 1px #383D48;
+    border-radius: 3px;
+}
+
+.console-mode-dropdown {
+    min-width: 84px;
     height: 20px;
     padding: 0px 6px;
     background: #24272E;
+    border: 1px #383D48;
+    border-radius: 3px;
+}
+
+.console-command-row {
+    width: 100%;
+    height: fit;
+    min-height: 26px;
+    padding: 2px 4px;
+    gap: 4px;
 }
 
 .console-filter, .console-command {
     padding: 2px 5px;
-    background: #1E2127;
-    border: 1px #4b5362;
+    background: #24272E;
+    border: 1px #383D48;
     border-radius: 3px;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
 }
 
-.console-log-list {
+/* The whole log is one read-only field; its colours come from the console's own highlighter. */
+.console-log {
     width: 100%;
+    padding: 2px 6px;
     background: #1E2127;
     border-radius: 4px;
-    font-family: hollowengine:fonts/monocraft;
-    font-size: 10px;
+    foreground: #d7deea;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
     scrollbar: 6px;
     scrollbar-track: rgba(255, 255, 255, 0.03);
     scrollbar-thumb: rgba(155, 169, 194, 0.42);
     scrollbar-thumb-radius: 3px;
-}
-
-.console-log-row {
-    width: fit;
-    height: fit;
-    min-height: 18px;
-    padding: 2px 6px;
-    gap: 6px;
-    align-items: start start;
-}
-
-.console-log-row:hover {
-    background: rgba(255, 255, 255, 0.035);
-}
-
-.console-log-time, .console-log-logger {
-    height: fit;
-    foreground: #687588;
-    wrap: false;
-}
-
-.console-log-level {
-    height: fit;
-    foreground: #aeb8ca;
-    wrap: false;
-}
-
-.console-log-message {
-    height: fit;
-    foreground: #d7deea;
-    wrap: false;
-}
-
-.console-log-row.level-trace .console-log-level,
-.console-log-row.level-trace .console-log-message {
-    foreground: #7f8a9d;
-}
-
-.console-log-row.level-debug .console-log-level {
-    foreground: #78a8ff;
-}
-
-.console-log-row.level-info .console-log-level {
-    foreground: #82d99b;
-}
-
-.console-log-row.level-warn .console-log-level,
-.console-log-row.level-warn .console-log-message {
-    foreground: #ffc266;
-}
-
-.console-log-row.level-error .console-log-level,
-.console-log-row.level-error .console-log-message,
-.console-log-row.level-fatal .console-log-level,
-.console-log-row.level-fatal .console-log-message {
-    foreground: #ff8787;
 }
 
 .console-empty {
@@ -219,40 +277,29 @@
     foreground: #7f8a9d;
 }
 
-.console-suggestions {
-    width: 100%;
-    max-height: 180px;
-    padding: 3px;
-    gap: 1px;
-    background: #24272E;
-    border: 1px #5F6677;
-    border-radius: 4px;
-}
-
-.console-suggestion {
-    width: 100%;
-    height: fit;
-    padding: 3px 6px;
-    foreground: #cbd3df;
-    border-radius: 3px;
-    wrap: false;
-}
-
-.console-suggestion:hover {
-    background: #414653;
-}
-
 .console-button {
-    height: 22px;
-    padding: 2px 8px;
-    align-items: center center;
-    background: #414653;
-    foreground: #d7deea;
+    size: 22px 22px;
     border-radius: 3px;
+    background: #24272E;
+    border: 1px #383D48;
+    transition: background 110ms ease-out;
 }
 
 .console-button:hover {
     background: #5f6b80;
+}
+
+.console-button.disabled, .console-button.disabled:hover {
+    background: #2a2d34;
+}
+
+.console-button-icon {
+    size: 13px 13px;
+    tint: #d7deea;
+}
+
+.console-button.disabled .console-button-icon {
+    tint: #687588;
 }
 
 .project-context-menu {
@@ -296,12 +343,221 @@
     gap: 3px;
 }
 
+.project-actions {
+    size: fit 100%;
+    padding: 0px 2px;
+    gap: 1px;
+    align-items: center center;
+}
+
+.project-action {
+    size: fit fit;
+    margin: 2px 0px;
+    padding: 3px;
+    border-radius: 3px;
+    background: #00000000;
+    transition: background 110ms ease-out;
+}
+
+.project-action:hover {
+    background: #414653;
+}
+
+.project-action-icon {
+    size: 13px 13px;
+    tint: #aeb8ca;
+}
+
+.project-action:hover .project-action-icon {
+    tint: #ffffff;
+}
+
+.project-dialog-content {
+    margin: 6px;
+    gap: 7px;
+}
+
+.project-dialog-title {
+    foreground: #F0F3F8;
+    font-size: 14px;
+}
+
+.project-dialog-field {
+    gap: 2px;
+}
+
+.project-dialog-scroll {
+    gap: 7px;
+    padding: 0px 8px 0px 0px;
+    scrollbar: 6px;
+    scrollbar-thumb: rgba(155, 169, 194, 0.42);
+    scrollbar-thumb-radius: 3px;
+}
+
+.project-dialog-label {
+    foreground: #8f9bad;
+    font-size: 10px;
+}
+
+.project-dialog-input {
+    padding: 2px 5px;
+    background: #1E2127;
+    border: 1px #4b5362;
+    border-radius: 3px;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+}
+
+.project-dialog-dropdown {
+    height: 22px;
+    padding: 0px 6px;
+    background: #1E2127;
+    border: 1px #4b5362;
+    border-radius: 3px;
+}
+
+.project-dialog-dependencies {
+    padding: 3px 5px;
+    gap: 2px;
+    background: #1E2127;
+    border-radius: 3px;
+    scrollbar: 6px;
+    scrollbar-thumb: rgba(155, 169, 194, 0.42);
+    scrollbar-thumb-radius: 3px;
+}
+
+.project-dialog-checkbox-row {
+    gap: 7px;
+    foreground: #D7DEEA;
+}
+
+.project-dialog-text {
+    foreground: #D7DEEA;
+    font-size: 11px;
+    line-spacing: 2px;
+}
+
+.project-dialog-hint, .project-dialog-progress {
+    foreground: #8f9bad;
+    font-size: 10px;
+    line-spacing: 2px;
+}
+
+.project-dialog-warning {
+    foreground: #ffc266;
+    font-size: 11px;
+    line-spacing: 2px;
+}
+
+.project-dialog-error {
+    foreground: #ff8787;
+    font-size: 11px;
+    line-spacing: 2px;
+}
+
+.project-dialog-path-row {
+    gap: 6px;
+}
+
+.project-dialog-path {
+    foreground: #aeb8ca;
+    font-size: 10px;
+}
+
+.project-dialog-actions {
+    gap: 6px;
+    margin-top: 3px;
+}
+
+.project-dialog-button {
+    min-width: 72px;
+    padding: 0px 10px;
+    border-radius: 4px;
+    border: 1px #E7EBF2;
+    background: #3A3F49;
+    transition: background 80ms ease-out;
+}
+
+.project-dialog-button:hover {
+    background: #4A515E;
+}
+
+.project-dialog-button.primary {
+    background: #5F8CCD;
+    foreground: #FFFFFF;
+}
+
+.project-dialog-button.primary:hover {
+    background: #6E9BDC;
+}
+
+.project-dialog-button.disabled, .project-dialog-button.disabled:hover {
+    background: #2C3038;
+    foreground: #687588;
+    border: 1px #4b5362;
+}
+
+.ide-hide-toolbar-dialog {
+    padding: 12px;
+}
+
+.ide-hide-toolbar-dialog-content {
+    gap: 10px;
+}
+
+.ide-hide-toolbar-dialog-title {
+    foreground: #F0F3F8;
+    font-size: 14px;
+}
+
+.ide-hide-toolbar-dialog-message {
+    foreground: #B9C1CF;
+    font-size: 11px;
+    line-spacing: 2px;
+}
+
+.ide-hide-toolbar-dialog-checkbox-row {
+    gap: 7px;
+    foreground: #D7DEEA;
+}
+
+.ide-hide-toolbar-dialog-actions {
+    gap: 6px;
+}
+
+.ide-hide-toolbar-dialog-button {
+    border-radius: 4px;
+    border: 1px #E7EBF2;
+    background: #3A3F49;
+    transition: background 80ms ease-out;
+}
+
+.ide-hide-toolbar-dialog-button:hover {
+    background: #4A515E;
+}
+
+.ide-hide-toolbar-dialog-button:active {
+    background: #303640;
+}
+
+.ide-hide-toolbar-dialog-button.primary {
+    background: #5F8CCD;
+    foreground: #FFFFFF;
+}
+
+.ide-hide-toolbar-dialog-button.primary:hover {
+    background: #6E9BDC;
+}
+
+.ide-hide-toolbar-dialog-button.primary:active {
+    background: #4D78B8;
+}
+
 .ide-editor-stack {
     size: 100% 100%;
 }
 
 .code-editor {
-    font-size: 12px;
     line-spacing: 2px;
     inlay-hints: true;
 }

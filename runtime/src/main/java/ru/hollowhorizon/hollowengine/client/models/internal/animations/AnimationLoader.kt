@@ -93,7 +93,7 @@ object AnimationLoader {
                 outputData.asVec3f().map { it / node.baseTransform.scale }.toTypedArray()
             )
 
-            AnimationTarget.WEIGHTS -> LinearSingle(
+            AnimationTarget.WEIGHTS -> FloatsStep(
                 keys,
                 splitListByN(outputData.asFloats(), componentCount).toTypedArray()
             )

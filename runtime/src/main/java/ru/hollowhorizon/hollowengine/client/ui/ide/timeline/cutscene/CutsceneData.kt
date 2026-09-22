@@ -1,47 +1,50 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.common.utils.math.Easing
-import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BlendMode
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.HandleMode
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.KeyInterpolation
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.RotationMode
 
 @Serializable
 enum class CutsceneNodeKind {
-    GROUP,
-    TRACK,
+    GROUP, PROPERTY,
 }
 
 @Serializable
-sealed class KeyframeSnapshot {
-    @Serializable
-    @SerialName("ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.KeyframeSnapshot.FloatSnapshot")
-    class FloatSnapshot(val value: Float) : KeyframeSnapshot()
-
-    @Serializable
-    // Пу-пу-пу, переименовал называется пакет...
-    @SerialName("ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.KeyframeSnapshot.Vec3fSnapshot")
-    class Vec3fSnapshot(val x: Float, val y: Float, val z: Float) : KeyframeSnapshot() {
-        val vector get() = Vec3f(x, y, z)
-
-        companion object {
-            fun from(value: Vec3f) = Vec3fSnapshot(value.x, value.y, value.z)
-        }
-    }
-
-}
-
-@Serializable
-data class CutsceneTrackKeyframeData(
+data class CutsceneKeyData(
     val time: Float,
-    val value: KeyframeSnapshot,
-    val easing: String = "linear",
+    val value: Float,
+    val interpolation: String = CutsceneEnums.DEFAULT_INTERPOLATION,
+    val handles: String = CutsceneEnums.DEFAULT_HANDLES,
+    val inTime: Float = 0f,
+    val inValue: Float = 0f,
+    val outTime: Float = 0f,
+    val outValue: Float = 0f,
 )
 
 @Serializable
-data class CutsceneTrackData(
+data class CutsceneCurveData(
+    val channel: String,
+    val visible: Boolean = true,
+    val keyframes: List<CutsceneKeyData> = emptyList(),
+)
+
+@Serializable
+data class CutsceneLayerData(
+    val name: String,
+    val blend: String = CutsceneEnums.DEFAULT_BLEND,
+    val weight: Float = 1f,
+    val visible: Boolean = true,
+    val locked: Boolean = false,
+    val curves: List<CutsceneCurveData> = emptyList(),
+)
+
+@Serializable
+data class CutscenePropertyData(
     val type: String,
-    val valueType: String,
-    val keyframes: List<CutsceneTrackKeyframeData> = emptyList(),
+    val rotationMode: String = CutsceneEnums.DEFAULT_ROTATION_MODE,
+    val layers: List<CutsceneLayerData> = emptyList(),
 )
 
 @Serializable
@@ -50,75 +53,61 @@ data class CutsceneNodeData(
     val name: String,
     val kind: CutsceneNodeKind,
     val children: List<CutsceneNodeData> = emptyList(),
-    val track: CutsceneTrackData? = null,
+    val property: CutscenePropertyData? = null,
 )
 
 @Serializable
 data class CutsceneData(
     val name: String = "New Cutscene",
     val duration: Float = 10f,
+    val origin: CutsceneOrigin = CutsceneOrigin(),
     val nodes: List<CutsceneNodeData> = emptyList(),
 )
 
-class CutsceneTrackType<T>(
-    val id: String,
-    val defaultValue: T,
-)
+object CutsceneEnums {
+    const val DEFAULT_INTERPOLATION = "bezier"
+    const val DEFAULT_HANDLES = "auto"
+    const val DEFAULT_BLEND = "override"
+    const val DEFAULT_ROTATION_MODE = "euler"
 
-object CutsceneTrackRegistry {
-    private val types = linkedMapOf<String, CutsceneTrackType<*>>()
-
-    fun <T> register(type: CutsceneTrackType<T>) {
-        require(type.id !in types) { "Cutscene track type '${type.id}' is already registered" }
-        types[type.id] = type
-    }
-
-    fun get(id: String): CutsceneTrackType<*>? {
-        return types[id]
-    }
-
-    fun all(): Collection<CutsceneTrackType<*>> {
-        return types.values
-    }
-}
-
-object EasingRegistry {
-    private val easings: Map<String, Easing.Easing> = mapOf(
-        "linear" to Easing.linear,
-        "smooth" to Easing.smooth,
-        "easeInSine" to Easing.easeInSine,
-        "easeOutSine" to Easing.easeOutSine,
-        "easeInOutSine" to Easing.easeInOutSine,
-        "easeInQuad" to Easing.easeInQuad,
-        "easeOutQuad" to Easing.easeOutQuad,
-        "easeInOutQuad" to Easing.easeInOutQuad,
-        "easeInCubic" to Easing.easeInCubic,
-        "easeOutCubic" to Easing.easeOutCubic,
-        "easeInOutCubic" to Easing.easeInOutCubic,
-        "easeInQuart" to Easing.easeInQuart,
-        "easeOutQuart" to Easing.easeOutQuart,
-        "easeInOutQuart" to Easing.easeInOutQuart,
-        "easeInQuint" to Easing.easeInQuint,
-        "easeOutQuint" to Easing.easeOutQuint,
-        "easeInOutQuint" to Easing.easeInOutQuint,
-        "easeInExpo" to Easing.easeInExpo,
-        "easeOutExpo" to Easing.easeOutExpo,
-        "easeInOutExpo" to Easing.easeInOutExpo,
-        "easeInCirc" to Easing.easeInCirc,
-        "easeOutCirc" to Easing.easeOutCirc,
-        "easeInOutCirc" to Easing.easeInOutCirc,
-        "easeInBack" to Easing.easeInBack,
-        "easeOutBack" to Easing.easeOutBack,
-        "easeInOutBack" to Easing.easeInOutBack,
-        "easeInBounce" to Easing.easeInBounce,
-        "easeOutBounce" to Easing.easeOutBounce,
-        "easeInOutBounce" to Easing.easeInOutBounce,
-        "easeInElastic" to Easing.easeInElastic,
-        "easeOutElastic" to Easing.easeOutElastic,
-        "easeInOutElastic" to Easing.easeInOutElastic,
+    private val interpolations = mapOf(
+        "constant" to KeyInterpolation.CONSTANT,
+        "linear" to KeyInterpolation.LINEAR,
+        DEFAULT_INTERPOLATION to KeyInterpolation.BEZIER,
     )
 
-    fun resolve(name: String): Easing.Easing = easings[name] ?: Easing.linear
+    private val handles = mapOf(
+        DEFAULT_HANDLES to HandleMode.AUTO,
+        "mirrored" to HandleMode.MIRRORED,
+        "aligned" to HandleMode.ALIGNED,
+        "free" to HandleMode.FREE,
+    )
 
-    fun nameOf(easing: Easing.Easing): String = easings.entries.firstOrNull { it.value == easing }?.key ?: "linear"
+    private val blends = mapOf(
+        DEFAULT_BLEND to BlendMode.OVERRIDE,
+        "add" to BlendMode.ADD,
+        "subtract" to BlendMode.SUBTRACT,
+        "multiply" to BlendMode.MULTIPLY,
+    )
+
+    private val rotationModes = mapOf(
+        DEFAULT_ROTATION_MODE to RotationMode.EULER,
+        "quaternion" to RotationMode.QUATERNION,
+    )
+
+    fun interpolation(name: String): KeyInterpolation = interpolations[name] ?: KeyInterpolation.BEZIER
+
+    fun nameOf(value: KeyInterpolation): String = interpolations.entries.first { it.value == value }.key
+
+    fun handleMode(name: String): HandleMode = handles[name] ?: HandleMode.AUTO
+
+    fun nameOf(value: HandleMode): String = handles.entries.first { it.value == value }.key
+
+    fun blendMode(name: String): BlendMode = blends[name] ?: BlendMode.OVERRIDE
+
+    fun nameOf(value: BlendMode): String = blends.entries.first { it.value == value }.key
+
+    fun rotationMode(name: String): RotationMode = rotationModes[name] ?: RotationMode.EULER
+
+    fun nameOf(value: RotationMode): String = rotationModes.entries.first { it.value == value }.key
 }

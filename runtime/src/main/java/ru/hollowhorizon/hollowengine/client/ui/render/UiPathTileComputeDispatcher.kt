@@ -39,7 +39,7 @@ internal class UiPathTileComputeDispatcher : AutoCloseable {
         )
         segmentIndexBuffer.ensureCapacity(batch.computeSegmentIndexCapacity * Int.SIZE_BYTES)
         tileBuffer.ensureCapacity(batch.candidateCount * UiPathTileBatch.TileStride * Int.SIZE_BYTES)
-        resetIndirectBuffer()
+        resetIndirectBuffer(batch.candidateCount * VerticesPerTile)
 
         segmentBuffer.bindBase(GL43.GL_SHADER_STORAGE_BUFFER, SegmentBinding)
         segmentIndexBuffer.bindBase(GL43.GL_SHADER_STORAGE_BUFFER, SegmentIndexBinding)
@@ -48,6 +48,7 @@ internal class UiPathTileComputeDispatcher : AutoCloseable {
         vertexBuffer.bindBase(GL43.GL_SHADER_STORAGE_BUFFER, VertexBinding)
         indirectBuffer.bindBase()
         GL20.glUseProgram(program)
+        GL42.glMemoryBarrier(GL43.GL_SHADER_STORAGE_BARRIER_BIT)
         GL20.glUniform1i(candidateCountLocation, batch.candidateCount)
         GL20.glUniform1i(candidateOffsetLocation, batch.pathCount * PathVec4Stride)
         GL43.glDispatchCompute((batch.candidateCount + WorkGroupSize - 1) / WorkGroupSize, 1, 1)
@@ -81,9 +82,9 @@ internal class UiPathTileComputeDispatcher : AutoCloseable {
         inputBuffer.upload(inputs)
     }
 
-    private fun resetIndirectBuffer() {
+    private fun resetIndirectBuffer(vertexCount: Int) {
         indirectData.clear()
-        indirectData.put(0)
+        indirectData.put(vertexCount)
         indirectData.put(1)
         indirectData.put(0)
         indirectData.put(0)

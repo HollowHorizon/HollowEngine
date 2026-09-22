@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.ShaderInstance
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterEffect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageUv
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import kotlin.math.abs
 import kotlin.math.cos
@@ -30,6 +31,7 @@ internal data class UiTexturedQuad(
     val tint: UiColor = UiColor.White,
     val region: ImagePlacement? = null,
     val alphaMask: Boolean = false,
+    val uv: UiImageUv = UiImageUv.Full,
 )
 
 internal object UiTextureEffects {
@@ -49,6 +51,7 @@ internal object UiTextureEffects {
         blurDirectionX: Float = 0f,
         blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
+        opaqueSource: Boolean = false,
     ) {
         GlStateManager._bindTexture(texture)
         RenderSystem.setShaderTexture(0, texture)
@@ -67,6 +70,7 @@ internal object UiTextureEffects {
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
             tint = tint,
+            opaqueSource = opaqueSource,
         )
     }
 
@@ -89,6 +93,8 @@ internal object UiTextureEffects {
         blurDirectionY: Float = 0f,
         tint: UiColor = UiColor.White,
         alphaMask: Boolean = false,
+        uv: UiImageUv = UiImageUv.Full,
+        opaqueSource: Boolean = false,
     ) {
         setTextureShader(
             filter,
@@ -100,11 +106,12 @@ internal object UiTextureEffects {
             maskPadding,
             blurDirectionX = blurDirectionX,
             blurDirectionY = blurDirectionY,
+            opaqueSource = opaqueSource,
             alphaMask = alphaMask,
         )
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
-        val placement = imagePlacement(width, height, fit, texture)
+        val placement = imagePlacement(width, height, fit, texture, uv)
         val finalTint = tint.withOpacity(opacity).filtered(filter)
         val quadTransform = transform.translated(placement.x, placement.y)
         if (fit.isSliced) {
@@ -129,7 +136,7 @@ internal object UiTextureEffects {
         val tessellator = Tesselator.getInstance()
         val buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         for (quad in quads) {
-            val placement = quad.region ?: imagePlacement(quad.width, quad.height, quad.fit, textureSize)
+            val placement = quad.region ?: imagePlacement(quad.width, quad.height, quad.fit, textureSize, quad.uv)
             val finalTint = quad.tint.withOpacity(quad.opacity).filtered(filter)
             val quadTransform = quad.transform.translated(placement.x, placement.y)
             if (quad.fit.isSliced) {
@@ -284,7 +291,7 @@ internal object UiTextureEffects {
     ) {
         val effectShader = ModShaders.UI_EFFECT
         val hasMask = maskRadius > 0f
-        if (filter.effects.isEmpty() && !hasMask && !alphaMask || effectShader == null) {
+        if (filter.effects.isEmpty() && !hasMask && !alphaMask && !opaqueSource || effectShader == null) {
             // Nothing the effect shader would do differently; the plain path is cheaper.
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
             configureUiBlend()
@@ -483,15 +490,17 @@ internal object UiTextureEffects {
         tint: UiColor,
     ) {
         val textureSize = texture?.let(::textureSize) ?: (placement.width to placement.height)
+        val sourceSize = textureSize.first * abs(placement.u1 - placement.u0) to
+                textureSize.second * abs(placement.v1 - placement.v0)
         val slices =
-            slice.resolve(placement.width, placement.height).clamp(placement.width, placement.height, textureSize)
+            slice.resolve(placement.width, placement.height).clamp(placement.width, placement.height, sourceSize)
         val horizontal = when (fit) {
             UiImageFit.THREE_SLICE_VERTICAL -> listOf(SliceSpan(0f, placement.width, 0f, 1f))
-            else -> sliceSpans(placement.width, textureSize.first, slices.left, slices.right)
+            else -> sliceSpans(placement.width, sourceSize.first, slices.left, slices.right)
         }
         val vertical = when (fit) {
             UiImageFit.THREE_SLICE_HORIZONTAL -> listOf(SliceSpan(0f, placement.height, 0f, 1f))
-            else -> sliceSpans(placement.height, textureSize.second, slices.top, slices.bottom)
+            else -> sliceSpans(placement.height, sourceSize.second, slices.top, slices.bottom)
         }
         for (y in vertical) {
             if (y.destinationEnd <= y.destinationStart) continue
@@ -504,10 +513,10 @@ internal object UiTextureEffects {
                     y.destinationStart,
                     x.destinationEnd,
                     y.destinationEnd,
-                    x.sourceStart,
-                    y.sourceStart,
-                    x.sourceEnd,
-                    y.sourceEnd,
+                    placement.u(x.sourceStart),
+                    placement.v(y.sourceStart),
+                    placement.u(x.sourceEnd),
+                    placement.v(y.sourceEnd),
                     flipY,
                     tint,
                 )

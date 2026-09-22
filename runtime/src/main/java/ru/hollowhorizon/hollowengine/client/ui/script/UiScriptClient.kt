@@ -108,6 +108,7 @@ object UiScriptClient {
 @SubscribeEvent
 fun onClientTickResetUi(event: TickEvent.Client) {
     UiScriptClient.onLevelPresenceChanged(event.minecraft.level != null)
+    UiScriptHudHost.tick()
 }
 
 /**

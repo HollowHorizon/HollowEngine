@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOpenFile
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
@@ -160,7 +161,7 @@ internal fun HollowIdeImageEditor(
 
     Row(
         tags = listOf("image-editor-root"),
-        modifier = Modifier.style("hollowengine:ui/styles/image-editor.hss")
+        modifier = Modifier.style(InspectorStylesheet).style("hollowengine:ui/styles/image-editor.hss")
             .size(100.percent, 100.percent)
             .focusScope()
             .onKeyInput { input ->
@@ -292,10 +293,10 @@ internal fun HollowIdeImageEditor(
             }
 
             SectionTitle("hollowengine.gui.image_editor.view".lang)
-            SettingToggle("hollowengine.gui.image_editor.checkerboard".lang, showCheckerboard) {
+            ToggleRow("hollowengine.gui.image_editor.checkerboard".lang, showCheckerboard, switch = true) {
                 showCheckerboard = it
             }
-            SettingToggle("hollowengine.gui.image_editor.pixel_grid".lang, showPixelGrid) { showPixelGrid = it }
+            ToggleRow("hollowengine.gui.image_editor.pixel_grid".lang, showPixelGrid, switch = true) { showPixelGrid = it }
             Text(
                 "hollowengine.gui.image_editor.zoom_percent".lang.format((zoom * 100f).toInt()),
                 tags = listOf("image-editor-info"),
@@ -328,21 +329,6 @@ internal fun HollowIdeImageEditor(
 @Composable
 private fun SectionTitle(label: String) {
     Text(label, tags = listOf("image-editor-sidebar-title"))
-}
-
-@Composable
-private fun SettingToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        tags = listOf("image-editor-setting"),
-        modifier = Modifier.size(100.percent, 20.px).alignItems(vertical = UiAlign.CENTER),
-    ) {
-        Text(label, tags = listOf("image-editor-label"), modifier = Modifier.size(0.px, 14.px).grow(1f))
-        Checkbox(
-            checked = checked,
-            variant = UiCheckboxVariant.SWITCH,
-            onCheckedChange = onCheckedChange,
-        )
-    }
 }
 
 @Composable

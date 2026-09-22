@@ -1,12 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.scripting.cache
 
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.files.CacheCleanup
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache.SHARED_ATTRIBUTE
 import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache.parseSharedScripts
 import ru.hollowhorizon.hollowengine.common.scripting.source.DEFAULT_SANDBOX_NAMESPACE
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptId
 import java.io.File
+import java.util.jar.Attributes
 import java.util.jar.JarInputStream
 
 /**
@@ -24,6 +26,9 @@ object ScriptCache {
     /** Fingerprint of the exact source bytes that identify only the line numbers where the errors occur. */
     const val LAYOUT_ATTRIBUTE = "Script-Layout"
 
+    /** The runtime the bytecode is mapped for, see [ScriptFingerprint.runtimeIdentity]. */
+    const val RUNTIME_ATTRIBUTE = "Script-Runtime"
+
     /** Which shared scripts were used when building root set. */
     const val SHARED_ATTRIBUTE = "Shared-Scripts"
 
@@ -36,8 +41,16 @@ object ScriptCache {
     data class Stamp(
         val code: String?,
         val layout: String?,
+        val runtime: String?,
         val shared: Map<String, SharedScriptRef>,
     )
+
+    /** Writes [fingerprint] into the manifest of an artifact being built. */
+    fun stamp(attributes: Attributes, fingerprint: ScriptFingerprint.Fingerprint) {
+        attributes.putValue(HASH_ATTRIBUTE, fingerprint.code)
+        attributes.putValue(LAYOUT_ATTRIBUTE, fingerprint.layout)
+        attributes.putValue(RUNTIME_ATTRIBUTE, fingerprint.runtime)
+    }
 
     const val ARTIFACT_SUFFIX = ".jar"
 
@@ -68,6 +81,7 @@ object ScriptCache {
                     Stamp(
                         code = attributes.getValue(HASH_ATTRIBUTE),
                         layout = attributes.getValue(LAYOUT_ATTRIBUTE),
+                        runtime = attributes.getValue(RUNTIME_ATTRIBUTE),
                         shared = parseSharedScripts(attributes.getValue(SHARED_ATTRIBUTE)),
                     )
                 }
@@ -82,8 +96,11 @@ object ScriptCache {
      * Does [jar] file contain bytecode that corresponds to the same code as [fingerprint],
      * regardless of how that code was organized.
      */
-    fun isValid(jar: File, fingerprint: ScriptFingerprint.Fingerprint?): Boolean =
-        fingerprint != null && stampOf(jar)?.code == fingerprint.code
+    fun isValid(jar: File, fingerprint: ScriptFingerprint.Fingerprint?): Boolean {
+        if (fingerprint == null) return false
+        val stamp = stampOf(jar) ?: return false
+        return stamp.code == fingerprint.code && stamp.runtime == fingerprint.runtime
+    }
 
     /**
      * Shows if [jar] was compiled from the source code currently on the disk,
@@ -92,7 +109,8 @@ object ScriptCache {
     fun isCurrent(jar: File, fingerprint: ScriptFingerprint.Fingerprint?): Boolean {
         if (fingerprint == null) return false
         val stamp = stampOf(jar) ?: return false
-        return stamp.code == fingerprint.code && stamp.layout == fingerprint.layout
+        return stamp.code == fingerprint.code && stamp.layout == fingerprint.layout &&
+            stamp.runtime == fingerprint.runtime
     }
 
     /**
@@ -141,7 +159,8 @@ object ScriptCache {
      * does not leave its bytecode behind forever.
      *
      * Only namespaces represented in [known] are touched: a disabled addon has no scripts to report and
-     * must not lose the artifacts it will need when it is enabled again.
+     * must not lose the artifacts it will need when it is enabled again. Files a compilation left half
+     * written go too.
      */
     fun prune(known: Collection<ScriptId>) {
         val root = DirectoryManager.SCRIPT_CACHE
@@ -149,18 +168,21 @@ object ScriptCache {
         val expected = known.flatMapTo(HashSet()) {
             listOf(artifact(it).canonicalPath, sharedArtifact(it).canonicalPath)
         }
+        var freed = CacheCleanup.Freed()
         known.mapTo(HashSet(), ScriptId::namespace).forEach { namespace ->
             val namespaceRoot = root.resolve(namespace)
             if (!namespaceRoot.isDirectory) return@forEach
             namespaceRoot.walkBottomUp().forEach { file ->
                 when {
-                    file.isFile && file.extension == "jar" && file.canonicalPath !in expected -> {
-                        if (file.delete()) HollowEngine.LOGGER.debug("Removed stale compiled script '{}'", file)
-                    }
-
+                    file.isFile && file.extension == "tmp" -> freed += CacheCleanup.delete(file)
+                    file.isFile && file.extension == "jar" && file.canonicalPath !in expected -> freed += CacheCleanup.delete(file)
                     file.isDirectory && file != namespaceRoot && file.list()?.isEmpty() == true -> file.delete()
                 }
             }
         }
+        CacheCleanup.report(root, freed)
     }
+
+    /** Removes the compiled scripts of every namespace not in [namespaces]: a renamed project, a deleted addon. */
+    fun retainNamespaces(namespaces: Set<String>) = CacheCleanup.retain(DirectoryManager.SCRIPT_CACHE, namespaces)
 }

@@ -30,11 +30,12 @@ internal fun FloatingResizeHandle(window: FloatingDockWindow, state: DockingStat
 }
 
 @Composable
-internal fun DockDropOverlay(state: DockingState) {
+internal fun DockDropOverlay(state: DockingState, leftInset: Float = 0f, rightInset: Float = 0f) {
     Box(
         id = "dock-drop-overlay",
         tags = listOf(DockTags.DropOverlay),
         modifier = Modifier.size(100.percent, 100.percent)
+            .padding(leftInset.px, 0.px, rightInset.px, 0.px)
             .layer(10_000)
     ) {
         val root = state.root

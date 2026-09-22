@@ -6,6 +6,8 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.Shape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiComputedStyle
 import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
+import ru.hollowhorizon.hollowengine.client.ui.style.UiImageUv
+import ru.hollowhorizon.hollowengine.client.ui.style.imageUv
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.background
 import ru.hollowhorizon.hollowengine.client.ui.style.border
@@ -29,6 +31,7 @@ data class UiImageShadow(
     val radius: Float,
     val clipShape: Shape?,
     val filter: UiFilterChain,
+    val uv: UiImageUv = UiImageUv.Full,
 )
 
 internal fun imageShadow(style: UiComputedStyle, layout: UiLayoutNode): UiImageShadow? {
@@ -50,5 +53,6 @@ internal fun imageShadow(style: UiComputedStyle, layout: UiLayoutNode): UiImageS
         radius = if (layout.needsFramebuffer) style.border.radius else 0f,
         clipShape = style.clipShape.takeIf { style.clip },
         filter = style.filter.withoutBlur(),
+        uv = style.imageUv,
     )
 }

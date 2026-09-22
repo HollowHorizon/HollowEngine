@@ -1,0 +1,99 @@
+/*
+ * The notification stack in the bottom-right corner. Each card is bordered with its own kind's
+ * gradient, matching the icon it carries.
+ */
+
+.notif-stack {
+    size: fit fit;
+    gap: 8px;
+    margin: 12px;
+    align: end end;
+}
+
+.notif {
+    size: 320px fit;
+    gap: 6px;
+    padding: 10px 12px;
+    background: rgba(24, 26, 31, 0.94);
+    border-radius: 10px;
+    border: 1px #31343D;
+    backdrop-filter: blur(8px);
+    shadow: 0px 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.notif.success { border: 1px linear-gradient(135deg, #9BF763, #3D5A24); }
+.notif.error { border: 1px linear-gradient(135deg, #FF759F, #6E2020); }
+.notif.warning { border: 1px linear-gradient(135deg, #F7C363, #6B4520); }
+.notif.info { border: 1px linear-gradient(135deg, #4C86E0, #12203F); }
+.notif.progress { border: 1px linear-gradient(135deg, #4C86E0, #12203F); }
+
+.notif-head {
+    size: 100% fit;
+    gap: 10px;
+    align-items: start center;
+}
+
+.notif-icon {
+    size: 26px 26px;
+}
+
+.notif-title {
+    size: fit fit;
+    foreground: #E4E9F4;
+    font-size: 11px;
+    text-overflow: dots;
+}
+
+.notif-action {
+    size: fit fit;
+    min-width: 62px;
+    min-height: 26px;
+    padding: 4px 10px;
+    background: #2A2D35;
+    border-radius: 7px;
+    border: 1px #3B3F49;
+    hoverable: true;
+    clickable: true;
+    transition: background 140ms ease-out;
+}
+
+.notif-action:hover { background: #3B3F49; }
+
+.notif-action-label {
+    align: center center;
+    size: fit fit;
+    foreground: #C4CBDA;
+    font-size: 10px;
+    wrap: false;
+}
+
+.notif-close {
+    size: 24px 24px;
+    padding: 6px;
+    background: #2A2D35;
+    border-radius: 7px;
+    border: 1px #3B3F49;
+    tint: #8B93A5;
+    transition: tint 140ms ease-out, background 140ms ease-out;
+}
+
+.notif-close:hover {
+    background: #3B3F49;
+    tint: #E4E9F4;
+}
+
+.notif-track {
+    size: 100% 4px;
+    background: #2A2D35;
+    border-radius: 2px;
+    clip: true;
+}
+
+.notif-fill {
+    background: linear-gradient(90deg, #4C86E0, #9BC2FF);
+    border-radius: 2px;
+}
+
+.notif.success .notif-fill { background: linear-gradient(90deg, #70A832, #9BF763); }
+.notif.error .notif-fill { background: linear-gradient(90deg, #F54747, #FF759F); }
+.notif.warning .notif-fill { background: linear-gradient(90deg, #A86D32, #F7C363); }

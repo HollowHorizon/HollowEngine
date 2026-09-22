@@ -17,6 +17,10 @@ import ru.hollowhorizon.hollowengine.common.models.ProceduralLayerSpec
 class PoseTarget(
     val nodesByIndex: Map<Int, RuntimeNode>,
     val animations: Map<String, AnimationClip>,
+    /**
+     * Bone name by another name it answers to, from the model's rig.
+     */
+    val aliases: Map<String, String> = emptyMap(),
 ) {
     private val masks = HashMap<BoneMask, Set<Int>>()
 
@@ -26,6 +30,7 @@ class PoseTarget(
                 putIfAbsent(node.name, node)
                 putIfAbsent(node.definition.path, node)
             }
+            aliases.forEach { (alias, name) -> this[name]?.let { putIfAbsent(alias, it) } }
         }
     }
 
@@ -208,6 +213,14 @@ class ClipPlayback {
     /** Seconds spent past the end of a one-shot clip, which is what its fade-out is measured against. */
     var endElapsed: Float = 0f
         private set
+
+    /** Back to the first frame, which is where a state starts every time it is entered. */
+    fun reset() {
+        time = 0f
+        reversed = false
+        ended = false
+        endElapsed = 0f
+    }
 
     fun advance(duration: Float, playMode: AnimationPlayMode, speed: Float, deltaTime: Float): Float {
         if (duration <= 0f) return 0f

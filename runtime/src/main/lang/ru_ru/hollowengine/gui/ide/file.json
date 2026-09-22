@@ -1,6 +1,11 @@
 {
+  "already_exists": "Файл с таким именем уже есть",
+  "deleted": "Удалено: %s",
+  "invalid_name": "Такое имя файла использовать нельзя",
   "no_permissions_reload_server": "У вас нет прав для перезагрузки серверных ресурсов!",
+  "not_found": "Такого файла нет",
   "open_mod_folder": "Открыть папку мода",
   "reload_client_resources": "Перезагрузить ресурсы",
-  "reload_server_resources": "Перезагрузить ресурсы сервера"
+  "reload_server_resources": "Перезагрузить ресурсы сервера",
+  "renamed": "Переименовано в %s"
 }

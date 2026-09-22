@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.bootstrap.impl;
 
 import org.apache.logging.log4j.Logger;
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonVersions;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,11 +17,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -31,22 +34,27 @@ final class AddonBootstrapLibraries {
     private AddonBootstrapLibraries() {
     }
 
-    static Result discover(File addonsDirectory, File cacheDirectory, Logger logger) throws IOException {
-        File[] addonFiles = addonsDirectory.listFiles(file -> file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".jar"));
-        if (addonFiles == null || addonFiles.length == 0) {
+    /**
+     * [directories] are searched in order, and that order decides ties: the engine's own addon folder
+     * comes before the loader's mods folder.
+     */
+    static Result discover(List<File> directories, File cacheDirectory, Logger logger) throws IOException {
+        List<File> sortedAddons = selectAddons(directories, logger);
+        if (sortedAddons.isEmpty()) {
+            removeStaleExtractions(cacheDirectory, Set.of(), logger);
             System.clearProperty(AddonBootstrapContract.LOADED_ADDON_FINGERPRINTS_PROPERTY);
             System.clearProperty(AddonBootstrapContract.REJECTED_ADDON_FINGERPRINTS_PROPERTY);
             return new Result(List.of());
         }
 
-        List<File> sortedAddons = new ArrayList<>(List.of(addonFiles));
-        sortedAddons.sort(Comparator.comparing(File::getName));
         Map<String, ExtractedLibrary> librariesByName = new LinkedHashMap<>();
         Set<String> loadedAddonFingerprints = new LinkedHashSet<>();
         Set<String> rejectedAddonFingerprints = new LinkedHashSet<>();
+        Set<String> addonFingerprints = new HashSet<>();
 
         for (File addonFile : sortedAddons) {
             String addonFingerprint = sha256(addonFile.toPath());
+            addonFingerprints.add(addonFingerprint);
             Map<String, ExtractedLibrary> addonLibraries = new LinkedHashMap<>();
             try {
                 boolean containsBootstrapLibraries = inspectAddon(
@@ -67,6 +75,7 @@ final class AddonBootstrapLibraries {
             }
         }
 
+        removeStaleExtractions(cacheDirectory, addonFingerprints, logger);
         System.setProperty(
                 AddonBootstrapContract.LOADED_ADDON_FINGERPRINTS_PROPERTY,
                 String.join(",", loadedAddonFingerprints)
@@ -90,6 +99,92 @@ final class AddonBootstrapLibraries {
                         throw new IllegalStateException(exception);
                     }
                 }).toList());
+    }
+
+    private static List<File> selectAddons(List<File> directories, Logger logger) {
+        Map<String, AddonFile> selected = new LinkedHashMap<>();
+
+        for (int priority = 0; priority < directories.size(); priority++) {
+            File directory = directories.get(priority);
+            File[] files = directory.listFiles(file ->
+                    file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".jar"));
+            if (files == null) continue;
+
+            List<File> sorted = new ArrayList<>(List.of(files));
+            sorted.sort(Comparator.comparing(File::getName));
+            for (File file : sorted) {
+                AddonFile addon = readAddon(file, priority);
+                if (addon == null) continue;
+
+                AddonFile previous = selected.get(addon.id());
+                if (previous == null) {
+                    selected.put(addon.id(), addon);
+                    continue;
+                }
+
+                AddonFile winner = preferred(previous, addon);
+                selected.put(addon.id(), winner);
+                AddonFile ignored = winner == previous ? addon : previous;
+                logger.warn(
+                        "Addon '{}' found twice: using {} ({}), ignoring {} ({})",
+                        addon.id(),
+                        winner.file().getName(),
+                        winner.version(),
+                        ignored.file().getName(),
+                        ignored.version()
+                );
+            }
+        }
+
+        List<File> addons = new ArrayList<>();
+        selected.values().stream()
+                .sorted(Comparator.comparing(addon -> addon.file().getName()))
+                .forEach(addon -> addons.add(addon.file()));
+        return addons;
+    }
+
+    private static AddonFile preferred(AddonFile left, AddonFile right) {
+        int byVersion = AddonVersions.compare(left.version(), right.version());
+        if (byVersion != 0) return byVersion > 0 ? left : right;
+        return left.priority() <= right.priority() ? left : right;
+    }
+
+    private static AddonFile readAddon(File file, int priority) {
+        try (JarFile jar = new JarFile(file, false)) {
+            JarEntry descriptor = jar.getJarEntry(AddonBootstrapContract.DESCRIPTOR_PATH);
+            if (descriptor == null) return null;
+
+            Properties properties = new Properties();
+            try (InputStream input = jar.getInputStream(descriptor)) {
+                properties.load(input);
+            }
+            String id = properties.getProperty("id", "").trim();
+            if (id.isEmpty()) return null;
+            return new AddonFile(file, id, properties.getProperty("version", "1.0.0").trim(), priority);
+        } catch (IOException exception) {
+            return null;
+        }
+    }
+
+    private record AddonFile(File file, String id, String version, int priority) {
+    }
+
+    /**
+     * Libraries are extracted per addon jar, so each update of an addon leaves the previous extraction behind.
+     * Nothing is loaded from them yet at this point, so everything but the current addons' goes.
+     */
+    private static void removeStaleExtractions(File cacheDirectory, Set<String> addonFingerprints, Logger logger) {
+        File[] extractions = cacheDirectory.toPath().resolve("addon-bootstrap").toFile().listFiles(File::isDirectory);
+        if (extractions == null) return;
+        for (File extraction : extractions) {
+            if (addonFingerprints.contains(extraction.getName())) continue;
+            try (var files = Files.walk(extraction.toPath())) {
+                files.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            } catch (IOException exception) {
+                logger.debug("Could not remove stale bootstrap libraries {}", extraction, exception);
+            }
+            if (!extraction.exists()) logger.info("Removed stale bootstrap libraries of a replaced addon: {}", extraction.getName());
+        }
     }
 
     private static boolean inspectAddon(

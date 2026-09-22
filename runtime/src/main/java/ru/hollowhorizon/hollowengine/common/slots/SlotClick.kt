@@ -74,8 +74,29 @@ fun SlotLayout.applyClick(state: SlotState, intent: SlotIntent): SlotClickResult
     SlotIntentKind.DISTRIBUTE -> SlotClickResult(distribute(state, intent.slots, intent.distribute))
 }
 
+private fun SlotLayout.copyClick(state: SlotState, slot: Int, count: Int): Boolean {
+    val rules = rulesAt(slot)
+    val carried = state.carried
+    val current = state[slot]
+
+    if (carried.isEmpty) {
+        if (current.isEmpty) return false
+        state[slot] = ItemStack.EMPTY
+        return true
+    }
+
+    if (!rules.canInsert.matches(carried)) return false
+    val placed = min(count, effectiveLimit(rules, carried))
+    if (placed <= 0) return false
+    val next = carried.copyWithCount(placed)
+    if (current.areStacksEqual(next) && current.count == next.count) return false
+    state[slot] = next
+    return true
+}
+
 private fun SlotLayout.leftClick(state: SlotState, slot: Int): Boolean {
     if (slot !in 0 until totalSize) return false
+    if (copiesAt(slot)) return copyClick(state, slot, state.carried.count)
     val rules = rulesAt(slot)
     val current = state[slot]
     val carried = state.carried
@@ -115,6 +136,7 @@ private fun SlotLayout.leftClick(state: SlotState, slot: Int): Boolean {
 
 private fun SlotLayout.rightClick(state: SlotState, slot: Int): Boolean {
     if (slot !in 0 until totalSize) return false
+    if (copiesAt(slot)) return copyClick(state, slot, count = 1)
     val rules = rulesAt(slot)
     val current = state[slot]
     val carried = state.carried
@@ -166,6 +188,11 @@ private fun SlotLayout.quickMove(state: SlotState, slot: Int): Boolean {
 
 private fun SlotLayout.dropFromSlot(state: SlotState, slot: Int, all: Boolean): SlotClickResult {
     if (slot !in 0 until totalSize) return SlotClickResult(false)
+    if (copiesAt(slot)) {
+        if (state[slot].isEmpty) return SlotClickResult(false)
+        state[slot] = ItemStack.EMPTY
+        return SlotClickResult(true)
+    }
     val rules = rulesAt(slot)
     val current = state[slot]
     if (current.isEmpty || !rules.canExtract.matches(current)) return SlotClickResult(false)
@@ -191,7 +218,7 @@ private fun SlotLayout.distribute(state: SlotState, slots: List<Int>, mode: Slot
     if (carried.isEmpty || slots.isEmpty()) return false
 
     val targets = slots.distinct().filter { slot ->
-        slot in 0 until totalSize && acceptsForDistribution(state, slot, carried)
+        slot in 0 until totalSize && !copiesAt(slot) && acceptsForDistribution(state, slot, carried)
     }
     if (targets.isEmpty()) return false
 

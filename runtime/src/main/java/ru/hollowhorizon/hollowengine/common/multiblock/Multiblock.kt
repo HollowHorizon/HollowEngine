@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.lighting.LevelLightEngine
 import net.minecraft.world.level.material.FluidState
-import ru.hollowhorizon.hollowengine.client.utils.registryAccess
+import ru.hollowhorizon.hollowengine.common.utils.registryAccess
 
 /**
  * Represents a multiblock structure that can be validated within a Minecraft world.

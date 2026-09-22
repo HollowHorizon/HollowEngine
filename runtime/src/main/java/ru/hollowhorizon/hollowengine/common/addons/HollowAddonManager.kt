@@ -12,18 +12,29 @@ object HollowAddonManager : AutoCloseable {
     val loaded: List<HollowAddonDescriptor>
         get() = runtime?.loadedSnapshot.orEmpty()
 
+    /** Installed addons that are not switched off. Safe to read from inside an addon's `load`. */
+    val enabled: List<HollowAddonInstallation>
+        get() = runtime?.enabledSnapshot.orEmpty()
+
     val restartRequired: List<HollowAddonDescriptor>
         get() = runtime?.restartRequiredSnapshot.orEmpty()
 
     val statuses: List<HollowAddonStatus>
         get() = runtime?.let { addonRuntime -> runBlocking { addonRuntime.statuses() } }.orEmpty()
 
-    fun initializeAll(addonsDirectory: File = DirectoryManager.HOLLOW_ENGINE.resolve("addons").toFile()) {
+    /**
+     * Loaded addons from `hollowengine/addons` that carry assets or data, highest priority first. Addons
+     * in `mods` are left out: their loader already serves their resources.
+     */
+    val resourcePacks: List<HollowAddonResourcePack>
+        get() = runtime?.resourcePackSnapshot.orEmpty()
+
+    fun initializeAll(sources: List<File> = defaultSources()) {
         val created = synchronized(this) {
             if (runtime != null) return
             HollowAddonRuntime(
-                addonsDirectory = addonsDirectory,
-                cacheDirectory = DirectoryManager.HOLLOW_ENGINE.resolve(".cache").resolve("addons").toFile(),
+                sources = sources,
+                cacheDirectory = cacheDirectory,
             ).also { runtime = it }
         }
         runCatching { runBlocking { created.start() } }
@@ -35,6 +46,15 @@ object HollowAddonManager : AutoCloseable {
             }
             .getOrThrow()
     }
+
+    /** Where addons are looked for, highest priority first. */
+    internal fun defaultSources(): List<File> = listOf(
+        DirectoryManager.HOLLOW_ENGINE.resolve("addons").toFile(),
+        File("mods").absoluteFile,
+    )
+
+    internal val cacheDirectory: File
+        get() = DirectoryManager.HOLLOW_ENGINE.resolve(".cache").resolve("addons").toFile()
 
     fun isLoaded(id: String): Boolean = loaded.any { it.id == id }
 
@@ -65,3 +85,11 @@ object HollowAddonManager : AutoCloseable {
         runBlocking { closing.close() }
     }
 }
+
+/** Resources of an addon that the engine serves itself, see [HollowAddonManager.resourcePacks]. */
+data class HollowAddonResourcePack(
+    val addonId: String,
+    val name: String,
+    val file: File,
+    val hasAssets: Boolean,
+)

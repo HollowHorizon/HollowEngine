@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.common.attachments.editor.EditorAsset
+import ru.hollowhorizon.hollowengine.common.attachments.editor.EditorIcon
 
 /**
  * Which model an entity or node shows.
@@ -11,7 +13,10 @@ import ru.hollowhorizon.hollowengine.api.Syncable
 @Registerable
 @Syncable
 @Serializable
+@EditorIcon("hollowengine:textures/gui/icons/file_model.svg")
 @SerialName("hollowengine:model")
 data class Model(
-    val model: String = "hollowengine:models/entity/player_model.gltf",
+    @EditorAsset(
+        "gltf", "glb", "geo.json", "fbx", "obj", "bbmodel"
+    ) val model: String = "hollowengine:models/entity/player_model.gltf",
 )

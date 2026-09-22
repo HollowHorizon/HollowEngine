@@ -30,6 +30,10 @@ interface ScriptSource {
     fun read(id: ScriptId): ScriptArtifacts?
 }
 
+fun isScriptSourceFile(name: String): Boolean = name.endsWith(".kts") || name.endsWith(".story")
+
+fun isCompilableScriptFile(name: String): Boolean = name.endsWith(".kts")
+
 /**
  * What a source can provide for a single script. [sourceFile] is absent when an addon was built
  * without its sources, [precompiled] is absent for scripts that were never compiled ahead of time.

@@ -13,12 +13,14 @@ import ru.hollowhorizon.hollowengine.common.addons.HollowAddonEntrypoint
 import ru.hollowhorizon.hollowengine.common.addons.publish
 import ru.hollowhorizon.hollowengine.common.compiler.ScriptingCompilerImpl
 import ru.hollowhorizon.hollowengine.common.compiler.configuration.HollowScriptConfiguration
+import ru.hollowhorizon.hollowengine.common.compiler.configuration.clientSideImplicitReceivers
 import ru.hollowhorizon.hollowengine.common.ide.session.AnalysisEnvironment
 import ru.hollowhorizon.hollowengine.common.ide.session.EmptyLogger
 import ru.hollowhorizon.hollowengine.common.scripting.DefaultScriptDefinitions
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptClassProvider
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironmentInitializer
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.isSharedScript
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.CommonEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.logI
@@ -26,6 +28,7 @@ import ru.hollowhorizon.hollowengine.logW
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.jar.JarFile
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
@@ -36,22 +39,41 @@ import kotlin.script.experimental.jvm.JvmGetScriptingClass
 import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
 
 class ScriptingEnvironmentInitializerImpl : ScriptingEnvironmentInitializer, HollowAddonEntrypoint {
+    @Volatile
+    private var loaded: LoadedAddon? = null
+
     override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
-        val (mappings, classpath) = CommonEnvironment.setup(context.addonFile)
-        val environment = initialize(
-            javaHome = File(System.getProperty("java.home")),
-            classpath = classpath,
-            hostClasspath = classpath + context.addonFile,
-            scriptTypes = DefaultScriptDefinitions.providers(),
-            mappings = mappings,
-        )
+        loaded = LoadedAddon(context.addonFile, scope)
+        setUp(context.addonFile, scope)
         context.hostServices.publish<ScriptingEnvironmentInitializer>(this)
-        environment.warmUpAnalysis(scope)
     }
 
     override suspend fun unload(context: HollowAddonContext) {
+        loaded = null
         ScriptingEnvironment.clear()
     }
+
+    @Synchronized
+    override fun rebuild() {
+        val addon = loaded ?: return
+        // The old environment keeps the remapped jars open, and setting up writes them again.
+        ScriptingEnvironment.clear()
+        setUp(addon.file, addon.scope)
+    }
+
+    private fun setUp(addonFile: File, scope: CoroutineScope) {
+        val (mappings, classpath) = CommonEnvironment.setup(addonFile)
+        val environment = initialize(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = classpath,
+            hostClasspath = classpath + addonFile,
+            scriptTypes = DefaultScriptDefinitions.providers(),
+            mappings = mappings,
+        )
+        environment.warmUpAnalysis(scope)
+    }
+
+    private class LoadedAddon(val file: File, val scope: CoroutineScope)
 
     override fun initialize(
         javaHome: File,
@@ -69,25 +91,28 @@ class ScriptingEnvironmentInitializerImpl : ScriptingEnvironmentInitializer, Hol
         scriptTypes: List<ScriptClassProvider>,
         mappings: Mappings,
     ): ScriptingEnvironmentImpl {
-        val kotlinStdlib = classpath.firstOrNull { it.name.startsWith("kotlin-stdlib-jdk8") }
-            ?: classpath.firstOrNull(::containsKotlinStdlib)
-        if (kotlinStdlib != null) {
-            System.setProperty("kotlin.java.stdlib.jar", kotlinStdlib.absolutePath)
-        }
+        useKotlinStdlibFrom(classpath)
         val environment = ScriptingEnvironmentImpl(javaHome, classpath, hostClasspath, scriptTypes, mappings)
         logI("ScriptingEnvironment loaded successfully!")
         ScriptingEnvironment.INSTANCE = environment
         return environment
     }
+}
 
-    private fun containsKotlinStdlib(file: File): Boolean {
-        if (!file.isFile || file.extension != "jar") return false
-        return runCatching {
-            java.util.jar.JarFile(file).use { jar ->
-                jar.getEntry("kotlin/jvm/internal/Intrinsics.class") != null
-            }
-        }.getOrDefault(false)
+/** Points the compiler at the Kotlin stdlib on [classpath], which it otherwise looks for next to itself. */
+internal fun useKotlinStdlibFrom(classpath: List<File>) {
+    val kotlinStdlib = classpath.firstOrNull { it.name.startsWith("kotlin-stdlib-jdk8") }
+        ?: classpath.firstOrNull(::containsKotlinStdlib)
+    if (kotlinStdlib != null) {
+        System.setProperty("kotlin.java.stdlib.jar", kotlinStdlib.absolutePath)
     }
+}
+
+private fun containsKotlinStdlib(file: File): Boolean {
+    if (!file.isFile || file.extension != "jar") return false
+    return runCatching {
+        JarFile(file).use { jar -> jar.getEntry("kotlin/jvm/internal/Intrinsics.class") != null }
+    }.getOrDefault(false)
 }
 
 class ScriptingEnvironmentImpl(
@@ -96,6 +121,8 @@ class ScriptingEnvironmentImpl(
     private val hostClasspath: List<File> = classpath,
     scriptTypes: List<ScriptClassProvider>,
     override val mappings: Mappings,
+    /** Whether compiled classes may be dumped when the config asks for it; see [ScriptingCompilerImpl]. */
+    val debugOutput: Boolean = true,
 ) : ScriptingEnvironment {
     init {
         Logger.setFactory { EmptyLogger }
@@ -105,14 +132,18 @@ class ScriptingEnvironmentImpl(
         getScriptingClass(JvmGetScriptingClass())
         configurationDependencies(JvmDependency(hostClasspath))
     }
-    val scriptDefinitions = scriptTypes.map { (extension, path, imports, receivers) ->
+    val scriptDefinitions = scriptTypes.sortedByDescending { it.extension.length }.map { provider ->
         ScriptDefinition.FromConfigurations(
             scriptHostConfig,
             HollowScriptConfiguration(classpath) {
-                baseClass.replaceOnlyDefault(KotlinType(path))
-                fileExtension.replaceOnlyDefault(extension)
-                defaultImports(imports)
-                implicitReceivers(receivers.map { KotlinType(it) })
+                baseClass.replaceOnlyDefault(KotlinType(provider.baseClass))
+                fileExtension.replaceOnlyDefault(provider.extension)
+                defaultImports(provider.defaultImports)
+                implicitReceivers(provider.implicitReceivers.map { KotlinType(it) })
+                provider.clientSideReceivers?.let { receivers ->
+                    clientSideImplicitReceivers(receivers.map { KotlinType(it) })
+                }
+                if (provider.shared) isSharedScript(true)
             },
             ScriptEvaluationConfiguration()
         )

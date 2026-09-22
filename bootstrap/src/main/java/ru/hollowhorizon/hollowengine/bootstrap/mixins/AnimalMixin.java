@@ -35,8 +35,8 @@ public abstract class AnimalMixin extends net.minecraft.world.entity.AgeableMob 
     private void hollowengine$spawnChildFromBreeding(ServerLevel level, Animal mate, CallbackInfo ci) {
         AgeableMob child = this.getBreedOffspring(level, mate);
         RuntimeBridge.BreedResult result = BootstrapRuntimeManager.bridge().onAnimalBreed((Animal) (Object) this, mate, child);
-        child = result.getChild();
-        if (result.isCancelled()) {
+        child = result.child();
+        if (result.cancelled()) {
             this.setAge(6000);
             mate.setAge(6000);
             this.resetLove();

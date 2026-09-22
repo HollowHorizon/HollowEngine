@@ -280,12 +280,17 @@ object AttachmentRegistry {
     }
 
     fun cloneOwnedState(old: Entity, new: Entity, dropLooseOnDeath: Boolean) {
-        val source = stateOrNull(old.level(), old.uuid) ?: return
-        val components = if (dropLooseOnDeath) source.components.withoutLooseOnDeath() else source.components.copyOf()
+        val source = existingState(old)
+        val cached = if (source == null) takePendingTransfer(old.level(), old.uuid) else null
+        if (source == null && cached == null) return
+
+        val components = source?.components?.copyOf() ?: cached?.components.orEmpty()
+        val data = source?.dataOrNull ?: cached?.data
+
         val target = state(new)
         target.components.clear()
-        target.components.putAll(components)
-        source.dataOrNull?.takeUnless { it.isEmpty() }?.let(target::adoptData)
+        target.components.putAll(if (dropLooseOnDeath) components.withoutLooseOnDeath() else components)
+        data?.takeUnless { it.isEmpty() }?.let(target::adoptData)
     }
 
     fun entitySnapshot(level: Level, entityUuid: UUID): EntitySnapshot? {
@@ -338,8 +343,12 @@ object AttachmentRegistry {
         else sideState(level).pendingByEntityUuid[uuid] = PendingTransfer(components, data)
     }
 
+    /** Takes what [cacheForTransfer] left for [uuid], so only one instance can claim it. */
+    private fun takePendingTransfer(level: Level, uuid: UUID): PendingTransfer? =
+        synchronized(sideTransferState) { sideState(level).pendingByEntityUuid.remove(uuid) }
+
     private fun restoreFromTransfer(level: Level, uuid: UUID, target: HollowAttachments) {
-        sideState(level).pendingByEntityUuid.remove(uuid)?.let { cached ->
+        takePendingTransfer(level, uuid)?.let { cached ->
             cached.components?.let {
                 target.components.clear()
                 target.components.putAll(it)

@@ -6,6 +6,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiSurface
 import ru.hollowhorizon.hollowengine.client.ui.LocalUiFrameTimeNanos
 import ru.hollowhorizon.hollowengine.client.ui.UiCursorShape
+import ru.hollowhorizon.hollowengine.client.ui.UiExitWindow
 import ru.hollowhorizon.hollowengine.client.ui.currentUiKeyModifiers
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.common.ui.UiContent
@@ -22,11 +23,13 @@ class UiScriptSurface(
     override val sessionId: Int?,
     private val interactive: Boolean,
     private val rebuildEveryFrame: Boolean,
+    exitDuration: Long,
     private val onSend: ((CompoundTag) -> Unit)?,
     private val onClose: () -> Unit,
 ) : UiScope {
     private val surface = HollowUiSurface()
     private val renderer = MinecraftUiRenderer()
+    private val exit = UiExitWindow(exitDuration)
 
     private var pointerX = -1f
     private var pointerY = -1f
@@ -45,7 +48,22 @@ class UiScriptSurface(
 
     override fun close() = onClose()
 
-    val hasFocusedInput: Boolean get() = interactive && surface.runtime.isAnyFocused
+    override val isClosing: Boolean get() = exit.isClosing
+
+    /**
+     * Starts the exit animation, after which the overlay no longer takes input and the host drops it
+     * once [isExitFinished]. False when the overlay declares no exit duration and should go at once.
+     */
+    fun dismiss(): Boolean {
+        if (!exit.begin()) return false
+        surface.isClosing = true
+        return true
+    }
+
+    val isExitFinished: Boolean get() = exit.isFinished()
+
+    /** An overlay on its way out keeps drawing but stops answering the player. */
+    private val acceptsInput: Boolean get() = interactive && !exit.isClosing
 
     val cursor: UiCursorShape get() = surface.runtime.cursor
 
@@ -55,12 +73,13 @@ class UiScriptSurface(
         val height = window.guiScaledHeight.toFloat()
         if (width <= 0f || height <= 0f) return
         if (rebuildEveryFrame) surface.advanceFrameTime(nowNanos)
-        val (px, py) = if (interactive) currentPointer(width, height) else (-1f to -1f)
+        val (px, py) = if (acceptsInput) currentPointer(width, height) else (-1f to -1f)
         renderer.render(surface.frame(width, height, px, py, nowNanos))
+        exit.markDrawn()
     }
 
     fun mouseMoved(x: Float, y: Float): Boolean {
-        if (!interactive) return false
+        if (!acceptsInput) return false
         val dx = x - pointerX.coerceAtLeast(0f)
         val dy = y - pointerY.coerceAtLeast(0f)
         pointerX = x
@@ -70,7 +89,7 @@ class UiScriptSurface(
     }
 
     fun mousePressed(x: Float, y: Float, button: Int, action: Int): Boolean {
-        if (!interactive) return false
+        if (!acceptsInput) return false
         pointerX = x
         pointerY = y
         return when (action) {
@@ -87,18 +106,18 @@ class UiScriptSurface(
     }
 
     fun mouseScrolled(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
-        if (!interactive) return false
+        if (!acceptsInput) return false
         return surface.runtime.mouseScrolled(x, y, scrollX.toFloat(), scrollY.toFloat(), currentUiKeyModifiers())
     }
 
     fun keyPressed(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
-        if (!interactive) return false
+        if (!acceptsInput) return false
         if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return false
         return surface.runtime.keyPressed(key, scanCode, modifiers, repeat = action == GLFW.GLFW_REPEAT)
     }
 
     fun charTyped(codePoint: Int, modifiers: Int): Boolean {
-        if (!interactive) return false
+        if (!acceptsInput) return false
         return surface.runtime.charTyped(codePoint.toChar(), modifiers)
     }
 

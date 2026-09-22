@@ -1,0 +1,13 @@
+{
+  "add": "Add",
+  "bone.clear": "Leave it unset",
+  "bone.no_matches": "No bone by that name.",
+  "bone.none": "not set",
+  "bone.search": "Find a bone",
+  "empty_list": "Empty",
+  "not_set": "Not set",
+  "nothing_selected": "Select something to see its parameters",
+  "pick": "Pick from loaded assets",
+  "remove": "Remove",
+  "unsupported": "%s cannot be edited here"
+}

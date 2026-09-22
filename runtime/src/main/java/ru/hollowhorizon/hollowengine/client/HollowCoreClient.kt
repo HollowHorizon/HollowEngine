@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityRenderersEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsEvent
+import ru.hollowhorizon.hollowengine.client.ui.text.UiFontResources
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
@@ -34,6 +35,7 @@ object HollowCoreClient {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
         event.register(UiPathTileResources)
+        event.register(UiFontResources)
     }
 
     @SubscribeEvent

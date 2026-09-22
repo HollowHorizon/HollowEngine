@@ -62,6 +62,8 @@ internal class UiAnalyticRectBatch {
     fun canAppend(command: DrawBoxCommand): Boolean {
         if (command.renderToFramebuffer) return false
         if (command.paint != UiResolvedPaint.None && !command.paint.isBufferPaint()) return false
+        val borderPaint = command.border.paint.resolve()
+        if (borderPaint != UiResolvedPaint.None && !borderPaint.isBufferPaint()) return false
         uniformBorderWidth(command) ?: return false
         return true
     }
@@ -71,20 +73,24 @@ internal class UiAnalyticRectBatch {
         val height = command.rect.height
         if (width <= 0f || height <= 0f || command.opacity <= 0f) return
         val borderWidth = checkNotNull(uniformBorderWidth(command)).coerceIn(0f, min(width, height) * 0.5f)
-        if (command.paint == UiResolvedPaint.None && (borderWidth <= 0f || command.border.color.alpha <= 0f)) return
+        val borderPaint = command.border.paint.resolve().takeIf { borderWidth > 0f } ?: UiResolvedPaint.None
+        if (command.paint == UiResolvedPaint.None && !borderPaint.hasVisiblePixels()) return
         val paintIndex = if (command.paint == UiResolvedPaint.None) {
             NoPaint
         } else {
             paintEncoder.append(command.paint, command.opacity, command.filter, width, height)
         }
-        val borderColor = if (borderWidth > 0f) {
-            command.border.color.withOpacity(command.opacity).filtered(command.filter)
+        val borderColor = (borderPaint as? UiResolvedPaint.Color)
+            ?.color?.withOpacity(command.opacity)?.filtered(command.filter)
+            ?: UiColor.Transparent
+        val borderPaintIndex = if (borderPaint is UiResolvedPaint.Color || borderPaint == UiResolvedPaint.None) {
+            NoPaint
         } else {
-            UiColor.Transparent
+            paintEncoder.append(borderPaint, command.opacity, command.filter, width, height)
         }
         val radius = command.border.radius.coerceIn(0f, min(width, height) * 0.5f)
         records.add(width, height, radius, borderWidth)
-        records.add(paintIndex.toFloat(), 0f, 0f, 0f)
+        records.add(paintIndex.toFloat(), borderPaintIndex.toFloat(), 0f, 0f)
         records.add(borderColor.red, borderColor.green, borderColor.blue, borderColor.alpha)
         records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
         appendInstance(transform, 0f, 0f, width, height)

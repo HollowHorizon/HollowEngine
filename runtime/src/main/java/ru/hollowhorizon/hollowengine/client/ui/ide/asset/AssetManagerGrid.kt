@@ -160,10 +160,13 @@ internal fun AssetEntryContextMenu(
 @Composable
 private fun AssetFilePreview(scope: AssetResourceScope, file: AssetFile) {
     if (scope == AssetResourceScope.CLIENT && file.location.path.endsWith(".png", ignoreCase = true)) {
+        val atlas = atlasTexturePreview(file.location)
         Image(
-            file.location.toString(),
+            atlas?.atlas?.toString() ?: file.location.toString(),
             tags = listOf("asset-texture-preview"),
-            modifier = Modifier.size(100.percent, 100.percent).imageFit(UiImageFit.CONTAIN),
+            modifier = Modifier.size(100.percent, 100.percent)
+                .imageFit(UiImageFit.CONTAIN)
+                .let { modifier -> atlas?.let { modifier.imageUv(it.uv) } ?: modifier },
         )
     } else {
         Image(IconHelper.forPath(file.location.path).toString(), tags = listOf("asset-file-icon"))

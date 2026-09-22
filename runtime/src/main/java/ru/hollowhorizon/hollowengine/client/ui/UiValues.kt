@@ -4,27 +4,46 @@ import net.minecraft.client.Minecraft
 import org.joml.Matrix4f
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.client.ui.UiLength.*
+import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import kotlin.math.*
+
+data class UiEntityView(
+    val yaw: Float = 0f,
+    val pitch: Float = 0f,
+    val zoom: Float = 1f,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+) {
+    companion object {
+        val Portrait = UiEntityView()
+    }
+}
 
 /**
  * The entity a node draws.
  */
-class UiEntityRef private constructor(private val direct: Entity?, val networkId: Int) {
+class UiEntityRef private constructor(
+    private val direct: Entity?,
+    val networkId: Int,
+    val view: UiEntityView,
+) {
     /** The entity to draw, or null when the id names nothing the client currently knows about. */
     fun resolve(): Entity? = direct ?: Minecraft.getInstance().level?.getEntity(networkId)
 
     override fun equals(other: Any?): Boolean =
-        other is UiEntityRef && other.direct === direct && other.networkId == networkId
+        other is UiEntityRef && other.direct === direct && other.networkId == networkId && other.view == view
 
-    override fun hashCode(): Int = 31 * (direct?.id ?: 0) + networkId
+    override fun hashCode(): Int = 31 * (31 * (direct?.id ?: 0) + networkId) + view.hashCode()
 
     override fun toString(): String = "UiEntityRef(${direct?.name?.string ?: networkId})"
 
     companion object {
-        fun of(entity: Entity): UiEntityRef = UiEntityRef(entity, entity.id)
+        fun of(entity: Entity, view: UiEntityView = UiEntityView.Portrait): UiEntityRef =
+            UiEntityRef(entity, entity.id, view)
 
         /** Names an entity by the id it has on this client; see [Entity.getId]. */
-        fun ofId(networkId: Int): UiEntityRef = UiEntityRef(null, networkId)
+        fun ofId(networkId: Int, view: UiEntityView = UiEntityView.Portrait): UiEntityRef =
+            UiEntityRef(null, networkId, view)
     }
 }
 
@@ -387,11 +406,20 @@ data class UiColor(
     }
 }
 
+/**
+ * The ring drawn around a node. [paint] is a full paint, so a border can carry
+ * a gradient the same way a background does.
+ */
 data class UiBorder(
     val width: UiInsets = UiInsets.Zero,
-    val color: UiColor = UiColor.Transparent,
+    val paint: UiPaint = UiPaint.None,
     val radius: Float = 0f,
-)
+) {
+    constructor(width: UiInsets, color: UiColor, radius: Float = 0f) : this(width, UiPaint.Color(color), radius)
+
+    /** The flat color of a solid border, and `null` for a gradient one. */
+    val color: UiColor? get() = (paint as? UiPaint.Color)?.color
+}
 
 data class UiTransform(
     val translate: UiVec3 = UiVec3(),

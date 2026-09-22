@@ -5,6 +5,7 @@ import kotlinx.coroutines.delay
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOpenFile
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -62,7 +63,7 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
 
     Column(
         tags = listOf("sounds-editor-root"),
-        modifier = Modifier.style("hollowengine:ui/styles/sounds-editor.hss")
+        modifier = Modifier.style(InspectorStylesheet).style("hollowengine:ui/styles/sounds-editor.hss")
             .size(100.percent, 100.percent)
             .focusScope(),
     ) {
@@ -244,13 +245,13 @@ private fun SoundCard(
         SliderRow(key("pitch").lang, sound.pitch, 0.5f, 2f) { sound.pitch = it; onChanged() }
 
         Row(modifier = Modifier.size(100.percent, 22.px).gap(6.px).alignItems(vertical = UiAlign.CENTER)) {
-            IntField(key("weight").lang, sound.weight, min = 1) { sound.weight = it; onChanged() }
-            IntField(key("attenuation").lang, sound.attenuationDistance, min = 0) { sound.attenuationDistance = it; onChanged() }
+            IntRow(key("weight").lang, sound.weight, min = 1) { sound.weight = it; onChanged() }
+            IntRow(key("attenuation").lang, sound.attenuationDistance, min = 0) { sound.attenuationDistance = it; onChanged() }
         }
 
         Row(modifier = Modifier.size(100.percent, 20.px).gap(10.px).alignItems(vertical = UiAlign.CENTER)) {
-            ToggleChip("stream", sound.stream) { sound.stream = it; onChanged() }
-            ToggleChip("preload", sound.preload) { sound.preload = it; onChanged() }
+            ToggleRow("stream", sound.stream) { sound.stream = it; onChanged() }
+            ToggleRow("preload", sound.preload) { sound.preload = it; onChanged() }
             Text("${key("type").lang}:", tags = listOf("sounds-editor-label"))
             val typeId = "sounds-editor-type-$index"
             var typeOpen by remember { mutableStateOf(false) }
@@ -277,44 +278,6 @@ private fun LabeledField(label: String, content: @Composable () -> Unit) {
     Column(tags = listOf("sounds-editor-labeled")) {
         Text(label, tags = listOf("sounds-editor-label"))
         content()
-    }
-}
-
-@Composable
-private fun SliderRow(label: String, value: Float, min: Float, max: Float, onChange: (Float) -> Unit) {
-    Row(modifier = Modifier.size(100.percent, 20.px).gap(6.px).alignItems(vertical = UiAlign.CENTER)) {
-        Text(label, tags = listOf("sounds-editor-label"), modifier = Modifier.size(96.px, 14.px))
-        Slider(
-            value = value,
-            min = min,
-            max = max,
-            step = 0.05f,
-            onValueChange = onChange,
-            modifier = Modifier.size(0.px, 14.px).grow(1f),
-        )
-        Text("%.2f".format(value), tags = listOf("sounds-editor-value"), modifier = Modifier.size(34.px, 14.px))
-    }
-}
-
-@Composable
-private fun IntField(label: String, value: Int, min: Int, onChange: (Int) -> Unit) {
-    Row(modifier = Modifier.size(0.px, 22.px).grow(1f).gap(4.px).alignItems(vertical = UiAlign.CENTER)) {
-        Text(label, tags = listOf("sounds-editor-label"), modifier = Modifier.grow(1f))
-        TextField(
-            value = value.toString(),
-            filter = UiTextInputFilter.INTEGER,
-            onChange = { input -> input.toIntOrNull()?.let { onChange(it.coerceAtLeast(min)) } },
-            tags = listOf("sounds-editor-field"),
-            modifier = Modifier.size(52.px, 22.px),
-        )
-    }
-}
-
-@Composable
-private fun ToggleChip(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.gap(4.px).alignItems(vertical = UiAlign.CENTER)) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Text(label, tags = listOf("sounds-editor-label"))
     }
 }
 

@@ -5,13 +5,20 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.AbstractEncoder
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.modules.SerializersModule
+import net.minecraft.core.RegistryAccess
 import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.network.RegistryFriendlyByteBuf
+import ru.hollowhorizon.hollowengine.common.utils.registryAccess
+import ru.hollowhorizon.hollowengine.common.utils.serialization.RegistryAware
 
 @OptIn(ExperimentalSerializationApi::class)
 class FriendlyByteBufEncoder(
     override val serializersModule: SerializersModule,
     internal val buf: FriendlyByteBuf,
-) : AbstractEncoder() {
+) : AbstractEncoder(), RegistryAware {
+    override val registries: RegistryAccess
+        get() = (buf as? RegistryFriendlyByteBuf)?.registryAccess() ?: registryAccess
+
     override fun encodeBoolean(value: Boolean) {
         buf.writeBoolean(value)
     }

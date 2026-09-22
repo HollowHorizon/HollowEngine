@@ -47,7 +47,7 @@ class UiScreenDefinition(
     /** The scale this screen lays itself out at; see [UiGuiScale]. */
     val guiScale: UiGuiScale,
     /**
-     * Milliseconds the screen stays up after the server dismisses it, so an exit animation can play out.
+     * Milliseconds the screen stays up after it is closed, so an exit animation can play out.
      */
     val exitDuration: Long,
     val content: UiContent,
@@ -76,6 +76,7 @@ class UiOverlayDefinition(
     val input: OverlayInput,
     val aboveScreens: Boolean,
     val rebuildEveryFrame: Boolean,
+    val exitDuration: Long,
     val content: UiContent,
 ) {
     val isInteractive: Boolean get() = input == OverlayInput.INTERACTIVE

@@ -7,44 +7,46 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocument
+import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCompletionContributor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiSyntaxHighlighter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextDiagnostic
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 import ru.hollowhorizon.hollowengine.common.models.*
 
-private const val FieldHeight = 22f
 
-@Composable
-internal fun AnimatorInspector(
+private const val AnimatorIcon = "hollowengine:textures/gui/icons/state.svg"
+
+internal fun animatorInspectorTarget(
     document: HollowIdeAnimatorDocument,
     selection: AnimatorSelection,
     onSelect: (AnimatorSelection) -> Unit,
-    modifier: Modifier,
-    leading: (@Composable () -> Unit)? = null,
-) {
-    Column(
-        modifier = modifier
-            .background(AnimatorColors.Panel)
-            .border(1.px, AnimatorColors.Border)
-            .padding(10.px)
-            .gap(8.px)
-            .scrollable(horizontal = false),
-    ) {
-        Row(modifier = Modifier.size(100.percent).gap(6.px).alignItems(vertical = UiAlign.CENTER)) {
-            leading?.invoke()
-            Text(animatorText("parameters"), modifier = Modifier.fontSize(11f).foreground(AnimatorColors.Muted))
-        }
+): InspectorTarget? = when (selection) {
+    is AnimatorSelection.None -> null
 
-        when (selection) {
-            is AnimatorSelection.None -> Hint(animatorText("nothing_selected"))
-            is AnimatorSelection.Layer -> LayerSection(document, selection.layerId) { renamed ->
-                onSelect(AnimatorSelection.Layer(renamed))
-            }
-            is AnimatorSelection.State -> StateSection(document, selection, onSelect)
-            is AnimatorSelection.Transition -> TransitionSection(document, selection, onSelect)
-        }
-    }
+    is AnimatorSelection.Layer -> InspectorTarget(
+        id = "animator-layer-${selection.layerId}",
+        title = selection.layerId,
+        icon = AnimatorIcon,
+        subtitle = animatorText("section_layer"),
+    ) { LayerSection(document, selection.layerId) { renamed -> onSelect(AnimatorSelection.Layer(renamed)) } }
+
+    is AnimatorSelection.State -> InspectorTarget(
+        id = "animator-state-${selection.layerId}-${selection.stateId}",
+        title = selection.stateId,
+        icon = AnimatorIcon,
+        subtitle = animatorText("section_state"),
+    ) { StateSection(document, selection, onSelect) }
+
+    is AnimatorSelection.Transition -> InspectorTarget(
+        id = "animator-link-${selection.layerId}-${selection.index}",
+        title = document.animator.controller(selection.layerId)
+            ?.transitions?.getOrNull(selection.index)
+            ?.let { "${it.from} → ${it.to}" }
+            ?: animatorText("section_link"),
+        icon = AnimatorIcon,
+        subtitle = animatorText("section_transition"),
+    ) { TransitionSection(document, selection, onSelect) }
 }
 
 @Composable
@@ -61,14 +63,14 @@ private fun LayerSection(
             document.edit { it.withLayerRenamed(layerId, value) }
             onRenamed(value)
         }
-        IntField(animatorText("priority"), layer.priority) { value -> document.edit { it.withLayer(layer.withCommon(priority = value)) } }
+        IntRow(animatorText("priority"), layer.priority) { value -> document.edit { it.withLayer(layer.withCommon(priority = value)) } }
         ExpressionField(animatorText("weight"), layer.weight.source) { value ->
             document.edit { it.withLayer(layer.withCommon(weight = AnimationExpression(value))) }
         }
-        FloatField(animatorText("fade_in"), layer.fadeIn) { value -> document.edit { it.withLayer(layer.withCommon(fadeIn = value)) } }
-        FloatField(animatorText("fade_out"), layer.fadeOut) { value -> document.edit { it.withLayer(layer.withCommon(fadeOut = value)) } }
+        FloatRow(animatorText("fade_in"), layer.fadeIn) { value -> document.edit { it.withLayer(layer.withCommon(fadeIn = value)) } }
+        FloatRow(animatorText("fade_out"), layer.fadeOut) { value -> document.edit { it.withLayer(layer.withCommon(fadeOut = value)) } }
         Label(animatorText("blend"))
-        PillRows(LayerBlendMode.entries, layer.blendMode, { it.name.lowercase() }) { mode ->
+        Pills(LayerBlendMode.entries, layer.blendMode, { it.name.lowercase() }) { mode ->
             document.edit { it.withLayer(layer.withCommon(blendMode = mode)) }
         }
     }
@@ -94,6 +96,11 @@ private fun LayerSection(
             layer.transforms.forEach { transform -> Readonly(animatorText("bone"), transform.bone) }
             if (layer.transforms.isEmpty()) Hint(animatorText("no_transforms"))
         }
+
+        else -> Section(layer.kindName()) {
+            if (layer is UnknownAnimatorLayerSpec) Hint(animatorText("unknown_layer"))
+            else Hint(animatorText("no_layer_editor"))
+        }
     }
 }
 
@@ -116,20 +123,31 @@ private fun StateSection(
     val state = controller.states.firstOrNull { it.id == selection.stateId } ?: return Hint(animatorText("state_removed"))
 
     Section(animatorText("section_state")) {
+        Readonly(animatorText("kind"), state.kindName())
         NameRow(animatorText("name"), state.id) { value ->
             if (controller.states.none { it.id == value }) {
                 document.edit { it.withStateRenamed(layerId, state.id, value) }
                 onSelect(AnimatorSelection.State(layerId, value))
             }
         }
-        TextRow(animatorText("animation"), state.animation) { value ->
-            document.edit { it.withState(layerId, state.copy(animation = value)) }
-        }
-        PlayModeRow(state.playMode) { mode ->
-            document.edit { it.withState(layerId, state.copy(playMode = mode)) }
-        }
-        ExpressionField(animatorText("speed"), state.speed.source) { value ->
-            document.edit { it.withState(layerId, state.copy(speed = AnimationExpression(value))) }
+
+        when (state) {
+            is ClipStateSpec -> {
+                TextRow(animatorText("animation"), state.animation) { value ->
+                    document.edit { it.withState(layerId, state.copy(animation = value)) }
+                }
+                PlayModeRow(state.playMode) { mode ->
+                    document.edit { it.withState(layerId, state.copy(playMode = mode)) }
+                }
+                ExpressionField(animatorText("speed"), state.speed.source) { value ->
+                    document.edit { it.withState(layerId, state.copy(speed = AnimationExpression(value))) }
+                }
+            }
+
+            // A state this build has no editor for: an addon's own kind, or one whose addon is missing.
+            is UnknownAnimatorStateSpec -> Hint(animatorText("unknown_state"))
+
+            else -> Hint(animatorText("no_state_editor"))
         }
     }
 
@@ -138,29 +156,17 @@ private fun StateSection(
     if (links.isNotEmpty()) {
         Section(animatorText("state_transitions")) {
             links.forEach { (index, transition) ->
-                AnimatorButton(
-                    "${transition.from} → ${transition.to}",
-                    modifier = Modifier.size(100.percent, 20.px),
-                    color = AnimatorColors.Muted,
-                ) {
+                InspectorButton("${transition.from} → ${transition.to}") {
                     onSelect(AnimatorSelection.Transition(layerId, index))
                 }
             }
         }
     }
 
-    AnimatorButton(
-        animatorText("make_entry"),
-        modifier = Modifier.size(100.percent, 22.px),
-        color = AnimatorColors.Accent,
-    ) {
+    InspectorButton(animatorText("make_entry"), tags = listOf("primary")) {
         document.edit { it.withEntryState(layerId, state.id) }
     }
-    AnimatorButton(
-        animatorText("delete_state"),
-        modifier = Modifier.size(100.percent, 22.px),
-        color = AnimatorColors.Danger,
-    ) {
+    InspectorButton(animatorText("delete_state"), tags = listOf("danger")) {
         document.edit { it.withoutState(layerId, state.id) }
         onSelect(AnimatorSelection.Layer(layerId))
     }
@@ -191,17 +197,13 @@ private fun TransitionSection(
         ExpressionField(animatorText("duration"), transition.duration.source) { value ->
             update { it.copy(duration = AnimationExpression(value)) }
         }
-        IntField(animatorText("priority"), transition.priority) { value -> update { it.copy(priority = value) } }
-        FloatField(animatorText("exit_time"), transition.exitTime ?: 0f) { value ->
+        IntRow(animatorText("priority"), transition.priority) { value -> update { it.copy(priority = value) } }
+        FloatRow(animatorText("exit_time"), transition.exitTime ?: 0f) { value ->
             update { it.copy(exitTime = value.takeIf { time -> time > 0f }) }
         }
     }
 
-    AnimatorButton(
-        animatorText("delete_transition"),
-        modifier = Modifier.size(100.percent, 22.px),
-        color = AnimatorColors.Danger,
-    ) {
+    InspectorButton(animatorText("delete_transition"), tags = listOf("danger")) {
         document.edit { it.withoutTransitionAt(layerId, selection.index) }
         onSelect(AnimatorSelection.Layer(layerId))
     }
@@ -210,107 +212,6 @@ private fun TransitionSection(
 @Composable
 private fun PlayModeRow(current: AnimationPlayMode, onChange: (AnimationPlayMode) -> Unit) {
     Label(animatorText("play_mode"))
-    PillRows(AnimationPlayMode.entries, current, { it.name.lowercase() }, onChange)
+    Pills(AnimationPlayMode.entries, current, { it.name.lowercase() }, onChange)
 }
 
-@Composable
-private fun <T> PillRows(
-    values: List<T>,
-    current: T,
-    label: (T) -> String,
-    onChange: (T) -> Unit,
-) {
-    AnimatorPillFlow {
-        values.forEach { value ->
-            AnimatorPill(label(value), value == current) { onChange(value) }
-        }
-    }
-}
-
-@Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(modifier = Modifier.size(100.percent).gap(4.px)) {
-        Text(title, modifier = Modifier.fontSize(10f).foreground(AnimatorColors.Accent))
-        Box(modifier = Modifier.size(100.percent, 1.px).background(AnimatorColors.Border))
-        content()
-    }
-}
-
-@Composable
-private fun Label(text: String) {
-    Text(text, modifier = Modifier.fontSize(9f).foreground(AnimatorColors.Muted))
-}
-
-@Composable
-private fun Readonly(label: String, value: String) {
-    Row(modifier = Modifier.size(100.percent, 16.px).gap(6.px).alignItems(vertical = UiAlign.CENTER)) {
-        Text(label, modifier = Modifier.fontSize(9f).foreground(AnimatorColors.Muted).grow(1f))
-        Text(value, modifier = Modifier.fontSize(9f).foreground(AnimatorColors.Text))
-    }
-}
-
-@Composable
-private fun TextRow(
-    label: String,
-    value: String,
-    completions: UiCompletionContributor? = null,
-    highlighter: UiSyntaxHighlighter? = null,
-    diagnostics: List<UiTextDiagnostic> = emptyList(),
-    filter: UiTextInputFilter = UiTextInputFilter.ANY,
-    onChange: (String) -> Unit,
-) {
-    Label(label)
-    TextField(
-        value = value,
-        filter = filter,
-        completionContributor = completions,
-        syntaxHighlighter = highlighter,
-        diagnostics = diagnostics,
-        fontSize = 9f,
-        onChange = onChange,
-        modifier = Modifier
-            .size(100.percent, FieldHeight.px)
-            .background(AnimatorColors.Canvas)
-            .border(1.px, AnimatorColors.Border, 3f)
-            .borderRadius(3f)
-            .padding(4.px),
-    )
-}
-
-@Composable
-private fun NameRow(label: String, value: String, onCommit: (String) -> Unit) {
-    var draft by remember(value) { mutableStateOf(value) }
-    TextRow(label, draft) { next ->
-        draft = next
-        val trimmed = next.trim()
-        if (trimmed.isNotEmpty() && trimmed != value) onCommit(trimmed)
-    }
-}
-
-@Composable
-private fun ExpressionField(label: String, value: String, onChange: (String) -> Unit) =
-    TextRow(
-        label = label,
-        value = value,
-        completions = AnimationExpressionCompletions,
-        highlighter = AnimationExpressionHighlighter,
-        diagnostics = animationExpressionDiagnostics(value),
-        onChange = onChange,
-    )
-
-@Composable
-private fun IntField(label: String, value: Int, onChange: (Int) -> Unit) =
-    TextRow(label, value.toString(), filter = UiTextInputFilter.INTEGER) { text ->
-        text.toIntOrNull()?.let(onChange)
-    }
-
-@Composable
-private fun FloatField(label: String, value: Float, onChange: (Float) -> Unit) =
-    TextRow(label, value.toString(), filter = UiTextInputFilter.DECIMAL) { text ->
-        text.toFloatOrNull()?.let(onChange)
-    }
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, modifier = Modifier.fontSize(9f).foreground(AnimatorColors.Muted))
-}

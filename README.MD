@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/0mods/HollowEngineDocumentation/refs/heads/master/static/img/headers/welcome2.webp"
+  <img src="https://raw.githubusercontent.com/HollowHorizon/HollowEngine/refs/heads/dev/docs/assets/titles/welcome.webp"
        style="background-color: #110E11; padding: 0 20%; width: 100%; box-sizing: border-box;" alt="Logo">
   <h1 align="center">Hollow Engine</h1>
 </p>
@@ -10,7 +10,7 @@
   <a href="https://github.com/HollowHorizon/HollowEngine/graphs/contributors"><img src="https://img.shields.io/github/contributors/HollowHorizon/HollowEngine.svg?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Contributors"></a>
   <a href="https://github.com/HollowHorizon/HollowEngine/releases"><img src="https://img.shields.io/github/downloads/HollowHorizon/HollowEngine/total?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Downloads"></a>
   <a href="https://discord.gg/qKpPhkwGCY"><img src="https://img.shields.io/discord/1081609215484887051?style=for-the-badge&label=Discord&logo=discord&logoColor=d9e0ee&labelColor=a39774&color=ccac4b" alt="Discord"></a>
-  <img src="https://img.shields.io/codefactor/grade/github/HollowHorizon/HollowEngine?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="CodeFactor">
+  <img src="https://img.shields.io/codefactor/grade/github/BMProjects-Development/HollowEngine?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="CodeFactor">
 </p>
 
 ---
@@ -48,8 +48,8 @@ HollowEngine is a content creation engine for Minecraft. It combines Kotlin scri
 
 ## Quick Start
 
-1. Install the platform-specific HollowEngine jar for Fabric or NeoForge into your `mods/` folder.
-2. If you use the compiler workflow, place `HollowEngineCompiler-*.jar` in the `hollowengine/addons/` directory. The compiler is loaded and managed as a HollowEngine addon.
+1. Install the HollowEngine jar into your `mods/` folder. One jar covers both Fabric and NeoForge.
+2. If you use scripting, install `HollowEngineCompiler-*.jar` as well. Addons work from `mods/` like any other mod, or from `hollowengine/addons/` if you prefer to keep them apart. If both folders contain the same addon id, the newest version is selected at startup.
 3. Start Minecraft.
 4. Open the in-game editor and begin creating content.
 

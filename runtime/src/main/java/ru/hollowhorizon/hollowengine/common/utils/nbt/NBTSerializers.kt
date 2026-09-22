@@ -30,11 +30,11 @@ import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import org.joml.Vector3d
 import org.joml.Vector3f
-import ru.hollowhorizon.hollowengine.client.utils.registryAccess
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.utils.serialization.registries
 import java.util.*
 
 object FriendlyByteBufSerializer : KSerializer<FriendlyByteBuf> {
@@ -115,10 +115,10 @@ object ForStringNBT : KSerializer<StringTag> {
 object ForTextComponent : KSerializer<Component> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("StringNBT", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: Component) =
-        encoder.encodeString(Component.Serializer.toJson(value, registryAccess))
+        encoder.encodeString(Component.Serializer.toJson(value, encoder.registries))
 
     override fun deserialize(decoder: Decoder) =
-        Component.Serializer.fromJson(decoder.decodeString(), registryAccess) ?: "".literal
+        Component.Serializer.fromJson(decoder.decodeString(), decoder.registries) ?: "".literal
 
 }
 
@@ -262,7 +262,7 @@ object ForItemStack : KSerializer<ItemStack> {
                 0,
                 ForTag,
                 if (value.isEmpty) CompoundTag() // ЕndTag не используется поскольку ListTag не поддерживает полиморфизм для Tag, из-за этого будут проблемы при сохранении
-                else value.save()
+                else value.save(encoder.registries)
             )
         }
     }
@@ -285,7 +285,7 @@ object ForItemStack : KSerializer<ItemStack> {
         }
         dec.endStructure(descriptor)
         return if (tag !is CompoundTag || tag.isEmpty) ItemStack.EMPTY
-        else tag.readItem()
+        else tag.readItem(decoder.registries)
     }
 }
 
@@ -294,7 +294,7 @@ object ForItemStackJson : KSerializer<ItemStack> {
 
     override fun serialize(encoder: Encoder, value: ItemStack) {
         val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("Requires JsonEncoder")
-        val ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess)
+        val ops = RegistryOps.create(JsonOps.INSTANCE, encoder.registries)
 
         val gsonElement = ItemStack.CODEC.encodeStart(ops, value)
             .getOrThrow { id -> SerializationException("Failed to serialize ItemStack: $id") }
@@ -309,7 +309,7 @@ object ForItemStackJson : KSerializer<ItemStack> {
         val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("Requires JsonDecoder")
         val jsonElement = jsonDecoder.decodeJsonElement()
 
-        val ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess)
+        val ops = RegistryOps.create(JsonOps.INSTANCE, decoder.registries)
 
         val gsonElement = JsonFormat.encodeToString(jsonElement)
 

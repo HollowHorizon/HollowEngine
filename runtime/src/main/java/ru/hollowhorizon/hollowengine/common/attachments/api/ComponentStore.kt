@@ -60,10 +60,6 @@ class ComponentStore internal constructor() {
         invalidate()
     }
 
-    /** Drops the components whose descriptor marks them as lost on death. */
-    fun withoutLooseOnDeath(): Map<ResourceLocation, Component> =
-        components.filterNot { (_, component) -> ComponentDescriptorRegistry.isLooseOnDeath(component) }
-
     private fun invalidate() {
         cachedSnapshot = null
         onChange?.invoke()
@@ -134,3 +130,10 @@ class ComponentStore internal constructor() {
         ComponentDescriptorRegistry.idFor(component::class)
             ?: error("Component descriptor not found for ${component::class.qualifiedName}")
 }
+
+/**
+ * Drops the components whose descriptor marks them as lost on death. Takes a plain map rather than a
+ * store, because a respawn also has to filter the set cached for a player that is already removed.
+ */
+fun Map<ResourceLocation, Component>.withoutLooseOnDeath(): Map<ResourceLocation, Component> =
+    filterNot { (_, component) -> ComponentDescriptorRegistry.isLooseOnDeath(component) }

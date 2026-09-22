@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.source
 
 import java.io.File
+import java.io.IOException
+import java.nio.file.InvalidPathException
 
 /**
  * Scripts kept in a plain directory. Used for the sandbox at runtime and for an addon's own
@@ -18,7 +20,7 @@ open class DirectoryScriptSource(
         if (!directory.isDirectory) return emptyList()
         val base = directory.toPath()
         return directory.walkTopDown()
-            .filter { it.isFile && it.name.endsWith(SCRIPT_EXTENSION) }
+            .filter { it.isFile && isScriptSourceFile(it.name) }
             .map { file -> ScriptId(namespace, base.relativize(file.toPath()).toString().replace('\\', '/')) }
             .sortedBy(ScriptId::path)
             .toList()
@@ -31,14 +33,16 @@ open class DirectoryScriptSource(
     }
 
     private fun resolve(id: ScriptId): File? {
-        val file = directory.resolve(id.path).canonicalFile
+        val file = try {
+            directory.resolve(id.path).canonicalFile
+        } catch (_: IOException) {
+            return null
+        } catch (_: InvalidPathException) {
+            return null
+        }
         if (!file.isFile) return null
         // A path may not climb out of the directory through `..` segments.
         if (!file.toPath().startsWith(directory.canonicalFile.toPath())) return null
         return file
-    }
-
-    private companion object {
-        const val SCRIPT_EXTENSION = ".kts"
     }
 }

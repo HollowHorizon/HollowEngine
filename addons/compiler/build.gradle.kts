@@ -69,6 +69,9 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
 
     api(project(path = runtimeProjectPath, configuration = "namedElements"))
+    compileOnly("org.ow2.asm:asm-tree:9.7.1")
+    testImplementation(project(":bridge")) { isTransitive = false }
+    testImplementation("org.ow2.asm:asm-tree:9.7.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.4") { isTransitive = false }
 
@@ -256,18 +259,20 @@ val verifyCompilerPluginPackaging = tasks.register("verifyCompilerPluginPackagin
     }
 }
 
+apply(from = rootProject.file("gradle/addon-mod-metadata.gradle.kts"))
+val addonModMetadata = tasks.named("generateAddonModMetadata")
+
 val addonJar = tasks.register<Jar>("addonJar") {
-    dependsOn(processAddonResources, compilerClassesJar)
+    dependsOn(processAddonResources, compilerClassesJar, addonModMetadata)
     archiveClassifier.set("")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    manifest.attributes(
-        "HollowEngine-Addon-Format" to "2",
-        "HollowEngine-Variant-Common-Agnostic" to "META-INF/hollowengine/variants/agnostic.jar",
-    )
+    includeEmptyDirs = false
+    manifest.attributes("HollowEngine-Addon-Format" to "3")
     from(processAddonResources)
-    from(compilerClassesJar.flatMap { it.archiveFile }) {
-        into("META-INF/hollowengine/variants")
-        rename { "agnostic.jar" }
+    from(addonModMetadata)
+    from(compilerClassesJar) {
+        into("META-INF/hollowengine")
+        rename { "classes.jar" }
     }
 }
 

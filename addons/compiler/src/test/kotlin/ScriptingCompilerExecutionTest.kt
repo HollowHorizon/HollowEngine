@@ -26,7 +26,78 @@ abstract class ImportingScript(val output: MutableList<String>)
 
 data class ImportReceiver(val prefix: String)
 
+abstract class SidedScript(val output: MutableList<String>)
+
+abstract class RunOnceScript(val output: MutableList<String>, val label: String)
+
+class ServerSideReceiver(val serverName: String)
+
+class ClientSideReceiver(val clientName: String)
+
 class ScriptingCompilerExecutionTest {
+    @Test
+    fun `client side annotation swaps the implicit receivers and is recorded in the compiled script`() {
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider(
+                    extension = ".sided.kts",
+                    baseClass = SidedScript::class.qualifiedName!!,
+                    implicitReceivers = listOf(ServerSideReceiver::class),
+                    clientSideReceivers = listOf(ClientSideReceiver::class.qualifiedName!!),
+                ),
+                ScriptClassProvider(
+                    extension = ".hello.kts",
+                    baseClass = HelloWorldScript::class.qualifiedName!!,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+
+        try {
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            val server = environment.compiler.compile("server.sided.kts", "output += serverName").getOrThrow()
+            val explicitServer = environment.compiler.compile(
+                "explicit.sided.kts",
+                "@file:ServerSide\noutput += serverName",
+            ).getOrThrow()
+            val client = environment.compiler.compile(
+                "client.sided.kts",
+                "@file:ClientSide\noutput += clientName",
+            ).getOrThrow()
+
+            listOf(server, explicitServer).forEach { script ->
+                assertEquals(false, script.isClientSide)
+                script.execute<Any> {
+                    constructorArgs(output as Any)
+                    implicitReceivers(ServerSideReceiver("server"))
+                }.getOrThrow()
+            }
+            assertEquals(true, client.isClientSide)
+            client.execute<Any> {
+                constructorArgs(output as Any)
+                implicitReceivers(ClientSideReceiver("client"))
+            }.getOrThrow()
+            assertEquals(listOf("server", "server", "client"), output)
+
+            assertTrue(
+                environment.compiler.compile("both.sided.kts", "@file:ClientSide\n@file:ServerSide\n").isFailure,
+                "a script cannot declare both sides",
+            )
+            assertTrue(
+                environment.compiler.compile("sideless.hello.kts", "@file:ClientSide\noutput += \"\"").isFailure,
+                "a script type without sides rejects the annotation",
+            )
+        } finally {
+            ScriptingEnvironment.clear()
+            environment.close()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
     @Test
     fun `class literal attachment resolves default imports explicit imports and aliases`() {
         val environment = ScriptingEnvironmentImpl(
@@ -440,6 +511,168 @@ class ScriptingCompilerExecutionTest {
                     "$root should not carry a copy of the shared script, got $classes",
                 )
             }
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `a shared script type hands the instance it ran with to importers`() {
+        val scriptsDirectory = File("build/tmp/shared-script-type").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        scriptsDirectory.resolve("registrations.once.kts").writeText(
+            """
+                output += "registered by " + label
+                val registeredBy = label
+                val token = output.size
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("never_ran.once.kts").writeText("val token = 0")
+        scriptsDirectory.resolve("reader.importing.kts").writeText(
+            """
+                @file:Import("registrations.once.kts")
+                output += "token " + token + " from " + registeredBy
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("orphan.importing.kts").writeText(
+            """
+                @file:Import("never_ran.once.kts")
+                output += "unreachable"
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(Import::class.qualifiedName!!)
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider("kts", "kotlin.Any", defaultImports),
+                ScriptClassProvider(".importing.kts", ImportingScript::class.qualifiedName!!, defaultImports),
+                ScriptClassProvider(
+                    extension = "once.kts",
+                    baseClass = RunOnceScript::class.qualifiedName!!,
+                    defaultImports = defaultImports,
+                    shared = true,
+                ),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "shared-script-type"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+
+            ScriptLoader.execute<RunOnceScript>(ScriptId(namespace, "registrations.once.kts")) {
+                constructorArgs(output as Any, "runner")
+            }.getOrThrow()
+            // The first run compiles the importer, the second one loads it from the cache.
+            repeat(2) {
+                ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "reader.importing.kts")) {
+                    constructorArgs(output as Any)
+                }.getOrThrow()
+            }
+            assertEquals(listOf("registered by runner", "token 1 from runner", "token 1 from runner"), output)
+
+            val failure = ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "orphan.importing.kts")) {
+                constructorArgs(output as Any)
+            }.exceptionOrNull()
+            assertEquals(
+                "Cannot import 'never_ran.once.kts': it has to run on its own before anything imports it, and it has not",
+                failure?.message,
+            )
+        } finally {
+            ScriptRegistry.unregister(namespace)
+            ScriptingEnvironment.clear()
+            environment.close()
+            scriptsDirectory.deleteRecursively()
+            File("hollowengine").deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `packages tell apart equal names from two shared imports`() {
+        val scriptsDirectory = File("build/tmp/shared-script-packages").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        listOf("first", "second").forEach { name ->
+            scriptsDirectory.resolve("$name.once.kts").writeText(
+                """
+                    package mypack.$name
+
+                    val CUSTOM_ITEM = "$name:" + label
+                """.trimIndent(),
+            )
+        }
+        scriptsDirectory.resolve("clash.importing.kts").writeText(
+            """
+                @file:Import("first.once.kts", "second.once.kts")
+                output += CUSTOM_ITEM
+            """.trimIndent(),
+        )
+        scriptsDirectory.resolve("reader.importing.kts").writeText(
+            """
+                @file:Import("first.once.kts", "second.once.kts")
+
+                import mypack.first.CUSTOM_ITEM as FIRST_ITEM
+
+                val read = { FIRST_ITEM + " " + mypack.second.CUSTOM_ITEM }
+                output += read()
+            """.trimIndent(),
+        )
+
+        val defaultImports = listOf(Import::class.qualifiedName!!)
+        val environment = ScriptingEnvironmentImpl(
+            javaHome = File(System.getProperty("java.home")),
+            classpath = testClasspath(),
+            scriptTypes = listOf(
+                ScriptClassProvider("kts", "kotlin.Any", defaultImports),
+                ScriptClassProvider(".importing.kts", ImportingScript::class.qualifiedName!!, defaultImports),
+                ScriptClassProvider("once.kts", RunOnceScript::class.qualifiedName!!, defaultImports, shared = true),
+            ),
+            mappings = Mappings.EMPTY,
+        )
+        val namespace = "shared-script-packages"
+        val source = DirectoryScriptSource(
+            namespace = namespace,
+            directory = scriptsDirectory,
+            classLoader = ScriptingCompilerExecutionTest::class.java.classLoader,
+            fingerprint = "test",
+        )
+
+        try {
+            ScriptRegistry.register(source)
+            ScriptingEnvironment.INSTANCE = environment
+            val output = mutableListOf<String>()
+            listOf("first", "second").forEach { name ->
+                ScriptLoader.execute<RunOnceScript>(ScriptId(namespace, "$name.once.kts")) {
+                    constructorArgs(output as Any, "runner")
+                }.getOrThrow()
+            }
+
+            val clash = ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "clash.importing.kts")) {
+                constructorArgs(output as Any)
+            }.exceptionOrNull()
+            assertTrue(clash?.message.orEmpty().contains("Unresolved reference 'CUSTOM_ITEM'"), clash?.message)
+
+            ScriptLoader.execute<ImportingScript>(ScriptId(namespace, "reader.importing.kts")) {
+                constructorArgs(output as Any)
+            }.getOrThrow()
+            assertEquals(listOf("first:runner second:runner"), output)
         } finally {
             ScriptRegistry.unregister(namespace)
             ScriptingEnvironment.clear()
