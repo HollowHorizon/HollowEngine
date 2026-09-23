@@ -51,8 +51,6 @@ class TimelineController {
     var isWorkAreaSelected by mutableStateOf(false)
     var isCameraPreviewEnabled by mutableStateOf(false)
 
-    var activeLayer by mutableStateOf<AnimLayer?>(null)
-
     val history = TimelineHistory(this)
 
     var onChanged: (() -> Unit)? = null
@@ -60,6 +58,9 @@ class TimelineController {
     var onPreviewChanged: (() -> Unit)? = null
     var captureExtraState: (() -> Any?)? = null
     var restoreExtraState: ((Any?) -> Unit)? = null
+
+    var onHideProperty: ((AnimProperty<*>) -> Unit)? = null
+    var onHideGroup: ((TrackGroup) -> Unit)? = null
 
     fun group(path: List<String>): TrackGroup {
         require(path.isNotEmpty()) { "Timeline group path must not be empty" }
@@ -74,35 +75,26 @@ class TimelineController {
 
     fun <T> addProperty(path: List<String>, property: AnimProperty<T>): AnimProperty<T> {
         group(path).properties.add(property)
-        if (property.layers.isEmpty()) property.addLayer(BASE_LAYER_NAME)
-        if (activeLayer == null) activeLayer = property.layers.firstOrNull()
         return property
     }
 
     fun allProperties(): List<AnimProperty<*>> = groups.flatMap { it.allProperties() }
 
-    fun allLayers(): List<AnimLayer> = allProperties().flatMap { it.layers }
+    fun allCurves(): List<ChannelCurve> = allProperties().flatMap { it.curves }
 
-    fun allCurves(): List<ChannelCurve> = allLayers().flatMap { it.channels }
+    fun propertyOf(curve: ChannelCurve): AnimProperty<*>? =
+        allProperties().firstOrNull { property -> property.curves.any { it === curve } }
 
-    fun propertyOf(layer: AnimLayer): AnimProperty<*>? = allProperties().firstOrNull { layer in it.layers }
-
-    fun targetLayer(property: AnimProperty<*>): AnimLayer? {
-        val active = activeLayer
-        if (active != null && active in property.layers) return active
-        return property.layers.firstOrNull()
-    }
-
-    fun layerOf(keyframe: Keyframe): AnimLayer? = allLayers().firstOrNull { it.curveOf(keyframe) != null }
+    fun propertyOf(keyframe: Keyframe): AnimProperty<*>? =
+        allProperties().firstOrNull { it.curveOf(keyframe) != null }
 
     fun curveOf(keyframe: Keyframe): ChannelCurve? = allCurves().firstOrNull { curve ->
         curve.keyframes.any { it === keyframe }
     }
 
-    fun isLocked(layer: AnimLayer): Boolean {
-        if (layer.isLocked) return true
-        val owner = propertyOf(layer) ?: return false
-        return groupOf(owner)?.let { isLocked(it) } == true
+    fun isLocked(property: AnimProperty<*>): Boolean {
+        if (property.isLocked) return true
+        return groupOf(property)?.let { isLocked(it) } == true
     }
 
     fun groupOf(property: AnimProperty<*>): TrackGroup? {
@@ -150,6 +142,15 @@ class TimelineController {
     fun applyCurrentTime(time: Float) {
         currentTime = time.coerceIn(0f, workAreaEnd)
         onTimeChanged?.invoke()
+    }
+
+    /**
+     * Moves the playhead to where whatever is being edited has actually got to.
+     */
+    fun followPlayhead(time: Float) {
+        val end = workAreaEnd
+        currentTime = if (end > 0f) time.mod(end) else time.coerceAtLeast(0f)
+        allProperties().forEach { it.update(currentTime) }
     }
 
     fun applyCameraPreviewEnabled(isEnabled: Boolean) {
@@ -223,9 +224,9 @@ class TimelineController {
     fun deleteSelectedKeyframes() {
         edit("Delete keyframes") {
             val doomed = selectedKeyframes.toList()
-            allLayers().forEach { layer ->
-                if (isLocked(layer)) return@forEach
-                layer.channels.forEach { curve ->
+            allProperties().forEach { property ->
+                if (isLocked(property)) return@forEach
+                property.curves.forEach { curve ->
                     curve.keyframes.removeAll { key -> doomed.any { it === key } }
                 }
             }
@@ -262,9 +263,9 @@ class TimelineController {
         val delta = value - reference.value
         edit("Edit keyframe value") {
             selectedKeyframes.forEach { key ->
-                val layer = layerOf(key) ?: return@forEach
-                if (isLocked(layer)) return@forEach
-                val curve = layer.curveOf(key) ?: return@forEach
+                val property = propertyOf(key) ?: return@forEach
+                if (isLocked(property)) return@forEach
+                val curve = property.curveOf(key) ?: return@forEach
                 val candidate = if (referenceCurve.spec.sampling == ChannelSampling.DISCRETE) {
                     if (curve.spec.valueOptions != referenceCurve.spec.valueOptions) return@forEach
                     value
@@ -276,13 +277,11 @@ class TimelineController {
         }
     }
 
-    fun addKeyframes(layer: AnimLayer, time: Float): List<Keyframe> {
-        if (isLocked(layer)) return emptyList()
+    fun addKeyframes(property: AnimProperty<*>, time: Float): List<Keyframe> {
+        if (isLocked(property)) return emptyList()
         return edited("Add keyframe") {
-            val property = propertyOf(layer)
-            layer.channels.mapIndexed { channel, curve ->
-                val fallback = property?.let { defaultChannel(it, channel) } ?: 0f
-                setKey(curve, time, curve.valueAt(time, fallback), selectKey = false)
+            property.curves.mapIndexed { channel, curve ->
+                setKey(curve, time, curve.valueAt(time, defaultChannel(property, channel)), selectKey = false)
             }.also { select(it, additive = false) }
         }
     }
@@ -321,8 +320,8 @@ class TimelineController {
             val created = mutableListOf<Keyframe>()
             clipboard.forEach { clip ->
                 if (live.none { it === clip.curve }) return@forEach
-                val layer = layerOfCurve(clip.curve)
-                if (layer != null && isLocked(layer)) return@forEach
+                val owner = propertyOf(clip.curve)
+                if (owner != null && isLocked(owner)) return@forEach
                 val target = (time + clip.offset).coerceIn(0f, workAreaEnd)
                 clip.curve.keyframes.removeAll { abs(it.time - target) <= KEYFRAME_TIME_EPSILON }
                 val key = clip.state.toKeyframe().also {
@@ -339,17 +338,11 @@ class TimelineController {
 
     private fun boundsOf(curve: ChannelCurve?): ChannelBounds {
         curve ?: return ChannelBounds.Unbounded
-        val property = allProperties().firstOrNull { owner ->
-            owner.layers.any { layer -> layer.channels.any { it === curve } }
-        } ?: return ChannelBounds.Unbounded
-        val channel = property.layers.firstNotNullOfOrNull { layer ->
-            layer.channels.indexOfFirst { it === curve }.takeIf { it >= 0 }
-        } ?: return ChannelBounds.Unbounded
+        val property = propertyOf(curve) ?: return ChannelBounds.Unbounded
+        val channel = property.curves.indexOfFirst { it === curve }.takeIf { it >= 0 }
+            ?: return ChannelBounds.Unbounded
         return property.bounds(channel)
     }
-
-    private fun layerOfCurve(curve: ChannelCurve): AnimLayer? =
-        allLayers().firstOrNull { layer -> layer.channels.any { it === curve } }
 
     fun duplicateSelectedKeyframes() {
 
@@ -359,8 +352,8 @@ class TimelineController {
             val created = mutableListOf<Keyframe>()
             originals.forEach { original ->
                 val curve = curveOf(original) ?: return@forEach
-                val layer = layerOf(original) ?: return@forEach
-                if (isLocked(layer)) return@forEach
+                val owner = propertyOf(original) ?: return@forEach
+                if (isLocked(owner)) return@forEach
                 val target = findFreeTime(curve, original.time + KEYFRAME_TIME_EPSILON * 2f)
                 if (curve.keyAt(target) != null) return@forEach
                 val copy = original.copy(target)
@@ -397,8 +390,8 @@ class TimelineController {
         val clones = LinkedHashMap<Keyframe, Keyframe>()
         originals.forEach { original ->
             val curve = curveOf(original) ?: return@forEach
-            val layer = layerOf(original) ?: return@forEach
-            if (isLocked(layer)) return@forEach
+            val owner = propertyOf(original) ?: return@forEach
+            if (isLocked(owner)) return@forEach
             val target = findFreeTime(curve, original.time + KEYFRAME_TIME_EPSILON * 2f)
             if (curve.keyAt(target) != null) return@forEach
             val copy = original.copy(target)
@@ -578,9 +571,9 @@ class TimelineController {
     fun frameCurves() {
         var lowest = Float.MAX_VALUE
         var highest = -Float.MAX_VALUE
-        allLayers().forEach { layer ->
-            if (!layer.isVisible) return@forEach
-            layer.channels.forEach { curve ->
+        allProperties().forEach { property ->
+            if (!property.isVisible) return@forEach
+            property.curves.forEach { curve ->
                 if (!curve.isVisible) return@forEach
                 if (!curve.spec.supportsCurveEditor) return@forEach
                 if (focusedCurves.isNotEmpty() && !isFocused(curve)) return@forEach
@@ -623,13 +616,9 @@ class TimelineController {
             PropertySnapshot(
                 property = property,
                 type = property.type,
-                layers = property.layers.map { layer ->
-                    LayerSnapshot(
-                        layer = layer,
-                        state = LayerState.of(layer),
-                        curves = layer.channels.map { curve -> curve.keyframes.map { KeyframeState.of(it) } },
-                    )
-                },
+                state = PropertyState.of(property),
+                curves = property.curves,
+                keys = property.curves.map { curve -> curve.keyframes.map { KeyframeState.of(it) } },
             )
         },
         currentTime = currentTime,
@@ -639,24 +628,17 @@ class TimelineController {
 
     internal fun restoreSnapshot(snapshot: TimelineSnapshot) {
         snapshot.properties.forEach { propertySnapshot ->
-            propertySnapshot.layers.forEach { layerSnapshot ->
-                layerSnapshot.state.applyTo(layerSnapshot.layer)
-                layerSnapshot.layer.channels.forEachIndexed { index, curve ->
-                    curve.keyframes.clear()
-                    layerSnapshot.curves.getOrNull(index)
-                        ?.let { keys -> curve.keyframes.addAll(keys.map { it.toKeyframe() }) }
-                }
+            propertySnapshot.state.applyTo(propertySnapshot.property)
+            propertySnapshot.curves.forEachIndexed { index, curve ->
+                curve.keyframes.clear()
+                propertySnapshot.keys.getOrNull(index)
+                    ?.let { keys -> curve.keyframes.addAll(keys.map { it.toKeyframe() }) }
             }
-            propertySnapshot.property.restoreState(
-                propertySnapshot.type,
-                propertySnapshot.layers.map { it.layer },
-            )
+            propertySnapshot.property.restoreState(propertySnapshot.type, propertySnapshot.curves)
         }
         selectedKeyframes.clear()
         val liveCurves = allCurves()
         focusedCurves.retainAll { curve -> liveCurves.any { it === curve } }
-        val liveLayers = allLayers()
-        if (liveLayers.none { it === activeLayer }) activeLayer = liveLayers.firstOrNull()
         currentTime = snapshot.currentTime
         workAreaEnd = snapshot.workAreaEnd
         restoreExtraState?.invoke(snapshot.extra)
@@ -677,7 +659,6 @@ class TimelineController {
     }
 }
 
-internal const val BASE_LAYER_NAME = "Base"
 
 internal fun AnimProperty<*>.decomposeDefault(into: FloatArray) {
     (type as PropertyType<Any?>).decompose(defaultValue, into)

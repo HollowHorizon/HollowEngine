@@ -1,52 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files.animator
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.inspector.TextRow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 
 internal const val AnimatorStylesheet = "hollowengine:ui/styles/animator-editor.hss"
-
-/**
- * A number that springs towards its target instead of jumping there.
- */
-internal class SpringFloat(initial: Float) {
-    var value by mutableStateOf(initial)
-        private set
-
-    var target: Float = initial
-
-    private var velocity = 0f
-    private var lastFrame = 0L
-
-    /** Puts the value there at once, for changes the pointer is already animating by hand. */
-    fun snapTo(next: Float) {
-        target = next
-        value = next
-        velocity = 0f
-    }
-
-    fun advance(frameNanos: Long) {
-        val previous = lastFrame
-        lastFrame = frameNanos
-        if (previous == 0L) return
-
-        val delta = target - value
-        if (kotlin.math.abs(delta) < 0.05f && kotlin.math.abs(velocity) < 0.05f) {
-            value = target
-            velocity = 0f
-            return
-        }
-
-        val dt = ((frameNanos - previous) / 1_000_000_000f).coerceIn(0f, 0.05f)
-        velocity += (delta * 300f - velocity * 32f) * dt
-        value += velocity * dt
-    }
-}
 
 @Composable
 internal fun AnimatorButton(

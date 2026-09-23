@@ -268,7 +268,8 @@ enum class UiCursorShape {
     RESIZE_HORIZONTAL,
     RESIZE_VERTICAL,
     RESIZE_NESW,
-    RESIZE_NWSE
+    RESIZE_NWSE,
+    NOT_ALLOWED
 }
 
 sealed interface UiLength {

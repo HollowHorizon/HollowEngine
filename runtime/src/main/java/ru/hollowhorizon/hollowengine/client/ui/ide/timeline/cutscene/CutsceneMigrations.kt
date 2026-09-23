@@ -3,26 +3,63 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.Tag
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.*
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 
 /**
- * Reads cutscenes written before properties, layers and per-channel curves existed.
+ * Reads cutscenes written before the shape they have now.
  *
  * Version 1 stored one keyframe per *vector*, in absolute world coordinates, with a named easing.
- * Version 2 added an origin and Bezier handles but kept the vector keys. Both are converted to the
- * current shape: coordinates end up relative to an origin, and every vector key becomes one key per channel.
+ * Version 2 added an origin and Bezier handles but kept the vector keys.
+ * Version 3 had properties whose curves lived inside a stack of blended layers.
+ * All of them end up in the current shape: coordinates relative to an origin, one key per channel, and curves directly on the property.
  */
 object CutsceneMigrations {
-    const val CURRENT_VERSION = 3
+    const val CURRENT_VERSION = 4
 
-    fun read(payload: Tag, version: Int): CutsceneData {
-        if (version >= CURRENT_VERSION) return NBTFormat.deserialize(payload)
-        val legacy: LegacyCutsceneData = NBTFormat.deserialize(payload)
-        return convert(legacy, version)
+    fun read(payload: Tag, version: Int): CutsceneData = when {
+        version >= CURRENT_VERSION -> NBTFormat.deserialize(payload)
+        version == 3 -> flattenLayers(NBTFormat.deserialize<LayeredCutsceneData, Tag>(payload))
+        else -> convert(NBTFormat.deserialize<LegacyCutsceneData, Tag>(payload), version)
     }
+
+    /**
+     * Drops the layer stack of a version 3 cutscene, keeping the first layer that did anything.
+     */
+    private fun flattenLayers(data: LayeredCutsceneData): CutsceneData = CutsceneData(
+        name = data.name,
+        duration = data.duration,
+        origin = data.origin,
+        nodes = data.nodes.map { it.flatten() },
+    )
+
+    private fun LayeredNodeData.flatten(): CutsceneNodeData = CutsceneNodeData(
+        id = id,
+        name = name,
+        kind = kind,
+        children = children.map { it.flatten() },
+        property = property?.let { stored ->
+            val layer = stored.layers.firstOrNull { it.visible && it.weight != 0f } ?: stored.layers.firstOrNull()
+            if (stored.layers.size > 1) {
+                HollowEngine.LOGGER.warn(
+                    "Cutscene property '{}' had {} layers; keeping '{}' and dropping the rest",
+                    name,
+                    stored.layers.size,
+                    layer?.name,
+                )
+            }
+            CutscenePropertyData(
+                type = stored.type,
+                rotationMode = stored.rotationMode,
+                visible = layer?.visible ?: true,
+                locked = layer?.locked ?: false,
+                curves = layer?.curves.orEmpty(),
+            )
+        },
+    )
 
     internal fun convert(legacy: LegacyCutsceneData, version: Int): CutsceneData = legacy.toCutscene(version)
 
@@ -152,10 +189,7 @@ object CutsceneMigrations {
             id = id,
             name = name,
             kind = CutsceneNodeKind.PROPERTY,
-            property = CutscenePropertyData(
-                type = type,
-                layers = listOf(CutsceneLayerData(name = "Base", curves = curves)),
-            ),
+            property = CutscenePropertyData(type = type, curves = curves),
         )
 
     private fun Vec3f.component(index: Int): Float = when (index) {
@@ -201,6 +235,41 @@ private object LegacyEasings {
 
     fun presetFor(easing: String): CurvePreset? = CurvePresets.byId(presets[easing] ?: "smooth")
 }
+
+/** Version 3: properties whose curves lived inside a stack of blended layers. */
+@Serializable
+internal data class LayeredLayerData(
+    val name: String,
+    val blend: String = "override",
+    val weight: Float = 1f,
+    val visible: Boolean = true,
+    val locked: Boolean = false,
+    val curves: List<CutsceneCurveData> = emptyList(),
+)
+
+@Serializable
+internal data class LayeredPropertyData(
+    val type: String,
+    val rotationMode: String = CutsceneEnums.DEFAULT_ROTATION_MODE,
+    val layers: List<LayeredLayerData> = emptyList(),
+)
+
+@Serializable
+internal data class LayeredNodeData(
+    val id: String,
+    val name: String,
+    val kind: CutsceneNodeKind,
+    val children: List<LayeredNodeData> = emptyList(),
+    val property: LayeredPropertyData? = null,
+)
+
+@Serializable
+internal data class LayeredCutsceneData(
+    val name: String = "New Cutscene",
+    val duration: Float = 10f,
+    val origin: CutsceneOrigin = CutsceneOrigin(),
+    val nodes: List<LayeredNodeData> = emptyList(),
+)
 
 @Serializable
 internal data class LegacyAnchorData(

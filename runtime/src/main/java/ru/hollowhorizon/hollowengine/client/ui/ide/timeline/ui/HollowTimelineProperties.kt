@@ -24,15 +24,26 @@ import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 /** The cutscene's own fields, composed inside whichever panel the shared inspector is drawn in. */
 @Composable
 internal fun HollowTimelineProperties(session: CutsceneEditorSession, refresh: () -> Unit) {
-    val controller = session.timeline
+    PreviewSection(session.timeline, refresh)
+    OriginSection(session, refresh)
+    TimelineSelectionFields(session.timeline, refresh) { WorldReadout(session) }
+}
+
+/**
+ * What is selected on a timeline: the keys and their curve, or the work area.
+ */
+@Composable
+fun TimelineSelectionFields(
+    controller: TimelineController,
+    refresh: () -> Unit,
+    keyframeExtras: @Composable () -> Unit = {},
+) {
     val selectedKey = controller.selectedKeyframes.firstOrNull()
     val selectedCurve = selectedKey?.let { controller.curveOf(it) }
 
-    PreviewSection(controller, refresh)
-    OriginSection(session, refresh)
     when {
         selectedKey != null && selectedCurve != null -> {
-            KeyframeSection(session, selectedKey, selectedCurve, refresh)
+            KeyframeSection(controller, selectedKey, selectedCurve, refresh, keyframeExtras)
             if (selectedCurve.spec.supportsCurveEditor) {
                 CurveSection(controller, selectedKey, selectedCurve, refresh)
             }
@@ -49,6 +60,16 @@ internal fun HollowTimelineProperties(session: CutsceneEditorSession, refresh: (
         controller.isWorkAreaSelected -> WorkAreaSection(controller, refresh)
         else -> EmptySection()
     }
+}
+
+/** Whether a timeline has anything selected that [TimelineSelectionFields] would show. */
+fun TimelineController.hasInspectableSelection(): Boolean = selectedKeyframes.isNotEmpty() || isWorkAreaSelected
+
+/** A key that changes whenever what [TimelineSelectionFields] shows is a different thing. */
+fun TimelineController.selectionKey(): String {
+    val keyframe = selectedKeyframes.firstOrNull()
+        ?: return if (isWorkAreaSelected) "work-area" else "none"
+    return "key-${System.identityHashCode(curveOf(keyframe))}-${System.identityHashCode(keyframe)}"
 }
 
 @Composable
@@ -112,12 +133,12 @@ private fun OriginSection(session: CutsceneEditorSession, refresh: () -> Unit) {
 
 @Composable
 private fun KeyframeSection(
-    session: CutsceneEditorSession,
+    controller: TimelineController,
     keyframe: Keyframe,
     curve: ChannelCurve,
     refresh: () -> Unit,
+    extras: @Composable () -> Unit,
 ) {
-    val controller = session.timeline
     val count = controller.selectedKeyframes.size
     val title = if (count == 1) CutsceneLang.KEYFRAME.lang else CutsceneLang.KEYFRAMES.lang(count)
     Section(title) {
@@ -127,13 +148,9 @@ private fun KeyframeSection(
             refresh()
         }
         if (curve.spec.valueOptions.isEmpty()) {
-            val layer = controller.layerOf(keyframe)
-            val channel = layer?.channels?.indexOf(curve) ?: -1
-            val bounds = if (channel >= 0) {
-                layer?.let(controller::propertyOf)?.bounds(channel)
-            } else {
-                null
-            } ?: ChannelBounds.Unbounded
+            val owner = controller.propertyOf(keyframe)
+            val channel = owner?.curves?.indexOfFirst { it === curve } ?: -1
+            val bounds = (if (channel >= 0) owner?.bounds(channel) else null) ?: ChannelBounds.Unbounded
             FloatRow(
                 CutsceneLang.VALUE.lang,
                 keyframe.value,
@@ -149,7 +166,7 @@ private fun KeyframeSection(
                 refresh()
             }
         }
-        WorldReadout(session)
+        extras()
     }
 }
 
@@ -166,9 +183,8 @@ private fun DiscreteValueField(options: List<ChannelValueOption>, value: Float, 
 }
 
 private fun channelPath(controller: TimelineController, curve: ChannelCurve): String {
-    val layer = controller.allLayers().firstOrNull { it.channels.any { channel -> channel === curve } }
-    val property = layer?.let { controller.propertyOf(it) }
-    return listOfNotNull(property?.nameState, layer?.nameState, curve.name).joinToString(" / ")
+    val property = controller.propertyOf(curve)
+    return listOfNotNull(property?.nameState, curve.name).joinToString(" / ")
 }
 
 @Composable

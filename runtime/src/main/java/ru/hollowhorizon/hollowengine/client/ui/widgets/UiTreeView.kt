@@ -52,6 +52,7 @@ fun <T> UiTreeView(
     filterPlaceholder: String = "Filter",
     onFilterOpened: ((String) -> Unit)? = null,
     scrollState: UiScrollHandle = rememberScrollState(),
+    onBackgroundClick: (() -> Unit)? = null,
 ) {
     Column(
         tags = listOf("tree-view") + tags,
@@ -75,7 +76,12 @@ fun <T> UiTreeView(
         }
         Column(
             tags = listOf("tree-view-scroll"),
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState),
+            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState).then(
+                if (onBackgroundClick == null) Modifier else Modifier.input(clickable = true).onClick { event ->
+                    onBackgroundClick()
+                    event.consume()
+                },
+            ),
         ) {
             items.forEach { item ->
                 key(item.id) {

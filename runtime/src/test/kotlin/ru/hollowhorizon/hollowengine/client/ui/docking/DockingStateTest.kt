@@ -98,4 +98,60 @@ class DockingStateTest {
         val editorSplit = assertNotNull(preservedRoot.findSplitSeparating("project", "editor"))
         assertEquals(0.28f, editorSplit.fraction)
     }
+
+    @Test
+    fun `the two halves of a stripe keep a window open each`() {
+        val state = DockingState()
+        state.open(DockItem("project", "Project", pinnable = true))
+        state.open(DockItem("console", "Console", pinnable = true))
+        state.pin("project", DockSide.LEFT)
+        state.pin("console", DockSide.LEFT, DockStripeGroup.BOTTOM)
+
+        assertEquals("project", state.expandedOn(DockSide.LEFT)?.item?.id)
+        assertEquals("console", state.expandedIn(DockAnchor(DockSide.LEFT, DockStripeGroup.BOTTOM))?.item?.id)
+
+        state.togglePinned("project")
+        assertNull(state.expandedOn(DockSide.LEFT))
+        assertNotNull(state.expandedIn(DockAnchor(DockSide.LEFT, DockStripeGroup.BOTTOM)), "the bottom half is its own")
+    }
+
+    @Test
+    fun `a click into an open parked window gives it the keyboard`() {
+        val state = DockingState()
+        state.open(DockItem("editor", "Editor"))
+        state.open(DockItem("timeline", "Timeline", pinnable = true))
+        state.pin("timeline", DockSide.LEFT, DockStripeGroup.BOTTOM)
+        state.focus("editor")
+
+        assertTrue(state.focusContent("${PinnedContentPrefix}timeline-content"))
+        assertEquals("timeline", state.focusedItemId)
+    }
+
+    @Test
+    fun `a window dragged to the other half stays open there`() {
+        val state = DockingState()
+        state.open(DockItem("project", "Project", pinnable = true))
+        state.pin("project", DockSide.RIGHT)
+
+        assertTrue(state.movePinned("project", DockAnchor(DockSide.RIGHT, DockStripeGroup.BOTTOM), 0))
+        assertNull(state.expandedOn(DockSide.RIGHT))
+        assertEquals("project", state.expandedIn(DockAnchor(DockSide.RIGHT, DockStripeGroup.BOTTOM))?.item?.id)
+    }
+
+    @Test
+    fun `a dragged tool window can be parked on a stripe and a stripe button can float again`() {
+        val state = DockingState()
+        state.open(DockItem("editor", "Editor"))
+        state.open(DockItem("project", "Project", pinnable = true))
+        assertNotNull(state.beginDraggingTab("project", 10f, 10f))
+
+        assertTrue(state.pinDraggedWindow(DockAnchor(DockSide.LEFT, DockStripeGroup.BOTTOM)))
+        assertTrue(state.floatingWindows.isEmpty())
+        assertEquals(DockStripeGroup.BOTTOM, state.pinnedItem("project")?.group)
+
+        assertNotNull(state.undockPinned("project", 0f, 0f, "dock-stripe-button-project"))
+        assertFalse(state.isPinned("project"))
+        assertTrue(state.isFloating("project"))
+        assertEquals("project", state.floatingWindows.single().stack.items.single().id)
+    }
 }

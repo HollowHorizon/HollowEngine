@@ -14,9 +14,10 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.rig.RigEditorPanel
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx.VfxEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneTimelineDock
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineDock
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorLang
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorPanel
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
@@ -62,7 +63,8 @@ internal const val AssetManagerId = "ide-asset-manager"
 
 internal const val ProjectFilterInputId = "ide-project-filter"
 internal const val ConsoleId = "ide-console"
-internal const val CutsceneTimelineId = "ide-cutscene-timeline"
+internal const val TimelineId = "ide-cutscene-timeline"
+internal const val SceneId = "ide-scene"
 internal const val InspectorId = "ide-inspector"
 internal const val GameViewportId = "ide-game-viewport"
 internal const val GameViewportNodeId = "game-viewport"
@@ -97,6 +99,7 @@ object HollowIdeOverlay {
             soundsEditor = { file -> HollowIdeSoundsEditor(file) },
             animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
             rigEditor = { file -> RigEditorPanel(file) },
+            vfxEditor = { file -> VfxEditorPanel(file) },
             textEditor = { file -> FileEditor(file) },
         )
         registerAssetFileTypes(
@@ -919,14 +922,14 @@ object HollowIdeOverlay {
             )
 
             ConsoleId -> HollowIdeConsolePanel(console)
-            CutsceneTimelineId -> CutsceneTimelineDock(
-                session = CutsceneEditorSessions.default,
-                keyboardActive = dock.focusedItemId == CutsceneTimelineId,
-            )
+            TimelineId -> TimelineDock(keyboardActive = dock.focusedItemId == TimelineId)
+
+            SceneId -> SceneDock()
 
             InspectorId -> InspectorPanel(
                 target = InspectorSelection.current,
                 empty = InspectorLang.nothingSelected,
+                keepScroll = true,
             )
 
             GameViewportId -> GameViewportDock(

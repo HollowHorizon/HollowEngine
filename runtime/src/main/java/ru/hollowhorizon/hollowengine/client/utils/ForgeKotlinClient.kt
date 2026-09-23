@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.utils
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.renderer.ShaderInstance
 import net.minecraft.client.renderer.texture.AbstractTexture
 import net.minecraft.core.RegistryAccess
 import net.minecraft.resources.ResourceLocation
@@ -29,6 +30,9 @@ val shouldOverrideShaders: () -> Boolean = { IrisHelper.shouldOverrideShaders() 
 val instancingBackend get() = if (IrisHelper.shouldOverrideShaders()) IrisHelper.instancingBackend() else VanillaInstancingBackend
 val instancingEntityInfo get() = if (IrisHelper.shouldOverrideShaders()) IrisHelper.capturedEntityInfo() else InstancingEntityInfo()
 val areShadersEnabled get() = IrisHelper.areShadersEnabled()
+
+fun shaderPackParticleShader(translucent: Boolean): ShaderInstance? =
+    if (IrisHelper.shouldOverrideShaders()) IrisHelper.particleShader(translucent) else null
 
 data class InstancingEntityInfo(
     val entity: Int = -1,

@@ -1,5 +1,7 @@
 {
-  "cutscene_timeline": "Cutscene Timeline",
+  "timeline": "Timeline",
+  "scene": "Scene",
+  "scene_empty": "Open something with a hierarchy to see it here.",
   "inspector": "Inspector",
   "game_viewport": "Game View",
   "game_viewport.detached": "The game is only shown while this panel is docked"

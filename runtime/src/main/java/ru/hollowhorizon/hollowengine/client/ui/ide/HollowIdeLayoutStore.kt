@@ -3,13 +3,18 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.apache.logging.log4j.LogManager
+import ru.hollowhorizon.hollowengine.client.ui.docking.DefaultBottomHeight
 import ru.hollowhorizon.hollowengine.client.ui.docking.DefaultPinnedWidth
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockAnchor
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockNode
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockOrientation
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPinnedItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockSide
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockStripeGroup
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
+import ru.hollowhorizon.hollowengine.client.ui.docking.applyPinned
+import ru.hollowhorizon.hollowengine.client.ui.docking.expandedPinned
 import ru.hollowhorizon.hollowengine.common.config.Config
 import java.util.*
 import kotlin.io.path.createParentDirectories
@@ -44,6 +49,7 @@ internal data class StoredPinnedItem(
     val id: String,
     val side: DockSide = DockSide.LEFT,
     val width: Float = DefaultPinnedWidth,
+    val group: DockStripeGroup = DockStripeGroup.TOP,
     val expanded: Boolean = false,
 )
 
@@ -55,6 +61,8 @@ internal data class StoredDockLayout(
     val focused: String? = null,
     val pinned: List<StoredPinnedItem> = emptyList(),
     val stripesVisible: Boolean = true,
+    val bottomHeight: Float = DefaultBottomHeight,
+    val bottomFraction: Float = 0.5f,
 )
 
 /**
@@ -104,10 +112,13 @@ internal fun DockingState.capture(): StoredDockLayout {
                 id = pinned.item.id,
                 side = pinned.side,
                 width = pinned.width,
-                expanded = expanded[pinned.side] == pinned.item.id,
+                expanded = expanded[pinned.anchor] == pinned.item.id,
+                group = pinned.group,
             )
         },
         stripesVisible = stripesVisible,
+        bottomHeight = bottomHeight,
+        bottomFraction = bottomFraction,
     )
 }
 
@@ -129,14 +140,16 @@ internal fun DockingState.restore(layout: StoredDockLayout, resolve: (String) ->
     }
     val pinned = layout.pinned.mapNotNull { stored ->
         val item = resolve(stored.id)?.takeIf { it.pinnable } ?: return@mapNotNull null
-        DockPinnedItem(item, stored.side, stored.width)
+        DockPinnedItem(item, stored.side, stored.width, stored.group)
     }
     if (root == null && floating.isEmpty() && pinned.isEmpty()) return false
     applyLayout(root, floating, layout.focused)
     applyPinned(
         items = pinned,
-        expanded = layout.pinned.filter { it.expanded }.associate { it.side to it.id },
+        expanded = layout.pinned.filter { it.expanded }.associate { DockAnchor(it.side, it.group) to it.id },
         visible = layout.stripesVisible,
+        bottomHeight = layout.bottomHeight,
+        bottomFraction = layout.bottomFraction,
     )
     return true
 }

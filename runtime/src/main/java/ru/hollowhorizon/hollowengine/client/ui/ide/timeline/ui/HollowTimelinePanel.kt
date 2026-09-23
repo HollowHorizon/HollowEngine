@@ -7,7 +7,6 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.CutsceneIcon
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorTarget
 import ru.hollowhorizon.hollowengine.client.ui.inspector.PublishInspector
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimLayer
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineViewMode
@@ -33,7 +32,6 @@ internal val LocalTimelineRevision = staticCompositionLocalOf { 0 }
 fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean = true) {
     session.uiRevision.value
     var dialog by remember { mutableStateOf(CutsceneDialog.NONE) }
-    var layerSettings by remember { mutableStateOf<AnimLayer?>(null) }
     var propertySettings by remember { mutableStateOf<AnimProperty<*>?>(null) }
 
     LaunchedEffect(session) {
@@ -63,7 +61,6 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
                 onCapture = { session.captureFrame(session.timeline.currentTime) },
                 onSave = { dialog = CutsceneDialog.SAVE },
                 onLoad = { dialog = CutsceneDialog.LOAD },
-                onLayerSettings = { layerSettings = it },
                 onPropertySettings = { propertySettings = it },
             )
 
@@ -71,9 +68,6 @@ fun CutsceneTimelineDock(session: CutsceneEditorSession, keyboardActive: Boolean
                 CutsceneDialog.SAVE -> SaveCutsceneDialog(session) { dialog = CutsceneDialog.NONE }
                 CutsceneDialog.LOAD -> LoadCutsceneDialog(session) { dialog = CutsceneDialog.NONE }
                 CutsceneDialog.NONE -> {}
-            }
-            layerSettings?.let { layer ->
-                LayerSettingsDialog(session.timeline, layer, session::invalidateUi) { layerSettings = null }
             }
             propertySettings?.let { property ->
                 PropertySettingsDialog(session.timeline, property, session::invalidateUi) { propertySettings = null }
@@ -110,8 +104,8 @@ fun HollowTimelineEditor(
     onCapture: () -> Unit = {},
     onSave: () -> Unit = {},
     onLoad: () -> Unit = {},
-    onLayerSettings: (AnimLayer) -> Unit = {},
     onPropertySettings: (AnimProperty<*>) -> Unit = {},
+    features: TimelineFeatures = TimelineFeatures.CUTSCENE,
 ) {
     val bump = refresh
     val scroll = rememberScrollState()
@@ -158,7 +152,7 @@ fun HollowTimelineEditor(
                 }
             },
     ) {
-        TimelineToolbar(controller, onCapture, onSave, onLoad, bump)
+        TimelineToolbar(controller, onCapture, onSave, onLoad, bump, features)
 
         Row(modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
             TimelineHeaders(
@@ -168,7 +162,6 @@ fun HollowTimelineEditor(
                 verticalOffset = if (isCurveView) headerScroll.offsetY else scroll.offsetY,
                 ownsVerticalScroll = isCurveView,
                 contentHeight = scrollContentHeight,
-                onLayerSettings = onLayerSettings,
                 onPropertySettings = onPropertySettings,
                 refresh = bump,
             )

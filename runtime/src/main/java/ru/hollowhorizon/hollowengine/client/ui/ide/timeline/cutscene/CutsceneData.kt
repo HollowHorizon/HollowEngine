@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BlendMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.HandleMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.KeyInterpolation
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.RotationMode
@@ -30,21 +29,16 @@ data class CutsceneCurveData(
     val keyframes: List<CutsceneKeyData> = emptyList(),
 )
 
-@Serializable
-data class CutsceneLayerData(
-    val name: String,
-    val blend: String = CutsceneEnums.DEFAULT_BLEND,
-    val weight: Float = 1f,
-    val visible: Boolean = true,
-    val locked: Boolean = false,
-    val curves: List<CutsceneCurveData> = emptyList(),
-)
-
+/**
+ * One animated property: one curve per channel.
+ */
 @Serializable
 data class CutscenePropertyData(
     val type: String,
     val rotationMode: String = CutsceneEnums.DEFAULT_ROTATION_MODE,
-    val layers: List<CutsceneLayerData> = emptyList(),
+    val visible: Boolean = true,
+    val locked: Boolean = false,
+    val curves: List<CutsceneCurveData> = emptyList(),
 )
 
 @Serializable
@@ -67,7 +61,6 @@ data class CutsceneData(
 object CutsceneEnums {
     const val DEFAULT_INTERPOLATION = "bezier"
     const val DEFAULT_HANDLES = "auto"
-    const val DEFAULT_BLEND = "override"
     const val DEFAULT_ROTATION_MODE = "euler"
 
     private val interpolations = mapOf(
@@ -83,13 +76,6 @@ object CutsceneEnums {
         "free" to HandleMode.FREE,
     )
 
-    private val blends = mapOf(
-        DEFAULT_BLEND to BlendMode.OVERRIDE,
-        "add" to BlendMode.ADD,
-        "subtract" to BlendMode.SUBTRACT,
-        "multiply" to BlendMode.MULTIPLY,
-    )
-
     private val rotationModes = mapOf(
         DEFAULT_ROTATION_MODE to RotationMode.EULER,
         "quaternion" to RotationMode.QUATERNION,
@@ -102,10 +88,6 @@ object CutsceneEnums {
     fun handleMode(name: String): HandleMode = handles[name] ?: HandleMode.AUTO
 
     fun nameOf(value: HandleMode): String = handles.entries.first { it.value == value }.key
-
-    fun blendMode(name: String): BlendMode = blends[name] ?: BlendMode.OVERRIDE
-
-    fun nameOf(value: BlendMode): String = blends.entries.first { it.value == value }.key
 
     fun rotationMode(name: String): RotationMode = rotationModes[name] ?: RotationMode.EULER
 

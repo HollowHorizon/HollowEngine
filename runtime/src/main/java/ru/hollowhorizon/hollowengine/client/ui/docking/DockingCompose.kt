@@ -41,20 +41,27 @@ fun DockSpace(
         modifier = modifier.style("hollowengine:ui/styles/docking.hss").clip(),
     ) {
         Row(id = "$id-body", modifier = Modifier.size(100.percent, 100.percent)) {
-            DockSideEdge(DockSide.LEFT, state, tabBarActions, content)
-            Box(
-                id = "$id-root",
-                mode = UiBoxMode.STACK,
-                tags = listOf(DockTags.Root),
-                modifier = Modifier.size(0.px, 100.percent).grow(1f),
-            ) {
-                state.root?.let { root ->
-                    key(root.id) {
-                        DockNodeView(root, state, tabContent, tabBarActions, content)
+            DockStripe(DockSide.LEFT, state)
+            Column(id = "$id-center", modifier = Modifier.size(0.px, 100.percent).grow(1f)) {
+                Row(id = "$id-upper", modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
+                    DockSidePanel(DockSide.LEFT, state, tabBarActions, content)
+                    Box(
+                        id = "$id-root",
+                        mode = UiBoxMode.STACK,
+                        tags = listOf(DockTags.Root),
+                        modifier = Modifier.size(0.px, 100.percent).grow(1f),
+                    ) {
+                        state.root?.let { root ->
+                            key(root.id) {
+                                DockNodeView(root, state, tabContent, tabBarActions, content)
+                            }
+                        }
                     }
+                    DockSidePanel(DockSide.RIGHT, state, tabBarActions, content)
                 }
+                DockBottomArea(state, tabBarActions, content)
             }
-            DockSideEdge(DockSide.RIGHT, state, tabBarActions, content)
+            DockStripe(DockSide.RIGHT, state)
         }
 
         state.floatingWindows.forEachIndexed { index, window ->
@@ -64,7 +71,13 @@ fun DockSpace(
         }
 
         if (state.draggedWindowId != null) {
-            DockDropOverlay(state, state.edgeWidth(DockSide.LEFT), state.edgeWidth(DockSide.RIGHT))
+            DockDropOverlay(
+                state,
+                state.edgeWidth(DockSide.LEFT),
+                state.edgeWidth(DockSide.RIGHT),
+                state.bottomAreaHeight(),
+            )
+            if (state.canPinDraggedWindow()) DockStripeDropZones(state)
         }
     }
 }
@@ -423,6 +436,8 @@ private fun DockTab(
 private fun tabMenuItems(item: DockItem, state: DockingState): List<UiDropdownItem> = buildList {
     add(UiDropdownItem(label = DockLang.PinLeft) { state.pin(item.id, DockSide.LEFT) })
     add(UiDropdownItem(label = DockLang.PinRight) { state.pin(item.id, DockSide.RIGHT) })
+    add(UiDropdownItem(label = DockLang.PinLeftBottom) { state.pin(item.id, DockSide.LEFT, DockStripeGroup.BOTTOM) })
+    add(UiDropdownItem(label = DockLang.PinRightBottom) { state.pin(item.id, DockSide.RIGHT, DockStripeGroup.BOTTOM) })
     if (item.closable) {
         add(UiDropdownItem(label = DockLang.Close, separatorBefore = true) { state.close(item.id) })
     }

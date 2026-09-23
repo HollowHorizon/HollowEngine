@@ -50,21 +50,6 @@ data class ChannelSpec(
     }
 }
 
-/** How a layer's value is folded into layers below it produced. */
-enum class BlendMode {
-    /** Replaces the value below it (scaled by the layer's weight). */
-    OVERRIDE,
-
-    /** Adds on top, the mode for shakes, offsets and corrections. */
-    ADD,
-
-    /** Subtracts, the inverse of [ADD]. */
-    SUBTRACT,
-
-    /** Scales the value below it. */
-    MULTIPLY,
-}
-
 /** A scalar keyframe on one channel curve. */
 class Keyframe(
     var time: Float,
@@ -203,20 +188,6 @@ class ChannelCurve(val spec: ChannelSpec) {
     }
 }
 
-class AnimLayer(name: String, val channels: List<ChannelCurve>) {
-    var nameState by mutableStateOf(name)
-    var isVisible by mutableStateOf(true)
-    var isLocked by mutableStateOf(false)
-    var isExpanded by mutableStateOf(true)
-    var blendMode by mutableStateOf(BlendMode.OVERRIDE)
-    var weight by mutableStateOf(1f)
-
-    val keyframes: List<Keyframe> get() = channels.flatMap { it.keyframes }
-
-    fun curveOf(keyframe: Keyframe): ChannelCurve? =
-        channels.firstOrNull { curve -> curve.keyframes.any { it === keyframe } }
-}
-
 data class ChannelBounds(val minimum: Float? = null, val maximum: Float? = null) {
     fun clamp(value: Float): Float {
         var result = value
@@ -230,6 +201,9 @@ data class ChannelBounds(val minimum: Float? = null, val maximum: Float? = null)
     }
 }
 
+/**
+ * One animated property: a name, a type, and one curve per scalar component of it.
+ */
 class AnimProperty<T>(
     val id: String,
     name: String,
@@ -241,62 +215,64 @@ class AnimProperty<T>(
 
     var isExpanded by mutableStateOf(true)
 
+    /** Whether the curves of this property are drawn in the graph; it does not change the value. */
+    var isVisible by mutableStateOf(true)
+
+    /** A locked property cannot be edited, which is what keeps a finished track finished. */
+    var isLocked by mutableStateOf(false)
+
+    var isListed by mutableStateOf(true)
+
     var type: PropertyType<T> by mutableStateOf(type)
         private set
 
-    val layers = mutableStateListOf<AnimLayer>()
+    var curves: List<ChannelCurve> = type.channels.map { ChannelCurve(it) }
+        private set
 
     val channels: List<ChannelSpec> get() = type.channels
 
-    fun addLayer(name: String = "Layer ${layers.size + 1}", blendMode: BlendMode = BlendMode.OVERRIDE): AnimLayer {
-        val layer = AnimLayer(name, type.channels.map { ChannelCurve(it) })
-        layer.blendMode = when {
-            layers.isEmpty() -> BlendMode.OVERRIDE
-            blendMode in type.blendModes -> blendMode
-            else -> type.blendModes.first()
-        }
-        layers.add(layer)
-        return layer
-    }
+    val keyframes: List<Keyframe> get() = curves.flatMap { it.keyframes }
 
     fun retype(next: PropertyType<T>) {
         if (next.channels == type.channels) {
             type = next
             return
         }
-        val resampled = layers.map { layer -> resample(layer, type, next) }
+
+        val resampled = resample(type, next)
         type = next
-        val rebuilt = layers.mapIndexed { index, layer ->
-            val channels = next.channels.mapIndexed { channel, spec ->
-                ChannelCurve(spec).also { it.keyframes.addAll(resampled[index][channel]) }
-            }
-            AnimLayer(layer.nameState, channels).also {
-                it.blendMode = layer.blendMode
-                it.weight = layer.weight
-                it.isVisible = layer.isVisible
-                it.isLocked = layer.isLocked
-                it.isExpanded = layer.isExpanded
-            }
+        curves = next.channels.mapIndexed { channel, spec ->
+            ChannelCurve(spec).also { curve -> curve.keyframes.addAll(resampled[channel]) }
         }
-        layers.clear()
-        layers.addAll(rebuilt)
     }
 
     @Suppress("UNCHECKED_CAST")
-    internal fun restoreState(type: PropertyType<*>, layers: List<AnimLayer>) {
+    internal fun restoreState(type: PropertyType<*>, curves: List<ChannelCurve>) {
         this.type = type as PropertyType<T>
-        this.layers.clear()
-        this.layers.addAll(layers)
+        this.curves = curves
     }
 
-    private fun resample(layer: AnimLayer, from: PropertyType<T>, to: PropertyType<T>): List<List<Keyframe>> {
-        val times = layer.channels.flatMap { curve -> curve.keyframes.map { it.time } }
+    /**
+     * Takes over the curves of [other], which has to be of the same type.
+     *
+     * Used when a property is rebound to a new target and its keys have to survive the swap.
+     */
+    fun adoptCurves(other: AnimProperty<*>) {
+        if (other.type.channels != type.channels) return
+        curves = other.curves
+        isVisible = other.isVisible
+        isLocked = other.isLocked
+    }
+
+    /** Keyframes carried over when the property changes type, such as euler to quaternion. */
+    private fun resample(from: PropertyType<T>, to: PropertyType<T>): List<List<Keyframe>> {
+        val times = curves.flatMap { curve -> curve.keyframes.map { it.time } }
             .distinctBy { round(it / ChannelCurve.KEY_TIME_EPSILON) }.sorted()
         val channelValues = to.channels.indices.map { mutableListOf<Keyframe>() }
         val buffer = FloatArray(from.channels.size)
         times.forEach { time ->
             from.decompose(defaultValue, buffer)
-            layer.channels.forEachIndexed { index, curve ->
+            curves.forEachIndexed { index, curve ->
                 buffer[index] = curve.valueAt(time, buffer[index])
             }
             val value = from.compose(buffer)
@@ -315,24 +291,14 @@ class AnimProperty<T>(
         val size = type.channels.size
         val values = FloatArray(size)
         type.decompose(defaultValue, values)
-        layers.forEach { layer ->
-            if (!layer.isVisible) return@forEach
-            val weight = layer.weight
-            if (weight == 0f) return@forEach
-            for (channel in 0 until size) {
-                val curve = layer.channels.getOrNull(channel) ?: continue
-                if (!curve.isVisible) continue
-                val base = values[channel]
-                if (curve.spec.sampling == ChannelSampling.DISCRETE) {
-                    values[channel] = curve.spec.normalize(curve.valueAt(time, base))
-                } else {
-                    val neutral = layer.blendMode.neutral(base)
-                    val sampled = curve.valueAt(time, neutral)
-                    values[channel] = layer.blendMode.blend(base, sampled, weight)
-                }
-            }
+        for (channel in 0 until size) {
+            val curve = curves.getOrNull(channel) ?: continue
+            val base = values[channel]
+            val sampled = curve.valueAt(time, base)
+            values[channel] = type.bounds(channel).clamp(
+                if (curve.spec.sampling == ChannelSampling.DISCRETE) curve.spec.normalize(sampled) else sampled
+            )
         }
-        for (channel in 0 until size) values[channel] = type.bounds(channel).clamp(values[channel])
         return type.compose(values)
     }
 
@@ -340,21 +306,8 @@ class AnimProperty<T>(
         apply?.invoke(valueAt(time))
     }
 
-    fun curveOf(keyframe: Keyframe): ChannelCurve? = layers.firstNotNullOfOrNull { it.curveOf(keyframe) }
-
-}
-
-private fun BlendMode.neutral(base: Float): Float = when (this) {
-    BlendMode.OVERRIDE -> base
-    BlendMode.ADD, BlendMode.SUBTRACT -> 0f
-    BlendMode.MULTIPLY -> 1f
-}
-
-private fun BlendMode.blend(base: Float, value: Float, weight: Float): Float = when (this) {
-    BlendMode.OVERRIDE -> base + (value - base) * weight
-    BlendMode.ADD -> base + value * weight
-    BlendMode.SUBTRACT -> base - value * weight
-    BlendMode.MULTIPLY -> base * (1f + (value - 1f) * weight)
+    fun curveOf(keyframe: Keyframe): ChannelCurve? =
+        curves.firstOrNull { curve -> curve.keyframes.any { it === keyframe } }
 }
 
 interface PropertyType<T> {
@@ -364,7 +317,6 @@ interface PropertyType<T> {
     fun bounds(channel: Int): ChannelBounds = ChannelBounds.Unbounded
 
     val isChannelSpaceLinear: Boolean get() = true
-    val blendModes: Set<BlendMode> get() = setOf(BlendMode.OVERRIDE, BlendMode.ADD, BlendMode.SUBTRACT)
 
     fun decompose(value: T, into: FloatArray)
     fun compose(values: FloatArray): T
@@ -375,6 +327,13 @@ class TrackGroup(name: String) {
     var isCollapsed by mutableStateOf(false)
     var isLocked by mutableStateOf(false)
     var isVisible by mutableStateOf(true)
+
+    /** Whether the group row stays in the list when none of its properties is listed. */
+    var isListed by mutableStateOf(true)
+
+    /** Whether anything of this group has a row, which is what decides whether the group has one. */
+    val hasListedContent: Boolean
+        get() = isListed || properties.any { it.isListed } || children.any { it.hasListedContent }
 
     val children = mutableStateListOf<TrackGroup>()
     val properties = mutableStateListOf<AnimProperty<*>>()

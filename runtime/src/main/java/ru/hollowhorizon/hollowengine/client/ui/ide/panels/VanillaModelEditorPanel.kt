@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexSorting
+import kotlinx.coroutines.isActive
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.Sheets
@@ -81,6 +82,9 @@ private fun VanillaModelToggle(icon: String, tooltip: String, active: Boolean, o
 
 @Composable
 private fun VanillaModelPreview(state: VanillaModelViewerState, modifier: Modifier = Modifier) {
+    LaunchedEffect(state) {
+        while (isActive) withFrameNanos(state.zoomSpring::advance)
+    }
     Box(
         modifier = Modifier
             .input(hoverable = true, draggable = true)
@@ -97,8 +101,7 @@ private fun VanillaModelPreview(state: VanillaModelViewerState, modifier: Modifi
                 event.consume()
             }
             .onScroll { event ->
-                val factor = if (event.scrollY > 0f) 0.9f else 1.1f
-                state.zoom = (state.zoom * factor).coerceIn(0.1f, 10f)
+                state.zoomSpring.scroll(event.scrollY)
                 event.consume()
             }
             .drawBehind(key = state) {
@@ -116,7 +119,8 @@ private class VanillaModelViewerState(
 ) {
     var yaw by mutableStateOf(35f)
     var pitch by mutableStateOf(25f)
-    var zoom by mutableStateOf(0.72f)
+    val zoomSpring = SpringZoom(0.72f, min = 0.1f, max = 10f, perNotch = ModelZoomPerNotch)
+    val zoom: Float get() = zoomSpring.value
     var offsetX by mutableStateOf(0f)
     var offsetY by mutableStateOf(0f)
     var showGrid by mutableStateOf(true)

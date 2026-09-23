@@ -1,8 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 
 @Composable
 internal fun FloatingResizeHandle(window: FloatingDockWindow, state: DockingState) {
@@ -30,12 +34,12 @@ internal fun FloatingResizeHandle(window: FloatingDockWindow, state: DockingStat
 }
 
 @Composable
-internal fun DockDropOverlay(state: DockingState, leftInset: Float = 0f, rightInset: Float = 0f) {
+internal fun DockDropOverlay(state: DockingState, leftInset: Float = 0f, rightInset: Float = 0f, bottomInset: Float = 0f) {
     Box(
         id = "dock-drop-overlay",
         tags = listOf(DockTags.DropOverlay),
         modifier = Modifier.size(100.percent, 100.percent)
-            .padding(leftInset.px, 0.px, rightInset.px, 0.px)
+            .padding(leftInset.px, 0.px, rightInset.px, bottomInset.px)
             .layer(10_000)
     ) {
         val root = state.root
@@ -203,3 +207,42 @@ private val DockResizeEdge.cursorShape: UiCursorShape
         DockResizeEdge.BOTTOM_LEFT,
             -> UiCursorShape.RESIZE_NESW
     }
+
+@Composable
+internal fun DockStripeDropZones(state: DockingState) {
+    var hovered by remember { mutableStateOf<DockAnchor?>(null) }
+    Box(
+        id = "dock-stripe-drop-zones",
+        mode = UiBoxMode.STACK,
+        modifier = Modifier.size(100.percent, 100.percent).layer(10_001).inputTransparent(),
+    ) {
+        DockAnchor.all.forEach { anchor ->
+            val active = hovered == anchor
+            val horizontal = if (anchor.side == DockSide.LEFT) UiAlign.START else UiAlign.END
+            val vertical = if (anchor.group == DockStripeGroup.TOP) UiAlign.START else UiAlign.END
+            Box(
+                id = "dock-stripe-drop-${anchor.side.tag}-${anchor.group.name.lowercase()}",
+                tags = listOf(DockTags.DropZone),
+                modifier = Modifier.size(StripeDropWidth.px, 48.percent)
+                    .align(horizontal, vertical)
+                    .background(if (active) DockColors.DropZoneActive else DockColors.DropZone)
+                    .border(1.px, if (active) DockColors.DropZoneBorderActive else DockColors.DropZoneBorder)
+                    .input(hoverable = true, clickable = true)
+                    .tooltipOnHover(DockLang.ParkHere)
+                    .onHover { hovered = anchor }
+                    .onExit { if (hovered == anchor) hovered = null }
+                    .onRelease { event ->
+                        state.pinDraggedWindow(anchor)
+                        event.consume()
+                    },
+            )
+        }
+    }
+}
+
+private const val StripeDropWidth = 28f
+
+internal fun DockingState.bottomAreaHeight(): Float {
+    val open = DockSide.entries.any { side -> expandedIn(DockAnchor(side, DockStripeGroup.BOTTOM)) != null }
+    return if (open) bottomHeight + PanelSplitterWidth else 0f
+}

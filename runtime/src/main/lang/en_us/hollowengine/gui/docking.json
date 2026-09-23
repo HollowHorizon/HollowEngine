@@ -1,6 +1,11 @@
 {
   "pin_left": "Pin Left",
   "pin_right": "Pin Right",
+  "pin_left_bottom": "Pin Bottom Left",
+  "pin_right_bottom": "Pin Bottom Right",
+  "move_to_top": "Move to the Top Half",
+  "move_to_bottom": "Move to the Bottom Half",
+  "park_here": "Pin Here",
   "undock": "Unpin",
   "close": "Close",
   "hide_stripes": "Hide Side Bars",

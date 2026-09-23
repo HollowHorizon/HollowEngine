@@ -29,6 +29,8 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
+import ru.hollowhorizon.hollowengine.client.vfx.VfxAssets
+import ru.hollowhorizon.hollowengine.common.vfx.Vfx
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueInput
@@ -117,7 +119,41 @@ private fun CommandExtension.registerParticleCommands() {
             SUCCESS
         }
     }
+
+    registerVfxCommands()
 }
+
+private fun CommandExtension.registerVfxCommands() {
+    "vfx"(
+        arg("pos", Vec3Argument.vec3()),
+        arg("name", StringArgumentType.greedyString()) { knownEffects() }
+    ) {
+        executes {
+            Vfx.play(
+                source.level,
+                Vec3Argument.getVec3(this, "pos"),
+                StringArgumentType.getString(this, "name"),
+            )
+            SUCCESS
+        }
+    }
+
+    "vfx"(
+        arg("entity", EntityArgument.entity()),
+        arg("name", StringArgumentType.greedyString()) { knownEffects() }
+    ) {
+        executes {
+            Vfx.play(
+                EntityArgument.getEntity(this, "entity"),
+                StringArgumentType.getString(this, "name"),
+            )
+            SUCCESS
+        }
+    }
+}
+
+private fun knownEffects(): List<String> =
+    if (isPhysicalClient) VfxAssets.ids.map { it.toString() } else emptyList()
 
 private fun CommandExtension.registerModelCommands() {
     "model"(arg("model", StringArgumentType.string()) { getAvailableModels() }) {

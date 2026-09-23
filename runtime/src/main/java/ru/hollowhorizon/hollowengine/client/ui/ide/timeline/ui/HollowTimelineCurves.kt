@@ -15,7 +15,7 @@ private const val CurvePointSize = 9f
 private const val CurveHandleSize = 7f
 
 internal data class CurveLane(
-    val layer: AnimLayer,
+    val property: AnimProperty<*>,
     val curve: ChannelCurve,
     val color: UiColor,
     val locked: Boolean,
@@ -23,11 +23,10 @@ internal data class CurveLane(
 
 internal fun curveLanes(rows: List<TimelineRow>, controller: TimelineController): List<CurveLane> {
     val lanes = rows.filter { it.kind == TimelineRowKind.PROPERTY && it.visible }
-        .mapNotNull { row -> row.property?.let { row to it } }.flatMap { (row, property) ->
-            property.layers.filter { it.isVisible }.flatMap { layer ->
-                layer.channels.filter { it.isVisible && it.spec.supportsCurveEditor }.map { curve ->
-                    CurveLane(layer, curve, curve.color.toUiColor(), row.locked || layer.isLocked)
-                }
+        .mapNotNull { row -> row.property?.let { row to it } }
+        .flatMap { (row, property) ->
+            property.curves.filter { it.isVisible && it.spec.supportsCurveEditor }.map { curve ->
+                CurveLane(property, curve, curve.color.toUiColor(), row.locked)
             }
         }
     if (controller.focusedCurves.isEmpty()) return lanes

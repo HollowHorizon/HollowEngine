@@ -1,0 +1,337 @@
+package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
+
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.VertexSorting
+import net.minecraft.client.Minecraft
+import org.joml.Matrix4f
+import org.joml.Vector3f
+import org.joml.Vector4f
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
+import ru.hollowhorizon.hollowengine.client.render.DebugLines
+import ru.hollowhorizon.hollowengine.client.ui.SpringZoom
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import ru.hollowhorizon.hollowengine.client.vfx.VfxBudget
+import ru.hollowhorizon.hollowengine.client.vfx.VfxInstance
+import ru.hollowhorizon.hollowengine.client.vfx.VfxPlaneEnvironment
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxDrawCollector
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadDraw
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadRenderer
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxView
+import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
+import ru.hollowhorizon.hollowengine.common.vfx.VfxEffect
+import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.sin
+
+/**
+ * The preview of the effect being edited: an orbit camera with perspective, a floor, and one
+ * playing instance.
+ */
+@Stable
+class VfxPreviewState {
+    var yaw by mutableStateOf(35f)
+    var pitch by mutableStateOf(22f)
+    private val zoomSpring = SpringZoom(4.5f, MIN_DISTANCE, MAX_DISTANCE, perNotch = ZOOM_PER_NOTCH)
+    val distance: Float get() = zoomSpring.value
+    var targetX by mutableStateOf(0f)
+    var targetY by mutableStateOf(0.7f)
+    var targetZ by mutableStateOf(0f)
+
+    var showFloor by mutableStateOf(true)
+    var showShape by mutableStateOf(true)
+
+    /** The viewport size in panel pixels, which gizmo projects into. */
+    var viewportWidth by mutableStateOf(0f)
+    var viewportHeight by mutableStateOf(0f)
+
+    /** How far the effect has been simulated. */
+    var time by mutableStateOf(0f)
+        private set
+
+    /** Bumped whenever [instance] is replaced, so what reads its nodes knows to look again. */
+    var revision by mutableStateOf(0)
+        private set
+
+    /** Particles alive, refreshed by the editor clock rather than read from the instance by the UI. */
+    var liveParticles by mutableStateOf(0)
+        private set
+
+    var instance: VfxInstance? = null
+        private set
+
+    private var builtFor: VfxEffect? = null
+    private var lastGameTime = Float.NaN
+    private val draws = ArrayList<VfxQuadDraw>()
+
+    /**
+     * Brings the playing instance in line with [effect]. Returns whether it had to be rebuilt.
+     */
+    fun sync(effect: VfxEffect, asset: String): Boolean {
+        if (builtFor === effect) return false
+        val playing = instance
+        val previous = builtFor
+        builtFor = effect
+        if (playing != null && previous != null && playing.adoptPlacement(effect)) {
+            revision++
+            return false
+        }
+
+        val at = time
+        instance = VfxInstance(effect, asset, VfxPlaneEnvironment(0.0), seed = PREVIEW_SEED).also { it.update(0f) }
+        revision++
+        time = 0f
+        lastGameTime = Float.NaN
+        if (at in 0f..CATCH_UP_LIMIT) seek(at) else refreshCount()
+        return true
+    }
+
+    fun restart() {
+        instance?.restart()
+        time = 0f
+        lastGameTime = Float.NaN
+        refreshCount()
+    }
+
+    /** Seconds the effect has been running for, measured against the game clock. */
+    fun deltaSinceLastFrame(): Float {
+        val now = TickHandler.gameTime
+        val dt = when {
+            lastGameTime.isNaN() -> 0f
+            else -> ((now - lastGameTime) / TICKS_PER_SECOND).coerceIn(0f, MAX_STEP)
+        }
+        lastGameTime = now
+        return dt
+    }
+
+    /**
+     * Moves the effect to [seconds].
+     */
+    fun seek(seconds: Float) {
+        val target = seconds.coerceAtLeast(0f)
+        if (target < time) restart()
+
+        val distance = target - time
+        if (distance > CATCH_UP_EPSILON) {
+            val steps = ceil(distance / CATCH_UP_STEP).toInt().coerceIn(1, MAX_CATCH_UP_STEPS)
+            val step = distance / steps
+            repeat(steps) { advanceBy(step) }
+        }
+        time = target
+    }
+
+    private var pendingSeek = Float.NaN
+
+    /**
+     * Asks for [seek] on the next frame.
+     */
+    fun requestSeek(seconds: Float) {
+        pendingSeek = seconds
+    }
+
+    /** Runs the seek asked for since the last frame, if any; returns whether there was one. */
+    fun applyPendingSeek(): Boolean {
+        val target = pendingSeek
+        if (target.isNaN()) return false
+        pendingSeek = Float.NaN
+        seek(target)
+        return true
+    }
+
+    /** Advances the effect by [dt] seconds. */
+    fun advanceBy(dt: Float) {
+        val playing = instance ?: return
+
+        playing.partialTick = TickHandler.partialTick
+        playing.gameTime = TickHandler.gameTime
+        playing.budget = VfxBudget.share(1)
+        playing.update(dt)
+        time = playing.time
+        refreshCount()
+    }
+
+    private fun refreshCount() {
+        val count = instance?.particleCount ?: 0
+        if (count != liveParticles) liveParticles = count
+    }
+
+    private var dragYaw = 0f
+    private var dragPitch = 0f
+    private val dragTarget = Vector3f()
+
+    /** Remembers the camera as it was when a drag started; drag is measured from here. */
+    fun beginCameraDrag() {
+        dragYaw = yaw
+        dragPitch = pitch
+        dragTarget.set(targetX, targetY, targetZ)
+    }
+
+    fun orbit(totalX: Float, totalY: Float) {
+        yaw = (dragYaw - totalX * ORBIT_SPEED) % 360f
+        pitch = (dragPitch + totalY * ORBIT_SPEED).coerceIn(-89f, 89f)
+    }
+
+    /** Slides point, that camera circles around, along the screen, by a share of the distance. */
+    fun pan(totalX: Float, totalY: Float) {
+        val basis = cameraBasis()
+        val scale = distance * PAN_SPEED
+        targetX = dragTarget.x + (-basis.right.x * totalX + basis.up.x * totalY) * scale
+        targetY = dragTarget.y + (-basis.right.y * totalX + basis.up.y * totalY) * scale
+        targetZ = dragTarget.z + (-basis.right.z * totalX + basis.up.z * totalY) * scale
+    }
+
+    /** One wheel notch, scrolling up moves the camera back. */
+    fun zoom(scrollY: Float) = zoomSpring.scroll(scrollY)
+
+    fun advanceCamera(frameNanos: Long) = zoomSpring.advance(frameNanos)
+
+    class Basis(val eye: Vector3f, val right: Vector3f, val up: Vector3f, val forward: Vector3f)
+
+    /** Where the camera is and where it looks, in effect space. */
+    fun cameraBasis(): Basis {
+        val yawRad = Math.toRadians(yaw.toDouble()).toFloat()
+        val pitchRad = Math.toRadians(pitch.toDouble()).toFloat()
+        val back = Vector3f(cos(pitchRad) * sin(yawRad), sin(pitchRad), cos(pitchRad) * cos(yawRad))
+        val eye = Vector3f(targetX, targetY, targetZ).add(Vector3f(back).mul(distance))
+        val forward = Vector3f(back).negate()
+        val right = Vector3f(forward).cross(Vector3f(0f, 1f, 0f)).normalize()
+        val up = Vector3f(right).cross(forward).normalize()
+        return Basis(eye, right, up, forward)
+    }
+
+    fun viewMatrix(): Matrix4f {
+        val basis = cameraBasis()
+        return Matrix4f().setLookAt(
+            basis.eye.x, basis.eye.y, basis.eye.z,
+            targetX, targetY, targetZ,
+            0f, 1f, 0f,
+        )
+    }
+
+    fun perspective(width: Float, height: Float): Matrix4f =
+        Matrix4f().setPerspective(FIELD_OF_VIEW, (width / height.coerceAtLeast(1f)).coerceAtLeast(0.01f), NEAR, FAR)
+
+    /**
+     * Normalized device coordinates to panel pixels.
+     */
+    private fun pixels(rect: UiRect): Matrix4f {
+        val halfWidth = rect.width / 2f
+        val halfHeight = rect.height / 2f
+        return Matrix4f(
+            halfWidth, 0f, 0f, 0f,
+            0f, -halfHeight, 0f, 0f,
+            0f, 0f, -PANEL_DEPTH, 0f,
+            rect.x + halfWidth, rect.y + halfHeight, 0f, 1f,
+        )
+    }
+
+    /** Effect space to panel pixels, before the perspective division. */
+    fun panelMatrix(width: Float, height: Float): Matrix4f =
+        pixels(UiRect(0f, 0f, width, height)).mul(perspective(width, height)).mul(viewMatrix())
+
+    /** Where [point] lands in the panel, or null when it is behind the camera. */
+    fun project(matrix: Matrix4f, point: Vector3f): Vector3f? {
+        val clip = matrix.transform(Vector4f(point, 1f))
+        if (clip.w <= NEAR) return null
+        return Vector3f(clip.x / clip.w, clip.y / clip.w, clip.w)
+    }
+
+    /** Draws the floor and the effect into [rect]; called from a `drawGl` block. */
+    fun render(rect: UiRect, stack: PoseStack) {
+        val playing = instance ?: return
+        if (rect.width <= 1f || rect.height <= 1f) return
+
+        val view = viewMatrix()
+        val projection =
+            Matrix4f(RenderSystem.getProjectionMatrix()).mul(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
+                .mul(pixels(rect)).mul(perspective(rect.width, rect.height))
+
+        val savedProjection = Matrix4f(RenderSystem.getProjectionMatrix())
+        val savedSorting = RenderSystem.getVertexSorting()
+        val modelView = RenderSystem.getModelViewStack()
+        modelView.pushMatrix()
+        modelView.identity()
+        RenderSystem.applyModelViewMatrix()
+        RenderSystem.setProjectionMatrix(projection, VertexSorting.DISTANCE_TO_ORIGIN)
+
+        try {
+            val viewStack = PoseStack()
+            viewStack.mulPose(view)
+
+            val buffers = Minecraft.getInstance().renderBuffers().bufferSource()
+            if (showFloor) {
+                val lines = DebugLines.batch(buffers, viewStack, DebugLines.PANEL)
+                drawFloor(lines)
+                buffers.endBatch(DebugLines.PANEL)
+            }
+
+            VfxDrawCollector.renderMeshes(playing, view)
+            buffers.endBatch()
+
+            draws.clear()
+            VfxDrawCollector.collectQuads(playing, Matrix4f(), draws)
+            if (draws.isNotEmpty()) {
+                val basis = cameraBasis()
+                VfxQuadRenderer.render(
+                    draws,
+                    VfxView(
+                        modelView = view,
+                        projection = projection,
+                        right = basis.right,
+                        up = basis.up,
+                        eye = basis.eye,
+                    ),
+                )
+                draws.clear()
+            }
+        } finally {
+            RenderSystem.setProjectionMatrix(savedProjection, savedSorting)
+            modelView.popMatrix()
+            RenderSystem.applyModelViewMatrix()
+        }
+    }
+
+    private fun drawFloor(lines: DebugLines.Batch) {
+        val half = FLOOR_HALF_SIZE
+        for (step in -half..half) {
+            val offset = step.toFloat()
+            val color = if (step == 0) AXIS_COLOR else GRID_COLOR
+            lines.line(Vec3f(-half.toFloat(), 0f, offset), Vec3f(half.toFloat(), 0f, offset), color)
+            lines.line(Vec3f(offset, 0f, -half.toFloat()), Vec3f(offset, 0f, half.toFloat()), color)
+        }
+    }
+
+    private companion object {
+        const val TICKS_PER_SECOND = 20f
+        const val MAX_STEP = 0.25f
+
+        const val PREVIEW_SEED = 0x5EED
+
+        val FIELD_OF_VIEW = Math.toRadians(50.0).toFloat()
+        const val NEAR = 0.05f
+        const val FAR = 200f
+
+        const val PANEL_DEPTH = 500f
+
+        const val ORBIT_SPEED = 0.35f
+        const val PAN_SPEED = 0.0025f
+        const val MIN_DISTANCE = 0.3f
+        const val MAX_DISTANCE = 60f
+        const val ZOOM_PER_NOTCH = 1.1f
+
+        const val FLOOR_HALF_SIZE = 6
+
+        const val CATCH_UP_STEP = 1f / 30f
+        const val CATCH_UP_EPSILON = 1.0e-4f
+        const val MAX_CATCH_UP_STEPS = 90
+
+        const val CATCH_UP_LIMIT = 4f
+
+        const val GRID_COLOR = 0x40AFC4E0
+        const val AXIS_COLOR = 0x80DCBF73.toInt()
+    }
+}

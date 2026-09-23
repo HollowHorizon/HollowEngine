@@ -1,14 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.ui.inspector
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import ru.hollowhorizon.hollowengine.client.ui.Column
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiContent
 import ru.hollowhorizon.hollowengine.client.ui.Image
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.Row
 import ru.hollowhorizon.hollowengine.client.ui.Text
+import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
+import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.scrollable
 import ru.hollowhorizon.hollowengine.client.ui.style
 
@@ -57,6 +62,9 @@ val LocalInspectorHost: ProvidableCompositionLocal<InspectorHost?> = composition
 /**
  * The panel itself: heading, then the target's own fields under a scrollbar. [leading] is for chrome
  * an editor wants beside the title, such as a back arrow or a layer switcher.
+ *
+ * With [keepScroll] the scroll position outlives the panel: hiding the window or switching its tab
+ * away and back returns to the same place, while showing a different target starts at the top.
  */
 @Composable
 fun InspectorPanel(
@@ -65,14 +73,18 @@ fun InspectorPanel(
     empty: String = "",
     leading: HollowUiContent? = null,
     trailing: HollowUiContent? = null,
+    keepScroll: Boolean = false,
 ) {
     val styled = target?.styles.orEmpty()
         .fold(modifier.style(InspectorStylesheet)) { chain, sheet -> chain.style(sheet) }
 
+    val scroll = rememberScrollState()
+    if (keepScroll) KeepScroll(target?.id, scroll)
+
     Column(
-        id = "inspector-${target?.id ?: "empty"}",
+        id = "inspector-panel",
         tags = listOf("insp-panel"),
-        modifier = styled.scrollable(horizontal = false),
+        modifier = styled.scrollable(horizontal = false, state = scroll),
     ) {
         if (leading != null || trailing != null || target != null) {
             Row(tags = listOf("insp-head")) {
@@ -91,4 +103,27 @@ fun InspectorPanel(
 
         Column(tags = listOf("insp-body")) { target.content() }
     }
+}
+
+@Composable
+private fun KeepScroll(targetId: String?, scroll: UiScrollHandle) {
+    val saved = remember { InspectorScrollMemory.offset }
+
+    LaunchedEffect(targetId) {
+        if (InspectorScrollMemory.target == targetId) {
+            scroll.scrollTo(y = saved)
+        } else {
+            InspectorScrollMemory.target = targetId
+            InspectorScrollMemory.offset = 0f
+            scroll.scrollTo(x = 0f, y = 0f)
+        }
+    }
+    LaunchedEffect(scroll) {
+        snapshotFlow { scroll.offsetY }.collect { InspectorScrollMemory.offset = it }
+    }
+}
+
+private object InspectorScrollMemory {
+    var target: String? = null
+    var offset: Float = 0f
 }

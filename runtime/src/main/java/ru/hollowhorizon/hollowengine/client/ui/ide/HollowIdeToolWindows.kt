@@ -29,6 +29,7 @@ internal class HollowIdeToolWindow(
     val minHeight: Float = 32f,
     val closable: Boolean = true,
     val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
+    val titleInToolbar: Boolean = false,
 ) {
     val title: String get() = titleKey.lang
 
@@ -41,6 +42,7 @@ internal class HollowIdeToolWindow(
         minHeight = minHeight,
         singleTabPresentation = singleTabPresentation,
         pinnable = true,
+        titleInToolbar = titleInToolbar,
     )
 }
 
@@ -70,14 +72,24 @@ internal object HollowIdeToolWindows {
         minWidth = 180f,
         minHeight = 90f,
     )
-    val CutsceneTimeline = HollowIdeToolWindow(
-        id = CutsceneTimelineId,
-        titleKey = "hollowengine.gui.ide.windows.cutscene_timeline",
+    val Timeline = HollowIdeToolWindow(
+        id = TimelineId,
+        titleKey = "hollowengine.gui.ide.windows.timeline",
         icon = CutsceneIcon,
         placement = DockPlacement.BOTTOM,
         anchors = listOf(ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
         minWidth = 260f,
         minHeight = 130f,
+        titleInToolbar = true,
+    )
+    val Scene = HollowIdeToolWindow(
+        id = SceneId,
+        titleKey = "hollowengine.gui.ide.windows.scene",
+        icon = "hollowengine:textures/gui/icons/layers.svg",
+        placement = DockPlacement.LEFT,
+        anchors = listOf(ToolWindowAnchor.PROJECT, ToolWindowAnchor.EDITORS),
+        minWidth = 160f,
+        minHeight = 120f,
     )
     val Inspector = HollowIdeToolWindow(
         id = InspectorId,
@@ -109,14 +121,14 @@ internal object HollowIdeToolWindows {
     )
 
     val menu: List<HollowIdeToolWindow?> = listOf(
-        Project, Inspector, AssetManager, Console,
+        Project, Scene, Inspector, AssetManager, Console,
         null,
-        CutsceneTimeline, GameViewport,
+        Timeline, GameViewport,
     )
 
     /** Every window the editor knows how to open, for turning a remembered id back into one. */
     val all: List<HollowIdeToolWindow> = listOf(
-        Project, AssetManager, Console, CutsceneTimeline, Inspector, GameViewport, UiProfiler,
+        Project, Scene, AssetManager, Console, Timeline, Inspector, GameViewport, UiProfiler,
     )
 
     fun byId(id: String): HollowIdeToolWindow? = all.firstOrNull { it.id == id }
@@ -132,7 +144,7 @@ internal fun DockingState.openToolWindow(window: HollowIdeToolWindow, model: Hol
         when (anchor) {
             ToolWindowAnchor.EDITORS -> model.files.values.firstOrNull { contains(it.id) }?.id
             ToolWindowAnchor.PROJECT -> ProjectTreeId.takeIf(::contains)
-            ToolWindowAnchor.TIMELINE -> CutsceneTimelineId.takeIf(::contains)
+            ToolWindowAnchor.TIMELINE -> TimelineId.takeIf(::contains)
         }
     }
     open(window.dockItem(), DockTarget(anchor, window.placement))

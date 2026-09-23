@@ -71,17 +71,7 @@ internal object CutsceneLang {
     const val HANDLE_IN = ROOT + "handles.incoming"
     const val HANDLE_OUT = ROOT + "handles.outgoing"
 
-    const val LAYER_SETTINGS = ROOT + "layer.settings"
     const val PROPERTY_SETTINGS = ROOT + "property.settings"
-    const val LAYER_WEIGHT = ROOT + "layer.weight"
-    const val LAYER_VISIBLE = ROOT + "layer.visible"
-    const val LAYER_LOCKED = ROOT + "layer.locked"
-    const val LAYER_DELETE = ROOT + "layer.delete"
-    const val BLEND_MODE = ROOT + "layer.blend_mode"
-    const val BLEND_OVERRIDE = ROOT + "blend.override"
-    const val BLEND_ADD = ROOT + "blend.add"
-    const val BLEND_SUBTRACT = ROOT + "blend.subtract"
-    const val BLEND_MULTIPLY = ROOT + "blend.multiply"
 
     const val ROTATION_MODE = ROOT + "rotation.mode"
     const val ROTATION_EULER = ROOT + "rotation.euler"

@@ -5,6 +5,8 @@ import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockLang
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
+import ru.hollowhorizon.hollowengine.client.ui.docking.isOnScreen
+import ru.hollowhorizon.hollowengine.client.ui.docking.toggleOnScreen
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownSlider

@@ -68,5 +68,6 @@ object UiCursorManager {
         UiCursorShape.RESIZE_VERTICAL -> GLFW_RESIZE_NS_CURSOR
         UiCursorShape.RESIZE_NESW -> GLFW_RESIZE_NESW_CURSOR
         UiCursorShape.RESIZE_NWSE -> GLFW_RESIZE_NWSE_CURSOR
+        UiCursorShape.NOT_ALLOWED -> GLFW_NOT_ALLOWED_CURSOR
     }
 }

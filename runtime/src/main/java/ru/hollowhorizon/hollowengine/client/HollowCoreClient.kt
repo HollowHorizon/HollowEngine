@@ -6,6 +6,8 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
+import ru.hollowhorizon.hollowengine.client.vfx.VfxAssets
+import ru.hollowhorizon.hollowengine.client.vfx.VfxBoneBindings
 import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiPathTileResources
 import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiDemoScreen
@@ -28,12 +30,14 @@ object HollowCoreClient {
 
     init {
         RenderSystem.recordRenderCall(RenderManager::onInitialize)
+        VfxBoneBindings.register()
     }
 
     @SubscribeEvent
     fun onRegisterReloadListener(event: RegisterReloadListenersEvent.Client) {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
+        event.register(VfxAssets)
         event.register(UiPathTileResources)
         event.register(UiFontResources)
     }

@@ -76,6 +76,7 @@ class HollowIdeFileTypeRegistryTest {
                 soundsEditor = {},
                 animatorEditor = {},
                 rigEditor = {},
+                vfxEditor = {},
                 textEditor = {},
             )
         }
@@ -86,6 +87,7 @@ class HollowIdeFileTypeRegistryTest {
         assertEquals("sounds", registry.find("assets/demo/sounds.json", "{}".toByteArray())?.id)
         assertEquals("animator", registry.find("assets/demo/models/player.animator", byteArrayOf())?.id)
         assertEquals("rig", registry.find("assets/demo/models/player.glb.rig", byteArrayOf())?.id)
+        assertEquals("vfx", registry.find("assets/demo/vfx/flame.vfx", byteArrayOf())?.id)
         assertEquals("text", registry.find("assets/demo/other.json", "{}".toByteArray())?.id)
         assertEquals("text", registry.find("scripts/example.kts", "println(1)".toByteArray())?.id)
         assertNull(registry.find("unknown.bin", ByteArray(64) { 0 }))
