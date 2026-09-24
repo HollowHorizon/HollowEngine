@@ -6,6 +6,9 @@ private const val MinBottomHeight = 60f
 private const val MaxBottomHeight = 900f
 private const val MinBottomFraction = 0.15f
 private const val MaxBottomFraction = 0.85f
+private const val DefaultSideSplitFraction = 0.5f
+private const val MinSideSplitFraction = 0.12f
+private const val MaxSideSplitFraction = 0.88f
 
 /** The stripe buttons on [side], in the order they are drawn. */
 fun DockingState.pinnedOn(side: DockSide): List<DockPinnedItem> =
@@ -19,8 +22,41 @@ fun DockingState.expandedIn(anchor: DockAnchor): DockPinnedItem? {
     return pinnedItems.firstOrNull { it.item.id == itemId && it.anchor == anchor }
 }
 
-/** The side panel of [side]: the window open in the top half of its stripe. */
+/** The window open in the top part of [side]'s stripe. */
 fun DockingState.expandedOn(side: DockSide): DockPinnedItem? = expandedIn(DockAnchor(side))
+
+/** What the side panel of [side] shows, top to bottom: its top window, then the split one under it. */
+fun DockingState.sidePanels(side: DockSide): List<DockPinnedItem> = listOfNotNull(
+    expandedIn(DockAnchor(side, DockStripeGroup.TOP)),
+    expandedIn(DockAnchor(side, DockStripeGroup.SPLIT)),
+)
+
+/** The side panel's width; the windows in it share one, the top one's when both are open. */
+fun DockingState.sideWidth(side: DockSide): Float? = sidePanels(side).firstOrNull()?.width
+
+fun DockingState.sideSplitFraction(side: DockSide): Float = sideSplitFractions[side] ?: DefaultSideSplitFraction
+
+fun DockingState.setSideSplitFraction(side: DockSide, fraction: Float) {
+    sideSplitFractions[side] = fraction.coerceIn(MinSideSplitFraction, MaxSideSplitFraction)
+}
+
+/** Sets the width of every window the side panel shows, so they stay one column. */
+fun DockingState.setSideWidth(side: DockSide, width: Float) {
+    sidePanels(side).forEach { setPinnedWidth(it.item.id, width) }
+}
+
+/** Swaps the side panel's two windows, keeping both open. */
+fun DockingState.swapSidePanels(side: DockSide): Boolean {
+    val top = expandedIn(DockAnchor(side, DockStripeGroup.TOP)) ?: return false
+    val split = expandedIn(DockAnchor(side, DockStripeGroup.SPLIT)) ?: return false
+    val topIndex = pinnedItems.indexOf(top)
+    val splitIndex = pinnedItems.indexOf(split)
+    pinnedItems[topIndex] = split.copy(group = DockStripeGroup.TOP, width = top.width)
+    pinnedItems[splitIndex] = top.copy(group = DockStripeGroup.SPLIT)
+    expandedByAnchor[DockAnchor(side, DockStripeGroup.TOP)] = split.item.id
+    expandedByAnchor[DockAnchor(side, DockStripeGroup.SPLIT)] = top.item.id
+    return true
+}
 
 fun DockingState.pinnedItem(itemId: String): DockPinnedItem? = pinnedItems.firstOrNull { it.item.id == itemId }
 
@@ -190,6 +226,7 @@ fun DockingState.applyPinned(
     visible: Boolean = true,
     bottomHeight: Float = DefaultBottomHeight,
     bottomFraction: Float = 0.5f,
+    sideSplit: Map<DockSide, Float> = emptyMap(),
 ) {
     pinnedItems.clear()
     pinnedItems += items.filterNot { contains(it.item.id) }
@@ -200,6 +237,8 @@ fun DockingState.applyPinned(
     stripesVisible = visible
     setBottomHeight(bottomHeight)
     setBottomFraction(bottomFraction)
+    sideSplitFractions.clear()
+    sideSplit.forEach { (side, fraction) -> setSideSplitFraction(side, fraction) }
 }
 
 /** Which item each half has open, for storing the layout. */

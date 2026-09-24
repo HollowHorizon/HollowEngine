@@ -1,24 +1,24 @@
 /*
  * The notification stack in the bottom-right corner. Each card is bordered with its own kind's
- * gradient, matching the icon it carries.
+ * gradient, matching the icon it carries; the rest follows the IDE's popups, compact and quiet.
  */
 
 .notif-stack {
     size: fit fit;
-    gap: 8px;
-    margin: 12px;
+    gap: 6px;
+    margin: 10px;
     align: end end;
 }
 
 .notif {
-    size: 320px fit;
-    gap: 6px;
-    padding: 10px 12px;
-    background: rgba(24, 26, 31, 0.94);
-    border-radius: 10px;
-    border: 1px #31343D;
+    size: 280px fit;
+    gap: 5px;
+    padding: 7px 8px 7px 10px;
+    background: rgba(33, 35, 40, 0.96);
+    border-radius: 8px;
+    border: 1px #2E3138;
     backdrop-filter: blur(8px);
-    shadow: 0px 4px 14px rgba(0, 0, 0, 0.45);
+    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
 }
 
 .notif.success { border: 1px linear-gradient(135deg, #9BF763, #3D5A24); }
@@ -29,62 +29,57 @@
 
 .notif-head {
     size: 100% fit;
-    gap: 10px;
+    gap: 8px;
     align-items: start center;
 }
 
 .notif-icon {
-    size: 26px 26px;
+    size: 16px 16px;
 }
 
 .notif-title {
     size: fit fit;
     foreground: #E4E9F4;
-    font-size: 11px;
     text-overflow: dots;
 }
 
 .notif-action {
     size: fit fit;
-    min-width: 62px;
-    min-height: 26px;
-    padding: 4px 10px;
-    background: #2A2D35;
-    border-radius: 7px;
-    border: 1px #3B3F49;
+    min-height: 18px;
+    padding: 2px 8px;
+    background: #2B2E35;
+    border-radius: 4px;
     hoverable: true;
     clickable: true;
-    transition: background 140ms ease-out;
+    transition: background 120ms ease-out;
 }
 
-.notif-action:hover { background: #3B3F49; }
+.notif-action:hover { background: #363A43; }
 
 .notif-action-label {
     align: center center;
     size: fit fit;
-    foreground: #C4CBDA;
-    font-size: 10px;
+    foreground: #D7DEEA;
     wrap: false;
 }
 
 .notif-close {
-    size: 24px 24px;
-    padding: 6px;
-    background: #2A2D35;
-    border-radius: 7px;
-    border: 1px #3B3F49;
-    tint: #8B93A5;
-    transition: tint 140ms ease-out, background 140ms ease-out;
+    size: 16px 16px;
+    padding: 4px;
+    background: #00000000;
+    border-radius: 4px;
+    tint: #7A8698;
+    transition: tint 120ms ease-out, background 120ms ease-out;
 }
 
 .notif-close:hover {
-    background: #3B3F49;
+    background: #2B2E35;
     tint: #E4E9F4;
 }
 
 .notif-track {
-    size: 100% 4px;
-    background: #2A2D35;
+    size: 100% 3px;
+    background: #2B2E35;
     border-radius: 2px;
     clip: true;
 }

@@ -41,6 +41,55 @@ class DockingStateTest {
     }
 
     @Test
+    fun `a floating window dropped past the edge, or cut off by a resize, comes back inside`() {
+        val state = DockingState()
+        state.updateSpaceSize(800f, 600f)
+        state.openFloating(DockItem("test", "Test"), x = 20f, y = 30f, width = 240f, height = 180f)
+        val id = state.floatingWindows.single().id
+
+        state.startDraggingWindow(id)
+        state.moveFloating(id, 900f, -200f)
+        state.updateSpaceSize(700f, 500f)
+        assertEquals(920f, state.floatingWindows.single().x, "a window in the hand is left where the pointer has it")
+
+        state.finishDraggingWindow()
+        val dropped = state.floatingWindows.single()
+        assertEquals(460f, dropped.x, "dropped, it lies against the right edge")
+        assertEquals(0f, dropped.y)
+
+        state.moveFloating(id, 0f, 400f)
+        state.updateSpaceSize(400f, 300f)
+        val shrunk = state.floatingWindows.single()
+        assertEquals(160f, shrunk.x)
+        assertEquals(120f, shrunk.y, "a smaller space pulls it up as well as left")
+    }
+
+    @Test
+    fun `a split window shares the side panel with the top one and swaps with it`() {
+        val state = DockingState()
+        state.open(DockItem("project", "Project", pinnable = true))
+        state.open(DockItem("scene", "Scene", pinnable = true))
+        state.open(DockItem("assets", "Assets", pinnable = true))
+        state.pin("project", DockSide.LEFT)
+        state.pin("assets", DockSide.LEFT)
+        state.pin("scene", DockSide.LEFT, DockStripeGroup.SPLIT)
+        state.togglePinned("project")
+
+        assertEquals(listOf("project", "scene"), state.sidePanels(DockSide.LEFT).map { it.item.id })
+
+        assertTrue(state.swapSidePanels(DockSide.LEFT))
+        assertEquals(listOf("scene", "project"), state.sidePanels(DockSide.LEFT).map { it.item.id }, "both stay open")
+        assertEquals(
+            listOf("scene", "assets", "project"),
+            state.pinnedOn(DockSide.LEFT).map { it.item.id },
+            "the swapped buttons change groups, the rest of the stripe keeps its order",
+        )
+
+        state.togglePinned("assets")
+        assertEquals(listOf("assets", "project"), state.sidePanels(DockSide.LEFT).map { it.item.id }, "top replaces top only")
+    }
+
+    @Test
     fun `a stripe button opens its panel and closes it again`() {
         val state = DockingState()
         state.open(DockItem("project", "Project", pinnable = true))

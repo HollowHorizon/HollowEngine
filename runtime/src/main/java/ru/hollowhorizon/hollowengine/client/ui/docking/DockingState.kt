@@ -45,6 +45,27 @@ class DockingState {
     var bottomFraction: Float by mutableStateOf(0.5f)
         internal set
 
+    /** How much of a side panel its top window takes when a split window is open under it. */
+    internal val sideSplitFractions = mutableStateMapOf<DockSide, Float>()
+
+    /** The stripe button being dragged, if any. */
+    var stripeDrag: DockStripeDrag? by mutableStateOf(null)
+        internal set
+
+    /** Stripe buttons a reorder displaced, by how far they still sit from their new place; see [DockTabSwap]. */
+    internal val stripeSwapOffsets = mutableStateMapOf<String, DockTabSwap>()
+    private var stripeSwapRevision = 0L
+
+    internal fun recordStripeSwaps(offsets: Map<String, Float>) {
+        if (offsets.isEmpty()) return
+        val revision = ++stripeSwapRevision
+        offsets.forEach { (itemId, offset) -> stripeSwapOffsets[itemId] = DockTabSwap(offset, revision) }
+    }
+
+    internal fun clearStripeSwap(itemId: String, revision: Long) {
+        if (stripeSwapOffsets[itemId]?.revision == revision) stripeSwapOffsets.remove(itemId)
+    }
+
     private var tabGrab: DockTabGrabState? by mutableStateOf(null)
     private val tabSwapOffsets = mutableStateMapOf<String, DockTabSwap>()
     private var tabSwapRevision = 0L
@@ -253,10 +274,37 @@ class DockingState {
         finishTabDrag()
         if (windowId != null) {
             val index = floatingWindows.indexOfFirst { it.id == windowId }
-            if (index >= 0 && floatingWindows[index].dragKey != null) {
-                floatingWindows[index] = floatingWindows[index].copy(dragKey = null)
-            }
+            if (index >= 0) floatingWindows[index] = floatingWindows[index].copy(dragKey = null).keptInSpace()
         }
+    }
+
+    /** The dock space's size from its last layout; floating windows are kept inside it. */
+    private var spaceWidth = 0f
+    private var spaceHeight = 0f
+
+    /**
+     * Records the dock space's size and pulls back any window the change left outside it; a window
+     * in the hand is left alone and settled when it is dropped.
+     */
+    internal fun updateSpaceSize(width: Float, height: Float) {
+        if (width == spaceWidth && height == spaceHeight) return
+        spaceWidth = width
+        spaceHeight = height
+        for (index in floatingWindows.indices) {
+            val window = floatingWindows[index]
+            if (window.id == draggedWindowId) continue
+            val kept = window.keptInSpace()
+            if (kept != window) floatingWindows[index] = kept
+        }
+    }
+
+    /** Moved, never resized, to lie inside the space; a window wider than it keeps its left edge in. */
+    internal fun FloatingDockWindow.keptInSpace(): FloatingDockWindow {
+        if (spaceWidth <= 0f || spaceHeight <= 0f) return this
+        return copy(
+            x = x.coerceIn(0f, (spaceWidth - width).coerceAtLeast(0f)),
+            y = y.coerceIn(0f, (spaceHeight - height).coerceAtLeast(0f)),
+        )
     }
 
     fun dockDraggedWindow(target: DockTarget): Boolean {

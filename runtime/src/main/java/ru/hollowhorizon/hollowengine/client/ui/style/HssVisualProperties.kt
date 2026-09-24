@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.UiBorder
+import ru.hollowhorizon.hollowengine.client.ui.UiBorderDash
 import ru.hollowhorizon.hollowengine.client.ui.UiInsets
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiTransform
@@ -81,6 +82,20 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
     borderEdge("border-right", "right") { insets, width -> insets.copy(right = width) }
     borderEdge("border-bottom", "bottom") { insets, width -> insets.copy(bottom = width) }
     borderEdge("border-left", "left") { insets, width -> insets.copy(left = width) }
+
+    property(
+        "border-dash",
+        summary = "Dashes the border: dash length, then the gap after it. A zero length draws it solid.",
+        syntax = syntax(
+            slot("dash", HssValueKind.PIXELS),
+            slot("gap", HssValueKind.PIXELS, optional = true),
+        ),
+        examples = listOf("4px 3px", "6px", "0px"),
+    ) {
+        val parts = value.trim().split(Regex("\\s+"))
+        val length = parseScalar(parts[0])
+        set(UiProps.BorderDash, UiBorderDash(length, parts.getOrNull(1)?.let(::parseScalar) ?: length))
+    }
 
     property(
         "border-radius",

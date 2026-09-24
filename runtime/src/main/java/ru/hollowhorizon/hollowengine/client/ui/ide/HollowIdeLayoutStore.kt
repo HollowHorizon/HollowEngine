@@ -63,6 +63,7 @@ internal data class StoredDockLayout(
     val stripesVisible: Boolean = true,
     val bottomHeight: Float = DefaultBottomHeight,
     val bottomFraction: Float = 0.5f,
+    val sideSplit: Map<DockSide, Float> = emptyMap(),
 )
 
 /**
@@ -119,6 +120,7 @@ internal fun DockingState.capture(): StoredDockLayout {
         stripesVisible = stripesVisible,
         bottomHeight = bottomHeight,
         bottomFraction = bottomFraction,
+        sideSplit = sideSplitFractions.toMap(),
     )
 }
 
@@ -150,6 +152,7 @@ internal fun DockingState.restore(layout: StoredDockLayout, resolve: (String) ->
         visible = layout.stripesVisible,
         bottomHeight = layout.bottomHeight,
         bottomFraction = layout.bottomFraction,
+        sideSplit = layout.sideSplit,
     )
     return true
 }

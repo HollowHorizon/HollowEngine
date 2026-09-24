@@ -11,5 +11,7 @@
   "auto_scroll": "Автопрокрутка",
   "empty": "Нет сообщений, соответствующих текущему фильтру",
   "mode.command": "Команда",
-  "mode.kotlin": "Kotlin"
+  "mode.kotlin": "Kotlin",
+  "tab.logs": "Логи",
+  "tab.problems": "Проблемы"
 }

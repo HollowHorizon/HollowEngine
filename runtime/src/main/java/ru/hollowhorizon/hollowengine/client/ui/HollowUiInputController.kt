@@ -37,6 +37,21 @@ class HollowUiInputController {
 
     private var scrollbarDrag: UiScrollbarDragState? = null
 
+    /** The scrollbar under the pointer or in the hand, drawn in its hover style; see [ScrollbarNode.engaged]. */
+    private var engagedScrollbar: ScrollbarNode? = null
+
+    private fun updateEngagedScrollbar() {
+        val next = scrollbarDrag?.scrollbar ?: when (val node = hoveredNode) {
+            is ScrollbarThumbNode -> node.layoutState.parentNode as? ScrollbarNode
+            is ScrollbarNode -> node
+            else -> null
+        }
+        if (next === engagedScrollbar) return
+        engagedScrollbar?.engaged = false
+        next?.engaged = true
+        engagedScrollbar = next
+    }
+
     fun reset() {
         clearInteraction()
     }
@@ -46,6 +61,7 @@ class HollowUiInputController {
         activeNode = null
         draggingNode = null
         scrollbarDrag = null
+        updateEngagedScrollbar()
         if (clearFocus) {
             focusByScope.clear()
             activeScope = null
@@ -132,6 +148,7 @@ class HollowUiInputController {
         val hit = frame.hitTest(mouseX, mouseY)
         val previousNode = hoveredNode
         hoveredNode = hit?.node
+        updateEngagedScrollbar()
 
         x = mouseX
         y = mouseY
@@ -246,6 +263,7 @@ class HollowUiInputController {
             else -> null
         } ?: return UiInputResult(false)
         scrollbarDrag = drag
+        updateEngagedScrollbar()
         return UiInputResult(true, drag.node, drag.node.id, changed = true)
     }
 
@@ -345,6 +363,7 @@ class HollowUiInputController {
         draggingNode = null
         dragMoved = false
         scrollbarDrag = null
+        updateEngagedScrollbar()
         return UiInputResult(received, releaseNode, releaseNode?.id)
     }
 

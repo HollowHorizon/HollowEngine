@@ -17,10 +17,16 @@ internal enum class ConsoleInputMode(val langKey: String) {
     COMMAND("hollowengine.gui.console.mode.command"), KOTLIN("hollowengine.gui.console.mode.kotlin"),
 }
 
+/** The pages of the bottom tool window. */
+internal enum class ConsoleTab(val langKey: String) {
+    LOGS("hollowengine.gui.console.tab.logs"), PROBLEMS("hollowengine.gui.console.tab.problems"),
+}
+
 /**
  * The console's state, kept by the IDE rather than by the panel's composition.
  */
 internal class HollowIdeConsole {
+    var tab by mutableStateOf(ConsoleTab.LOGS)
     var minimumLevel by mutableStateOf(StandardLevel.DEBUG)
     var filterText by mutableStateOf("")
     var autoScroll by mutableStateOf(true)

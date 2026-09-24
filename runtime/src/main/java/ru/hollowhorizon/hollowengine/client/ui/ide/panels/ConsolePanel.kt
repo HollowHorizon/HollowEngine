@@ -5,10 +5,15 @@ import net.minecraft.client.Minecraft
 import org.apache.logging.log4j.spi.StandardLevel
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockTags
+import ru.hollowhorizon.hollowengine.client.ui.docking.LocalDockPanelTitle
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeConsoleFontSize
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeProblems
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeProblemsList
 import ru.hollowhorizon.hollowengine.client.ui.scroll.rememberScrollState
 import ru.hollowhorizon.hollowengine.client.ui.widgets.EditableTextField
 import ru.hollowhorizon.hollowengine.client.ui.widgets.TextFieldState
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCodeFontFamily
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiCheckboxVariant
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
@@ -30,9 +35,65 @@ import java.time.format.DateTimeFormatter
 
 private const val LANG = "hollowengine.gui.console"
 
-/** Level, filter and auto-scroll, shown in the dock's tab bar next to the console's tab. */
+/**
+ * The bottom tool window: the log with its command line, and the problems of the file being edited.
+ */
 @Composable
-internal fun HollowIdeConsoleToolbar(console: HollowIdeConsole) {
+internal fun HollowIdeConsolePanel(console: HollowIdeConsole, problems: HollowIdeProblems) {
+    Column(
+        tags = listOf("ide-panel", "console-panel"),
+        modifier = Modifier.size(100.percent, 100.percent),
+    ) {
+        ConsoleHeader(console, problems)
+        when (console.tab) {
+            ConsoleTab.LOGS -> {
+                ConsoleLog(console)
+                ConsoleInput(console)
+            }
+
+            ConsoleTab.PROBLEMS -> HollowIdeProblemsList(problems)
+        }
+    }
+}
+
+@Composable
+private fun ConsoleHeader(console: HollowIdeConsole, problems: HollowIdeProblems) {
+    val parked = LocalDockPanelTitle.current
+    Row(id = parked?.headerId, tags = listOf("tool-window-header"), modifier = parked?.dragHandle ?: Modifier) {
+        parked?.let { panel ->
+            panel.icon?.let { icon -> Image(icon, tags = listOf(DockTags.PinnedHeaderIcon)) }
+            Text(panel.title, tags = listOf(DockTags.PinnedHeaderLabel, "tool-window-title"))
+        }
+        ConsoleTab.entries.forEach { tab ->
+            ConsoleTabButton(console, tab, if (tab == ConsoleTab.PROBLEMS) problems else null)
+        }
+        Box(modifier = Modifier.size(0.px, 1.px).grow(1f))
+        if (console.tab == ConsoleTab.LOGS) ConsoleToolbar(console)
+    }
+}
+
+@Composable
+private fun ConsoleTabButton(console: HollowIdeConsole, tab: ConsoleTab, problems: HollowIdeProblems?) {
+    Row(
+        id = "console-tab-${tab.name.lowercase()}",
+        tags = listOfNotNull("tool-window-tab", "selected".takeIf { console.tab == tab }),
+        modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND)
+            .onClick { event ->
+                console.tab = tab
+                event.consume()
+            },
+    ) {
+        Text(tab.langKey.lang, tags = listOf("tool-window-tab-label"))
+        val count = problems?.diagnostics?.size ?: 0
+        if (problems != null && count > 0) {
+            Text(count.toString(), tags = listOf("tool-window-tab-count", problems.severityTag))
+        }
+    }
+}
+
+/** Level, filter and auto-scroll of the log. */
+@Composable
+private fun ConsoleToolbar(console: HollowIdeConsole) {
     var levelMenuExpanded by remember { mutableStateOf(false) }
     Row(tags = listOf("console-toolbar")) {
         UiDropdown(
@@ -51,6 +112,7 @@ internal fun HollowIdeConsoleToolbar(console: HollowIdeConsole) {
             value = console.filterText,
             placeholder = "$LANG.filter_hint".lang,
             onChange = { console.filterText = it },
+            textShadow = null,
             id = "console-filter",
             tags = listOf("console-filter"),
             modifier = Modifier.size(FilterWidth.px, 18.px),
@@ -67,7 +129,7 @@ internal fun HollowIdeConsoleToolbar(console: HollowIdeConsole) {
 }
 
 @Composable
-internal fun HollowIdeConsolePanel(console: HollowIdeConsole) {
+private fun ConsoleLog(console: HollowIdeConsole) {
     var snapshot by remember { mutableStateOf(HollowLogStore.snapshot()) }
     val fontSize = HollowIdeConsoleFontSize.size
 
@@ -86,7 +148,9 @@ internal fun HollowIdeConsolePanel(console: HollowIdeConsole) {
 
     val document = remember { ConsoleLogDocument() }
     val logState = remember {
-        TextFieldState(multiline = true, readOnly = true, autoPairs = false, indentSize = null, wrap = false)
+        TextFieldState(
+            multiline = true, readOnly = true, autoPairs = false, indentSize = null, wrap = false, textShadow = null,
+        )
     }
     val revision = remember(visibleEntries) {
         document.sync(visibleEntries, ConsoleLogDocument.Key(minimumLevel, console.filterText))
@@ -109,33 +173,27 @@ internal fun HollowIdeConsolePanel(console: HollowIdeConsole) {
         }
     }
 
-    Column(
-        tags = listOf("ide-panel", "console-panel"),
-        modifier = Modifier.size(100.percent, 100.percent),
-    ) {
-        if (document.text.isEmpty()) {
-            Box(tags = listOf("console-empty"), modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
-                Text("$LANG.empty".lang)
-            }
-        } else {
-            EditableTextField(
-                state = logState,
-                id = "console-log",
-                tags = listOf("console-log"),
-                scrollState = logScroll,
-                syntaxHighlighter = highlighter,
-                modifier = Modifier.size(100.percent, 0.px).grow(1f).onScroll { event ->
-                    if (event.isCtrlDown()) {
-                        HollowIdeConsoleFontSize.zoom(event.rawScrollY)
-                        event.consume()
-                    } else if (event.rawScrollY > 0f) {
-                        console.autoScroll = false
-                    }
-                },
-            )
+    if (document.text.isEmpty()) {
+        Box(tags = listOf("console-empty"), modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
+            Text("$LANG.empty".lang)
         }
-        ConsoleInput(console)
+        return
     }
+    EditableTextField(
+        state = logState,
+        id = "console-log",
+        tags = listOf("console-log"),
+        scrollState = logScroll,
+        syntaxHighlighter = highlighter,
+        modifier = Modifier.size(100.percent, 0.px).grow(1f).onScroll { event ->
+            if (event.isCtrlDown()) {
+                HollowIdeConsoleFontSize.zoom(event.rawScrollY)
+                event.consume()
+            } else if (event.rawScrollY > 0f) {
+                console.autoScroll = false
+            }
+        },
+    )
 }
 
 @Composable
@@ -180,6 +238,7 @@ private fun ConsoleInput(console: HollowIdeConsole) {
             autoPairs = kotlinMode,
             wrap = false,
             fontFamily = LogFontFamily,
+            textShadow = null,
             placeholder = when {
                 kotlinMode -> "$LANG.kotlin_hint".lang
                 connected -> "$LANG.command_hint".lang
@@ -299,12 +358,12 @@ private class ConsoleLogDocument {
     private fun append(entry: HollowLogEntry) {
         if (builder.isNotEmpty()) builder.append('\n')
         val levelColors = ConsoleLevelColors.getValue(entry.level)
-        span(LogTimeFormatter.format(Instant.ofEpochMilli(entry.timeMillis)), MetaStyle)
+        span(LogTimeFormatter.format(Instant.ofEpochMilli(entry.timeMillis)), TimeStyle)
         builder.append(' ')
         span(entry.level.name.padEnd(LevelLabelWidth), levelColors.level)
         builder.append(' ')
         entry.loggerName?.let { logger ->
-            span(logger.substringAfterLast('.'), MetaStyle)
+            span(logger.substringAfterLast('.'), LoggerStyle)
             builder.append(' ')
         }
         span(entry.message.replace("\r\n", "\n").trimEnd(), levelColors.message)
@@ -358,22 +417,24 @@ private val ConsoleLevels = listOf(
 )
 
 private val MessageColor = UiColor.fromArgb(0xFFD7DEEA.toInt())
-private val MetaStyle = UiInlineStyle().withColor(UiColor.fromArgb(0xFF687588.toInt()))
-private val ErrorColors = LevelColors(UiColor.fromArgb(0xFFFF8787.toInt()), UiColor.fromArgb(0xFFFF8787.toInt()))
+private val QuietMessageColor = UiColor.fromArgb(0xFFA9B3C4.toInt())
+private val TimeStyle = UiInlineStyle().withColor(UiColor.fromArgb(0xFF4F5968.toInt()))
+private val LoggerStyle = UiInlineStyle().withColor(UiColor.fromArgb(0xFF7A8698.toInt()))
+private val ErrorColors = LevelColors(UiColor.fromArgb(0xFFF07878.toInt()), UiColor.fromArgb(0xFFF29A9A.toInt()))
 private val ConsoleLevelColors = mapOf(
     StandardLevel.OFF to LevelColors(MessageColor, MessageColor),
     StandardLevel.FATAL to ErrorColors,
     StandardLevel.ERROR to ErrorColors,
-    StandardLevel.WARN to LevelColors(UiColor.fromArgb(0xFFFFC266.toInt()), UiColor.fromArgb(0xFFFFC266.toInt())),
-    StandardLevel.INFO to LevelColors(UiColor.fromArgb(0xFF82D99B.toInt()), MessageColor),
-    StandardLevel.DEBUG to LevelColors(UiColor.fromArgb(0xFF78A8FF.toInt()), MessageColor),
-    StandardLevel.TRACE to LevelColors(UiColor.fromArgb(0xFF7F8A9D.toInt()), UiColor.fromArgb(0xFF7F8A9D.toInt())),
+    StandardLevel.WARN to LevelColors(UiColor.fromArgb(0xFFE6B35A.toInt()), UiColor.fromArgb(0xFFE8CA92.toInt())),
+    StandardLevel.INFO to LevelColors(UiColor.fromArgb(0xFF7CC49A.toInt()), MessageColor),
+    StandardLevel.DEBUG to LevelColors(UiColor.fromArgb(0xFF6E8FBF.toInt()), QuietMessageColor),
+    StandardLevel.TRACE to LevelColors(UiColor.fromArgb(0xFF5F6A7B.toInt()), UiColor.fromArgb(0xFF7A8698.toInt())),
     StandardLevel.ALL to LevelColors(MessageColor, MessageColor),
 )
 
 private val LogTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     .withZone(ZoneId.systemDefault())
-private const val LogFontFamily = "hollowengine:fonts/monocraft"
+private const val LogFontFamily = UiCodeFontFamily
 private const val LevelLabelWidth = 5
 private const val FilterWidth = 140f
 private const val AutoScrollLayoutFrames = 2

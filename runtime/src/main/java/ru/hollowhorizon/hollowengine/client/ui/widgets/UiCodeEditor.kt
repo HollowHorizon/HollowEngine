@@ -23,8 +23,8 @@ fun UiCodeEditor(
     completionRevision: Long = inlayRevision,
     readOnly: Boolean = false,
     fontSize: Float = DefaultUiFontSize,
-    fontFamily: String? = CodeEditorFontFamily,
-    textShadow: Shadow? = CodeEditorTextShadow,
+    fontFamily: String? = UiCodeFontFamily,
+    textShadow: Shadow? = null,
     state: TextFieldState? = null,
     id: String? = null,
     tags: Iterable<String> = emptyList(),
@@ -70,9 +70,9 @@ fun UiCodeEditor(
     )
 }
 
-private const val CodeEditorFontFamily = "hollowengine:fonts/monocraft"
+/** The font of code and logs; the rest of the interface keeps the game's own. */
+const val UiCodeFontFamily = "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf"
 
-private val CodeEditorTextShadow = Shadow(offsetX = 0f, offsetY = 1f, blur = 2f, color = UiColor(1f, 1f, 1f, 0.4f))
 private val CodeEditorCaretColor = UiColor(0.941f, 0.965f, 1f, 1f)
 private val CodeEditorSelectionColor = UiColor(0.373f, 0.549f, 0.804f, 0.46f)
 private val CodeEditorLineNumberColor = UiColor(0.333f, 0.376f, 0.439f, 1f)

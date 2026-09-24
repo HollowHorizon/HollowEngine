@@ -141,8 +141,8 @@ object HollowIdeOverlay {
     )
     private val packaging = HollowIdeProjectPackaging(model) { statusText = it }
     private val console = HollowIdeConsole()
-    private val diagnosticsPanels = mutableStateMapOf<String, Boolean>()
-    private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
+
+    private var activeEditorPath by mutableStateOf<String?>(null)
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
@@ -592,8 +592,7 @@ object HollowIdeOverlay {
         dock.close(id)
         editorSessions.remove(path)?.close()
         editorStates.remove(path)
-        diagnosticsPanels.remove(id)
-        diagnosticsPanelHeights.remove(id)
+        if (activeEditorPath == path) activeEditorPath = null
         findStates.remove(path)
         if (colorPicker?.path == path) colorPicker = null
         if (fileContextMenu?.path == path) fileContextMenu = null
@@ -687,6 +686,7 @@ object HollowIdeOverlay {
     @Composable
     private fun Content() {
         RememberLayout()
+        TrackActiveEditor()
         Box(
             id = "ide-root",
             modifier = Modifier.style("hollowengine:ui/styles/widgets.hss").style("hollowengine:ui/styles/ide.hss")
@@ -726,13 +726,11 @@ object HollowIdeOverlay {
                             id = "ide-dock",
                             modifier = Modifier.size(100.percent, 0.px).grow(1f),
                             tabBarActions = { item ->
-                                when (item.id) {
-                                    ProjectTreeId -> HollowIdeProjectActions(packaging)
-                                    ConsoleId -> HollowIdeConsoleToolbar(console)
-                                }
+                                if (item.id == ProjectTreeId) HollowIdeProjectActions(packaging)
                             },
                             content = { item -> DockContent(item) },
                         )
+                        StatusBar()
                     }
                     HollowIdeFileContextMenu(
                         menu = fileContextMenu,
@@ -761,6 +759,69 @@ object HollowIdeOverlay {
             delay(LayoutSaveDelayMillis.milliseconds)
             HollowIdeLayoutStore.save(layout)
         }
+    }
+
+    @Composable
+    private fun TrackActiveEditor() {
+        val focused = focusedFile()?.takeIf { it.textOrNull != null }?.path
+        LaunchedEffect(focused) {
+            if (focused != null) activeEditorPath = focused
+        }
+    }
+
+    private fun activeEditorFile(): HollowIdeOpenFile? {
+        val file = activeEditorPath?.let { model.files[it] } ?: return null
+        return file.takeIf { it.textOrNull != null && dock.contains(it.id) }
+    }
+
+    /** Brings up the Problems page on [file], wherever the bottom tool window is parked. */
+    private fun showProblems(file: HollowIdeOpenFile) {
+        activeEditorPath = file.path
+        console.tab = ConsoleTab.PROBLEMS
+        dock.openToolWindow(HollowIdeToolWindows.Console, model)
+    }
+
+    private fun currentProblems(): HollowIdeProblems {
+        val file = activeEditorFile()
+        val diagnostics = file?.let { editorSessions[it.path]?.diagnostics(it.text) }.orEmpty()
+        return HollowIdeProblems(file, diagnostics) { diagnostic ->
+            if (file != null) {
+                openFileDockItem(file)
+                focusEditorAt(file, diagnostic.start)
+            }
+        }
+    }
+
+    private val statusNavigation = HollowIdeStatusNavigation(
+        revealInProject = { path ->
+            if (path.isNotEmpty()) model.revealPath(path)
+            dock.openToolWindow(HollowIdeToolWindows.Project, model)
+        },
+        showWindow = { window -> dock.openToolWindow(window, model) },
+        showInspectedSource = {
+            val window = if (IdeScenes.current != null) HollowIdeToolWindows.Scene else HollowIdeToolWindows.Inspector
+            dock.openToolWindow(window, model)
+        },
+    )
+
+    @Composable
+    private fun StatusBar() {
+        val navigation = statusNavigation
+        val project = HollowIdeCrumb(packaging.properties.displayName, ProjectIcon) { navigation.revealInProject("") }
+        val focused = dock.focusedItemId
+        val selection = InspectorSelection.current
+        val treePath = model.selectedTreePath
+        val file = focusedFile() ?: activeEditorFile()
+        val status = when {
+            focused == ProjectTreeId && treePath.isNotEmpty() ->
+                HollowIdeStatus(pathCrumbs(project, treePath, null, navigation.revealInProject))
+
+            focused == InspectorId && selection != null -> inspectorStatus(project, selection, navigation)
+            file != null -> fileStatus(project, file, editorStates[file.path], navigation)
+            selection != null -> inspectorStatus(project, selection, navigation)
+            else -> HollowIdeStatus(listOf(project))
+        }
+        HollowIdeStatusBar(status, statusText)
     }
 
     @Composable
@@ -841,7 +902,6 @@ object HollowIdeOverlay {
                 HollowIdeGizmoSwitcher()
             }
             Box(modifier = Modifier.size(0.px, 100.percent).grow(1f))
-            Text(statusText, tags = listOf("ide-status"))
             ToolbarIconButton(
                 id = "ide-toolbar-search",
                 icon = SearchIcon,
@@ -921,7 +981,7 @@ object HollowIdeOverlay {
                 onFocusFilter = ::requestSurfaceFocus,
             )
 
-            ConsoleId -> HollowIdeConsolePanel(console)
+            ConsoleId -> HollowIdeConsolePanel(console, currentProblems())
             TimelineId -> TimelineDock(keyboardActive = dock.focusedItemId == TimelineId)
 
             SceneId -> SceneDock()
@@ -967,6 +1027,8 @@ object HollowIdeOverlay {
                 onToggle = project::toggle,
                 onSelect = project::select,
                 fillRowWidth = false,
+                reveal = model.treeReveal,
+                onRevealed = { model.treeReveal = null },
                 filterState = projectFilter,
                 filterPlaceholder = "hollowengine.message.filter".lang,
                 onFilterOpened = ::requestSurfaceFocus,
@@ -1036,9 +1098,6 @@ object HollowIdeOverlay {
         val editorState = editorState(file)
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
-        LaunchedEffect(file.id, diagnostics.isEmpty()) {
-            if (diagnostics.isEmpty()) diagnosticsPanels.remove(file.id)
-        }
         val inlayHints = editorSession.inlayHints(file.text)
         val fontSize = HollowIdeFontSize.size
         val editorId = "editor-${file.id}"
@@ -1101,18 +1160,7 @@ object HollowIdeOverlay {
                             HollowIdeFontSize.zoom(event.rawScrollY)
                             event.consume()
                         })
-                HollowIdeDiagnosticsBadge(file.id, diagnostics) { id ->
-                    diagnosticsPanels[id] = diagnosticsPanels[id] != true
-                }
-            }
-            if (diagnostics.isNotEmpty() && diagnosticsPanels[file.id] == true) {
-                val height = diagnosticsPanelHeights[file.id] ?: DefaultDiagnosticsPanelHeight
-                HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, requestedHeight ->
-                    diagnosticsPanelHeights[id] = requestedHeight.coerceIn(
-                        MinDiagnosticsPanelHeight,
-                        MaxDiagnosticsPanelHeight,
-                    )
-                }
+                HollowIdeDiagnosticsBadge(file.id, diagnostics) { showProblems(file) }
             }
         }
     }
@@ -1121,7 +1169,6 @@ object HollowIdeOverlay {
     private fun EmptyEditor() {
         Column(tags = listOf("ide-empty-editor")) {
             Text(EditorLang.EMPTY.lang, tags = listOf("ide-empty-title"))
-            Text(statusText, tags = listOf("ide-status"))
         }
     }
 
@@ -1652,7 +1699,3 @@ private data class EditorColorPicker(
     val x: Float,
     val y: Float,
 )
-
-private const val DefaultDiagnosticsPanelHeight = 160f
-private const val MinDiagnosticsPanelHeight = 90f
-private const val MaxDiagnosticsPanelHeight = 360f

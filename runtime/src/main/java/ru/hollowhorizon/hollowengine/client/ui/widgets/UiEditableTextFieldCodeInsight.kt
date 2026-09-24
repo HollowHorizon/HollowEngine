@@ -241,10 +241,7 @@ private fun CodeInsightText(
             CodeInsightSpans(text, segments)
         } else {
             CodeInsightSpans(text, segments.subList(0, firstActive))
-            Text(
-                tags = listOf("ide-active-parameter"),
-                modifier = Modifier.background(CodeInsightActiveParameter),
-            ) {
+            Text(tags = listOf("ide-active-parameter")) {
                 CodeInsightSpans(text, segments.subList(firstActive, lastActive + 1))
             }
             CodeInsightSpans(text, segments.subList(lastActive + 1, segments.size))
@@ -312,9 +309,6 @@ private fun codeInsightPopupModifier(layout: EditableFieldLayout, viewport: UiRe
     val maxWidth = (viewport.width - CodeInsightViewportMargin * 2f).coerceAtLeast(1f)
     return Modifier.size(UiLength.Fit, UiLength.Fit)
         .maxSize(width = maxWidth.px)
-        .padding(8.px)
-        .background(CodeInsightBackground)
-        .border(1.px, CodeInsightBorder, 4f)
         .clip()
         .scrollable(vertical = true, horizontal = false, hasHorizontalScrollbar = false)
         .fontSize(layout.fontSize)
@@ -325,7 +319,4 @@ private const val EditorHoverDelayMillis = 1_000L
 private const val CodeInsightPopupGap = 5f
 private const val CodeInsightViewportMargin = 8f
 private const val CodeInsightMaxVisibleSignatures = 6
-private val CodeInsightBackground = parseColor("#24272E")
-private val CodeInsightBorder = parseColor("#3B404A")
-private val CodeInsightActiveParameter = parseColor("#334A63")
 private val CodeInsightDocumentation = parseColor("#A9B7C6")

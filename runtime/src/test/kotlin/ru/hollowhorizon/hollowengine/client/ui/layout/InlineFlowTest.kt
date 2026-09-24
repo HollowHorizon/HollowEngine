@@ -6,10 +6,15 @@ import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import ru.hollowhorizon.hollowengine.client.ui.text.Bold
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextFonts
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class InlineFlowTest {
+    /** A line is as tall as the test font's line, a little taller than its 10px em. */
+    private fun lineOf(fontSize: Float) = UiTextFonts.resolve(TestFontFamily).lineHeight(fontSize)
+    private val Line = lineOf(10f)
+
     private fun span(text: String, vararg mods: Modifier) =
         SpanNode(text, modifiers = mods.toList())
 
@@ -38,7 +43,7 @@ class InlineFlowTest {
         val s = span("aaaa bbbb cccc")
         val (layout, container) = flow(60f, s)
         val containerLayout = layout.nodes.getValue(container)
-        assertEquals(20f, containerLayout.rect.height, 0.6f, "two 10px lines")
+        assertEquals(Line * 2f, containerLayout.rect.height, 0.6f, "two 10px lines")
 
         val spanLayout = layout.nodes.getValue(s)
         assertEquals(2, spanLayout.textLayout!!.lines.size, "span split across two lines")
@@ -48,7 +53,7 @@ class InlineFlowTest {
     fun `single line when everything fits`() {
         val s = span("aa bb")
         val (layout, container) = flow(200f, s)
-        assertEquals(10f, layout.nodes.getValue(container).rect.height, 0.6f)
+        assertEquals(Line, layout.nodes.getValue(container).rect.height, 0.6f)
         assertEquals(1, layout.nodes.getValue(s).textLayout!!.lines.size)
     }
 
@@ -59,7 +64,7 @@ class InlineFlowTest {
         val textLayout = layout.nodes.getValue(s).textLayout!!
 
         assertEquals(2, textLayout.lines.size)
-        assertEquals(20f, layout.nodes.getValue(container).rect.height, 0.6f)
+        assertEquals(Line * 2f, layout.nodes.getValue(container).rect.height, 0.6f)
         assertEquals(0, textLayout.lines[0].sourceStart)
         assertEquals(3, textLayout.lines[0].sourceLength)
         assertEquals(3, textLayout.lines[1].sourceStart)
@@ -201,7 +206,7 @@ class InlineFlowTest {
         val word = span("aaaaaaaaaa")
         val comma = span(",")
         val (layout, container) = flow(67f, word, comma)
-        assertEquals(10f, layout.nodes.getValue(container).rect.height, 0.6f, "single line — comma glued to the word")
+        assertEquals(Line, layout.nodes.getValue(container).rect.height, 0.6f, "single line — comma glued to the word")
     }
 
     @Test
@@ -211,7 +216,7 @@ class InlineFlowTest {
         val (layout, container) = flow(42f, revealed, pending)
         val revealedLayout = layout.nodes.getValue(revealed)
 
-        assertEquals(20f, layout.nodes.getValue(container).rect.height, 0.6f, "the whole word moves to the next line")
+        assertEquals(Line * 2f, layout.nodes.getValue(container).rect.height, 0.6f, "the whole word moves to the next line")
         assertEquals(
             revealedLayout.rect.y + revealedLayout.textLayout!!.lines.last().y,
             layout.nodes.getValue(pending).rect.y,
@@ -225,7 +230,7 @@ class InlineFlowTest {
         val small = span("aa")
         val big = span("aa", Modifier.fontSize(20f))
         val (layout, container) = flow(500f, small, big)
-        assertEquals(20f, layout.nodes.getValue(container).rect.height, 0.6f, "line height = tallest span")
+        assertEquals(lineOf(20f), layout.nodes.getValue(container).rect.height, 0.6f, "line height = tallest span")
         val bigRect = layout.nodes.getValue(big).rect
         assertEquals(26.667f, bigRect.width, 1.0f)
     }

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
 import androidx.compose.runtime.compositionLocalOf
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
 
 data class DockItem(
     val id: String,
@@ -26,13 +27,15 @@ enum class DockSide {
 }
 
 /**
- * Which half of a stripe a tool window sits in.
+ * Which part of a stripe a tool window sits in.
  *
- * The top half opens beside the editor, above the bottom area. The bottom half opens into the area
- * under the editor and the side panels, the full width between the stripes.
+ * [TOP] opens beside the editor, above the bottom area. [SPLIT] opens in the same side panel, under
+ * the [TOP] window, so the two show at once with a splitter between them. [BOTTOM] opens into the
+ * area under the editor and the side panels, the full width between the stripes.
  */
 enum class DockStripeGroup {
     TOP,
+    SPLIT,
     BOTTOM,
 }
 
@@ -100,6 +103,13 @@ data class DockTabDragState(
     val pointerX: Float,
     val grabX: Float,
     val layouts: List<DockTabLayout> = emptyList(),
+)
+
+/** A stripe button in the hand: the pointer's place along its stripe, and how far down the button it took hold. */
+data class DockStripeDrag(
+    val itemId: String,
+    val along: Float,
+    val grab: Float,
 )
 
 data class DockTabGrabState(
@@ -334,8 +344,15 @@ internal class DockIdGenerator {
     fun nextWindowId(): String = "dock-window-${nextWindow++}"
 }
 
-/** The title a parked window is expected to show itself, when it asked for [DockItem.titleInToolbar]. */
-class DockPanelTitle(val title: String, val icon: String?)
+/**
+ * The title a parked window is expected to show itself, when it asked for [DockItem.titleInToolbar].
+ */
+class DockPanelTitle(
+    val title: String,
+    val icon: String?,
+    val headerId: String,
+    val dragHandle: Modifier,
+)
 
 /** Set for the content of a parked window that draws its own title; null everywhere else. */
 val LocalDockPanelTitle = compositionLocalOf<DockPanelTitle?> { null }

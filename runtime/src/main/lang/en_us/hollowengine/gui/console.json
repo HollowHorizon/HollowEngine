@@ -11,5 +11,7 @@
   "auto_scroll": "Auto-scroll",
   "empty": "No log messages match the current filter",
   "mode.command": "Command",
-  "mode.kotlin": "Kotlin"
+  "mode.kotlin": "Kotlin",
+  "tab.logs": "Logs",
+  "tab.problems": "Problems"
 }

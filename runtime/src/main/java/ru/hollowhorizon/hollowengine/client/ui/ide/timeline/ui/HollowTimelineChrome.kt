@@ -52,12 +52,14 @@ internal fun TimelineToolbar(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
+    val parked = LocalDockPanelTitle.current
     Row(
-        id = "cutscene-timeline-toolbar",
+        id = parked?.headerId ?: "cutscene-timeline-toolbar",
         modifier = Modifier.size(100.percent, 28.px).alignItems(vertical = UiAlign.CENTER)
-            .background(TimelineColors.Panel).border(1.px, TimelineColors.Border).padding(6.px, 0.px).gap(4.px),
+            .background(TimelineColors.Panel).border(1.px, TimelineColors.Border).padding(6.px, 0.px).gap(4.px)
+            .then(parked?.dragHandle ?: Modifier),
     ) {
-        LocalDockPanelTitle.current?.let { panel ->
+        parked?.let { panel ->
             panel.icon?.let { icon -> Image(icon, tags = listOf(DockTags.PinnedHeaderIcon)) }
             Text(panel.title, tags = listOf(DockTags.PinnedHeaderLabel), modifier = Modifier.textWrap(false))
             TimelineSeparator()

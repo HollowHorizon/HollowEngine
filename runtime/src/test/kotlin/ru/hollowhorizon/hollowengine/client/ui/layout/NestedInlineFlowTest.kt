@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextFonts
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -37,10 +38,10 @@ class NestedInlineFlowTest {
             children.add(group)
             children.add(span("dd"))
         }
-        assertEquals(10f, layout.nodes.getValue(container).rect.height, 0.6f)
+        assertEquals(UiTextFonts.resolve(TestFontFamily).lineHeight(10f), layout.nodes.getValue(container).rect.height, 0.6f)
         val groupRect = layout.nodes.getValue(group).rect
         assertEquals(33.333f, groupRect.width, 1.5f)
-        assertEquals(10f, groupRect.height, 0.6f)
+        assertEquals(UiTextFonts.resolve(TestFontFamily).lineHeight(10f), groupRect.height, 0.6f)
     }
 
     @Test

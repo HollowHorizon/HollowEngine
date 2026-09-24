@@ -1,26 +1,35 @@
-.dock-stack,
-.dock-window {
-    background: #1E1F22;
-}
 
+.dock-stack,
+.dock-window,
+.dock-content,
 .dock-splitter {
-    background: #1E1F22;
+    background: #141518;
 }
 
 .dock-tab {
-    background: #1E1F22;
-    border-radius: 4px;
+    background: #00000000;
+    foreground: #8f9bad;
+    border-radius: 5px;
     align: start center;
     transition:
             background 120ms ease-out,
             foreground 120ms ease-out,
-            translate 140ms ease-out;
-    animations: dock-tab-in 150ms ease-out;
+            translate 110ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    animations: dock-tab-in 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes dock-tab-in {
-    from { opacity: 0; scale: 0.94; }
+    from { opacity: 0; scale: 0.92; }
     to   { opacity: 1; scale: 1; }
+}
+
+.dock-tab-indicator {
+    background: #00000000;
+    transition: background 120ms ease-out;
+}
+
+.dock-tab.selected .dock-tab-indicator {
+    background: #6E9BDC;
 }
 
 .dock-tab-icon {
@@ -30,11 +39,14 @@
 
 .dock-tab-bar {
     scrollbar-overlay: true;
-    scrollbar-thickness: 3px;
+    scrollbar-side: start;
+    scrollbar-thickness: 2px;
     scrollbar-margin: 0px;
     scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.48);
-    scrollbar-thumb-radius: 2px;
+    scrollbar-thumb: rgba(155, 169, 194, 0.28);
+    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-hover-thickness: 3px;
+    scrollbar-thumb-radius: 1px;
 }
 
 .dock-tab-bar.compact {
@@ -42,60 +54,76 @@
 }
 
 .dock-tab:hover {
-    background: #31343D;
+    background: #1C1E22;
+    foreground: #d7deea;
 }
 
 .dock-tab.selected {
-    background: #24272E;
+    background: #1C1E22;
+    foreground: #f0f3f8;
 }
 
 .dock-tab:dragging {
     transition: none;
 }
 
-.dock-content {
-    background: #1E1F22;
-}
-
 .dock-close-button {
-    margin: 3px;
-    padding: 0px;
+    margin: 0px 4px 0px 2px;
     border-radius: 3px;
-    foreground: #8d96a8;
-    transition:
-            foreground 100ms ease-out,
-            background 100ms ease-out;
+    background: #00000000;
+    transition: background 100ms ease-out;
 }
 
 .dock-close-button:hover {
     background: rgba(255, 255, 255, 0.10);
-    foreground: #ffffff;
+}
+
+.dock-close-icon {
+    size: 8px 8px;
+    tint: #687588;
+    transition: tint 100ms ease-out;
+}
+
+.dock-tab:hover .dock-close-icon,
+.dock-tab.selected .dock-close-icon {
+    tint: #aeb8ca;
+}
+
+.dock-close-button:hover .dock-close-icon {
+    tint: #ffffff;
 }
 
 .dock-stripe {
-    background: #191A1D;
+    background: #141518;
     padding: 0px 0px;
     gap: 2px;
-    transition: size 160ms ease-out;
+    transition: size 120ms ease-out;
 }
 
 .dock-stripe-button {
     border-radius: 4px;
     scale: 0.75;
-    opacity: 0.66;
+    opacity: 0.6;
     transition:
             background 120ms ease-out,
-            opacity 120ms ease-out;
+            opacity 120ms ease-out,
+            translate 110ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dock-stripe-button:hover {
-    background: #31343D;
+    background: #2B2E35;
     scale: 0.95;
     opacity: 1;
 }
 
+.dock-stripe-button.dragging {
+    background: #2E3544;
+    scale: 1;
+    opacity: 1;
+}
+
 .dock-stripe-button.selected {
-    background: #3A3F4B;
+    background: #2E3544;
     opacity: 1;
 }
 
@@ -104,28 +132,98 @@
 }
 
 .dock-pinned-panel {
-    background: #1E1F22;
+    background: #141518;
+}
+
+.dock-pinned-island {
+    size: fill fill;
+    margin: 2px;
+    background: #1C1E22;
+    border-radius: 6px;
+    clip: true;
+}
+
+.dock-pinned-island .dock-content {
+    background: none;
 }
 
 .dock-pinned-panel.sliding,
 .dock-splitter.sliding {
-    transition: size 160ms ease-out;
+    transition: size 120ms ease-out;
 }
 
 .dock-pinned-header {
-    background: #1E1F22;
-    padding: 0px 4px 0px 6px;
-    gap: 5px;
-    border-bottom: 1px #2B2D31;
+    padding: 0px 4px 0px 8px;
+    gap: 6px;
 }
 
 .dock-pinned-header-icon {
     size: 12px 12px;
+    tint: #aeb8ca;
 }
 
 .dock-pinned-header-label {
-    font-size: 10px;
-    foreground: #c8cfdb;
+    foreground: #dfe4ec;
+}
+
+.dock-stripe-divider {
+    margin: 3px 0px;
+    background: #2B2E35;
+}
+
+
+.dock-drop-zone {
+    padding: 3px;
+    background: rgba(110, 155, 220, 0.10);
+    border: 1px rgba(110, 155, 220, 0.32);
+    border-radius: 4px;
+    transition:
+            background 100ms ease-out,
+            border 100ms ease-out,
+            scale 100ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    animations: dock-drop-zone-in 110ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dock-drop-zone.active {
+    background: rgba(110, 155, 220, 0.34);
+    border: 1px rgba(190, 215, 250, 0.95);
+    scale: 1.08;
+}
+
+@keyframes dock-drop-zone-in {
+    from { opacity: 0; scale: 0.85; }
+    to   { opacity: 1; scale: 1; }
+}
+
+.dock-drop-zone-glyph {
+    background: rgba(190, 215, 250, 0.35);
+    border-radius: 2px;
+    transition: background 100ms ease-out;
+}
+
+.dock-drop-zone.active .dock-drop-zone-glyph {
+    background: rgba(230, 240, 255, 0.85);
+}
+
+.dock-drop-preview {
+    background: rgba(110, 155, 220, 0.14);
+    border: 1px rgba(110, 155, 220, 0.8);
+    border-radius: 6px;
+    opacity: 0;
+    transition:
+            translate 110ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            size 110ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            opacity 120ms ease-out;
+    animations: dock-drop-preview-in 120ms ease-out;
+}
+
+.dock-drop-preview.visible {
+    opacity: 1;
+}
+
+@keyframes dock-drop-preview-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 .dock-content-body {

@@ -56,6 +56,32 @@ float roundedRectDistance(vec2 point, vec2 size, float radius) {
     return length(max(offset, 0.0)) + min(max(offset.x, offset.y), 0.0) - resolvedRadius;
 }
 
+float outlinePosition(vec2 point, vec2 size, float radius, float inset) {
+    const float QUARTER = 1.5707963;
+    vec2 halfSize = size * 0.5 - inset;
+    float r = clamp(radius - inset, 0.0, min(halfSize.x, halfSize.y));
+    vec2 c = halfSize - r;
+    vec2 q = point - size * 0.5;
+    float top = 2.0 * c.x;
+    float side = 2.0 * c.y;
+    float arc = r * QUARTER;
+    if (q.x > c.x && q.y < -c.y) return top + r * (atan(q.y + c.y, q.x - c.x) + QUARTER);
+    if (q.x > c.x && q.y > c.y) return top + arc + side + r * atan(q.y - c.y, q.x - c.x);
+    if (q.x < -c.x && q.y > c.y) return 2.0 * top + 2.0 * arc + side + r * (atan(q.y - c.y, q.x + c.x) - QUARTER);
+    if (q.x < -c.x && q.y < -c.y) return 2.0 * top + 3.0 * arc + 2.0 * side + r * (atan(q.y + c.y, q.x + c.x) + 2.0 * QUARTER);
+    if (halfSize.y - abs(q.y) < halfSize.x - abs(q.x)) {
+        return q.y < 0.0 ? q.x + c.x : top + 2.0 * arc + side + (c.x - q.x);
+    }
+    return q.x > 0.0 ? top + arc + (q.y + c.y) : 2.0 * top + 3.0 * arc + side + (c.y - q.y);
+}
+
+float dashCoverage(float position, float period, float dashLength) {
+    float phase = mod(position, period);
+    float edge = min(phase, dashLength - phase);
+    float aa = clamp(fwidth(position), 0.0001, 2.0);
+    return clamp(edge / aa + 0.5, 0.0, 1.0);
+}
+
 float sdfCoverage(float distance) {
     float width = max(fwidth(distance), 0.0001);
     return clamp(0.5 - distance / width, 0.0, 1.0);
@@ -204,6 +230,10 @@ void main() {
         float innerDistance = roundedRectDistance(localPosition - borderWidth, innerSize, innerRadius);
         float innerCoverage = sdfCoverage(innerDistance);
         borderCoverage = clamp(outerCoverage - innerCoverage, 0.0, 1.0);
+        if (effect.z > 0.0) {
+            float position = outlinePosition(localPosition, size, radius, borderWidth * 0.5);
+            borderCoverage *= dashCoverage(position, effect.z, -effect.w);
+        }
     }
 
     vec4 fillColor = samplePaint(paintIndex);

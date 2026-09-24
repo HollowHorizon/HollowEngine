@@ -48,11 +48,14 @@
 
 .sounds-editor-list-scroll {
     gap: 2px;
-    scrollbar: 6px;
-    scrollbar-margin: 0px;
-    scrollbar-track: rgba(255, 255, 255, 0.02);
-    scrollbar-thumb: rgba(155, 169, 194, 0.38);
-    scrollbar-thumb-radius: 3px;
+    scrollbar: 4px;
+    scrollbar-margin: 2px;
+    scrollbar-overlay: true;
+    scrollbar-track: none;
+    scrollbar-thumb: rgba(155, 169, 194, 0.28);
+    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-hover-thickness: 6px;
+    scrollbar-thumb-radius: 4px;
 }
 
 .sounds-editor-detail {
@@ -60,11 +63,14 @@
     padding: 8px 10px;
     background: #2B2E36;
     border-radius: 4px;
-    scrollbar: 6px;
-    scrollbar-margin: 0px;
-    scrollbar-track: rgba(255, 255, 255, 0.02);
-    scrollbar-thumb: rgba(155, 169, 194, 0.38);
-    scrollbar-thumb-radius: 3px;
+    scrollbar: 4px;
+    scrollbar-margin: 2px;
+    scrollbar-overlay: true;
+    scrollbar-track: none;
+    scrollbar-thumb: rgba(155, 169, 194, 0.28);
+    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-hover-thickness: 6px;
+    scrollbar-thumb-radius: 4px;
 }
 
 .sounds-editor-event {

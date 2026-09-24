@@ -71,6 +71,7 @@ internal object HollowIdeToolWindows {
         anchors = listOf(ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
         minWidth = 180f,
         minHeight = 90f,
+        titleInToolbar = true,
     )
     val Timeline = HollowIdeToolWindow(
         id = TimelineId,

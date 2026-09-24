@@ -112,10 +112,14 @@
 .asset-grid-scroll {
     width: 100%;
     padding: 6px;
-    scrollbar: 5px;
-    scrollbar-track: rgba(255, 255, 255, 0.03);
-    scrollbar-thumb: rgba(155, 169, 194, 0.42);
-    scrollbar-thumb-radius: 3px;
+    scrollbar: 4px;
+    scrollbar-margin: 2px;
+    scrollbar-overlay: true;
+    scrollbar-track: none;
+    scrollbar-thumb: rgba(155, 169, 194, 0.28);
+    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-hover-thickness: 6px;
+    scrollbar-thumb-radius: 4px;
 }
 
 .asset-grid {

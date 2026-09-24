@@ -415,11 +415,19 @@ data class UiBorder(
     val width: UiInsets = UiInsets.Zero,
     val paint: UiPaint = UiPaint.None,
     val radius: Float = 0f,
+    val dash: UiBorderDash? = null,
 ) {
     constructor(width: UiInsets, color: UiColor, radius: Float = 0f) : this(width, UiPaint.Color(color), radius)
 
     /** The flat color of a solid border, and `null` for a gradient one. */
     val color: UiColor? get() = (paint as? UiPaint.Color)?.color
+}
+
+/**
+ * Dashes along a border, measured along its center line.
+ */
+data class UiBorderDash(val length: Float, val gap: Float) {
+    val isSolid: Boolean get() = length <= 0f || gap <= 0f
 }
 
 data class UiTransform(

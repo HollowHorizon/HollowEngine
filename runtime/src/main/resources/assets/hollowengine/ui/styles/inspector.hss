@@ -10,9 +10,16 @@
     size: 100% 100%;
     gap: 8px;
     padding: 10px;
-    background: #1E1F22;
-    border: 1px #31343D;
-    border-radius: 4px;
+    background: #1C1E22;
+    border-radius: 6px;
+    scrollbar: 4px;
+    scrollbar-margin: 2px;
+    scrollbar-overlay: true;
+    scrollbar-track: none;
+    scrollbar-thumb: rgba(155, 169, 194, 0.28);
+    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-hover-thickness: 6px;
+    scrollbar-thumb-radius: 4px;
 }
 
 .insp-head {
@@ -48,11 +55,31 @@
     gap: 5px;
 }
 
+.insp-empty-state {
+    size: 100% fit;
+    margin-top: 24px;
+    padding: 22px 12px 18px 12px;
+    gap: 10px;
+    align-items: center start;
+    border: 1px #353943;
+    border-dash: 5px 4px;
+    border-radius: 8px;
+}
+
+/* A shape rather than an image: one opaque stroke, so where lines cross nothing doubles up. */
+.insp-empty-icon {
+    size: 26px 28px;
+    shape: path("M 5.3 12.34 C 5.48 12.44 5.69 12.5 5.9 12.5 C 6.11 12.5 6.32 12.44 6.5 12.34 L 10.7 9.94 C 10.88 9.83 11.03 9.68 11.14 9.5 C 11.24 9.32 11.3 9.11 11.3 8.9 L 11.3 4.1 C 11.3 3.89 11.24 3.68 11.14 3.5 C 11.03 3.32 10.88 3.17 10.7 3.06 L 6.5 0.66 C 6.32 0.56 6.11 0.5 5.9 0.5 C 5.69 0.5 5.48 0.56 5.3 0.66 L 1.1 3.06 C 0.92 3.17 0.77 3.32 0.66 3.5 C 0.56 3.68 0.5 3.89 0.5 4.1 L 0.5 8.9 C 0.5 9.11 0.56 9.32 0.66 9.5 C 0.77 9.68 0.92 9.83 1.1 9.94 Z M 5.9 12.5 L 5.9 6.5 M 0.67 3.5 L 5.9 6.5 L 11.13 3.5 M 3.2 1.86 L 8.6 4.95", 12 13);
+    fill: none;
+    stroke: #C9D0DC;
+    stroke-width: 1.2px;
+}
+
 .insp-empty {
     size: 100% fit;
-    padding: 12px 6px;
-    foreground: #5F6677;
-    font-size: 9px;
+    text-align: center;
+    foreground: #7A8698;
+    font-size: 8px;
 }
 
 /* ---- sections ---- */

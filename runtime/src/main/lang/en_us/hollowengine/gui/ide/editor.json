@@ -13,5 +13,8 @@
   "status.definition_not_found": "Definition not found",
   "status.resource_not_found": "Cannot find '%s'",
   "status.unsupported_action": "This action is not supported",
-  "status.unsupported_definition": "Cannot open the definition in %s"
+  "status.unsupported_definition": "Cannot open the definition in %s",
+  "completion.navigate": "to navigate,",
+  "completion.or": "or",
+  "completion.insert": "to insert"
 }

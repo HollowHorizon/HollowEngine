@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.input
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
+import ru.hollowhorizon.hollowengine.client.ui.style.compileHss
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -45,6 +46,38 @@ class ScrollbarPointerTest {
 
             assertTrue(handled, "the track press must be handled")
             assertTrue(scroll.offsetY > 0f, "the press must scroll down (offset=${scroll.offsetY})")
+        }
+    }
+
+    @Test
+    fun `hovering an overlay bar grows it without a click to relayout`() {
+        HollowUiSurface().use { surface ->
+            surface.setContent {
+                Box(
+                    id = "viewport",
+                    mode = UiBoxMode.STACK,
+                    tags = listOf("bar"),
+                    modifier = Modifier.size(100.px, 100.px)
+                        .style(compileHss(".bar { scrollbar: 4px; scrollbar-overlay: true; scrollbar-hover-thickness: 8px; }"))
+                        .then(scrollModifier(horizontal = false)),
+                ) {
+                    Box(modifier = Modifier.size(60.px, 400.px))
+                }
+            }
+            surface.frame(200f, 200f, -1f, -1f, 0L)
+            val rest = surface.frame(200f, 200f, -1f, -1f, 16_000_000L)
+            val viewport = rest.nodes.single { it.id == "viewport" }
+            val bar = rest.layout.scrollbars.getValue(viewport).single()
+            val track = rest.layout.nodes.getValue(bar).rect
+            assertEquals(4f, track.width, 0.01f)
+
+            val x = track.x + track.width / 2f
+            val y = track.y + track.height / 2f
+            surface.frame(200f, 200f, x, y, 32_000_000L)
+            Thread.sleep(200L)
+            val hovered = surface.frame(200f, 200f, x, y, 48_000_000L)
+
+            assertEquals(8f, hovered.layout.nodes.getValue(bar).rect.width, 0.01f, "the pointer alone must grow the bar")
         }
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import ru.hollowhorizon.hollowengine.client.ui.Box
 import ru.hollowhorizon.hollowengine.client.ui.Column
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiContent
 import ru.hollowhorizon.hollowengine.client.ui.Image
@@ -97,7 +98,12 @@ fun InspectorPanel(
         }
 
         if (target == null) {
-            if (empty.isNotEmpty()) Text(empty, tags = listOf("insp-empty"))
+            if (empty.isNotEmpty()) {
+                Column(tags = listOf("insp-empty-state")) {
+                    Box(tags = listOf("insp-empty-icon"))
+                    Text(empty, tags = listOf("insp-empty"))
+                }
+            }
             return@Column
         }
 

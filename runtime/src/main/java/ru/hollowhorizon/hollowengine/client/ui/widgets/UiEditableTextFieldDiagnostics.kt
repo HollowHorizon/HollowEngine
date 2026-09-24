@@ -14,21 +14,36 @@ import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import kotlin.math.ceil
 import kotlin.math.min
+import kotlin.math.roundToInt
 
-internal data class ZigZagUnderlineShape(val step: Float) : Shape {
+/** A smooth wave, one crest or trough per [halfWave], through the middle of its box. */
+internal data class WavyUnderlineShape(val halfWave: Float) : Shape {
     override fun createPath(size: UiShapeSize): UiPath = path {
-        moveTo(0f, size.height / 2f)
+        val middle = size.height / 2f
+        moveTo(0f, middle)
         var x = 0f
-        var high = true
+        var crest = true
         while (x < size.width) {
-            x = min(x + step, size.width)
-            lineTo(x, if (high) 0f else size.height)
-            high = !high
+            val next = min(x + halfWave, size.width)
+            quadraticBezierTo((x + next) / 2f, if (crest) 0f else size.height, next, middle)
+            crest = !crest
+            x = next
         }
     }
 }
 
-internal val EditableFieldZigZagShape = ZigZagUnderlineShape(EditableFieldDiagnosticStep)
+/**
+ * The squiggle's proportions for [fontSize], so it scales with the text. Half-waves are rounded to
+ * half a pixel: the stroke mesh is cached per shape, and every zoom step must not mint a new one.
+ */
+internal class DiagnosticUnderline(fontSize: Float) {
+    val halfWave: Float = (fontSize * 0.28f * 2f).roundToInt().coerceAtLeast(4) / 2f
+    val amplitude: Float = (fontSize * 0.1f).coerceIn(1f, 3f)
+    val thickness: Float = (fontSize / 12f).coerceIn(0.9f, 2f)
+    val shape = WavyUnderlineShape(halfWave)
+
+    val lift: Float = fontSize * 0.12f
+}
 
 internal fun UiTextDiagnosticSeverity.diagnosticUnderlineColor(): UiColor = when (this) {
     UiTextDiagnosticSeverity.ERROR -> UiColor(1f, 0.33f, 0.33f, 0.9f)
@@ -71,6 +86,7 @@ internal fun EditableFieldRowDiagnostics(
     fontFamily: String?,
     contentWidth: Float,
 ) {
+    val underline = DiagnosticUnderline(fontSize)
     rowDiagnostics.forEachIndexed { diagnosticIndex, diagnostic ->
         val localStart = diagnostic.start.coerceIn(0, line.text.length)
         val localEnd = diagnostic.end.coerceIn(localStart, line.text.length)
@@ -87,18 +103,19 @@ internal fun EditableFieldRowDiagnostics(
         }
         val color = diagnostic.severity.diagnosticUnderlineColor()
         rects.forEachIndexed { rectIndex, rect ->
-            val width = (ceil(rect.width / EditableFieldDiagnosticStep) * EditableFieldDiagnosticStep)
-                .coerceAtLeast(EditableFieldDiagnosticStep * 2f)
+            val width = (ceil(rect.width / underline.halfWave) * underline.halfWave)
+                .coerceAtLeast(underline.halfWave * 2f)
+            val middle = top + rect.y + rect.height - underline.lift
             key("diag", diagnosticIndex, rectIndex) {
                 Box(
                     modifier = Modifier
-                        .position(rect.x.px, (top + rect.y + rect.height - EditableFieldDiagnosticAmplitude).px)
-                        .size(width.px, (EditableFieldDiagnosticAmplitude * 2f).px)
+                        .position(rect.x.px, (middle - underline.amplitude).px)
+                        .size(width.px, (underline.amplitude * 2f).px)
                         .shape(
-                            EditableFieldZigZagShape,
+                            underline.shape,
                             fill = UiPaint.None,
                             stroke = UiPaint.Color(color),
-                            strokeWidth = EditableFieldDiagnosticThickness.px,
+                            strokeWidth = underline.thickness.px,
                         ),
                 )
             }
@@ -112,6 +129,7 @@ internal data class EditableFieldDiagnosticTooltip(
     val x: Float,
     val y: Float,
     val width: Float,
+    val fontSize: Float,
 )
 
 internal fun editableFieldDiagnosticTooltipAt(
@@ -142,7 +160,7 @@ internal fun editableFieldDiagnosticTooltipAt(
         availableWidth = maxWidth - DiagnosticTooltipHorizontalPadding,
         knownWidth = null,
         wrap = true,
-        fontSize = DiagnosticTooltipFontSize,
+        fontSize = layout.fontSize,
         fontFamily = layout.fontFamily,
     )
     val width = (measured.width + DiagnosticTooltipHorizontalPadding).coerceIn(140f, maxWidth)
@@ -156,6 +174,7 @@ internal fun editableFieldDiagnosticTooltipAt(
         x = x,
         y = y,
         width = width,
+        fontSize = layout.fontSize,
     )
 }
 
@@ -183,15 +202,11 @@ internal fun EditableFieldDiagnosticTooltipOverlay(tooltip: EditableFieldDiagnos
             modifier = Modifier.size(UiLength.Fill, UiLength.Auto)
                 .whitespace(UiWhitespace.COLLAPSE)
                 .textWrap(true)
-                .fontSize(DiagnosticTooltipFontSize),
+                .fontSize(tooltip.fontSize),
         )
     }
 }
 
-internal const val EditableFieldDiagnosticStep = 3f
-internal const val EditableFieldDiagnosticAmplitude = 2f
-internal const val EditableFieldDiagnosticThickness = 1.25f
-private const val DiagnosticTooltipFontSize = 11f
 private const val DiagnosticTooltipHorizontalPadding = 18f
 private const val DiagnosticTooltipVerticalPadding = 10f
 private const val DiagnosticTooltipMinHeight = 24f
