@@ -140,7 +140,7 @@ class VfxTrailRenderer(private val spec: VfxTrailSpec, node: VfxNodeRuntime) : V
 
     private val points: FloatArray? = source?.particles?.channel("trail:${spec.id}:points", maxPoints * 4)
 
-    /** The colour this trail gives each particle; only the colour, a trail has a width of its own. */
+    /** The color this trail gives each particle; only the color, a trail has a width of its own. */
     private val look: FloatArray? = source?.let { emitter ->
         VfxParticleLook(spec.particle, node, emitter.particles).also(emitter::addLook).data
     }

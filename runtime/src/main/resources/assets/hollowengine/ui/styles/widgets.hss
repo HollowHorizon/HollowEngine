@@ -1,41 +1,48 @@
+@import "hollowengine:ui/styles/theme.hss";
+
 .dropdown-button {
     height: 24px;
     padding: 0px 8px;
     gap: 6px;
-    foreground: #cbd3df;
-    border-radius: 4px;
+    foreground: $text;
+    border-radius: $radius;
     transition:
         background 100ms ease-out,
         foreground 100ms ease-out;
 }
 
 .dropdown-button:hover {
-    background: rgba(255, 255, 255, 0.08);
-    foreground: #ffffff;
+    background: alpha($white, 0.08);
+    foreground: $white;
 }
 
 .dropdown-button[expanded="true"] {
-    background: rgba(255, 255, 255, 0.10);
-    foreground: #ffffff;
+    background: alpha($white, 0.1);
+    foreground: $white;
 }
 
 .dropdown-button[expanded="true"] .dropdown-button-arrow {
     rotate: 0px 0px 180px;
-    fill: #ffffff;
+    fill: $white;
 }
 
 .dropdown-button-icon,
-.dropdown-item-icon,
+.dropdown-item-icon {
+    size: 14px 14px;
+    tint: $white;
+}
+
+/* A row icon a little under the height of the row's text line, so folders do not crowd the names. */
 .tree-icon {
-    size: 16px 16px;
-    tint: #ffffff;
+    size: 13px 13px;
+    tint: $white;
 }
 
 .dropdown-item-check {
     size: 10px 10px;
-    checkbox-active: #6E9BDC;
-    checkbox-mark: #ffffff;
-    border: 1px #4A505C;
+    checkbox-active: $accent;
+    checkbox-mark: $white;
+    border: 1px $border;
 }
 
 /* Fills the free space of a button wider than its text, so the arrow sits flush against the right edge. */
@@ -47,7 +54,7 @@
 .dropdown-button-arrow {
     size: 7px 5px;
     shape: path("M 0 0 L 7 0 L 3.5 5 Z", 7 5);
-    fill: #9aa5b7;
+    fill: $text-muted;
     transition:
         rotate 120ms ease-out,
         fill 120ms ease-out;
@@ -58,10 +65,10 @@
     padding: 3px;
     gap: 1px;
     align-items: stretch;
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 6px;
-    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius-large;
+    shadow: 0px 6px 16px 0px $shadow;
 }
 
 .dropdown-item {
@@ -69,8 +76,8 @@
     gap: 6px;
     padding-vertical: 2px;
     padding-horizontal: 8px;
-    border-radius: 4px;
-    background: #00000000;
+    border-radius: $radius;
+    background: transparent;
     transition:
         background 80ms ease-out;
 }
@@ -84,21 +91,21 @@
     align: end center;
     margin-left: 18px;
     font-size: 10px;
-    foreground: #7f8a9d;
+    foreground: $text-muted;
 }
 
 .dropdown-separator {
     size: fill 1px;
     margin: 2px 6px;
-    background: #353841;
+    background: $bg-pressed;
 }
 
 .dropdown-item:hover {
-    background: rgba(110, 155, 220, 0.18);
+    background: alpha($accent, 0.18);
 }
 
 .dropdown-item.open {
-    background: rgba(110, 155, 220, 0.18);
+    background: alpha($accent, 0.18);
 }
 
 .dropdown-item.disabled {
@@ -110,14 +117,7 @@
 }
 
 .tree-view-scroll {
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    @apply $thin-scroll;
 }
 
 .tree-filter-row {
@@ -127,31 +127,31 @@
     padding: 1px 4px;
     gap: 3px;
     align-items: start center;
-    background: #212328;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
 }
 
 .tree-filter-icon, .tree-filter-close {
     size: 12px 12px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .tree-filter-input {
     min-height: 18px;
     padding: 2px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .tree-filter-close:hover {
-    tint: #ffffff;
+    tint: $white;
 }
 
 .tree-item {
     padding-right: 6px;
-    background: #00000000;
-    foreground: #aeb8ca;
-    border-radius: 3px;
+    background: transparent;
+    foreground: $text-soft;
+    border-radius: $radius-small;
     transition:
         background 200ms ease-out,
         foreground 200ms ease-out;
@@ -164,28 +164,28 @@
 }
 
 .tree-item:hover {
-    background: rgba(255, 255, 255, 0.07);
-    foreground: #ffffff;
+    background: $bg-hover;
+    foreground: $white;
 }
 
 .tree-item.selected {
-    background: rgba(88, 123, 174, 0.32);
-    foreground: #ffffff;
+    background: $row-selected;
+    foreground: $white;
 }
 
 .tree-item.drop-target {
-    background: rgba(88, 123, 174, 0.55);
-    foreground: #ffffff;
+    background: alpha($accent, 0.55);
+    foreground: $white;
 }
 
 .tree-item.drop-rejected {
-    background: rgba(190, 60, 60, 0.35);
+    background: alpha($danger, 0.35);
 }
 
 .tree-indent {
     size: 16px 100%;
     fill: none;
-    stroke: #34363C;
+    stroke: $divider;
     stroke-width: 1px;
 }
 
@@ -210,7 +210,7 @@
     margin: 0px 2px;
     shape: path("M 3 2 L 8 6 L 3 10", 12 12);
     fill: none;
-    stroke: #7f8a9d;
+    stroke: $text-muted;
     stroke-width: 1.5px;
     transition:
         rotate 120ms ease-out,
@@ -244,22 +244,15 @@
 
 .code-editor {
     padding: 8px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    caret-color: $caret;
+    selection-color: $selection;
     line-numbers: true;
-    line-number-color: #4f5968;
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    line-number-color: $text-faint;
+    @apply $thin-scroll;
 }
 
 .editable-text-field-gutter {
-    background: #212328;
+    background: $bg-field;
 }
 
 .editable-text-field-inlay {
@@ -267,12 +260,12 @@
     padding: 0px 1px;
     gap: 3px;
     align-items: start center;
-    background: #1A1C20;
+    background: $bg-panel;
 }
 
 .editable-text-field-inlay-text {
     font-size: 70%;
-    foreground: #687588;
+    foreground: $text-faint;
     text-wrap: false;
     padding: 0px 2px;
 }
@@ -280,11 +273,11 @@
 .editable-text-field-inlay-icon {
     size: 12px 12px;
     align-y: center;
-    tint: #687588;
+    tint: $text-faint;
 }
 
 .overlay-scrim {
-    background: rgba(8, 9, 12, 0.46);
+    background: alpha(#000000, 0.46);
     backdrop-filter: blur(8px);
     animations: overlay-scrim-in 140ms ease-out both;
 }
@@ -297,23 +290,23 @@
 .ui-tooltip {
     max-width: 260px;
     padding: 3px 7px;
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 5px;
-    shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.45);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius;
+    shadow: 0px 4px 12px 0px $shadow;
 }
 
 .ui-tooltip-label {
-    foreground: #d7deea;
+    foreground: $text-strong;
 }
 
 .ide-quick-fix-popup {
     padding: 3px;
     gap: 1px;
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 6px;
-    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius-large;
+    shadow: 0px 6px 16px 0px $shadow;
 }
 
 .ide-quick-fix-row {
@@ -321,17 +314,17 @@
     height: fit;
     min-height: 18px;
     padding: 2px 8px;
-    border-radius: 4px;
-    foreground: #d7deea;
+    border-radius: $radius;
+    foreground: $text-strong;
     text-wrap: false;
 }
 
 .ide-quick-fix-row.selected {
-    background: rgba(110, 155, 220, 0.24);
+    background: alpha($accent, 0.24);
 }
 
 .ide-quick-fix-row:hover {
-    background: rgba(110, 155, 220, 0.18);
+    background: alpha($accent, 0.18);
 }
 
 .ide-quick-fix-label {
@@ -344,28 +337,21 @@
 }
 
 .ide-completion-popup {
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 6px;
-    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius-large;
+    shadow: 0px 6px 16px 0px $shadow;
     clip: true;
 }
 
 .ide-completion-divider {
-    background: #2B2E35;
+    background: $bg-hover;
 }
 
 .ide-completion-list {
     size: 100% 100%;
     text-wrap: false;
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    @apply $thin-scroll;
 }
 
 .ide-completion-hint {
@@ -374,16 +360,16 @@
     gap: 5px;
     align-items: start center;
     font-size: 85%;
-    foreground: #687588;
+    foreground: $text-faint;
 }
 
 .ide-completion-hint-icon {
     size: 10px 10px;
-    tint: #687588;
+    tint: $text-faint;
 }
 
 .ide-completion-hint-key {
-    foreground: #aeb8ca;
+    foreground: $text-soft;
 }
 
 .ide-completion-row {
@@ -396,20 +382,20 @@
 }
 
 .ide-completion-row:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: alpha($white, 0.05);
 }
 
 .ide-completion-row.selected {
-    background: rgba(110, 155, 220, 0.24);
+    background: alpha($accent, 0.24);
 }
 
 .ide-completion-row.selected:hover {
-    background: rgba(110, 155, 220, 0.30);
+    background: alpha($accent, 0.3);
 }
 
 .ide-completion-icon {
     size: 12px 12px;
-    tint: rgba(160, 188, 230, 0.9);
+    tint: alpha($text-soft, 0.9);
 }
 
 .ide-completion-item {
@@ -428,71 +414,71 @@
 }
 
 .ide-completion-label {
-    foreground: #d7deea;
+    foreground: $text-strong;
     text-wrap: false;
 }
 
 .ide-completion-detail {
-    foreground: rgba(169, 181, 198, 0.88);
+    foreground: alpha($text-soft, 0.88);
     text-wrap: false;
 }
 
 .ide-completion-tail {
-    foreground: #5F6A7B;
+    foreground: $text-faint;
     text-wrap: false;
     align: end center;
 }
 
 .ide-code-insight-popup {
     padding: 6px 8px;
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 6px;
-    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius-large;
+    shadow: 0px 6px 16px 0px $shadow;
 }
 
 .ide-active-parameter {
-    background: rgba(110, 155, 220, 0.24);
+    background: alpha($accent, 0.24);
     border-radius: 2px;
 }
 
 .ide-hover-documentation {
-    foreground: #A9B3C4;
+    foreground: $text-soft;
 }
 
 .ide-diagnostic-tooltip {
     padding: 5px 8px;
     align-items: start center;
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 6px;
-    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius-large;
+    shadow: 0px 6px 16px 0px $shadow;
     clip: false;
 }
 
 .ide-diagnostic-tooltip.error {
-    border: 1px rgba(224, 108, 108, 0.55);
+    border: 1px alpha($danger, 0.55);
 }
 
 .ide-diagnostic-tooltip.warning {
-    border: 1px rgba(230, 179, 90, 0.5);
+    border: 1px alpha($warning, 0.5);
 }
 
 .ide-diagnostic-tooltip.info {
-    border: 1px rgba(110, 155, 220, 0.5);
+    border: 1px alpha($accent, 0.5);
 }
 
 /* Its size is the editor's, set in code. */
 .ide-diagnostic-tooltip-message {
-    foreground: #d7deea;
+    foreground: $text-strong;
     text-wrap: true;
 }
 
 .timeline-keyframe-visual {
     scale: 1;
-    stroke: #17191f;
+    stroke: $bg-window;
     stroke-width: 1px;
-    shadow: 0px 0px 2px 0px rgba(130, 164, 220, 0.28);
+    shadow: 0px 0px 2px 0px alpha($accent, 0.28);
     transition:
         scale 160ms ease-out,
         stroke 160ms ease-out,
@@ -501,12 +487,12 @@
 
 .timeline-keyframe:hover .timeline-keyframe-visual {
     scale: 1.12;
-    stroke: #dbe5f5;
-    shadow: 0px 0px 3px 0px rgba(145, 183, 242, 0.48);
+    stroke: $text-strong;
+    shadow: 0px 0px 3px 0px alpha($accent, 0.48);
 }
 
 .timeline-keyframe.selected .timeline-keyframe-visual {
     scale: 1.12;
-    stroke: #ffffff;
-    shadow: 0px 0px 4px 0px rgba(165, 201, 255, 0.72);
+    stroke: $white;
+    shadow: 0px 0px 4px 0px alpha($accent, 0.72);
 }

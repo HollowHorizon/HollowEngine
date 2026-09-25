@@ -71,10 +71,10 @@ private const val ProjectiveLayerTextureSubdivisions = 12
 
 private const val PORTRAIT_YAW = 180f
 
-/** Colour links are drawn in when the style does not name one. */
+/** Color links are drawn in when the style does not name one. */
 private val LinkColor = UiColor(0.34f, 0.67f, 1f, 1f)
 
-/** Below this an underline can fall between pixel centres and vanish entirely. */
+/** Below this an underline can fall between pixel centers and vanish entirely. */
 private const val MinTextRuleThickness = 0.5f
 
 /** Corner rounding of a span background or an inline code chip. */

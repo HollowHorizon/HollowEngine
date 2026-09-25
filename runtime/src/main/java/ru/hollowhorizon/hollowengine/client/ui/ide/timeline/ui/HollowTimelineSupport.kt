@@ -256,7 +256,7 @@ internal fun UiColor.withAlpha(multiplier: Float) =
 
 /**
  * What the lanes, keys and curves are drawn with: the IDE palette of docking.hss, so the timeline
- * reads as part of the IDE. The chrome around them takes the same colours from timeline.hss.
+ * reads as part of the IDE. The chrome around them takes the same colors from timeline.hss.
  */
 internal object TimelineColors {
     val Background = UiColor(0.110f, 0.118f, 0.133f, 1f)

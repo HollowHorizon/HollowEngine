@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.utils.expressions.Severity
 import ru.hollowhorizon.hollowengine.common.utils.expressions.TokenType
 
 /**
- * What a text field needs to edit an expression of one dialect: colours for its tokens, the names it
+ * What a text field needs to edit an expression of one dialect: colors for its tokens, the names it
  * can complete, and the dialect's own diagnostics. Every editor that takes an expression (the
  * animator, the effect editor) builds one from its [Expression] and hands the three to its field.
  */
@@ -93,7 +93,7 @@ class ExpressionEditing<C>(private val language: Expression<C>) {
     }
 }
 
-/** The colours of expression tokens, the same in every editor that shows an expression. */
+/** The colors of expression tokens, the same in every editor that shows an expression. */
 object ExpressionTokenColors {
     val Number = UiColor(0.72f, 0.62f, 0.92f)
     val String = UiColor(0.62f, 0.82f, 0.55f)

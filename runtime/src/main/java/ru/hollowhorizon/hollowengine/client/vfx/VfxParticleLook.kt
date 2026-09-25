@@ -7,10 +7,10 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.VfxVec3Value
 
 /**
- * The size, turn and colour one renderer gives the particles of the emitter it sits under.
+ * The size, turn and color one renderer gives the particles of the emitter it sits under.
  */
 class VfxParticleLook(spec: VfxAppearance, node: VfxNodeRuntime, particles: VfxParticles) {
-    /** [STRIDE] floats per particle: size, rotation in degrees, then colour. */
+    /** [STRIDE] floats per particle: size, rotation in degrees, then color. */
     val data: FloatArray = particles.channel("look:${node.spec.id}", STRIDE)
 
     private val uniformSize = spec.uniformSize

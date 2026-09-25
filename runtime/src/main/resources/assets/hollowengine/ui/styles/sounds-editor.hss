@@ -1,7 +1,9 @@
+@import "hollowengine:ui/styles/theme.hss";
+
 .sounds-editor-root {
     gap: 6px;
     padding: 6px;
-    background: #24272E;
+    background: $bg-raised;
 }
 
 .sounds-editor-toolbar {
@@ -12,84 +14,70 @@
 
 .sounds-editor-title {
     height: fit;
-    foreground: #EEF3FB;
+    foreground: $caret;
     font-size: 12px;
     text-wrap: false;
 }
 
 .sounds-editor-status {
     height: fit;
-    foreground: #6FBF8A;
+    foreground: $success;
     font-size: 10px;
     text-wrap: false;
 }
 
 .sounds-editor-status.dirty {
-    foreground: #E0A94B;
+    foreground: $accent;
 }
 
 .sounds-editor-status-dot {
     size: 6px 6px;
-    border-radius: 3px;
-    background: #6FBF8A;
+    border-radius: $radius-small;
+    background: $success;
     transition: background 150ms ease-out;
 }
 
 .sounds-editor-status-dot.dirty {
-    background: #E0A94B;
+    background: $accent;
 }
 
 .sounds-editor-list {
     gap: 5px;
     padding: 6px;
-    background: #2B2E36;
-    border-radius: 4px;
+    background: $bg-hover;
+    border-radius: $radius;
 }
 
 .sounds-editor-list-scroll {
     gap: 2px;
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    @apply $thin-scroll;
 }
 
 .sounds-editor-detail {
     gap: 7px;
     padding: 8px 10px;
-    background: #2B2E36;
-    border-radius: 4px;
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    background: $bg-hover;
+    border-radius: $radius;
+    @apply $thin-scroll;
 }
 
 .sounds-editor-event {
     padding: 0px 4px 0px 8px;
     gap: 4px;
-    background: #00000000;
-    foreground: #C6CEDC;
-    border-radius: 4px;
+    background: transparent;
+    foreground: $text;
+    border-radius: $radius;
     transition: background 120ms ease-out, foreground 120ms ease-out;
 }
 
 .sounds-editor-event:hover {
-    background: rgba(255, 255, 255, 0.07);
-    foreground: #FFFFFF;
+    background: alpha($white, 0.07);
+    foreground: $white;
 }
 
 .sounds-editor-event.selected {
-    background: rgba(88, 123, 174, 0.32);
-    foreground: #FFFFFF;
+    background: $row-selected;
+    foreground: $white;
 }
 
 .sounds-editor-event-label {
@@ -100,7 +88,7 @@
 
 .sounds-editor-event-count {
     height: fit;
-    foreground: #8B96A9;
+    foreground: $text-muted;
     font-size: 9px;
     text-wrap: false;
 }
@@ -109,7 +97,7 @@
 .sounds-editor-placeholder {
     height: fit;
     padding: 8px 4px;
-    foreground: #8B96A9;
+    foreground: $text-muted;
     text-wrap: true;
 }
 
@@ -124,20 +112,20 @@
 
 .sounds-editor-section-title {
     height: fit;
-    foreground: #EEF3FB;
+    foreground: $caret;
     text-wrap: false;
 }
 
 .sounds-editor-label {
     height: fit;
-    foreground: #AEB8CA;
+    foreground: $text-soft;
     font-size: 10px;
     text-wrap: false;
 }
 
 .sounds-editor-value {
     height: fit;
-    foreground: #C6CEDC;
+    foreground: $text;
     font-size: 10px;
     align: end center;
     text-wrap: false;
@@ -146,35 +134,35 @@
 .sounds-editor-search,
 .sounds-editor-field {
     padding: 3px 5px;
-    background: #31343D;
-    border: 1px #454B58;
-    border-radius: 3px;
-    foreground: #E4E9F2;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    background: $bg-selected;
+    border: 1px $border;
+    border-radius: $radius-small;
+    foreground: $text-strong;
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .sounds-editor-sound-card {
     size: 100% fit;
     gap: 5px;
     padding: 7px;
-    background: #313540;
-    border: 1px #3E434F;
-    border-radius: 4px;
+    background: $bg-selected;
+    border: 1px $border;
+    border-radius: $radius;
 }
 
 .sounds-editor-button {
-    background: #3A3E48;
-    border: 1px #555D6C;
-    border-radius: 4px;
-    foreground: #D7DEEA;
+    background: $border;
+    border: 1px $border;
+    border-radius: $radius;
+    foreground: $text-strong;
     transition: background 100ms ease-out;
 }
 
 .sounds-editor-button:hover {
-    background: #45648E;
-    border: 1px #6D94C9;
-    foreground: #FFFFFF;
+    background: $accent-fill;
+    border: 1px $accent;
+    foreground: $white;
 }
 
 .sounds-editor-button-label {
@@ -184,21 +172,21 @@
 
 .sounds-editor-button-icon {
     size: 12px 12px;
-    tint: #D7DEEA;
+    tint: $text-strong;
 }
 
 .sounds-editor-button:hover .sounds-editor-button-icon {
-    tint: #FFFFFF;
+    tint: $white;
 }
 
 .sounds-editor-icon-button {
     size: 16px 16px;
     padding: 2px;
-    border-radius: 3px;
-    tint: #8B96A9;
+    border-radius: $radius-small;
+    tint: $text-muted;
     transition: tint 100ms ease-out;
 }
 
 .sounds-editor-icon-button:hover {
-    tint: #FF9D9D;
+    tint: $danger;
 }

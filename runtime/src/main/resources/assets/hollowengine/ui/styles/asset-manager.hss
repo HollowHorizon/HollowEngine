@@ -1,8 +1,10 @@
+@import "hollowengine:ui/styles/theme.hss";
+
 .asset-manager-root {
     margin: 1px;
     padding: 0px;
     gap: 0px;
-    background: #1E2127;
+    background: $bg-field;
     clip: true;
 }
 
@@ -10,7 +12,7 @@
     min-width: 170px;
     gap: 3px;
     padding: 3px;
-    background: #24272E;
+    background: $bg-raised;
 }
 
 .asset-tabs {
@@ -18,44 +20,44 @@
     height: fit;
     gap: 1px;
     padding: 1px;
-    background: #1E2127;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
 }
 
 .asset-tab {
     align-items: center center;
-    border-radius: 3px;
-    foreground: #8f9bad;
-    background: #00000000;
+    border-radius: $radius-small;
+    foreground: $text-muted;
+    background: transparent;
     transition: all 120ms ease-out;
 }
 
 .asset-tab:hover {
-    background: #343943;
+    background: $bg-hover;
 }
 
 .asset-tab.selected {
-    foreground: #f0f6ff;
-    background: rgba(67, 106, 154, 0.62);
+    foreground: $caret;
+    background: $row-selected;
 }
 
 .asset-tab-label {
     height: fit;
-    font-size: 8px;
+    font-size: $font-size-small;
     wrap: false;
 }
 
 .asset-splitter {
-    background: #323846;
+    background: $bg-pressed;
     transition: background 100ms ease-out;
 }
 
 .asset-splitter:hover {
-    background: #5F6677;
+    background: $accent;
 }
 
 .asset-content {
-    background: #1E2127;
+    background: $bg-field;
 }
 
 .asset-toolbar {
@@ -64,21 +66,21 @@
     padding: 2px 5px;
     gap: 5px;
     align-items: start center;
-    background: #2A2E36;
-    border-bottom: 1px #323846;
+    background: $bg-hover;
+    border-bottom: 1px $bg-pressed;
 }
 
 .asset-breadcrumb {
     height: fit;
-    foreground: #d7deea;
-    font-size: 9px;
+    foreground: $text-strong;
+    font-size: $font-size;
     text-overflow: dots;
 }
 
 .asset-count {
     width: fit;
-    foreground: #687588;
-    font-size: 8px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
     wrap: false;
 }
 
@@ -86,18 +88,18 @@
     min-width: 78px;
     min-height: 16px;
     padding: 1px 4px;
-    font-size: 8px;
+    font-size: $font-size-small;
 }
 
 .asset-refresh {
     size: 15px 15px;
     align-items: center center;
-    border-radius: 3px;
+    border-radius: $radius-small;
     transition: background 100ms ease-out, rotate 240ms ease-out;
 }
 
 .asset-refresh:hover {
-    background: #414653;
+    background: $bg-hover;
 }
 
 .asset-refresh.loading {
@@ -106,20 +108,13 @@
 
 .asset-refresh-icon {
     size: 9px 9px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .asset-grid-scroll {
     width: 100%;
     padding: 6px;
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    @apply $thin-scroll;
 }
 
 .asset-grid {
@@ -135,34 +130,35 @@
     padding: 3px;
     gap: 2px;
     align-items: center start;
-    border: 1px #00000000;
-    border-radius: 5px;
-    background: #00000000;
+    border: 1px transparent;
+    border-radius: $radius;
+    background: transparent;
     transition: all 100ms ease-out;
 }
 
 .asset-tile:hover {
-    background: #2A2E36;
-    border: 1px #3a4351;
+    background: $bg-hover;
+    border: 1px $border;
 }
 
 .asset-tile.selected {
-    background: rgba(67, 106, 154, 0.42);
-    border: 1px #5f83b2;
+    background: $row-selected;
+    border: 1px $accent;
 }
 
 .asset-preview {
     size: 62px 55px;
     align-items: center center;
-    background: #17191e;
-    border: 1px #323846;
-    border-radius: 4px;
+    background: $bg-window;
+    border: 1px $bg-pressed;
+    border-radius: $radius;
     clip: true;
 }
 
+/* The folder carries its own color, the same as in the project tree. */
 .asset-folder-icon {
-    size: 42px 42px;
-    tint: #f4b942;
+    size: 38px 38px;
+    tint: $white;
 }
 
 .asset-file-icon {
@@ -171,15 +167,15 @@
 
 .asset-tile-name {
     align: center start;
-    foreground: #d7deea;
-    font-size: 8px;
+    foreground: $text-strong;
+    font-size: $font-size-small;
     wrap: false;
     text-overflow: dots;
 }
 
 .asset-pack-name {
     align: center start;
-    foreground: #687588;
+    foreground: $text-faint;
     font-size: 7px;
     text-overflow: dots;
 }
@@ -191,24 +187,24 @@
 .asset-message-text {
     max-width: 280px;
     height: fit;
-    foreground: #7f8a9d;
-    font-size: 9px;
+    foreground: $text-muted;
+    font-size: $font-size;
     align: center center;
 }
 
 .asset-filter-icon, .asset-filter-close {
     size: 11px 11px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .asset-filter-input {
     min-height: 17px;
     padding: 1px 2px;
-    font-size: 9px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    font-size: $font-size;
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .asset-filter-close:hover {
-    tint: #ffffff;
+    tint: $white;
 }

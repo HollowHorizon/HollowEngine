@@ -35,7 +35,7 @@ class StoryScriptingAnalyzerTest {
     }
 
     @Test
-    fun `interpolation and named arguments are coloured inside a line`() {
+    fun `interpolation and named arguments are colored inside a line`() {
         val source = "Баланс {money} монет.\n@play-video example.ogg volume=1.0"
 
         assertEquals(TokenType.VARIABLE, styleOf(source, "{money}"))

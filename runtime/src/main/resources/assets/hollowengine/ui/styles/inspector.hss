@@ -3,26 +3,21 @@
  * editor, the timeline selection, the model and sound editors. Editors bring their own chrome and
  * canvas; everything that shows a property lives here, so a field looks the same wherever it is opened.
  *
- * The palette is the IDE's (see docking.hss): #1C1E22 the panel, #212328 fields and headings,
- * #2B2E35 hover, #6E9BDC the accent for whatever has focus or is picked. Text is set in the code font,
- * which fits far more on a line than the vanilla one.
+ * Colors, sizes and the font come from theme.hss: the panel on $bg-panel, fields and headings on
+ * $bg-field, $accent for whatever has focus or is picked.
  */
+
+@import "hollowengine:ui/styles/theme.hss";
+
 
 .insp-panel {
     size: 100% 100%;
     gap: 5px;
-    padding: 6px;
-    background: #1C1E22;
-    border-radius: 6px;
-    font-family: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
+    padding: $panel-inset;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    font-family: $font;
+    @apply $thin-scroll;
 }
 
 .insp-head {
@@ -34,13 +29,13 @@
 
 .insp-icon {
     size: 12px 12px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .insp-title {
     size: fit fit;
     grow: 1;
-    foreground: #E4E9F4;
+    foreground: $text-strong;
     font-size: 10px;
     wrap: false;
     text-overflow: dots;
@@ -48,8 +43,8 @@
 
 .insp-subtitle {
     size: fit fit;
-    foreground: #7A8698;
-    font-size: 8px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
     wrap: false;
     text-overflow: dots;
 }
@@ -65,9 +60,9 @@
     padding: 22px 12px 18px 12px;
     gap: 10px;
     align-items: center start;
-    border: 1px #2B2E35;
+    border: 1px $divider;
     border-dash: 5px 4px;
-    border-radius: 8px;
+    border-radius: $radius-large;
 }
 
 /* A shape rather than an image: one opaque stroke, so where lines cross nothing doubles up. */
@@ -75,15 +70,15 @@
     size: 26px 28px;
     shape: path("M 5.3 12.34 C 5.48 12.44 5.69 12.5 5.9 12.5 C 6.11 12.5 6.32 12.44 6.5 12.34 L 10.7 9.94 C 10.88 9.83 11.03 9.68 11.14 9.5 C 11.24 9.32 11.3 9.11 11.3 8.9 L 11.3 4.1 C 11.3 3.89 11.24 3.68 11.14 3.5 C 11.03 3.32 10.88 3.17 10.7 3.06 L 6.5 0.66 C 6.32 0.56 6.11 0.5 5.9 0.5 C 5.69 0.5 5.48 0.56 5.3 0.66 L 1.1 3.06 C 0.92 3.17 0.77 3.32 0.66 3.5 C 0.56 3.68 0.5 3.89 0.5 4.1 L 0.5 8.9 C 0.5 9.11 0.56 9.32 0.66 9.5 C 0.77 9.68 0.92 9.83 1.1 9.94 Z M 5.9 12.5 L 5.9 6.5 M 0.67 3.5 L 5.9 6.5 L 11.13 3.5 M 3.2 1.86 L 8.6 4.95", 12 13);
     fill: none;
-    stroke: #8f9bad;
+    stroke: $text-muted;
     stroke-width: 1.2px;
 }
 
 .insp-empty {
     size: 100% fit;
     text-align: center;
-    foreground: #7A8698;
-    font-size: 8px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
 }
 
 /* ---- sections ---- */
@@ -96,15 +91,15 @@
 /* A plain section: a title over a hairline. */
 .insp-section-title {
     size: 100% fit;
-    foreground: #8f9bad;
-    font-size: 8px;
+    foreground: $text-muted;
+    font-size: $font-size-small;
     wrap: false;
     text-overflow: dots;
 }
 
 .insp-section-rule {
     size: 100% 1px;
-    background: #2B2E35;
+    background: $bg-hover;
 }
 
 .insp-section-body {
@@ -114,8 +109,8 @@
 
 .insp-section.boxed {
     padding: 6px;
-    background: #212328;
-    border-radius: 5px;
+    background: $bg-field;
+    border-radius: $radius;
 }
 
 .insp-section-head {
@@ -124,34 +119,34 @@
     gap: 5px;
     padding: 2px 5px;
     align-items: start center;
-    background: #212328;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
     hoverable: true;
     clickable: true;
     transition: background 110ms ease-out;
 }
 
-.insp-section-head:hover { background: #2B2E35; }
+.insp-section-head:hover { background: $bg-hover; }
 
-.insp-section-head[expanded="true"] { background: #25282E; }
+.insp-section-head[expanded="true"] { background: $bg-raised; }
 
 .insp-section-head .insp-section-title {
     size: fit fit;
     grow: 1;
-    foreground: #C4CBDA;
-    font-size: 9px;
+    foreground: $text;
+    font-size: $font-size;
 }
 
-.insp-section-head:hover .insp-section-title { foreground: #ffffff; }
+.insp-section-head:hover .insp-section-title { foreground: $white; }
 
 .insp-section-icon {
     size: 11px 11px;
-    tint: #8f9bad;
+    tint: $text-muted;
     transition: tint 110ms ease-out;
 }
 
 .insp-section-head:hover .insp-section-icon,
-.insp-section-head[expanded="true"] .insp-section-icon { tint: #6E9BDC; }
+.insp-section-head[expanded="true"] .insp-section-icon { tint: $accent; }
 
 .insp-section-head .insp-arrow {
     size: 8px 8px;
@@ -177,8 +172,8 @@
 
 .insp-label {
     size: 100% fit;
-    foreground: #8f9bad;
-    font-size: 8px;
+    foreground: $text-muted;
+    font-size: $font-size-small;
 }
 
 .insp-help {
@@ -193,8 +188,8 @@
 
 .insp-hint {
     size: 100% fit;
-    foreground: #6A7384;
-    font-size: 8px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
 }
 
 .insp-readonly {
@@ -207,14 +202,14 @@
 .insp-readonly-label {
     size: fit fit;
     grow: 1;
-    foreground: #8f9bad;
-    font-size: 8px;
+    foreground: $text-muted;
+    font-size: $font-size-small;
 }
 
 .insp-readonly-value {
     size: fit fit;
-    foreground: #C4CBDA;
-    font-size: 8px;
+    foreground: $text;
+    font-size: $font-size-small;
     wrap: false;
     text-overflow: dots;
 }
@@ -229,40 +224,40 @@
     size: 100% fit;
     min-height: 18px;
     padding: 3px 5px;
-    background: #212328;
-    border-radius: 3px;
-    border: 1px #2B2E35;
-    foreground: #C4CBDA;
-    font-size: 9px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    background: $bg-field;
+    border-radius: $radius-small;
+    border: 1px $divider;
+    foreground: $text;
+    font-size: $font-size;
+    caret-color: $caret;
+    selection-color: $selection;
     text-shadow: none;
     transition: border 110ms ease-out;
 }
 
-.insp-input:hover { border: 1px #3A3E48; }
+.insp-input:hover { border: 1px $border; }
 
-.insp-input:focus { border: 1px #6E9BDC; }
+.insp-input:focus { border: 1px $accent; }
 
 /* A field inside a bar of its own, such as a search: no frame until the pointer is on it. */
 .insp-input.flat {
     min-height: 16px;
     padding: 1px 4px;
     background: none;
-    border: 1px #00000000;
+    border: 1px transparent;
 }
 
-.insp-input.flat:hover { border: 1px #3A3E48; }
+.insp-input.flat:hover { border: 1px $border; }
 
-.insp-input.flat:focus { border: 1px #6E9BDC; }
+.insp-input.flat:focus { border: 1px $accent; }
 
 .insp-input.numeric { text-align: right; }
 
 /* ---- inline fields ---- */
 
 .insp-inline-label {
-    foreground: #8f9bad;
-    font-size: 8px;
+    foreground: $text-muted;
+    font-size: $font-size-small;
     wrap: false;
     text-overflow: dots;
 }
@@ -271,7 +266,7 @@
     hoverable: true;
 }
 
-.insp-inline-label.hinted:hover { foreground: #C4CBDA; }
+.insp-inline-label.hinted:hover { foreground: $text; }
 
 .insp-input.insp-inline-input {
     min-height: 15px;
@@ -287,17 +282,17 @@
 .vfx-popup {
     padding: 8px;
     gap: 6px;
-    background: #26282E;
-    border: 1px #3A3E48;
-    border-radius: 5px;
-    shadow: 1px 1px 3px 0px rgba(0, 0, 0, 0.42);
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius;
+    shadow: 1px 1px 3px 0px $shadow;
 }
 
 /* A field the timeline writes: read-only, and tinted like the accent so it reads as "keyed". */
 .vfx-driven {
-    background: #1B2230;
-    border: 1px #34507A;
-    foreground: #9FB6D8;
+    background: $bg-field;
+    border: 1px alpha($accent, 0.5);
+    foreground: $text-soft;
 }
 
 .vfx-curve-dialog {
@@ -306,17 +301,17 @@
 
 .vfx-gizmo-readout {
     padding: 1px 4px;
-    background: rgba(12, 13, 15, 0.8);
-    border-radius: 3px;
-    foreground: #E8E2D0;
-    font-size: 9px;
+    background: alpha($bg-window, 0.8);
+    border-radius: $radius-small;
+    foreground: $text-strong;
+    font-size: $font-size;
 }
 
 .vfx-detail {
     size: 100% fit;
     gap: 3px;
     padding: 3px 0px 3px 6px;
-    border-left: 1px #2B2E35;
+    border-left: 1px $divider;
 }
 
 .vfx-node-head {
@@ -328,16 +323,16 @@
 /* Whether a renderer draws on particles or once; which one depends on where it sits in the tree. */
 .vfx-placement {
     size: 12px 12px;
-    tint: #6A7384;
+    tint: $text-faint;
     hoverable: true;
 }
 
-.vfx-placement.active { tint: #6E9BDC; }
+.vfx-placement.active { tint: $accent; }
 
 .vfx-material-preview {
     size: 100% 96px;
-    border-radius: 4px;
-    background: #141518;
+    border-radius: $radius;
+    background: $bg-window;
     clip: true;
 }
 
@@ -359,14 +354,14 @@
 .insp-check-label {
     size: fit fit;
     grow: 1;
-    foreground: #C4CBDA;
-    font-size: 8px;
+    foreground: $text;
+    font-size: $font-size-small;
 }
 
 .insp-checkbox {
     size: 11px 11px;
-    checkbox-active: #6E9BDC;
-    checkbox-mark: #ffffff;
+    checkbox-active: $accent;
+    checkbox-mark: $white;
 }
 
 .insp-slider { grow: 1; }
@@ -374,8 +369,8 @@
 .insp-slider-value {
     size: fit fit;
     min-width: 40px;
-    foreground: #C4CBDA;
-    font-size: 8px;
+    foreground: $text;
+    font-size: $font-size-small;
     wrap: false;
 }
 
@@ -392,16 +387,16 @@
 
 .insp-vector-label {
     size: fit fit;
-    foreground: #6A7384;
-    font-size: 8px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
 }
 
 .insp-nested {
     size: 100% fit;
     gap: 3px;
     padding: 4px;
-    background: #212328;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
 }
 
 .insp-nested-head {
@@ -431,53 +426,53 @@
 
 .insp-pill {
     padding: 2px 6px;
-    background: #212328;
-    border-radius: 3px;
-    border: 1px #2B2E35;
+    background: $bg-field;
+    border-radius: $radius-small;
+    border: 1px $divider;
     hoverable: true;
     clickable: true;
     transition: background 110ms ease-out, border 110ms ease-out;
 }
 
-.insp-pill:hover { background: #2B2E35; }
+.insp-pill:hover { background: $bg-hover; }
 
 .insp-pill.active {
-    background: rgba(110, 155, 220, 0.2);
-    border: 1px #6E9BDC;
+    background: alpha($accent, 0.2);
+    border: 1px $accent;
 }
 
 .insp-pill-label {
     size: fit fit;
-    foreground: #aeb8ca;
-    font-size: 8px;
+    foreground: $text-soft;
+    font-size: $font-size-small;
     wrap: false;
 }
 
-.insp-pill.active .insp-pill-label { foreground: #ffffff; }
+.insp-pill.active .insp-pill-label { foreground: $white; }
 
 .insp-icon-button {
     size: 14px 14px;
-    tint: #8f9bad;
+    tint: $text-muted;
     hoverable: true;
     clickable: true;
     transition: tint 110ms ease-out;
 }
 
-.insp-icon-button:hover { tint: #ffffff; }
+.insp-icon-button:hover { tint: $white; }
 
-.insp-icon-button.active { tint: #6E9BDC; }
+.insp-icon-button.active { tint: $accent; }
 
-.insp-icon-button.danger:hover { tint: #E07A7A; }
+.insp-icon-button.danger:hover { tint: $danger; }
 
 .insp-pick-button {
     size: 18px 18px;
     padding: 3px;
-    background: #212328;
-    border-radius: 3px;
-    border: 1px #2B2E35;
+    background: $bg-field;
+    border-radius: $radius-small;
+    border: 1px $divider;
 }
 
-.insp-pick-button:hover { background: #2B2E35; }
+.insp-pick-button:hover { background: $bg-hover; }
 
 .insp-button {
     size: 100% fit;
@@ -485,51 +480,51 @@
     gap: 5px;
     padding: 3px 8px;
     align-items: center center;
-    background: #2B2E35;
-    border-radius: 4px;
+    background: $bg-hover;
+    border-radius: $radius;
     hoverable: true;
     clickable: true;
     transition: background 110ms ease-out;
 }
 
-.insp-button:hover { background: #353943; }
+.insp-button:hover { background: $bg-pressed; }
 
-.insp-button.primary { background: #3E5F8F; }
+.insp-button.primary { background: $accent-fill; }
 
-.insp-button.primary:hover { background: #4A6FA5; }
+.insp-button.primary:hover { background: $accent-fill-hover; }
 
-.insp-button.danger { background: rgba(194, 87, 87, 0.18); }
+.insp-button.danger { background: $danger-soft; }
 
-.insp-button.danger:hover { background: rgba(194, 87, 87, 0.32); }
+.insp-button.danger:hover { background: alpha($danger, 0.32); }
 
 .insp-button-icon {
     size: 11px 11px;
-    tint: #C4CBDA;
+    tint: $text;
 }
 
-.insp-button.primary .insp-button-icon { tint: #ffffff; }
+.insp-button.primary .insp-button-icon { tint: $white; }
 
 .insp-button-label {
     size: fit fit;
-    foreground: #C4CBDA;
-    font-size: 8px;
+    foreground: $text;
+    font-size: $font-size-small;
     wrap: false;
 }
 
-.insp-button.primary .insp-button-label { foreground: #ffffff; }
+.insp-button.primary .insp-button-label { foreground: $white; }
 
-.insp-button.danger .insp-button-label { foreground: #E79797; }
+.insp-button.danger .insp-button-label { foreground: $danger; }
 
 /* ---- asset picker ---- */
 
 .insp-dialog {
     gap: 6px;
     padding: 10px;
-    background: #26282E;
-    border-radius: 6px;
-    border: 1px #3A3E48;
-    shadow: 2px 2px 10px 0px rgba(0, 0, 0, 0.5);
-    font-family: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
+    background: $bg-raised;
+    border-radius: $radius-large;
+    border: 1px $border;
+    shadow: 2px 2px 10px 0px $shadow;
+    font-family: $font;
 }
 
 .insp-dialog-head {
@@ -540,7 +535,7 @@
 
 .insp-dialog-title {
     size: fit fit;
-    foreground: #E4E9F4;
+    foreground: $text-strong;
     font-size: 10px;
     wrap: false;
     text-overflow: dots;
@@ -552,19 +547,19 @@
     gap: 5px;
     padding: 1px 5px;
     align-items: start center;
-    background: #212328;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
 }
 
 .insp-search-icon {
     size: 11px 11px;
-    tint: #8f9bad;
+    tint: $text-muted;
 }
 
 .insp-asset-tree {
     width: 100%;
-    background: #212328;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
     padding: 3px;
 }
 
@@ -573,19 +568,19 @@
 .insp-bone {
     padding: 3px 5px;
     gap: 4px;
-    background: #212328;
-    border-radius: 3px;
-    border: 1px #2B2E35;
-    foreground: #C4CBDA;
+    background: $bg-field;
+    border-radius: $radius-small;
+    border: 1px $divider;
+    foreground: $text;
     transition: border 110ms ease-out;
 }
 
-.insp-bone:hover { border: 1px #6E9BDC; }
+.insp-bone:hover { border: 1px $accent; }
 
-.insp-bone.empty .insp-bone-label { foreground: #6A7384; }
+.insp-bone.empty .insp-bone-label { foreground: $text-faint; }
 
 .insp-bone-label {
-    font-size: 8px;
+    font-size: $font-size-small;
 }
 
 .insp-bone-popup {
@@ -607,7 +602,7 @@
     margin: 0px 2px;
     shape: path("M 3 2 L 8 6 L 3 10", 12 12);
     fill: none;
-    stroke: #7f8a9d;
+    stroke: $text-muted;
     stroke-width: 1.5px;
     transition: rotate 120ms ease-out;
 }

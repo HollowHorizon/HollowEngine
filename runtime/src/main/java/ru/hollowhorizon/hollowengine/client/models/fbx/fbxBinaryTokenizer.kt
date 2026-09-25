@@ -155,7 +155,7 @@ fun readScope(outputTokens: ArrayList<Token>, input: ByteBuffer, end: Int, is64b
 private var sBeg = -1
 private var sEnd = -1
 
-// TODO: Test FBX Binary files newer than the 7500 version to check if the 64 bits address behaviour is consistent
+// TODO: Test FBX Binary files newer than the 7500 version to check if the 64 bits address behavior is consistent
 fun tokenizeBinary(outputTokens: ArrayList<Token>, input: ByteBuffer) {
 
     if (input.rem < 0x1b) tokenizeError("file is too short", 0)

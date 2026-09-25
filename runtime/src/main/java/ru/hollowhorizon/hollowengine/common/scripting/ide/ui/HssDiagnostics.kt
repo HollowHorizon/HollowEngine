@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.style.HssDeclaration
 import ru.hollowhorizon.hollowengine.client.ui.style.HssSchema
+import ru.hollowhorizon.hollowengine.client.ui.style.HssVariableReference
 import ru.hollowhorizon.hollowengine.client.ui.style.HssValueKind
 import ru.hollowhorizon.hollowengine.client.ui.toStylePatch
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
@@ -22,6 +23,12 @@ internal fun hssDiagnostics(text: String): List<Diagnostic> {
     for (error in model.errors) {
         diagnostics += offsets.diagnostic(error.position, error.endPosition, Severity.ERROR, error.messageText)
     }
+    for ((import, reason) in model.scope.failures) {
+        if (import.start >= 0) diagnostics += offsets.diagnostic(import.start, import.end, Severity.ERROR, reason)
+    }
+    for (variable in model.variables) {
+        diagnostics += unknownVariables(variable.value, variable.valueStart, model, offsets)
+    }
     for (declaration in model.declarations) {
         diagnostics += declarationDiagnostics(declaration, model, offsets)
     }
@@ -34,6 +41,7 @@ private fun declarationDiagnostics(
     offsets: LineOffsets,
 ): List<Diagnostic> {
     val propertyRange = declaration.propertyRange ?: return emptyList()
+    if (declaration.isApply) return unknownSet(declaration, model, offsets)
     val property = HssSchema.find(declaration.property)
         ?: return listOf(
             offsets.diagnostic(
@@ -45,11 +53,13 @@ private fun declarationDiagnostics(
         )
 
     val valueRange = declaration.valueRange ?: return emptyList()
+    val unknown = unknownVariables(declaration.value, declaration.valueStart, model, offsets)
+    if (unknown.isNotEmpty()) return unknown
     val diagnostics = ArrayList<Diagnostic>()
     try {
         // Most properties parse their value lazily inside the patch writer, so the value is
         // only really checked once the modifier is applied to a patch.
-        property.compile(declaration.value.trim())?.let { listOf(it).toStylePatch() }
+        property.compile(model.scope.substitute(declaration.value).trim())?.let { listOf(it).toStylePatch() }
     } catch (exception: IllegalArgumentException) {
         diagnostics += offsets.diagnostic(
             valueRange.first,
@@ -67,6 +77,31 @@ private fun declarationDiagnostics(
     }
     diagnostics += keyframeDiagnostics(declaration, property.name, model, offsets)
     return diagnostics
+}
+
+/** `@apply $name;` naming a set that neither this stylesheet nor its imports declare. */
+private fun unknownSet(declaration: HssDeclaration, model: HssDocumentModel, offsets: LineOffsets): List<Diagnostic> {
+    val range = declaration.valueRange ?: return emptyList()
+    val name = declaration.value.trim().removePrefix("$")
+    if (name in model.scope.sets) return emptyList()
+    return listOf(
+        offsets.diagnostic(range.first, range.last + 1, Severity.ERROR, "No set '$$name' in this stylesheet or its imports"),
+    )
+}
+
+/** Every `$name` in [value] that no variable in scope answers to. */
+private fun unknownVariables(value: String, valueStart: Int, model: HssDocumentModel, offsets: LineOffsets): List<Diagnostic> {
+    if (valueStart < 0) return emptyList()
+    return HssVariableReference.findAll(value)
+        .filter { it.groupValues[1] !in model.scope.variables }
+        .map { match ->
+            offsets.diagnostic(
+                valueStart + match.range.first,
+                valueStart + match.range.last + 1,
+                Severity.ERROR,
+                "No variable '${match.value}' in this stylesheet or its imports",
+            )
+        }.toList()
 }
 
 /** Flags `animations: fade …` when no `@keyframes fade` exists in the document. */

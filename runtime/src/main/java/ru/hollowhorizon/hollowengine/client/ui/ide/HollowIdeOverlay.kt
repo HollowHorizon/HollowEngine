@@ -552,8 +552,8 @@ object HollowIdeOverlay {
         val viewport = dock.newStack(listOf(HollowIdeToolWindows.GameViewport.dockItem())) ?: return
         val console = dock.newStack(listOf(HollowIdeToolWindows.Console.dockItem())) ?: return
         val inspector = dock.newStack(listOf(HollowIdeToolWindows.Inspector.dockItem())) ?: return
-        val centre = dock.newSplit(DockOrientation.VERTICAL, viewport, console, fraction = 0.62f)
-        val withInspector = dock.newSplit(DockOrientation.HORIZONTAL, centre, inspector, fraction = 0.78f)
+        val center = dock.newSplit(DockOrientation.VERTICAL, viewport, console, fraction = 0.62f)
+        val withInspector = dock.newSplit(DockOrientation.HORIZONTAL, center, inspector, fraction = 0.78f)
         dock.applyLayout(
             root = dock.newSplit(DockOrientation.HORIZONTAL, project, withInspector, fraction = 0.2f),
             focused = ProjectTreeId,

@@ -178,7 +178,7 @@
     mask: linear-gradient(to bottom, transparent, white 26%, white 74%, transparent);
 }
 
-/* Padded from the code, by half a viewport, so the first and last option can reach dead centre. */
+/* Padded from the code, by half a viewport, so the first and last option can reach dead center. */
 #choice-list {
     size: fill fit;
     align-items: center start;
@@ -255,7 +255,7 @@
 .choice:hover .choice-text { color: #ffffff; }
 
 /*
- * Multiplayer: after this player has voted the options they did not pick lose their colour and stop
+ * Multiplayer: after this player has voted the options they did not pick lose their color and stop
  * reacting, so it reads as "no longer yours to decide" rather than as a dead button.
  */
 .choice:disabled {

@@ -442,6 +442,6 @@ private const val InputHeight = 22f
 private const val ExpandedInputHeight = 120f
 
 private const val RunIcon = "hollowengine:textures/gui/icons/play.svg"
-private const val StopIcon = "hollowengine:textures/gui/icons/stop.png"
+private const val StopIcon = "hollowengine:textures/gui/icons/stop.svg"
 private const val MaximizeIcon = "hollowengine:textures/gui/icons/maximize.svg"
 private const val MinimizeIcon = "hollowengine:textures/gui/icons/minimize.svg"

@@ -1,79 +1,81 @@
+@import "hollowengine:ui/styles/theme.hss";
+
 .animator-button {
     size: 100% 22px;
     align-items: center;
     justify-content: center;
     padding: 4px 6px;
-    background: #2E323C;
-    border: 1px #FFFFFF1A;
-    border-radius: 3px;
+    background: $bg-selected;
+    border: 1px alpha($white, 0.1);
+    border-radius: $radius-small;
     cursor: hand;
     transition: background 250ms ease-out, border-color 250ms ease-out;
 }
 
 .animator-button:hover {
-    background: #3A404C;
-    border-color: #6B7385;
+    background: $bg-pressed;
+    border-color: $border-strong;
 }
 
 .animator-button-label {
     font-size: 9px;
-    foreground: #DCE0EB;
+    foreground: $text-strong;
     text-wrap: false;
     text-overflow: dots;
 }
 
 .animator-icon-button {
     padding: 3px;
-    background: #00000000;
-    border-radius: 3px;
-    tint: #aeb8ca;
+    background: transparent;
+    border-radius: $radius-small;
+    tint: $text-soft;
     cursor: hand;
     transition: background 110ms ease-out, tint 110ms ease-out;
 }
 
 .animator-icon-button:hover {
-    background: #2B2E35;
-    tint: #ffffff;
+    background: $bg-hover;
+    tint: $white;
 }
 
 .animator-icon-button.active {
-    background: #2E3544;
-    tint: #6E9BDC;
+    background: $bg-selected;
+    tint: $accent;
 }
 
 .animator-icon-button.active:hover {
-    background: #34405A;
+    background: $bg-selected;
 }
 
 .viewport-toolbar {
     padding: 2px;
     gap: 1px;
-    background: rgba(20, 21, 24, 0.86);
-    border-radius: 5px;
+    background: alpha($bg-window, 0.86);
+    border-radius: $radius;
 }
 
 .animator-pill {
     padding: 5px 3px;
-    background: #2E323C;
-    border: 1px #FFFFFF1A;
-    border-radius: 3px;
+    background: $bg-selected;
+    border: 1px alpha($white, 0.1);
+    border-radius: $radius-small;
     cursor: hand;
     transition: background 250ms ease-out, border-color 250ms ease-out;
 }
 
 .animator-pill:hover {
-    background: #3A404C;
-    border-color: #DCE0EB;
+    background: $bg-pressed;
+    border-color: $text-strong;
 }
 
 .animator-pill.active {
-    background: #6199EB;
-    border-color: #FFFFFF1A;
+    background: $accent-soft;
+    border-color: alpha($white, 0.1);
 }
 
 .animator-pill-label {
     font-size: 8px;
-    foreground: #DCE0EB;
+    foreground: $text-strong;
     text-wrap: false;
 }
 
@@ -82,68 +84,68 @@
     align-items: center;
     gap: 4px;
     padding: 4px;
-    background: #21242B;
-    border: 1px #FFFFFF1A;
-    border-radius: 3px;
+    background: $bg-field;
+    border: 1px alpha($white, 0.1);
+    border-radius: $radius-small;
     cursor: hand;
     transition: background 250ms ease-out, border-color 250ms ease-out;
 }
 
 .animator-layer-row:hover {
-    background: #2E323C;
+    background: $bg-hover;
 }
 
 .animator-layer-row.open {
-    background: #2E323C;
+    background: $row-selected;
 }
 
 .animator-layer-row.selected {
-    border-color: #EB9433;
+    border-color: $accent;
 }
 
 .animator-delete {
     size: 18px 18px;
     align-items: center;
     justify-content: center;
-    border-radius: 3px;
-    background: #00000000;
+    border-radius: $radius-small;
+    background: transparent;
     cursor: hand;
     transition: background 250ms ease-out;
 }
 
 .animator-delete:hover {
-    background: #D95757;
+    background: $danger;
 }
 
 .animator-delete-label {
     font-size: 11px;
-    foreground: #D95757;
+    foreground: $danger;
     transition: foreground 250ms ease-out;
 }
 
 .animator-delete:hover .animator-delete-label {
-    foreground: #DCE0EB;
+    foreground: $text-strong;
 }
 
 .animator-splitter {
     size: 4px 100%;
-    background: #FFFFFF1A;
+    background: alpha($white, 0.1);
     cursor: resize-horizontal;
     transition: background 250ms ease-out;
 }
 
 .animator-splitter:hover {
-    background: #6199EB;
+    background: $accent;
 }
 
 .animator-node {
-    border-radius: 5px;
+    border-radius: $radius;
     cursor: hand;
     transition: border-color 250ms ease-out;
 }
 
 .animator-node:hover {
-    border-color: #C4CBD9;
+    border-color: $text;
 }
 
 .animator-minimap-mark {
@@ -154,18 +156,18 @@
 
 .animator-edge-label {
     padding: 3px;
-    background: #21242B;
-    border: 1px #FFFFFF1A;
-    border-radius: 3px;
+    background: $bg-field;
+    border: 1px alpha($white, 0.1);
+    border-radius: $radius-small;
     cursor: hand;
     transition: background 250ms ease-out, border-color 250ms ease-out;
 }
 
 .animator-edge-label:hover {
-    background: #2E323C;
-    border-color: #C4CBD9;
+    background: $bg-hover;
+    border-color: $text;
 }
 
 .animator-edge-label.selected {
-    border-color: #EB9433;
+    border-color: $accent;
 }

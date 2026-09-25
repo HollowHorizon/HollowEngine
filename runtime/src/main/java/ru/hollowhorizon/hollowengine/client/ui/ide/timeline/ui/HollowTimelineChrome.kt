@@ -586,7 +586,7 @@ private fun TimelineSeparator() {
 
 internal fun formatSeconds(value: Float): String = "%.2f".format(value).replace(',', '.')
 
-/** Zoom keeping the visible centre roughly fixed; used by the toolbar buttons. */
+/** Zoom keeping the visible center roughly fixed; used by the toolbar buttons. */
 internal fun zoomAroundCenter(controller: TimelineController, factor: Float) {
     controller.pixelsPerSecond = (controller.pixelsPerSecond * factor).coerceIn(TimelineMinZoom, TimelineMaxZoom)
 }

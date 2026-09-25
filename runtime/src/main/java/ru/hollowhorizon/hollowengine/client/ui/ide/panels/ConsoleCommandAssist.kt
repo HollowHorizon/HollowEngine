@@ -26,11 +26,11 @@ internal class ConsoleCommandAssist(private val onUpdated: () -> Unit) {
     private var diagnostics = DiagnosticSnapshot("", emptyList())
 
     @Volatile
-    private var colours = HighlightSnapshot("", emptyList())
+    private var colors = HighlightSnapshot("", emptyList())
 
     /** Colors the parsed parts of the command; anything not parsed yet simply stays plain. */
     val highlighter: UiSyntaxHighlighter = UiSyntaxHighlighter { text ->
-        colours.takeIf { it.text == text }?.items.orEmpty()
+        colors.takeIf { it.text == text }?.items.orEmpty()
     }
 
     val contributor: UiCompletionContributor = object : UiCompletionContributor {
@@ -97,7 +97,7 @@ internal class ConsoleCommandAssist(private val onUpdated: () -> Unit) {
 
     private fun publishParse(text: String, problems: List<UiTextDiagnostic>, highlights: List<UiTextHighlight>) {
         diagnostics = DiagnosticSnapshot(text, problems)
-        colours = HighlightSnapshot(text, highlights)
+        colors = HighlightSnapshot(text, highlights)
         onUpdated()
     }
 

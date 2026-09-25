@@ -4,9 +4,12 @@
  * is set in the same code font as the IDE.
  */
 
+@import "hollowengine:ui/styles/theme.hss";
+
+
 .notif-stack {
-    font-family: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
-    font-size: 9px;
+    font-family: $font;
+    font-size: $font-size;
     size: fit fit;
     gap: 6px;
     margin: 10px;
@@ -17,11 +20,11 @@
     size: 280px fit;
     gap: 5px;
     padding: 7px 8px 7px 10px;
-    background: rgba(33, 35, 40, 0.96);
-    border-radius: 8px;
-    border: 1px #2E3138;
+    background: alpha($bg-field, 0.96);
+    border-radius: $radius-large;
+    border: 1px $divider;
     backdrop-filter: blur(8px);
-    shadow: 0px 6px 16px 0px rgba(0, 0, 0, 0.45);
+    shadow: 0px 6px 16px 0px $shadow;
 }
 
 .notif.success { border: 1px linear-gradient(135deg, #9BF763, #3D5A24); }
@@ -42,7 +45,7 @@
 
 .notif-title {
     size: fit fit;
-    foreground: #E4E9F4;
+    foreground: $text-strong;
     text-overflow: dots;
 }
 
@@ -50,39 +53,39 @@
     size: fit fit;
     min-height: 18px;
     padding: 2px 8px;
-    background: #2B2E35;
-    border-radius: 4px;
+    background: $bg-hover;
+    border-radius: $radius;
     hoverable: true;
     clickable: true;
     transition: background 120ms ease-out;
 }
 
-.notif-action:hover { background: #363A43; }
+.notif-action:hover { background: $bg-pressed; }
 
 .notif-action-label {
     align: center center;
     size: fit fit;
-    foreground: #D7DEEA;
+    foreground: $text-strong;
     wrap: false;
 }
 
 .notif-close {
     size: 16px 16px;
     padding: 4px;
-    background: #00000000;
-    border-radius: 4px;
-    tint: #7A8698;
+    background: transparent;
+    border-radius: $radius;
+    tint: $text-faint;
     transition: tint 120ms ease-out, background 120ms ease-out;
 }
 
 .notif-close:hover {
-    background: #2B2E35;
-    tint: #E4E9F4;
+    background: $bg-hover;
+    tint: $text-strong;
 }
 
 .notif-track {
     size: 100% 3px;
-    background: #2B2E35;
+    background: $bg-hover;
     border-radius: 2px;
     clip: true;
 }

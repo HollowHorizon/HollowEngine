@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
+import ru.hollowhorizon.hollowengine.client.ui.style.HssVariableReference
 import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayContent
@@ -27,9 +28,31 @@ internal fun hssInlayHints(model: HssDocumentModel): List<InlayHint> {
         }
         hints += locationHints(declaration.value, valueStart)
         hints += colorHints(declaration.value, valueStart)
+        hints += variableColorHints(declaration.value, valueStart, model)
+    }
+    for (variable in model.variables) {
+        if (variable.valueStart < 0) continue
+        hints += colorHints(variable.value, variable.valueStart)
+        hints += variableColorHints(variable.value, variable.valueStart, model)
     }
     return hints
 }
+
+/**
+ * A variable that stands for a color shows that color in front of its name. It cannot be picked
+ * there: the color belongs to wherever the variable is declared.
+ */
+private fun variableColorHints(value: String, valueStart: Int, model: HssDocumentModel): List<InlayHint> =
+    HssVariableReference.findAll(value).mapNotNull { match ->
+        val resolved = model.scope.substitute(match.value).trim()
+        val literal = hssColorLiterals(resolved).singleOrNull()?.takeIf { it.text.length == resolved.length }
+            ?: return@mapNotNull null
+        InlayHint(
+            index = valueStart + match.range.first,
+            content = listOf(InlayContent.Swatch(literal.argb)),
+            tags = listOf(InlayTags.COLOR),
+        )
+    }.toList()
 
 /**
  * Every color literal in a declaration value gets a clickable chip in front of it, so a stylesheet
@@ -53,7 +76,7 @@ private fun colorHints(value: String, valueStart: Int): List<InlayHint> =
 internal data class HssColorLiteral(val start: Int, val end: Int, val text: String, val argb: Int)
 
 private val ColorLiteralRegex = Regex(
-    """#[0-9a-fA-F]{6,8}\b|\brgba?\s*\([^)]*\)|\b(?:transparent|white|black)\b""",
+    """\balpha\s*\(\s*#[0-9a-fA-F]{6,8}\s*,[^)]*\)|#[0-9a-fA-F]{6,8}\b|\brgba?\s*\([^)]*\)|\b(?:transparent|white|black)\b""",
 )
 
 internal fun hssColorLiterals(value: String): List<HssColorLiteral> =
@@ -62,7 +85,7 @@ internal fun hssColorLiterals(value: String): List<HssColorLiteral> =
         HssColorLiteral(match.range.first, match.range.last + 1, match.value, color.toArgb())
     }.toList()
 
-/** Renders a picked colour back into a value the stylesheet parses: `#RRGGBB`, or `#RRGGBBAA`. */
+/** Renders a picked color back into a value the stylesheet parses: `#RRGGBB`, or `#RRGGBBAA`. */
 internal fun hssColorLiteralText(argb: Int): String {
     val alpha = argb ushr 24 and 0xFF
     val rgb = "%06X".format(argb and 0xFFFFFF)

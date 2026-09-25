@@ -21,12 +21,15 @@ import ru.hollowhorizon.hollowengine.common.utils.openUrl
 private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"
 private const val ReformatIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 private const val SaveIcon = "hollowengine:textures/gui/icons/save.svg"
+private const val SaveAllIcon = "hollowengine:textures/gui/icons/save_all.svg"
+private const val TelegramIcon = "hollowengine:textures/gui/icons/telegram.svg"
+private const val DiscordIcon = "hollowengine:textures/gui/icons/discord.svg"
+private const val ModFolderIcon = "hollowengine:textures/gui/icons/actions/reveal.svg"
 private const val DocsIcon = "hollowengine:textures/gui/icons/docs.svg"
 private const val GitHubIcon = "hollowengine:textures/gui/icons/github.svg"
-private const val LinkIcon = "hollowengine:textures/gui/icons/link.svg"
 private const val KeyboardIcon = "hollowengine:textures/gui/icons/keyboard.svg"
 private const val ImportIcon = "hollowengine:textures/gui/icons/load.svg"
-private const val ExportIcon = "hollowengine:textures/gui/icons/file_zip.svg"
+private const val ExportIcon = "hollowengine:textures/gui/icons/export.svg"
 
 internal const val MenuLang = "hollowengine.gui.ide.menu"
 private const val DocsUrl = "https://0mods.team/docs/hollowengine"
@@ -51,7 +54,7 @@ internal fun hollowIdeFileMenuItems(
                 dock.updateItem(file.dockItem())
             }
         },
-        UiDropdownItem("$MenuLang.save_all".lang, SaveIcon, enabled = model.files.values.any { it.dirty }) {
+        UiDropdownItem("$MenuLang.save_all".lang, SaveAllIcon, enabled = model.files.values.any { it.dirty }) {
             model.saveAll()
             model.files.values.forEach { dock.updateItem(it.dockItem()) }
         },
@@ -80,7 +83,7 @@ internal fun hollowIdeFileMenuItems(
         UiDropdownItem("hollowengine.gui.ide.file.reload_server_resources".lang, ReloadIcon) {
             ReloadServerResourcesPacket().send()
         }.takeIf { operator },
-        UiDropdownItem("hollowengine.gui.ide.file.open_mod_folder".lang, LogoIcon) {
+        UiDropdownItem("hollowengine.gui.ide.file.open_mod_folder".lang, ModFolderIcon) {
             DesktopUtil.openInExplorer(DirectoryManager.HOLLOW_ENGINE.toFile())
         },
     )
@@ -182,7 +185,7 @@ internal fun hollowIdeHelpMenuItems(onShowShortcuts: () -> Unit): List<UiDropdow
         UiDropdownItem("hollowengine.gui.ide.docs".lang, DocsIcon) { openUrl(DocsUrl) },
         UiDropdownItem("$MenuLang.shortcuts".lang, KeyboardIcon, onClick = onShowShortcuts),
         UiDropdownItem("GitHub", GitHubIcon, separatorBefore = true) { openUrl(RepositoryUrl) },
-        UiDropdownItem("Telegram", LinkIcon) { openUrl("https://t.me/hollowengine") },
-        UiDropdownItem("Discord", LinkIcon) { openUrl("https://discord.gg/qKpPhkwGCY") },
+        UiDropdownItem("Telegram", TelegramIcon) { openUrl("https://t.me/hollowengine") },
+        UiDropdownItem("Discord", DiscordIcon) { openUrl("https://discord.gg/qKpPhkwGCY") },
     )
 }

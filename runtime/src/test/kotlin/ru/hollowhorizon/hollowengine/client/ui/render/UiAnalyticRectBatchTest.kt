@@ -76,7 +76,7 @@ class UiAnalyticRectBatchTest {
     }
 
     @Test
-    fun `a glyph encodes marker, uv, colour and clip into its record`() {
+    fun `a glyph encodes marker, uv, color and clip into its record`() {
         val batch = UiAnalyticRectBatch()
         val clip = UiShaderClip(1f, 2f, 3f, 4f)
         batch.appendGlyph(
@@ -97,7 +97,7 @@ class UiAnalyticRectBatchTest {
         assertEquals(UiAnalyticRectBatch.GlyphMarker, records[0], "glyph marker in texel 0")
         assertEquals(0f, records[3], "page index in texel 0")
         assertEquals(0.1f, records[4]); assertEquals(0.4f, records[7]) // uv rect (texel 1)
-        assertEquals(0.5f, records[8]); assertEquals(0.8f, records[11]) // colour (texel 2)
+        assertEquals(0.5f, records[8]); assertEquals(0.8f, records[11]) // color (texel 2)
         assertEquals(1f, records[12]); assertEquals(4f, records[15]) // clip (texel 3)
     }
 
@@ -202,7 +202,7 @@ class UiAnalyticRectBatchTest {
 
     @Test
     fun `plain fill joins the analytic batch and is hard-filled by the shader`() {
-        // A flat colour rect (no radius, no border) batches here; the shader hard-fills it so abutting
+        // A flat color rect (no radius, no border) batches here; the shader hard-fills it so abutting
         // opaque fills stay seam-free while still sharing one instanced draw with rounded/bordered rects.
         val batch = UiAnalyticRectBatch()
         val command = command()

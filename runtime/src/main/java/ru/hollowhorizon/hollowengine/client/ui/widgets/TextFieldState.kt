@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
  * Compose-observable holder for an editable text field. Owns the whole edit model - text plus a
  * list of carets/selections, and exposes edit operations directly. [caretRanges] is the single
  * source of truth; the primary caret is always the last range. Also carries the field's view
- * config (font, wrap, colours) so the widget itself stays a thin `EditableTextField(state)`.
+ * config (font, wrap, colors) so the widget itself stays a thin `EditableTextField(state)`.
  */
 class TextFieldState(
     initialText: String = "",

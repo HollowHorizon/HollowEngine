@@ -129,7 +129,7 @@ class VfxFormatTests {
                 name = "Smoke",
                 modules = listOf(VfxNoiseSpec(strength = VfxValue.Const(0.5f))),
             ),
-            VfxPostEffectSpec(id = "grey"),
+            VfxPostEffectSpec(id = "gray"),
         ),
         timeline = VfxTimelineSpec(
             duration = 3f,

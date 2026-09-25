@@ -112,7 +112,7 @@ class GizmoGeometry(private val projector: GizmoProjector) {
             }
 
             if (GizmoEditMode.SCALE in modes) {
-                // Next to the arrows the scale handles lose their shafts and the centre stays free movement.
+                // Next to the arrows the scale handles lose their shafts and the center stays free movement.
                 val basis = Triple(lx, ly, lz)
                 scaleAxis(GizmoHandleId.SCALE_X, origin, lx, basis, perPixel, translate, GizmoColors.AXIS_X)?.let(::add)
                 scaleAxis(GizmoHandleId.SCALE_Y, origin, ly, basis, perPixel, translate, GizmoColors.AXIS_Y)?.let(::add)

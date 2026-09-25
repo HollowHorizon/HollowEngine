@@ -25,7 +25,7 @@ data class ChannelValueOption(
     val labelKey: String,
 )
 
-/** Name, color and editor behaviour of one scalar component of a property. */
+/** Name, color and editor behavior of one scalar component of a property. */
 data class ChannelSpec(
     val name: String,
     val color: Color,

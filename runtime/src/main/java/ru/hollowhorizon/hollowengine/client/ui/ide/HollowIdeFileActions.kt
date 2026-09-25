@@ -137,6 +137,6 @@ private fun HollowIdeFileAction.withSeparator() = HollowIdeFileAction(
 
 private const val SaveIcon = "hollowengine:textures/gui/icons/save.svg"
 private const val ReformatIcon = "hollowengine:textures/gui/icons/code_editor.svg"
-private const val CloseIcon = "hollowengine:textures/gui/icons/close.png"
+private const val CloseIcon = "hollowengine:textures/gui/icons/cross.svg"
 private const val CopyIcon = "hollowengine:textures/gui/icons/copy.svg"
 private const val FolderIcon = "hollowengine:textures/gui/icons/folder_open.svg"

@@ -179,7 +179,7 @@ class InlineFlowTest {
     }
 
     @Test
-    fun `text-align positions the line left, centre and right`() {
+    fun `text-align positions the line left, center and right`() {
         fun wordX(align: String): Float {
             val s = span("aa") // 12px wide in a 100px flow
             val (layout, container) = flow(100f, s, sheet = "#flow { text-align: $align; }")

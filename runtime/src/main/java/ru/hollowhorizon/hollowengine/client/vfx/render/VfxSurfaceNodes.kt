@@ -23,7 +23,7 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxSurfaceSpec
 /**
  * What every renderer node shares: the particles it draws, the look it gives them, and its tint.
  *
- * Under an emitter those are the emitter's particles, sized and coloured by a [VfxParticleLook] of
+ * Under an emitter those are the emitter's particles, sized and colored by a [VfxParticleLook] of
  * this node. Anywhere else the node draws one particle of its own, a unit one at its origin, so the
  * same draw path covers both.
  */

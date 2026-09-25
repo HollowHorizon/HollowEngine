@@ -24,7 +24,7 @@ internal class HollowIdeProblems(
     val errors: Int = diagnostics.count { it.severity == UiTextDiagnosticSeverity.ERROR }
     val warnings: Int = diagnostics.count { it.severity == UiTextDiagnosticSeverity.WARNING }
 
-    /** Colours a count by the worst thing in it. */
+    /** Colors a count by the worst thing in it. */
     val severityTag: String
         get() = when {
             errors > 0 -> "has-errors"

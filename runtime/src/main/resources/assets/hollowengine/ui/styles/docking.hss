@@ -1,15 +1,19 @@
+/* The dock: windows, tab bars, splitters and side stripes. Colors come from theme.hss. */
+
+@import "hollowengine:ui/styles/theme.hss";
+
 
 .dock-stack,
 .dock-window,
 .dock-content,
 .dock-splitter {
-    background: #141518;
+    background: $bg-window;
 }
 
 .dock-tab {
-    background: #00000000;
-    foreground: #8f9bad;
-    border-radius: 5px;
+    background: transparent;
+    foreground: $text-muted;
+    border-radius: $radius;
     align: start center;
     transition:
             background 120ms ease-out,
@@ -24,12 +28,12 @@
 }
 
 .dock-tab-indicator {
-    background: #00000000;
+    background: transparent;
     transition: background 120ms ease-out;
 }
 
 .dock-tab.selected .dock-tab-indicator {
-    background: #6E9BDC;
+    background: $accent;
 }
 
 .dock-tab-icon {
@@ -43,20 +47,20 @@
     scrollbar-thickness: 2px;
     scrollbar-margin: 0px;
     scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-thumb: $scroll-thumb;
+    scrollbar-thumb-hover: alpha($text-soft, 0.6);
     scrollbar-hover-thickness: 3px;
     scrollbar-thumb-radius: 1px;
 }
 
 .dock-tab:hover {
-    background: #1C1E22;
-    foreground: #d7deea;
+    background: $bg-panel;
+    foreground: $text-strong;
 }
 
 .dock-tab.selected {
-    background: #1C1E22;
-    foreground: #f0f3f8;
+    background: $bg-panel;
+    foreground: $caret;
 }
 
 .dock-tab:dragging {
@@ -65,39 +69,39 @@
 
 .dock-close-button {
     margin: 0px 4px 0px 2px;
-    border-radius: 3px;
-    background: #00000000;
+    border-radius: $radius-small;
+    background: transparent;
     transition: background 100ms ease-out;
 }
 
 .dock-close-button:hover {
-    background: rgba(255, 255, 255, 0.10);
+    background: $bg-hover;
 }
 
 .dock-close-icon {
     size: 8px 8px;
-    tint: #687588;
+    tint: $text-faint;
     transition: tint 100ms ease-out;
 }
 
 .dock-tab:hover .dock-close-icon,
 .dock-tab.selected .dock-close-icon {
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .dock-close-button:hover .dock-close-icon {
-    tint: #ffffff;
+    tint: $white;
 }
 
 .dock-stripe {
-    background: #141518;
+    background: $bg-window;
     padding: 0px 0px;
     gap: 2px;
     transition: size 120ms ease-out;
 }
 
 .dock-stripe-button {
-    border-radius: 4px;
+    border-radius: $radius;
     scale: 0.75;
     opacity: 0.6;
     transition:
@@ -107,19 +111,19 @@
 }
 
 .dock-stripe-button:hover {
-    background: #2B2E35;
+    background: $bg-hover;
     scale: 0.95;
     opacity: 1;
 }
 
 .dock-stripe-button.dragging {
-    background: #2E3544;
+    background: $bg-selected;
     scale: 1;
     opacity: 1;
 }
 
 .dock-stripe-button.selected {
-    background: #2E3544;
+    background: $bg-selected;
     opacity: 1;
 }
 
@@ -128,14 +132,14 @@
 }
 
 .dock-pinned-panel {
-    background: #141518;
+    background: $bg-window;
 }
 
 .dock-pinned-island {
     size: fill fill;
     margin: 2px;
-    background: #1C1E22;
-    border-radius: 6px;
+    background: $bg-panel;
+    border-radius: $radius-large;
     clip: true;
 }
 
@@ -149,30 +153,30 @@
 }
 
 .dock-pinned-header {
-    padding: 0px 4px 0px 8px;
+    padding: 0px 4px 0px $panel-inset;
     gap: 6px;
 }
 
 .dock-pinned-header-icon {
     size: 12px 12px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .dock-pinned-header-label {
-    foreground: #dfe4ec;
+    foreground: $text-strong;
 }
 
 .dock-stripe-divider {
     margin: 3px 0px;
-    background: #2B2E35;
+    background: $bg-hover;
 }
 
 
 .dock-drop-zone {
     padding: 3px;
-    background: rgba(110, 155, 220, 0.10);
-    border: 1px rgba(110, 155, 220, 0.32);
-    border-radius: 4px;
+    background: alpha($accent, 0.1);
+    border: 1px alpha($accent, 0.32);
+    border-radius: $radius;
     transition:
             background 100ms ease-out,
             border 100ms ease-out,
@@ -181,8 +185,8 @@
 }
 
 .dock-drop-zone.active {
-    background: rgba(110, 155, 220, 0.34);
-    border: 1px rgba(190, 215, 250, 0.95);
+    background: alpha($accent, 0.34);
+    border: 1px alpha($accent, 0.95);
     scale: 1.08;
 }
 
@@ -192,19 +196,19 @@
 }
 
 .dock-drop-zone-glyph {
-    background: rgba(190, 215, 250, 0.35);
+    background: alpha($accent, 0.35);
     border-radius: 2px;
     transition: background 100ms ease-out;
 }
 
 .dock-drop-zone.active .dock-drop-zone-glyph {
-    background: rgba(230, 240, 255, 0.85);
+    background: alpha($caret, 0.85);
 }
 
 .dock-drop-preview {
-    background: rgba(110, 155, 220, 0.14);
-    border: 1px rgba(110, 155, 220, 0.8);
-    border-radius: 6px;
+    background: alpha($accent, 0.14);
+    border: 1px alpha($accent, 0.8);
+    border-radius: $radius-large;
     opacity: 0;
     transition:
             translate 110ms cubic-bezier(0.2, 0.8, 0.2, 1),

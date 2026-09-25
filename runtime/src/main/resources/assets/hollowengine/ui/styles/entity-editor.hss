@@ -1,8 +1,10 @@
+@import "hollowengine:ui/styles/theme.hss";
+
 .ee-root {
     size: fill fill;
     gap: 6px;
     padding: 6px;
-    background: rgba(16, 17, 20, 0.94);
+    background: alpha($bg-window, 0.94);
 }
 
 /* ---- preview ---- */
@@ -11,9 +13,9 @@
     grow: 1;
     size: 0px 100%;
     min-size: 0px 0px;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     clip: true;
 }
 
@@ -26,15 +28,15 @@
     max-size: 70% fit;
     layer: 1000;
     align-items: center center;
-    background: rgba(30, 32, 38, 0.9);
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: alpha($bg-field, 0.9);
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     backdrop-filter: blur(9px);
 }
 
 .ee-title {
     size: fit fit;
-    foreground: #E4E9F4;
+    foreground: $text-strong;
     font-size: 12px;
     wrap: false;
     text-overflow: dots;
@@ -42,7 +44,7 @@
 
 .ee-subtitle {
     size: fit fit;
-    foreground: #8B93A5;
+    foreground: $text-muted;
     font-size: 9px;
     wrap: false;
     text-overflow: dots;
@@ -59,28 +61,28 @@
 .ee-chip {
     size: 26px 26px;
     align-items: center center;
-    background: rgba(36, 39, 46, 0.82);
-    border-radius: 7px;
-    border: 1px #31343D;
+    background: alpha($bg-raised, 0.82);
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     hoverable: true;
     clickable: true;
     transition: background 140ms ease-out, border 140ms ease-out;
     backdrop-filter: blur(9px);
 }
 
-.ee-chip:hover { background: rgba(49, 52, 61, 0.88); }
+.ee-chip:hover { background: $bg-hover; }
 
 .ee-chip.selected {
-    background: rgba(215, 127, 28, 0.72);
-    border: 1px #D77F1C;
+    background: $row-selected;
+    border: 1px $accent;
 }
 
 .ee-chip-icon {
     size: 15px 15px;
-    tint: #C4CBDA;
+    tint: $text;
 }
 
-.ee-chip.selected .ee-chip-icon { tint: #1E1F22; }
+.ee-chip.selected .ee-chip-icon { tint: $bg-panel; }
 
 .ee-stats {
     align: end start;
@@ -90,9 +92,9 @@
     size: fit fit;
     min-size: 150px 0px;
     layer: 1000;
-    background: rgba(36, 39, 46, 0.86);
-    border-radius: 7px;
-    border: 1px #31343D;
+    background: alpha($bg-raised, 0.86);
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     backdrop-filter: blur(9px);
 }
 
@@ -104,14 +106,14 @@
 
 .ee-stat-label {
     size: fit fit;
-    foreground: #8B93A5;
+    foreground: $text-muted;
     font-size: 9px;
     wrap: false;
 }
 
 .ee-stat-value {
     size: fit fit;
-    foreground: #D77F1C;
+    foreground: $accent;
     font-size: 9px;
     wrap: false;
 }
@@ -120,14 +122,14 @@
 
 .ee-splitter {
     size: 5px 100%;
-    background: rgba(95, 102, 119, 0.0);
-    border-radius: 3px;
+    background: transparent;
+    border-radius: $radius-small;
     hoverable: true;
     transition: background 140ms ease-out;
 }
 
-.ee-splitter:hover { background: rgba(215, 127, 28, 0.55); }
-.ee-splitter:dragging { background: #D77F1C; }
+.ee-splitter:hover { background: $accent; }
+.ee-splitter:dragging { background: $accent; }
 
 /* ---- sidebar ---- */
 
@@ -135,9 +137,9 @@
     min-size: 240px 0px;
     gap: 6px;
     padding: 8px;
-    background: #24272E;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-raised;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     clip: true;
 }
 
@@ -150,7 +152,7 @@
 
 .ee-header-title {
     size: fit fit;
-    foreground: #C4CBDA;
+    foreground: $text;
     font-size: 11px;
     wrap: false;
     text-overflow: dots;
@@ -166,29 +168,29 @@
     min-height: 24px;
     padding: 4px 8px;
     align-items: center center;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     hoverable: true;
     clickable: true;
     transition: background 140ms ease-out, border 140ms ease-out;
 }
 
-.ee-tab:hover { background: #2A2D35; }
+.ee-tab:hover { background: $bg-hover; }
 
 .ee-tab.active {
-    background: rgba(215, 127, 28, 0.18);
-    border: 1px #D77F1C;
+    background: $row-selected;
+    border: 1px $accent;
 }
 
 .ee-tab-label {
     size: fit fit;
-    foreground: #C4CBDA;
+    foreground: $text;
     font-size: 9px;
     wrap: false;
 }
 
-.ee-tab.active .ee-tab-label { foreground: #E8912E; }
+.ee-tab.active .ee-tab-label { foreground: $accent; }
 
 .ee-search {
     size: 100% fit;
@@ -196,14 +198,14 @@
     gap: 6px;
     padding: 2px 6px;
     align-items: start center;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
 }
 
 .ee-search-icon {
     size: 12px 12px;
-    tint: #8B93A5;
+    tint: $text-muted;
 }
 
 .ee-sidebar-body {
@@ -217,12 +219,12 @@
     size: 100% fit;
     gap: 5px;
     padding: 7px;
-    background: #1E1F22;
-    border-radius: 7px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
 }
 
-.ee-card.virtual { border: 1px #3B4557; }
+.ee-card.virtual { border: 1px $bg-selected; }
 
 .ee-card-head {
     size: 100% fit;
@@ -235,12 +237,12 @@
 
 .ee-card-icon {
     size: 13px 13px;
-    tint: #D77F1C;
+    tint: $accent;
 }
 
 .ee-card-title {
     size: fit fit;
-    foreground: #C4CBDA;
+    foreground: $text;
     font-size: 10px;
     wrap: false;
     text-overflow: dots;
@@ -248,15 +250,15 @@
 
 .ee-badge {
     size: fit fit;
-    foreground: #7C8AA5;
+    foreground: $text-muted;
     font-size: 8px;
     padding: 1px 5px;
-    background: rgba(59, 69, 87, 0.5);
-    border-radius: 4px;
+    background: alpha($bg-selected, 0.5);
+    border-radius: $radius;
     wrap: false;
 }
 
-.ee-card-remove { tint: #C0564B; }
+.ee-card-remove { tint: $danger; }
 
 .ee-card-body {
     size: 100% fit;
@@ -274,9 +276,9 @@
     size: 100% fit;
     gap: 5px;
     padding: 6px;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
 }
 
 .ee-add-list {
@@ -289,22 +291,22 @@
     gap: 6px;
     padding: 4px 5px;
     align-items: start center;
-    border-radius: 4px;
+    border-radius: $radius;
     hoverable: true;
     clickable: true;
     transition: background 140ms ease-out;
 }
 
-.ee-add-row:hover { background: #2A2D35; }
+.ee-add-row:hover { background: $bg-hover; }
 
 .ee-add-icon {
     size: 13px 13px;
-    tint: #8B93A5;
+    tint: $text-muted;
 }
 
 .ee-add-label {
     size: fit fit;
-    foreground: #C4CBDA;
+    foreground: $text;
     font-size: 9px;
     wrap: false;
     text-overflow: dots;
@@ -312,7 +314,7 @@
 
 .ee-add-id {
     size: fit fit;
-    foreground: #5F6677;
+    foreground: $border-strong;
     font-size: 8px;
     wrap: false;
     text-overflow: dots;
@@ -322,19 +324,19 @@
 
 .ee-section-title {
     size: 100% fit;
-    foreground: #D77F1C;
+    foreground: $accent;
     font-size: 10px;
     margin: 4px 0px 0px 0px;
 }
 
 .ee-script-icon {
     size: 14px 14px;
-    tint: #8B93A5;
+    tint: $text-muted;
 }
 
 .ee-script-name {
     size: fit fit;
-    foreground: #C4CBDA;
+    foreground: $text;
     font-size: 9px;
     wrap: false;
     text-overflow: dots;
@@ -342,7 +344,7 @@
 
 .ee-script-path {
     size: fit fit;
-    foreground: #5F6677;
+    foreground: $border-strong;
     font-size: 8px;
     wrap: false;
     text-overflow: dots;
@@ -353,10 +355,10 @@
 .ee-dialog {
     gap: 8px;
     padding: 12px;
-    background: #24272E;
-    border-radius: 8px;
-    border: 1px #5F6677;
-    shadow: 2px 2px 10px 0px rgba(0, 0, 0, 0.5);
+    background: $bg-raised;
+    border-radius: $radius-large;
+    border: 1px $border-strong;
+    shadow: 2px 2px 10px 0px $shadow;
 }
 
 .ee-dialog-head {
@@ -367,7 +369,7 @@
 
 .ee-dialog-title {
     size: fit fit;
-    foreground: #E4E9F4;
+    foreground: $text-strong;
     font-size: 11px;
     wrap: false;
     text-overflow: dots;
@@ -375,9 +377,9 @@
 
 .ee-asset-tree {
     width: 100%;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     padding: 4px;
 }
 
@@ -394,15 +396,15 @@
 }
 
 .slot {
-    background: #16181C;
-    border-radius: 3px;
-    border: 1px #31343D;
+    background: $bg-window;
+    border-radius: $radius-small;
+    border: 1px $bg-selected;
     transition: background 140ms ease-out, border 140ms ease-out;
 }
 
 .slot:hover {
-    background: #2A2D35;
-    border: 1px #D77F1C;
+    background: $bg-hover;
+    border: 1px $accent;
 }
 
 .slot-carried {
@@ -411,5 +413,5 @@
 
 .ee-busy {
     size: 14px 14px;
-    tint: #D77F1C;
+    tint: $accent;
 }

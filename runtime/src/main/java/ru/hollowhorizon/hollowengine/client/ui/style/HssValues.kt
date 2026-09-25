@@ -269,6 +269,13 @@ private fun parseGradientStops(args: List<String>): List<UiGradientStop> {
 
 fun parseColor(value: String): UiColor {
     val cleaned = value.trim()
+    if (cleaned.startsWith("alpha(")) {
+        val args = functionArgs(cleaned, "alpha")
+        require(args.size == 2) { "Expected alpha(color, opacity), got '$value'" }
+        val base = parseColor(args[0])
+        val opacity = args[1].trim().let { if (it.endsWith("%")) it.dropLast(1).toFloat() / 100f else it.toFloat() }
+        return UiColor(base.red, base.green, base.blue, base.alpha * opacity)
+    }
     if (cleaned.startsWith("rgba(")) {
         val args = functionArgs(cleaned, "rgba").map { it.trim().toFloat() }
         return UiColor(args[0] / 255f, args[1] / 255f, args[2] / 255f, args.getOrElse(3) { 1f })
@@ -355,11 +362,11 @@ internal fun parseMask(value: String): UiFilterEffect.LinearMask? {
  */
 private fun parseLinearMask(args: String): UiFilterEffect.LinearMask {
     val parts = splitTopLevel(args, ',').map { it.trim() }.filter { it.isNotEmpty() }
-    require(parts.isNotEmpty()) { "linear-gradient() needs at least one colour stop" }
+    require(parts.isNotEmpty()) { "linear-gradient() needs at least one color stop" }
 
     val angle = parseGradientAngle(parts.first())
     val stopParts = if (angle != null) parts.drop(1) else parts
-    require(stopParts.isNotEmpty()) { "linear-gradient() needs at least one colour stop" }
+    require(stopParts.isNotEmpty()) { "linear-gradient() needs at least one color stop" }
 
     val positions = arrayOfNulls<Float>(stopParts.size)
     val alphas = FloatArray(stopParts.size)
@@ -616,6 +623,7 @@ internal fun looksLikeColor(value: String): Boolean {
     val cleaned = value.trim().lowercase()
     return cleaned.startsWith("rgba(") ||
             cleaned.startsWith("rgb(") ||
+            cleaned.startsWith("alpha(") ||
             cleaned.startsWith("#") ||
             cleaned == "transparent" ||
             cleaned == "white" ||

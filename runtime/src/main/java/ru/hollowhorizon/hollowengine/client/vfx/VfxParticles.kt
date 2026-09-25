@@ -38,7 +38,7 @@ class VfxParticles(val capacity: Int) {
     private class Channel(val stride: Int, val data: FloatArray)
 
     /**
-     * A private array of a module or a renderer (a renderer keeps the size and colour it gives each
+     * A private array of a module or a renderer (a renderer keeps the size and color it gives each
      * particle in one, see [VfxParticleLook]), created on first use, [stride] floats per particle
      * that move with it when it changes slots.
      */

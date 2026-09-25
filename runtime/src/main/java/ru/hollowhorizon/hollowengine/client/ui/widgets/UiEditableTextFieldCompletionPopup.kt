@@ -107,7 +107,7 @@ internal fun editableFieldCompletionGeometry(
     return EditableFieldCompletionGeometry(x, y, width, height, listHeight, rowHeight, visibleRows, footerHeight)
 }
 
-/** The keys that drive the list, one row under it, centred in the height the geometry gave it. */
+/** The keys that drive the list, one row under it, centered in the height the geometry gave it. */
 @Composable
 private fun CompletionPopupHint(height: Float) {
     Row(tags = listOf("ide-completion-hint"), modifier = Modifier.size(100.percent, height.px)) {
@@ -430,7 +430,7 @@ private val CompletionMatchColor = parseColor("#6CB6FF")
 private const val CompletionFadeWidth = 16f
 private const val CompletionFadeDurationMillis = 300L
 private const val CompletionFadeOvershoot = 2f
-/** The row colours of .ide-completion-row, flattened onto .ide-completion-popup, for the overflow fades. */
+/** The row colors of .ide-completion-row, flattened onto .ide-completion-popup, for the overflow fades. */
 private val CompletionPopupBg = parseColor("#26282E")
 private val CompletionSelectedBg = UiColor(110f / 255f, 155f / 255f, 220f / 255f, 0.24f).over(CompletionPopupBg)
 private val CompletionSelectedHoverBg = UiColor(110f / 255f, 155f / 255f, 220f / 255f, 0.30f).over(CompletionPopupBg)

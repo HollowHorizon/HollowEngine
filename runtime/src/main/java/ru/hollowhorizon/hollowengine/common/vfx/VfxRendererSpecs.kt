@@ -257,7 +257,7 @@ data class VfxTrailSpec(
     val maxPoints: Int = 32,
     val uvMode: VfxRibbonUv = VfxRibbonUv.STRETCH,
     val tileLength: Float = 1f,
-    /** Only the colour is read: a trail has a width of its own and no turn. */
+    /** Only the color is read: a trail has a width of its own and no turn. */
     override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxSurfaceSpec(), VfxParticleRendererSpec {
     override fun withCommon(

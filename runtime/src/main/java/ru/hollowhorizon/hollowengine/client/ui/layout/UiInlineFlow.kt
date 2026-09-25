@@ -194,7 +194,7 @@ internal fun UiLayoutPipeline.computeInlineFlow(
     )
     val lines = breakIntoLines(pieces, availableWidth, wrap)
     // Alignment still uses the container width even with wrap off, so a single line can sit
-    // centred/right/justified when the container is wider than the text (a fit container just
+    // centered/right/justified when the container is wider than the text (a fit container just
     // hugs the text, making alignment a natural no-op).
     positionLines(lines, availableWidth, align, lineSpacing)
 

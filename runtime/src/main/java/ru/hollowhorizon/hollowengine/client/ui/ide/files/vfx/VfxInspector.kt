@@ -126,7 +126,7 @@ private fun NodeHead(document: HollowIdeVfxDocument, node: VfxNodeSpec) {
 
 /**
  * What a renderer gives each particle of its emitter. A trail has a width of its own and does not
- * turn, so it only offers the colour.
+ * turn, so it only offers the color.
  */
 @Composable
 private fun ParticleFields(document: HollowIdeVfxDocument, state: VfxEditorState, node: VfxParticleRendererSpec) {

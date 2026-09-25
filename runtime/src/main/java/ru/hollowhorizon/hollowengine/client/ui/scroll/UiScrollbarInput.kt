@@ -56,7 +56,7 @@ internal fun scrollbarThumbDragState(
     }
 }
 
-/** Pressing the track centres the thumb on the pointer, then tracks it like a thumb drag would. */
+/** Pressing the track centers the thumb on the pointer, then tracks it like a thumb drag would. */
 internal fun scrollbarTrackDragState(
     layouts: Map<UiNode, UiLayoutNode>,
     scrollbar: ScrollbarNode,

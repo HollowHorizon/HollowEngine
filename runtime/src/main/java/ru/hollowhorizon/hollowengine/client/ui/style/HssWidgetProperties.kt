@@ -204,7 +204,7 @@ internal fun widgetHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "checkbox-mark",
-        summary = "Colour of the check mark.",
+        summary = "Color of the check mark.",
         syntax = syntax(slot("paint", HssValueKind.PAINT)),
     ) { style { it.checkbox = (it.checkbox ?: UiCheckboxStyle()).copy(markPaint = parsePaint(value)) } }
 

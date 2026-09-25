@@ -237,7 +237,7 @@ internal class UiAnalyticRectBatch {
     }
 }
 
-/** A dash pattern fitted to one border: [period] divides its centre line into whole repeats. */
+/** A dash pattern fitted to one border: [period] divides its center line into whole repeats. */
 internal class UiBorderDashPattern(val period: Float, val length: Float)
 
 internal fun borderDashPattern(
