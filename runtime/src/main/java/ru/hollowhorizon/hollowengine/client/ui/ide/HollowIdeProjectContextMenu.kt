@@ -9,16 +9,7 @@ import androidx.compose.runtime.setValue
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.utils.IconHelper.Icons
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FILE
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FOLDER
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CUT
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FILE_SOUND
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FOLDER
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.PASTE
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RENAME
+import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 
 @Composable
 internal fun HollowIdeProjectContextMenu(
@@ -46,26 +37,26 @@ internal fun HollowIdeProjectContextMenu(
         tags = listOf("dropdown-popup", "project-context-menu"),
         onDismiss = onDismiss,
     ) {
-        ProjectMenuItem("New File", "Alt+Insert", CREATE_FILE.toString(), closeScripts) { onCreateFile(menu.path) }
-        ProjectMenuItem("New Folder", "Alt+Shift+Insert", CREATE_FOLDER.toString(), closeScripts) { onCreateFolder(menu.path) }
+        ProjectMenuItem("New File", "Alt+Insert", ProjectMenuIcons.NEW_FILE, closeScripts) { onCreateFile(menu.path) }
+        ProjectMenuItem("New Folder", "Alt+Shift+Insert", ProjectMenuIcons.NEW_FOLDER, closeScripts) { onCreateFolder(menu.path) }
         if (menu.canCreateScripts) {
             ProjectMenuItem(
                 label = "New Script",
                 shortcut = "›",
-                icon = Icons.FILE_KTS.toString(),
+                icon = IconHelper.forFile("script.kts").toString(),
                 onEnter = { scriptsOpen = true },
                 onPlaced = { scriptsAnchor = it },
             ) { scriptsOpen = !scriptsOpen }
         }
         if (menu.canCreateSoundEvents) {
-            ProjectMenuItem("New Sound Events", "", FILE_SOUND.toString(), closeScripts) { onCreateSoundEvents(menu.path) }
+            ProjectMenuItem("New Sound Events", "", IconHelper.forFile("sounds.ogg").toString(), closeScripts) { onCreateSoundEvents(menu.path) }
         }
-        ProjectMenuItem("Rename", "F2", RENAME.toString(), closeScripts) { onRename(menu.path) }
-        ProjectMenuItem("Copy", "Ctrl+C", COPY.toString(), closeScripts) { onCopy(menu.path) }
-        ProjectMenuItem("Cut", "Ctrl+X", CUT.toString(), closeScripts) { onCut(menu.path) }
-        ProjectMenuItem("Paste", "Ctrl+V", PASTE.toString(), closeScripts) { onPaste(menu.path) }
-        ProjectMenuItem("Show in Explorer", "", FOLDER.toString(), closeScripts) { onShowInExplorer(menu.path) }
-        ProjectMenuItem("Delete", "Del", REMOVE.toString(), closeScripts) { onDelete(menu.path) }
+        ProjectMenuItem("Rename", "F2", ProjectMenuIcons.RENAME, closeScripts) { onRename(menu.path) }
+        ProjectMenuItem("Copy", "Ctrl+C", ProjectMenuIcons.COPY, closeScripts) { onCopy(menu.path) }
+        ProjectMenuItem("Cut", "Ctrl+X", ProjectMenuIcons.CUT, closeScripts) { onCut(menu.path) }
+        ProjectMenuItem("Paste", "Ctrl+V", ProjectMenuIcons.PASTE, closeScripts) { onPaste(menu.path) }
+        ProjectMenuItem("Show in Explorer", "", ProjectMenuIcons.REVEAL, closeScripts) { onShowInExplorer(menu.path) }
+        ProjectMenuItem("Delete", "Del", ProjectMenuIcons.DELETE, closeScripts) { onDelete(menu.path) }
     }
 
     val anchor = scriptsAnchor
@@ -201,4 +192,18 @@ internal fun HollowIdeFileOperationResult.statusText(): String {
         HollowIdeFileOperationResult.AlreadyExists -> "hollowengine.gui.ide.file.already_exists".lang
         HollowIdeFileOperationResult.NotFound -> "hollowengine.gui.ide.file.not_found".lang
     }
+}
+
+/** The icons of the project menu, drawn in the family of the rest of the IDE. */
+private object ProjectMenuIcons {
+    private const val ROOT = "hollowengine:textures/gui/icons/actions/"
+
+    const val NEW_FILE = ROOT + "new_file.svg"
+    const val NEW_FOLDER = ROOT + "new_folder.svg"
+    const val RENAME = ROOT + "rename.svg"
+    const val COPY = ROOT + "copy.svg"
+    const val CUT = ROOT + "cut.svg"
+    const val PASTE = ROOT + "paste.svg"
+    const val REVEAL = ROOT + "reveal.svg"
+    const val DELETE = ROOT + "delete.svg"
 }

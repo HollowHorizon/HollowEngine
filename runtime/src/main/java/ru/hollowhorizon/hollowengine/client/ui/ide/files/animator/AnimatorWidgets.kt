@@ -54,8 +54,8 @@ internal fun AnimatorIconButton(
 internal fun ExpressionField(label: String, value: String, onChange: (String) -> Unit) = TextRow(
     label = label,
     value = value,
-    completions = AnimationExpressionCompletions,
-    highlighter = AnimationExpressionHighlighter,
-    diagnostics = animationExpressionDiagnostics(value),
+    completions = AnimationExpressionEditing.completions,
+    highlighter = AnimationExpressionEditing.highlighter,
+    diagnostics = AnimationExpressionEditing.diagnostics(value),
     onChange = onChange,
 )

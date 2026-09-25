@@ -1,9 +1,12 @@
 /*
  * The notification stack in the bottom-right corner. Each card is bordered with its own kind's
- * gradient, matching the icon it carries; the rest follows the IDE's popups, compact and quiet.
+ * gradient, matching the icon it carries; the rest follows the IDE's popups, compact and quiet, and
+ * is set in the same code font as the IDE.
  */
 
 .notif-stack {
+    font-family: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
+    font-size: 9px;
     size: fit fit;
     gap: 6px;
     margin: 10px;

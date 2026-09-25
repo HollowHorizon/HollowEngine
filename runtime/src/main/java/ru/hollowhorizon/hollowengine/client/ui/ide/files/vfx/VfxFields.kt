@@ -8,10 +8,12 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
+import ru.hollowhorizon.hollowengine.client.ui.widgets.ExpressionEditing
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.client.vfx.VfxExpressionLanguage
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.vfx.VfxCurve
 import ru.hollowhorizon.hollowengine.common.vfx.VfxCurveInput
@@ -323,13 +325,17 @@ private fun TextCell(text: String, property: VfxProperty?, onChange: (String) ->
         draft = text
     }
 
+    val diagnostics = remember(draft) { VfxExpressionEditing.diagnostics(draft) }
     TextField(
         value = draft,
         fontSize = 9f,
         placeholder = vfxText("expression_placeholder"),
+        completionContributor = VfxExpressionEditing.completions,
+        syntaxHighlighter = VfxExpressionEditing.highlighter,
+        diagnostics = diagnostics,
         tags = listOf("insp-input", "insp-inline-input", "vfx-expression"),
         modifier = Modifier.size(0.px, UiLength.Fit).grow(1f).onFocus { if (property != null) focus(property) }
-            .tooltipOnHover(vfxText("expression_hint")),
+            .then(if (diagnostics.isEmpty()) Modifier.tooltipOnHover(vfxText("expression_hint")) else Modifier),
         onChange = { typed ->
             draft = typed
             lastExternal = typed
@@ -461,6 +467,9 @@ internal fun VfxCurvePreview(curve: VfxCurve, modifier: Modifier) {
 internal fun InspectorIcon(icon: String, tooltip: String, onClick: () -> Unit) {
     InspectorIconButton(icon = icon, tooltip = tooltip, tags = listOf("insp-inline-icon"), onClick = onClick)
 }
+
+/** Highlighting, completion and diagnostics for the expressions of the effect dialect. */
+internal val VfxExpressionEditing = ExpressionEditing(VfxExpressionLanguage)
 
 internal fun vfxText(name: String): String = "hollowengine.gui.vfx.$name".lang
 
