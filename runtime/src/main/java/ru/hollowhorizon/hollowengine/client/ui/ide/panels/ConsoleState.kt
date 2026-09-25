@@ -40,8 +40,10 @@ internal class HollowIdeConsole {
         private set
 
     private val inputs = mutableStateMapOf<ConsoleInputMode, String>()
-    private val history = ConsoleInputMode.entries.associateWith { ArrayList<String>() }
-    private var historyIndex = -1
+    private val history = mapOf(
+        ConsoleInputMode.COMMAND to ConsoleHistory(VanillaCommandHistory),
+        ConsoleInputMode.KOTLIN to ConsoleHistory(ConsoleSnippetHistory),
+    )
 
     val commands = ConsoleCommandAssist { assistRevision++ }
 
@@ -73,10 +75,10 @@ internal class HollowIdeConsole {
     fun run() {
         if (!canRun) return
         val text = input
-        addToHistory(text)
         when (mode) {
             ConsoleInputMode.COMMAND -> runCommand(text.trim())
             ConsoleInputMode.KOTLIN -> {
+                history.getValue(mode).add(text)
                 running = true
                 ConsoleScripts.run(text) { running = false }
             }
@@ -88,34 +90,18 @@ internal class HollowIdeConsole {
 
     /** Steps through earlier inputs of the current mode; [older] goes back in time. */
     fun browseHistory(older: Boolean): Boolean {
-        val entries = history.getValue(mode)
-        if (entries.isEmpty()) return false
-        historyIndex = when {
-            older -> (historyIndex + 1).coerceAtMost(entries.lastIndex)
-            historyIndex <= 0 -> -1
-            else -> historyIndex - 1
-        }
-        input = if (historyIndex < 0) "" else entries[entries.lastIndex - historyIndex]
+        input = history.getValue(mode).step(input, older) ?: return false
         return true
-    }
-
-    private fun addToHistory(text: String) {
-        val entries = history.getValue(mode)
-        entries.remove(text)
-        entries += text
-        if (entries.size > MaxHistory) entries.removeAt(0)
-        historyIndex = -1
     }
 
     private fun runCommand(command: String) {
         val connection = Minecraft.getInstance().connection ?: return
+        history.getValue(ConsoleInputMode.COMMAND).add(command)
         connection.sendCommand(command.removePrefix("/"))
         HollowEngine.LOGGER.info("Executed command: {}", command)
     }
 
     private companion object {
-        const val MaxHistory = 50
-
         /** Named like a project script so imports resolve, with the console's own script type. */
         val KotlinInputPath = "${SandboxScriptSource.SCRIPTS_DIRECTORY}/${ConsoleScripts.SCRIPT_NAME}"
     }
