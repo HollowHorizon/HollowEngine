@@ -18,7 +18,7 @@ import ru.hollowhorizon.hollowengine.common.vfx.*
 fun VfxColorRow(
     label: String,
     value: VfxColorValue,
-    property: String? = null,
+    property: VfxProperty? = null,
     hint: String? = null,
     onChange: (VfxColorValue) -> Unit,
 ) {
@@ -109,7 +109,7 @@ private fun GradientEditor(value: VfxColorValue.Gradient, onChange: (VfxColorVal
     Column(modifier = Modifier.size(220.px, UiLength.Fit).gap(4.px)) {
         ColorPalette(value, modifier = Modifier.size(100.percent, 14.px)) {}
         Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
-            VfxSourcePicker(value.source) { onChange(value.copy(source = it)) }
+            VfxSourcePicker(value.input) { onChange(value.copy(input = it)) }
             InspectorButton(vfxText("stop_add")) {
                 val last = value.gradient.stops.lastOrNull()
                 val position = ((last?.position ?: 0f) + 0.25f).coerceAtMost(1f)

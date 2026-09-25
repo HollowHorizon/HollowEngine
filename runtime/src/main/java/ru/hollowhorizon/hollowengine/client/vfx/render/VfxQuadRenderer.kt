@@ -4,30 +4,21 @@ import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.ShaderInstance
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hollowengine.client.models.internal.drawWithShader
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
-import ru.hollowhorizon.hollowengine.client.models.internal.translucentShaderState
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.VboWrapper
-import ru.hollowhorizon.hollowengine.client.utils.shaderPackParticleShader
-import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.nio.FloatBuffer
 import java.util.*
 
 /**
  * Draws billboard particles, one instanced quad per particle, one draw call per batch.
  *
- * Without a shader pack the engine's own program draws everything, and alpha-blended, additive and
- * opaque particles share one draw through premultiplied alpha (see [VfxBatchBlend]).
- *
- * With a pack the pack's particle program is patched for instancing, the way model instancing does
- * it: a program the pack does not know would draw into nothing, because the pack renders into its
- * own buffers.
+ * The engine program draws everything but the materials with a shader of their own, and
+ * alpha-blended, additive and opaque particles share one draw through premultiplied alpha (see
+ * [VfxBatchBlend]). With a shader pack the planes are drawn over the pack's finished image, so the
+ * pack never replaces the program.
  */
 object VfxQuadRenderer {
     private const val STRIDE = VfxQuadPacker.STRIDE
@@ -59,55 +50,32 @@ object VfxQuadRenderer {
     fun render(draws: List<VfxQuadDraw>, view: VfxView) {
         if (draws.isEmpty()) return
 
-        val shaderPack = shouldOverrideShaders()
-        val total = packer.pack(draws, view, mixed = !shaderPack)
+        val total = packer.pack(draws, view)
         if (total == 0) return
-
-        when {
-            !shaderPack -> drawOwn(total, view)
-            else -> drawWithPack(total)
-        }
+        draw(total, view)
     }
 
-    private fun drawOwn(total: Int, view: VfxView) {
-        val shader = ModShaders.VFX_PARTICLE ?: return
+    /**
+     * The engine program draws every batch but the ones whose material names a shader of its own;
+     * those get theirs, falling back to the engine program when it failed to load.
+     */
+    private fun draw(total: Int, view: VfxView) {
+        val engine = ModShaders.VFX_PARTICLE ?: return
         withInstanceState(total) {
-            RenderSystem.setShader { shader }
-            shader.setDefaultUniforms(
-                VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
-            )
             GL33.glDepthFunc(GL33.GL_LEQUAL)
 
             packer.batches.forEach { batch ->
-                shader.setSampler("Sampler0", textureOf(batch))
-                shader.setSampler("Sampler2", HollowModelManager.lightTexture.id)
+                val shader = batch.key.shader?.let { VfxShaders.get(it, DefaultVertexFormat.POSITION_TEX) } ?: engine
+                RenderSystem.setShader { shader }
+                shader.setDefaultUniforms(
+                    VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
+                )
+                VfxMaterialStates.bindCommonSamplers(shader, VfxMaterialStates.texture(batch.key.texture))
+                if (shader !== engine) batch.uniforms?.apply(shader)
                 shader.apply()
-                applyState(batch.key, premultiplied = true)
+                VfxMaterialStates.apply(batch.key, premultiplied = shader === engine)
                 drawBatch(shader, batch)
-            }
-            shader.clear()
-        }
-    }
-
-    private fun drawWithPack(total: Int) {
-        val opaque = shaderPackParticleShader(translucent = false)
-        val translucent = shaderPackParticleShader(translucent = true)
-        if (opaque == null || translucent == null) {
-            drawExpanded()
-            return
-        }
-
-        withInstanceState(total) {
-            packer.batches.forEach { batch ->
-                val shader = if (batch.key.blend == VfxBatchBlend.OPAQUE) opaque else translucent
-                drawWithShader(shader, translucentShaderState()) {
-                    RenderSystem.activeTexture(GL33.GL_TEXTURE2)
-                    RenderSystem.bindTexture(HollowModelManager.lightTexture.id)
-                    RenderSystem.activeTexture(GL33.GL_TEXTURE0)
-                    RenderSystem.bindTexture(textureOf(batch))
-                    applyState(batch.key, premultiplied = false)
-                    drawBatch(shader, batch)
-                }
+                shader.clear()
             }
         }
     }
@@ -122,7 +90,7 @@ object VfxQuadRenderer {
         try {
             body()
         } finally {
-            restoreState()
+            VfxMaterialStates.restore()
             GlStateManager._glUseProgram(0)
             RenderSystem.activeTexture(previousTexture)
             RenderSystem.glBindVertexArray(previousVao)
@@ -135,99 +103,6 @@ object VfxQuadRenderer {
         instanceBuffer?.bind()
         pointInstances(shader, batch.first.toLong() * STRIDE_BYTES)
         GL33.glDrawElementsInstanced(GL33.GL_TRIANGLES, 6, GL33.GL_UNSIGNED_INT, 0L, batch.count)
-    }
-
-    private fun drawExpanded() {
-        RenderSystem.setShader(GameRenderer::getParticleShader)
-        RenderSystem.setShaderTexture(2, HollowModelManager.lightTexture.id)
-
-        packer.batches.forEach { batch ->
-            RenderSystem.setShaderTexture(0, textureOf(batch))
-            applyState(batch.key, premultiplied = false)
-
-            val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE)
-            val data = packer.packed
-            for (index in batch.first until batch.first + batch.count) {
-                val at = index * STRIDE
-                val light = data[at + 17].toInt() or (data[at + 18].toInt() shl 16)
-                corner(builder, data, at, -0.5f, -0.5f, 0f, 1f, light)
-                corner(builder, data, at, 0.5f, -0.5f, 1f, 1f, light)
-                corner(builder, data, at, 0.5f, 0.5f, 1f, 0f, light)
-                corner(builder, data, at, -0.5f, 0.5f, 0f, 0f, light)
-            }
-            builder.build()?.let(BufferUploader::drawWithShader)
-        }
-
-        restoreState()
-    }
-
-    private fun corner(
-        builder: BufferBuilder,
-        data: FloatArray,
-        at: Int,
-        along: Float,
-        across: Float,
-        u: Float,
-        v: Float,
-        light: Int,
-    ) {
-        builder.addVertex(
-            data[at] + data[at + 3] * along + data[at + 6] * across,
-            data[at + 1] + data[at + 4] * along + data[at + 7] * across,
-            data[at + 2] + data[at + 5] * along + data[at + 8] * across,
-        ).setUv(data[at + 13] + u * data[at + 15], data[at + 14] + v * data[at + 16])
-            .setColor(data[at + 9], data[at + 10], data[at + 11], data[at + 12]).setLight(light)
-    }
-
-    private fun textureOf(batch: VfxQuadBatch): Int =
-        Minecraft.getInstance().textureManager.getTexture(batch.key.texture.rl).id
-
-    private fun applyState(key: VfxBatchKey, premultiplied: Boolean) {
-        applyBlend(key.blend, premultiplied)
-        if (key.cull) RenderSystem.enableCull() else RenderSystem.disableCull()
-        if (key.depthTest) RenderSystem.enableDepthTest() else RenderSystem.disableDepthTest()
-        RenderSystem.depthMask(key.depthWrite)
-    }
-
-    private fun restoreState() {
-        RenderSystem.depthMask(true)
-        RenderSystem.enableDepthTest()
-        RenderSystem.enableBlend()
-        RenderSystem.blendEquation(GL33.GL_FUNC_ADD)
-        RenderSystem.defaultBlendFunc()
-        RenderSystem.enableCull()
-    }
-
-    private fun applyBlend(blend: VfxBatchBlend, premultiplied: Boolean) {
-        RenderSystem.blendEquation(GL33.GL_FUNC_ADD)
-        when (blend) {
-            VfxBatchBlend.OPAQUE -> RenderSystem.disableBlend()
-            VfxBatchBlend.MIXED -> {
-                RenderSystem.enableBlend()
-                RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA)
-            }
-
-            VfxBatchBlend.BLEND -> {
-                RenderSystem.enableBlend()
-                RenderSystem.defaultBlendFunc()
-            }
-
-            VfxBatchBlend.ADDITIVE -> {
-                RenderSystem.enableBlend()
-                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE)
-            }
-
-            VfxBatchBlend.MULTIPLY -> {
-                RenderSystem.enableBlend()
-                if (premultiplied) {
-                    RenderSystem.blendFunc(GlStateManager.SourceFactor.DST_COLOR, GlStateManager.DestFactor.ZERO)
-                } else {
-                    RenderSystem.blendFunc(
-                        GlStateManager.SourceFactor.DST_COLOR, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
-                    )
-                }
-            }
-        }
     }
 
     private fun uploadInstances(total: Int) {
@@ -247,6 +122,7 @@ object VfxQuadRenderer {
 
     private fun ensureBuffers() {
         if (quadBuffer != null) return
+        RenderSystem.glBindVertexArray(0)
 
         quadBuffer = VboWrapper.createArrayBuffer().apply {
             val corners = BufferUtils.createFloatBuffer(4 * 5)

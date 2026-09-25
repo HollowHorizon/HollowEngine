@@ -62,7 +62,7 @@ class VfxTimelineSession(
             val label = if ((names[node.name] ?: 0) > 1) "${node.name} (${node.id})" else node.name
             VfxAnimatables.forNode(node).forEach { animatable ->
                 val property = timeline.addProperty(listOf(label), buildProperty(node, animatable))
-                fill(property, effect.timeline.track(node.id, animatable.id))
+                fill(property, effect.timeline.track(node.id, animatable.property))
             }
         }
 
@@ -73,7 +73,7 @@ class VfxTimelineSession(
     }
 
     /** Lists the property of [nodeId] the author is editing, so its keys are one glance away. */
-    fun focus(nodeId: String, property: String) {
+    fun focus(nodeId: String, property: VfxProperty) {
         val id = propertyId(nodeId, property)
         touched += nodeId
         pinned += id
@@ -147,14 +147,14 @@ class VfxTimelineSession(
 
     /** What the timeline rows depend on, which nodes there are, what they are called, what they offer. */
     private fun signatureOf(): List<Any> = document.effect.walk().map { node ->
-        Triple(node.id, node.name, VfxAnimatables.forNode(node).map { it.id })
+        Triple(node.id, node.name, VfxAnimatables.forNode(node).map { it.property })
     }
 
     private fun buildProperty(node: VfxNodeSpec, animatable: VfxAnimatable): AnimProperty<*> {
-        val id = propertyId(node.id, animatable.id)
+        val id = propertyId(node.id, animatable.property)
         val title = animatable.titleKey.lang
         val name = animatable.ownerTitleKey?.let { "${it.lang} · $title" } ?: title
-        val defaults = animatable.read(node)
+        val defaults = animatable.read()
 
         return when (animatable.kind) {
             VfxAnimatableKind.TOGGLE -> AnimProperty(id, name, TogglePropertyType, defaults.getOrElse(0) { 1f })
@@ -185,12 +185,13 @@ class VfxTimelineSession(
         }
     }
 
-    private fun propertyId(node: String, property: String) = "$node|$property"
+    private fun propertyId(node: String, property: VfxProperty) = "$node|$property"
 
     /** The node a timeline row belongs to, as packed into its id. */
     private fun nodeOf(property: AnimProperty<*>): String? = property.id.split('|', limit = 2).getOrNull(0)
 
-    private fun animatableOf(property: AnimProperty<*>): String? = property.id.split('|', limit = 2).getOrNull(1)
+    private fun animatableOf(property: AnimProperty<*>): VfxProperty? =
+        property.id.split('|', limit = 2).getOrNull(1)?.let(::VfxProperty)
 }
 
 /** On or off, held between keys; the editor draws it as a step curve and never interpolates it. */

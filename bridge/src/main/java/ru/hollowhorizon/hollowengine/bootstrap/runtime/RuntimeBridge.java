@@ -248,6 +248,12 @@ public interface RuntimeBridge extends AutoCloseable {
     void onIrisShadowRenderEnd();
 
     /**
+     * The shader pack has written its final image into the main target. What should look the same
+     * with and without a pack is drawn from here, over the finished frame and its depth.
+     */
+    void onIrisLevelFinished();
+
+    /**
      * Fired around a HUD layer. The layer is identified by its resource-location string
      * (e.g. {@code "minecraft:crosshair"}) rather than a fixed enum, so NeoForge can pass every
      * named layer through {@code RenderGuiLayerEvent.getName()}. Returns whether the

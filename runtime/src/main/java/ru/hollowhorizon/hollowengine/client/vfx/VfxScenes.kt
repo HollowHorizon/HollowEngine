@@ -18,9 +18,10 @@ class VfxPlayback(
     private val entity: Entity?,
 ) {
     private val data = NbtDataStore()
-    private var lastX = 0.0
-    private var lastY = 0.0
-    private var lastZ = 0.0
+    /** Where it was last frame; NaN until the first one, which has no motion to speak of. */
+    private var lastX = Double.NaN
+    private var lastY = Double.NaN
+    private var lastZ = Double.NaN
 
     var position: Vec3 = Vec3.ZERO
         private set
@@ -40,9 +41,9 @@ class VfxPlayback(
     fun stop(immediate: Boolean) = instance.stop(immediate)
 
     /** Follows whatever it is bound to, then advances the simulation. */
-    fun update(dt: Float, partialTick: Float, gameTime: Float) {
-        val next = entity?.let { Vec3(it.x, it.y + it.bbHeight * 0.5, it.z) } ?: position
-        if (dt > 0f) {
+    fun update(dt: Float, partialTick: Float, gameTime: Float, camera: Vec3) {
+        val next = entity?.getPosition(partialTick)?.add(0.0, entity.bbHeight * 0.5, 0.0) ?: position
+        if (dt > 0f && !lastX.isNaN()) {
             instance.setVelocity(
                 ((next.x - lastX) / dt).toFloat(),
                 ((next.y - lastY) / dt).toFloat(),
@@ -55,6 +56,7 @@ class VfxPlayback(
 
         position = next
         instance.moveTo(next)
+        instance.setCamera(camera)
         instance.partialTick = partialTick
         instance.gameTime = gameTime
         instance.update(dt)
@@ -89,8 +91,8 @@ class VfxScene(private val environment: VfxEnvironment) {
 
     fun clear() = playbacks.clear()
 
-    /** Advances everything with the time, that game is keeping. */
-    fun update() {
+    /** Advances everything with the time the game is keeping, seen from [camera]. */
+    fun update(camera: Vec3) {
         val now = TickHandler.gameTime
         val dt = when {
             lastGameTime.isNaN() -> 0f
@@ -102,7 +104,7 @@ class VfxScene(private val environment: VfxEnvironment) {
         val partialTick = TickHandler.partialTick
         playbacks.forEach { playback ->
             playback.instance.budget = budget
-            playback.update(dt, partialTick, now)
+            playback.update(dt, partialTick, now, camera)
         }
         playbacks.removeAll { it.isFinished }
     }

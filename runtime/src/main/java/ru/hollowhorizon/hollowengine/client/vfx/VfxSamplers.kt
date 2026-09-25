@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.vfx
 import ru.hollowhorizon.hollowengine.common.utils.MutableColor
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.vfx.VfxColorValue
-import ru.hollowhorizon.hollowengine.common.vfx.VfxTimeSource
+import ru.hollowhorizon.hollowengine.common.vfx.VfxCurveInput
 import ru.hollowhorizon.hollowengine.common.vfx.VfxValue
 import ru.hollowhorizon.hollowengine.common.vfx.VfxVec3Value
 
@@ -91,7 +91,7 @@ object VfxSamplers {
         is VfxValue.OverTime -> {
             val curve = value.curve
             val scale = value.scale
-            val axis = axis(value.source)
+            val axis = axis(value.input)
             VfxFloatSampler { curve.valueAt(axis.eval(it), default) * scale }
         }
 
@@ -140,7 +140,7 @@ object VfxSamplers {
 
             is VfxColorValue.Gradient -> {
                 val gradient = value.gradient
-                val axis = axis(value.source)
+                val axis = axis(value.input)
                 VfxColorSampler { context, into ->
                     val stop = gradient.colorAt(axis.eval(context))
                     into.set(stop.r, stop.g, stop.b, stop.a)
@@ -165,12 +165,12 @@ object VfxSamplers {
     }
 
     /** What the horizontal axis of a curve or gradient reads. */
-    fun axis(source: VfxTimeSource): VfxFloatSampler = when (source) {
-        VfxTimeSource.LIFETIME -> VfxFloatSampler { it.progress }
-        VfxTimeSource.PARTICLE_AGE -> VfxFloatSampler { it.age }
-        VfxTimeSource.EMITTER_AGE -> VfxFloatSampler { it.emitterAge }
-        VfxTimeSource.EFFECT_TIME -> VfxFloatSampler { it.effectTime }
-        VfxTimeSource.SPEED -> VfxFloatSampler { it.speed }
+    fun axis(input: VfxCurveInput): VfxFloatSampler = when (input) {
+        VfxCurveInput.LIFETIME -> VfxFloatSampler { it.progress }
+        VfxCurveInput.PARTICLE_AGE -> VfxFloatSampler { it.age }
+        VfxCurveInput.EMITTER_AGE -> VfxFloatSampler { it.emitterAge }
+        VfxCurveInput.EFFECT_TIME -> VfxFloatSampler { it.effectTime }
+        VfxCurveInput.SPEED -> VfxFloatSampler { it.speed }
     }
 
     /** Whether a value reads same for a particle every step. */

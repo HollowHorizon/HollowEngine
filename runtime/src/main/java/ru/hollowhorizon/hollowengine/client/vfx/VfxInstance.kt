@@ -1,80 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.vfx
 
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import org.joml.Matrix4f
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxDrawList
 import ru.hollowhorizon.hollowengine.common.data.NbtDataStore
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.vfx.*
 import kotlin.random.Random
-
-/**
- * One node of a playing effect: where it is, whether it is on, and whatever it runs.
- */
-class VfxNodeRuntime(
-    val spec: VfxNodeSpec,
-    val parent: VfxNodeRuntime?,
-    instance: VfxInstance,
-    expressions: VfxExpressions,
-    seed: Int,
-    driven: Map<String, Int>,
-) {
-    val frame = VfxFrame()
-
-    /** What the author wrote for this node; the timeline starts from it every frame. */
-    var authoredEnabled: Boolean = spec.enabled
-    var authoredTransform: VfxTransform = spec.transform
-
-    var enabled: Boolean = spec.enabled
-    var transform: VfxTransform = spec.transform
-
-    /**
-     * What the timeline writes into the values of this node. Only the properties that actually have
-     * a track get one.
-     */
-    private val drives: Map<String, VfxDrive> = driven.mapValues { (_, channels) -> VfxDrive(channels) }
-
-    fun drive(property: String): VfxDrive? = drives[property]
-
-    val emitter: VfxEmitter? = (spec as? VfxEmitterSpec)?.let { VfxEmitter(it, instance, this, expressions, seed) }
-
-    /** The model a mesh emitter draws, loaded the first time it is actually needed. */
-    val meshModel: ModelAttachment? by lazy {
-        val model = (spec as? VfxMeshEmitterSpec)?.model?.takeIf { it.isNotBlank() } ?: return@lazy null
-        ModelAttachment(model)
-    }
-
-    val children: List<VfxNodeRuntime> = spec.children.mapIndexed { index, child ->
-        VfxNodeRuntime(
-            child,
-            this,
-            instance,
-            expressions,
-            seed + index * 977 + 13,
-            instance.drivenProperties(child.id),
-        )
-    }
-
-    /** Whether this node and every node above it is on. */
-    val isActive: Boolean get() = enabled && (parent?.isActive ?: true)
-
-    fun place(root: VfxFrame) {
-        frame.setCombined(parent?.frame ?: root, transform)
-        emitter?.refreshSpace()
-        children.forEach { it.place(root) }
-    }
-
-    fun walk(): List<VfxNodeRuntime> = buildList {
-        add(this@VfxNodeRuntime)
-        children.forEach { addAll(it.walk()) }
-    }
-
-    fun reset() {
-        enabled = authoredEnabled
-        transform = authoredTransform
-        children.forEach { it.reset() }
-    }
-}
 
 /**
  * One playing effect.
@@ -91,17 +24,17 @@ class VfxInstance(
     private val expressions = VfxExpressions.compile(effect.expressions(), asset)
 
     /** Which properties of which node have a track, and how many channels each carries. */
-    private val driven: Map<String, Map<String, Int>> =
+    private val driven: Map<String, Map<VfxProperty, Int>> =
         effect.timeline.tracks.groupBy { it.node }.mapValues { (nodeId, tracks) ->
-                val node = effect.node(nodeId)
-                tracks.mapNotNull { track ->
-                    if (node == null || track.curves.none { it.keys.isNotEmpty() }) return@mapNotNull null
-                    val animatable = VfxAnimatables.of(node, track.property) ?: return@mapNotNull null
-                    track.property to animatable.kind.channels
-                }.toMap()
-            }
+            val node = effect.node(nodeId)
+            tracks.mapNotNull { track ->
+                if (node == null || track.curves.none { it.keys.isNotEmpty() }) return@mapNotNull null
+                val animatable = VfxAnimatables.of(node, track.property) ?: return@mapNotNull null
+                track.property to animatable.kind.channels
+            }.toMap()
+        }
 
-    internal fun drivenProperties(nodeId: String): Map<String, Int> = driven[nodeId].orEmpty()
+    internal fun drivenProperties(nodeId: String): Map<VfxProperty, Int> = driven[nodeId].orEmpty()
 
     /** The frame the whole effect sits in; a bone or a moving entity writes into it. */
     val root = VfxFrame()
@@ -117,19 +50,28 @@ class VfxInstance(
     /** [origin] minus [anchor], the only part of the two a float can safely hold. */
     val originMinusAnchor = MutableVec3f()
 
+    /** Where the camera is, in effect space; whoever plays the effect keeps it current. */
+    val camera = MutableVec3f()
+
     val nodes: List<VfxNodeRuntime> = effect.nodes.mapIndexed { index, node ->
         VfxNodeRuntime(node, null, this, expressions, seed + index * 7919, drivenProperties(node.id))
     }
 
-    private val allNodes: List<VfxNodeRuntime> = nodes.flatMap { it.walk() }
+    /** Every node, parents before children, which is also the order they update and draw in. */
+    val allNodes: List<VfxNodeRuntime> = nodes.flatMap { it.walk() }
 
-    val emitters: List<VfxEmitter> = allNodes.mapNotNull { it.emitter }
+    private val behaviors: List<VfxNodeBehavior> = allNodes.mapNotNull { it.behavior }
+
+    val emitters: List<VfxEmitter> = behaviors.filterIsInstance<VfxEmitter>()
 
     private val timeline = VfxTimelinePlayer(effect.timeline, allNodes)
 
     /** Seconds since the effect started playing. */
     var time: Float = 0f
         private set
+
+    /** Where the timeline is, looped when the timeline loops. */
+    val timelineTime: Float get() = timeline.localTime(time)
 
     /** How fast the origin is moving, for particles that inherit it. */
     var velocityX: Float = 0f
@@ -148,14 +90,22 @@ class VfxInstance(
 
     /** Whether anything here is lit by the world, so light is only looked up when it is used. */
     val readsLight: Boolean =
-        effect.walk().filterIsInstance<VfxQuadEmitterSpec>().any { it.material.lighting == VfxLighting.WORLD }
+        effect.walk().filterIsInstance<VfxSurfaceSpec>().any { it.material.lighting == VfxLighting.WORLD } ||
+                effect.walk().any { it is VfxModelSpec && !it.emissive }
 
     var isStopping: Boolean = false
         private set
 
-    /** Whether everything has stopped and nothing is left on screen. */
+    /**
+     * Whether everything has stopped and nothing is left on screen. Without emitters, an effect
+     * ends with a timeline that does not loop.
+     */
     val isFinished: Boolean
-        get() = isStopping && emitters.all { it.particles.count == 0 } || emitters.isNotEmpty() && emitters.all { it.isFinished }
+        get() = when {
+            isStopping -> behaviors.all { it.isIdle }
+            emitters.isNotEmpty() -> emitters.all { it.isFinished }
+            else -> !effect.timeline.loop && time >= effect.timeline.duration
+        }
 
     /** How many particles this effect may still create this frame; the scene refills it. */
     var budget: Int = Int.MAX_VALUE
@@ -181,6 +131,11 @@ class VfxInstance(
         )
     }
 
+    /** Remembers where the camera is in the world, for distances and camera-facing ribbons. */
+    fun setCamera(world: Vec3) {
+        camera.set((world.x - origin.x).toFloat(), (world.y - origin.y).toFloat(), (world.z - origin.z).toFloat())
+    }
+
     /** Remembers how fast the origin is moving, for inherited velocity. */
     fun setVelocity(x: Float, y: Float, z: Float) {
         velocityX = x
@@ -190,14 +145,14 @@ class VfxInstance(
 
     fun stop(immediate: Boolean) {
         isStopping = true
-        if (immediate) emitters.forEach { it.clear() } else emitters.forEach { it.stop() }
+        behaviors.forEach { it.stop(immediate) }
     }
 
-    /** Advances everything by [dt] seconds and leaves the emitters ready to draw. */
+    /** Advances everything by [dt] seconds and leaves the nodes ready to draw. */
     fun update(dt: Float) {
         if (dt > 0f) time += dt
         pose()
-        emitters.forEach { it.update(dt) }
+        behaviors.forEach { it.update(dt) }
     }
 
     /** Places every node for the current time: the authored transform, then the timeline over it. */
@@ -205,6 +160,12 @@ class VfxInstance(
         nodes.forEach { it.reset() }
         if (!timeline.isEmpty) timeline.apply(time)
         nodes.forEach { it.place(root) }
+        allNodes.forEach { it.fillContext() }
+    }
+
+    /** Adds what every active node draws; [placement] maps effect space to the space of the view. */
+    fun collect(into: VfxDrawList, placement: Matrix4f) {
+        allNodes.forEach { node -> node.behavior?.collect(into, placement) }
     }
 
     fun node(id: String): VfxNodeRuntime? = allNodes.firstOrNull { it.spec.id == id }
@@ -231,7 +192,7 @@ class VfxInstance(
     fun restart() {
         time = 0f
         isStopping = false
-        emitters.forEach { it.reset() }
+        behaviors.forEach { it.restart() }
         pose()
     }
 
@@ -249,9 +210,15 @@ class VfxInstance(
         return environment.lightAt(origin.x + point.x, origin.y + point.y, origin.z + point.z)
     }
 
+    /** The packed light at a point of effect space. */
+    fun lightAt(point: Vec3f): Int {
+        if (!readsLight) return FULL_BRIGHT
+        return environment.lightAt(origin.x + point.x, origin.y + point.y, origin.z + point.z)
+    }
+
     private val lightCursor = MutableVec3f()
 
-    private companion object {
+    companion object {
         const val FULL_BRIGHT = 0xF000F0
     }
 }
@@ -265,7 +232,7 @@ class VfxTimelinePlayer(private val spec: VfxTimelineSpec, nodes: List<VfxNodeRu
     /** Curves paired with the channel they drive, resolved once. */
     private class PreparedTrack(
         val node: VfxNodeRuntime,
-        val property: String,
+        val property: VfxProperty,
         val channels: Int,
         val defaults: FloatArray,
         val curves: List<Pair<Int, VfxCurve>>,
@@ -282,8 +249,10 @@ class VfxTimelinePlayer(private val spec: VfxTimelineSpec, nodes: List<VfxNodeRu
         tracks = spec.tracks.mapNotNull { track -> prepare(track, byId) }
     }
 
+    fun localTime(time: Float): Float = if (spec.loop && spec.duration > 0f) time.mod(spec.duration) else time
+
     fun apply(time: Float) {
-        val local = if (spec.loop && spec.duration > 0f) time.mod(spec.duration) else time
+        val local = localTime(time)
         tracks.forEach { track -> apply(track, local) }
     }
 
@@ -299,7 +268,7 @@ class VfxTimelinePlayer(private val spec: VfxTimelineSpec, nodes: List<VfxNodeRu
         val drive = node.drive(track.property)
         drive?.let { target -> curves.forEach { (channel, _) -> target.active[channel] = true } }
 
-        return PreparedTrack(node, track.property, channels, property.read(node.spec), curves, drive)
+        return PreparedTrack(node, track.property, channels, property.read(), curves, drive)
     }
 
     private fun apply(track: PreparedTrack, time: Float) {
@@ -308,9 +277,9 @@ class VfxTimelinePlayer(private val spec: VfxTimelineSpec, nodes: List<VfxNodeRu
         }
 
         val placement = when (track.property) {
-            VfxAnimatables.POSITION -> track.node.transform.position
-            VfxAnimatables.ROTATION -> track.node.transform.rotation
-            VfxAnimatables.SCALE -> track.node.transform.scale
+            VfxProperty.POSITION -> track.node.transform.position
+            VfxProperty.ROTATION -> track.node.transform.rotation
+            VfxProperty.SCALE -> track.node.transform.scale
             else -> null
         }
         placement?.let {
@@ -323,14 +292,14 @@ class VfxTimelinePlayer(private val spec: VfxTimelineSpec, nodes: List<VfxNodeRu
         }
 
         when (track.property) {
-            VfxAnimatables.ENABLED -> track.node.enabled = values[0] >= 0.5f
-            VfxAnimatables.POSITION -> track.node.transform =
+            VfxProperty.ENABLED -> track.node.enabled = values[0] >= 0.5f
+            VfxProperty.POSITION -> track.node.transform =
                 track.node.transform.copy(position = Vec3f(values[0], values[1], values[2]))
 
-            VfxAnimatables.ROTATION -> track.node.transform =
+            VfxProperty.ROTATION -> track.node.transform =
                 track.node.transform.copy(rotation = Vec3f(values[0], values[1], values[2]))
 
-            VfxAnimatables.SCALE -> track.node.transform =
+            VfxProperty.SCALE -> track.node.transform =
                 track.node.transform.copy(scale = Vec3f(values[0], values[1], values[2]))
 
             else -> track.drive?.let { drive ->

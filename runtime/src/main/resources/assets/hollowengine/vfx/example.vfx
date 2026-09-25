@@ -1,7 +1,7 @@
 {
   "nodes": [
     {
-      "type": "hollowengine:vfx/quad_emitter",
+      "type": "hollowengine:vfx/emitter",
       "id": "flame",
       "name": "Flame",
       "transform": {
@@ -11,6 +11,15 @@
           0.0
         ]
       },
+      "children": [
+        {
+          "type": "hollowengine:vfx/plane",
+          "id": "flame-plane",
+          "material": {
+            "blend": "ADDITIVE"
+          }
+        }
+      ],
       "emission": {
         "rate": {
           "type": "const",
@@ -137,13 +146,10 @@
           },
           "scrollSpeed": 0.8
         }
-      ],
-      "material": {
-        "blend": "ADDITIVE"
-      }
+      ]
     },
     {
-      "type": "hollowengine:vfx/quad_emitter",
+      "type": "hollowengine:vfx/emitter",
       "id": "smoke",
       "name": "Smoke",
       "transform": {
@@ -153,6 +159,15 @@
           0.0
         ]
       },
+      "children": [
+        {
+          "type": "hollowengine:vfx/plane",
+          "id": "smoke-plane",
+          "material": {
+            "lighting": "WORLD"
+          }
+        }
+      ],
       "emission": {
         "rate": {
           "type": "const",
@@ -259,10 +274,7 @@
           },
           "scrollSpeed": 0.3
         }
-      ],
-      "material": {
-        "lighting": "WORLD"
-      }
+      ]
     }
   ],
   "timeline": {

@@ -36,27 +36,36 @@ object VfxNodeTypes {
     init {
         point.onChange(VfxModuleRevision::invalidate)
 
-        register(
-            VfxNodeType(
-                id = "hollowengine:vfx/quad_emitter",
-                specClass = VfxQuadEmitterSpec::class,
-                serializer = VfxQuadEmitterSpec.serializer(),
-                titleKey = "hollowengine.gui.vfx.node_quad_emitter",
-                icon = "hollowengine:textures/gui/icons/box.svg",
-                createDefault = { VfxQuadEmitterSpec() },
-            )
-        )
-        register(
-            VfxNodeType(
-                id = "hollowengine:vfx/mesh_emitter",
-                specClass = VfxMeshEmitterSpec::class,
-                serializer = VfxMeshEmitterSpec.serializer(),
-                titleKey = "hollowengine.gui.vfx.node_mesh_emitter",
-                icon = "hollowengine:textures/gui/icons/file_model.svg",
-                createDefault = { VfxMeshEmitterSpec() },
-            )
-        )
+        builtIn("group", VfxGroupSpec.serializer(), "folder.svg") { VfxGroupSpec() }
+        builtIn("emitter", VfxEmitterSpec.serializer(), "light_point.svg") {
+            VfxEmitterSpec(children = listOf(VfxPlaneSpec()))
+        }
+        builtIn("plane", VfxPlaneSpec.serializer(), "file_image.svg") { VfxPlaneSpec() }
+        builtIn("cube", VfxCubeSpec.serializer(), "box.svg") { VfxCubeSpec() }
+        builtIn("sphere", VfxSphereSpec.serializer(), "global.svg") { VfxSphereSpec() }
+        builtIn("cylinder", VfxCylinderSpec.serializer(), "loops.svg") { VfxCylinderSpec() }
+        builtIn("model", VfxModelSpec.serializer(), "file_model.svg") { VfxModelSpec() }
+        builtIn("trail", VfxTrailSpec.serializer(), "curve.svg") { VfxTrailSpec() }
+        builtIn("beam", VfxBeamSpec.serializer(), "link.svg") { VfxBeamSpec() }
+        builtIn("post_effect", VfxPostEffectSpec.serializer(), "film.svg") { VfxPostEffectSpec() }
+        builtIn("camera_shake", VfxCameraShakeSpec.serializer(), "pulse.svg") { VfxCameraShakeSpec() }
     }
+
+    private inline fun <reified S : VfxNodeSpec> builtIn(
+        name: String,
+        serializer: KSerializer<S>,
+        icon: String,
+        noinline createDefault: () -> S,
+    ) = register(
+        VfxNodeType(
+            id = "hollowengine:vfx/$name",
+            specClass = S::class,
+            serializer = serializer,
+            titleKey = "hollowengine.gui.vfx.node_$name",
+            icon = "hollowengine:textures/gui/icons/$icon",
+            createDefault = createDefault,
+        )
+    )
 
     fun register(type: VfxNodeType<*>): ExtensionHandle = point.register(type.key, type)
 
@@ -68,22 +77,12 @@ object VfxNodeTypes {
         builder.polymorphic(VfxNodeSpec::class) {
             all.forEach { type -> subclass(type) }
         }
-        builder.polymorphic(VfxEmitterSpec::class) {
-            all.filter { VfxEmitterSpec::class.java.isAssignableFrom(it.specClass.java) }
-                .forEach { type -> emitterSubclass(type) }
-        }
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun PolymorphicModuleBuilder<VfxNodeSpec>.subclass(type: VfxNodeType<*>) = subclass(
         type.specClass as KClass<VfxNodeSpec>,
         type.serializer as KSerializer<VfxNodeSpec>,
-    )
-
-    @Suppress("UNCHECKED_CAST")
-    private fun PolymorphicModuleBuilder<VfxEmitterSpec>.emitterSubclass(type: VfxNodeType<*>) = subclass(
-        type.specClass as KClass<VfxEmitterSpec>,
-        type.serializer as KSerializer<VfxEmitterSpec>,
     )
 }
 
@@ -152,7 +151,6 @@ object VfxModuleTypes {
                 serializer = VfxUvAnimationSpec.serializer(),
                 titleKey = "hollowengine.gui.vfx.module_uv_animation",
                 createDefault = { VfxUvAnimationSpec() },
-                appliesTo = { it is VfxQuadEmitterSpec },
             )
         )
     }

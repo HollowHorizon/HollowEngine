@@ -9,18 +9,15 @@ import net.irisshaders.iris.pipeline.WorldRenderingPipeline
 import net.irisshaders.iris.shaderpack.loading.ProgramId
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties
 import net.irisshaders.iris.uniforms.CapturedRenderingState
-import net.minecraft.client.renderer.ShaderInstance
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer
 import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
-import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadRenderer
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.fabric.internal.accessors.IrisRenderingPipelineAccessor
 import ru.hollowhorizon.hollowengine.fabric.internal.accessors.ProgramSourceAccessor
 import ru.hollowhorizon.hollowengine.fabric.internal.rendering.IrisInstancingBackend
 import ru.hollowhorizon.hollowengine.fabric.internal.rendering.IrisInstancingPrograms
-import ru.hollowhorizon.hollowengine.fabric.internal.rendering.IrisParticlePrograms
 
 object IrisHelper {
     @JvmStatic
@@ -71,8 +68,6 @@ object IrisHelper {
 
     fun instancingBackend(): ModelInstancingBackend = IrisInstancingBackend
 
-    fun particleShader(translucent: Boolean): ShaderInstance? = IrisParticlePrograms.shaderFor(translucent)
-
     fun capturedEntityInfo(): InstancingEntityInfo = InstancingEntityInfo(
         entity = CapturedRenderingState.INSTANCE.currentRenderedEntity,
         blockEntity = CapturedRenderingState.INSTANCE.currentRenderedBlockEntity,
@@ -82,8 +77,6 @@ object IrisHelper {
     @JvmStatic
     fun invalidateInstancingPrograms() {
         IrisInstancingPrograms.invalidate()
-        IrisParticlePrograms.invalidate()
-        VfxQuadRenderer.invalidate()
         PipelineRenderer.invalidateRuntimeInstancedBindings()
     }
 }

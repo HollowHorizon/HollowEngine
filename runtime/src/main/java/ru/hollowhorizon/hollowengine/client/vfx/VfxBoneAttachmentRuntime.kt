@@ -69,6 +69,7 @@ class VfxBoneAttachment(
             )
         )
 
+        playing.setCamera(cameraPosition)
         playing.partialTick = TickHandler.partialTick
         playing.gameTime = now
         playing.budget = VfxBudget.share(1)

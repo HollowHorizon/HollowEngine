@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 
 import androidx.compose.runtime.*
+import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.lwjgl.glfw.GLFW
@@ -26,6 +27,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.vfx.VfxNodeSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxNodeTypes
+import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val AutoSaveDelayMillis = 900L
@@ -58,13 +60,17 @@ internal fun VfxEditorPanel(file: HollowIdeOpenFile) {
         if (document.isModified) file.save()
     }
 
+    DisposableEffect(document) {
+        onDispose { RenderSystem.recordRenderCall(state.preview::close) }
+    }
+
     LaunchedEffect(document) {
         while (isActive) {
             withFrameNanos { frameNanos ->
                 state.preview.advanceCamera(frameNanos)
                 val rebuilt = state.preview.sync(document.effect, file.path)
                 val sought = state.preview.applyPendingSeek()
-                val delta = state.preview.deltaSinceLastFrame()
+                val delta = state.preview.deltaSinceLastFrame(frameNanos)
                 if (session.timeline.isPlaying && delta > 0f) state.preview.advanceBy(delta)
                 if (rebuilt || session.timeline.isPlaying && !sought) {
                     session.timeline.followPlayhead(state.preview.time)
@@ -178,7 +184,7 @@ internal class VfxEditorState(document: HollowIdeVfxDocument) {
         session.timeline.clearSelection()
     }
 
-    fun focusProperty(nodeId: String, property: String) = session.focus(nodeId, property)
+    fun focusProperty(nodeId: String, property: VfxProperty) = session.focus(nodeId, property)
 }
 
 /** The node tree, as shared scene window shows it. */

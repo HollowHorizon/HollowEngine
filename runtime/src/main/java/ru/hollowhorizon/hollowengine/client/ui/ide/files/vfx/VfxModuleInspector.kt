@@ -24,7 +24,7 @@ import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.vfx.VfxAnimatables
+import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxCollisionAction
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxCollisionSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxEmitterSpec
@@ -95,7 +95,7 @@ private fun ModuleFields(
     module: VfxModuleSpec,
 ) {
     fun replace(next: VfxModuleSpec) = document.replaceModule(emitter, index, next)
-    fun property(field: String) = VfxAnimatables.moduleProperty(module.id, field)
+    fun property(field: String) = VfxProperty.module(module.id, field)
 
     when (module) {
         is VfxVelocityOverLifetimeSpec -> {
@@ -190,14 +190,14 @@ private fun HollowIdeVfxDocument.replaceModule(emitter: VfxEmitterSpec, index: I
     val modules = emitter.modules.toMutableList()
     if (index !in modules.indices) return
     modules[index] = module
-    edit(mergeKey = "node:${emitter.id}") { it.withNode(emitter.withEmitter(modules = modules)) }
+    edit(mergeKey = "node:${emitter.id}") { it.withNode(emitter.copy(modules = modules)) }
 }
 
 private fun HollowIdeVfxDocument.removeModule(emitter: VfxEmitterSpec, index: Int) {
     val modules = emitter.modules.filterIndexed { at, _ -> at != index }
-    edit(mergeKey = "node:${emitter.id}") { it.withNode(emitter.withEmitter(modules = modules)) }
+    edit(mergeKey = "node:${emitter.id}") { it.withNode(emitter.copy(modules = modules)) }
 }
 
 private fun HollowIdeVfxDocument.addModule(emitter: VfxEmitterSpec, module: VfxModuleSpec) {
-    edit { it.withNode(emitter.withEmitter(modules = emitter.modules + module)) }
+    edit { it.withNode(emitter.copy(modules = emitter.modules + module)) }
 }

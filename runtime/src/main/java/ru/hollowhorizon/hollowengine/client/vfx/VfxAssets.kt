@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxShaders
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.vfx.VfxEffect
 import ru.hollowhorizon.hollowengine.common.vfx.VfxFormat
@@ -33,6 +34,8 @@ object VfxAssets : ResourceManagerReloadListener {
                 }
             }
         VfxScenes.onAssetsReloaded()
+        VfxShaders.clear()
+        VfxModelSurfaces.clear()
     }
 
     /** Accepts both `pack:vfx/fire.vfx` and the bare `pack:fire` an author is likely to type. */

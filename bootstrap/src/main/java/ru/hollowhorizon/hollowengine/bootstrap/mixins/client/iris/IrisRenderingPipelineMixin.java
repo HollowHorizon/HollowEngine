@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 import ru.hollowhorizon.hollowengine.fabric.internal.accessors.IrisRenderingPipelineAccessor;
 
 import java.io.IOException;
@@ -26,6 +27,11 @@ public abstract class IrisRenderingPipelineMixin implements IrisRenderingPipelin
     @Inject(method = "<init>", at = @At("TAIL"))
     private void hollowengine$captureProgramSet(ProgramSet set, CallbackInfo ci) {
         hollowengine$programSet = set;
+    }
+
+    @Inject(method = "finalizeLevelRendering", at = @At("RETURN"))
+    private void hollowengine$afterFinalPass(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onIrisLevelFinished();
     }
 
     @Override

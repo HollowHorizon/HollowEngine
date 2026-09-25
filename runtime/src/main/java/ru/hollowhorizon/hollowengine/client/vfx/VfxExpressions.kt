@@ -43,6 +43,9 @@ class VfxEvalContext {
     var partialTick: Float = 0f
     var gameTime: Float = 0f
 
+    /** Blocks from the camera to the node reading the value. */
+    var cameraDistance: Float = 0f
+
     /** The numeric leaves of the handle data store by path, refilled when the store changes. */
     var data: Map<String, Float> = emptyMap()
 
@@ -51,6 +54,30 @@ class VfxEvalContext {
 
     /** Scratch space, cleared between steps. */
     val temporaries = HashMap<String, Float>()
+
+    /** Takes every input of [other]; the variables stay this context's own. */
+    fun copyInputs(other: VfxEvalContext) {
+        rng = other.rng
+        age = other.age
+        lifetime = other.lifetime
+        progress = other.progress
+        positionX = other.positionX
+        positionY = other.positionY
+        positionZ = other.positionZ
+        velocityX = other.velocityX
+        velocityY = other.velocityY
+        velocityZ = other.velocityZ
+        speed = other.speed
+        particleRandom = other.particleRandom
+        particleIndex = other.particleIndex
+        emitterAge = other.emitterAge
+        emitterCount = other.emitterCount
+        effectTime = other.effectTime
+        partialTick = other.partialTick
+        gameTime = other.gameTime
+        cameraDistance = other.cameraDistance
+        data = other.data
+    }
 }
 
 val VfxDeclarations: Declarations<VfxEvalContext> = Declarations {
@@ -76,6 +103,10 @@ val VfxDeclarations: Declarations<VfxEvalContext> = Declarations {
         float("partial_tick") { it.partialTick }
         float("game_time") { it.gameTime }
         float("random") { it.rng.nextFloat() }
+    }
+
+    val node = struct<VfxEvalContext>("node") {
+        float("camera_distance") { it.cameraDistance }
     }
 
     val math = mathNamespace()
@@ -104,6 +135,7 @@ val VfxDeclarations: Declarations<VfxEvalContext> = Declarations {
 
     property("particle", particle, alias = "p") { it }
     property("emitter", emitter, alias = "e") { it }
+    property("node", node, alias = "n") { it }
     property("math", math) { it }
     property("variable", variables, alias = "v") { it }
     property("temp", temporaries, alias = "t") { it }

@@ -20,13 +20,13 @@ sealed interface VfxValue {
     @SerialName("range")
     data class Range(val from: Float = 0f, val to: Float = 1f) : VfxValue
 
-    /** A curve read at [source], scaled by [scale]. */
+    /** A curve read at [input], scaled by [scale]. */
     @Serializable
     @SerialName("curve")
     data class OverTime(
         val curve: VfxCurve = VfxCurve(),
         val scale: Float = 1f,
-        val source: VfxTimeSource = VfxTimeSource.LIFETIME,
+        val input: VfxCurveInput = VfxCurveInput.LIFETIME,
     ) : VfxValue
 
     /** An expression in the VFX dialect, such as `p.speed * 0.5` or `d.charge`. */
@@ -47,11 +47,13 @@ sealed interface VfxValue {
 }
 
 /**
- * What the horizontal axis of a curve means.
+ * What the horizontal axis of a curve or a gradient reads.
  */
 @Serializable
-enum class VfxTimeSource {
-    /** Age over lifetime, 0 at birth and 1 as the particle dies. The usual choice. */
+enum class VfxCurveInput {
+    /**
+     * Age over lifetime, 0 at birth and 1 as the particle dies.
+     */
     LIFETIME,
 
     /** Age in seconds, for effects that should not stretch with lifetime. */
@@ -247,7 +249,7 @@ sealed interface VfxColorValue {
     @SerialName("gradient")
     data class Gradient(
         val gradient: VfxGradient = VfxGradient.fade(),
-        val source: VfxTimeSource = VfxTimeSource.LIFETIME,
+        val input: VfxCurveInput = VfxCurveInput.LIFETIME,
     ) : VfxColorValue
 
     /** Per-channel values, for colors that follow something the other shapes cannot reach. */

@@ -4,25 +4,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
-import com.mojang.blaze3d.vertex.VertexSorting
-import net.minecraft.client.Minecraft
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
-import ru.hollowhorizon.hollowengine.client.render.DebugLines
 import ru.hollowhorizon.hollowengine.client.ui.SpringZoom
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.vfx.VfxBudget
 import ru.hollowhorizon.hollowengine.client.vfx.VfxInstance
 import ru.hollowhorizon.hollowengine.client.vfx.VfxPlaneEnvironment
-import ru.hollowhorizon.hollowengine.client.vfx.render.VfxDrawCollector
-import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadDraw
-import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadRenderer
-import ru.hollowhorizon.hollowengine.client.vfx.render.VfxView
-import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.vfx.VfxEffect
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -65,8 +56,7 @@ class VfxPreviewState {
         private set
 
     private var builtFor: VfxEffect? = null
-    private var lastGameTime = Float.NaN
-    private val draws = ArrayList<VfxQuadDraw>()
+    private var lastFrameNanos = 0L
 
     /**
      * Brings the playing instance in line with [effect]. Returns whether it had to be rebuilt.
@@ -85,7 +75,7 @@ class VfxPreviewState {
         instance = VfxInstance(effect, asset, VfxPlaneEnvironment(0.0), seed = PREVIEW_SEED).also { it.update(0f) }
         revision++
         time = 0f
-        lastGameTime = Float.NaN
+        lastFrameNanos = 0L
         if (at in 0f..CATCH_UP_LIMIT) seek(at) else refreshCount()
         return true
     }
@@ -93,19 +83,18 @@ class VfxPreviewState {
     fun restart() {
         instance?.restart()
         time = 0f
-        lastGameTime = Float.NaN
+        lastFrameNanos = 0L
         refreshCount()
     }
 
-    /** Seconds the effect has been running for, measured against the game clock. */
-    fun deltaSinceLastFrame(): Float {
-        val now = TickHandler.gameTime
-        val dt = when {
-            lastGameTime.isNaN() -> 0f
-            else -> ((now - lastGameTime) / TICKS_PER_SECOND).coerceIn(0f, MAX_STEP)
-        }
-        lastGameTime = now
-        return dt
+    /**
+     * Seconds since the previous frame of the editor.
+     */
+    fun deltaSinceLastFrame(frameNanos: Long): Float {
+        val previous = lastFrameNanos
+        lastFrameNanos = frameNanos
+        if (previous == 0L) return 0f
+        return ((frameNanos - previous) / NANOS_PER_SECOND).toFloat().coerceIn(0f, MAX_STEP)
     }
 
     /**
@@ -146,8 +135,10 @@ class VfxPreviewState {
     fun advanceBy(dt: Float) {
         val playing = instance ?: return
 
+        val eye = cameraBasis().eye
+        playing.camera.set(eye.x, eye.y, eye.z)
         playing.partialTick = TickHandler.partialTick
-        playing.gameTime = TickHandler.gameTime
+        playing.gameTime = TickHandler.clientFrame + TickHandler.partialTick
         playing.budget = VfxBudget.share(1)
         playing.update(dt)
         time = playing.time
@@ -203,13 +194,20 @@ class VfxPreviewState {
         return Basis(eye, right, up, forward)
     }
 
-    fun viewMatrix(): Matrix4f {
+    /** The camera, turned by [shake] degrees of pitch, yaw and roll when there is a shake to show. */
+    fun viewMatrix(shake: FloatArray? = null): Matrix4f {
         val basis = cameraBasis()
-        return Matrix4f().setLookAt(
+        val look = Matrix4f().setLookAt(
             basis.eye.x, basis.eye.y, basis.eye.z,
             targetX, targetY, targetZ,
             0f, 1f, 0f,
         )
+        if (shake == null) return look
+        return Matrix4f()
+            .rotateZ(Math.toRadians(shake[2].toDouble()).toFloat())
+            .rotateX(Math.toRadians(shake[0].toDouble()).toFloat())
+            .rotateY(Math.toRadians(shake[1].toDouble()).toFloat())
+            .mul(look)
     }
 
     fun perspective(width: Float, height: Float): Matrix4f =
@@ -240,73 +238,20 @@ class VfxPreviewState {
         return Vector3f(clip.x / clip.w, clip.y / clip.w, clip.w)
     }
 
+    private val renderer = VfxPreviewRenderer()
+
     /** Draws the floor and the effect into [rect]; called from a `drawGl` block. */
     fun render(rect: UiRect, stack: PoseStack) {
         val playing = instance ?: return
         if (rect.width <= 1f || rect.height <= 1f) return
-
-        val view = viewMatrix()
-        val projection =
-            Matrix4f(RenderSystem.getProjectionMatrix()).mul(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
-                .mul(pixels(rect)).mul(perspective(rect.width, rect.height))
-
-        val savedProjection = Matrix4f(RenderSystem.getProjectionMatrix())
-        val savedSorting = RenderSystem.getVertexSorting()
-        val modelView = RenderSystem.getModelViewStack()
-        modelView.pushMatrix()
-        modelView.identity()
-        RenderSystem.applyModelViewMatrix()
-        RenderSystem.setProjectionMatrix(projection, VertexSorting.DISTANCE_TO_ORIGIN)
-
-        try {
-            val viewStack = PoseStack()
-            viewStack.mulPose(view)
-
-            val buffers = Minecraft.getInstance().renderBuffers().bufferSource()
-            if (showFloor) {
-                val lines = DebugLines.batch(buffers, viewStack, DebugLines.PANEL)
-                drawFloor(lines)
-                buffers.endBatch(DebugLines.PANEL)
-            }
-
-            VfxDrawCollector.renderMeshes(playing, view)
-            buffers.endBatch()
-
-            draws.clear()
-            VfxDrawCollector.collectQuads(playing, Matrix4f(), draws)
-            if (draws.isNotEmpty()) {
-                val basis = cameraBasis()
-                VfxQuadRenderer.render(
-                    draws,
-                    VfxView(
-                        modelView = view,
-                        projection = projection,
-                        right = basis.right,
-                        up = basis.up,
-                        eye = basis.eye,
-                    ),
-                )
-                draws.clear()
-            }
-        } finally {
-            RenderSystem.setProjectionMatrix(savedProjection, savedSorting)
-            modelView.popMatrix()
-            RenderSystem.applyModelViewMatrix()
-        }
+        renderer.render(this, playing, rect, stack)
     }
 
-    private fun drawFloor(lines: DebugLines.Batch) {
-        val half = FLOOR_HALF_SIZE
-        for (step in -half..half) {
-            val offset = step.toFloat()
-            val color = if (step == 0) AXIS_COLOR else GRID_COLOR
-            lines.line(Vec3f(-half.toFloat(), 0f, offset), Vec3f(half.toFloat(), 0f, offset), color)
-            lines.line(Vec3f(offset, 0f, -half.toFloat()), Vec3f(offset, 0f, half.toFloat()), color)
-        }
-    }
+    /** Frees the target the preview draws into. */
+    fun close() = renderer.close()
 
     private companion object {
-        const val TICKS_PER_SECOND = 20f
+        const val NANOS_PER_SECOND = 1_000_000_000.0
         const val MAX_STEP = 0.25f
 
         const val PREVIEW_SEED = 0x5EED
@@ -323,15 +268,10 @@ class VfxPreviewState {
         const val MAX_DISTANCE = 60f
         const val ZOOM_PER_NOTCH = 1.1f
 
-        const val FLOOR_HALF_SIZE = 6
-
         const val CATCH_UP_STEP = 1f / 30f
         const val CATCH_UP_EPSILON = 1.0e-4f
         const val MAX_CATCH_UP_STEPS = 90
 
         const val CATCH_UP_LIMIT = 4f
-
-        const val GRID_COLOR = 0x40AFC4E0
-        const val AXIS_COLOR = 0x80DCBF73.toInt()
     }
 }

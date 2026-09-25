@@ -47,12 +47,19 @@ class VfxParticles(val capacity: Int) {
     /** Packed block light of the particle position, refreshed while it moves. */
     val light = IntArray(capacity)
 
-    private var extra: MutableMap<String, FloatArray>? = null
+    private var extra: MutableMap<String, Channel>? = null
 
-    /** A module private array, created on first use and cleared with the emitter. */
-    fun channel(name: String): FloatArray {
-        val channels = extra ?: LinkedHashMap<String, FloatArray>().also { extra = it }
-        return channels.getOrPut(name) { FloatArray(capacity) }
+    private class Channel(val stride: Int, val data: FloatArray)
+
+    /**
+     * A private array of a module or a renderer, created on first use, [stride] floats per particle
+     * that move with it when it changes slots.
+     */
+    fun channel(name: String, stride: Int = 1): FloatArray {
+        val channels = extra ?: LinkedHashMap<String, Channel>().also { extra = it }
+        val channel = channels.getOrPut(name) { Channel(stride, FloatArray(capacity * stride)) }
+        check(channel.stride == stride) { "Channel $name is already ${channel.stride} floats wide" }
+        return channel.data
     }
 
     /** Claims a slot, or returns -1 when the emitter is full. */
@@ -95,6 +102,6 @@ class VfxParticles(val capacity: Int) {
         index[to] = index[from]
         frame[to] = frame[from]
         light[to] = light[from]
-        extra?.values?.forEach { it[to] = it[from] }
+        extra?.values?.forEach { System.arraycopy(it.data, from * it.stride, it.data, to * it.stride, it.stride) }
     }
 }

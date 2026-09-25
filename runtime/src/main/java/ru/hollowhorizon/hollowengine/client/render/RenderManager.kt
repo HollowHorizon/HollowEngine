@@ -197,10 +197,10 @@ object RenderManager {
         packedLight: Int,
     ): Int {
         val (min, max) = attachment.calculateBounds() ?: return packedLight
-        val centre = MutableVec3f()
-        worldTransform.matrixF.transform((min + max) * 0.5f, 1f, centre)
+        val center = MutableVec3f()
+        worldTransform.matrixF.transform((min + max) * 0.5f, 1f, center)
 
-        val position = BlockPos.containing(centre.x.toDouble(), centre.y.toDouble(), centre.z.toDouble())
+        val position = BlockPos.containing(center.x.toDouble(), center.y.toDouble(), center.z.toDouble())
         if (position == entity.blockPosition()) return packedLight
         if (!level.getBlockState(position).isAir) {
             val above = position.above()

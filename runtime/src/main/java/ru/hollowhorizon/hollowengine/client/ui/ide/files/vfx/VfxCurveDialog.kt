@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.EmbeddedTimelineE
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineFeatures
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorButton
 import ru.hollowhorizon.hollowengine.common.vfx.VfxCurve
-import ru.hollowhorizon.hollowengine.common.vfx.VfxTimeSource
+import ru.hollowhorizon.hollowengine.common.vfx.VfxCurveInput
 import ru.hollowhorizon.hollowengine.common.vfx.VfxValue
 
 /**
@@ -49,9 +49,9 @@ internal fun VfxCurveDialog(value: VfxValue.OverTime, onChange: (VfxValue) -> Un
                 Row(modifier = Modifier.size(56.px)) {
                     VfxNumberCellInline(current.scale) { publish(current.copy(scale = it)) }
                 }
-                VfxSourcePicker(current.source) { source ->
-                    controller.workAreaEnd = domainOf(source, current.curve)
-                    publish(current.copy(source = source))
+                VfxSourcePicker(current.input) { input ->
+                    controller.workAreaEnd = domainOf(input, current.curve)
+                    publish(current.copy(input = input))
                 }
                 InspectorIcon(CloseIcon, vfxText("close")) { onClose() }
             }
@@ -71,7 +71,7 @@ private fun curveController(value: VfxValue.OverTime): TimelineController {
     val property = AnimProperty(CurvePropertyId, name, FloatPropertyType(name), value.curve.valueAt(0f, 1f))
     controller.addProperty(listOf(name), property)
     controller.replaceKeys(value.curve)
-    controller.workAreaEnd = domainOf(value.source, value.curve)
+    controller.workAreaEnd = domainOf(value.input, value.curve)
     controller.headerWidth = HeaderWidth
     controller.pixelsPerSecond = (GraphWidth / controller.workAreaEnd).coerceIn(10f, 500f)
     controller.enterCurveView()
@@ -79,8 +79,8 @@ private fun curveController(value: VfxValue.OverTime): TimelineController {
     return controller
 }
 
-private fun domainOf(source: VfxTimeSource, curve: VfxCurve): Float =
-    if (source == VfxTimeSource.LIFETIME) 1f else (curve.keys.maxOfOrNull { it.time } ?: 1f).coerceAtLeast(1f)
+private fun domainOf(input: VfxCurveInput, curve: VfxCurve): Float =
+    if (input == VfxCurveInput.LIFETIME) 1f else (curve.keys.maxOfOrNull { it.time } ?: 1f).coerceAtLeast(1f)
 
 private fun TimelineController.curve() = allProperties().single().curves.single()
 

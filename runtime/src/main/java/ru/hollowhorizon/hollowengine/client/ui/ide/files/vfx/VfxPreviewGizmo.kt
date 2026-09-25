@@ -47,7 +47,7 @@ object VfxGizmos {
         node: VfxNodeSpec,
         runtime: VfxNodeRuntime?,
         showShape: Boolean,
-        driven: (String) -> VfxDrivenValue?,
+        driven: (VfxProperty) -> VfxDrivenValue?,
     ): VfxGizmo {
         val width = preview.viewportWidth
         val height = preview.viewportHeight
@@ -78,7 +78,7 @@ object VfxGizmos {
         private val preview: VfxPreviewState,
         private val matrix: Matrix4f,
         private val frame: VfxFrame,
-        private val driven: (String) -> VfxDrivenValue?,
+        private val driven: (VfxProperty) -> VfxDrivenValue?,
     ) {
         val lines = ArrayList<VfxGizmoLine>()
         val handles = ArrayList<VfxGizmoHandle>()
@@ -147,18 +147,18 @@ object VfxGizmos {
             handles += VfxGizmoHandle(id, from.x, from.y, to.x - from.x, to.y - from.y, color, readout, apply)
         }
 
-        private fun current(property: String, channel: Int, value: VfxValue, fallback: Float): Float {
+        private fun current(property: VfxProperty, channel: Int, value: VfxValue, fallback: Float): Float {
             val keyed = driven(property)?.takeIf { it.drives(channel) }
             return keyed?.value(channel) ?: value.constantOr(fallback)
         }
 
-        private fun editable(property: String, channel: Int, value: VfxValue): Boolean =
+        private fun editable(property: VfxProperty, channel: Int, value: VfxValue): Boolean =
             value is VfxValue.Const && driven(property)?.drives(channel) != true
 
         fun shape(shape: VfxShape) {
-            val radius = current(VfxAnimatables.SHAPE_RADIUS, 0, shape.radius, 0.5f)
-            val thickness = current(VfxAnimatables.SHAPE_THICKNESS, 0, shape.thickness, 1f)
-            val radiusEditable = editable(VfxAnimatables.SHAPE_RADIUS, 0, shape.radius)
+            val radius = current(VfxProperty.SHAPE_RADIUS, 0, shape.radius, 0.5f)
+            val thickness = current(VfxProperty.SHAPE_THICKNESS, 0, shape.thickness, 1f)
+            val radiusEditable = editable(VfxProperty.SHAPE_RADIUS, 0, shape.radius)
 
             fun radiusHandle() {
                 if (!radiusEditable) return
@@ -171,7 +171,7 @@ object VfxGizmos {
             }
 
             when (shape.kind) {
-                VfxShapeKind.POINT -> {
+                VfxShapeKind.POINT, VfxShapeKind.MODEL -> {
                     val size = 0.08f
                     segment(world(-size, 0f, 0f), world(size, 0f, 0f), ShapeColor)
                     segment(world(0f, -size, 0f), world(0f, size, 0f), ShapeColor)
@@ -199,7 +199,7 @@ object VfxGizmos {
         }
 
         private fun cone(shape: VfxShape, radius: Float) {
-            val angle = current(VfxAnimatables.SHAPE_ANGLE, 0, shape.angle, 25f).coerceIn(0f, 89f)
+            val angle = current(VfxProperty.SHAPE_ANGLE, 0, shape.angle, 25f).coerceIn(0f, 89f)
             val top = radius + tan(Math.toRadians(angle.toDouble())).toFloat() * CONE_PREVIEW_HEIGHT
             circle(radius, PLANE_XZ, 0f, ShapeColor)
             circle(top, PLANE_XZ, CONE_PREVIEW_HEIGHT, ShapeFaint)
@@ -211,7 +211,7 @@ object VfxGizmos {
                     ShapeFaint,
                 )
             }
-            if (editable(VfxAnimatables.SHAPE_RADIUS, 0, shape.radius)) {
+            if (editable(VfxProperty.SHAPE_RADIUS, 0, shape.radius)) {
                 handle(
                     "radius", Vector3f(radius, 0f, 0f), Vector3f(1f, 0f, 0f), HandleColor,
                     readout = { (radius + it).coerceAtLeast(0f) },
@@ -219,7 +219,7 @@ object VfxGizmos {
                     node.withShape { it.copy(radius = VfxValue.Const((radius + delta).coerceAtLeast(0f))) }
                 }
             }
-            if (editable(VfxAnimatables.SHAPE_ANGLE, 0, shape.angle)) {
+            if (editable(VfxProperty.SHAPE_ANGLE, 0, shape.angle)) {
                 fun degreesFor(delta: Float): Float {
                     val spread = ((top + delta - radius) / CONE_PREVIEW_HEIGHT).coerceAtLeast(0f)
                     return Math.toDegrees(atan(spread).toDouble()).toFloat().coerceIn(0f, 89f)
@@ -233,9 +233,9 @@ object VfxGizmos {
 
         private fun box(shape: VfxShape) {
             val extents = shape.extents
-            val x = current(VfxAnimatables.SHAPE_EXTENTS, 0, extents.x, 0.5f)
-            val y = current(VfxAnimatables.SHAPE_EXTENTS, 1, extents.y, 0.5f)
-            val z = current(VfxAnimatables.SHAPE_EXTENTS, 2, extents.z, 0.5f)
+            val x = current(VfxProperty.SHAPE_EXTENTS, 0, extents.x, 0.5f)
+            val y = current(VfxProperty.SHAPE_EXTENTS, 1, extents.y, 0.5f)
+            val z = current(VfxProperty.SHAPE_EXTENTS, 2, extents.z, 0.5f)
             val corners = listOf(
                 world(-x, -y, -z), world(x, -y, -z), world(x, -y, z), world(-x, -y, z),
                 world(-x, y, -z), world(x, y, -z), world(x, y, z), world(-x, y, z),
@@ -244,7 +244,7 @@ object VfxGizmos {
             polyline(corners.subList(4, 8), ShapeColor, closed = true)
             for (index in 0 until 4) segment(corners[index], corners[index + 4], ShapeColor)
 
-            if (editable(VfxAnimatables.SHAPE_EXTENTS, 0, extents.x)) {
+            if (editable(VfxProperty.SHAPE_EXTENTS, 0, extents.x)) {
                 handle(
                     "extent-x",
                     Vector3f(x, 0f, 0f),
@@ -254,7 +254,7 @@ object VfxGizmos {
                     node.withShape { it.copy(extents = it.extents.copy(x = VfxValue.Const((x + delta).coerceAtLeast(0f)))) }
                 }
             }
-            if (editable(VfxAnimatables.SHAPE_EXTENTS, 1, extents.y)) {
+            if (editable(VfxProperty.SHAPE_EXTENTS, 1, extents.y)) {
                 handle(
                     "extent-y",
                     Vector3f(0f, y, 0f),
@@ -264,7 +264,7 @@ object VfxGizmos {
                     node.withShape { it.copy(extents = it.extents.copy(y = VfxValue.Const((y + delta).coerceAtLeast(0f)))) }
                 }
             }
-            if (editable(VfxAnimatables.SHAPE_EXTENTS, 2, extents.z)) {
+            if (editable(VfxProperty.SHAPE_EXTENTS, 2, extents.z)) {
                 handle(
                     "extent-z",
                     Vector3f(0f, 0f, z),
@@ -279,15 +279,15 @@ object VfxGizmos {
         private fun line(shape: VfxShape) {
             val extents = shape.extents
             val end = Vector3f(
-                current(VfxAnimatables.SHAPE_EXTENTS, 0, extents.x, 0.5f),
-                current(VfxAnimatables.SHAPE_EXTENTS, 1, extents.y, 0.5f),
-                current(VfxAnimatables.SHAPE_EXTENTS, 2, extents.z, 0.5f),
+                current(VfxProperty.SHAPE_EXTENTS, 0, extents.x, 0.5f),
+                current(VfxProperty.SHAPE_EXTENTS, 1, extents.y, 0.5f),
+                current(VfxProperty.SHAPE_EXTENTS, 2, extents.z, 0.5f),
             )
             segment(world(0f, 0f, 0f), world(end.x, end.y, end.z), ShapeColor)
 
             val length = end.length()
             val editable = (0..2).all { channel ->
-                editable(VfxAnimatables.SHAPE_EXTENTS, channel, listOf(extents.x, extents.y, extents.z)[channel])
+                editable(VfxProperty.SHAPE_EXTENTS, channel, listOf(extents.x, extents.y, extents.z)[channel])
             }
             if (!editable || length <= 1.0e-4f) return
 
@@ -309,7 +309,7 @@ object VfxGizmos {
         fun moveArrows(parent: VfxFrame?, node: VfxNodeSpec) {
             val origin = Vector3f(frame.position.x, frame.position.y, frame.position.z)
             val length = Vector3f(origin).sub(basis.eye).length() * ARROW_SHARE
-            val keyed = driven(VfxAnimatables.POSITION)
+            val keyed = driven(VfxProperty.POSITION)
 
             listOf(Vec3f.X_AXIS, Vec3f.Y_AXIS, Vec3f.Z_AXIS).forEachIndexed { index, axis ->
                 val color = listOf(AxisX, AxisY, AxisZ)[index]
@@ -349,7 +349,7 @@ object VfxGizmos {
 
     private fun VfxNodeSpec.withShape(change: (VfxShape) -> VfxShape): VfxNodeSpec {
         val emitter = this as? VfxEmitterSpec ?: return this
-        return emitter.withEmitter(shape = change(emitter.shape))
+        return emitter.copy(shape = change(emitter.shape))
     }
 
     private const val CIRCLE_SEGMENTS = 40

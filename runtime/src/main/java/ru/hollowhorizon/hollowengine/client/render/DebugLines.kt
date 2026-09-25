@@ -26,6 +26,11 @@ object DebugLines {
     val OVERLAY: RenderType = overlayLines("hollowengine:debug_overlay_lines", RenderStateShard.ITEM_ENTITY_TARGET)
     val PANEL: RenderType = overlayLines("hollowengine:debug_panel_lines", RenderStateShard.MAIN_TARGET)
 
+    val BOUND: RenderType = overlayLines(
+        "hollowengine:debug_bound_lines",
+        RenderStateShard.OutputStateShard("hollowengine:bound_target", {}, {}),
+    )
+
     private fun overlayLines(name: String, target: RenderStateShard.OutputStateShard) = RenderType.create(
         name,
         DefaultVertexFormat.POSITION_COLOR_NORMAL,

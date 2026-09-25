@@ -1,0 +1,13 @@
+{
+    "vertex": "hollowengine:vfx/post/screen",
+    "fragment": "hollowengine:vfx/post/impact",
+    "attributes": [ "Position", "UV0" ],
+    "samplers": [
+        { "name": "SceneColor" }
+    ],
+    "uniforms": [
+        { "name": "Strength", "type": "float", "count": 1, "values": [ 1.0 ] },
+        { "name": "Threshold", "type": "float", "count": 1, "values": [ 0.35 ] },
+        { "name": "Invert", "type": "float", "count": 1, "values": [ 0.0 ] }
+    ]
+}

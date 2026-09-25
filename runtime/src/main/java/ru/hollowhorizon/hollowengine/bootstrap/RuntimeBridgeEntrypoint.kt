@@ -81,6 +81,7 @@ import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
 import ru.hollowhorizon.hollowengine.common.ui.HudPlacement
 import ru.hollowhorizon.hollowengine.client.editor.WorldInspector
 import ru.hollowhorizon.hollowengine.client.ui.notification.NotificationOverlay
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxWorldRenderer
 import ru.hollowhorizon.hollowengine.common.ui.hud.HudLayerRegistry
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
@@ -792,6 +793,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onIrisPipelineDestroyed() {
         IrisHelper.invalidateInstancingPrograms()
+    }
+
+    override fun onIrisLevelFinished() {
+        VfxWorldRenderer.onShaderPackFrameFinished()
     }
 
     override fun onIrisShadowRenderStart() {

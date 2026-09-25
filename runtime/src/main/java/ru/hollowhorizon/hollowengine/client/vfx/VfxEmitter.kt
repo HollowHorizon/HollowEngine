@@ -6,14 +6,14 @@ import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.common.vfx.VfxAnimatables
 import ru.hollowhorizon.hollowengine.common.vfx.VfxDirectionMode
 import ru.hollowhorizon.hollowengine.common.vfx.VfxEmitterSpec
+import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.VfxShapeKind
 import ru.hollowhorizon.hollowengine.common.vfx.VfxSimulationSpace
-import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxUvAnimationSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxValue
 import ru.hollowhorizon.hollowengine.common.vfx.VfxVec3Value
+import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxUvAnimationSpec
 import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -23,15 +23,16 @@ import kotlin.math.tan
 import kotlin.random.Random
 
 /**
- * One emitter of a playing effect.
+ * One emitter of a playing effect. It only simulates; the renderers under its node draw.
  */
 class VfxEmitter(
     val spec: VfxEmitterSpec,
-    val instance: VfxInstance,
     val node: VfxNodeRuntime,
-    private val expressions: VfxExpressions,
-    private val seed: Int,
-) {
+) : VfxNodeBehavior {
+    val instance: VfxInstance get() = node.instance
+    private val expressions: VfxExpressions = node.expressions
+    private val seed: Int = node.seed
+
     val particles = VfxParticles(spec.emission.maxParticles.coerceIn(1, MAX_PARTICLES_PER_EMITTER))
 
     val frame: VfxFrame get() = node.frame
@@ -42,40 +43,44 @@ class VfxEmitter(
 
     private var random = Random(seed)
 
-    private val rate = scalar(VfxAnimatables.RATE, spec.emission.rate, 0f)
-    private val radius = scalar(VfxAnimatables.SHAPE_RADIUS, spec.shape.radius, 0f)
-    private val angle = scalar(VfxAnimatables.SHAPE_ANGLE, spec.shape.angle, 0f)
-    private val thickness = scalar(VfxAnimatables.SHAPE_THICKNESS, spec.shape.thickness, 1f)
-    private val extents = vector(VfxAnimatables.SHAPE_EXTENTS, spec.shape.extents, 0f)
+    private val rate = scalar(VfxProperty.RATE, spec.emission.rate, 0f)
+    private val radius = scalar(VfxProperty.SHAPE_RADIUS, spec.shape.radius, 0f)
+    private val angle = scalar(VfxProperty.SHAPE_ANGLE, spec.shape.angle, 0f)
+    private val thickness = scalar(VfxProperty.SHAPE_THICKNESS, spec.shape.thickness, 1f)
+    private val extents = vector(VfxProperty.SHAPE_EXTENTS, spec.shape.extents, 0f)
 
-    private val lifetime = scalar(VfxAnimatables.LIFETIME, spec.spawn.lifetime, 1f)
-    private val speed = scalar(VfxAnimatables.SPEED, spec.spawn.speed, 0f)
-    private val offset = vector(VfxAnimatables.OFFSET, spec.spawn.offset, 0f)
-    private val inheritVelocity = scalar(VfxAnimatables.INHERIT_VELOCITY, spec.spawn.inheritVelocity, 0f)
+    /** The surface a model shape spawns on; until it has loaded, particles start at the origin. */
+    private val modelSurface = spec.shape.model.takeIf { spec.shape.kind == VfxShapeKind.MODEL && it.isNotBlank() }
+        ?.let(VfxModelSurfaces::request)
+
+    private val lifetime = scalar(VfxProperty.LIFETIME, spec.spawn.lifetime, 1f)
+    private val speed = scalar(VfxProperty.SPEED, spec.spawn.speed, 0f)
+    private val offset = vector(VfxProperty.OFFSET, spec.spawn.offset, 0f)
+    private val inheritVelocity = scalar(VfxProperty.INHERIT_VELOCITY, spec.spawn.inheritVelocity, 0f)
 
     private val appearance = spec.appearance
-    private val size = vector(VfxAnimatables.SIZE, appearance.size, 1f, VfxRangeMode.PER_PARTICLE)
-    private val spin = vector(VfxAnimatables.SPIN, appearance.rotation, 0f, VfxRangeMode.PER_PARTICLE)
+    private val size = vector(VfxProperty.SIZE, appearance.size, 1f, VfxRangeMode.PER_PARTICLE)
+    private val spin = vector(VfxProperty.SPIN, appearance.rotation, 0f, VfxRangeMode.PER_PARTICLE)
     private val color = VfxSamplers.color(
         appearance.color,
         expressions,
-        salt = VfxAnimatables.COLOR.hashCode(),
-        drive = node.drive(VfxAnimatables.COLOR),
+        salt = VfxProperty.COLOR.hashCode(),
+        drive = node.drive(VfxProperty.COLOR),
     )
 
-    private val liveSize = isLive(VfxAnimatables.SIZE, appearance.size)
-    private val liveSpin = isLive(VfxAnimatables.SPIN, appearance.rotation)
+    private val liveSize = isLive(VfxProperty.SIZE, appearance.size)
+    private val liveSpin = isLive(VfxProperty.SPIN, appearance.rotation)
     private val liveColor = !VfxSamplers.isFixedPerParticle(appearance.color) ||
-            node.drive(VfxAnimatables.COLOR) != null
+            node.drive(VfxProperty.COLOR) != null
 
-    private val gravity = scalar(VfxAnimatables.GRAVITY, spec.motion.gravity, 0f, VfxRangeMode.PER_PARTICLE)
-    private val drag = scalar(VfxAnimatables.DRAG, spec.motion.drag, 0f, VfxRangeMode.PER_PARTICLE)
+    private val gravity = scalar(VfxProperty.GRAVITY, spec.motion.gravity, 0f, VfxRangeMode.PER_PARTICLE)
+    private val drag = scalar(VfxProperty.DRAG, spec.motion.drag, 0f, VfxRangeMode.PER_PARTICLE)
 
     private val modules: List<VfxModule> = spec.modules
         .filter { it.enabled }
         .mapNotNull { module ->
             VfxModuleRuntimes.create(module, VfxModuleContext(spec, expressions) { field ->
-                node.drive(VfxAnimatables.moduleProperty(module.id, field))
+                node.drive(VfxProperty.module(module.id, field))
             })
         }
 
@@ -105,6 +110,8 @@ class VfxEmitter(
     val isFinished: Boolean
         get() = (stopping || isExpired()) && particles.count == 0
 
+    override val isIdle: Boolean get() = particles.count == 0
+
     private val spawnOrigin = MutableVec3f()
     private var spawnRotation: QuatF = QuatF.IDENTITY
     private val spawnScale = MutableVec3f(Vec3f.ONES)
@@ -125,24 +132,19 @@ class VfxEmitter(
     var previousZ: Float = 0f
 
     init {
-        reset()
+        restart()
     }
 
-    /** Stops emitting; whatever is alive lives out its lifetime. */
-    fun stop() {
-        stopping = true
-    }
-
-    /** Stops emitting and drops everything alive at once. */
-    fun clear() {
-        particles.clear()
+    /** Stops emitting; whatever is alive lives out its lifetime, unless [immediate] drops it at once. */
+    override fun stop(immediate: Boolean) {
+        if (immediate) particles.clear()
         stopping = true
     }
 
     /**
      * Puts the emitter back where it was when the effect was created.
      */
-    fun reset() {
+    override fun restart() {
         particles.clear()
         random = Random(seed)
         context.rng = random
@@ -162,7 +164,7 @@ class VfxEmitter(
     /**
      * Recomputes how the emitter maps to what is drawn, after the node has placed its frame.
      */
-    fun refreshSpace() {
+    override fun place() {
         when (spec.space) {
             VfxSimulationSpace.LOCAL -> {
                 frame.toFollowedMatrix(simToRender, spec.inheritRotation, spec.inheritScale)
@@ -184,7 +186,7 @@ class VfxEmitter(
     /**
      * Advances the emitter by [dt] seconds, split into steps no longer than the emitter asked for.
      */
-    fun update(dt: Float) {
+    override fun update(dt: Float) {
         if (dt <= 0f) return
 
         val maxStep = spec.maxStep.coerceAtLeast(MIN_STEP)
@@ -486,6 +488,8 @@ class VfxEmitter(
                 val along = random.nextFloat()
                 position.set(scratchVector.x * along, scratchVector.y * along, scratchVector.z * along)
             }
+
+            VfxShapeKind.MODEL -> modelSurface?.surface?.sample(random, position, direction)
         }
 
         when (shape.directionMode) {
@@ -509,7 +513,7 @@ class VfxEmitter(
     fun noiseSeed(axis: Int): Int = seed + axis * 6151
 
     private fun scalar(
-        property: String,
+        property: VfxProperty,
         value: VfxValue,
         default: Float,
         range: VfxRangeMode = VfxRangeMode.FRESH,
@@ -519,13 +523,13 @@ class VfxEmitter(
     )
 
     private fun vector(
-        property: String,
+        property: VfxProperty,
         value: VfxVec3Value,
         default: Float,
         range: VfxRangeMode = VfxRangeMode.FRESH,
     ): VfxVec3Sampler = VfxSamplers.vec3(value, expressions, default, range, property.hashCode(), node.drive(property))
 
-    private fun isLive(property: String, value: VfxVec3Value): Boolean =
+    private fun isLive(property: VfxProperty, value: VfxVec3Value): Boolean =
         !VfxSamplers.isFixedPerParticle(value) || node.drive(property) != null
 
     companion object {

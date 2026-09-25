@@ -14,7 +14,8 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.vfx.VfxCurve
-import ru.hollowhorizon.hollowengine.common.vfx.VfxTimeSource
+import ru.hollowhorizon.hollowengine.common.vfx.VfxCurveInput
+import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.VfxValue
 import ru.hollowhorizon.hollowengine.common.vfx.VfxVec3Value
 import kotlin.math.abs
@@ -23,12 +24,12 @@ import kotlin.math.abs
  * What the inspector calls when a field of an animatable property takes the focus, with the id of
  * that property.
  */
-val LocalVfxFieldFocus = staticCompositionLocalOf<(String) -> Unit> { {} }
+val LocalVfxFieldFocus = staticCompositionLocalOf<(VfxProperty) -> Unit> { {} }
 
 /**
  * What the timeline currently writes into a property, or null when it has no keys for it.
  */
-val LocalVfxDriven = staticCompositionLocalOf<(String) -> VfxDrivenValue?> { { null } }
+val LocalVfxDriven = staticCompositionLocalOf<(VfxProperty) -> VfxDrivenValue?> { { null } }
 
 /** The value a timeline track holds right now, and which of its channels track has keys on. */
 class VfxDrivenValue(val values: FloatArray, private val channels: Set<Int>) {
@@ -110,7 +111,7 @@ private fun HintIcon(text: String) {
 fun VfxValueRow(
     label: String,
     value: VfxValue,
-    property: String? = null,
+    property: VfxProperty? = null,
     hint: String? = null,
     channel: Int = 0,
     onChange: (VfxValue) -> Unit,
@@ -136,7 +137,7 @@ fun VfxValueRow(
 fun VfxVec3Row(
     label: String,
     value: VfxVec3Value,
-    property: String? = null,
+    property: VfxProperty? = null,
     hint: String? = null,
     uniform: Boolean = false,
     onChange: (VfxVec3Value) -> Unit,
@@ -201,7 +202,7 @@ fun VfxVec3Row(
 fun VfxFloat3Row(
     label: String,
     value: Vec3f,
-    property: String? = null,
+    property: VfxProperty? = null,
     hint: String? = null,
     onChange: (Vec3f) -> Unit,
 ) {
@@ -251,7 +252,7 @@ fun VfxIntRow(
 private fun AxisNumber(
     axis: String,
     value: Float,
-    property: String?,
+    property: VfxProperty?,
     driven: VfxDrivenValue?,
     channel: Int,
     onChange: (Float) -> Unit,
@@ -284,13 +285,13 @@ private fun DrivenCell(value: Float) {
 }
 
 @Composable
-private fun DrivenMark(property: String?) {
+private fun DrivenMark(property: VfxProperty?) {
     val focus = LocalVfxFieldFocus.current
     InspectorIcon(KeyframeIcon, vfxText("driven_show")) { if (property != null) focus(property) }
 }
 
 @Composable
-private fun NumberCell(value: Float, property: String?, whole: Boolean, onChange: (Float) -> Unit) {
+private fun NumberCell(value: Float, property: VfxProperty?, whole: Boolean, onChange: (Float) -> Unit) {
     val focus = LocalVfxFieldFocus.current
     var draft by remember { mutableStateOf(formatNumber(value)) }
     var lastExternal by remember { mutableStateOf(value) }
@@ -320,7 +321,7 @@ internal fun VfxNumberCellInline(value: Float, onChange: (Float) -> Unit) =
     NumberCell(value, null, whole = false, onChange = onChange)
 
 @Composable
-private fun TextCell(text: String, property: String?, onChange: (String) -> Unit) {
+private fun TextCell(text: String, property: VfxProperty?, onChange: (String) -> Unit) {
     val focus = LocalVfxFieldFocus.current
     var draft by remember { mutableStateOf(text) }
     var lastExternal by remember { mutableStateOf(text) }
@@ -345,7 +346,7 @@ private fun TextCell(text: String, property: String?, onChange: (String) -> Unit
 }
 
 @Composable
-private fun ValueCells(value: VfxValue, property: String?, onChange: (VfxValue) -> Unit) {
+private fun ValueCells(value: VfxValue, property: VfxProperty?, onChange: (VfxValue) -> Unit) {
     when (value) {
         is VfxValue.Const -> NumberCell(value.value, property, whole = false) { onChange(VfxValue.Const(it)) }
 
@@ -361,7 +362,7 @@ private fun ValueCells(value: VfxValue, property: String?, onChange: (VfxValue) 
 }
 
 @Composable
-private fun CurveCell(value: VfxValue.OverTime, property: String?, onChange: (VfxValue) -> Unit) {
+private fun CurveCell(value: VfxValue.OverTime, property: VfxProperty?, onChange: (VfxValue) -> Unit) {
     val focus = LocalVfxFieldFocus.current
     var editing by remember { mutableStateOf(false) }
 
@@ -402,7 +403,7 @@ private fun KindPicker(value: VfxValue, onChange: (VfxValue) -> Unit) {
 }
 
 @Composable
-internal fun VfxSourcePicker(source: VfxTimeSource, onChange: (VfxTimeSource) -> Unit) {
+internal fun VfxSourcePicker(source: VfxCurveInput, onChange: (VfxCurveInput) -> Unit) {
     var open by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(UiRect.Zero) }
 
@@ -414,7 +415,7 @@ internal fun VfxSourcePicker(source: VfxTimeSource, onChange: (VfxTimeSource) ->
     ContextMenu(
         id = "vfx-source",
         anchorBounds = anchor,
-        items = VfxTimeSource.entries.map { entry ->
+        items = VfxCurveInput.entries.map { entry ->
             UiDropdownItem(vfxText("source_${entry.name.lowercase()}"), checked = entry == source) { onChange(entry) }
         },
         onExpandedChange = { if (!it) open = false },

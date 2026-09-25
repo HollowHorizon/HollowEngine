@@ -1,13 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.vfx.render
 
+import net.minecraft.util.Mth
 import org.joml.Matrix4f
-import ru.hollowhorizon.hollowengine.client.vfx.VfxEmitter
+import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadPacker.Companion.STRIDE
-import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.vfx.VfxBlend
 import ru.hollowhorizon.hollowengine.common.vfx.VfxFacing
 import ru.hollowhorizon.hollowengine.common.vfx.VfxMaterialSpec
-import ru.hollowhorizon.hollowengine.common.vfx.VfxQuadEmitterSpec
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -18,35 +17,50 @@ import kotlin.math.sqrt
  * [MIXED] is the one that lets different blend modes share a draw: with premultiplied alpha and a
  * `ONE, ONE_MINUS_SRC_ALPHA` blend, an alpha-blended particle writes its alpha, an additive one
  * writes zero alpha, and an opaque one writes one, so the three differ per particle rather than per
- * draw. Only multiplying needs a blend function of its own. A shader pack does its own output, so
- * with one active every mode keeps a batch of its own.
+ * draw. Only multiplying needs a blend function of its own. A shader of the author does not know
+ * about the trick, so its batches keep a blend function per mode.
  */
 internal enum class VfxBatchBlend {
-    MIXED, OPAQUE, BLEND, ADDITIVE, MULTIPLY,
+    MIXED, OPAQUE, BLEND, ADDITIVE, MULTIPLY;
+
+    companion object {
+        fun of(blend: VfxBlend, mixed: Boolean) = when {
+            blend == VfxBlend.MULTIPLY -> MULTIPLY
+            mixed -> MIXED
+            blend == VfxBlend.OPAQUE -> OPAQUE
+            blend == VfxBlend.ADDITIVE -> ADDITIVE
+            else -> BLEND
+        }
+    }
 }
 
-/** What decides whether two emitters can share a draw call. */
+/**
+ * What decides whether two draws can share a draw call.
+ *
+ * A draw with a shader of its own also carries uniforms of its own, so [owner] keeps it apart.
+ */
 internal data class VfxBatchKey(
     val texture: String,
     val blend: VfxBatchBlend,
     val cull: Boolean,
     val depthTest: Boolean,
     val depthWrite: Boolean,
+    val shader: String? = null,
+    val owner: Any? = null,
 ) {
     companion object {
-        fun of(material: VfxMaterialSpec, mixed: Boolean) = VfxBatchKey(
-            texture = material.texture,
-            blend = when {
-                material.blend == VfxBlend.MULTIPLY -> VfxBatchBlend.MULTIPLY
-                mixed -> VfxBatchBlend.MIXED
-                material.blend == VfxBlend.OPAQUE -> VfxBatchBlend.OPAQUE
-                material.blend == VfxBlend.ADDITIVE -> VfxBatchBlend.ADDITIVE
-                else -> VfxBatchBlend.BLEND
-            },
-            cull = material.cull,
-            depthTest = material.depthTest,
-            depthWrite = material.depthWrite,
-        )
+        fun of(material: VfxMaterialSpec, mixed: Boolean, owner: Any?): VfxBatchKey {
+            val custom = material.shader != null
+            return VfxBatchKey(
+                texture = material.texture,
+                blend = VfxBatchBlend.of(material.blend, mixed && !custom),
+                cull = material.cull,
+                depthTest = material.depthTest,
+                depthWrite = material.depthWrite,
+                shader = material.shader,
+                owner = if (custom) owner else null,
+            )
+        }
     }
 }
 
@@ -59,11 +73,15 @@ internal class VfxQuadBatch(val key: VfxBatchKey) {
 
     /** Whether anything in the batch is alpha blended, which is what makes its order matter. */
     val sorted: Boolean
-        get() = key.blend == VfxBatchBlend.BLEND || key.blend == VfxBatchBlend.MIXED && draws.any { (it.emitter.spec as VfxQuadEmitterSpec).material.blend == VfxBlend.BLEND }
+        get() = key.blend == VfxBatchBlend.BLEND ||
+                key.blend == VfxBatchBlend.MIXED && draws.any { it.plane.material.blend == VfxBlend.BLEND }
+
+    /** The uniforms of the one draw a batch with a shader of its own holds. */
+    val uniforms: VfxUniformValues? get() = draws.firstOrNull()?.uniforms
 }
 
 /**
- * Turns the collected emitters into instance data, grouped into batches and in draw order.
+ * Turns the collected planes into instance data, grouped into batches and in draw order.
  */
 internal class VfxQuadPacker {
     /** Particles written in draw order, [STRIDE] floats each. */
@@ -76,21 +94,19 @@ internal class VfxQuadPacker {
     private var staging = FloatArray(STRIDE * 256)
     private var order = IntArray(256)
     private var depths = FloatArray(256)
-    private val axis = MutableVec3f()
     private val edges = FloatArray(6)
 
     /** Packs [draws] as seen from [view]; returns how many particles there are in total. */
-    fun pack(draws: List<VfxQuadDraw>, view: VfxView, mixed: Boolean): Int {
+    fun pack(draws: List<VfxQuadDraw>, view: VfxView): Int {
         byKey.clear()
         draws.forEach { draw ->
-            val spec = draw.emitter.spec as? VfxQuadEmitterSpec ?: return@forEach
-            val key = VfxBatchKey.of(spec.material, mixed)
+            val key = VfxBatchKey.of(draw.plane.material, mixed = true, owner = draw)
             byKey.getOrPut(key) { VfxQuadBatch(key) }.draws += draw
         }
 
         var total = 0
         byKey.values.forEach { batch ->
-            batch.count = batch.draws.sumOf { it.emitter.particles.count }
+            batch.count = batch.draws.sumOf { it.batch.particles.count }
             total += batch.count
         }
         batches.clear()
@@ -116,9 +132,8 @@ internal class VfxQuadPacker {
         var depthSum = 0f
 
         batch.draws.forEach { draw ->
-            val emitter = draw.emitter
-            for (slot in 0 until emitter.particles.count) {
-                write(target, offset, emitter, slot, draw.matrix, view)
+            for (slot in 0 until draw.batch.particles.count) {
+                write(target, offset, draw, slot, view)
                 if (sorted) {
                     val index = offset / STRIDE
                     val depth = distanceSquared(target, offset, view)
@@ -155,55 +170,108 @@ internal class VfxQuadPacker {
         return dx * dx + dy * dy + dz * dz
     }
 
-    private fun write(out: FloatArray, at: Int, emitter: VfxEmitter, slot: Int, matrix: Matrix4f, view: VfxView) {
-        val spec = emitter.spec as VfxQuadEmitterSpec
-        val particles = emitter.particles
+    private fun write(out: FloatArray, at: Int, draw: VfxQuadDraw, slot: Int, view: VfxView) {
+        val plane = draw.plane
+        val batch = draw.batch
+        val particles = batch.particles
+        val matrix = batch.matrix
 
-        val px = particles.positionX[slot]
-        val py = particles.positionY[slot]
-        val pz = particles.positionZ[slot]
+        val px = particles.positionX[slot] + batch.offset.x
+        val py = particles.positionY[slot] + batch.offset.y
+        val pz = particles.positionZ[slot] + batch.offset.z
         val cx = matrix.m00() * px + matrix.m10() * py + matrix.m20() * pz + matrix.m30()
         val cy = matrix.m01() * px + matrix.m11() * py + matrix.m21() * pz + matrix.m31()
         val cz = matrix.m02() * px + matrix.m12() * py + matrix.m22() * pz + matrix.m32()
 
-        val width = particles.sizeX[slot]
-        val height = particles.sizeY[slot]
-        when (spec.facing) {
-            VfxFacing.CAMERA -> cameraEdges(edges, matrix, view, particles.rotationZ[slot], width, height)
-            VfxFacing.CAMERA_AXIS -> axisEdges(edges, emitter, spec, matrix, view, cx, cy, cz, width, height)
-            VfxFacing.NONE -> rotatedEdges(
+        val width = particles.sizeX[slot] * batch.sizeScale.x
+        val height = particles.sizeY[slot] * batch.sizeScale.y
+        val roll = particles.rotationZ[slot] + batch.spin.z
+        when (plane.facing) {
+            VfxFacing.CAMERA -> VfxBillboards.cameraEdges(edges, matrix, view, roll, width, height)
+            VfxFacing.CAMERA_AXIS -> VfxBillboards.axisEdges(
+                edges, matrix, view, cx, cy, cz,
+                plane.facingAxis.x, plane.facingAxis.y, plane.facingAxis.z,
+                width, height,
+            )
+
+            VfxFacing.VELOCITY -> VfxBillboards.axisEdges(
+                edges, matrix, view, cx, cy, cz,
+                particles.velocityX[slot], particles.velocityY[slot], particles.velocityZ[slot],
+                width, height,
+            )
+
+            VfxFacing.NONE -> VfxBillboards.rotatedEdges(
                 edges, matrix,
-                particles.rotationX[slot], particles.rotationY[slot], particles.rotationZ[slot],
+                particles.rotationX[slot] + batch.spin.x, particles.rotationY[slot] + batch.spin.y, roll,
                 width, height,
             )
         }
 
-        val region = spec.material.uv
-        val columns = emitter.uvColumns
-        val rows = emitter.uvRows
+        val region = plane.material.uv
+        val columns = batch.uvColumns
+        val rows = batch.uvRows
         val cellWidth = region.width / columns
         val cellHeight = region.height / rows
         val frame = particles.frame[slot].toInt().coerceIn(0, columns * rows - 1)
         val light = particles.light[slot]
+        val tint = batch.tint
 
         out[at] = cx
         out[at + 1] = cy
         out[at + 2] = cz
         System.arraycopy(edges, 0, out, at + 3, 6)
-        out[at + 9] = particles.colorR[slot]
-        out[at + 10] = particles.colorG[slot]
-        out[at + 11] = particles.colorB[slot]
-        out[at + 12] = particles.colorA[slot]
+        out[at + 9] = particles.colorR[slot] * tint[0]
+        out[at + 10] = particles.colorG[slot] * tint[1]
+        out[at + 11] = particles.colorB[slot] * tint[2]
+        out[at + 12] = particles.colorA[slot] * tint[3]
         out[at + 13] = region.u0 + (frame % columns) * cellWidth
         out[at + 14] = region.v0 + (frame / columns) * cellHeight
         out[at + 15] = cellWidth
         out[at + 16] = cellHeight
         out[at + 17] = (light and 0xFFFF).toFloat()
         out[at + 18] = (light shr 16 and 0xFFFF).toFloat()
-        out[at + 19] = blendMode(spec.material.blend)
+        out[at + 19] = blendMode(plane.material.blend)
     }
 
-    private fun cameraEdges(
+    private fun ensureCapacity(count: Int) {
+        if (packed.size >= count * STRIDE) return
+        val capacity = Integer.highestOneBit((count - 1).coerceAtLeast(255)) * 2
+        packed = FloatArray(capacity * STRIDE)
+        staging = FloatArray(capacity * STRIDE)
+        order = IntArray(capacity)
+        depths = FloatArray(capacity)
+    }
+
+    companion object {
+        /** Floats per particle: center, right edge, up edge, color, uv window, light, blend mode. */
+        const val STRIDE = 20
+
+        /** The blend mode as the particle shader reads it: 0 alpha, 1 additive, 2 opaque, 3 multiply. */
+        fun blendMode(blend: VfxBlend): Float = when (blend) {
+            VfxBlend.BLEND -> 0f
+            VfxBlend.ADDITIVE -> 1f
+            VfxBlend.OPAQUE -> 2f
+            VfxBlend.MULTIPLY -> 3f
+        }
+    }
+}
+
+/**
+ * The two edge vectors of a quad in the space of the view, however it faces the camera.
+ */
+internal object VfxBillboards {
+    private const val EPSILON = 1.0e-6f
+    private const val DEG_TO_RAD = (Math.PI / 180.0).toFloat()
+
+    /** Turns a velocity into a rotation that points a mesh or a model along it. */
+    fun facing(x: Float, y: Float, z: Float): Quaternionf {
+        if (x * x + y * y + z * z < EPSILON) return Quaternionf()
+        val yaw = Mth.atan2(x.toDouble(), z.toDouble()).toFloat()
+        val pitch = Mth.atan2(y.toDouble(), Mth.sqrt(x * x + z * z).toDouble()).toFloat()
+        return Quaternionf().rotateY(yaw).rotateX(-pitch)
+    }
+
+    fun cameraEdges(
         out: FloatArray,
         matrix: Matrix4f,
         view: VfxView,
@@ -225,31 +293,35 @@ internal class VfxQuadPacker {
         out[5] = (view.up.z * c - view.right.z * s) * h
     }
 
-    private fun axisEdges(
+    /**
+     * A quad along an axis given in the space of the particles, turned around it to face the
+     * camera. With no axis to speak of, it simply faces the camera.
+     */
+    fun axisEdges(
         out: FloatArray,
-        emitter: VfxEmitter,
-        spec: VfxQuadEmitterSpec,
         matrix: Matrix4f,
         view: VfxView,
         cx: Float,
         cy: Float,
         cz: Float,
+        axisX: Float,
+        axisY: Float,
+        axisZ: Float,
         width: Float,
         height: Float,
     ) {
-        emitter.toSimDirection(spec.facingAxis, axis)
-        var ax = matrix.m00() * axis.x + matrix.m10() * axis.y + matrix.m20() * axis.z
-        var ay = matrix.m01() * axis.x + matrix.m11() * axis.y + matrix.m21() * axis.z
-        var az = matrix.m02() * axis.x + matrix.m12() * axis.y + matrix.m22() * axis.z
+        var ax = matrix.m00() * axisX + matrix.m10() * axisY + matrix.m20() * axisZ
+        var ay = matrix.m01() * axisX + matrix.m11() * axisY + matrix.m21() * axisZ
+        var az = matrix.m02() * axisX + matrix.m12() * axisY + matrix.m22() * axisZ
         val axisLength = sqrt(ax * ax + ay * ay + az * az)
-        val scale: Float
         if (axisLength < EPSILON) {
-            ax = view.up.x; ay = view.up.y; az = view.up.z
-            scale = 1f
-        } else {
-            ax /= axisLength; ay /= axisLength; az /= axisLength
-            scale = axisLength
+            cameraEdges(out, matrix, view, 0f, width, height)
+            return
         }
+        ax /= axisLength
+        ay /= axisLength
+        az /= axisLength
+        val scale = sqrt(matrix.m00() * matrix.m00() + matrix.m01() * matrix.m01() + matrix.m02() * matrix.m02())
 
         val tx = view.eye.x - cx
         val ty = view.eye.y - cy
@@ -271,7 +343,7 @@ internal class VfxQuadPacker {
         out[5] = az * height * scale
     }
 
-    private fun rotatedEdges(
+    fun rotatedEdges(
         out: FloatArray,
         matrix: Matrix4f,
         degreesX: Float,
@@ -300,30 +372,5 @@ internal class VfxQuadPacker {
         out[3] = matrix.m00() * vx + matrix.m10() * vy + matrix.m20() * vz
         out[4] = matrix.m01() * vx + matrix.m11() * vy + matrix.m21() * vz
         out[5] = matrix.m02() * vx + matrix.m12() * vy + matrix.m22() * vz
-    }
-
-    private fun ensureCapacity(count: Int) {
-        if (packed.size >= count * STRIDE) return
-        val capacity = Integer.highestOneBit((count - 1).coerceAtLeast(255)) * 2
-        packed = FloatArray(capacity * STRIDE)
-        staging = FloatArray(capacity * STRIDE)
-        order = IntArray(capacity)
-        depths = FloatArray(capacity)
-    }
-
-    companion object {
-        /** Floats per particle: center, right edge, up edge, color, uv window, light, blend mode. */
-        const val STRIDE = 20
-
-        private const val EPSILON = 1.0e-6f
-        private const val DEG_TO_RAD = (Math.PI / 180.0).toFloat()
-
-        /** The blend mode as the particle shader reads it: 0 alpha, 1 additive, 2 opaque, 3 multiply. */
-        fun blendMode(blend: VfxBlend): Float = when (blend) {
-            VfxBlend.BLEND -> 0f
-            VfxBlend.ADDITIVE -> 1f
-            VfxBlend.OPAQUE -> 2f
-            VfxBlend.MULTIPLY -> 3f
-        }
     }
 }
