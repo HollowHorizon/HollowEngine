@@ -39,7 +39,8 @@ class VfxGizmo(val lines: List<VfxGizmoLine>, val handles: List<VfxGizmoHandle>)
 }
 
 /**
- * Builds the gizmo of one node as the preview camera sees it.
+ * Builds the handles of an emitter's shape as the preview camera sees it. Placement is the world
+ * transform gizmo's job ([VfxTransformGizmo]).
  */
 object VfxGizmos {
     fun build(
@@ -55,7 +56,6 @@ object VfxGizmos {
 
         val builder = Builder(preview, preview.panelMatrix(width, height), runtime.frame, driven)
         if (showShape && node is VfxEmitterSpec) builder.shape(node.shape)
-        builder.moveArrows(runtime.parent?.frame, node)
         return VfxGizmo(builder.lines, builder.handles)
     }
 
@@ -305,46 +305,6 @@ object VfxGizmos {
                 }
             }
         }
-
-        fun moveArrows(parent: VfxFrame?, node: VfxNodeSpec) {
-            val origin = Vector3f(frame.position.x, frame.position.y, frame.position.z)
-            val length = Vector3f(origin).sub(basis.eye).length() * ARROW_SHARE
-            val keyed = driven(VfxProperty.POSITION)
-
-            listOf(Vec3f.X_AXIS, Vec3f.Y_AXIS, Vec3f.Z_AXIS).forEachIndexed { index, axis ->
-                val color = listOf(AxisX, AxisY, AxisZ)[index]
-                val direction = MutableVec3f()
-                if (parent != null) parent.transformDirection(axis, direction) else direction.set(axis)
-                val scale = sqrt(direction.sqrLength()).takeIf { it > 1.0e-6f } ?: 1f
-                val unit = Vector3f(direction.x / scale, direction.y / scale, direction.z / scale)
-                val tip = Vector3f(unit).mul(length).add(origin)
-                segment(origin, tip, color)
-                if (keyed?.drives(index) == true) return@forEachIndexed
-
-                val from = preview.project(matrix, origin) ?: return@forEachIndexed
-                val to = preview.project(matrix, tip) ?: return@forEachIndexed
-                if (!sane(to)) return@forEachIndexed
-                val perUnit = scale / length
-                val start = node.transform.position
-                val startValue = listOf(start.x, start.y, start.z)[index]
-                handles += VfxGizmoHandle(
-                    id = "move-$index",
-                    x = to.x,
-                    y = to.y,
-                    screenAxisX = (to.x - from.x) * perUnit,
-                    screenAxisY = (to.y - from.y) * perUnit,
-                    color = color,
-                    readout = { startValue + it },
-                ) { spec, delta ->
-                    val moved = when (index) {
-                        0 -> Vec3f(start.x + delta, start.y, start.z)
-                        1 -> Vec3f(start.x, start.y + delta, start.z)
-                        else -> Vec3f(start.x, start.y, start.z + delta)
-                    }
-                    spec.withCommon(transform = spec.transform.copy(position = moved))
-                }
-            }
-        }
     }
 
     private fun VfxNodeSpec.withShape(change: (VfxShape) -> VfxShape): VfxNodeSpec {
@@ -359,8 +319,6 @@ object VfxGizmos {
     private const val CONE_PREVIEW_HEIGHT = 1f
     private const val NEAR_CLIP = 0.06f
     private const val SCREEN_LIMIT = 8000f
-
-    private const val ARROW_SHARE = 0.14f
 
     private const val FINE_FACTOR = 0.1f
     private const val TICK = 0.1f

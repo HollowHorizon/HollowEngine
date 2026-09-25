@@ -11,6 +11,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
+import ru.hollowhorizon.hollowengine.client.vfx.VfxParticleLook
 
 /**
  * Draws one frame worth of effects, everything but the full-screen passes, which come once the
@@ -62,17 +63,20 @@ object VfxFrameRenderer {
                         VfxBillboards.facing(particles.velocityX[slot], particles.velocityY[slot], particles.velocityZ[slot])
                     )
                 }
+                val look = batch.look
+                val spin = batch.lookOf(slot) + VfxParticleLook.ROTATION
+                val size = batch.lookOf(slot) + VfxParticleLook.SIZE
                 stack.mulPose(
                     Quaternionf().rotateZYX(
-                        (particles.rotationZ[slot] + batch.spin.z) * Mth.DEG_TO_RAD,
-                        (particles.rotationY[slot] + batch.spin.y) * Mth.DEG_TO_RAD,
-                        (particles.rotationX[slot] + batch.spin.x) * Mth.DEG_TO_RAD,
+                        (look[spin + 2] + batch.spin.z) * Mth.DEG_TO_RAD,
+                        (look[spin + 1] + batch.spin.y) * Mth.DEG_TO_RAD,
+                        (look[spin] + batch.spin.x) * Mth.DEG_TO_RAD,
                     )
                 )
                 stack.scale(
-                    particles.sizeX[slot] * batch.sizeScale.x,
-                    particles.sizeY[slot] * batch.sizeScale.y,
-                    particles.sizeZ[slot] * batch.sizeScale.z,
+                    look[size] * batch.sizeScale.x,
+                    look[size + 1] * batch.sizeScale.y,
+                    look[size + 2] * batch.sizeScale.z,
                 )
 
                 attachment.pipeline.render(

@@ -45,10 +45,10 @@ class VfxDrivenValue(val values: FloatArray, private val channels: Set<Int>) {
  * expression one wide field, and a curve, the only one that cannot be typed, shows its shape.
  */
 private enum class VfxValueKind(val key: String, val icon: String) {
-    CONST("kind_const", "hollowengine:textures/gui/icons/types.svg"),
-    RANGE("kind_range", "hollowengine:textures/gui/icons/range.svg"),
-    CURVE("kind_curve", "hollowengine:textures/gui/icons/curve.svg"),
-    EXPR("kind_expr", "hollowengine:textures/gui/icons/math.svg");
+    CONST("kind_const", "hollowengine:textures/gui/icons/vfx/value_const.svg"),
+    RANGE("kind_range", "hollowengine:textures/gui/icons/vfx/value_range.svg"),
+    CURVE("kind_curve", "hollowengine:textures/gui/icons/vfx/value_curve.svg"),
+    EXPR("kind_expr", "hollowengine:textures/gui/icons/vfx/value_expr.svg");
 }
 
 private fun VfxValue.kind(): VfxValueKind = when (this) {
@@ -81,26 +81,19 @@ internal fun formatNumber(value: Float): String =
     if (value == value.toInt().toFloat() && abs(value) < 1.0e7f) value.toInt().toString()
     else "%.4f".format(value).replace(',', '.').trimEnd('0').trimEnd('.')
 
-/** The label of a row, with the explanation that used to sit in brackets behind a hover icon. */
+/**
+ * The label of a row. What the field means is its tooltip rather than a line of text under it, so a
+ * section stays one row per value.
+ */
 @Composable
 fun VfxFieldLabel(label: String, hint: String? = null, width: Float = FieldLabelWidth) {
     if (label.isEmpty()) return
-    Row(modifier = Modifier.size(width.px, UiLength.Fit).gap(2.px).alignItems(vertical = UiAlign.CENTER)) {
-        Text(
-            label,
-            tags = listOf("insp-inline-label"),
-            modifier = Modifier.size(0.px, UiLength.Fit).grow(1f).textWrap(false).textOverflow(UiTextOverflow.DOTS),
-        )
-        if (!hint.isNullOrBlank()) HintIcon(hint)
-    }
-}
-
-@Composable
-private fun HintIcon(text: String) {
-    Image(
-        InfoIcon,
-        tags = listOf("vfx-hint-icon"),
-        modifier = Modifier.size(9.px, 9.px).tint(HintTint).tooltipOnHover(text),
+    val hinted = !hint.isNullOrBlank()
+    Text(
+        label,
+        tags = if (hinted) listOf("insp-inline-label", "hinted") else listOf("insp-inline-label"),
+        modifier = Modifier.size(width.px, UiLength.Fit).textWrap(false).textOverflow(UiTextOverflow.DOTS)
+            .then(if (hinted) Modifier.tooltipOnHover(hint.orEmpty()) else Modifier),
     )
 }
 
@@ -471,15 +464,14 @@ internal fun InspectorIcon(icon: String, tooltip: String, onClick: () -> Unit) {
 
 internal fun vfxText(name: String): String = "hollowengine.gui.vfx.$name".lang
 
-internal const val FieldLabelWidth = 92f
+internal const val FieldLabelWidth = 84f
 
 /** Vectors carry three fields, so their short labels ("Position") get less of the line. */
-internal const val VectorLabelWidth = 54f
+internal const val VectorLabelWidth = 48f
 
-internal const val CurveCellHeight = 16f
+internal const val CurveCellHeight = 15f
 private const val CurvePreviewSteps = 40
-private const val InfoIcon = "hollowengine:textures/gui/icons/info.svg"
-private const val KeyframeIcon = "hollowengine:textures/gui/icons/keyframe.svg"
+private const val KeyframeIcon = "hollowengine:textures/gui/icons/vfx/key.svg"
 
 internal val HintTint = UiColor(0.55f, 0.58f, 0.65f, 1f)
 internal val CurveBackground = UiColor(0.09f, 0.1f, 0.11f, 1f)

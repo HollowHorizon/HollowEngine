@@ -26,22 +26,30 @@
     padding: 3px;
     background: #00000000;
     border-radius: 3px;
+    tint: #aeb8ca;
     cursor: hand;
-    transition: background 250ms ease-out;
+    transition: background 110ms ease-out, tint 110ms ease-out;
 }
 
 .animator-icon-button:hover {
-    background: #FFFFFF14;
+    background: #2B2E35;
+    tint: #ffffff;
 }
 
 .animator-icon-button.active {
-    background: #D77F1C33;
-    border: 1px #D77F1C;
-    tint: #E9A44A;
+    background: #2E3544;
+    tint: #6E9BDC;
 }
 
 .animator-icon-button.active:hover {
-    background: #D77F1C4D;
+    background: #34405A;
+}
+
+.viewport-toolbar {
+    padding: 2px;
+    gap: 1px;
+    background: rgba(20, 21, 24, 0.86);
+    border-radius: 5px;
 }
 
 .animator-pill {

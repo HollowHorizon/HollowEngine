@@ -491,6 +491,51 @@
               "id": "motes-plane",
               "material": {
                 "blend": "ADDITIVE"
+              },
+              "particle": {
+                "size": {
+                  "x": {
+                    "type": "const",
+                    "value": 0.08
+                  },
+                  "y": {
+                    "type": "const",
+                    "value": 1.0
+                  },
+                  "z": {
+                    "type": "const",
+                    "value": 1.0
+                  }
+                },
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.4,
+                          "g": 0.75,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.2,
+                        "color": {
+                          "r": 0.4,
+                          "g": 0.75
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.4,
+                          "g": 0.75,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
               }
             }
           ],
@@ -524,51 +569,6 @@
               "type": "range",
               "from": 0.3,
               "to": 0.6
-            }
-          },
-          "appearance": {
-            "size": {
-              "x": {
-                "type": "const",
-                "value": 0.08
-              },
-              "y": {
-                "type": "const",
-                "value": 1.0
-              },
-              "z": {
-                "type": "const",
-                "value": 1.0
-              }
-            },
-            "color": {
-              "type": "gradient",
-              "gradient": {
-                "stops": [
-                  {
-                    "color": {
-                      "r": 0.4,
-                      "g": 0.75,
-                      "a": 0.0
-                    }
-                  },
-                  {
-                    "position": 0.2,
-                    "color": {
-                      "r": 0.4,
-                      "g": 0.75
-                    }
-                  },
-                  {
-                    "position": 1.0,
-                    "color": {
-                      "r": 0.4,
-                      "g": 0.75,
-                      "a": 0.0
-                    }
-                  }
-                ]
-              }
             }
           },
           "motion": {

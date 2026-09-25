@@ -1119,3 +1119,10 @@
     wrap: false;
     foreground: #d7deea;
 }
+
+.scene-hint {
+    size: 100% fit;
+    padding: 4px 6px;
+    foreground: #7A8698;
+    font-size: 8px;
+}

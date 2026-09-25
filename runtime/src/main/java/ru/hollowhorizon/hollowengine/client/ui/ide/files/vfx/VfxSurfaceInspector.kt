@@ -1,25 +1,24 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
-import ru.hollowhorizon.hollowengine.client.ui.inspector.AssetPickerButton
-import ru.hollowhorizon.hollowengine.client.ui.inspector.Hint
-import ru.hollowhorizon.hollowengine.client.ui.inspector.LocalInspectorHost
+import ru.hollowhorizon.hollowengine.client.ui.inspector.AssetPathField
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorHost
+import ru.hollowhorizon.hollowengine.client.ui.inspector.Pill
+import ru.hollowhorizon.hollowengine.client.ui.inspector.PillFlow
 import ru.hollowhorizon.hollowengine.client.ui.inspector.Pills
-import ru.hollowhorizon.hollowengine.client.ui.inspector.TextRow
 import ru.hollowhorizon.hollowengine.client.ui.inspector.ToggleRow
-import ru.hollowhorizon.hollowengine.client.ui.inspector.assetCompletions
+import ru.hollowhorizon.hollowengine.client.ui.inspector.resourceExists
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.common.vfx.*
 
 internal val VfxModelExtensions = listOf(".glb", ".gltf", ".fbx", ".obj")
-private val TextureExtensions = listOf(".png")
+internal val VfxTextureExtensions = listOf(".png")
 
-/** A resource path with the completions and the picker the inspector offers for assets. */
+/** A path to a file of one of [extensions], offered from the loaded packs. */
 @Composable
 internal fun VfxAssetRow(
     label: String,
@@ -28,18 +27,33 @@ internal fun VfxAssetRow(
     hint: String? = null,
     id: String = "vfx-asset-$label",
     onChange: (String) -> Unit,
+) = VfxAssetRow(label, value, hint, id, candidates = { host -> host.assets(extensions) }, onChange = onChange)
+
+/**
+ * Something named by a path: typed with completions, underlined when the packs have nothing by that
+ * name, and picked from a tree with the button beside it.
+ */
+@Composable
+internal fun VfxAssetRow(
+    label: String,
+    value: String,
+    hint: String? = null,
+    id: String = "vfx-asset-$label",
+    candidates: (InspectorHost) -> List<String>,
+    exists: (String) -> Boolean = ::resourceExists,
+    placeholder: String = "",
+    onChange: (String) -> Unit,
 ) {
-    val host = LocalInspectorHost.current
-    val candidates = remember(extensions, host) { host?.assets(extensions).orEmpty() }
     Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
         VfxFieldLabel(label, hint)
         Box(modifier = Modifier.size(0.px, UiLength.Fit).grow(1f)) {
-            TextRow(
-                label = "",
+            AssetPathField(
                 value = value,
+                label = label,
                 id = id,
-                completions = if (candidates.isEmpty()) null else assetCompletions(candidates),
-                trailing = { AssetPickerButton(extensions, value, label, onChange) },
+                candidates = candidates,
+                exists = exists,
+                placeholder = placeholder,
                 onChange = onChange,
             )
         }
@@ -48,7 +62,7 @@ internal fun VfxAssetRow(
 
 @Composable
 internal fun PlaneFields(document: HollowIdeVfxDocument, state: VfxEditorState, plane: VfxPlaneSpec) {
-    Folding(state, "facing", vfxText("section_facing")) {
+    Folding(state, "facing", vfxText("section_facing"), VfxIcons.FACING) {
         Pills(VfxFacing.entries, plane.facing, { vfxText("facing_${it.name.lowercase()}") }) {
             document.replace(plane.copy(facing = it))
         }
@@ -58,12 +72,12 @@ internal fun PlaneFields(document: HollowIdeVfxDocument, state: VfxEditorState, 
             }
         }
     }
-    SurfaceFields(document, state, plane)
+    MaterialFields(document, state, plane)
 }
 
 @Composable
 internal fun MeshFields(document: HollowIdeVfxDocument, state: VfxEditorState, mesh: VfxMeshSpec) {
-    Folding(state, "mesh", vfxText("section_mesh")) {
+    Folding(state, "mesh", vfxText("section_mesh"), VfxIcons.MESH) {
         ToggleRow(vfxText("align_to_velocity"), mesh.alignToVelocity) {
             document.replace(
                 when (mesh) {
@@ -89,13 +103,15 @@ internal fun MeshFields(document: HollowIdeVfxDocument, state: VfxEditorState, m
             else -> Unit
         }
     }
-    SurfaceFields(document, state, mesh)
+    MaterialFields(document, state, mesh)
 }
 
 @Composable
 internal fun ModelFields(document: HollowIdeVfxDocument, state: VfxEditorState, model: VfxModelSpec) {
-    Folding(state, "model", vfxText("section_model")) {
-        VfxAssetRow(vfxText("model"), model.model, VfxModelExtensions) { document.replace(model.copy(model = it)) }
+    Folding(state, "model", vfxText("section_model"), VfxIcons.MODEL) {
+        VfxAssetRow(vfxText("model"), model.model, VfxModelExtensions, id = "vfx-model-path") {
+            document.replace(model.copy(model = it))
+        }
         ToggleRow(vfxText("align_to_velocity"), model.alignToVelocity) {
             document.replace(model.copy(alignToVelocity = it))
         }
@@ -105,7 +121,7 @@ internal fun ModelFields(document: HollowIdeVfxDocument, state: VfxEditorState, 
 
 @Composable
 internal fun TrailFields(document: HollowIdeVfxDocument, state: VfxEditorState, trail: VfxTrailSpec) {
-    Folding(state, "trail", vfxText("section_trail")) {
+    Folding(state, "trail", vfxText("section_trail"), VfxIcons.TRAIL) {
         VfxValueRow(vfxText("width"), trail.width, VfxProperty.WIDTH, vfxText("ribbon_width_hint")) {
             document.replace(trail.copy(width = it))
         }
@@ -122,13 +138,22 @@ internal fun TrailFields(document: HollowIdeVfxDocument, state: VfxEditorState, 
             document.replace(trail.copy(tileLength = it))
         }
     }
-    SurfaceFields(document, state, trail)
+    MaterialFields(document, state, trail)
 }
 
 @Composable
 internal fun BeamFields(document: HollowIdeVfxDocument, state: VfxEditorState, beam: VfxBeamSpec) {
-    Folding(state, "beam", vfxText("section_beam")) {
-        TextRow(vfxText("beam_target"), beam.target, id = "vfx-beam-target") { document.replace(beam.copy(target = it.trim())) }
+    Folding(state, "beam", vfxText("section_beam"), VfxIcons.BEAM) {
+        val nodes = document.effect.walk().map { it.id }.filter { it != beam.id }
+        VfxAssetRow(
+            label = vfxText("beam_target"),
+            value = beam.target,
+            hint = vfxText("beam_target_hint"),
+            id = "vfx-beam-target",
+            candidates = { nodes },
+            exists = { it in nodes },
+            placeholder = vfxText("beam_target_none"),
+        ) { document.replace(beam.copy(target = it.trim())) }
         if (beam.target.isBlank()) {
             VfxFloat3Row(vfxText("beam_end"), beam.end, VfxProperty.BEAM_END, vfxText("beam_end_hint")) {
                 document.replace(beam.copy(end = it))
@@ -150,7 +175,7 @@ internal fun BeamFields(document: HollowIdeVfxDocument, state: VfxEditorState, b
             document.replace(beam.copy(tileLength = it))
         }
     }
-    SurfaceFields(document, state, beam)
+    MaterialFields(document, state, beam)
 }
 
 @Composable
@@ -161,42 +186,51 @@ private fun RibbonUvRows(mode: VfxRibbonUv, tileLength: Float, onMode: (VfxRibbo
     }
 }
 
-/** The tint and the material, which every surface has. */
+/**
+ * Everything a surface is drawn with: the look of it first, then how it blends and meets the depth
+ * buffer, then the shader of the author's with what that shader declares.
+ */
 @Composable
-private fun SurfaceFields(document: HollowIdeVfxDocument, state: VfxEditorState, surface: VfxSurfaceSpec) {
+private fun MaterialFields(document: HollowIdeVfxDocument, state: VfxEditorState, surface: VfxSurfaceSpec) {
     val material = surface.material
     fun update(next: VfxMaterialSpec) = document.replace(surface.withSurface(material = next))
 
-    Folding(state, "material", vfxText("section_material")) {
+    Folding(state, "material", vfxText("section_material"), VfxIcons.MATERIAL) {
+        VfxMaterialPreview(state, surface)
+
+        VfxAssetRow(vfxText("texture"), material.texture, VfxTextureExtensions, id = "vfx-material-texture") {
+            update(material.copy(texture = it))
+        }
         VfxColorRow(vfxText("tint"), surface.tint, VfxProperty.TINT, vfxText("tint_hint")) {
             document.replace(surface.withSurface(tint = it))
         }
-        VfxAssetRow(vfxText("texture"), material.texture, TextureExtensions) { update(material.copy(texture = it)) }
-        Text(vfxText("blend"), tags = listOf("insp-inline-label"))
         BlendPicker(material.blend) { update(material.copy(blend = it)) }
-        ToggleRow(vfxText("lit_by_world"), material.lighting == VfxLighting.WORLD) { lit ->
-            update(material.copy(lighting = if (lit) VfxLighting.WORLD else VfxLighting.UNLIT))
-        }
         UvRows(material.uv) { update(material.copy(uv = it)) }
-    }
 
-    Folding(state, "depth", vfxText("section_depth"), openByDefault = false) {
-        ToggleRow(vfxText("depth_test"), material.depthTest) { update(material.copy(depthTest = it)) }
-        ToggleRow(vfxText("depth_write"), material.depthWrite) { update(material.copy(depthWrite = it)) }
-        ToggleRow(vfxText("cull"), material.cull) { update(material.copy(cull = it)) }
-    }
-
-    Folding(state, "shader", vfxText("section_shader"), openByDefault = material.shader != null) {
-        TextRow(vfxText("shader"), material.shader.orEmpty(), id = "vfx-material-shader") { typed ->
-            val shader = typed.trim().ifBlank { null }
-            update(material.copy(shader = shader, uniforms = alignUniforms(shader, material.uniforms)))
+        PillFlow(id = "vfx-material-switches") {
+            Pill(vfxText("lit_by_world"), material.lighting == VfxLighting.WORLD, id = "vfx-material-lit") {
+                val lit = material.lighting != VfxLighting.WORLD
+                update(material.copy(lighting = if (lit) VfxLighting.WORLD else VfxLighting.UNLIT))
+            }
+            Pill(vfxText("depth_test"), material.depthTest, id = "vfx-material-depth-test") {
+                update(material.copy(depthTest = !material.depthTest))
+            }
+            Pill(vfxText("depth_write"), material.depthWrite, id = "vfx-material-depth-write") {
+                update(material.copy(depthWrite = !material.depthWrite))
+            }
+            Pill(vfxText("cull"), material.cull, id = "vfx-material-cull") {
+                update(material.copy(cull = !material.cull))
+            }
         }
+
         val attributes = when (surface) {
             is VfxMeshSpec -> "shader_mesh_hint"
             is VfxPlaneSpec -> "shader_plane_hint"
             else -> "shader_ribbon_hint"
         }
-        Hint(vfxText(attributes))
+        VfxShaderRow(material.shader, vfxText(attributes), "vfx-material-shader") { shader ->
+            update(material.copy(shader = shader, uniforms = alignUniforms(shader, material.uniforms)))
+        }
         VfxShaderFields(
             material.shader,
             material.uniforms,
@@ -210,12 +244,9 @@ private fun SurfaceFields(document: HollowIdeVfxDocument, state: VfxEditorState,
 @Composable
 private fun UvRows(uv: VfxUvRect, onChange: (VfxUvRect) -> Unit) {
     Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
-        VfxFieldLabel(vfxText("uv_from"), vfxText("uv_hint"))
+        VfxFieldLabel(vfxText("uv_region"), vfxText("uv_hint"))
         UvNumber("U", uv.u0) { onChange(uv.copy(u0 = it)) }
         UvNumber("V", uv.v0) { onChange(uv.copy(v0 = it)) }
-    }
-    Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
-        VfxFieldLabel(vfxText("uv_to"))
         UvNumber("U", uv.u1) { onChange(uv.copy(u1 = it)) }
         UvNumber("V", uv.v1) { onChange(uv.copy(v1 = it)) }
     }
@@ -231,35 +262,29 @@ private fun UvNumber(axis: String, value: Float, onChange: (Float) -> Unit) {
 
 @Composable
 private fun BlendPicker(current: VfxBlend, onChange: (VfxBlend) -> Unit) {
-    Row(modifier = Modifier.size(100.percent).gap(4.px)) {
+    Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
+        VfxFieldLabel(vfxText("blend"))
         VfxBlend.entries.forEach { blend ->
             val selected = blend == current
-            Column(
+            Box(
                 id = "vfx-blend-${blend.name.lowercase()}",
-                modifier = Modifier.size(0.px, UiLength.Fit).grow(1f).gap(2.px).alignItems(horizontal = UiAlign.CENTER)
-                    .input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND)
-                    .tooltipOnHover(vfxText("blend_${blend.name.lowercase()}_hint")).onClick { event ->
+                modifier = Modifier.size(0.px, 16.px).grow(1f).input(hoverable = true, clickable = true)
+                    .cursor(UiCursorShape.HAND)
+                    .tooltipOnHover(vfxText("blend_${blend.name.lowercase()}") + ": " + vfxText("blend_${blend.name.lowercase()}_hint"))
+                    .onClick { event ->
                         onChange(blend)
                         event.consume()
-                    },
-            ) {
-                Box(
-                    modifier = Modifier.size(100.percent, 26.px).drawBehind(key = blend to selected) {
+                    }.drawBehind(key = blend to selected) {
                         drawBlendPreview(blend, size.width, size.height, selected)
                     },
-                )
-                Text(
-                    vfxText("blend_${blend.name.lowercase()}"),
-                    modifier = Modifier.fontSize(8f).foreground(if (selected) SelectedText else MutedText),
-                )
-            }
+            )
         }
     }
 }
 
 private fun UiCanvasDrawScope.drawBlendPreview(blend: VfxBlend, width: Float, height: Float, selected: Boolean) {
     val half = width / 2f
-    drawRect(UiRect(0f, 0f, half, height), UiPaint.Color(DarkGround))
+    drawRect(UiRect(0f, 0f, width, height), UiPaint.Color(DarkGround), radius = 3f)
     drawRect(UiRect(half, 0f, width - half, height), UiPaint.Color(LightGround))
 
     val inset = height * 0.22f
@@ -269,10 +294,11 @@ private fun UiCanvasDrawScope.drawBlendPreview(blend: VfxBlend, width: Float, he
     drawRect(right, UiPaint.Color(blended(blend, LightGround)))
 
     val border = if (selected) SelectedBorder else IdleBorder
-    drawRect(UiRect(0f, 0f, width, 1f), UiPaint.Color(border))
-    drawRect(UiRect(0f, height - 1f, width, 1f), UiPaint.Color(border))
-    drawRect(UiRect(0f, 0f, 1f, height), UiPaint.Color(border))
-    drawRect(UiRect(width - 1f, 0f, 1f, height), UiPaint.Color(border))
+    val thickness = if (selected) 1.5f else 1f
+    drawRect(UiRect(0f, 0f, width, thickness), UiPaint.Color(border))
+    drawRect(UiRect(0f, height - thickness, width, thickness), UiPaint.Color(border))
+    drawRect(UiRect(0f, 0f, thickness, height), UiPaint.Color(border))
+    drawRect(UiRect(width - thickness, 0f, thickness, height), UiPaint.Color(border))
 }
 
 /** What the sample particle leaves on [ground], worked out the way the blend state would. */
@@ -295,7 +321,6 @@ private fun blended(blend: VfxBlend, ground: UiColor): UiColor {
 private val SampleParticle = UiColor(1f, 0.55f, 0.15f, 0.75f)
 private val DarkGround = UiColor(0.12f, 0.13f, 0.15f, 1f)
 private val LightGround = UiColor(0.78f, 0.8f, 0.84f, 1f)
-private val SelectedBorder = UiColor(0.84f, 0.5f, 0.11f, 1f)
-private val IdleBorder = UiColor(0.19f, 0.2f, 0.24f, 1f)
-private val SelectedText = UiColor(0.93f, 0.94f, 0.96f, 1f)
+private val SelectedBorder = UiColor(0.43f, 0.61f, 0.86f, 1f)
+private val IdleBorder = UiColor(0.17f, 0.18f, 0.21f, 1f)
 private val MutedText = UiColor(0.55f, 0.58f, 0.65f, 1f)

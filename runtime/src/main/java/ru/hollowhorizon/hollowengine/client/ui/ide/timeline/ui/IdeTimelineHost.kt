@@ -18,7 +18,6 @@ import ru.hollowhorizon.hollowengine.client.ui.Row
 import ru.hollowhorizon.hollowengine.client.ui.UiBoxMode
 import ru.hollowhorizon.hollowengine.client.ui.grow
 import ru.hollowhorizon.hollowengine.client.ui.ide.CutsceneIcon
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineController
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.TimelineKeys
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
@@ -97,7 +96,6 @@ fun TimelineDock(keyboardActive: Boolean = true) {
     }
 
     val controller = target.controller
-    var propertySettings by remember { mutableStateOf<AnimProperty<*>?>(null) }
 
     val revision = remember(target.id) { mutableStateOf(0) }
     val refresh: () -> Unit = remember(target) {
@@ -148,7 +146,6 @@ fun TimelineDock(keyboardActive: Boolean = true) {
                 onCapture = { target.onCapture?.invoke() },
                 onSave = { target.onSave?.invoke() },
                 onLoad = { target.onLoad?.invoke() },
-                onPropertySettings = { propertySettings = it },
                 features = TimelineFeatures(
                     capture = target.onCapture != null,
                     storage = target.onSave != null,
@@ -156,9 +153,6 @@ fun TimelineDock(keyboardActive: Boolean = true) {
                 ),
             )
             target.overlay?.invoke()
-            propertySettings?.let { property ->
-                PropertySettingsDialog(controller, property, refresh) { propertySettings = null }
-            }
         }
     }
 }

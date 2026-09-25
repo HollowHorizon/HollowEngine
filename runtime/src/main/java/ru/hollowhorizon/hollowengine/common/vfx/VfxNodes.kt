@@ -52,7 +52,33 @@ abstract class VfxNodeSpec {
  * A node that draws on every particle of the emitter it sits directly under, and once in its own
  * place anywhere else.
  */
-interface VfxParticleRendererSpec
+interface VfxParticleRendererSpec {
+    /** What the node gives each particle it draws; a node drawing itself does not read it. */
+    val particle: VfxAppearance
+
+    fun withParticle(particle: VfxAppearance): VfxNodeSpec
+}
+
+/**
+ * The size, turn and color a renderer gives each particle of its emitter, read again every step for
+ * as long as the particle lives. Every renderer on one emitter has its own, so a spark and its glow
+ * can differ.
+ */
+@Serializable
+data class VfxAppearance(
+    val size: VfxVec3Value = VfxVec3Value.all(0.25f),
+    val uniformSize: Boolean = true,
+    val rotation: VfxVec3Value = VfxVec3Value.ZERO,
+    val color: VfxColorValue = VfxColorValue.WHITE,
+) {
+    fun expressions(): List<String> = size.sources() + rotation.sources() + color.sources()
+
+    fun animatables(): List<VfxAnimatable> = listOf(
+        VfxAnimatables.vector(VfxProperty.SIZE, "size", size),
+        VfxAnimatables.rotation(VfxProperty.SPIN, "spin", rotation),
+        VfxAnimatables.color(VfxProperty.COLOR, "color", color),
+    )
+}
 
 /** Nothing but a place in the tree: moves, turns, scales and switches off everything under it. */
 @Serializable

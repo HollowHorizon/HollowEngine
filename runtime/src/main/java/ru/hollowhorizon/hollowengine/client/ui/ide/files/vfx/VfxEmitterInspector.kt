@@ -12,11 +12,14 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxShape
 import ru.hollowhorizon.hollowengine.common.vfx.VfxShapeKind
 import ru.hollowhorizon.hollowengine.common.vfx.VfxSimulationSpace
 
-/** How many particles, where they are born, what they start with and how they move. */
+/**
+ * How many particles, where they are born, what they start with and how they move. How they look is
+ * up to the renderers under the emitter, each for itself.
+ */
 @Composable
 internal fun EmitterFields(document: HollowIdeVfxDocument, state: VfxEditorState, emitter: VfxEmitterSpec) {
     val emission = emitter.emission
-    Folding(state, "emission", vfxText("section_emission")) {
+    Folding(state, "emission", vfxText("section_emission"), VfxIcons.EMISSION) {
         VfxValueRow(vfxText("rate"), emission.rate, VfxProperty.RATE, vfxText("rate_hint")) {
             document.replace(emitter.copy(emission = emission.copy(rate = it)))
         }
@@ -42,7 +45,7 @@ internal fun EmitterFields(document: HollowIdeVfxDocument, state: VfxEditorState
     ShapeFields(document, state, emitter)
 
     val spawn = emitter.spawn
-    Folding(state, "spawn", vfxText("section_spawn")) {
+    Folding(state, "spawn", vfxText("section_spawn"), VfxIcons.SPAWN) {
         VfxValueRow(vfxText("lifetime"), spawn.lifetime, VfxProperty.LIFETIME, vfxText("lifetime_hint")) {
             document.replace(emitter.copy(spawn = spawn.copy(lifetime = it)))
         }
@@ -62,30 +65,8 @@ internal fun EmitterFields(document: HollowIdeVfxDocument, state: VfxEditorState
         }
     }
 
-    val appearance = emitter.appearance
-    Folding(state, "appearance", vfxText("section_particle")) {
-        ToggleRow(vfxText("uniform_size"), appearance.uniformSize) {
-            document.replace(emitter.copy(appearance = appearance.copy(uniformSize = it)))
-        }
-        VfxVec3Row(
-            vfxText("size"),
-            appearance.size,
-            VfxProperty.SIZE,
-            vfxText("size_hint"),
-            uniform = appearance.uniformSize,
-        ) {
-            document.replace(emitter.copy(appearance = appearance.copy(size = it)))
-        }
-        VfxVec3Row(vfxText("spin"), appearance.rotation, VfxProperty.SPIN, vfxText("spin_hint")) {
-            document.replace(emitter.copy(appearance = appearance.copy(rotation = it)))
-        }
-        VfxColorRow(vfxText("color"), appearance.color, VfxProperty.COLOR, vfxText("color_hint")) {
-            document.replace(emitter.copy(appearance = appearance.copy(color = it)))
-        }
-    }
-
     val motion = emitter.motion
-    Folding(state, "motion", vfxText("section_motion")) {
+    Folding(state, "motion", vfxText("section_motion"), VfxIcons.MOTION) {
         VfxValueRow(vfxText("gravity"), motion.gravity, VfxProperty.GRAVITY, vfxText("gravity_hint")) {
             document.replace(emitter.copy(motion = motion.copy(gravity = it)))
         }
@@ -96,7 +77,7 @@ internal fun EmitterFields(document: HollowIdeVfxDocument, state: VfxEditorState
 
     VfxModuleSections(document, state, emitter)
 
-    Folding(state, "space", vfxText("section_space"), openByDefault = false) {
+    Folding(state, "space", vfxText("section_space"), VfxIcons.SPACE) {
         Pills(VfxSimulationSpace.entries, emitter.space, { vfxText("space_${it.name.lowercase()}") }) {
             document.replace(emitter.copy(space = it))
         }
@@ -120,7 +101,7 @@ private fun ShapeFields(document: HollowIdeVfxDocument, state: VfxEditorState, e
     val shape = emitter.shape
     fun update(next: VfxShape) = document.replace(emitter.copy(shape = next))
 
-    Folding(state, "shape", vfxText("section_shape")) {
+    Folding(state, "shape", vfxText("section_shape"), VfxIcons.SHAPE) {
         Pills(VfxShapeKind.entries, shape.kind, { vfxText("shape_${it.name.lowercase()}") }) {
             update(shape.copy(kind = it))
         }

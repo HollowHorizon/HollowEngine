@@ -36,19 +36,19 @@ object VfxNodeTypes {
     init {
         point.onChange(VfxModuleRevision::invalidate)
 
-        builtIn("group", VfxGroupSpec.serializer(), "folder.svg") { VfxGroupSpec() }
-        builtIn("emitter", VfxEmitterSpec.serializer(), "light_point.svg") {
+        builtIn("group", VfxGroupSpec.serializer(), "vfx/node_group.svg") { VfxGroupSpec() }
+        builtIn("emitter", VfxEmitterSpec.serializer(), "vfx/node_emitter.svg") {
             VfxEmitterSpec(children = listOf(VfxPlaneSpec()))
         }
-        builtIn("plane", VfxPlaneSpec.serializer(), "file_image.svg") { VfxPlaneSpec() }
-        builtIn("cube", VfxCubeSpec.serializer(), "box.svg") { VfxCubeSpec() }
-        builtIn("sphere", VfxSphereSpec.serializer(), "global.svg") { VfxSphereSpec() }
-        builtIn("cylinder", VfxCylinderSpec.serializer(), "loops.svg") { VfxCylinderSpec() }
-        builtIn("model", VfxModelSpec.serializer(), "file_model.svg") { VfxModelSpec() }
-        builtIn("trail", VfxTrailSpec.serializer(), "curve.svg") { VfxTrailSpec() }
-        builtIn("beam", VfxBeamSpec.serializer(), "link.svg") { VfxBeamSpec() }
-        builtIn("post_effect", VfxPostEffectSpec.serializer(), "film.svg") { VfxPostEffectSpec() }
-        builtIn("camera_shake", VfxCameraShakeSpec.serializer(), "pulse.svg") { VfxCameraShakeSpec() }
+        builtIn("plane", VfxPlaneSpec.serializer(), "vfx/node_plane.svg") { VfxPlaneSpec() }
+        builtIn("cube", VfxCubeSpec.serializer(), "vfx/node_cube.svg") { VfxCubeSpec() }
+        builtIn("sphere", VfxSphereSpec.serializer(), "vfx/node_sphere.svg") { VfxSphereSpec() }
+        builtIn("cylinder", VfxCylinderSpec.serializer(), "vfx/node_cylinder.svg") { VfxCylinderSpec() }
+        builtIn("model", VfxModelSpec.serializer(), "vfx/node_model.svg") { VfxModelSpec() }
+        builtIn("trail", VfxTrailSpec.serializer(), "vfx/node_trail.svg") { VfxTrailSpec() }
+        builtIn("beam", VfxBeamSpec.serializer(), "vfx/node_beam.svg") { VfxBeamSpec() }
+        builtIn("post_effect", VfxPostEffectSpec.serializer(), "vfx/node_post_effect.svg") { VfxPostEffectSpec() }
+        builtIn("camera_shake", VfxCameraShakeSpec.serializer(), "vfx/node_camera_shake.svg") { VfxCameraShakeSpec() }
     }
 
     private inline fun <reified S : VfxNodeSpec> builtIn(

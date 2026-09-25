@@ -30,9 +30,14 @@ object TimelineKeys {
             }
 
             key == GLFW.GLFW_KEY_F -> {
-                timeline.frameCurves()
+                if (timeline.viewMode == TimelineViewMode.CURVES) timeline.frameCurves()
+                timeline.requestFrameTime()
                 true
             }
+
+            key == GLFW.GLFW_KEY_UP -> timeline.jumpToKey(1)
+
+            key == GLFW.GLFW_KEY_DOWN -> timeline.jumpToKey(-1)
 
             key == GLFW.GLFW_KEY_S -> {
                 timeline.smoothSelectedKeyframes()

@@ -31,6 +31,52 @@ data class VfxEffect(
         return copy(nodes = nodes.map { it.adding(parentId, child) })
     }
 
+    /** Whether [id] is [ancestor] itself or anywhere under it. */
+    fun isWithin(id: String, ancestor: String): Boolean =
+        node(ancestor)?.walkSelf()?.any { it.id == id } ?: false
+
+    /**
+     * The node [id] taken from where it is and put under [parentId] (the root when null) at [index], or
+     * at the end when [index] is out of range. A node cannot go under itself; that leaves the effect as
+     * it was.
+     */
+    fun withMoved(id: String, parentId: String?, index: Int = Int.MAX_VALUE): VfxEffect {
+        val moved = node(id) ?: return this
+        if (parentId != null && isWithin(parentId, id)) return this
+        val without = withoutNode(id)
+        if (parentId == null) return without.copy(nodes = without.nodes.inserting(moved, index))
+        return without.copy(nodes = without.nodes.map { it.inserting(parentId, moved, index) })
+    }
+
+    /** The node [id] moved [offset] places among the nodes that share its parent. */
+    fun withShifted(id: String, offset: Int): VfxEffect {
+        val parent = parentOf(id)
+        val siblings = parent?.children ?: nodes
+        val from = siblings.indexOfFirst { it.id == id }
+        if (from < 0) return this
+        val to = (from + offset).coerceIn(0, siblings.lastIndex)
+        if (to == from) return this
+        return withMoved(id, parent?.id, to)
+    }
+
+    /**
+     * A copy of the node [id] and everything under it, with fresh ids, placed right after it, and a copy
+     * of every timeline track that drove the copied nodes. Returns the effect and the id of the copy.
+     */
+    fun withDuplicate(id: String): Pair<VfxEffect, String>? {
+        val original = node(id) ?: return null
+        val renamed = HashMap<String, String>()
+        val clone = original.copiedWithFreshIds(renamed)
+
+        val parent = parentOf(id)
+        val index = (parent?.children ?: nodes).indexOfFirst { it.id == id } + 1
+        val placed = if (parent == null) copy(nodes = nodes.inserting(clone, index))
+        else copy(nodes = nodes.map { it.inserting(parent.id, clone, index) })
+
+        val tracks = timeline.tracks.mapNotNull { track -> renamed[track.node]?.let { track.copy(node = it) } }
+        return placed.copy(timeline = placed.timeline.copy(tracks = placed.timeline.tracks + tracks)) to clone.id
+    }
+
     /** The effect with every node placed at its origin, switched on and unnamed: what placement leaves. */
     fun withoutPlacement(): VfxEffect = copy(nodes = nodes.map { it.withoutPlacement() })
 
@@ -63,6 +109,22 @@ private fun VfxNodeSpec.removing(target: String): VfxNodeSpec? {
     if (id == target) return null
     if (children.isEmpty()) return this
     return withCommon(children = children.mapNotNull { it.removing(target) })
+}
+
+private fun List<VfxNodeSpec>.inserting(node: VfxNodeSpec, index: Int): List<VfxNodeSpec> =
+    toMutableList().also { it.add(index.coerceIn(0, size), node) }
+
+private fun VfxNodeSpec.inserting(parentId: String, child: VfxNodeSpec, index: Int): VfxNodeSpec {
+    if (id == parentId) return withCommon(children = children.inserting(child, index))
+    if (children.isEmpty()) return this
+    return withCommon(children = children.map { it.inserting(parentId, child, index) })
+}
+
+/** This node and its children under new ids, recording in [renamed] which old id became which. */
+private fun VfxNodeSpec.copiedWithFreshIds(renamed: MutableMap<String, String>): VfxNodeSpec {
+    val fresh = newVfxNodeId(id.substringBefore('-').ifBlank { "node" })
+    renamed[id] = fresh
+    return withCommon(id = fresh, children = children.map { it.copiedWithFreshIds(renamed) })
 }
 
 private fun VfxNodeSpec.adding(parentId: String, child: VfxNodeSpec): VfxNodeSpec {

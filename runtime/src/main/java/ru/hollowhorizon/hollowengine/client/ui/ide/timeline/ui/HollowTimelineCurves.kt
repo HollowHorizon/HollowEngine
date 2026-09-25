@@ -124,6 +124,7 @@ internal fun TimelineCurveGraph(
                 }
             }
         }
+        WorkAreaShade(controller, pxPerSec, contentWidth, height)
         MarqueeOverlay(marquee)
         CurveValueLabels(center, span, height, scrollX, commonValueFormatter(lanes))
         Playhead(controller, pxPerSec, height)

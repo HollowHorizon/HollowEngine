@@ -12,6 +12,7 @@ import org.joml.Quaternionf
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.VboWrapper
+import ru.hollowhorizon.hollowengine.client.vfx.VfxParticleLook
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import ru.hollowhorizon.hollowengine.common.vfx.VfxLighting
 import ru.hollowhorizon.hollowengine.common.vfx.VfxPrimitive
@@ -110,6 +111,10 @@ object VfxMeshRenderer {
         val batch = draw.batch
         val particles = batch.particles
         val material = draw.spec.material
+        val look = batch.look
+        val size = batch.lookOf(slot) + VfxParticleLook.SIZE
+        val spin = batch.lookOf(slot) + VfxParticleLook.ROTATION
+        val color = batch.lookOf(slot) + VfxParticleLook.COLOR
 
         matrix.set(batch.matrix).translate(
             particles.positionX[slot] + batch.offset.x,
@@ -123,15 +128,15 @@ object VfxMeshRenderer {
         }
         matrix.rotate(
             rotation.identity().rotateZYX(
-                (particles.rotationZ[slot] + batch.spin.z) * Mth.DEG_TO_RAD,
-                (particles.rotationY[slot] + batch.spin.y) * Mth.DEG_TO_RAD,
-                (particles.rotationX[slot] + batch.spin.x) * Mth.DEG_TO_RAD,
+                (look[spin + 2] + batch.spin.z) * Mth.DEG_TO_RAD,
+                (look[spin + 1] + batch.spin.y) * Mth.DEG_TO_RAD,
+                (look[spin] + batch.spin.x) * Mth.DEG_TO_RAD,
             )
         )
         matrix.scale(
-            particles.sizeX[slot] * batch.sizeScale.x,
-            particles.sizeY[slot] * batch.sizeScale.y,
-            particles.sizeZ[slot] * batch.sizeScale.z,
+            look[size] * batch.sizeScale.x,
+            look[size + 1] * batch.sizeScale.y,
+            look[size + 2] * batch.sizeScale.z,
         )
 
         val region = material.uv
@@ -145,10 +150,10 @@ object VfxMeshRenderer {
         packed[at + 3] = matrix.m10(); packed[at + 4] = matrix.m11(); packed[at + 5] = matrix.m12()
         packed[at + 6] = matrix.m20(); packed[at + 7] = matrix.m21(); packed[at + 8] = matrix.m22()
         packed[at + 9] = matrix.m30(); packed[at + 10] = matrix.m31(); packed[at + 11] = matrix.m32()
-        packed[at + 12] = particles.colorR[slot] * tint[0]
-        packed[at + 13] = particles.colorG[slot] * tint[1]
-        packed[at + 14] = particles.colorB[slot] * tint[2]
-        packed[at + 15] = particles.colorA[slot] * tint[3]
+        packed[at + 12] = look[color] * tint[0]
+        packed[at + 13] = look[color + 1] * tint[1]
+        packed[at + 14] = look[color + 2] * tint[2]
+        packed[at + 15] = look[color + 3] * tint[3]
         packed[at + 16] = region.u0 + (frame % batch.uvColumns) * cellWidth
         packed[at + 17] = region.v0 + (frame / batch.uvColumns) * cellHeight
         packed[at + 18] = cellWidth

@@ -7,19 +7,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.ui.Box
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
-import ru.hollowhorizon.hollowengine.client.ui.Row
-import ru.hollowhorizon.hollowengine.client.ui.UiAlign
-import ru.hollowhorizon.hollowengine.client.ui.alignItems
-import ru.hollowhorizon.hollowengine.client.ui.gap
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
 import ru.hollowhorizon.hollowengine.client.ui.inspector.Hint
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorButton
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorIconButton
 import ru.hollowhorizon.hollowengine.client.ui.inspector.Pills
 import ru.hollowhorizon.hollowengine.client.ui.inspector.ToggleRow
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.onPlaced
 import ru.hollowhorizon.hollowengine.client.ui.percent
-import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
@@ -37,6 +33,7 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxSimulationSpace
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxUvAnimationSpec
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxUvMode
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxVelocityOverLifetimeSpec
+import kotlin.reflect.KClass
 
 /**
  * The modules of an emitter, one folding section each, and a menu of what can still be added.
@@ -45,14 +42,27 @@ import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxVelocityOverLifetimeS
 internal fun VfxModuleSections(document: HollowIdeVfxDocument, state: VfxEditorState, emitter: VfxEmitterSpec) {
     emitter.modules.forEachIndexed { index, module ->
         val type = VfxModuleTypes.of(module)
-        val title = type?.titleKey?.lang ?: module.id
-        Folding(state, "module-${emitter.id}-${module.id}", title) {
-            Row(modifier = Modifier.size(100.percent).gap(4.px).alignItems(vertical = UiAlign.CENTER)) {
-                ToggleRow(vfxText("module_enabled"), module.enabled) {
-                    document.replaceModule(emitter, index, module.withEnabled(it))
-                }
-                InspectorButton(vfxText("module_remove")) { document.removeModule(emitter, index) }
-            }
+        val name = type?.titleKey?.lang ?: module.id
+        val title = if (module.enabled) name else "$name (${vfxText("off")})"
+        Folding(
+            state,
+            "module-${emitter.id}-${module.id}",
+            title,
+            moduleIcon(module),
+            trailing = {
+                InspectorIconButton(
+                    VfxIcons.TOGGLE,
+                    vfxText("module_enabled"),
+                    active = module.enabled,
+                    tags = listOf("insp-inline-icon"),
+                ) { document.replaceModule(emitter, index, module.withEnabled(!module.enabled)) }
+                InspectorIconButton(
+                    VfxIcons.REMOVE,
+                    vfxText("module_remove"),
+                    tags = listOf("insp-inline-icon", "danger"),
+                ) { document.removeModule(emitter, index) }
+            },
+        ) {
             ModuleFields(document, emitter, index, module)
         }
     }
@@ -71,7 +81,7 @@ private fun AddModuleButton(document: HollowIdeVfxDocument, emitter: VfxEmitterS
     var anchor by remember { mutableStateOf(UiRect.Zero) }
 
     Box(modifier = Modifier.size(100.percent).onPlaced { anchor = it }) {
-        InspectorButton(vfxText("module_add")) { open = true }
+        InspectorButton(vfxText("module_add"), icon = VfxIcons.ADD) { open = true }
     }
     if (!open) return
 
@@ -79,12 +89,23 @@ private fun AddModuleButton(document: HollowIdeVfxDocument, emitter: VfxEmitterS
         id = "vfx-add-module",
         anchorBounds = anchor,
         items = addable.map { type ->
-            UiDropdownItem(type.titleKey.lang) {
+            UiDropdownItem(type.titleKey.lang, icon = moduleIcon(type.specClass)) {
                 type.createDefault?.invoke()?.let { document.addModule(emitter, it) }
             }
         },
         onExpandedChange = { if (!it) open = false },
     )
+}
+
+private fun moduleIcon(module: VfxModuleSpec): String = moduleIcon(module::class)
+
+private fun moduleIcon(kind: KClass<out VfxModuleSpec>): String = when (kind) {
+    VfxVelocityOverLifetimeSpec::class -> VfxIcons.VELOCITY
+    VfxForceSpec::class -> VfxIcons.FORCE
+    VfxNoiseSpec::class -> VfxIcons.NOISE
+    VfxCollisionSpec::class -> VfxIcons.COLLISION
+    VfxUvAnimationSpec::class -> VfxIcons.FLIPBOOK
+    else -> VfxIcons.MODULES
 }
 
 @Composable

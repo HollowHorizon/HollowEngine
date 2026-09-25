@@ -1,10 +1,10 @@
-package ru.hollowhorizon.hollowengine.client.ui.entity
+package ru.hollowhorizon.hollowengine.client.ui.inspector
 
-import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 
 
-internal object PathTree {
+/** Asset paths as a folder tree: namespace first, then each folder of the path. */
+internal object AssetPathTree {
     fun rows(
         paths: List<String>,
         expanded: Set<String>,

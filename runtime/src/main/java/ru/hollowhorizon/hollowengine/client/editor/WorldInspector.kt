@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.entity.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeWorldPoint
+import ru.hollowhorizon.hollowengine.client.ui.inspector.AssetPickerDialog
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorTarget
 import ru.hollowhorizon.hollowengine.client.ui.inspector.LocalInspectorHost
@@ -144,7 +145,7 @@ object WorldInspector {
             LocalInspectorHost provides session,
         ) {
             EntitySidebar(session, width = null)
-            session.pendingPicker?.let { picker -> AssetPickerDialog(picker) }
+            session.pendingPicker?.let { picker -> AssetPickerDialog(picker) { session.pendingPicker = null } }
             if (session.slotSessionId != null) InventoryDialog(session)
         }
     }
@@ -171,7 +172,7 @@ object WorldInspector {
 
     private fun outline(scope: UiCanvasDrawScope, entity: Entity, color: UiColor) {
         val bounds = entity.boundingBox.inflate(PickSlack)
-        for (edge in GizmoGeometry.buildBoundsEdges(bounds)) {
+        for (edge in GizmoGeometry.World.buildBoundsEdges(bounds)) {
             if (edge.size < 2) continue
             val shape = GenericShape {
                 edge.forEachIndexed { index, point ->

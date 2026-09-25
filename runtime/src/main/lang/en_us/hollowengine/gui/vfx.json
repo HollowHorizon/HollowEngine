@@ -1,7 +1,7 @@
 {
   "effect": "Effect",
   "nodes": "Nodes",
-  "no_nodes": "This effect has no nodes yet.",
+  "no_nodes": "Right-click the effect to add a node.",
   "add_node": "Add node",
   "remove_node": "Remove node",
   "off": "off",
@@ -279,5 +279,17 @@
   "property_enabled": "Enabled",
   "property_position": "Position",
   "property_rotation": "Rotation",
-  "property_scale": "Scale"
+  "property_scale": "Scale",
+  "add_child": "Add inside",
+  "duplicate": "Duplicate",
+  "rename": "Rename",
+  "enable": "Switch on",
+  "disable": "Switch off",
+  "move_up": "Move up",
+  "move_down": "Move down",
+  "move_out": "Move out of the parent",
+  "shader_placeholder": "built-in",
+  "beam_target_hint": "The node the beam ends at. Leave empty to end it at the point below.",
+  "beam_target_none": "a point",
+  "uv_region": "UV region"
 }

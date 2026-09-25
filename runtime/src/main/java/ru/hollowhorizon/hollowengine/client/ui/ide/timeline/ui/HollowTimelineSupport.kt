@@ -21,17 +21,17 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
 
-internal const val TimelineRulerHeight = 24f
+internal const val TimelineRulerHeight = 18f
 
-internal const val TimelineGroupRowHeight = 18f
-internal const val TimelinePropertyRowHeight = 18f
-internal const val TimelineChannelRowHeight = 15f
-internal const val TimelineLeftPadding = 58f
-internal const val CurveValueGutter = 46f
+internal const val TimelineGroupRowHeight = 17f
+internal const val TimelinePropertyRowHeight = 16f
+internal const val TimelineChannelRowHeight = 14f
+internal const val TimelineLeftPadding = 40f
+internal const val CurveValueGutter = 40f
 internal const val TimelineMinContentWidth = 600f
 internal const val TimelineMaxZoom = 500f
 internal const val TimelineMinZoom = 10f
-internal const val TimelineMinHeaderWidth = 150f
+internal const val TimelineMinHeaderWidth = 120f
 internal const val TimelineMaxHeaderWidth = 480f
 private const val TimelineAutoPanEdge = 48f
 internal const val TimelineScrollbarClearance = 12f
@@ -254,18 +254,22 @@ internal fun Color.toUiColor(alphaMultiplier: Float = 1f): UiColor {
 internal fun UiColor.withAlpha(multiplier: Float) =
     UiColor(red, green, blue, (alpha * multiplier).coerceIn(0f, 1f))
 
+/**
+ * What the lanes, keys and curves are drawn with: the IDE palette of docking.hss, so the timeline
+ * reads as part of the IDE. The chrome around them takes the same colours from timeline.hss.
+ */
 internal object TimelineColors {
-    val Background = UiColor(0.07f, 0.08f, 0.1f, 1f)
-    val Panel = UiColor(0.1f, 0.11f, 0.14f, 1f)
-    val PanelAlt = UiColor(0.13f, 0.14f, 0.17f, 1f)
-    val Row = UiColor(0.11f, 0.12f, 0.14f, 1f)
-    val Group = UiColor(0.14f, 0.15f, 0.18f, 1f)
-    val Muted = UiColor(0.58f, 0.62f, 0.7f, 1f)
-    val Text = UiColor(0.88f, 0.9f, 0.94f, 1f)
-    val Accent = UiColor(1f, 0.54f, 0.18f, 1f)
-    val Blue = UiColor(0.34f, 0.58f, 0.88f, 1f)
-    val Border = UiColor(0.24f, 0.26f, 0.3f, 1f)
+    val Background = UiColor(0.110f, 0.118f, 0.133f, 1f)
+    val Panel = UiColor(0.110f, 0.118f, 0.133f, 1f)
+    val PanelAlt = UiColor(0.169f, 0.180f, 0.208f, 1f)
+    val Row = UiColor(0.118f, 0.125f, 0.141f, 1f)
+    val Group = UiColor(0.129f, 0.137f, 0.157f, 1f)
+    val Muted = UiColor(0.561f, 0.608f, 0.678f, 1f)
+    val Text = UiColor(0.769f, 0.796f, 0.855f, 1f)
+    val Accent = UiColor(0.431f, 0.608f, 0.863f, 1f)
+    val Blue = UiColor(0.682f, 0.722f, 0.792f, 1f)
+    val Border = UiColor(0.149f, 0.157f, 0.180f, 1f)
     val Danger = UiColor(0.76f, 0.23f, 0.23f, 1f)
-    val Grid = UiColor(0.18f, 0.19f, 0.23f, 1f)
+    val Grid = UiColor(0.176f, 0.188f, 0.216f, 1f)
     val Handle = UiColor(0.72f, 0.74f, 0.8f, 1f)
 }

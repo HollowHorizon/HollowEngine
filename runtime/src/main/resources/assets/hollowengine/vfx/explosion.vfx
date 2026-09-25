@@ -27,6 +27,70 @@
                   "id": "fire-plane",
                   "material": {
                     "blend": "ADDITIVE"
+                  },
+                  "particle": {
+                    "size": {
+                      "x": {
+                        "type": "curve",
+                        "curve": {
+                          "keys": [
+                            {
+                              "value": 0.4,
+                              "interpolation": "LINEAR"
+                            },
+                            {
+                              "time": 1.0,
+                              "value": 1.1,
+                              "interpolation": "LINEAR"
+                            }
+                          ]
+                        }
+                      },
+                      "y": {
+                        "type": "const",
+                        "value": 1.0
+                      },
+                      "z": {
+                        "type": "const",
+                        "value": 1.0
+                      }
+                    },
+                    "rotation": {
+                      "z": {
+                        "type": "expr",
+                        "source": "p.random * 360"
+                      }
+                    },
+                    "color": {
+                      "type": "gradient",
+                      "gradient": {
+                        "stops": [
+                          {
+                            "color": {
+                              "g": 0.95,
+                              "b": 0.7
+                            }
+                          },
+                          {
+                            "position": 0.3,
+                            "color": {
+                              "g": 0.45,
+                              "b": 0.1,
+                              "a": 0.9
+                            }
+                          },
+                          {
+                            "position": 1.0,
+                            "color": {
+                              "r": 0.3,
+                              "g": 0.05,
+                              "b": 0.02,
+                              "a": 0.0
+                            }
+                          }
+                        ]
+                      }
+                    }
                   }
                 }
               ],
@@ -55,70 +119,6 @@
                   "type": "range",
                   "from": 1.5,
                   "to": 3.5
-                }
-              },
-              "appearance": {
-                "size": {
-                  "x": {
-                    "type": "curve",
-                    "curve": {
-                      "keys": [
-                        {
-                          "value": 0.4,
-                          "interpolation": "LINEAR"
-                        },
-                        {
-                          "time": 1.0,
-                          "value": 1.1,
-                          "interpolation": "LINEAR"
-                        }
-                      ]
-                    }
-                  },
-                  "y": {
-                    "type": "const",
-                    "value": 1.0
-                  },
-                  "z": {
-                    "type": "const",
-                    "value": 1.0
-                  }
-                },
-                "rotation": {
-                  "z": {
-                    "type": "expr",
-                    "source": "p.random * 360"
-                  }
-                },
-                "color": {
-                  "type": "gradient",
-                  "gradient": {
-                    "stops": [
-                      {
-                        "color": {
-                          "g": 0.95,
-                          "b": 0.7
-                        }
-                      },
-                      {
-                        "position": 0.3,
-                        "color": {
-                          "g": 0.45,
-                          "b": 0.1,
-                          "a": 0.9
-                        }
-                      },
-                      {
-                        "position": 1.0,
-                        "color": {
-                          "r": 0.3,
-                          "g": 0.05,
-                          "b": 0.02,
-                          "a": 0.0
-                        }
-                      }
-                    ]
-                  }
                 }
               },
               "motion": {
@@ -150,7 +150,44 @@
                   "material": {
                     "blend": "ADDITIVE"
                   },
-                  "facing": "VELOCITY"
+                  "facing": "VELOCITY",
+                  "particle": {
+                    "size": {
+                      "x": {
+                        "type": "const",
+                        "value": 0.06
+                      },
+                      "y": {
+                        "type": "const",
+                        "value": 1.0
+                      },
+                      "z": {
+                        "type": "const",
+                        "value": 1.0
+                      }
+                    },
+                    "color": {
+                      "type": "gradient",
+                      "gradient": {
+                        "stops": [
+                          {
+                            "color": {
+                              "g": 0.9,
+                              "b": 0.5
+                            }
+                          },
+                          {
+                            "position": 1.0,
+                            "color": {
+                              "g": 0.4,
+                              "b": 0.1,
+                              "a": 0.0
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
                 },
                 {
                   "type": "hollowengine:vfx/trail",
@@ -193,7 +230,30 @@
                     }
                   },
                   "lifetime": 0.25,
-                  "maxPoints": 12
+                  "maxPoints": 12,
+                  "particle": {
+                    "color": {
+                      "type": "gradient",
+                      "gradient": {
+                        "stops": [
+                          {
+                            "color": {
+                              "g": 0.9,
+                              "b": 0.5
+                            }
+                          },
+                          {
+                            "position": 1.0,
+                            "color": {
+                              "g": 0.4,
+                              "b": 0.1,
+                              "a": 0.0
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
                 }
               ],
               "emission": {
@@ -222,43 +282,6 @@
                   "type": "range",
                   "from": 5.0,
                   "to": 10.0
-                }
-              },
-              "appearance": {
-                "size": {
-                  "x": {
-                    "type": "const",
-                    "value": 0.06
-                  },
-                  "y": {
-                    "type": "const",
-                    "value": 1.0
-                  },
-                  "z": {
-                    "type": "const",
-                    "value": 1.0
-                  }
-                },
-                "color": {
-                  "type": "gradient",
-                  "gradient": {
-                    "stops": [
-                      {
-                        "color": {
-                          "g": 0.9,
-                          "b": 0.5
-                        }
-                      },
-                      {
-                        "position": 1.0,
-                        "color": {
-                          "g": 0.4,
-                          "b": 0.1,
-                          "a": 0.0
-                        }
-                      }
-                    ]
-                  }
                 }
               },
               "motion": {
@@ -313,6 +336,73 @@
               "id": "smoke-plane",
               "material": {
                 "lighting": "WORLD"
+              },
+              "particle": {
+                "size": {
+                  "x": {
+                    "type": "curve",
+                    "curve": {
+                      "keys": [
+                        {
+                          "value": 0.6,
+                          "interpolation": "LINEAR"
+                        },
+                        {
+                          "time": 1.0,
+                          "value": 1.8,
+                          "interpolation": "LINEAR"
+                        }
+                      ]
+                    }
+                  },
+                  "y": {
+                    "type": "const",
+                    "value": 1.0
+                  },
+                  "z": {
+                    "type": "const",
+                    "value": 1.0
+                  }
+                },
+                "rotation": {
+                  "z": {
+                    "type": "expr",
+                    "source": "p.random * 360"
+                  }
+                },
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.25,
+                          "g": 0.23,
+                          "b": 0.22,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.1,
+                        "color": {
+                          "r": 0.25,
+                          "g": 0.23,
+                          "b": 0.22,
+                          "a": 0.7
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.3,
+                          "g": 0.3,
+                          "b": 0.3,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
               }
             }
           ],
@@ -341,73 +431,6 @@
             "speed": {
               "type": "range",
               "from": 0.3
-            }
-          },
-          "appearance": {
-            "size": {
-              "x": {
-                "type": "curve",
-                "curve": {
-                  "keys": [
-                    {
-                      "value": 0.6,
-                      "interpolation": "LINEAR"
-                    },
-                    {
-                      "time": 1.0,
-                      "value": 1.8,
-                      "interpolation": "LINEAR"
-                    }
-                  ]
-                }
-              },
-              "y": {
-                "type": "const",
-                "value": 1.0
-              },
-              "z": {
-                "type": "const",
-                "value": 1.0
-              }
-            },
-            "rotation": {
-              "z": {
-                "type": "expr",
-                "source": "p.random * 360"
-              }
-            },
-            "color": {
-              "type": "gradient",
-              "gradient": {
-                "stops": [
-                  {
-                    "color": {
-                      "r": 0.25,
-                      "g": 0.23,
-                      "b": 0.22,
-                      "a": 0.0
-                    }
-                  },
-                  {
-                    "position": 0.1,
-                    "color": {
-                      "r": 0.25,
-                      "g": 0.23,
-                      "b": 0.22,
-                      "a": 0.7
-                    }
-                  },
-                  {
-                    "position": 1.0,
-                    "color": {
-                      "r": 0.3,
-                      "g": 0.3,
-                      "b": 0.3,
-                      "a": 0.0
-                    }
-                  }
-                ]
-              }
             }
           },
           "motion": {

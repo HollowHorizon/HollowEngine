@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.vfx.render
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.vfx.VfxParticleLook
 import ru.hollowhorizon.hollowengine.client.vfx.VfxParticles
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.vfx.VfxMaterialSpec
@@ -38,6 +39,7 @@ class VfxView(
  */
 class VfxParticleBatch(
     val particles: VfxParticles,
+    val look: FloatArray,
     /** Simulation space to the space of the view the batch is drawn with. */
     val matrix: Matrix4f,
     val uvColumns: Int = 1,
@@ -47,7 +49,9 @@ class VfxParticleBatch(
     val sizeScale: Vec3f = Vec3f.ONES,
     /** Multiplied into every particle color. */
     val tint: FloatArray = floatArrayOf(1f, 1f, 1f, 1f),
-)
+) {
+    fun lookOf(slot: Int): Int = slot * VfxParticleLook.STRIDE
+}
 
 /** One plane renderer's worth of quads. */
 class VfxQuadDraw(

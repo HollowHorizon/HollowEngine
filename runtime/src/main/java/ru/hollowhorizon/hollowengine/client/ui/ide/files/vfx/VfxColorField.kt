@@ -247,9 +247,9 @@ private fun ColorKindPicker(current: String, onChange: (VfxColorValue) -> Unit) 
 }
 
 private fun colorKindIcon(kind: String): String = when (kind) {
-    "solid" -> "hollowengine:textures/gui/icons/types.svg"
-    "gradient" -> "hollowengine:textures/gui/icons/curve.svg"
-    else -> "hollowengine:textures/gui/icons/math.svg"
+    "solid" -> "hollowengine:textures/gui/icons/vfx/color_solid.svg"
+    "gradient" -> "hollowengine:textures/gui/icons/vfx/color_gradient.svg"
+    else -> "hollowengine:textures/gui/icons/vfx/color_channels.svg"
 }
 
 private fun VfxGradient.withStop(index: Int, stop: VfxGradientStop): VfxGradient =
@@ -262,8 +262,8 @@ internal fun VfxRgba.toUi(): UiColor = UiColor(r, g, b, a)
 internal fun UiColor.toRgba(): VfxRgba = VfxRgba(red, green, blue, alpha)
 
 private const val PaletteWidth = 26f
-private const val RemoveIcon = "hollowengine:textures/gui/icons/remove.svg"
-private const val KeyframeIcon = "hollowengine:textures/gui/icons/keyframe.svg"
+private const val RemoveIcon = "hollowengine:textures/gui/icons/vfx/remove.svg"
+private const val KeyframeIcon = "hollowengine:textures/gui/icons/vfx/key.svg"
 
 private val Accent = UiColor(0.84f, 0.5f, 0.11f, 1f)
 private val CheckerLight = UiColor(0.32f, 0.33f, 0.36f, 1f)

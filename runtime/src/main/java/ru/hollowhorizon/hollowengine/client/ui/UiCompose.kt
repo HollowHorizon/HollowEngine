@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
+import ru.hollowhorizon.hollowengine.client.ui.style.fontFamily
 import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.coroutines.CoroutineContext
@@ -549,7 +550,8 @@ fun TextField(
     fieldState.autoPairs = autoPairs
     fieldState.multiCaret = multiCaret
     fieldState.fontSize = fontSize
-    fieldState.fontFamily = fontFamily
+    var hssFontFamily by remember { mutableStateOf<String?>(null) }
+    fieldState.fontFamily = fontFamily ?: hssFontFamily
     fieldState.wrap = wrap ?: multiline
     var hssShadow by remember { mutableStateOf<HssShadowResolution>(HssShadowResolution.Inherit) }
     var hssInlayHints by remember { mutableStateOf(true) }
@@ -588,6 +590,7 @@ fun TextField(
                 HssShadowResolution.Inherit
             }
             if (next != hssShadow) hssShadow = next
+            if (style.fontFamily != hssFontFamily) hssFontFamily = style.fontFamily
             val hintsEnabled = textFieldStyle.inlayHints != false
             if (hintsEnabled != hssInlayHints) hssInlayHints = hintsEnabled
         },

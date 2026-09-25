@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.vfx.render
 import net.minecraft.util.Mth
 import org.joml.Matrix4f
 import org.joml.Quaternionf
+import ru.hollowhorizon.hollowengine.client.vfx.VfxParticleLook
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxQuadPacker.Companion.STRIDE
 import ru.hollowhorizon.hollowengine.common.vfx.VfxBlend
 import ru.hollowhorizon.hollowengine.common.vfx.VfxFacing
@@ -170,7 +171,7 @@ internal class VfxQuadPacker {
         return dx * dx + dy * dy + dz * dz
     }
 
-    private fun write(out: FloatArray, at: Int, draw: VfxQuadDraw, slot: Int, view: VfxView) {
+    private fun write(out: FloatArray, base: Int, draw: VfxQuadDraw, slot: Int, view: VfxView) {
         val plane = draw.plane
         val batch = draw.batch
         val particles = batch.particles
@@ -183,9 +184,11 @@ internal class VfxQuadPacker {
         val cy = matrix.m01() * px + matrix.m11() * py + matrix.m21() * pz + matrix.m31()
         val cz = matrix.m02() * px + matrix.m12() * py + matrix.m22() * pz + matrix.m32()
 
-        val width = particles.sizeX[slot] * batch.sizeScale.x
-        val height = particles.sizeY[slot] * batch.sizeScale.y
-        val roll = particles.rotationZ[slot] + batch.spin.z
+        val look = batch.look
+        val at = batch.lookOf(slot)
+        val width = look[at + VfxParticleLook.SIZE] * batch.sizeScale.x
+        val height = look[at + VfxParticleLook.SIZE + 1] * batch.sizeScale.y
+        val roll = look[at + VfxParticleLook.ROTATION + 2] + batch.spin.z
         when (plane.facing) {
             VfxFacing.CAMERA -> VfxBillboards.cameraEdges(edges, matrix, view, roll, width, height)
             VfxFacing.CAMERA_AXIS -> VfxBillboards.axisEdges(
@@ -202,7 +205,7 @@ internal class VfxQuadPacker {
 
             VfxFacing.NONE -> VfxBillboards.rotatedEdges(
                 edges, matrix,
-                particles.rotationX[slot] + batch.spin.x, particles.rotationY[slot] + batch.spin.y, roll,
+                look[at + VfxParticleLook.ROTATION] + batch.spin.x, look[at + VfxParticleLook.ROTATION + 1] + batch.spin.y, roll,
                 width, height,
             )
         }
@@ -216,21 +219,22 @@ internal class VfxQuadPacker {
         val light = particles.light[slot]
         val tint = batch.tint
 
-        out[at] = cx
-        out[at + 1] = cy
-        out[at + 2] = cz
-        System.arraycopy(edges, 0, out, at + 3, 6)
-        out[at + 9] = particles.colorR[slot] * tint[0]
-        out[at + 10] = particles.colorG[slot] * tint[1]
-        out[at + 11] = particles.colorB[slot] * tint[2]
-        out[at + 12] = particles.colorA[slot] * tint[3]
-        out[at + 13] = region.u0 + (frame % columns) * cellWidth
-        out[at + 14] = region.v0 + (frame / columns) * cellHeight
-        out[at + 15] = cellWidth
-        out[at + 16] = cellHeight
-        out[at + 17] = (light and 0xFFFF).toFloat()
-        out[at + 18] = (light shr 16 and 0xFFFF).toFloat()
-        out[at + 19] = blendMode(plane.material.blend)
+        val color = at + VfxParticleLook.COLOR
+        out[base] = cx
+        out[base + 1] = cy
+        out[base + 2] = cz
+        System.arraycopy(edges, 0, out, base + 3, 6)
+        out[base + 9] = look[color] * tint[0]
+        out[base + 10] = look[color + 1] * tint[1]
+        out[base + 11] = look[color + 2] * tint[2]
+        out[base + 12] = look[color + 3] * tint[3]
+        out[base + 13] = region.u0 + (frame % columns) * cellWidth
+        out[base + 14] = region.v0 + (frame / columns) * cellHeight
+        out[base + 15] = cellWidth
+        out[base + 16] = cellHeight
+        out[base + 17] = (light and 0xFFFF).toFloat()
+        out[base + 18] = (light shr 16 and 0xFFFF).toFloat()
+        out[base + 19] = blendMode(plane.material.blend)
     }
 
     private fun ensureCapacity(count: Int) {

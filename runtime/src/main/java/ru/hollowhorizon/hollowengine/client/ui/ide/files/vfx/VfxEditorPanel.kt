@@ -5,10 +5,11 @@ import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
+import ru.hollowhorizon.hollowengine.client.editor.GizmoHandleId
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOpenFile
 import ru.hollowhorizon.hollowengine.client.ui.ide.PublishScene
-import ru.hollowhorizon.hollowengine.client.ui.ide.SceneTarget
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.AnimatorColors
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.AnimatorIconButton
@@ -20,30 +21,23 @@ import ru.hollowhorizon.hollowengine.client.ui.inspector.PublishInspector
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
-import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiKeyInput
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.vfx.VfxNodeSpec
-import ru.hollowhorizon.hollowengine.common.vfx.VfxNodeTypes
 import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val AutoSaveDelayMillis = 900L
 
-private const val PlayIcon = "hollowengine:textures/gui/icons/play.svg"
-private const val PauseIcon = "hollowengine:textures/gui/icons/pause.svg"
-private const val RestartIcon = "hollowengine:textures/gui/icons/reload.svg"
-private const val FloorIcon = "hollowengine:textures/gui/icons/layers.svg"
-private const val ShapeIcon = "hollowengine:textures/gui/icons/box.svg"
-private const val AddIcon = "hollowengine:textures/gui/icons/add.svg"
-private const val RemoveIcon = "hollowengine:textures/gui/icons/remove.svg"
+private const val PlayIcon = "hollowengine:textures/gui/icons/timeline/play.svg"
+private const val PauseIcon = "hollowengine:textures/gui/icons/timeline/pause.svg"
+private const val RestartIcon = "hollowengine:textures/gui/icons/vfx/restart.svg"
+private const val FloorIcon = "hollowengine:textures/gui/icons/vfx/floor.svg"
+private const val ShapeIcon = "hollowengine:textures/gui/icons/vfx/handles.svg"
 
 /**
  * The editor for a `.vfx` file.
  *
- * The hierarchy goes to the [ru.hollowhorizon.hollowengine.client.ui.ide.SceneDock], curves to the timeline window and the fields to the
+ * The hierarchy goes to the scene window, curves to the timeline window and the fields to the
  * inspector.
  */
 @Composable
@@ -61,7 +55,12 @@ internal fun VfxEditorPanel(file: HollowIdeOpenFile) {
     }
 
     DisposableEffect(document) {
-        onDispose { RenderSystem.recordRenderCall(state.preview::close) }
+        onDispose {
+            RenderSystem.recordRenderCall {
+                state.preview.close()
+                state.materialPreview.close()
+            }
+        }
     }
 
     LaunchedEffect(document) {
@@ -92,9 +91,9 @@ internal fun VfxEditorPanel(file: HollowIdeOpenFile) {
 
     PublishScene(
         source = "vfx-${file.path}",
-        key = Triple(document.revision, state.selected, state.expanded.toList()),
+        key = listOf(document.revision, state.selected, state.expanded.toList(), state.rootExpanded),
     ) {
-        sceneTarget(document, state)
+        vfxSceneTarget(document, state, file.path.substringAfterLast('/').substringBeforeLast('.'))
     }
 
     PublishTimeline(source = "vfx-${file.path}", key = file.path) {
@@ -131,21 +130,27 @@ internal fun VfxEditorPanel(file: HollowIdeOpenFile) {
 private fun Toolbar(state: VfxEditorState) {
     val timeline = state.session.timeline
     val preview = state.preview
-    Column(modifier = Modifier.position(8.px, 8.px).gap(4.px)) {
+    Row(tags = listOf("viewport-toolbar"), modifier = Modifier.position(8.px, 8.px)) {
         AnimatorIconButton(
             icon = if (timeline.isPlaying) PauseIcon else PlayIcon,
             tooltip = vfxText(if (timeline.isPlaying) "pause" else "play"),
+            size = 12f,
             active = timeline.isPlaying,
         ) { timeline.isPlaying = !timeline.isPlaying }
-        AnimatorIconButton(RestartIcon, vfxText("restart")) {
+        AnimatorIconButton(RestartIcon, vfxText("restart"), size = 12f) {
             preview.restart()
             timeline.followPlayhead(0f)
         }
-        AnimatorIconButton(FloorIcon, vfxText("toggle_floor"), active = preview.showFloor) {
+        AnimatorIconButton(FloorIcon, vfxText("toggle_floor"), size = 12f, active = preview.showFloor) {
             preview.showFloor = !preview.showFloor
         }
-        AnimatorIconButton(ShapeIcon, vfxText("toggle_shape"), active = preview.showShape) {
+        AnimatorIconButton(ShapeIcon, vfxText("toggle_shape"), size = 12f, active = preview.showShape) {
             preview.showShape = !preview.showShape
+        }
+        GizmoModes.forEach { (mode, icon, tooltip) ->
+            AnimatorIconButton(icon, tooltip.lang, size = 12f, active = mode in state.gizmoModes) {
+                state.gizmoModes = if (mode in state.gizmoModes) state.gizmoModes - mode else state.gizmoModes + mode
+            }
         }
     }
 }
@@ -158,24 +163,30 @@ internal class VfxEditorState(document: HollowIdeVfxDocument) {
     var selected by mutableStateOf<String?>(null)
         private set
     val expanded = mutableStateListOf<String>()
+    var rootExpanded by mutableStateOf(true)
 
     /** Which inspector sections are open, kept here so they survive switching between nodes. */
     private val sections = mutableStateMapOf<String, Boolean>()
 
-    /** Where the add-node menu opens from, once scene window has laid its button out. */
-    var addAnchor by mutableStateOf(UiRect.Zero)
-    var addMenuOpen by mutableStateOf(false)
+    /** The material of the selected surface on its own, in the material section of the inspector. */
+    val materialPreview = materialPreviewState()
 
-    /** The gizmo handle being dragged, with node as it was when drag started. */
+    /** The shape handle being dragged, with node as it was when drag started. */
     var drag: VfxGizmoHandle? = null
+
+    /** The transform gizmo of the world, drawn over the preview, and what it is set to move. */
+    val transformGizmo = VfxTransformGizmo()
+    var gizmoModes by mutableStateOf(setOf(GizmoEditMode.TRANSLATE))
+    var transformDrag: VfxTransformDrag? = null
+    var hoveredHandle by mutableStateOf<GizmoHandleId?>(null)
 
     /** What dragged handle is set to right now, drawn beside it. */
     var readout by mutableStateOf<VfxGizmoReadout?>(null)
 
-    fun isSectionOpen(key: String, default: Boolean): Boolean = sections[key] ?: default
+    fun isSectionOpen(key: String): Boolean = sections[key] ?: false
 
-    fun toggleSection(key: String, default: Boolean) {
-        sections[key] = !(sections[key] ?: default)
+    fun toggleSection(key: String) {
+        sections[key] = !isSectionOpen(key)
     }
 
     fun select(id: String?) {
@@ -185,51 +196,6 @@ internal class VfxEditorState(document: HollowIdeVfxDocument) {
     }
 
     fun focusProperty(nodeId: String, property: VfxProperty) = session.focus(nodeId, property)
-}
-
-/** The node tree, as shared scene window shows it. */
-private fun sceneTarget(document: HollowIdeVfxDocument, state: VfxEditorState) = SceneTarget(
-    id = "vfx-nodes",
-    title = vfxText("nodes"),
-    items = buildList { appendNodes(document.effect.nodes, state.expanded, state.selected) },
-    onSelect = { id -> state.select(id) },
-    onToggle = { id -> if (id in state.expanded) state.expanded.remove(id) else state.expanded.add(id) },
-    empty = vfxText("no_nodes"),
-) {
-    SceneActions(document, state)
-}
-
-@Composable
-private fun SceneActions(document: HollowIdeVfxDocument, state: VfxEditorState) {
-    Row(modifier = Modifier.gap(2.px)) {
-        Box(modifier = Modifier.onPlaced { state.addAnchor = it }) {
-            AnimatorIconButton(AddIcon, vfxText("add_node")) { state.addMenuOpen = true }
-        }
-        if (state.selected != null) {
-            AnimatorIconButton(RemoveIcon, vfxText("remove_node")) {
-                state.selected?.let { id ->
-                    document.edit { it.withoutNode(id) }
-                    state.select(null)
-                }
-            }
-        }
-    }
-
-    if (state.addMenuOpen) {
-        ContextMenu(
-            id = "vfx-add-node",
-            anchorBounds = state.addAnchor,
-            items = VfxNodeTypes.all.mapNotNull { type ->
-                val createDefault = type.createDefault ?: return@mapNotNull null
-                UiDropdownItem(type.titleKey.lang) {
-                    val created = createDefault()
-                    document.edit { effect -> effect.withChild(state.selected, created) }
-                    state.select(created.id)
-                }
-            },
-            onExpandedChange = { if (!it) state.addMenuOpen = false },
-        )
-    }
 }
 
 /**
@@ -245,9 +211,16 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
     val gizmoKey = listOf(
         preview.yaw, preview.pitch, preview.distance, preview.targetX, preview.targetY, preview.targetZ,
         preview.viewportWidth, preview.viewportHeight, preview.time, preview.showShape, preview.revision, node,
+        state.gizmoModes,
     )
     val gizmo = remember(gizmoKey) {
         if (node == null) VfxGizmo.EMPTY else VfxGizmos.build(preview, node, runtime, preview.showShape, driven)
+    }
+    val transform = state.transformGizmo
+    val handles = remember(gizmoKey) {
+        if (node == null || runtime == null || preview.viewportWidth <= 1f) return@remember emptyList()
+        transform.capture(preview)
+        transform.handles(runtime.frame, state.gizmoModes, driven)
     }
 
     Box(
@@ -260,13 +233,27 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
             .onKeyInput { input -> if (handleHistoryKeys(document, input)) input.consume() }.onPress { event ->
                 val left = event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT
                 val handle = if (left) gizmo.handleAt(event.localX, event.localY) else null
+                val moving = if (left && handle == null && node != null && runtime != null) {
+                    transform.pick(handles, event.localX, event.localY)?.let { picked ->
+                        transform.begin(picked, runtime.frame, runtime.parent?.frame, node.transform, event.localX, event.localY)
+                    }
+                } else null
                 state.drag = handle
+                state.transformDrag = moving
                 state.readout = null
-                if (handle != null) document.beginGesture() else preview.beginCameraDrag()
+                if (handle != null || moving != null) document.beginGesture() else preview.beginCameraDrag()
             }.onDrag { event ->
                 val handle = state.drag
+                val moving = state.transformDrag
                 val current = selected?.let { document.effect.node(it) }
                 when {
+                    moving != null && current != null -> {
+                        transform.drag(moving, event.localX, event.localY, event.modifiers)?.let { placed ->
+                            document.edit { it.withNode(current.withCommon(transform = placed)) }
+                        }
+                        state.readout = transform.labelAt(moving)?.let { (x, y) -> VfxGizmoReadout(x, y, moving.label) }
+                    }
+
                     handle != null && current != null -> {
                         val fine = event.modifiers and GLFW.GLFW_MOD_SHIFT != 0
                         val snap = event.modifiers and GLFW.GLFW_MOD_CONTROL != 0
@@ -280,9 +267,13 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
                 }
                 event.consume()
             }.onRelease {
-                if (state.drag != null) document.endGesture()
+                if (state.drag != null || state.transformDrag != null) document.endGesture()
                 state.drag = null
+                state.transformDrag = null
                 state.readout = null
+            }.onHover { event ->
+                val over = transform.pick(handles, event.localX, event.localY)?.id
+                if (over != state.hoveredHandle) state.hoveredHandle = over
             }.onScroll { event ->
                 preview.zoom(event.scrollY)
                 event.consume()
@@ -292,7 +283,10 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
     ) {
         Box(
             modifier = Modifier.size(100.percent, 100.percent).inputTransparent()
-                .drawBehind(key = gizmo to state.drag?.id) { drawGizmo(gizmo, state.drag?.id) },
+                .drawBehind(key = listOf(gizmo, handles, state.drag?.id, state.hoveredHandle)) {
+                    drawGizmo(gizmo, state.drag?.id)
+                    transform.draw(this, handles, state.hoveredHandle, state.transformDrag)
+                },
         )
         state.readout?.let { readout ->
             Text(
@@ -351,31 +345,12 @@ private fun ParticleCounter(preview: VfxPreviewState) {
     )
 }
 
+/** The modes of the transform gizmo, with the icons and names the IDE toolbar gives them for the world. */
+private val GizmoModes = listOf(
+    Triple(GizmoEditMode.TRANSLATE, "hollowengine:textures/gui/icons/gizmo_translate.svg", "hollowengine.gui.ide.gizmo.translate"),
+    Triple(GizmoEditMode.ROTATE, "hollowengine:textures/gui/icons/gizmo_rotate.svg", "hollowengine.gui.ide.gizmo.rotate"),
+    Triple(GizmoEditMode.SCALE, "hollowengine:textures/gui/icons/gizmo_scale.svg", "hollowengine.gui.ide.gizmo.scale"),
+)
+
 private val HandleOutline = UiColor(0.05f, 0.05f, 0.06f, 0.9f)
 private val CounterBackground = UiColor(0.06f, 0.07f, 0.08f, 0.7f)
-
-private fun MutableList<UiTreeItem<Any?>>.appendNodes(
-    nodes: List<VfxNodeSpec>,
-    expanded: List<String>,
-    selected: String?,
-    depth: Int = 0,
-) {
-    nodes.forEach { node ->
-        val type = VfxNodeTypes.of(node)
-        add(
-            UiTreeItem(
-                id = node.id,
-                label = if (node.enabled) node.name else "${node.name} (${vfxText("off")})",
-                depth = depth,
-                payload = node,
-                icon = type?.icon,
-                hasChildren = node.children.isNotEmpty(),
-                expanded = node.id in expanded,
-                selected = node.id == selected,
-            )
-        )
-        if (node.children.isNotEmpty() && node.id in expanded) {
-            appendNodes(node.children, expanded, selected, depth + 1)
-        }
-    }
-}

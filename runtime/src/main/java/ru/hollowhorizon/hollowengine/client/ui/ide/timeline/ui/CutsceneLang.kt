@@ -9,6 +9,7 @@ internal object CutsceneLang {
     const val VIEW_DOPE_SHEET = ROOT + "view.dope_sheet"
     const val VIEW_CURVES = ROOT + "view.curves"
     const val FRAME_CURVES = ROOT + "view.frame_curves"
+    const val FRAME_TIME = ROOT + "view.frame_time"
 
     const val CAPTURE_KEYFRAME = ROOT + "action.capture"
     const val ADD_KEYFRAME = ROOT + "action.add_keyframe"
@@ -24,6 +25,14 @@ internal object CutsceneLang {
     const val LOAD = ROOT + "action.load"
     const val CANCEL = ROOT + "action.cancel"
     const val CLOSE = ROOT + "action.close"
+    const val TO_START = ROOT + "action.to_start"
+    const val TO_END = ROOT + "action.to_end"
+    const val PLAY = ROOT + "action.play"
+    const val PREV_KEY = ROOT + "action.prev_key"
+    const val NEXT_KEY = ROOT + "action.next_key"
+    const val ZOOM_IN = ROOT + "action.zoom_in"
+    const val ZOOM_OUT = ROOT + "action.zoom_out"
+    const val MORE = ROOT + "action.more"
 
     const val SAVE_TITLE = ROOT + "dialog.save_title"
     const val LOAD_TITLE = ROOT + "dialog.load_title"
@@ -44,6 +53,7 @@ internal object CutsceneLang {
     const val PAUSED = ROOT + "preview.paused"
     const val CURRENT_TIME = ROOT + "preview.current_time"
     const val DURATION = ROOT + "preview.duration"
+    const val TIME_HINT = ROOT + "preview.time_hint"
 
     const val ORIGIN_X = ROOT + "origin.x"
     const val ORIGIN_Y = ROOT + "origin.y"
@@ -71,13 +81,14 @@ internal object CutsceneLang {
     const val HANDLE_IN = ROOT + "handles.incoming"
     const val HANDLE_OUT = ROOT + "handles.outgoing"
 
-    const val PROPERTY_SETTINGS = ROOT + "property.settings"
+    const val TRACK_SELECT_KEYS = ROOT + "track.select_keys"
+    const val TRACK_SHOW = ROOT + "track.show"
+    const val TRACK_HIDE = ROOT + "track.hide"
+    const val TRACK_LOCK = ROOT + "track.lock"
+    const val TRACK_UNLOCK = ROOT + "track.unlock"
+    const val TRACK_REMOVE = ROOT + "track.remove"
 
     const val ROTATION_MODE = ROOT + "rotation.mode"
     const val ROTATION_EULER = ROOT + "rotation.euler"
     const val ROTATION_QUATERNION = ROOT + "rotation.quaternion"
-    const val ROTATION_MODE_HINT = ROOT + "rotation.mode_hint"
-
-    const val LIMITS = ROOT + "limits.title"
-    const val LIMITS_HINT = ROOT + "limits.hint"
     }

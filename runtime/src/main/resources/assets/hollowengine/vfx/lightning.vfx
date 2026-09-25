@@ -19,7 +19,63 @@
           "children": [
             {
               "type": "hollowengine:vfx/plane",
-              "id": "cloud-plane"
+              "id": "cloud-plane",
+              "particle": {
+                "size": {
+                  "x": {
+                    "type": "range",
+                    "from": 0.8,
+                    "to": 1.4
+                  },
+                  "y": {
+                    "type": "const",
+                    "value": 1.0
+                  },
+                  "z": {
+                    "type": "const",
+                    "value": 1.0
+                  }
+                },
+                "rotation": {
+                  "z": {
+                    "type": "expr",
+                    "source": "p.random * 360"
+                  }
+                },
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.15,
+                          "g": 0.15,
+                          "b": 0.2,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.3,
+                        "color": {
+                          "r": 0.15,
+                          "g": 0.15,
+                          "b": 0.2,
+                          "a": 0.6
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.15,
+                          "g": 0.15,
+                          "b": 0.2,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
             }
           ],
           "emission": {
@@ -47,62 +103,6 @@
               "type": "range",
               "from": 0.05,
               "to": 0.2
-            }
-          },
-          "appearance": {
-            "size": {
-              "x": {
-                "type": "range",
-                "from": 0.8,
-                "to": 1.4
-              },
-              "y": {
-                "type": "const",
-                "value": 1.0
-              },
-              "z": {
-                "type": "const",
-                "value": 1.0
-              }
-            },
-            "rotation": {
-              "z": {
-                "type": "expr",
-                "source": "p.random * 360"
-              }
-            },
-            "color": {
-              "type": "gradient",
-              "gradient": {
-                "stops": [
-                  {
-                    "color": {
-                      "r": 0.15,
-                      "g": 0.15,
-                      "b": 0.2,
-                      "a": 0.0
-                    }
-                  },
-                  {
-                    "position": 0.3,
-                    "color": {
-                      "r": 0.15,
-                      "g": 0.15,
-                      "b": 0.2,
-                      "a": 0.6
-                    }
-                  },
-                  {
-                    "position": 1.0,
-                    "color": {
-                      "r": 0.15,
-                      "g": 0.15,
-                      "b": 0.2,
-                      "a": 0.0
-                    }
-                  }
-                ]
-              }
             }
           }
         }
@@ -197,7 +197,44 @@
           "material": {
             "blend": "ADDITIVE"
           },
-          "facing": "VELOCITY"
+          "facing": "VELOCITY",
+          "particle": {
+            "size": {
+              "x": {
+                "type": "const",
+                "value": 0.05
+              },
+              "y": {
+                "type": "const",
+                "value": 1.0
+              },
+              "z": {
+                "type": "const",
+                "value": 1.0
+              }
+            },
+            "color": {
+              "type": "gradient",
+              "gradient": {
+                "stops": [
+                  {
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85
+                    }
+                  },
+                  {
+                    "position": 1.0,
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85,
+                      "a": 0.0
+                    }
+                  }
+                ]
+              }
+            }
+          }
         },
         {
           "type": "hollowengine:vfx/trail",
@@ -218,7 +255,30 @@
             }
           },
           "lifetime": 0.2,
-          "maxPoints": 10
+          "maxPoints": 10,
+          "particle": {
+            "color": {
+              "type": "gradient",
+              "gradient": {
+                "stops": [
+                  {
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85
+                    }
+                  },
+                  {
+                    "position": 1.0,
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85,
+                      "a": 0.0
+                    }
+                  }
+                ]
+              }
+            }
+          }
         }
       ],
       "emission": {
@@ -247,43 +307,6 @@
           "type": "range",
           "from": 2.0,
           "to": 5.0
-        }
-      },
-      "appearance": {
-        "size": {
-          "x": {
-            "type": "const",
-            "value": 0.05
-          },
-          "y": {
-            "type": "const",
-            "value": 1.0
-          },
-          "z": {
-            "type": "const",
-            "value": 1.0
-          }
-        },
-        "color": {
-          "type": "gradient",
-          "gradient": {
-            "stops": [
-              {
-                "color": {
-                  "r": 0.75,
-                  "g": 0.85
-                }
-              },
-              {
-                "position": 1.0,
-                "color": {
-                  "r": 0.75,
-                  "g": 0.85,
-                  "a": 0.0
-                }
-              }
-            ]
-          }
         }
       },
       "motion": {

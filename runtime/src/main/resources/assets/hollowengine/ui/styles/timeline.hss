@@ -1,0 +1,192 @@
+/*
+ * The timeline window: its bar, the track list and the ruler. Lanes, keys and curves are drawn in
+ * code, from the same palette (TimelineColors), because where they sit is data.
+ *
+ * The palette is the IDE's (see docking.hss); text is set in the code font, which fits a long track
+ * name and a time readout into far less room than the vanilla one.
+ */
+
+/* Rounded like every other panel; the gap at the bottom keeps the square lanes out of the corners. */
+.timeline-root {
+    padding: 0px 0px 5px 0px;
+    background: #1C1E22;
+    border-radius: 6px;
+    font-family: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
+}
+
+/* ---- bar ---- */
+
+.timeline-toolbar {
+    size: 100% 22px;
+    padding: 0px 4px;
+    gap: 1px;
+    align-items: start center;
+}
+
+.timeline-button {
+    size: fit fit;
+    padding: 3px;
+    border-radius: 3px;
+    background: #00000000;
+    hoverable: true;
+    clickable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-button:hover { background: #2B2E35; }
+
+.timeline-button.active { background: #2E3544; }
+
+.timeline-button-icon {
+    size: 12px 12px;
+    tint: #aeb8ca;
+    transition: tint 110ms ease-out;
+}
+
+.timeline-button:hover .timeline-button-icon { tint: #ffffff; }
+
+.timeline-button.active .timeline-button-icon { tint: #6E9BDC; }
+
+.timeline-separator {
+    size: 1px 12px;
+    margin: 0px 4px;
+    background: #2B2E35;
+}
+
+.timeline-time {
+    size: 52px fit;
+    min-height: 16px;
+    padding: 1px 4px;
+    background: #212328;
+    border-radius: 3px;
+    border: 1px #212328;
+    foreground: #E4E9F4;
+    font-size: 9px;
+    text-align: right;
+    caret-color: #f0f6ff;
+    selection-color: rgba(95, 140, 205, 0.46);
+    text-shadow: none;
+    transition: border 110ms ease-out;
+}
+
+.timeline-time:hover { border: 1px #3A3E48; }
+
+.timeline-time:focus { border: 1px #6E9BDC; }
+
+.timeline-duration {
+    margin: 0px 4px 0px 3px;
+    foreground: #7A8698;
+    font-size: 9px;
+    wrap: false;
+}
+
+
+/* The lanes and the track list scroll the way every IDE list does: a thin bar over the content. */
+.timeline-scroll {
+    scrollbar: 4px;
+    scrollbar-margin: 2px;
+    scrollbar-overlay: true;
+    scrollbar-track: none;
+    scrollbar-thumb: rgba(155, 169, 194, 0.28);
+    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
+    scrollbar-hover-thickness: 6px;
+    scrollbar-thumb-radius: 4px;
+}
+
+/* ---- track list ---- */
+
+.timeline-corner {
+    background: #1C1E22;
+}
+
+.timeline-corner-label {
+    margin: 0px 0px 0px 8px;
+    foreground: #7A8698;
+    font-size: 8px;
+}
+
+.timeline-row {
+    background: #1C1E22;
+    hoverable: true;
+    clickable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-row:hover { background: #24262B; }
+
+.timeline-row.group { background: #212328; }
+
+.timeline-row.group:hover { background: #26292F; }
+
+.timeline-row.channel { background: #1E2024; }
+
+.timeline-row.focused { background: rgba(110, 155, 220, 0.16); }
+
+.timeline-row.locked { background: #18191C; }
+
+.timeline-row-label {
+    foreground: #C4CBDA;
+    font-size: 9px;
+    wrap: false;
+    text-overflow: dots;
+}
+
+.timeline-row.group .timeline-row-label { foreground: #E4E9F4; }
+
+.timeline-row.channel .timeline-row-label {
+    foreground: #8f9bad;
+    font-size: 8px;
+}
+
+.timeline-row.muted .timeline-row-label { foreground: #6A7384; }
+
+.timeline-row-toggle {
+    size: fit fit;
+    padding: 2px;
+    border-radius: 3px;
+    background: #00000000;
+    hoverable: true;
+    clickable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-row-toggle:hover { background: #2B2E35; }
+
+.timeline-row-icon {
+    size: 10px 10px;
+    tint: #6A7384;
+    transition: tint 110ms ease-out;
+}
+
+.timeline-row-toggle:hover .timeline-row-icon { tint: #ffffff; }
+
+.timeline-row-toggle.on .timeline-row-icon { tint: #aeb8ca; }
+
+.timeline-row-toggle.warn .timeline-row-icon { tint: #6E9BDC; }
+
+/* Taking a track off the list is rare; the cross only shows on the row the pointer is on. */
+.timeline-row-toggle.hide-track {
+    opacity: 0;
+    transition: opacity 110ms ease-out, background 110ms ease-out;
+}
+
+.timeline-row:hover .timeline-row-toggle.hide-track { opacity: 1; }
+
+.timeline-splitter {
+    background: #141518;
+    hoverable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-splitter:hover { background: #6E9BDC; }
+
+/* ---- ruler ---- */
+
+.timeline-ruler {
+    background: #1C1E22;
+}
+
+.timeline-ruler-label {
+    foreground: #7A8698;
+    font-size: 8px;
+}

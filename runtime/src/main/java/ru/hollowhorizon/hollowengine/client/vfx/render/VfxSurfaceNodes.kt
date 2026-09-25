@@ -7,10 +7,12 @@ import ru.hollowhorizon.hollowengine.client.vfx.VfxColorSampler
 import ru.hollowhorizon.hollowengine.client.vfx.VfxEmitter
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNodeBehavior
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNodeRuntime
+import ru.hollowhorizon.hollowengine.client.vfx.VfxParticleLook
 import ru.hollowhorizon.hollowengine.client.vfx.VfxParticles
 import ru.hollowhorizon.hollowengine.client.vfx.VfxSamplers
 import ru.hollowhorizon.hollowengine.common.utils.MutableColor
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
+import ru.hollowhorizon.hollowengine.common.vfx.VfxAppearance
 import ru.hollowhorizon.hollowengine.common.vfx.VfxColorValue
 import ru.hollowhorizon.hollowengine.common.vfx.VfxMeshSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxModelSpec
@@ -19,16 +21,25 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.VfxSurfaceSpec
 
 /**
- * What every renderer node shares: the particles it draws, and its tint.
+ * What every renderer node shares: the particles it draws, the look it gives them, and its tint.
  *
- * Under an emitter those are the emitter's particles. Anywhere else the node draws one particle of
- * its own, a unit one at its origin, so the same draw path covers both.
+ * Under an emitter those are the emitter's particles, sized and coloured by a [VfxParticleLook] of
+ * this node. Anywhere else the node draws one particle of its own, a unit one at its origin, so the
+ * same draw path covers both.
  */
-abstract class VfxRendererNode(protected val node: VfxNodeRuntime, tint: VfxColorValue) : VfxNodeBehavior {
+abstract class VfxRendererNode(
+    protected val node: VfxNodeRuntime,
+    tint: VfxColorValue,
+    appearance: VfxAppearance,
+) : VfxNodeBehavior {
     /** The emitter whose particles this node draws, or null when it draws itself. */
     protected val source: VfxEmitter? = node.particleSource
 
     private val own: VfxParticles? = if (source == null) VfxParticles(1).also(::placeOwnParticle) else null
+
+    private val look: FloatArray = source
+        ?.let { emitter -> VfxParticleLook(appearance, node, emitter.particles).also(emitter::addLook).data }
+        ?: VfxParticleLook.unit()
 
     private val tintSampler: VfxColorSampler = VfxSamplers.color(
         tint,
@@ -52,6 +63,7 @@ abstract class VfxRendererNode(protected val node: VfxNodeRuntime, tint: VfxColo
             val local = node.transform
             return VfxParticleBatch(
                 particles = emitter.particles,
+                look = look,
                 matrix = Matrix4f(placement).mul(emitter.simToRender.asMatrix4f()),
                 uvColumns = emitter.uvColumns,
                 uvRows = emitter.uvRows,
@@ -66,6 +78,7 @@ abstract class VfxRendererNode(protected val node: VfxNodeRuntime, tint: VfxColo
         particles.light[0] = node.instance.lightAt(node.frame.position)
         return VfxParticleBatch(
             particles = particles,
+            look = look,
             matrix = Matrix4f(placement).mul(node.frame.toMatrix(frameMatrix).asMatrix4f()),
             tint = tint,
         )
@@ -73,19 +86,13 @@ abstract class VfxRendererNode(protected val node: VfxNodeRuntime, tint: VfxColo
 
     private fun placeOwnParticle(particles: VfxParticles) {
         particles.allocate()
-        particles.sizeX[0] = 1f
-        particles.sizeY[0] = 1f
-        particles.sizeZ[0] = 1f
-        particles.colorR[0] = 1f
-        particles.colorG[0] = 1f
-        particles.colorB[0] = 1f
-        particles.colorA[0] = 1f
         particles.lifetime[0] = 1f
     }
 }
 
 /** A renderer node drawn with a material, and the uniforms that material's shader takes. */
-abstract class VfxSurfaceNode(spec: VfxSurfaceSpec, node: VfxNodeRuntime) : VfxRendererNode(node, spec.tint) {
+abstract class VfxSurfaceNode(spec: VfxSurfaceSpec, node: VfxNodeRuntime, appearance: VfxAppearance) :
+    VfxRendererNode(node, spec.tint, appearance) {
     private val uniforms = spec.material.shader?.let { shader ->
         VfxUniformBinding(shader, spec.material.uniforms, spec.material.samplers, node)
     }
@@ -93,14 +100,14 @@ abstract class VfxSurfaceNode(spec: VfxSurfaceSpec, node: VfxNodeRuntime) : VfxR
     protected fun uniforms(): VfxUniformValues? = uniforms?.evaluate(node.context)
 }
 
-class VfxPlaneNode(private val spec: VfxPlaneSpec, node: VfxNodeRuntime) : VfxSurfaceNode(spec, node) {
+class VfxPlaneNode(private val spec: VfxPlaneSpec, node: VfxNodeRuntime) : VfxSurfaceNode(spec, node, spec.particle) {
     override fun collect(into: VfxDrawList, placement: Matrix4f) {
         val batch = batch(placement) ?: return
         into.quads += VfxQuadDraw(spec, batch, uniforms())
     }
 }
 
-class VfxMeshNode(private val spec: VfxMeshSpec, node: VfxNodeRuntime) : VfxSurfaceNode(spec, node) {
+class VfxMeshNode(private val spec: VfxMeshSpec, node: VfxNodeRuntime) : VfxSurfaceNode(spec, node, spec.particle) {
     private val primitive = spec.primitive
 
     override fun collect(into: VfxDrawList, placement: Matrix4f) {
@@ -113,7 +120,8 @@ class VfxMeshNode(private val spec: VfxMeshSpec, node: VfxNodeRuntime) : VfxSurf
  * A model drawn through the model renderer. Each particle is submitted as one instance of the model,
  * so the model renderer batches them the way it batches entities.
  */
-class VfxModelNode(private val spec: VfxModelSpec, node: VfxNodeRuntime) : VfxRendererNode(node, VfxColorValue.WHITE) {
+class VfxModelNode(private val spec: VfxModelSpec, node: VfxNodeRuntime) :
+    VfxRendererNode(node, VfxColorValue.WHITE, spec.particle) {
     /** Loaded the first time it is actually drawn. */
     private val model: ModelAttachment? by lazy {
         spec.model.takeIf { it.isNotBlank() }?.let { ModelAttachment(it) }

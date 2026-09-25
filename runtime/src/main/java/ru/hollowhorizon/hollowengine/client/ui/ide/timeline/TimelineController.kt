@@ -162,6 +162,34 @@ class TimelineController {
         isPlaying = !isPlaying
     }
 
+    /**
+     * Bumped to ask the window to fit the work area into the lanes; only the window knows how wide
+     * they are.
+     */
+    var frameTimeRequests by mutableStateOf(0)
+        private set
+
+    fun requestFrameTime() {
+        frameTimeRequests++
+    }
+
+    /**
+     * Moves the playhead to the nearest key after it ([direction] > 0) or before it, on the tracks the
+     * list shows. Returns false when there is none that way.
+     */
+    fun jumpToKey(direction: Int): Boolean {
+        val now = currentTime
+        val times = allProperties().filter { it.isListed }.flatMap { it.curves }.flatMap { it.keyframes }.map { it.time }
+        val target = if (direction > 0) {
+            times.filter { it > now + KEYFRAME_TIME_EPSILON }.minOrNull()
+        } else {
+            times.filter { it < now - KEYFRAME_TIME_EPSILON }.maxOrNull()
+        } ?: return false
+        isPlaying = false
+        applyCurrentTime(target)
+        return true
+    }
+
     fun isSelected(keyframe: Keyframe): Boolean = selectedKeyframes.any { it === keyframe }
 
     fun clearSelection() {

@@ -26,8 +26,6 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeModifierMask
 import ru.hollowhorizon.hollowengine.client.ui.ide.hollowIdeWorldPoint
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.shape.GenericShape
-import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
@@ -182,7 +180,7 @@ object TransformGizmoEditor {
             val entry = draggingKey?.let(entries::get)
             if (drag != null && entry != null) {
                 val (cx, cy) = WorldToScreenProjector.screenCenter()
-                GizmoManipulator.update(drag, cx, cy, hollowIdeModifierMask())?.let { values ->
+                GizmoManipulator.World.update(drag, cx, cy, hollowIdeModifierMask())?.let { values ->
                     entry.working = values
                     applyFromGizmo(entry, values)
                     updateLabel(entry, drag)
@@ -248,7 +246,7 @@ object TransformGizmoEditor {
         }
         if (drag != null) {
             val entry = draggingKey?.let(entries::get)
-            val values = GizmoManipulator.update(drag, x, y, hollowIdeModifierMask())
+            val values = GizmoManipulator.World.update(drag, x, y, hollowIdeModifierMask())
             if (values != null && entry != null) {
                 entry.working = values
                 applyFromGizmo(entry, values)
@@ -293,7 +291,7 @@ object TransformGizmoEditor {
             val entry = activeKey?.let(entries::get) ?: return false
             when (button) {
                 GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
-                    currentDrag = GizmoManipulator.begin(handle, entry.working ?: return false, x, y)
+                    currentDrag = GizmoManipulator.World.begin(handle, entry.working ?: return false, x, y)
                     draggingKey = entry.entryId
                     draggingHandleId = handle.id
                     contextMenuState = null
@@ -351,7 +349,7 @@ object TransformGizmoEditor {
     private fun activeEntryHandleAt(x: Float, y: Float): GizmoHandle? {
         val entry = activeKey?.let(entries::get)?.takeIf { it.visible } ?: return null
         val working = entry.working ?: return null
-        val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, modes)
+        val handles = GizmoGeometry.World.buildHandles(working.translation, working.rotation, modes)
         return GizmoPicker.pick(handles, x, y)
     }
 
@@ -442,7 +440,7 @@ object TransformGizmoEditor {
             }
             entry.lastBounds?.let { bounds ->
                 val width = boundsLineWidth(bounds)
-                for (edge in GizmoGeometry.buildBoundsEdges(bounds)) strokeLine(scope, edge, boundsColor, width)
+                for (edge in GizmoGeometry.World.buildBoundsEdges(bounds)) GizmoRenderer.strokeLine(scope, edge, boundsColor, width)
             }
         }
 
@@ -450,50 +448,12 @@ object TransformGizmoEditor {
         val working = active.working ?: return
 
         val drag = currentDrag
-        if (drag != null && drag.handleId.isRotation() && draggingKey == active.entryId) {
-            drag.axis?.let { axis ->
-                val perPixel = WorldToScreenProjector.worldPerPixel(drag.origin)
-                GizmoGeometry.buildRotationSector(drag.origin, axis, drag.startAngle, drag.angle, perPixel)
-                    ?.let { sector ->
-                        fillPolygon(scope, sector, UiColor(1f, 0.85f, 0.32f, 0.25f))
-                        strokeLine(scope, sector, UiColor(1f, 0.86f, 0.34f, 0.9f), 1.5f, closed = true)
-                    }
-            }
+        if (drag != null && draggingKey == active.entryId) {
+            GizmoRenderer.drawRotationSector(scope, GizmoGeometry.World, WorldToScreenProjector, drag)
         }
 
-        val handles = GizmoGeometry.buildHandles(working.translation, working.rotation, modes)
-            .sortedByDescending { it.depth }
-        for (handle in handles) {
-            val highlighted =
-                handle.id == draggingHandleId || (draggingHandleId == null && handle.id == hoveredHandleId)
-            val base = if (highlighted) GizmoColors.highlighted(handle.color) else handle.color
-            val emphasis = if (highlighted) 1f else handle.emphasis
-            handle.fillPolygon?.let { fill ->
-                val alpha = (if (handle.id.isSolidHandle()) 0.72f else 0.22f) * emphasis
-                fillPolygon(scope, fill, base.withAlpha(alpha))
-            }
-            for (stroke in handle.renderLines) {
-                val strokeEmphasis = if (highlighted) 1f else emphasis * stroke.emphasis
-                strokeLine(
-                    scope,
-                    stroke.points,
-                    base.withAlpha(base.alpha * strokeEmphasis),
-                    handle.width * (0.55f + 0.45f * strokeEmphasis),
-                    stroke.closed,
-                )
-            }
-        }
-    }
-
-    private fun UiColor.withAlpha(alpha: Float) = UiColor(red, green, blue, alpha)
-
-    private fun GizmoHandleId.isRotation(): Boolean =
-        this == GizmoHandleId.ROTATE_X || this == GizmoHandleId.ROTATE_Y || this == GizmoHandleId.ROTATE_Z
-
-    private fun GizmoHandleId.isSolidHandle(): Boolean = when (this) {
-        GizmoHandleId.AXIS_X, GizmoHandleId.AXIS_Y, GizmoHandleId.AXIS_Z,
-        GizmoHandleId.SCALE_X, GizmoHandleId.SCALE_Y, GizmoHandleId.SCALE_Z, GizmoHandleId.SCALE_UNIFORM -> true
-        else -> false
+        val handles = GizmoGeometry.World.buildHandles(working.translation, working.rotation, modes)
+        GizmoRenderer.drawHandles(scope, handles, hoveredHandleId, draggingHandleId)
     }
 
     /** Thinner bounding-box lines when the box is small/distant on screen. */
@@ -521,50 +481,6 @@ object TransformGizmoEditor {
         return hypot(maxX - minX, maxY - minY)
     }
 
-
-    /** Screen span beyond which a polyline is treated as degenerate and skipped (guards the tiler). */
-    private const val MAX_DRAW_SPAN = 8000f
-
-    private fun withinDrawBounds(points: List<Pt>): Boolean {
-        var minX = Float.POSITIVE_INFINITY
-        var minY = Float.POSITIVE_INFINITY
-        var maxX = Float.NEGATIVE_INFINITY
-        var maxY = Float.NEGATIVE_INFINITY
-        for (point in points) {
-            if (!point.x.isFinite() || !point.y.isFinite()) return false
-            minX = minOf(minX, point.x); minY = minOf(minY, point.y)
-            maxX = maxOf(maxX, point.x); maxY = maxOf(maxY, point.y)
-        }
-        return (maxX - minX) <= MAX_DRAW_SPAN && (maxY - minY) <= MAX_DRAW_SPAN
-    }
-
-    private fun strokeLine(
-        scope: UiCanvasDrawScope,
-        points: List<Pt>,
-        color: UiColor,
-        width: Float,
-        closed: Boolean = false,
-    ) {
-        if (points.size < 2 || !withinDrawBounds(points)) return
-        val shape = GenericShape {
-            points.forEachIndexed { index, point ->
-                if (index == 0) moveTo(point.x, point.y) else lineTo(point.x, point.y)
-            }
-            if (closed) close()
-        }
-        scope.drawShape(shape, UiPaint.Color(color), UiDrawStyle.Stroke(width))
-    }
-
-    private fun fillPolygon(scope: UiCanvasDrawScope, points: List<Pt>, color: UiColor) {
-        if (points.size < 3 || !withinDrawBounds(points)) return
-        val shape = GenericShape {
-            points.forEachIndexed { index, point ->
-                if (index == 0) moveTo(point.x, point.y) else lineTo(point.x, point.y)
-            }
-            close()
-        }
-        scope.drawShape(shape, UiPaint.Color(color), UiDrawStyle.Fill)
-    }
 
     private fun updateLabel(entry: GizmoEntry, drag: GizmoDrag) {
         val origin = entry.working?.translation ?: return

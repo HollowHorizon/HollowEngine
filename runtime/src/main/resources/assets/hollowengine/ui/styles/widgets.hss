@@ -101,17 +101,6 @@
     background: rgba(110, 155, 220, 0.18);
 }
 
-.timeline-scroll {
-    scrollbar: 4px;
-    scrollbar-margin: 2px;
-    scrollbar-overlay: true;
-    scrollbar-track: none;
-    scrollbar-thumb: rgba(155, 169, 194, 0.28);
-    scrollbar-thumb-hover: rgba(175, 188, 210, 0.6);
-    scrollbar-hover-thickness: 6px;
-    scrollbar-thumb-radius: 4px;
-}
-
 .dropdown-item.disabled {
     opacity: 0.42;
 }

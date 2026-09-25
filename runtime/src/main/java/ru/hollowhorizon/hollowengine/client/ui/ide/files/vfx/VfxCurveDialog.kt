@@ -114,4 +114,4 @@ private const val HeaderWidth = 150f
 
 private const val GraphWidth = DialogWidth - HeaderWidth - 220f - 80f
 
-private const val CloseIcon = "hollowengine:textures/gui/icons/cross.svg"
+private const val CloseIcon = "hollowengine:textures/gui/icons/timeline/close.svg"

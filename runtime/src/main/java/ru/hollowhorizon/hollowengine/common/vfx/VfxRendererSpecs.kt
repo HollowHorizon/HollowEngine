@@ -59,6 +59,7 @@ data class VfxPlaneSpec(
     override val tint: VfxColorValue = VfxColorValue.WHITE,
     val facing: VfxFacing = VfxFacing.CAMERA,
     val facingAxis: Vec3f = Vec3f.Y_AXIS,
+    override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxSurfaceSpec(), VfxParticleRendererSpec {
     override fun withCommon(
         id: String,
@@ -68,7 +69,13 @@ data class VfxPlaneSpec(
         children: List<VfxNodeSpec>,
     ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
 
+    override fun withParticle(particle: VfxAppearance) = copy(particle = particle)
+
     override fun withSurface(material: VfxMaterialSpec, tint: VfxColorValue) = copy(material = material, tint = tint)
+
+    override fun expressions() = super.expressions() + particle.expressions()
+
+    override fun animatables() = super.animatables() + particle.animatables()
 }
 
 /** Which built-in mesh a mesh node draws. */
@@ -87,6 +94,10 @@ abstract class VfxMeshSpec : VfxSurfaceSpec(), VfxParticleRendererSpec {
     abstract val alignToVelocity: Boolean
 
     abstract val primitive: VfxPrimitive
+
+    override fun expressions() = super.expressions() + particle.expressions()
+
+    override fun animatables() = super.animatables() + particle.animatables()
 }
 
 @Serializable
@@ -100,6 +111,7 @@ data class VfxCubeSpec(
     override val material: VfxMaterialSpec = VfxMaterialSpec(texture = WHITE_TEXTURE),
     override val tint: VfxColorValue = VfxColorValue.WHITE,
     override val alignToVelocity: Boolean = false,
+    override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxMeshSpec() {
     override val primitive get() = VfxPrimitive(VfxPrimitiveKind.CUBE)
 
@@ -110,6 +122,8 @@ data class VfxCubeSpec(
         transform: VfxTransform,
         children: List<VfxNodeSpec>,
     ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
+
+    override fun withParticle(particle: VfxAppearance) = copy(particle = particle)
 
     override fun withSurface(material: VfxMaterialSpec, tint: VfxColorValue) = copy(material = material, tint = tint)
 }
@@ -127,6 +141,7 @@ data class VfxSphereSpec(
     override val alignToVelocity: Boolean = false,
     /** Slices around the vertical axis; half as many rings go from pole to pole. */
     val segments: Int = 24,
+    override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxMeshSpec() {
     override val primitive get() = VfxPrimitive(VfxPrimitiveKind.SPHERE, segments.coerceIn(4, MAX_SEGMENTS))
 
@@ -137,6 +152,8 @@ data class VfxSphereSpec(
         transform: VfxTransform,
         children: List<VfxNodeSpec>,
     ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
+
+    override fun withParticle(particle: VfxAppearance) = copy(particle = particle)
 
     override fun withSurface(material: VfxMaterialSpec, tint: VfxColorValue) = copy(material = material, tint = tint)
 }
@@ -155,6 +172,7 @@ data class VfxCylinderSpec(
     val segments: Int = 24,
     /** Whether the ends are closed; an open tube is what shockwaves and portals are made of. */
     val caps: Boolean = true,
+    override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxMeshSpec() {
     override val primitive get() = VfxPrimitive(VfxPrimitiveKind.CYLINDER, segments.coerceIn(3, MAX_SEGMENTS), caps)
 
@@ -165,6 +183,8 @@ data class VfxCylinderSpec(
         transform: VfxTransform,
         children: List<VfxNodeSpec>,
     ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
+
+    override fun withParticle(particle: VfxAppearance) = copy(particle = particle)
 
     override fun withSurface(material: VfxMaterialSpec, tint: VfxColorValue) = copy(material = material, tint = tint)
 }
@@ -184,6 +204,7 @@ data class VfxModelSpec(
     /** Turns the model along the way the particle travels, on top of its own rotation. */
     val alignToVelocity: Boolean = false,
     val emissive: Boolean = false,
+    override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxNodeSpec(), VfxParticleRendererSpec {
     override fun withCommon(
         id: String,
@@ -192,6 +213,12 @@ data class VfxModelSpec(
         transform: VfxTransform,
         children: List<VfxNodeSpec>,
     ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
+
+    override fun withParticle(particle: VfxAppearance) = copy(particle = particle)
+
+    override fun expressions() = particle.expressions()
+
+    override fun animatables() = particle.animatables()
 }
 
 /** How a ribbon lays its texture along its length. */
@@ -230,6 +257,8 @@ data class VfxTrailSpec(
     val maxPoints: Int = 32,
     val uvMode: VfxRibbonUv = VfxRibbonUv.STRETCH,
     val tileLength: Float = 1f,
+    /** Only the colour is read: a trail has a width of its own and no turn. */
+    override val particle: VfxAppearance = VfxAppearance(),
 ) : VfxSurfaceSpec(), VfxParticleRendererSpec {
     override fun withCommon(
         id: String,
@@ -239,11 +268,16 @@ data class VfxTrailSpec(
         children: List<VfxNodeSpec>,
     ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
 
+    override fun withParticle(particle: VfxAppearance) = copy(particle = particle)
+
     override fun withSurface(material: VfxMaterialSpec, tint: VfxColorValue) = copy(material = material, tint = tint)
 
-    override fun expressions() = super.expressions() + width.sources()
+    override fun expressions() = super.expressions() + width.sources() + particle.color.sources()
 
-    override fun animatables() = super.animatables() + scalar(VfxProperty.WIDTH, "width", width)
+    override fun animatables() = super.animatables() + listOf(
+        scalar(VfxProperty.WIDTH, "width", width),
+        color(VfxProperty.COLOR, "color", particle.color),
+    )
 }
 
 /**

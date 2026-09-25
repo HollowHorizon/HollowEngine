@@ -21,20 +21,6 @@ class VfxParticles(val capacity: Int) {
     val age = FloatArray(capacity)
     val lifetime = FloatArray(capacity)
 
-    val sizeX = FloatArray(capacity)
-    val sizeY = FloatArray(capacity)
-    val sizeZ = FloatArray(capacity)
-
-    /** Euler angles in degrees. */
-    val rotationX = FloatArray(capacity)
-    val rotationY = FloatArray(capacity)
-    val rotationZ = FloatArray(capacity)
-
-    val colorR = FloatArray(capacity)
-    val colorG = FloatArray(capacity)
-    val colorB = FloatArray(capacity)
-    val colorA = FloatArray(capacity)
-
     /** A number fixed at spawn, for variation that does not flicker from step to step. */
     val random = FloatArray(capacity)
 
@@ -52,7 +38,8 @@ class VfxParticles(val capacity: Int) {
     private class Channel(val stride: Int, val data: FloatArray)
 
     /**
-     * A private array of a module or a renderer, created on first use, [stride] floats per particle
+     * A private array of a module or a renderer (a renderer keeps the size and colour it gives each
+     * particle in one, see [VfxParticleLook]), created on first use, [stride] floats per particle
      * that move with it when it changes slots.
      */
     fun channel(name: String, stride: Int = 1): FloatArray {
@@ -88,16 +75,6 @@ class VfxParticles(val capacity: Int) {
         velocityZ[to] = velocityZ[from]
         age[to] = age[from]
         lifetime[to] = lifetime[from]
-        sizeX[to] = sizeX[from]
-        sizeY[to] = sizeY[from]
-        sizeZ[to] = sizeZ[from]
-        rotationX[to] = rotationX[from]
-        rotationY[to] = rotationY[from]
-        rotationZ[to] = rotationZ[from]
-        colorR[to] = colorR[from]
-        colorG[to] = colorG[from]
-        colorB[to] = colorB[from]
-        colorA[to] = colorA[from]
         random[to] = random[from]
         index[to] = index[from]
         frame[to] = frame[from]

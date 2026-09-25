@@ -166,21 +166,6 @@ class VfxFormatTests {
             lifetime = VfxValue.Range(0.4f, 0.9f),
             speed = VfxValue.Range(0.5f, 1.2f),
         ),
-        appearance = VfxAppearance(
-            size = VfxVec3Value(
-                VfxValue.OverTime(VfxCurve(listOf(VfxKey(0f, 0.2f), VfxKey(1f, 0f))), input = VfxCurveInput.SPEED),
-                VfxValue.ONE,
-                VfxValue.ONE,
-            ),
-            color = VfxColorValue.Gradient(
-                VfxGradient(
-                    listOf(
-                        VfxGradientStop(0f, VfxRgba(1f, 1f, 1f, 1f)),
-                        VfxGradientStop(1f, VfxRgba(1f, 0.2f, 0f, 0f)),
-                    )
-                )
-            ),
-        ),
         modules = listOf(
             VfxForceSpec(id = "swirl", kind = VfxForceKind.VORTEX, strength = VfxValue.Expr("p.progress * 2")),
             VfxForceSpec(id = "wind", direction = Vec3f(1f, 0f, 0f)),
@@ -190,6 +175,21 @@ class VfxFormatTests {
             VfxPlaneSpec(
                 id = "flame-plane",
                 material = VfxMaterialSpec(blend = VfxBlend.ADDITIVE, uv = VfxUvRect(0f, 0f, 0.5f, 0.5f)),
+                particle = VfxAppearance(
+                    size = VfxVec3Value(
+                        VfxValue.OverTime(VfxCurve(listOf(VfxKey(0f, 0.2f), VfxKey(1f, 0f))), input = VfxCurveInput.SPEED),
+                        VfxValue.ONE,
+                        VfxValue.ONE,
+                    ),
+                    color = VfxColorValue.Gradient(
+                        VfxGradient(
+                            listOf(
+                                VfxGradientStop(0f, VfxRgba(1f, 1f, 1f, 1f)),
+                                VfxGradientStop(1f, VfxRgba(1f, 0.2f, 0f, 0f)),
+                            )
+                        )
+                    ),
+                ),
             ),
             VfxTrailSpec(id = "flame-trail", maxPoints = 12),
         ),

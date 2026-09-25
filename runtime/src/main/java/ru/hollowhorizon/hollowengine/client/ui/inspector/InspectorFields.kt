@@ -17,25 +17,35 @@ fun Section(title: String, id: String? = null, boxed: Boolean = false, content: 
     }
 }
 
-/** A section that folds away; [expanded] stays the caller's state so it survives a rebuild. */
+/**
+ * A section that folds away, headed by a bar with [icon] so it reads apart from the fields in it.
+ * [expanded] stays the caller's state so it survives a rebuild; [trailing] sits at the end of the bar,
+ * for the actions that belong to the whole section.
+ */
 @Composable
 fun CollapsibleSection(
     title: String,
     expanded: Boolean,
     id: String? = null,
+    icon: String? = null,
+    trailing: HollowUiContent? = null,
     onToggle: () -> Unit,
     content: HollowUiContent,
 ) {
-    Column(id = id, tags = listOf("insp-section")) {
+    Column(id = id, tags = listOf("insp-section", "insp-section-fold")) {
         Row(
+            id = id?.let { "$it-head" },
             tags = listOf("insp-section-head"),
+            attributes = mapOf("expanded" to expanded.toString()),
             modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND).onClick { event ->
                     if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onToggle()
                     event.consume()
                 },
         ) {
-            DisclosureArrow(expanded)
+            icon?.let { Image(it, tags = listOf("insp-section-icon")) }
             Text(title, tags = listOf("insp-section-title"))
+            trailing?.invoke()
+            DisclosureArrow(expanded)
         }
         if (expanded) Column(tags = listOf("insp-section-body"), content = content)
     }

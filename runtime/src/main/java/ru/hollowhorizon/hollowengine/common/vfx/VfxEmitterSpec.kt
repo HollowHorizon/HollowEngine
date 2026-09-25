@@ -3,8 +3,6 @@ package ru.hollowhorizon.hollowengine.common.vfx
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.common.vfx.VfxAnimatables.color
-import ru.hollowhorizon.hollowengine.common.vfx.VfxAnimatables.rotation
 import ru.hollowhorizon.hollowengine.common.vfx.VfxAnimatables.scalar
 import ru.hollowhorizon.hollowengine.common.vfx.VfxAnimatables.vector
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxModuleSpec
@@ -96,22 +94,6 @@ data class VfxSpawn(
 }
 
 /**
- * The size, turn and color of a particle, read again every step for as long as it lives. What it
- * looks like with them is up to the renderers under the emitter.
- */
-@Serializable
-data class VfxAppearance(
-    /** Width, height and depth in blocks; a plane uses the first two. */
-    val size: VfxVec3Value = VfxVec3Value.all(0.25f),
-    /** Drives all three axes of [size] from the first, which is what most effects want. */
-    val uniformSize: Boolean = true,
-    val rotation: VfxVec3Value = VfxVec3Value.ZERO,
-    val color: VfxColorValue = VfxColorValue.WHITE,
-) {
-    fun expressions(): List<String> = size.sources() + rotation.sources() + color.sources()
-}
-
-/**
  * The forces every emitter has, as opposed to the ones that come from modules.
  */
 @Serializable
@@ -142,7 +124,6 @@ data class VfxEmitterSpec(
     val inheritScale: Boolean = false,
     val shape: VfxShape = VfxShape(),
     val spawn: VfxSpawn = VfxSpawn(),
-    val appearance: VfxAppearance = VfxAppearance(),
     val motion: VfxMotion = VfxMotion(),
     val modules: List<VfxModuleSpec> = emptyList(),
     /** The longest step the simulation may take for this emitter, in seconds. */
@@ -162,7 +143,6 @@ data class VfxEmitterSpec(
         addAll(emission.rate.sources())
         addAll(shape.expressions())
         addAll(spawn.expressions())
-        addAll(appearance.expressions())
         addAll(motion.expressions())
         modules.forEach { addAll(it.expressions()) }
     }
@@ -177,9 +157,6 @@ data class VfxEmitterSpec(
         add(scalar(VfxProperty.SPEED, "speed", spawn.speed))
         add(vector(VfxProperty.OFFSET, "spawn_offset", spawn.offset))
         add(scalar(VfxProperty.INHERIT_VELOCITY, "inherit_velocity", spawn.inheritVelocity))
-        add(vector(VfxProperty.SIZE, "size", appearance.size))
-        add(rotation(VfxProperty.SPIN, "spin", appearance.rotation))
-        add(color(VfxProperty.COLOR, "color", appearance.color))
         add(scalar(VfxProperty.GRAVITY, "gravity", motion.gravity))
         add(scalar(VfxProperty.DRAG, "drag", motion.drag))
 

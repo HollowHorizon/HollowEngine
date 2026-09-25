@@ -1,11 +1,20 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 
 import androidx.compose.runtime.Composable
+import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.Row
 import ru.hollowhorizon.hollowengine.client.ui.Text
+import ru.hollowhorizon.hollowengine.client.ui.UiAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiLength
+import ru.hollowhorizon.hollowengine.client.ui.alignItems
+import ru.hollowhorizon.hollowengine.client.ui.gap
+import ru.hollowhorizon.hollowengine.client.ui.grow
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
-import ru.hollowhorizon.hollowengine.client.ui.inspector.Hint
-import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorButton
-import ru.hollowhorizon.hollowengine.client.ui.inspector.TextRow
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorIconButton
+import ru.hollowhorizon.hollowengine.client.ui.percent
+import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxShaderDeclarations
 import ru.hollowhorizon.hollowengine.common.vfx.VfxCameraShakeSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxPostEffectSpec
@@ -16,12 +25,10 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxUniformValue
 
 @Composable
 internal fun PostEffectFields(document: HollowIdeVfxDocument, state: VfxEditorState, post: VfxPostEffectSpec) {
-    Folding(state, "post", vfxText("section_post")) {
-        TextRow(vfxText("shader"), post.shader, id = "vfx-post-shader") { typed ->
-            val shader = typed.trim()
-            document.replace(post.copy(shader = shader, uniforms = alignUniforms(shader, post.uniforms)))
+    Folding(state, "post", vfxText("section_post"), VfxIcons.POST) {
+        VfxShaderRow(post.shader, vfxText("shader_post_hint"), "vfx-post-shader") { shader ->
+            document.replace(post.copy(shader = shader.orEmpty(), uniforms = alignUniforms(shader, post.uniforms)))
         }
-        Hint(vfxText("shader_post_hint"))
         VfxShaderFields(
             post.shader,
             post.uniforms,
@@ -34,7 +41,7 @@ internal fun PostEffectFields(document: HollowIdeVfxDocument, state: VfxEditorSt
 
 @Composable
 internal fun CameraShakeFields(document: HollowIdeVfxDocument, state: VfxEditorState, shake: VfxCameraShakeSpec) {
-    Folding(state, "shake", vfxText("section_shake")) {
+    Folding(state, "shake", vfxText("section_shake"), VfxIcons.SHAKE) {
         VfxValueRow(vfxText("shake_strength"), shake.strength, VfxProperty.SHAKE_STRENGTH, vfxText("shake_strength_hint")) {
             document.replace(shake.copy(strength = it))
         }
@@ -47,10 +54,48 @@ internal fun CameraShakeFields(document: HollowIdeVfxDocument, state: VfxEditorS
     }
 }
 
+/**
+ * The shader a surface or a screen effect is drawn with, by its `namespace:path` name. [hint] says what
+ * the geometry hands the shader, so it lives in the tooltip of the label.
+ */
+@Composable
+internal fun VfxShaderRow(shader: String?, hint: String, id: String, onChange: (String?) -> Unit) {
+    VfxAssetRow(
+        label = vfxText("shader"),
+        value = shader.orEmpty(),
+        hint = hint,
+        id = id,
+        candidates = { VfxShaderAssets.list() },
+        exists = VfxShaderAssets::exists,
+        placeholder = vfxText("shader_placeholder"),
+    ) { typed -> onChange(typed.trim().ifBlank { null }) }
+}
+
+/** The core shaders the loaded packs offer an effect, named the way a material names them. */
+internal object VfxShaderAssets {
+    private const val Root = "shaders/core/"
+
+    fun list(): List<String> {
+        val manager = Minecraft.getInstance().resourceManager ?: return emptyList()
+        return runCatching {
+            manager.listResources(Root.trimEnd('/')) { it.path.endsWith(".json") }.keys
+                .filter { it.namespace != "minecraft" }
+                .map { "${it.namespace}:${it.path.removePrefix(Root).removeSuffix(".json")}" }
+                .sorted()
+        }.getOrDefault(emptyList())
+    }
+
+    fun exists(name: String): Boolean = VfxShaderDeclarations.of(name) != null
+}
+
 /** [authored] brought in line with what [shader] declares, or left as it is when it cannot be read. */
 internal fun alignUniforms(shader: String?, authored: List<VfxUniformSpec>): List<VfxUniformSpec> =
     shader?.let(VfxShaderDeclarations::of)?.align(authored) ?: authored
 
+/**
+ * One row per uniform and sampler the shader json declares; the engine's own are left out. A shader
+ * that cannot be read shows nothing here, its name field already says why.
+ */
 @Composable
 internal fun VfxShaderFields(
     shader: String?,
@@ -60,13 +105,8 @@ internal fun VfxShaderFields(
     onSamplers: (List<VfxSamplerSpec>) -> Unit,
 ) {
     if (shader.isNullOrBlank()) return
-    val declaration = VfxShaderDeclarations.of(shader)
-    if (declaration == null) {
-        Hint(vfxText("shader_missing"))
-        return
-    }
+    val declaration = VfxShaderDeclarations.of(shader) ?: return
 
-    if (declaration.uniforms.isNotEmpty()) Text(vfxText("section_uniforms"), tags = listOf("insp-inline-label"))
     declaration.uniforms.forEach { uniform ->
         val value = uniforms.firstOrNull { it.name == uniform.name && uniform.accepts(it.value) }?.value
             ?: uniform.defaultValue()
@@ -90,14 +130,23 @@ internal fun VfxShaderFields(
 
     val stale = uniforms.filter { declaration.uniform(it.name) == null }
     if (stale.isNotEmpty()) {
-        Hint(vfxText("uniforms_stale") + " " + stale.joinToString { it.name })
-        InspectorButton(vfxText("uniforms_drop")) { onUniforms(uniforms - stale.toSet()) }
+        Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
+            Text(
+                vfxText("uniforms_stale") + " " + stale.joinToString { it.name },
+                tags = listOf("insp-hint"),
+                modifier = Modifier.size(0.px, UiLength.Fit).grow(1f),
+            )
+            InspectorIconButton(
+                VfxIcons.REMOVE,
+                vfxText("uniforms_drop"),
+                tags = listOf("insp-inline-icon", "danger"),
+            ) { onUniforms(uniforms - stale.toSet()) }
+        }
     }
 
-    if (declaration.samplers.isNotEmpty()) Text(vfxText("section_samplers"), tags = listOf("insp-inline-label"))
     declaration.samplers.forEach { name ->
         val texture = samplers.firstOrNull { it.name == name }?.texture.orEmpty()
-        VfxAssetRow(name, texture, listOf(".png"), id = "vfx-sampler-$name") { typed ->
+        VfxAssetRow(name, texture, VfxTextureExtensions, id = "vfx-sampler-$name") { typed ->
             val kept = samplers.filterNot { it.name == name }
             onSamplers(if (typed.isBlank()) kept else samplers.upsert(VfxSamplerSpec(name, typed)) { it.name })
         }

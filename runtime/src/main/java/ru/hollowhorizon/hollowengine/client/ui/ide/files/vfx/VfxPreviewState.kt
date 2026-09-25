@@ -19,15 +19,18 @@ import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.sin
 
+/** The vertical field of view of the preview camera, in degrees. */
+internal const val VfxPreviewFieldOfView = 50f
+
 /**
  * The preview of the effect being edited: an orbit camera with perspective, a floor, and one
  * playing instance.
  */
 @Stable
-class VfxPreviewState {
+class VfxPreviewState(initialDistance: Float = 4.5f) {
     var yaw by mutableStateOf(35f)
     var pitch by mutableStateOf(22f)
-    private val zoomSpring = SpringZoom(4.5f, MIN_DISTANCE, MAX_DISTANCE, perNotch = ZOOM_PER_NOTCH)
+    private val zoomSpring = SpringZoom(initialDistance, MIN_DISTANCE, MAX_DISTANCE, perNotch = ZOOM_PER_NOTCH)
     val distance: Float get() = zoomSpring.value
     var targetX by mutableStateOf(0f)
     var targetY by mutableStateOf(0.7f)
@@ -256,7 +259,7 @@ class VfxPreviewState {
 
         const val PREVIEW_SEED = 0x5EED
 
-        val FIELD_OF_VIEW = Math.toRadians(50.0).toFloat()
+        val FIELD_OF_VIEW = Math.toRadians(VfxPreviewFieldOfView.toDouble()).toFloat()
         const val NEAR = 0.05f
         const val FAR = 200f
 

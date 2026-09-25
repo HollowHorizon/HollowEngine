@@ -73,6 +73,7 @@ fun <T> UiTreeView(
     onFilterOpened: ((String) -> Unit)? = null,
     scrollState: UiScrollHandle = rememberScrollState(),
     onBackgroundClick: (() -> Unit)? = null,
+    onBackgroundContextMenu: ((UiEvent) -> Unit)? = null,
     reveal: UiTreeReveal? = null,
     onRevealed: (() -> Unit)? = null,
 ) {
@@ -107,8 +108,12 @@ fun <T> UiTreeView(
         Column(
             tags = listOf("tree-view-scroll"),
             modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState).then(
-                if (onBackgroundClick == null) Modifier else Modifier.input(clickable = true).onClick { event ->
-                    onBackgroundClick()
+                if (onBackgroundClick == null && onBackgroundContextMenu == null) Modifier else Modifier.input(clickable = true).onClick { event ->
+                    if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && onBackgroundContextMenu != null) {
+                        onBackgroundContextMenu(event)
+                    } else {
+                        onBackgroundClick?.invoke()
+                    }
                     event.consume()
                 },
             ),

@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.vfx
 
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
-import ru.hollowhorizon.hollowengine.common.utils.MutableColor
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
@@ -58,21 +57,6 @@ class VfxEmitter(
     private val offset = vector(VfxProperty.OFFSET, spec.spawn.offset, 0f)
     private val inheritVelocity = scalar(VfxProperty.INHERIT_VELOCITY, spec.spawn.inheritVelocity, 0f)
 
-    private val appearance = spec.appearance
-    private val size = vector(VfxProperty.SIZE, appearance.size, 1f, VfxRangeMode.PER_PARTICLE)
-    private val spin = vector(VfxProperty.SPIN, appearance.rotation, 0f, VfxRangeMode.PER_PARTICLE)
-    private val color = VfxSamplers.color(
-        appearance.color,
-        expressions,
-        salt = VfxProperty.COLOR.hashCode(),
-        drive = node.drive(VfxProperty.COLOR),
-    )
-
-    private val liveSize = isLive(VfxProperty.SIZE, appearance.size)
-    private val liveSpin = isLive(VfxProperty.SPIN, appearance.rotation)
-    private val liveColor = !VfxSamplers.isFixedPerParticle(appearance.color) ||
-            node.drive(VfxProperty.COLOR) != null
-
     private val gravity = scalar(VfxProperty.GRAVITY, spec.motion.gravity, 0f, VfxRangeMode.PER_PARTICLE)
     private val drag = scalar(VfxProperty.DRAG, spec.motion.drag, 0f, VfxRangeMode.PER_PARTICLE)
 
@@ -83,6 +67,14 @@ class VfxEmitter(
                 node.drive(VfxProperty.module(module.id, field))
             })
         }
+
+    /** What the renderers under this emitter give its particles, read while it simulates. */
+    private val looks = ArrayList<VfxParticleLook>()
+
+    /** Called by a renderer under this emitter as it is built. */
+    fun addLook(look: VfxParticleLook) {
+        looks += look
+    }
 
     /** The flipbook grid the renderer cuts the material region into; one cell without a flipbook. */
     val uvColumns: Int
@@ -119,7 +111,6 @@ class VfxEmitter(
     private val scratchPosition = MutableVec3f()
     private val scratchDirection = MutableVec3f()
     private val scratchVector = MutableVec3f()
-    private val scratchColor = MutableColor(1f, 1f, 1f, 1f)
 
     /** Extra velocity the modules asked for, for this particle and this step only. */
     var stepVelocityX: Float = 0f
@@ -288,9 +279,7 @@ class VfxEmitter(
         particles.index[slot] = context.particleIndex
         particles.frame[slot] = 0f
 
-        readSize(slot)
-        readSpin(slot)
-        readColor(slot)
+        looks.forEach { it.spawn(slot, context) }
 
         particles.light[slot] = instance.lightAt(this, slot)
 
@@ -341,35 +330,11 @@ class VfxEmitter(
                 continue
             }
 
-            if (liveSize) readSize(slot)
-            if (liveSpin) readSpin(slot)
-            if (liveColor) readColor(slot)
+            looks.forEach { it.step(slot, context) }
 
             if (instance.readsLight) particles.light[slot] = instance.lightAt(this, slot)
             slot++
         }
-    }
-
-    private fun readSize(slot: Int) {
-        if (appearance.uniformSize) size.evalUniform(context, scratchVector) else size.eval(context, scratchVector)
-        particles.sizeX[slot] = scratchVector.x
-        particles.sizeY[slot] = scratchVector.y
-        particles.sizeZ[slot] = scratchVector.z
-    }
-
-    private fun readSpin(slot: Int) {
-        spin.eval(context, scratchVector)
-        particles.rotationX[slot] = scratchVector.x
-        particles.rotationY[slot] = scratchVector.y
-        particles.rotationZ[slot] = scratchVector.z
-    }
-
-    private fun readColor(slot: Int) {
-        color.eval(context, scratchColor)
-        particles.colorR[slot] = scratchColor.r
-        particles.colorG[slot] = scratchColor.g
-        particles.colorB[slot] = scratchColor.b
-        particles.colorA[slot] = scratchColor.a
     }
 
     /** Fills context with what does not depend on a particular particle. */
@@ -528,9 +493,6 @@ class VfxEmitter(
         default: Float,
         range: VfxRangeMode = VfxRangeMode.FRESH,
     ): VfxVec3Sampler = VfxSamplers.vec3(value, expressions, default, range, property.hashCode(), node.drive(property))
-
-    private fun isLive(property: VfxProperty, value: VfxVec3Value): Boolean =
-        !VfxSamplers.isFixedPerParticle(value) || node.drive(property) != null
 
     companion object {
         private const val MIN_STEP = 1f / 240f

@@ -21,6 +21,52 @@
               "id": "soul-plane",
               "material": {
                 "blend": "ADDITIVE"
+              },
+              "particle": {
+                "size": {
+                  "x": {
+                    "type": "const",
+                    "value": 0.07
+                  },
+                  "y": {
+                    "type": "const",
+                    "value": 1.0
+                  },
+                  "z": {
+                    "type": "const",
+                    "value": 1.0
+                  }
+                },
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.2,
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.9
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.3,
+                          "g": 0.5,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
               }
             },
             {
@@ -64,7 +110,39 @@
                 }
               },
               "lifetime": 0.4,
-              "maxPoints": 16
+              "maxPoints": 16,
+              "particle": {
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.2,
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.9
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.3,
+                          "g": 0.5,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
             }
           ],
           "emission": {
@@ -88,52 +166,6 @@
               "type": "range",
               "from": 0.1,
               "to": 0.3
-            }
-          },
-          "appearance": {
-            "size": {
-              "x": {
-                "type": "const",
-                "value": 0.07
-              },
-              "y": {
-                "type": "const",
-                "value": 1.0
-              },
-              "z": {
-                "type": "const",
-                "value": 1.0
-              }
-            },
-            "color": {
-              "type": "gradient",
-              "gradient": {
-                "stops": [
-                  {
-                    "color": {
-                      "r": 0.6,
-                      "g": 0.9,
-                      "a": 0.0
-                    }
-                  },
-                  {
-                    "position": 0.2,
-                    "color": {
-                      "r": 0.6,
-                      "g": 0.9,
-                      "a": 0.9
-                    }
-                  },
-                  {
-                    "position": 1.0,
-                    "color": {
-                      "r": 0.3,
-                      "g": 0.5,
-                      "a": 0.0
-                    }
-                  }
-                ]
-              }
             }
           },
           "motion": {

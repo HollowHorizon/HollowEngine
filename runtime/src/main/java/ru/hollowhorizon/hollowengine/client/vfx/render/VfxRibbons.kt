@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.vfx.VfxFloatSampler
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNodeBehavior
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNodeRuntime
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNoise
+import ru.hollowhorizon.hollowengine.client.vfx.VfxParticleLook
 import ru.hollowhorizon.hollowengine.client.vfx.VfxRangeMode
 import ru.hollowhorizon.hollowengine.client.vfx.VfxSamplers
 import ru.hollowhorizon.hollowengine.client.vfx.VfxVec3Sampler
@@ -139,6 +140,11 @@ class VfxTrailRenderer(private val spec: VfxTrailSpec, node: VfxNodeRuntime) : V
 
     private val points: FloatArray? = source?.particles?.channel("trail:${spec.id}:points", maxPoints * 4)
 
+    /** The colour this trail gives each particle; only the colour, a trail has a width of its own. */
+    private val look: FloatArray? = source?.let { emitter ->
+        VfxParticleLook(spec.particle, node, emitter.particles).also(emitter::addLook).data
+    }
+
     /** Per particle: how many points, and the index and random of the particle they were taken for. */
     private val meta: FloatArray? = source?.particles?.channel("trail:${spec.id}:meta", 3)
 
@@ -228,14 +234,16 @@ class VfxTrailRenderer(private val spec: VfxTrailSpec, node: VfxNodeRuntime) : V
             val particles = emitter.particles
             val points = points ?: return
             val meta = meta ?: return
+            val look = look ?: return
             val matrix = scratch.set(placement).mul(emitter.simToRender.asMatrix4f())
             for (slot in 0 until particles.count) {
                 head.set(particles.positionX[slot], particles.positionY[slot], particles.positionZ[slot])
                 emitter.fillParticleContext(slot)
                 pointContext.copyInputs(emitter.context)
+                val tone = slot * VfxParticleLook.STRIDE + VfxParticleLook.COLOR
                 strip(
                     matrix, points, slot * maxPoints * 4, meta[slot * 3].toInt(),
-                    particles.colorR[slot], particles.colorG[slot], particles.colorB[slot], particles.colorA[slot],
+                    look[tone], look[tone + 1], look[tone + 2], look[tone + 3],
                     particles.light[slot],
                 )
             }

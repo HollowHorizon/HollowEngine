@@ -7,6 +7,8 @@ import org.joml.Vector4f
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeScale
 import kotlin.math.tan
 
+private const val NEAR_PLANE_EPSILON = 0.05f
+
 /**
  * A world point projected into the HollowUi overlay's logical coordinate space.
  */
@@ -23,7 +25,12 @@ data class WorldRay(
     val direction: Vec3,
 )
 
-object WorldToScreenProjector {
+/**
+ * Projects points of one camera into the logical pixels of the surface it is shown on, and back into
+ * rays. The world has one ([WorldToScreenProjector]); a preview panel that draws the same gizmo keeps
+ * its own, captured from its own camera and sized to the panel.
+ */
+open class GizmoProjector {
     private val combined = Matrix4f()
     private val inverse = Matrix4f()
     private var camX = 0.0
@@ -33,21 +40,29 @@ object WorldToScreenProjector {
     private var logicalWidth = 1f
     private var logicalHeight = 1f
 
-    private const val NEAR_PLANE_EPSILON = 0.05f
 
     private val scratch = Vector4f()
 
-    fun capture(view: Matrix4f, projection: Matrix4f, cameraPosition: Vec3, fovDegrees: Float) {
+    /**
+     * Takes the camera of the next frame. [view] is the rotation of the camera alone: points are made
+     * relative to [cameraPosition] before it applies, which keeps world coordinates precise.
+     */
+    fun capture(
+        view: Matrix4f,
+        projection: Matrix4f,
+        cameraPosition: Vec3,
+        fovDegrees: Float,
+        width: Float,
+        height: Float,
+    ) {
         combined.set(projection).mul(view)
         combined.invert(inverse)
         camX = cameraPosition.x
         camY = cameraPosition.y
         camZ = cameraPosition.z
         fovYRadians = Math.toRadians(fovDegrees.toDouble()).toFloat()
-        val target = Minecraft.getInstance().mainRenderTarget
-        val scale = HollowIdeScale.factor()
-        logicalWidth = (target.width / scale).coerceAtLeast(1f)
-        logicalHeight = (target.height / scale).coerceAtLeast(1f)
+        logicalWidth = width.coerceAtLeast(1f)
+        logicalHeight = height.coerceAtLeast(1f)
     }
 
     val width: Float get() = logicalWidth
@@ -100,5 +115,14 @@ object WorldToScreenProjector {
         val distance = world.distanceTo(cameraPosition).toFloat()
         val worldHeightAtDepth = 2f * tan(fovYRadians * 0.5f) * distance
         return (worldHeightAtDepth / logicalHeight).coerceAtLeast(1.0e-5f)
+    }
+}
+
+/** The projector of the game camera, in the logical pixels of the IDE overlay. */
+object WorldToScreenProjector : GizmoProjector() {
+    fun capture(view: Matrix4f, projection: Matrix4f, cameraPosition: Vec3, fovDegrees: Float) {
+        val target = Minecraft.getInstance().mainRenderTarget
+        val scale = HollowIdeScale.factor()
+        capture(view, projection, cameraPosition, fovDegrees, target.width / scale, target.height / scale)
     }
 }

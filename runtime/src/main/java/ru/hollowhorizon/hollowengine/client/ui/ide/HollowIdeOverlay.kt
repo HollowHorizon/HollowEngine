@@ -18,8 +18,6 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx.VfxEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineDock
-import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorLang
-import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorPanel
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
@@ -986,11 +984,7 @@ object HollowIdeOverlay {
 
             SceneId -> SceneDock()
 
-            InspectorId -> InspectorPanel(
-                target = InspectorSelection.current,
-                empty = InspectorLang.nothingSelected,
-                keepScroll = true,
-            )
+            InspectorId -> IdeInspectorDock()
 
             GameViewportId -> GameViewportDock(
                 active = isGameViewportActive,
