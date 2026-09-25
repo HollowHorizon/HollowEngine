@@ -178,19 +178,6 @@ private fun DockStackView(
     content: DockItemContent,
 ) {
     val selected = stack.selectedItem ?: return
-    if (stack.items.size == 1 && selected.singleTabPresentation == DockSingleTabPresentation.OVERLAY) {
-        Box(
-            id = stack.id,
-            mode = UiBoxMode.STACK,
-            tags = listOf(DockTags.Stack),
-            modifier = Modifier.size(100.percent, 100.percent),
-        ) {
-            DockSelectedContent(stack.id, selected, content, Modifier.size(100.percent, 100.percent))
-            DockSingleTabBadge(stack, state, tabContent, tabBarActions)
-        }
-        return
-    }
-
     Column(
         id = stack.id,
         tags = listOf(DockTags.Stack),
@@ -231,27 +218,6 @@ internal fun DockContentBody(content: @Composable () -> Unit) {
         modifier = Modifier.size(100.percent, 100.percent),
     ) {
         content()
-    }
-}
-
-@Composable
-private fun DockSingleTabBadge(
-    stack: DockNode.Stack,
-    state: DockingState,
-    tabContent: DockHeaderContent,
-    tabBarActions: DockTabBarActions,
-) {
-    val item = stack.selectedItem ?: return
-    Row(
-        id = "${stack.id}-tab-badge",
-        tags = listOf(DockTags.TabBar, DockTags.CompactTabBar),
-        modifier = Modifier.position(DockTabMargin.px, DockTabMargin.px)
-            .size(UiLength.Auto, DockTabHeight.px)
-            .alignItems(vertical = UiAlign.START)
-            .layer(20).clip(),
-    ) {
-        DockTab(stack.id, 0, item, true, state, tabContent, allowUndock = true) { 0f }
-        tabBarActions(item)
     }
 }
 
@@ -661,7 +627,6 @@ object DockTags {
     const val Splitter = "dock-splitter"
     const val Stack = "dock-stack"
     const val TabBar = "dock-tab-bar"
-    const val CompactTabBar = "compact"
     const val Tab = "dock-tab"
     const val TabIcon = "dock-tab-icon"
     const val TabLabel = "dock-tab-label"

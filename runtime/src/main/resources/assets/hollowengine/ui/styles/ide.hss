@@ -1,3 +1,29 @@
+/*
+ * The whole IDE is set in the code font, like its editor and its log: one face for every panel, tab,
+ * menu and tooltip, narrower than the vanilla one and crisp at any size. Popups are not under
+ * #ide-root, so they are named here too; this sheet is only loaded by the IDE, so the game's own
+ * screens keep their font.
+ *
+ * Sizes: 9px for text, 8px for what is secondary, 11px for the title of a dialog.
+ */
+#ide-root,
+.dropdown-popup,
+.ui-tooltip,
+.vfx-popup,
+#cutscene-dialog {
+    font-family: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
+    font-size: 9px;
+}
+
+.dropdown-popup .dropdown-item-shortcut {
+    font-size: 8px;
+}
+
+/* The vanilla drop shadow suits the pixel font only; under the code font it reads as a blur. */
+.text-field {
+    text-shadow: none;
+}
+
 #ide-root {
     background: none;
 }
@@ -84,6 +110,14 @@
 .ide-empty-editor {
     align-items: center center;
     background: #212328;
+}
+
+/* The game sits in the editor area like any editor: a rounded panel inside the tab bar's stack. */
+.game-viewport {
+    size: fill fill;
+    margin: 2px;
+    border-radius: 6px;
+    background: #141518;
 }
 
 .game-viewport-hint {
@@ -197,13 +231,13 @@
 
 .ide-shortcuts-title {
     margin-bottom: 4px;
-    font-size: 14px;
+    font-size: 11px;
     foreground: #F0F3F8;
 }
 
 .ide-shortcuts-group {
     margin-top: 6px;
-    font-size: 10px;
+    font-size: 9px;
     foreground: #8f9bad;
 }
 
@@ -223,7 +257,7 @@
 .ide-shortcuts-keys {
     wrap: false;
     padding: 1px 5px;
-    font-size: 10px;
+    font-size: 8px;
     foreground: #F0F3F8;
     background: #3A3F49;
     border: 1px #4b5362;
@@ -263,7 +297,7 @@
     width: fit;
     height: fit;
     white-space: pre;
-    font-size: 10px;
+    font-size: 9px;
     foreground: #d7deea;
 }
 
@@ -496,7 +530,7 @@
 
 .project-dialog-title {
     foreground: #F0F3F8;
-    font-size: 14px;
+    font-size: 11px;
 }
 
 .project-dialog-field {
@@ -518,7 +552,7 @@
 
 .project-dialog-label {
     foreground: #8f9bad;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .project-dialog-input {
@@ -560,25 +594,25 @@
 
 .project-dialog-text {
     foreground: #D7DEEA;
-    font-size: 11px;
+    font-size: 9px;
     line-spacing: 2px;
 }
 
 .project-dialog-hint, .project-dialog-progress {
     foreground: #8f9bad;
-    font-size: 10px;
+    font-size: 8px;
     line-spacing: 2px;
 }
 
 .project-dialog-warning {
     foreground: #ffc266;
-    font-size: 11px;
+    font-size: 9px;
     line-spacing: 2px;
 }
 
 .project-dialog-error {
     foreground: #ff8787;
-    font-size: 11px;
+    font-size: 9px;
     line-spacing: 2px;
 }
 
@@ -588,7 +622,7 @@
 
 .project-dialog-path {
     foreground: #aeb8ca;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .project-dialog-actions {
@@ -634,12 +668,12 @@
 
 .ide-hide-toolbar-dialog-title {
     foreground: #F0F3F8;
-    font-size: 14px;
+    font-size: 11px;
 }
 
 .ide-hide-toolbar-dialog-message {
     foreground: #B9C1CF;
-    font-size: 11px;
+    font-size: 9px;
     line-spacing: 2px;
 }
 
@@ -797,7 +831,7 @@
 
 .ide-find-toggle-label {
     wrap: false;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 .ide-find-status {
@@ -948,7 +982,7 @@
     width: 0px;
     grow: 1;
     wrap: false;
-    font-size: 10px;
+    font-size: 8px;
     foreground: #687588;
 }
 

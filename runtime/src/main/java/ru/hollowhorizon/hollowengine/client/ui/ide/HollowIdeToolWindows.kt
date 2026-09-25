@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
-import ru.hollowhorizon.hollowengine.client.ui.docking.DockSingleTabPresentation
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockTarget
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.AssetManagerLang
@@ -28,7 +27,6 @@ internal class HollowIdeToolWindow(
     val minWidth: Float = 48f,
     val minHeight: Float = 32f,
     val closable: Boolean = true,
-    val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
     val titleInToolbar: Boolean = false,
 ) {
     val title: String get() = titleKey.lang
@@ -40,7 +38,6 @@ internal class HollowIdeToolWindow(
         closable = closable,
         minWidth = minWidth,
         minHeight = minHeight,
-        singleTabPresentation = singleTabPresentation,
         pinnable = true,
         titleInToolbar = titleInToolbar,
     )
@@ -109,7 +106,6 @@ internal object HollowIdeToolWindows {
         anchors = listOf(ToolWindowAnchor.TIMELINE, ToolWindowAnchor.EDITORS, ToolWindowAnchor.PROJECT),
         minWidth = 160f,
         minHeight = 90f,
-        singleTabPresentation = DockSingleTabPresentation.OVERLAY,
     )
     val UiProfiler = HollowIdeToolWindow(
         id = UiProfilerId,

@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.GameViewportNodeId
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeGameViewport
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineColors
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -30,8 +29,7 @@ fun GameViewportDock(active: Boolean = false, attached: Boolean = true) {
     Box(
         id = GameViewportNodeId,
         tags = listOfNotNull("game-viewport", "active".takeIf { active && attached }),
-        modifier = Modifier.size(100.percent, 100.percent).input(hoverable = true, clickable = true)
-            .background(TimelineColors.Background).onPlaced { if (attached) HollowIdeGameViewport.report(it) }
+        modifier = Modifier.input(hoverable = true, clickable = true).onPlaced { if (attached) HollowIdeGameViewport.report(it) }
             .drawBehind(key = "game-viewport-$attached") {
                 if (!attached) return@drawBehind
                 val rect = HollowIdeGameViewport.imageRect(UiRect(0f, 0f, size.width, size.height)) ?: return@drawBehind

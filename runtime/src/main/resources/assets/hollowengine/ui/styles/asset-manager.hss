@@ -41,7 +41,7 @@
 
 .asset-tab-label {
     height: fit;
-    font-size: 7px;
+    font-size: 8px;
     wrap: false;
 }
 
@@ -71,14 +71,14 @@
 .asset-breadcrumb {
     height: fit;
     foreground: #d7deea;
-    font-size: 8px;
+    font-size: 9px;
     text-overflow: dots;
 }
 
 .asset-count {
     width: fit;
     foreground: #687588;
-    font-size: 7px;
+    font-size: 8px;
     wrap: false;
 }
 
@@ -86,7 +86,7 @@
     min-width: 78px;
     min-height: 16px;
     padding: 1px 4px;
-    font-size: 7px;
+    font-size: 8px;
 }
 
 .asset-refresh {
@@ -172,7 +172,7 @@
 .asset-tile-name {
     align: center start;
     foreground: #d7deea;
-    font-size: 7px;
+    font-size: 8px;
     wrap: false;
     text-overflow: dots;
 }
@@ -180,7 +180,7 @@
 .asset-pack-name {
     align: center start;
     foreground: #687588;
-    font-size: 6px;
+    font-size: 7px;
     text-overflow: dots;
 }
 
@@ -192,7 +192,7 @@
     max-width: 280px;
     height: fit;
     foreground: #7f8a9d;
-    font-size: 8px;
+    font-size: 9px;
     align: center center;
 }
 
@@ -204,7 +204,7 @@
 .asset-filter-input {
     min-height: 17px;
     padding: 1px 2px;
-    font-size: 8px;
+    font-size: 9px;
     caret-color: #f0f6ff;
     selection-color: rgba(95, 140, 205, 0.46);
 }

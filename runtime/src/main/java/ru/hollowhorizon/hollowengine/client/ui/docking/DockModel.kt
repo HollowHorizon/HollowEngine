@@ -11,7 +11,6 @@ data class DockItem(
     val minWidth: Float = 48f,
     val minHeight: Float = 32f,
     val dirty: Boolean = false,
-    val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
     val pinnable: Boolean = false,
     val titleInToolbar: Boolean = false,
 )
@@ -60,11 +59,6 @@ data class DockPinnedItem(
 /** Width a tool window's panel takes the first time it is pinned. */
 const val DefaultPinnedWidth = 260f
 const val DefaultBottomHeight = 220f
-
-enum class DockSingleTabPresentation {
-    BAR,
-    OVERLAY,
-}
 
 sealed interface DockNode {
     val id: String

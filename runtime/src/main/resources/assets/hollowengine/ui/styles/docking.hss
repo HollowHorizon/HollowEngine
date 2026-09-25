@@ -49,10 +49,6 @@
     scrollbar-thumb-radius: 1px;
 }
 
-.dock-tab-bar.compact {
-    background: none;
-}
-
 .dock-tab:hover {
     background: #1C1E22;
     foreground: #d7deea;
