@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.ui.shape.UiShapeSize
 import ru.hollowhorizon.hollowengine.client.ui.shape.path
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayout
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextFonts
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.client.ui.text.caretPosition
 import kotlin.math.ceil
@@ -36,13 +37,13 @@ internal data class WavyUnderlineShape(val halfWave: Float) : Shape {
  * The squiggle's proportions for [fontSize], so it scales with the text. Half-waves are rounded to
  * half a pixel: the stroke mesh is cached per shape, and every zoom step must not mint a new one.
  */
-internal class DiagnosticUnderline(fontSize: Float) {
+internal class DiagnosticUnderline(fontSize: Float, fontFamily: String?) {
     val halfWave: Float = (fontSize * 0.28f * 2f).roundToInt().coerceAtLeast(4) / 2f
     val amplitude: Float = (fontSize * 0.1f).coerceIn(1f, 3f)
     val thickness: Float = (fontSize / 12f).coerceIn(0.9f, 2f)
     val shape = WavyUnderlineShape(halfWave)
 
-    val lift: Float = fontSize * 0.12f
+    val middle: Float = UiTextFonts.resolve(fontFamily).underlineY(fontSize)
 }
 
 internal fun UiTextDiagnosticSeverity.diagnosticUnderlineColor(): UiColor = when (this) {
@@ -86,7 +87,7 @@ internal fun EditableFieldRowDiagnostics(
     fontFamily: String?,
     contentWidth: Float,
 ) {
-    val underline = DiagnosticUnderline(fontSize)
+    val underline = DiagnosticUnderline(fontSize, fontFamily)
     rowDiagnostics.forEachIndexed { diagnosticIndex, diagnostic ->
         val localStart = diagnostic.start.coerceIn(0, line.text.length)
         val localEnd = diagnostic.end.coerceIn(localStart, line.text.length)
@@ -105,7 +106,7 @@ internal fun EditableFieldRowDiagnostics(
         rects.forEachIndexed { rectIndex, rect ->
             val width = (ceil(rect.width / underline.halfWave) * underline.halfWave)
                 .coerceAtLeast(underline.halfWave * 2f)
-            val middle = top + rect.y + rect.height - underline.lift
+            val middle = top + rect.y + underline.middle
             key("diag", diagnosticIndex, rectIndex) {
                 Box(
                     modifier = Modifier

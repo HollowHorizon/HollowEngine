@@ -147,6 +147,14 @@ class EditableTextFieldKeyTest {
     }
 
     @Test
+    fun `a single-line field leaves plain up and down to its host`() {
+        val s = TextFieldState(initialText = "say hi", initialCaret = 3)
+        assertFalse(s.press(GLFW.GLFW_KEY_UP))
+        assertFalse(s.press(GLFW.GLFW_KEY_DOWN))
+        assertEquals(3, s.caret)
+    }
+
+    @Test
     fun `ctrl-alt-down adds a caret on the next line`() {
         val s = state("ab\ncd", caret = 1)
         assertTrue(s.press(GLFW.GLFW_KEY_DOWN, ctrl = true, alt = true))
