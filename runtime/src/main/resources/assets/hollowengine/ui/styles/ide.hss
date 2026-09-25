@@ -37,7 +37,7 @@
 
 #ide-toolbar {
     size: 100% fit;
-    padding: 1px 4px 1px 0px;
+    padding: 1px 0px;
     gap: 2px;
     background: $bg-window;
 }
@@ -85,8 +85,14 @@
     background: $bg-selected;
 }
 
+#ide-toolbar-search {
+    size: $rail $rail;
+    margin: 0px;
+    padding: 5px;
+}
+
 .ide-toolbar-button-icon {
-    size: 13px 13px;
+    size: 12px 12px;
     tint: $text-soft;
     transition: all 110ms ease-out;
 }

@@ -152,17 +152,19 @@ fun Layout(
                 }
             }
         }
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, measurePolicy, tags, modifiers, attributes) },
-        update = {
-            update(measurePolicy) {
-                this.measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = scoped,
-    )
+    key(id) {
+        ReusableComposeNode<BoxNode, HollowUiApplier>(
+            factory = { BoxNode(id, measurePolicy, tags, modifiers, attributes) },
+            update = {
+                update(measurePolicy) {
+                    this.measurePolicy = it
+                    invalidateLayout()
+                }
+                updateCommon(modifiers, attributes, tags)
+            },
+            content = scoped,
+        )
+    }
 }
 
 
@@ -202,16 +204,18 @@ fun Span(
     modifier: Modifier? = null,
 ) {
     val modifiers = modifier.asList()
-    ReusableComposeNode<SpanNode, HollowUiApplier>(
-        factory = { SpanNode(value, id, tags, modifiers) },
-        update = {
-            update(value) {
-                text = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, emptyMap(), tags)
-        },
-    )
+    key(id) {
+        ReusableComposeNode<SpanNode, HollowUiApplier>(
+            factory = { SpanNode(value, id, tags, modifiers) },
+            update = {
+                update(value) {
+                    text = it
+                    invalidateLayout()
+                }
+                updateCommon(modifiers, emptyMap(), tags)
+            },
+        )
+    }
 }
 
 @Composable
@@ -293,19 +297,22 @@ fun Element(
 ) {
     val modifiers = modifier.asList()
     val nodeType = type.lowercase()
-    ReusableComposeNode<BaseUiNode, HollowUiApplier>(
-        factory = {
-            BaseUiNode(
-                nodeType,
-                id?.removePrefix("#"),
-                tags.map { it.removePrefix(".") },
-                modifiers,
-                attributes,
-            )
-        },
-        update = { updateCommon(modifiers, attributes, tags.map { it.removePrefix(".") }) },
-        content = content,
-    )
+    // A node is its id: interaction state is tracked by it, so another id is another node.
+    key(id) {
+        ReusableComposeNode<BaseUiNode, HollowUiApplier>(
+            factory = {
+                BaseUiNode(
+                    nodeType,
+                    id?.removePrefix("#"),
+                    tags.map { it.removePrefix(".") },
+                    modifiers,
+                    attributes,
+                )
+            },
+            update = { updateCommon(modifiers, attributes, tags.map { it.removePrefix(".") }) },
+            content = content,
+        )
+    }
 }
 
 
@@ -673,12 +680,14 @@ private fun ContentNode(
     attributes: Map<String, String>,
 ) {
     val modifiers = listOf(if (modifier == null) contentModifier else contentModifier then modifier)
-    ReusableComposeNode<BaseUiNode, HollowUiApplier>(
-        factory = {
-            BaseUiNode(type, id?.removePrefix("#"), tags.map { it.removePrefix(".") }, modifiers, attributes)
-        },
-        update = { updateCommon(modifiers, attributes, tags) },
-    )
+    key(id) {
+        ReusableComposeNode<BaseUiNode, HollowUiApplier>(
+            factory = {
+                BaseUiNode(type, id?.removePrefix("#"), tags.map { it.removePrefix(".") }, modifiers, attributes)
+            },
+            update = { updateCommon(modifiers, attributes, tags) },
+        )
+    }
 }
 
 /** Popups render above everything; the OverlayHost carries this layer so all passes prefer it. */
@@ -813,17 +822,19 @@ private fun PopupNodeEmitter(
     val styledContent: HollowUiContent = {
         CompositionLocalProvider(LocalStylesheets provides stylesheets) { content() }
     }
-    ReusableComposeNode<PopupNode, HollowUiApplier>(
-        factory = { PopupNode(anchorBounds, alignment, id, tags, modifiers, attributes) },
-        update = {
-            update(values) {
-                apply(it)
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = styledContent,
-    )
+    key(id) {
+        ReusableComposeNode<PopupNode, HollowUiApplier>(
+            factory = { PopupNode(anchorBounds, alignment, id, tags, modifiers, attributes) },
+            update = {
+                update(values) {
+                    apply(it)
+                    invalidateLayout()
+                }
+                updateCommon(modifiers, attributes, tags)
+            },
+            content = styledContent,
+        )
+    }
 }
 
 /**

@@ -128,7 +128,7 @@
 }
 
 .dock-stripe-icon {
-    size: 14px 14px;
+    size: 12px 12px;
 }
 
 .dock-pinned-panel {
