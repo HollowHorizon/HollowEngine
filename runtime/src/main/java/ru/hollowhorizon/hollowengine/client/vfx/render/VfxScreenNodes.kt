@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.Tesselator
 import com.mojang.blaze3d.vertex.VertexFormat
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNodeBehavior
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNodeRuntime
 import ru.hollowhorizon.hollowengine.client.vfx.VfxNoise
@@ -15,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.vfx.VfxSamplers
 import ru.hollowhorizon.hollowengine.common.vfx.VfxCameraShakeSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxPostEffectSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
+import ru.hollowhorizon.hollowengine.common.vfx.VfxSkySpec
 
 /** Hands the frame its full-screen pass while the node is on. */
 class VfxPostEffectNode(private val spec: VfxPostEffectSpec, private val node: VfxNodeRuntime) : VfxNodeBehavior {
@@ -23,6 +25,22 @@ class VfxPostEffectNode(private val spec: VfxPostEffectSpec, private val node: V
     override fun collect(into: VfxDrawList, placement: Matrix4f) {
         if (!node.isActive || spec.shader.isBlank()) return
         into.posts += VfxPostDraw(spec.shader, uniforms.evaluate(node.context))
+    }
+}
+
+/** Hands the frame its sky pass while the node is on. */
+class VfxSkyNode(private val spec: VfxSkySpec, private val node: VfxNodeRuntime) : VfxNodeBehavior {
+    private val uniforms = VfxUniformBinding(spec.shader, spec.uniforms, spec.samplers, node)
+
+    override fun collect(into: VfxDrawList, placement: Matrix4f) {
+        if (!node.isActive || spec.shader.isBlank()) return
+        val origin = node.frame.position
+        into.skies += VfxSkyDraw(
+            shader = spec.shader,
+            uniforms = uniforms.evaluate(node.context),
+            position = placement.transformPosition(Vector3f(origin.x, origin.y, origin.z)),
+            time = node.context.effectTime,
+        )
     }
 }
 
@@ -64,6 +82,46 @@ class VfxCameraShake(private val spec: VfxCameraShakeSpec, private val node: Vfx
     private companion object {
         /** Far enough apart in the noise that the axes do not move together. */
         const val AXIS_OFFSET = 37.3f
+    }
+}
+
+/**
+ * Draws the sky nodes of the frame, each a quad over the whole screen on the far plane.
+ */
+object VfxSkyRenderer {
+    fun render(skies: List<VfxSkyDraw>, view: VfxView) {
+        if (skies.isEmpty()) return
+        val toView = Matrix4f(view.projection).mul(view.modelView).invert()
+
+        RenderSystem.enableDepthTest()
+        RenderSystem.depthFunc(GL33.GL_LEQUAL)
+        RenderSystem.depthMask(false)
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.disableCull()
+        try {
+            skies.forEach { sky ->
+                val shader = VfxShaders.get(sky.shader, DefaultVertexFormat.POSITION) ?: return@forEach
+                val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION)
+                builder.addVertex(-1f, -1f, 1f)
+                builder.addVertex(1f, -1f, 1f)
+                builder.addVertex(1f, 1f, 1f)
+                builder.addVertex(-1f, 1f, 1f)
+                val mesh = builder.build() ?: return@forEach
+
+                val offset = Vector3f(sky.position).sub(view.eye)
+                val center = if (offset.lengthSquared() > 1e-6f) Vector3f(offset).normalize() else Vector3f(0f, 1f, 0f)
+                view.drawImmediate(mesh, shader) { bound ->
+                    bound.safeGetUniform("InvViewProjMat").set(toView)
+                    bound.safeGetUniform("SkyCenter").set(center.x, center.y, center.z)
+                    bound.safeGetUniform("NodeOffset").set(offset.x, offset.y, offset.z)
+                    bound.safeGetUniform("EffectTime").set(sky.time)
+                    sky.uniforms.apply(bound)
+                }
+            }
+        } finally {
+            VfxMaterialStates.restore()
+        }
     }
 }
 

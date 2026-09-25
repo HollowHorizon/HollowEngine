@@ -261,7 +261,7 @@ class VfxPreviewState(initialDistance: Float = 4.5f) {
 
         val FIELD_OF_VIEW = Math.toRadians(VfxPreviewFieldOfView.toDouble()).toFloat()
         const val NEAR = 0.05f
-        const val FAR = 200f
+        const val FAR = 1024f
 
         const val PANEL_DEPTH = 500f
 

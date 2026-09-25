@@ -1,0 +1,185 @@
+{
+  "nodes": [
+    {
+      "type": "hollowengine:vfx/beam",
+      "id": "pillar",
+      "name": "Pillar",
+      "tint": {
+        "type": "solid",
+        "color": {
+          "g": 0.8,
+          "b": 0.4
+        }
+      },
+      "end": [
+        0.0,
+        200.0,
+        0.0
+      ],
+      "width": {
+        "type": "expr",
+        "source": "2.4 * clamp(p.age * 6, 0, 1) * clamp(1 - (p.age - 0.8) / 1.2, 0, 1) * (1 - 0.4 * p.progress)"
+      },
+      "segments": 32,
+      "noise": {
+        "type": "const",
+        "value": 0.25
+      },
+      "noiseFrequency": 0.05,
+      "noiseSpeed": 6.0
+    },
+    {
+      "type": "hollowengine:vfx/beam",
+      "id": "pillar-core",
+      "name": "Pillar Core",
+      "end": [
+        0.0,
+        200.0,
+        0.0
+      ],
+      "width": {
+        "type": "expr",
+        "source": "0.7 * clamp(p.age * 6, 0, 1) * clamp(1 - (p.age - 0.8) / 1.2, 0, 1) * (1 - 0.4 * p.progress)"
+      },
+      "segments": 2
+    },
+    {
+      "type": "hollowengine:vfx/sphere",
+      "id": "flash",
+      "name": "Ground Flash",
+      "transform": {
+        "scale": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "material": {
+        "texture": "hollowengine:textures/particle/white.png",
+        "blend": "ADDITIVE"
+      },
+      "tint": {
+        "type": "solid",
+        "color": {
+          "g": 0.8,
+          "b": 0.4
+        }
+      }
+    },
+    {
+      "type": "hollowengine:vfx/sky",
+      "id": "sky",
+      "name": "Golden Sky",
+      "uniforms": [
+        {
+          "name": "Radius",
+          "value": {
+            "type": "float",
+            "value": {
+              "type": "expr",
+              "source": "clamp((p.age - 0.25) * 70, 0, 180)"
+            }
+          }
+        },
+        {
+          "name": "Width",
+          "value": {
+            "type": "float",
+            "value": {
+              "type": "const",
+              "value": 8.0
+            }
+          }
+        },
+        {
+          "name": "Opacity",
+          "value": {
+            "type": "float",
+            "value": {
+              "type": "expr",
+              "source": "clamp((7 - p.age) / 1.5, 0, 1)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "hollowengine:vfx/camera_shake",
+      "id": "shake",
+      "strength": {
+        "type": "expr",
+        "source": "max(0, 1 - p.age * 1.5) * clamp(1 - n.camera_distance / 64, 0, 1) * 2.5"
+      },
+      "frequency": {
+        "type": "const",
+        "value": 18.0
+      },
+      "amplitude": [
+        1.2,
+        1.2,
+        1.6
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 7.0,
+    "tracks": [
+      {
+        "node": "flash",
+        "property": "transform.scale",
+        "curves": [
+          {
+            "keys": [
+              {
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.08,
+                "value": 3.0,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 1.2,
+                "interpolation": "LINEAR"
+              }
+            ]
+          },
+          {
+            "channel": 1,
+            "keys": [
+              {
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.08,
+                "value": 3.0,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 1.2,
+                "interpolation": "LINEAR"
+              }
+            ]
+          },
+          {
+            "channel": 2,
+            "keys": [
+              {
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.08,
+                "value": 3.0,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 1.2,
+                "interpolation": "LINEAR"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

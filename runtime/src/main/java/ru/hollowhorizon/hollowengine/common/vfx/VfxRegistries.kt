@@ -48,6 +48,7 @@ object VfxNodeTypes {
         builtIn("trail", VfxTrailSpec.serializer(), "vfx/node_trail.svg") { VfxTrailSpec() }
         builtIn("beam", VfxBeamSpec.serializer(), "vfx/node_beam.svg") { VfxBeamSpec() }
         builtIn("post_effect", VfxPostEffectSpec.serializer(), "vfx/node_post_effect.svg") { VfxPostEffectSpec() }
+        builtIn("sky", VfxSkySpec.serializer(), "vfx/node_sky.svg") { VfxSkySpec() }
         builtIn("camera_shake", VfxCameraShakeSpec.serializer(), "vfx/node_camera_shake.svg") { VfxCameraShakeSpec() }
     }
 

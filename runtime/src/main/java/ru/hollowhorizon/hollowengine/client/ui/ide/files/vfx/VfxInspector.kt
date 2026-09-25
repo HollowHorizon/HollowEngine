@@ -80,6 +80,7 @@ private fun NodeFields(document: HollowIdeVfxDocument, state: VfxEditorState, no
         is VfxTrailSpec -> TrailFields(document, state, node)
         is VfxBeamSpec -> BeamFields(document, state, node)
         is VfxPostEffectSpec -> PostEffectFields(document, state, node)
+        is VfxSkySpec -> SkyFields(document, state, node)
         is VfxCameraShakeSpec -> CameraShakeFields(document, state, node)
         else -> Unit
     }
@@ -224,6 +225,7 @@ internal object VfxIcons {
     const val TRAIL = ROOT + "trail.svg"
     const val BEAM = ROOT + "beam.svg"
     const val POST = ROOT + "post.svg"
+    const val SKY = ROOT + "sky.svg"
     const val SHAKE = ROOT + "shake.svg"
     const val TIMELINE = ROOT + "timeline.svg"
     const val STATS = ROOT + "stats.svg"

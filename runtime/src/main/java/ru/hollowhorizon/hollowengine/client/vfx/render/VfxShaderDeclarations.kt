@@ -50,7 +50,7 @@ class VfxShaderDeclaration(val uniforms: List<VfxShaderUniform>, val samplers: L
         private val ENGINE_UNIFORMS = setOf(
             "ModelViewMat", "ProjMat", "IViewRotMat", "TextureMat", "ColorModulator", "Light0_Direction",
             "Light1_Direction", "FogStart", "FogEnd", "FogColor", "FogShape", "LineWidth", "GameTime",
-            "ScreenSize", "GlintAlpha", "ChunkOffset", "Shaded", "BlendMode",
+            "ScreenSize", "GlintAlpha", "ChunkOffset", "Shaded", "BlendMode", "SkyCenter", "NodeOffset", "EffectTime",
         )
 
         /** The material texture, the light map and the scene copies. */

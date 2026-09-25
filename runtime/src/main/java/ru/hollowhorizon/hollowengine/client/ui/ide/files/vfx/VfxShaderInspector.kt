@@ -20,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxCameraShakeSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxPostEffectSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.VfxSamplerSpec
+import ru.hollowhorizon.hollowengine.common.vfx.VfxSkySpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxUniformSpec
 import ru.hollowhorizon.hollowengine.common.vfx.VfxUniformValue
 
@@ -35,6 +36,22 @@ internal fun PostEffectFields(document: HollowIdeVfxDocument, state: VfxEditorSt
             post.samplers,
             onUniforms = { document.replace(post.copy(uniforms = it)) },
             onSamplers = { document.replace(post.copy(samplers = it)) },
+        )
+    }
+}
+
+@Composable
+internal fun SkyFields(document: HollowIdeVfxDocument, state: VfxEditorState, sky: VfxSkySpec) {
+    Folding(state, "sky", vfxText("section_sky"), VfxIcons.SKY) {
+        VfxShaderRow(sky.shader, vfxText("shader_sky_hint"), "vfx-sky-shader") { shader ->
+            document.replace(sky.copy(shader = shader.orEmpty(), uniforms = alignUniforms(shader, sky.uniforms)))
+        }
+        VfxShaderFields(
+            sky.shader,
+            sky.uniforms,
+            sky.samplers,
+            onUniforms = { document.replace(sky.copy(uniforms = it)) },
+            onSamplers = { document.replace(sky.copy(samplers = it)) },
         )
     }
 }

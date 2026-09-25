@@ -28,10 +28,11 @@ object VfxFrameRenderer {
         renderSurfaces(list, view, target)
     }
 
-    /** Everything drawn with the effect shaders: meshes, ribbons and planes. */
+    /** Everything drawn with the effect shaders: the sky, then meshes, ribbons and planes. */
     fun renderSurfaces(list: VfxDrawList, view: VfxView, target: RenderTarget) {
         if (list.usesCustomShaders) VfxSceneTextures.capture(target)
 
+        VfxSkyRenderer.render(list.skies, view)
         VfxMeshRenderer.render(list.meshes, view)
         VfxRibbonRenderer.render(list.ribbons, view)
         VfxQuadRenderer.render(list.quads, view)

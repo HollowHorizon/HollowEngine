@@ -99,6 +99,9 @@ class VfxRibbonDraw(
 /** A full-screen pass, with the uniforms it is drawn with this frame. */
 class VfxPostDraw(val shader: String, val uniforms: VfxUniformValues)
 
+/** A sky node's pass, with where its node is in the space of the view and how long the effect has played. */
+class VfxSkyDraw(val shader: String, val uniforms: VfxUniformValues, val position: Vector3f, val time: Float)
+
 /**
  * Everything the playing effects draw this frame, sorted by how it is drawn.
  */
@@ -108,12 +111,14 @@ class VfxDrawList {
     val models = ArrayList<VfxModelDraw>()
     val ribbons = ArrayList<VfxRibbonDraw>()
     val posts = ArrayList<VfxPostDraw>()
+    val skies = ArrayList<VfxSkyDraw>()
 
     /** Camera shake in degrees: pitch, yaw and roll, summed over every shaking node. */
     val shake = FloatArray(3)
 
     val isEmpty: Boolean
-        get() = quads.isEmpty() && meshes.isEmpty() && models.isEmpty() && ribbons.isEmpty() && posts.isEmpty()
+        get() = quads.isEmpty() && meshes.isEmpty() && models.isEmpty() && ribbons.isEmpty() && posts.isEmpty() &&
+                skies.isEmpty()
 
     /** Whether any surface is drawn by a shader of the author, which may read the scene textures. */
     val usesCustomShaders: Boolean
@@ -126,6 +131,7 @@ class VfxDrawList {
         models.clear()
         ribbons.clear()
         posts.clear()
+        skies.clear()
         shake.fill(0f)
     }
 }

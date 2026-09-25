@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.vfx.render.VfxMeshNode
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxModelNode
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxPlaneNode
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxPostEffectNode
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxSkyNode
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxTrailRenderer
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.vfx.*
@@ -157,6 +158,7 @@ object VfxNodeRuntimes {
         register("hollowengine:vfx/trail") { VfxTrailRenderer(it.spec as VfxTrailSpec, it) }
         register("hollowengine:vfx/beam") { VfxBeamRenderer(it.spec as VfxBeamSpec, it) }
         register("hollowengine:vfx/post_effect") { VfxPostEffectNode(it.spec as VfxPostEffectSpec, it) }
+        register("hollowengine:vfx/sky") { VfxSkyNode(it.spec as VfxSkySpec, it) }
         register("hollowengine:vfx/camera_shake") { VfxCameraShake(it.spec as VfxCameraShakeSpec, it) }
     }
 

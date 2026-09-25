@@ -73,3 +73,33 @@ data class VfxCameraShakeSpec(
         scalar(VfxProperty.SHAKE_FREQUENCY, "shake_frequency", frequency),
     )
 }
+
+/**
+ * Paints the sky while the node is on: a core shader drawn on the far plane, so it covers only what
+ * nothing else stands in front of. Terrain, entities and clouds stay over it.
+ */
+@Serializable
+@SerialName("hollowengine:vfx/sky")
+data class VfxSkySpec(
+    override val id: String = newVfxNodeId("sky"),
+    override val name: String = "Sky",
+    override val enabled: Boolean = true,
+    override val transform: VfxTransform = VfxTransform(position = Vec3f(0f, 200f, 0f)),
+    override val children: List<VfxNodeSpec> = emptyList(),
+    /** `namespace:path` of `assets/namespace/shaders/core/path.json`. */
+    val shader: String = "hollowengine:vfx/sky/shockwave",
+    val uniforms: List<VfxUniformSpec> = emptyList(),
+    val samplers: List<VfxSamplerSpec> = emptyList(),
+) : VfxNodeSpec() {
+    override fun withCommon(
+        id: String,
+        name: String,
+        enabled: Boolean,
+        transform: VfxTransform,
+        children: List<VfxNodeSpec>,
+    ) = copy(id = id, name = name, enabled = enabled, transform = transform, children = children)
+
+    override fun expressions(): List<String> = uniforms.flatMap { it.value.sources() }
+
+    override fun animatables(): List<VfxAnimatable> = uniforms.animatables()
+}
