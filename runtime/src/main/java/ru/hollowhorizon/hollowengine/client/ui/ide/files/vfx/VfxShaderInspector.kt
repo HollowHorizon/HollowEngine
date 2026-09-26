@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 
 import androidx.compose.runtime.Composable
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderGraph
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.Row
 import ru.hollowhorizon.hollowengine.client.ui.Text
@@ -76,29 +77,45 @@ internal fun CameraShakeFields(document: HollowIdeVfxDocument, state: VfxEditorS
  * the geometry hands the shader, so it lives in the tooltip of the label.
  */
 @Composable
-internal fun VfxShaderRow(shader: String?, hint: String, id: String, onChange: (String?) -> Unit) {
+internal fun VfxShaderRow(
+    shader: String?,
+    hint: String,
+    id: String,
+    materials: Boolean = false,
+    onChange: (String?) -> Unit,
+) {
     VfxAssetRow(
-        label = vfxText("shader"),
+        label = vfxText(if (materials) "surface_shader" else "shader"),
         value = shader.orEmpty(),
         hint = hint,
         id = id,
-        candidates = { VfxShaderAssets.list() },
+        candidates = { VfxShaderAssets.list(materials) },
         exists = VfxShaderAssets::exists,
         placeholder = vfxText("shader_placeholder"),
     ) { typed -> onChange(typed.trim().ifBlank { null }) }
 }
 
-/** The core shaders the loaded packs offer an effect, named the way a material names them. */
+/**
+ * What the loaded packs offer an effect to draw with, named the way a material names them.
+ */
 internal object VfxShaderAssets {
     private const val Root = "shaders/core/"
+    private const val Materials = "materials"
 
-    fun list(): List<String> {
+    /** The core shaders, and before them with [materials] the material graphs, which only surfaces draw with. */
+    fun list(materials: Boolean): List<String> {
         val manager = Minecraft.getInstance().resourceManager ?: return emptyList()
         return runCatching {
-            manager.listResources(Root.trimEnd('/')) { it.path.endsWith(".json") }.keys
+            val graphs = if (materials) {
+                manager.listResources(Materials) { it.path.endsWith(ShaderGraph.EXTENSION) }.keys.map { it.toString() }.sorted()
+            } else {
+                emptyList()
+            }
+            val shaders = manager.listResources(Root.trimEnd('/')) { it.path.endsWith(".json") }.keys
                 .filter { it.namespace != "minecraft" }
                 .map { "${it.namespace}:${it.path.removePrefix(Root).removeSuffix(".json")}" }
                 .sorted()
+            graphs + shaders
         }.getOrDefault(emptyList())
     }
 

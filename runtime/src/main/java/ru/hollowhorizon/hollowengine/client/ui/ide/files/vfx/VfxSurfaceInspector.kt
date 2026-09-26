@@ -234,7 +234,7 @@ private fun MaterialFields(document: HollowIdeVfxDocument, state: VfxEditorState
             is VfxPlaneSpec -> "shader_plane_hint"
             else -> "shader_ribbon_hint"
         }
-        VfxShaderRow(material.shader, vfxText(attributes), "vfx-material-shader") { shader ->
+        VfxShaderRow(material.shader, vfxText(attributes), "vfx-material-shader", materials = true) { shader ->
             update(material.copy(shader = shader, uniforms = alignUniforms(shader, material.uniforms)))
         }
         VfxShaderFields(

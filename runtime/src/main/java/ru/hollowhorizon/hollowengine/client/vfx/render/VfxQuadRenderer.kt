@@ -63,7 +63,7 @@ object VfxQuadRenderer {
         withInstanceState(upload = 0) {
             GL33.glDepthFunc(GL33.GL_LEQUAL)
             glowing.forEach { batch ->
-                val shader = VfxMaterialStates.glowShader(batch.key.shader, engine, DefaultVertexFormat.POSITION_TEX)
+                val shader = VfxMaterialStates.glowShader(batch.key.shader, engine, VfxSurface.PLANE)
                     ?: return@forEach
                 drawBatch(shader, engine, batch, view, glow = true)
             }
@@ -80,7 +80,7 @@ object VfxQuadRenderer {
             GL33.glDepthFunc(GL33.GL_LEQUAL)
 
             packer.batches.forEach { batch ->
-                val shader = batch.key.shader?.let { VfxShaders.get(it, DefaultVertexFormat.POSITION_TEX) } ?: engine
+                val shader = batch.key.shader?.let { VfxShaders.surface(it, VfxSurface.PLANE) } ?: engine
                 drawBatch(shader, engine, batch, view, glow = false)
             }
         }
@@ -98,7 +98,7 @@ object VfxQuadRenderer {
         if (glow) {
             VfxMaterialStates.applyGlow(batch.key)
         } else {
-            VfxMaterialStates.apply(batch.key, premultiplied = shader === engine)
+            VfxMaterialStates.apply(batch.key, premultiplied = shader === engine || VfxGraphMaterials.isGraph(batch.key.shader))
         }
         drawInstances(shader, batch)
         shader.clear()

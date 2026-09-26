@@ -32,11 +32,12 @@ object VfxRibbonRenderer {
 
         ordered.forEach { draw ->
             val material = draw.material
-            if (glow && material.glow <= 0f) return@forEach
+            val glowAmount = material.effectiveGlow()
+            if (glow && glowAmount <= 0f) return@forEach
             val shader = if (glow) {
-                VfxMaterialStates.glowShader(material.shader, engine, DefaultVertexFormat.PARTICLE) ?: return@forEach
+                VfxMaterialStates.glowShader(material.shader, engine, VfxSurface.RIBBON) ?: return@forEach
             } else {
-                material.shader?.let { VfxShaders.get(it, DefaultVertexFormat.PARTICLE) } ?: engine
+                material.shader?.let { VfxShaders.surface(it, VfxSurface.RIBBON) } ?: engine
             }
             val texture = VfxMaterialStates.texture(material.texture)
 
@@ -57,7 +58,7 @@ object VfxRibbonRenderer {
                 VfxMaterialStates.bindCommonSamplers(bound, texture)
                 bound.safeGetUniform("BlendMode").set(VfxQuadPacker.blendMode(material.blend))
                 bound.safeGetUniform("Softness").set(material.softness)
-                bound.safeGetUniform("Glow").set(material.glow)
+                bound.safeGetUniform("Glow").set(glowAmount)
                 bound.safeGetUniform("GlowPass").set(if (glow) 1f else 0f)
                 if (bound !== engine) draw.uniforms?.apply(bound)
             }

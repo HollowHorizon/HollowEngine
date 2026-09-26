@@ -39,7 +39,7 @@ private const val AutoSaveDelayMillis = 900L
 @Composable
 internal fun HollowIdeAnimatorEditor(file: HollowIdeOpenFile) {
     val document = file.document as HollowIdeAnimatorDocument
-    val view = remember(document) { GraphViewState() }
+    val view = remember(document) { document.editorState { GraphViewState() } }
     var selection by remember(document) { mutableStateOf<AnimatorSelection>(AnimatorSelection.None) }
     var openLayer by remember(document) { mutableStateOf(document.animator.layers.firstOrNull()?.id) }
     val expanded = remember(document) { mutableStateListOf<String>().apply { addAll(document.animator.layers.map { it.id }) } }

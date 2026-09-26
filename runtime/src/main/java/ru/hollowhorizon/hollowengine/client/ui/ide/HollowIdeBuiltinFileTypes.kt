@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeRigDocument
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeShaderGraphDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
 
@@ -16,8 +17,18 @@ internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
     animatorEditor: HollowIdeFileEditor,
     rigEditor: HollowIdeFileEditor,
     vfxEditor: HollowIdeFileEditor,
+    shaderGraphEditor: HollowIdeFileEditor,
     textEditor: HollowIdeFileEditor,
 ) {
+    register(
+        HollowIdeFileType.extensions(
+            id = "material",
+            extensions = listOf(".material"),
+            priority = 285,
+            loader = { _, bytes -> HollowIdeShaderGraphDocument(bytes) },
+            editor = shaderGraphEditor,
+        ),
+    )
     register(
         HollowIdeFileType.extensions(
             id = "vfx",

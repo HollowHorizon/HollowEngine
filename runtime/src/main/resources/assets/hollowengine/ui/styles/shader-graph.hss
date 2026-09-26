@@ -1,0 +1,200 @@
+@import "hollowengine:ui/styles/theme.hss";
+
+/* The shader graph editor: nodes with a title bar in the color of their category, pins in the color
+   of what they carry, filled once something is linked to them, and fields to edit values in place.
+   The title bar sits 2px inside the frame, so its corners are the frame's less those 2px. */
+
+$category-input: #5B8FE0;
+$category-math: #7C83F0;
+$category-vector: #E0B347;
+$category-uv: #4FC48B;
+$category-texture: #F07D3A;
+$category-procedural: #B072E8;
+$category-output: #E5566A;
+
+.graph-node.sg-node {
+    background: $bg-panel;
+    border: 1px $border;
+    border-radius: $radius-large;
+    shadow: 0px 3px 10px 0px $shadow;
+}
+
+.graph-node.sg-node:hover {
+    border-color: $border-strong;
+}
+
+.graph-node.sg-node.selected {
+    border-color: $accent;
+    shadow: 0px 0px 5px 0px alpha($accent, 0.22);
+}
+
+.graph-node.sg-node.error {
+    border-color: $danger;
+}
+
+.sg-node-head {
+    padding: 0px 6px;
+    background: alpha($category-math, 0.34);
+    border-radius: $radius;
+}
+
+.sg-input .sg-node-head { background: alpha($category-input, 0.34); }
+.sg-vector .sg-node-head { background: alpha($category-vector, 0.3); }
+.sg-uv .sg-node-head { background: alpha($category-uv, 0.3); }
+.sg-texture .sg-node-head { background: alpha($category-texture, 0.32); }
+.sg-procedural .sg-node-head { background: alpha($category-procedural, 0.34); }
+.sg-output .sg-node-head { background: alpha($category-output, 0.36); }
+
+.sg-node-row {
+    gap: 4px;
+}
+
+.sg-pin-label {
+    font-size: $font-size-small;
+    foreground: $text-soft;
+    text-wrap: false;
+    text-overflow: dots;
+}
+
+.sg-pin-label.output {
+    foreground: $text;
+}
+
+/* What an unlinked input reads instead of a value, such as the UV. */
+.sg-pin-hint {
+    font-size: $font-size-small;
+    foreground: $text-faint;
+    text-wrap: false;
+}
+
+/* The name of a value, which a drag along changes it by. */
+.sg-scrub {
+    cursor: ew-resize;
+    transition: foreground 110ms ease-out;
+}
+
+.sg-scrub:hover {
+    foreground: $text-strong;
+}
+
+.sg-fields {
+    gap: 2px;
+}
+
+.sg-field {
+    padding: 1px 3px;
+    background: $bg-window;
+    border: 1px $divider;
+    border-radius: $radius-small;
+    foreground: $text;
+    font-family: $font;
+    font-size: $font-size-small;
+    caret-color: $caret;
+    selection-color: $selection;
+    text-shadow: none;
+    transition: border 110ms ease-out;
+}
+
+.sg-field:hover {
+    border-color: $border;
+}
+
+.sg-field:focus {
+    border-color: $accent;
+}
+
+.sg-expression {
+    font-size: $font-size;
+    padding: 2px 4px;
+}
+
+/* What a choice is set to; a press opens its values. */
+.sg-chip {
+    padding: 2px 5px;
+    background: $bg-window;
+    border: 1px $divider;
+    border-radius: $radius-small;
+    foreground: $text;
+    font-size: $font-size-small;
+    text-wrap: false;
+    text-overflow: dots;
+    cursor: hand;
+    transition: border 110ms ease-out, background 110ms ease-out;
+}
+
+.sg-chip:hover {
+    background: $bg-hover;
+    border-color: $border;
+}
+
+.sg-toggle {
+    gap: 5px;
+    cursor: hand;
+}
+
+.sg-checkbox {
+    size: 10px 10px;
+    checkbox-active: $accent;
+    checkbox-mark: $white;
+}
+
+.sg-node-preview {
+    background: $bg-window;
+    border-radius: $radius-small;
+}
+
+.sg-pin {
+    background: $bg-panel;
+    border: 2px $text-muted;
+    border-radius: 5px;
+    cursor: hand;
+    transition: background 150ms ease-out;
+}
+
+.sg-pin:hover {
+    background: $text-strong;
+}
+
+.sg-pin.sg-type-float { border-color: #9EA8BD; }
+.sg-pin.sg-type-vec2 { border-color: #78CC8F; }
+.sg-pin.sg-type-vec3 { border-color: #F5D161; }
+.sg-pin.sg-type-vec4 { border-color: #E685C7; }
+.sg-pin.sg-type-texture { border-color: #F28C59; }
+
+.sg-pin.connected.sg-type-float { background: #9EA8BD; }
+.sg-pin.connected.sg-type-vec2 { background: #78CC8F; }
+.sg-pin.connected.sg-type-vec3 { background: #F5D161; }
+.sg-pin.connected.sg-type-vec4 { background: #E685C7; }
+.sg-pin.connected.sg-type-texture { background: #F28C59; }
+
+/* A number: dragged sideways it changes, clicked it is typed into. */
+.sg-number {
+    cursor: ew-resize;
+    text-wrap: false;
+    text-overflow: dots;
+}
+
+.sg-swatch {
+    border: 1px $divider;
+    border-radius: $radius-small;
+    cursor: hand;
+    transition: border 110ms ease-out;
+}
+
+.sg-swatch:hover {
+    border-color: $border-strong;
+}
+
+.sg-color-popup {
+    padding: 8px;
+    background: $bg-raised;
+    border: 1px $border;
+    border-radius: $radius;
+    shadow: 1px 1px 3px 0px $shadow;
+    font-family: $font;
+    font-size: $font-size;
+}
+
+.sg-color-popup-body {
+    gap: 6px;
+}

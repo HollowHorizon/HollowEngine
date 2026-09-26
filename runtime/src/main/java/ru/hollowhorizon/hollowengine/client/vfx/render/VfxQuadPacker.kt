@@ -56,7 +56,7 @@ internal data class VfxBatchKey(
     companion object {
         fun of(material: VfxMaterialSpec, mixed: Boolean, owner: Any?): VfxBatchKey {
             val custom = material.shader != null
-            val perParticle = mixed && !custom
+            val perParticle = mixed && (!custom || VfxGraphMaterials.isGraph(material.shader))
             return VfxBatchKey(
                 texture = material.texture,
                 blend = VfxBatchBlend.of(material.blend, perParticle),
@@ -66,7 +66,7 @@ internal data class VfxBatchKey(
                 shader = material.shader,
                 owner = if (custom) owner else null,
                 softness = if (perParticle) 0f else material.softness,
-                glow = if (perParticle) 0f else material.glow,
+                glow = if (perParticle) 0f else material.effectiveGlow(),
             )
         }
     }
@@ -88,7 +88,7 @@ internal class VfxQuadBatch(val key: VfxBatchKey) {
     val uniforms: VfxUniformValues? get() = draws.firstOrNull()?.uniforms
 
     /** Whether anything in the batch glows, which is what draws it again in the glow pass. */
-    val glows: Boolean get() = draws.any { it.plane.material.glow > 0f }
+    val glows: Boolean get() = draws.any { it.plane.material.effectiveGlow() > 0f }
 }
 
 /**
@@ -145,8 +145,9 @@ internal class VfxQuadPacker {
         var depthSum = 0f
 
         batch.draws.forEach { draw ->
+            val glow = draw.plane.material.effectiveGlow()
             for (slot in 0 until draw.batch.particles.count) {
-                write(target, offset, draw, slot, view)
+                write(target, offset, draw, slot, glow, view)
                 if (sorted) {
                     val index = offset / STRIDE
                     val depth = distanceSquared(target, offset, view)
@@ -183,7 +184,7 @@ internal class VfxQuadPacker {
         return dx * dx + dy * dy + dz * dz
     }
 
-    private fun write(out: FloatArray, base: Int, draw: VfxQuadDraw, slot: Int, view: VfxView) {
+    private fun write(out: FloatArray, base: Int, draw: VfxQuadDraw, slot: Int, glow: Float, view: VfxView) {
         val plane = draw.plane
         val batch = draw.batch
         val particles = batch.particles
@@ -248,7 +249,7 @@ internal class VfxQuadPacker {
         out[base + 18] = (light shr 16 and 0xFFFF).toFloat()
         out[base + 19] = blendMode(plane.material.blend)
         out[base + 20] = plane.material.softness
-        out[base + 21] = plane.material.glow
+        out[base + 21] = glow
     }
 
     private fun ensureCapacity(count: Int) {

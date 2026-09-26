@@ -17,9 +17,7 @@ import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.render.DebugLines
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.AnimatorColors
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.render.disableScissor
-import ru.hollowhorizon.hollowengine.client.ui.render.uiBlendWritesAlpha
-import ru.hollowhorizon.hollowengine.client.ui.render.uiWriteAlpha
+import ru.hollowhorizon.hollowengine.client.ui.render.withOwnRenderTarget
 import ru.hollowhorizon.hollowengine.client.vfx.VfxInstance
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxDrawList
 import ru.hollowhorizon.hollowengine.client.vfx.render.VfxFrameRenderer
@@ -47,7 +45,7 @@ internal class VfxPreviewRenderer {
         val size = pixelSize(rect, stack) ?: return
         var texture = 0
 
-        withOwnTarget {
+        withOwnRenderTarget {
             val offscreen = targetOf(size.first, size.second)
             texture = offscreen.colorTextureId
             offscreen.setClearColor(Background.red, Background.green, Background.blue, 1f)
@@ -87,39 +85,6 @@ internal class VfxPreviewRenderer {
         }
 
         blit(texture, rect, stack)
-    }
-
-    /**
-     * Runs [draw] with the state the panel was drawing in set aside and put back afterwards.
-     */
-    private inline fun withOwnTarget(draw: () -> Unit) {
-        val read = GL33.glGetInteger(GL33.GL_READ_FRAMEBUFFER_BINDING)
-        val write = GL33.glGetInteger(GL33.GL_DRAW_FRAMEBUFFER_BINDING)
-        val viewport = IntArray(4).also { GL33.glGetIntegerv(GL33.GL_VIEWPORT, it) }
-        val scissorBox = IntArray(4).also { GL33.glGetIntegerv(GL33.GL_SCISSOR_BOX, it) }
-        val scissor = GL33.glIsEnabled(GL33.GL_SCISSOR_TEST)
-        val clearColor = FloatArray(4).also { GL33.glGetFloatv(GL33.GL_COLOR_CLEAR_VALUE, it) }
-        val alpha = uiBlendWritesAlpha
-        val projection = Matrix4f(RenderSystem.getProjectionMatrix())
-        val sorting = RenderSystem.getVertexSorting()
-        val modelView = RenderSystem.getModelViewStack()
-        modelView.pushMatrix()
-        try {
-            disableScissor()
-            RenderSystem.colorMask(true, true, true, true)
-            draw()
-        } finally {
-            RenderSystem.setProjectionMatrix(projection, sorting)
-            modelView.popMatrix()
-            RenderSystem.applyModelViewMatrix()
-            GL33.glBindFramebuffer(GL33.GL_READ_FRAMEBUFFER, read)
-            GL33.glBindFramebuffer(GL33.GL_DRAW_FRAMEBUFFER, write)
-            RenderSystem.viewport(viewport[0], viewport[1], viewport[2], viewport[3])
-            GL33.glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3])
-            if (scissor) GL33.glEnable(GL33.GL_SCISSOR_TEST)
-            GL33.glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3])
-            uiWriteAlpha(alpha)
-        }
     }
 
     fun close() {

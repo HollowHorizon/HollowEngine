@@ -30,6 +30,13 @@ val LocalUiFrameTimeNanos = staticCompositionLocalOf { 0L }
 val LocalUiViewport = compositionLocalOf { UiRect.Zero }
 val LocalStylesheets = staticCompositionLocalOf<List<UiStylesheetReference>> { emptyList() }
 
+/** Focuses a node by its id once it is on screen; see [HollowUiRuntime.requestFocus]. */
+fun interface UiFocusRequester {
+    fun request(id: String)
+}
+
+val LocalUiFocusRequester = staticCompositionLocalOf { UiFocusRequester {} }
+
 private fun Modifier?.styleReferences(): List<UiStylesheetReference> = when (this) {
     null -> emptyList()
     is CompositeModifier -> flatten().filterIsInstance<StyleImportModifier>().map { it.reference }

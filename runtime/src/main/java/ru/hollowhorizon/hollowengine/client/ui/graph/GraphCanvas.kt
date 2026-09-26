@@ -86,13 +86,17 @@ class GraphEdge(
     val selected: Boolean = false,
 )
 
-/** A link being dragged out and not yet dropped, in canvas space. */
+/**
+ * A link being dragged out and not yet dropped, in canvas space: a straight line, or [curve] when the
+ * owner shapes it like the links it draws.
+ */
 data class GraphLinkPreview(
     val fromX: Float,
     val fromY: Float,
     val toX: Float,
     val toY: Float,
     val color: UiColor = GraphColors.Link,
+    val curve: GraphCurve? = null,
 )
 
 /** A node as the minimap marks it, in graph space. */
@@ -117,13 +121,16 @@ fun GraphCanvas(
     onEdgeClick: (Any) -> Unit = {},
     onContextMenu: (GraphPointer, edge: Any?) -> Unit = { _, _ -> },
     onRelease: () -> Unit = {},
+    onSelectArea: ((area: GraphRect, modifiers: Int) -> Unit)? = null,
     onKey: (UiKeyInput) -> Boolean = { false },
     overlay: @Composable () -> Unit = {},
     nodes: @Composable () -> Unit,
 ) {
     var canvas by remember { mutableStateOf(UiRect.Zero) }
     var hovered by remember { mutableStateOf<Any?>(null) }
+    var marquee by remember { mutableStateOf<GraphRect?>(null) }
     val grabbedAt = remember { floatArrayOf(0f, 0f) }
+    val selecting = remember { booleanArrayOf(false) }
 
     LaunchedEffect(view) {
         while (true) {
@@ -163,7 +170,11 @@ fun GraphCanvas(
                     }
                     drawCurve(edge.curve, view.zoom, color, edge.arrow)
                 }
-                link?.let { drawSegment(it.fromX, it.fromY, it.toX, it.toY, it.color, 1.5f) }
+                link?.let { pending ->
+                    val curve = pending.curve
+                    if (curve != null) drawCurve(curve, view.zoom, pending.color, arrow = false)
+                    else drawSegment(pending.fromX, pending.fromY, pending.toX, pending.toY, pending.color, 1.5f)
+                }
             }
             .onHover { event ->
                 val edge = edgeAt(event.localX, event.localY)
@@ -187,14 +198,30 @@ fun GraphCanvas(
             .onPress { event ->
                 grabbedAt[0] = event.localX
                 grabbedAt[1] = event.localY
-                view.grab(event.localX, event.localY)
+                selecting[0] = onSelectArea != null && event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                if (!selecting[0]) view.grab(event.localX, event.localY)
                 event.consume()
             }
             .onDrag { event ->
-                view.dragTo(grabbedAt[0] + event.dragTotalX, grabbedAt[1] + event.dragTotalY)
+                val x = grabbedAt[0] + event.dragTotalX
+                val y = grabbedAt[1] + event.dragTotalY
+                if (selecting[0]) {
+                    marquee = GraphRect.between(grabbedAt[0], grabbedAt[1], x, y)
+                } else {
+                    view.dragTo(x, y)
+                }
                 event.consume()
             }
             .onRelease { event ->
+                marquee?.let { area ->
+                    marquee = null
+                    val covered = GraphRect.between(
+                        view.toGraphX(area.x), view.toGraphY(area.y),
+                        view.toGraphX(area.x + area.width), view.toGraphY(area.y + area.height),
+                    )
+                    onSelectArea?.invoke(covered, event.modifiers)
+                }
+                selecting[0] = false
                 onRelease()
                 event.consume()
             }
@@ -219,6 +246,13 @@ fun GraphCanvas(
                 .transition(),
         ) {
             nodes()
+        }
+
+        marquee?.let { area ->
+            Box(
+                tags = listOf("graph-marquee"),
+                modifier = Modifier.position(area.x.px, area.y.px).size(area.width.px, area.height.px).inputTransparent(),
+            )
         }
 
         if (minimap.isNotEmpty()) {

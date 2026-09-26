@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.graph
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.Column
 import ru.hollowhorizon.hollowengine.client.ui.HollowUiContent
@@ -62,6 +63,7 @@ fun GraphNode(
         )
     }
 
+    val held = remember { booleanArrayOf(false) }
     Column(
         id = id,
         tags = listOf("graph-node") + tags + if (selected) listOf("selected") else emptyList(),
@@ -72,16 +74,23 @@ fun GraphNode(
             .onPress { event ->
                 when (event.button) {
                     GLFW.GLFW_MOUSE_BUTTON_RIGHT -> onContextMenu(event.x, event.y)
-                    GLFW.GLFW_MOUSE_BUTTON_LEFT -> onPress(gesture(event))
+                    GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+                        held[0] = true
+                        onPress(gesture(event))
+                    }
+
                     else -> return@onPress
                 }
                 event.consume()
             }
             .onDrag { event ->
+                if (!held[0] || event.button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return@onDrag
                 onDrag(gesture(event))
                 event.consume()
             }
             .onRelease { event ->
+                if (!held[0]) return@onRelease
+                held[0] = false
                 onRelease()
                 event.consume()
             },

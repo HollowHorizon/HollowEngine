@@ -16,6 +16,7 @@ import java.util.*
 
 private const val ScrollTargetRangeEpsilon = 0.5f
 private const val WheelNotchPixels = 32f
+private const val PendingFocusFrames = 10
 
 data class HollowUiFrame(
     val root: UiNode,
@@ -186,6 +187,10 @@ class HollowUiRuntime(
     var lastFrame: HollowUiFrame? = null
         private set
 
+    @Volatile
+    private var pendingFocus: String? = null
+    private var pendingFocusFrames = 0
+
     val mouseX: Float get() = input.x
     val mouseY: Float get() = input.y
     val focusedKey get() = input.focusedKey
@@ -231,6 +236,7 @@ class HollowUiRuntime(
         input.dispatchHover(frame, mouseX, mouseY, ::dispatchUiEvent)
         if (profile != null) profile.inputNanos += System.nanoTime() - inputStartedAt
         lastFrame = frame
+        applyPendingFocus(frame)
         return frame
     }
 
@@ -380,11 +386,15 @@ class HollowUiRuntime(
         horizontalModifier: Boolean,
     ): UiEvent {
         val delta = scrollWheelDelta(frame.layout[node].scrollRange, input.scrollX, input.scrollY, horizontalModifier)
+        val local = frame.layout[node].inputTransform.inverse()?.transform(input.mouseX, input.mouseY, 0f)
         return UiEvent(
             kind = UiEventKind.SCROLL,
             node = node,
+            frame = frame,
             x = input.mouseX,
             y = input.mouseY,
+            localX = local?.x ?: 0f,
+            localY = local?.y ?: 0f,
             scrollX = delta.x,
             scrollY = delta.y,
             rawScrollX = input.scrollX,
@@ -555,6 +565,27 @@ class HollowUiRuntime(
         input.reset()
         lastLayout = null
         lastLayoutKey = null
+    }
+
+    /**
+     * Focuses the node with [id] on the first frame that has it, or never if none does within a few
+     * frames; for content that is only now being composed, such as a field swapped in for a label.
+     */
+    fun requestFocus(id: String) {
+        pendingFocusFrames = 0
+        pendingFocus = id
+    }
+
+    private fun applyPendingFocus(frame: HollowUiFrame) {
+        val id = pendingFocus ?: return
+        when {
+            frame.nodeByIdentifier(id) != null -> {
+                pendingFocus = null
+                input.focus(frame, id, ::dispatchUiEvent)
+            }
+
+            ++pendingFocusFrames > PendingFocusFrames -> pendingFocus = null
+        }
     }
 
     fun focus(editorKey: String) {

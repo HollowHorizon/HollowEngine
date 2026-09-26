@@ -10,9 +10,18 @@ data class GraphRect(val x: Float, val y: Float, val width: Float, val height: F
 
     fun contains(px: Float, py: Float): Boolean = px >= x && px <= x + width && py >= y && py <= y + height
 
+    fun intersects(other: GraphRect): Boolean =
+        x < other.x + other.width && other.x < x + width && y < other.y + other.height && other.y < y + height
+
     /** This rectangle of the graph as it lies on the canvas. */
     fun toCanvas(view: GraphViewState) =
         GraphRect(view.toCanvasX(x), view.toCanvasY(y), width * view.zoom, height * view.zoom)
+
+    companion object {
+        /** The rectangle two corners span, in whichever order they came. */
+        fun between(x1: Float, y1: Float, x2: Float, y2: Float) =
+            GraphRect(minOf(x1, x2), minOf(y1, y2), abs(x2 - x1), abs(y2 - y1))
+    }
 }
 
 /** A connection as a sampled curve in canvas space: what gets drawn, clicked and labeled. */

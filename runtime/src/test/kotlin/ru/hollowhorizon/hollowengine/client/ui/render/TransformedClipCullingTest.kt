@@ -29,6 +29,21 @@ class TransformedClipCullingTest {
     }
 
     @Test
+    fun `a clipped box moved into the clip by an ancestor transform keeps its text`() {
+        val text = SpanNode("4")
+        val field = BoxNode(modifiers = listOf(Modifier.position((-150).px, 0.px).size(40.px, 20.px).clip()))
+            .also { it.children.add(text) }
+        val world = BoxNode(modifiers = listOf(Modifier.position(0.px, 0.px).size(100.px, 20.px).translate(x = 200f)))
+            .also { it.children.add(field) }
+        val root = BoxNode(modifiers = listOf(Modifier.size(100.px, 20.px).clip())).also { it.children.add(world) }
+
+        val frame = HollowUiRuntime().frame(root, 100f, 20f, -1f, -1f, 0L)
+        val texts = UiCommandRenderer().collect(frame.root, frame.layout).filterIsInstance<DrawTextCommand>()
+
+        assertTrue(texts.isNotEmpty())
+    }
+
+    @Test
     fun `untransformed child outside clip remains culled`() {
         assertFalse(textCommands(translateX = null).isNotEmpty())
     }

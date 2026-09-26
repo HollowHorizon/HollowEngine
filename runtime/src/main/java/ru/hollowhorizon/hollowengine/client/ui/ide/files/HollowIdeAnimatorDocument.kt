@@ -29,6 +29,12 @@ class HollowIdeAnimatorDocument(bytes: ByteArray) : HollowIdeFileDocument {
     var revision by mutableStateOf(0)
         private set
 
+    /** What the editor keeps while the file stays open, such as where the view was, across tab switches. */
+    private var editorState: Any? = null
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> editorState(create: () -> T): T = (editorState as? T) ?: create().also { editorState = it }
+
     fun edit(change: (Animator) -> Animator) {
         val next = change(animator)
         if (next == animator) return

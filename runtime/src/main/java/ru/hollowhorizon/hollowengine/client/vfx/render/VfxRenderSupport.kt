@@ -15,6 +15,7 @@ import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.vfx.VfxMaterialSpec
 
 /**
  * The blend, depth and culling state a batch of surfaces is drawn with.
@@ -41,10 +42,10 @@ internal object VfxMaterialStates {
      * The program a surface draws its glow with: the engine's, or a shader of the author that
      * declares `GlowPass` and so knows what to write in it; null when there is none.
      */
-    fun glowShader(custom: String?, engine: ShaderInstance, format: VertexFormat): ShaderInstance? {
+    fun glowShader(custom: String?, engine: ShaderInstance, surface: VfxSurface): ShaderInstance? {
         custom ?: return engine
         if (VfxShaderDeclarations.of(custom)?.drawsGlow != true) return null
-        return VfxShaders.get(custom, format)
+        return VfxShaders.surface(custom, surface)
     }
 
     fun restore() {
@@ -99,6 +100,16 @@ internal object VfxMaterialStates {
 }
 
 /**
+ * How much a material glows: what the effect set, or once for a material graph that has an emission
+ * when the effect set nothing, since the emission is there to glow.
+ */
+internal fun VfxMaterialSpec.effectiveGlow(): Float = when {
+    glow > 0f -> glow
+    VfxGraphMaterials.emits(shader) -> 1f
+    else -> 0f
+}
+
+/**
  * The core shaders effects name in their materials and post effects, loaded on first use.
  */
 object VfxShaders {
@@ -108,10 +119,15 @@ object VfxShaders {
         load(location, format)
     }
 
+    /** What [surface] draws with when its material names [location]: a core shader, or a material graph. */
+    fun surface(location: String, surface: VfxSurface): ShaderInstance? =
+        if (VfxGraphMaterials.isGraph(location)) VfxGraphMaterials.program(location, surface) else get(location, surface.format)
+
     /** Resource packs changed: every shader is read again the next time it is drawn. */
     fun clear() {
         loaded.values.filterNotNull().forEach(ShaderInstance::close)
         loaded.clear()
+        VfxGraphMaterials.clear()
         VfxShaderDeclarations.clear()
         VfxQuadRenderer.invalidate()
         VfxMeshRenderer.invalidate()

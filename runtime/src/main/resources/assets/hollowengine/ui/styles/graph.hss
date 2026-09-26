@@ -47,8 +47,20 @@
 }
 
 .graph-minimap-mark {
+    border: 1px alpha($text-strong, 0);
     border-radius: 2px;
     cursor: hand;
+    transition: border-color 150ms ease-out;
+}
+
+.graph-minimap-mark:hover {
+    border-color: $text-strong;
+}
+
+.graph-marquee {
+    background: alpha($accent, 0.08);
+    border: 1px alpha($accent, 0.7);
+    border-radius: $radius-small;
 }
 
 .graph-link-label {

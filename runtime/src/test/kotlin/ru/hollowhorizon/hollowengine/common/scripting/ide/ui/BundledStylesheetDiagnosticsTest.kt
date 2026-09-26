@@ -19,6 +19,7 @@ class BundledStylesheetDiagnosticsTest {
         "inspector.hss",
         "model-editor.hss",
         "notifications.hss",
+        "shader-graph.hss",
         "sounds-editor.hss",
         "theme.hss",
         "timeline.hss",

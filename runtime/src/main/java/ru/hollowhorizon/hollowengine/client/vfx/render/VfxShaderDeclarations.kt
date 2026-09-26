@@ -38,8 +38,15 @@ class VfxShaderDeclaration(
     val samplers: List<String>,
     /** Whether the shader declares `GlowPass`, and so draws the glow of its surface itself. */
     val drawsGlow: Boolean = false,
+    /** What a uniform or sampler is called in the GLSL, where that is not its own name. */
+    private val glslNames: Map<String, String> = emptyMap(),
+    /** The texture a sampler shows until the effect names one. */
+    val samplerDefaults: Map<String, String> = emptyMap(),
 ) {
     fun uniform(name: String): VfxShaderUniform? = uniforms.firstOrNull { it.name == name }
+
+    /** What [name] is called in the GLSL: a material graph names its properties `p_<name>` there. */
+    fun glslName(name: String): String = glslNames[name] ?: name
 
     /**
      * The uniforms of [authored] brought in line with this shader: one per declared uniform, the
@@ -81,9 +88,9 @@ class VfxShaderDeclaration(
 }
 
 /**
- * The declarations of the shaders effects name, read from their json once. The editor lays out its
- * fields from them, and a draw resets what it does not set to the json defaults, so one node never
- * inherits the uniforms another node left in the same shader.
+ * The declarations of the shaders effects name, read from their json once, or for a material graph
+ * from its properties. The editor lays out its fields from them, and a draw resets what it does not set
+ * to the defaults, so one node never inherits the uniforms another node left in the same shader.
  */
 object VfxShaderDeclarations {
     private val read = HashMap<String, VfxShaderDeclaration?>()
@@ -95,7 +102,14 @@ object VfxShaderDeclarations {
     @Synchronized
     fun clear() = read.clear()
 
+    /** Forgets [location], which changed, so it is read again. */
+    @Synchronized
+    fun invalidate(location: String) {
+        read.remove(location)
+    }
+
     private fun load(location: String): VfxShaderDeclaration? {
+        if (VfxGraphMaterials.isGraph(location)) return VfxGraphMaterials.read(location)?.let(VfxGraphMaterials::declaration)
         val id = ResourceLocation.tryParse(location) ?: return null
         val file = ResourceLocation.fromNamespaceAndPath(id.namespace, "shaders/core/${id.path}.json")
         val resource = Minecraft.getInstance().resourceManager.getResource(file).orElse(null) ?: return null

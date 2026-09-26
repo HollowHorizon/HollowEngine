@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.vfx.render
 
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
@@ -199,9 +198,9 @@ object VfxMeshRenderer {
             GL33.glDepthFunc(GL33.GL_LEQUAL)
             order.forEach { batch ->
                 val shader = if (glow) {
-                    VfxMaterialStates.glowShader(batch.key.shader, engine, DefaultVertexFormat.POSITION_TEX) ?: return@forEach
+                    VfxMaterialStates.glowShader(batch.key.shader, engine, VfxSurface.MESH) ?: return@forEach
                 } else {
-                    batch.key.shader?.let { VfxShaders.get(it, DefaultVertexFormat.POSITION_TEX) } ?: engine
+                    batch.key.shader?.let { VfxShaders.surface(it, VfxSurface.MESH) } ?: engine
                 }
                 val mesh = gpuMesh(batch.primitive)
                 shader.setDefaultUniforms(

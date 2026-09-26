@@ -10,6 +10,7 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.shadergraph.ShaderGraphEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
@@ -98,6 +99,7 @@ object HollowIdeOverlay {
             animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
             rigEditor = { file -> RigEditorPanel(file) },
             vfxEditor = { file -> VfxEditorPanel(file) },
+            shaderGraphEditor = { file -> ShaderGraphEditor(file) },
             textEditor = { file -> FileEditor(file) },
         )
         registerAssetFileTypes(

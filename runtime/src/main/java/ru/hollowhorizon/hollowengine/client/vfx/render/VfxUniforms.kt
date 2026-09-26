@@ -28,16 +28,18 @@ class VfxUniformValues(
 ) {
     /**
      * Sets every uniform the shader declares for the author: to what this draw evaluated, or to the
-     * json default, since the shader still holds whatever the previous draw with it left there.
+     * default, since the shader still holds whatever the previous draw with it left there. A sampler
+     * the effect names no texture for shows the default texture of its declaration, if it has one.
      */
     fun apply(program: ShaderInstance) {
         val declaration = VfxShaderDeclarations.of(shader)
         declaration?.uniforms?.forEach { uniform ->
             val index = names.indexOf(uniform.name)
+            val glsl = declaration.glslName(uniform.name)
             if (index >= 0) {
-                set(program, uniform.name, uniform.isInt, index * 4, values)
+                set(program, glsl, uniform.isInt, index * 4, values)
             } else {
-                set(program, uniform.name, uniform.isInt, 0, uniform.defaults.copyOf(4))
+                set(program, glsl, uniform.isInt, 0, uniform.defaults.copyOf(4))
             }
         }
         names.forEachIndexed { index, name ->
@@ -45,9 +47,10 @@ class VfxUniformValues(
         }
 
         val textures = Minecraft.getInstance().textureManager
-        samplers.forEach { sampler ->
-            if (sampler.name.isBlank() || sampler.texture.isBlank()) return@forEach
-            program.setSampler(sampler.name, textures.getTexture(sampler.texture.rl).id)
+        val named = samplers.filter { it.name.isNotBlank() && it.texture.isNotBlank() }.associate { it.name to it.texture }
+        (declaration?.samplerDefaults.orEmpty() + named).forEach { (name, texture) ->
+            if (texture.isBlank()) return@forEach
+            program.setSampler(declaration?.glslName(name) ?: name, textures.getTexture(texture.rl).id)
         }
     }
 

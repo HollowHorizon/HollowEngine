@@ -53,6 +53,7 @@ object IconHelper {
         listOf(".mixin.kts") to "script_mixin",
         listOf(".kts", ".kt") to "script",
         listOf(".vfx") to "effect",
+        listOf(".material") to "shader",
         listOf(".animator") to "animator",
         listOf(".rig") to "rig",
         listOf(".story") to "story",

@@ -129,7 +129,7 @@ class VfxDrawList {
 
     /** Whether any surface glows, which is what the glow pass is drawn for. */
     val glows: Boolean
-        get() = materials().any { it.glow > 0f }
+        get() = materials().any { it.effectiveGlow() > 0f }
 
     private fun materials(): Sequence<VfxMaterialSpec> =
         quads.asSequence().map { it.plane.material } + meshes.asSequence().map { it.spec.material } +

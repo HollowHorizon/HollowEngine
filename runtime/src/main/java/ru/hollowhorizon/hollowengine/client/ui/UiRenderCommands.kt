@@ -479,7 +479,7 @@ class UiCommandRenderer {
 
         val childClip = when {
             !pushedClip -> activeClip
-            activeClip == null -> layoutNode.content.takeIf { it.hasVisibleArea() }
+            activeClip == null || !layoutBoundsMatchVisualBounds -> layoutNode.content.takeIf { it.hasVisibleArea() }
             else -> activeClip.visibleIntersection(layoutNode.content)
         }
         if (!pushedClip || childClip != null) {

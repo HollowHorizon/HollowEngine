@@ -44,6 +44,7 @@ class HollowUiSurface(
                 LocalPointer provides pointer,
                 LocalOverlayManager provides overlayManager,
                 LocalUiViewport provides viewport,
+                LocalUiFocusRequester provides UiFocusRequester(runtime::requestFocus),
             ) {
                 content()
                 OverlayHost()
