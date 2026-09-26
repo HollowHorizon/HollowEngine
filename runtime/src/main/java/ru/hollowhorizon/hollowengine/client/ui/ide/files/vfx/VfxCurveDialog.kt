@@ -80,7 +80,7 @@ private fun curveController(value: VfxValue.OverTime): TimelineController {
 }
 
 private fun domainOf(input: VfxCurveInput, curve: VfxCurve): Float =
-    if (input == VfxCurveInput.LIFETIME) 1f else (curve.keys.maxOfOrNull { it.time } ?: 1f).coerceAtLeast(1f)
+    if (input == VfxCurveInput.LIFETIME || input == VfxCurveInput.RANDOM || input == VfxCurveInput.PARENT_RANDOM) 1f else (curve.keys.maxOfOrNull { it.time } ?: 1f).coerceAtLeast(1f)
 
 private fun TimelineController.curve() = allProperties().single().curves.single()
 

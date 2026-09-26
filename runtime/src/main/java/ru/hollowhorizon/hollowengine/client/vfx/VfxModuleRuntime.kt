@@ -222,6 +222,7 @@ private class VfxCollisionModule(private val spec: VfxCollisionSpec) : VfxModule
         val y = particles.positionY[slot]
         val z = particles.positionZ[slot]
         if (!isSolidAt(emitter, x, y, z, scratch)) return
+        emitter.particleCollided(slot, dt)
 
         if (spec.action == VfxCollisionAction.DIE) {
             particles.age[slot] = particles.lifetime[slot]

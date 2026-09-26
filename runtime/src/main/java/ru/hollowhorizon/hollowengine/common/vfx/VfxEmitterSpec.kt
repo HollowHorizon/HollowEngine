@@ -106,6 +106,30 @@ data class VfxMotion(
     fun expressions(): List<String> = gravity.sources() + drag.sources()
 }
 
+/** What happens to a particle that a sub-emitter reacts to. */
+@Serializable
+enum class VfxParticleEvent {
+    SPAWN,
+
+    /** Of age, or of a collision that kills it. */
+    DEATH,
+
+    /** Touching a block. */
+    COLLISION,
+
+    /** All the while it lives; the count is then per second. */
+    ALIVE,
+}
+
+@Serializable
+data class VfxSubEmission(
+    val event: VfxParticleEvent = VfxParticleEvent.DEATH,
+    val count: VfxValue = VfxValue.Const(12f),
+    val inheritVelocity: VfxValue = VfxValue.ZERO,
+) {
+    fun expressions(): List<String> = count.sources() + inheritVelocity.sources()
+}
+
 /**
  * Makes particles and moves them. It draws nothing itself: the renderers directly under it do, one
  * each per particle.
@@ -126,6 +150,7 @@ data class VfxEmitterSpec(
     val spawn: VfxSpawn = VfxSpawn(),
     val motion: VfxMotion = VfxMotion(),
     val modules: List<VfxModuleSpec> = emptyList(),
+    val subEmission: VfxSubEmission? = null,
     /** The longest step the simulation may take for this emitter, in seconds. */
     val maxStep: Float = DEFAULT_MAX_STEP,
 ) : VfxNodeSpec() {
@@ -145,6 +170,7 @@ data class VfxEmitterSpec(
         addAll(spawn.expressions())
         addAll(motion.expressions())
         modules.forEach { addAll(it.expressions()) }
+        subEmission?.let { addAll(it.expressions()) }
     }
 
     override fun animatables(): List<VfxAnimatable> = buildList {

@@ -10,6 +10,7 @@ in vec4 InstanceColor;
 in vec4 InstanceUv;
 in vec2 InstanceLight;
 in float InstanceBlend;
+in vec2 InstanceMaterial;
 
 uniform sampler2D Sampler2;
 
@@ -21,6 +22,7 @@ out vec4 vertexColor;
 out vec2 texCoord0;
 out float vertexDistance;
 flat out int blendMode;
+flat out vec2 material;
 
 float view_fog_distance(vec3 viewPos, int fogShape) {
     if (fogShape == 0) {
@@ -38,4 +40,5 @@ void main() {
     vertexColor = InstanceColor * texelFetch(Sampler2, ivec2(InstanceLight) / 16, 0);
     texCoord0 = InstanceUv.xy + UV0 * InstanceUv.zw;
     blendMode = int(InstanceBlend + 0.5);
+    material = InstanceMaterial;
 }

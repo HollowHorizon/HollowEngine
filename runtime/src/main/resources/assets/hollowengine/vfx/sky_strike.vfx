@@ -4,6 +4,11 @@
       "type": "hollowengine:vfx/beam",
       "id": "pillar",
       "name": "Pillar",
+      "material": {
+        "texture": "hollowengine:textures/particle/white.png",
+        "blend": "ADDITIVE",
+        "glow": 2.5
+      },
       "tint": {
         "type": "solid",
         "color": {
@@ -32,6 +37,11 @@
       "type": "hollowengine:vfx/beam",
       "id": "pillar-core",
       "name": "Pillar Core",
+      "material": {
+        "texture": "hollowengine:textures/particle/white.png",
+        "blend": "ADDITIVE",
+        "glow": 1.5
+      },
       "end": [
         0.0,
         200.0,
@@ -56,7 +66,8 @@
       },
       "material": {
         "texture": "hollowengine:textures/particle/white.png",
-        "blend": "ADDITIVE"
+        "blend": "ADDITIVE",
+        "glow": 3.0
       },
       "tint": {
         "type": "solid",

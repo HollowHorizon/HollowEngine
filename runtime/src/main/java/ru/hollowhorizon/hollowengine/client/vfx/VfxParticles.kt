@@ -27,6 +27,9 @@ class VfxParticles(val capacity: Int) {
     /** Spawn order within the emitter. */
     val index = FloatArray(capacity)
 
+    /** The [random] of the particle a sub-emitter spawned this one from; 0 for any other. */
+    val parentRandom = FloatArray(capacity)
+
     /** The sprite-sheet frame, as a whole number held in a float. */
     val frame = FloatArray(capacity)
 
@@ -77,6 +80,7 @@ class VfxParticles(val capacity: Int) {
         lifetime[to] = lifetime[from]
         random[to] = random[from]
         index[to] = index[from]
+        parentRandom[to] = parentRandom[from]
         frame[to] = frame[from]
         light[to] = light[from]
         extra?.values?.forEach { System.arraycopy(it.data, from * it.stride, it.data, to * it.stride, it.stride) }

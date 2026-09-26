@@ -62,6 +62,8 @@ data class VfxMaterialSpec(
     val depthTest: Boolean = true,
     val depthWrite: Boolean = false,
     val uv: VfxUvRect = VfxUvRect.FULL,
+    val softness: Float = 0f,
+    val glow: Float = 0f,
     /** `namespace:path` of `assets/namespace/shaders/core/path.json`; null for the engine's own. */
     val shader: String? = null,
     val uniforms: List<VfxUniformSpec> = emptyList(),

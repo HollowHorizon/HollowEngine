@@ -19,7 +19,11 @@ import kotlin.math.sqrt
 object VfxRibbonRenderer {
     private val side = FloatArray(3)
 
-    fun render(draws: List<VfxRibbonDraw>, view: VfxView) {
+    /**
+     * Draws [draws] as seen from [view]; with [glow], only the glow of the ones that have one, which
+     * builds their strips again, since the pass comes after the frame has moved on to other surfaces.
+     */
+    fun render(draws: List<VfxRibbonDraw>, view: VfxView, glow: Boolean = false) {
         if (draws.isEmpty()) return
         val engine = ModShaders.VFX_RIBBON ?: return
 
@@ -28,7 +32,12 @@ object VfxRibbonRenderer {
 
         ordered.forEach { draw ->
             val material = draw.material
-            val shader = material.shader?.let { VfxShaders.get(it, DefaultVertexFormat.PARTICLE) } ?: engine
+            if (glow && material.glow <= 0f) return@forEach
+            val shader = if (glow) {
+                VfxMaterialStates.glowShader(material.shader, engine, DefaultVertexFormat.PARTICLE) ?: return@forEach
+            } else {
+                material.shader?.let { VfxShaders.get(it, DefaultVertexFormat.PARTICLE) } ?: engine
+            }
             val texture = VfxMaterialStates.texture(material.texture)
 
             val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE)
@@ -42,10 +51,14 @@ object VfxRibbonRenderer {
                 RenderSystem.texParameter(GL33.GL_TEXTURE_2D, GL33.GL_TEXTURE_WRAP_S, GL33.GL_REPEAT)
                 RenderSystem.texParameter(GL33.GL_TEXTURE_2D, GL33.GL_TEXTURE_WRAP_T, GL33.GL_REPEAT)
             }
-            VfxMaterialStates.apply(VfxBatchKey.of(material, mixed = false, owner = draw), premultiplied = false)
+            val key = VfxBatchKey.of(material, mixed = false, owner = draw)
+            if (glow) VfxMaterialStates.applyGlow(key) else VfxMaterialStates.apply(key, premultiplied = false)
             view.drawImmediate(mesh, shader) { bound ->
                 VfxMaterialStates.bindCommonSamplers(bound, texture)
                 bound.safeGetUniform("BlendMode").set(VfxQuadPacker.blendMode(material.blend))
+                bound.safeGetUniform("Softness").set(material.softness)
+                bound.safeGetUniform("Glow").set(material.glow)
+                bound.safeGetUniform("GlowPass").set(if (glow) 1f else 0f)
                 if (bound !== engine) draw.uniforms?.apply(bound)
             }
         }

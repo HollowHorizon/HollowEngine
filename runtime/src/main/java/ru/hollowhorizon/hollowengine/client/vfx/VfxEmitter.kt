@@ -5,20 +5,15 @@ import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.QuatF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import ru.hollowhorizon.hollowengine.common.vfx.VfxDirectionMode
 import ru.hollowhorizon.hollowengine.common.vfx.VfxEmitterSpec
+import ru.hollowhorizon.hollowengine.common.vfx.VfxParticleEvent
 import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
-import ru.hollowhorizon.hollowengine.common.vfx.VfxShapeKind
 import ru.hollowhorizon.hollowengine.common.vfx.VfxSimulationSpace
 import ru.hollowhorizon.hollowengine.common.vfx.VfxValue
 import ru.hollowhorizon.hollowengine.common.vfx.VfxVec3Value
 import ru.hollowhorizon.hollowengine.common.vfx.modules.VfxUvAnimationSpec
-import kotlin.math.PI
 import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.math.tan
 import kotlin.random.Random
 
 /**
@@ -43,14 +38,7 @@ class VfxEmitter(
     private var random = Random(seed)
 
     private val rate = scalar(VfxProperty.RATE, spec.emission.rate, 0f)
-    private val radius = scalar(VfxProperty.SHAPE_RADIUS, spec.shape.radius, 0f)
-    private val angle = scalar(VfxProperty.SHAPE_ANGLE, spec.shape.angle, 0f)
-    private val thickness = scalar(VfxProperty.SHAPE_THICKNESS, spec.shape.thickness, 1f)
-    private val extents = vector(VfxProperty.SHAPE_EXTENTS, spec.shape.extents, 0f)
-
-    /** The surface a model shape spawns on; until it has loaded, particles start at the origin. */
-    private val modelSurface = spec.shape.model.takeIf { spec.shape.kind == VfxShapeKind.MODEL && it.isNotBlank() }
-        ?.let(VfxModelSurfaces::request)
+    private val shape = VfxEmitterShape(spec.shape, node)
 
     private val lifetime = scalar(VfxProperty.LIFETIME, spec.spawn.lifetime, 1f)
     private val speed = scalar(VfxProperty.SPEED, spec.spawn.speed, 0f)
@@ -67,6 +55,16 @@ class VfxEmitter(
                 node.drive(VfxProperty.module(module.id, field))
             })
         }
+
+    /** Set when this emitter spawns from the particles of the emitter it sits under. */
+    private val subInput: VfxSubEmitterInput? = spec.subEmission?.let { sub ->
+        node.parent?.emitter?.let { source -> VfxSubEmitterInput(sub, source, node) }
+    }
+
+    /** The sub-emitters directly under this emitter; its children exist only after it does. */
+    private val subEmitters: List<VfxSubEmitterInput> by lazy {
+        node.children.mapNotNull { child -> child.emitter?.subInput?.takeIf { it.source === this } }
+    }
 
     /** What the renderers under this emitter give its particles, read while it simulates. */
     private val looks = ArrayList<VfxParticleLook>()
@@ -100,7 +98,11 @@ class VfxEmitter(
 
     /** Whether this emitter will ever produce anything again. */
     val isFinished: Boolean
-        get() = (stopping || isExpired()) && particles.count == 0
+        get() {
+            if (particles.count > 0) return false
+            val source = subInput?.source ?: return stopping || isExpired()
+            return stopping || source.isFinished
+        }
 
     override val isIdle: Boolean get() = particles.count == 0
 
@@ -137,6 +139,7 @@ class VfxEmitter(
      */
     override fun restart() {
         particles.clear()
+        subInput?.events?.clear()
         random = Random(seed)
         context.rng = random
         context.variables.clear()
@@ -172,6 +175,7 @@ class VfxEmitter(
                 spawnScale.set(frame.scale)
             }
         }
+        subInput?.place(simToRender)
     }
 
     /**
@@ -189,6 +193,20 @@ class VfxEmitter(
     private fun advance(dt: Float) {
         age += dt
 
+        val input = subInput
+        if (input != null) {
+            if (enabled && !stopping) spawnEvents(input)
+            input.events.clear()
+        } else {
+            advanceEmission(dt)
+        }
+
+        fillEmitterContext()
+        modules.forEach { it.beginStep(this, dt) }
+        simulate(dt)
+    }
+
+    private fun advanceEmission(dt: Float) {
         if (sleepLeft > 0f) {
             sleepLeft -= dt
             if (sleepLeft <= 0f) startLoop()
@@ -201,10 +219,16 @@ class VfxEmitter(
         }
 
         if (enabled && !stopping && !isExpired() && sleepLeft <= 0f) emit(dt)
+    }
 
-        fillEmitterContext()
-        modules.forEach { it.beginStep(this, dt) }
-        simulate(dt)
+    /** Spawns what the emitter this one listens to handed over since the last step. */
+    private fun spawnEvents(input: VfxSubEmitterInput) {
+        val events = input.events
+        for (event in 0 until events.size) {
+            repeat(events.count(event)) {
+                if (!spawn(input, event)) return
+            }
+        }
     }
 
     private fun startLoop() {
@@ -233,15 +257,20 @@ class VfxEmitter(
         }
     }
 
-    /** Puts one particle into the world. Returns false when the emitter is full. */
-    private fun spawn(): Boolean {
+    /**
+     * Puts one particle into the world. Returns false when the emitter is full. A sub-emitter spawns
+     * around [event] of [input] instead of around its own origin.
+     */
+    private fun spawn(input: VfxSubEmitterInput? = null, event: Int = -1): Boolean {
         if (!instance.requestParticle()) return false
 
         val slot = particles.allocate()
         if (slot < 0) return false
 
         fillEmitterContext()
+        val events = input?.events
         context.particleRandom = random.nextFloat()
+        context.parentRandom = events?.random(event) ?: 0f
         context.particleIndex = born.toFloat()
         context.age = 0f
         context.progress = 0f
@@ -250,7 +279,7 @@ class VfxEmitter(
         val life = lifetime.eval(context).coerceAtLeast(MIN_LIFETIME)
         context.lifetime = life
 
-        pickShapePoint(scratchPosition, scratchDirection)
+        shape.pick(scratchPosition, scratchDirection, context, random)
         offset.eval(context, scratchVector)
         scratchPosition.add(scratchVector)
 
@@ -261,14 +290,26 @@ class VfxEmitter(
             scratchDirection.z * launch,
         )
 
-        applySpawnSpace(scratchPosition, point = true)
+        applySpawnSpace(scratchPosition, point = events == null)
         applySpawnSpace(scratchDirection, point = false)
+        if (events != null) {
+            scratchPosition.set(
+                scratchPosition.x + events.x(event),
+                scratchPosition.y + events.y(event),
+                scratchPosition.z + events.z(event),
+            )
+            scratchDirection.set(
+                scratchDirection.x + events.velocityX(event),
+                scratchDirection.y + events.velocityY(event),
+                scratchDirection.z + events.velocityZ(event),
+            )
+        }
 
         particles.positionX[slot] = scratchPosition.x
         particles.positionY[slot] = scratchPosition.y
         particles.positionZ[slot] = scratchPosition.z
 
-        val inherit = inheritVelocity.eval(context)
+        val inherit = if (events == null) inheritVelocity.eval(context) else 0f
         particles.velocityX[slot] = scratchDirection.x + instance.velocityX * inherit
         particles.velocityY[slot] = scratchDirection.y + instance.velocityY * inherit
         particles.velocityZ[slot] = scratchDirection.z + instance.velocityZ * inherit
@@ -277,6 +318,7 @@ class VfxEmitter(
         particles.lifetime[slot] = life
         particles.random[slot] = context.particleRandom
         particles.index[slot] = context.particleIndex
+        particles.parentRandom[slot] = context.parentRandom
         particles.frame[slot] = 0f
 
         looks.forEach { it.spawn(slot, context) }
@@ -285,7 +327,26 @@ class VfxEmitter(
 
         born++
         modules.forEach { it.onSpawn(this, slot) }
+        fire(VfxParticleEvent.SPAWN, slot, 0f)
         return true
+    }
+
+    /** Hands the particle in [slot] to the sub-emitters that listen for [event]. */
+    private fun fire(event: VfxParticleEvent, slot: Int, dt: Float) {
+        subEmitters.forEach { it.take(event, slot, dt) }
+    }
+
+    /** Called by a module when the particle in [slot] hits a block. */
+    fun particleCollided(slot: Int, dt: Float) {
+        if (subEmitters.isNotEmpty()) fire(VfxParticleEvent.COLLISION, slot, dt)
+    }
+
+    private fun die(slot: Int, dt: Float) {
+        if (subEmitters.isNotEmpty()) {
+            fillParticleContext(slot)
+            fire(VfxParticleEvent.DEATH, slot, dt)
+        }
+        particles.kill(slot)
     }
 
     private fun simulate(dt: Float) {
@@ -293,7 +354,7 @@ class VfxEmitter(
         while (slot < particles.count) {
             particles.age[slot] += dt
             if (particles.age[slot] >= particles.lifetime[slot]) {
-                particles.kill(slot)
+                die(slot, dt)
                 continue
             }
 
@@ -326,11 +387,12 @@ class VfxEmitter(
             modules.forEach { it.onMoved(this, slot, dt) }
 
             if (slot < particles.count && particles.age[slot] >= particles.lifetime[slot]) {
-                particles.kill(slot)
+                die(slot, dt)
                 continue
             }
 
             looks.forEach { it.step(slot, context) }
+            if (subEmitters.isNotEmpty()) fire(VfxParticleEvent.ALIVE, slot, dt)
 
             if (instance.readsLight) particles.light[slot] = instance.lightAt(this, slot)
             slot++
@@ -366,6 +428,7 @@ class VfxEmitter(
         context.speed = sqrt(vx * vx + vy * vy + vz * vz)
         context.particleRandom = particles.random[slot]
         context.particleIndex = particles.index[slot]
+        context.parentRandom = particles.parentRandom[slot]
     }
 
     /** A particle position in effect space, which is what the world is read in. */
@@ -406,75 +469,6 @@ class VfxEmitter(
         if (point) vector.add(spawnOrigin)
     }
 
-    /**
-     * Picks a spawn point on the shape and the way the particle leaves it.
-     */
-    private fun pickShapePoint(position: MutableVec3f, direction: MutableVec3f) {
-        val shape = spec.shape
-        position.set(Vec3f.ZERO)
-        direction.set(shape.direction)
-
-        when (shape.kind) {
-            VfxShapeKind.POINT -> Unit
-
-            VfxShapeKind.SPHERE -> {
-                randomDirection(direction)
-                val reach = radius.eval(context) * shellDepth(thickness.eval(context))
-                position.set(direction.x * reach, direction.y * reach, direction.z * reach)
-            }
-
-            VfxShapeKind.BOX -> {
-                extents.eval(context, scratchVector)
-                position.set(
-                    (random.nextFloat() * 2f - 1f) * scratchVector.x,
-                    (random.nextFloat() * 2f - 1f) * scratchVector.y,
-                    (random.nextFloat() * 2f - 1f) * scratchVector.z,
-                )
-            }
-
-            VfxShapeKind.CONE -> {
-                val around = random.nextFloat() * TAU
-                val spread = tan(angle.eval(context).coerceIn(0f, 89f) * DEG_TO_RAD) * random.nextFloat()
-                val reach = radius.eval(context) * sqrt(random.nextFloat()) * shellDepth(thickness.eval(context))
-                position.set(cos(around) * reach, 0f, sin(around) * reach)
-                direction.set(cos(around) * spread, 1f, sin(around) * spread).norm()
-            }
-
-            VfxShapeKind.DISC -> {
-                val around = random.nextFloat() * TAU
-                val reach = radius.eval(context) * sqrt(random.nextFloat()) * shellDepth(thickness.eval(context))
-                position.set(cos(around) * reach, 0f, sin(around) * reach)
-                direction.set(position).norm()
-                if (direction.sqrLength() < 1.0e-6f) direction.set(shape.direction)
-            }
-
-            VfxShapeKind.LINE -> {
-                extents.eval(context, scratchVector)
-                val along = random.nextFloat()
-                position.set(scratchVector.x * along, scratchVector.y * along, scratchVector.z * along)
-            }
-
-            VfxShapeKind.MODEL -> modelSurface?.surface?.sample(random, position, direction)
-        }
-
-        when (shape.directionMode) {
-            VfxDirectionMode.FIXED -> direction.set(shape.direction)
-            VfxDirectionMode.RANDOM -> randomDirection(direction)
-            VfxDirectionMode.SHAPE -> Unit
-        }
-        if (direction.sqrLength() < 1.0e-6f) direction.set(Vec3f.Y_AXIS) else direction.norm()
-    }
-
-    private fun randomDirection(into: MutableVec3f) {
-        val z = random.nextFloat() * 2f - 1f
-        val around = random.nextFloat() * TAU
-        val planar = sqrt((1f - z * z).coerceAtLeast(0f))
-        into.set(cos(around) * planar, z, sin(around) * planar)
-    }
-
-    private fun shellDepth(thickness: Float): Float =
-        if (thickness <= 0f) 1f else 1f - random.nextFloat() * thickness.coerceAtMost(1f)
-
     fun noiseSeed(axis: Int): Int = seed + axis * 6151
 
     private fun scalar(
@@ -498,8 +492,6 @@ class VfxEmitter(
         private const val MIN_STEP = 1f / 240f
         private const val MAX_SUBSTEPS = 8
         private const val MIN_LIFETIME = 0.01f
-        private const val TAU = (PI * 2.0).toFloat()
-        private const val DEG_TO_RAD = (PI / 180.0).toFloat()
 
         /** A ceiling on what one emitter may ask for, whatever the file says. */
         const val MAX_PARTICLES_PER_EMITTER = 20_000

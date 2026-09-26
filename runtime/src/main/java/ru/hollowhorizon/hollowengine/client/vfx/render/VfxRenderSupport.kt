@@ -27,6 +27,26 @@ internal object VfxMaterialStates {
         RenderSystem.depthMask(key.depthWrite)
     }
 
+    /** What a surface draws its glow with: added up, tested against the frame depth, never written to it. */
+    fun applyGlow(key: VfxBatchKey) {
+        RenderSystem.enableBlend()
+        RenderSystem.blendEquation(GL33.GL_FUNC_ADD)
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE)
+        if (key.cull) RenderSystem.enableCull() else RenderSystem.disableCull()
+        if (key.depthTest) RenderSystem.enableDepthTest() else RenderSystem.disableDepthTest()
+        RenderSystem.depthMask(false)
+    }
+
+    /**
+     * The program a surface draws its glow with: the engine's, or a shader of the author that
+     * declares `GlowPass` and so knows what to write in it; null when there is none.
+     */
+    fun glowShader(custom: String?, engine: ShaderInstance, format: VertexFormat): ShaderInstance? {
+        custom ?: return engine
+        if (VfxShaderDeclarations.of(custom)?.drawsGlow != true) return null
+        return VfxShaders.get(custom, format)
+    }
+
     fun restore() {
         RenderSystem.depthMask(true)
         RenderSystem.enableDepthTest()

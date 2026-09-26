@@ -205,6 +205,12 @@ private fun MaterialFields(document: HollowIdeVfxDocument, state: VfxEditorState
             document.replace(surface.withSurface(tint = it))
         }
         BlendPicker(material.blend) { update(material.copy(blend = it)) }
+        VfxNumberRow(vfxText("glow"), material.glow, vfxText("glow_hint"), min = 0f, max = 64f) {
+            update(material.copy(glow = it))
+        }
+        VfxNumberRow(vfxText("softness"), material.softness, vfxText("softness_hint"), min = 0f, max = 16f) {
+            update(material.copy(softness = it))
+        }
         UvRows(material.uv) { update(material.copy(uv = it)) }
 
         PillFlow(id = "vfx-material-switches") {

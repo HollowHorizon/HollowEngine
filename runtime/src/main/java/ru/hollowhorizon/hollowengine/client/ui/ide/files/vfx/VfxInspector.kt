@@ -73,7 +73,7 @@ private fun NodeFields(document: HollowIdeVfxDocument, state: VfxEditorState, no
     }
 
     when (node) {
-        is VfxEmitterSpec -> EmitterFields(document, state, node)
+        is VfxEmitterSpec -> EmitterFields(document, state, node, underEmitter = document.effect.parentOf(node.id) is VfxEmitterSpec)
         is VfxPlaneSpec -> PlaneFields(document, state, node)
         is VfxMeshSpec -> MeshFields(document, state, node)
         is VfxModelSpec -> ModelFields(document, state, node)
@@ -207,6 +207,7 @@ internal object VfxIcons {
     const val PARTICLE = ROOT + "particle.svg"
     const val SPAWN_ONCE = ROOT + "key.svg"
     const val EMISSION = ROOT + "emission.svg"
+    const val SUB_EMITTER = ROOT + "sub_emitter.svg"
     const val SHAPE = ROOT + "shape.svg"
     const val SPAWN = ROOT + "spawn.svg"
     const val MOTION = ROOT + "motion.svg"

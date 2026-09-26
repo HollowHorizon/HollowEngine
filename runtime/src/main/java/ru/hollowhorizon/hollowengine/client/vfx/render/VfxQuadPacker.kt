@@ -38,7 +38,9 @@ internal enum class VfxBatchBlend {
 /**
  * What decides whether two draws can share a draw call.
  *
- * A draw with a shader of its own also carries uniforms of its own, so [owner] keeps it apart.
+ * A draw with a shader of its own also carries uniforms of its own, so [owner] keeps it apart. Planes
+ * of the engine program carry softness and glow per particle, so only the other draws are split by
+ * them.
  */
 internal data class VfxBatchKey(
     val texture: String,
@@ -48,18 +50,23 @@ internal data class VfxBatchKey(
     val depthWrite: Boolean,
     val shader: String? = null,
     val owner: Any? = null,
+    val softness: Float = 0f,
+    val glow: Float = 0f,
 ) {
     companion object {
         fun of(material: VfxMaterialSpec, mixed: Boolean, owner: Any?): VfxBatchKey {
             val custom = material.shader != null
+            val perParticle = mixed && !custom
             return VfxBatchKey(
                 texture = material.texture,
-                blend = VfxBatchBlend.of(material.blend, mixed && !custom),
+                blend = VfxBatchBlend.of(material.blend, perParticle),
                 cull = material.cull,
                 depthTest = material.depthTest,
                 depthWrite = material.depthWrite,
                 shader = material.shader,
                 owner = if (custom) owner else null,
+                softness = if (perParticle) 0f else material.softness,
+                glow = if (perParticle) 0f else material.glow,
             )
         }
     }
@@ -79,6 +86,9 @@ internal class VfxQuadBatch(val key: VfxBatchKey) {
 
     /** The uniforms of the one draw a batch with a shader of its own holds. */
     val uniforms: VfxUniformValues? get() = draws.firstOrNull()?.uniforms
+
+    /** Whether anything in the batch glows, which is what draws it again in the glow pass. */
+    val glows: Boolean get() = draws.any { it.plane.material.glow > 0f }
 }
 
 /**
@@ -100,6 +110,8 @@ internal class VfxQuadPacker {
     /** Packs [draws] as seen from [view]; returns how many particles there are in total. */
     fun pack(draws: List<VfxQuadDraw>, view: VfxView): Int {
         byKey.clear()
+        batches.clear()
+        if (draws.isEmpty()) return 0
         draws.forEach { draw ->
             val key = VfxBatchKey.of(draw.plane.material, mixed = true, owner = draw)
             byKey.getOrPut(key) { VfxQuadBatch(key) }.draws += draw
@@ -235,6 +247,8 @@ internal class VfxQuadPacker {
         out[base + 17] = (light and 0xFFFF).toFloat()
         out[base + 18] = (light shr 16 and 0xFFFF).toFloat()
         out[base + 19] = blendMode(plane.material.blend)
+        out[base + 20] = plane.material.softness
+        out[base + 21] = plane.material.glow
     }
 
     private fun ensureCapacity(count: Int) {
@@ -247,8 +261,8 @@ internal class VfxQuadPacker {
     }
 
     companion object {
-        /** Floats per particle: center, right edge, up edge, color, uv window, light, blend mode. */
-        const val STRIDE = 20
+        /** Floats per particle: center, right edge, up edge, color, uv window, light, blend mode, softness, glow. */
+        const val STRIDE = 22
 
         /** The blend mode as the particle shader reads it: 0 alpha, 1 additive, 2 opaque, 3 multiply. */
         fun blendMode(blend: VfxBlend): Float = when (blend) {

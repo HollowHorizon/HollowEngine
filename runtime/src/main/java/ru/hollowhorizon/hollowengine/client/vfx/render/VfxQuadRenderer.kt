@@ -48,11 +48,26 @@ object VfxQuadRenderer {
 
     /** Draws everything in [draws] as seen from [view]. */
     fun render(draws: List<VfxQuadDraw>, view: VfxView) {
-        if (draws.isEmpty()) return
-
         val total = packer.pack(draws, view)
         if (total == 0) return
         draw(total, view)
+    }
+
+    /**
+     * Draws the glow of the batches that have one, out of the instances [render] uploaded this frame.
+     */
+    fun renderGlow(view: VfxView) {
+        val engine = ModShaders.VFX_PARTICLE ?: return
+        val glowing = packer.batches.filter { it.glows }
+        if (glowing.isEmpty()) return
+        withInstanceState(upload = 0) {
+            GL33.glDepthFunc(GL33.GL_LEQUAL)
+            glowing.forEach { batch ->
+                val shader = VfxMaterialStates.glowShader(batch.key.shader, engine, DefaultVertexFormat.POSITION_TEX)
+                    ?: return@forEach
+                drawBatch(shader, engine, batch, view, glow = true)
+            }
+        }
     }
 
     /**
@@ -61,32 +76,42 @@ object VfxQuadRenderer {
      */
     private fun draw(total: Int, view: VfxView) {
         val engine = ModShaders.VFX_PARTICLE ?: return
-        withInstanceState(total) {
+        withInstanceState(upload = total) {
             GL33.glDepthFunc(GL33.GL_LEQUAL)
 
             packer.batches.forEach { batch ->
                 val shader = batch.key.shader?.let { VfxShaders.get(it, DefaultVertexFormat.POSITION_TEX) } ?: engine
-                RenderSystem.setShader { shader }
-                shader.setDefaultUniforms(
-                    VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
-                )
-                VfxMaterialStates.bindCommonSamplers(shader, VfxMaterialStates.texture(batch.key.texture))
-                if (shader !== engine) batch.uniforms?.apply(shader)
-                shader.apply()
-                VfxMaterialStates.apply(batch.key, premultiplied = shader === engine)
-                drawBatch(shader, batch)
-                shader.clear()
+                drawBatch(shader, engine, batch, view, glow = false)
             }
         }
     }
 
-    private inline fun withInstanceState(total: Int, body: () -> Unit) {
+    private fun drawBatch(shader: ShaderInstance, engine: ShaderInstance, batch: VfxQuadBatch, view: VfxView, glow: Boolean) {
+        RenderSystem.setShader { shader }
+        shader.setDefaultUniforms(
+            VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
+        )
+        VfxMaterialStates.bindCommonSamplers(shader, VfxMaterialStates.texture(batch.key.texture))
+        if (shader !== engine) batch.uniforms?.apply(shader)
+        shader.safeGetUniform("GlowPass").set(if (glow) 1f else 0f)
+        shader.apply()
+        if (glow) {
+            VfxMaterialStates.applyGlow(batch.key)
+        } else {
+            VfxMaterialStates.apply(batch.key, premultiplied = shader === engine)
+        }
+        drawInstances(shader, batch)
+        shader.clear()
+    }
+
+    /** Runs [body] with the quad buffers bound, after uploading [upload] instances when there are any. */
+    private inline fun withInstanceState(upload: Int, body: () -> Unit) {
         val previousVao = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
         val previousBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
         val previousTexture = GL33.glGetInteger(GL33.GL_ACTIVE_TEXTURE)
 
         ensureBuffers()
-        uploadInstances(total)
+        if (upload > 0) uploadInstances(upload)
         try {
             body()
         } finally {
@@ -98,7 +123,7 @@ object VfxQuadRenderer {
         }
     }
 
-    private fun drawBatch(shader: ShaderInstance, batch: VfxQuadBatch) {
+    private fun drawInstances(shader: ShaderInstance, batch: VfxQuadBatch) {
         RenderSystem.glBindVertexArray(vaoFor(shader))
         instanceBuffer?.bind()
         pointInstances(shader, batch.first.toLong() * STRIDE_BYTES)
@@ -167,6 +192,7 @@ object VfxQuadRenderer {
         bindFloats(shader, "InstanceUv", 4, STRIDE_BYTES, base + 13L * Float.SIZE_BYTES)
         bindFloats(shader, "InstanceLight", 2, STRIDE_BYTES, base + 17L * Float.SIZE_BYTES)
         bindFloats(shader, "InstanceBlend", 1, STRIDE_BYTES, base + 19L * Float.SIZE_BYTES)
+        bindFloats(shader, "InstanceMaterial", 2, STRIDE_BYTES, base + 20L * Float.SIZE_BYTES)
     }
 
     private fun bindFloats(

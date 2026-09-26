@@ -47,6 +47,9 @@ object VfxMeshRenderer {
     private var upload: FloatBuffer = BufferUtils.createFloatBuffer(STRIDE * 64)
 
     private val batches = LinkedHashMap<Pair<VfxPrimitive, VfxBatchKey>, Batch>()
+
+    /** The batches of the last [render], in the order they were drawn; the glow pass draws them again. */
+    private var drawn: List<Batch> = emptyList()
     private val matrix = Matrix4f()
     private val rotation = Quaternionf()
 
@@ -65,13 +68,22 @@ object VfxMeshRenderer {
     }
 
     fun render(draws: List<VfxMeshDraw>, view: VfxView) {
+        drawn = emptyList()
         if (draws.isEmpty()) return
         val total = pack(draws, view)
         if (total == 0) return
 
         val order = batches.values.filter { !it.sorted } +
             batches.values.filter { it.sorted }.sortedByDescending { it.depth }
-        drawInstanced(order, view, total)
+        drawn = order
+        uploadInstances(total)
+        drawInstanced(order, view, glow = false)
+    }
+
+    /** Draws the glow of the batches that have one, out of the instances [render] uploaded this frame. */
+    fun renderGlow(view: VfxView) {
+        val glowing = drawn.filter { it.key.glow > 0f }
+        if (glowing.isNotEmpty()) drawInstanced(glowing, view, glow = true)
     }
 
     private fun pack(draws: List<VfxMeshDraw>, view: VfxView): Int {
@@ -179,15 +191,18 @@ object VfxMeshRenderer {
         items.forEachIndexed { index, (_, data) -> System.arraycopy(data, 0, packed, (start + index) * STRIDE, STRIDE) }
     }
 
-    private fun drawInstanced(order: List<Batch>, view: VfxView, total: Int) {
+    private fun drawInstanced(order: List<Batch>, view: VfxView, glow: Boolean) {
         val engine = ModShaders.VFX_MESH ?: return
         val previousVao = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
         val previousBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
-        uploadInstances(total)
         try {
             GL33.glDepthFunc(GL33.GL_LEQUAL)
             order.forEach { batch ->
-                val shader = batch.key.shader?.let { VfxShaders.get(it, DefaultVertexFormat.POSITION_TEX) } ?: engine
+                val shader = if (glow) {
+                    VfxMaterialStates.glowShader(batch.key.shader, engine, DefaultVertexFormat.POSITION_TEX) ?: return@forEach
+                } else {
+                    batch.key.shader?.let { VfxShaders.get(it, DefaultVertexFormat.POSITION_TEX) } ?: engine
+                }
                 val mesh = gpuMesh(batch.primitive)
                 shader.setDefaultUniforms(
                     VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
@@ -195,9 +210,12 @@ object VfxMeshRenderer {
                 VfxMaterialStates.bindCommonSamplers(shader, VfxMaterialStates.texture(batch.key.texture))
                 shader.safeGetUniform("Shaded").set(if (batch.shaded) 1f else 0f)
                 shader.safeGetUniform("BlendMode").set(VfxQuadPacker.blendMode(batch.draws.first().spec.material.blend))
+                shader.safeGetUniform("Softness").set(batch.key.softness)
+                shader.safeGetUniform("Glow").set(batch.key.glow)
+                shader.safeGetUniform("GlowPass").set(if (glow) 1f else 0f)
                 if (shader !== engine) batch.draws.first().uniforms?.apply(shader)
                 shader.apply()
-                VfxMaterialStates.apply(batch.key, premultiplied = false)
+                if (glow) VfxMaterialStates.applyGlow(batch.key) else VfxMaterialStates.apply(batch.key, premultiplied = false)
 
                 RenderSystem.glBindVertexArray(vaoFor(shader, batch.primitive, mesh))
                 instanceBuffer?.bind()

@@ -171,6 +171,8 @@ object VfxSamplers {
         VfxCurveInput.EMITTER_AGE -> VfxFloatSampler { it.emitterAge }
         VfxCurveInput.EFFECT_TIME -> VfxFloatSampler { it.effectTime }
         VfxCurveInput.SPEED -> VfxFloatSampler { it.speed }
+        VfxCurveInput.RANDOM -> VfxFloatSampler { it.particleRandom }
+        VfxCurveInput.PARENT_RANDOM -> VfxFloatSampler { it.parentRandom }
     }
 
     /** Whether a value reads same for a particle every step. */

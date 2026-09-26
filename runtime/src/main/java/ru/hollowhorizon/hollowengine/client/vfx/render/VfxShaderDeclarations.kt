@@ -33,7 +33,12 @@ class VfxShaderUniform(val name: String, val type: String, val count: Int, val d
  * What a core shader json declares, minus what the engine fills in itself: the uniforms and the
  * samplers an effect author gives values to.
  */
-class VfxShaderDeclaration(val uniforms: List<VfxShaderUniform>, val samplers: List<String>) {
+class VfxShaderDeclaration(
+    val uniforms: List<VfxShaderUniform>,
+    val samplers: List<String>,
+    /** Whether the shader declares `GlowPass`, and so draws the glow of its surface itself. */
+    val drawsGlow: Boolean = false,
+) {
     fun uniform(name: String): VfxShaderUniform? = uniforms.firstOrNull { it.name == name }
 
     /**
@@ -51,6 +56,7 @@ class VfxShaderDeclaration(val uniforms: List<VfxShaderUniform>, val samplers: L
             "ModelViewMat", "ProjMat", "IViewRotMat", "TextureMat", "ColorModulator", "Light0_Direction",
             "Light1_Direction", "FogStart", "FogEnd", "FogColor", "FogShape", "LineWidth", "GameTime",
             "ScreenSize", "GlintAlpha", "ChunkOffset", "Shaded", "BlendMode", "SkyCenter", "NodeOffset", "EffectTime",
+            "Softness", "Glow", "GlowPass",
         )
 
         /** The material texture, the light map and the scene copies. */
@@ -68,7 +74,8 @@ class VfxShaderDeclaration(val uniforms: List<VfxShaderUniform>, val samplers: L
             val samplers = json.getAsJsonArray("samplers")?.mapNotNull { element ->
                 element.asJsonObject.get("name")?.asString?.takeIf { it !in ENGINE_SAMPLERS }
             }.orEmpty()
-            return VfxShaderDeclaration(uniforms, samplers)
+            val drawsGlow = json.getAsJsonArray("uniforms")?.any { it.asJsonObject.get("name")?.asString == "GlowPass" } == true
+            return VfxShaderDeclaration(uniforms, samplers, drawsGlow)
         }
     }
 }

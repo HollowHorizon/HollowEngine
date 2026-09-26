@@ -156,13 +156,19 @@ fun NumberRow(
 }
 
 @Composable
-fun ToggleRow(label: String, checked: Boolean, switch: Boolean = false, onChange: (Boolean) -> Unit) {
+fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    switch: Boolean = false,
+    hint: String? = null,
+    onChange: (Boolean) -> Unit,
+) {
     Row(
         tags = listOf("insp-check-row"),
         modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND).onClick { event ->
             if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onChange(!checked)
             event.consume()
-        },
+        }.let { if (hint != null) it.tooltipOnHover(hint) else it },
     ) {
         if (switch) {
             Text(label, tags = listOf("insp-check-label"))

@@ -120,10 +120,20 @@ class VfxDrawList {
         get() = quads.isEmpty() && meshes.isEmpty() && models.isEmpty() && ribbons.isEmpty() && posts.isEmpty() &&
                 skies.isEmpty()
 
-    /** Whether any surface is drawn by a shader of the author, which may read the scene textures. */
-    val usesCustomShaders: Boolean
-        get() = quads.any { it.plane.material.shader != null } || meshes.any { it.spec.material.shader != null } ||
-                ribbons.any { it.material.shader != null }
+    /**
+     * Whether anything reads the scene textures: a surface with a shader of the author, which may,
+     * or one with softness, which reads the depth.
+     */
+    val readsScene: Boolean
+        get() = materials().any { it.shader != null || it.softness > 0f }
+
+    /** Whether any surface glows, which is what the glow pass is drawn for. */
+    val glows: Boolean
+        get() = materials().any { it.glow > 0f }
+
+    private fun materials(): Sequence<VfxMaterialSpec> =
+        quads.asSequence().map { it.plane.material } + meshes.asSequence().map { it.spec.material } +
+                ribbons.asSequence().map { it.material }
 
     fun clear() {
         quads.clear()

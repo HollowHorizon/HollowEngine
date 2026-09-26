@@ -52,7 +52,7 @@ sealed interface VfxValue {
 @Serializable
 enum class VfxCurveInput {
     /**
-     * Age over lifetime, 0 at birth and 1 as the particle dies.
+     * Age over lifetime, 0 at spawn and 1 as the particle dies.
      */
     LIFETIME,
 
@@ -67,6 +67,12 @@ enum class VfxCurveInput {
 
     /** Speed in blocks per second, for "faster means bigger" curves. */
     SPEED,
+
+    /** The particle's own random number, 0 to 1: a pick along the curve that holds for its whole life. */
+    RANDOM,
+
+    /** The random number of the particle a sub-emitter spawned this one from; 0 elsewhere. */
+    PARENT_RANDOM,
 }
 
 /** How the segment starting at a key reaches the next one; mirrors the timeline editor modes. */

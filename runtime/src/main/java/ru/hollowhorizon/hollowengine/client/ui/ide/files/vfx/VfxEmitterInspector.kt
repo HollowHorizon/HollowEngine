@@ -7,19 +7,38 @@ import ru.hollowhorizon.hollowengine.client.ui.inspector.Pills
 import ru.hollowhorizon.hollowengine.client.ui.inspector.ToggleRow
 import ru.hollowhorizon.hollowengine.common.vfx.VfxDirectionMode
 import ru.hollowhorizon.hollowengine.common.vfx.VfxEmitterSpec
+import ru.hollowhorizon.hollowengine.common.vfx.VfxParticleEvent
 import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
 import ru.hollowhorizon.hollowengine.common.vfx.VfxShape
 import ru.hollowhorizon.hollowengine.common.vfx.VfxShapeKind
 import ru.hollowhorizon.hollowengine.common.vfx.VfxSimulationSpace
+import ru.hollowhorizon.hollowengine.common.vfx.VfxSubEmission
 
 /**
  * How many particles, where they are born, what they start with and how they move. How they look is
  * up to the renderers under the emitter, each for itself.
+ *
+ * An emitter [underEmitter] may spawn from the particles of that one instead; its own emission then
+ * does nothing but cap the count.
  */
 @Composable
-internal fun EmitterFields(document: HollowIdeVfxDocument, state: VfxEditorState, emitter: VfxEmitterSpec) {
+internal fun EmitterFields(
+    document: HollowIdeVfxDocument,
+    state: VfxEditorState,
+    emitter: VfxEmitterSpec,
+    underEmitter: Boolean,
+) {
+    val sub = emitter.subEmission?.takeIf { underEmitter }
+    if (underEmitter) SubEmissionFields(document, state, emitter)
+
     val emission = emitter.emission
     Folding(state, "emission", vfxText("section_emission"), VfxIcons.EMISSION) {
+        if (sub != null) {
+            VfxIntRow(vfxText("max_particles"), emission.maxParticles, vfxText("max_particles_hint"), min = 1, max = 20_000) {
+                document.replace(emitter.copy(emission = emission.copy(maxParticles = it)))
+            }
+            return@Folding
+        }
         VfxValueRow(vfxText("rate"), emission.rate, VfxProperty.RATE, vfxText("rate_hint")) {
             document.replace(emitter.copy(emission = emission.copy(rate = it)))
         }
@@ -91,6 +110,29 @@ internal fun EmitterFields(document: HollowIdeVfxDocument, state: VfxEditorState
         }
         VfxNumberRow(vfxText("max_step"), emitter.maxStep, vfxText("max_step_hint"), min = 1f / 240f, max = 0.25f) {
             document.replace(emitter.copy(maxStep = it))
+        }
+    }
+}
+
+/** Whether and when the emitter spawns from the particles of the emitter it sits under. */
+@Composable
+private fun SubEmissionFields(document: HollowIdeVfxDocument, state: VfxEditorState, emitter: VfxEmitterSpec) {
+    val sub = emitter.subEmission
+    fun update(next: VfxSubEmission) = document.replace(emitter.copy(subEmission = next))
+
+    Folding(state, "sub_emission", vfxText("section_sub_emission"), VfxIcons.SUB_EMITTER) {
+        ToggleRow(vfxText("sub_enabled"), sub != null, hint = vfxText("sub_enabled_hint")) { on ->
+            document.replace(emitter.copy(subEmission = if (on) VfxSubEmission() else null))
+        }
+        if (sub == null) return@Folding
+
+        Pills(VfxParticleEvent.entries, sub.event, { vfxText("sub_event_${it.name.lowercase()}") }) {
+            update(sub.copy(event = it))
+        }
+        val countHint = if (sub.event == VfxParticleEvent.ALIVE) "sub_count_alive_hint" else "sub_count_hint"
+        VfxValueRow(vfxText("sub_count"), sub.count, hint = vfxText(countHint)) { update(sub.copy(count = it)) }
+        VfxValueRow(vfxText("inherit_velocity"), sub.inheritVelocity, hint = vfxText("sub_inherit_velocity_hint")) {
+            update(sub.copy(inheritVelocity = it))
         }
     }
 }

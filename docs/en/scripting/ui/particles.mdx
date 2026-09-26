@@ -70,9 +70,9 @@ thread. Do not retain a `UiParticle`: dead particles are pooled and reused. Vani
 tints are not inferred; set `color` in `spawn` for effects such as colored dust.
 
 Multiple emitters can share one system and its `maxParticles` budget (512 by default).
-When full, births are dropped without a backlog; emitters claim capacity in declaration order.
+When full, spawns are dropped without a backlog; emitters claim capacity in declaration order.
 `seed` makes randomness reproducible. Set `paused` to freeze the simulation or `emitting`
-to false to stop new births while existing particles expire. Call `reset()` on the render
+to false to stop new spawns while existing particles expire. Call `reset()` on the render
 thread to clear particles and timing and re-enable the configured initial burst.
 
 ## Lifecycle and rendering

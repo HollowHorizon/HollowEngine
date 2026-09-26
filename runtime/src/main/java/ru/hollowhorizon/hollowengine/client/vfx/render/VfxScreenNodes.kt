@@ -141,14 +141,7 @@ object VfxPostProcessor {
                 val shader = VfxShaders.get(post.shader, DefaultVertexFormat.POSITION_TEX) ?: return@forEach
                 VfxSceneTextures.capture(target)
 
-                val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
-                builder.addVertex(-1f, -1f, 0f).setUv(0f, 0f)
-                builder.addVertex(1f, -1f, 0f).setUv(1f, 0f)
-                builder.addVertex(1f, 1f, 0f).setUv(1f, 1f)
-                builder.addVertex(-1f, 1f, 0f).setUv(0f, 1f)
-                val mesh = builder.build() ?: return@forEach
-
-                SCREEN.drawImmediate(mesh, shader) { bound ->
+                VfxScreenQuad.draw(shader) { bound ->
                     VfxSceneTextures.bind(bound)
                     bound.safeGetUniform("ScreenSize").set(target.width.toFloat(), target.height.toFloat())
                     post.uniforms.apply(bound)
@@ -162,7 +155,4 @@ object VfxPostProcessor {
             RenderSystem.enableCull()
         }
     }
-
-    /** Identity matrices: the quad is already in clip space. */
-    private val SCREEN = VfxView(Matrix4f(), Matrix4f(), Vector3f(1f, 0f, 0f), Vector3f(0f, 1f, 0f), Vector3f())
 }

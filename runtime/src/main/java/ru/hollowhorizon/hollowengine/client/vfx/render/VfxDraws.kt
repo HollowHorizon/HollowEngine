@@ -28,14 +28,24 @@ object VfxFrameRenderer {
         renderSurfaces(list, view, target)
     }
 
-    /** Everything drawn with the effect shaders: the sky, then meshes, ribbons and planes. */
+    /**
+     * Everything drawn with the effect shaders: the sky, then meshes, ribbons and planes, then the glow
+     * of whatever glows, over all of them.
+     */
     fun renderSurfaces(list: VfxDrawList, view: VfxView, target: RenderTarget) {
-        if (list.usesCustomShaders) VfxSceneTextures.capture(target)
+        if (list.readsScene) VfxSceneTextures.capture(target)
 
         VfxSkyRenderer.render(list.skies, view)
         VfxMeshRenderer.render(list.meshes, view)
         VfxRibbonRenderer.render(list.ribbons, view)
         VfxQuadRenderer.render(list.quads, view)
+
+        if (list.glows && VfxGlow.begin(target)) {
+            VfxMeshRenderer.renderGlow(view)
+            VfxRibbonRenderer.render(list.ribbons, view, glow = true)
+            VfxQuadRenderer.renderGlow(view)
+            VfxGlow.finish(target)
+        }
     }
 
     fun renderModels(draws: List<VfxModelDraw>) {

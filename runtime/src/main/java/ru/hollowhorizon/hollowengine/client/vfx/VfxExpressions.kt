@@ -34,8 +34,11 @@ class VfxEvalContext {
     /** A number fixed when the particle was born, for per-particle variation that does not flicker. */
     var particleRandom: Float = 0f
 
-    /** The index of the particle in its emitter, which is also its birth order. */
+    /** The index of the particle in its emitter, which is also its spawn order. */
     var particleIndex: Float = 0f
+
+    /** The [particleRandom] of the particle a sub-emitter spawned this one from; 0 for any other. */
+    var parentRandom: Float = 0f
 
     var emitterAge: Float = 0f
     var emitterCount: Float = 0f
@@ -70,6 +73,7 @@ class VfxEvalContext {
         speed = other.speed
         particleRandom = other.particleRandom
         particleIndex = other.particleIndex
+        parentRandom = other.parentRandom
         emitterAge = other.emitterAge
         emitterCount = other.emitterCount
         effectTime = other.effectTime
@@ -94,6 +98,7 @@ val VfxDeclarations: Declarations<VfxEvalContext> = Declarations {
         float("speed") { it.speed }
         float("random") { it.particleRandom }
         float("index") { it.particleIndex }
+        float("parent_random") { it.parentRandom }
     }
 
     val emitter = struct<VfxEvalContext>("emitter") {
