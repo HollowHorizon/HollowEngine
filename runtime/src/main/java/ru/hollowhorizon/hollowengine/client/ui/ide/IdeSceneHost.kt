@@ -83,7 +83,7 @@ internal fun SceneDock() {
 
     Column(tags = listOf("ide-panel", "scene-panel"), modifier = Modifier.size(100.percent, 100.percent)) {
         if (target == null) {
-            Text("hollowengine.gui.ide.windows.scene_empty".lang, tags = listOf("scene-hint"))
+            SceneEmptyState("hollowengine.gui.ide.windows.scene_empty".lang, addHint = false)
             return@Column
         }
 
@@ -92,47 +92,51 @@ internal fun SceneDock() {
             menu = if (items.isEmpty()) null else SceneMenu(event.x, event.y, items)
         }
         val move = target.onMove
+        val empty = target.items.isEmpty()
 
-        UiTreeView(
-            items = target.items,
-            onToggle = { item -> target.onToggle(item.id) },
-            onSelect = { item, event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-                    if (!item.selected) target.onSelect(item.id)
-                    openMenu(item.id, event)
-                    return@UiTreeView
-                }
-                menu = null
-                target.onSelect(item.id.takeUnless { item.selected && event.isCtrlDown() })
-            },
-            onBackgroundClick = {
-                menu = null
-                target.onSelect(null)
-            },
-            onBackgroundContextMenu = { event -> openMenu(null, event) },
-            fillRowWidth = true,
-            dragItem = if (move == null) null else { item ->
-                UiDragItem(payload = SceneDrag(target.id, item.id), icon = item.icon, label = item.label)
-            },
-            onDrop = if (move == null) null else { item, dragged ->
-                val drag = dragged.payload as? SceneDrag
-                drag != null && move(drag.item, item.id)
-            },
-            canDrop = { item, dragged ->
-                val drag = dragged.payload as? SceneDrag
-                drag != null && drag.scene == target.id && drag.item != item.id && target.canMove(drag.item, item.id)
-            },
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).onKeyInput { input ->
-                if (input.key == GLFW.GLFW_KEY_ESCAPE && target.items.any { it.selected }) {
+        Box(mode = UiBoxMode.STACK, modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
+            UiTreeView(
+                items = target.items,
+                onToggle = { item -> target.onToggle(item.id) },
+                onSelect = { item, event ->
+                    if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                        if (!item.selected) target.onSelect(item.id)
+                        openMenu(item.id, event)
+                        return@UiTreeView
+                    }
+                    menu = null
+                    target.onSelect(item.id.takeUnless { item.selected && event.isCtrlDown() })
+                },
+                onBackgroundClick = {
+                    menu = null
                     target.onSelect(null)
-                    input.consume()
-                    return@onKeyInput
-                }
-                if (target.onKey?.invoke(input) == true) input.consume()
-            },
-        )
+                },
+                onBackgroundContextMenu = { event -> openMenu(null, event) },
+                fillRowWidth = true,
+                dragItem = if (move == null) null else { item ->
+                    UiDragItem(payload = SceneDrag(target.id, item.id), icon = item.icon, label = item.label)
+                },
+                onDrop = if (move == null) null else { item, dragged ->
+                    val drag = dragged.payload as? SceneDrag
+                    drag != null && move(drag.item, item.id)
+                },
+                canDrop = { item, dragged ->
+                    val drag = dragged.payload as? SceneDrag
+                    drag != null && drag.scene == target.id && drag.item != item.id && target.canMove(drag.item, item.id)
+                },
+                modifier = Modifier.size(100.percent, 100.percent).onKeyInput { input ->
+                    if (input.key == GLFW.GLFW_KEY_ESCAPE && target.items.any { it.selected }) {
+                        target.onSelect(null)
+                        input.consume()
+                        return@onKeyInput
+                    }
+                    if (target.onKey?.invoke(input) == true) input.consume()
+                },
+            )
+            if (empty) SceneEmptyState(target.hint.orEmpty(), addHint = target.menu != null)
+        }
 
-        target.hint?.let { Text(it, tags = listOf("scene-hint")) }
+        if (!empty) target.hint?.let { Text(it, tags = listOf("scene-hint")) }
 
         menu?.let { open ->
             ContextMenu(
@@ -147,3 +151,17 @@ internal fun SceneDock() {
 }
 
 private class SceneMenu(val x: Float, val y: Float, val items: List<UiDropdownItem>)
+
+/** What the scene window says when there is nothing in it, framed like the inspector says it. */
+@Composable
+private fun SceneEmptyState(message: String, addHint: Boolean) {
+    Column(tags = listOf("scene-empty"), modifier = Modifier.inputTransparent()) {
+        Column(tags = listOf("scene-empty-state")) {
+            Image(SceneEmptyIcon, tags = listOf("scene-empty-icon"))
+            if (message.isNotEmpty()) Text(message, tags = listOf("scene-empty-text"))
+            if (addHint) Text("hollowengine.gui.ide.windows.scene_add_hint".lang, tags = listOf("scene-empty-hint"))
+        }
+    }
+}
+
+private const val SceneEmptyIcon = "hollowengine:textures/gui/icons/layers.svg"

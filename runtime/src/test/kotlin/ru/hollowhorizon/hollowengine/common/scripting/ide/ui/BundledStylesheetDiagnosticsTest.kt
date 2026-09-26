@@ -13,6 +13,7 @@ class BundledStylesheetDiagnosticsTest {
         "asset-manager.hss",
         "docking.hss",
         "entity-editor.hss",
+        "graph.hss",
         "ide.hss",
         "image-editor.hss",
         "inspector.hss",

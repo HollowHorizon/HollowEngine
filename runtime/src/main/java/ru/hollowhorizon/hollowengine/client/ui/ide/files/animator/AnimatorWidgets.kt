@@ -9,25 +9,6 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 internal const val AnimatorStylesheet = "hollowengine:ui/styles/animator-editor.hss"
 
 @Composable
-internal fun AnimatorButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    color: UiColor = AnimatorColors.Text,
-    onClick: () -> Unit,
-) {
-    Box(
-        mode = UiBoxMode.STACK,
-        tags = listOf("animator-button"),
-        modifier = modifier.input(hoverable = true, clickable = true).onClick { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onClick()
-                event.consume()
-            },
-    ) {
-        Text(label, tags = listOf("animator-button-label"), modifier = Modifier.foreground(color))
-    }
-}
-
-@Composable
 internal fun AnimatorIconButton(
     icon: String,
     tooltip: String,

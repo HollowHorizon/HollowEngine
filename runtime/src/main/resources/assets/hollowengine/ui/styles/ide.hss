@@ -1128,3 +1128,39 @@
     foreground: $text-faint;
     font-size: $font-size-small;
 }
+
+/* The scene window with nothing in it: the same dashed frame the inspector uses, in the middle. */
+.scene-empty {
+    size: 100% 100%;
+    padding: 12px;
+    align-items: center center;
+}
+
+.scene-empty-state {
+    size: 100% fit;
+    padding: 22px 12px 18px 12px;
+    gap: 8px;
+    align-items: center start;
+    border: 1px $divider;
+    border-dash: 5px 4px;
+    border-radius: $radius-large;
+}
+
+.scene-empty-icon {
+    size: 22px 22px;
+    tint: $text-muted;
+}
+
+.scene-empty-text {
+    size: 100% fit;
+    text-align: center;
+    foreground: $text-muted;
+    font-size: $font-size;
+}
+
+.scene-empty-hint {
+    size: 100% fit;
+    text-align: center;
+    foreground: $text-faint;
+    font-size: $font-size-small;
+}

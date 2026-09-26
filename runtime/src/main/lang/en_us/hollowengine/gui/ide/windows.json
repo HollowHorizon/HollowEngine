@@ -4,5 +4,6 @@
   "scene_empty": "Open something with a hierarchy to see it here.",
   "inspector": "Inspector",
   "game_viewport": "Game View",
-  "game_viewport.detached": "The game is only shown while this panel is docked"
+  "game_viewport.detached": "The game is only shown while this panel is docked",
+  "scene_add_hint": "Right-click to add one."
 }
