@@ -12,11 +12,11 @@ order: 1
 First, install the mod and its compiler. The latest version is always available on [GitHub](https://github.com/BMProjects-Development/HollowEngine/releases). Download both `.jar` files and place them in your `mods` folder.
 The compiler addon is only required during development. Once you export your project as a standalone mod, it will run without the compiler as long as HollowEngine itself is installed.
 
-After installing the mod and launching the game, look for the gear icon in the upper-left corner of the screen. Click it to open the mod's main panel, which contains several tabs:
+After installing the mod and launching the game, click the HollowEngine logo in the upper-left corner. It opens the IDE workspace with four menus:
 
 - File: Useful actions such as opening the mod folder and reloading client and server resources.
 - Windows: The engine's main tools, including project files, cutscenes, editors, and more.
-- Tools: Additional utilities; currently, this section contains model transformation controls.
+- Tools: Editor mode, transform controls, the UI profiler, and interface scale.
 - Help: Useful information such as links to the project community and documentation.
 
 ![HollowEngine IDE workspace](/hollowengine/pictures/ide/workspace.webp)
@@ -25,7 +25,7 @@ For more information about the editor, see [Working with the IDE](/docs/hollowen
 
 ## Checking whether the compiler works
 
-Once you enter a world, you can check whether the compiler is working. Open the Terminal panel and enable Kotlin script mode.
+Once you enter a world, you can check whether the compiler is working. Open **Windows > Console**, switch to the **Logs** tab, and select Kotlin script mode in the input line.
 You can now use code to send a message to yourself in chat:
 
 ![First script](/hollowengine/pictures/guide/first-script.webp)

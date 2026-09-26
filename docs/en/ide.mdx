@@ -11,14 +11,16 @@ order: 4
 
 The HollowEngine logo in the upper-left corner controls the IDE overlay. Left-click it to expand or collapse the workspace. The expanded toolbar contains four menus:
 
-- **File** - project folder and resource reload actions;
+- **File** - saving, project settings, import and export, project folder, and resource reload actions;
 - **Windows** - Project, Asset Manager, Console, Cutscenes, editors, and other panels;
-- **Tools** - model transformation and other context tools;
+- **Tools** - editor mode, transform controls, UI profiler, and interface scale;
 - **Help** - documentation and community links.
 
-Panels open as docked tabs. Drag a tab to rearrange the workspace, drop it near an edge to split the area, or drag separators to resize neighboring panels. `Ctrl + W` closes the focused tab.
+Panels open as docked tabs. Drag a tab into a highlighted target to dock, split, or pin the panel to a side stripe; drag separators to resize panels. A pinned panel can collapse to a stripe button and expand again. Use **Windows > Side Bars** to toggle the stripes, or **Windows > Reset Window Layout** to restore the default arrangement. `Ctrl + W` closes the focused tab.
 
-![IDE workspace and docking](/hollowengine/pictures/ide/workspace.webp)
+The status bar at the bottom shows the open file or current object path and editor details. Click a path segment to reveal it in the project or open its tool window.
+
+![IDE workspace with Project, editor, and Console](/hollowengine/pictures/ide/workspace.webp)
 
 ## Project tree
 
@@ -35,8 +37,6 @@ When the Project panel is focused, these shortcuts are available:
 | `Alt + Insert`                     | Create a file                 |
 | `Alt + Shift + Insert`             | Create a folder               |
 
-![Project tree and context menu](/hollowengine/pictures/ide/project-tree.webp)
-
 ## Creating scripts
 
 Right-clicking the `scripts` folder or any folder inside it shows the **New Script** item. Hover over it and pick a type:
@@ -49,17 +49,26 @@ Right-clicking the `scripts` folder or any folder inside it shows the **New Scri
 | **Startup Script**       | `.startup.kts`                        | an item registered under the file's name           |
 | **Node Script**          | `.node.kts`                           | start, stop, and once-a-second handlers            |
 | **UI Script**            | `.ui.kts`                             | a simple screen                                    |
+| **Mixin Script**         | `.mixin.kts`                          | a script mixin starter                             |
 | **Dialogue**             | `.story`                              | a dialogue with two answers                        |
 
 Then enter the file name. The extension can be omitted, the IDE adds it. The new file opens in the editor right away with a working example to start from.
 
-![The new script menu](/hollowengine/pictures/ide/new-script-menu.webp)
-
 The item is only offered inside `scripts`, because the engine loads scripts and dialogues from there only.
+
+![Context menu for creating scripts](/hollowengine/pictures/ide/new-script-menu.webp)
 
 ## Code editor
 
-Opening `.kts`, `.story`, `.hss`, and other supported text files starts the built-in editor. Depending on the file type, it provides syntax highlighting, diagnostics, completion, signature help, inlay hints, and navigation. Diagnostics are shown in the editor and in a resizable problems panel.
+Opening `.kts`, `.story`, `.hss`, and other supported text files starts the built-in editor. Depending on the file type, it provides syntax highlighting, diagnostics, completion, signature help, inlay hints, and navigation. Diagnostics appear in the editor and in the **Problems** tab of the **Console** window. Its **Logs** tab shows log output, filters by severity and text, and accepts commands.
+
+Opening a `.vfx` file starts a visual editor with a preview. The node tree appears in **Scene**, the selected node's settings in **Inspector**, and animation in **Timeline**. See [Visual effects (VFX)](/docs/hollowengine/vfx).
+
+![Kotlin script completion in the code editor](/hollowengine/pictures/ide/code-editor.webp)
+
+In Kotlin mode, the Console's **Logs** tab can run short code snippets and show their output in the log.
+
+![Running Kotlin code in the IDE Console](/hollowengine/pictures/ide/kotlin-console.webp)
 
 Useful editor shortcuts:
 
@@ -72,8 +81,6 @@ Useful editor shortcuts:
 | `F4`               | Go to definition                                                          |
 | `Ctrl + Alt + L`   | Format the focused file                                                   |
 | `Ctrl + N`         | Search across the project; selected editor text becomes the initial query |
-
-![Completion and diagnostics in the code editor](/hollowengine/pictures/ide/code-editor.webp)
 
 ## Reloading changes
 
@@ -99,7 +106,7 @@ Right-clicking the logo opens visibility options:
 
 The **Hide** action asks for confirmation and explains how to recover the toolbar. Select **Don't show again** only if you do not want this warning on later hides.
 
-![Toolbar visibility menu and hide confirmation](/hollowengine/pictures/ide/toolbar-visibility.webp)
+![Confirmation before hiding the HollowEngine toolbar](/hollowengine/pictures/ide/toolbar-visibility.webp)
 
 If the toolbar is already hidden, open `config/hollowengine.toml` and set:
 

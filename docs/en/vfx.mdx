@@ -1,0 +1,51 @@
+---
+title: Visual effects (VFX)
+order: 6
+---
+
+<center><h1>Visual effects (VFX)</h1></center>
+
+A VFX effect is stored in a `.vfx` file and built from a tree of nodes. One effect can combine particles, geometric surfaces, trails, beams, screen effects, sky effects, and camera shake. The built-in editor opens `.vfx` files as IDE documents.
+
+![VFX editor with node tree, preview, Inspector, and Timeline](/hollowengine/pictures/vfx/editor-overview.webp)
+
+## Creating and placing a file
+
+Create an empty `hollowengine/assets/project/vfx/sparks.vfx` file through **New File** in the **Project** panel's context menu or your file manager. An empty `.vfx` opens as a new effect; the editor writes its structure when you save it.
+
+Double-click the file in the project tree. In the **Scene** window, right-click the effect root and choose **Add Node**. Start with an **Emitter**: it is created with a child plane that draws its particles. Edit the selected node in the **Inspector**, and property animation keys in the **Timeline**. Open **Scene**, **Inspector**, and **Timeline** from the **Windows** menu if needed.
+
+The effect is available as `project:vfx/sparks.vfx`. Playback also accepts the short name `project:sparks`. After changing a resource, use **File > Reload Client Resources** or `F3 + T` to update it in-game. The editor automatically saves a changed `.vfx` after a short pause; `Ctrl + S` saves it immediately.
+
+## Effect structure
+
+| Node | Purpose |
+| --- | --- |
+| Group | Groups children under one transform. |
+| Emitter | Spawns particles; child nodes draw each particle. |
+| Plane, Cube, Sphere, Cylinder, Model | Draw surfaces or model geometry. |
+| Trail, Beam | Draw a trail or beam. |
+| Post Effect, Sky, Camera Shake | Control a screen effect, sky effect, or camera shake. |
+
+An emitter controls rate and burst, duration, spawn shape, speed, lifetime, and local or world simulation space. Optional modules add forces, noise, collisions, velocity changes, and UV animation. Child renderers can each have their own size, rotation, color, and material.
+
+The **Scene** window lets you add child nodes, rename, duplicate, disable, remove, and move them. Edit the selected node in the **Inspector**. Orbit the preview camera, zoom with the wheel, and use transform tools to position nodes. Preview controls play or restart the effect and toggle the floor and emitter shape. The Timeline stores property tracks and supports looping playback.
+
+## Values, curves, and materials
+
+A numeric field can hold a constant, a random value from a range, a curve, or an expression. A curve can sample particle lifetime progress, particle age, emitter age, effect time, or speed. For example, this can shrink a particle near the end of its life without keys on the overall Timeline. Use Timeline tracks to animate node properties over effect time.
+
+Expressions can read particle data (`p.age`, `p.speed`, `p.progress`), emitter data (`e.age`, `e.count`), camera distance (`n.camera_distance`), and values supplied to the running effect (`d.name`). Scripts send these values through the `VfxHandle`; a missing numeric value reads as `0`. A material controls its texture, lighting, and blend mode: `OPAQUE`, `BLEND`, `ADDITIVE`, or `MULTIPLY`. You can select a UV region within an atlas and use the UV animation module to advance its frames.
+
+## Playing an effect in-game
+
+The `/he vfx` command accepts a position or an entity and an effect name:
+
+```mcfunction
+/he vfx ~ ~1 ~ project:sparks
+/he vfx @s project:sparks
+```
+
+From Kotlin, use `Vfx.play(level, position, "project:sparks")` or `Vfx.play(entity, "project:sparks")`. Both return a `VfxHandle`: `stop()` stops emission, `stop(immediate = true)` clears the effect at once, and `moveTo(position)` moves a point-anchored effect. Entity-anchored effects follow their entity automatically, so `moveTo` has no effect on them.
+
+The effect name maps to a client resource path. If it does not play, check the path and IDE console messages after reloading resources.
