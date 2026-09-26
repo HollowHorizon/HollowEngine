@@ -14,7 +14,9 @@ enum class ShaderTokenKind {
     VARIABLE,
 
     /** A name that stands for a number, such as `PI`. */
-    CONSTANT, FUNCTION,
+    CONSTANT,
+
+    BOOLEAN, FUNCTION,
 
     /** What follows a dot: a swizzle such as `xy`. */
     MEMBER, OPERATOR, END,
@@ -82,14 +84,15 @@ class ShaderExpression private constructor(
             "dFdx" to "(x)", "dFdy" to "(x)", "fwidth" to "(x)",
         )
 
-        /** Names that read as numbers. */
+        /** Names that read as numbers, and the number each is written as. */
         val Constants: Map<String, String> = linkedMapOf(
             "PI" to "3.14159265",
             "TAU" to "6.28318531",
             "E" to "2.71828183",
-            "true" to "true",
-            "false" to "false",
         )
+
+        /** The literals of GLSL that look like names; without them here they would become pins. */
+        val Booleans = setOf("true", "false")
 
         private val Reserved = setOf(
             "if", "else", "for", "while", "do", "return", "break", "continue", "discard", "struct", "const",
@@ -173,6 +176,7 @@ class ShaderExpression private constructor(
             previous?.kind == ShaderTokenKind.OPERATOR && previous.text == "." -> ShaderTokenKind.MEMBER
             source.substring(end).trimStart().startsWith("(") -> ShaderTokenKind.FUNCTION
             name in Constants -> ShaderTokenKind.CONSTANT
+            name in Booleans -> ShaderTokenKind.BOOLEAN
             else -> ShaderTokenKind.VARIABLE
         }
 
@@ -294,7 +298,7 @@ private class Parser(private val tokens: List<ShaderToken>, private val widthOf:
     private fun primary(): Int {
         val token = peek()
         return when {
-            token.kind == ShaderTokenKind.NUMBER || token.kind == ShaderTokenKind.CONSTANT -> {
+            token.kind in Literals -> {
                 at++
                 1
             }
@@ -339,6 +343,8 @@ private class Parser(private val tokens: List<ShaderToken>, private val widthOf:
     private fun widest(a: Int, b: Int): Int = if (a == UNKNOWN || b == UNKNOWN) UNKNOWN else maxOf(a, b)
 
     companion object {
+        private val Literals = setOf(ShaderTokenKind.NUMBER, ShaderTokenKind.CONSTANT, ShaderTokenKind.BOOLEAN)
+
         const val UNKNOWN = -1
 
         private val Levels = listOf(

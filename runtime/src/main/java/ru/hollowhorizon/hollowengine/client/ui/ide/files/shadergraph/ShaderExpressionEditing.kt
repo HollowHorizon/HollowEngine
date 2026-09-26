@@ -17,6 +17,7 @@ internal object ShaderExpressionEditing {
                 ShaderTokenKind.NUMBER -> ExpressionTokenColors.Number
                 ShaderTokenKind.VARIABLE -> ExpressionTokenColors.Name
                 ShaderTokenKind.CONSTANT -> ExpressionTokenColors.Number
+                ShaderTokenKind.BOOLEAN -> ExpressionTokenColors.Keyword
                 ShaderTokenKind.FUNCTION -> ExpressionTokenColors.Keyword
                 ShaderTokenKind.MEMBER -> ExpressionTokenColors.String
                 ShaderTokenKind.OPERATOR -> ExpressionTokenColors.Operator
@@ -36,7 +37,7 @@ internal object ShaderExpressionEditing {
         val names = ShaderExpression.parse(context.text).variables.filter { it != prefix }
         val candidates = ShaderExpression.Functions.map { (name, parameters) ->
             UiTextCompletion(label = name, insertText = "$name()", detail = parameters, caretOffset = name.length + 1)
-        } + ShaderExpression.Constants.keys.map {
+        } + (ShaderExpression.Constants.keys + ShaderExpression.Booleans).map {
             UiTextCompletion(
                 label = it,
                 tail = "const"

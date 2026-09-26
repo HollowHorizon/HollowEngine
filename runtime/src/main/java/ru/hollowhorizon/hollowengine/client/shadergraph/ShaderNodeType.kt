@@ -1,7 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.shadergraph
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import net.minecraft.server.packs.resources.ResourceManager
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.api.extensions.ExtensionHandle
 import ru.hollowhorizon.hollowengine.api.extensions.ExtensionPoints
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 /** Where a kind of node shows up in the add menu. */
@@ -263,9 +270,19 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
 fun shaderNode(id: String, category: ShaderNodeCategory, build: ShaderNodeBuilder.() -> Unit): ShaderNodeType =
     ShaderNodeBuilder(id, category).apply(build).build()
 
-/** Every kind of node a graph can use. */
+/**
+ * Every kind of node a graph can use: the engine's, the ones addons register once, and the ones
+ * [RegisterShaderNodesEvent] brings on every resource reload.
+ */
 object ShaderNodeTypes {
     val point = ExtensionPoints.create<ShaderNodeType>("hollowengine:shadergraph/node_types".rl)
+
+    /** What the last [RegisterShaderNodesEvent] registered, taken back on the next. */
+    private var reloaded: List<ExtensionHandle> = emptyList()
+
+    /** Bumped on every reload, so an open editor compiles its graph again against the kinds there are now. */
+    var revision by mutableStateOf(0)
+        private set
 
     init {
         ShaderNodeLibrary.all.forEach(::register)
@@ -280,4 +297,49 @@ object ShaderNodeTypes {
 
     /** The output node kind of [target]. */
     fun master(target: ShaderTarget): ShaderNodeType? = all.firstOrNull { it.master?.target == target }
+
+    /**
+     * Takes back what the previous reload registered and asks again. The engine's kinds go in first,
+     * so one a script replaced last time is back if the script no longer replaces it.
+     */
+    fun reload() {
+        reloaded.forEach(ExtensionHandle::close)
+        ShaderNodeLibrary.all.forEach(::register)
+        val event = RegisterShaderNodesEvent.post(RegisterShaderNodesEvent())
+        reloaded = event.types.map(::register)
+        revision++
+    }
+}
+
+/**
+ * Fires on every resource reload of the client: where a `reload.kts` or an addon adds kinds of node
+ * to the shader graph. What it registered on the previous reload is taken back first, so a script
+ * that stops registering a kind loses it, and one that registers the id of an engine kind replaces it.
+ *
+ * ```
+ * @SubscribeEvent
+ * fun nodes(event: RegisterShaderNodesEvent) {
+ *     event.register("mymod:math/double", ShaderNodeCategory.MATH) {
+ *         val value = input("In", 1f)
+ *         output("Out") { "${value.code} * 2.0" }
+ *     }
+ * }
+ * ```
+ */
+class RegisterShaderNodesEvent : ClientEvent {
+    internal val types = ArrayList<ShaderNodeType>()
+
+    fun register(type: ShaderNodeType) {
+        types += type
+    }
+
+    fun register(id: String, category: ShaderNodeCategory, build: ShaderNodeBuilder.() -> Unit) =
+        register(shaderNode(id, category, build))
+
+    companion object : EventHandler<RegisterShaderNodesEvent>()
+}
+
+/** Asks for the kinds of node again whenever the client reloads its resources. */
+object ShaderNodeReloadListener : ResourceManagerReloadListener {
+    override fun onResourceManagerReload(resourceManager: ResourceManager) = ShaderNodeTypes.reload()
 }

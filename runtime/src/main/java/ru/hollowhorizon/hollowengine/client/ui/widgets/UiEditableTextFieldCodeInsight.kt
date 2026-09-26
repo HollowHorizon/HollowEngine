@@ -142,14 +142,9 @@ private fun EditableFieldSignatureHelpPopup(
     visible: Boolean,
 ) {
     val anchor = layout.caretAt(help.anchor)
-    val viewport = scrollState.viewport
+    val at = scrollState.toScreen(contentOffsetX + anchor.x - scrollState.offsetX, anchor.y - scrollState.offsetY)
     Popup(
-        anchorBounds = UiRect(
-            viewport.x + contentOffsetX + anchor.x - scrollState.offsetX,
-            viewport.y + anchor.y - scrollState.offsetY,
-            0f,
-            layout.fontSize,
-        ),
+        anchorBounds = UiRect(at.x, at.y, 0f, layout.fontSize * scrollState.screenScale),
         alignment = UiPopupAlignment(
             anchorVertical = UiAlign.START,
             popupVertical = UiAlign.END,
@@ -158,7 +153,7 @@ private fun EditableFieldSignatureHelpPopup(
         id = "editable-text-field-signature-help",
         visible = visible,
         tags = listOf("ide-code-insight-popup", "ide-signature-help"),
-        modifier = codeInsightPopupModifier(layout, viewport),
+        modifier = codeInsightPopupModifier(layout, scrollState.viewport),
         dismissOnOutside = false,
     ) {
         Column(modifier = Modifier.size(UiLength.Fit, UiLength.Fit).gap(3.px)) {
@@ -191,21 +186,22 @@ private fun EditableFieldHoverPopup(
     contentOffsetX: Float,
     visible: Boolean,
 ) {
-    val viewport = scrollState.viewport
     val start = layout.caretAt(info.start)
     val end = layout.caretAt(info.end)
+    val at = scrollState.toScreen(contentOffsetX + start.x - scrollState.offsetX, start.y - scrollState.offsetY)
+    val scale = scrollState.screenScale
     Popup(
         anchorBounds = UiRect(
-            viewport.x + contentOffsetX + start.x - scrollState.offsetX,
-            viewport.y + start.y - scrollState.offsetY,
-            (end.x - start.x).coerceAtLeast(layout.fontSize),
-            layout.fontSize,
+            at.x,
+            at.y,
+            (end.x - start.x).coerceAtLeast(layout.fontSize) * scale,
+            layout.fontSize * scale,
         ),
         alignment = UiPopupAlignment.BelowStart.copy(offsetY = CodeInsightPopupGap),
         id = "editable-text-field-hover-info",
         visible = visible,
         tags = listOf("ide-code-insight-popup", "ide-hover-info"),
-        modifier = codeInsightPopupModifier(layout, viewport),
+        modifier = codeInsightPopupModifier(layout, scrollState.viewport),
         dismissOnOutside = false,
     ) {
         Column(modifier = Modifier.size(UiLength.Fit, UiLength.Fit).gap(5.px)) {

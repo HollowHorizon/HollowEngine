@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePack
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.utils.ModList
+import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderNodeReloadListener
 
 @ClientOnly
 object HollowCoreClient {
@@ -37,6 +38,7 @@ object HollowCoreClient {
     fun onRegisterReloadListener(event: RegisterReloadListenersEvent.Client) {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
+        event.register(ShaderNodeReloadListener)
         event.register(VfxAssets)
         event.register(UiPathTileResources)
         event.register(UiFontResources)

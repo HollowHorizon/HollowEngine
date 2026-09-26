@@ -10,23 +10,29 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 private const val GraphIcon = "hollowengine:textures/gui/icons/files/shader.svg"
 private const val RemoveIcon = "hollowengine:textures/gui/icons/remove.svg"
 
-/** What the inspector shows for [selection]: the one node selected, or the graph with its properties, preview and problems. */
+/**
+ * What the inspector shows for [selection]: the one node selected, or the graph with its properties,
+ * preview and problems. The inspector keeps a target for as long as its id stays the same, so what it
+ * shows is read from the document and from [state] as it draws, not taken when the target is made.
+ */
 internal fun shaderGraphInspectorTarget(
     document: HollowIdeShaderGraphDocument,
     selection: ShaderGraphSelection,
-    problems: List<ShaderDiagnostic>,
+    state: ShaderGraphEditorState,
 ): InspectorTarget {
-    val node = selection.single?.let(document.graph::node)
-    val kind = node?.let { ShaderNodeTypes.of(it.type) }
-    if (node != null && kind != null) {
+    val selected = selection.single?.let(document.graph::node)
+    val selectedKind = selected?.let { ShaderNodeTypes.of(it.type) }
+    if (selected != null && selectedKind != null) {
         return InspectorTarget(
-            id = "shadergraph-node-${node.id}", title = kind.title(), subtitle = node.id, icon = GraphIcon
+            id = "shadergraph-node-${selected.id}", title = selectedKind.title(), subtitle = selected.id, icon = GraphIcon
         ) {
-            NodeFields(document, node, kind)
+            val node = document.graph.node(selected.id)
+            val kind = node?.let { ShaderNodeTypes.of(it.type) }
+            if (node != null && kind != null) NodeFields(document, node, kind)
         }
     }
     return InspectorTarget(id = "shadergraph", title = graphText("graph"), icon = GraphIcon) {
-        GraphFields(document, problems)
+        GraphFields(document, state.diagnostics)
     }
 }
 

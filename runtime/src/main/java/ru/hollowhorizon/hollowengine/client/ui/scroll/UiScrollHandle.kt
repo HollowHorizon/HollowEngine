@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.ui.scroll
 
 import androidx.compose.runtime.*
+import ru.hollowhorizon.hollowengine.client.ui.UiMatrix4
+import ru.hollowhorizon.hollowengine.client.ui.UiVec3
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
+import kotlin.math.hypot
 
 /**
  * The scroll position of one scroll container.
@@ -15,6 +18,21 @@ class UiScrollHandle {
     /** The scroll container's content box in root coordinates (updated after each layout). */
     var viewport: UiRect by mutableStateOf(UiRect.Zero)
         internal set
+
+    /** From the container to the screen, through every transform above it; see [toScreen]. */
+    internal var screenTransform: UiMatrix4 = UiMatrix4.identity()
+    internal var contentOffsetX = 0f
+    internal var contentOffsetY = 0f
+
+    fun toScreen(x: Float, y: Float): UiVec3 = screenTransform.transform(contentOffsetX + x, contentOffsetY + y)
+
+    /** How many screen pixels one unit of the content spans, which a transform above can change. */
+    val screenScale: Float
+        get() {
+            val origin = toScreen(0f, 0f)
+            val unit = toScreen(1f, 0f)
+            return hypot(unit.x - origin.x, unit.y - origin.y).takeIf { it > 0f } ?: 1f
+        }
 
     /** How far each axis can still travel: the content size minus the viewport, never negative. */
     var range: UiScrollOffset by mutableStateOf(UiScrollOffset.Zero)

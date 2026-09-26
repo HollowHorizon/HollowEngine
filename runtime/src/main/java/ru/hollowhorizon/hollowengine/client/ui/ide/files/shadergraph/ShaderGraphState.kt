@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.files.shadergraph
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderDiagnostic
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphViewState
 
 /** What is selected: some nodes, or one link, by its position among the links. */
@@ -23,6 +24,9 @@ internal data class ShaderGraphSelection(val nodes: Set<String> = emptySet(), va
 internal class ShaderGraphEditorState {
     val view = GraphViewState()
     var selection by mutableStateOf(ShaderGraphSelection.None)
+
+    /** What is wrong with the graph as it last compiled, for the inspector to list. */
+    var diagnostics by mutableStateOf(emptyList<ShaderDiagnostic>())
 }
 
 /**

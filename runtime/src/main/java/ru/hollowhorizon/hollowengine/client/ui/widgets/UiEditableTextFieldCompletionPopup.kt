@@ -38,6 +38,7 @@ internal fun editableFieldCompletionGeometry(
     viewportHeight: Float,
     caretOffsetX: Float = 0f,
     caretOffsetY: Float = 0f,
+    scale: Float = 1f,
 ): EditableFieldCompletionGeometry? {
     if (items.isEmpty() || viewportWidth <= 0f || viewportHeight <= 0f) return null
     val fontSize = layout.fontSize
@@ -53,9 +54,9 @@ internal fun editableFieldCompletionGeometry(
     val rowHeight = (textHeight + CompletionPopupRowVerticalChrome).coerceAtLeast(14f)
     val footerHeight = (textHeight + CompletionPopupFooterVerticalChrome).coerceAtLeast(rowHeight)
     val caret = layout.caretAt(anchor)
-    val caretX = caretOffsetX + caret.x - scrollX
-    val caretY = caretOffsetY + caret.y - scrollY
-    val belowY = caretY + textHeight + CompletionPopupAnchorGap
+    val caretX = caretOffsetX + (caret.x - scrollX) * scale
+    val caretY = caretOffsetY + (caret.y - scrollY) * scale
+    val belowY = caretY + textHeight * scale + CompletionPopupAnchorGap
     val belowSpace = viewportHeight - belowY - CompletionPopupViewportMargin
     val aboveSpace = caretY - CompletionPopupAnchorGap - CompletionPopupViewportMargin
     val minimumHeight = popupMinimumHeight(rowHeight, footerHeight)
@@ -146,6 +147,8 @@ internal fun EditableFieldCompletionPopup(
     val items = completion.items
     val field = scrollState.viewport
     val surface = LocalUiViewport.current.takeIf { it.width > 0f && it.height > 0f } ?: field
+    val scale = scrollState.screenScale
+    val origin = scrollState.toScreen(0f, 0f)
     val geometry = editableFieldCompletionGeometry(
         layout = layout,
         anchor = completion.anchor,
@@ -154,8 +157,9 @@ internal fun EditableFieldCompletionPopup(
         scrollY = scrollState.offsetY,
         viewportWidth = surface.width,
         viewportHeight = surface.height,
-        caretOffsetX = contentOffsetX + field.x - surface.x,
-        caretOffsetY = field.y - surface.y,
+        caretOffsetX = contentOffsetX * scale + origin.x - surface.x,
+        caretOffsetY = origin.y - surface.y,
+        scale = scale,
     ) ?: return
 
     val listScroll = rememberScrollState()

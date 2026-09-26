@@ -421,6 +421,9 @@ class HollowUiRuntime(
             val handle = node.scrollHandle() ?: continue
             handle.viewport = layoutNode.content
             handle.range = layoutNode.scrollRange
+            handle.screenTransform = layoutNode.inputTransform
+            handle.contentOffsetX = layoutNode.content.x - layoutNode.rect.x
+            handle.contentOffsetY = layoutNode.content.y - layoutNode.rect.y
         }
     }
 

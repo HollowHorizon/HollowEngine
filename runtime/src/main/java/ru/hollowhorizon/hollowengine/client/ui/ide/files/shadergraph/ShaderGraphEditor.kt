@@ -66,8 +66,9 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
     previews.show(graph, document.revision)
 
     val selection = state.selection
-    PublishInspector(source = "shadergraph-${file.path}", key = Triple(selection, document.revision, previewError)) {
-        shaderGraphInspectorTarget(document, selection, diagnostics)
+    SideEffect { state.diagnostics = diagnostics }
+    PublishInspector(source = "shadergraph-${file.path}", key = selection) {
+        shaderGraphInspectorTarget(document, selection, state)
     }
 
     val boxes = LinkedHashMap<String, ShaderNodeBox>()
