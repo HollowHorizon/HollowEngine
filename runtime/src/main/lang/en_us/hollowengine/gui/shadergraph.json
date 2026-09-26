@@ -3,6 +3,7 @@
   "category.input": "Input",
   "category.math": "Math",
   "category.vector": "Vector",
+  "category.normal": "Normals",
   "category.uv": "UV",
   "category.texture": "Texture",
   "category.procedural": "Procedural",
@@ -117,6 +118,10 @@
   "node.procedural.fbm": "Fractal Noise",
   "node.procedural.voronoi": "Voronoi",
   "node.procedural.shape": "Shape",
+  "node.normal.offset": "Offset Along Normal",
+  "node.normal.bump": "Bump",
+  "node.normal.surface": "Surface Normal",
+  "node.normal.lambert": "Lambert Light",
   "node.procedural.fresnel": "Fresnel",
   "node.output.surface": "Surface Output"
 }

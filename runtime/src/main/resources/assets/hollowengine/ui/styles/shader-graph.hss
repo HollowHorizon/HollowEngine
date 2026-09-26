@@ -10,6 +10,7 @@ $category-vector: #E0B347;
 $category-uv: #4FC48B;
 $category-texture: #F07D3A;
 $category-procedural: #B072E8;
+$category-normal: #4FB8C9;
 $category-output: #E5566A;
 
 .graph-node.sg-node {
@@ -43,6 +44,7 @@ $category-output: #E5566A;
 .sg-uv .sg-node-head { background: alpha($category-uv, 0.3); }
 .sg-texture .sg-node-head { background: alpha($category-texture, 0.32); }
 .sg-procedural .sg-node-head { background: alpha($category-procedural, 0.34); }
+.sg-normal .sg-node-head { background: alpha($category-normal, 0.32); }
 .sg-output .sg-node-head { background: alpha($category-output, 0.36); }
 
 .sg-node-row {

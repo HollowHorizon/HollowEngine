@@ -11,9 +11,21 @@ import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
+/** How a preview shows the first output of a node. */
+enum class ShaderPreviewStyle {
+    /** As a color: a number is gray, a vector its components. */
+    VALUE,
+
+    /** A direction, whose components run from -1 to 1, shown `* 0.5 + 0.5`, as a normal map is. */
+    SIGNED,
+
+    /** An offset: the mesh moved by it, shaded, since a few hundredths of a block show as black. */
+    DISPLACEMENT,
+}
+
 /** Where a kind of node shows up in the add menu. */
 enum class ShaderNodeCategory {
-    INPUT, MATH, VECTOR, UV, TEXTURE, PROCEDURAL, OUTPUT,
+    INPUT, MATH, VECTOR, NORMAL, UV, TEXTURE, PROCEDURAL, OUTPUT,
 }
 
 /** An input of a kind of node: what it takes, and what it is when nothing is linked to it. */
@@ -95,6 +107,7 @@ class ShaderNodeType(
     val fragmentOnly: Boolean,
     val master: ShaderMasterSpec?,
     val previewByDefault: Boolean,
+    val previewStyle: ShaderPreviewStyle,
     private val check: ((ShaderGraphNode) -> ShaderDiagnostic?)?,
 ) {
     val titleKey: String get() = "hollowengine.gui.shadergraph.node.${id.substringAfter(':').replace('/', '.')}"
@@ -160,6 +173,7 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
     private var check: ((ShaderGraphNode) -> ShaderDiagnostic?)? = null
     private var fragmentOnly = false
     private var preview = true
+    private var previewStyle = ShaderPreviewStyle.VALUE
     private var master: ShaderMasterSpec? = null
 
     fun input(
@@ -223,6 +237,11 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
         preview = false
     }
 
+    /** How the preview shows what the node computes, when a plain color says little. */
+    fun preview(style: ShaderPreviewStyle) {
+        previewStyle = style
+    }
+
     fun reads(vararg inputs: ShaderInput) {
         reads += inputs
     }
@@ -252,6 +271,7 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
         fragmentOnly = fragmentOnly,
         master = master,
         previewByDefault = preview,
+        previewStyle = previewStyle,
         check = check,
     )
 }

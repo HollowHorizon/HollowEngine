@@ -14,8 +14,8 @@ uniform float PreviewPixels;
 //#uniforms
 
 in vec2 texCoord;
-in vec3 viewPosition;
-in vec3 viewNormal;
+in vec3 relativePosition;
+in vec3 worldNormal;
 in vec3 objectPosition;
 
 out vec4 fragColor;
@@ -54,6 +54,19 @@ vec4 sg_show(vec3 value) {
     return vec4(value, 1.0);
 }
 
+// A direction, -1 to 1 on each axis, as a normal map shows one.
+vec4 sg_show_signed(vec3 value) {
+    return vec4(value * 0.5 + 0.5, 1.0);
+}
+
+// The mesh as an offset moved it, lit from above so its shape shows.
+vec4 sg_show_shape() {
+    vec3 normal = normalize(cross(dFdx(relativePosition), dFdy(relativePosition)));
+    if (dot(normal, relativePosition) > 0.0) normal = -normal;
+    float light = 0.35 + 0.65 * clamp(dot(normal, normalize(vec3(0.4, 1.0, 0.3))), 0.0, 1.0);
+    return vec4(vec3(light), 1.0);
+}
+
 vec4 sg_show(vec4 value) {
     return vec4(mix(sg_checker(), value.rgb, clamp(value.a, 0.0, 1.0)), 1.0);
 }
@@ -73,10 +86,10 @@ void main() {
     vec2 sg_texture_uv = texCoord;
     vec4 sg_color = vec4(1.0);
     float sg_time = PreviewTime;
-    vec3 sg_position = viewPosition;
+    vec3 sg_position = relativePosition;
     vec3 sg_object_position = objectPosition;
-    vec3 sg_normal = normalize(viewNormal);
-    vec3 sg_view_direction = PreviewFlat > 0.5 ? vec3(0.0, 0.0, 1.0) : normalize(-viewPosition);
+    vec3 sg_normal = normalize(worldNormal);
+    vec3 sg_view_direction = PreviewFlat > 0.5 ? vec3(0.0, 0.0, 1.0) : normalize(-relativePosition);
     vec2 sg_screen_uv = gl_FragCoord.xy / PreviewPixels;
 
     //#preview

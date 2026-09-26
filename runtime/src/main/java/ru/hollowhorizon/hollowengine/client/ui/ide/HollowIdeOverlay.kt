@@ -1276,12 +1276,11 @@ object HollowIdeOverlay {
     }
 
     private fun handleStripeShortcut(key: Int, modifiers: Int): Boolean {
-        if (modifiers and (GLFW.GLFW_MOD_CONTROL or GLFW.GLFW_MOD_SHIFT or GLFW.GLFW_MOD_SUPER) != 0) return false
+        if (modifiers and GLFW.GLFW_MOD_ALT == 0) return false
+        if (modifiers and (GLFW.GLFW_MOD_CONTROL or GLFW.GLFW_MOD_SUPER) != 0) return false
         val index = key - GLFW.GLFW_KEY_1
         if (index < 0 || index >= StripeShortcutCount) return false
-        val alt = modifiers and GLFW.GLFW_MOD_ALT != 0
-        if (!alt && surface.runtime.isAnyFocused) return false
-        val side = if (alt) DockSide.RIGHT else DockSide.LEFT
+        val side = if (modifiers and GLFW.GLFW_MOD_SHIFT != 0) DockSide.RIGHT else DockSide.LEFT
         val pinned = dock.pinnedOn(side).getOrNull(index) ?: return false
         dock.togglePinned(pinned.item.id)
         return true

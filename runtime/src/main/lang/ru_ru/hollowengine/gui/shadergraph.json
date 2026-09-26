@@ -3,6 +3,7 @@
   "category.input": "Входы",
   "category.math": "Математика",
   "category.vector": "Векторы",
+  "category.normal": "Нормали",
   "category.uv": "UV",
   "category.texture": "Текстуры",
   "category.procedural": "Процедурные",
@@ -117,6 +118,10 @@
   "node.procedural.fbm": "Фрактальный шум",
   "node.procedural.voronoi": "Вороной",
   "node.procedural.shape": "Фигура",
+  "node.normal.offset": "Смещение по нормали",
+  "node.normal.bump": "Рельеф",
+  "node.normal.surface": "Нормаль поверхности",
+  "node.normal.lambert": "Освещение по Ламберту",
   "node.procedural.fresnel": "Френель",
   "node.output.surface": "Выход поверхности"
 }

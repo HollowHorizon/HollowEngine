@@ -60,10 +60,11 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
     }
 
     val graph = document.graph
-    val code = remember(document.revision) { ShaderGraphCompiler.compile(graph) }
+    val kinds = ShaderNodeTypes.revision
+    val code = remember(document.revision, kinds) { ShaderGraphCompiler.compile(graph) }
     val diagnostics = code.diagnostics + listOfNotNull(previewError)
     val problems = diagnostics.filter { it.node != null }.groupBy { it.node!! }
-    previews.show(graph, document.revision)
+    previews.show(graph, document.revision to kinds)
 
     val selection = state.selection
     SideEffect { state.diagnostics = diagnostics }

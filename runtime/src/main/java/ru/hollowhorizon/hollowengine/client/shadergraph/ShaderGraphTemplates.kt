@@ -79,19 +79,35 @@ object ShaderGraphTemplates {
             }
         }
         return ShaderGraphSources(
-            vertex = fill(vertexSource, code.properties, code.libraries, "//#vertex" to vertex),
-            fragment = fill(template.fragmentSource, code.properties, code.libraries, "//#fragment" to fragment),
+            vertex = fill(vertexSource, code.properties, code.vertexLibraries, "//#vertex" to vertex),
+            fragment = fill(template.fragmentSource, code.properties, code.fragmentLibraries, "//#fragment" to fragment),
         )
     }
 
-    /** The fragment stage of the preview program of a graph; its vertex stage is [ShaderGraphTemplate.vertexSource] of [PREVIEW]. */
+    /** The fragment stage of the preview program of a graph. */
     fun preview(code: ShaderPreviewCode): String = fill(
         PREVIEW.fragmentSource,
         code.properties,
         code.libraries,
         "//#preview" to code.statements.text + "\n" + code.selection,
-        extraUniforms = if (code.values.isEmpty()) "" else "uniform vec4 PreviewValues[${code.values.size}];",
+        extraUniforms = previewValues(code),
     )
+
+    /** The vertex stage of the preview program of a graph: the offsets of the previews that move the mesh. */
+    fun previewVertex(code: ShaderPreviewCode): String {
+        val body = if (code.displaced.isEmpty()) "" else code.vertex.text + "\n" + code.vertexSelection
+        return fill(
+            requireNotNull(PREVIEW.vertexSource),
+            code.properties,
+            code.vertexLibraries,
+            "//#vertex" to body,
+            extraUniforms = previewValues(code),
+        )
+    }
+
+    /** The array the values typed on nodes are uploaded into; both stages declare it alike, so they share it. */
+    private fun previewValues(code: ShaderPreviewCode): String =
+        if (code.values.isEmpty()) "" else "uniform vec4 PreviewValues[${code.values.size}];"
 
     /**
      * The line of [source], a preview program [preview] made out of [code], each statement of the graph

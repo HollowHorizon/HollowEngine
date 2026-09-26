@@ -33,7 +33,9 @@ class ShaderStageCode(val statements: List<String>) {
  * is, and everything the shader around it has to declare.
  */
 class ShaderGraphCode(
-    val libraries: List<ShaderLibrary>,
+    /** The shared functions each stage calls; a fragment-only one, such as a derivative, never goes in the vertex stage. */
+    val vertexLibraries: List<ShaderLibrary>,
+    val fragmentLibraries: List<ShaderLibrary>,
     val properties: List<ShaderGraphProperty>,
     val vertex: ShaderStageCode,
     val fragment: ShaderStageCode,
@@ -53,6 +55,10 @@ class ShaderValueSlot(val node: String, val pin: String, val width: Int)
  */
 class ShaderPreviewCode(
     val libraries: List<ShaderLibrary>,
+    val vertexLibraries: List<ShaderLibrary>,
+    val vertex: ShaderStageCode,
+    val vertexSelection: String,
+    val displaced: Set<String>,
     val properties: List<ShaderGraphProperty>,
     val statements: ShaderStageCode,
     val statementNodes: List<String>,
@@ -84,7 +90,7 @@ object ShaderGraphCompiler {
         val master = resolved.master
         if (master == null) {
             return ShaderGraphCode(
-                emptyList(), graph.properties, ShaderStageCode(emptyList()), ShaderStageCode(emptyList()),
+                emptyList(), emptyList(), graph.properties, ShaderStageCode(emptyList()), ShaderStageCode(emptyList()),
                 emptyMap(), emptySet(), emptySet(), diagnostics, resolved.types(),
             )
         }
@@ -105,7 +111,8 @@ object ShaderGraphCompiler {
             pin.name to resolved.inputCode(master, pin, vertex = pin.name in vertexOutputs, sink = ArrayList())
         }
         return ShaderGraphCode(
-            libraries = ShaderLibrary.ordered(vertex.libraries + fragment.libraries),
+            vertexLibraries = ShaderLibrary.ordered(vertex.libraries),
+            fragmentLibraries = ShaderLibrary.ordered(fragment.libraries),
             properties = graph.properties,
             vertex = ShaderStageCode(vertex.statements),
             fragment = ShaderStageCode(fragment.statements),
@@ -133,7 +140,14 @@ object ShaderGraphCompiler {
                 else -> resolved.variable(node, output)
             }
             previewIndex[node.id] = previewIndex.size
-            branches += "if (PreviewNode == ${previewIndex.getValue(node.id)}) fragColor = sg_show($value);"
+            val shown = when (resolved.typeOf(node).previewStyle) {
+                ShaderPreviewStyle.DISPLACEMENT -> "sg_show_shape()"
+                ShaderPreviewStyle.SIGNED -> coerce(value, resolved.outputType(node, output), ShaderType.VEC3)
+                    ?.let { "sg_show_signed($it)" } ?: "sg_show($value)"
+
+                ShaderPreviewStyle.VALUE -> "sg_show($value)"
+            }
+            branches += "if (PreviewNode == ${previewIndex.getValue(node.id)}) fragColor = $shown;"
         }
         resolved.master?.takeIf { resolved.typeOf(it).showsPreview(it) }?.let { master ->
             val code = resolved.typeOf(master).inputs(master).associate { pin ->
@@ -145,8 +159,15 @@ object ShaderGraphCompiler {
                     "${code[SurfaceOutputs.EMISSION] ?: "vec3(0.0)"}, ${code[SurfaceOutputs.ALPHA_CLIP] ?: "0.0"});"
         }
 
+        val moved = previewOffsets(graph, resolved, previewIndex)
+        val movedNodes = moved.flatMap { it.nodes }.map { it.id }.toSet()
+        val vertex = resolved.emit(resolved.order.filter { it.id in movedNodes }, vertex = true)
         return ShaderPreviewCode(
             libraries = ShaderLibrary.ordered(emitted.libraries),
+            vertexLibraries = ShaderLibrary.ordered(vertex.libraries),
+            vertex = ShaderStageCode(vertex.statements),
+            vertexSelection = moved.joinToString("\n") { "if (PreviewNode == ${it.index}) sg_out_vertex_offset = ${it.offset};" },
+            displaced = moved.map { it.node }.toSet(),
             properties = graph.properties,
             statements = ShaderStageCode(emitted.statements),
             statementNodes = emitted.owners,
@@ -157,6 +178,29 @@ object ShaderGraphCompiler {
             diagnostics = resolved.diagnostics.distinct(),
         )
     }
+}
+
+private class PreviewOffset(val node: String, val index: Int, val offset: String, val nodes: List<ShaderGraphNode>)
+
+private fun previewOffsets(graph: ShaderGraph, resolved: ResolvedGraph, previewIndex: Map<String, Int>): List<PreviewOffset> {
+    val offsets = ArrayList<PreviewOffset>()
+    resolved.master?.let { master ->
+        val index = previewIndex[master.id] ?: return@let
+        val link = graph.linkInto(master.id, SurfaceOutputs.VERTEX_OFFSET) ?: return@let
+        val pin = resolved.typeOf(master).input(master, SurfaceOutputs.VERTEX_OFFSET) ?: return@let
+        val nodes = resolved.reachableFrom(listOf(link.from))
+        if (nodes.none(resolved::needsFragment)) {
+            offsets += PreviewOffset(master.id, index, resolved.inputCode(master, pin, vertex = true, sink = ArrayList()), nodes)
+        }
+    }
+    resolved.order.filter { resolved.typeOf(it).previewStyle == ShaderPreviewStyle.DISPLACEMENT }.forEach { node ->
+        val index = previewIndex[node.id] ?: return@forEach
+        val output = resolved.typeOf(node).outputs.first()
+        val offset = coerce(resolved.variable(node, output), resolved.outputType(node, output), ShaderType.VEC3) ?: return@forEach
+        val nodes = resolved.reachableFrom(listOf(node.id))
+        if (nodes.none(resolved::needsFragment)) offsets += PreviewOffset(node.id, index, offset, nodes)
+    }
+    return offsets
 }
 
 /** The values of a preview program, each given a slot of the uniform array as the code reads it. */
@@ -329,6 +373,13 @@ private class ResolvedGraph(private val graph: ShaderGraph, private val values: 
 
     private fun values(node: ShaderGraphNode, pin: ShaderPinSpec): List<Float> =
         node.values[pin.name]?.takeIf { it.isNotEmpty() } ?: pin.default.ifEmpty { listOf(0f) }
+
+    /** Whether [node] can only run per fragment: it, or an engine input it falls back on, reads the scene or a derivative. */
+    fun needsFragment(node: ShaderGraphNode): Boolean {
+        val kind = typeOf(node)
+        return kind.fragmentOnly || kind.reads.any { it.fragmentOnly } ||
+                kind.inputs(node).any { pin -> pin.fallback?.fragmentOnly == true && source(node, pin.name) == null }
+    }
 
     fun reachableFrom(roots: List<String>): List<ShaderGraphNode> {
         val reached = HashSet<String>()

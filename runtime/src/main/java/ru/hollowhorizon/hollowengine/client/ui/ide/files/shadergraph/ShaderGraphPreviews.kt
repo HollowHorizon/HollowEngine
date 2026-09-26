@@ -25,7 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * the graph picked; the rest on a flat quad.
  */
 internal class ShaderGraphPreviews {
-    private class Frame(val graph: ShaderGraph, val revision: Int)
+    /** A graph to draw, and what tells one version of it from the next. */
+    private class Frame(val graph: ShaderGraph, val revision: Any)
 
     @Volatile
     private var latest: Frame? = null
@@ -41,12 +42,12 @@ internal class ShaderGraphPreviews {
     private var program: ShaderInstance? = null
     private var programSource: String? = null
     private var code: ShaderPreviewCode? = null
-    private var drawnRevision = -1
+    private var drawnRevision: Any? = null
     private var animated = false
     private val targets = HashMap<String, TextureTarget>()
 
     /** Called from composition with the graph as it is now. */
-    fun show(graph: ShaderGraph, revision: Int) {
+    fun show(graph: ShaderGraph, revision: Any) {
         if (latest?.revision != revision) latest = Frame(graph, revision)
     }
 
@@ -102,16 +103,13 @@ internal class ShaderGraphPreviews {
     ) {
         val seconds = (System.nanoTime() - started) / 1_000_000_000f
         val flat = mesh == ShaderPreviewMesh.QUAD
-        val (modelView, projection) = if (flat) Matrix4f() to Matrix4f() else camera(
-            seconds,
-            graph.preview.rotate,
-            mesh
-        )
+        val camera = if (flat) PreviewCamera(Matrix4f(), Matrix4f(), Matrix4f()) else camera(seconds, graph.preview.rotate, mesh)
         if (flat) RenderSystem.disableCull() else RenderSystem.enableCull()
 
         val buffer = meshes.of(mesh)
         buffer.bind()
-        shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().window)
+        shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, camera.view, camera.projection, Minecraft.getInstance().window)
+        shader.safeGetUniform("PreviewModel").set(camera.model)
         shader.safeGetUniform("PreviewNode").set(index)
         shader.safeGetUniform("PreviewTime").set(seconds)
         shader.safeGetUniform("PreviewFlat").set(if (flat) 1f else 0f)
@@ -162,28 +160,32 @@ internal class ShaderGraphPreviews {
         }
     }
 
-    /** A camera a little above the mesh, turning around it while [rotate] is on, with a cube made small enough to fit. */
-    private fun camera(seconds: Float, rotate: Boolean, mesh: ShaderPreviewMesh): Pair<Matrix4f, Matrix4f> {
+    /** Where the mesh is in the world, and the camera that looks at it. */
+    private class PreviewCamera(val model: Matrix4f, val view: Matrix4f, val projection: Matrix4f)
+
+    private fun camera(seconds: Float, rotate: Boolean, mesh: ShaderPreviewMesh): PreviewCamera {
         val angle = if (rotate) seconds * TURN_SPEED else RESTING_ANGLE
         val size = if (mesh == ShaderPreviewMesh.CUBE) CUBE_SIZE else 1f
-        val modelView = Matrix4f().translate(0f, 0f, -CAMERA_DISTANCE).rotateX(CAMERA_TILT).rotateY(angle).scale(size)
+        val model = Matrix4f().rotateY(angle).scale(size)
+        val view = Matrix4f().translate(0f, 0f, -CAMERA_DISTANCE).rotateX(CAMERA_TILT)
         val projection = Matrix4f().perspective(Math.toRadians(FIELD_OF_VIEW).toFloat(), 1f, 0.1f, 20f)
-        return modelView to projection
+        return PreviewCamera(model, view, projection)
     }
 
     private fun rebuild(graph: ShaderGraph) {
         val compiled = ShaderGraphCompiler.compilePreview(graph)
         val source = ShaderGraphTemplates.preview(compiled)
+        val vertexSource = ShaderGraphTemplates.previewVertex(compiled)
         code = compiled
         animated =
-            ShaderInput.TIME.glsl in compiled.statements.text || graph.preview.rotate && graph.preview.mesh != ShaderPreviewMesh.QUAD && compiled.spatial.any { it in compiled.previewIndex }
+            ShaderInput.TIME.glsl in compiled.statements.text || ShaderInput.TIME.glsl in compiled.vertex.text || graph.preview.rotate && graph.preview.mesh != ShaderPreviewMesh.QUAD && compiled.spatial.any { it in compiled.previewIndex }
         (targets.keys - compiled.previewIndex.keys).forEach { targets.remove(it)?.destroyBuffers() }
-        if (source == programSource) return
+        if (vertexSource + source == programSource) return
 
         program?.close()
         program = null
-        programSource = source
-        val stage = "${name}_${Integer.toHexString(source.hashCode())}"
+        programSource = vertexSource + source
+        val stage = "${name}_${Integer.toHexString((vertexSource + source).hashCode())}"
         val built = ShaderGraphPrograms.create(
             name = stage,
             json = ShaderGraphPrograms.json(
@@ -194,13 +196,14 @@ internal class ShaderGraphPreviews {
                 uniforms = listOf(
                     ShaderGraphUniform("ModelViewMat", "matrix4x4", IDENTITY),
                     ShaderGraphUniform("ProjMat", "matrix4x4", IDENTITY),
+                    ShaderGraphUniform("PreviewModel", "matrix4x4", IDENTITY),
                     ShaderGraphUniform("PreviewNode", "int", listOf(0f)),
                     ShaderGraphUniform("PreviewTime", "float", listOf(0f)),
                     ShaderGraphUniform("PreviewFlat", "float", listOf(1f)),
                     ShaderGraphUniform("PreviewPixels", "float", listOf(PIXELS.toFloat())),
                 ) + ShaderGraphPrograms.propertyUniforms(graph.properties),
             ),
-            stages = mapOf("vsh" to requireNotNull(ShaderGraphTemplates.PREVIEW.vertexSource), "fsh" to source),
+            stages = mapOf("vsh" to vertexSource, "fsh" to source),
             format = meshes.format,
         )
         program = built.getOrNull()
@@ -226,7 +229,7 @@ internal class ShaderGraphPreviews {
         program?.close()
         program = null
         programSource = null
-        drawnRevision = -1
+        drawnRevision = null
         meshes.release()
         targets.values.forEach(TextureTarget::destroyBuffers)
         targets.clear()

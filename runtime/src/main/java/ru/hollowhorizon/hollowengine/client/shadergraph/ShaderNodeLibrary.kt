@@ -13,7 +13,7 @@ object ShaderNodeLibrary {
     const val PROPERTY = "hollowengine:input/property"
     const val EXPRESSION = ShaderMathNodes.EXPRESSION
 
-    val all: List<ShaderNodeType> by lazy { inputs() + uv() + texture() + output() + ShaderMathNodes.all }
+    val all: List<ShaderNodeType> by lazy { inputs() + uv() + texture() + output() + ShaderMathNodes.all + ShaderNormalNodes.all }
 
     /**
      * What a new surface graph starts as: the material texture times the particle color, which is what
@@ -182,6 +182,7 @@ object ShaderNodeLibrary {
             group("surface")
             reads(input)
             if (input.fragmentOnly) fragmentOnly()
+            if (input == ShaderInput.NORMAL || input == ShaderInput.VIEW_DIRECTION) preview(ShaderPreviewStyle.SIGNED)
             output(output, ShaderPinType.of(input.type)) { input.glsl }
         }
 

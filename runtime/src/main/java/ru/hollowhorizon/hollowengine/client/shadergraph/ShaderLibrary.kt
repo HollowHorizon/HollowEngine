@@ -230,6 +230,31 @@ enum class ShaderLibrary(val code: String, vararg val requires: ShaderLibrary) {
     ),
 
     /**
+     * Normals worked out per pixel from how things change between neighboring pixels, so they only
+     * run in a fragment stage.
+     */
+    NORMALS(
+        """
+        vec3 sg_bump(vec3 normal, vec3 position, float height, float strength) {
+            vec3 dpdx = dFdx(position);
+            vec3 dpdy = dFdy(position);
+            float dhdx = dFdx(height);
+            float dhdy = dFdy(height);
+            vec3 r1 = cross(dpdy, normal);
+            vec3 r2 = cross(normal, dpdx);
+            float det = dot(dpdx, r1);
+            vec3 gradient = sign(det) * (dhdx * r1 + dhdy * r2);
+            return normalize(abs(det) * normal - strength * gradient);
+        }
+
+        vec3 sg_surface_normal(vec3 position, vec3 view) {
+            vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
+            return dot(normal, view) < 0.0 ? -normal : normal;
+        }
+        """
+    ),
+
+    /**
      * Signed distances to shapes centered on the surface, negative inside. `p` runs from -1 to 1
      * across the surface and `size` is the half extent of the shape in the same units.
      */

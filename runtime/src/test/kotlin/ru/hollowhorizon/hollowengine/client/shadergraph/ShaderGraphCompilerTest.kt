@@ -159,6 +159,41 @@ class ShaderGraphCompilerTest {
     }
 
     @Test
+    fun `each stage gets only the functions it calls, so a derivative never reaches the vertex stage`() {
+        val graph = graph(
+            ShaderGraphNode("noise", "hollowengine:procedural/gradient_noise"),
+            ShaderGraphNode("heave", "hollowengine:normal/offset"),
+            ShaderGraphNode("bump", "hollowengine:normal/bump"),
+            ShaderGraphNode("light", "hollowengine:normal/lambert"),
+            links = listOf(
+                ShaderGraphLink("noise", "Out", "heave", "Amount"),
+                ShaderGraphLink("heave", "Offset", "out", SurfaceOutputs.VERTEX_OFFSET),
+                ShaderGraphLink("noise", "Out", "bump", "Height"),
+                ShaderGraphLink("bump", "Normal", "light", "Normal"),
+                ShaderGraphLink("light", "Light", "out", SurfaceOutputs.ALPHA),
+            ),
+        )
+        val code = ShaderGraphCompiler.compile(graph)
+
+        assertTrue(ShaderLibrary.NORMALS in code.fragmentLibraries)
+        assertFalse(ShaderLibrary.NORMALS in code.vertexLibraries)
+        assertTrue(ShaderLibrary.GRADIENT_NOISE in code.vertexLibraries)
+    }
+
+    @Test
+    fun `the output and every offset node move the mesh in their previews, unless the offset needs a fragment`() {
+        fun displaced(kind: String, output: String) = ShaderGraphCompiler.compilePreview(
+            graph(
+                ShaderGraphNode("from", kind),
+                links = listOf(ShaderGraphLink("from", output, "out", SurfaceOutputs.VERTEX_OFFSET)),
+            )
+        ).displaced
+
+        assertEquals(setOf("from", "out"), displaced("hollowengine:normal/offset", "Offset"))
+        assertEquals(emptySet(), displaced("hollowengine:normal/surface", "Normal"))
+    }
+
+    @Test
     fun `a graph survives a round trip`() {
         val graph = ShaderNodeLibrary.defaultSurface().copy(properties = listOf(ShaderGraphProperty("Speed", default = listOf(2f))))
         assertEquals(graph, ShaderGraphFormat.read(ShaderGraphFormat.write(graph)))
