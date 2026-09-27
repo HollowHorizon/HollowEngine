@@ -255,9 +255,13 @@ publishMods {
 }
 
 tasks.named<Sync>("buildAndCollect") {
+    dependsOn(buildAddons)
+
     val compilerJar = project(":addons:compiler").tasks.named<Jar>("addonJar")
-    dependsOn(compilerJar)
+    val mcpJar = project(":addons:mcp").tasks.named<Jar>("addonJar")
+
     from(compilerJar.flatMap { it.archiveFile })
+    from(mcpJar.flatMap { it.archiveFile })
 }
 
 val buildAddons = tasks.register<Sync>("buildAddons") {
@@ -282,8 +286,4 @@ gradle.projectsEvaluated {
         dependsOn(compilerJar)
         from(compilerJar.flatMap { it.archiveFile })
     }
-}
-
-tasks.named("buildAndCollect") {
-    dependsOn(buildAddons)
 }
