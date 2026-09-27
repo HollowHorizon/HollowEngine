@@ -210,6 +210,7 @@ fun releaseTypeProvider(): Provider<ReleaseType> {
 }
 
 apply(from = rootProject.file("gradle/universal-jar.gradle.kts"))
+apply(from = rootProject.file("gradle/development-jar.gradle.kts"))
 
 publishMods {
     changelog.set(providers.gradleProperty("publish.changelog").orElse(providers.provider {

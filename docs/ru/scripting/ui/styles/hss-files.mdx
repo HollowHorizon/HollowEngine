@@ -21,6 +21,28 @@ Column(id = "shop", modifier = Modifier.style("mypack:ui/styles/shop.hss")) {
 
 Resource location разрешается так же, как другие ассеты. Используйте `id` для селектора `#id`, а `tags = listOf("tag")` для `.tag`.
 
+## Экран в отдельном моде
+
+HSS можно использовать прямо в коде обычного мода, без аддона. Положите файл в `src/main/resources/assets/my_mod/ui/styles/panel.hss`, а экран создайте в исходниках мода:
+
+```kotlin
+import androidx.compose.runtime.Composable
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.screen.HollowComposeUiScreen
+import ru.hollowhorizon.hollowengine.client.ui.style.CompiledHss
+
+class MyPanelScreen : HollowComposeUiScreen("My Panel", CompiledHss(emptyList())) {
+    @Composable
+    override fun Content() {
+        Column(id = "panel", modifier = Modifier.style("my_mod:ui/styles/panel.hss")) {
+            Text("Привет из мода")
+        }
+    }
+}
+```
+
+Открывайте экран обычным для вашего загрузчика способом, например через `Minecraft.getInstance().setScreen(MyPanelScreen())` на клиенте. Для компиляции подключите dev JAR HE через `compileOnly`; в игре должен быть установлен обычный HE. Имя `my_mod` должно совпадать с namespace ресурсов вашего мода.
+
 HSS хорошо подходит для палитр, повторяющейся геометрии, переходов и псевдосостояний. Вычисляемые Kotlin-значения и поведение оставляйте в `Modifier`. Свойства HSS по-прежнему работают с тем же layout и renderer, но больше не записываются XML-атрибутами.
 
 Таблицы стилей живут в файлах: скрипт подключает их по resource location, поэтому оформление экрана остаётся читаемым и перезагружается отдельно от кода. Собрать таблицу стилей из строки прямо в скрипте больше нельзя.

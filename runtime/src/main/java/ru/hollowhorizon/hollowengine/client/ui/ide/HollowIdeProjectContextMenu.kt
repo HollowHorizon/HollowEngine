@@ -144,6 +144,7 @@ internal data class ProjectContextMenu(
     val x: Float,
     val y: Float,
     val canCreateSoundEvents: Boolean = false,
+    val canCreateScripts: Boolean = false,
 )
 
 internal data class ProjectNameDialog(
@@ -152,6 +153,7 @@ internal data class ProjectNameDialog(
     val name: String,
     val x: Float,
     val y: Float,
+    val template: ScriptTemplate? = null,
 ) {
     val title: String
         get() = when (action) {

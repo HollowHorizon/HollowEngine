@@ -27,6 +27,28 @@ import kotlin.test.assertTrue
 
 class HollowAddonArtifactStoreTests {
     @Test
+    fun `mod-bound addon uses the installed mod jar without a nested classes jar`(@TempDir directory: File) {
+        val mod = directory.resolve("host-mod.jar")
+        JarOutputStream(mod.outputStream()).use { jar ->
+            jar.putNextEntry(JarEntry(HollowAddonLayout.EMBEDDED_MOD_DESCRIPTOR))
+            jar.write("id=host-addon\nhostModId=hostmod\nentry=com.example.Integration\n".toByteArray())
+            jar.closeEntry()
+            jar.putNextEntry(JarEntry("com/example/Integration.class"))
+            jar.write(classBytes("com/example/Integration", "Ljava/lang/String;"))
+            jar.closeEntry()
+        }
+
+        val candidate = store(directory, HollowAddonMappingNamespace.OFFICIAL).stageEmbedded(mod, "hostmod")
+        assertEquals("hostmod", candidate.embeddedModId)
+        assertEquals(mod.canonicalFile, candidate.classesFile)
+        assertEquals("hostmod", candidate.descriptor.hostModId)
+        assertTrue("hostmod" in candidate.descriptor.modDependencies)
+        assertFailsWith<IllegalArgumentException> {
+            store(directory, HollowAddonMappingNamespace.OFFICIAL).stageEmbedded(mod, "othermod")
+        }
+    }
+
+    @Test
     fun `classes leave their nested jar, scripts join them and resources stay out`(@TempDir directory: File) {
         val addon = writeAddon(
             directory.resolve("addon.jar"),

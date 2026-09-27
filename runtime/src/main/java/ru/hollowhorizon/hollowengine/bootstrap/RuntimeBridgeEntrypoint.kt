@@ -74,6 +74,7 @@ import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeGameViewport
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
 import ru.hollowhorizon.hollowengine.common.ui.HudPlacement
@@ -369,6 +370,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         arm: HumanoidArm,
     ): Boolean = RenderArmEvent.post(RenderArmEvent(stack, multiBufferSource, packedLight, player, arm)).isCanceled
 
+    override fun onRenderItemInHand(camera: Camera, partialTick: Float, projectionMatrix: Matrix4f): Boolean =
+        RenderItemInHandEvent.post(RenderItemInHandEvent(camera, partialTick, projectionMatrix)).isCanceled
+
     override fun onRegisterParticles(particleEngine: ParticleEngine) {
         RegisterParticlesEvent.post(RegisterParticlesEvent(particleEngine))
     }
@@ -493,7 +497,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
 
+    override fun onBeforeBlitScreen(minecraft: Minecraft) {
+        HollowIdeGameViewport.endRender()
+    }
+
     override fun onBlitScreen(minecraft: Minecraft) {
+        HollowIdeGameViewport.restoreWindowViewport()
         RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
     }
 
@@ -538,6 +547,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientRenderTickPre(client: Minecraft) {
+        HollowIdeGameViewport.beginRender(client)
         CutsceneCameraSystem.update(client)
         RenderTickEvent.Pre.post(RenderTickEvent.Pre(client))
     }
@@ -547,7 +557,14 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientResized(client: Minecraft) {
+        HollowIdeGameViewport.invalidateWindowMetrics()
     }
+
+    override fun allowMouseGrab(): Boolean = !HollowIdeOverlay.expanded
+
+    override fun getGameViewportMetrics(): RuntimeBridge.GameViewportMetrics? = HollowIdeGameViewport.metrics()
+
+    override fun isGameViewportRendering(): Boolean = HollowIdeGameViewport.isRendering()
 
     override fun onClientStopping(client: Minecraft) {
         RuntimeDispatcherState.stopClient(client)
@@ -851,7 +868,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         yPos: Double,
     ): RuntimeBridge.MouseMoveResult {
         val window = minecraft.window
-        val scaleFactor = minecraft.mainRenderTarget.width.toDouble() / window.screenWidth
+        val scaleFactor = HollowIdeGameViewport.windowWidth().toDouble() / window.screenWidth
         val convertedX = (xPos * scaleFactor).toFloat()
         val convertedY = (yPos * scaleFactor).toFloat()
 
@@ -863,7 +880,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
         val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isScriptOverlayCaptured || isGizmoBlocking && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
-        return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
+        return RuntimeBridge.MouseMoveResult(shouldCancel, shouldResetMousePosition, false, xPos, yPos)
     }
 
     /** Converts a raw window cursor position to the GUI-scaled coordinate space overlays render in. */
@@ -876,14 +893,17 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onMousePress(
         minecraft: Minecraft,
-        x: Float,
-        y: Float,
+        windowX: Double,
+        windowY: Double,
         windowPointer: Long,
         button: Int,
         action: Int,
         modifiers: Int,
     ): Boolean {
-        val (guiX, guiY) = guiScaledPointer(minecraft, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
+        val scale = HollowIdeGameViewport.windowWidth().toDouble() / minecraft.window.screenWidth
+        val x = (windowX * scale).toFloat()
+        val y = (windowY * scale).toFloat()
+        val (guiX, guiY) = guiScaledPointer(minecraft, windowX, windowY)
         return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
                 TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
                 UiScriptHudHost.handleMouseButton(guiX, guiY, button, action) ||
@@ -892,13 +912,16 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onMouseScroll(
         minecraft: Minecraft,
-        x: Float,
-        y: Float,
+        windowX: Double,
+        windowY: Double,
         windowPointer: Long,
         xOffset: Double,
         yOffset: Double,
     ): Boolean {
-        val (guiX, guiY) = guiScaledPointer(minecraft, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
+        val scale = HollowIdeGameViewport.windowWidth().toDouble() / minecraft.window.screenWidth
+        val x = (windowX * scale).toFloat()
+        val y = (windowY * scale).toFloat()
+        val (guiX, guiY) = guiScaledPointer(minecraft, windowX, windowY)
         return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
                 TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
                 UiScriptHudHost.handleMouseScroll(guiX, guiY, xOffset, yOffset) ||

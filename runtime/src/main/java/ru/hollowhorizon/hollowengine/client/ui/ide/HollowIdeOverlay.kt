@@ -13,15 +13,18 @@ import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.rig.RigEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsolePanel
+import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsole
+import ru.hollowhorizon.hollowengine.client.ui.ide.panels.GameViewportDock
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeUiProfilerPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.ModelEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.VanillaModelEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutscenePropertiesDock
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneTimelineDock
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneViewportDock
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorPanel
+import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
@@ -46,6 +49,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
 import java.util.concurrent.ConcurrentHashMap
+import java.io.File
 
 /** A file dragged out of the project tree; anything that accepts drops can look for this payload. */
 data class HollowIdeFileDrag(val path: String, val isDirectory: Boolean = false)
@@ -69,6 +73,10 @@ internal const val ConsoleId = "ide-console"
 internal const val CutsceneTimelineId = "ide-cutscene-timeline"
 internal const val CutscenePropertiesId = "ide-cutscene-properties"
 internal const val CutsceneViewportId = "ide-cutscene-viewport"
+internal const val InspectorId = "ide-inspector"
+internal const val GameViewportId = "ide-game-viewport"
+internal const val GameViewportNodeId = "ide-game-viewport-node"
+internal const val OptionsIcon = "hollowengine:textures/gui/icons/options.svg"
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
@@ -80,11 +88,14 @@ internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
 @ClientOnly
 object HollowIdeOverlay {
     var useHollowUiOverlay: Boolean = true
+    val expanded: Boolean get() = isVisible() && !collapsed
+    fun holdsPointer(): Boolean = expanded && (activeButton != null || isMouseOver(lastMouseX, lastMouseY))
 
     private val builtinExtensions = HostHollowAddonExtensions(HollowEngine.MODID, HollowIdeOverlay::class.java.classLoader)
     private val extensionObservers = mutableListOf<HollowAddonRegistration>()
     private val fileTypes = HollowIdeFileTypeRegistry()
     private val model = HollowIdeModel(fileTypes)
+    private val console = HollowIdeConsole()
     private val assetManagerState = AssetManagerState()
     private val dock = DockingState()
     private val surface = HollowUiSurface()
@@ -216,6 +227,13 @@ object HollowIdeOverlay {
         builtinExtensions.registerIdeFileType(type)
     }
 
+    fun openPath(path: String): Boolean = ideContext.openFile(path)
+
+    fun openOrCreate(path: String, content: () -> ByteArray): Boolean {
+        if (!model.createIfMissing(path, content())) return false
+        return openPath(path)
+    }
+
     private fun installBuiltinExtensions() {
         val builtins = HollowIdeFileTypeRegistry().apply {
             registerBuiltinFileTypes(
@@ -230,6 +248,7 @@ object HollowIdeOverlay {
                 },
                 soundsEditor = { file -> HollowIdeSoundsEditor(file) },
                 animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
+                rigEditor = { file -> RigEditorPanel(file) },
                 textEditor = { file -> FileEditor(file) },
             )
             registerAssetFileTypes(
@@ -256,7 +275,7 @@ object HollowIdeOverlay {
                 minWidth = 520f,
                 minHeight = 260f,
                 placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Project, DockPlacement.RIGHT),
-                content = { AssetManagerPanel(::openAssetFile, ::requestSurfaceFocus) },
+                content = { AssetManagerPanel(assetManagerState, ::openAssetFile, ::overrideAssetFile, ::hideAssetFile, ::restoreAssetFile, ::requestSurfaceFocus) },
             ),
             HollowIdePanel(
                 id = ConsoleId,
@@ -265,7 +284,7 @@ object HollowIdeOverlay {
                 minWidth = 360f,
                 minHeight = 180f,
                 placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Editor, DockPlacement.BOTTOM),
-                content = { HollowIdeConsolePanel() },
+                content = { HollowIdeConsolePanel(console) },
             ),
             HollowIdePanel(
                 id = CutsceneTimelineId,
@@ -282,20 +301,20 @@ object HollowIdeOverlay {
                 },
             ),
             HollowIdePanel(
-                id = CutscenePropertiesId,
-                title = "Cutscene Properties",
-                icon = "hollowengine:textures/gui/icons/options.svg",
+                id = InspectorId,
+                title = "hollowengine.gui.ide.windows.inspector",
+                icon = OptionsIcon,
                 minWidth = 240f,
                 minHeight = 260f,
                 placement = HollowIdePanelPlacement(
                     HollowIdePanelAnchor.Panel(CutsceneTimelineId),
                     DockPlacement.RIGHT,
                 ),
-                content = { CutscenePropertiesDock(CutsceneEditorSessions.default) },
+                content = { InspectorPanel(InspectorSelection.current) },
             ),
             HollowIdePanel(
-                id = CutsceneViewportId,
-                title = "Cutscene Viewport",
+                id = GameViewportId,
+                title = "hollowengine.gui.ide.windows.game_viewport",
                 icon = CutsceneIcon,
                 minWidth = 320f,
                 minHeight = 180f,
@@ -303,7 +322,7 @@ object HollowIdeOverlay {
                     HollowIdePanelAnchor.Panel(CutsceneTimelineId),
                     DockPlacement.TOP,
                 ),
-                content = { CutsceneViewportDock() },
+                content = { GameViewportDock() },
             ),
             HollowIdePanel(
                 id = UiProfilerId,
@@ -930,7 +949,7 @@ object HollowIdeOverlay {
                 ),
         ) {
             UiTreeView(
-                items = model.visibleTreeItems(projectFilter.query),
+                items = model.visibleTreeItems(projectFilter.query, "hollowengine.gui.ide.project_tree".lang),
                 onToggle = project::toggle,
                 onSelect = project::select,
                 filterState = projectFilter,

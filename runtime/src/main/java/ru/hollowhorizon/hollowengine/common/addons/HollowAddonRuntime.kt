@@ -13,16 +13,20 @@ import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonBootstrapContract
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.AddonVersions
+import ru.hollowhorizon.hollowengine.common.coroutines.ServerRuntimeState
 import ru.hollowhorizon.hollowengine.common.scripting.source.AddonScriptSource
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptSourceLifecycle
+import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.network.HollowAddonPacketRegistry
 import java.io.File
 
 internal class HollowAddonRuntime(
-    private val addonsDirectory: File,
+    private val sources: List<File>,
     cacheDirectory: File,
 ) {
+    private val addonsDirectory = sources.first()
     private val mutex = Mutex()
     private val runtimeJob = SupervisorJob()
     private val runtimeScope = CoroutineScope(Dispatchers.IO + runtimeJob + CoroutineName("HollowEngine addons"))
@@ -33,7 +37,7 @@ internal class HollowAddonRuntime(
     private val restartRequiredAddons = LinkedHashMap<String, HollowAddonDescriptor>()
     private val knownCandidates = LinkedHashMap<String, HollowAddonCandidate>()
     private val disabledAddonIds = LinkedHashSet<String>()
-    private var watcherJob: Job? = null
+    private var watcherJobs: List<Job> = emptyList()
 
     val services = HollowAddonServiceRegistry()
 
@@ -45,38 +49,75 @@ internal class HollowAddonRuntime(
     var restartRequiredSnapshot: List<HollowAddonDescriptor> = emptyList()
         private set
 
+    @Volatile
+    var enabledSnapshot: List<HollowAddonInstallation> = emptyList()
+        private set
+
+    @Volatile
+    var resourcePackSnapshot: List<HollowAddonResourcePack> = emptyList()
+        private set
+
+    @Volatile
+    private var started = false
+
     suspend fun start() {
         withContext(Dispatchers.IO) {
             addonsDirectory.mkdirs()
             disabledAddonIds += activationStore.load()
         }
-        val candidates = withContext(Dispatchers.IO) {
-            addonsDirectory.listFiles { file ->
-                file.isFile && file.extension.equals("jar", ignoreCase = true)
-            }.orEmpty().sortedBy(File::getName).mapNotNull { file ->
-                runCatching { artifactStore.stage(file) }
-                    .onFailure { HollowEngine.LOGGER.error("Skipping addon jar '{}'", file.name, it) }
+        val candidatesBySource = withContext(Dispatchers.IO) {
+            sources.map { source ->
+                HollowAddonProbe.listAddonJars(source).mapNotNull { file ->
+                    runCatching { artifactStore.stage(file) }
+                        .onFailure { HollowEngine.LOGGER.error("Skipping addon jar '{}'", file.name, it) }
+                        .getOrNull()
+                }
+            }
+        }
+        val candidates = candidatesBySource.flatten()
+        val embeddedCandidates = withContext(Dispatchers.IO) {
+            HollowAddonProbe.listEmbeddedModJars().mapNotNull { (modId, file) ->
+                runCatching { artifactStore.stageEmbedded(file, modId) }
+                    .onFailure { HollowEngine.LOGGER.error("Skipping embedded addon in mod '{}'", modId, it) }
                     .getOrNull()
             }
         }
 
         locked {
-            candidates.forEach { candidate -> knownCandidates[candidate.sourceFile.canonicalPath] = candidate }
-            candidates.groupBy { it.descriptor.id }.forEach { (id, versions) ->
-                if (versions.size == 1) {
-                    queue(versions.single())
-                } else {
-                    HollowEngine.LOGGER.error(
-                        "Skipping addon '{}': multiple artifacts found ({})",
-                        id,
-                        versions.joinToString { it.sourceFile.name },
-                    )
-                }
+            (candidates + embeddedCandidates).forEach { candidate ->
+                knownCandidates[candidate.sourceFile.canonicalPath] = candidate
             }
+            refreshEnabledSnapshot()
+            (embeddedCandidates.map { -1 to it } +
+                candidatesBySource.flatMapIndexed { priority, staged -> staged.map { priority to it } })
+                .groupBy { (_, candidate) -> candidate.descriptor.id }
+                .forEach { (_, found) -> queue(select(found)) }
             drainPending()
             reportPending()
         }
-        watcherJob = HollowAddonWatcher(addonsDirectory, artifactStore, this, runtimeScope).start(candidates)
+        watcherJobs = sources.mapIndexed { index, source ->
+            HollowAddonWatcher(source, artifactStore, this, runtimeScope).start(candidatesBySource[index])
+        }
+        started = true
+    }
+
+    private fun select(found: List<Pair<Int, HollowAddonCandidate>>): HollowAddonCandidate {
+        val embedded = found.filter { (_, candidate) -> candidate.embeddedModId != null }
+        val ordered = (embedded.ifEmpty { found }).sortedWith(Comparator<Pair<Int, HollowAddonCandidate>> { left, right ->
+            AddonVersions.compare(right.second.descriptor.version, left.second.descriptor.version)
+        }.thenBy { (priority, _) -> priority })
+        val winner = ordered.first().second
+        found.filter { it.second !== winner }.forEach { (_, ignored) ->
+            HollowEngine.LOGGER.warn(
+                "Addon '{}' found twice: using '{}' ({}), ignoring '{}' ({})",
+                winner.descriptor.id,
+                winner.sourceFile.name,
+                winner.descriptor.version,
+                ignored.sourceFile.name,
+                ignored.descriptor.version,
+            )
+        }
+        return winner
     }
 
     suspend fun addCandidate(candidate: HollowAddonCandidate): Boolean = locked {
@@ -166,6 +207,9 @@ internal class HollowAddonRuntime(
             return@locked HollowAddonOperationResult(false, "Addon '$id' has multiple JAR files; remove duplicates first.")
         }
         val candidate = candidates.single()
+        if (candidate.embeddedModId != null) {
+            return@locked HollowAddonOperationResult(false, "Addon '$id' belongs to mod '${candidate.embeddedModId}' and follows its lifecycle. Restart Minecraft after changing that mod.")
+        }
 
         if (enabled) {
             disabledAddonIds.remove(id)
@@ -209,6 +253,9 @@ internal class HollowAddonRuntime(
         }
 
         val currentCandidate = candidates.single()
+        if (currentCandidate.embeddedModId != null) {
+            return@locked HollowAddonOperationResult(false, "Addon '$id' belongs to mod '${currentCandidate.embeddedModId}' and can only be reloaded by restarting Minecraft.")
+        }
         val refreshedCandidate = withContext(Dispatchers.IO) { artifactStore.stage(currentCandidate.sourceFile) }
         knownCandidates[refreshedCandidate.sourceFile.canonicalPath] = refreshedCandidate
         val active = loadedAddons[id]
@@ -241,8 +288,8 @@ internal class HollowAddonRuntime(
     }
 
     suspend fun close() {
-        watcherJob?.cancelAndJoin()
-        watcherJob = null
+        watcherJobs.forEach { job -> job.cancelAndJoin() }
+        watcherJobs = emptyList()
         locked {
             pendingAddons.clear()
             loadedAddons.keys.toList().forEach { id ->
@@ -275,7 +322,7 @@ internal class HollowAddonRuntime(
             )
             return false
         }
-        if (descriptor.id in disabledAddonIds) {
+        if (descriptor.id in disabledAddonIds && candidate.embeddedModId == null) {
             HollowEngine.LOGGER.info("Addon '{}' is disabled", descriptor.id)
             return false
         }
@@ -335,7 +382,7 @@ internal class HollowAddonRuntime(
         val isLoadedCandidate = loadedAddons[descriptor.id]?.candidate?.sourceFile == candidate.sourceFile
         val isPendingCandidate = pendingAddons[descriptor.id]?.sourceFile == candidate.sourceFile
         val state = when {
-            descriptor.id in disabledAddonIds -> HollowAddonState.DISABLED
+            descriptor.id in disabledAddonIds && candidate.embeddedModId == null -> HollowAddonState.DISABLED
             isLoadedCandidate -> HollowAddonState.LOADED
             descriptor.id in restartRequiredAddons -> HollowAddonState.RESTART_REQUIRED
             wasBootstrapAddonRejected(candidate) -> HollowAddonState.REJECTED
@@ -367,16 +414,22 @@ internal class HollowAddonRuntime(
         val dependencyLoaders = descriptor.dependencies.map { dependencyId ->
             loadedAddons.getValue(dependencyId).classLoader
         }
-        val libraries = withContext(Dispatchers.IO) { artifactStore.extractLibraries(candidate) }
-        val urls = (listOf(candidate.classesFile, candidate.artifactFile) + libraries)
-            .distinct()
-            .map { it.toURI().toURL() }
-            .toTypedArray()
-        val classLoader = HollowAddonClassLoader(
-            urls = urls,
-            parent = HollowAddonEntrypoint::class.java.classLoader,
-            dependencies = dependencyLoaders,
-        )
+        val libraries = if (candidate.embeddedModId == null) {
+            withContext(Dispatchers.IO) { artifactStore.extractLibraries(candidate) }
+        } else emptyList()
+        val classLoader: ClassLoader = if (candidate.embeddedModId != null) {
+            embeddedModClassLoader(descriptor.entrypoint ?: error("Embedded addon has no entrypoint"))
+        } else {
+            val urls = (listOf(candidate.classesFile, candidate.artifactFile) + libraries)
+                .distinct()
+                .map { it.toURI().toURL() }
+                .toTypedArray()
+            HollowAddonClassLoader(
+                urls = urls,
+                parent = HollowAddonEntrypoint::class.java.classLoader,
+                dependencies = dependencyLoaders,
+            )
+        }
         val hostServices = services.ownedBy(descriptor.id)
         val extensions = OwnedHollowAddonExtensions(descriptor.id, classLoader)
         var koinApplication: KoinApplication? = null
@@ -416,7 +469,10 @@ internal class HollowAddonRuntime(
             )
             withContext(Dispatchers.Default + ClassLoaderContextElement(classLoader)) {
                 entrypoint.load(context, addonScope)
-                HollowAddonEventRegistrar.register(candidate.classesFile, classLoader, descriptor.id, entrypoint, addonScope)
+                HollowAddonEventRegistrar.register(
+                    candidate.classesFile, classLoader, descriptor.id, entrypoint, addonScope,
+                    packagePrefix = candidate.embeddedModId?.let { descriptor.entrypoint!!.substringBeforeLast('.') + "." },
+                )
             }
             registerScripts(candidate, classLoader, libraries)
             loadedAddons[descriptor.id] = LoadedHollowAddon(
@@ -440,8 +496,18 @@ internal class HollowAddonRuntime(
             extensions.cleanup()
             koinApplication?.close()
             hostServices.cleanup()
-            classLoader.close()
+            (classLoader as? HollowAddonClassLoader)?.close()
         }.getOrDefault(false)
+    }
+
+    private fun embeddedModClassLoader(entrypoint: String): ClassLoader {
+        val loaders = listOfNotNull(
+            Thread.currentThread().contextClassLoader,
+            HollowAddonEntrypoint::class.java.classLoader,
+        ).distinct()
+        return loaders.firstNotNullOfOrNull { loader ->
+            runCatching { Class.forName(entrypoint, false, loader).classLoader }.getOrNull()
+        } ?: error("Entrypoint $entrypoint is not visible from the installed mod classpath")
     }
 
     /**
@@ -451,7 +517,7 @@ internal class HollowAddonRuntime(
      */
     private fun registerScripts(
         candidate: HollowAddonCandidate,
-        classLoader: HollowAddonClassLoader,
+        classLoader: ClassLoader,
         libraries: List<File>,
     ) {
         val descriptor = candidate.descriptor
@@ -483,7 +549,7 @@ internal class HollowAddonRuntime(
         runCatching { addon.koinApplication.close() }
             .onFailure { HollowEngine.LOGGER.error("Failed to close Koin for addon '$id'", it) }
         addon.hostServices.cleanup()
-        runCatching { addon.classLoader.close() }
+        runCatching { (addon.classLoader as? HollowAddonClassLoader)?.close() }
             .onFailure { HollowEngine.LOGGER.error("Failed to close classloader for addon '$id'", it) }
         loadedAddons.remove(id)
         refreshSnapshot()
@@ -516,20 +582,61 @@ internal class HollowAddonRuntime(
 
     private fun refreshSnapshot() {
         loadedSnapshot = loadedAddons.values.map { it.candidate.descriptor }
+        val addonsFolder = addonsDirectory.canonicalFile
+        resourcePackSnapshot = loadedAddons.values.toList().asReversed()
+            .map(LoadedHollowAddon::candidate)
+            .filter { candidate ->
+                (candidate.hasAssets || candidate.hasData) && candidate.sourceFile.parentFile?.canonicalFile == addonsFolder
+            }
+            .map { candidate ->
+                HollowAddonResourcePack(candidate.descriptor.id, candidate.descriptor.name, candidate.artifactFile, candidate.hasAssets)
+            }
+    }
+
+    private fun refreshEnabledSnapshot() {
+        enabledSnapshot = knownCandidates.values
+            .sortedBy { candidate -> if (candidate.embeddedModId != null) 0 else 1 }
+            .filter { candidate -> candidate.embeddedModId != null || candidate.descriptor.id !in disabledAddonIds }
+            .distinctBy { candidate -> candidate.descriptor.id }
+            .map { candidate -> HollowAddonInstallation(candidate.descriptor, candidate.classesFile) }
     }
 
     private suspend fun <T> locked(block: suspend () -> T): T {
         mutex.lock()
+        val loadedBefore = loadedSnapshot
+        val packsBefore = resourcePackSnapshot
         return try {
             block()
         } finally {
+            refreshEnabledSnapshot()
             mutex.unlock()
+            if (loadedSnapshot !== loadedBefore) reloadRunningServers()
+            if (started && assetsOf(packsBefore) != assetsOf(resourcePackSnapshot)) reloadClientResources()
         }
+    }
+
+    private fun assetsOf(packs: List<HollowAddonResourcePack>): List<File> =
+        packs.filter(HollowAddonResourcePack::hasAssets).map(HollowAddonResourcePack::file)
+
+    private fun reloadRunningServers() {
+        ServerRuntimeState.servers().forEach { server ->
+            server.execute {
+                server.packRepository.reload()
+                server.reloadResources(server.packRepository.selectedIds).exceptionally { error ->
+                    HollowEngine.LOGGER.error("Failed to reload datapacks after the set of addons changed", error)
+                    null
+                }
+            }
+        }
+    }
+
+    private fun reloadClientResources() {
+        if (isPhysicalClient) ClientResources.reload()
     }
 
     private data class LoadedHollowAddon(
         val candidate: HollowAddonCandidate,
-        val classLoader: HollowAddonClassLoader,
+        val classLoader: ClassLoader,
         val entrypoint: HollowAddonEntrypoint,
         val context: HollowAddonContext,
         val job: Job,

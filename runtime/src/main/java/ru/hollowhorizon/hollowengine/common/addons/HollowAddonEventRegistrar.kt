@@ -27,6 +27,7 @@ internal object HollowAddonEventRegistrar {
         addonId: String,
         entrypoint: HollowAddonEntrypoint,
         scope: CoroutineScope,
+        packagePrefix: String? = null,
     ) {
         val (annotatedListeners, annotatedPackets) = ClassGraph()
             .enableClassInfo()
@@ -41,12 +42,12 @@ internal object HollowAddonEventRegistrar {
                     scan.getClassesWithAnnotation(HollowPacketHandler::class.java.name).names.toList()
             }
 
-        annotatedListeners.forEach { className ->
+        annotatedListeners.filter { packagePrefix == null || it.startsWith(packagePrefix) }.forEach { className ->
             val type = Class.forName(className, false, classLoader)
             registerType(type, entrypoint, scope)
         }
 
-        annotatedPackets.forEach { className ->
+        annotatedPackets.filter { packagePrefix == null || it.startsWith(packagePrefix) }.forEach { className ->
             val type = Class.forName(className, false, classLoader)
             require(HollowAddonPacket::class.java.isAssignableFrom(type)) {
                 "Addon packet must implement HollowAddonPacket: ${type.name}"

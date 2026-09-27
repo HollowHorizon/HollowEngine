@@ -84,31 +84,31 @@ internal fun hollowIdeToolMenuItems(
             mark = UiDropdownMark.CHECKBOX,
             closeOnClick = false,
         ) {
-            TransformGizmoEditor.toggleEnabled()
+            TransformGizmoEditor.setEnabled(!TransformGizmoEditor.isEnabled)
         },
         UiDropdownItem(
             label = "Translate",
-            checked = TransformGizmoEditor.mode == GizmoEditMode.TRANSLATE,
-            mark = UiDropdownMark.RADIO,
+            checked = TransformGizmoEditor.isModeShown(GizmoEditMode.TRANSLATE),
+            mark = UiDropdownMark.CHECKBOX,
             closeOnClick = false,
         ) {
-            TransformGizmoEditor.setMode(GizmoEditMode.TRANSLATE)
+            TransformGizmoEditor.toggleMode(GizmoEditMode.TRANSLATE)
         },
         UiDropdownItem(
             label = "Rotate",
-            checked = TransformGizmoEditor.mode == GizmoEditMode.ROTATE,
-            mark = UiDropdownMark.RADIO,
+            checked = TransformGizmoEditor.isModeShown(GizmoEditMode.ROTATE),
+            mark = UiDropdownMark.CHECKBOX,
             closeOnClick = false,
         ) {
-            TransformGizmoEditor.setMode(GizmoEditMode.ROTATE)
+            TransformGizmoEditor.toggleMode(GizmoEditMode.ROTATE)
         },
         UiDropdownItem(
             label = "Scale",
-            checked = TransformGizmoEditor.mode == GizmoEditMode.SCALE,
-            mark = UiDropdownMark.RADIO,
+            checked = TransformGizmoEditor.isModeShown(GizmoEditMode.SCALE),
+            mark = UiDropdownMark.CHECKBOX,
             closeOnClick = false,
         ) {
-            TransformGizmoEditor.setMode(GizmoEditMode.SCALE)
+            TransformGizmoEditor.toggleMode(GizmoEditMode.SCALE)
         },
         UiDropdownItem(
             label = "hollowengine.gui.ide.gui_scale".lang,
