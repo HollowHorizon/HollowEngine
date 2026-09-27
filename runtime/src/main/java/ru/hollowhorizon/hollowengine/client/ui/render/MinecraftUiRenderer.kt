@@ -2387,7 +2387,7 @@ class MinecraftUiRenderer {
         if (target == null) {
             Minecraft.getInstance().mainRenderTarget.bindWrite(true)
             val window = Minecraft.getInstance().window
-            GL11.glViewport(0, 0, window.width, window.height)
+            RenderSystem.viewport(0, 0, window.width, window.height)
             restoreMainProjection()
             return
         }
@@ -2459,7 +2459,7 @@ class MinecraftUiRenderer {
 
     private fun bindTarget(target: RenderTargetState) {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebufferId)
-        GL11.glViewport(target.x, target.y, target.width, target.height)
+        RenderSystem.viewport(target.x, target.y, target.width, target.height)
     }
 
     private fun configureLayerProjection(width: Float, height: Float) {

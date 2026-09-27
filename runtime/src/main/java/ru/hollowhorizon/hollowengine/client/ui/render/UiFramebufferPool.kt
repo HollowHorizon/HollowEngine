@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.render
 
+import com.mojang.blaze3d.systems.RenderSystem
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL12
 import org.lwjgl.opengl.GL30
@@ -273,7 +274,7 @@ internal class UiLayerFramebuffer(
 
     fun bind() {
         atlas.bind()
-        GL11.glViewport(region.x, region.y, region.width, region.height)
+        RenderSystem.viewport(region.x, region.y, region.width, region.height)
     }
 
     fun clear() {
@@ -352,7 +353,7 @@ internal class UiFramebuffer(
 
     fun bind() {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebuffer)
-        GL11.glViewport(0, 0, width, height)
+        RenderSystem.viewport(0, 0, width, height)
     }
 
     fun close() {

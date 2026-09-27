@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
-import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import kotlin.math.ceil
@@ -85,7 +85,7 @@ internal object HollowIdeGameViewport {
      */
     fun restoreWindowViewport() {
         if (windowMetrics == null) return
-        GL11.glViewport(0, 0, windowWidth(), windowHeight())
+        RenderSystem.viewport(0, 0, windowWidth(), windowHeight())
     }
 
     fun endWindowPass() {
