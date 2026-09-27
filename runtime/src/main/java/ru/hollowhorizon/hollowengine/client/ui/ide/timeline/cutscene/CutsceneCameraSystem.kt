@@ -19,14 +19,21 @@ object CutsceneCameraSystem {
         get() = controller
 
     /**
-     * The pose the camera should take. A cutscene being played wins over a story's own `@camera`,
-     * because it is the more specific instruction; the render bridge reads this one property, so both
-     * arrive through the same path.
+     * A pose held from outside any cutscene or story, by a tool that needs a frame seen from a given
+     * point. It wins over both while it is set and hides the hand like a cutscene does.
+     */
+    @Volatile
+    var heldPose: CameraPose? = null
+
+    /**
+     * The pose the camera should take. A held pose wins over everything; a cutscene being played wins
+     * over a story's own `@camera`, because it is the more specific instruction. The render bridge reads
+     * this one property, so all of them arrive through the same path.
      */
     val currentPose: CameraPose?
-        get() = controller?.currentPose ?: StoryCameraSystem.currentPose
+        get() = heldPose ?: controller?.currentPose ?: StoryCameraSystem.currentPose
 
-    /** Whether anything is holding the camera, a cutscene or a story. */
+    /** Whether anything is holding the camera: a held pose, a cutscene or a story. */
     val isOverriding: Boolean get() = currentPose != null
 
     fun play(data: CutsceneData, loop: Boolean = false, anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED) {
@@ -100,6 +107,6 @@ object CutsceneCameraSystem {
 
     @SubscribeEvent
     fun onRenderHand(event: RenderItemInHandEvent) {
-        if (controller != null) event.isCanceled = true
+        if (controller != null || heldPose != null) event.isCanceled = true
     }
 }

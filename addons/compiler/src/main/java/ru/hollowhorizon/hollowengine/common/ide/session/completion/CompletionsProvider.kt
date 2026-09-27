@@ -395,7 +395,7 @@ private fun CompletionItemsCollector.completeScopeContext(file: KtFile, element:
 }
 
 context(session: KaSession)
-private fun getKotlinDeclarationsFromIndex(ktFile: KtFile, filter: (Name) -> Boolean): Sequence<KaDeclarationSymbol> {
+internal fun getKotlinDeclarationsFromIndex(ktFile: KtFile, filter: (Name) -> Boolean): Sequence<KaDeclarationSymbol> {
     with(session) {
         val factory = KotlinDeclarationProviderFactory.getInstance(ktFile.project)
         val declarationProvider = factory.createDeclarationProvider(analysisScope, useSiteModule)

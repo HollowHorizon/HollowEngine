@@ -500,6 +500,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
 
+    override fun onLevelFrameRendered(minecraft: Minecraft) {
+        RenderTickEvent.LevelRendered.post(RenderTickEvent.LevelRendered(minecraft))
+    }
+
     override fun onBeforeBlitScreen(minecraft: Minecraft) {
         HollowIdeGameViewport.endRender()
     }

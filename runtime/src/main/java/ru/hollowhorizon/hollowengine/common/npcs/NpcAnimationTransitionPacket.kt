@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
@@ -42,9 +43,19 @@ fun onNpcAnimationServerTick(event: TickEvent.Server) {
 }
 
 object NpcAnimationRuntime {
+    /** Clips already reported missing, so a script playing one in a loop warns once. */
+    private val reportedMissing = HashSet<Pair<String, String>>()
+
+    /** The model [entity] shows, when a component says which one. */
+    fun modelOf(entity: Entity): String? =
+        AttachmentRegistry.componentsById(entity).values.filterIsInstance<Model>().firstOrNull()?.model
+
+    /** The clip names of [entity]'s model, or null when the entity has no model the server can read. */
+    fun animationNames(entity: Entity): Set<String>? =
+        modelOf(entity)?.let { model -> ServerModelAnimationMetadata.model(model)?.animationsByName?.keys }
+
     fun animationDuration(entity: Entity, animation: String): Float? {
-        val model = AttachmentRegistry.componentsById(entity).values.filterIsInstance<Model>().firstOrNull()?.model
-            ?: return null
+        val model = modelOf(entity) ?: return null
         return ServerModelAnimationMetadata.animationDuration(model, animation)
     }
 
@@ -62,6 +73,7 @@ object NpcAnimationRuntime {
         val current = components[animationsId] as? AnimationsComponent ?: AnimationsComponent()
         val withoutOld = from?.let { current.fadeOutClip(entity.level().gameTime, it, duration) } ?: current
         val model = components.values.filterIsInstance<Model>().firstOrNull()?.model
+        if (to != null && model != null) warnIfMissing(model, to)
         val gameTime = entity.level().gameTime
         val updated = to
             ?.takeIf(String::isNotBlank)
@@ -80,6 +92,16 @@ object NpcAnimationRuntime {
             } ?: withoutOld
 
         components[animationsId] = updated
+    }
+
+    /** A clip the model lacks plays as nothing at all; say so, with the names that would have worked. */
+    private fun warnIfMissing(model: String, animation: String) {
+        val clips = ServerModelAnimationMetadata.model(model)?.animationsByName?.keys ?: return
+        if (animation in clips || !reportedMissing.add(model to animation)) return
+        HollowEngine.LOGGER.warn(
+            "Model {} has no animation '{}', so nothing plays. Its animations: {}",
+            model, animation, clips.sorted().joinToString(),
+        )
     }
 
     fun removeLayer(entity: Entity, layerId: String) {

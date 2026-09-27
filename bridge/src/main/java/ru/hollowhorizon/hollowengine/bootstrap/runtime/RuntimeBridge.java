@@ -314,6 +314,8 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void initRegistryProvider(RegistryProvider<?> provider);
 
+    void onLevelFrameRendered(Minecraft minecraft);
+
     void onBeforeBlitScreen(Minecraft minecraft);
 
     void onBlitScreen(Minecraft minecraft);

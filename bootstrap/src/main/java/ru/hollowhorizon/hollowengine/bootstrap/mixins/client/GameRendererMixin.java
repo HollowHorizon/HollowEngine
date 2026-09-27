@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.bootstrap.mixins.client;
 
 import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,6 +19,11 @@ public class GameRendererMixin {
         if (BootstrapRuntimeManager.bridge().onRenderItemInHand(camera, partialTick, projectionMatrix)) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;tryTakeScreenshotIfNeeded()V"))
+    private void onLevelFrameRendered(DeltaTracker deltaTracker, boolean renderLevel, CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onLevelFrameRendered(Minecraft.getInstance());
     }
 
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)

@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptCompilationContext
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.convert
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.RemappingClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.mixins.MixinSpecLayout
@@ -145,19 +146,4 @@ fun List<ScriptDefinition.FromConfigurations>.getDefinitionFor(name: String): Sc
             it.fileExtension
         )
     }
-}
-
-fun ScriptDiagnostic.convert(): Diagnostic {
-    return Diagnostic(this.location?.let {
-        Range(
-            Position(it.start.line, it.start.col),
-            Position(it.end?.line ?: it.start.line, it.end?.col ?: it.start.col)
-        )
-    } ?: Range(Position(-1, -1), Position(-1, -1)), when (this.severity) {
-        ScriptDiagnostic.Severity.DEBUG -> Severity.DEBUG
-        ScriptDiagnostic.Severity.INFO -> Severity.INFO
-        ScriptDiagnostic.Severity.WARNING -> Severity.WARNING
-        ScriptDiagnostic.Severity.ERROR -> Severity.ERROR
-        ScriptDiagnostic.Severity.FATAL -> Severity.FATAL
-    }, this.message)
 }
