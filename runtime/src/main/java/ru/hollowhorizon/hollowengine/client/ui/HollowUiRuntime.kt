@@ -554,6 +554,15 @@ class HollowUiRuntime(
         result.consumed || result.changed
     }
 
+    /**
+     * Offers a key to the UI and reports only whether a handler consumed it. For keys the host also has
+     * a use for, such as Escape closing the screen, where "the UI changed something" is not a claim.
+     */
+    fun keyConsumed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean = profileInput {
+        val frame = lastFrame ?: return@profileInput false
+        processInput(frame, QueuedUiInput.KeyPressed(keyCode, scanCode, modifiers, false)).consumed
+    }
+
     private inline fun profileInput(block: () -> Boolean): Boolean {
         if (!profiler.enabled) return block()
         val startedAt = System.nanoTime()

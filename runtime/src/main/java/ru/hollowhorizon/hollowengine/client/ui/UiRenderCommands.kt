@@ -463,7 +463,7 @@ class UiCommandRenderer {
         if (pushedClip) {
             commands += PushClipCommand(
                 node,
-                layoutNode.content.localTo(layoutNode.rect),
+                layoutNode.overflowClip.localTo(layoutNode.rect),
                 layoutNode.worldTransform,
             )
         }
@@ -479,8 +479,8 @@ class UiCommandRenderer {
 
         val childClip = when {
             !pushedClip -> activeClip
-            activeClip == null || !layoutBoundsMatchVisualBounds -> layoutNode.content.takeIf { it.hasVisibleArea() }
-            else -> activeClip.visibleIntersection(layoutNode.content)
+            activeClip == null || !layoutBoundsMatchVisualBounds -> layoutNode.overflowClip.takeIf { it.hasVisibleArea() }
+            else -> activeClip.visibleIntersection(layoutNode.overflowClip)
         }
         if (!pushedClip || childClip != null) {
             val sorted = layout.childrenOf(node)

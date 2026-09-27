@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
 import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
@@ -198,6 +199,11 @@ abstract class HollowComposeUiScreen(
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         if (closing) return false
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            pipeline.await()
+            if (surface.runtime.keyConsumed(keyCode, scanCode, modifiers)) return true
+            return super.keyPressed(keyCode, scanCode, modifiers)
+        }
         if (super.keyPressed(keyCode, scanCode, modifiers)) return true
         pipeline.await()
         return surface.runtime.keyPressed(keyCode, scanCode, modifiers)

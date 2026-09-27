@@ -2018,6 +2018,7 @@ class MinecraftUiRenderer {
             command.filter,
             command.slice,
             command.tint,
+            command.uv,
         )
     }
 

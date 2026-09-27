@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.slots
 
 import androidx.compose.runtime.mutableStateOf
+import net.minecraft.Util
+import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.common.slots.SlotButton
@@ -24,7 +26,11 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
 
     private var pendingButton: Int? = null
     private var pendingSlot = -1
+    private var pendingCollect = false
     private val dragged = LinkedHashSet<Int>()
+
+    private var lastPressSlot = -1
+    private var lastPressTime = 0L
 
     /** Flat index the pointer is over, or -1. Drives the tooltip and the key gestures. */
     val hovered: Int get() = hoveredState.value
@@ -53,6 +59,15 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
 
     internal fun press(slot: Int, button: Int, shift: Boolean) {
         cancelPending()
+        val now = Util.getMillis()
+        val doubleClick = button == LEFT_BUTTON && slot == lastPressSlot && now - lastPressTime < DOUBLE_CLICK_MILLIS
+        lastPressSlot = slot
+        lastPressTime = now
+
+        if (button == MIDDLE_BUTTON) {
+            if (Minecraft.getInstance().player?.abilities?.instabuild == true) session.submit(SlotIntent.clone(slot))
+            return
+        }
         if (button != LEFT_BUTTON && button != RIGHT_BUTTON) return
 
         if (shift) {
@@ -68,6 +83,7 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
 
         pendingButton = button
         pendingSlot = slot
+        pendingCollect = doubleClick
         dragged += slot
         session.beginPreview()
     }
@@ -85,12 +101,16 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
     internal fun release() {
         val button = pendingButton ?: return
         val slot = pendingSlot
+        val collect = pendingCollect
         // Read the targets out before clearing the gesture: they are what gets submitted.
         val targets = dragged.toList()
         cancelPending()
 
-        if (targets.size >= 2) session.submit(distributeIntent(button, targets))
-        else if (slot >= 0) session.submit(SlotIntent.click(slot, button.asSlotButton()))
+        when {
+            targets.size >= 2 -> session.submit(distributeIntent(button, targets))
+            collect && slot >= 0 -> session.submit(SlotIntent.collect(slot))
+            slot >= 0 -> session.submit(SlotIntent.click(slot, button.asSlotButton()))
+        }
     }
 
     /** Q on the hovered slot, or on the cursor stack when the pointer is over nothing. */
@@ -102,7 +122,7 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
 
     /** A press outside the container window puts the cursor stack on the ground, as in vanilla. */
     internal fun dropOutside(button: Int) {
-        if (session.carried.isEmpty) return
+        if (session.carried.isEmpty || (button != LEFT_BUTTON && button != RIGHT_BUTTON)) return
         session.submit(SlotIntent.dropCarried(all = button == LEFT_BUTTON))
     }
 
@@ -115,6 +135,7 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
         if (pendingButton != null) session.cancelPreview()
         pendingButton = null
         pendingSlot = -1
+        pendingCollect = false
         dragged.clear()
     }
 
@@ -126,5 +147,9 @@ class SlotInteraction internal constructor(private val session: ClientSlotSessio
     private companion object {
         const val LEFT_BUTTON = 0
         const val RIGHT_BUTTON = 1
+        const val MIDDLE_BUTTON = 2
+
+        /** Vanilla's window for a double click in a container screen. */
+        const val DOUBLE_CLICK_MILLIS = 250L
     }
 }
