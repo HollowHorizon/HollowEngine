@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.integrations.acoustic
+package ru.hollowhorizon.hollowengine.addons.acoustic
 
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
@@ -9,12 +9,7 @@ import ru.hollowhorizon.hollowengine.common.addons.HollowAddonManager
 import ru.hollowhorizon.hollowengine.common.attachments.binding.ROOT_COMPONENT_ID
 import java.util.UUID
 
-/**
- * Stable HollowEngine-facing contract implemented by the optional Acoustic addon.
- *
- * No Acoustic class crosses this boundary. Scripts therefore remain loadable when the mod or addon
- * is absent, and a reloaded addon cannot leave target-mod objects in a script classloader.
- */
+/** Addon-owned contract for Acoustic scripts; the published service disappears when the addon unloads. */
 interface AcousticIntegration {
     fun play(request: AcousticPlayRequest): AcousticPlayback
 

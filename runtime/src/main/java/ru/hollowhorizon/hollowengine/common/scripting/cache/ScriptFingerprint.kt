@@ -88,10 +88,10 @@ object ScriptFingerprint {
             production = RuntimeFlags.production,
         )
 
-    private val providers: List<ScriptClassProvider> by lazy {
+    private fun providers(): List<ScriptClassProvider> {
         // Fingerprinting must never be the thing that breaks script loading, and the definitions pull in
         // Minecraft classes that are not there in every environment this code runs in.
-        runCatching {
+        return runCatching {
             DefaultScriptDefinitions.providers().sortedByDescending { it.extension.length }
         }.onFailure { HollowEngine.LOGGER.error("Cannot read the script definitions for cache keys", it) }
             .getOrDefault(emptyList())
@@ -103,7 +103,7 @@ object ScriptFingerprint {
      * Sharing decides whether importers carry the script's classes at all.
      */
     private fun definitionIdentity(id: ScriptId): String {
-        val provider = providers.firstOrNull { id.fileName.endsWith(it.extension) } ?: return "unknown"
+        val provider = providers().firstOrNull { id.fileName.endsWith(it.extension) } ?: return "unknown"
         return buildString {
             append(provider.extension).append('|')
             append(provider.baseClass).append('|')

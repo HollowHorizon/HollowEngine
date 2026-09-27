@@ -99,8 +99,6 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
-import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hollowengine.common.events.registry.RegisterClientCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
@@ -532,7 +530,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onServerStopped(server: MinecraftServer) {
-        RegisterCommandsEvent.clearReplaySnapshot()
         RuntimeDispatcherState.stopServer(server)
         ServerRuntimeState.remove(server)
         clearCurrentServer(server)
@@ -592,7 +589,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onLevelClosed(level: Level) {
-        if (level.isClientSide) RegisterClientCommandsEvent.clearReplaySnapshot()
         AttachmentRegistry.close(level)
     }
 

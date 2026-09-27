@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects
+package ru.hollowhorizon.hollowengine.addons.acoustic
 
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
@@ -7,20 +7,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityAttachment
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.attachments.binding.ROOT_COMPONENT_ID
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticEntityAnchor
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticFade
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticFloatUpdate
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticLoop
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticPlayOptions
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticPlayRequest
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticPlayback
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticSource
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticStopRequest
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticUpdateOptions
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticUpdateRequest
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.HollowAcoustic
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.HollowModelAcousticAnchor
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.requireNonNegativeFinite
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.UUID
 

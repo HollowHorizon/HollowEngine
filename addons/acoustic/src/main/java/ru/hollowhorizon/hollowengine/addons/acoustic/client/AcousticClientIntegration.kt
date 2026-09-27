@@ -14,8 +14,8 @@ import ru.hollowhorizon.hollowengine.addons.acoustic.HollowModelAcousticTarget
 import ru.hollowhorizon.hollowengine.addons.acoustic.HollowModelAnchorKind
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonContext
 import ru.hollowhorizon.hollowengine.common.addons.extensions
-import ru.hollowhorizon.hollowengine.common.addons.minecraft
-import ru.hollowhorizon.hollowengine.common.addons.subscribe
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.attachments.api.findEntityByUuid
 import ru.hollowhorizon.hollowengine.common.attachments.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.attachments.binding.modelNodes
@@ -29,13 +29,16 @@ import ru.hollowhorizon.hollowengine.common.utils.math.MutableMat4f
 import ru.hollowhorizon.hollowengine.common.utils.math.MutableVec3f
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 
-internal object AcousticClientIntegration {
+@ClientOnly
+object AcousticClientIntegration {
     fun install(context: HollowAddonContext) {
         context.extensions.onUnload(AcousticModelAttachmentPublisher::close)
-        context.minecraft.subscribe<RenderLevelStageEvent>(priority = -10) { event ->
-            if (event.stage == RenderStage.AFTER_SKY) {
-                AcousticModelAttachmentPublisher.update(event.partialTick)
-            }
+    }
+
+    @SubscribeEvent(priority = -10)
+    fun onRenderLevel(event: RenderLevelStageEvent) {
+        if (event.stage == RenderStage.AFTER_SKY) {
+            AcousticModelAttachmentPublisher.update(event.partialTick)
         }
     }
 }

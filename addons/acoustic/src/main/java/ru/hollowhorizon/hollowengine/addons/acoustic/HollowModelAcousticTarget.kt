@@ -4,8 +4,6 @@ import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.addons.acoustic.client.AcousticModelAttachmentPublisher
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.AcousticSource
-import ru.hollowhorizon.hollowengine.common.integrations.acoustic.HollowModelAcousticAnchor
 import ru.hollowhorizon.hollowengine.common.network.HollowAddonPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid

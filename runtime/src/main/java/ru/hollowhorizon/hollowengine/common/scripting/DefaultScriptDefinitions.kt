@@ -26,11 +26,22 @@ object DefaultScriptDefinitions {
     private val definitions by lazy(::createProviders)
 
     fun providerFor(fileName: String): Provider? =
-        definitions.asSequence()
+        providers().asSequence()
             .filter { fileName.endsWith(it.extension) }
             .maxByOrNull { it.extension.length }
 
-    fun providers(): List<Provider> = definitions
+    fun providers(): List<Provider> {
+        val registered = definitions.toMutableList()
+        ScriptDefinitionsEvent.post(ScriptDefinitionsEvent(registered))
+        require(registered.map(Provider::extension).distinct().size == registered.size) {
+            "Script suffixes must be unique"
+        }
+        return registered.map { provider ->
+            val imports = provider.defaultImports.toMutableList()
+            ScriptDefaultImportsEvent.post(ScriptDefaultImportsEvent(provider.extension, imports))
+            provider.copy(defaultImports = imports.distinct())
+        }
+    }
 
     /**
      * What a script compiled while mixins are prepared may consist of: mixin scripts and the plain scripts
@@ -79,10 +90,6 @@ object DefaultScriptDefinitions {
                     "ru.hollowhorizon.hollowengine.common.dialogue.lang.number",
                     "ru.hollowhorizon.hollowengine.common.dialogue.lang.signature",
                     "ru.hollowhorizon.hollowengine.common.dialogue.lang.string",
-                    "ru.hollowhorizon.hollowengine.common.integrations.acoustic.*",
-                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.playAcoustic",
-                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.updateAcoustic",
-                    "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.stopAcoustic",
                 ),
                 implicitReceivers = listOf(ServerReloadContext::class),
                 clientSideReceivers = listOf(CLIENT_RELOAD_CONTEXT),
@@ -164,7 +171,6 @@ object DefaultScriptDefinitions {
                     "net.minecraft.core.BlockPos",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
-                    "ru.hollowhorizon.hollowengine.common.integrations.acoustic.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.entities.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
                     "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",

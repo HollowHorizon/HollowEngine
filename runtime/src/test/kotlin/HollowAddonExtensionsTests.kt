@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.addons
 
+import ru.hollowhorizon.hollowengine.api.extensions.ExtensionPoints
+import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensionChange
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -10,7 +13,7 @@ import kotlin.test.assertTrue
 class HollowAddonExtensionsTests {
     @Test
     fun `cleanup removes owned extensions in reverse order`() {
-        val point = HollowAddonExtensionPoint("test:point", TestExtension::class)
+        val point = point()
         val scope = OwnedHollowAddonExtensions("demo", javaClass.classLoader)
         val cleanupOrder = mutableListOf<String>()
 
@@ -28,7 +31,7 @@ class HollowAddonExtensionsTests {
 
     @Test
     fun `qualified identities isolate owners while rejecting duplicate owner keys`() {
-        val point = HollowAddonExtensionPoint("test:point", TestExtension::class)
+        val point = point()
         val first = OwnedHollowAddonExtensions("first-addon", javaClass.classLoader)
         val second = OwnedHollowAddonExtensions("second-addon", javaClass.classLoader)
 
@@ -49,7 +52,7 @@ class HollowAddonExtensionsTests {
 
     @Test
     fun `priority wins before deterministic registration order`() {
-        val point = HollowAddonExtensionPoint("test:point", TestExtension::class)
+        val point = point()
         val scope = OwnedHollowAddonExtensions("demo", javaClass.classLoader)
 
         scope.register(point, "normal", TestExtension("normal"), priority = 0)
@@ -62,7 +65,7 @@ class HollowAddonExtensionsTests {
 
     @Test
     fun `manual registration close is idempotent`() {
-        val point = HollowAddonExtensionPoint("test:point", TestExtension::class)
+        val point = point()
         val scope = OwnedHollowAddonExtensions("demo", javaClass.classLoader)
         val registration = scope.register(point, "editor", TestExtension("editor"))
 
@@ -76,7 +79,7 @@ class HollowAddonExtensionsTests {
 
     @Test
     fun `closed scope rejects and rolls back late registrations`() {
-        val point = HollowAddonExtensionPoint("test:point", TestExtension::class)
+        val point = point()
         val scope = OwnedHollowAddonExtensions("demo", javaClass.classLoader)
         scope.cleanup()
 
@@ -88,7 +91,7 @@ class HollowAddonExtensionsTests {
 
     @Test
     fun `extension callbacks use their defining context classloader`() {
-        val point = HollowAddonExtensionPoint("test:point", TestExtension::class)
+        val point = point()
         val loader = object : ClassLoader(javaClass.classLoader) {}
         val scope = OwnedHollowAddonExtensions("demo", loader)
         scope.register(point, "editor", TestExtension("editor"))
@@ -99,5 +102,27 @@ class HollowAddonExtensionsTests {
         scope.cleanup()
     }
 
+    @Test
+    fun `engine and addon registrations share one extension point`() {
+        val id = "test:${java.util.UUID.randomUUID()}".rl
+        val point = ExtensionPoints.create(id, TestExtension::class)
+        val samePoint = ExtensionPoints.create(id, TestExtension::class)
+        val changes = mutableListOf<HollowAddonExtensionChange<TestExtension>>()
+        val observer = point.observe(changes::add)
+        val engineHandle = point.register("test:engine".rl, TestExtension("engine"))
+        val addon = OwnedHollowAddonExtensions("demo", javaClass.classLoader)
+        addon.register(samePoint, "extension", TestExtension("addon"), priority = 1)
+
+        assertSame(point, samePoint)
+        assertEquals(listOf("addon", "engine"), point.extensions.map(TestExtension::name))
+        addon.cleanup()
+        engineHandle.close()
+        observer.close()
+        assertEquals(4, changes.size)
+        assertTrue(point.extensions.isEmpty())
+    }
+
     private data class TestExtension(val name: String)
+
+    private fun point() = ExtensionPoints.create("test:${java.util.UUID.randomUUID()}".rl, TestExtension::class)
 }

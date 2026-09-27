@@ -2,25 +2,23 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.api.extensions.ExtensionPoints
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockPlacement
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.BuiltinLanguages
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeLanguageService
-import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensionPoint
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensions
 import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRegistration
 import ru.hollowhorizon.hollowengine.common.addons.HostHollowAddonExtensions
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 /** Typed extension points consumed by the in-game Hollow IDE. */
 object HollowIdeExtensionPoints {
-    val FILE_TYPES = HollowAddonExtensionPoint("hollowengine:ide/file-types", HollowIdeFileType::class)
-    val PANELS = HollowAddonExtensionPoint("hollowengine:ide/panels", HollowIdePanel::class)
-    val MENU_ITEMS = HollowAddonExtensionPoint("hollowengine:ide/menu-items", HollowIdeMenuItem::class)
-    val FILE_ACTIONS = HollowAddonExtensionPoint("hollowengine:ide/file-actions", HollowIdeFileActionProvider::class)
-    val PROJECT_ACTIONS = HollowAddonExtensionPoint(
-        "hollowengine:ide/project-actions",
-        HollowIdeProjectActionProvider::class,
-    )
-    val LANGUAGES = HollowAddonExtensionPoint("hollowengine:ide/languages", HollowIdeLanguageService::class)
+    val FILE_TYPES = ExtensionPoints.create("hollowengine:ide/file-types".rl, HollowIdeFileType::class)
+    val PANELS = ExtensionPoints.create("hollowengine:ide/panels".rl, HollowIdePanel::class)
+    val MENU_ITEMS = ExtensionPoints.create("hollowengine:ide/menu-items".rl, HollowIdeMenuItem::class)
+    val FILE_ACTIONS = ExtensionPoints.create("hollowengine:ide/file-actions".rl, HollowIdeFileActionProvider::class)
+    val PROJECT_ACTIONS = ExtensionPoints.create("hollowengine:ide/project-actions".rl, HollowIdeProjectActionProvider::class)
+    val LANGUAGES = ExtensionPoints.create("hollowengine:ide/languages".rl, HollowIdeLanguageService::class)
 }
 
 /** Operations a contributed panel or menu action may request from the IDE host. */
