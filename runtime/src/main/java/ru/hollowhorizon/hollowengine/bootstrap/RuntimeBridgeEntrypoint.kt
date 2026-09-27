@@ -505,12 +505,16 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onBeforeBlitScreen(minecraft: Minecraft) {
-        HollowIdeGameViewport.endRender()
+        HollowIdeGameViewport.beginWindowPass()
     }
 
     override fun onBlitScreen(minecraft: Minecraft) {
         HollowIdeGameViewport.restoreWindowViewport()
-        RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
+        try {
+            RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
+        } finally {
+            HollowIdeGameViewport.endWindowPass()
+        }
     }
 
     override fun onServerCreated(server: MinecraftServer, serverThread: Thread, levelRoot: Path) {
@@ -550,21 +554,17 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientTick(client: Minecraft) {
+        HollowIdeGameViewport.beginFrame(client)
         RuntimeDispatcherState.runClientTasks(client)
     }
 
     override fun onClientRenderTickPre(client: Minecraft) {
-        HollowIdeGameViewport.beginRender(client)
         CutsceneCameraSystem.update(client)
         RenderTickEvent.Pre.post(RenderTickEvent.Pre(client))
     }
 
     override fun onClientRenderTickPost(client: Minecraft) {
         RenderTickEvent.Post.post(RenderTickEvent.Post(client))
-    }
-
-    override fun onClientResized(client: Minecraft) {
-        HollowIdeGameViewport.invalidateWindowMetrics()
     }
 
     override fun onClientStopping(client: Minecraft) {
@@ -966,7 +966,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun getGameViewportMetrics(): RuntimeBridge.GameViewportMetrics? = HollowIdeGameViewport.metrics()
 
-    override fun isGameViewportRendering(): Boolean = HollowIdeGameViewport.isRendering()
+    override fun isGameViewportWindowPass(): Boolean = HollowIdeGameViewport.isWindowPass()
 
     override fun onRenderLevelStage(
         renderer: LevelRenderer,

@@ -180,8 +180,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onClientRenderTickPost(Minecraft client);
 
-    void onClientResized(Minecraft client);
-
     void onClientStopping(Minecraft client);
 
     void onLevelCreated(Level level);
@@ -283,13 +281,13 @@ public interface RuntimeBridge extends AutoCloseable {
 
     /**
      * Virtual framebuffer and GUI dimensions used while the editor embeds the game in a dock.
-     * GUI dimensions remain active for input and screen layout; framebuffer dimensions are only
-     * exposed while {@link #isGameViewportRendering()} is true, so the IDE itself still renders
-     * against the real window.
+     * GUI dimensions are always answered; framebuffer dimensions are answered everywhere except
+     * the window pass ({@link #isGameViewportWindowPass()}), where the finished frame and the
+     * editor are drawn onto the real window.
      */
     @Nullable GameViewportMetrics getGameViewportMetrics();
 
-    boolean isGameViewportRendering();
+    boolean isGameViewportWindowPass();
 
     void onRenderLevelStage(LevelRenderer renderer, PoseStack poseStack, Matrix4f projectionMatrix, int ticks, float partialTick, Camera camera, @Nullable Frustum frustum, RenderLevelStage stage);
 

@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge
-import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeGameViewport.rendering
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import kotlin.math.ceil
 import kotlin.math.min
@@ -14,14 +13,16 @@ import kotlin.math.roundToInt
  * Where the game panel sits, and how large the game renders for it.
  */
 internal object HollowIdeGameViewport {
+    private class PanelReport(val owner: Any, val bounds: UiRect)
+
     @Volatile
-    private var panelBounds: UiRect? = null
+    private var panel: PanelReport? = null
 
     @Volatile
     private var windowMetrics: RuntimeBridge.GameViewportMetrics? = null
 
     @Volatile
-    private var rendering = false
+    private var windowPass = false
 
     @Volatile
     private var windowWidth = 0
@@ -29,24 +30,30 @@ internal object HollowIdeGameViewport {
     @Volatile
     private var windowHeight = 0
 
-    /** Called by the panel on every layout pass, and with null once it leaves the screen. */
-    fun report(bounds: UiRect?) {
-        panelBounds = bounds
+    /** Called by a docked panel with its bounds; [owner] tells an old panel instance from its replacement. */
+    fun report(owner: Any, bounds: UiRect) {
+        panel = PanelReport(owner, bounds)
+    }
+
+    /** Withdraws [owner]'s bounds, unless another panel instance has reported since. */
+    fun release(owner: Any) {
+        if (panel?.owner === owner) panel = null
     }
 
     /** Whether a docked panel is showing the game, which is the only case the game is cut down for. */
-    fun isEmbedded(): Boolean = panelBounds != null
+    fun isEmbedded(): Boolean = panel != null
 
     fun windowWidth(): Int = windowWidth.takeIf { it > 0 } ?: Minecraft.getInstance().window.width
 
     fun windowHeight(): Int = windowHeight.takeIf { it > 0 } ?: Minecraft.getInstance().window.height
 
     /**
-     * Makes the main game target match the physical pixels the panel occupies. The window getters
-     * are answered with the panel's size only while [rendering], while the GUI dimensions stay
-     * virtual until the panel disappears, so screen layout and input agree on one coordinate space.
+     * Makes the main game target match the physical pixels the panel occupies. Runs before anything
+     * else in the frame, so tasks, ticks and input see the same framebuffer size as rendering does:
+     * whatever vanilla sizes from the window outside rendering (post chains rebuilt by a resource
+     * reload, the transparency chain, entity effects) is sized for the panel too.
      */
-    fun beginRender(minecraft: Minecraft) {
+    fun beginFrame(minecraft: Minecraft) {
         sampleWindowSize(minecraft)
         val requested = requestedMetrics(minecraft)
         if (requested == null) {
@@ -62,36 +69,32 @@ internal object HollowIdeGameViewport {
             target.resize(requested.framebufferWidth(), requested.framebufferHeight(), Minecraft.ON_OSX)
             minecraft.gameRenderer.resize(requested.framebufferWidth(), requested.framebufferHeight())
         }
-        target.bindWrite(true)
         if (metricsChanged || resized) {
             minecraft.screen?.resize(minecraft, requested.guiScaledWidth(), requested.guiScaledHeight())
         }
-        rendering = true
     }
 
-    fun endRender() {
-        rendering = false
+    /** The finished frame goes onto the real window, and the editor is drawn over it at the window's size. */
+    fun beginWindowPass() {
+        windowPass = true
     }
 
     /**
-     * After game has been blitted, the screen belongs to the editor again: the game left the
-     * viewport sized for the panel, and everything drawn from here on covers the whole window.
+     * After game has been blitted, the screen belongs to the editor: the game left the viewport
+     * sized for the panel, and everything drawn from here on covers the whole window.
      */
     fun restoreWindowViewport() {
         if (windowMetrics == null) return
         GL11.glViewport(0, 0, windowWidth(), windowHeight())
     }
 
-    /** Vanilla has already restored its real target during resize; recompute virtual metrics next frame. */
-    fun invalidateWindowMetrics() {
-        rendering = false
-        windowMetrics = null
-        sampleWindowSize(Minecraft.getInstance())
+    fun endWindowPass() {
+        windowPass = false
     }
 
     fun metrics(): RuntimeBridge.GameViewportMetrics? = windowMetrics
 
-    fun isRendering(): Boolean = rendering
+    fun isWindowPass(): Boolean = windowPass
 
     private fun sampleWindowSize(minecraft: Minecraft) {
         val width = IntArray(1)
@@ -105,7 +108,7 @@ internal object HollowIdeGameViewport {
 
     private fun requestedMetrics(minecraft: Minecraft): RuntimeBridge.GameViewportMetrics? {
         if (!HollowIdeOverlay.expanded) return null
-        val bounds = panelBounds ?: return null
+        val bounds = panel?.bounds ?: return null
         if (bounds.width <= 0f || bounds.height <= 0f) return null
 
         val framebufferScale = HollowIdeScale.factor()
@@ -131,23 +134,20 @@ internal object HollowIdeGameViewport {
         return scale.toDouble()
     }
 
+    /**
+     * Metrics are only ever dropped here, so the target, the post chains and the screen layout
+     * always return to the window together with the window getters.
+     */
     private fun restoreWindowTarget(minecraft: Minecraft) {
-        if (windowMetrics == null) {
-            rendering = false
-            return
-        }
-        rendering = false
+        if (windowMetrics == null) return
         windowMetrics = null
-        val width = windowWidth().coerceAtLeast(1)
-        val height = windowHeight().coerceAtLeast(1)
-        val target = minecraft.mainRenderTarget
-        if (target.width != width || target.height != height) {
-            target.resize(width, height, Minecraft.ON_OSX)
-            minecraft.gameRenderer.resize(width, height)
-        }
         val window = minecraft.window
+        val target = minecraft.mainRenderTarget
+        if (target.width != window.width || target.height != window.height) {
+            target.resize(window.width, window.height, Minecraft.ON_OSX)
+            minecraft.gameRenderer.resize(window.width, window.height)
+        }
         minecraft.screen?.resize(minecraft, window.guiScaledWidth, window.guiScaledHeight)
-        target.bindWrite(true)
     }
 
     fun imageRect(bounds: UiRect): UiRect? {
@@ -165,5 +165,5 @@ internal object HollowIdeGameViewport {
         )
     }
 
-    fun imageRect(): UiRect? = panelBounds?.let(::imageRect)
+    fun imageRect(): UiRect? = panel?.bounds?.let(::imageRect)
 }

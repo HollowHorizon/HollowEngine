@@ -56,11 +56,6 @@ public class MinecraftMixin {
         BootstrapRuntimeManager.bridge().onClientStopping((Minecraft) (Object) this);
     }
 
-    @Inject(method = "resizeDisplay", at = @At("RETURN"))
-    private void onResizeDisplay(CallbackInfo ci) {
-        BootstrapRuntimeManager.bridge().onClientResized((Minecraft) (Object) this);
-    }
-
     @Inject(method = "setLevel", at = @At("HEAD"))
     private void onSetClientLevel(ClientLevel newLevel, ReceivingLevelScreen.Reason reason, CallbackInfo ci) {
         if (level != newLevel) hollowengine$releaseLevel();
