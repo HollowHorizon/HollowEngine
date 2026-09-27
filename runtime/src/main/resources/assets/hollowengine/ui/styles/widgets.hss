@@ -23,7 +23,7 @@
 
 .dropdown-button[expanded="true"] .dropdown-button-arrow {
     rotate: 0px 0px 180px;
-    fill: $white;
+    stroke: $white;
 }
 
 .dropdown-button-icon,
@@ -51,13 +51,16 @@
     wrap: false;
 }
 
+/* The tree's chevron turned to point down, so every disclosure in the editor is the same two strokes. */
 .dropdown-button-arrow {
-    size: 7px 5px;
-    shape: path("M 0 0 L 7 0 L 3.5 5 Z", 7 5);
-    fill: $text-muted;
+    size: 10px 10px;
+    shape: path("M 2 4 L 6 8 L 10 4", 12 12);
+    fill: none;
+    stroke: $text-muted;
+    stroke-width: 1.5px;
     transition:
         rotate 120ms ease-out,
-        fill 120ms ease-out;
+        stroke 120ms ease-out;
 }
 
 .dropdown-popup {

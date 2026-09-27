@@ -101,8 +101,12 @@ private const val StrikethroughAscenderShare = 0.32f
 /** Mirrors the shaders' floor on `pxRange`, the screen pixels one distance-field unit spans. */
 internal const val MinGlyphPxRange = 2f
 
-/** Mirrors the shaders' `1 + Softness`: the width, in screen pixels, of the coverage transition. */
-internal const val GlyphEdgeSoftness = 1.15f
+/**
+ * The width, in screen pixels, of a glyph's coverage transition. Both text shaders take it from
+ * here: `rect_sdf.fsh` as `GlyphEdgeSoftness`, `msdf_text.fsh` as `1 + Softness`. It also lowers
+ * [MaxBoldDistanceBias]; above 1.25 a default bold no longer fits even an 8px distance range.
+ */
+internal const val GlyphEdgeSoftness = 1.2f
 
 /**
  * Ceiling on the faux-bold distance bias, and the reason there has to be one: pixels further from a
