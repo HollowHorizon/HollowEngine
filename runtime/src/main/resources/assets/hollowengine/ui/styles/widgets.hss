@@ -303,6 +303,27 @@
     foreground: $text-strong;
 }
 
+/* An item's own tooltip: the game's lines, so vanilla's font and frame, with the IDE's corners. */
+.ui-tooltip.item {
+    max-width: 320px;
+    padding: 3px 5px;
+    background: alpha(#100010, 0.94);
+    border: 1px linear-gradient(180deg, alpha(#5000FF, 0.5), alpha(#28007F, 0.5));
+    border-radius: $radius-small;
+}
+
+.ui-item-tooltip {
+    gap: 2px;
+    font-family: vanilla;
+    font-size: 8px;
+}
+
+.ui-item-tooltip-line {
+    size: fit fit;
+    foreground: #FFFFFF;
+    text-wrap: false;
+}
+
 .ide-quick-fix-popup {
     padding: 3px;
     gap: 1px;

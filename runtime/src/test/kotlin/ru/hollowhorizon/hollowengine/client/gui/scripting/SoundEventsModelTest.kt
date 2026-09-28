@@ -1,20 +1,21 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsDocument
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.SoundEntry
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.SoundEntryType
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.sounds.SoundEntry
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.sounds.SoundEntryType
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.sounds.SoundEventsModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class HollowIdeSoundsDocumentTest {
+class SoundEventsModelTest {
     @Test
     fun `parses shorthand and full sound entries`() {
-        val document = HollowIdeSoundsDocument(SAMPLE.toByteArray())
+        val model = SoundEventsModel.parse(SAMPLE)
 
-        assertEquals(2, document.events.size)
-        val first = document.events[0]
+        assertEquals(2, model.events.size)
+        val first = model.events[0]
         assertEquals("block.custom.break", first.name)
         assertEquals("subtitles.block.custom.break", first.subtitle)
         assertEquals(2, first.sounds.size)
@@ -29,29 +30,35 @@ class HollowIdeSoundsDocumentTest {
         assertTrue(full.preload)
         assertEquals(SoundEntryType.EVENT, full.type)
 
-        assertTrue(document.events[1].replace)
+        assertTrue(model.events[1].replace)
     }
 
     @Test
-    fun `encode round-trips through a re-parse`() {
-        val once = HollowIdeSoundsDocument(SAMPLE.toByteArray()).encode()
-        val twice = HollowIdeSoundsDocument(once).encode()
-        assertEquals(once.decodeToString(), twice.decodeToString())
+    fun `serialize round-trips through a re-parse`() {
+        val once = SoundEventsModel.parse(SAMPLE).serialize()
+        val twice = SoundEventsModel.parse(once).serialize()
+        assertEquals(once, twice)
     }
 
     @Test
     fun `blank content yields no events`() {
-        assertEquals(0, HollowIdeSoundsDocument("{\n}\n".toByteArray()).events.size)
-        assertEquals(0, HollowIdeSoundsDocument(ByteArray(0)).events.size)
+        assertEquals(0, SoundEventsModel.parse("{\n}\n").events.size)
+        assertEquals(0, SoundEventsModel.parse("").events.size)
+    }
+
+    @Test
+    fun `half-typed text does not read as an empty file`() {
+        assertFailsWith<Exception> { SoundEventsModel.parse("{ \"block.custom\": {") }
+        assertFailsWith<Exception> { SoundEventsModel.parse("[]") }
     }
 
     @Test
     fun `defaults are omitted and shorthand is used`() {
-        val document = HollowIdeSoundsDocument(ByteArray(0))
-        val event = document.addEvent("test.event")
+        val model = SoundEventsModel.parse("")
+        val event = model.addEvent("test.event")
         event.sounds += SoundEntry(name = "modid:test")
 
-        val text = document.encode().decodeToString()
+        val text = model.serialize()
         assertTrue(text.contains("\"modid:test\""), "expected shorthand string entry")
         assertFalse(text.contains("volume"), "default volume must be omitted")
         assertFalse(text.contains("\"replace\""), "default replace must be omitted")

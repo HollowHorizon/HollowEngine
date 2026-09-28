@@ -1164,3 +1164,81 @@
     foreground: $text-faint;
     font-size: $font-size-small;
 }
+
+/* Text / split / preview switch of a file with a preview, at the right end of its tab bar. */
+.ide-view-modes {
+    size: fit 100%;
+    padding: 0px 2px;
+    gap: 1px;
+    align-items: center center;
+}
+
+.ide-view-mode {
+    size: fit fit;
+    margin: 2px 0px;
+    padding: 3px;
+    border-radius: $radius-small;
+    background: transparent;
+    transition: background 110ms ease-out;
+}
+
+.ide-view-mode:hover {
+    background: $bg-hover;
+}
+
+.ide-view-mode.selected {
+    background: $bg-selected;
+}
+
+.ide-view-mode-icon {
+    size: 13px 13px;
+    tint: $text-soft;
+}
+
+.ide-view-mode:hover .ide-view-mode-icon,
+.ide-view-mode.selected .ide-view-mode-icon {
+    tint: $white;
+}
+
+.ide-preview-divider {
+    background: transparent;
+    transition: background 120ms ease-out;
+}
+
+.ide-preview-divider:hover {
+    background: $accent-soft;
+}
+
+.ide-preview-error {
+    size: fill fill;
+    margin: 2px;
+    padding: 12px;
+    gap: 6px;
+    border-radius: $radius-large;
+    background: $bg-panel;
+}
+
+.ide-preview-error-title {
+    height: fit;
+    foreground: $caret;
+    font-size: $font-size-title;
+}
+
+.ide-preview-error-message {
+    size: 100% fit;
+    foreground: $danger;
+    text-wrap: true;
+}
+
+/* A file's visual editor or preview: the same rounded panel the text editor sits in. */
+.ide-file-panel {
+    size: fill fill;
+    margin: 2px;
+    border-radius: $radius-large;
+    background: $bg-field;
+}
+
+/* Something drawn edge to edge inside a file panel, such as a 3D preview, rounded with it. */
+.ide-file-viewport {
+    border-radius: $radius-large;
+}

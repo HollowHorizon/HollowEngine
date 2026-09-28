@@ -108,7 +108,8 @@ internal fun VfxEditorPanel(file: HollowIdeOpenFile) {
     }
 
     Column(
-        modifier = Modifier.size(100.percent, 100.percent).style(AnimatorStylesheet).background(AnimatorColors.Canvas)
+        tags = listOf("ide-file-panel"),
+        modifier = Modifier.style(AnimatorStylesheet).background(AnimatorColors.Canvas)
             .focusScope(),
     ) {
         document.error?.let { message ->
@@ -225,6 +226,7 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
 
     Box(
         id = "vfx-viewport",
+        tags = listOf("ide-file-viewport"),
         mode = UiBoxMode.STACK,
         modifier = Modifier.size(100.percent, 100.percent).clip().onPlaced { rect ->
             preview.viewportWidth = rect.width
@@ -278,7 +280,7 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
                 preview.zoom(event.scrollY)
                 event.consume()
             }.drawBehind(key = preview) {
-                drawGl { preview.render(rect, poseStack) }
+                preview.draw(this)
             },
     ) {
         Box(

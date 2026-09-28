@@ -38,6 +38,9 @@ interface UiCanvasDrawScope {
     val bounds: UiRect
         get() = UiRect(0f, 0f, size.width, size.height)
 
+    /** The node's own `border-radius`, for drawing that has to stay inside its rounded box. */
+    val cornerRadius: Float
+
     fun drawRect(
         rect: UiRect,
         paint: UiPaint,
@@ -74,12 +77,13 @@ interface UiCanvasDrawScope {
 
     fun drawSvg(document: UiSvgPathDocument) = drawSvg(document, bounds)
 
-    fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false, opaque: Boolean = false)
+    /** [radius] rounds the corners, so a texture filling a rounded panel stays inside it. */
+    fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean = false, opaque: Boolean = false, radius: Float = 0f)
 
     fun drawTexture(textureId: Int, flipY: Boolean = false, opaque: Boolean = false) =
         drawTexture(bounds, textureId, flipY, opaque)
 
-    fun drawTexture(rect: UiRect, texture: () -> Int, flipY: Boolean = false, opaque: Boolean = false)
+    fun drawTexture(rect: UiRect, texture: () -> Int, flipY: Boolean = false, opaque: Boolean = false, radius: Float = 0f)
 
     /** Draws world-independent Minecraft sprite particles, clipped to the given local rectangle. */
     fun drawParticles(system: UiParticleSystem, rect: UiRect = bounds)
@@ -142,6 +146,7 @@ internal class UiCommandCanvasScope(
     private val backfaceVisibility: UiBackfaceVisibility,
     private val phase: UiRenderPhase,
     private val sink: UiRenderSink,
+    override val cornerRadius: Float = 0f,
 ) : UiCanvasDrawScope {
     override val size = UiShapeSize(layoutNode.rect.width, layoutNode.rect.height)
 
@@ -203,13 +208,13 @@ internal class UiCommandCanvasScope(
         )
     }
 
-    override fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean, opaque: Boolean) {
+    override fun drawTexture(rect: UiRect, textureId: Int, flipY: Boolean, opaque: Boolean, radius: Float) {
         if (textureId == 0) return
-        rawTexture(rect, textureId, null, flipY, opaque)
+        rawTexture(rect, textureId, null, flipY, opaque, radius)
     }
 
-    override fun drawTexture(rect: UiRect, texture: () -> Int, flipY: Boolean, opaque: Boolean) {
-        rawTexture(rect, 0, texture, flipY, opaque)
+    override fun drawTexture(rect: UiRect, texture: () -> Int, flipY: Boolean, opaque: Boolean, radius: Float) {
+        rawTexture(rect, 0, texture, flipY, opaque, radius)
     }
 
     private fun rawTexture(
@@ -218,6 +223,7 @@ internal class UiCommandCanvasScope(
         texture: (() -> Int)?,
         flipY: Boolean,
         opaque: Boolean,
+        radius: Float,
     ) {
         if (!rect.isDrawable() || opacity <= 0f) return
         sink += DrawRawTextureCommand(
@@ -228,6 +234,7 @@ internal class UiCommandCanvasScope(
             opacity = opacity,
             flipY = flipY,
             opaque = opaque,
+            radius = radius.coerceAtLeast(0f),
             transform = layoutNode.worldTransform.translated(rect.x, rect.y),
             filter = filter,
             backfaceVisibility = backfaceVisibility,

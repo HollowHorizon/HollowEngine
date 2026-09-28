@@ -4,16 +4,12 @@ import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocume
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeRigDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeShaderGraphDocument
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
-
-internal const val SoundsFileName = "sounds.json"
 
 internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
     modelEditor: HollowIdeFileEditor,
     imageEditor: HollowIdeFileEditor,
     videoEditor: HollowIdeFileEditor,
-    soundsEditor: HollowIdeFileEditor,
     animatorEditor: HollowIdeFileEditor,
     rigEditor: HollowIdeFileEditor,
     vfxEditor: HollowIdeFileEditor,
@@ -57,16 +53,6 @@ internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
         ),
     )
     register(
-        HollowIdeFileType(
-            id = "sounds",
-            priority = 250,
-            matcher = { path, _ -> path.isSoundsFile() },
-            pathMatcher = { path -> path.isSoundsFile() },
-            loader = { _, bytes -> HollowIdeSoundsDocument(bytes) },
-            editor = soundsEditor,
-        ),
-    )
-    register(
         HollowIdeFileType.extensions(
             id = "model",
             extensions = listOf(".gltf", ".glb", ".fbx", ".geo.json"),
@@ -104,6 +90,3 @@ internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
         ),
     )
 }
-
-private fun String.isSoundsFile(): Boolean =
-    substringAfterLast('/').equals(SoundsFileName, ignoreCase = true)

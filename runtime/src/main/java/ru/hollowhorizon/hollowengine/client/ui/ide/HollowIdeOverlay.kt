@@ -10,14 +10,13 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.shadergraph.ShaderGraphEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.rig.RigEditorPanel
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.shadergraph.ShaderGraphEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx.VfxEditorPanel
 import ru.hollowhorizon.hollowengine.client.ui.ide.panels.*
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
+import ru.hollowhorizon.hollowengine.client.ui.ide.preview.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineDock
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
@@ -95,7 +94,6 @@ object HollowIdeOverlay {
                     modifier = Modifier.size(100.percent, 100.percent),
                 )
             },
-            soundsEditor = { file -> HollowIdeSoundsEditor(file) },
             animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
             rigEditor = { file -> RigEditorPanel(file) },
             vfxEditor = { file -> VfxEditorPanel(file) },
@@ -108,6 +106,7 @@ object HollowIdeOverlay {
             jsonModelEditor = { file -> VanillaModelEditorPanel(file.path) },
         )
     }
+    private val previews = HollowIdePreviewRegistry().apply { registerBuiltinPreviews() }
     private val model = HollowIdeModel(fileTypes)
     private val assetManagerState = AssetManagerState()
     private val dock = DockingState()
@@ -146,6 +145,7 @@ object HollowIdeOverlay {
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
+    private val fileViews = mutableMapOf<String, HollowIdeFileView>()
     private var fileContextMenu by mutableStateOf<FileContextMenu?>(null)
     private val dragAndDrop = UiDragAndDropState()
     private var refreshFilesRequested = false
@@ -383,10 +383,7 @@ object HollowIdeOverlay {
                 when (endGesture(pointerOwnerAt(point))) {
                     PointerOwner.GAME -> false
                     PointerOwner.EDITOR -> surface.runtime.mouseReleased(
-                        point.x,
-                        point.y,
-                        button,
-                        currentUiKeyModifiers()
+                        point.x, point.y, button, currentUiKeyModifiers()
                     ) || expanded
                 }
             }
@@ -592,6 +589,7 @@ object HollowIdeOverlay {
         dock.close(id)
         editorSessions.remove(path)?.close()
         editorStates.remove(path)
+        fileViews.remove(path)
         if (activeEditorPath == path) activeEditorPath = null
         findStates.remove(path)
         if (colorPicker?.path == path) colorPicker = null
@@ -693,25 +691,17 @@ object HollowIdeOverlay {
                 .size(100.percent, 100.percent).focusScope().onKeyInput { input ->
                     val handled =
                         !input.repeat && (input.key == GLFW.GLFW_KEY_ESCAPE && packaging.closeDialogs() || input.key == GLFW.GLFW_KEY_ESCAPE && closeFileContextMenu() || input.key == GLFW.GLFW_KEY_ESCAPE && closeShortcuts() || handleHollowIdeSearchKey(
-                            search,
-                            input.key,
-                            input.modifiers,
-                            ::openSearchResult
+                            search, input.key, input.modifiers, ::openSearchResult
                         ) || project.handleNameDialogKey(input.key) || handleSearchOverlayShortcut(
-                            input.key,
-                            input.modifiers
+                            input.key, input.modifiers
                         ) || handleProjectFilterShortcut(
-                            input.key,
-                            input.modifiers
+                            input.key, input.modifiers
                         ) || project.handleShortcut(input.key, input.modifiers) || handleStripeShortcut(
-                            input.key,
-                            input.modifiers
+                            input.key, input.modifiers
                         ) || handleDockShortcut(
-                            input.key,
-                            input.modifiers
+                            input.key, input.modifiers
                         ) || handleEditorShortcut(
-                            input.key,
-                            input.modifiers
+                            input.key, input.modifiers
                         ) || input.key == GLFW.GLFW_KEY_F4 && goToDefinition())
                     if (handled) input.consume()
                 }) {
@@ -727,6 +717,7 @@ object HollowIdeOverlay {
                             modifier = Modifier.size(100.percent, 0.px).grow(1f),
                             tabBarActions = { item ->
                                 if (item.id == ProjectTreeId) HollowIdeProjectActions(packaging)
+                                else fileView(item.id)?.let { view -> HollowIdeViewModeSwitch(view, item.id) }
                             },
                             content = { item -> DockContent(item) },
                         )
@@ -813,8 +804,11 @@ object HollowIdeOverlay {
         val treePath = model.selectedTreePath
         val file = focusedFile() ?: activeEditorFile()
         val status = when {
-            focused == ProjectTreeId && treePath.isNotEmpty() ->
-                HollowIdeStatus(pathCrumbs(project, treePath, null, navigation.revealInProject))
+            focused == ProjectTreeId && treePath.isNotEmpty() -> HollowIdeStatus(
+                pathCrumbs(
+                    project, treePath, null, navigation.revealInProject
+                )
+            )
 
             focused == InspectorId && selection != null -> inspectorStatus(project, selection, navigation)
             file != null -> fileStatus(project, file, editorStates[file.path], navigation)
@@ -829,16 +823,16 @@ object HollowIdeOverlay {
         var popup by remember { mutableStateOf(false) }
         var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
         Box(id = "ide-logo", modifier = Modifier.cursor(UiCursorShape.HAND).onClick { event ->
-                if (event.isLeftClick()) {
-                    collapsed = !collapsed
-                    openDropdown = null
-                    event.consume()
-                } else if (event.isRightClick()) {
-                    popup = true
-                }
-            }.onPlaced {
-                anchorBounds = it
-            }) {
+            if (event.isLeftClick()) {
+                collapsed = !collapsed
+                openDropdown = null
+                event.consume()
+            } else if (event.isRightClick()) {
+                popup = true
+            }
+        }.onPlaced {
+            anchorBounds = it
+        }) {
             Image(LogoIcon, tags = listOf("ide-logo-icon"))
         }
         if (popup) {
@@ -995,7 +989,7 @@ object HollowIdeOverlay {
 
             UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
             else -> model.files.values.firstOrNull { it.id == item.id }?.let { file ->
-                file.type.editor(file)
+                FileTabBody(file)
                 LaunchedEffect(file.dirty) {
                     dock.updateItem(file.dockItem())
                 }
@@ -1010,13 +1004,13 @@ object HollowIdeOverlay {
         Column(
             tags = listOfNotNull("ide-panel", "project-tree-panel", "drop-target".takeIf { rootHighlighted }),
             modifier = Modifier.size(100.percent, 100.percent).dropTarget(
-                    id = rootDrop,
-                    accepts = { (it.payload as? HollowIdeExternalFileDrag)?.canImportInto("".fromReadablePath()) == true },
-                    onDrop = { item, _, _ ->
-                        val files = item.payload as? HollowIdeExternalFileDrag
-                        files != null && project.importFiles(files.files, "")
-                    },
-                ),
+                id = rootDrop,
+                accepts = { (it.payload as? HollowIdeExternalFileDrag)?.canImportInto("".fromReadablePath()) == true },
+                onDrop = { item, _, _ ->
+                    val files = item.payload as? HollowIdeExternalFileDrag
+                    files != null && project.importFiles(files.files, "")
+                },
+            ),
         ) {
             UiTreeView(
                 items = model.visibleTreeItems(projectFilter.query, rootLabel = packaging.properties.displayName),
@@ -1117,15 +1111,15 @@ object HollowIdeOverlay {
                 mode = UiBoxMode.STACK,
                 tags = listOf("ide-editor-stack"),
                 modifier = Modifier.grow(1f).dropTarget(
-                        accepts = { !file.readOnly && it.payload is HollowIdeFileDrag },
-                        onDragOver = { _, x, y ->
-                            editorState.offsetAtPoint?.invoke(x, y)?.let(editorState::moveCaret)
-                        },
-                        onDrop = { item, x, y ->
-                            val dropped = item.payload as? HollowIdeFileDrag ?: return@dropTarget false
-                            insertFileReference(file, editorState, dropped.path, x, y)
-                        },
-                    ),
+                    accepts = { !file.readOnly && it.payload is HollowIdeFileDrag },
+                    onDragOver = { _, x, y ->
+                        editorState.offsetAtPoint?.invoke(x, y)?.let(editorState::moveCaret)
+                    },
+                    onDrop = { item, x, y ->
+                        val dropped = item.payload as? HollowIdeFileDrag ?: return@dropTarget false
+                        insertFileReference(file, editorState, dropped.path, x, y)
+                    },
+                ),
             ) {
                 UiCodeEditor(
                     value = file.text,
@@ -1150,15 +1144,47 @@ object HollowIdeOverlay {
                     id = editorId,
                     attributes = mapOf("analysis-revision" to analysisRevision.toString()),
                     modifier = Modifier.size(100.percent, 100.percent).onFocus {
-                            dock.focus(file.id)
-                        }.onScroll { event ->
-                            if (!event.isCtrlDown()) return@onScroll
-                            HollowIdeFontSize.zoom(event.rawScrollY)
-                            event.consume()
-                        })
+                        dock.focus(file.id)
+                    }.onScroll { event ->
+                        if (!event.isCtrlDown()) return@onScroll
+                        HollowIdeFontSize.zoom(event.rawScrollY)
+                        event.consume()
+                    })
                 HollowIdeDiagnosticsBadge(file.id, diagnostics) { showProblems(file) }
             }
         }
+    }
+
+    /** The file's editor, or its text and preview in the mode the tab bar's switch picked. */
+    @Composable
+    private fun FileTabBody(file: HollowIdeOpenFile) {
+        val view = fileView(file)
+        if (view == null) {
+            file.type.editor(file)
+            return
+        }
+        val context = remember(file, view) {
+            HollowIdePreviewContext(file, view) { next ->
+                applyEditorText(file, next, editorState(file).caret.coerceAtMost(next.length))
+            }
+        }
+        HollowIdeFileViewBody(
+            view = view,
+            id = file.id,
+            text = { file.type.editor(file) },
+            preview = { view.preview.content(context) },
+        )
+    }
+
+    private fun fileView(itemId: String): HollowIdeFileView? =
+        model.files.values.firstOrNull { it.id == itemId }?.let(::fileView)
+
+    /** Only text files get a preview: it reads and writes the text, whatever type the file has. */
+    private fun fileView(file: HollowIdeOpenFile): HollowIdeFileView? {
+        if (file.textOrNull == null) return null
+        fileViews[file.path]?.let { return it }
+        val preview = previews.find(file.path) ?: return null
+        return HollowIdeFileView(preview).also { fileViews[file.path] = it }
     }
 
     @Composable
@@ -1194,10 +1220,7 @@ object HollowIdeOverlay {
             return
         }
         val modelTypeId = assetFileTypeId(
-            scope,
-            asset.location.path,
-            ByteArray(0),
-            forceText
+            scope, asset.location.path, ByteArray(0), forceText
         )?.takeIf { it == AssetJsonModelFileTypeId || it == "model" }
         val bytes = if (modelTypeId != null) {
             ByteArray(0)
@@ -1527,8 +1550,7 @@ object HollowIdeOverlay {
         }
         val text = file.text
         if (action.start < 0 || action.end !in action.start..text.length || text.substring(
-                action.start,
-                action.end
+                action.start, action.end
             ) != action.literal
         ) {
             statusText = EditorLang.COLOR_MOVED.lang
@@ -1613,18 +1635,13 @@ object HollowIdeOverlay {
         val frameWidth = HollowIdeScale.scaledWidth()
         val frameHeight = HollowIdeScale.scaledHeight()
         val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null) ?: surface.frame(
-            frameWidth,
-            frameHeight,
-            lastMouseX,
-            lastMouseY,
-            System.nanoTime()
+            frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime()
         )
         renderer.render(frame, target)
         // Only ask for the cursor while the pointer is actually over the IDE; anywhere else the
         // world and its gizmo are free to have it.
         val overIde = !isGameCaptured && !pointerFollowsGame && surface.runtime.lastFrame?.hitsVisible(
-            lastMouseX,
-            lastMouseY
+            lastMouseX, lastMouseY
         ) == true
         UiCursorManager.claim(
             window = window.window,

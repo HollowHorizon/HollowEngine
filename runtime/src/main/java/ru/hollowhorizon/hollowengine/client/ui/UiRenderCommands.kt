@@ -159,6 +159,7 @@ data class DrawRawTextureCommand(
     val opacity: Float,
     val flipY: Boolean,
     val opaque: Boolean,
+    val radius: Float = 0f,
     val transform: UiMatrix4,
     val filter: UiFilterChain,
     val backfaceVisibility: UiBackfaceVisibility,
@@ -455,6 +456,7 @@ class UiCommandRenderer {
             layoutNode,
             localOpacity,
             baseFilter,
+            style.border.radius,
             UiCanvasDrawLayer.BEHIND,
             UiRenderPhase.BACKGROUND,
             commands,
@@ -516,6 +518,7 @@ class UiCommandRenderer {
             layoutNode,
             localOpacity,
             baseFilter,
+            style.border.radius,
             UiCanvasDrawLayer.OVERLAY,
             UiRenderPhase.OVERLAY,
             commands,
@@ -544,6 +547,7 @@ class UiCommandRenderer {
         layoutNode: UiLayoutNode,
         opacity: Float,
         filter: UiFilterChain,
+        cornerRadius: Float,
         layer: UiCanvasDrawLayer,
         phase: UiRenderPhase,
         commands: UiRenderSink,
@@ -553,7 +557,7 @@ class UiCommandRenderer {
         for (index in modifiers.indices) {
             val modifier = modifiers[index]
             if (modifier !is UiCanvasModifier || modifier.layer != layer) continue
-            val activeScope = scope ?: canvasScope(node, layoutNode, opacity, filter, phase, commands).also {
+            val activeScope = scope ?: canvasScope(node, layoutNode, opacity, filter, phase, commands, cornerRadius).also {
                 scope = it
             }
             activeScope.run(modifier.block)
@@ -721,6 +725,7 @@ class UiCommandRenderer {
         filter: UiFilterChain,
         phase: UiRenderPhase,
         commands: UiRenderSink,
+        cornerRadius: Float = 0f,
     ) = UiCommandCanvasScope(
         node = node,
         layoutNode = layoutNode,
@@ -729,6 +734,7 @@ class UiCommandRenderer {
         backfaceVisibility = node.resolvedSnapshot.backfaceVisibility,
         phase = phase,
         sink = commands,
+        cornerRadius = cornerRadius,
     )
 
     /**

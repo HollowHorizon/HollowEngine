@@ -2,14 +2,9 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 
 import com.mojang.blaze3d.pipeline.TextureTarget
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.BufferUploader
-import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.PoseStack
-import com.mojang.blaze3d.vertex.Tesselator
-import com.mojang.blaze3d.vertex.VertexFormat
 import com.mojang.blaze3d.vertex.VertexSorting
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GameRenderer
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -28,8 +23,8 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Draws the preview into a target of its own, as large as the panel is in real pixels, and puts
- * that on the panel.
+ * Draws the preview into a target of its own, as large as the panel is in real pixels; the panel
+ * then shows [texture] like any other texture, rounded corners included.
  *
  * A target of its own is what lets the preview show what the world shows: full-screen passes run
  * over the preview alone, and a material that reads the scene depth reads the preview's.
@@ -41,9 +36,12 @@ internal class VfxPreviewRenderer {
     /** The camera shake of the last frame, in degrees; the next frame's camera takes it. */
     val shake = FloatArray(3)
 
+    /** The color texture of the last frame drawn, or 0 before the first. */
+    var texture = 0
+        private set
+
     fun render(preview: VfxPreviewState, instance: VfxInstance, rect: UiRect, stack: PoseStack) {
         val size = pixelSize(rect, stack) ?: return
-        var texture = 0
 
         withOwnRenderTarget {
             val offscreen = targetOf(size.first, size.second)
@@ -83,13 +81,12 @@ internal class VfxPreviewRenderer {
             )
             VfxPostProcessor.apply(frame.posts, offscreen)
         }
-
-        blit(texture, rect, stack)
     }
 
     fun close() {
         target?.destroyBuffers()
         target = null
+        texture = 0
     }
 
     /** How many pixels of the target being drawn into the panel covers, whatever scale the UI uses. */
@@ -110,22 +107,6 @@ internal class VfxPreviewRenderer {
         if (current != null && current.width == width && current.height == height) return current
         current?.destroyBuffers()
         return TextureTarget(width, height, true, Minecraft.ON_OSX).also { target = it }
-    }
-
-    /** The target over the panel, upside down, since a target starts at the bottom. */
-    private fun blit(texture: Int, rect: UiRect, stack: PoseStack) {
-        RenderSystem.setShader(GameRenderer::getPositionTexShader)
-        RenderSystem.setShaderTexture(0, texture)
-        RenderSystem.disableBlend()
-        RenderSystem.disableCull()
-        val pose = stack.last().pose()
-        val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
-        builder.addVertex(pose, 0f, 0f, 0f).setUv(0f, 1f)
-        builder.addVertex(pose, 0f, rect.height, 0f).setUv(0f, 0f)
-        builder.addVertex(pose, rect.width, rect.height, 0f).setUv(1f, 0f)
-        builder.addVertex(pose, rect.width, 0f, 0f).setUv(1f, 1f)
-        BufferUploader.drawWithShader(builder.buildOrThrow())
-        RenderSystem.enableCull()
     }
 
     private fun drawFloor(lines: DebugLines.Batch) {

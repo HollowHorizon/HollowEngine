@@ -1,19 +1,20 @@
-package ru.hollowhorizon.hollowengine.client.ui.ide.files
+package ru.hollowhorizon.hollowengine.client.ui.ide.files.sounds
 
 import androidx.compose.runtime.*
-import kotlinx.coroutines.delay
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOpenFile
+import ru.hollowhorizon.hollowengine.client.ui.ide.preview.HollowIdePreviewContext
+import ru.hollowhorizon.hollowengine.client.ui.ide.preview.HollowIdePreviewError
+import ru.hollowhorizon.hollowengine.client.ui.ide.preview.HollowIdeTextModel
 import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import java.io.File
-import kotlin.time.Duration.Companion.milliseconds
 
-private const val AutoSaveDelayMillis = 900L
+internal const val SoundsFileName = "sounds.json"
+
 private const val ListWidth = 220f
 private const val AddIcon = "hollowengine:textures/gui/icons/add.svg"
 private const val RemoveIcon = "hollowengine:textures/gui/icons/remove.svg"
@@ -21,18 +22,28 @@ private const val SoundIcon = "hollowengine:textures/gui/icons/file_sound.png"
 
 private fun key(name: String) = "hollowengine.gui.sounds_editor.$name"
 
+internal fun String.isSoundsFile(): Boolean =
+    substringAfterLast('/').equals(SoundsFileName, ignoreCase = true)
+
+/** What the editor keeps while its tab is switched away. */
+private class SoundsPreviewState {
+    val model = HollowIdeTextModel(SoundEventsModel::parse)
+    val list = LazyListState()
+    val detailScroll = UiScrollHandle()
+    var query by mutableStateOf("")
+    var selected by mutableStateOf<SoundEvent?>(null)
+}
+
 /**
- * Specialized editor for `sounds.json`: a master/detail view over
- * [HollowIdeSoundsDocument] that lets creators add and tune sound events quickly,
- * with debounced auto-save. Styling lives in `sounds-editor.hss`.
+ * Master/detail editor for `sounds.json`, shown as the file's preview. Edits go back into the text,
+ * which saves them; styling lives in `sounds-editor.hss`.
  */
 @Composable
-internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
-    val document = file.document as HollowIdeSoundsDocument
-    val listScroll = remember(document) { UiScrollHandle() }
-    val detailScroll = remember(document) { UiScrollHandle() }
-    var query by remember(document) { mutableStateOf("") }
-    var selected by remember(document) { mutableStateOf(document.events.firstOrNull()) }
+internal fun SoundsPreview(context: HollowIdePreviewContext) {
+    val state = context.state { SoundsPreviewState() }
+    val parsed = state.model.read(context.text)
+    val model = parsed.getOrNull() ?: return HollowIdePreviewError(parsed.exceptionOrNull())
+    val file = context.file
 
     val namespaceDir = file.path.substringBeforeLast('/', "")
     val namespace = namespaceDir.substringAfterLast('/').ifEmpty { "minecraft" }
@@ -40,8 +51,8 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
 
     val soundCompletions: UiCompletionContributor? = remember(availableSounds) {
         if (availableSounds.isEmpty()) null
-        else UiCompletionContributor { context ->
-            val prefix = context.text.take(context.caret.coerceIn(0, context.text.length))
+        else UiCompletionContributor { completion ->
+            val prefix = completion.text.take(completion.caret.coerceIn(0, completion.text.length))
             availableSounds
                 .filter { prefix.isEmpty() || it.startsWith(prefix, ignoreCase = true) }
                 .map { UiTextCompletion(label = it, insertText = it, icon = SoundIcon) }
@@ -49,22 +60,21 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
     }
 
     fun markChanged() {
-        document.touch()
-        file.updateDirty(document.isModified)
+        if (context.readOnly) {
+            // Nothing is written, so the next read has to bring the fields back to what the file says.
+            state.model.invalidate()
+            return
+        }
+        val text = model.serialize()
+        state.model.wrote(text)
+        context.edit(text)
     }
 
-    LaunchedEffect(document.revision) {
-        if (!document.isModified) return@LaunchedEffect
-        delay(AutoSaveDelayMillis.milliseconds)
-        if (document.isModified) file.save()
-    }
-
-    val current = selected?.takeIf { it in document.events } ?: document.events.firstOrNull()
+    val current = state.selected?.takeIf { it in model.events } ?: model.events.firstOrNull()
 
     Column(
-        tags = listOf("sounds-editor-root"),
+        tags = listOf("ide-file-panel", "sounds-editor-root"),
         modifier = Modifier.style(InspectorStylesheet).style("hollowengine:ui/styles/sounds-editor.hss")
-            .size(100.percent, 100.percent)
             .focusScope(),
     ) {
         Row(tags = listOf("sounds-editor-toolbar"), modifier = Modifier.alignItems(vertical = UiAlign.CENTER)) {
@@ -84,33 +94,36 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
                 modifier = Modifier.size(ListWidth.px, 100.percent),
             ) {
                 TextField(
-                    value = query,
-                    onChange = { query = it },
+                    value = state.query,
+                    onChange = { state.query = it },
                     placeholder = key("search").lang,
                     tags = listOf("sounds-editor-search"),
                     modifier = Modifier.size(100.percent, 22.px),
                 )
                 SoundsButton(key("add_event"), AddIcon, modifier = Modifier.size(100.percent, 24.px)) {
-                    selected = document.addEvent()
-                    file.updateDirty(document.isModified)
+                    state.selected = model.addEvent()
+                    markChanged()
                 }
-                Column(
+                val filtered = model.events.filter { state.query.isBlank() || it.name.contains(state.query, ignoreCase = true) }
+                if (filtered.isEmpty()) {
+                    Text(key("no_events").lang, tags = listOf("sounds-editor-empty"))
+                }
+                LazyColumn(
                     tags = listOf("sounds-editor-list-scroll"),
-                    modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(horizontal = false, state = listScroll),
+                    modifier = Modifier.size(100.percent, 0.px).grow(1f),
+                    state = state.list,
+                    gap = 2f,
                 ) {
-                    val filtered = document.events.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
-                    if (filtered.isEmpty()) {
-                        Text(key("no_events").lang, tags = listOf("sounds-editor-empty"))
-                    }
-                    filtered.forEach { event ->
+                    items(filtered.size) { index ->
+                        val event = filtered[index]
                         EventRow(
                             event = event,
                             selected = event === current,
-                            onSelect = { selected = event },
+                            onSelect = { state.selected = event },
                             onDelete = {
-                                if (event === selected) selected = null
-                                document.removeEvent(event)
-                                file.updateDirty(document.isModified)
+                                if (event === state.selected) state.selected = null
+                                model.events.remove(event)
+                                markChanged()
                             },
                         )
                     }
@@ -119,7 +132,7 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
 
             Column(
                 tags = listOf("sounds-editor-detail"),
-                modifier = Modifier.size(0.px, 100.percent).grow(1f).scrollable(horizontal = false, state = detailScroll),
+                modifier = Modifier.size(0.px, 100.percent).grow(1f).scrollable(horizontal = false, state = state.detailScroll),
             ) {
                 val event = current
                 if (event == null) {
@@ -135,6 +148,7 @@ internal fun HollowIdeSoundsEditor(file: HollowIdeOpenFile) {
         }
     }
 }
+
 
 @Composable
 private fun EventRow(

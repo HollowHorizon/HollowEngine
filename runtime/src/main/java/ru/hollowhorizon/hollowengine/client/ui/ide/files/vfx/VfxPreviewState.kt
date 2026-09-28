@@ -10,6 +10,7 @@ import org.joml.Vector3f
 import org.joml.Vector4f
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.ui.SpringZoom
+import ru.hollowhorizon.hollowengine.client.ui.UiCanvasDrawScope
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.vfx.VfxBudget
 import ru.hollowhorizon.hollowengine.client.vfx.VfxInstance
@@ -243,8 +244,16 @@ class VfxPreviewState(initialDistance: Float = 4.5f) {
 
     private val renderer = VfxPreviewRenderer()
 
-    /** Draws the floor and the effect into [rect]; called from a `drawGl` block. */
-    fun render(rect: UiRect, stack: PoseStack) {
+    /**
+     * Draws the floor and the effect into the preview's own target, then that target onto the node,
+     * rounded as the node is, so the preview sits in a rounded panel like the rest of the IDE.
+     */
+    fun draw(scope: UiCanvasDrawScope) {
+        scope.drawGl { render(rect, poseStack) }
+        scope.drawTexture(scope.bounds, { renderer.texture }, flipY = true, opaque = true, radius = scope.cornerRadius)
+    }
+
+    private fun render(rect: UiRect, stack: PoseStack) {
         val playing = instance ?: return
         if (rect.width <= 1f || rect.height <= 1f) return
         renderer.render(this, playing, rect, stack)

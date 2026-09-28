@@ -44,7 +44,7 @@ internal fun VfxMaterialPreview(state: VfxEditorState, surface: VfxSurfaceSpec) 
         id = "vfx-material-preview",
         tags = listOf("vfx-material-preview"),
         modifier = Modifier.drawBehind(key = preview) {
-            drawGl { preview.render(rect, poseStack) }
+            preview.draw(this)
         },
     )
 }

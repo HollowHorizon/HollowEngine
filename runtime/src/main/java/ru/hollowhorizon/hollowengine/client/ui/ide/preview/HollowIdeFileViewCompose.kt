@@ -1,0 +1,82 @@
+package ru.hollowhorizon.hollowengine.client.ui.ide.preview
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
+import ru.hollowhorizon.hollowengine.client.utils.lang
+
+private const val SplitterWidth = 2f
+private const val MinSplit = 0.15f
+private const val MaxSplit = 0.85f
+
+/** The file's tab body in its current [HollowIdeViewMode]. */
+@Composable
+internal fun HollowIdeFileViewBody(
+    view: HollowIdeFileView,
+    id: String,
+    text: @Composable () -> Unit,
+    preview: @Composable () -> Unit,
+) {
+    key(view.mode) {
+        when (view.mode) {
+            HollowIdeViewMode.TEXT -> text()
+            HollowIdeViewMode.PREVIEW -> preview()
+            HollowIdeViewMode.SPLIT -> Row(id = "$id-split", modifier = Modifier.size(100.percent, 100.percent)) {
+                Box(modifier = Modifier.size(0.px, 100.percent).grow(view.split)) { text() }
+                SplitDivider(view, id)
+                Box(modifier = Modifier.size(0.px, 100.percent).grow(1f - view.split)) { preview() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SplitDivider(view: HollowIdeFileView, id: String) {
+    val dragStart = remember(view) { floatArrayOf(view.split) }
+    Box(
+        id = "$id-split-divider",
+        tags = listOf("ide-preview-divider"),
+        modifier = Modifier.size(SplitterWidth.px, 100.percent).input(hoverable = true, draggable = true)
+            .cursor(UiCursorShape.RESIZE_HORIZONTAL).onPress { dragStart[0] = view.split }.onDrag { event ->
+                val width = event.parentWidth - SplitterWidth
+                if (width > 0f) view.split = (dragStart[0] + event.dragTotalX / width).coerceIn(MinSplit, MaxSplit)
+                event.consume()
+            },
+    )
+}
+
+/** The three mode buttons at the right end of the tab bar, as in IDEA. */
+@Composable
+internal fun HollowIdeViewModeSwitch(view: HollowIdeFileView, id: String) {
+    Row(tags = listOf("ide-view-modes"), modifier = Modifier.alignItems(vertical = UiAlign.CENTER)) {
+        HollowIdeViewMode.entries.forEach { mode ->
+            Box(
+                id = "$id-view-${mode.name.lowercase()}",
+                mode = UiBoxMode.STACK,
+                tags = listOfNotNull("ide-view-mode", "selected".takeIf { view.mode == mode }),
+                modifier = Modifier.input(hoverable = true, clickable = true).cursor(UiCursorShape.HAND)
+                    .tooltipOnHover(mode.tooltip.lang).onClick { event ->
+                        view.mode = mode
+                        event.consume()
+                    },
+            ) {
+                Image(
+                    mode.icon,
+                    tags = listOf("ide-view-mode-icon"),
+                    modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER)
+                )
+            }
+        }
+    }
+}
+
+/** What a preview shows while the text does not read, instead of editing over it. */
+@Composable
+fun HollowIdePreviewError(error: Throwable?) {
+    Column(tags = listOf("ide-preview-error")) {
+        Text("hollowengine.gui.ide.preview.unreadable".lang, tags = listOf("ide-preview-error-title"))
+        error?.let { Text(it.message ?: it.javaClass.simpleName, tags = listOf("ide-preview-error-message")) }
+    }
+}

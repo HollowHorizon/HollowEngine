@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.ui.ide.files
+package ru.hollowhorizon.hollowengine.client.ui.ide.files.sounds
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -11,51 +11,13 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
-import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeFileDocument
 
-internal class HollowIdeSoundsDocument(bytes: ByteArray) : HollowIdeFileDocument {
-    override val readOnly: Boolean = false
-
-    val events: SnapshotStateList<SoundEvent> = mutableStateListOf()
-
-    /** Bumped on every edit; the editor keys its debounced auto-save on this value. */
-    var revision by mutableStateOf(0)
-        private set
-    private var savedRevision = 0
-
-    val isModified: Boolean get() = revision != savedRevision
-
-    init {
-        events += parse(bytes)
-    }
-
-    /** Records that the in-memory model changed. Call after any structural or field edit. */
-    fun touch() {
-        revision++
-    }
-
+/** `sounds.json` as the editor works on it; [serialize] writes it back in vanilla's shape. */
+internal class SoundEventsModel(val events: SnapshotStateList<SoundEvent>) {
     fun addEvent(name: String = "new_event"): SoundEvent {
         val event = SoundEvent(name = uniqueEventName(name))
         events += event
-        touch()
         return event
-    }
-
-    fun removeEvent(event: SoundEvent) {
-        if (events.remove(event)) touch()
-    }
-
-    override fun encode(): ByteArray = serialize().toByteArray()
-
-    override fun reload(bytes: ByteArray) {
-        events.clear()
-        events += parse(bytes)
-        revision++
-        savedRevision = revision
-    }
-
-    override fun markSaved() {
-        savedRevision = revision
     }
 
     private fun uniqueEventName(base: String): String {
@@ -65,7 +27,7 @@ internal class HollowIdeSoundsDocument(bytes: ByteArray) : HollowIdeFileDocument
         return "$base.$index"
     }
 
-    private fun serialize(): String {
+    fun serialize(): String {
         val root = JsonObject()
         for (event in events) {
             val name = event.name.trim()
@@ -99,50 +61,49 @@ internal class HollowIdeSoundsDocument(bytes: ByteArray) : HollowIdeFileDocument
         return obj
     }
 
-    private fun parse(bytes: ByteArray): List<SoundEvent> {
-        val text = bytes.toString(Charsets.UTF_8).trim()
-        if (text.isEmpty()) return emptyList()
-        val root = runCatching { JsonParser.parseString(text) }.getOrNull()
-            ?.takeIf { it.isJsonObject }?.asJsonObject
-            ?: return emptyList()
-
-        val result = mutableListOf<SoundEvent>()
-        for ((key, value) in root.entrySet()) {
-            if (!value.isJsonObject) continue
-            val obj = value.asJsonObject
-            val event = SoundEvent(
-                name = key,
-                replace = obj.boolean("replace") ?: false,
-                subtitle = obj.string("subtitle") ?: "",
-            )
-            obj.get("sounds")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { element ->
-                parseSound(element)?.let { event.sounds += it }
-            }
-            result += event
-        }
-        return result
-    }
-
-    private fun parseSound(element: JsonElement): SoundEntry? = when {
-        element.isJsonPrimitive -> SoundEntry(name = element.asString)
-        element.isJsonObject -> element.asJsonObject.let { obj ->
-            SoundEntry(
-                name = obj.string("name") ?: "",
-                volume = obj.float("volume") ?: 1f,
-                pitch = obj.float("pitch") ?: 1f,
-                weight = obj.int("weight") ?: 1,
-                stream = obj.boolean("stream") ?: false,
-                attenuationDistance = obj.int("attenuation_distance") ?: 16,
-                preload = obj.boolean("preload") ?: false,
-                type = if (obj.string("type") == "event") SoundEntryType.EVENT else SoundEntryType.SOUND,
-            )
-        }
-
-        else -> null
-    }
-
     companion object {
         private val GSON = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
+
+        /** Throws on text that is not a JSON object, so the editor never writes over a half-typed file. */
+        fun parse(text: String): SoundEventsModel {
+            val events = mutableStateListOf<SoundEvent>()
+            if (text.isBlank()) return SoundEventsModel(events)
+            val root = JsonParser.parseString(text)
+            require(root.isJsonObject) { "sounds.json must be a JSON object" }
+
+            for ((key, value) in root.asJsonObject.entrySet()) {
+                if (!value.isJsonObject) continue
+                val obj = value.asJsonObject
+                val event = SoundEvent(
+                    name = key,
+                    replace = obj.boolean("replace") ?: false,
+                    subtitle = obj.string("subtitle") ?: "",
+                )
+                obj.get("sounds")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { element ->
+                    parseSound(element)?.let { event.sounds += it }
+                }
+                events += event
+            }
+            return SoundEventsModel(events)
+        }
+
+        private fun parseSound(element: JsonElement): SoundEntry? = when {
+            element.isJsonPrimitive -> SoundEntry(name = element.asString)
+            element.isJsonObject -> element.asJsonObject.let { obj ->
+                SoundEntry(
+                    name = obj.string("name") ?: "",
+                    volume = obj.float("volume") ?: 1f,
+                    pitch = obj.float("pitch") ?: 1f,
+                    weight = obj.int("weight") ?: 1,
+                    stream = obj.boolean("stream") ?: false,
+                    attenuationDistance = obj.int("attenuation_distance") ?: 16,
+                    preload = obj.boolean("preload") ?: false,
+                    type = if (obj.string("type") == "event") SoundEntryType.EVENT else SoundEntryType.SOUND,
+                )
+            }
+
+            else -> null
+        }
 
         private fun JsonObject.member(key: String): JsonElement? =
             get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }

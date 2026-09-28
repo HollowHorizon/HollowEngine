@@ -1,6 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 internal const val BuiltinTextFileTypeId = "text"
 private const val TextDetectionSampleSize = 8192
@@ -131,7 +134,8 @@ internal class HollowIdeTextDocument(
     initialText: String,
     override val readOnly: Boolean = false,
 ) : HollowIdeFileDocument {
-    var text: String = initialText.normalizeEditorText()
+    /** Snapshot state, so a preview beside the editor follows every edit. */
+    var text: String by mutableStateOf(initialText.normalizeEditorText())
         private set
 
     fun update(value: String): Boolean {

@@ -1,9 +1,9 @@
 @import "hollowengine:ui/styles/theme.hss";
 
+/* Sits in `.ide-file-panel`, which gives it the rounded panel of the text editor beside it. */
 .sounds-editor-root {
     gap: 6px;
     padding: 6px;
-    background: $bg-raised;
 }
 
 .sounds-editor-toolbar {
@@ -44,7 +44,7 @@
 .sounds-editor-list {
     gap: 5px;
     padding: 6px;
-    background: $bg-hover;
+    background: $bg-panel;
     border-radius: $radius;
 }
 
@@ -56,7 +56,7 @@
 .sounds-editor-detail {
     gap: 7px;
     padding: 8px 10px;
-    background: $bg-hover;
+    background: $bg-panel;
     border-radius: $radius;
     @apply $thin-scroll;
 }
@@ -134,8 +134,8 @@
 .sounds-editor-search,
 .sounds-editor-field {
     padding: 3px 5px;
-    background: $bg-selected;
-    border: 1px $border;
+    background: $bg-field;
+    border: 1px $divider;
     border-radius: $radius-small;
     foreground: $text-strong;
     caret-color: $caret;
@@ -146,14 +146,12 @@
     size: 100% fit;
     gap: 5px;
     padding: 7px;
-    background: $bg-selected;
-    border: 1px $border;
+    background: $bg-field;
     border-radius: $radius;
 }
 
 .sounds-editor-button {
-    background: $border;
-    border: 1px $border;
+    background: $bg-hover;
     border-radius: $radius;
     foreground: $text-strong;
     transition: background 100ms ease-out;
@@ -161,7 +159,6 @@
 
 .sounds-editor-button:hover {
     background: $accent-fill;
-    border: 1px $accent;
     foreground: $white;
 }
 
